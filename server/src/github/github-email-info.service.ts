@@ -318,7 +318,11 @@ export class GitHubEmailInfoService {
   /**
    * Process GitHub metadata for a background job: parse links from all emails
    * in the thread, fetch statuses, update the thread, and return info for repo
-   * auto-discovery. Returns null if no token or no links found.
+   * auto-discovery. Returns null only when no GitHub links are found in the thread.
+   *
+   * Always writes at least the parsed links to githubMetadata so the inbox badge
+   * appears even when the user has no GitHub token or the GitHub API is unavailable.
+   * Status is fetched and merged when a token is available and the cache is stale.
    *
    * Scans all thread emails (not just the triggering email) so that GitHub links
    * in earlier messages are captured even when the newest email is a plain reply.
@@ -328,12 +332,7 @@ export class GitHubEmailInfoService {
     emailId: string,
     threadId: string,
   ): Promise<{ links: ParsedGitHubLink[]; category?: string } | null> {
-    const token = await this.getUserGitHubToken(userId);
-    if (!token) {
-      this.logger.debug(`No GitHub token for user ${userId}, skipping`);
-      return null;
-    }
-
+    // Parse links first — no GitHub token required for this step.
     const links = await this.parseThreadGitHubLinks(userId, threadId);
     if (links.length === 0) {
       this.logger.debug(
@@ -353,9 +352,33 @@ export class GitHubEmailInfoService {
       return null;
     }
 
-    // Skip the GitHub API round-trip when cached metadata is still fresh.
-    if (!this.isCacheFresh(thread, links)) {
-      await this.fetchAndMergeThreadMetadata(userId, threadId, token, links);
+    const token = await this.getUserGitHubToken(userId);
+    if (token) {
+      if (!this.isCacheFresh(thread, links)) {
+        try {
+          await this.fetchAndMergeThreadMetadata(
+            userId,
+            threadId,
+            token,
+            links,
+          );
+        } catch (error) {
+          // GitHub API unavailable (rate limit, network error, etc.).
+          // Fall back to storing the links without status so the inbox badge still
+          // appears. The status will be fetched on the next job run.
+          this.logger.warn(
+            `GitHub API failed for thread ${threadId}, storing links without status: ${error}`,
+          );
+          await this.storeLinksWithoutStatus(threadId, userId, links, thread);
+        }
+      }
+    } else {
+      // No token: store the links so the inbox badge appears.
+      // Don't overwrite existing status data (user may have had a token previously).
+      this.logger.debug(
+        `No GitHub token for user ${userId}, storing links without status for thread ${threadId}`,
+      );
+      await this.storeLinksWithoutStatus(threadId, userId, links, thread);
     }
 
     // Resolve category display name from categoryId — downstream consumers do name-based matching.
@@ -374,6 +397,37 @@ export class GitHubEmailInfoService {
       }
     }
     return { links, category: categoryName };
+  }
+
+  /**
+   * Persist parsed links to the thread's githubMetadata without fetching GitHub API
+   * status. Existing statuses for matching link URLs are preserved so we never
+   * downgrade a link that already has fresh cached status data, while still picking
+   * up newly discovered links from later messages in the thread.
+   */
+  private async storeLinksWithoutStatus(
+    threadId: string,
+    userId: string,
+    links: ParsedGitHubLink[],
+    thread: EmailThread,
+  ): Promise<void> {
+    const existingByUrl = new Map<string, GitHubMetadataLink>(
+      (thread.githubMetadata?.links ?? []).map((link) => [link.url, link]),
+    );
+    const metadataLinks: GitHubMetadataLink[] = links.map((link) => {
+      const base = this.buildMetadataLinks([link], new Map())[0];
+      const existing = existingByUrl.get(link.url);
+      if (existing?.status) {
+        return { ...base, status: existing.status };
+      }
+      return base;
+    });
+
+    thread.githubMetadata = { links: metadataLinks };
+    await this.emailThreadRepository.save(thread);
+    this.logger.debug(
+      `Stored ${metadataLinks.length} GitHub link(s) (without fresh status) for thread ${threadId}`,
+    );
   }
 
   /**

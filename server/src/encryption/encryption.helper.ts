@@ -47,10 +47,7 @@ class EncryptionHelper {
    * bubble up. Caller is responsible for shape validation — use
    * `looksLikeEncryptedPayload` first if the input might be plaintext.
    */
-  static decryptWithExplicitKey(
-    encryptedText: string,
-    key: Buffer,
-  ): string {
+  static decryptWithExplicitKey(encryptedText: string, key: Buffer): string {
     const parts = encryptedText.split(":");
     const [ivHex, authTagHex, encrypted] = parts;
     const iv = Buffer.from(ivHex, "hex");
@@ -148,12 +145,9 @@ class EncryptionHelper {
       }
       const authTag = Buffer.from(authTagHex, "hex");
 
-      const decipher = crypto.createDecipheriv(
-        this.algorithm,
-        key,
-        iv,
-        { authTagLength: 16 },
-      ) as crypto.DecipherGCM;
+      const decipher = crypto.createDecipheriv(this.algorithm, key, iv, {
+        authTagLength: 16,
+      }) as crypto.DecipherGCM;
       decipher.setAuthTag(authTag);
 
       let decrypted = decipher.update(encrypted, "hex", "utf8");

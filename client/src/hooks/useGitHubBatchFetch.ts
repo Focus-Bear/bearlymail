@@ -103,11 +103,14 @@ export function useGitHubBatchFetch(emails: Email[], loading: boolean) {
     pollCountRef.current = 0;
 
     const emailsNeedingGitHub = emails.filter(email => {
-      if (!email.githubMetadata?.links || email.githubMetadata.links.length === 0) {
-        return false;
+      // Case 1: already has links but no status yet → need a status refresh
+      if (email.githubMetadata?.links?.length) {
+        return !email.githubMetadata.links.some(link => link.status);
       }
-      const hasStatus = email.githubMetadata.links.some(link => link.status);
-      return !hasStatus;
+      // Case 2: no metadata yet but the email is from GitHub — the background job
+      // may still be running or may have stored links after the inbox was loaded.
+      // Poll batch-status so Redux is updated once the job writes to the DB.
+      return !!email.from && /@(?:[a-zA-Z0-9-]+\.)*github\.com>?\s*$/i.test(email.from);
     });
 
     if (emailsNeedingGitHub.length > 0) {

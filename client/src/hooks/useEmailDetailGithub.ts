@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
 import axios from 'axios';
 import { useUserProfileQuery } from 'queries/useUserProfileQuery';
 import { GitHubLink } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { updateEmail } from 'store/slices/emailSlice';
-import { AppDispatch } from 'store/store';
 
 const deduplicateLinks = (links: GitHubLink[]): GitHubLink[] => {
   const seen = new Set<string>();
@@ -43,7 +40,6 @@ function useEmailChangeReset(
 
 export function useEmailDetailGithub(emailId: string) {
   const { data: userProfile } = useUserProfileQuery();
-  const dispatch = useDispatch<AppDispatch>();
   const [githubLinks, setGithubLinks] = useState<GitHubLink[]>([]);
   const [loadingGithub, setLoadingGithub] = useState(true);
   const [hasGithubToken, setHasGithubToken] = useState(() => !!userProfile?.githubToken);
@@ -89,11 +85,6 @@ export function useEmailDetailGithub(emailId: string) {
         const links = deduplicateLinks(response.data.links || []);
         setGithubLinks(links);
         setHasGithubToken(response.data.hasToken !== false);
-        // Sync discovered links back to Redux so the inbox badge updates without
-        // requiring a full inbox refresh.
-        if (links.length > 0) {
-          dispatch(updateEmail({ id: emailId, updates: { githubMetadata: { links } } }));
-        }
       }
     } catch (error: unknown) {
       if (axios.isCancel(error)) {
@@ -110,7 +101,7 @@ export function useEmailDetailGithub(emailId: string) {
         setLoadingGithub(false);
       }
     }
-  }, [emailId, dispatch]);
+  }, [emailId]);
 
   const refreshGithubInfo = useCallback(async () => {
     if (!emailId) {
@@ -135,10 +126,6 @@ export function useEmailDetailGithub(emailId: string) {
         fetchedRef.current = emailId;
         const links = deduplicateLinks(response.data.links || []);
         setGithubLinks(links);
-        // Sync refreshed links back to Redux so the inbox badge stays current.
-        if (links.length > 0) {
-          dispatch(updateEmail({ id: emailId, updates: { githubMetadata: { links } } }));
-        }
       }
     } catch (error) {
       if (axios.isCancel(error)) {
@@ -151,7 +138,7 @@ export function useEmailDetailGithub(emailId: string) {
         setLoadingGithub(false);
       }
     }
-  }, [emailId, dispatch]);
+  }, [emailId]);
 
   const setGithubLinksWithDedup = useCallback(
     (links: GitHubLink[]) => {

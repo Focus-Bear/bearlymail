@@ -75,8 +75,36 @@ describe("GitHubEmailInfoService.processEmailGitHubMetadataForJob", () => {
     jest.clearAllMocks();
   });
 
-  it("returns null when user has no GitHub token", async () => {
+  it("stores links without status when user has no GitHub token", async () => {
+    jest
+      .spyOn(EncryptionHelper, "tryDecrypt")
+      .mockImplementation((val) => val ?? "");
+    // No GitHub token
     mockUsersService.findOne.mockResolvedValue({ githubToken: null });
+    mockEmailRepository.find.mockResolvedValue([
+      {
+        id: "email-1",
+        body: "View PR at https://github.com/owner/repo/pull/42",
+        htmlBody: null,
+        from: "notifications@github.com",
+        subject: "[owner/repo] My PR (#42)",
+      },
+    ]);
+    const parsedLink = {
+      type: GITHUB_LINK_TYPES.PR,
+      owner: "owner",
+      repo: "repo",
+      number: 42,
+      url: "https://github.com/owner/repo/pull/42",
+    };
+    mockGitHubService.parseGitHubLinks.mockReturnValue([parsedLink]);
+    mockEmailThreadRepository.findOne.mockResolvedValue({
+      id: "thread-1",
+      userId: "user-1",
+      categoryId: null,
+      githubMetadata: null,
+    });
+    mockEmailThreadRepository.save.mockResolvedValue({});
 
     const result = await service.processEmailGitHubMetadataForJob(
       "user-1",
@@ -84,8 +112,26 @@ describe("GitHubEmailInfoService.processEmailGitHubMetadataForJob", () => {
       "thread-1",
     );
 
-    expect(result).toBeNull();
-    expect(mockEmailRepository.find).not.toHaveBeenCalled();
+    // Returns links even without a token
+    expect(result).not.toBeNull();
+    expect(result?.links).toHaveLength(1);
+
+    // Persists links (without status) so the inbox badge appears
+    expect(mockEmailThreadRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "thread-1",
+        userId: "user-1",
+        githubMetadata: expect.objectContaining({
+          links: expect.arrayContaining([
+            expect.objectContaining({
+              url: "https://github.com/owner/repo/pull/42",
+            }),
+          ]),
+        }),
+      }),
+    );
+    // Never hits the GitHub API
+    expect(mockGitHubApiService.fetchMultipleStatuses).not.toHaveBeenCalled();
   });
 
   it("returns null when no GitHub links found in the thread", async () => {
@@ -115,6 +161,62 @@ describe("GitHubEmailInfoService.processEmailGitHubMetadataForJob", () => {
 
     expect(result).toBeNull();
     expect(mockGitHubApiService.fetchMultipleStatuses).not.toHaveBeenCalled();
+  });
+
+  it("stores links without status when GitHub API fails", async () => {
+    jest
+      .spyOn(EncryptionHelper, "tryDecrypt")
+      .mockImplementation((val) => val ?? "");
+    mockUsersService.findOne.mockResolvedValue({
+      githubToken: "encrypted-token",
+    });
+    mockEmailRepository.find.mockResolvedValue([
+      {
+        id: "email-1",
+        body: "View PR at https://github.com/owner/repo/pull/42",
+        htmlBody: null,
+        from: "notifications@github.com",
+        subject: "[owner/repo] My PR (#42)",
+      },
+    ]);
+    const parsedLink = {
+      type: GITHUB_LINK_TYPES.PR,
+      owner: "owner",
+      repo: "repo",
+      number: 42,
+      url: "https://github.com/owner/repo/pull/42",
+    };
+    mockGitHubService.parseGitHubLinks.mockReturnValue([parsedLink]);
+    mockEmailThreadRepository.findOne.mockResolvedValue({
+      id: "thread-1",
+      userId: "user-1",
+      categoryId: null,
+      githubMetadata: null,
+    });
+    // GitHub API throws (rate limit, network error, etc.)
+    mockGitHubApiService.fetchMultipleStatuses.mockRejectedValue(
+      new Error("GitHub API rate limit exceeded"),
+    );
+    mockEmailThreadRepository.save.mockResolvedValue({});
+
+    const result = await service.processEmailGitHubMetadataForJob(
+      "user-1",
+      "email-1",
+      "thread-1",
+    );
+
+    // Returns links even when API fails
+    expect(result).not.toBeNull();
+    expect(result?.links).toHaveLength(1);
+
+    // Falls back to storing links without status so the badge still appears
+    expect(mockEmailThreadRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "thread-1",
+        userId: "user-1",
+        githubMetadata: expect.objectContaining({ links: expect.any(Array) }),
+      }),
+    );
   });
 
   it("scans ALL thread emails (not just the triggering email)", async () => {

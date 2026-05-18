@@ -94,7 +94,7 @@
     "serve": "^14.2.6",
     "storybook": "^8.6.17",
     "vite": "^8.0.8",
-    "vite-tsconfig-paths": "^6.0.3"
+    "vite-tsconfig-paths": "^6.1.1"
   },
   "jest": {
     "transformIgnorePatterns": [

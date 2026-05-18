@@ -805,6 +805,7 @@ export function useEmailDetailOperations(
           setReplyRecipients(currentReplyRecipients);
           setReplyCc(currentReplyCc);
           setReplyBcc(currentReplyBcc);
+          setReplySubject(currentReplySubject);
           setShowReplyComposer(true);
           showError(getAxiosErrorMessage(error, t('emailDetail.replySentError')));
         }

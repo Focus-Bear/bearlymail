@@ -388,11 +388,115 @@ export interface MeetingProposalResult {
 
 const DEFAULT_DURATION_MINUTES = 30;
 
+type DetectedProposal = {
+  hasProposal: boolean;
+  proposedTime: string | null;
+  proposedTimeText: string | null;
+  topic: string | null;
+  durationMinutes: number | null;
+};
+
+async function resolveEmailForDetection(
+  service: CalendarService,
+  userId: string,
+  email: Awaited<ReturnType<CalendarService["emailsService"]["getEmailById"]>>,
+) {
+  if (!email?.threadId) return email;
+  const recentEmails = await service.emailsService.getThreadEmails(
+    userId,
+    email.threadId,
+    { limit: 1, order: "DESC" },
+  );
+  return recentEmails.length > 0 ? recentEmails[0] : email;
+}
+
+async function detectProposal(
+  service: CalendarService,
+  userId: string,
+  thread: {
+    meetingProposal?: DetectedProposal;
+    lastSummarizedAt?: Date;
+  } | null,
+  emailForDetection: {
+    from: string;
+    fromName?: string;
+    subject: string;
+    body: string;
+    receivedAt?: Date;
+  },
+): Promise<DetectedProposal> {
+  const mostRecentReceivedAt = emailForDetection.receivedAt;
+  const cacheIsFresh =
+    thread?.meetingProposal != null &&
+    thread.lastSummarizedAt != null &&
+    mostRecentReceivedAt != null &&
+    mostRecentReceivedAt <= thread.lastSummarizedAt;
+
+  if (cacheIsFresh) {
+    return thread!.meetingProposal!;
+  }
+
+  const prefs =
+    await service.schedulingPreferencesService.getPreferences(userId);
+  return service.llmService.detectMeetingProposal(
+    {
+      from: emailForDetection.from,
+      fromName: emailForDetection.fromName,
+      subject: emailForDetection.subject,
+      body: emailForDetection.body,
+    },
+    undefined,
+    userId,
+    prefs.timezone,
+  );
+}
+
+async function checkCalendarAvailability(
+  service: CalendarService,
+  user: {
+    id: string;
+    googleCalendarAccessToken: string;
+    googleCalendarRefreshToken?: string | null;
+  },
+  proposedTime: string,
+  durationMinutes: number | null,
+): Promise<boolean | null> {
+  try {
+    const duration = durationMinutes ?? DEFAULT_DURATION_MINUTES;
+    const proposedStart = new Date(proposedTime);
+    const proposedEnd = new Date(
+      proposedStart.getTime() + duration * MILLISECONDS.MINUTE,
+    );
+    const oauth2Client = service.createOAuth2Client(user);
+    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+    const freebusyResponse = await calendar.freebusy.query({
+      requestBody: {
+        timeMin: proposedStart.toISOString(),
+        timeMax: proposedEnd.toISOString(),
+        items: [{ id: "primary" }],
+      },
+    });
+    const busyPeriods = freebusyResponse.data.calendars?.primary?.busy ?? [];
+    return busyPeriods.length === 0;
+  } catch (error) {
+    logError(
+      "Failed to check calendar availability for proposed meeting time",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+    return null;
+  }
+}
+
 /**
  * Detects whether the email proposes a specific meeting time and checks calendar availability.
- * Uses the meeting proposal cached during summarization (EmailThread.meetingProposal) when
- * available to avoid an extra LLM call. Falls back to on-demand LLM detection when the
- * cached value is absent (e.g. email was summarised before this feature was deployed).
+ *
+ * Always detects from the most recent email in the thread so that a reply proposing a
+ * rescheduled time (different from the original proposal) is picked up correctly.
+ *
+ * The cached EmailThread.meetingProposal is reused only when it is still fresh — i.e. when
+ * the thread was re-summarised AFTER the most recent email arrived.  If a new email arrived
+ * since the last summarisation the cache may reflect the old proposed time, so the LLM is
+ * called again with the latest email's body.
  */
 export async function checkMeetingProposal(
   service: CalendarService,
@@ -404,94 +508,40 @@ export async function checkMeetingProposal(
     throw new Error("Email not found");
   }
 
-  // Use cached meeting proposal from summarization if available, otherwise call LLM.
-  let proposal: {
-    hasProposal: boolean;
-    proposedTime: string | null;
-    proposedTimeText: string | null;
-    topic: string | null;
-    durationMinutes: number | null;
-  };
-
   const thread = email.emailThreadId
     ? await service.emailThreadRepository.findOne({
         where: { id: email.emailThreadId, userId },
       })
     : null;
 
-  if (thread?.meetingProposal != null) {
-    proposal = thread.meetingProposal;
-  } else {
-    const prefs =
-      await service.schedulingPreferencesService.getPreferences(userId);
-    proposal = await service.llmService.detectMeetingProposal(
-      {
-        from: email.from,
-        fromName: email.fromName,
-        subject: email.subject,
-        body: email.body,
-      },
-      undefined,
-      userId,
-      prefs.timezone,
-    );
-  }
+  const emailForDetection = await resolveEmailForDetection(
+    service,
+    userId,
+    email,
+  );
+  const proposal = await detectProposal(
+    service,
+    userId,
+    thread,
+    emailForDetection,
+  );
 
   if (!proposal.hasProposal || !proposal.proposedTime) {
-    return {
-      ...proposal,
-      isAvailable: null,
-      calendarConnected: false,
-    };
+    return { ...proposal, isAvailable: null, calendarConnected: false };
   }
 
-  // Check calendar availability
   const user = await service.usersService.findOne(userId);
   if (!user?.googleCalendarAccessToken) {
-    return {
-      ...proposal,
-      isAvailable: null,
-      calendarConnected: false,
-    };
+    return { ...proposal, isAvailable: null, calendarConnected: false };
   }
 
-  try {
-    const duration = proposal.durationMinutes ?? DEFAULT_DURATION_MINUTES;
-    const proposedStart = new Date(proposal.proposedTime);
-    const proposedEnd = new Date(
-      proposedStart.getTime() + duration * MILLISECONDS.MINUTE,
-    );
-
-    const oauth2Client = service.createOAuth2Client(user);
-    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-    const freebusyResponse = await calendar.freebusy.query({
-      requestBody: {
-        timeMin: proposedStart.toISOString(),
-        timeMax: proposedEnd.toISOString(),
-        items: [{ id: "primary" }],
-      },
-    });
-
-    const busyPeriods = freebusyResponse.data.calendars?.primary?.busy ?? [];
-    const isAvailable = busyPeriods.length === 0;
-
-    return {
-      ...proposal,
-      isAvailable,
-      calendarConnected: true,
-    };
-  } catch (error) {
-    logError(
-      "Failed to check calendar availability for proposed meeting time",
-      error instanceof Error ? error : new Error(String(error)),
-    );
-    return {
-      ...proposal,
-      isAvailable: null,
-      calendarConnected: true,
-    };
-  }
+  const isAvailable = await checkCalendarAvailability(
+    service,
+    user,
+    proposal.proposedTime,
+    proposal.durationMinutes,
+  );
+  return { ...proposal, isAvailable, calendarConnected: true };
 }
 
 const HTTP_NOT_FOUND = 404;

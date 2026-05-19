@@ -280,6 +280,51 @@ describe("PriorityAnalysisService", () => {
       ).rejects.toThrow("Prompt template not found: analyze_priority");
     });
 
+    it("should return shortlistedCategoryNames as null when shortlisting is disabled", async () => {
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        validPriorityResponse,
+      );
+      mockCategoryShortlistService.isShortlistEnabled = jest
+        .fn()
+        .mockReturnValue(false);
+
+      const result = await service.analyzePriority({ email: mockEmail });
+
+      expect(result.shortlistedCategoryNames).toBeNull();
+    });
+
+    it("should return shortlistedCategoryNames with category names when shortlisting is enabled", async () => {
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        validPriorityResponse,
+      );
+      mockCategoryShortlistService.isShortlistEnabled = jest
+        .fn()
+        .mockReturnValue(true);
+      (
+        mockCategoryShortlistService.getShortlist as jest.Mock
+      ).mockResolvedValue([
+        { name: "Customer Support", categoryKey: "customer_support" },
+        { name: "Engineering", categoryKey: "engineering" },
+      ]);
+
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userContext: {
+          emailCategories: [
+            { name: "Customer Support", categoryKey: "customer_support" },
+            { name: "Engineering", categoryKey: "engineering" },
+            { name: "Sales", categoryKey: "sales" },
+          ],
+          protoCategories: [],
+        },
+      });
+
+      expect(result.shortlistedCategoryNames).toEqual([
+        "Customer Support",
+        "Engineering",
+      ]);
+    });
+
     it("should handle category 'Other' with protoCategorySuggestion", async () => {
       const responseWithProtoCategory = JSON.stringify({
         result: {

@@ -311,6 +311,16 @@ export class EmailThread {
   })
   aiProcessingDeferred: boolean;
 
+  @Column("text", {
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment:
+      "Category names that were shortlisted and passed to the smart model during priority analysis. " +
+      "Null means shortlisting was not applicable (category count below threshold) or not yet run. " +
+      "Stored for debug purposes — visible in the category debug view.",
+  })
+  shortlistedCategoryNames: string[] | null;
+
   @Column({
     default: false,
     comment:

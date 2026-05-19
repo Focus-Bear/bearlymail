@@ -109,6 +109,28 @@ export const CategorySection: React.FC<CategorySectionProps> = ({ thread }) => {
             </div>
           </div>
         )}
+        <div style={{ marginTop: theme.spacing.sm }}>
+          <strong>{t('priority.categoryDebug.shortlistedCategoriesLabel')}:</strong>
+          {thread.shortlistedCategoryNames === null ? (
+            <span style={{ ...emptyStyle, marginLeft: 4 }}>{t('priority.categoryDebug.shortlistNotApplicable')}</span>
+          ) : thread.shortlistedCategoryNames.length === 0 ? (
+            <span style={{ ...emptyStyle, marginLeft: 4 }}>{t('priority.categoryDebug.none')}</span>
+          ) : (
+            <ol
+              style={{
+                margin: `${theme.spacing.xs} 0 0`,
+                paddingLeft: theme.spacing.lg,
+                fontSize: theme.typography.fontSize.xs,
+              }}
+            >
+              {thread.shortlistedCategoryNames.map(name => (
+                <li key={name} style={{ marginBottom: theme.spacing.xs }}>
+                  {name}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
       </div>
     </>
   );

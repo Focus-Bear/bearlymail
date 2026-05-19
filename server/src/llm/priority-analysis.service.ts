@@ -12,7 +12,10 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
 import { resolveLlmCategoryToDisplayName } from "../utils/category-key.util";
-import { CategoryShortlistService } from "./category-shortlist.service";
+import {
+  CategoryItem,
+  CategoryShortlistService,
+} from "./category-shortlist.service";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -65,6 +68,8 @@ type PriorityResult = {
   categoryConfidence?: CategoryConfidence;
   reasoning: string;
   protoCategorySuggestion?: { name: string; description: string };
+  /** Category names that were shortlisted and passed to the smart model. Null when shortlisting was skipped (category count below threshold). */
+  shortlistedCategoryNames: string[] | null;
 };
 
 export type BatchPriorityResult = PriorityResult & {
@@ -163,6 +168,43 @@ export class PriorityAnalysisService {
   }
 
   /**
+   * Runs the two-step category shortlisting logic and returns the effective category list
+   * plus the shortlisted names for debug storage. When shortlisting is skipped (category
+   * count below the threshold) `shortlistedCategoryNames` is null.
+   */
+  private async resolveEffectiveCategories(
+    email: { from: string; fromName?: string; subject: string },
+    userContext: UserContextInput | undefined,
+    cleanedBody: string,
+  ): Promise<{
+    effectiveCategories: CategoryItem[];
+    shortlistedCategoryNames: string[] | null;
+  }> {
+    const allCategories = [
+      ...(userContext?.emailCategories ?? []),
+      ...(userContext?.protoCategories ?? []),
+    ];
+    const shortlistEnabled = this.categoryShortlistService.isShortlistEnabled(
+      allCategories.length,
+    );
+    const effectiveCategories = shortlistEnabled
+      ? await this.categoryShortlistService.getShortlist(
+          {
+            from: email.from,
+            fromName: email.fromName,
+            subject: email.subject,
+            summary: cleanedBody,
+          },
+          allCategories,
+        )
+      : allCategories;
+    const shortlistedCategoryNames = shortlistEnabled
+      ? effectiveCategories.map((cat) => cat.name)
+      : null;
+    return { effectiveCategories, shortlistedCategoryNames };
+  }
+
+  /**
    * Build the priority prompt for a single email.
    * Loads the prompt template, formats user context and thread info, and renders the prompt string.
    * When the category shortlist feature is enabled and category count exceeds the threshold,
@@ -186,7 +228,11 @@ export class PriorityAnalysisService {
         }
       | undefined,
     userId: string | undefined,
-  ): Promise<{ prompt: string; systemPrompt: string }> {
+  ): Promise<{
+    prompt: string;
+    systemPrompt: string;
+    shortlistedCategoryNames: string[] | null;
+  }> {
     const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
     if (!promptConfig) {
       const error = new StructuralError(
@@ -213,25 +259,8 @@ export class PriorityAnalysisService {
       day: "numeric",
     });
 
-    // Apply category shortlisting when category count exceeds the threshold.
-    // Step 1: pass the cleaned summary (not raw body) to the shortlist model.
-    // Step 2: the smart prompt below then chooses the best category from the shortlisted candidates.
-    const allCategories = [
-      ...(userContext?.emailCategories ?? []),
-      ...(userContext?.protoCategories ?? []),
-    ];
-    const effectiveCategories =
-      this.categoryShortlistService.isShortlistEnabled(allCategories.length)
-        ? await this.categoryShortlistService.getShortlist(
-            {
-              from: email.from,
-              fromName: email.fromName,
-              subject: email.subject,
-              summary: cleanedBody,
-            },
-            allCategories,
-          )
-        : allCategories;
+    const { effectiveCategories, shortlistedCategoryNames } =
+      await this.resolveEffectiveCategories(email, userContext, cleanedBody);
 
     const effectiveUserContext: UserContextInput | undefined = userContext
       ? {
@@ -272,7 +301,11 @@ export class PriorityAnalysisService {
       threadInfo: threadInfoText,
     });
 
-    return { prompt, systemPrompt: promptConfig.systemPrompt || "" };
+    return {
+      prompt,
+      systemPrompt: promptConfig.systemPrompt || "",
+      shortlistedCategoryNames,
+    };
   }
 
   /**
@@ -365,6 +398,8 @@ export class PriorityAnalysisService {
                 analysisResult.protoCategorySuggestion.description || "",
             }
           : undefined,
+      // Placeholder — overridden by analyzePriority after buildPriorityPrompt runs the shortlist
+      shortlistedCategoryNames: null,
     };
   }
 
@@ -391,6 +426,7 @@ export class PriorityAnalysisService {
       category: "Other",
       categoryExplanation: "Unable to categorize - fallback response",
       reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
+      shortlistedCategoryNames: null,
     };
   }
 
@@ -425,13 +461,14 @@ export class PriorityAnalysisService {
       threadInfo,
       preComputedSentimentScore,
     } = options;
-    const { prompt, systemPrompt } = await this.buildPriorityPrompt(
-      email,
-      userHistory,
-      userContext,
-      threadInfo,
-      userId,
-    );
+    const { prompt, systemPrompt, shortlistedCategoryNames } =
+      await this.buildPriorityPrompt(
+        email,
+        userHistory,
+        userContext,
+        threadInfo,
+        userId,
+      );
 
     const response = await this.llmCoreService.generateText(
       {
@@ -461,7 +498,10 @@ export class PriorityAnalysisService {
         userId,
       );
       if (parsed) {
-        return this.applyCategoryKeyResolution(parsed, userContext);
+        return {
+          ...this.applyCategoryKeyResolution(parsed, userContext),
+          shortlistedCategoryNames,
+        };
       }
     } catch (error) {
       this.logger.error(
@@ -474,10 +514,10 @@ export class PriorityAnalysisService {
       });
     }
 
-    return this.buildFallbackPriorityResult(
-      response,
-      preComputedSentimentScore,
-    );
+    return {
+      ...this.buildFallbackPriorityResult(response, preComputedSentimentScore),
+      shortlistedCategoryNames,
+    };
   }
 
   /**
@@ -611,6 +651,7 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
           category: "Other",
           categoryExplanation: "Batch analysis failed",
           reasoning: "Batch analysis did not return results for this email",
+          shortlistedCategoryNames: null,
           isFallback: true,
         });
       }
@@ -680,6 +721,7 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
               category: TRIAGE_PRESERVED_CATEGORY,
               categoryExplanation: TRIAGE_PRESERVED_EXPLANATIONS.CATEGORY,
               reasoning: TRIAGE_PRESERVED_EXPLANATIONS.REASONING,
+              shortlistedCategoryNames: null,
               isFallback: false,
               triagePreserved: true,
             });

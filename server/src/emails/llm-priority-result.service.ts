@@ -34,6 +34,8 @@ type PriorityLlmResult = {
   /** @deprecated Category explanation now comes from the summary LLM call. May be absent. */
   categoryExplanation?: string;
   protoCategorySuggestion?: { name: string; description: string };
+  /** Category names passed to the smart model after shortlisting. Null when shortlisting was skipped. */
+  shortlistedCategoryNames?: string[] | null;
 };
 
 type PriorityBreakdownItem = {
@@ -243,6 +245,7 @@ export class LLMPriorityResultService {
         protoCategoryId,
         isProcessingPriority: false,
         aiProcessingDeferred: false,
+        shortlistedCategoryNames: llmResult.shortlistedCategoryNames ?? null,
       },
     );
 

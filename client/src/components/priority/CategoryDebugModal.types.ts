@@ -61,6 +61,8 @@ export interface CategoryDebugData {
     category: string | null;
     categoryExplanation: string | null;
     categorySource: 'summary' | 'priority' | null;
+    /** Category names that were shortlisted and passed to the smart model during the last priority analysis. Null means shortlisting was not applicable or not yet run. */
+    shortlistedCategoryNames: string[] | null;
   };
   emailCategories: Array<{
     id: string;

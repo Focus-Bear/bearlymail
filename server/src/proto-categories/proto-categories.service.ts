@@ -25,11 +25,41 @@ import {
   levenshteinDistance,
 } from "../utils/levenshtein.util";
 
-// Cap on how many Levenshtein-flagged candidates we hand off to the LLM in one
-// matching pass. Without this, a user with many similar category names would
-// trigger one sequential LLM call per candidate — slow and expensive. Sorting
-// by distance and keeping the closest two preserves the best-match ordering.
+// Cap on how many Levenshtein-flagged or shared-token candidates we hand off
+// to the LLM in one matching pass. Without this, a user with many similar
+// category names would trigger one sequential LLM call per candidate — slow
+// and expensive. Sorting by distance and keeping the closest two preserves
+// the best-match ordering.
 const MAX_LLM_DEDUP_CANDIDATES = 2;
+
+// Significant tokens must be at least this long to be considered.
+const SIGNIFICANT_TOKEN_MIN_LENGTH = 3;
+
+// Common words that appear in category names but carry no platform signal.
+const STOP_WORDS = new Set([
+  "and",
+  "or",
+  "the",
+  "a",
+  "an",
+  "of",
+  "for",
+  "to",
+  "in",
+  "on",
+  "at",
+  "by",
+  "from",
+  "with",
+  "its",
+  "this",
+  "that",
+  "via",
+  "per",
+  "vs",
+  "email",
+  "emails",
+]);
 
 @Injectable()
 export class ProtoCategoriesService {
@@ -324,6 +354,72 @@ export class ProtoCategoriesService {
       }
     }
 
+    return this.findSharedTokenMatch(
+      suggestedName,
+      suggestionWithoutEmoji,
+      categories,
+      new Set(nearDuplicates.map((nd) => nd.category.contextId)),
+      userId,
+    );
+  }
+
+  /**
+   * Phase 4 of findMatchingFullCategory: shared significant-token LLM check.
+   *
+   * Catches semantically related names that Levenshtein misses due to large
+   * textual distance, e.g. "Github and Code" vs "GitHub Notifications".
+   * When the suggestion shares a platform keyword ("github", "jira", …) with
+   * an existing category we ask the LLM — the updated check-category-duplicate
+   * prompt marks broad catch-all platform categories as duplicates of specific ones.
+   */
+  private async findSharedTokenMatch(
+    suggestedName: string,
+    suggestionWithoutEmoji: string,
+    categories: UserContext[],
+    alreadyCheckedIds: Set<string>,
+    userId: string,
+  ): Promise<{ name: string; contextId: string } | null> {
+    const significantTokens = this.extractSignificantTokens(
+      suggestionWithoutEmoji,
+    );
+    if (significantTokens.length === 0) return null;
+
+    const tokenCandidates = categories
+      .filter((cat) => {
+        if (alreadyCheckedIds.has(cat.contextId)) return false;
+        const nameWithoutEmoji = parseCategoryName(cat.contextValue)
+          .toLowerCase()
+          .trim()
+          .replace(/[\p{Emoji}]/gu, "")
+          .trim();
+        return significantTokens.some((token) =>
+          nameWithoutEmoji.includes(token),
+        );
+      })
+      .slice(0, MAX_LLM_DEDUP_CANDIDATES);
+
+    for (const candidate of tokenCandidates) {
+      const categoryName = parseCategoryName(candidate.contextValue);
+      try {
+        const isDuplicate = await this.checkCategoryDuplicate(
+          suggestedName,
+          categoryName,
+          userId,
+        );
+        if (isDuplicate) {
+          await this.saveAlternateName(candidate, suggestedName);
+          this.logger.log(
+            `SharedToken+LLM duplicate: "${suggestedName}" → "${categoryName}"`,
+          );
+          return { name: categoryName, contextId: candidate.contextId };
+        }
+      } catch (err) {
+        this.logger.warn(
+          `LLM duplicate check (token) failed for "${suggestedName}" vs "${categoryName}": ${err}`,
+        );
+      }
+    }
+
     return null;
   }
 
@@ -598,6 +694,22 @@ export class ProtoCategoriesService {
       `[CHECK-CATEGORY-DUPLICATE] "${categoryA}" vs "${categoryB}": isDuplicate=${isDuplicate} reason="${parsed.reasoning ?? ""}"`,
     );
     return isDuplicate;
+  }
+
+  /**
+   * Extracts significant (non-stop, length >= SIGNIFICANT_TOKEN_MIN_LENGTH)
+   * words from a lowercased, emoji-stripped category name. Used by Phase 4 of
+   * `findMatchingFullCategory` to detect shared platform keywords like "github".
+   */
+  private extractSignificantTokens(text: string): string[] {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s/]/g, " ")
+      .split(/\s+/)
+      .filter(
+        (word) =>
+          word.length >= SIGNIFICANT_TOKEN_MIN_LENGTH && !STOP_WORDS.has(word),
+      );
   }
 
   /**

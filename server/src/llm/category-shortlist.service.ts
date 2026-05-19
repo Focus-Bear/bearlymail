@@ -20,6 +20,58 @@ const SHORTLIST_THRESHOLD = 12;
 /** Default model for shortlist classification. Override via CATEGORY_SHORTLIST_MODEL env var. */
 const DEFAULT_SHORTLIST_MODEL = "gpt-5.4-nano";
 
+/**
+ * Platform keyword pinning: when the sender's email domain matches a known
+ * platform, all categories containing that platform's keyword are pinned into
+ * the shortlist regardless of what the cheap shortlist model selected.
+ *
+ * This prevents GitHub emails from being labelled "Other" (and triggering a
+ * redundant "Github and Code" proto-category) simply because the shortlist
+ * model failed to surface the user's existing GitHub-specific categories.
+ */
+export const PLATFORM_PINNING: Array<{
+  domainPatterns: string[];
+  categoryKeywords: string[];
+}> = [
+  { domainPatterns: ["github.com", "github.io"], categoryKeywords: ["github"] },
+  {
+    domainPatterns: ["gitlab.com", "gitlab.io"],
+    categoryKeywords: ["gitlab"],
+  },
+  {
+    domainPatterns: ["atlassian.net", "atlassian.com"],
+    categoryKeywords: ["jira", "atlassian", "confluence"],
+  },
+  {
+    domainPatterns: ["linear.app"],
+    categoryKeywords: ["linear"],
+  },
+  {
+    domainPatterns: ["slack.com"],
+    categoryKeywords: ["slack"],
+  },
+  {
+    domainPatterns: ["notion.so", "notion.com"],
+    categoryKeywords: ["notion"],
+  },
+  {
+    domainPatterns: ["figma.com"],
+    categoryKeywords: ["figma"],
+  },
+  {
+    domainPatterns: ["sentry.io"],
+    categoryKeywords: ["sentry"],
+  },
+  {
+    domainPatterns: ["pagerduty.com"],
+    categoryKeywords: ["pagerduty"],
+  },
+  {
+    domainPatterns: ["datadog.com"],
+    categoryKeywords: ["datadog"],
+  },
+];
+
 export type CategoryItem = {
   name: string;
   description?: string;
@@ -59,6 +111,64 @@ export class CategoryShortlistService {
    */
   isShortlistEnabled(totalCategoryCount: number): boolean {
     return totalCategoryCount > SHORTLIST_THRESHOLD;
+  }
+
+  /**
+   * Returns platform keywords to pin when the sender's email matches a known
+   * platform domain. Returns an empty array for unrecognised senders.
+   */
+  getPlatformKeywordsForSender(fromEmail: string): string[] {
+    const lower = fromEmail.toLowerCase();
+    const domain = lower.split("@")[1];
+    if (!domain) return [];
+
+    for (const entry of PLATFORM_PINNING) {
+      if (
+        entry.domainPatterns.some(
+          (pattern) => domain === pattern || domain.endsWith("." + pattern),
+        )
+      ) {
+        return entry.categoryKeywords;
+      }
+    }
+    return [];
+  }
+
+  /**
+   * Appends any platform-specific categories that the LLM shortlist omitted.
+   * Called after parsing the LLM response so that GitHub/Jira/etc. categories
+   * are always visible to the smart model when the email is from that platform.
+   */
+  pinPlatformCategories(
+    shortlisted: CategoryItem[],
+    allCategories: CategoryItem[],
+    fromEmail: string,
+  ): CategoryItem[] {
+    const keywords = this.getPlatformKeywordsForSender(fromEmail);
+    if (keywords.length === 0) return shortlisted;
+
+    const shortlistedKeys = new Set(
+      shortlisted.map((cat) => (cat.categoryKey ?? cat.name).toLowerCase()),
+    );
+
+    const missing = allCategories.filter((cat) => {
+      if (cat.name.toLowerCase() === CATEGORY_RESERVED_NAMES.OTHER)
+        return false;
+      const dedupeKey = (cat.categoryKey ?? cat.name).toLowerCase();
+      if (shortlistedKeys.has(dedupeKey)) return false;
+      const nameWithoutEmoji = cat.name
+        .toLowerCase()
+        .replace(/\p{Emoji}/gu, "")
+        .trim();
+      return keywords.some((kw) => nameWithoutEmoji.includes(kw));
+    });
+
+    if (missing.length === 0) return shortlisted;
+
+    this.logger.log(
+      `CategoryShortlist: pinning ${missing.length} platform categor${missing.length === 1 ? "y" : "ies"} for sender "${fromEmail}": ${missing.map((cat) => cat.name).join(", ")}`,
+    );
+    return [...shortlisted, ...missing];
   }
 
   /**
@@ -135,7 +245,8 @@ export class CategoryShortlistService {
         LLMProvider.OPENAI,
       );
 
-      return this.parseShortlistResponse(response, allCategories);
+      const shortlisted = this.parseShortlistResponse(response, allCategories);
+      return this.pinPlatformCategories(shortlisted, allCategories, email.from);
     } catch (error) {
       this.logger.error(
         "CategoryShortlistService: shortlist LLM call failed — falling back to full category list",

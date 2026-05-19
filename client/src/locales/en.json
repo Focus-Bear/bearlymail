@@ -2604,6 +2604,8 @@
       "referenceProtoCategories": "Reference — proto categories",
       "referenceUserContext": "Reference — user context",
       "categorySourceLabel": "Set by step",
+      "shortlistedCategoriesLabel": "Shortlisted categories (stored from last analysis)",
+      "shortlistNotApplicable": "Not applicable (category count below shortlist threshold, or not yet analysed)",
       "categoryLabelUnreadable": "Category record {{shortId}}…",
       "categoryRawValue": "raw value",
       "categoryStableIdLine": "id: {{key}}",

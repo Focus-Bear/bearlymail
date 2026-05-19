@@ -2697,6 +2697,8 @@
       "referenceProtoCategories": "Referencia — proto categorías",
       "referenceUserContext": "Referencia — contexto del usuario",
       "categorySourceLabel": "Paso que la fijó",
+      "shortlistedCategoriesLabel": "Categorías preseleccionadas (guardadas del último análisis)",
+      "shortlistNotApplicable": "No aplicable (cantidad de categorías por debajo del umbral, o aún no analizado)",
       "categoryLabelUnreadable": "Registro de categoría {{shortId}}…",
       "categoryRawValue": "valor en bruto",
       "categoryStableIdLine": "id: {{key}}",

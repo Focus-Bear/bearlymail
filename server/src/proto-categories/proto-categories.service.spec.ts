@@ -239,6 +239,57 @@ describe("ProtoCategoriesService", () => {
       expect(llmCoreService.generateText).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
+
+    it("blocks broad platform catch-all via Phase 4 shared-token check (issue #2065 follow-up)", async () => {
+      const stored = makeUserContext(
+        "ctx-github-prs",
+        "🐙 GitHub PRs - Pull request notifications",
+      );
+      const stored2 = makeUserContext(
+        "ctx-github-notif",
+        "🔔 GitHub Notifications - General GitHub alerts",
+      );
+      userContextRepo.find.mockResolvedValue([stored, stored2]);
+      const txRepo = {
+        findOne: jest.fn().mockResolvedValue(stored),
+        update: jest.fn().mockResolvedValue({}),
+      };
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: unknown) => Promise<unknown>) =>
+          cb({ getRepository: () => txRepo }),
+      );
+      // LLM says the broad "Github and Code" is a duplicate of the specific "🐙 GitHub PRs"
+      llmCoreService.generateText.mockResolvedValue(
+        '{"isDuplicate": true, "reasoning": "Broad catch-all for GitHub emails"}',
+      );
+
+      const result = await service.findMatchingFullCategory(
+        "user-1",
+        "Github and Code",
+      );
+      expect(llmCoreService.generateText).toHaveBeenCalled();
+      expect(result).not.toBeNull();
+      expect(result?.name).toBe("🐙 GitHub PRs");
+    });
+
+    it("allows specific platform sub-category when LLM says not a duplicate", async () => {
+      const stored = makeUserContext(
+        "ctx-github-prs",
+        "🐙 GitHub PRs - Pull request notifications",
+      );
+      userContextRepo.find.mockResolvedValue([stored]);
+      // LLM says "GitHub Releases" is NOT a duplicate of "GitHub PRs"
+      llmCoreService.generateText.mockResolvedValue(
+        '{"isDuplicate": false, "reasoning": "Different GitHub sub-categories"}',
+      );
+
+      const result = await service.findMatchingFullCategory(
+        "user-1",
+        "GitHub Releases",
+      );
+      expect(llmCoreService.generateText).toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
   });
 
   describe("findMatchingProtoCategory", () => {

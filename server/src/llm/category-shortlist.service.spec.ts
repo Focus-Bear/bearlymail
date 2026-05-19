@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 
 import {
   CATEGORY_SHORTLIST_PROMPT_ID,
+  type CategoryItem,
   CategoryShortlistService,
 } from "./category-shortlist.service";
 import { LLMCoreService } from "./llm-core.service";
@@ -259,6 +260,150 @@ describe("CategoryShortlistService", () => {
       const result = await service.getShortlist(mockEmail, allCategories);
 
       expect(result.map((cat) => cat.name)).toEqual(["Sales", "HR"]);
+    });
+  });
+
+  describe("getPlatformKeywordsForSender", () => {
+    it("returns github keyword for github.com sender", () => {
+      expect(
+        service.getPlatformKeywordsForSender("notifications@github.com"),
+      ).toEqual(["github"]);
+    });
+
+    it("returns gitlab keyword for gitlab.com sender", () => {
+      expect(
+        service.getPlatformKeywordsForSender("noreply@gitlab.com"),
+      ).toEqual(["gitlab"]);
+    });
+
+    it("returns empty array for unknown sender", () => {
+      expect(service.getPlatformKeywordsForSender("user@example.com")).toEqual(
+        [],
+      );
+    });
+
+    it("is case-insensitive", () => {
+      expect(
+        service.getPlatformKeywordsForSender("Notifications@GITHUB.COM"),
+      ).toEqual(["github"]);
+    });
+  });
+
+  describe("pinPlatformCategories", () => {
+    const githubPRs: CategoryItem = {
+      name: "🐙 GitHub PRs",
+      categoryKey: "github_prs",
+    };
+    const githubNotifications: CategoryItem = {
+      name: "🔔 GitHub Notifications",
+      categoryKey: "github_notif",
+    };
+    const sales: CategoryItem = { name: "Sales", categoryKey: "sales" };
+    const other: CategoryItem = { name: "Other" };
+
+    it("pins missing github categories for github.com sender", () => {
+      const shortlisted = [sales];
+      const all = [sales, githubPRs, githubNotifications, other];
+      const result = service.pinPlatformCategories(
+        shortlisted,
+        all,
+        "notifications@github.com",
+      );
+      expect(result.map((cat) => cat.name)).toContain("🐙 GitHub PRs");
+      expect(result.map((cat) => cat.name)).toContain(
+        "🔔 GitHub Notifications",
+      );
+      expect(result.map((cat) => cat.name)).not.toContain("Other");
+    });
+
+    it("does not duplicate already-shortlisted github categories", () => {
+      const shortlisted = [sales, githubPRs];
+      const all = [sales, githubPRs, githubNotifications];
+      const result = service.pinPlatformCategories(
+        shortlisted,
+        all,
+        "notifications@github.com",
+      );
+      const names = result.map((cat) => cat.name);
+      expect(names.filter((name) => name === "🐙 GitHub PRs")).toHaveLength(1);
+      expect(names).toContain("🔔 GitHub Notifications");
+    });
+
+    it("returns shortlist unchanged for non-platform sender", () => {
+      const shortlisted = [sales, githubPRs];
+      const all = [sales, githubPRs, githubNotifications];
+      const result = service.pinPlatformCategories(
+        shortlisted,
+        all,
+        "user@example.com",
+      );
+      expect(result).toEqual(shortlisted);
+    });
+  });
+
+  describe("getShortlist — platform pinning integration", () => {
+    it("pins github categories when email is from github.com", async () => {
+      const githubEmail = {
+        from: "notifications@github.com",
+        fromName: "GitHub",
+        subject: "Dependabot opened a PR",
+        summary: "A pull request was opened",
+      };
+      const githubCategories: CategoryItem[] = [
+        ...allCategories,
+        {
+          name: "🐙 GitHub PRs",
+          description: "Pull request activity",
+          categoryKey: "github_prs",
+        },
+        {
+          name: "🔔 GitHub Notifications",
+          description: "General GitHub notifications",
+          categoryKey: "github_notif",
+        },
+      ];
+
+      // LLM shortlist returns only non-github categories
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        '{"categories": ["customer_support", "engineering"]}',
+      );
+
+      const result = await service.getShortlist(githubEmail, githubCategories);
+
+      // Both GitHub categories must be pinned even though LLM didn't select them
+      expect(result.map((cat) => cat.name)).toContain("🐙 GitHub PRs");
+      expect(result.map((cat) => cat.name)).toContain(
+        "🔔 GitHub Notifications",
+      );
+    });
+
+    it("does not pin platform categories for non-platform email", async () => {
+      const regularEmail = {
+        from: "alice@example.com",
+        fromName: "Alice",
+        subject: "Hello",
+        summary: "Just a regular email",
+      };
+      const categoriesWithGitHub: CategoryItem[] = [
+        ...allCategories,
+        {
+          name: "🐙 GitHub PRs",
+          description: "Pull request activity",
+          categoryKey: "github_prs",
+        },
+      ];
+
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        '{"categories": ["customer_support"]}',
+      );
+
+      const result = await service.getShortlist(
+        regularEmail,
+        categoriesWithGitHub,
+      );
+
+      // GitHub category should NOT be pinned for a non-GitHub sender
+      expect(result.map((cat) => cat.name)).not.toContain("🐙 GitHub PRs");
     });
   });
 });

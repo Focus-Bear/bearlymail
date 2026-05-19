@@ -5,12 +5,9 @@ import * as path from "path";
 import { OAUTH_ERROR_CODES } from "../constants/domain-types";
 import { HTTP_STATUS } from "../constants/http-status";
 import { logError } from "../utils/logger";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
-// Ensure logs directory exists
-const LOGS_DIR = path.join(process.cwd(), "logs");
-if (!fs.existsSync(LOGS_DIR)) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
-}
+ensureLogsDirSync();
 
 const AUTH_LOG_FILE = path.join(LOGS_DIR, "auth-failures.log");
 const DEBUG_LOG_FILE = path.join(LOGS_DIR, "debug.log");
@@ -18,10 +15,9 @@ const DEBUG_LOG_FILE = path.join(LOGS_DIR, "debug.log");
 // Helper to write to log file
 function writeToAuthLog(message: string) {
   try {
-    // Ensure logs directory exists (in case it was deleted)
-    if (!fs.existsSync(LOGS_DIR)) {
-      fs.mkdirSync(LOGS_DIR, { recursive: true });
-    }
+    // Ensure logs directory exists (in case it was deleted between boot and now).
+    // No-op in production — ensureLogsDirSync() returns early when !isDevelopment.
+    ensureLogsDirSync();
     const timestamp = new Date().toISOString();
     const logLine = `[${timestamp}] ${message}\n`;
     fs.appendFileSync(AUTH_LOG_FILE, logLine, "utf8");
@@ -36,10 +32,7 @@ function writeToAuthLog(message: string) {
 // Helper to write debug logs to file
 export function writeDebugLog(message: string) {
   try {
-    // Ensure logs directory exists (in case it was deleted)
-    if (!fs.existsSync(LOGS_DIR)) {
-      fs.mkdirSync(LOGS_DIR, { recursive: true });
-    }
+    ensureLogsDirSync();
     const timestamp = new Date().toISOString();
     const logLine = `[${timestamp}] ${message}\n`;
     fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
@@ -225,13 +218,14 @@ export class AuthLogger {
 // Export singleton instance
 export const authLogger = new AuthLogger();
 
-// Initialize log file on module load to ensure it exists
+// Initialize log file on module load to ensure it exists. Production no-op:
+// ensureLogsDirSync() returns early and the file writes are also gated below.
 try {
-  if (!fs.existsSync(LOGS_DIR)) {
-    fs.mkdirSync(LOGS_DIR, { recursive: true });
-  }
-  // Touch the log file to ensure it exists (create empty if it doesn't)
-  if (!fs.existsSync(AUTH_LOG_FILE)) {
+  ensureLogsDirSync();
+  // Touch the log file to ensure it exists (create empty if it doesn't).
+  // Gate on the same isDevelopment check that ensureLogsDirSync uses, so we
+  // don't try to write to /app in production where USER node can't.
+  if (isDevelopment && !fs.existsSync(AUTH_LOG_FILE)) {
     fs.writeFileSync(
       AUTH_LOG_FILE,
       `[${new Date().toISOString()}] Auth log file initialized\n`,

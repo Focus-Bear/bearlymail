@@ -4,6 +4,7 @@ import * as path from "path";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
 
 interface JobLogEntry {
   timestamp: string;
@@ -25,11 +26,7 @@ interface JobLogEntry {
 
 export class JobPerformanceTracker {
   private readonly logger = new Logger("JobPerformanceTracker");
-  private static logsDir = path.join(process.cwd(), "logs");
-  private readonly logFile = path.join(
-    JobPerformanceTracker.logsDir,
-    "performance.log",
-  );
+  private readonly logFile = path.join(LOGS_DIR, "performance.log");
   public readonly startTime: number;
   private readonly jobName: string;
   private readonly jobId: string;
@@ -64,10 +61,7 @@ export class JobPerformanceTracker {
     this.budget =
       PERFORMANCE_BUDGETS[budgetKey] || PERFORMANCE_BUDGETS.JOB_REFINE_PRIORITY;
 
-    // Ensure logs directory exists
-    if (!fs.existsSync(JobPerformanceTracker.logsDir)) {
-      fs.mkdirSync(JobPerformanceTracker.logsDir, { recursive: true });
-    }
+    ensureLogsDirSync();
   }
 
   /**

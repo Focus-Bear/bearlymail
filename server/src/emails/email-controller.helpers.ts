@@ -3,6 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import PgBoss from "pg-boss";
 
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
+
 // Performance budget for batch-status endpoint (ms)
 export const BATCH_STATUS_BUDGET = 500;
 
@@ -54,17 +56,11 @@ export interface PgBossWithInternals extends PgBoss {
 export class BatchStatusPerformanceTracker {
   private startTime: number;
   private logger = new Logger("BatchStatusPerformanceTracker");
-  private static logsDir = path.join(process.cwd(), "logs");
-  private logFile = path.join(
-    BatchStatusPerformanceTracker.logsDir,
-    "performance.log",
-  );
+  private logFile = path.join(LOGS_DIR, "performance.log");
 
   constructor() {
     this.startTime = Date.now();
-    if (!fs.existsSync(BatchStatusPerformanceTracker.logsDir)) {
-      fs.mkdirSync(BatchStatusPerformanceTracker.logsDir, { recursive: true });
-    }
+    ensureLogsDirSync();
   }
 
   finish(): void {

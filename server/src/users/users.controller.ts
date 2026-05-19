@@ -19,6 +19,7 @@ import * as path from "path";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { User } from "../database/entities/user.entity";
 import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
 import { DataExportService } from "./data-export.service";
 import { DataImportService, ImportOptions } from "./data-import.service";
 import { UsersService } from "./users.service";
@@ -30,19 +31,11 @@ const CONSENT_STATUS_BUDGET = 200;
 class ConsentStatusPerformanceTracker {
   private startTime: number;
   private logger = new Logger("ConsentStatusPerformanceTracker");
-  private static logsDir = path.join(process.cwd(), "logs");
-  private logFile = path.join(
-    ConsentStatusPerformanceTracker.logsDir,
-    "performance.log",
-  );
+  private logFile = path.join(LOGS_DIR, "performance.log");
 
   constructor() {
     this.startTime = Date.now();
-    if (!fs.existsSync(ConsentStatusPerformanceTracker.logsDir)) {
-      fs.mkdirSync(ConsentStatusPerformanceTracker.logsDir, {
-        recursive: true,
-      });
-    }
+    ensureLogsDirSync();
   }
 
   finish(): void {

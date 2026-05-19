@@ -2,11 +2,9 @@ import { Logger } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
 
-// Ensure logs directory exists
-const LOGS_DIR = path.join(process.cwd(), "logs");
-if (!fs.existsSync(LOGS_DIR)) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
-}
+import { ensureLogsDirSync, LOGS_DIR } from "./logs-dir";
+
+ensureLogsDirSync();
 
 const SEARCH_LOG_FILE = path.join(LOGS_DIR, "search-system.log");
 

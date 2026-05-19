@@ -10,6 +10,7 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { QUEUE_CONSTANTS } from "../constants/queue-constants";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import { MS_PER_SECOND } from "../constants/time-constants";
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
 
 const MAX_PROCESSING_TIMES_HISTORY = 1000;
 
@@ -45,11 +46,8 @@ export class QueueMonitorService implements OnModuleInit {
     @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private dataSource: DataSource,
   ) {
-    const logsDir = path.join(process.cwd(), "logs");
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
-    this.metricsLogFile = path.join(logsDir, "queue-metrics.log");
+    ensureLogsDirSync();
+    this.metricsLogFile = path.join(LOGS_DIR, "queue-metrics.log");
   }
 
   async onModuleInit() {

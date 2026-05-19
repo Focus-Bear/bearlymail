@@ -1,22 +1,17 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { NODE_ENV_VALUES } from "../constants/domain-types";
 import { captureGlobalError } from "../error-tracking/error-tracking-setup";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "./logs-dir";
 
-// Only log to file during local development
-const isDevelopment = process.env.NODE_ENV !== NODE_ENV_VALUES.PRODUCTION;
-
-// Logs dir is only used in development (writeErrorToFile() returns early in
-// production). We must not mkdirSync in production: under the hardened
-// `USER node` Dockerfile the container has no write perms on `/app`, so
-// creating `/app/logs` at module load throws EACCES and crashes boot.
-const LOGS_DIR = path.join(process.cwd(), "logs");
 const ERROR_LOG_FILE = path.join(LOGS_DIR, "errors.log");
 
+// Dev-only init. ensureLogsDirSync() is a no-op in production; the log-file
+// header write is gated explicitly so we never touch /app on boot (the
+// hardened USER node Dockerfile would EACCES on mkdir/write there).
 if (isDevelopment) {
+  ensureLogsDirSync();
   try {
-    fs.mkdirSync(LOGS_DIR, { recursive: true });
     if (!fs.existsSync(ERROR_LOG_FILE)) {
       const initMessage = `[${new Date().toISOString()}] Error logging initialized\n`;
       fs.writeFileSync(ERROR_LOG_FILE, initMessage, "utf8");
@@ -202,10 +197,7 @@ export function setupGlobalErrorHandlers(source?: string): void {
       );
 
       // Capture to PostHog (production only, avoid noise in dev)
-      if (
-        process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION &&
-        reason instanceof Error
-      ) {
+      if (!isDevelopment && reason instanceof Error) {
         captureGlobalError(reason, {
           error_type: "unhandled_rejection",
           source: source || "unknown",
@@ -238,7 +230,7 @@ export function setupGlobalErrorHandlers(source?: string): void {
     logErrorToFile("Uncaught Exception", error, source);
 
     // Capture to PostHog (production only)
-    if (process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION) {
+    if (!isDevelopment) {
       captureGlobalError(error, {
         error_type: "uncaught_exception",
         source: source || "unknown",

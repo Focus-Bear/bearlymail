@@ -18,6 +18,7 @@ import {
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
 import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 import { PriorityService } from "./priority.service";
 
@@ -92,17 +93,11 @@ class TriagePerformanceTracker {
   private spans: PerfSpan[] = [];
   private startTime: number;
   private logger = new Logger("TriagePerformanceTracker");
-  private static logsDir = path.join(process.cwd(), "logs");
-  private logFile = path.join(
-    TriagePerformanceTracker.logsDir,
-    "performance.log",
-  );
+  private logFile = path.join(LOGS_DIR, "performance.log");
 
   constructor(private operation: string) {
     this.startTime = Date.now();
-    if (!fs.existsSync(TriagePerformanceTracker.logsDir)) {
-      fs.mkdirSync(TriagePerformanceTracker.logsDir, { recursive: true });
-    }
+    ensureLogsDirSync();
   }
 
   startSpan(name: string, budget: number): () => void {

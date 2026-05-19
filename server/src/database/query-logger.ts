@@ -4,12 +4,9 @@ import * as path from "path";
 import { Logger as TypeOrmLogger, QueryRunner } from "typeorm";
 
 import { LOG_LEVELS } from "../constants/domain-types";
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
 
-// Ensure logs directory exists
-const LOGS_DIR = path.join(process.cwd(), "logs");
-if (!fs.existsSync(LOGS_DIR)) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
-}
+ensureLogsDirSync();
 
 const SLOW_QUERY_LOG_FILE = path.join(LOGS_DIR, "slow-queries.log");
 const QUERY_SNIPPET_LENGTH = 500;

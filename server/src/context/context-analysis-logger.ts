@@ -7,14 +7,11 @@ import {
   NODE_ENV_VALUES,
 } from "../constants/domain-types";
 import { createLogger, logError, logWarn } from "../utils/logger";
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
 
 const logger = createLogger("ContextAnalysisLogger");
 
-// Ensure logs directory exists
-const LOGS_DIR = path.join(process.cwd(), "logs");
-if (!fs.existsSync(LOGS_DIR)) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
-}
+ensureLogsDirSync();
 
 const ANALYSIS_LOG_FILE = path.join(LOGS_DIR, "analyse-context.log");
 

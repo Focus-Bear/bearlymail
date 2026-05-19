@@ -3,19 +3,15 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { logError } from "../utils/logger";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
-const LOGS_DIR = path.join(process.cwd(), "logs");
-if (!fs.existsSync(LOGS_DIR)) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
-}
+ensureLogsDirSync();
 
 const AUTORESPONDER_LOG_FILE = path.join(LOGS_DIR, "autoresponder.log");
 
 function writeToAutoresponderLog(message: string): void {
   try {
-    if (!fs.existsSync(LOGS_DIR)) {
-      fs.mkdirSync(LOGS_DIR, { recursive: true });
-    }
+    ensureLogsDirSync();
     const timestamp = new Date().toISOString();
     const logLine = `[${timestamp}] ${message}\n`;
     fs.appendFileSync(AUTORESPONDER_LOG_FILE, logLine, "utf8");
@@ -240,11 +236,11 @@ export class AutoresponderLogger {
 
 export const autoresponderLogger = new AutoresponderLogger();
 
+// Initialize log file on module load. Production no-op: ensureLogsDirSync()
+// returns early and the file write is also gated below.
 try {
-  if (!fs.existsSync(LOGS_DIR)) {
-    fs.mkdirSync(LOGS_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(AUTORESPONDER_LOG_FILE)) {
+  ensureLogsDirSync();
+  if (isDevelopment && !fs.existsSync(AUTORESPONDER_LOG_FILE)) {
     fs.writeFileSync(
       AUTORESPONDER_LOG_FILE,
       `[${new Date().toISOString()}] Autoresponder log file initialized\n`,

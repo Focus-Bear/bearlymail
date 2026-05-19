@@ -5,6 +5,7 @@ import * as path from "path";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { EMAIL_MODES, PERFORMANCE_OPERATIONS } from "../constants/domain-types";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
 
 // Performance budgets in milliseconds
 export const PERF_BUDGETS = {
@@ -40,8 +41,7 @@ export class PerformanceTracker {
   private spans: PerfSpan[] = [];
   private startTime: number;
   private logger = new Logger("PerformanceTracker");
-  private static logsDir = path.join(process.cwd(), "logs");
-  private logFile = path.join(PerformanceTracker.logsDir, "performance.log");
+  private logFile = path.join(LOGS_DIR, "performance.log");
   private cloudWatchService?: CloudWatchService;
 
   constructor(
@@ -50,10 +50,7 @@ export class PerformanceTracker {
   ) {
     this.startTime = Date.now();
     this.cloudWatchService = cloudWatchService;
-    // Ensure logs directory exists
-    if (!fs.existsSync(PerformanceTracker.logsDir)) {
-      fs.mkdirSync(PerformanceTracker.logsDir, { recursive: true });
-    }
+    ensureLogsDirSync();
   }
 
   startSpan(name: string, budget: number): () => void {

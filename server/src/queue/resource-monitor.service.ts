@@ -7,6 +7,7 @@ import { DataSource } from "typeorm";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import { BYTE_CONVERSIONS } from "../constants/service-constants";
 import { MS_PER_SECOND } from "../constants/time-constants";
+import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
 
 interface ResourceMetrics {
   timestamp: string;
@@ -40,11 +41,8 @@ export class ResourceMonitorService implements OnModuleInit {
   private previousCpuTime: number = 0;
 
   constructor(private dataSource: DataSource) {
-    const logsDir = path.join(process.cwd(), "logs");
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
-    this.metricsLogFile = path.join(logsDir, "resource-metrics.log");
+    ensureLogsDirSync();
+    this.metricsLogFile = path.join(LOGS_DIR, "resource-metrics.log");
   }
 
   async onModuleInit() {

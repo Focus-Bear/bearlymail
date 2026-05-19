@@ -64,20 +64,20 @@ export class ScheduledEmail {
   })
   emailId: string | null;
 
-  @Column("jsonb", {
+  @Column("text", {
     transformer: encryptedJsonTransformer,
     comment: "To recipients",
   })
   to: EmailRecipient[];
 
-  @Column("jsonb", {
+  @Column("text", {
     transformer: encryptedJsonTransformer,
     nullable: true,
     comment: "CC recipients",
   })
   cc: EmailRecipient[] | null;
 
-  @Column("jsonb", {
+  @Column("text", {
     transformer: encryptedJsonTransformer,
     nullable: true,
     comment: "BCC recipients",
@@ -98,7 +98,7 @@ export class ScheduledEmail {
   })
   body: string;
 
-  @Column("jsonb", {
+  @Column("text", {
     transformer: encryptedJsonTransformer,
     nullable: true,
     comment: "Attachments (base64 encoded)",
@@ -139,7 +139,7 @@ export class ScheduledEmail {
   })
   expectedReplyHours: number | null;
 
-  @Column("jsonb", {
+  @Column("text", {
     transformer: encryptedJsonTransformer,
     nullable: true,
     comment:

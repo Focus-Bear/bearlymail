@@ -308,7 +308,6 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       active={location.pathname === ROUTE_COMPOSE}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
-      prominent
     />
     <SidebarItem
       label={translate('common.search')}

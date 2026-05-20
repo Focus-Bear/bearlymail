@@ -13,6 +13,7 @@ import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { MAX_BADGE_DISPLAY } from 'constants/numbers';
 import {
   ROUTE_ADMIN,
+  ROUTE_COMPOSE,
   ROUTE_CRM_CONTACT_GROUPS,
   ROUTE_CRM_CONTACTS,
   ROUTE_CRM_DEALS,
@@ -35,10 +36,12 @@ interface SidebarItemProps {
   isCollapsed?: boolean;
   onNavigationClick?: (path: string) => void;
   badge?: number;
+  prominent?: boolean;
 }
 
 const SIDEBAR_ROUTE_EVENTS: Record<string, string> = {
   [ROUTE_INBOX]: ANALYTICS_EVENTS.SIDEBAR_INBOX_CLICKED,
+  [ROUTE_COMPOSE]: ANALYTICS_EVENTS.SIDEBAR_COMPOSE_CLICKED,
   [ROUTE_SEARCH]: ANALYTICS_EVENTS.SIDEBAR_SEARCH_CLICKED,
   [ROUTE_CRM_CONTACTS]: ANALYTICS_EVENTS.SIDEBAR_CONTACTS_CLICKED,
   [ROUTE_CRM_DEALS]: ANALYTICS_EVENTS.SIDEBAR_DEALS_CLICKED,
@@ -81,6 +84,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   isCollapsed,
   onNavigationClick,
   badge,
+  prominent,
 }) => {
   const handleClick = () => {
     const eventName = SIDEBAR_ROUTE_EVENTS[path];
@@ -92,6 +96,11 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
     }
   };
 
+  const restingBackground = prominent ? theme.colors.secondary.main : COLOR_TRANSPARENT;
+  const restingColor = prominent ? COLOR_NAMED_WHITE : theme.colors.text.secondary;
+  const hoverBackground = prominent ? theme.colors.secondary.dark : theme.colors.background.default;
+  const hoverColor = prominent ? COLOR_NAMED_WHITE : theme.colors.text.primary;
+
   return (
     <Link
       to={path}
@@ -101,12 +110,13 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
         width: '100%',
         padding: isCollapsed ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.md}`,
         marginBottom: theme.spacing.xs,
-        backgroundColor: active ? theme.colors.primary.main : 'transparent',
-        color: active ? 'white' : theme.colors.text.secondary,
+        backgroundColor: active ? theme.colors.primary.main : restingBackground,
+        color: active ? 'white' : restingColor,
         borderRadius: theme.borderRadius.md,
         cursor: 'pointer',
         fontSize: theme.typography.fontSize.base,
-        fontWeight: active ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.medium,
+        fontWeight:
+          active || prominent ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.medium,
         display: 'flex',
         alignItems: 'center',
         justifyContent: isCollapsed ? 'center' : 'flex-start',
@@ -117,14 +127,14 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       }}
       onMouseEnter={event => {
         if (!active) {
-          event.currentTarget.style.backgroundColor = theme.colors.background.default;
-          event.currentTarget.style.color = theme.colors.text.primary;
+          event.currentTarget.style.backgroundColor = hoverBackground;
+          event.currentTarget.style.color = hoverColor;
         }
       }}
       onMouseLeave={event => {
         if (!active) {
-          event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
-          event.currentTarget.style.color = theme.colors.text.secondary;
+          event.currentTarget.style.backgroundColor = restingBackground;
+          event.currentTarget.style.color = restingColor;
         }
       }}
     >
@@ -290,6 +300,15 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       active={location.pathname === ROUTE_INBOX}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
+    />
+    <SidebarItem
+      label={translate('compose.title')}
+      path={ROUTE_COMPOSE}
+      icon="✏️"
+      active={location.pathname === ROUTE_COMPOSE}
+      isCollapsed={effectiveIsCollapsed}
+      onNavigationClick={handleNavigationClick}
+      prominent
     />
     <SidebarItem
       label={translate('common.search')}

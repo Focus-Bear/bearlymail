@@ -319,6 +319,7 @@ export const ROUTE_CRM_CONTACTS = '/crm/contacts' as const;
 export const ROUTE_CRM_DEALS = '/crm/deals' as const;
 export const ROUTE_CRM_CONTACT_GROUPS = '/crm/contact-groups' as const;
 export const ROUTE_SCHEDULED = '/scheduled' as const;
+export const ROUTE_COMPOSE = '/compose' as const;
 
 // Scroll behavior
 export const SCROLL_BEHAVIOR_SMOOTH = 'smooth' as const;

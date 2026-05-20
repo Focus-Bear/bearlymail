@@ -104,6 +104,7 @@ export const ANALYTICS_EVENTS = {
   WAIT_LIST_NAME_ENTERED: 'wait-list-name-entered',
   WAIT_LIST_REASON_ENTERED: 'wait-list-reason-entered',
   WAIT_LIST_SUBMITTED: 'wait-list-submitted',
+  SIDEBAR_COMPOSE_CLICKED: 'sidebar_compose_clicked',
   SIDEBAR_INBOX_CLICKED: 'sidebar_inbox_clicked',
   SIDEBAR_SEARCH_CLICKED: 'sidebar_search_clicked',
   SIDEBAR_CONTACTS_CLICKED: 'sidebar_contacts_clicked',

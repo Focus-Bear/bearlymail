@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 
-import { ComposeButton } from 'components/inbox/header/ComposeButton';
 import { HelpLink } from 'components/inbox/header/HelpLink';
 import { EMOJI_BUG } from 'constants/emojis';
 import { ROUTE_SCHEDULED } from 'constants/strings';
@@ -142,7 +141,7 @@ const InboxOverflowMenu: React.FC<{
 
 /**
  * Inbox header actions component.
- * Displays action buttons: debug toggle (admin only), help link, compose,
+ * Displays action buttons: debug toggle (admin only), help link,
  * and the ⋮ overflow menu (which contains blocked / auto-responded / scheduled).
  */
 export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
@@ -189,7 +188,6 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
         onViewAutoRespondedEmails={onViewAutoRespondedEmails}
       />
       <HelpLink mode={mode} />
-      <ComposeButton />
     </div>
   );
 };

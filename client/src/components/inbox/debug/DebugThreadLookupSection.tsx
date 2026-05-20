@@ -63,6 +63,15 @@ interface GmailApiResult {
   from?: string | null;
   receivedAt?: string | null;
   error?: string | null;
+  connectedEmail?: string | null;
+  idsTried?: string[];
+  attempts?: Array<{
+    id: string;
+    kind: 'message' | 'thread';
+    success: boolean;
+    errorCode?: number;
+    errorMessage?: string;
+  }>;
 }
 
 const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gmailApiResult }) => {
@@ -112,9 +121,48 @@ const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gma
           )}
         </ul>
       ) : (
-        <span style={{ color: COLOR_GREY_MED, marginLeft: theme.spacing.xs }}>
-          {gmailApiResult.error ?? t('debug.threadLookup.gmailApiNotFound')}
-        </span>
+        <div style={{ marginTop: theme.spacing.xs }}>
+          <div style={{ color: COLOR_GREY_MED }}>
+            {gmailApiResult.error ?? t('debug.threadLookup.gmailApiNotFound')}
+          </div>
+          {gmailApiResult.connectedEmail && (
+            <div style={{ marginTop: theme.spacing.xs }}>
+              <strong>Connected Gmail account:</strong>{' '}
+              <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>
+                {gmailApiResult.connectedEmail}
+              </code>
+            </div>
+          )}
+          {gmailApiResult.idsTried && gmailApiResult.idsTried.length > 0 && (
+            <div style={{ marginTop: theme.spacing.xs }}>
+              <strong>Candidate IDs tried:</strong>
+              <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
+                {gmailApiResult.idsTried.map(id => (
+                  <li key={id}>
+                    <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>
+                      {id}
+                    </code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {gmailApiResult.attempts && gmailApiResult.attempts.length > 0 && (
+            <div style={{ marginTop: theme.spacing.xs }}>
+              <strong>API attempts:</strong>
+              <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
+                {gmailApiResult.attempts.map((attempt, idx) => (
+                  <li key={`${attempt.kind}-${attempt.id}-${idx}`}>
+                    {attempt.kind} <code>{attempt.id}</code> →{' '}
+                    {attempt.success
+                      ? 'ok'
+                      : `${attempt.errorCode ?? '?'} ${attempt.errorMessage ?? ''}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

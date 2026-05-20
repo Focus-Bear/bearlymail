@@ -4,6 +4,43 @@ const GMAIL_ID_BYTES = 8;
 const GMAIL_COMPOUND_ID_THREAD_END = GMAIL_ID_BYTES;
 const GMAIL_COMPOUND_ID_MESSAGE_END = GMAIL_ID_BYTES * 2;
 
+export interface GmailLookupAttempt {
+  id: string;
+  kind: "message" | "thread";
+  success: boolean;
+  errorCode?: number;
+  errorMessage?: string;
+}
+
+export interface GmailLookupHit {
+  messageId: string;
+  threadId: string;
+  subject: string;
+  from: string;
+  receivedAt: Date | null;
+}
+
+function extractAttemptError(error: unknown): {
+  errorCode?: number;
+  errorMessage: string;
+} {
+  if (error && typeof error === "object") {
+    const candidate = error as {
+      code?: number;
+      status?: number;
+      message?: string;
+      response?: { status?: number };
+    };
+    const errorCode =
+      candidate.code ?? candidate.status ?? candidate.response?.status;
+    const message = candidate.message ?? "unknown Gmail API error";
+    return errorCode !== undefined
+      ? { errorCode, errorMessage: message }
+      : { errorMessage: message };
+  }
+  return { errorMessage: String(error) };
+}
+
 /**
  * Returns true if the given ID is a Gmail API hex thread/message ID.
  * Hex thread IDs are exactly 16 lowercase hexadecimal characters.
@@ -63,13 +100,8 @@ export function extractEmailMetadata(
 export async function lookupGmailMessageByIds(
   gmail: gmail_v1.Gmail,
   idsToTry: string[],
-): Promise<{
-  messageId: string;
-  threadId: string;
-  subject: string;
-  from: string;
-  receivedAt: Date | null;
-} | null> {
+  attempts?: GmailLookupAttempt[],
+): Promise<GmailLookupHit | null> {
   for (const id of idsToTry) {
     try {
       const response = await gmail.users.messages.get({
@@ -80,6 +112,7 @@ export async function lookupGmailMessageByIds(
       });
       const message = response.data;
       if (message.id && message.threadId) {
+        attempts?.push({ id, kind: "message", success: true });
         const { subject, from, dateStr } = extractEmailMetadata(
           message.payload?.headers || [],
         );
@@ -91,8 +124,19 @@ export async function lookupGmailMessageByIds(
           receivedAt: dateStr ? new Date(dateStr) : null,
         };
       }
-    } catch {
-      // Try next ID variant
+      attempts?.push({
+        id,
+        kind: "message",
+        success: false,
+        errorMessage: "response missing id/threadId",
+      });
+    } catch (error: unknown) {
+      attempts?.push({
+        id,
+        kind: "message",
+        success: false,
+        ...extractAttemptError(error),
+      });
     }
   }
   return null;
@@ -101,13 +145,8 @@ export async function lookupGmailMessageByIds(
 export async function lookupGmailThreadByIds(
   gmail: gmail_v1.Gmail,
   idsToTry: string[],
-): Promise<{
-  messageId: string;
-  threadId: string;
-  subject: string;
-  from: string;
-  receivedAt: Date | null;
-} | null> {
+  attempts?: GmailLookupAttempt[],
+): Promise<GmailLookupHit | null> {
   for (const id of idsToTry) {
     try {
       const response = await gmail.users.threads.get({
@@ -117,6 +156,7 @@ export async function lookupGmailThreadByIds(
       });
       const thread = response.data;
       if (thread.id) {
+        attempts?.push({ id, kind: "thread", success: true });
         const latestMsg = thread.messages?.[thread.messages.length - 1] ?? null;
         const { subject, from, dateStr } = extractEmailMetadata(
           latestMsg?.payload?.headers || [],
@@ -129,8 +169,19 @@ export async function lookupGmailThreadByIds(
           receivedAt: dateStr ? new Date(dateStr) : null,
         };
       }
-    } catch {
-      // Try next ID variant
+      attempts?.push({
+        id,
+        kind: "thread",
+        success: false,
+        errorMessage: "response missing thread id",
+      });
+    } catch (error: unknown) {
+      attempts?.push({
+        id,
+        kind: "thread",
+        success: false,
+        ...extractAttemptError(error),
+      });
     }
   }
   return null;

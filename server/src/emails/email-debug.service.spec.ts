@@ -141,6 +141,12 @@ describe("EmailDebugService", () => {
       "https://mail.google.com/mail/u/0/#inbox/FMfcgzQfBsphbPMHvCJWcFscclwTDqzk";
     const urlId = "FMfcgzQfBsphbPMHvCJWcFscclwTDqzk";
 
+    const emptyDiagnostics = {
+      connectedEmail: null,
+      idsTried: [],
+      attempts: [],
+    };
+
     it("should call Gmail API when URL ID is not found in DB", async () => {
       // DB lookups return not found
       mockEmailRepository.findOne.mockResolvedValue(null);
@@ -148,11 +154,14 @@ describe("EmailDebugService", () => {
 
       // Gmail API returns a result
       const gmailApiResponse = {
-        messageId: "18a1234567890abc",
-        threadId: "thread-hex-id-abc",
-        subject: "Test Subject",
-        from: "sender@example.com",
-        receivedAt: new Date("2024-01-01"),
+        hit: {
+          messageId: "18a1234567890abc",
+          threadId: "thread-hex-id-abc",
+          subject: "Test Subject",
+          from: "sender@example.com",
+          receivedAt: new Date("2024-01-01"),
+        },
+        diagnostics: emptyDiagnostics,
       };
       (mockGmailProvider.lookupByGmailUrlId as jest.Mock).mockResolvedValue(
         gmailApiResponse,
@@ -199,11 +208,14 @@ describe("EmailDebugService", () => {
       mockEmailRepository.find.mockResolvedValue([]);
 
       const gmailApiResponse = {
-        messageId: "18a1234567890abc",
-        threadId: resolvedThreadId,
-        subject: "Test Subject",
-        from: "sender@example.com",
-        receivedAt: new Date("2024-01-01"),
+        hit: {
+          messageId: "18a1234567890abc",
+          threadId: resolvedThreadId,
+          subject: "Test Subject",
+          from: "sender@example.com",
+          receivedAt: new Date("2024-01-01"),
+        },
+        diagnostics: emptyDiagnostics,
       };
       (mockGmailProvider.lookupByGmailUrlId as jest.Mock).mockResolvedValue(
         gmailApiResponse,
@@ -222,11 +234,14 @@ describe("EmailDebugService", () => {
       mockEmailThreadRepository.findOne.mockResolvedValue(null);
 
       const gmailApiResponse = {
-        messageId: "18a1234567890abc",
-        threadId: "thread-hex-id-abc",
-        subject: "Important Email",
-        from: "boss@example.com",
-        receivedAt: new Date("2024-01-01"),
+        hit: {
+          messageId: "18a1234567890abc",
+          threadId: "thread-hex-id-abc",
+          subject: "Important Email",
+          from: "boss@example.com",
+          receivedAt: new Date("2024-01-01"),
+        },
+        diagnostics: emptyDiagnostics,
       };
       (mockGmailProvider.lookupByGmailUrlId as jest.Mock).mockResolvedValue(
         gmailApiResponse,
@@ -240,20 +255,64 @@ describe("EmailDebugService", () => {
       expect(result.reasons[0]).toContain("Important Email");
     });
 
-    it("should handle Gmail API returning null (URL ID not resolvable)", async () => {
+    it("should handle Gmail API returning no hit (URL ID not resolvable)", async () => {
       mockEmailRepository.findOne.mockResolvedValue(null);
       mockEmailThreadRepository.findOne.mockResolvedValue(null);
-      (mockGmailProvider.lookupByGmailUrlId as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (mockGmailProvider.lookupByGmailUrlId as jest.Mock).mockResolvedValue({
+        hit: null,
+        diagnostics: emptyDiagnostics,
+      });
 
       const result = await service.lookupByGmailUrl(userId, gmailUrl);
 
       expect(result.found).toBe(false);
       expect(result.gmailApiResult?.foundInGmailApi).toBe(false);
       expect(result.reasons[0]).toContain(
-        "not found in BearlyMail database or Gmail API",
+        "not found in BearlyMail database or via the Gmail API",
       );
+    });
+
+    it("should include the connected Gmail account email in the diagnostic reasons", async () => {
+      mockEmailRepository.findOne.mockResolvedValue(null);
+      mockEmailThreadRepository.findOne.mockResolvedValue(null);
+      (mockGmailProvider.lookupByGmailUrlId as jest.Mock).mockResolvedValue({
+        hit: null,
+        diagnostics: {
+          connectedEmail: "connected@example.com",
+          idsTried: ["FMfcgzAbcDef", "14c7dc8334202cf3"],
+          attempts: [
+            {
+              id: "FMfcgzAbcDef",
+              kind: "message",
+              success: false,
+              errorCode: 400,
+              errorMessage: "Invalid id value",
+            },
+            {
+              id: "14c7dc8334202cf3",
+              kind: "thread",
+              success: false,
+              errorCode: 404,
+              errorMessage: "Not Found",
+            },
+          ],
+        },
+      });
+
+      const result = await service.lookupByGmailUrl(userId, gmailUrl);
+
+      expect(
+        result.reasons.some((reason) =>
+          reason.includes("connected@example.com"),
+        ),
+      ).toBe(true);
+      expect(result.reasons.some((reason) => reason.includes("/u/0/"))).toBe(
+        true,
+      );
+      expect(result.gmailApiResult?.connectedEmail).toBe(
+        "connected@example.com",
+      );
+      expect(result.gmailApiResult?.attempts.length).toBe(2);
     });
 
     it("should handle Gmail API errors gracefully", async () => {

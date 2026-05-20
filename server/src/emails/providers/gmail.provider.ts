@@ -24,6 +24,8 @@ import {
 } from "../interfaces/email-provider.interface";
 import {
   buildGmailUrlIdsToTry,
+  type GmailLookupAttempt,
+  type GmailLookupHit,
   lookupGmailMessageByIds,
   lookupGmailThreadByIds,
 } from "./gmail/gmail-lookup";
@@ -690,12 +692,13 @@ export class GmailProvider implements EmailProvider {
     userId: string,
     urlId: string,
   ): Promise<{
-    messageId: string;
-    threadId: string;
-    subject: string;
-    from: string;
-    receivedAt: Date | null;
-  } | null> {
+    hit: GmailLookupHit | null;
+    diagnostics: {
+      connectedEmail: string | null;
+      idsTried: string[];
+      attempts: GmailLookupAttempt[];
+    };
+  }> {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) {
       throw new Error(
@@ -704,10 +707,30 @@ export class GmailProvider implements EmailProvider {
     }
 
     const idsToTry = buildGmailUrlIdsToTry(urlId);
+    const attempts: GmailLookupAttempt[] = [];
 
-    const byMessage = await lookupGmailMessageByIds(gmail, idsToTry);
-    if (byMessage) return byMessage;
+    let connectedEmail: string | null = null;
+    try {
+      const profile = await gmail.users.getProfile({ userId: "me" });
+      connectedEmail = profile.data.emailAddress ?? null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to fetch Gmail profile for user ${userId}: ${formatGaxiosError(error)}`,
+      );
+    }
 
-    return lookupGmailThreadByIds(gmail, idsToTry);
+    const byMessage = await lookupGmailMessageByIds(gmail, idsToTry, attempts);
+    if (byMessage) {
+      return {
+        hit: byMessage,
+        diagnostics: { connectedEmail, idsTried: idsToTry, attempts },
+      };
+    }
+
+    const byThread = await lookupGmailThreadByIds(gmail, idsToTry, attempts);
+    return {
+      hit: byThread,
+      diagnostics: { connectedEmail, idsTried: idsToTry, attempts },
+    };
   }
 }

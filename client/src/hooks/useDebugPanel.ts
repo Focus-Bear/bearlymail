@@ -72,6 +72,16 @@ export interface ThreadLookupResult {
     subject: string | null;
     from: string | null;
     receivedAt: string | null;
+    connectedEmail?: string | null;
+    idsTried?: string[];
+    attempts?: Array<{
+      id: string;
+      kind: 'message' | 'thread';
+      success: boolean;
+      errorCode?: number;
+      errorMessage?: string;
+    }>;
+    error?: string;
   };
 }
 

@@ -10,14 +10,17 @@ import { isError } from "../types/common";
 import {
   analyzeStarredThread,
   buildConditionReasons,
+  buildGmailUrlNotFoundReasons,
   buildThreadVisibility,
   computeStarredSummary,
   detectGmailUrlFormat,
+  extractGmailUrlAccountIndex,
   extractGmailUrlId,
   StarredThreadEntry,
 } from "./email-debug-thread.helpers";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
+import type { GmailLookupAttempt } from "./providers/gmail/gmail-lookup";
 
 const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
 import PgBoss from "pg-boss";
@@ -61,6 +64,19 @@ export interface ThreadLookupResult {
     wouldShowInFollowUp: boolean;
   };
   reasons: string[];
+}
+
+export interface GmailApiResolveResult {
+  foundInGmailApi: boolean;
+  apiMessageId: string | null;
+  apiThreadId: string | null;
+  subject: string | null;
+  from: string | null;
+  receivedAt: string | null;
+  connectedEmail: string | null;
+  idsTried: string[];
+  attempts: GmailLookupAttempt[];
+  error?: string;
 }
 
 @Injectable()
@@ -723,21 +739,13 @@ export class EmailDebugService {
   private async resolveGmailUrlViaApi(
     userId: string,
     urlId: string,
-  ): Promise<{
-    foundInGmailApi: boolean;
-    apiMessageId: string | null;
-    apiThreadId: string | null;
-    subject: string | null;
-    from: string | null;
-    receivedAt: string | null;
-    error?: string;
-  }> {
+  ): Promise<GmailApiResolveResult> {
     try {
-      const gmailLookup = await this.gmailProvider.lookupByGmailUrlId(
+      const { hit, diagnostics } = await this.gmailProvider.lookupByGmailUrlId(
         userId,
         urlId,
       );
-      if (!gmailLookup) {
+      if (!hit) {
         return {
           foundInGmailApi: false,
           apiMessageId: null,
@@ -745,15 +753,21 @@ export class EmailDebugService {
           subject: null,
           from: null,
           receivedAt: null,
+          connectedEmail: diagnostics.connectedEmail,
+          idsTried: diagnostics.idsTried,
+          attempts: diagnostics.attempts,
         };
       }
       return {
         foundInGmailApi: true,
-        apiMessageId: gmailLookup.messageId,
-        apiThreadId: gmailLookup.threadId,
-        subject: gmailLookup.subject,
-        from: gmailLookup.from,
-        receivedAt: gmailLookup.receivedAt?.toISOString() ?? null,
+        apiMessageId: hit.messageId,
+        apiThreadId: hit.threadId,
+        subject: hit.subject,
+        from: hit.from,
+        receivedAt: hit.receivedAt?.toISOString() ?? null,
+        connectedEmail: diagnostics.connectedEmail,
+        idsTried: diagnostics.idsTried,
+        attempts: diagnostics.attempts,
       };
     } catch (error) {
       const errorMessage = isError(error) ? error.message : "unknown error";
@@ -768,6 +782,9 @@ export class EmailDebugService {
         subject: null,
         from: null,
         receivedAt: null,
+        connectedEmail: null,
+        idsTried: [],
+        attempts: [],
         error:
           `Could not resolve legacy message ID "${urlId}" via Gmail API — ${errorMessage}. ` +
           `Check Gmail auth scope for admin debug.`,
@@ -780,15 +797,7 @@ export class EmailDebugService {
     gmailUrl: string,
   ): Promise<
     ThreadLookupResult & {
-      gmailApiResult?: {
-        foundInGmailApi: boolean;
-        apiMessageId: string | null;
-        apiThreadId: string | null;
-        subject: string | null;
-        from: string | null;
-        receivedAt: string | null;
-        error?: string;
-      };
+      gmailApiResult?: GmailApiResolveResult;
     }
   > {
     const detectedFormat = detectGmailUrlFormat(gmailUrl);
@@ -851,14 +860,12 @@ export class EmailDebugService {
         wouldShowInAction: false,
         wouldShowInFollowUp: false,
       },
-      reasons: [
-        `URL ID "${urlId}" (Gmail URL format: ${detectedFormat}) not found in BearlyMail database or Gmail API. ` +
-          `The Gmail URL may be invalid, the email may have been deleted, or Gmail API auth may be unavailable for this user. ${
-            gmailApiResult?.error
-              ? `Gmail API error: ${gmailApiResult.error}`
-              : ""
-          }`,
-      ],
+      reasons: buildGmailUrlNotFoundReasons({
+        urlId,
+        detectedFormat,
+        gmailApiResult,
+        accountIndex: extractGmailUrlAccountIndex(gmailUrl),
+      }),
       gmailApiResult,
     };
   }

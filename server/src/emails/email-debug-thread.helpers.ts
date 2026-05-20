@@ -14,6 +14,9 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 
 const UNKNOWN_DURATION_MINUTES = 999;
 
+const HTTP_BAD_REQUEST = 400;
+const HTTP_NOT_FOUND = 404;
+
 /**
  * Build a set of human-readable reason strings explaining why a thread may
  * not appear in the expected inbox view.
@@ -225,6 +228,84 @@ export function extractGmailUrlId(url: string): string {
   const fragment = decodeURIComponent(url.slice(hashIndex + 1));
   const segments = fragment.split("/");
   return segments[segments.length - 1] || fragment;
+}
+
+/**
+ * Extract the `/u/N/` account index from a Gmail web URL. Gmail uses this to
+ * indicate which logged-in Google account the URL is for — a frequent cause
+ * of "URL not found" issues is the URL pointing at a different account than
+ * the one BearlyMail has OAuth tokens for.
+ */
+export function extractGmailUrlAccountIndex(url: string): string | null {
+  const match = url.match(/\/mail\/u\/(\d+)\//);
+  return match ? match[1] : null;
+}
+
+/**
+ * Build a diagnostic message explaining why a Gmail URL lookup failed,
+ * including the connected Gmail account email and the URL's `/u/N/` index
+ * so users can immediately tell when the URL is for a different account.
+ */
+export function buildGmailUrlNotFoundReasons(args: {
+  urlId: string;
+  detectedFormat: string;
+  gmailApiResult: {
+    connectedEmail: string | null;
+    idsTried: string[];
+    attempts: Array<{
+      id: string;
+      kind: "message" | "thread";
+      success: boolean;
+      errorCode?: number;
+      errorMessage?: string;
+    }>;
+    error?: string;
+  };
+  accountIndex?: string | null;
+}): string[] {
+  const { urlId, detectedFormat, gmailApiResult, accountIndex } = args;
+  const reasons: string[] = [
+    `URL ID "${urlId}" (Gmail URL format: ${detectedFormat}) not found in BearlyMail database or via the Gmail API.`,
+  ];
+
+  if (gmailApiResult.connectedEmail) {
+    const accountHint = accountIndex
+      ? ` The URL is for /u/${accountIndex}/ in your browser — confirm that account matches "${gmailApiResult.connectedEmail}".`
+      : "";
+    reasons.push(
+      `BearlyMail's Gmail OAuth is connected to: ${gmailApiResult.connectedEmail}.${accountHint}`,
+    );
+  } else if (!gmailApiResult.error) {
+    reasons.push(
+      "Could not read the connected Gmail account profile — OAuth may be missing the basic-profile scope.",
+    );
+  }
+
+  if (gmailApiResult.idsTried.length > 0) {
+    reasons.push(
+      `Tried ${gmailApiResult.idsTried.length} candidate ID variant(s): ${gmailApiResult.idsTried.join(", ")}.`,
+    );
+  }
+
+  const informativeFailures = gmailApiResult.attempts.filter(
+    (attempt) =>
+      !attempt.success &&
+      attempt.errorCode !== undefined &&
+      attempt.errorCode !== HTTP_NOT_FOUND &&
+      attempt.errorCode !== HTTP_BAD_REQUEST,
+  );
+  if (informativeFailures.length > 0) {
+    const first = informativeFailures[0];
+    reasons.push(
+      `Gmail API returned ${first.errorCode} for ${first.kind} lookup of "${first.id}": ${first.errorMessage ?? "no detail"}.`,
+    );
+  }
+
+  if (gmailApiResult.error) {
+    reasons.push(`Gmail API error: ${gmailApiResult.error}`);
+  }
+
+  return reasons;
 }
 
 /** Build a summary object from an array of per-thread analysis results. */

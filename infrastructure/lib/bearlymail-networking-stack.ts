@@ -54,6 +54,43 @@ export class BearlyMailNetworkingStack extends cdk.Stack {
     });
 
     // ============================================
+    // VPC Endpoints — keep AWS-service traffic off the NAT Gateway
+    // ============================================
+    // S3 is a free gateway endpoint. ECR layer pulls also fetch image
+    // blobs from S3 under the hood, so this endpoint alone removes a big
+    // chunk of NAT data-processing charges on every ECS task start.
+    this.vpc.addGatewayEndpoint("S3GatewayEndpoint", {
+      service: ec2.GatewayVpcEndpointAwsService.S3,
+    });
+
+    const privateSubnets: ec2.SubnetSelection = {
+      subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+    };
+
+    const interfaceEndpoints: Record<
+      string,
+      ec2.InterfaceVpcEndpointAwsService
+    > = {
+      EcrApiEndpoint: ec2.InterfaceVpcEndpointAwsService.ECR,
+      EcrDockerEndpoint: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
+      SecretsManagerEndpoint:
+        ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      CloudWatchLogsEndpoint: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+      CloudWatchEndpoint: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH,
+      KmsEndpoint: ec2.InterfaceVpcEndpointAwsService.KMS,
+      SqsEndpoint: ec2.InterfaceVpcEndpointAwsService.SQS,
+      SesEndpoint: ec2.InterfaceVpcEndpointAwsService.SES,
+    };
+
+    for (const [id, service] of Object.entries(interfaceEndpoints)) {
+      this.vpc.addInterfaceEndpoint(id, {
+        service,
+        subnets: privateSubnets,
+        privateDnsEnabled: true,
+      });
+    }
+
+    // ============================================
     // Route53 & SSL Certificate
     // ============================================
     let hostedZone: route53.IHostedZone | undefined;

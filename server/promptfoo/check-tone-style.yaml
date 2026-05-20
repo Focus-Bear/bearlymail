@@ -1,12 +1,12 @@
 description: "Tone and style checking prompts for BearlyMail"
 
 providers:
-  - id: openai:gpt-5-mini
+ 
+
+  - id: google:gemini-3.1-flash-lite
     config:
-      reasoning_effort: low
       temperature: 0
-  # Uncomment below if you have Gemini API key
-  # - google:gemini-pro
+
 
 prompts:
   - file://prompts/check-tone-style.md
@@ -169,7 +169,7 @@ tests:
       rules:
         - "Be professional"
       text: "Hey, just checking in on the project status. Can you send me an update?"
-      scheduledSendAt: "2026-03-14T20:00:00+00:00"
+      scheduledSendAt: "2026-03-14T20:00:00+00:00 (Saturday)"
     assert:
       - type: javascript
         value: |

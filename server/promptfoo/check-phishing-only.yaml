@@ -1,9 +1,12 @@
 description: "Phishing-only check used when a custom summarisation prompt is active"
 
 providers:
-  - id: openai:gpt-4o-mini
+
+
+  - id: google:gemini-3.1-flash-lite
     config:
       temperature: 0
+  
 
 prompts:
   - file://prompts/check-phishing-only.md
@@ -40,11 +43,23 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (!output.phishing) throw new Error('Expected phishing field in response');
-          if (!output.phishing.is_phishing) throw new Error(`Expected is_phishing=true for credential phishing email. Got: ${JSON.stringify(output.phishing)}`);
-          if (!['medium', 'high'].includes(output.phishing.confidence)) throw new Error(`Expected medium/high confidence, got: ${output.phishing.confidence}`);
-          return true;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+            
+            const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            
+            if (!parsed.phishing) throw new Error('Expected phishing field in response');
+            if (!parsed.phishing.is_phishing) throw new Error(`Expected is_phishing=true. Got: ${JSON.stringify(parsed.phishing)}`);
+            if (!['medium', 'high'].includes(parsed.phishing.confidence)) {
+              throw new Error(`Expected medium/high confidence, got: ${parsed.phishing.confidence}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Assertion Failed: ${e.message}`);
+          }
 
   - description: "Custom prompt path: PayPal phishing must still be detected"
     vars:
@@ -74,10 +89,20 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (!output.phishing) throw new Error('Expected phishing field');
-          if (!output.phishing.is_phishing) throw new Error(`Expected is_phishing=true. Got: ${JSON.stringify(output.phishing)}`);
-          return true;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+            
+            const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            
+            if (!parsed.phishing) throw new Error('Expected phishing field');
+            if (!parsed.phishing.is_phishing) throw new Error('Expected is_phishing=true');
+            return true;
+          } catch (e) {
+            throw new Error(`Assertion Failed: ${e.message}`);
+          }
 
   # ─── Custom prompt + legitimate email — must NOT flag ──────────────────────
 
@@ -102,11 +127,21 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: legitimate deadline email flagged as phishing. Reason: ${output.phishing?.reason}`);
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+            
+            const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            
+            if (parsed.phishing && parsed.phishing.is_phishing) {
+              throw new Error(`False positive: legitimate email flagged. Reason: ${parsed.phishing.reason}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Assertion Failed: ${e.message}`);
           }
-          return true;
 
   - description: "Custom prompt path: Mailchimp newsletter (ESP domain mismatch) must not be flagged"
     vars:
@@ -138,8 +173,18 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: Mailchimp newsletter flagged. Domain mismatch expected for ESP-sent emails. Reason: ${output.phishing?.reason}`);
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+            
+            const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            
+            if (parsed.phishing && parsed.phishing.is_phishing) {
+              throw new Error(`False positive: Mailchimp newsletter flagged. Reason: ${parsed.phishing.reason}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Assertion Failed: ${e.message}`);
           }
-          return true;

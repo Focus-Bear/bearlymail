@@ -11,8 +11,9 @@ Analyze the following email snippet and:
 {{text}}
 
 ## REJECT the email if ANY of these apply:
-- It is from an AI email assistant or auto-responder (e.g. mentions "BearlyMail", "AI assistant", "automated response", "auto-reply")
-- It is a calendar event notification or invitation (e.g. event updates, meeting invites with dates/times/locations, "this event has been updated", "has been cancelled", RSVP details)
+- It is from an AI email assistant or auto-responder...
+- It is an **automated/system-generated** calendar event notification (e.g., machine-generated updates like "This event has been updated", "RSVP details", or bare calendar invites from services like Google Calendar). 
+  - **Note**: Do NOT reject personal, human-written emails that simply mention a meeting, scheduling a time, or having sent an invite in the body of a message
 - It is a system-generated message (e.g. receipts, shipping notifications, password resets, alerts)
 - It is a newsletter or marketing email
 - It is an out-of-office auto-reply

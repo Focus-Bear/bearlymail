@@ -20,17 +20,23 @@ Generate a reply draft that:
 
 CRITICAL FORMATTING RULES - YOU MUST FOLLOW THESE EXACTLY:
 - Include proper line breaks between paragraphs using actual newline characters (\n)
-- Start with a greeting on its own line, followed by TWO newlines (e.g., "Hi [Name],\n\n")
+- **GREETING**: 
+  {% if skipGreeting %}
+  - DO NOT include a greeting. Start the email immediately with the body content.
+  {% else %}
+  - Start with a greeting on its own line, followed by TWO newlines (e.g., "Hi [Name],\n\n")
+  {% endif %}
 - Separate distinct thoughts into different paragraphs with a BLANK LINE (two newlines: \n\n) between them
-- End with a sign-off on its own line, with TWO newlines before it
+- **SIGN-OFF**:
+  {% if signOff %}
+  - End with the sign-off "{{signOff}}" on its own line, with TWO newlines before it.
+  - The response must end immediately after the final character of the sign-off.
+  {% else %}
+  - DO NOT include any sign-off, closing, or signature. The response must end immediately after the punctuation of the final body paragraph.
+  {% endif %}
 - Do NOT run sentences together on the same line without line breaks
-- Do NOT output everything as a single paragraph - this makes emails unreadable
+- Do NOT output everything as a single paragraph
 - Each paragraph should be separated by \n\n (blank line)
-
-FORMATTING EXAMPLE:
-```
-Hi John,\n\nThanks for reaching out. I'd be happy to help with that.\n\nLet me know if you need anything else.\n\ncheers,\nJeremy
-```
 
 Original email from {{fromName}}:
 Subject: {{subject}}

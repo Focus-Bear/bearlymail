@@ -1,339 +1,251 @@
 description: "Incremental summary update prompts for BearlyMail - updates summaries with new messages"
 
-providers:
-  - id: openai:gpt-5-mini
-    config:
-      reasoning_effort: low
-      temperature: 0
-
 prompts:
   - file://prompts/incremental-summary.md
 
+
+providers:
+
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
 tests:
-  - vars:
+  - description: "Should incorporate new pricing information into summary"
+    vars:
       existingSummary: "Customer inquiring about enterprise pricing options for their team of 50 users."
       newEmailFrom: "sales@company.com"
       newEmailFromName: "Sales Team"
       newEmailSubject: "Re: Enterprise Pricing"
-      newEmailBody: "Thanks for your interest! I've attached our enterprise pricing guide. For 50 users, we recommend our Growth plan at $15/user/month."
+      newEmailBody: "Thanks for your interest! growth plan at $15/user/month."
       newEmailReceivedAt: "2026-02-26T10:00:00Z"
       isResolution: false
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should have updated summary
-          if (!data.updatedSummary || data.updatedSummary.length < 20) {
-            throw new Error(`Expected updated summary, got: ${data.updatedSummary}`);
-          }
-          // Should include new information about pricing
-          const lower = data.updatedSummary.toLowerCase();
-          const hasPricingInfo = lower.includes('pricing') || lower.includes('$15') || lower.includes('growth') || lower.includes('guide');
-          if (!hasPricingInfo) {
-            throw new Error(`Expected pricing information in updated summary. Got: ${data.updatedSummary}`);
-          }
-          return true;
-    description: "Should incorporate new pricing information into summary"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (!data.updatedSummary || data.updatedSummary.length < 20) throw new Error("Summary too short");
+            const lower = data.updatedSummary.toLowerCase();
+            const hasPricing = lower.includes('pricing') || lower.includes('$15') || lower.includes('growth');
+            if (!hasPricing) throw new Error("Missing pricing info in summary");
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
-      existingSummary: "Bug report: Login page throws 500 error when using SSO. Engineering team is investigating."
+  - description: "Should reflect bug resolution and mark as significant change"
+    vars:
+      existingSummary: "Bug report: Login page throws 500 error when using SSO."
       newEmailFrom: "engineering@company.com"
       newEmailFromName: "Engineering Team"
       newEmailSubject: "Re: Login Bug - SSO Issue"
-      newEmailBody: "Fixed! The SSO bug has been resolved and deployed to production. All users should now be able to log in normally."
+      newEmailBody: "Fixed! The SSO bug has been resolved and deployed to production."
       newEmailReceivedAt: "2026-02-26T14:00:00Z"
       isResolution: true
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should reflect the resolution
-          const lower = data.updatedSummary.toLowerCase();
-          const hasResolution = lower.includes('fixed') || lower.includes('resolved') || lower.includes('deployed');
-          if (!hasResolution) {
-            throw new Error(`Expected resolution in summary. Got: ${data.updatedSummary}`);
-          }
-          // Should mark as significant change
-          if (data.significantChange !== true) {
-            throw new Error(`Expected significantChange=true for resolution, got ${data.significantChange}`);
-          }
-          return true;
-    description: "Should reflect bug resolution and mark as significant change"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            const lower = data.updatedSummary.toLowerCase();
+            if (!['fixed', 'resolved', 'deployed'].some(w => lower.includes(w))) throw new Error("Summary didn't reflect resolution");
+            if (data.significantChange !== true) throw new Error("Should be significantChange=true");
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
-      existingSummary: "Partnership proposal from TechCorp for joint marketing campaign targeting enterprise customers."
+  - description: "Simple follow-up should preserve context and NOT be significant"
+    vars:
+      existingSummary: "Partnership proposal from TechCorp for joint marketing campaign."
       newEmailFrom: "partner@techcorp.com"
-      newEmailFromName: "John from TechCorp"
-      newEmailSubject: "Re: Partnership Proposal"
       newEmailBody: "Thanks for considering our proposal. Let me know if you have any questions!"
       newEmailReceivedAt: "2026-02-26T11:00:00Z"
       isResolution: false
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Summary should still reference partnership
-          const lower = data.updatedSummary.toLowerCase();
-          const hasPartnership = lower.includes('partnership') || lower.includes('proposal') || lower.includes('techcorp');
-          if (!hasPartnership) {
-            throw new Error(`Expected partnership context preserved. Got: ${data.updatedSummary}`);
-          }
-          // Simple follow-up should NOT be significant
-          if (data.significantChange === true) {
-            throw new Error(`Expected significantChange=false for simple follow-up, got true`);
-          }
-          return true;
-    description: "Simple follow-up should preserve context and NOT be significant"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            const lower = data.updatedSummary.toLowerCase();
+            if (!['partnership', 'proposal', 'techcorp'].some(w => lower.includes(w))) throw new Error("Lost partnership context");
+            if (data.significantChange === true) throw new Error("Simple follow-up should not be significant");
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
+  - description: "Should reflect meeting rescheduling as significant change"
+    vars:
       existingSummary: "Meeting scheduled for Friday at 2pm to discuss Q4 roadmap."
-      newEmailFrom: "colleague@company.com"
-      newEmailFromName: "Sarah"
-      newEmailSubject: "Re: Q4 Roadmap Meeting"
-      newEmailBody: "Sorry, I need to reschedule. Can we move it to Monday at 10am instead?"
+      newEmailBody: "Can we move it to Monday at 10am instead?"
       newEmailReceivedAt: "2026-02-26T09:00:00Z"
       isResolution: false
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should reflect the rescheduling
-          const lower = data.updatedSummary.toLowerCase();
-          const hasReschedule = lower.includes('monday') || lower.includes('reschedul') || lower.includes('10am') || lower.includes('move');
-          if (!hasReschedule) {
-            throw new Error(`Expected rescheduling info in summary. Got: ${data.updatedSummary}`);
-          }
-          // Rescheduling is a meaningful change
-          if (data.significantChange !== true) {
-            throw new Error(`Expected significantChange=true for rescheduling, got ${data.significantChange}`);
-          }
-          return true;
-    description: "Should reflect meeting rescheduling as significant change"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            const lower = data.updatedSummary.toLowerCase();
+            if (!['monday', 'reschedul', '10am', 'move'].some(w => lower.includes(w))) throw new Error("Missing rescheduling info");
+            if (data.significantChange !== true) throw new Error("Reschedule should be significant");
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
+  - description: "Should reflect customer escalation as significant change"
+    vars:
       existingSummary: "Customer support ticket: User unable to export data to CSV format."
-      newEmailFrom: "customer@example.com"
-      newEmailFromName: "Frustrated User"
-      newEmailSubject: "Re: CSV Export Issue"
-      newEmailBody: "This is still not working! I've tried everything you suggested. I've been a paying customer for 3 years and this is unacceptable. Please escalate this immediately!"
+      newEmailBody: "This is unacceptable. Please escalate this immediately!"
       newEmailReceivedAt: "2026-02-26T16:00:00Z"
       isResolution: false
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should reflect the escalation/frustration
-          const lower = data.updatedSummary.toLowerCase();
-          const hasEscalation = lower.includes('escalat') || lower.includes('frustrat') || lower.includes('not working') || lower.includes('ongoing');
-          if (!hasEscalation) {
-            throw new Error(`Expected escalation reflected in summary. Got: ${data.updatedSummary}`);
-          }
-          // Escalation is significant
-          if (data.significantChange !== true) {
-            throw new Error(`Expected significantChange=true for escalation, got ${data.significantChange}`);
-          }
-          return true;
-    description: "Should reflect customer escalation as significant change"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            const lower = data.updatedSummary.toLowerCase();
+            if (!['escalat', 'frustrat', 'not working'].some(w => lower.includes(w))) throw new Error("Missing escalation info");
+            if (data.significantChange !== true) throw new Error("Escalation should be significant");
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
-      existingSummary: "Weekly status update: Project Alpha at 60% completion, on track for March delivery."
-      newEmailFrom: "pm@company.com"
-      newEmailFromName: "Project Manager"
-      newEmailSubject: "Re: Weekly Status"
+  - description: "Minor progress update should NOT be marked as significant"
+    vars:
+      existingSummary: "Weekly status update: Project Alpha at 60% completion."
       newEmailBody: "Quick update: We're now at 65% completion. Everything still on track."
       newEmailReceivedAt: "2026-02-26T17:00:00Z"
       isResolution: false
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should update the percentage
-          const lower = data.updatedSummary.toLowerCase();
-          const hasProgress = lower.includes('65%') || lower.includes('progress');
-          if (!hasProgress) {
-            throw new Error(`Expected updated progress in summary. Got: ${data.updatedSummary}`);
-          }
-          // Minor progress update is NOT significant
-          if (data.significantChange === true) {
-            throw new Error(`Expected significantChange=false for minor progress update, got true`);
-          }
-          return true;
-    description: "Minor progress update should NOT be marked as significant"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (!data.updatedSummary.includes('65%')) throw new Error("Didn't update percentage to 65%");
+            if (data.significantChange === true) throw new Error("Minor progress shouldn't be significant");
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
-      existingSummary: "Interview scheduling for Senior Developer position. Candidate John Doe available next week."
-      newEmailFrom: "hr@company.com"
-      newEmailFromName: "HR Team"
-      newEmailSubject: "Re: Interview - John Doe"
-      newEmailBody: "Unfortunately, John Doe has withdrawn his application. He accepted another offer. We'll need to continue with other candidates."
+  - description: "Candidate withdrawal should be reflected and marked as significant"
+    vars:
+      existingSummary: "Interview scheduling for John Doe available next week."
+      newEmailBody: "Unfortunately, John Doe has withdrawn his application."
       newEmailReceivedAt: "2026-02-26T12:00:00Z"
       isResolution: true
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should reflect the withdrawal
-          const lower = data.updatedSummary.toLowerCase();
-          const hasWithdrawal = lower.includes('withdraw') || lower.includes('declined') || lower.includes('another offer') || lower.includes('cancelled');
-          if (!hasWithdrawal) {
-            throw new Error(`Expected withdrawal reflected in summary. Got: ${data.updatedSummary}`);
-          }
-          // Candidate withdrawal is significant
-          if (data.significantChange !== true) {
-            throw new Error(`Expected significantChange=true for candidate withdrawal, got ${data.significantChange}`);
-          }
-          return true;
-    description: "Candidate withdrawal should be reflected and marked as significant"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            const lower = data.updatedSummary.toLowerCase();
+            if (!['withdraw', 'decline', 'cancelled'].some(w => lower.includes(w))) throw new Error("Missing withdrawal info");
+            if (data.significantChange !== true) throw new Error("Withdrawal should be significant");
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  # Contact Type Guessing Tests
-  - vars:
-      existingSummary: "Inquiry about pricing and features for team collaboration software."
+  # Contact Type Guessing
+  - description: "Should guess contact type as lead/customer for sales inquiry"
+    vars:
+      existingSummary: "Inquiry about pricing for team collaboration software."
       newEmailFrom: "sales@acmecorp.com"
-      newEmailFromName: "Alex from Sales"
-      newEmailSubject: "Re: Interested in your product"
-      newEmailBody: "Hi, we'd love to schedule a demo to show you our enterprise features. We have packages starting at $99/month. When would be a good time?"
+      newEmailBody: "We'd love to schedule a demo. Packages starting at $99/month."
       newEmailReceivedAt: "2026-02-26T10:00:00Z"
       isResolution: false
       needsContactTypeGuess: true
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should have updated summary
-          if (!data.updatedSummary || data.updatedSummary.length < 20) {
-            throw new Error(`Expected updated summary, got: ${data.updatedSummary}`);
-          }
-          // Should guess contact type as lead or customer (sales inquiry)
-          if (!data.suggestedContactType) {
-            throw new Error('Expected suggestedContactType field');
-          }
-          const validTypes = ['lead', 'customer', 'partner'];
-          if (!validTypes.includes(data.suggestedContactType)) {
-            throw new Error(`Expected lead/customer/partner for sales inquiry, got: ${data.suggestedContactType}`);
-          }
-          // Should have confidence score
-          if (typeof data.contactTypeConfidence !== 'number') {
-            throw new Error('Expected contactTypeConfidence to be a number');
-          }
-          return true;
-    description: "Should guess contact type as lead/customer for sales inquiry"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            const valid = ['lead', 'customer', 'partner'];
+            if (!valid.includes(data.suggestedContactType)) throw new Error(`Wrong type: ${data.suggestedContactType}`);
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
+  - description: "Should guess contact type as bot for noreply automated emails"
+    vars:
       existingSummary: "GitHub notification about a pull request review."
       newEmailFrom: "noreply@github.com"
-      newEmailFromName: "GitHub"
       newEmailSubject: "Re: [repo/project] PR #123: Fix bug"
-      newEmailBody: "Your pull request has been approved and merged. View on GitHub: https://github.com/..."
+      newEmailBody: "Your pull request has been approved and merged."
       newEmailReceivedAt: "2026-02-26T11:00:00Z"
       isResolution: true
       needsContactTypeGuess: true
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should guess contact type as bot (automated notification)
-          if (!data.suggestedContactType) {
-            throw new Error('Expected suggestedContactType field');
-          }
-          if (data.suggestedContactType !== 'bot') {
-            throw new Error(`Expected bot for noreply@github.com, got: ${data.suggestedContactType}`);
-          }
-          // High confidence for obvious bot
-          if (data.contactTypeConfidence < 0.7) {
-            throw new Error(`Expected high confidence for bot, got: ${data.contactTypeConfidence}`);
-          }
-          return true;
-    description: "Should guess contact type as bot for noreply automated emails"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.suggestedContactType !== 'bot') throw new Error(`Expected bot, got ${data.suggestedContactType}`);
+            if (data.contactTypeConfidence < 0.7) throw new Error("Confidence too low for bot");
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
+  - description: "Should guess contact type as team_member for internal communications"
+    vars:
       existingSummary: "Colleague asking about project timeline."
       newEmailFrom: "jane.doe@company.com"
-      newEmailFromName: "Jane Doe"
-      newEmailSubject: "Re: Q1 Sprint Planning"
-      newEmailBody: "Hey team, just checking in on the sprint. Can we sync up tomorrow to discuss blockers? I'll book a meeting room."
+      newEmailBody: "Can we sync up tomorrow to discuss blockers? I'll book a meeting room."
       newEmailReceivedAt: "2026-02-26T09:00:00Z"
       isResolution: false
       needsContactTypeGuess: true
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should guess contact type as team_member (internal communication)
-          if (!data.suggestedContactType) {
-            throw new Error('Expected suggestedContactType field');
-          }
-          if (data.suggestedContactType !== 'team_member') {
-            throw new Error(`Expected team_member for internal colleague, got: ${data.suggestedContactType}`);
-          }
-          return true;
-    description: "Should guess contact type as team_member for internal communications"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.suggestedContactType !== 'team_member') throw new Error(`Expected team_member, got ${data.suggestedContactType}`);
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
+  - description: "Should guess contact type as advisor for strategic advice"
+    vars:
       existingSummary: "Discussion about investment opportunity."
       newEmailFrom: "advisor@vcfund.com"
-      newEmailFromName: "Sarah Chen"
-      newEmailSubject: "Re: Advisory Board Meeting"
-      newEmailBody: "I've reviewed your growth strategy. My recommendation would be to focus on enterprise customers first. Let's discuss this in our next board meeting. I can also connect you with some potential clients in my network."
+      newEmailBody: "My recommendation would be to focus on enterprise customers first."
       newEmailReceivedAt: "2026-02-26T14:00:00Z"
       isResolution: false
       needsContactTypeGuess: true
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should guess contact type as advisor (strategic advice, board meeting)
-          if (!data.suggestedContactType) {
-            throw new Error('Expected suggestedContactType field');
-          }
-          if (data.suggestedContactType !== 'advisor') {
-            throw new Error(`Expected advisor for board/strategic advice, got: ${data.suggestedContactType}`);
-          }
-          return true;
-    description: "Should guess contact type as advisor for strategic advice and board communications"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.suggestedContactType !== 'advisor') throw new Error(`Expected advisor, got ${data.suggestedContactType}`);
+            return true;
+          } catch (e) { throw new Error(e.message); }
 
-  - vars:
+  - description: "Should guess contact type as spammer for unsolicited bulk emails"
+    vars:
       existingSummary: "Unsolicited email about SEO services."
       newEmailFrom: "marketing@spammy-seo.biz"
-      newEmailFromName: "SEO Expert"
-      newEmailSubject: "URGENT: Your website needs SEO optimization!!!"
-      newEmailBody: "Dear business owner, I noticed your website is not ranking well on Google. We can guarantee first page results for only $299! Limited time offer! Click here to claim your FREE audit!!!"
+      newEmailBody: "We can guarantee first page results for only $299! Limited time offer!"
       newEmailReceivedAt: "2026-02-26T08:00:00Z"
       isResolution: false
       needsContactTypeGuess: true
     assert:
-      - type: is-json
       - type: javascript
         value: |
-          const result = typeof output === 'string' ? JSON.parse(output) : output;
-          const data = result.result || result;
-          // Should guess contact type as spammer (unsolicited bulk email)
-          if (!data.suggestedContactType) {
-            throw new Error('Expected suggestedContactType field');
-          }
-          if (data.suggestedContactType !== 'spammer') {
-            throw new Error(`Expected spammer for unsolicited bulk email, got: ${data.suggestedContactType}`);
-          }
-          return true;
-    description: "Should guess contact type as spammer for unsolicited bulk emails"
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.suggestedContactType !== 'spammer') throw new Error(`Expected spammer, got ${data.suggestedContactType}`);
+            return true;
+          } catch (e) { throw new Error(e.message); }

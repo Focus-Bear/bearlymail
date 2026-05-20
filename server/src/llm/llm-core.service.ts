@@ -39,7 +39,7 @@ export class LLMCoreService {
   ) {
     this.initializeClients();
     this.defaultProvider = (
-      this.configService.get<string>("LLM_PROVIDER") || "openai"
+      this.configService.get<string>("LLM_PROVIDER") || "gemini"
     ).toLowerCase() as LLMProvider;
   }
 
@@ -162,7 +162,7 @@ export class LLMCoreService {
     }
 
     const modelName =
-      this.configService.get<string>("GEMINI_MODEL") || "gemini-1.5-flash";
+      this.configService.get<string>("GEMINI_MODEL") || "gemini-3.1-flash-lite";
     this.logger.log(`Generating text using Gemini model: ${modelName}`);
 
     return this.retryOperation(async () => {

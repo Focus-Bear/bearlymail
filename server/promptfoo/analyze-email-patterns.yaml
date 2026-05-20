@@ -1,10 +1,12 @@
 description: "Email pattern analysis prompts for BearlyMail"
 
 providers:
-  - id: openai:gpt-5-mini
+
+  - id: google:gemini-1.5-flash
     config:
-      reasoning_effort: low
       temperature: 0
+  
+
 
 prompts:
   - file://prompts/analyze-email-patterns.md

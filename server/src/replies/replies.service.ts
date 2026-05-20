@@ -5,7 +5,7 @@ import { Repository } from "typeorm";
 import { LLM_PROVIDER_STRINGS, TONE_STYLES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { STAR_COUNTS } from "../constants/priority-constants";
-import { HOURS_PER_DAY } from "../constants/time-constants";
+import { HOURS_PER_DAY, MILLISECONDS } from "../constants/time-constants";
 import { ContextService } from "../context/context.service";
 import { WritingStyleLearningService } from "../context/writing-style-learning.service";
 import { Email } from "../database/entities/email.entity";
@@ -435,14 +435,32 @@ ${closing}`;
     provider: Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>,
     expectedReplyHours: number,
   ): Promise<void> {
-    await this.snoozeService.snoozeEmail(
-      userId,
-      emailId,
-      `${expectedReplyHours}h`,
+    const snoozeUntil = new Date(
+      Date.now() + expectedReplyHours * MILLISECONDS.HOUR,
     );
     const followUpDays = Math.max(
       1,
       Math.ceil(expectedReplyHours / HOURS_PER_DAY),
+    );
+    const followUpDueAt = new Date();
+    followUpDueAt.setDate(followUpDueAt.getDate() + followUpDays);
+
+    // Debug #2125: log snooze vs follow-up due date to detect any timing mismatch
+    // that could cause threads to appear in follow-up mode before the due date.
+    const followUpHours = followUpDays * HOURS_PER_DAY;
+    this.logger.warn(
+      `[DEBUG #2125] createFollowUpAfterReply for thread ${email.threadId}:` +
+        ` expectedReplyHours=${expectedReplyHours},` +
+        ` snoozeUntil=${snoozeUntil.toISOString()},` +
+        ` followUpDays=${followUpDays},` +
+        ` followUpDueAt≈${followUpDueAt.toISOString()}` +
+        ` (snooze=${expectedReplyHours}h, followUp=${followUpHours}h — gap=${followUpHours - expectedReplyHours}h)`,
+    );
+
+    await this.snoozeService.snoozeEmail(
+      userId,
+      emailId,
+      `${expectedReplyHours}h`,
     );
     await this.followUpsService.createFollowUp(
       userId,

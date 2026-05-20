@@ -17,6 +17,7 @@ import { CategoryOverride } from "../database/entities/category-override.entity"
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { FollowUp } from "../database/entities/follow-up.entity";
 import { Organization } from "../database/entities/organization.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { PriorityAnalysisRun } from "../database/entities/priority-analysis-run.entity";
@@ -114,6 +115,7 @@ import { SyncHistoryService } from "./sync-history.service";
       SyncHistoryLog,
       Contact,
       PriorityAnalysisRun,
+      FollowUp,
     ]),
     PriorityModule,
     forwardRef(() => SummarizationModule),

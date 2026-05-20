@@ -142,6 +142,7 @@ export interface Email {
   labels?: string[];
   lastTheirReplyAt?: string;
   lastMyReplyAt?: string;
+  followUpDueAt?: string;
   urgencyScore?: number; // Thread-level urgency score (0-100)
   urgencyExplanation?: string | null; // Thread-level urgency explanation
   emailThreadId?: string; // Database thread ID for override endpoint

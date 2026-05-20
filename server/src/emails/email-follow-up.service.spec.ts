@@ -1,5 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
 
+import {
+  FollowUp,
+  FollowUpStatus,
+} from "../database/entities/follow-up.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
@@ -35,6 +40,9 @@ describe("EmailFollowUpService", () => {
   let mockEmailThreadService: jest.Mocked<
     Pick<EmailThreadService, "getThreadEmails">
   >;
+  let mockFollowUpRepository: {
+    createQueryBuilder: jest.Mock;
+  };
 
   beforeEach(async () => {
     mockUsersService = {
@@ -48,6 +56,14 @@ describe("EmailFollowUpService", () => {
       getThreadEmails: jest.fn().mockResolvedValue([]),
     };
 
+    mockFollowUpRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
     jest
       .spyOn(EncryptionHelper, "tryDecrypt")
       .mockImplementation((val: string) =>
@@ -59,6 +75,10 @@ describe("EmailFollowUpService", () => {
         EmailFollowUpService,
         { provide: UsersService, useValue: mockUsersService },
         { provide: EmailThreadService, useValue: mockEmailThreadService },
+        {
+          provide: getRepositoryToken(FollowUp),
+          useValue: mockFollowUpRepository,
+        },
       ],
     }).compile();
 
@@ -163,6 +183,117 @@ describe("EmailFollowUpService", () => {
         mockPerf,
       );
       expect(result).toContain(email);
+    });
+  });
+
+  describe("filterFollowUpModeEmails", () => {
+    const mockPerf = {
+      startSpan: jest.fn().mockReturnValue(jest.fn()),
+    } as unknown as PerformanceTracker;
+
+    function makeInboxEmail(overrides: Partial<InboxEmail> = {}): InboxEmail {
+      return {
+        id: `email-${Math.random()}`,
+        threadId: THREAD_ID,
+        from: OTHER_EMAIL,
+        isSnoozed: false,
+        sentByAutoResponder: false,
+        ...overrides,
+      } as InboxEmail;
+    }
+
+    function mockQbForFollowUps(followUps: Partial<FollowUp>[]) {
+      mockFollowUpRepository.createQueryBuilder.mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(followUps),
+      });
+    }
+
+    it("includes thread when user sent last and no active follow-up record", async () => {
+      mockQbForFollowUps([]);
+      mockEmailThreadService.getThreadEmails.mockResolvedValue([
+        makeEmail({ from: OTHER_EMAIL }) as never,
+        makeEmail({ from: USER_EMAIL }) as never,
+      ]);
+
+      const email = makeInboxEmail({ from: USER_EMAIL });
+      const result = await service.filterFollowUpModeEmails(
+        USER_ID,
+        [email],
+        mockPerf,
+      );
+      expect(result).toContain(email);
+    });
+
+    it("includes thread even when AWAITING_REPLY follow-up has future due date (snooze should handle suppression)", async () => {
+      // The suppression of threads whose follow-up hasn't come due yet is handled
+      // by the snooze mechanism (thread.isSnoozed), NOT by filterFollowUpModeEmails.
+      // This test documents that filterFollowUpModeEmails does NOT suppress based on
+      // follow-up due date — if a thread reaches this filter it means the snooze
+      // already expired (or was cancelled, which is the #2125 bug under investigation).
+      const msIn48Hours = 48 * 60 * 60 * 1000;
+      const futureDate = new Date(Date.now() + msIn48Hours);
+      mockQbForFollowUps([
+        {
+          threadId: THREAD_ID,
+          status: FollowUpStatus.AWAITING_REPLY,
+          followUpDueAt: futureDate,
+        },
+      ]);
+      mockEmailThreadService.getThreadEmails.mockResolvedValue([
+        makeEmail({ from: OTHER_EMAIL }) as never,
+        makeEmail({ from: USER_EMAIL }) as never,
+      ]);
+
+      const email = makeInboxEmail({ from: USER_EMAIL, threadId: THREAD_ID });
+      const result = await service.filterFollowUpModeEmails(
+        USER_ID,
+        [email],
+        mockPerf,
+      );
+      // Thread is included — the debug logging will flag this as the #2125 symptom.
+      expect(result).toContain(email);
+    });
+
+    it("includes thread when AWAITING_REPLY follow-up due date has passed", async () => {
+      const msIn24Hours = 24 * 60 * 60 * 1000;
+      const pastDate = new Date(Date.now() - msIn24Hours);
+      mockQbForFollowUps([
+        {
+          threadId: THREAD_ID,
+          status: FollowUpStatus.AWAITING_REPLY,
+          followUpDueAt: pastDate,
+        },
+      ]);
+      mockEmailThreadService.getThreadEmails.mockResolvedValue([
+        makeEmail({ from: OTHER_EMAIL }) as never,
+        makeEmail({ from: USER_EMAIL }) as never,
+      ]);
+
+      const email = makeInboxEmail({ from: USER_EMAIL, threadId: THREAD_ID });
+      const result = await service.filterFollowUpModeEmails(
+        USER_ID,
+        [email],
+        mockPerf,
+      );
+      expect(result).toContain(email);
+    });
+
+    it("does not populate followUpDueAt when no follow-up record exists", async () => {
+      mockQbForFollowUps([]);
+      mockEmailThreadService.getThreadEmails.mockResolvedValue([
+        makeEmail({ from: OTHER_EMAIL }) as never,
+        makeEmail({ from: USER_EMAIL }) as never,
+      ]);
+
+      const email = makeInboxEmail({ from: USER_EMAIL, threadId: THREAD_ID });
+      const result = await service.filterFollowUpModeEmails(
+        USER_ID,
+        [email],
+        mockPerf,
+      );
+      expect(result[0].followUpDueAt).toBeUndefined();
     });
   });
 });

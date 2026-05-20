@@ -142,7 +142,7 @@ export class EmailLifecycleService {
       `[EmailLifecycleService] Saved email ${savedEmail.id} to database`,
     );
 
-    await this.updateThreadAfterSave(userId, thread, batchResult);
+    await this.updateThreadAfterSave(userId, thread, batchResult, savedEmail);
     this.logLabelsSaved(savedEmail);
     await this.queuePostSaveJobs(
       userId,
@@ -299,6 +299,7 @@ export class EmailLifecycleService {
       wasDeliveredEarly: boolean;
       batchDecisionReason: string;
     },
+    triggerEmail?: Email,
   ): Promise<void> {
     const threadUpdate: Partial<EmailThread> = {
       updatedAt: new Date(),
@@ -308,19 +309,39 @@ export class EmailLifecycleService {
       batchDecisionReason: batchDecision.batchDecisionReason,
     };
     await this.emailThreadRepository.update({ id: thread.id }, threadUpdate);
-    await this.cancelThreadSnoozeIfNeeded(userId, thread);
+    await this.cancelThreadSnoozeIfNeeded(userId, thread, triggerEmail);
     await this.invalidateSuggestedActionsCache(thread.id);
   }
 
   async cancelThreadSnoozeIfNeeded(
     userId: string,
     thread: EmailThread,
+    triggerEmail?: Email,
   ): Promise<void> {
     try {
       const snoozedEmailsInThread = await this.emailRepository.find({
         where: { emailThreadId: thread.id, userId, isSnoozed: true },
       });
       if (!thread.isSnoozed && snoozedEmailsInThread.length === 0) return;
+
+      // Debug: log what triggered the snooze cancellation so we can understand
+      // why threads appear in follow-up mode immediately after a reply is sent.
+      if (triggerEmail) {
+        this.logger.warn(
+          `[DEBUG #2125] cancelThreadSnoozeIfNeeded triggered for thread ${thread.id}` +
+            ` (threadId=${thread.threadId}, isSnoozed=${thread.isSnoozed},` +
+            ` snoozeUntil=${thread.snoozeUntil?.toISOString() ?? "null"})` +
+            ` by email id=${triggerEmail.id} from="${triggerEmail.from}"` +
+            ` messageId=${triggerEmail.messageId}` +
+            ` sentByAutoResponder=${triggerEmail.sentByAutoResponder}`,
+        );
+      } else {
+        this.logger.warn(
+          `[DEBUG #2125] cancelThreadSnoozeIfNeeded triggered for thread ${thread.id}` +
+            ` (isSnoozed=${thread.isSnoozed},` +
+            ` snoozeUntil=${thread.snoozeUntil?.toISOString() ?? "null"}) - no trigger email provided`,
+        );
+      }
 
       if (thread.isSnoozed) {
         await this.emailThreadRepository.update(

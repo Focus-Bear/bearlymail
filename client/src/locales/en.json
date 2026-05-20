@@ -294,7 +294,10 @@
       "day_plural": "days",
       "status": "Status",
       "noReplyReceived": "No reply received",
-      "youSentLast": "You sent the last"
+      "youSentLast": "You sent the last",
+      "followUpWasDue": "Follow-up was due",
+      "followUpScheduledFor": "Follow-up scheduled for",
+      "appearsEarly": "(⚠️ appearing early)"
     },
     "sendResults": "Send Results",
     "andMore": "and {{count}} more",

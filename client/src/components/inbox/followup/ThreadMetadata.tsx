@@ -23,6 +23,7 @@ export const ThreadMetadata: React.FC<ThreadMetadataProps> = ({ thread }) => {
   const daysSinceLastResponse = calculateDaysSinceLastResponse(thread);
   const otherPersonName = thread.otherPersonName || thread.fromName || thread.from;
   const lastMyReplyAt = thread.lastMyReplyAt;
+  const followUpDueAt = thread.followUpDueAt;
 
   return (
     <div style={{ marginBottom: theme.spacing.xs }}>
@@ -66,11 +67,38 @@ export const ThreadMetadata: React.FC<ThreadMetadataProps> = ({ thread }) => {
             margin: 0,
             fontSize: theme.typography.fontSize.sm,
             color: theme.colors.text.secondary,
+            marginBottom: followUpDueAt ? theme.spacing.xs : 0,
           }}
         >
           <strong>{t('inbox.followUpDetails.youSentLast')}:</strong> {new Date(lastMyReplyAt).toLocaleDateString()}
         </p>
       )}
+      {followUpDueAt && (() => {
+        const dueDate = new Date(followUpDueAt);
+        const isPremature = dueDate > new Date();
+        return (
+          <p
+            style={{
+              margin: 0,
+              fontSize: theme.typography.fontSize.sm,
+              color: isPremature ? theme.colors.warning.main : theme.colors.text.secondary,
+            }}
+          >
+            <strong>
+              {isPremature
+                ? t('inbox.followUpDetails.followUpScheduledFor')
+                : t('inbox.followUpDetails.followUpWasDue')}
+              :
+            </strong>{' '}
+            {dueDate.toLocaleDateString()}
+            {isPremature && (
+              <span style={{ marginLeft: 4 }}>
+                {t('inbox.followUpDetails.appearsEarly')}
+              </span>
+            )}
+          </p>
+        );
+      })()}
     </div>
   );
 };

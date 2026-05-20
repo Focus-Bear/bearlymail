@@ -27,4 +27,6 @@ export interface InboxEmail extends Email {
   // Follow-up metadata (populated by EmailFollowUpService)
   lastTheirReplyAt?: string;
   lastMyReplyAt?: string;
+  /** ISO timestamp of when this thread's follow-up becomes due */
+  followUpDueAt?: string;
 }

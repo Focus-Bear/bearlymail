@@ -1393,11 +1393,15 @@
           "error": "Error"
         },
         "childJobErrorsTitle": "Job-level failures ({{count}})",
-        "childJobErrorsDescription": "These per-user jobs crashed before processing any rows. Check the worker logs for a full stack trace.",
+        "childJobErrorsDescription": "These per-user jobs did not complete successfully (failed, expired, cancelled, or pruned). Use the raw output preview to diagnose unfamiliar error shapes, and cross-reference with worker logs.",
+        "childJobErrorsNoDetailWarning": "{{count}} job(s) failed but the server returned no per-job error details. This usually means the backend image hasn't picked up the latest aggregation fix yet — try Refresh in a moment, or check worker logs.",
+        "childJobErrorFallbackMessage": "Child did not complete (state: {{state}}). Server did not provide a per-job message; check worker logs for context.",
         "childJobErrorColumns": {
           "jobId": "Job ID",
           "user": "User",
-          "error": "Error message"
+          "state": "State",
+          "error": "Error message",
+          "rawOutput": "Raw pg-boss output"
         }
       }
     },

@@ -85,7 +85,11 @@ interface AggregatedFailureDetail extends FailureDetail {
 interface ChildJobError {
   jobId: string;
   userId: string | null;
+  // Optional for backwards compat with the pre-2132-bulletproof server shape,
+  // which only emitted `{ jobId, userId, message }` for FAILED children.
+  state?: JobState;
   message: string;
+  outputPreview?: string | null;
 }
 
 interface FanoutResultsResponse {
@@ -937,20 +941,58 @@ const FanoutAggregateSection: React.FC<FanoutAggregateSectionProps> = ({
       </table>
 
       <FailureDetailsSection failures={results.failures} showUserColumn />
-      <ChildJobErrorsSection errors={results.childJobErrors ?? []} />
+      <ChildJobErrorsSection
+        errors={results.childJobErrors ?? []}
+        childrenFailed={results.childrenFailed}
+        nonCompletedTerminal={
+          results.childrenTerminal - results.childrenCompleted
+        }
+        children={results.children}
+      />
     </div>
   );
 };
 
 interface ChildJobErrorsSectionProps {
   errors: ChildJobError[];
+  childrenFailed: number;
+  nonCompletedTerminal: number;
+  children: ChildJobSummary[];
 }
 
 const ChildJobErrorsSection: React.FC<ChildJobErrorsSectionProps> = ({
   errors,
+  childrenFailed,
+  nonCompletedTerminal,
+  children,
 }) => {
   const { t } = useTranslation();
-  if (errors.length === 0) {
+
+  // Belt-and-braces against a server that returned `childJobErrors: []` (or
+  // omitted the field entirely on an old build) even though children failed.
+  // The aggregated `children` array always carries per-child state, so we
+  // synthesise display rows from it. This guarantees the admin sees something
+  // actionable for issue #2132 even if the server hasn't picked up the latest
+  // aggregation logic yet.
+  const synthesisedFromChildren: ChildJobError[] =
+    errors.length === 0 && nonCompletedTerminal > 0
+      ? children
+          .filter((child) => child.state !== JOB_STATE_COMPLETED)
+          .map((child) => ({
+            jobId: child.jobId,
+            userId: child.userId,
+            state: child.state,
+            message: t(
+              'admin.reencryption.fanout.childJobErrorFallbackMessage',
+              { state: child.state },
+            ),
+            outputPreview: null,
+          }))
+      : [];
+
+  const rows = errors.length > 0 ? errors : synthesisedFromChildren;
+  const showSection = rows.length > 0 || childrenFailed > 0;
+  if (!showSection) {
     return null;
   }
   return (
@@ -963,7 +1005,7 @@ const ChildJobErrorsSection: React.FC<ChildJobErrorsSectionProps> = ({
         }}
       >
         {t('admin.reencryption.fanout.childJobErrorsTitle', {
-          count: errors.length,
+          count: nonCompletedTerminal || childrenFailed,
         })}
       </h3>
       <p
@@ -975,57 +1017,98 @@ const ChildJobErrorsSection: React.FC<ChildJobErrorsSectionProps> = ({
       >
         {t('admin.reencryption.fanout.childJobErrorsDescription')}
       </p>
-      <div style={{ overflowX: 'auto' }}>
-        <table
+      {rows.length === 0 && (
+        <div
+          role="status"
           style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: theme.typography.fontSize.xs,
-            fontFamily: 'monospace',
+            padding: theme.spacing.md,
+            marginBottom: theme.spacing.sm,
+            backgroundColor: theme.colors.warning.light,
+            color: theme.colors.warning.main,
+            borderRadius: 4,
+            fontSize: theme.typography.fontSize.sm,
           }}
         >
-          <thead>
-            <tr
-              style={{
-                borderBottom: `1px solid ${theme.colors.border.light}`,
-              }}
-            >
-              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
-                {t('admin.reencryption.fanout.childJobErrorColumns.jobId')}
-              </th>
-              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
-                {t('admin.reencryption.fanout.childJobErrorColumns.user')}
-              </th>
-              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
-                {t('admin.reencryption.fanout.childJobErrorColumns.error')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {errors.map((err, i) => (
+          {t('admin.reencryption.fanout.childJobErrorsNoDetailWarning', {
+            count: childrenFailed,
+          })}
+        </div>
+      )}
+      {rows.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: theme.typography.fontSize.xs,
+              fontFamily: 'monospace',
+            }}
+          >
+            <thead>
               <tr
-                key={`${err.jobId}-${i}`}
                 style={{
                   borderBottom: `1px solid ${theme.colors.border.light}`,
                 }}
               >
-                <td style={{ padding: theme.spacing.sm }}>{err.jobId}</td>
-                <td style={{ padding: theme.spacing.sm }}>
-                  {err.userId ?? '—'}
-                </td>
-                <td
+                <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                  {t('admin.reencryption.fanout.childJobErrorColumns.jobId')}
+                </th>
+                <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                  {t('admin.reencryption.fanout.childJobErrorColumns.user')}
+                </th>
+                <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                  {t('admin.reencryption.fanout.childJobErrorColumns.state')}
+                </th>
+                <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                  {t('admin.reencryption.fanout.childJobErrorColumns.error')}
+                </th>
+                <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                  {t('admin.reencryption.fanout.childJobErrorColumns.rawOutput')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((err, i) => (
+                <tr
+                  key={`${err.jobId}-${i}`}
                   style={{
-                    padding: theme.spacing.sm,
-                    color: theme.colors.error.main,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
                   }}
                 >
-                  {err.message}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  <td style={{ padding: theme.spacing.sm }}>{err.jobId}</td>
+                  <td style={{ padding: theme.spacing.sm }}>
+                    {err.userId ?? '—'}
+                  </td>
+                  <td style={{ padding: theme.spacing.sm }}>
+                    {err.state ?? '—'}
+                  </td>
+                  <td
+                    style={{
+                      padding: theme.spacing.sm,
+                      color: theme.colors.error.main,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {err.message}
+                  </td>
+                  <td
+                    style={{
+                      padding: theme.spacing.sm,
+                      color: theme.colors.text.secondary,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      maxWidth: 320,
+                    }}
+                  >
+                    {err.outputPreview ?? '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

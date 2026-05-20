@@ -62,14 +62,22 @@ export interface AggregatedFailureDetail extends ReencryptionFailureDetail {
 }
 
 /**
- * Error details from a child job that failed at the PgBoss level (before any
- * rows were processed). PgBoss persists the thrown error as the job's output
- * (e.g. `{ message: "..." }`), which is otherwise invisible to the admin UI.
+ * Error details from a child job that did not complete cleanly. Covers both
+ * FAILED (PgBoss persists the thrown error as the job's output) and
+ * EXPIRED/CANCELLED/NOT_FOUND (no output captured) — in every case, the admin
+ * UI gets at least the state and whatever payload PgBoss recorded so they can
+ * diagnose without digging through worker logs.
+ *
+ * `outputPreview` is a JSON-stringified snippet (truncated) of the raw PgBoss
+ * output. Always populated when output is non-null — even if we successfully
+ * extracted `message`, the preview helps diagnose unfamiliar error shapes.
  */
 export interface ChildJobError {
   jobId: string;
   userId: string | null;
+  state: ChildJobState;
   message: string;
+  outputPreview: string | null;
 }
 
 interface FanoutResultsResponse {
@@ -91,6 +99,10 @@ const MAX_AGGREGATED_FAILURES = 200;
  * thousands of children doesn't saturate the database connection pool.
  */
 const CHILD_FETCH_CHUNK_SIZE = 20;
+// CloudWatch caps log events at 256KB; keep the per-warn payload well under
+// that even when worker stack traces are several KB each.
+const LOG_SAMPLE_SIZE = 10;
+const LOG_MESSAGE_MAX_CHARS = 200;
 
 class ReencryptOneUserDto {
   @IsString()
@@ -293,6 +305,28 @@ export class DataReencryptionController {
 
     const aggregate = aggregateChildren(children);
 
+    if (aggregate.childJobErrors.length > 0) {
+      // Mirror the surfaced messages into the web-service logs so an operator
+      // sees the same diagnostic text whether they look in the admin UI or in
+      // CloudWatch. Cap to a handful of truncated examples — at
+      // MAX_AGGREGATED_FAILURES=200 entries × multi-KB stack traces a full
+      // dump can blow past CloudWatch's 256KB per-event limit.
+      const summary = JSON.stringify(
+        aggregate.childJobErrors.slice(0, LOG_SAMPLE_SIZE).map((err) => ({
+          jobId: err.jobId,
+          userId: err.userId,
+          state: err.state,
+          message:
+            err.message.length > LOG_MESSAGE_MAX_CHARS
+              ? `${err.message.slice(0, LOG_MESSAGE_MAX_CHARS)}…`
+              : err.message,
+        })),
+      );
+      this.logger.warn(
+        `Fan-out ${jobId} surfaced ${aggregate.childJobErrors.length} non-completed child(ren). First ${Math.min(aggregate.childJobErrors.length, LOG_SAMPLE_SIZE)}: ${summary}`,
+      );
+    }
+
     return {
       state: fanoutJob.state as ChildJobState,
       childrenTotal: children.length,
@@ -321,6 +355,78 @@ const TERMINAL_CHILD_STATES: ReadonlySet<ChildJobState> = new Set([
   CHILD_STATE_NOT_FOUND,
 ]);
 
+/**
+ * States that mean "the child did not complete successfully" and should
+ * appear in the job-level errors table. FAILED is the common case (handler
+ * threw); EXPIRED is the job sat in `active` past its `expireIn` window;
+ * CANCELLED is an operator action; NOT_FOUND means PgBoss already pruned it
+ * (default 4-day retention on failed, 24h on completed) so we can't tell.
+ */
+const NON_COMPLETED_TERMINAL_STATES: ReadonlySet<ChildJobState> = new Set([
+  QUEUE_JOB_STATE.FAILED,
+  QUEUE_JOB_STATE.EXPIRED,
+  QUEUE_JOB_STATE.CANCELLED,
+  CHILD_STATE_NOT_FOUND,
+]);
+
+const OUTPUT_PREVIEW_MAX_CHARS = 500;
+
+/**
+ * Pull a human-readable error message out of a PgBoss failed-job output.
+ * PgBoss runs the thrown value through `serialize-error`, so an `Error` ends
+ * up as `{ name, message, stack }`. But not everything thrown is an Error —
+ * worker code (or libraries it calls) can throw strings, plain objects, or
+ * even `undefined`, and serialize-error preserves that shape. Without this
+ * defensive lookup, the admin UI silently hides a failure they need to see.
+ */
+function extractErrorMessage(state: ChildJobState, output: unknown): string {
+  if (state === CHILD_STATE_NOT_FOUND) {
+    return "(job pruned by pg-boss — no diagnostic available; reduce retention or check worker logs)";
+  }
+  if (state === QUEUE_JOB_STATE.EXPIRED) {
+    return "(job expired — worker did not finish within `expireIn`; likely hung or crashed mid-run)";
+  }
+  if (state === QUEUE_JOB_STATE.CANCELLED) {
+    return "(job cancelled before it ran)";
+  }
+  if (output === null || output === undefined) {
+    return "(pg-boss recorded no output for this failed job — worker process may have crashed before `.fail()` could persist the error)";
+  }
+  if (typeof output === "string") return output;
+  if (typeof output !== "object") return String(output);
+
+  // serialize-error shapes (Error → { name, message, stack }), but also handle
+  // plain-object throws and the `{ value: ... }` wrapping pg-boss applies to
+  // primitive throws.
+  const payload = output as Record<string, unknown>;
+  const candidates = [
+    payload.message,
+    (payload.error as Record<string, unknown> | undefined)?.message,
+    payload.value,
+    payload.reason,
+    payload.detail,
+    payload.name,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate;
+    }
+  }
+  return "(failed job has no `message` field — see raw output preview)";
+}
+
+function previewOutput(output: unknown): string | null {
+  if (output === null || output === undefined) return null;
+  try {
+    const json = JSON.stringify(output);
+    return json.length > OUTPUT_PREVIEW_MAX_CHARS
+      ? `${json.slice(0, OUTPUT_PREVIEW_MAX_CHARS)}…`
+      : json;
+  } catch {
+    return "(output not JSON-serialisable)";
+  }
+}
+
 function aggregateChildren(children: ChildJobSummary[]): {
   childrenTerminal: number;
   childrenCompleted: number;
@@ -341,21 +447,22 @@ function aggregateChildren(children: ChildJobSummary[]): {
   for (const child of children) {
     if (TERMINAL_CHILD_STATES.has(child.state)) childrenTerminal++;
     if (child.state === QUEUE_JOB_STATE.COMPLETED) childrenCompleted++;
-    if (child.state === QUEUE_JOB_STATE.FAILED) {
-      childrenFailed++;
-      if (childJobErrors.length < MAX_AGGREGATED_FAILURES) {
-        // PgBoss persists the thrown error as the job's output (e.g.
-        // `{ message: "boom" }`). Extract the message so admins can see WHY
-        // the job crashed rather than just seeing a count of "children failed".
-        const errPayload = child.output as unknown as
-          | { message?: string }
-          | null;
-        childJobErrors.push({
-          jobId: child.jobId,
-          userId: child.userId,
-          message: errPayload?.message ?? "(no error message)",
-        });
-      }
+    if (NON_COMPLETED_TERMINAL_STATES.has(child.state)) childrenFailed++;
+
+    // Surface every non-completed terminal child — not just FAILED. Expired or
+    // pruned jobs leave the admin with the same "5 children failed, no idea
+    // why" symptom otherwise.
+    if (
+      NON_COMPLETED_TERMINAL_STATES.has(child.state) &&
+      childJobErrors.length < MAX_AGGREGATED_FAILURES
+    ) {
+      childJobErrors.push({
+        jobId: child.jobId,
+        userId: child.userId,
+        state: child.state,
+        message: extractErrorMessage(child.state, child.output),
+        outputPreview: previewOutput(child.output),
+      });
     }
 
     // Only COMPLETED children carry the `UserReencryptionResult` output shape.

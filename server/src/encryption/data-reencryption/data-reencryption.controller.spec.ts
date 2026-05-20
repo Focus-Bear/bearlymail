@@ -373,9 +373,91 @@ describe("DataReencryptionController", () => {
         {
           jobId: "child-failed",
           userId: "user-b",
+          state: "failed",
           message: "boom: rds connection reset",
+          outputPreview: JSON.stringify({
+            message: "boom: rds connection reset",
+          }),
         },
       ]);
+    });
+
+    it("surfaces non-completed children even when output has no `message`", async () => {
+      // Regression for #2132: worker code (or a library it calls) can throw a
+      // plain object or string rather than an Error. The old code looked only
+      // at `output.message`, so these failures silently fell out of the
+      // childJobErrors table — leaving the admin with "Children failed: N"
+      // and zero diagnostic information. Now we extract from multiple shapes
+      // AND fall back to the raw output preview.
+      bossGetJobById.mockImplementation((id: string) => {
+        if (id === "fanout-weird") {
+          return Promise.resolve({
+            state: "completed",
+            output: {
+              enqueued: 3,
+              dryRun: false,
+              childJobIds: [
+                "child-string-throw",
+                "child-no-output",
+                "child-expired",
+              ],
+            },
+          });
+        }
+        if (id === "child-string-throw") {
+          // `throw "kaboom"` → pg-boss wraps as `{ value: "kaboom" }`.
+          return Promise.resolve({
+            state: "failed",
+            data: { userId: "user-a", dryRun: false },
+            output: { value: "kaboom" },
+          });
+        }
+        if (id === "child-no-output") {
+          // Worker crashed before .fail() persisted the error.
+          return Promise.resolve({
+            state: "failed",
+            data: { userId: "user-b", dryRun: false },
+            output: null,
+          });
+        }
+        if (id === "child-expired") {
+          // Worker hung past expireIn.
+          return Promise.resolve({
+            state: "expired",
+            data: { userId: "user-c", dryRun: false },
+            output: null,
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const response = await controller.getFanoutResults("fanout-weird");
+
+      expect(response.childrenFailed).toBe(3);
+      expect(response.childJobErrors).toHaveLength(3);
+
+      const byJobId = Object.fromEntries(
+        response.childJobErrors.map((err) => [err.jobId, err]),
+      );
+
+      expect(byJobId["child-string-throw"]).toMatchObject({
+        userId: "user-a",
+        state: "failed",
+        message: "kaboom",
+        outputPreview: JSON.stringify({ value: "kaboom" }),
+      });
+      expect(byJobId["child-no-output"]).toMatchObject({
+        userId: "user-b",
+        state: "failed",
+        outputPreview: null,
+      });
+      expect(byJobId["child-no-output"].message).toMatch(/no output/i);
+      expect(byJobId["child-expired"]).toMatchObject({
+        userId: "user-c",
+        state: "expired",
+        outputPreview: null,
+      });
+      expect(byJobId["child-expired"].message).toMatch(/expired/i);
     });
 
     it("does not crash when a completed child output omits the `tables` field", async () => {

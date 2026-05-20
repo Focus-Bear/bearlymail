@@ -149,7 +149,7 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
     // ============================================
     const batchAnalyzerFn = new lambda.Function(this, "BatchAnalyzerFn", {
       functionName: "bearlymail-batch-analyzer",
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "handler.handler",
       code: lambda.Code.fromAsset(
         path.join(__dirname, "../../lambda/batch-analyzer/dist"),

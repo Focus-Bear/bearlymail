@@ -1,5 +1,5 @@
 # Build stage
-FROM node:lts AS builder
+FROM node:24 AS builder
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN npm run build
 RUN npm prune --omit=dev --legacy-peer-deps
 
 # Production stage
-FROM node:lts
+FROM node:24
 
 WORKDIR /app
 

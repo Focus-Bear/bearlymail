@@ -404,7 +404,7 @@ export class BearlyMailStack extends cdk.Stack {
     const avScanRemediationFn = new lambdaNodejs.NodejsFunction(this, 'AvScanRemediationFunction', {
       entry: path.join(__dirname, '../lambda/av-scan/index.ts'),
       handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       timeout: cdk.Duration.seconds(30),
       memorySize: 128,
       description: 'Deletes S3 objects flagged as malware by GuardDuty Malware Protection',

@@ -142,7 +142,7 @@ export class BearlyMailEmailPrioritisationStack extends cdk.Stack {
       "EmailPrioritiserFn",
       {
         functionName: "bearlymail-email-prioritiser",
-        runtime: lambda.Runtime.NODEJS_20_X,
+        runtime: lambda.Runtime.NODEJS_24_X,
         handler: "handler.handler",
         code: lambda.Code.fromAsset(
           path.join(__dirname, "../../lambda/email-prioritiser/dist"),

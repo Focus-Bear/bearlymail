@@ -215,6 +215,10 @@ export class GitHubController {
             JOB_NAMES.FETCH_GITHUB_METADATA,
             { userId, emailId: item.emailId, threadId: item.threadId },
             {
+              // Retry on transient failures so the badge appears without
+              // waiting for the next email-arrival event.
+              retryLimit: 3,
+              retryDelay: 30,
               singletonKey: `github-metadata-${item.threadId}`,
               singletonMinutes: 60,
             },

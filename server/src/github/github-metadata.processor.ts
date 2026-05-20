@@ -6,6 +6,7 @@ import { Repository } from "typeorm";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { UsersService } from "../users/users.service";
 import { GitHubCategoryOverrideService } from "./github-category-override.service";
 import { GitHubEmailInfoService } from "./github-email-info.service";
@@ -27,6 +28,7 @@ export class GitHubMetadataProcessor implements OnModuleInit {
     private readonly repoMappingService: GitHubRepoMappingService,
     private readonly categoryOverrideService: GitHubCategoryOverrideService,
     private readonly usersService: UsersService,
+    private readonly userEncryptionService: UserEncryptionService,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
   ) {}
@@ -39,7 +41,14 @@ export class GitHubMetadataProcessor implements OnModuleInit {
         const { userId, emailId, threadId } = job.data;
 
         try {
-          await this.processJob(userId, emailId, threadId);
+          // parseThreadGitHubLinks hydrates Email rows whose body/htmlBody
+          // columns are encrypted under the user's per-user KMS data key.
+          // Without this wrapper the TypeORM transformer falls back to the
+          // global key, every decrypt fails, and the circuit-breaker in
+          // tryDecrypt kills the job after 3 consecutive failures.
+          await this.userEncryptionService.withUserKey(userId, () =>
+            this.processJob(userId, emailId, threadId),
+          );
         } catch (error) {
           this.logger.error(
             `Failed to fetch GitHub metadata for email ${emailId}:`,

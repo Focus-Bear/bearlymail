@@ -496,6 +496,10 @@ export class EmailLifecycleService {
             JOB_NAMES.GENERATE_SUMMARY_BACKGROUND,
             false,
           ),
+          // Retry transient failures (GitHub rate limits, KMS hiccups) instead of
+          // letting the singleton lock keep the badge invisible for a full hour.
+          retryLimit: 3,
+          retryDelay: 30,
           singletonKey: `github-metadata-${savedEmail.emailThreadId}`,
           singletonMinutes: MINUTES.HOUR,
         },

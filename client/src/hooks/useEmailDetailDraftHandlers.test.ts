@@ -67,6 +67,36 @@ describe('useEmailDetailDraftHandlers', () => {
     expect(result.current.customDraftRef.current).toBe('my typed text');
   });
 
+  it('handleDraftChange during programmatic selection does NOT overwrite customDraftRef', () => {
+    const setters = makeSetters();
+    const { result } = renderHook(() =>
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
+    );
+
+    // User generates a custom reply — this sets customDraftRef via handleDraftChange
+    act(() => {
+      result.current.handleDraftChange('my generated reply');
+    });
+    expect(result.current.customDraftRef.current).toBe('my generated reply');
+
+    // User clicks a suggestion tab — Tiptap fires handleDraftChange with the suggestion text
+    act(() => {
+      result.current.handleReplyOptionSelect(1, 'Hello from A');
+      // Tiptap onUpdate fires synchronously with the suggestion text
+      result.current.handleDraftChange('Hello from A');
+    });
+
+    // customDraftRef must still hold the user's own content, not the suggestion text
+    expect(result.current.customDraftRef.current).toBe('my generated reply');
+  });
+
   it('handleReplyOptionSelect restores custom draft when switching back to Custom tab', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>

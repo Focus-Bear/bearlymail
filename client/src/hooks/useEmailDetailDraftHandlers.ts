@@ -63,11 +63,14 @@ export function useEmailDetailDraftHandlers(options: {
   };
 
   const handleDraftChange = (newDraft: string) => {
-    // Update the ref synchronously so tab-switching (handleReplyOptionSelect) always
-    // has the latest typed content even before the debounce fires.
-    customDraftRef.current = newDraft;
+    // Only persist to customDraftRef when the user is typing, not when Tiptap fires
+    // onUpdate because we programmatically called setContent for a suggestion tab.
+    // Without this guard, clicking Negative overwrites the user's custom draft in the
+    // ref, so switching back to Custom restores the suggestion text instead.
+    if (!isSelectingOptionRef.current) {
+      customDraftRef.current = newDraft;
+    }
     setToneCheckResult(null);
-    // Always persist user input so it can be restored if they switch to a suggestion and come back.
     if (replyOptions && !isSelectingOptionRef.current) {
       const customIdx = replyOptions.findIndex(opt => opt.label === ACTION_TYPE_CUSTOM);
       // If the current tab is not already the Custom tab, switch to it.

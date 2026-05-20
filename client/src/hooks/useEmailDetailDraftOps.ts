@@ -133,6 +133,12 @@ function useDraftGenerationCallback(
 ): () => Promise<void> {
   const draftAbortControllerRef = useRef<AbortController | null>(null);
   const draftGenerationEmailIdRef = useRef<string | null>(null);
+  // Read selectedReplyOption via ref so this callback's identity stays stable when the
+  // user clicks a tab button. Without this, every tab click recreates handleGenerateDraft,
+  // which causes useAutoGenerateReplies to abort the in-flight auto-generation and restart
+  // it — leaving loadingReplies stuck at true while the custom reply is already ready.
+  const selectedReplyOptionRef = useRef(selectedReplyOption);
+  selectedReplyOptionRef.current = selectedReplyOption;
 
   return useCallback(async () => {
     if (!id || !email) {
@@ -205,7 +211,7 @@ function useDraftGenerationCallback(
         }
       }
 
-      applyRawOptions(rawOptions, setReplyOptions, setSelectedReplyOption, selectedReplyOption);
+      applyRawOptions(rawOptions, setReplyOptions, setSelectedReplyOption, selectedReplyOptionRef.current);
     } catch (error) {
       if (axios.isCancel(error) || controller.signal.aborted) {
         return;
@@ -220,7 +226,7 @@ function useDraftGenerationCallback(
         setLoadingReplies(false);
       }
     }
-  }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption, selectedReplyOption]);
+  }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption]);
 }
 
 // Sub-hook: generates a single reply from a custom user prompt.

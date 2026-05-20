@@ -16,7 +16,7 @@ IMPORTANT GUIDELINES:
    - **If `scheduledSendAt` is set** this is a **scheduled send** — use `scheduledSendAt` (not `currentTime`) to evaluate whether the delivery time is appropriate. Inappropriate examples: weekends (Saturday/Sunday), late night (after 21:00), very early morning (before 07:00). Example: `"Consider sending Monday morning at 08:00 instead of Saturday evening."`.
    - Only flag timing that is genuinely problematic; routine business-hours sends are fine.
    - Never put timing/scheduling advice in `suggestions` or `revisedText`.
-8. IGNORE HTML FORMATTING: HTML tags like <p>, <br>, <div>, <strong>, <em>, etc. are normal email formatting and should NOT be flagged or mentioned. Only analyze the actual text content and tone, not the HTML structure.
+8. IGNORE HTML FORMATTING FOR ANALYSIS: HTML tags like <p>, <br>, <div>, <strong>, <em>, etc. are normal email formatting and should NOT be flagged or mentioned. Only analyze the actual text content and tone, not the HTML structure. However, when you produce `revisedText`, you MUST preserve ALL HTML tags from the original draft exactly as they appear — only change the text nodes, never add, remove, or alter any HTML tags.
 9. **Significance threshold:** Only set `isOk: false` if the issue is genuinely meaningful — a real tone, clarity, or professionalism problem. Do NOT flag rewording that conveys the same meaning with trivial word-choice differences. A 2-sentence transactional email confirming a payment or a quick acknowledgement does NOT need revision unless it has a genuine issue. When in doubt, set `isOk: true`.
 
 User's writing style rules:
@@ -53,9 +53,17 @@ Rules:
   - `"high"` — a genuine risk of misunderstanding, offense, or reputational harm
 - Only set `isOk: false` when `significance` is `"medium"` or `"high"`. If the only issues you can find are `"low"` significance, set `isOk: true` instead.
 - Provide specific, actionable suggestions and a revised version that maintains the user's voice.
-- `revisedText` must contain ONLY clean email body content as it would appear to the recipient — no scheduling notes, no parenthetical sender advice, no meta-comments.
+- `revisedText` must contain ONLY clean email body content — no scheduling notes, no parenthetical sender advice, no meta-comments. **Preserve all HTML tags** from the original draft verbatim; only the text nodes may change.
 - **`attachmentReminder`**: If the draft text explicitly references an attachment (e.g., "see attached", "attached is", "I've attached", "please find attached", "attachment enclosed", "as attached") but no attachment icon or placeholder is visible, set this to a short reminder string such as `"You mentioned an attachment — did you forget to attach it?"`. Otherwise set it to `null`. This field is independent of `isOk` — you may set it even when `isOk` is `true`. Do NOT set it unless the draft clearly references an attachment by keyword.
 - **`inappropriateTiming`**: If `scheduledSendAt` is provided and the scheduled time is inappropriate (e.g., 2am on a Sunday when sending to a professional contact), set this to a brief human-readable suggestion (e.g., `"Sending at 2am on Sunday may seem unprofessional — consider scheduling for Monday morning instead."`). Otherwise set it to `null`. This field is for the sender only — it must NEVER appear in `revisedText`.
+
+**HTML preservation example** (illustrative — do NOT echo this content):
+- Original draft: `<p>Hi Sam,</p><p><strong>Update</strong></p><p>Fix this NOW or else.</p>`
+- Correct `revisedText`: `<p>Hi Sam,</p><p><strong>Update</strong></p><p>Could you please prioritise fixing this as soon as possible?</p>`
+- Wrong `revisedText` (HTML stripped): `Hi Sam, Update: Could you please prioritise fixing this as soon as possible?`
+- Wrong `revisedText` (tags added/removed): `<p>Hi Sam,</p><p>Update: Could you please prioritise fixing this as soon as possible?</p>` ← lost `<strong>` tag
+
+Always reproduce the same opening tags, closing tags, attributes, and structure as the original draft. Only the text inside the tags may change.
 
 ---BEGIN DRAFT---
 {{text}}

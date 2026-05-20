@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { SanitizedHTML } from 'components/common/SanitizedHTML';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
@@ -380,7 +381,7 @@ const ToneIssuesList: React.FC<ToneIssuesListProps> = ({
               fontSize: theme.typography.fontSize.sm,
             }}
           >
-            {revisedText}
+            <SanitizedHTML html={revisedText} />
           </div>
           <button
             onClick={() => {

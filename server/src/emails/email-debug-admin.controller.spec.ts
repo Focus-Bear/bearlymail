@@ -13,6 +13,7 @@ import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
+import { EmailFollowUpService } from "./email-follow-up.service";
 import { EmailInboxTraceService } from "./email-inbox-trace.service";
 import { EmailsService } from "./emails.service";
 
@@ -71,6 +72,10 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
         {
           provide: EmailInboxTraceService,
           useValue: { traceCategoryFetch: jest.fn() },
+        },
+        {
+          provide: EmailFollowUpService,
+          useValue: { getFollowUpDebugInfo: jest.fn() },
         },
       ],
     })

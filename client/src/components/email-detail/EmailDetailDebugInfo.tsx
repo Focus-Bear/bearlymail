@@ -111,6 +111,39 @@ interface ParsedGitHubLink {
   url: string;
 }
 
+interface FollowUpDebugInfo {
+  emailId: string;
+  threadId: string;
+  emailThreadId: string | null;
+  thread: {
+    starCount: number;
+    isArchived: boolean;
+    isSnoozed: boolean;
+    snoozeUntil: string | null;
+    lastUserOperationAt: string | null;
+  } | null;
+  replyHistory: {
+    userSentLast: boolean;
+    replyReceived: boolean;
+    lastMyReplyAt: string | null;
+    lastTheirReplyAt: string | null;
+  };
+  followUpRecords: Array<{
+    id: string;
+    status: string;
+    followUpDueAt: string;
+    followUpDays: number;
+    sentEmailId: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  activeFollowUpDueAt: string | null;
+  verdict: {
+    qualifiesForFollowUpMode: boolean;
+    reasons: string[];
+  };
+}
+
 interface GitHubScanResult {
   bodyClassification: RawColumnClassification;
   bodyDecrypted: boolean;
@@ -145,6 +178,9 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
   const [loadingGithubScan, setLoadingGithubScan] = useState(false);
   const [githubScanResult, setGithubScanResult] = useState<GitHubScanResult | null>(null);
   const [githubScanError, setGithubScanError] = useState<string | null>(null);
+  const [loadingFollowUp, setLoadingFollowUp] = useState(false);
+  const [followUpDebug, setFollowUpDebug] = useState<FollowUpDebugInfo | null>(null);
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
 
   const handleShowRawColumns = async () => {
     if (!emailData?.id || loadingRawColumns) {
@@ -164,6 +200,27 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
       setRawColumnsError(msg);
     } finally {
       setLoadingRawColumns(false);
+    }
+  };
+
+  const handleShowFollowUpDebug = async () => {
+    if (!emailData?.id || loadingFollowUp) {
+      return;
+    }
+    setLoadingFollowUp(true);
+    setFollowUpDebug(null);
+    setFollowUpError(null);
+    try {
+      const response = await axios.get<FollowUpDebugInfo>(
+        `${API_URL}/emails/${emailData.id}/debug/follow-up-status`,
+      );
+      setFollowUpDebug(response.data);
+    } catch (err) {
+      console.error('followUpDebug:', err);
+      const msg = getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.followUpFailed');
+      setFollowUpError(msg);
+    } finally {
+      setLoadingFollowUp(false);
     }
   };
 
@@ -509,6 +566,95 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
                   {t('debug.emailDetail.githubScanNoLinks')}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+        <div style={{ marginTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
+          <strong>{t('debug.emailDetail.followUpTitle')}</strong>
+          <div style={{ marginTop: theme.spacing.sm }}>
+            <button
+              type="button"
+              disabled={loadingFollowUp}
+              onClick={() => void handleShowFollowUpDebug()}
+              style={{
+                padding: '2px 8px',
+                fontSize: '11px',
+                backgroundColor: theme.colors.background.paper,
+                color: theme.colors.text.primary,
+                border: `1px solid ${theme.colors.border.light}`,
+                borderRadius: '4px',
+                cursor: loadingFollowUp ? 'not-allowed' : 'pointer',
+                opacity: loadingFollowUp ? DISABLED_CONTROL_OPACITY : 1,
+              }}
+            >
+              {loadingFollowUp
+                ? t('debug.emailDetail.followUpLoading')
+                : t('debug.emailDetail.followUpLoad')}
+            </button>
+          </div>
+          {followUpError && (
+            <div style={{ marginTop: theme.spacing.sm, color: 'red', fontWeight: 600 }}>
+              {followUpError}
+            </div>
+          )}
+          {followUpDebug && (
+            <div style={{ marginTop: theme.spacing.sm }}>
+              <div>
+                <strong>{t('debug.emailDetail.followUpVerdict')}:</strong>{' '}
+                <span style={{ color: followUpDebug.verdict.qualifiesForFollowUpMode ? 'green' : 'red', fontWeight: 600 }}>
+                  {followUpDebug.verdict.qualifiesForFollowUpMode
+                    ? t('debug.emailDetail.followUpVerdictYes')
+                    : t('debug.emailDetail.followUpVerdictNo')}
+                </span>
+              </div>
+              <div style={{ marginTop: theme.spacing.xs }}>
+                <strong>{t('debug.emailDetail.followUpReasons')}:</strong>
+                <ul style={{ margin: `${theme.spacing.xs} 0 0 ${theme.spacing.lg}`, padding: 0 }}>
+                  {followUpDebug.verdict.reasons.map((reason, idx) => (
+                    <li key={idx}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+              <div style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.sm }}>
+                <strong>{t('debug.emailDetail.followUpThreadSection')}</strong>
+                {followUpDebug.thread ? (
+                  <>
+                    <div>{t('debug.emailDetail.followUpThreadStarCount')}: {followUpDebug.thread.starCount}</div>
+                    <div>{t('debug.emailDetail.followUpThreadIsArchived')}: {followUpDebug.thread.isArchived ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}</div>
+                    <div>{t('debug.emailDetail.followUpThreadIsSnoozed')}: {followUpDebug.thread.isSnoozed ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}</div>
+                    <div>{t('debug.emailDetail.followUpThreadSnoozeUntil')}: {followUpDebug.thread.snoozeUntil ?? t('debug.emailDetail.notAvailable')}</div>
+                    <div>{t('debug.emailDetail.followUpLastUserOperationAt')}: {followUpDebug.thread.lastUserOperationAt ?? t('debug.emailDetail.notAvailable')}</div>
+                  </>
+                ) : (
+                  <div>{t('debug.emailDetail.notAvailable')}</div>
+                )}
+              </div>
+              <div style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.sm }}>
+                <strong>{t('debug.emailDetail.followUpReplyHistorySection')}</strong>
+                <div>{t('debug.emailDetail.followUpUserSentLast')}: {followUpDebug.replyHistory.userSentLast ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}</div>
+                <div>{t('debug.emailDetail.followUpReplyReceived')}: {followUpDebug.replyHistory.replyReceived ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}</div>
+                <div>{t('debug.emailDetail.followUpLastMyReplyAt')}: {followUpDebug.replyHistory.lastMyReplyAt ?? t('debug.emailDetail.notAvailable')}</div>
+                <div>{t('debug.emailDetail.followUpLastTheirReplyAt')}: {followUpDebug.replyHistory.lastTheirReplyAt ?? t('debug.emailDetail.notAvailable')}</div>
+              </div>
+              <div style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.sm }}>
+                <strong>{t('debug.emailDetail.followUpRecordsSection')}</strong>
+                <div>{t('debug.emailDetail.followUpActiveDueAt')}: {followUpDebug.activeFollowUpDueAt ?? t('debug.emailDetail.notAvailable')}</div>
+                {followUpDebug.followUpRecords.length === 0 ? (
+                  <div>{t('debug.emailDetail.followUpNoRecords')}</div>
+                ) : (
+                  followUpDebug.followUpRecords.map((rec, idx) => (
+                    <div key={rec.id} style={{ marginLeft: theme.spacing.sm }}>
+                      {t('debug.emailDetail.followUpRecordItem', {
+                        idx,
+                        status: rec.status,
+                        dueAt: rec.followUpDueAt,
+                        days: rec.followUpDays,
+                        sentEmailId: rec.sentEmailId ?? t('debug.emailDetail.notAvailable'),
+                      })}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>

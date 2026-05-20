@@ -37,6 +37,7 @@ import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
+import { EmailFollowUpService } from "./email-follow-up.service";
 import {
   CategoryFetchTrace,
   CategoryFetchTraceMode,
@@ -62,6 +63,7 @@ export class EmailDebugAdminController {
     private readonly debugService: DebugService,
     private readonly emailInboxTraceService: EmailInboxTraceService,
     private readonly rawColumnsService: EmailDebugRawColumnsService,
+    private readonly emailFollowUpService: EmailFollowUpService,
   ) {}
 
   // ─── Recategorization ────────────────────────────────────────────────────────
@@ -193,6 +195,18 @@ export class EmailDebugAdminController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   async scanGitHubLinks(@Param("id") id: string) {
     return this.rawColumnsService.scanGitHubLinks(id);
+  }
+
+  /**
+   * Snapshot the Follow-Up filter inputs for one email (issue #2125).
+   * Answers "why is (or isn't) this thread in Follow Up mode?" — returns
+   * thread snooze/star state, FollowUp record(s), reply history and a
+   * verdict with per-criterion reasons.
+   */
+  @Get(":id/debug/follow-up-status")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getFollowUpStatus(@Request() req, @Param("id") id: string) {
+    return this.emailFollowUpService.getFollowUpDebugInfo(req.user.userId, id);
   }
 
   @Get(":id/debug/category")

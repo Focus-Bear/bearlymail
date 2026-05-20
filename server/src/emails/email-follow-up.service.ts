@@ -4,6 +4,8 @@ import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   FollowUp,
   FollowUpStatus,
@@ -13,6 +15,39 @@ import { UsersService } from "../users/users.service";
 import { EmailThreadService } from "./email-thread.service";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
 import { PerformanceTracker } from "./performance-tracker";
+
+export interface FollowUpDebugInfo {
+  emailId: string;
+  threadId: string;
+  emailThreadId: string | null;
+  thread: {
+    starCount: number;
+    isArchived: boolean;
+    isSnoozed: boolean;
+    snoozeUntil: string | null;
+    lastUserOperationAt: string | null;
+  } | null;
+  replyHistory: {
+    userSentLast: boolean;
+    replyReceived: boolean;
+    lastMyReplyAt: string | null;
+    lastTheirReplyAt: string | null;
+  };
+  followUpRecords: Array<{
+    id: string;
+    status: FollowUpStatus;
+    followUpDueAt: string;
+    followUpDays: number;
+    sentEmailId: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  activeFollowUpDueAt: string | null;
+  verdict: {
+    qualifiesForFollowUpMode: boolean;
+    reasons: string[];
+  };
+}
 
 /**
  * Handles follow-up / action-mode post-query filtering for the inbox.
@@ -27,6 +62,10 @@ export class EmailFollowUpService {
     private emailThreadService: EmailThreadService,
     @InjectRepository(FollowUp)
     private followUpRepository: Repository<FollowUp>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
   ) {}
 
   async filterActionModeEmails(
@@ -290,5 +329,168 @@ export class EmailFollowUpService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Snapshot every input the Follow-Up filter looks at for a given email,
+   * so admins can see why a thread is (or isn't) appearing in Follow Up.
+   * Surfaces the symptoms of #2125: starCount cleared after reply, FollowUp
+   * record missing or in unexpected status, snooze cancelled by sync, etc.
+   */
+  async getFollowUpDebugInfo(
+    userId: string,
+    emailId: string,
+  ): Promise<FollowUpDebugInfo> {
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
+    if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+
+    const thread = email.emailThreadId
+      ? await this.emailThreadRepository.findOne({
+          where: { id: email.emailThreadId, userId },
+        })
+      : await this.emailThreadRepository.findOne({
+          where: { userId, threadId: email.threadId },
+        });
+
+    const replyHistory = await this.checkThreadFollowUpStatus(
+      userId,
+      email.threadId,
+    );
+    const followUps = await this.followUpRepository.find({
+      where: { userId, threadId: email.threadId },
+      order: { createdAt: "DESC" },
+    });
+    const activeFollowUp = followUps.find(
+      (followUp) =>
+        followUp.status === FollowUpStatus.AWAITING_REPLY ||
+        followUp.status === FollowUpStatus.FOLLOW_UP_DUE,
+    );
+
+    const now = new Date();
+    const qualifies = this.evaluateFollowUpQualification(
+      thread,
+      replyHistory,
+      now,
+    );
+    const reasons = this.buildFollowUpReasons(
+      thread,
+      replyHistory,
+      activeFollowUp,
+      qualifies,
+      now,
+    );
+
+    return {
+      emailId: email.id,
+      threadId: email.threadId,
+      emailThreadId: email.emailThreadId ?? null,
+      thread: thread
+        ? {
+            starCount: thread.starCount,
+            isArchived: thread.isArchived,
+            isSnoozed: thread.isSnoozed,
+            snoozeUntil: thread.snoozeUntil?.toISOString() ?? null,
+            lastUserOperationAt:
+              thread.lastUserOperationAt?.toISOString() ?? null,
+          }
+        : null,
+      replyHistory: {
+        userSentLast: replyHistory.userSentLast,
+        replyReceived: replyHistory.replyReceived,
+        lastMyReplyAt: replyHistory.lastMyReplyAt?.toISOString() ?? null,
+        lastTheirReplyAt: replyHistory.lastTheirReplyAt?.toISOString() ?? null,
+      },
+      followUpRecords: followUps.map((followUp) => ({
+        id: followUp.id,
+        status: followUp.status,
+        followUpDueAt: followUp.followUpDueAt.toISOString(),
+        followUpDays: followUp.followUpDays,
+        sentEmailId: followUp.sentEmailId ?? null,
+        createdAt: followUp.createdAt.toISOString(),
+        updatedAt: followUp.updatedAt.toISOString(),
+      })),
+      activeFollowUpDueAt: activeFollowUp?.followUpDueAt.toISOString() ?? null,
+      verdict: { qualifiesForFollowUpMode: qualifies, reasons },
+    };
+  }
+
+  private threadCurrentlySnoozed(
+    thread: { isSnoozed: boolean; snoozeUntil: Date | null } | null,
+    now: Date,
+  ): boolean {
+    return (
+      !!thread &&
+      thread.isSnoozed &&
+      !!thread.snoozeUntil &&
+      thread.snoozeUntil > now
+    );
+  }
+
+  private evaluateFollowUpQualification(
+    thread: {
+      starCount: number;
+      isArchived: boolean;
+      isSnoozed: boolean;
+      snoozeUntil: Date | null;
+    } | null,
+    replyHistory: { userSentLast: boolean; replyReceived: boolean },
+    now: Date,
+  ): boolean {
+    if (!thread) return false;
+    if (thread.isArchived) return false;
+    if (thread.starCount <= 0) return false;
+    if (this.threadCurrentlySnoozed(thread, now)) return false;
+    if (!replyHistory.userSentLast) return false;
+    if (replyHistory.replyReceived) return false;
+    return true;
+  }
+
+  private buildFollowUpReasons(
+    thread: {
+      starCount: number;
+      isArchived: boolean;
+      isSnoozed: boolean;
+      snoozeUntil: Date | null;
+    } | null,
+    replyHistory: { userSentLast: boolean; replyReceived: boolean },
+    activeFollowUp: FollowUp | undefined,
+    qualifies: boolean,
+    now: Date,
+  ): string[] {
+    const reasons: string[] = [];
+    if (!thread) {
+      reasons.push("Thread row not found for this email");
+    } else {
+      if (thread.isArchived) reasons.push("Thread is archived");
+      if (thread.starCount <= 0)
+        reasons.push(
+          `starCount is ${thread.starCount} (SQL filter requires starCount > 0)`,
+        );
+      if (this.threadCurrentlySnoozed(thread, now)) {
+        reasons.push(
+          `Thread snoozed until ${thread.snoozeUntil!.toISOString()} (still hidden)`,
+        );
+      }
+    }
+    if (!replyHistory.userSentLast)
+      reasons.push("User did not send the last message in this thread");
+    if (replyHistory.replyReceived)
+      reasons.push("A reply has been received since the user last sent");
+    if (!activeFollowUp) {
+      reasons.push("No active FollowUp record for thread");
+    } else if (activeFollowUp.followUpDueAt > now) {
+      reasons.push(
+        `Active FollowUp not yet due (dueAt=${activeFollowUp.followUpDueAt.toISOString()})`,
+      );
+    }
+
+    if (reasons.length === 0 && qualifies) {
+      reasons.push("All criteria met for Follow Up mode");
+    } else if (reasons.length === 0) {
+      reasons.push("Unknown — all checks passed but verdict is negative");
+    }
+    return reasons;
   }
 }

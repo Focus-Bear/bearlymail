@@ -1,6 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   FollowUp,
   FollowUpStatus,
@@ -78,6 +80,14 @@ describe("EmailFollowUpService", () => {
         {
           provide: getRepositoryToken(FollowUp),
           useValue: mockFollowUpRepository,
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: { findOne: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(Email),
+          useValue: { findOne: jest.fn() },
         },
       ],
     }).compile();

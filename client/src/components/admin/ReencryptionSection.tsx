@@ -82,6 +82,12 @@ interface AggregatedFailureDetail extends FailureDetail {
   userId: string | null;
 }
 
+interface ChildJobError {
+  jobId: string;
+  userId: string | null;
+  message: string;
+}
+
 interface FanoutResultsResponse {
   state: JobState;
   childrenTotal: number;
@@ -91,6 +97,9 @@ interface FanoutResultsResponse {
   usersWithRowFailures: number;
   tables: AggregatedTableSummary[];
   failures: AggregatedFailureDetail[];
+  // Optional for backwards compat with older server versions that don't
+  // populate it yet (avoids client errors on first deploy).
+  childJobErrors?: ChildJobError[];
   children: ChildJobSummary[];
 }
 
@@ -928,6 +937,95 @@ const FanoutAggregateSection: React.FC<FanoutAggregateSectionProps> = ({
       </table>
 
       <FailureDetailsSection failures={results.failures} showUserColumn />
+      <ChildJobErrorsSection errors={results.childJobErrors ?? []} />
+    </div>
+  );
+};
+
+interface ChildJobErrorsSectionProps {
+  errors: ChildJobError[];
+}
+
+const ChildJobErrorsSection: React.FC<ChildJobErrorsSectionProps> = ({
+  errors,
+}) => {
+  const { t } = useTranslation();
+  if (errors.length === 0) {
+    return null;
+  }
+  return (
+    <div style={{ marginTop: theme.spacing.lg }}>
+      <h3
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: theme.typography.fontWeight.semibold,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
+        {t('admin.reencryption.fanout.childJobErrorsTitle', {
+          count: errors.length,
+        })}
+      </h3>
+      <p
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        {t('admin.reencryption.fanout.childJobErrorsDescription')}
+      </p>
+      <div style={{ overflowX: 'auto' }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: theme.typography.fontSize.xs,
+            fontFamily: 'monospace',
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                borderBottom: `1px solid ${theme.colors.border.light}`,
+              }}
+            >
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.childJobErrorColumns.jobId')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.childJobErrorColumns.user')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.childJobErrorColumns.error')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {errors.map((err, i) => (
+              <tr
+                key={`${err.jobId}-${i}`}
+                style={{
+                  borderBottom: `1px solid ${theme.colors.border.light}`,
+                }}
+              >
+                <td style={{ padding: theme.spacing.sm }}>{err.jobId}</td>
+                <td style={{ padding: theme.spacing.sm }}>
+                  {err.userId ?? '—'}
+                </td>
+                <td
+                  style={{
+                    padding: theme.spacing.sm,
+                    color: theme.colors.error.main,
+                  }}
+                >
+                  {err.message}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

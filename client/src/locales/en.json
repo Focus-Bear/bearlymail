@@ -1379,6 +1379,13 @@
           "shape": "iv/tag/body hex len",
           "preview": "Prefix … Suffix",
           "error": "Error"
+        },
+        "childJobErrorsTitle": "Job-level failures ({{count}})",
+        "childJobErrorsDescription": "These per-user jobs crashed before processing any rows. Check the worker logs for a full stack trace.",
+        "childJobErrorColumns": {
+          "jobId": "Job ID",
+          "user": "User",
+          "error": "Error message"
         }
       }
     },

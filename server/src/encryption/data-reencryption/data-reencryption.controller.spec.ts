@@ -203,6 +203,7 @@ describe("DataReencryptionController", () => {
       expect(response.childrenTotal).toBe(0);
       expect(response.children).toEqual([]);
       expect(response.failures).toEqual([]);
+      expect(response.childJobErrors).toEqual([]);
     });
 
     it("aggregates per-table totals + attaches userId to each failure", async () => {
@@ -300,6 +301,8 @@ describe("DataReencryptionController", () => {
       expect(response.failures[0].userId).toBe("user-b");
       expect(response.failures[0].column).toBe("subject");
       expect(response.failures[0].reason).toBe("neither_key");
+      // No job-level failures — both children completed successfully.
+      expect(response.childJobErrors).toEqual([]);
     });
 
     it("does not crash when a failed child's output is a PgBoss error payload (no `tables` field)", async () => {
@@ -364,6 +367,15 @@ describe("DataReencryptionController", () => {
         },
       ]);
       expect(response.failures).toEqual([]);
+      // The error message from the PgBoss error payload must be surfaced so
+      // admins can see WHY a child job failed rather than just a count.
+      expect(response.childJobErrors).toEqual([
+        {
+          jobId: "child-failed",
+          userId: "user-b",
+          message: "boom: rds connection reset",
+        },
+      ]);
     });
 
     it("does not crash when a completed child output omits the `tables` field", async () => {

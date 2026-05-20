@@ -61,6 +61,17 @@ export interface AggregatedFailureDetail extends ReencryptionFailureDetail {
   userId: string | null;
 }
 
+/**
+ * Error details from a child job that failed at the PgBoss level (before any
+ * rows were processed). PgBoss persists the thrown error as the job's output
+ * (e.g. `{ message: "..." }`), which is otherwise invisible to the admin UI.
+ */
+export interface ChildJobError {
+  jobId: string;
+  userId: string | null;
+  message: string;
+}
+
 interface FanoutResultsResponse {
   state: ChildJobState | "not_found";
   childrenTotal: number;
@@ -70,6 +81,7 @@ interface FanoutResultsResponse {
   usersWithRowFailures: number;
   tables: AggregatedTableSummary[];
   failures: AggregatedFailureDetail[];
+  childJobErrors: ChildJobError[];
   children: ChildJobSummary[];
 }
 
@@ -241,6 +253,7 @@ export class DataReencryptionController {
         usersWithRowFailures: 0,
         tables: [],
         failures: [],
+        childJobErrors: [],
         children: [],
       };
     }
@@ -315,6 +328,7 @@ function aggregateChildren(children: ChildJobSummary[]): {
   usersWithRowFailures: number;
   tables: AggregatedTableSummary[];
   failures: AggregatedFailureDetail[];
+  childJobErrors: ChildJobError[];
 } {
   let childrenTerminal = 0;
   let childrenCompleted = 0;
@@ -322,11 +336,27 @@ function aggregateChildren(children: ChildJobSummary[]): {
   let usersWithRowFailures = 0;
   const tablesByName = new Map<string, AggregatedTableSummary>();
   const failures: AggregatedFailureDetail[] = [];
+  const childJobErrors: ChildJobError[] = [];
 
   for (const child of children) {
     if (TERMINAL_CHILD_STATES.has(child.state)) childrenTerminal++;
     if (child.state === QUEUE_JOB_STATE.COMPLETED) childrenCompleted++;
-    if (child.state === QUEUE_JOB_STATE.FAILED) childrenFailed++;
+    if (child.state === QUEUE_JOB_STATE.FAILED) {
+      childrenFailed++;
+      if (childJobErrors.length < MAX_AGGREGATED_FAILURES) {
+        // PgBoss persists the thrown error as the job's output (e.g.
+        // `{ message: "boom" }`). Extract the message so admins can see WHY
+        // the job crashed rather than just seeing a count of "children failed".
+        const errPayload = child.output as unknown as
+          | { message?: string }
+          | null;
+        childJobErrors.push({
+          jobId: child.jobId,
+          userId: child.userId,
+          message: errPayload?.message ?? "(no error message)",
+        });
+      }
+    }
 
     // Only COMPLETED children carry the `UserReencryptionResult` output shape.
     // Failed jobs have whatever PgBoss persisted from the thrown error (e.g.
@@ -361,6 +391,7 @@ function aggregateChildren(children: ChildJobSummary[]): {
       left.table.localeCompare(right.table),
     ),
     failures,
+    childJobErrors,
   };
 }
 

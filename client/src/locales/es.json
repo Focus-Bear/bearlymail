@@ -81,6 +81,13 @@
           "shape": "iv/tag/body hex len",
           "preview": "Prefijo … Sufijo",
           "error": "Error"
+        },
+        "childJobErrorsTitle": "Errores a nivel de job ({{count}})",
+        "childJobErrorsDescription": "Estos jobs por usuario fallaron antes de procesar ninguna fila. Revisa los logs del worker para el stack trace completo.",
+        "childJobErrorColumns": {
+          "jobId": "ID del job",
+          "user": "Usuario",
+          "error": "Mensaje de error"
         }
       }
     },

@@ -14,6 +14,7 @@ export interface CreateZohoAccountOptions {
   name: string;
   accessToken: string;
   refreshToken: string;
+  accountsServer: string;
   isPrimary?: boolean;
 }
 
@@ -39,6 +40,7 @@ export class ZohoAccountsService {
       name,
       accessToken,
       refreshToken,
+      accountsServer,
       isPrimary = false,
     } = options;
 
@@ -57,6 +59,7 @@ export class ZohoAccountsService {
       name,
       accessToken,
       refreshToken,
+      accountsServer,
       isPrimary,
       isActive: true,
       needsRelogin: false,
@@ -93,6 +96,7 @@ export class ZohoAccountsService {
     userId: string,
     accessToken: string,
     refreshToken?: string,
+    accountsServer?: string,
   ): Promise<ZohoAccount> {
     const account = await this.findById(id, userId);
     if (!account) {
@@ -102,6 +106,9 @@ export class ZohoAccountsService {
     account.accessToken = accessToken;
     if (refreshToken) {
       account.refreshToken = refreshToken;
+    }
+    if (accountsServer) {
+      account.accountsServer = accountsServer;
     }
     account.needsRelogin = false;
 

@@ -26,6 +26,7 @@ describe("ZohoProvider", () => {
     email: "test@zoho.com",
     accessToken: "access-token",
     refreshToken: "refresh-token",
+    accountsServer: "https://accounts.zoho.com",
     isPrimary: true,
     isActive: true,
     needsRelogin: false,

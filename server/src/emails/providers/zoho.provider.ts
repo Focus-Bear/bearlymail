@@ -141,12 +141,14 @@ export class ZohoProvider implements EmailProvider {
     zohoAccountId: string;
   }> {
     let { accessToken } = primaryAccount;
-    let zohoClient = this.client.createZohoClient(accessToken);
+    const { accountsServer } = primaryAccount;
+    let zohoClient = this.client.createZohoClient(accessToken, accountsServer);
 
     try {
       const { zohoAccountId } = await this.client.getAccountId(
         userId,
         accessToken,
+        accountsServer,
       );
       this.logger.debug(`Token validated for user ${userId}`);
       return { accessToken, zohoClient, zohoAccountId };
@@ -172,10 +174,11 @@ export class ZohoProvider implements EmailProvider {
           primaryAccount.id,
         );
         this.logger.debug(`Token successfully refreshed for user ${userId}`);
-        zohoClient = this.client.createZohoClient(accessToken);
+        zohoClient = this.client.createZohoClient(accessToken, accountsServer);
         const { zohoAccountId } = await this.client.getAccountId(
           userId,
           accessToken,
+          accountsServer,
         );
         this.logger.debug(
           `Token re-validated after refresh for user ${userId}`,
@@ -618,13 +621,17 @@ export class ZohoProvider implements EmailProvider {
       return;
     }
 
-    const { accessToken } = primaryAccount;
-    const zohoClient = this.client.createZohoClient(accessToken);
+    const { accessToken, accountsServer } = primaryAccount;
+    const zohoClient = this.client.createZohoClient(
+      accessToken,
+      accountsServer,
+    );
 
     try {
       const { zohoAccountId } = await this.client.getAccountId(
         userId,
         accessToken,
+        accountsServer,
       );
       const fullMsg = await zohoClient.get(
         `accounts/${zohoAccountId}/messages/${messageId}/content`,
@@ -735,13 +742,17 @@ export class ZohoProvider implements EmailProvider {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) return;
 
-    const { accessToken } = primaryAccount;
-    const zohoClient = this.client.createZohoClient(accessToken);
+    const { accessToken, accountsServer } = primaryAccount;
+    const zohoClient = this.client.createZohoClient(
+      accessToken,
+      accountsServer,
+    );
 
     try {
       const { zohoAccountId } = await this.client.getAccountId(
         userId,
         accessToken,
+        accountsServer,
       );
       const filteredMessages = await this.fetchRecentZohoMessages(
         zohoClient,

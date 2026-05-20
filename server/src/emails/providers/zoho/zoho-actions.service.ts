@@ -34,12 +34,17 @@ export async function sendReply(
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
 
   let { accessToken } = primaryAccount;
-  const zohoClient = provider.client.createZohoClient(accessToken);
+  const { accountsServer } = primaryAccount;
+  const zohoClient = provider.client.createZohoClient(
+    accessToken,
+    accountsServer,
+  );
 
   try {
     const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
+      accountsServer,
     );
     const result = await sendReplyViaZoho(zohoClient, zohoAccountId, {
       to,
@@ -80,11 +85,15 @@ export async function sendEmail(
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
 
   let { accessToken } = primaryAccount;
-  const zohoClient = provider.client.createZohoClient(accessToken);
+  const { accountsServer } = primaryAccount;
+  const zohoClient = provider.client.createZohoClient(
+    accessToken,
+    accountsServer,
+  );
 
   try {
     const { zohoAccountId, mailboxAddress } =
-      await provider.client.getAccountId(userId, accessToken);
+      await provider.client.getAccountId(userId, accessToken, accountsServer);
     return await sendEmailViaZoho(zohoClient, zohoAccountId, mailboxAddress, {
       to,
       subject,
@@ -114,12 +123,17 @@ export async function searchEmails(
   if (!primaryAccount) return [];
 
   let { accessToken } = primaryAccount;
-  const zohoClient = provider.client.createZohoClient(accessToken);
+  const { accountsServer } = primaryAccount;
+  const zohoClient = provider.client.createZohoClient(
+    accessToken,
+    accountsServer,
+  );
 
   try {
     const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
+      accountsServer,
     );
     const messages = await searchEmailsViaZoho(
       zohoClient,
@@ -154,12 +168,17 @@ export async function archiveThread(
   if (!primaryAccount) throw new Error("Zoho Mail account not connected");
 
   let { accessToken } = primaryAccount;
-  const zohoClient = provider.client.createZohoClient(accessToken);
+  const { accountsServer } = primaryAccount;
+  const zohoClient = provider.client.createZohoClient(
+    accessToken,
+    accountsServer,
+  );
 
   try {
     const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
+      accountsServer,
     );
     await archiveThreadInZoho(userId, threadId, zohoClient, zohoAccountId);
     await provider.emailsService.updateThreadArchivedStatus(
@@ -190,12 +209,17 @@ export async function unarchiveThread(
   if (!primaryAccount) throw new Error("Zoho Mail account not connected");
 
   let { accessToken } = primaryAccount;
-  const zohoClient = provider.client.createZohoClient(accessToken);
+  const { accountsServer } = primaryAccount;
+  const zohoClient = provider.client.createZohoClient(
+    accessToken,
+    accountsServer,
+  );
 
   try {
     const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
+      accountsServer,
     );
     await unarchiveThreadInZoho(userId, threadId, zohoClient, zohoAccountId);
     await provider.emailsService.updateThreadArchivedStatus(
@@ -234,13 +258,17 @@ export async function fetchThreadMessagesZoho(
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) return [];
 
-  const { accessToken } = primaryAccount;
-  const zohoClient = provider.client.createZohoClient(accessToken);
+  const { accessToken, accountsServer } = primaryAccount;
+  const zohoClient = provider.client.createZohoClient(
+    accessToken,
+    accountsServer,
+  );
 
   try {
     const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
+      accountsServer,
     );
     const messages = await fetchThreadMessagesViaZoho(
       zohoClient,

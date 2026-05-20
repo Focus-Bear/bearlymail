@@ -42,6 +42,7 @@ interface ZohoAuthUser {
   zohoAccessToken?: string;
   zohoRefreshToken?: string;
   zohoId?: string;
+  accountsServer?: string;
 }
 
 /**
@@ -454,6 +455,7 @@ export class AuthController {
     const zohoId = zohoUser.zohoId || zProfile?.Zuid;
     const zEmail = zProfile?.Email || zohoUser.email;
     const zName = zProfile?.Display_Name || zohoUser.name || "";
+    const zAccountsServer = zohoUser.accountsServer;
 
     // Check for missing required fields before proceeding
     const missingFields = [
@@ -461,6 +463,7 @@ export class AuthController {
       !zohoId && "zohoId",
       !zAccessToken && "accessToken",
       !zEmail && "email",
+      !zAccountsServer && "accountsServer",
     ].filter(Boolean);
 
     if (missingFields.length > 0) {
@@ -489,6 +492,7 @@ export class AuthController {
         zohoUser.id,
         zAccessToken,
         zRefreshToken,
+        zAccountsServer,
       );
     } else {
       await this.zohoAccountsService.create({
@@ -498,6 +502,8 @@ export class AuthController {
         name: zName,
         accessToken: zAccessToken,
         refreshToken: zRefreshToken,
+        // Non-null: missingFields check above guarantees accountsServer is set.
+        accountsServer: zAccountsServer as string,
         isPrimary: existingAccounts.length === 0,
       });
     }
@@ -777,6 +783,7 @@ export class AuthController {
         zohoAccessToken?: string;
         zohoRefreshToken?: string;
         zohoId?: string;
+        accountsServer?: string;
       };
       const profile = zohoUser.zohoProfile;
       const accessToken = zohoUser.zohoAccessToken;
@@ -784,7 +791,9 @@ export class AuthController {
       const zohoId = zohoUser.zohoId || profile?.ZUID || "";
       const email = profile?.Email || "";
       const name = profile?.Display_Name || "";
-      if (!zohoId || !email || !accessToken || !refreshToken) return false;
+      const { accountsServer } = zohoUser;
+      if (!zohoId || !email || !accessToken || !refreshToken || !accountsServer)
+        return false;
       const existingAccounts = await this.zohoAccountsService.findAllByUser(
         stateData.userId,
       );
@@ -797,6 +806,7 @@ export class AuthController {
           stateData.userId,
           accessToken,
           refreshToken,
+          accountsServer,
         );
       } else {
         const isPrimary = existingAccounts.length === 0;
@@ -807,6 +817,7 @@ export class AuthController {
           name,
           accessToken,
           refreshToken,
+          accountsServer,
           isPrimary,
         });
       }

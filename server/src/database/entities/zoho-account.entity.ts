@@ -59,6 +59,13 @@ export class ZohoAccount {
   @Column({ default: false, comment: "Flag if tokens need to be refreshed" })
   needsRelogin: boolean;
 
+  @Column({
+    nullable: true,
+    comment:
+      "Zoho accounts-server URL for this account's data center, e.g. https://accounts.zoho.com.au. Detected from OAuth callback.",
+  })
+  accountsServer: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -9,10 +9,22 @@ import { ZohoAccountsService } from "../../../zoho-accounts/zoho-accounts.servic
 
 const FOLDER_CACHE_TTL_MS = MILLISECONDS.HOUR;
 
+const DEFAULT_ACCOUNTS_SERVER = "https://accounts.zoho.com";
+
+/**
+ * Derive the Mail API base URL from a Zoho accounts-server URL.
+ * `https://accounts.zoho.com.au` → `https://mail.zoho.com.au/api/`
+ * The host-prefix mapping is identical across all of Zoho's DCs.
+ */
+export function deriveMailApiBase(accountsServer: string): string {
+  const mailHost = accountsServer.replace("://accounts.", "://mail.");
+  return `${mailHost.replace(/\/$/, "")}/api/`;
+}
+
 @Injectable()
 export class ZohoClient {
   private readonly logger = new Logger(ZohoClient.name);
-  private readonly zohoApiBase: string;
+  private readonly defaultAccountsServer: string;
   private readonly refreshLocks = new Map<string, Promise<string>>();
   private readonly folderMapCache = new Map<
     string,
@@ -23,16 +35,26 @@ export class ZohoClient {
     private zohoAccountsService: ZohoAccountsService,
     private configService: ConfigService,
   ) {
-    // Derive mail API domain from ZOHO_MAIL_API_DOMAIN or ZOHO_API_DOMAIN (falls back to .com global default)
-    this.zohoApiBase =
-      this.configService.get<string>("ZOHO_MAIL_API_DOMAIN") ||
+    this.defaultAccountsServer =
       this.configService.get<string>("ZOHO_API_DOMAIN") ||
-      "https://mail.zoho.com/api/";
+      DEFAULT_ACCOUNTS_SERVER;
   }
 
-  createZohoClient(accessToken: string): AxiosInstance {
+  /**
+   * Build an axios client pointed at the correct Mail API DC.
+   * `accountsServer` should come from `ZohoAccount.accountsServer`. Falls back
+   * to the configured default for legacy rows that pre-date DC detection
+   * (those will be flagged for re-login by the same-PR migration).
+   */
+  createZohoClient(
+    accessToken: string,
+    accountsServer: string | null,
+  ): AxiosInstance {
+    const baseURL = deriveMailApiBase(
+      accountsServer || this.defaultAccountsServer,
+    );
     return axios.create({
-      baseURL: this.zohoApiBase,
+      baseURL,
       headers: {
         Authorization: `Zoho-oauthtoken ${accessToken}`,
         "Content-Type": "application/json",
@@ -69,11 +91,15 @@ export class ZohoClient {
       throw new Error("No refresh token available - user must re-login");
     }
 
-    // Use .com as the global default; AU deployments set ZOHO_API_DOMAIN=https://accounts.zoho.com.au
-    const apiDomain =
-      this.configService.get<string>("ZOHO_API_DOMAIN") ||
-      "https://accounts.zoho.com";
+    // Pre-DC-detection rows are flagged for re-login by the migration; refuse
+    // to refresh until they reconnect so we don't hit the wrong DC blindly.
+    if (!account.accountsServer) {
+      throw new Error(
+        "Zoho account predates data-center detection — user must re-login",
+      );
+    }
 
+    const apiDomain = account.accountsServer;
     this.logger.debug(`Refreshing token for user ${userId} via ${apiDomain}`);
 
     try {
@@ -135,9 +161,10 @@ export class ZohoClient {
   async getAccountId(
     userId: string,
     accessToken: string,
+    accountsServer: string | null,
   ): Promise<{ zohoAccountId: string; mailboxAddress: string }> {
     try {
-      const client = this.createZohoClient(accessToken);
+      const client = this.createZohoClient(accessToken, accountsServer);
       const response = await client.get("/accounts");
 
       this.logger.log(`[getAccountId] raw: ${JSON.stringify(response.data)}`);

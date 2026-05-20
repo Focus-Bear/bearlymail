@@ -51,6 +51,13 @@ type PriorityDimensions = {
   sentiment: { score: number; type: string; reasons: string[] };
 };
 
+type PriorityExplanationPayload = {
+  score: number;
+  breakdown: PriorityBreakdownItem[];
+  dimensions: PriorityDimensions;
+  calculatedAt: string;
+};
+
 // Constants for priority result computation
 const PRIORITY_RESULT_CONSTANTS = {
   SUBSTRING_PREVIEW_LENGTH: 8,
@@ -155,12 +162,7 @@ export class LLMPriorityResultService {
     workerId: string;
     githubUsername: string | null;
     finalScore: number;
-    priorityExplanation: {
-      score: number;
-      breakdown: PriorityBreakdownItem[];
-      dimensions: PriorityDimensions;
-      calculatedAt: string;
-    };
+    priorityExplanation: PriorityExplanationPayload;
   }): Promise<void> {
     const {
       email,
@@ -176,14 +178,7 @@ export class LLMPriorityResultService {
 
     const emailThreadId = email.emailThreadId as string;
 
-    const newUrgencyScore = Math.max(
-      thread.urgencyScore || 0,
-      llmResult.urgencyScore || 0,
-    );
-    const newUrgencyExplanation =
-      (llmResult.urgencyScore || 0) > (thread.urgencyScore || 0)
-        ? llmResult.urgencyExplanation
-        : thread.urgencyExplanation;
+    const urgencyUpdate = this.computeUrgencyUpdate(thread, llmResult);
 
     const knownCategoryNames = contexts
       .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
@@ -230,8 +225,9 @@ export class LLMPriorityResultService {
     await this.emailThreadRepository.update(
       { id: emailThreadId },
       {
-        urgencyScore: newUrgencyScore,
-        urgencyExplanation: newUrgencyExplanation || thread.urgencyExplanation,
+        urgencyScore: urgencyUpdate.score,
+        urgencyExplanation:
+          urgencyUpdate.explanation || thread.urgencyExplanation,
         priorityExplanation,
         priorityScore: finalScore,
         ...(categoryId !== null && categoryId !== undefined
@@ -253,7 +249,8 @@ export class LLMPriorityResultService {
       emailThreadId,
       userId,
       finalScore,
-      workerId,
+      thread.starCount ?? 0,
+      thread.isBatched ?? true,
     );
 
     this.logger.log(
@@ -261,26 +258,38 @@ export class LLMPriorityResultService {
     );
   }
 
+  private computeUrgencyUpdate(
+    thread: EmailThread,
+    llmResult: PriorityLlmResult,
+  ): { score: number; explanation: string | null } {
+    const threadScore = thread.urgencyScore || 0;
+    const llmScore = llmResult.urgencyScore || 0;
+    const explanation =
+      llmScore > threadScore
+        ? llmResult.urgencyExplanation
+        : thread.urgencyExplanation;
+    return { score: Math.max(threadScore, llmScore), explanation };
+  }
+
   private async maybeApplyEmergencyDelivery(
     emailThreadId: string,
     userId: string,
     finalScore: number,
-    workerId: string,
+    starCount: number,
+    isBatched: boolean,
   ): Promise<void> {
-    if (finalScore >= PRIORITY_SCORES.HIGH_THRESHOLD) {
-      await this.emailThreadRepository.update(
-        { id: emailThreadId, userId },
-        {
-          isBatched: false,
-          batchReleaseAt: null,
-          wasDeliveredEarly: true,
-          batchDecisionReason: `Emergency delivery (score ${finalScore})`,
-        },
-      );
-      this.logger.log(
-        `[Worker ${workerId}] Emergency delivery: Un-batched thread ${emailThreadId} due to high priority score: ${finalScore}`,
-      );
-    }
+    // Starred + already delivered (was visible in Action/Follow-Up before the email arrived): no-op.
+    if (starCount > 0 && !isBatched) return;
+    if (finalScore < PRIORITY_SCORES.HIGH_THRESHOLD) return;
+    await this.emailThreadRepository.update(
+      { id: emailThreadId, userId },
+      {
+        isBatched: false,
+        batchReleaseAt: null,
+        wasDeliveredEarly: true,
+        batchDecisionReason: `Emergency delivery (score ${finalScore})`,
+      },
+    );
   }
 
   calculatePriorityBreakdown(

@@ -210,13 +210,22 @@ export class EmailLifecycleService {
         wasDeliveredEarly: false,
         batchDecisionReason: "Initial sync",
       };
-    if (starCount > 0)
+    // Deliver immediately if the thread is starred and already visible in Action/Follow-Up.
+    // "Visible" means not actively snoozed (isSnoozed flag is read before cancelThreadSnoozeIfNeeded clears it).
+    const isActiveSnooze =
+      thread.isSnoozed &&
+      thread.snoozeUntil !== null &&
+      thread.snoozeUntil > new Date();
+    if (starCount > 0 && !isActiveSnooze) {
       return {
         isBatched: false,
         batchReleaseAt: null,
         wasDeliveredEarly: false,
-        batchDecisionReason: "Starred email",
+        batchDecisionReason: `Starred thread already visible in Action/Follow-Up — delivered immediately`,
       };
+    }
+    // Starred but snoozed: fall through to batch scheduling.
+    // Snooze will be cleared, but the thread should only reappear immediately if priority is urgent.
 
     let schedule = await this.batchScheduleService.getSchedule(userId);
     if (!schedule) {

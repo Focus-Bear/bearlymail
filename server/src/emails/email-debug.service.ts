@@ -42,6 +42,8 @@ export interface ThreadLookupResult {
     isArchived: boolean;
     priorityScore: number | null;
     updatedAt: Date;
+    batchDecisionReason: string | null;
+    wasDeliveredEarly: boolean;
   } | null;
   emails: Array<{
     id: string;
@@ -635,6 +637,8 @@ export class EmailDebugService {
         isArchived: thread.isArchived,
         priorityScore: thread.priorityScore,
         updatedAt: thread.updatedAt,
+        batchDecisionReason: thread.batchDecisionReason,
+        wasDeliveredEarly: thread.wasDeliveredEarly,
       },
       emails: emails.map((emailEntry) => ({
         id: emailEntry.id,

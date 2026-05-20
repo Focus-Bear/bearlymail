@@ -213,8 +213,9 @@ describe("EmailLifecycleService", () => {
       expect(result.batchDecisionReason).toBe("Initial sync");
     });
 
-    it("returns not batched for starred email", async () => {
-      const thread = {} as EmailThread;
+    it("returns not batched for starred thread that is not snoozed (already visible in Action/Follow-Up)", async () => {
+      const thread = { isSnoozed: false } as EmailThread;
+      // priority=0: deliver immediately regardless of priority
       const result = await service.determineBatchDecision(
         "user-1",
         thread,
@@ -222,7 +223,71 @@ describe("EmailLifecycleService", () => {
         0,
       );
       expect(result.isBatched).toBe(false);
-      expect(result.batchDecisionReason).toBe("Starred email");
+      expect(result.batchDecisionReason).toContain(
+        "visible in Action/Follow-Up",
+      );
+    });
+
+    it("returns not batched for starred thread with an expired snooze (visible in inbox)", async () => {
+      const thread = {
+        isSnoozed: true,
+        snoozeUntil: new Date(Date.now() - 1000),
+      } as EmailThread;
+      const result = await service.determineBatchDecision(
+        "user-1",
+        thread,
+        1,
+        0,
+      );
+      expect(result.isBatched).toBe(false);
+      expect(result.batchDecisionReason).toContain(
+        "visible in Action/Follow-Up",
+      );
+    });
+
+    it("falls through to batch scheduling for starred thread that is actively snoozed", async () => {
+      batchScheduleService.getSchedule.mockResolvedValue(null);
+      batchScheduleService.getDefaultSchedule.mockReturnValue({
+        isEnabled: false,
+        urgentBypassSchedule: false,
+      } as never);
+
+      const thread = {
+        isSnoozed: true,
+        snoozeUntil: new Date(Date.now() + 60_000),
+      } as EmailThread;
+      const result = await service.determineBatchDecision(
+        "user-1",
+        thread,
+        1,
+        50,
+      );
+      // Snoozed starred thread: schedule logic applies; schedule disabled → not batched for schedule reason
+      expect(result.isBatched).toBe(false);
+      expect(result.batchDecisionReason).toBe("Schedule disabled");
+    });
+
+    it("batches actively-snoozed starred thread with low priority when schedule is active", async () => {
+      const releaseAt = new Date(Date.now() + 60_000);
+      batchScheduleService.getSchedule.mockResolvedValue({
+        isEnabled: true,
+        urgentBypassSchedule: false,
+      } as never);
+      batchScheduleService.getNextBatchReleaseTime.mockReturnValue(releaseAt);
+
+      const thread = {
+        isSnoozed: true,
+        snoozeUntil: new Date(Date.now() + 60_000),
+        batchReleaseAt: null,
+      } as EmailThread;
+      const result = await service.determineBatchDecision(
+        "user-1",
+        thread,
+        1,
+        30,
+      );
+      expect(result.isBatched).toBe(true);
+      expect(result.batchReleaseAt).toEqual(releaseAt);
     });
 
     it("returns not batched when schedule is disabled", async () => {

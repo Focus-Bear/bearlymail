@@ -88,6 +88,10 @@ export async function buildConditionReasons(
     );
   }
 
+  if (thread.batchDecisionReason) {
+    reasons.push(`Batch decision: ${thread.batchDecisionReason}`);
+  }
+
   return { reasons, isBlocked };
 }
 

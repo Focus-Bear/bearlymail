@@ -2,11 +2,11 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { ContactsService } from "../contacts/contacts.service";
 import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
-import { ContactsService } from "../contacts/contacts.service";
 import { UsersService } from "../users/users.service";
 import {
   CreateScheduledEmailDto,

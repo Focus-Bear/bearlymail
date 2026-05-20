@@ -2,7 +2,7 @@ import { Logger } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
 
-import { ensureLogsDirSync, LOGS_DIR } from "./logs-dir";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "./logs-dir";
 
 ensureLogsDirSync();
 
@@ -10,9 +10,15 @@ const SEARCH_LOG_FILE = path.join(LOGS_DIR, "search-system.log");
 
 // Helper to write to log file
 function writeToLogFile(message: string) {
-  const timestamp = new Date().toISOString();
-  const logLine = `[${timestamp}] ${message}\n`;
-  fs.appendFileSync(SEARCH_LOG_FILE, logLine, "utf8");
+  if (!isDevelopment) return;
+  try {
+    ensureLogsDirSync();
+    const timestamp = new Date().toISOString();
+    const logLine = `[${timestamp}] ${message}\n`;
+    fs.appendFileSync(SEARCH_LOG_FILE, logLine, "utf8");
+  } catch {
+    // Best-effort: never let a logging failure break the search request
+  }
 }
 
 export interface EmailScoreDetails {

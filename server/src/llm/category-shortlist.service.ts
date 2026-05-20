@@ -125,7 +125,7 @@ export class CategoryShortlistService {
     for (const entry of PLATFORM_PINNING) {
       if (
         entry.domainPatterns.some(
-          (pattern) => domain === pattern || domain.endsWith("." + pattern),
+          (pattern) => domain === pattern || domain.endsWith(`.${pattern}`),
         )
       ) {
         return entry.categoryKeywords;

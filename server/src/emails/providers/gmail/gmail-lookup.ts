@@ -20,20 +20,36 @@ export interface GmailLookupHit {
   receivedAt: Date | null;
 }
 
+function coerceErrorCode(rawCode: unknown): number | undefined {
+  if (typeof rawCode === "number") return rawCode;
+  if (typeof rawCode === "string") {
+    const parsed = parseInt(rawCode, 10);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  return undefined;
+}
+
 function extractAttemptError(error: unknown): {
   errorCode?: number;
   errorMessage: string;
 } {
   if (error && typeof error === "object") {
     const candidate = error as {
-      code?: number;
-      status?: number;
+      code?: number | string;
+      status?: number | string;
       message?: string;
-      response?: { status?: number };
+      response?: { status?: number | string };
     };
-    const errorCode =
+    const rawCode =
       candidate.code ?? candidate.status ?? candidate.response?.status;
-    const message = candidate.message ?? "unknown Gmail API error";
+    const errorCode = coerceErrorCode(rawCode);
+    const baseMessage = candidate.message ?? "unknown Gmail API error";
+    // Preserve non-numeric codes (e.g. 'ECONNREFUSED') in the message so the
+    // diagnostic info is not lost when we drop them from the numeric field.
+    const message =
+      typeof rawCode === "string" && errorCode === undefined
+        ? `${rawCode}: ${baseMessage}`
+        : baseMessage;
     return errorCode !== undefined
       ? { errorCode, errorMessage: message }
       : { errorMessage: message };

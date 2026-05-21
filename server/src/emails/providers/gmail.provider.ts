@@ -330,6 +330,9 @@ export class GmailProvider implements EmailProvider {
         threadId: response.data.threadId || threadId,
       };
     } catch (error) {
+      this.logger.error(
+        `sendReply failed for user ${userId} thread ${threadId}: ${formatGaxiosError(error)}`,
+      );
       if (isGmailAuthError(error))
         await this.usersService.update(userId, { needsRelogin: true });
       throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
@@ -373,6 +376,9 @@ export class GmailProvider implements EmailProvider {
         threadId: response.data.threadId || "",
       };
     } catch (error) {
+      this.logger.error(
+        `sendEmail failed for user ${userId}: ${formatGaxiosError(error)}`,
+      );
       if (isGmailAuthError(error))
         await this.usersService.update(userId, { needsRelogin: true });
       throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);

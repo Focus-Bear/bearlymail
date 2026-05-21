@@ -11,6 +11,7 @@ import { runWithUserKey } from "../user-encryption-context";
 import {
   discoverEncryptedTables,
   EncryptedTable,
+  STORAGE_KIND,
 } from "./encrypted-table-metadata";
 
 const BATCH_SIZE = 100;
@@ -497,7 +498,22 @@ export class DataReencryptionService {
     const params: unknown[] = [];
     let paramIndex = 1;
     for (const [col, value] of Object.entries(updates)) {
-      setClauses.push(`"${col}" = $${paramIndex++}`);
+      const placeholder = `$${paramIndex++}`;
+      // The ciphertext is always a plain string. For json/jsonb columns the
+      // value is stored as a JSON string, so a bare ciphertext is rejected as
+      // "invalid input syntax for type json" (issue #2132) — wrap it server-
+      // side so the param stays a plain string. Plain text columns take it as-is.
+      const storageKind =
+        table.columns.find((column) => column.databaseName === col)
+          ?.storageKind ??
+        STORAGE_KIND.TEXT;
+      if (storageKind === STORAGE_KIND.JSONB) {
+        setClauses.push(`"${col}" = to_jsonb(${placeholder}::text)`);
+      } else if (storageKind === STORAGE_KIND.JSON) {
+        setClauses.push(`"${col}" = to_json(${placeholder}::text)`);
+      } else {
+        setClauses.push(`"${col}" = ${placeholder}`);
+      }
       params.push(value);
     }
     params.push(rowId);

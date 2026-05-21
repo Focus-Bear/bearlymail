@@ -19,11 +19,34 @@ export interface EncryptedTable {
   columns: EncryptedColumn[];
 }
 
+/**
+ * Postgres storage type for an encrypted column, as it affects raw-SQL writes:
+ * - `jsonb` / `json` columns store the ciphertext as a JSON string, so a raw
+ *   UPDATE must JSON-encode it (`to_jsonb($n::text)`). Passing a bare
+ *   ciphertext string fails with "invalid input syntax for type json" — the
+ *   root cause behind the re-encryption failures in issue #2132.
+ * - `text` covers every plain text/varchar column, which takes the ciphertext
+ *   string directly.
+ *
+ * Note this is the DB column type, NOT the transformer. A column can use
+ * `encryptedJsonTransformer` (its decrypted value is JSON) yet still be stored
+ * as `text` — most are. Only `jsonb`/`json` columns need the JSON wrapping.
+ */
+export const STORAGE_KIND = {
+  JSONB: "jsonb",
+  JSON: "json",
+  TEXT: "text",
+} as const;
+
+export type JsonStorageKind = (typeof STORAGE_KIND)[keyof typeof STORAGE_KIND];
+
 export interface EncryptedColumn {
   /** Database column name (quoted in raw SQL). */
   databaseName: string;
   /** True for `encryptedJsonTransformer` columns — must be JSON.parsed after decrypt. */
   isJson: boolean;
+  /** Postgres storage type — determines how a raw-SQL write must encode the value. */
+  storageKind: JsonStorageKind;
 }
 
 /**
@@ -53,6 +76,7 @@ export function discoverEncryptedTables(
         (col): EncryptedColumn => ({
           databaseName: col.databaseName,
           isJson: col.transformer === encryptedJsonTransformer,
+          storageKind: resolveStorageKind(col.type),
         }),
       );
 
@@ -73,4 +97,17 @@ function findUserIdColumn(meta: EntityMetadata) {
   return meta.columns.find(
     (col) => col.databaseName === "userId" || col.propertyName === "userId",
   );
+}
+
+/**
+ * Normalise a TypeORM column type into the storage kinds that matter for raw
+ * SQL writes. `col.type` is a string for explicitly-typed columns (e.g.
+ * `"jsonb"`, `"text"`) but can be a constructor (e.g. `String`) for inferred
+ * ones — anything we don't recognise as JSON is treated as plain text.
+ */
+function resolveStorageKind(type: unknown): JsonStorageKind {
+  const normalised = typeof type === "string" ? type.toLowerCase() : "";
+  if (normalised === STORAGE_KIND.JSONB) return STORAGE_KIND.JSONB;
+  if (normalised === STORAGE_KIND.JSON) return STORAGE_KIND.JSON;
+  return STORAGE_KIND.TEXT;
 }

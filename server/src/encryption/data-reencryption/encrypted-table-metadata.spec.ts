@@ -132,6 +132,74 @@ describe("discoverEncryptedTables", () => {
 
     expect(discoverEncryptedTables(fakeDataSource([meta]))).toEqual([]);
   });
+
+  it("records the Postgres storage kind so jsonb columns get JSON-encoded on write (issue #2132)", () => {
+    // context_analyses.stats is `jsonb` + encryptedJsonTransformer — a raw
+    // UPDATE with a bare ciphertext string fails with "invalid input syntax
+    // for type json". The metadata must flag it so applyUpdate wraps the value.
+    const meta = {
+      tableName: "context_analyses",
+      primaryColumns: [{ databaseName: "id" }],
+      columns: [
+        { databaseName: "id", propertyName: "id", transformer: undefined },
+        {
+          databaseName: "userId",
+          propertyName: "userId",
+          transformer: undefined,
+        },
+        {
+          databaseName: "stats",
+          propertyName: "stats",
+          type: "jsonb",
+          transformer: encryptedJsonTransformer,
+        },
+        {
+          databaseName: "errorMessage",
+          propertyName: "errorMessage",
+          type: "text",
+          transformer: encryptedColumnTransformer,
+        },
+      ],
+    };
+
+    const [table] = discoverEncryptedTables(fakeDataSource([meta]));
+
+    expect(
+      table.columns.find((col) => col.databaseName === "stats")?.storageKind,
+    ).toBe("jsonb");
+    expect(
+      table.columns.find((col) => col.databaseName === "errorMessage")
+        ?.storageKind,
+    ).toBe("text");
+  });
+
+  it("treats columns with an inferred (non-string) type as plain text", () => {
+    const meta = {
+      tableName: "private_notes",
+      primaryColumns: [{ databaseName: "id" }],
+      columns: [
+        { databaseName: "id", propertyName: "id", transformer: undefined },
+        {
+          databaseName: "userId",
+          propertyName: "userId",
+          transformer: undefined,
+        },
+        {
+          databaseName: "content",
+          propertyName: "content",
+          // TypeORM stores a constructor (e.g. String) for inferred types.
+          type: String,
+          transformer: encryptedColumnTransformer,
+        },
+      ],
+    };
+
+    const [table] = discoverEncryptedTables(fakeDataSource([meta]));
+
+    expect(
+      table.columns.find((col) => col.databaseName === "content")?.storageKind,
+    ).toBe("text");
+  });
 });
 
 /**

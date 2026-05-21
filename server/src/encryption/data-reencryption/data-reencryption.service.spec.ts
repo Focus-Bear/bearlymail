@@ -4,6 +4,7 @@ import { DataSource, Repository } from "typeorm";
 import { User } from "../../database/entities/user.entity";
 import {
   encryptedColumnTransformer,
+  encryptedJsonTransformer,
   EncryptionHelper,
 } from "../encryption.helper";
 import { encryptionKeyProvider } from "../encryption-key-provider";
@@ -238,6 +239,72 @@ describe("DataReencryptionService", () => {
     expect(first.prefix.length).toBe(12);
     expect(first.suffix.length).toBe(12);
     expect(first.errorMessage).toContain("neither");
+  });
+
+  it("JSON-encodes the value when writing to a jsonb column (issue #2132)", async () => {
+    // context_analyses.stats is `jsonb` + encryptedJsonTransformer. A raw
+    // `SET stats = $1` with a bare ciphertext string is rejected by Postgres
+    // ("invalid input syntax for type json") — the actual root cause behind
+    // the re-encryption failures. The write must wrap it as `to_jsonb($1::text)`.
+    const legacyCiphertext = encryptWithKey("stats blob", globalKey);
+
+    const jsonbDataSource = {
+      entityMetadatas: [
+        {
+          tableName: "context_analyses",
+          primaryColumns: [{ databaseName: "id" }],
+          columns: [
+            { databaseName: "id", propertyName: "id", transformer: undefined },
+            {
+              databaseName: "userId",
+              propertyName: "userId",
+              transformer: undefined,
+            },
+            {
+              databaseName: "stats",
+              propertyName: "stats",
+              type: "jsonb",
+              transformer: encryptedJsonTransformer,
+            },
+          ],
+        },
+      ],
+      transaction: jest.fn().mockImplementation(async (cb: unknown) => {
+        const callback = cb as (mgr: { query: jest.Mock }) => Promise<unknown>;
+        return callback({ query: txQueryMock });
+      }),
+    } as unknown as jest.Mocked<DataSource>;
+
+    const jsonbService = new DataReencryptionService(
+      jsonbDataSource,
+      userRepo,
+      userEncryption,
+      kmsService,
+    );
+
+    txQueryMock.mockImplementation((sql: string) => {
+      if (sql.includes("SELECT")) {
+        // node-pg parses jsonb, so the SELECT yields the ciphertext string.
+        return Promise.resolve([{ id: "row-1", stats: legacyCiphertext }]);
+      }
+      return Promise.resolve([]);
+    });
+
+    await jsonbService.reencryptUser(userId);
+
+    const updateCall = txQueryMock.mock.calls.find(([sql]) =>
+      /^\s*UPDATE\s/i.test(String(sql)),
+    );
+    expect(updateCall).toBeDefined();
+    const [sql, params] = updateCall!;
+    // The column is wrapped server-side so the param stays a plain string.
+    expect(String(sql)).toContain('"stats" = to_jsonb($1::text)');
+    const newCiphertext = (params as string[])[0];
+    expect(typeof newCiphertext).toBe("string");
+    expect(newCiphertext).not.toBe(legacyCiphertext);
+    await runWithUserKey(userKey, async () => {
+      expect(EncryptionHelper.decrypt(newCiphertext)).toBe("stats blob");
+    });
   });
 
   it("caps retained failure details to MAX_FAILURES_RETAINED_PER_TABLE", async () => {

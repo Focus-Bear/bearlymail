@@ -4,18 +4,36 @@ import * as path from "path";
 import { Logger as TypeOrmLogger, QueryRunner } from "typeorm";
 
 import { LOG_LEVELS } from "../constants/domain-types";
-import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
-
-ensureLogsDirSync();
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
 const SLOW_QUERY_LOG_FILE = path.join(LOGS_DIR, "slow-queries.log");
 const QUERY_SNIPPET_LENGTH = 500;
 
-// Helper to write to log file
+/**
+ * Append a line to the slow-query log file.
+ *
+ * Dev-only and never-throwing — matching search-logger / auth-logger. Two
+ * reasons this MUST be gated and swallowed (issue #2132):
+ *  1. Production runs as `USER node` with a non-writeable `/app`, and the logs
+ *     dir doesn't exist, so `appendFileSync` throws `ENOENT`.
+ *  2. TypeORM calls `logQueryError` from *inside* query execution. If the
+ *     logger throws, that error replaces the real `QueryFailedError` and
+ *     propagates to the caller — which is exactly how the genuine
+ *     "invalid input syntax for type json" failure got hidden behind a
+ *     misleading `ENOENT: ... slow-queries.log`.
+ * Console logging (via the NestJS Logger) still happens in production; only
+ * the file write is dev-gated.
+ */
 function writeToLogFile(message: string) {
-  const timestamp = new Date().toISOString();
-  const logLine = `[${timestamp}] ${message}\n`;
-  fs.appendFileSync(SLOW_QUERY_LOG_FILE, logLine, "utf8");
+  if (!isDevelopment) return;
+  try {
+    ensureLogsDirSync();
+    const timestamp = new Date().toISOString();
+    const logLine = `[${timestamp}] ${message}\n`;
+    fs.appendFileSync(SLOW_QUERY_LOG_FILE, logLine, "utf8");
+  } catch {
+    // Best-effort: a logging failure must never break a DB query.
+  }
 }
 
 // Custom logger that only logs slow queries to console AND file

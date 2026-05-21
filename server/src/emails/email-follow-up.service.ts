@@ -374,11 +374,10 @@ export class EmailFollowUpService {
       replyHistory,
       now,
     );
-    const reasons = this.buildFollowUpReasons(
+    const reasons = this.buildFollowUpChecklist(
       thread,
       replyHistory,
       activeFollowUp,
-      qualifies,
       now,
     );
 
@@ -447,7 +446,14 @@ export class EmailFollowUpService {
     return true;
   }
 
-  private buildFollowUpReasons(
+  /**
+   * Per-criterion checklist of every gate Follow Up mode applies, marked
+   * ✓ (passes) / ✗ (blocks) / ⚠ (informational). Always shows the full
+   * picture so the verdict and the detail can never contradict each other —
+   * e.g. a thread can qualify (✓ starred + ✓ sent-last + ✓ no-reply) yet
+   * have ⚠ no scheduled FollowUp record, which is the #2125 symptom.
+   */
+  private buildFollowUpChecklist(
     thread: {
       starCount: number;
       isArchived: boolean;
@@ -456,41 +462,53 @@ export class EmailFollowUpService {
     } | null,
     replyHistory: { userSentLast: boolean; replyReceived: boolean },
     activeFollowUp: FollowUp | undefined,
-    qualifies: boolean,
     now: Date,
   ): string[] {
-    const reasons: string[] = [];
-    if (!thread) {
-      reasons.push("Thread row not found for this email");
-    } else {
-      if (thread.isArchived) reasons.push("Thread is archived");
-      if (thread.starCount <= 0)
-        reasons.push(
-          `starCount is ${thread.starCount} (SQL filter requires starCount > 0)`,
-        );
-      if (this.threadCurrentlySnoozed(thread, now)) {
-        reasons.push(
-          `Thread snoozed until ${thread.snoozeUntil!.toISOString()} (still hidden)`,
-        );
-      }
-    }
-    if (!replyHistory.userSentLast)
-      reasons.push("User did not send the last message in this thread");
-    if (replyHistory.replyReceived)
-      reasons.push("A reply has been received since the user last sent");
-    if (!activeFollowUp) {
-      reasons.push("No active FollowUp record for thread");
-    } else if (activeFollowUp.followUpDueAt > now) {
-      reasons.push(
-        `Active FollowUp not yet due (dueAt=${activeFollowUp.followUpDueAt.toISOString()})`,
-      );
-    }
+    if (!thread) return ["✗ Thread row not found for this email"];
 
-    if (reasons.length === 0 && qualifies) {
-      reasons.push("All criteria met for Follow Up mode");
-    } else if (reasons.length === 0) {
-      reasons.push("Unknown — all checks passed but verdict is negative");
+    const lines: string[] = [];
+    lines.push(
+      thread.isArchived ? "✗ Thread is archived" : "✓ Thread is not archived",
+    );
+    lines.push(
+      thread.starCount > 0
+        ? `✓ Thread is starred (starCount=${thread.starCount})`
+        : `✗ starCount is ${thread.starCount} (Follow Up requires starCount > 0)`,
+    );
+    lines.push(
+      this.threadCurrentlySnoozed(thread, now)
+        ? `✗ Thread snoozed until ${thread.snoozeUntil!.toISOString()} (hidden)`
+        : "✓ Thread is not currently snoozed",
+    );
+    lines.push(
+      replyHistory.userSentLast
+        ? "✓ User sent the last message"
+        : "✗ User did not send the last message",
+    );
+    lines.push(
+      replyHistory.replyReceived
+        ? "✗ A reply has been received since the user last sent"
+        : "✓ No reply received since the user last sent",
+    );
+    lines.push(this.describeFollowUpRecord(activeFollowUp, now));
+    return lines;
+  }
+
+  /**
+   * Describe the active FollowUp record. A record is NOT required for a
+   * thread to appear in Follow Up mode, so its absence is informational (⚠),
+   * not a blocker.
+   */
+  private describeFollowUpRecord(
+    activeFollowUp: FollowUp | undefined,
+    now: Date,
+  ): string {
+    if (!activeFollowUp) {
+      return "⚠ No active FollowUp record — appearing by the starred + sent-last rule, not a scheduled follow-up";
     }
-    return reasons;
+    const dueAt = activeFollowUp.followUpDueAt.toISOString();
+    return activeFollowUp.followUpDueAt > now
+      ? `⚠ Active FollowUp not yet due (dueAt=${dueAt})`
+      : `✓ Active FollowUp is due (dueAt=${dueAt})`;
   }
 }

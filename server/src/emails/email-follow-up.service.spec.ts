@@ -44,7 +44,10 @@ describe("EmailFollowUpService", () => {
   >;
   let mockFollowUpRepository: {
     createQueryBuilder: jest.Mock;
+    find: jest.Mock;
   };
+  let mockEmailThreadRepository: { findOne: jest.Mock };
+  let mockEmailRepository: { findOne: jest.Mock };
 
   beforeEach(async () => {
     mockUsersService = {
@@ -64,7 +67,11 @@ describe("EmailFollowUpService", () => {
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
       }),
+      find: jest.fn().mockResolvedValue([]),
     };
+
+    mockEmailThreadRepository = { findOne: jest.fn() };
+    mockEmailRepository = { findOne: jest.fn() };
 
     jest
       .spyOn(EncryptionHelper, "tryDecrypt")
@@ -83,11 +90,11 @@ describe("EmailFollowUpService", () => {
         },
         {
           provide: getRepositoryToken(EmailThread),
-          useValue: { findOne: jest.fn() },
+          useValue: mockEmailThreadRepository,
         },
         {
           provide: getRepositoryToken(Email),
-          useValue: { findOne: jest.fn() },
+          useValue: mockEmailRepository,
         },
       ],
     }).compile();
@@ -304,6 +311,71 @@ describe("EmailFollowUpService", () => {
         mockPerf,
       );
       expect(result[0].followUpDueAt).toBeUndefined();
+    });
+  });
+
+  describe("getFollowUpDebugInfo", () => {
+    const EMAIL_ID = "email-debug-1";
+
+    function setupThread(overrides: Partial<EmailThread> = {}) {
+      mockEmailRepository.findOne.mockResolvedValue({
+        id: EMAIL_ID,
+        userId: USER_ID,
+        threadId: THREAD_ID,
+        emailThreadId: "thread-row-1",
+      });
+      mockEmailThreadRepository.findOne.mockResolvedValue({
+        id: "thread-row-1",
+        userId: USER_ID,
+        threadId: THREAD_ID,
+        starCount: 3,
+        isArchived: false,
+        isSnoozed: false,
+        snoozeUntil: null,
+        lastUserOperationAt: null,
+        ...overrides,
+      });
+    }
+
+    it("reports qualifies=YES with a ⚠ note when starred + user-sent-last but no FollowUp record (the #2125 case)", async () => {
+      setupThread();
+      mockFollowUpRepository.find.mockResolvedValue([]);
+      // Last email is from the user → userSentLast=true, replyReceived=false
+      mockEmailThreadService.getThreadEmails.mockResolvedValue([
+        makeEmail({ from: OTHER_EMAIL }) as never,
+        makeEmail({ from: USER_EMAIL }) as never,
+      ]);
+
+      const info = await service.getFollowUpDebugInfo(USER_ID, EMAIL_ID);
+
+      expect(info.verdict.qualifiesForFollowUpMode).toBe(true);
+      expect(info.activeFollowUpDueAt).toBeNull();
+      expect(info.followUpRecords).toHaveLength(0);
+      // Verdict and detail must be consistent: a YES verdict still surfaces
+      // the missing-record warning rather than hiding it.
+      expect(info.verdict.reasons).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("Thread is starred (starCount=3)"),
+          expect.stringContaining("User sent the last message"),
+          expect.stringContaining("No active FollowUp record"),
+        ]),
+      );
+    });
+
+    it("reports qualifies=NO with the blocking criterion when starCount is 0", async () => {
+      setupThread({ starCount: 0 });
+      mockFollowUpRepository.find.mockResolvedValue([]);
+      mockEmailThreadService.getThreadEmails.mockResolvedValue([
+        makeEmail({ from: OTHER_EMAIL }) as never,
+        makeEmail({ from: USER_EMAIL }) as never,
+      ]);
+
+      const info = await service.getFollowUpDebugInfo(USER_ID, EMAIL_ID);
+
+      expect(info.verdict.qualifiesForFollowUpMode).toBe(false);
+      expect(info.verdict.reasons).toEqual(
+        expect.arrayContaining([expect.stringContaining("starCount is 0")]),
+      );
     });
   });
 });

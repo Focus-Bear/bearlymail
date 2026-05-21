@@ -6,6 +6,10 @@ import Link from '@tiptap/extension-link';
 import ListItem from '@tiptap/extension-list-item';
 import OrderedList from '@tiptap/extension-ordered-list';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Table } from '@tiptap/extension-table';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import TableRow from '@tiptap/extension-table-row';
 import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
@@ -13,6 +17,7 @@ import { EditorView } from '@tiptap/pm/view';
 import { EditorContent, Extension, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { theme } from 'theme/theme';
+import { clipboardHtmlHasTable } from 'utils/clipboardUtils';
 
 import { RichTextToolbar } from 'components/rich-text/RichTextToolbar';
 import { OPACITY_DISABLED } from 'constants/numbers';
@@ -68,6 +73,15 @@ function buildPasteHandler(
     if (!items) {
       return false;
     }
+
+    // When the clipboard contains an HTML table (e.g. copied from Excel or Google Sheets),
+    // skip image-file handling and let TipTap parse the HTML natively. Excel puts both a
+    // PNG screenshot and the HTML table in the clipboard; without this check the image
+    // wins and the table is lost.
+    if (clipboardHtmlHasTable(event.clipboardData ?? null)) {
+      return false;
+    }
+
     const nonImageFiles: File[] = [];
     const imageFiles: File[] = [];
     for (let i = 0; i < items.length; i++) {
@@ -183,6 +197,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           };
         },
       }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
       createLinkShortcut(() => linkShortcutCallbackRef.current()),
     ],
     [placeholder] // eslint deps: createLinkShortcut is module-level (stable); linkShortcutCallbackRef is a ref (stable)
@@ -207,7 +225,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing: refs are stable
   useEffect(() => {
     return () => {
-      /* eslint-disable react-hooks/exhaustive-deps -- pre-existing: refs are stable */
       blobUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
     };
   }, []);
@@ -298,6 +315,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         .tiptap img { max-width: 100%; height: auto; border-radius: 4px; margin: 0.25em 0; }
         .tiptap hr { border: none; border-top: 1px solid ${theme.colors.border.light}; margin: 1em 0; }
         .tiptap .is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: ${theme.colors.text.disabled}; pointer-events: none; height: 0; }
+        .tiptap table { border-collapse: collapse; width: 100%; margin: 0.5em 0; table-layout: auto; overflow: hidden; }
+        .tiptap th, .tiptap td { border: 1px solid ${theme.colors.border.medium}; padding: 4px 8px; vertical-align: top; box-sizing: border-box; position: relative; min-width: 1em; }
+        .tiptap th { background-color: ${theme.colors.background.disabled}; font-weight: 600; text-align: left; }
+        .tiptap .selectedCell:after { z-index: 2; position: absolute; content: ""; left: 0; right: 0; top: 0; bottom: 0; background: rgba(200, 200, 255, 0.2); pointer-events: none; }
       `}</style>
     </div>
   );

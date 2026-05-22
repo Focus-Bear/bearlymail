@@ -1,7 +1,8 @@
 /**
  * Utility for parsing messy paste strings into individual recipient objects.
  * Supports RFC 5322 display-name + angle-addr, bare emails, Outlook ALLCAPS names,
- * and separator variants: semicolons, commas, newlines.
+ * quoted display names containing commas, and separator variants: semicolons,
+ * commas, newlines.
  *
  * @module recipientParser
  */
@@ -13,6 +14,9 @@ export interface ParsedRecipient {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Characters that force a display-name to be wrapped in a quoted-string. */
+const DISPLAY_NAME_MUST_QUOTE = /[()<>[\]:;@\\,."]/;
+
 /**
  * Returns true if the given string is a syntactically valid email address.
  * Extracted from RecipientFields.tsx to be shared with the parser.
@@ -23,20 +27,72 @@ export const isValidEmail = (email: string): boolean => {
 };
 
 /**
- * Splits a raw paste string into individual recipient tokens while
- * preserving quoted strings and angle-bracket groups.
- *
- * Strategy:
- *  1. Split naïvely on /[,;\n]+/ — this is safe because angle-bracket groups
- *     and quoted strings do not normally contain raw commas/semicolons/newlines
- *     in practice. (Full RFC 5321 quoted-strings can, but that's vanishingly rare
- *     in copy-paste scenarios; a simple split is the right trade-off here.)
- *  2. Trim each token.
- *  3. Drop empty tokens.
+ * Split a recipient list on separators (comma, semicolon, newline) that are
+ * NOT inside a double-quoted display name. RFC 5322 display names such as
+ * `"Lastname, Firstname"` legally contain commas; a naive split shatters them
+ * into invalid fragments, which is what produced broken recipient chips and
+ * "Invalid To header" send failures.
+ */
+export const splitRecipientList = (raw: string): string[] => {
+  const parts: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch === '\\' && inQuotes && i + 1 < raw.length) {
+      current += ch + raw[i + 1];
+      i += 1;
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      current += ch;
+      continue;
+    }
+    if ((ch === ',' || ch === ';' || ch === '\n' || ch === '\r') && !inQuotes) {
+      parts.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  parts.push(current);
+  return parts;
+};
+
+/**
+ * Strip surrounding double-quotes from a quoted display name and unescape
+ * `\"` / `\\`. Unquoted names are returned unchanged.
+ */
+const unquoteDisplayName = (name: string): string => {
+  if (name.length >= 2 && name.startsWith('"') && name.endsWith('"')) {
+    return name.slice(1, -1).replace(/\\(["\\])/g, '$1');
+  }
+  return name;
+};
+
+/**
+ * Format a recipient as a header/token string, wrapping the display name in a
+ * quoted-string when it contains RFC 5322 specials (notably commas) so it
+ * survives re-parsing and is accepted by the mail provider.
+ */
+export const formatRecipientToken = (name: string | undefined, email: string): string => {
+  if (!name) {
+    return email;
+  }
+  if (DISPLAY_NAME_MUST_QUOTE.test(name)) {
+    const escaped = name.replace(/(["\\])/g, '\\$1');
+    return `"${escaped}" <${email}>`;
+  }
+  return `${name} <${email}>`;
+};
+
+/**
+ * Splits a raw paste string into individual recipient tokens while preserving
+ * quoted strings and angle-bracket groups (quote-aware, see splitRecipientList).
  */
 const splitTokens = (raw: string): string[] =>
-  raw
-    .split(/[,;\n]+/)
+  splitRecipientList(raw)
     .map(token => token.trim())
     .filter(token => token.length > 0);
 
@@ -44,6 +100,7 @@ const splitTokens = (raw: string): string[] =>
  * Parses a single token such as:
  *   "John Doe <john@example.com>"
  *   "JOHN DOE <john@example.com>"
+ *   '"Doe, John" <john@example.com>'
  *   "john@example.com"
  *   "<john@example.com>"
  *
@@ -52,7 +109,7 @@ const splitTokens = (raw: string): string[] =>
 const parseToken = (token: string): ParsedRecipient | null => {
   const angleMatch = token.match(/^(.*?)<([^>]+)>\s*$/);
   if (angleMatch) {
-    const rawName = angleMatch[1].trim();
+    const rawName = unquoteDisplayName(angleMatch[1].trim());
     const email = angleMatch[2].trim();
     if (!EMAIL_REGEX.test(email)) {
       return null;

@@ -61,5 +61,25 @@ describe("rfc2047-header.util", () => {
         encodeRfc2047Unstructured(name),
       );
     });
+
+    it("leaves a plain ASCII name unchanged", () => {
+      expect(encodeMailboxDisplayName("Jeremy Nagel")).toBe("Jeremy Nagel");
+    });
+
+    it("quotes an ASCII name containing a comma (regression: Invalid To header)", () => {
+      expect(encodeMailboxDisplayName("Nagel, Jeremy - Founder")).toBe(
+        '"Nagel, Jeremy - Founder"',
+      );
+    });
+
+    it("escapes embedded quotes and backslashes when quoting", () => {
+      expect(encodeMailboxDisplayName('Smith, "AJ"')).toBe(
+        '"Smith, \\"AJ\\""',
+      );
+    });
+
+    it("returns empty string unchanged", () => {
+      expect(encodeMailboxDisplayName("")).toBe("");
+    });
   });
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { Contact } from 'types/contact';
 import { ContactGroup, RecipientSuggestion } from 'types/contactGroup';
+import { formatRecipientToken, splitRecipientList } from 'utils/recipientParser';
 
 import { API_URL } from 'config/api';
 import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
@@ -26,13 +27,12 @@ type DispatchFns = {
 };
 
 const parseEmailsToTags = (value: string): string[] =>
-  value
-    .split(',')
+  splitRecipientList(value)
     .map(event => event.trim())
     .filter(event => event.length > 0);
 
 const formatRecipientDisplay = (name: string | undefined, email: string): string =>
-  name ? `${name} <${email}>` : email;
+  formatRecipientToken(name, email);
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -99,7 +99,7 @@ const processInputCommaEntry = (value: string, field: FieldType, ctx: CommaEntry
     dispatch,
     setInputValues,
   } = ctx;
-  const parts = value.split(',');
+  const parts = splitRecipientList(value);
   const newEmails = parts
     .slice(0, -1)
     .map(event => event.trim())

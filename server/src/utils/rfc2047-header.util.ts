@@ -155,9 +155,31 @@ export function decodeRfc2047HeaderValue(input: string): string {
 }
 
 /**
+ * Characters that force an RFC 5322 display-name (phrase) to be quoted. Most
+ * important here is the comma: an unquoted comma in a `Name <addr>` segment is
+ * read as an address separator, producing a malformed header.
+ */
+const DISPLAY_NAME_MUST_QUOTE = /[()<>[\]:;@\\,."]/;
+
+/**
  * Encode a mailbox display-name for a `Name <addr>` header segment (To/Cc/Bcc/From-style).
- * ASCII-only names are unchanged.
+ * Plain ASCII names are unchanged; ASCII names with RFC 5322 specials (e.g. a
+ * comma) are wrapped in a quoted-string; non-ASCII names use RFC 2047.
  */
 export function encodeMailboxDisplayName(displayName: string): string {
-  return encodeRfc2047Unstructured(displayName);
+  if (!displayName) {
+    return displayName;
+  }
+  // Non-ASCII names become RFC 2047 encoded-words, which contain no header
+  // structural characters, so they are safe to drop into `Name <addr>` as-is.
+  if (!ASCII_HEADER_SAFE.test(displayName)) {
+    return encodeRfc2047Unstructured(displayName);
+  }
+  // ASCII names containing specials (notably commas) must be a quoted-string,
+  // otherwise the comma is parsed as an address separator → "Invalid To header".
+  if (DISPLAY_NAME_MUST_QUOTE.test(displayName)) {
+    const escaped = displayName.replace(/(["\\])/g, "\\$1");
+    return `"${escaped}"`;
+  }
+  return displayName;
 }

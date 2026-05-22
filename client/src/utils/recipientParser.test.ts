@@ -1,4 +1,4 @@
-import { isValidEmail, parseRecipientString } from './recipientParser';
+import { formatRecipientToken, isValidEmail, parseRecipientString, splitRecipientList } from './recipientParser';
 
 describe('isValidEmail', () => {
   it('returns true for a plain valid email', () => {
@@ -70,6 +70,30 @@ describe('parseRecipientString', () => {
       expect(result).toEqual([
         { email: 'alice@example.com', name: 'Alice' },
         { email: 'bob@example.com', name: 'Bob' },
+      ]);
+    });
+  });
+
+  describe('quoted display names containing commas (regression: Invalid To header)', () => {
+    it('keeps a quoted "Last, First" display name as a single recipient', () => {
+      const raw = '"Nagel, Jeremy - Founder" <jeremy@focusbear.io>';
+      expect(parseRecipientString(raw)).toEqual([
+        { email: 'jeremy@focusbear.io', name: 'Nagel, Jeremy - Founder' },
+      ]);
+    });
+
+    it('does not split on a comma inside a quoted name within a list', () => {
+      const raw = 'rohan@gmail.com, "Jeremy Nagel - Founder, Focus Bear" <jeremy@focusbear.io>';
+      expect(parseRecipientString(raw)).toEqual([
+        { email: 'rohan@gmail.com' },
+        { email: 'jeremy@focusbear.io', name: 'Jeremy Nagel - Founder, Focus Bear' },
+      ]);
+    });
+
+    it('unescapes escaped quotes inside a quoted name', () => {
+      const raw = '"The \\"Boss\\"" <boss@example.com>';
+      expect(parseRecipientString(raw)).toEqual([
+        { email: 'boss@example.com', name: 'The "Boss"' },
       ]);
     });
   });
@@ -147,5 +171,37 @@ describe('parseRecipientString', () => {
     it('AC7: normal text (no emails) returns empty array (fall back to default paste)', () => {
       expect(parseRecipientString('this is just some text')).toEqual([]);
     });
+  });
+});
+
+describe('splitRecipientList', () => {
+  it('splits on commas outside quotes', () => {
+    expect(splitRecipientList('a@x.com, b@y.com')).toEqual(['a@x.com', ' b@y.com']);
+  });
+
+  it('does not split on commas inside a quoted display name', () => {
+    expect(
+      splitRecipientList('"Nagel, Jeremy" <jeremy@focusbear.io>, rohan@gmail.com'),
+    ).toEqual(['"Nagel, Jeremy" <jeremy@focusbear.io>', ' rohan@gmail.com']);
+  });
+
+  it('splits on semicolons and newlines outside quotes', () => {
+    expect(splitRecipientList('a@x.com; b@y.com\nc@z.com')).toEqual(['a@x.com', ' b@y.com', 'c@z.com']);
+  });
+});
+
+describe('formatRecipientToken', () => {
+  it('returns the bare email when there is no name', () => {
+    expect(formatRecipientToken(undefined, 'a@x.com')).toBe('a@x.com');
+  });
+
+  it('emits a simple name unquoted', () => {
+    expect(formatRecipientToken('Jane Doe', 'jane@x.com')).toBe('Jane Doe <jane@x.com>');
+  });
+
+  it('quotes a name containing a comma so it round-trips', () => {
+    expect(formatRecipientToken('Nagel, Jeremy', 'jeremy@focusbear.io')).toBe(
+      '"Nagel, Jeremy" <jeremy@focusbear.io>',
+    );
   });
 });

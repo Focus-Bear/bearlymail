@@ -1,4 +1,5 @@
 import { Email } from 'types/email';
+import { splitRecipientList } from 'utils/recipientParser';
 
 export type IsCurrentUserFn = (addr: string) => boolean;
 
@@ -13,8 +14,7 @@ export function buildReplyAllRecipients(
   const recipients: string[] = [];
   if (isTargetFromCurrentUser) {
     if (targetEmail.to) {
-      const toRecipients = targetEmail.to
-        .split(',')
+      const toRecipients = splitRecipientList(targetEmail.to)
         .map((recipientStr: string) => recipientStr.trim())
         .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
       recipients.push(...toRecipients);
@@ -23,8 +23,7 @@ export function buildReplyAllRecipients(
     const replyToAddress = targetEmail.replyTo || targetEmail.from;
     recipients.push(replyToAddress);
     if (targetEmail.to) {
-      const toRecipients = targetEmail.to
-        .split(',')
+      const toRecipients = splitRecipientList(targetEmail.to)
         .map((recipientStr: string) => recipientStr.trim())
         .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
       recipients.push(...toRecipients);
@@ -33,8 +32,7 @@ export function buildReplyAllRecipients(
   const uniqueRecipients = [...new Set(recipients)];
   let cc: string | null = null;
   if (targetEmail.cc) {
-    const ccRecipients = targetEmail.cc
-      .split(',')
+    const ccRecipients = splitRecipientList(targetEmail.cc)
       .map((recipientStr: string) => recipientStr.trim())
       .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
     if (ccRecipients.length > 0) {

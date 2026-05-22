@@ -95,6 +95,19 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
     expect(cc).not.toContain('Me <me@example.com>');
   });
 
+  it('keeps a quoted "Last, First" To recipient intact (regression: Invalid To header)', () => {
+    const email = mockPartial<Email>({
+      from: 'sender@example.com',
+      to: 'rohan@gmail.com, "Jeremy Nagel - Founder, Focus Bear" <jeremy@focusbear.io>',
+      cc: undefined,
+    });
+    const isCurrentUser = makeIsCurrentUser('me@example.com');
+    const { recipients } = buildReplyAllRecipients(email, isCurrentUser, false);
+    // The comma inside the quoted display name must NOT shatter the recipient.
+    expect(recipients).toContain('"Jeremy Nagel - Founder, Focus Bear" <jeremy@focusbear.io>');
+    expect(recipients).not.toContain('"Jeremy Nagel - Founder<');
+  });
+
   it('when current user is the sender (reply-all on sent email), includes To recipients', () => {
     const email = mockPartial<Email>({
       from: 'me@example.com',

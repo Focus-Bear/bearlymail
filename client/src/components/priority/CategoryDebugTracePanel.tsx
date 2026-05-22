@@ -87,17 +87,9 @@ function sortRuleEvaluations(evaluations: CategoryRuleEvaluationDebug[]): Catego
 }
 
 function shortlistFallbackParagraph(
-  winningRule: CategorizationTrace['deterministicRules']['winningRule'],
   shortlist: CategorizationTrace['shortlist'],
   translate: TFunction
 ): string {
-  if (winningRule) {
-    const names =
-      shortlist.categoryNames.length > 0
-        ? shortlist.categoryNames.join(', ')
-        : translate('priority.categoryDebug.traceEmpty');
-    return translate('priority.categoryDebug.traceShortlistNamesWhenRuleWon', { names });
-  }
   if (shortlist.categoryNames.length > 0) {
     return shortlist.categoryNames.join(', ');
   }
@@ -146,8 +138,13 @@ interface TraceShortlistSectionProps {
 }
 
 const TraceShortlistSection: React.FC<TraceShortlistSectionProps> = ({ winningRule, shortlist, translate }) => {
-  const showOrderedList = !winningRule && !shortlist.skipped && shortlist.categoryNames.length > 0;
-  const fallbackText = shortlistFallbackParagraph(winningRule, shortlist, translate);
+  // Show the shortlisted categories whenever the shortlist actually ran (not skipped) and
+  // produced names — even when a deterministic rule won. The rule overrides the final
+  // category, but the shortlist still runs inside the priority prompt, so hiding it here
+  // made the trace look like nothing was shortlisted. The intro paragraph clarifies that
+  // the rule (not the shortlist) determined the final category.
+  const showOrderedList = !shortlist.skipped && shortlist.categoryNames.length > 0;
+  const fallbackText = shortlistFallbackParagraph(shortlist, translate);
 
   return (
     <div style={sectionStyle}>

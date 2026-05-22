@@ -2735,7 +2735,6 @@
       "traceRuleStatusNoMatch": "Sin coincidencia",
       "traceShortlistAfterRule": "Una regla determinista ganó, así que la categoría final proviene de esa regla. La lista corta se sigue calculando dentro del prompt de prioridad (igual que en producción).",
       "traceShortlistNoRule": "Ninguna regla determinista coincidió. El modelo de prioridad elige entre esta lista corta (o la lista completa si se omite la lista corta).",
-      "traceShortlistNamesWhenRuleWon": "Lista corta enviada al prompt: {{names}}",
       "traceFinalDecision": "3. Categoría final (canalización de prioridad)",
       "traceLlmBeforeRuleOverride": "Lo que devolvió el modelo de prioridad antes de aplicar la regla",
       "traceLlmCategoryRaw": "Categoría del modelo",

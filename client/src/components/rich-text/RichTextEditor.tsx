@@ -132,7 +132,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onInlineImage,
   minHeight = '200px',
 }) => {
-  const isInternalUpdate = useRef(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const linkShortcutCallbackRef = useRef(() => setLinkDialogOpen(true));
   // Track blob URLs created for pasted images so we can revoke them on unmount.
@@ -234,19 +233,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     content: content || '',
     editable: !disabled,
     onUpdate: ({ editor: ed }) => {
-      isInternalUpdate.current = true;
       const html = ed.getHTML();
-      const isEmpty = ed.isEmpty;
-      onChange(isEmpty ? '' : html);
+      onChange(html === TAG_EMPTY_PARAGRAPH ? '' : html);
     },
     editorProps: { handlePaste: stablePasteHandler },
   });
 
   useEffect(() => {
-    if (editor && !isInternalUpdate.current) {
+    if (editor) {
       const currentContent = editor.getHTML();
       const newContent = content || '';
-      const editorIsEmpty = editor.isEmpty;
+      const editorIsEmpty = currentContent === TAG_EMPTY_PARAGRAPH || currentContent === '';
       const contentIsEmpty = !newContent || newContent === TAG_EMPTY_PARAGRAPH;
 
       if (editorIsEmpty && contentIsEmpty) {
@@ -256,7 +253,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         editor.commands.setContent(newContent);
       }
     }
-    isInternalUpdate.current = false;
   }, [content, editor]);
 
   useEffect(() => {

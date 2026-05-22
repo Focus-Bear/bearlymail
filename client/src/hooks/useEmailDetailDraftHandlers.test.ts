@@ -199,7 +199,7 @@ describe('useEmailDetailDraftHandlers', () => {
     expect(setters.setSelectedReplyOption).toHaveBeenCalledWith(0);
   });
 
-  it('handleDraftChange after microtask clears flag — subsequent typing resets to Custom', async () => {
+  it('handleDraftChange after setTimeout clears flag — subsequent typing resets to Custom', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
       useEmailDetailDraftHandlers({
@@ -217,9 +217,9 @@ describe('useEmailDetailDraftHandlers', () => {
       result.current.handleReplyOptionSelect(1, 'Hello from A');
     });
 
-    // Wait for the microtask (Promise.resolve) to clear the flag
-    await act(async () => {
-      await Promise.resolve();
+    // Advance timers to fire the setTimeout(0) that clears the flag
+    act(() => {
+      jest.runAllTimers();
     });
 
     // Now user types — should reset to Custom

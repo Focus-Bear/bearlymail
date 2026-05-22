@@ -105,11 +105,13 @@ export function useEmailDetailDraftHandlers(options: {
       isSelectingOptionRef.current = true;
       setSelectedReplyOption(idx);
       setDraft(text);
-      // Clear the flag after the current microtask so normal user-typing events
-      // continue to switch the tab to Custom as expected.
-      Promise.resolve().then(() => {
+      // Clear the flag after React's effects have run (setTimeout fires after
+      // React's MessageChannel scheduler), so the Tiptap onUpdate cascade that
+      // happens inside setContent() still sees isSelectingOptionRef = true and
+      // does not switch the tab back to Custom.
+      setTimeout(() => {
         isSelectingOptionRef.current = false;
-      });
+      }, 0);
     }
   };
 

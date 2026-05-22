@@ -200,6 +200,46 @@ describe("discoverEncryptedTables", () => {
       table.columns.find((col) => col.databaseName === "content")?.storageKind,
     ).toBe("text");
   });
+
+  it("flags only allowlisted columns as clearOnDecryptFailure (#2132)", () => {
+    // emails.summary is a regenerable LLM cache → clearable; emails.body is
+    // source data → must NOT be auto-wiped.
+    const meta = {
+      tableName: "emails",
+      primaryColumns: [{ databaseName: "id" }],
+      columns: [
+        { databaseName: "id", propertyName: "id", transformer: undefined },
+        {
+          databaseName: "userId",
+          propertyName: "userId",
+          transformer: undefined,
+        },
+        {
+          databaseName: "summary",
+          propertyName: "summary",
+          type: "text",
+          transformer: encryptedColumnTransformer,
+        },
+        {
+          databaseName: "body",
+          propertyName: "body",
+          type: "text",
+          transformer: encryptedColumnTransformer,
+        },
+      ],
+    };
+
+    const [table] = discoverEncryptedTables(fakeDataSource([meta]));
+
+    expect(
+      table.columns.find((col) => col.databaseName === "summary")
+        ?.clearOnDecryptFailure,
+    ).toBe(true);
+    expect(
+      table.columns.find((col) => col.databaseName === "body")
+        ?.clearOnDecryptFailure,
+    ).toBe(false);
+  });
 });
 
 /**

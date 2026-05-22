@@ -60,6 +60,7 @@
         "scanned": "Escaneados",
         "rewritten": "Reescritos",
         "alreadyMigrated": "Ya migrados",
+        "cleared": "Borrados (regenerando)",
         "failed": "Fallidos"
       },
       "fanout": {

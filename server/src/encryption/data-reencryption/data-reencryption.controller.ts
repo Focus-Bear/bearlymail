@@ -51,6 +51,7 @@ interface AggregatedTableSummary {
   rowsRewritten: number;
   rowsAlreadyMigrated: number;
   rowsFailed: number;
+  rowsCleared: number;
 }
 
 /**
@@ -514,6 +515,7 @@ function addToTable(
       rowsRewritten: result.rowsRewritten,
       rowsAlreadyMigrated: result.rowsAlreadyMigrated,
       rowsFailed: result.rowsFailed,
+      rowsCleared: result.rowsCleared ?? 0,
     });
     return;
   }
@@ -521,4 +523,5 @@ function addToTable(
   existing.rowsRewritten += result.rowsRewritten;
   existing.rowsAlreadyMigrated += result.rowsAlreadyMigrated;
   existing.rowsFailed += result.rowsFailed;
+  existing.rowsCleared += result.rowsCleared ?? 0;
 }

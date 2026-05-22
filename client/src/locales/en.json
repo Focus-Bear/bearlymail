@@ -1370,6 +1370,7 @@
         "scanned": "Scanned",
         "rewritten": "Rewritten",
         "alreadyMigrated": "Already migrated",
+        "cleared": "Wiped (regenerating)",
         "failed": "Failed"
       },
       "fanout": {

@@ -12,6 +12,28 @@ export const USER_KEY_TRANSFORMERS: ReadonlySet<unknown> = new Set<unknown>([
   emailTransformer,
 ]);
 
+/**
+ * Columns (`<table>.<databaseName>`) whose ciphertext is safe to WIPE when it
+ * decrypts under neither the per-user KMS key nor the legacy global key.
+ *
+ * Re-encryption can't migrate a value it can't decrypt, so an unrecoverable
+ * column normally fails the whole user (#2132). For derived/cached fields that
+ * regenerate from intact source data, that's wasteful: the value is already
+ * unreadable, and blocking migration on it loses nothing. So instead of
+ * failing we NULL it and let the app rebuild it.
+ *
+ * STRICT allowlist — only add columns that:
+ *   1. are auto-regenerated when empty (no user action required), and
+ *   2. derive from OTHER data we still hold (so wiping loses nothing real).
+ *
+ * `emails.summary` is a cached LLM summary; it regenerates from the (intact)
+ * email body via the GENERATE_SUMMARY job whenever `summary` is empty. NEVER
+ * add user-authored columns (private notes, contexts, tone settings) — those
+ * are not regenerable and must stay hard failures.
+ */
+export const CLEARABLE_ON_DECRYPT_FAILURE: ReadonlySet<string> =
+  new Set<string>(["emails.summary"]);
+
 export interface EncryptedTable {
   tableName: string;
   primaryKeyColumn: string;
@@ -47,6 +69,12 @@ export interface EncryptedColumn {
   isJson: boolean;
   /** Postgres storage type — determines how a raw-SQL write must encode the value. */
   storageKind: JsonStorageKind;
+  /**
+   * When true, an unrecoverable (neither-key) ciphertext is wiped (set NULL)
+   * instead of failing the user. Only set for regenerable/derived columns in
+   * `CLEARABLE_ON_DECRYPT_FAILURE`.
+   */
+  clearOnDecryptFailure: boolean;
 }
 
 /**
@@ -77,6 +105,9 @@ export function discoverEncryptedTables(
           databaseName: col.databaseName,
           isJson: col.transformer === encryptedJsonTransformer,
           storageKind: resolveStorageKind(col.type),
+          clearOnDecryptFailure: CLEARABLE_ON_DECRYPT_FAILURE.has(
+            `${meta.tableName}.${col.databaseName}`,
+          ),
         }),
       );
 

@@ -60,6 +60,13 @@ export interface TableReencryptionResult {
   rowsRewritten: number;
   rowsAlreadyMigrated: number;
   rowsFailed: number;
+  /**
+   * Rows where at least one unrecoverable (neither-key) regenerable column was
+   * WIPED (set NULL) rather than failed — see CLEARABLE_ON_DECRYPT_FAILURE.
+   * These rows also count toward `rowsRewritten` (a clear is still an UPDATE);
+   * this is the subset that involved discarding corrupted data.
+   */
+  rowsCleared: number;
   failures: ReencryptionFailureDetail[];
 }
 
@@ -79,7 +86,15 @@ interface FailureContext {
 type ReencryptColumnsResult =
   | { kind: "alreadyMigrated" }
   | { kind: "noEncryptedValues" }
-  | { kind: "rewriteNeeded"; values: Record<string, string> }
+  | {
+      kind: "rewriteNeeded";
+      // A `null` value means "wipe this column" (unrecoverable + regenerable);
+      // a string means "re-encrypt under the user key".
+      values: Record<string, string | null>;
+      // Names of columns being wiped (subset of `values` with null) — used for
+      // reporting/logging which corrupted fields were discarded.
+      clearedColumns: string[];
+    }
   | { kind: "rowFailure"; failure: FailureContext };
 
 /**
@@ -214,6 +229,7 @@ export class DataReencryptionService {
     let rowsRewritten = 0;
     let rowsAlreadyMigrated = 0;
     let rowsFailed = 0;
+    let rowsCleared = 0;
     const failures: ReencryptionFailureDetail[] = [];
 
     while (true) {
@@ -222,6 +238,7 @@ export class DataReencryptionService {
         batchRewritten,
         batchAlreadyMigrated,
         batchFailed,
+        batchCleared,
         batchFailures,
         lastId,
       } = await this.dataSource.transaction(async (txMgr) =>
@@ -240,6 +257,7 @@ export class DataReencryptionService {
       rowsRewritten += batchRewritten;
       rowsAlreadyMigrated += batchAlreadyMigrated;
       rowsFailed += batchFailed;
+      rowsCleared += batchCleared;
       for (const failure of batchFailures) {
         if (failures.length >= MAX_FAILURES_RETAINED_PER_TABLE) break;
         failures.push(failure);
@@ -255,8 +273,41 @@ export class DataReencryptionService {
       rowsRewritten,
       rowsAlreadyMigrated,
       rowsFailed,
+      rowsCleared,
       failures,
     };
+  }
+
+  /**
+   * Fetch one keyset-paginated batch of a user's rows, locked `FOR UPDATE` so
+   * concurrent writes from live requests serialise behind this transaction.
+   */
+  private async fetchBatchForUpdate(
+    txMgr: EntityManager,
+    table: EncryptedTable,
+    userId: string,
+    cursor: string | null,
+  ): Promise<Array<Record<string, string | null>>> {
+    const selectColumns = [
+      table.primaryKeyColumn,
+      ...table.columns.map((col) => col.databaseName),
+    ]
+      .map((name) => `"${name}"`)
+      .join(", ");
+
+    const cursorClause =
+      cursor !== null ? `AND "${table.primaryKeyColumn}" > $2` : "";
+    const params: unknown[] = cursor !== null ? [userId, cursor] : [userId];
+
+    return txMgr.query(
+      `SELECT ${selectColumns}
+         FROM "${table.tableName}"
+         WHERE "${table.userIdColumn}" = $1 ${cursorClause}
+         ORDER BY "${table.primaryKeyColumn}"
+         LIMIT ${BATCH_SIZE}
+         FOR UPDATE`,
+      params,
+    );
   }
 
   private async processBatch(
@@ -275,6 +326,7 @@ export class DataReencryptionService {
     batchRewritten: number;
     batchAlreadyMigrated: number;
     batchFailed: number;
+    batchCleared: number;
     batchFailures: ReencryptionFailureDetail[];
     lastId: string | null;
   }> {
@@ -287,30 +339,13 @@ export class DataReencryptionService {
       dryRun,
       retainedFailuresSoFar,
     } = opts;
-    const selectColumns = [
-      table.primaryKeyColumn,
-      ...table.columns.map((col) => col.databaseName),
-    ]
-      .map((name) => `"${name}"`)
-      .join(", ");
 
-    const cursorClause =
-      cursor !== null ? `AND "${table.primaryKeyColumn}" > $2` : "";
-    const params: unknown[] = cursor !== null ? [userId, cursor] : [userId];
-
-    const rows: Array<Record<string, string | null>> = await txMgr.query(
-      `SELECT ${selectColumns}
-         FROM "${table.tableName}"
-         WHERE "${table.userIdColumn}" = $1 ${cursorClause}
-         ORDER BY "${table.primaryKeyColumn}"
-         LIMIT ${BATCH_SIZE}
-         FOR UPDATE`,
-      params,
-    );
+    const rows = await this.fetchBatchForUpdate(txMgr, table, userId, cursor);
 
     let batchRewritten = 0;
     let batchAlreadyMigrated = 0;
     let batchFailed = 0;
+    let batchCleared = 0;
     const batchFailures: ReencryptionFailureDetail[] = [];
 
     for (const row of rows) {
@@ -323,6 +358,14 @@ export class DataReencryptionService {
           batchAlreadyMigrated++;
           break;
         case "rewriteNeeded":
+          if (outcome.clearedColumns.length > 0) {
+            batchCleared++;
+            this.logger.warn(
+              `Wiping unrecoverable column(s) [${outcome.clearedColumns.join(", ")}] ` +
+                `on ${table.tableName}.${rowId} — decrypts under neither key; ` +
+                `will regenerate. dryRun=${dryRun}`,
+            );
+          }
           if (!dryRun) {
             await this.applyUpdate(txMgr, table, rowId, outcome.values);
           }
@@ -357,6 +400,7 @@ export class DataReencryptionService {
       batchRewritten,
       batchAlreadyMigrated,
       batchFailed,
+      batchCleared,
       batchFailures,
       lastId,
     };
@@ -417,10 +461,13 @@ export class DataReencryptionService {
    * - null / not-ciphertext-shaped → leave alone
    * - decrypts under the active per-user key → already migrated, skip
    * - decrypts under the global key → re-encrypt with the active per-user key
-   * - decrypts under neither → return a `failure` outcome with the column name
-   *   and ciphertext (caller records a structured failure detail). Failures
-   *   are *not* thrown so the per-row try/catch only handles truly unexpected
-   *   exceptions.
+   * - decrypts under neither:
+   *     - if the column is in CLEARABLE_ON_DECRYPT_FAILURE (regenerable/derived)
+   *       → WIPE it (value = null) so migration completes; it regenerates.
+   *     - otherwise → return a `failure` outcome with the column name and
+   *       ciphertext (caller records a structured failure detail). Failures
+   *       are *not* thrown so the per-row try/catch only handles truly
+   *       unexpected exceptions.
    */
   private computeReencryptedColumns(
     table: EncryptedTable,
@@ -428,7 +475,8 @@ export class DataReencryptionService {
     userKey: Buffer,
     globalKey: Buffer,
   ): ReencryptColumnsResult {
-    const updates: Record<string, string> = {};
+    const updates: Record<string, string | null> = {};
+    const clearedColumns: string[] = [];
     let anyEncryptedColumn = false;
     let anyNeedingRewrite = false;
 
@@ -456,6 +504,16 @@ export class DataReencryptionService {
         globalKey,
       );
       if (globalKeyDecrypted === null || globalKeyDecrypted === ciphertext) {
+        // Unrecoverable under either key. For regenerable/derived columns,
+        // wipe the corrupted value (it regenerates) instead of failing the
+        // whole user. For everything else, fail loudly — never silently
+        // destroy data we can't rebuild.
+        if (col.clearOnDecryptFailure) {
+          updates[col.databaseName] = null;
+          clearedColumns.push(col.databaseName);
+          anyNeedingRewrite = true;
+          continue;
+        }
         return {
           kind: "rowFailure",
           failure: {
@@ -485,19 +543,26 @@ export class DataReencryptionService {
 
     if (!anyEncryptedColumn) return { kind: "noEncryptedValues" };
     if (!anyNeedingRewrite) return { kind: "alreadyMigrated" };
-    return { kind: "rewriteNeeded", values: updates };
+    return { kind: "rewriteNeeded", values: updates, clearedColumns };
   }
 
   private async applyUpdate(
     txMgr: EntityManager,
     table: EncryptedTable,
     rowId: string,
-    updates: Record<string, string>,
+    updates: Record<string, string | null>,
   ): Promise<void> {
     const setClauses: string[] = [];
     const params: unknown[] = [];
     let paramIndex = 1;
     for (const [col, value] of Object.entries(updates)) {
+      // A null value means "wipe this column" — emit a literal NULL so the
+      // column is cleared regardless of its storage type (a parameterised
+      // `to_jsonb(NULL::text)` would store a jsonb `null`, not SQL NULL).
+      if (value === null) {
+        setClauses.push(`"${col}" = NULL`);
+        continue;
+      }
       const placeholder = `$${paramIndex++}`;
       // The ciphertext is always a plain string. For json/jsonb columns the
       // value is stored as a JSON string, so a bare ciphertext is rejected as
@@ -505,8 +570,7 @@ export class DataReencryptionService {
       // side so the param stays a plain string. Plain text columns take it as-is.
       const storageKind =
         table.columns.find((column) => column.databaseName === col)
-          ?.storageKind ??
-        STORAGE_KIND.TEXT;
+          ?.storageKind ?? STORAGE_KIND.TEXT;
       if (storageKind === STORAGE_KIND.JSONB) {
         setClauses.push(`"${col}" = to_jsonb(${placeholder}::text)`);
       } else if (storageKind === STORAGE_KIND.JSON) {

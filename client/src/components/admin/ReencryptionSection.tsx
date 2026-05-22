@@ -19,7 +19,8 @@ interface DryRunTableResult {
   rowsAlreadyMigrated: number;
   rowsFailed: number;
   // Optional for backwards compat with older server versions that don't
-  // populate it yet (avoids client errors on first deploy).
+  // populate these yet (avoids client errors on first deploy).
+  rowsCleared?: number;
   failures?: FailureDetail[];
 }
 
@@ -70,6 +71,8 @@ interface AggregatedTableSummary {
   rowsRewritten: number;
   rowsAlreadyMigrated: number;
   rowsFailed: number;
+  // Optional for backwards compat with older server versions.
+  rowsCleared?: number;
 }
 
 interface ChildJobSummary {
@@ -440,6 +443,7 @@ export const ReencryptionSection: React.FC = () => {
             scanned: t('admin.reencryption.columns.scanned'),
             rewritten: t('admin.reencryption.columns.rewritten'),
             alreadyMigrated: t('admin.reencryption.columns.alreadyMigrated'),
+            cleared: t('admin.reencryption.columns.cleared'),
             failed: t('admin.reencryption.columns.failed'),
           }}
         />
@@ -579,6 +583,7 @@ interface DryRunResultTableProps {
     scanned: string;
     rewritten: string;
     alreadyMigrated: string;
+    cleared: string;
     failed: string;
   };
 }
@@ -620,6 +625,9 @@ const DryRunResultTable: React.FC<DryRunResultTableProps> = ({
             {headers.alreadyMigrated}
           </th>
           <th style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+            {headers.cleared}
+          </th>
+          <th style={{ textAlign: 'right', padding: theme.spacing.sm }}>
             {headers.failed}
           </th>
         </tr>
@@ -641,6 +649,18 @@ const DryRunResultTable: React.FC<DryRunResultTableProps> = ({
             </td>
             <td style={{ textAlign: 'right', padding: theme.spacing.sm }}>
               {row.rowsAlreadyMigrated}
+            </td>
+            <td
+              style={{
+                textAlign: 'right',
+                padding: theme.spacing.sm,
+                color:
+                  (row.rowsCleared ?? 0) > 0
+                    ? theme.colors.warning.main
+                    : theme.colors.text.primary,
+              }}
+            >
+              {row.rowsCleared ?? 0}
             </td>
             <td
               style={{
@@ -901,6 +921,9 @@ const FanoutAggregateSection: React.FC<FanoutAggregateSectionProps> = ({
               {t('admin.reencryption.columns.alreadyMigrated')}
             </th>
             <th style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+              {t('admin.reencryption.columns.cleared')}
+            </th>
+            <th style={{ textAlign: 'right', padding: theme.spacing.sm }}>
               {t('admin.reencryption.columns.failed')}
             </th>
           </tr>
@@ -922,6 +945,18 @@ const FanoutAggregateSection: React.FC<FanoutAggregateSectionProps> = ({
               </td>
               <td style={{ textAlign: 'right', padding: theme.spacing.sm }}>
                 {row.rowsAlreadyMigrated}
+              </td>
+              <td
+                style={{
+                  textAlign: 'right',
+                  padding: theme.spacing.sm,
+                  color:
+                    (row.rowsCleared ?? 0) > 0
+                      ? theme.colors.warning.main
+                      : theme.colors.text.primary,
+                }}
+              >
+                {row.rowsCleared ?? 0}
               </td>
               <td
                 style={{

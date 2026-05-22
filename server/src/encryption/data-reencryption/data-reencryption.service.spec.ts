@@ -204,6 +204,129 @@ describe("DataReencryptionService", () => {
     expect(userRepo.update).not.toHaveBeenCalled();
   });
 
+  describe("clearable columns (CLEARABLE_ON_DECRYPT_FAILURE)", () => {
+    // Builds a service whose only encrypted column is `emails.summary`, which
+    // IS in the clear-on-decrypt-failure allowlist (regenerable LLM cache).
+    function buildEmailsSummaryService(): DataReencryptionService {
+      const emailsDataSource = {
+        entityMetadatas: [
+          {
+            tableName: "emails",
+            primaryColumns: [{ databaseName: "id" }],
+            columns: [
+              {
+                databaseName: "id",
+                propertyName: "id",
+                transformer: undefined,
+              },
+              {
+                databaseName: "userId",
+                propertyName: "userId",
+                transformer: undefined,
+              },
+              {
+                databaseName: "summary",
+                propertyName: "summary",
+                type: "text",
+                transformer: encryptedColumnTransformer,
+              },
+            ],
+          },
+        ],
+        transaction: jest.fn().mockImplementation(async (cb: unknown) => {
+          const callback = cb as (mgr: {
+            query: jest.Mock;
+          }) => Promise<unknown>;
+          return callback({ query: txQueryMock });
+        }),
+      } as unknown as jest.Mocked<DataSource>;
+
+      return new DataReencryptionService(
+        emailsDataSource,
+        userRepo,
+        userEncryption,
+        kmsService,
+      );
+    }
+
+    it("wipes (not fails) an unrecoverable value and marks the user complete", async () => {
+      const orphanedKey = Buffer.alloc(32, 0xcd);
+      const corruptedSummary = encryptWithKey("corrupted summary", orphanedKey);
+      const emailsService = buildEmailsSummaryService();
+
+      txQueryMock.mockImplementation((sql: string) => {
+        if (sql.includes("SELECT")) {
+          return Promise.resolve([{ id: "row-1", summary: corruptedSummary }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await emailsService.reencryptUser(userId);
+
+      // Recovered, not failed — so migration completes for this user.
+      expect(result.tables[0].rowsFailed).toBe(0);
+      expect(result.tables[0].rowsCleared).toBe(1);
+      expect(result.tables[0].rowsRewritten).toBe(1);
+
+      // The UPDATE wipes the column with a literal NULL (not a jsonb null).
+      const updateCall = txQueryMock.mock.calls.find(([sql]) =>
+        /^\s*UPDATE\s/i.test(String(sql)),
+      );
+      expect(updateCall).toBeDefined();
+      expect(String(updateCall![0])).toContain('"summary" = NULL');
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({ dataReencryptedAt: expect.any(Date) }),
+      );
+    });
+
+    it("counts a clear in dry-run mode without writing", async () => {
+      const orphanedKey = Buffer.alloc(32, 0xcd);
+      const corruptedSummary = encryptWithKey("corrupted summary", orphanedKey);
+      const emailsService = buildEmailsSummaryService();
+
+      txQueryMock.mockImplementation((sql: string) => {
+        if (sql.includes("SELECT")) {
+          return Promise.resolve([{ id: "row-1", summary: corruptedSummary }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await emailsService.reencryptUser(userId, {
+        dryRun: true,
+      });
+
+      expect(result.tables[0].rowsCleared).toBe(1);
+      expect(
+        txQueryMock.mock.calls.some(([sql]) =>
+          /^\s*UPDATE\s/i.test(String(sql)),
+        ),
+      ).toBe(false);
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+
+    it("still HARD-FAILS an unrecoverable value on a non-allowlisted column", async () => {
+      // private_notes.content is NOT clearable — user-authored data must never
+      // be silently wiped. The default `service` is wired to private_notes.
+      const orphanedKey = Buffer.alloc(32, 0xcd);
+      const orphaned = encryptWithKey("user note", orphanedKey);
+
+      txQueryMock.mockImplementation((sql: string) => {
+        if (sql.includes("SELECT")) {
+          return Promise.resolve([{ id: "row-1", content: orphaned }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await service.reencryptUser(userId);
+
+      expect(result.tables[0].rowsFailed).toBe(1);
+      expect(result.tables[0].rowsCleared).toBe(0);
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+  });
+
   it("captures structured failure diagnostics for unrecoverable rows", async () => {
     const orphanedKey = Buffer.alloc(32, 0xcd);
     const orphanedCiphertext = encryptWithKey("unrecoverable", orphanedKey);

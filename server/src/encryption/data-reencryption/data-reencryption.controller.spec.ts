@@ -293,6 +293,7 @@ describe("DataReencryptionController", () => {
           rowsRewritten: 127,
           rowsAlreadyMigrated: 20,
           rowsFailed: 3,
+          rowsCleared: 0,
         },
       ]);
       expect(response.failures).toHaveLength(1);
@@ -364,6 +365,7 @@ describe("DataReencryptionController", () => {
           rowsRewritten: 10,
           rowsAlreadyMigrated: 0,
           rowsFailed: 0,
+          rowsCleared: 0,
         },
       ]);
       expect(response.failures).toEqual([]);

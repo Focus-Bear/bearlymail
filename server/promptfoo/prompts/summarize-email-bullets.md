@@ -100,7 +100,7 @@ Current datetime (UTC): {{currentDatetime}}
 }
 
 MEETING PROPOSAL DETECTION — for the `meetingProposal` field:
-- Set `hasProposal: true` ONLY when the email proposes a **specific** date AND time (e.g. "Tuesday April 15 at 9am"). DO NOT set true for vague requests like "let's find a time", "sometime next week", or "when are you free?"
+- Set `hasProposal: true` ONLY when the email proposes a **specific** date AND time (e.g. "Tuesday April 15 at 9am", "11.30am on the 29th"). A bare day-of-month with no month named ("the 29th", "on the 3rd") counts as specific — resolve it to the next future occurrence of that day relative to the current datetime above (i.e. this month if the day has not yet passed, otherwise next month). Times may use a period or colon as the separator, with or without a space before am/pm (e.g. "11.30am" = 11:30 AM, "2 pm" = 14:00). DO NOT set true for vague requests like "let's find a time", "sometime next week", or "when are you free?"
 - `proposedTime`: convert to ISO 8601 UTC using the current datetime above. If timezone is unknown, assume UTC. Null if no specific proposal.
 - `proposedTimeText`: the time as written in the email. Null if no proposal.
 - `topic`: derive from subject/body, max 60 chars. Null if no proposal.

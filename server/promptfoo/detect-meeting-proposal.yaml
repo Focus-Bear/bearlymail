@@ -1,0 +1,120 @@
+description: "Tests for the meeting-proposal detection prompt (concrete time extraction)"
+
+prompts:
+  - file://prompts/detect-meeting-proposal.md
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+tests:
+  - description: "Bare day-of-month + period time ('11.30am on 29th') is a concrete proposal"
+    vars:
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "emma-kate.cooper@jigsawaustralia.com.au"
+      fromName: "Emma-Kate Cooper"
+      subject: "Meeting with trainees"
+      body: |
+        Hi Jeremy,
+
+        An online meeting would work well for us at 11.30am on 29th.
+
+        It will be with trainees Harrison and Asher.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedTime || !parsed.proposedTime.startsWith('2026-05-29')) {
+            throw new Error(`Expected proposedTime on 2026-05-29. Got: ${parsed.proposedTime}`);
+          }
+          return true;
+
+  - description: "Relative date + colon time ('next Tuesday at 9am') is a concrete proposal"
+    vars:
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "sarah@example.com"
+      fromName: "Sarah Chen"
+      subject: "Catch up"
+      body: |
+        Hi, could we meet next Tuesday at 9am to go over the roadmap?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedTime || !parsed.proposedTime.startsWith('2026-05-26')) {
+            throw new Error(`Expected proposedTime on 2026-05-26 (next Tuesday after Fri 2026-05-22). Got: ${parsed.proposedTime}`);
+          }
+          return true;
+
+  - description: "Vague proposal ('sometime next week') is NOT a concrete proposal"
+    vars:
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "mike@example.com"
+      fromName: "Mike Thompson"
+      subject: "Sync"
+      body: |
+        Let's find a time sometime next week to chat — what works for you?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== false) {
+            throw new Error(`Expected hasProposal=false for vague request. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+
+  - description: "Time with no date ('around 3pm') is NOT a concrete proposal"
+    vars:
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "alex@example.com"
+      fromName: "Alex Rivera"
+      subject: "Quick call"
+      body: |
+        Could we hop on a quick call around 3pm? Let me know which day suits.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== false) {
+            throw new Error(`Expected hasProposal=false when no date is given. Got: ${text.substring(0, 300)}`);
+          }
+          return true;

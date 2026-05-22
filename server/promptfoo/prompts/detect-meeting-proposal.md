@@ -2,7 +2,7 @@ You are an assistant that analyses email content to detect whether the sender is
 
 Today's date and time (ISO 8601, UTC): {{currentDatetime}}
 
-Analyse the following email and determine whether it contains a concrete meeting time proposal (a specific day/date AND a time, e.g. "Tuesday at 9am", "15 April at 2pm", "tomorrow morning around 10"). Vague proposals like "sometime next week" or "let's find a time" do NOT count — only proposals with enough information to construct a calendar event.
+Analyse the following email and determine whether it contains a concrete meeting time proposal (a specific day/date AND a time, e.g. "Tuesday at 9am", "15 April at 2pm", "tomorrow morning around 10", "11.30am on the 29th"). Vague proposals like "sometime next week" or "let's find a time" do NOT count — only proposals with enough information to construct a calendar event.
 
 From: {{fromName}} <{{from}}>
 Subject: {{subject}}
@@ -22,6 +22,8 @@ Respond with a JSON object using exactly this schema (no extra keys, no markdown
 Rules:
 - Only set hasProposal=true when a specific date AND time can be resolved.
 - Resolve relative dates (e.g. "tomorrow", "next Tuesday") using today's date above.
+- A bare day-of-month with no month named (e.g. "the 29th", "on the 3rd", "29th") is specific enough: resolve it to the next future occurrence of that day relative to today's date — i.e. this month if the day has not yet passed, otherwise next month.
+- Times may use a period or colon as the separator, with or without a space before am/pm (e.g. "11.30am" = 11:30 AM, "9.00pm" = 21:00, "2 pm" = 14:00). Treat these as concrete times.
 - For `proposedTimeText`: always preserve the time and timezone exactly as stated in the email (e.g. "6:15pm Eastern Time", "9am AEST"). Include the AM/PM indicator and the timezone name/abbreviation if mentioned.
 - For `proposedTime`: convert to UTC using the correct timezone offset. Use these standard offsets:
   - ET / EST / Eastern Standard Time = UTC-5

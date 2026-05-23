@@ -46,7 +46,7 @@ describe('AuthContext', () => {
         <div data-testid="loading">{auth.loading ? 'loading' : 'not-loading'}</div>
         <button onClick={() => auth.login('test@example.com', 'password')}>Login</button>
         <button onClick={() => auth.register('test@example.com', 'password', 'Test User')}>Register</button>
-        <button onClick={auth.logout}>Logout</button>
+        <button onClick={() => auth.logout()}>Logout</button>
         <button onClick={auth.refreshUser}>Refresh</button>
       </div>
     );
@@ -326,7 +326,11 @@ describe('AuthContext', () => {
 
       // Server logout called to clear the HttpOnly cookie
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/auth/logout'));
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+          expect.stringContaining('/auth/logout'),
+          {},
+          expect.objectContaining({ _skipInterceptor: true }),
+        );
       });
     });
   });

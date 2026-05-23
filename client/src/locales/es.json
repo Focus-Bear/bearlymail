@@ -286,6 +286,14 @@
     "registerTitle": "Crear cuenta",
     "reloginLink": "inicia sesión nuevamente",
     "reloginRequired": "Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.",
+    "sessionExpired": {
+      "title": "Lo sentimos, deberás iniciar sesión en BearlyMail nuevamente",
+      "subtitle": "Tu sesión finalizó. Inicia sesión de nuevo para continuar donde lo dejaste.",
+      "lastUsedGoogle": "La última vez iniciaste sesión con Google",
+      "lastUsedMicrosoft": "La última vez iniciaste sesión con Microsoft",
+      "lastUsedZoho": "La última vez iniciaste sesión con Zoho",
+      "lastUsedEmail": "La última vez iniciaste sesión con tu correo y contraseña"
+    },
     "setUpAccount": "Configurar cuenta",
     "settingUp": "Configurando...",
     "setupAccountDescription": "¡Bienvenido! Por favor, crea una contraseña para completar la configuración de tu cuenta.",

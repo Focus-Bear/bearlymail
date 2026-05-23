@@ -5,9 +5,16 @@ import { theme } from 'theme/theme';
 import { devLog } from 'utils/dev-logger';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
+import {
+  consumeSessionExpired,
+  getLastLoginMethod,
+  LoginMethod,
+  setLastLoginMethod,
+} from 'utils/sessionState';
 
 import { LoginFormSection } from 'components/auth/LoginFormSection';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
+import { SessionExpiredBanner } from 'components/auth/SessionExpiredBanner';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { PROVIDER_ZOHO } from 'constants/strings';
@@ -26,6 +33,19 @@ const Login: React.FC = () => {
   const [pendingProvider, setPendingProvider] = useState<'google' | 'zoho'>('google');
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [lastMethod, setLastMethod] = useState<LoginMethod | null>(null);
+
+  useEffect(() => {
+    // Read the remembered method and the one-shot "session expired" flag set by
+    // an involuntary logout. consumeSessionExpired() clears the flag so a manual
+    // refresh of /login doesn't keep showing the banner. (StrictMode may run this
+    // twice in dev; the second read returns false and we never unset the state.)
+    setLastMethod(getLastLoginMethod());
+    if (consumeSessionExpired()) {
+      setSessionExpired(true);
+    }
+  }, []);
 
   useEffect(() => {
     // OAuth callbacks now set an HttpOnly cookie and redirect directly to /inbox
@@ -82,18 +102,21 @@ const Login: React.FC = () => {
   };
 
   const handleMicrosoftLogin = () => {
+    setLastLoginMethod('microsoft');
     window.location.href = `${API_URL}/auth/microsoft`;
   };
 
   const proceedToGoogleOAuth = () => {
     captureEvent(ANALYTICS_EVENTS.GOOGLE_LOGIN_INITIATED);
     localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
+    setLastLoginMethod('google');
     window.location.href = `${API_URL}/auth/google`;
   };
 
   const proceedToZohoOAuth = () => {
     captureEvent(ANALYTICS_EVENTS.ZOHO_LOGIN_INITIATED);
     localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
+    setLastLoginMethod('zoho');
     window.location.href = `${API_URL}/auth/zoho`;
   };
 
@@ -125,19 +148,36 @@ const Login: React.FC = () => {
           padding: theme.spacing.md,
         }}
       >
-        <LoginFormSection
-          email={email}
-          password={password}
-          error={error}
-          isOAuthOnlyError={isOAuthOnlyError}
-          deletedAccountReason={deletedAccountReason}
-          onEmailChange={setEmail}
-          onPasswordChange={setPassword}
-          onSubmit={handleSubmit}
-          onGoogleLogin={handleGoogleLogin}
-          onMicrosoftLogin={handleMicrosoftLogin}
-          onZohoLogin={handleZohoLogin}
-        />
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            maxWidth: '400px',
+          }}
+        >
+          {sessionExpired && (
+            <SessionExpiredBanner
+              lastMethod={lastMethod}
+              onContinueGoogle={handleGoogleLogin}
+              onContinueMicrosoft={handleMicrosoftLogin}
+              onContinueZoho={handleZohoLogin}
+            />
+          )}
+          <LoginFormSection
+            email={email}
+            password={password}
+            error={error}
+            isOAuthOnlyError={isOAuthOnlyError}
+            deletedAccountReason={deletedAccountReason}
+            onEmailChange={setEmail}
+            onPasswordChange={setPassword}
+            onSubmit={handleSubmit}
+            onGoogleLogin={handleGoogleLogin}
+            onMicrosoftLogin={handleMicrosoftLogin}
+            onZohoLogin={handleZohoLogin}
+          />
+        </div>
       </div>
     </>
   );

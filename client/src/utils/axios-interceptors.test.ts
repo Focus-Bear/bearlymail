@@ -93,14 +93,15 @@ describe('axios-interceptors', () => {
       expect(mockLogout).not.toHaveBeenCalled();
     });
 
-    it('should call logout for /users/me GET request with _skipInterceptor flag', async () => {
-      // When _skipInterceptor is true, the request should NOT be treated as an initial auth check
-      // So logout SHOULD be called
+    it('should skip logout entirely when _skipInterceptor flag is set', async () => {
+      // _skipInterceptor is an explicit opt-out (e.g. the logout POST itself
+      // uses it) — neither the initial-auth-check special case nor the logout
+      // call should run; the error simply rejects.
       const error = {
         response: { status: HTTP_UNAUTHORIZED },
         config: {
-          url: API_ENDPOINT_USERS_ME,
-          method: HTTP_METHOD_GET,
+          url: '/auth/logout',
+          method: 'post',
           _skipInterceptor: true,
         },
       };
@@ -108,7 +109,7 @@ describe('axios-interceptors', () => {
       const errorHandler = responseInterceptor[1];
 
       await expect(errorHandler(error)).rejects.toEqual(error);
-      expect(mockLogout).toHaveBeenCalled();
+      expect(mockLogout).not.toHaveBeenCalled();
     });
 
     it('should call logout when 401 is returned for a non-auth-check request', async () => {

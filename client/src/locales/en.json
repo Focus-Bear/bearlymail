@@ -56,6 +56,14 @@
     "logout": "Log Out",
     "reloginLink": "log in again",
     "authenticationFailed": "Authentication failed",
+    "sessionExpired": {
+      "title": "Sorry, you'll need to sign in to BearlyMail again",
+      "subtitle": "Your session ended. Sign back in to continue where you left off.",
+      "lastUsedGoogle": "You last signed in with Google",
+      "lastUsedMicrosoft": "You last signed in with Microsoft",
+      "lastUsedZoho": "You last signed in with Zoho",
+      "lastUsedEmail": "You last signed in with your email and password"
+    },
     "setupAccountTitle": "Set Up Your Account",
     "setupAccountDescription": "Welcome! Please create a password to complete your account setup.",
     "invalidSetupLink": "Invalid setup link. Please check your email for the correct link.",

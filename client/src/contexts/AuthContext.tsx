@@ -4,6 +4,7 @@ import axios from 'axios';
 import { devLog } from 'utils/dev-logger';
 import { CACHE_VERSION } from 'utils/emailCache';
 import { captureEvent, identifyUser, resetPostHog } from 'utils/posthog';
+import { LOGIN_METHOD_EMAIL, markSessionExpired, SESSION_EXPIRED_REASON, setLastLoginMethod } from 'utils/sessionState';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -80,7 +81,13 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
-  logout: () => void;
+  /**
+   * Log the user out. Pass reason 'session_expired' for involuntary logouts
+   * (expired/invalid token → 401) so the login screen can explain why and offer
+   * the remembered method. Omit the reason for an intentional, user-initiated
+   * logout.
+   */
+  logout: (reason?: typeof SESSION_EXPIRED_REASON) => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -126,16 +133,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [serviceError, setServiceError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  const logout = useCallback(() => {
+  const logout = useCallback((reason?: typeof SESSION_EXPIRED_REASON) => {
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     resetPostHog();
     // Remove any legacy localStorage token that may have been stored before the
     // HttpOnly cookie migration (OWASP ASVS GAP-4). Also clear sensitive cache.
     localStorage.removeItem('token');
     clearSensitiveLocalStorage();
+    // Involuntary logout (expired/invalid token): leave a one-shot flag so the
+    // login screen shows "you'll need to log in again" instead of appearing
+    // unprompted. Set AFTER clearSensitiveLocalStorage so it isn't wiped.
+    if (reason === SESSION_EXPIRED_REASON) {
+      markSessionExpired();
+    }
     delete axios.defaults.headers.common['Authorization'];
-    // Ask the server to clear the HttpOnly cookie (client JS cannot clear it directly)
-    axios.post(`${API_URL}/auth/logout`).catch(() => {
+    // Ask the server to clear the HttpOnly cookie (client JS cannot clear it directly).
+    // Pass _skipInterceptor so a 401 from an already-expired session doesn't re-enter
+    // the response interceptor and recursively call logout().
+    axios.post(`${API_URL}/auth/logout`, {}, { _skipInterceptor: true }).catch(() => {
       // Ignore errors — the user is logged out locally regardless
     });
     setUser(null);
@@ -181,6 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     devLog('Login successful — JWT stored in HttpOnly cookie by server');
 
     setUser(user);
+    // Remember the method so the "session expired" screen can offer it first.
+    setLastLoginMethod(LOGIN_METHOD_EMAIL);
     // Track login event and identify user (NO PII)
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_IN, {
       method: 'email',

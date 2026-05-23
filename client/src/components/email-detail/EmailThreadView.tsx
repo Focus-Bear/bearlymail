@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
-import { CleanBodyResult, CleanHtmlResult } from 'utils/emailBodyUtils';
+import { CleanBodyResult, CleanHtmlResult, InlineAttachmentRef } from 'utils/emailBodyUtils';
 
 import { EmailAttachments } from './EmailAttachments';
-import { EmailBodyIframe } from './EmailBodyIframe';
 import { ExpandCollapseButton } from './ExpandCollapseButton';
+import { ResolvedEmailBody } from './ResolvedEmailBody';
 
 interface EmailThreadViewProps {
   email: Email;
@@ -17,7 +17,7 @@ interface EmailThreadViewProps {
   extractCleanBody: (body: string, htmlBody?: string) => string;
   removeSignature: (html: string, removeLastSignature?: boolean) => string;
   extractCleanHtmlBody: (html: string) => string;
-  sanitizeAndProcessHtml: (html: string) => string;
+  sanitizeAndProcessHtml: (html: string, attachments?: InlineAttachmentRef[]) => string;
   extractCleanHtmlBodyWithMeta: (html: string) => CleanHtmlResult;
   extractCleanBodyWithMeta: (body: string, htmlBody?: string) => CleanBodyResult;
 }
@@ -207,12 +207,11 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
                   >
                     {rawHtmlBody ? (
                       <>
-                        <EmailBodyIframe
-                          html={
-                            isBodyExpanded
-                              ? sanitizeAndProcessHtml(rawHtmlBody)
-                              : sanitizeAndProcessHtml(cleanHtmlResult?.html ?? extractCleanHtmlBody(rawHtmlBody))
-                          }
+                        <ResolvedEmailBody
+                          emailId={threadEmail.id}
+                          html={isBodyExpanded ? rawHtmlBody : (cleanHtmlResult?.html ?? extractCleanHtmlBody(rawHtmlBody))}
+                          attachments={threadEmail.attachments}
+                          sanitize={sanitizeAndProcessHtml}
                         />
                         {cleanHtmlResult?.wasTruncated && (
                           <ExpandCollapseButton
@@ -279,12 +278,11 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
       >
         {singleEmailHtmlBody ? (
           <>
-            <EmailBodyIframe
-              html={
-                isSingleBodyExpanded
-                  ? sanitizeAndProcessHtml(singleEmailHtmlBody)
-                  : sanitizeAndProcessHtml(singleCleanHtmlResult?.html ?? extractCleanHtmlBody(singleEmailHtmlBody))
-              }
+            <ResolvedEmailBody
+              emailId={email.id}
+              html={isSingleBodyExpanded ? singleEmailHtmlBody : (singleCleanHtmlResult?.html ?? extractCleanHtmlBody(singleEmailHtmlBody))}
+              attachments={email.attachments}
+              sanitize={sanitizeAndProcessHtml}
             />
             {singleCleanHtmlResult?.wasTruncated && (
               <ExpandCollapseButton isExpanded={isSingleBodyExpanded} onToggle={() => toggleExpandedBody(email.id)} />

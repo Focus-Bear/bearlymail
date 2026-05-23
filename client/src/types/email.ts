@@ -32,6 +32,8 @@ export interface EnrichedSearchResult extends GmailSearchResult {
     filename: string;
     mimeType: string;
     size: number;
+    contentId?: string;
+    inlineData?: string;
   }>;
   starCount?: number;
   priorityScore?: number | null;
@@ -167,6 +169,10 @@ export interface Email {
     filename: string;
     mimeType: string;
     size: number;
+    /** CID reference used to resolve inline images in the HTML body. */
+    contentId?: string;
+    /** Base64-encoded content for small inline images embedded directly by Gmail. */
+    inlineData?: string;
   }>;
   // Phishing detection signal (populated after summarisation)
   phishingConfidence?: 'low' | 'medium' | 'high' | null;

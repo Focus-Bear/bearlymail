@@ -20,6 +20,8 @@ interface EmailThreadItemProps {
       filename: string;
       mimeType: string;
       size: number;
+      contentId?: string;
+      inlineData?: string;
     }>;
   };
   isExpanded: boolean;
@@ -57,7 +59,7 @@ export const EmailThreadItem: React.FC<EmailThreadItemProps> = ({
       />
       {isExpanded && (
         <>
-          <ThreadItemBody body={threadEmail.body} htmlBody={threadEmail.htmlBody} />
+          <ThreadItemBody body={threadEmail.body} htmlBody={threadEmail.htmlBody} attachments={threadEmail.attachments} />
           {Array.isArray(threadEmail.attachments) && threadEmail.attachments.length > 0 && (
             <div style={{ padding: `0 ${theme.spacing.md} ${theme.spacing.md}` }}>
               <EmailAttachments emailId={threadEmail.id} attachments={threadEmail.attachments} />

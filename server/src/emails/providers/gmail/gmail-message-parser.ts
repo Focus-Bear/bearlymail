@@ -214,6 +214,143 @@ function shouldSkipLikelyInlinePart(
 const CALENDAR_MIME_TYPES = new Set(["text/calendar", "application/ics"]);
 
 /**
+ * Normalise a raw `Content-ID` header into the form referenced by
+ * `<img src="cid:...">` in the HTML body — surrounding angle brackets and
+ * whitespace removed (`<inline-xxx@domain>` -> `inline-xxx@domain`).
+ */
+function normalizeContentId(raw: string | undefined): string | undefined {
+  if (!raw) {
+    return undefined;
+  }
+  const trimmed = raw.trim().replace(/^<|>$/g, "").trim();
+  return trimmed || undefined;
+}
+
+/**
+ * Regular, user-visible attachment (or null when the part should be skipped).
+ * A contentId is still captured when present so the client can resolve cid:
+ * references even when Gmail reports the part with Content-Disposition:
+ * attachment (common for large inline images).
+ */
+function buildRegularAttachment(
+  part: gmail_v1.Schema$MessagePart,
+): EmailAttachment | null {
+  const attachmentId = part.body?.attachmentId;
+  if (!attachmentId || shouldSkipLikelyInlinePart(part)) {
+    return null;
+  }
+  const contentId = normalizeContentId(getPartHeader(part, "Content-ID"));
+  return {
+    attachmentId,
+    filename: resolveAttachmentFilename(part) || "attachment",
+    mimeType: part.mimeType || "application/octet-stream",
+    size: part.body?.size ?? 0,
+    ...(contentId ? { contentId } : {}),
+  };
+}
+
+/**
+ * Large inline image: Gmail gave it an attachmentId but it is referenced via
+ * cid: in the HTML body. Store the CID so the client can resolve it via the
+ * attachments API when rendering. Returns null when the part is not one.
+ */
+function buildLargeInlineImageAttachment(
+  part: gmail_v1.Schema$MessagePart,
+): EmailAttachment | null {
+  const attachmentId = part.body?.attachmentId;
+  if (!attachmentId || !shouldSkipLikelyInlinePart(part)) {
+    return null;
+  }
+  const contentId = normalizeContentId(getPartHeader(part, "Content-ID"));
+  if (!contentId) {
+    return null;
+  }
+  return {
+    attachmentId,
+    filename: resolveAttachmentFilename(part) || "inline-image",
+    mimeType: part.mimeType || "application/octet-stream",
+    size: part.body?.size ?? 0,
+    contentId,
+  };
+}
+
+/**
+ * Inline calendar part: Gmail embeds small ICS files directly in body.data
+ * rather than giving them a separate attachmentId. Captured with a synthetic ID
+ * so the IcsInviteCard can detect and serve them. Returns null otherwise.
+ */
+function buildInlineCalendarAttachment(
+  part: gmail_v1.Schema$MessagePart,
+  syntheticIndex: number,
+): EmailAttachment | null {
+  const { body } = part;
+  if (body?.attachmentId || !body?.data) {
+    return null;
+  }
+  const mimeType = (part.mimeType ?? "").toLowerCase();
+  if (!CALENDAR_MIME_TYPES.has(mimeType)) {
+    return null;
+  }
+  return {
+    attachmentId: `inline-ics-${syntheticIndex}`,
+    filename: resolveAttachmentFilename(part) || "invite.ics",
+    mimeType: mimeType || "text/calendar",
+    size: body.size ?? 0,
+    inlineData: body.data,
+  };
+}
+
+/**
+ * Small inline image: Gmail embedded the image bytes directly in body.data.
+ * Store the base64 content so the client can render it via a data: URI without
+ * a round-trip. Returns null otherwise.
+ */
+function buildSmallInlineImageAttachment(
+  part: gmail_v1.Schema$MessagePart,
+  syntheticIndex: number,
+): EmailAttachment | null {
+  const { body } = part;
+  if (body?.attachmentId || !body?.data) {
+    return null;
+  }
+  const mimeType = (part.mimeType ?? "").toLowerCase();
+  if (!mimeType.startsWith("image/")) {
+    return null;
+  }
+  const contentId = normalizeContentId(getPartHeader(part, "Content-ID"));
+  if (!contentId) {
+    return null;
+  }
+  return {
+    attachmentId: `inline-img-${syntheticIndex}`,
+    filename: resolveAttachmentFilename(part) || "inline-image",
+    mimeType,
+    size: body.size ?? 0,
+    contentId,
+    inlineData: body.data,
+  };
+}
+
+/**
+ * Classify a single Gmail message part into an EmailAttachment, or null if the
+ * part is not a user-relevant attachment.
+ *
+ * @param syntheticIndex - stable index for inline parts that have no Gmail
+ *                         attachment ID (so each gets a unique synthetic ID).
+ */
+function buildAttachmentFromPart(
+  part: gmail_v1.Schema$MessagePart,
+  syntheticIndex: number,
+): EmailAttachment | null {
+  return (
+    buildRegularAttachment(part) ??
+    buildLargeInlineImageAttachment(part) ??
+    buildInlineCalendarAttachment(part, syntheticIndex) ??
+    buildSmallInlineImageAttachment(part, syntheticIndex)
+  );
+}
+
+/**
  * Extract attachment metadata from Gmail message payload
  */
 export function extractAttachmentsFromPayload(
@@ -224,34 +361,9 @@ export function extractAttachmentsFromPayload(
   const attachments: EmailAttachment[] = [];
 
   const findAttachments = (part: gmail_v1.Schema$MessagePart): void => {
-    const { body } = part;
-    const attachmentId = body?.attachmentId;
-    const mimeType = (part.mimeType ?? "").toLowerCase();
-
-    if (attachmentId && !shouldSkipLikelyInlinePart(part)) {
-      const filename = resolveAttachmentFilename(part);
-      attachments.push({
-        attachmentId,
-        filename: filename || "attachment",
-        mimeType: part.mimeType || "application/octet-stream",
-        size: body?.size ?? 0,
-      });
-    } else if (
-      !attachmentId &&
-      body?.data &&
-      CALENDAR_MIME_TYPES.has(mimeType)
-    ) {
-      // Inline calendar part: Gmail embeds small ICS files directly in body.data
-      // rather than giving them a separate attachmentId. Capture them with a
-      // synthetic ID so the IcsInviteCard can detect and serve them.
-      const filename = resolveAttachmentFilename(part) || "invite.ics";
-      attachments.push({
-        attachmentId: `inline-ics-${attachments.length}`,
-        filename,
-        mimeType: mimeType || "text/calendar",
-        size: body.size ?? 0,
-        inlineData: body.data,
-      });
+    const attachment = buildAttachmentFromPart(part, attachments.length);
+    if (attachment) {
+      attachments.push(attachment);
     }
 
     if (part.parts) {

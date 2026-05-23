@@ -80,7 +80,7 @@ describe("gmail-message-parser — attachments", () => {
       expect(result?.[0].filename).toBe("deck.pdf");
     });
 
-    it("skips inline image parts with Content-ID", () => {
+    it("captures large inline image parts with Content-ID and attachmentId", () => {
       const payload: gmail_v1.Schema$MessagePart = {
         mimeType: "multipart/related",
         partId: "",
@@ -97,7 +97,71 @@ describe("gmail-message-parser — attachments", () => {
           },
         ],
       };
-      expect(extractAttachmentsFromPayload(payload)).toBeUndefined();
+      const result = extractAttachmentsFromPayload(payload);
+      expect(result).toHaveLength(1);
+      expect(result![0].attachmentId).toBe("inline_att_id");
+      expect(result![0].contentId).toBe("img001@local");
+      expect(result![0].mimeType).toBe("image/png");
+      expect(result![0].inlineData).toBeUndefined();
+    });
+
+    it("captures small inline image with body.data and Content-ID as inlineData", () => {
+      const IMG_BASE64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      const payload: gmail_v1.Schema$MessagePart = {
+        mimeType: "multipart/related",
+        partId: "",
+        parts: [
+          {
+            mimeType: "image/png",
+            filename: "",
+            partId: "1",
+            headers: [
+              { name: "Content-ID", value: "<screenshot001@local>" },
+              { name: "Content-Disposition", value: "inline" },
+            ],
+            body: { data: IMG_BASE64, size: IMG_BASE64.length },
+          },
+        ],
+      };
+      const result = extractAttachmentsFromPayload(payload);
+      expect(result).toHaveLength(1);
+      expect(result![0].contentId).toBe("screenshot001@local");
+      expect(result![0].inlineData).toBe(IMG_BASE64);
+      expect(result![0].mimeType).toBe("image/png");
+      expect(result![0].attachmentId).toMatch(/^inline-img-/);
+    });
+
+    it("captures contentId on a regular attachment reported with Content-Disposition: attachment", () => {
+      // Gmail commonly reports cid-referenced inline images with
+      // Content-Disposition: attachment. They go through the regular-attachment
+      // path but must still carry their contentId so the client can resolve the
+      // cid: reference in the HTML body.
+      const payload: gmail_v1.Schema$MessagePart = {
+        mimeType: "multipart/related",
+        partId: "",
+        parts: [
+          {
+            mimeType: "image/png",
+            filename: "logo.png",
+            partId: "1",
+            headers: [
+              { name: "Content-ID", value: "<logo@local>" },
+              {
+                name: "Content-Disposition",
+                value: 'attachment; filename="logo.png"',
+              },
+            ],
+            body: { attachmentId: "regular_att_id", size: 2048 },
+          },
+        ],
+      };
+      const result = extractAttachmentsFromPayload(payload);
+      expect(result).toHaveLength(1);
+      expect(result![0].attachmentId).toBe("regular_att_id");
+      expect(result![0].filename).toBe("logo.png");
+      expect(result![0].contentId).toBe("logo@local");
+      expect(result![0].inlineData).toBeUndefined();
     });
 
     it("uses fallback filename when attachmentId exists but no name headers", () => {

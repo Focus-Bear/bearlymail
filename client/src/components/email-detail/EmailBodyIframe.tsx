@@ -112,6 +112,11 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({ html, minHeigh
   );
 };
 
+/** Strip any cid: image tags that slipped through sanitization before they reach the iframe. */
+function stripRemainingCidImages(html: string): string {
+  return html.replace(/<img[^>]*src=(["'])cid:[^"']*\1[^>]*>/gi, '');
+}
+
 function buildIframeDocument(html: string): string {
   const {
     colors: { text, primary, border, greyscale },
@@ -132,5 +137,6 @@ function buildIframeDocument(html: string): string {
     p { margin: 0 0 1em 0; }
     h1, h2, h3, h4, h5, h6 { margin: 0 0 0.5em 0; line-height: 1.3; }
   </style>`;
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank">${baseStyles}</head><body>${html}</body></html>`;
+  const safeHtml = stripRemainingCidImages(html);
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank">${baseStyles}</head><body>${safeHtml}</body></html>`;
 }

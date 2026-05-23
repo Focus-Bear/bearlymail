@@ -189,6 +189,7 @@ describe('emailBodyUtils', () => {
 
     it('should sanitize HTML using DOMPurify', () => {
       const html = '<p>Safe content</p>';
+      (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
       sanitizeAndProcessHtml(html);
       expect(DOMPurify.sanitize).toHaveBeenCalledWith(html, expect.any(Object));
     });
@@ -250,6 +251,44 @@ describe('emailBodyUtils', () => {
       expect(result).toContain('<p>');
       expect(result).toContain('<strong>');
       expect(result).toContain('<em>');
+    });
+
+    describe('inline cid: image resolution', () => {
+      beforeEach(() => {
+        (DOMPurify.sanitize as jest.Mock).mockImplementation((html: string) => html);
+      });
+
+      it('resolves a cid: image to a data: URI from a matching attachment', () => {
+        const html = '<p>See:</p><img src="cid:logo@x">';
+        const result = sanitizeAndProcessHtml(html, [
+          { contentId: 'logo@x', mimeType: 'image/png', inlineData: 'AAAA' },
+        ]);
+        expect(result).toContain('src="data:image/png;base64,AAAA"');
+        expect(result).not.toContain('cid:');
+      });
+
+      it('strips a cid: image when no matching attachment is provided', () => {
+        const html = '<p>keep</p><img src="cid:missing@x">';
+        const result = sanitizeAndProcessHtml(html, [
+          { contentId: 'other@x', mimeType: 'image/png', inlineData: 'AAAA' },
+        ]);
+        expect(result).not.toContain('cid:');
+        expect(result).not.toContain('<img');
+        expect(result).toContain('keep');
+      });
+
+      it('strips a cid: image when the matching attachment has no inlineData yet', () => {
+        const html = '<img src="cid:pending@x">';
+        const result = sanitizeAndProcessHtml(html, [{ contentId: 'pending@x', mimeType: 'image/png' }]);
+        expect(result).not.toContain('cid:');
+        expect(result).not.toContain('<img');
+      });
+
+      it('strips cid: images when no attachments are passed at all', () => {
+        const html = '<img src="cid:logo@x">';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).not.toContain('cid:');
+      });
     });
   });
 

@@ -14,6 +14,7 @@ interface EmailAttachment {
   filename: string;
   mimeType: string;
   size: number;
+  contentId?: string;
 }
 
 interface EmailAttachmentsProps {
@@ -219,7 +220,10 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
   const { t } = useTranslation();
   const [previewAttachment, setPreviewAttachment] = useState<EmailAttachment | null>(null);
 
-  if (!attachments || attachments.length === 0) {
+  // Inline images (those with a contentId) are rendered directly in the email body — exclude them here.
+  const visibleAttachments = attachments?.filter(att => !att.contentId) ?? [];
+
+  if (visibleAttachments.length === 0) {
     return null;
   }
 
@@ -250,10 +254,10 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
             marginBottom: theme.spacing.sm,
           }}
         >
-          {t('emailDetail.attachments', { count: attachments.length })}
+          {t('emailDetail.attachments', { count: visibleAttachments.length })}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-          {attachments.map(attachment => (
+          {visibleAttachments.map(attachment => (
             <AttachmentItem
               key={attachment.attachmentId}
               emailId={emailId}

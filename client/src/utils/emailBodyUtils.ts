@@ -383,11 +383,21 @@ const EMAIL_ALLOWED_ATTR = [
   'face',
 ];
 
+/** Minimal attachment shape needed to resolve inline CID images. */
+export interface InlineAttachmentRef {
+  contentId?: string;
+  mimeType: string;
+  inlineData?: string;
+}
+
 /**
  * Helper function to sanitize and process HTML for safe rendering
- * This function sanitizes first (for XSS protection), then adds target="_blank" to links
+ * This function sanitizes first (for XSS protection), then adds target="_blank" to links.
+ *
+ * Pass `attachments` to resolve inline CID images (cid:xxx) to data: URIs using embedded
+ * attachment data. Inline images without a matching attachment are removed.
  */
-export function sanitizeAndProcessHtml(html: string): string {
+export function sanitizeAndProcessHtml(html: string, attachments?: InlineAttachmentRef[]): string {
   if (!html) {
     return '';
   }
@@ -413,15 +423,24 @@ export function sanitizeAndProcessHtml(html: string): string {
     ],
   });
 
-  // Step 2: Remove problematic images
-  // First remove cid: images from string to prevent browser from trying to load them
-  const sanitizedWithoutCid = removeCidImagesFromString(sanitized);
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = sanitizedWithoutCid;
+  // Step 2: Resolve or remove inline CID images at the STRING level before
+  // setting innerHTML. Browsers start loading image resources as soon as
+  // innerHTML is parsed — even for detached elements — so cid: references
+  // must be replaced or stripped in the string first to prevent
+  // net::ERR_UNKNOWN_URL_SCHEME errors in the console.
+  const resolvedHtml = sanitized.replace(
+    /<img([^>]*?)src=(["'])cid:([^"']*)\2([^>]*?)>/gi,
+    (_match, before, quote, cid, after) => {
+      const attachment = attachments?.find(att => att.contentId === cid && att.inlineData);
+      if (attachment) {
+        return `<img${before}src=${quote}data:${attachment.mimeType};base64,${attachment.inlineData}${quote}${after}>`;
+      }
+      return ''; // strip unresolvable cid: images
+    }
+  );
 
-  // Remove all images with cid: URLs (embedded email images that can't be resolved)
-  const cidImages = tempDiv.querySelectorAll('img[src^="cid:"]');
-  cidImages.forEach(img => img.remove());
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = resolvedHtml;
 
   // Remove avatar images entirely - they're small profile pics that look bad when expanded
   const avatarImages = tempDiv.querySelectorAll('img[src*="avatars.githubusercontent.com"]');

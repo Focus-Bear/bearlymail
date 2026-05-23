@@ -1,19 +1,20 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { extractCleanHtmlBody, looksLikeHtml, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { extractCleanHtmlBody, InlineAttachmentRef, looksLikeHtml, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
 import { EmailBodyIframe } from './EmailBodyIframe';
 
 interface EmailDetailBodyProps {
   body: string;
   htmlBody?: string;
+  attachments?: InlineAttachmentRef[];
 }
 
 /**
  * Email detail body component
  * Displays sanitized email body content inside an isolated iframe
  */
-export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body, htmlBody }) => {
+export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body, htmlBody, attachments }) => {
   const effectiveHtmlBody = htmlBody || (looksLikeHtml(body || '') ? body : undefined);
 
   return (
@@ -26,7 +27,7 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body, htmlBody
       }}
     >
       {effectiveHtmlBody ? (
-        <EmailBodyIframe html={sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(effectiveHtmlBody, true)))} />
+        <EmailBodyIframe html={sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(effectiveHtmlBody, true)), attachments)} />
       ) : (
         <div
           style={{

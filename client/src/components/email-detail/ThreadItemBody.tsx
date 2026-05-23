@@ -1,20 +1,21 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { extractCleanHtmlBody, looksLikeHtml, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { extractCleanHtmlBody, InlineAttachmentRef, looksLikeHtml, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
 import { EmailBodyIframe } from './EmailBodyIframe';
 
 interface ThreadItemBodyProps {
   body: string;
   htmlBody?: string;
+  attachments?: InlineAttachmentRef[];
 }
 
 function looksLikeCiphertext(text: string): boolean {
   return /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]{2,}$/i.test(text.trim());
 }
 
-export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody }) => {
+export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody, attachments }) => {
   const { t } = useTranslation();
 
   if (looksLikeCiphertext(body) || (htmlBody != null && looksLikeCiphertext(htmlBody))) {
@@ -35,7 +36,7 @@ export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody }
   const effectiveHtmlBody = htmlBody || (looksLikeHtml(body || '') ? body : undefined);
   const isHtml = Boolean(effectiveHtmlBody);
   const processedContent = effectiveHtmlBody
-    ? sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(effectiveHtmlBody, true)))
+    ? sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(effectiveHtmlBody, true)), attachments)
     : removeSignature(body || '');
 
   // Plain-text path: use whiteSpace: pre-wrap to preserve \n newlines

@@ -29,10 +29,10 @@ async function bootstrap() {
     `[BearlyMail] Server version: ${process.env.COMMIT_HASH ?? "dev"} built: ${process.env.BUILD_TIME ?? "unknown"}`,
   );
   try {
-    encryptionKeyProvider.initialize();
+    await encryptionKeyProvider.initializeFromManagedKey();
     verifyEncryptionRoundTrip();
     logger.log(
-      `Encryption self-test passed. Key fingerprint: ${encryptionKeyProvider.getFingerprint()}`,
+      `Encryption self-test passed. Key source: ${encryptionKeyProvider.getKeySource()}, fingerprint: ${encryptionKeyProvider.getFingerprint()}`,
     );
 
     const dataSource = await bootstrapDataSource.initialize();

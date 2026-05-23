@@ -34,7 +34,8 @@ async function bootstrapWorker(workerId: number) {
 
   // Must be called before NestJS bootstraps so TypeORM column transformers
   // (which call encryptionKeyProvider.getKey()) have the global key ready.
-  encryptionKeyProvider.initialize();
+  // Prefers the KMS-wrapped global key (SAQ Q47); falls back to ENCRYPTION_KEY.
+  await encryptionKeyProvider.initializeFromManagedKey();
 
   // Create the application context (no HTTP server)
   const app = await NestFactory.createApplicationContext(WorkerModule, {

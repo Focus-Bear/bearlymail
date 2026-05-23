@@ -1,6 +1,10 @@
 import { gmail_v1 } from "googleapis";
 
-import { isThreadStarred, verifyThreadStatusesInGmail } from "./gmail-sync";
+import {
+  isGmailAuthError,
+  isThreadStarred,
+  verifyThreadStatusesInGmail,
+} from "./gmail-sync";
 
 describe("gmail-sync helpers", () => {
   describe("isThreadStarred", () => {
@@ -58,6 +62,119 @@ describe("gmail-sync helpers", () => {
       ];
 
       expect(isThreadStarred(messages)).toBe(false);
+    });
+  });
+
+  describe("isGmailAuthError", () => {
+    it("returns true for HTTP 401 on the top-level code", () => {
+      expect(isGmailAuthError({ code: 401, message: "Unauthorized" })).toBe(
+        true,
+      );
+    });
+
+    it("returns true for HTTP 401 on the nested response", () => {
+      expect(
+        isGmailAuthError({
+          message: "Invalid Credentials",
+          response: { status: 401 },
+        }),
+      ).toBe(true);
+    });
+
+    it("returns true when the message contains invalid_grant", () => {
+      expect(isGmailAuthError(new Error("invalid_grant: Bad Request"))).toBe(
+        true,
+      );
+    });
+
+    it("returns true for HTTP 403 with reason insufficientPermissions (top-level errors)", () => {
+      // Shape of a real Gmail "Request had insufficient authentication scopes" error.
+      const error = {
+        code: 403,
+        message: "Request had insufficient authentication scopes.",
+        errors: [
+          {
+            message: "Insufficient Permission",
+            domain: "global",
+            reason: "insufficientPermissions",
+          },
+        ],
+      };
+      expect(isGmailAuthError(error)).toBe(true);
+    });
+
+    it("returns true for HTTP 403 with reason insufficientPermissions (nested response data)", () => {
+      const error = {
+        message: "Request had insufficient authentication scopes.",
+        response: {
+          status: 403,
+          data: {
+            error: {
+              code: 403,
+              status: "PERMISSION_DENIED",
+              errors: [{ reason: "insufficientPermissions" }],
+            },
+          },
+        },
+      };
+      expect(isGmailAuthError(error)).toBe(true);
+    });
+
+    it("returns true for HTTP 403 with an insufficient_scope www-authenticate header", () => {
+      const error = {
+        code: 403,
+        message: "Forbidden",
+        response: {
+          status: 403,
+          headers: {
+            "www-authenticate":
+              'Bearer realm="https://accounts.google.com/", error="insufficient_scope", scope="https://www.googleapis.com/auth/gmail.modify"',
+          },
+        },
+      };
+      expect(isGmailAuthError(error)).toBe(true);
+    });
+
+    it("returns FALSE for a transient 403 userRateLimitExceeded", () => {
+      const error = {
+        code: 403,
+        message: "User Rate Limit Exceeded",
+        errors: [
+          {
+            message: "User Rate Limit Exceeded",
+            domain: "usageLimits",
+            reason: "userRateLimitExceeded",
+          },
+        ],
+      };
+      expect(isGmailAuthError(error)).toBe(false);
+    });
+
+    it("returns FALSE for a transient 403 rateLimitExceeded", () => {
+      const error = {
+        code: 403,
+        message: "Rate Limit Exceeded",
+        response: {
+          status: 403,
+          data: {
+            error: {
+              code: 403,
+              errors: [{ reason: "rateLimitExceeded" }],
+            },
+          },
+        },
+      };
+      expect(isGmailAuthError(error)).toBe(false);
+    });
+
+    it("returns FALSE for non-auth statuses such as 404", () => {
+      expect(isGmailAuthError({ code: 404, message: "Not Found" })).toBe(false);
+    });
+
+    it("returns FALSE for unrelated errors", () => {
+      expect(isGmailAuthError(new Error("Network timeout"))).toBe(false);
+      expect(isGmailAuthError(null)).toBe(false);
+      expect(isGmailAuthError(undefined)).toBe(false);
     });
   });
 

@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -235,6 +236,41 @@ describe("UsersService", () => {
       await expect(
         service.update("nonexistent", { name: "Test" }),
       ).rejects.toThrow("User with id nonexistent not found");
+    });
+
+    // Diagnostic for the recurring "logged out again" reports: every relogin
+    // flip must emit a single greppable [NEEDS_RELOGIN] WARN line so the cause
+    // is visible in CloudWatch (where the worker filters out debug/verbose).
+    it("logs a [NEEDS_RELOGIN] warning when needsRelogin is set to true", async () => {
+      const existingUser = { ...mockUser, needsRelogin: false };
+      repository.findOne.mockResolvedValue(existingUser);
+      repository.save.mockImplementation(async (user) => user as User);
+      const loggerInstance = (service as unknown as { logger: Logger }).logger;
+      const warnSpy = jest
+        .spyOn(loggerInstance, "warn")
+        .mockImplementation(() => undefined);
+
+      await service.update("user-1", { needsRelogin: true });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("[NEEDS_RELOGIN] user=user-1"),
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("does NOT log a [NEEDS_RELOGIN] warning for ordinary updates", async () => {
+      const existingUser = { ...mockUser };
+      repository.findOne.mockResolvedValue(existingUser);
+      repository.save.mockImplementation(async (user) => user as User);
+      const loggerInstance = (service as unknown as { logger: Logger }).logger;
+      const warnSpy = jest
+        .spyOn(loggerInstance, "warn")
+        .mockImplementation(() => undefined);
+
+      await service.update("user-1", { name: "Updated Name" });
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
   });
 

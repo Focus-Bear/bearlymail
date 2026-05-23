@@ -333,8 +333,12 @@ export class GmailProvider implements EmailProvider {
       this.logger.error(
         `sendReply failed for user ${userId} thread ${threadId}: ${formatGaxiosError(error)}`,
       );
-      if (isGmailAuthError(error))
+      if (isGmailAuthError(error)) {
+        this.logger.warn(
+          `[NEEDS_RELOGIN] sendReply: Gmail auth error for user ${userId} — flagging relogin`,
+        );
         await this.usersService.update(userId, { needsRelogin: true });
+      }
       throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
     }
   }
@@ -379,8 +383,12 @@ export class GmailProvider implements EmailProvider {
       this.logger.error(
         `sendEmail failed for user ${userId}: ${formatGaxiosError(error)}`,
       );
-      if (isGmailAuthError(error))
+      if (isGmailAuthError(error)) {
+        this.logger.warn(
+          `[NEEDS_RELOGIN] sendEmail: Gmail auth error for user ${userId} — flagging relogin`,
+        );
         await this.usersService.update(userId, { needsRelogin: true });
+      }
       throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);
     }
   }

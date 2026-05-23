@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, LessThan, Repository } from "typeorm";
 
@@ -13,6 +13,15 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 
 const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
 
+/**
+ * Stack-frame window captured for `[NEEDS_RELOGIN]` diagnostics. We skip the
+ * first two frames (the Error constructor + `logNeedsReloginFlip` itself) and
+ * keep the next few callers — enough to identify the originating code path
+ * without dumping the entire stack.
+ */
+const NEEDS_RELOGIN_STACK_START = 2;
+const NEEDS_RELOGIN_STACK_END = 8;
+
 function getInactivityThresholdDays(): number {
   const envVal = parseInt(process.env.AI_INACTIVITY_THRESHOLD_DAYS ?? "", 10);
   return Number.isFinite(envVal) && envVal > 0
@@ -22,12 +31,44 @@ function getInactivityThresholdDays(): number {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
     @InjectRepository(DeletedAccount)
     private deletedAccountRepository: Repository<DeletedAccount>,
   ) {}
+
+  /**
+   * Central diagnostic for the recurring "logged out again" reports.
+   *
+   * Every code path that forces a user back to the login screen ends up calling
+   * `update(id, { needsRelogin: true })`, so logging here guarantees we capture
+   * ALL of them — even callers that don't log themselves. We emit a single
+   * greppable `[NEEDS_RELOGIN]` line (at WARN so it survives the worker's
+   * `["log","error","warn"]` level filter and reaches CloudWatch) with a trimmed
+   * caller stack identifying exactly which path tripped the flag.
+   */
+  private logNeedsReloginFlip(
+    id: string,
+    updates: Partial<User>,
+    previous: User,
+  ): void {
+    if (updates.needsRelogin !== true || previous.needsRelogin === true) return;
+    const otherFields = Object.keys(updates).filter(
+      (key) => key !== "needsRelogin",
+    );
+    const callerStack = (new Error().stack ?? "")
+      .split("\n")
+      .slice(NEEDS_RELOGIN_STACK_START, NEEDS_RELOGIN_STACK_END)
+      .map((line) => line.trim())
+      .join(" <- ");
+    this.logger.warn(
+      `[NEEDS_RELOGIN] user=${id} ` +
+        `coUpdatedFields=[${otherFields.join(",")}] caller: ${callerStack || "unavailable"}`,
+    );
+  }
 
   async create(userData: Partial<User>): Promise<User> {
     // Generate email hash if email is provided
@@ -193,6 +234,7 @@ export class UsersService {
     if (!user) {
       throw new Error(`User with id ${id} not found`);
     }
+    this.logNeedsReloginFlip(id, updates, user);
     const beforeUpdatedAt = user.updatedAt?.toISOString() || "null";
     // Apply updates to the entity
     Object.assign(user, updates);

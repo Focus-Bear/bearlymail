@@ -59,6 +59,14 @@ export function createUserGoogleOAuthClient(
       logger.log(
         `[GoogleOAuthClient] Persisting rotated refresh_token for user ${userId}`,
       );
+    } else if (tokens.access_token) {
+      // Access-token-only rotation proves the stored refresh_token is STILL
+      // valid. Logged so that, when a user reports being logged out, we can see
+      // exactly when refreshes stopped succeeding (i.e. the refresh_token went
+      // invalid_grant) vs. the failure being elsewhere.
+      logger.log(
+        `[GoogleOAuthClient] Refreshed access_token for user ${userId} (refresh_token still valid)`,
+      );
     }
     void usersService.update(userId, updates).catch((error) => {
       logger.error(

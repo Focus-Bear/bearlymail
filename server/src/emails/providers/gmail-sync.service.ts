@@ -132,11 +132,18 @@ export class GmailSyncService {
       await oauth2Client.getAccessToken();
     } catch (error) {
       if (this.isInvalidTokenError(error)) {
-        await this.usersService.update(userId, { needsRelogin: true });
-        throw new InvalidTokenError(
-          "Google access token is invalid or revoked. User must re-authenticate.",
+        this.logger.warn(
+          `[NEEDS_RELOGIN] validateToken: refresh_token invalid/revoked for user ${userId} ` +
+            `(this is the usual cause of "logged out") — detail: ${formatGaxiosError(error)}`,
         );
+        await this.usersService.update(userId, { needsRelogin: true });
+        throw new InvalidTokenError(ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED);
       }
+      // Transient/non-auth failure (network, 5xx, rate limit): do NOT flag for
+      // relogin — surface it so we can tell it apart from a real auth failure.
+      this.logger.warn(
+        `validateToken: non-auth token error for user ${userId} — NOT flagging relogin: ${formatGaxiosError(error)}`,
+      );
       throw error;
     }
   }
@@ -649,6 +656,10 @@ export class GmailSyncService {
         .findOneWithTokens(userId)
         .catch(() => user);
       const isRecentLogin = this.isWithinGracePeriod(currentUser);
+      this.logger.warn(
+        `[NEEDS_RELOGIN] syncEmails: Gmail API auth error for user ${userId} ` +
+          `(gracePeriodActive=${isRecentLogin}, willFlag=${!isRecentLogin}) — detail: ${formattedError}`,
+      );
       authLogger.logAuthFailure(
         userId,
         currentUser?.email || null,
@@ -658,6 +669,10 @@ export class GmailSyncService {
       );
       if (!isRecentLogin)
         await this.usersService.update(userId, { needsRelogin: true });
+    } else {
+      this.logger.warn(
+        `syncEmails: non-auth error for user ${userId} — NOT flagging relogin: ${formattedError}`,
+      );
     }
     throw error;
   }

@@ -3,7 +3,7 @@ import { gmail_v1 } from "googleapis";
 
 import { HTTP_STATUS } from "../../../constants/http-status";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
-import { isApiError, isError } from "../../../types/common";
+import { ApiError, isApiError, isError } from "../../../types/common";
 import { logErrorToFile } from "../../../utils/error-logger";
 
 const logger = new Logger("GmailSync");
@@ -214,15 +214,85 @@ export async function getExistingThreadUpdates(
 }
 
 /**
+ * Gmail 403 error reasons that mean the OAuth token is missing required scopes.
+ * These are auth failures the user must resolve by reconnecting — distinct from
+ * transient 403s like `userRateLimitExceeded` / `rateLimitExceeded`.
+ */
+const INSUFFICIENT_SCOPE_REASONS = new Set(["insufficientPermissions"]);
+
+/**
+ * Resolve the HTTP status from a Gaxios/Google API error, which surfaces it on
+ * either the top-level `code`/`status` or the nested `response.status`.
+ */
+function getHttpStatus(apiError: ApiError | null): number | undefined {
+  const candidate =
+    apiError?.code ?? apiError?.status ?? apiError?.response?.status;
+  return typeof candidate === "number" ? candidate : undefined;
+}
+
+/**
+ * Collect Google API error reasons from both the top-level `errors` array and
+ * the nested `response.data.error.errors` array (Gaxios populates one or both).
+ */
+function collectErrorReasons(apiError: ApiError | null): string[] {
+  const reasons: string[] = [];
+  for (const entry of apiError?.errors ?? []) {
+    if (entry?.reason) reasons.push(entry.reason);
+  }
+  const nested = apiError?.response?.data as
+    | { error?: { errors?: Array<{ reason?: string }> } }
+    | undefined;
+  for (const entry of nested?.error?.errors ?? []) {
+    if (entry?.reason) reasons.push(entry.reason);
+  }
+  return reasons;
+}
+
+/**
+ * Detect a Gmail 403 caused by missing OAuth scopes (the token works but lacks
+ * permission), which requires the user to reconnect with full scopes. Matches
+ * the `insufficientPermissions` reason or an `insufficient_scope` indicator in
+ * the message/body/headers, while explicitly NOT matching transient rate-limit
+ * 403s (`userRateLimitExceeded` / `rateLimitExceeded`).
+ */
+function isInsufficientScopeError(
+  apiError: ApiError | null,
+  errorMsg: string,
+): boolean {
+  const reasons = collectErrorReasons(apiError);
+  if (reasons.some((reason) => INSUFFICIENT_SCOPE_REASONS.has(reason))) {
+    return true;
+  }
+  // www-authenticate: Bearer ... error="insufficient_scope" and JSON bodies
+  // that mention insufficient scopes are reliable scope-failure signals.
+  const haystacks = [
+    errorMsg,
+    JSON.stringify(apiError?.response?.data ?? ""),
+    JSON.stringify(
+      (apiError?.response as { headers?: unknown })?.headers ?? "",
+    ),
+  ].join(" ");
+  return /insufficient_scope|insufficient authentication scopes/i.test(
+    haystacks,
+  );
+}
+
+/**
  * Check if error is an auth error
  */
 export function isGmailAuthError(error: unknown): boolean {
   const apiError = isApiError(error) ? error : null;
   const errorMsg = isError(error) ? error.message : apiError?.message || "";
-  return (
-    apiError?.code === HTTP_STATUS.UNAUTHORIZED ||
-    (apiError?.response &&
-      apiError.response.status === HTTP_STATUS.UNAUTHORIZED) ||
-    (errorMsg && errorMsg.includes("invalid_grant"))
-  );
+  const status = getHttpStatus(apiError);
+
+  if (status === HTTP_STATUS.UNAUTHORIZED) return true;
+  if (errorMsg && errorMsg.includes("invalid_grant")) return true;
+
+  // 403s are ambiguous: missing scopes (auth — must reconnect) vs. rate limits
+  // (transient — do NOT flag the user for relogin). Only the former counts.
+  if (status === HTTP_STATUS.FORBIDDEN) {
+    return isInsufficientScopeError(apiError, errorMsg);
+  }
+
+  return false;
 }

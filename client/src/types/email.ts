@@ -1,4 +1,20 @@
 // ---------------------------------------------------------------------------
+// Summary debug (admin-only): which emails were fed to the summariser
+// ---------------------------------------------------------------------------
+
+/**
+ * Admin-only debug payload returned by POST /summarize/:id describing exactly
+ * which thread emails were included in the LLM prompt. Mirrors the server-side
+ * SummaryDebugInfo. Used to verify the most-recent messages were summarised.
+ */
+export interface SummaryDebugInfo {
+  threadId: string;
+  totalThreadEmails: number;
+  usedEmailIds: string[];
+  usedMessages: Array<{ id: string; from: string; receivedAt: string }>;
+}
+
+// ---------------------------------------------------------------------------
 // Instant search types (metadata-only + background enrichment)
 // ---------------------------------------------------------------------------
 

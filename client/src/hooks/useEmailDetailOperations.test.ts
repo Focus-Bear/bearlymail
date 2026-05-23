@@ -114,6 +114,8 @@ const createMockState = () => ({
   setIsGeneratingSummary: jest.fn(),
   summaryCollapsed: false,
   setSummaryCollapsed: jest.fn(),
+  summaryDebug: null,
+  setSummaryDebug: jest.fn(),
   showRuleModal: false,
   setShowRuleModal: jest.fn(),
   customRule: { whenToUse: '', howToSummarize: '' },

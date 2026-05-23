@@ -29,6 +29,7 @@ import { PhishingSignal, PhishingSignals } from "./phishing-detection.service";
 import {
   buildPhishingCacheKey,
   buildPhishingContext,
+  buildSummaryDebug,
   buildThreadText,
   isEmailFromUser,
 } from "./summarization.helpers";
@@ -362,6 +363,14 @@ export class SummarizationService {
     const { threadId } = email;
     const emailThreadId = email.emailThreadId ?? null;
 
+    // Record exactly which emails were fed to the LLM so the admin debug panel
+    // can reveal whether the most-recent thread messages were included (#summary-stale).
+    const summaryDebug = buildSummaryDebug(
+      threadId,
+      allThreadEmails,
+      messagesToSummarize,
+    );
+
     if (cached && cached.expiresAt > Date.now()) {
       const summary = await this.generateLLMSummary({
         email: { ...emailWithHtml, subject },
@@ -384,6 +393,7 @@ export class SummarizationService {
         meetingProposal: null,
         threadId,
         emailThreadId,
+        summaryDebug,
       };
     }
 
@@ -415,7 +425,7 @@ export class SummarizationService {
         emailCategories,
       },
     );
-    return { ...result, threadId, emailThreadId };
+    return { ...result, threadId, emailThreadId, summaryDebug };
   }
 
   private async summarizeEmailWithCombinedPhishing(

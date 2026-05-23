@@ -1,8 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { SummaryDebugInfo } from 'types/email';
 
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
+import { SummaryDebugPanel } from 'components/email-detail/SummaryDebugPanel';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { SUMMARY_PREVIEW_MAX_CHARS } from 'constants/numbers';
 import { SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
@@ -62,6 +64,10 @@ interface SummarySectionProps {
   isGeneratingSummary: boolean;
   emailIsProcessingSummary?: boolean;
   customRules: Array<{ ruleId: string; whenToUse: string; howToSummarize: string }>;
+  /** Admin-only: which emails the current summary was built from. */
+  summaryDebug?: SummaryDebugInfo | null;
+  /** When true (admin), render the summaryDebug panel beneath the summary. */
+  showDebug?: boolean;
   onSummaryTypeChange: (type: string) => void;
   onToggleCollapsed: () => void;
   onShowRuleModal: () => void;
@@ -77,6 +83,8 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
   isGeneratingSummary,
   emailIsProcessingSummary,
   customRules,
+  summaryDebug,
+  showDebug,
   onSummaryTypeChange,
   onToggleCollapsed,
   onShowRuleModal,
@@ -227,6 +235,7 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
           </div>
         );
       })()}
+      {showDebug && summaryDebug && <SummaryDebugPanel debug={summaryDebug} />}
     </CollapsibleSection>
   );
 };

@@ -15,7 +15,40 @@ import {
   mergePhishingSignalSets,
   PhishingSignals,
 } from "./phishing-detection.service";
-import { EmailWithHtmlBody } from "./summarization.types";
+import { EmailWithHtmlBody, SummaryDebugInfo } from "./summarization.types";
+
+/**
+ * Builds the admin debug payload describing which emails were fed to the LLM
+ * for a summary. Extracted to keep summarizeEmailWithPhishing within length limits.
+ */
+export function buildSummaryDebug(
+  threadId: string,
+  allThreadEmails: Array<unknown>,
+  messagesToSummarize: Array<{
+    id: string;
+    from?: string;
+    receivedAt?: Date | string;
+  }>,
+): SummaryDebugInfo {
+  return {
+    threadId,
+    totalThreadEmails: allThreadEmails.length,
+    usedEmailIds: messagesToSummarize.map((message) => message.id),
+    usedMessages: messagesToSummarize.map((message) => {
+      const parsed =
+        message.receivedAt !== undefined && message.receivedAt !== null
+          ? new Date(message.receivedAt)
+          : null;
+      const receivedAt =
+        parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : "";
+      return {
+        id: message.id,
+        from: message.from ?? "",
+        receivedAt,
+      };
+    }),
+  };
+}
 
 /**
  * Build a cache key for phishing results based on sender + subject.

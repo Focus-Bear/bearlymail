@@ -128,6 +128,7 @@ export class SummarizationController {
     return {
       summary: result.summary,
       phishingSignal: result.phishingSignal ?? null,
+      summaryDebug: result.summaryDebug,
     };
   }
 }

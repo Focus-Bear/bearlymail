@@ -206,6 +206,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       handleSummarize: ops.handleSummarize,
       setSummary: state.setSummary,
       setSummaryType: state.setSummaryType,
+      setSummaryDebug: state.setSummaryDebug,
       setSummaryCollapsed: state.setSummaryCollapsed,
       setActionItems: state.setActionItems,
       setExpandedThreadItems: state.setExpandedThreadItems,
@@ -696,6 +697,8 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             isGeneratingSummary={st.isGeneratingSummary}
             emailIsProcessingSummary={st.email?.isProcessingSummary}
             customRules={st.customRules}
+            summaryDebug={st.summaryDebug}
+            showDebug={!!user?.isAdmin}
             onSummaryTypeChange={handleSummaryTypeChange}
             onToggleCollapsed={() => st.setSummaryCollapsed(!st.summaryCollapsed)}
             onShowRuleModal={() => {}}

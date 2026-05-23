@@ -115,6 +115,7 @@ export function useEmailDetailOperations(
     setSelectedAction,
     setAnimationClass,
     setLoading,
+    setSummaryDebug,
   } = state;
 
   // Returns the inbox path including the mode and base path the user came from (if known).
@@ -221,6 +222,7 @@ export function useEmailDetailOperations(
 
       setIsGeneratingSummary(true);
       setSummaryType(rule.ruleId ? `custom-${rule.ruleId}` : 'custom');
+      setSummaryDebug(null);
       try {
         const response = await axios.post(
           `${API_URL}/summarize/${id}`,
@@ -237,6 +239,7 @@ export function useEmailDetailOperations(
 
         if (response.data && response.data.summary) {
           setSummary(response.data.summary);
+          setSummaryDebug(response.data.summaryDebug ?? null);
         } else {
           console.error('Invalid response from summarization API:', response.data);
           setSummary(null);
@@ -256,7 +259,7 @@ export function useEmailDetailOperations(
         }
       }
     },
-    [id, setIsGeneratingSummary, setSummaryType, setSummary]
+    [id, setIsGeneratingSummary, setSummaryType, setSummary, setSummaryDebug]
   );
 
   const handleSummarize = useCallback(
@@ -273,25 +276,28 @@ export function useEmailDetailOperations(
 
       setIsGeneratingSummary(true);
       setSummaryType(type);
+      setSummaryDebug(null);
       try {
         const response = await axios.post(`${API_URL}/summarize/${id}`, { type }, { signal: controller.signal });
         if (controller.signal.aborted) {
           return;
         }
         setSummary(response.data.summary);
+        setSummaryDebug(response.data.summaryDebug ?? null);
       } catch (error) {
         if (axios.isCancel(error)) {
           return;
         }
         console.error('Error summarizing:', error);
         setSummary(null);
+        setSummaryDebug(null);
       } finally {
         if (!controller.signal.aborted) {
           setIsGeneratingSummary(false);
         }
       }
     },
-    [id, setIsGeneratingSummary, setSummaryType, setSummary]
+    [id, setIsGeneratingSummary, setSummaryType, setSummary, setSummaryDebug]
   );
 
   const fetchEmail = useCallback(async () => {

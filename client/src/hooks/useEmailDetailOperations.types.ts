@@ -1,5 +1,5 @@
 import React from 'react';
-import { Email, GitHubLink, PriorityExplanation } from 'types/email';
+import { Email, GitHubLink, PriorityExplanation, SummaryDebugInfo } from 'types/email';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
@@ -22,6 +22,8 @@ export interface EmailDetailState {
   setIsGeneratingSummary: (generating: boolean) => void;
   summaryCollapsed: boolean;
   setSummaryCollapsed: (collapsed: boolean) => void;
+  summaryDebug: SummaryDebugInfo | null;
+  setSummaryDebug: (debug: SummaryDebugInfo | null) => void;
   showRuleModal: boolean;
   setShowRuleModal: (show: boolean) => void;
   customRule: { whenToUse: string; howToSummarize: string };

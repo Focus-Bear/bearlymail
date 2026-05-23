@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useUserProfileQuery } from 'queries/useUserProfileQuery';
-import { Email, GitHubLink } from 'types/email';
+import { Email, GitHubLink, SummaryDebugInfo } from 'types/email';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
@@ -23,6 +23,8 @@ export function useEmailDetailState() {
   const [summaryType, setSummaryType] = useState<string>('tldr');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [summaryCollapsed, setSummaryCollapsed] = useState(false);
+  // Admin-only: which emails the last summary was built from (populated by handleSummarize).
+  const [summaryDebug, setSummaryDebug] = useState<SummaryDebugInfo | null>(null);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [customRule, setCustomRule] = useState({ whenToUse: '', howToSummarize: '' });
   const [customRules, setCustomRules] = useState<Array<{ ruleId: string; whenToUse: string; howToSummarize: string }>>(
@@ -129,6 +131,8 @@ export function useEmailDetailState() {
     setIsGeneratingSummary,
     summaryCollapsed,
     setSummaryCollapsed,
+    summaryDebug,
+    setSummaryDebug,
     showRuleModal,
     setShowRuleModal,
     customRule,

@@ -1,6 +1,6 @@
 import { MutableRefObject, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Email } from 'types/email';
+import { Email, SummaryDebugInfo } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { SUMMARY_TYPE_TLDR } from 'constants/strings';
@@ -42,6 +42,7 @@ interface UseEmailDetailInitializationProps {
   handleSummarize: (type: string) => Promise<void>;
   setSummary: (summary: string | null) => void;
   setSummaryType: (type: string) => void;
+  setSummaryDebug: (debug: SummaryDebugInfo | null) => void;
   setSummaryCollapsed: (collapsed: boolean) => void;
   setActionItems: (items: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>) => void;
   setExpandedThreadItems: (items: Set<string>) => void;
@@ -121,6 +122,7 @@ export const useEmailDetailInitialization = ({
   handleSummarize,
   setSummary,
   setSummaryType,
+  setSummaryDebug,
   setSummaryCollapsed,
   setActionItems,
   setExpandedThreadItems,
@@ -147,6 +149,7 @@ export const useEmailDetailInitialization = ({
       setEmail(null); // Clear email to show loading spinner
       setSummary(null);
       setSummaryType(SUMMARY_TYPE_TLDR); // Reset to default type
+      setSummaryDebug(null); // Clear admin debug so it never leaks across emails
       setThreadEmails([]); // Clear thread emails to prevent showing stale content
       setExpandedThreadItems(new Set()); // Clear expanded state
       setActionItems([]); // Clear action items
@@ -157,7 +160,7 @@ export const useEmailDetailInitialization = ({
       autoExtractedRef.current = null;
       previousEmailIdRef.current = id;
     }
-  }, [id, setSummary, setSummaryType, setThreadEmails, setExpandedThreadItems, setActionItems, setLoading, setEmail]);
+  }, [id, setSummary, setSummaryType, setSummaryDebug, setThreadEmails, setExpandedThreadItems, setActionItems, setLoading, setEmail]);
 
   // Track manual summaryType changes
   useEffect(() => {

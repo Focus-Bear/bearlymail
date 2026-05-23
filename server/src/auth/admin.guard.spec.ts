@@ -46,8 +46,11 @@ describe("AdminGuard", () => {
     userId: string | undefined,
     mfaVerified = false,
     extras: Record<string, unknown> = {},
+    // Fresh by default when verified; pass an older timestamp to simulate a
+    // stale elevation.
+    mfaVerifiedAt: number | undefined = mfaVerified ? Date.now() : undefined,
   ) => ({
-    user: userId ? { userId, mfaVerified } : {},
+    user: userId ? { userId, mfaVerified, mfaVerifiedAt } : {},
     method: "GET",
     path: "/admin/test",
     url: "/admin/test",
@@ -59,6 +62,8 @@ describe("AdminGuard", () => {
     body: {},
     ...extras,
   });
+
+  const NINE_HOURS_MS = 9 * 60 * 60 * 1000;
 
   describe("canActivate", () => {
     it("should return true for admin user with MFA enabled and verified", async () => {
@@ -213,6 +218,33 @@ describe("AdminGuard", () => {
           error: "MFA_VERIFICATION_REQUIRED",
         });
       }
+    });
+
+    it("should throw MFA_VERIFICATION_REQUIRED when the elevation is stale (older than the recency window)", async () => {
+      const userId = "user-123";
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(
+        makeRequest(userId, true, {}, Date.now() - NINE_HOURS_MS),
+      );
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+        isAdmin: true,
+        totpEnabled: true,
+      });
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        ForbiddenException,
+      );
+      try {
+        await guard.canActivate(mockExecutionContext);
+      } catch (err: unknown) {
+        expect((err as ForbiddenException).getResponse()).toMatchObject({
+          error: "MFA_VERIFICATION_REQUIRED",
+        });
+      }
+      // A stale elevation must not be treated as a successful authorization.
+      expect(auditService.log).not.toHaveBeenCalled();
     });
 
     it("should return false when isAdmin is undefined", async () => {

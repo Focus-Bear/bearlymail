@@ -738,10 +738,17 @@ describe("AuthService", () => {
       );
 
       expect(result).toEqual({ access_token: "elevated-jwt" });
+      // Signed with the default (session-length) expiry — NOT a shortened MFA
+      // expiry — and stamped with mfaVerifiedAt so AdminGuard can enforce the
+      // elevation recency window without the cookie expiring early.
       expect(jwtService.sign).toHaveBeenCalledWith(
-        expect.objectContaining({ mfaVerified: true }),
-        expect.objectContaining({ expiresIn: "8h" }),
+        expect.objectContaining({
+          mfaVerified: true,
+          mfaVerifiedAt: expect.any(Number),
+        }),
       );
+      const [, signOptions] = jwtService.sign.mock.calls[0];
+      expect(signOptions).toBeUndefined();
     });
 
     it("should return null when TOTP token is invalid", async () => {

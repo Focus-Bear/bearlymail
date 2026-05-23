@@ -25,8 +25,12 @@ export const AUTH_CONSTANTS = {
     MS_PER_SECOND,
   // Name of the HttpOnly cookie used to store the JWT (OWASP ASVS req 3.4.2)
   COOKIE_NAME: "access_token",
-  // Cookie max-age for MFA-elevated tokens — matches the 8h JWT expiry in auth.service.ts
-  MFA_COOKIE_MAX_AGE_MS: HOURS.EIGHT * MILLISECONDS.HOUR,
+  // How long an MFA elevation stays valid for admin access after the user passes
+  // TOTP. This is a *recency* window enforced by AdminGuard — NOT a cookie/JWT
+  // expiry. The session cookie keeps its normal 7d life, so an expired elevation
+  // makes admin endpoints prompt for re-verification instead of logging the user
+  // out entirely (SAQ Q35 / GAP-2).
+  MFA_ELEVATION_TTL_MS: HOURS.EIGHT * MILLISECONDS.HOUR,
 } as const;
 
 // Number of random bytes for password reset token generation

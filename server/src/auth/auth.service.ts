@@ -32,8 +32,6 @@ import { DeletedAccountException } from "./exceptions/deleted-account.exception"
 import { OAuthOnlyAccountException } from "./exceptions/oauth-only-account.exception";
 import { TotpService, TotpSetupData } from "./totp.service";
 
-const MFA_TOKEN_EXPIRY = "8h";
-
 const INITIAL_SYNC_DELAY_MS = 2000;
 
 interface GoogleProfile {
@@ -812,8 +810,12 @@ export class AuthService {
 
   /**
    * Verify a TOTP token and, if valid, return an MFA-elevated JWT.
-   * The elevated JWT carries `mfaVerified: true` and expires in 8 hours.
-   * Required before admin endpoints can be accessed (SAQ Q35 / GAP-2).
+   *
+   * The elevated JWT carries `mfaVerified: true` and `mfaVerifiedAt` (epoch ms)
+   * and keeps the SAME lifetime as a normal session token (7d). MFA elevation is
+   * enforced as a recency window (MFA_ELEVATION_TTL_MS) by AdminGuard, not by the
+   * token/cookie expiring — so a stale elevation prompts re-verification for admin
+   * endpoints instead of logging the user out of the whole app (SAQ Q35 / GAP-2).
    */
   async verifyMfaAndElevate(
     userId: string,
@@ -823,10 +825,12 @@ export class AuthService {
     const valid = await this.totpService.verifyMfa(userId, token);
     if (!valid) return null;
 
-    const elevatedToken = this.jwtService.sign(
-      { sub: userId, email, mfaVerified: true },
-      { expiresIn: MFA_TOKEN_EXPIRY },
-    );
+    const elevatedToken = this.jwtService.sign({
+      sub: userId,
+      email,
+      mfaVerified: true,
+      mfaVerifiedAt: Date.now(),
+    });
     this.logger.log(`[MFA] Elevated JWT issued for user ${userId}`);
     return { access_token: elevatedToken };
   }

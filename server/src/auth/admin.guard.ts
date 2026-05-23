@@ -7,6 +7,7 @@ import {
 
 import { AuditService } from "../audit/audit.service";
 import { UsersService } from "../users/users.service";
+import { isMfaElevationFresh } from "./mfa-elevation";
 
 const MFA_REQUIRED_MESSAGE =
   "Admin accounts require MFA. Please set up and verify MFA in Settings.";
@@ -37,8 +38,14 @@ export class AdminGuard implements CanActivate {
       });
     }
 
-    // The JWT must carry mfaVerified: true (set after the user passes TOTP challenge).
-    if (!request.user?.mfaVerified) {
+    // The JWT must carry a *fresh* MFA elevation: mfaVerified: true AND a
+    // mfaVerifiedAt within the recency window. The elevation deliberately expires
+    // sooner than the session, so a stale one prompts re-verification here rather
+    // than logging the user out of the whole app.
+    if (
+      !request.user?.mfaVerified ||
+      !isMfaElevationFresh(request.user?.mfaVerifiedAt)
+    ) {
       throw new ForbiddenException({
         error: "MFA_VERIFICATION_REQUIRED",
         message: MFA_NOT_VERIFIED_MESSAGE,

@@ -18,6 +18,12 @@ interface JwtPayload {
    * Required for access to admin endpoints (SAQ Q35 / GAP-2).
    */
   mfaVerified?: boolean;
+  /**
+   * Epoch-ms timestamp of the TOTP verification that produced this elevated
+   * token. AdminGuard treats elevation as valid only within a recency window,
+   * independent of the token's own (session-length) expiry.
+   */
+  mfaVerifiedAt?: number;
 }
 
 /**
@@ -88,6 +94,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: user.id,
       email: user.email,
       mfaVerified: payload.mfaVerified === true,
+      mfaVerifiedAt: payload.mfaVerifiedAt,
     };
   }
 }

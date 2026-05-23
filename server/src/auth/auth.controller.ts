@@ -31,6 +31,7 @@ import { AuthService } from "./auth.service";
 import { GoogleAuthGuard } from "./google-auth.guard";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { LocalAuthGuard } from "./local-auth.guard";
+import { isMfaElevationFresh } from "./mfa-elevation";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
 
@@ -288,10 +289,14 @@ export class AuthController {
     );
     if (!result) throw new UnauthorizedException("Invalid TOTP code");
     const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    // The elevated token keeps the normal 7d session lifetime; MFA elevation is
+    // enforced as a recency window by AdminGuard, so we must NOT shorten the
+    // cookie to the elevation TTL (that was the cause of admins being logged out
+    // every few hours).
     res.cookie(
       AUTH_CONSTANTS.COOKIE_NAME,
       result.access_token,
-      jwtCookieOptions(isProduction, AUTH_CONSTANTS.MFA_COOKIE_MAX_AGE_MS),
+      jwtCookieOptions(isProduction),
     );
     return result;
   }
@@ -312,15 +317,19 @@ export class AuthController {
 
   /**
    * Return the MFA status for the currently authenticated user.
-   * `verified` reflects whether the current session JWT is MFA-elevated, so
-   * the admin UI can prompt for MFA on entry rather than waiting for an
-   * admin endpoint to 403.
+   * `verified` reflects whether the session carries a *fresh* MFA elevation
+   * (verified AND within the recency window), so the admin UI prompts for
+   * re-verification on entry once an elevation goes stale rather than waiting
+   * for an admin endpoint to 403.
    */
   @UseGuards(JwtAuthGuard)
   @Get("mfa/status")
   async mfaStatus(@Request() req) {
     const status = await this.authService.getMfaStatus(req.user.userId);
-    return { ...status, verified: req.user.mfaVerified === true };
+    const verified =
+      req.user.mfaVerified === true &&
+      isMfaElevationFresh(req.user.mfaVerifiedAt);
+    return { ...status, verified };
   }
 
   @UseGuards(LocalAuthGuard)

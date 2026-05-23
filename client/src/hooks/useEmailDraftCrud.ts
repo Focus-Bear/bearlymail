@@ -21,12 +21,13 @@ export function useEmailDraftCrud(threadId: string | undefined) {
   }, [threadId]);
 
   const saveDraft = useCallback(
-    async (content: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string) => {
-      if (!threadId || !content.trim()) {
+    async (content: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string, explicitThreadId?: string) => {
+      const target = explicitThreadId || threadId;
+      if (!target || !content.trim()) {
         return;
       }
       try {
-        await axios.post(`${API_URL}/drafts/thread/${threadId}`, { content, replyMode: mode, recipients });
+        await axios.post(`${API_URL}/drafts/thread/${target}`, { content, replyMode: mode, recipients });
       } catch (error) {
         console.error('Error saving draft:', error);
       }

@@ -12,7 +12,7 @@ interface UseEmailDetailDraftSyncParams {
   replyOptions: unknown;
   showReplyComposer: boolean;
   replyComposerRef: RefObject<HTMLDivElement | null>;
-  saveDraft: (draft: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string) => void | Promise<void>;
+  saveDraft: (draft: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string, threadId?: string) => void | Promise<void>;
   fetchDraft: () => Promise<{ content?: string; replyMode?: string; recipients?: string } | null | undefined>;
   setDraft: (draft: string) => void;
   setReplyRecipients: (recipients: string) => void;
@@ -59,7 +59,10 @@ export const useEmailDetailDraftSync = ({
     const previousRecipients = previousRecipientsRef.current;
 
     if (previousId && previousId !== id && previousThreadId && previousDraft && previousDraft.trim()) {
-      saveDraft(previousDraft, previousMode, previousRecipients);
+      // Pass previousThreadId explicitly: by the time this effect runs, saveDraft's
+      // closure already references the NEW email's threadId, so without this the draft
+      // would be saved under the wrong thread.
+      saveDraft(previousDraft, previousMode, previousRecipients, previousThreadId);
     }
 
     previousEmailIdRef.current = id || null;
@@ -93,6 +96,7 @@ export const useEmailDetailDraftSync = ({
         const savedDraft = await fetchDraft();
         if (savedDraft && savedDraft.content) {
           setDraft(savedDraft.content);
+          setShowReplyComposer(true);
           if (savedDraft.replyMode) {
             setReplyMode(savedDraft.replyMode as 'reply' | 'replyAll');
           }
@@ -142,7 +146,7 @@ interface UseAutoSaveDraftParams {
   draft: string;
   replyMode: 'reply' | 'replyAll' | 'forward';
   replyRecipients: string;
-  saveDraft: (draft: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string) => void | Promise<void>;
+  saveDraft: (draft: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string, threadId?: string) => void | Promise<void>;
 }
 
 function useAutoSaveDraft({

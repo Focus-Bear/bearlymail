@@ -830,6 +830,8 @@ async function main(): Promise<void> {
     (ciMode ? process.env.GITHUB_BASE_REF : undefined) ||
     args.find((a) => a.startsWith("--base="))?.split("=")[1] ||
     "main";
+  // Sanitize baseBranch to prevent command injection via malicious branch names
+  const sanitizedBaseBranch = baseBranch.replace(/[^a-zA-Z0-9._\-\/]/g, "");
   // GITHUB_BASE_SHA is used by the resilient diff logic inside getChangedControllerFiles
 
   const srcDir = path.resolve(__dirname, "../src");
@@ -854,6 +856,22 @@ async function main(): Promise<void> {
     const { files: changedFiles, diffFailed } = getChangedControllerFiles();
     controllerFiles = changedFiles;
     if (diffFailed || controllerFiles.length === 0) {
+      if (ciMode && !diffFailed && jsonOutput) {
+        printReport(
+          {
+            controllers: [],
+            findings: [],
+            summary: {
+              totalControllers: 0,
+              totalEndpoints: 0,
+              criticalFindings: 0,
+              warningFindings: 0,
+              infoFindings: 0,
+            },
+          },
+          true,
+        );
+      }
       if (ciMode && !diffFailed) {
         // In CI mode with no changed controllers: exit cleanly so CI passes
         if (!jsonOutput) {
@@ -887,7 +905,7 @@ async function main(): Promise<void> {
       }
       // Get changed functions for each file
       for (const file of controllerFiles) {
-        const changedFns = getChangedFunctions(file, baseBranch);
+        const changedFns = getChangedFunctions(file, sanitizedBaseBranch);
         if (changedFns.length > 0) {
           changedFunctionsMap.set(file, changedFns);
         }

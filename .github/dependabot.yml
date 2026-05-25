@@ -13,10 +13,18 @@ updates:
     directory: "/client"
     schedule:
       interval: "weekly"
+    ignore:
+      # We pin @types/node to the major matching our runtime (Node 24).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "npm"
     directory: "/server"
     schedule:
       interval: "weekly"
+    ignore:
+      # We pin @types/node to the major matching our runtime (Node 24).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

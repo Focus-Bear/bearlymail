@@ -34,7 +34,7 @@ interface TimeSlot {
 
 const INITIAL_SLOTS = 5;
 const LOAD_MORE_SLOTS = 15;
-const DAYS_AHEAD_INITIAL = 14;
+const DAYS_AHEAD_INITIAL = 28;
 const DAYS_AHEAD_LOAD_MORE = 90;
 
 const BookingPage: React.FC = () => {

@@ -38,6 +38,10 @@ export class UserEncryptionService {
   ) {}
 
   async getUserKey(userId: string): Promise<Buffer> {
+    // No KMS configured — e.g. local development, or any environment that has
+    // not enabled envelope encryption. All data is under the global key, so
+    // return it directly. This is the supported way to run without KMS: leave
+    // KMS_KEY_ID unset. (`withUserKey()` likewise no-ops in this mode.)
     if (!this.kmsService.isEnabled()) {
       return encryptionKeyProvider.getGlobalKey();
     }
@@ -57,12 +61,41 @@ export class UserEncryptionService {
 
     let plaintextKey: Buffer;
 
-    if (user.encryptedDataKey) {
-      plaintextKey = await this.kmsService.decryptDataKey(
-        Buffer.from(user.encryptedDataKey, "base64"),
+    try {
+      if (user.encryptedDataKey) {
+        plaintextKey = await this.kmsService.decryptDataKey(
+          Buffer.from(user.encryptedDataKey, "base64"),
+        );
+      } else {
+        plaintextKey = await this.provisionNewKey(userId);
+      }
+    } catch (kmsError) {
+      // When KMS is ENABLED we must NOT fall back to the global key on failure.
+      //
+      // The user's data is encrypted under their per-user KMS data key — a
+      // different, unrelated key. The global key cannot decrypt it, and (worse)
+      // returning the global key here would make every *write* in this
+      // request/job context encrypt under the wrong key, producing
+      // unrecoverable split-brain data once the static global key is retired.
+      // That is the exact corruption we must avoid; it is the inverse of the
+      // safe per-column *read* fallback in `EncryptionHelper.tryDecrypt()`.
+      //
+      // KMS failures are usually transient, so throwing lets the caller's retry
+      // (PgBoss `retryLimit` / SQS redrive) recover; a persistent failure
+      // surfaces loudly instead of silently corrupting data. To run without KMS
+      // entirely, leave `KMS_KEY_ID` unset (handled at the top of this method).
+      const reason = String(kmsError);
+      this.logger.error(
+        `KMS key resolution failed for user ${userId}: ${reason}. ` +
+          `Not falling back to the global key (that would corrupt per-user-encrypted data). ` +
+          `Retryable; if KMS is intentionally disabled, unset KMS_KEY_ID.`,
+        kmsError instanceof Error ? kmsError.stack : undefined,
       );
-    } else {
-      plaintextKey = await this.provisionNewKey(userId);
+      const wrapped = new Error(
+        `KMS key resolution failed for user ${userId}: ${reason}`,
+      );
+      (wrapped as Error & { cause?: unknown }).cause = kmsError;
+      throw wrapped;
     }
 
     userKeyCache.set(userId, plaintextKey);

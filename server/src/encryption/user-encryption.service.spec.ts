@@ -139,6 +139,41 @@ describe("UserEncryptionService", () => {
         `User ${userId} not found`,
       );
     });
+
+    it("throws (and does NOT fall back to the global key) when KMS Decrypt fails", async () => {
+      // Regression guard for #2082 / PR #2185: per-user data is encrypted under
+      // the per-user KMS key, so falling back to the global key here would
+      // corrupt writes. On a KMS failure we must throw so the job retries.
+      const storedBase64 = encryptedKey.toString("base64");
+      userRepo.createQueryBuilder.mockReturnValue(
+        makeSelectQb({ id: userId, encryptedDataKey: storedBase64 }) as never,
+      );
+      kmsService.decryptDataKey.mockRejectedValue(new Error("KMS unavailable"));
+
+      const globalKey = encryptionKeyProvider.getGlobalKey();
+      const settled = await service.getUserKey(userId).catch((err) => err);
+
+      expect(settled).toBeInstanceOf(Error);
+      expect((settled as Error).message).toMatch(/KMS key resolution failed/);
+      // It must NOT have silently returned the global key…
+      expect(settled).not.toEqual(globalKey);
+      // …and nothing should be cached after a failure.
+      expect(userKeyCache.get(userId)).toBeNull();
+    });
+
+    it("throws when provisioning a new data key fails", async () => {
+      userRepo.createQueryBuilder.mockReturnValueOnce(
+        makeSelectQb({ id: userId, encryptedDataKey: null }) as never,
+      );
+      kmsService.generateDataKey.mockRejectedValue(
+        new Error("KMS GenerateDataKey failed"),
+      );
+
+      await expect(service.getUserKey(userId)).rejects.toThrow(
+        /KMS key resolution failed/,
+      );
+      expect(userKeyCache.get(userId)).toBeNull();
+    });
   });
 
   describe("withUserKey()", () => {

@@ -58,7 +58,16 @@ const mockUserContextRepo = () => ({
 
 const mockLLMCategoriesService = () => ({
   suggestRulesFromEmailSamples: jest.fn(),
+  deriveExclusionPhrasesFromFalsePositives: jest.fn(),
+  assessRuleAddsValue: jest.fn(),
 });
+
+/** An email that matches the default generated spec (used to pass the match gate). */
+const matchingMailboxEmail = {
+  from: "alerts@acmecorp.com",
+  subject: "Build failed",
+  body: "Pipeline step compile failed on branch main.",
+};
 
 describe("CategoryRulesService", () => {
   let service: CategoryRulesService;
@@ -110,6 +119,17 @@ describe("CategoryRulesService", () => {
       fromMatchesAny: ["alerts@acmecorp.com"],
       subjectContainsAny: ["Build failed"],
       bodyContainsAny: ["Pipeline step compile failed"],
+      subjectNotContainsAny: [],
+      bodyNotContainsAny: [],
+    });
+    // Default exclusion derivation: none (no false positives in the bypass path).
+    llmCategoriesService.deriveExclusionPhrasesFromFalsePositives.mockResolvedValue(
+      { subjectNotContainsAny: [], bodyNotContainsAny: [] },
+    );
+    // Default value-add verdict: adds value, no extra exclusions.
+    llmCategoriesService.assessRuleAddsValue.mockResolvedValue({
+      addsValue: true,
+      reasoning: "adds value",
       subjectNotContainsAny: [],
       bodyNotContainsAny: [],
     });
@@ -264,11 +284,38 @@ describe("CategoryRulesService", () => {
   describe("generateCompositeRuleFromEmail", () => {
     const userId = "user-1";
 
+    // A non-duplicate sibling rule for the same category, so the value-add step
+    // runs and can supply the exclusion the strict policy now requires.
+    const siblingRule = {
+      id: "sib-1",
+      ruleKind: "composite",
+      categoryName: "CI",
+      compositeSpec: {
+        v: 2 as const,
+        senderMatchesAny: ["deploys@acmecorp.com"],
+        subjectContainsAny: ["Deployed"],
+        bodyContainsAny: ["deployment succeeded"],
+      },
+    };
+
+    // Arms the persist gate so a generated rule survives: a real mailbox email
+    // for the match gate, a sibling so value-add runs, and a value-add verdict
+    // that supplies a NOT-contains exclusion (required for every rule).
+    const armPersistGate = (exclusion = "weekly digest") => {
+      emailRepo.find.mockResolvedValue([matchingMailboxEmail]);
+      repo.find.mockResolvedValue([siblingRule]);
+      llmCategoriesService.assessRuleAddsValue.mockResolvedValue({
+        addsValue: true,
+        reasoning: "distinct from sibling",
+        subjectNotContainsAny: [exclusion],
+        bodyNotContainsAny: [],
+      });
+    };
+
     it("creates a composite rule using LLM-extracted generic phrases", async () => {
       // emailRepo.createQueryBuilder default returns cnt=15 (above threshold)
-      // emailRepo.find default returns [] (no cached sample emails)
       // llmCategoriesService default returns generic phrases
-      repo.find.mockResolvedValue([]);
+      armPersistGate();
       const created = {
         id: "comp-1",
         ruleKind: "composite",
@@ -331,7 +378,7 @@ describe("CategoryRulesService", () => {
     it("creates a rule when sender is exactly at the AUTO_GENERATE_MIN_THREAD_COUNT threshold", async () => {
       // Exactly 10 threads — should proceed.
       emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "10" }));
-      repo.find.mockResolvedValue([]);
+      armPersistGate();
       const created = {
         id: "comp-threshold",
         ruleKind: "composite",
@@ -407,7 +454,7 @@ describe("CategoryRulesService", () => {
         subjectNotContainsAny: [],
         bodyNotContainsAny: [],
       });
-      repo.find.mockResolvedValue([]);
+      armPersistGate();
       const created = {
         id: "comp-wildcard",
         ruleKind: "composite",
@@ -466,6 +513,68 @@ describe("CategoryRulesService", () => {
       expect(repo.create).not.toHaveBeenCalled();
       expect(existing.categoryName).toBe("CI");
       expect(result?.id).toBe("comp-2");
+    });
+
+    it("discards a rule that matches no mailbox email (match gate)", async () => {
+      // No matching emails in the mailbox scan.
+      emailRepo.find.mockResolvedValue([]);
+      repo.find.mockResolvedValue([]);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("discards a clean rule with no exclusion (strict NOT-contains policy)", async () => {
+      // Matches real mail but has no sibling and no false positives, so no
+      // exclusion can be derived — the strict policy discards it.
+      emailRepo.find.mockResolvedValue([matchingMailboxEmail]);
+      repo.find.mockResolvedValue([]);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("discards a redundant rule when value-add reports no added value", async () => {
+      armPersistGate();
+      llmCategoriesService.assessRuleAddsValue.mockResolvedValue({
+        addsValue: false,
+        reasoning: "existing rule already covers these emails",
+        subjectNotContainsAny: [],
+        bodyNotContainsAny: [],
+      });
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(result).toBeNull();
     });
   });
 

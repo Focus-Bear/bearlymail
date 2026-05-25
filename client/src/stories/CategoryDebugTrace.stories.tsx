@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import { I18nextProvider } from 'react-i18next';
+import { MemoryRouter } from 'react-router-dom';
 import type { Meta, StoryObj } from '@storybook/react';
 import i18n from 'i18n';
 
@@ -23,7 +24,9 @@ type Story = StoryObj<typeof CategoryDebugTracePanel>;
 
 const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <I18nextProvider i18n={i18n}>
-    <div style={{ maxWidth: 700, margin: '0 auto' }}>{children}</div>
+    <MemoryRouter>
+      <div style={{ maxWidth: 700, margin: '0 auto' }}>{children}</div>
+    </MemoryRouter>
   </I18nextProvider>
 );
 

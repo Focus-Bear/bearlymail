@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
@@ -18,6 +19,72 @@ function evaluationRuleLabel(ev: CategoryRuleEvaluationDebug, translate: TFuncti
   }
   return ev.ruleType ?? translate('priority.categoryDebug.traceRuleLegacyUnknown');
 }
+
+interface CompositeMatchDetailProps {
+  detail: NonNullable<CategoryRuleEvaluationDebug['compositeDetail']>;
+  translate: TFunction;
+}
+
+const CompositeMatchDetail: React.FC<CompositeMatchDetailProps> = ({ detail, translate }) => (
+  <>
+    <span style={{ color: theme.colors.text.secondary }}>
+      {translate('priority.categoryDebug.traceCompositeSender')}:
+    </span>{' '}
+    <span style={monoStyle}>
+      {detail.senderMatch
+        ? translate('priority.categoryDebug.traceCompositeYes')
+        : translate('priority.categoryDebug.traceCompositeNo')}
+    </span>
+    <br />
+    <span style={{ color: theme.colors.text.secondary }}>
+      {translate('priority.categoryDebug.traceCompositeSubject')}:
+    </span>{' '}
+    <span style={monoStyle}>
+      {detail.subjectMatch
+        ? translate('priority.categoryDebug.traceCompositeYes')
+        : translate('priority.categoryDebug.traceCompositeNo')}
+    </span>
+    <br />
+    <span style={{ color: theme.colors.text.secondary }}>
+      {translate('priority.categoryDebug.traceCompositeBody')}:
+    </span>{' '}
+    <span style={monoStyle}>
+      {detail.bodyMatch
+        ? translate('priority.categoryDebug.traceCompositeYes')
+        : translate('priority.categoryDebug.traceCompositeNo')}
+    </span>
+    {detail.senderMatchedValue ? (
+      <>
+        <br />
+        <span style={monoStyle}>
+          {translate('priority.categoryDebug.traceCompositeMatchedSender', {
+            sender: detail.senderMatchedValue,
+          })}
+        </span>
+      </>
+    ) : null}
+    {detail.subjectMatchedValue ? (
+      <>
+        <br />
+        <span style={monoStyle}>
+          {translate('priority.categoryDebug.traceCompositeMatchedSubject', {
+            subject: detail.subjectMatchedValue,
+          })}
+        </span>
+      </>
+    ) : null}
+    {detail.bodyMatchedPhrase ? (
+      <>
+        <br />
+        <span style={monoStyle}>
+          {translate('priority.categoryDebug.traceCompositeMatchedPhrase', {
+            phrase: detail.bodyMatchedPhrase,
+          })}
+        </span>
+      </>
+    ) : null}
+  </>
+);
 
 export interface CategoryDebugTraceEvaluationRowProps {
   evaluation: CategoryRuleEvaluationDebug;
@@ -47,64 +114,7 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
       )}
       <br />
       {ev.ruleKind === CATEGORY_RULE_KIND_COMPOSITE && detail ? (
-        <>
-          <span style={{ color: theme.colors.text.secondary }}>
-            {translate('priority.categoryDebug.traceCompositeSender')}:
-          </span>{' '}
-          <span style={monoStyle}>
-            {detail.senderMatch
-              ? translate('priority.categoryDebug.traceCompositeYes')
-              : translate('priority.categoryDebug.traceCompositeNo')}
-          </span>
-          <br />
-          <span style={{ color: theme.colors.text.secondary }}>
-            {translate('priority.categoryDebug.traceCompositeSubject')}:
-          </span>{' '}
-          <span style={monoStyle}>
-            {detail.subjectMatch
-              ? translate('priority.categoryDebug.traceCompositeYes')
-              : translate('priority.categoryDebug.traceCompositeNo')}
-          </span>
-          <br />
-          <span style={{ color: theme.colors.text.secondary }}>
-            {translate('priority.categoryDebug.traceCompositeBody')}:
-          </span>{' '}
-          <span style={monoStyle}>
-            {detail.bodyMatch
-              ? translate('priority.categoryDebug.traceCompositeYes')
-              : translate('priority.categoryDebug.traceCompositeNo')}
-          </span>
-          {detail.senderMatchedValue ? (
-            <>
-              <br />
-              <span style={monoStyle}>
-                {translate('priority.categoryDebug.traceCompositeMatchedSender', {
-                  sender: detail.senderMatchedValue,
-                })}
-              </span>
-            </>
-          ) : null}
-          {detail.subjectMatchedValue ? (
-            <>
-              <br />
-              <span style={monoStyle}>
-                {translate('priority.categoryDebug.traceCompositeMatchedSubject', {
-                  subject: detail.subjectMatchedValue,
-                })}
-              </span>
-            </>
-          ) : null}
-          {detail.bodyMatchedPhrase ? (
-            <>
-              <br />
-              <span style={monoStyle}>
-                {translate('priority.categoryDebug.traceCompositeMatchedPhrase', {
-                  phrase: detail.bodyMatchedPhrase,
-                })}
-              </span>
-            </>
-          ) : null}
-        </>
+        <CompositeMatchDetail detail={detail} translate={translate} />
       ) : (
         <>
           <span style={{ color: theme.colors.text.secondary }}>{translate('priority.categoryDebug.tracePattern')}</span>{' '}
@@ -128,6 +138,17 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
         {' · '}
         {translate('priority.categoryDebug.traceHits', { count: ev.hitCount })}
       </span>
+      {ev.ruleKind === CATEGORY_RULE_KIND_COMPOSITE ? (
+        <>
+          {' · '}
+          <Link
+            to={`/settings?openEditRuleId=${encodeURIComponent(ev.id)}`}
+            style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.primary.main }}
+          >
+            {translate('priority.categoryDebug.traceEditRule')}
+          </Link>
+        </>
+      ) : null}
     </div>
   );
 };

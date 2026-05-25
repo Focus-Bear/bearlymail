@@ -74,6 +74,13 @@ async function submitCompositeCategoryRuleModalForm(
   if (bodyPhrases.length === 0) {
     errors.bodyPhrases = t('settings.deterministicCategoryRules.fieldRequiredError');
   }
+  // Issue follow-up: every rule must carry at least one exclusion (subject or
+  // body NOT-contains) so it cannot match too broadly and grab unrelated email.
+  if (subjectNotPhrases.length === 0 && bodyNotPhrases.length === 0) {
+    errors.subjectNotPhrases = t(
+      'settings.deterministicCategoryRules.notContainsRequiredError',
+    );
+  }
   if (Object.keys(errors).length > 0) {
     setFieldErrors(errors);
     return;

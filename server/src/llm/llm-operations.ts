@@ -120,6 +120,9 @@ export const LLM_OP_SUGGEST_CATEGORY_RULES = "suggest_category_rules";
 // Derive not-contains exclusions for an auto-rule from real false positives
 export const LLM_OP_DERIVE_RULE_EXCLUSIONS = "derive_rule_exclusions";
 
+// Assess whether a draft composite rule adds value over existing same-category rules
+export const LLM_OP_ASSESS_CATEGORY_RULE_VALUE = "assess_category_rule_value";
+
 // Batch priority triage: lightweight check if category/priority needs reanalysis (cheap model)
 export const LLM_OP_BATCH_PRIORITY_TRIAGE = "batch_priority_triage";
 
@@ -174,6 +177,7 @@ export type LLMOperation =
   | typeof LLM_OP_CATEGORY_SHORTLIST
   | typeof LLM_OP_SUGGEST_CATEGORY_RULES
   | typeof LLM_OP_DERIVE_RULE_EXCLUSIONS
+  | typeof LLM_OP_ASSESS_CATEGORY_RULE_VALUE
   | typeof LLM_OP_BATCH_PRIORITY_TRIAGE
   | typeof LLM_OP_DETECT_MEETING_PROPOSAL
   | typeof LLM_OP_CHECK_CATEGORY_DUPLICATE
@@ -221,6 +225,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_CATEGORY_SHORTLIST]: "Category Shortlist",
   [LLM_OP_SUGGEST_CATEGORY_RULES]: "Suggest Category Rules",
   [LLM_OP_DERIVE_RULE_EXCLUSIONS]: "Derive Rule Exclusions",
+  [LLM_OP_ASSESS_CATEGORY_RULE_VALUE]: "Assess Category Rule Value",
   [LLM_OP_BATCH_PRIORITY_TRIAGE]: "Batch Priority Triage",
   [LLM_OP_DETECT_MEETING_PROPOSAL]: "Detect Meeting Proposal",
   [LLM_OP_CHECK_CATEGORY_DUPLICATE]: "Check Category Duplicate",

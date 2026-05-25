@@ -58,4 +58,21 @@ export const CATEGORY_RULE_COMPOSITE = {
    * is independently capped.
    */
   DERIVE_EXCLUSIONS_MAX_SAMPLES: 8,
+  /**
+   * Number of most-recent mailbox emails scanned (regardless of category) to
+   * confirm a draft rule actually matches real mail before it is persisted.
+   * Unlike AUTO_VALIDATE_THREAD_COUNT this is not limited to categorised
+   * threads, so it catches rules that match nothing at all.
+   */
+  MATCH_GATE_SCAN_COUNT: 300,
+  /**
+   * Minimum number of real mailbox emails a draft rule must match to be
+   * persisted. Rules that match zero emails are noise and are discarded.
+   */
+  MATCH_GATE_MIN_MATCHES: 1,
+  /**
+   * Maximum number of existing same-category composite rules summarised for
+   * the LLM value-add comparison. Caps prompt size.
+   */
+  VALUE_ADD_MAX_EXISTING_RULES: 12,
 } as const;

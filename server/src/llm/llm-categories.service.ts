@@ -14,6 +14,7 @@ import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
 import {
+  LLM_OP_ASSESS_CATEGORY_RULE_VALUE,
   LLM_OP_CONSOLIDATE_CATEGORIES,
   LLM_OP_DERIVE_RULE_EXCLUSIONS,
   LLM_OP_GENERATE_CATEGORIES_FROM_OTHER,
@@ -21,28 +22,20 @@ import {
   LLM_OP_SUGGEST_CATEGORY_RULES,
   type LLMOperation,
 } from "./llm-operations";
+import {
+  assessRuleAddsValue as assessRuleAddsValueImpl,
+  type AssessRuleValueParams,
+  type AssessRuleValueResult,
+  buildSuggestRulesResult,
+  type SuggestRulesResult,
+} from "./llm-rule-value";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
-
-/**
- * Result shape returned by `suggestRulesFromEmailSamples` and constructed by
- * `buildSuggestRulesResult`. `subjectNotContainsAny` and `bodyNotContainsAny`
- * are kept on the type for backward compatibility with the suggest UI flow
- * but are now always empty for auto-rule generation — exclusions are derived
- * post-hoc from real false positives in the user's history, not invented by
- * the LLM (issue #1789 follow-up).
- */
-export interface SuggestRulesResult {
-  fromMatchesAny: string[];
-  subjectContainsAny: string[];
-  bodyContainsAny: string[];
-  subjectNotContainsAny: string[];
-  bodyNotContainsAny: string[];
-}
 
 export type {
   DeriveExclusionsResult,
   ExclusionDerivationSample,
 } from "./derive-exclusions-parser";
+export type { SuggestRulesResult } from "./llm-rule-value";
 
 export interface DeriveExclusionPhrasesParams {
   categoryName: string;
@@ -755,7 +748,7 @@ export class LLMCategoriesService {
       }
 
       const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
-      const result = this.buildSuggestRulesResult(parsed, senderEmails);
+      const result = buildSuggestRulesResult(parsed, senderEmails);
       if (!result) {
         this.logger.warn(
           `[SUGGEST-CATEGORY-RULES] LLM returned no usable phrases for "${categoryName}"`,
@@ -773,39 +766,6 @@ export class LLMCategoriesService {
       );
       return null;
     }
-  }
-
-  /**
-   * Parses the LLM's JSON suggestion response into a typed result. Returns
-   * null when the LLM provided no usable positive phrases (subject AND body
-   * both empty).
-   */
-  private buildSuggestRulesResult(
-    parsed: Record<string, unknown>,
-    senderEmails: string[],
-  ): SuggestRulesResult | null {
-    const parseStringArray = (value: unknown): string[] =>
-      Array.isArray(value)
-        ? (value as unknown[])
-            .filter(
-              (item): item is string =>
-                typeof item === "string" && item.trim() !== "",
-            )
-            .map((item) => item.trim())
-        : [];
-    const fromMatchesAny = parseStringArray(parsed.fromMatchesAny);
-    const subjectContainsAny = parseStringArray(parsed.subjectContainsAny);
-    const bodyContainsAny = parseStringArray(parsed.bodyContainsAny);
-    if (subjectContainsAny.length === 0 && bodyContainsAny.length === 0) {
-      return null;
-    }
-    return {
-      fromMatchesAny: fromMatchesAny.length > 0 ? fromMatchesAny : senderEmails,
-      subjectContainsAny,
-      bodyContainsAny,
-      subjectNotContainsAny: parseStringArray(parsed.subjectNotContainsAny),
-      bodyNotContainsAny: parseStringArray(parsed.bodyNotContainsAny),
-    };
   }
 
   /**
@@ -882,5 +842,26 @@ export class LLMCategoriesService {
       );
       return { subjectNotContainsAny: [], bodyNotContainsAny: [] };
     }
+  }
+
+  /**
+   * Asks the LLM whether a draft composite rule adds value over the existing
+   * rules already targeting the same category, or is redundant. Delegates to
+   * `assessRuleAddsValue` in llm-rule-value.ts (kept separate for file-size).
+   */
+  async assessRuleAddsValue(
+    params: AssessRuleValueParams,
+  ): Promise<AssessRuleValueResult> {
+    return assessRuleAddsValueImpl(
+      (request) =>
+        this.generateText(
+          request,
+          undefined,
+          params.userId,
+          LLM_OP_ASSESS_CATEGORY_RULE_VALUE,
+        ),
+      this.logger,
+      params,
+    );
   }
 }

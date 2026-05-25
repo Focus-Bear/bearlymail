@@ -1,8 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 import type { CategoryRuleDto } from 'types/category-rules.types';
-import { specSenders, specSubjects } from 'types/category-rules.types';
+import {
+  specBodyNotContains,
+  specSenders,
+  specSubjectNotContains,
+  specSubjects,
+} from 'types/category-rules.types';
 
 import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
 import { EMOJI_WARNING } from 'constants/emojis';
@@ -49,113 +55,134 @@ export interface DeterministicCategoryRuleRowProps {
   onUpgradeToComposite?: (rule: CategoryRuleDto) => void;
 }
 
-export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRowProps> = ({
+const CompositeSpecSummary: React.FC<{ rule: CategoryRuleDto; t: TFunction }> = ({ rule, t }) => {
+  if (!rule.compositeSpec) {
+    return null;
+  }
+  const senders = specSenders(rule.compositeSpec);
+  const subjects = specSubjects(rule.compositeSpec);
+  const subjectNot = specSubjectNotContains(rule.compositeSpec);
+  const bodyNot = specBodyNotContains(rule.compositeSpec);
+  const separator = t('settings.deterministicCategoryRules.bodyPhraseSeparator');
+  return (
+    <>
+      <div style={mono}>
+        {t('settings.deterministicCategoryRules.senderField')}: {senders.join(separator)}
+      </div>
+      <div style={mono}>
+        {t('settings.deterministicCategoryRules.subjectContainsField')}: {subjects.join(separator)}
+      </div>
+      <div style={mono}>
+        {t('settings.deterministicCategoryRules.bodyPhrasesField')}:{' '}
+        {rule.compositeSpec.bodyContainsAny.join(separator)}
+      </div>
+      {subjectNot.length > 0 ? (
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.subjectNotContainsField')}: {subjectNot.join(separator)}
+        </div>
+      ) : null}
+      {bodyNot.length > 0 ? (
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.bodyNotContainsField')}: {bodyNot.join(separator)}
+        </div>
+      ) : null}
+    </>
+  );
+};
+
+const RuleRowHeader: React.FC<DeterministicCategoryRuleRowProps & { isComposite: boolean; t: TFunction }> = ({
   rule,
   onToggleEnabled,
   onDelete,
   onEditComposite,
   onUpgradeToComposite,
+  isComposite,
+  t,
 }) => {
-  const { t } = useTranslation();
-  const isComposite = rule.ruleKind === CATEGORY_RULE_KIND_COMPOSITE;
   const kindLabel = isComposite
     ? t('settings.deterministicCategoryRules.kindComposite')
     : t('settings.deterministicCategoryRules.kindLegacy');
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.xs,
+      }}
+    >
+      <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>{rule.categoryName}</span>
+      <span
+        style={{
+          fontSize: theme.typography.fontSize.xs,
+          padding: `2px ${theme.spacing.xs}`,
+          borderRadius: theme.borderRadius.sm,
+          backgroundColor: theme.colors.background.paper,
+          border: `1px solid ${theme.colors.border.light}`,
+        }}
+      >
+        {kindLabel}
+      </span>
+      {!isComposite && (
+        <button
+          type="button"
+          title={t('settings.deterministicCategoryRules.legacyWeakWarning')}
+          onClick={() => onEditComposite?.(rule)}
+          style={warningBadgeStyle}
+        >
+          {EMOJI_WARNING} {t('settings.deterministicCategoryRules.upgradeToComposite')}
+        </button>
+      )}
+      {!rule.isEnabled && (
+        <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
+          ({t('settings.deterministicCategoryRules.disabled')})
+        </span>
+      )}
+      <label
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: theme.spacing.xs,
+          marginLeft: 'auto',
+          fontSize: theme.typography.fontSize.xs,
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={rule.isEnabled}
+          onChange={event => onToggleEnabled(rule.id, event.target.checked)}
+        />
+        {t('settings.deterministicCategoryRules.enabledToggle')}
+      </label>
+      {isComposite && onEditComposite ? (
+        <button type="button" style={btnStyle} onClick={() => onEditComposite(rule)}>
+          {t('common.edit')}
+        </button>
+      ) : null}
+      {!isComposite && onUpgradeToComposite ? (
+        <button type="button" style={btnStyle} onClick={() => onUpgradeToComposite(rule)}>
+          {t('settings.deterministicCategoryRules.upgradeToComposite')}
+        </button>
+      ) : null}
+      <button type="button" style={btnStyle} onClick={() => onDelete(rule.id)}>
+        {t('common.delete')}
+      </button>
+    </div>
+  );
+};
 
-  const renderCompositeSpec = () => {
-    if (!rule.compositeSpec) {
-      return null;
-    }
-    const senders = specSenders(rule.compositeSpec);
-    const subjects = specSubjects(rule.compositeSpec);
-    const separator = t('settings.deterministicCategoryRules.bodyPhraseSeparator');
-    return (
-      <>
-        <div style={mono}>
-          {t('settings.deterministicCategoryRules.senderField')}: {senders.join(separator)}
-        </div>
-        <div style={mono}>
-          {t('settings.deterministicCategoryRules.subjectContainsField')}: {subjects.join(separator)}
-        </div>
-        <div style={mono}>
-          {t('settings.deterministicCategoryRules.bodyPhrasesField')}:{' '}
-          {rule.compositeSpec.bodyContainsAny.join(separator)}
-        </div>
-      </>
-    );
-  };
+export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRowProps> = (props) => {
+  const { rule } = props;
+  const { t } = useTranslation();
+  const isComposite = rule.ruleKind === CATEGORY_RULE_KIND_COMPOSITE;
 
   return (
     <div style={rowStyle}>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          marginBottom: theme.spacing.xs,
-        }}
-      >
-        <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>{rule.categoryName}</span>
-        <span
-          style={{
-            fontSize: theme.typography.fontSize.xs,
-            padding: `2px ${theme.spacing.xs}`,
-            borderRadius: theme.borderRadius.sm,
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.border.light}`,
-          }}
-        >
-          {kindLabel}
-        </span>
-        {!isComposite && (
-          <button
-            type="button"
-            title={t('settings.deterministicCategoryRules.legacyWeakWarning')}
-            onClick={() => onEditComposite?.(rule)}
-            style={warningBadgeStyle}
-          >
-            {EMOJI_WARNING} {t('settings.deterministicCategoryRules.upgradeToComposite')}
-          </button>
-        )}
-        {!rule.isEnabled && (
-          <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
-            ({t('settings.deterministicCategoryRules.disabled')})
-          </span>
-        )}
-        <label
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-            marginLeft: 'auto',
-            fontSize: theme.typography.fontSize.xs,
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={rule.isEnabled}
-            onChange={event => onToggleEnabled(rule.id, event.target.checked)}
-          />
-          {t('settings.deterministicCategoryRules.enabledToggle')}
-        </label>
-        {isComposite && onEditComposite ? (
-          <button type="button" style={btnStyle} onClick={() => onEditComposite(rule)}>
-            {t('common.edit')}
-          </button>
-        ) : null}
-        {!isComposite && onUpgradeToComposite ? (
-          <button type="button" style={btnStyle} onClick={() => onUpgradeToComposite(rule)}>
-            {t('settings.deterministicCategoryRules.upgradeToComposite')}
-          </button>
-        ) : null}
-        <button type="button" style={btnStyle} onClick={() => onDelete(rule.id)}>
-          {t('common.delete')}
-        </button>
-      </div>
+      <RuleRowHeader {...props} isComposite={isComposite} t={t} />
 
       {isComposite ? (
-        renderCompositeSpec()
+        <CompositeSpecSummary rule={rule} t={t} />
       ) : (
         <>
           <div style={mono}>
@@ -174,12 +201,22 @@ export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRow
 
       <div
         style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: theme.spacing.sm,
           fontSize: theme.typography.fontSize.xs,
           color: theme.colors.text.tertiary,
           marginTop: theme.spacing.xs,
         }}
       >
-        {t('settings.deterministicCategoryRules.hits', { count: rule.hitCount })}
+        <span>{t('settings.deterministicCategoryRules.hits', { count: rule.hitCount })}</span>
+        {rule.createdAt ? (
+          <span>
+            {t('settings.deterministicCategoryRules.createdAt', {
+              date: new Date(rule.createdAt).toLocaleDateString(),
+            })}
+          </span>
+        ) : null}
       </div>
     </div>
   );

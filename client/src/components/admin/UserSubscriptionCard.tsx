@@ -79,6 +79,22 @@ export const UserSubscriptionCard: React.FC<UserSubscriptionCardProps> = ({
           >
             {t('admin.dashboard.joined')}: {new Date(userData.createdAt).toLocaleDateString()}
           </div>
+          {(userData.lastLogoutReason || userData.needsRelogin) && (
+            <div
+              data-testid="user-last-logout"
+              style={{
+                marginTop: theme.spacing.xs,
+                color: userData.needsRelogin ? theme.colors.accent.error : theme.colors.text.tertiary,
+                fontSize: theme.typography.fontSize.xs,
+              }}
+            >
+              <strong>{t('admin.dashboard.lastLogout')}</strong>{' '}
+              {userData.lastLogoutReason || t('admin.dashboard.none')}
+              {userData.lastLogoutAt &&
+                ` (${new Date(userData.lastLogoutAt).toLocaleString()})`}
+              {userData.needsRelogin && ` — ${t('admin.dashboard.needsReloginNow')}`}
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
           {extendingUserId === userData.id ? (

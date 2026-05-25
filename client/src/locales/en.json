@@ -1340,6 +1340,8 @@
       "none": "None",
       "expires": "Expires",
       "joined": "Joined",
+      "lastLogout": "Last forced logout:",
+      "needsReloginNow": "currently needs re-login",
       "extendTrial": "Extend Trial",
       "approve": "Approve",
       "pendingApproval": "Pending Approval",

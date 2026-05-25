@@ -84,7 +84,6 @@ export class GmailSyncService {
   async handleMissingRefreshToken(
     userId: string,
     user: User | null,
-    isRecentLogin: boolean,
   ): Promise<never> {
     authLogger.logAuthFailure(
       userId,
@@ -93,9 +92,10 @@ export class GmailSyncService {
       new Error("Refresh token missing"),
       {},
     );
-    if (!isRecentLogin && user && !user.needsRelogin) {
-      await this.usersService.update(userId, { needsRelogin: true });
-    }
+    await this.usersService.markNeedsRelogin(
+      userId,
+      "gmail_missing_refresh_token",
+    );
     throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
   }
 
@@ -136,7 +136,7 @@ export class GmailSyncService {
           `[NEEDS_RELOGIN] validateToken: refresh_token invalid/revoked for user ${userId} ` +
             `(this is the usual cause of "logged out") — detail: ${formatGaxiosError(error)}`,
         );
-        await this.usersService.update(userId, { needsRelogin: true });
+        await this.usersService.markNeedsRelogin(userId, "gmail_invalid_token");
         throw new InvalidTokenError(ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED);
       }
       // Transient/non-auth failure (network, 5xx, rate limit): do NOT flag for
@@ -162,7 +162,10 @@ export class GmailSyncService {
       {},
     );
     if (!isRecentLogin) {
-      await this.usersService.update(userId, { needsRelogin: true });
+      await this.usersService.markNeedsRelogin(
+        userId,
+        "gmail_token_refresh_failed",
+      );
     }
     throw new Error("Token refresh failed - please log in again");
   }
@@ -668,7 +671,10 @@ export class GmailSyncService {
         { isRecentLogin, gracePeriodActive: isRecentLogin },
       );
       if (!isRecentLogin)
-        await this.usersService.update(userId, { needsRelogin: true });
+        await this.usersService.markNeedsRelogin(
+          userId,
+          "gmail_sync_auth_error",
+        );
     } else {
       this.logger.warn(
         `syncEmails: non-auth error for user ${userId} — NOT flagging relogin: ${formattedError}`,
@@ -694,7 +700,10 @@ export class GmailSyncService {
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken || !user.googleCalendarRefreshToken) {
       if (!user?.googleCalendarRefreshToken)
-        await this.usersService.update(userId, { needsRelogin: true });
+        await this.usersService.markNeedsRelogin(
+          userId,
+          "gmail_scan_missing_refresh_token",
+        );
       return;
     }
 
@@ -745,7 +754,10 @@ export class GmailSyncService {
         "GmailProvider",
       );
       if (isGmailAuthError(error))
-        await this.usersService.update(userId, { needsRelogin: true });
+        await this.usersService.markNeedsRelogin(
+          userId,
+          "gmail_scan_auth_error",
+        );
       throw error;
     }
   }
@@ -833,7 +845,10 @@ export class GmailSyncService {
     } catch (error) {
       await this.updateScanProgress(userId);
       if (isGmailAuthError(error))
-        await this.usersService.update(userId, { needsRelogin: true });
+        await this.usersService.markNeedsRelogin(
+          userId,
+          "gmail_scan_auth_error",
+        );
     }
   }
 

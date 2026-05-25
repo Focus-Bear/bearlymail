@@ -426,6 +426,9 @@ export class SubscriptionsService {
       subscriptionExpiresAt: Date | null;
       trialStartedAt: Date | null;
       createdAt: Date;
+      needsRelogin: boolean;
+      lastLogoutReason: string | null;
+      lastLogoutAt: Date | null;
     }>;
     total: number;
     page: number;
@@ -441,6 +444,9 @@ export class SubscriptionsService {
         "subscriptionExpiresAt",
         "trialStartedAt",
         "createdAt",
+        "needsRelogin",
+        "lastLogoutReason",
+        "lastLogoutAt",
       ],
       order: { createdAt: "DESC" },
       skip: (page - 1) * limit,
@@ -457,6 +463,9 @@ export class SubscriptionsService {
         subscriptionExpiresAt: user.subscriptionExpiresAt,
         trialStartedAt: user.trialStartedAt,
         createdAt: user.createdAt,
+        needsRelogin: user.needsRelogin === true,
+        lastLogoutReason: user.lastLogoutReason ?? null,
+        lastLogoutAt: user.lastLogoutAt ?? null,
       };
     });
 

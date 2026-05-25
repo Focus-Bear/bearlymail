@@ -187,6 +187,29 @@ describe("UsersService", () => {
     });
   });
 
+  describe("markNeedsRelogin", () => {
+    it("sets needsRelogin plus the logout reason and timestamp", async () => {
+      const existingUser = { ...mockUser };
+      jest
+        .spyOn(service, "findOneLightweight")
+        .mockResolvedValue(existingUser);
+      repository.findOne.mockResolvedValue(existingUser);
+      repository.save.mockImplementation(async (user) => user as User);
+
+      const before = Date.now();
+      await service.markNeedsRelogin("user-1", "gmail_invalid_token");
+      const after = Date.now();
+
+      expect(repository.save).toHaveBeenCalledTimes(1);
+      const saved = repository.save.mock.calls[0][0] as User;
+      expect(saved.needsRelogin).toBe(true);
+      expect(saved.lastLogoutReason).toBe("gmail_invalid_token");
+      expect(saved.lastLogoutAt).toBeInstanceOf(Date);
+      expect(saved.lastLogoutAt!.getTime()).toBeGreaterThanOrEqual(before);
+      expect(saved.lastLogoutAt!.getTime()).toBeLessThanOrEqual(after);
+    });
+  });
+
   describe("update", () => {
     it("should update user", async () => {
       const existingUser = { ...mockUser };

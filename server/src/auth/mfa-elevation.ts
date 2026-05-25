@@ -11,9 +11,9 @@ import { AUTH_CONSTANTS } from "../constants/auth-constants";
  * treated as not freshly elevated.
  */
 export function isMfaElevationFresh(mfaVerifiedAt: unknown): boolean {
-  return (
-    typeof mfaVerifiedAt === "number" &&
-    Number.isFinite(mfaVerifiedAt) &&
-    Date.now() - mfaVerifiedAt <= AUTH_CONSTANTS.MFA_ELEVATION_TTL_MS
-  );
+  if (typeof mfaVerifiedAt !== "number" || !Number.isFinite(mfaVerifiedAt)) {
+    return false;
+  }
+  const elapsed = Date.now() - mfaVerifiedAt;
+  return elapsed >= 0 && elapsed <= AUTH_CONSTANTS.MFA_ELEVATION_TTL_MS;
 }

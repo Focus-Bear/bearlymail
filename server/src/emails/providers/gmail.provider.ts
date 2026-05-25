@@ -234,11 +234,7 @@ export class GmailProvider implements EmailProvider {
 
     const isRecentLogin = this.gmailSyncService.isWithinGracePeriod(user);
     if (!user.googleCalendarRefreshToken) {
-      await this.gmailSyncService.handleMissingRefreshToken(
-        userId,
-        user,
-        isRecentLogin,
-      );
+      await this.gmailSyncService.handleMissingRefreshToken(userId, user);
     }
 
     const gmail = await this.createGmailClient(userId);
@@ -333,12 +329,11 @@ export class GmailProvider implements EmailProvider {
       this.logger.error(
         `sendReply failed for user ${userId} thread ${threadId}: ${formatGaxiosError(error)}`,
       );
-      if (isGmailAuthError(error)) {
-        this.logger.warn(
-          `[NEEDS_RELOGIN] sendReply: Gmail auth error for user ${userId} — flagging relogin`,
+      if (isGmailAuthError(error))
+        await this.usersService.markNeedsRelogin(
+          userId,
+          "gmail_send_auth_error",
         );
-        await this.usersService.update(userId, { needsRelogin: true });
-      }
       throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
     }
   }
@@ -383,12 +378,11 @@ export class GmailProvider implements EmailProvider {
       this.logger.error(
         `sendEmail failed for user ${userId}: ${formatGaxiosError(error)}`,
       );
-      if (isGmailAuthError(error)) {
-        this.logger.warn(
-          `[NEEDS_RELOGIN] sendEmail: Gmail auth error for user ${userId} — flagging relogin`,
+      if (isGmailAuthError(error))
+        await this.usersService.markNeedsRelogin(
+          userId,
+          "gmail_send_auth_error",
         );
-        await this.usersService.update(userId, { needsRelogin: true });
-      }
       throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);
     }
   }
@@ -687,7 +681,10 @@ export class GmailProvider implements EmailProvider {
       };
     } catch (error) {
       if (isGmailAuthError(error)) {
-        await this.usersService.update(userId, { needsRelogin: true });
+        await this.usersService.markNeedsRelogin(
+          userId,
+          "gmail_attachment_auth_error",
+        );
         this.logger.warn(
           `getAttachment auth failure — flagged user ${userId} as needsRelogin: ${formatGaxiosError(error)}`,
         );

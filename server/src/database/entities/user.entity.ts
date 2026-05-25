@@ -109,6 +109,22 @@ export class User {
   needsRelogin: boolean;
 
   @Column({
+    type: "text",
+    nullable: true,
+    comment:
+      "Diagnostic: machine code for the most recent forced logout / needsRelogin (e.g. gmail_invalid_token). Not PII.",
+  })
+  lastLogoutReason: string | null;
+
+  @Column({
+    type: "timestamptz",
+    nullable: true,
+    comment:
+      "Diagnostic: when the most recent forced logout / needsRelogin was recorded.",
+  })
+  lastLogoutAt: Date | null;
+
+  @Column({
     default: false,
     comment: "Track if user has completed onboarding tour",
   })

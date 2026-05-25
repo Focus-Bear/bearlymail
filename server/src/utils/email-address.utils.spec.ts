@@ -14,9 +14,7 @@ describe("parseRecipientsFromString", () => {
   });
 
   it("parses a comma-separated list of distinct recipients", () => {
-    expect(
-      parseRecipientsFromString("alice@a.com, Bob <bob@b.com>"),
-    ).toEqual([
+    expect(parseRecipientsFromString("alice@a.com, Bob <bob@b.com>")).toEqual([
       { email: "alice@a.com" },
       { name: "Bob", email: "bob@b.com" },
     ]);
@@ -24,8 +22,12 @@ describe("parseRecipientsFromString", () => {
 
   it("does NOT split on a comma inside a quoted display name", () => {
     expect(
-      parseRecipientsFromString('"Nagel, Jeremy - Founder" <jeremy@focusbear.io>'),
-    ).toEqual([{ name: "Nagel, Jeremy - Founder", email: "jeremy@focusbear.io" }]);
+      parseRecipientsFromString(
+        '"Nagel, Jeremy - Founder" <jeremy@focusbear.io>',
+      ),
+    ).toEqual([
+      { name: "Nagel, Jeremy - Founder", email: "jeremy@focusbear.io" },
+    ]);
   });
 
   it("handles a quoted comma name mixed with a bare email (reply-all case)", () => {
@@ -35,7 +37,10 @@ describe("parseRecipientsFromString", () => {
       ),
     ).toEqual([
       { email: "rohan@gmail.com" },
-      { name: "Jeremy Nagel - Founder, Focus Bear", email: "jeremy@focusbear.io" },
+      {
+        name: "Jeremy Nagel - Founder, Focus Bear",
+        email: "jeremy@focusbear.io",
+      },
     ]);
   });
 

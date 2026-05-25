@@ -24,4 +24,9 @@ describe("isMfaElevationFresh", () => {
     expect(isMfaElevationFresh("123")).toBe(false);
     expect(isMfaElevationFresh(NaN)).toBe(false);
   });
+
+  it("is false for a timestamp in the future (clock skew guard)", () => {
+    const futureTimestamp = Date.now() + 60_000;
+    expect(isMfaElevationFresh(futureTimestamp)).toBe(false);
+  });
 });

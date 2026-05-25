@@ -31,6 +31,9 @@ export interface UserWithSubscription {
   subscriptionExpiresAt: string | null;
   trialStartedAt: string | null;
   createdAt: string;
+  needsRelogin?: boolean;
+  lastLogoutReason?: string | null;
+  lastLogoutAt?: string | null;
 }
 
 export function useAdminDashboard() {

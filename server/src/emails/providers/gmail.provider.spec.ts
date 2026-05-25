@@ -47,6 +47,7 @@ describe("GmailProvider — validateToken", () => {
     usersService = {
       findOneWithTokens: jest.fn().mockResolvedValue(mockUser),
       update: jest.fn().mockResolvedValue(undefined),
+      markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
       incrementScanProgress: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
@@ -109,10 +110,11 @@ describe("GmailProvider — validateToken", () => {
       // syncEmails should resolve cleanly — no re-throw
       await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
 
-      // needsRelogin must be set immediately
-      expect(usersService.update).toHaveBeenCalledWith("user-123", {
-        needsRelogin: true,
-      });
+      // needsRelogin must be set immediately, with a recorded reason
+      expect(usersService.markNeedsRelogin).toHaveBeenCalledWith(
+        "user-123",
+        "gmail_invalid_token",
+      );
     });
 
     it("sets needsRelogin and resolves when response.data.error is invalid_grant", async () => {
@@ -122,9 +124,10 @@ describe("GmailProvider — validateToken", () => {
       mockGetAccessToken.mockRejectedValue(invalidGrantError);
 
       await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
-      expect(usersService.update).toHaveBeenCalledWith("user-123", {
-        needsRelogin: true,
-      });
+      expect(usersService.markNeedsRelogin).toHaveBeenCalledWith(
+        "user-123",
+        "gmail_invalid_token",
+      );
     });
 
     it("sets needsRelogin via message string fallback when no response.data is present", async () => {
@@ -133,13 +136,14 @@ describe("GmailProvider — validateToken", () => {
       mockGetAccessToken.mockRejectedValue(plainError);
 
       await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
-      expect(usersService.update).toHaveBeenCalledWith("user-123", {
-        needsRelogin: true,
-      });
+      expect(usersService.markNeedsRelogin).toHaveBeenCalledWith(
+        "user-123",
+        "gmail_invalid_token",
+      );
     });
 
-    it("only calls usersService.update once (from validateToken, not handleTokenValidationError)", async () => {
-      // If handleTokenValidationError were invoked it would call update again;
+    it("flags needsRelogin exactly once (from validateToken, not handleTokenValidationError)", async () => {
+      // If handleTokenValidationError were invoked it would flag again;
       // there must be exactly one call.
       const invalidTokenError = Object.assign(new Error("invalid_token"), {
         response: { data: { error: "invalid_token" } },
@@ -148,7 +152,7 @@ describe("GmailProvider — validateToken", () => {
 
       await provider.syncEmails("user-123");
 
-      expect(usersService.update).toHaveBeenCalledTimes(1);
+      expect(usersService.markNeedsRelogin).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -168,28 +172,17 @@ describe("GmailProvider — validateToken", () => {
       // Since it rejected, we know handleTokenValidationError was invoked.
     });
 
-    it("does NOT set needsRelogin immediately when getAccessToken throws a generic error", async () => {
+    it("does NOT flag needsRelogin via the invalid-token path for a generic error", async () => {
       const genericError = new Error("Something unrelated");
       mockGetAccessToken.mockRejectedValue(genericError);
 
       await expect(provider.syncEmails("user-123")).rejects.toThrow();
 
-      // update should NOT have been called with needsRelogin by our new path
-      // (the invalid-token early-return sets needsRelogin before throwing
-      // InvalidTokenError — a generic error must NOT trigger that path)
-      const invalidTokenPathCall = usersService.update.mock.calls.find(
-        (call) =>
-          typeof call[1] === "object" &&
-          call[1] !== null &&
-          "needsRelogin" in (call[1] as object) &&
-          // Only 1 call means it went through handleTokenValidationError, not both
-          usersService.update.mock.calls.length === 1,
-      );
-      // Existence of exactly 1 update call (not 2) proves the code didn't
-      // double-set via the invalid-token path
-      expect(usersService.update.mock.calls.length).toBeLessThanOrEqual(1);
-      // suppress unused-variable lint
-      void invalidTokenPathCall;
+      // A generic error must not take the invalid-token early-return (which would
+      // resolve and flag "gmail_invalid_token"). Since this user is within the
+      // login grace period, handleTokenValidationError also skips flagging — so
+      // markNeedsRelogin must not have been called at all.
+      expect(usersService.markNeedsRelogin).not.toHaveBeenCalled();
     });
   });
 
@@ -226,6 +219,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
         updatedAt: new Date(),
       }),
       update: jest.fn().mockResolvedValue(undefined),
+      markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
       incrementScanProgress: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 

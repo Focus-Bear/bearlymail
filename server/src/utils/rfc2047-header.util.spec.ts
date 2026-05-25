@@ -73,9 +73,7 @@ describe("rfc2047-header.util", () => {
     });
 
     it("escapes embedded quotes and backslashes when quoting", () => {
-      expect(encodeMailboxDisplayName('Smith, "AJ"')).toBe(
-        '"Smith, \\"AJ\\""',
-      );
+      expect(encodeMailboxDisplayName('Smith, "AJ"')).toBe('"Smith, \\"AJ\\""');
     });
 
     it("returns empty string unchanged", () => {

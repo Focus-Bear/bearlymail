@@ -4,6 +4,7 @@ import { IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import {
   DeletedAccount,
   DeletionReason,
@@ -12,6 +13,7 @@ import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
 const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
+const RECENT_LOGIN_GRACE_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
 
 /**
  * Stack-frame window captured for `[NEEDS_RELOGIN]` diagnostics. We skip the
@@ -68,6 +70,38 @@ export class UsersService {
       `[NEEDS_RELOGIN] user=${id} ` +
         `coUpdatedFields=[${otherFields.join(",")}] caller: ${callerStack || "unavailable"}`,
     );
+  }
+
+  /**
+   * Flag a user as needing re-login and record *why*, for the admin logout
+   * diagnostics view. Use this instead of `update(id, { needsRelogin: true })`
+   * at every forced-logout site so the reason is always captured. The reason is
+   * a short machine code (e.g. "gmail_invalid_token"), never PII.
+   *
+   * Centralised guards:
+   *   - skip if the user just logged in (5-min grace window) — avoids false
+   *     logouts when token propagation hasn't settled yet
+   *   - skip if `needsRelogin` is already true — avoids redundant DB writes
+   *     and `[NEEDS_RELOGIN]` log spam
+   *
+   * Emits a WARN line (visible in CloudWatch) — file-based debug logging is a
+   * no-op in production, so console logging is the only reliable signal there.
+   */
+  async markNeedsRelogin(userId: string, reason: string): Promise<void> {
+    const user = await this.findOneLightweight(userId);
+    if (!user) return;
+
+    const recentLoginCutoff = new Date(Date.now() - RECENT_LOGIN_GRACE_MS);
+    const isRecentLogin =
+      !!user.updatedAt && user.updatedAt > recentLoginCutoff;
+    if (isRecentLogin || user.needsRelogin) return;
+
+    this.logger.warn(`[NEEDS_RELOGIN] user=${userId} reason=${reason}`);
+    await this.update(userId, {
+      needsRelogin: true,
+      lastLogoutReason: reason,
+      lastLogoutAt: new Date(),
+    });
   }
 
   async create(userData: Partial<User>): Promise<User> {

@@ -12,6 +12,8 @@
       "extendTrial": "Ampliar la prueba",
       "jobs": "Empleos",
       "joined": "Unido",
+      "lastLogout": "Último cierre de sesión forzado:",
+      "needsReloginNow": "actualmente necesita volver a iniciar sesión",
       "loading": "Cargando...",
       "noApprovedEntries": "No hay entradas aprobadas",
       "noName": "Sin nombre",

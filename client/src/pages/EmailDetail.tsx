@@ -627,6 +627,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 ops.handleSendReply({
                   files: params.files,
                   expectedReplyHours: params.expectedReplyHours,
+                  expectedReplyDuration: params.expectedReplyDuration,
                   forwardAttachmentIds: params.forwardAttachmentIds,
                   draftOverride: params.draftOverride,
                   scheduledSendAt: params.scheduledSendAt,

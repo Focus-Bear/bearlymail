@@ -80,6 +80,7 @@ interface ReplyComposerProps {
   onSend: (params: {
     files?: File[];
     expectedReplyHours?: number;
+    expectedReplyDuration?: string;
     forwardAttachmentIds?: string[];
     draftOverride?: string;
     scheduledSendAt?: Date;
@@ -211,7 +212,8 @@ const useReplyComposerState = (
     expectedReplyHours?: number,
     draftOverride?: string,
     scheduledAt?: Date,
-    keepInAction?: boolean
+    keepInAction?: boolean,
+    expectedReplyDuration?: string
   ) => {
     // Capture the current attachment lists before calling onSend so they are
     // passed by value to the send handler.  Do NOT clear them here — if the
@@ -224,6 +226,7 @@ const useReplyComposerState = (
     onSend({
       files: currentFiles,
       expectedReplyHours,
+      expectedReplyDuration,
       forwardAttachmentIds: currentForwardIds,
       draftOverride,
       scheduledSendAt: scheduledAt,
@@ -348,7 +351,13 @@ interface ReplyComposerBodyProps {
   onRemoveForwardAttachment: (attachmentId: string) => void;
   onUseRevisedText: (text: string) => void;
   onClose: () => void;
-  onSend: (expectedReplyHours?: number, draftOverride?: string, scheduledAt?: Date, keepInAction?: boolean) => void;
+  onSend: (
+    expectedReplyHours?: number,
+    draftOverride?: string,
+    scheduledAt?: Date,
+    keepInAction?: boolean,
+    expectedReplyDuration?: string
+  ) => void;
   onSchedule?: () => void;
   onClearSchedule?: () => void;
   onDismissToneCheck?: () => void;

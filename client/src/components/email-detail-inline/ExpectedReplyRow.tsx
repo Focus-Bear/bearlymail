@@ -3,26 +3,25 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { InfoTooltip } from './InfoTooltip';
-import { EXPECTED_REPLY_OPTIONS } from './useReplyComposerFooter';
 
 interface ExpectedReplyRowProps {
-  expectedReplyHours: number;
+  followUpDuration: string;
   sending: boolean;
   checkingTone: boolean;
   tooltipText: string;
-  getOptionLabel: (option: (typeof EXPECTED_REPLY_OPTIONS)[number]) => string;
-  onChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
+  onChange: (value: string) => void;
 }
 
 /**
- * Row showing the "Expect a reply within" dropdown with an info tooltip.
+ * Row with the "Expect a reply within" free-text input. Accepts the same
+ * natural-language syntax as the snooze input ("48h", "3d", "next Monday",
+ * "5pm"); leaving it blank means no follow-up.
  */
 export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
-  expectedReplyHours,
+  followUpDuration,
   sending,
   checkingTone,
   tooltipText,
-  getOptionLabel,
   onChange,
 }) => {
   const { t } = useTranslation();
@@ -43,10 +42,14 @@ export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
         {t('emailDetail.expectedReply.label')}
         <InfoTooltip text={tooltipText} />
       </span>
-      <select
-        value={expectedReplyHours}
-        onChange={onChange}
+      <input
+        type="text"
+        value={followUpDuration}
+        onChange={event => onChange(event.target.value)}
         disabled={isDisabled}
+        placeholder={t('emailDetail.expectedReply.customPlaceholder')}
+        title={t('emailDetail.expectedReply.customTooltip')}
+        aria-label={t('emailDetail.expectedReply.label')}
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
           border: `1px solid ${theme.colors.border.light}`,
@@ -54,15 +57,11 @@ export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
           backgroundColor: theme.colors.background.subtle,
           color: theme.colors.text.secondary,
           fontSize: theme.typography.fontSize.xs,
-          cursor: isDisabled ? 'not-allowed' : 'pointer',
+          width: '150px',
+          outline: 'none',
+          cursor: isDisabled ? 'not-allowed' : 'text',
         }}
-      >
-        {EXPECTED_REPLY_OPTIONS.map(option => (
-          <option key={option.value} value={option.value}>
-            {getOptionLabel(option)}
-          </option>
-        ))}
-      </select>
+      />
     </div>
   );
 };

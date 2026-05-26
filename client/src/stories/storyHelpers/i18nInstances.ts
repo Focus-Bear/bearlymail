@@ -83,6 +83,9 @@ replyComposerI18n.use(initReactI18next).init({
         'emailDetail.expectedReply.none': 'No follow-up',
         'emailDetail.expectedReply.hours': '{{count}}h',
         'emailDetail.expectedReply.days': '{{count}}d',
+        'emailDetail.expectedReply.customPlaceholder': 'e.g., 48h, 3d, next Monday',
+        'emailDetail.expectedReply.customTooltip':
+          "Enter a time like '48h', '3d', '5pm', 'tomorrow', or 'next Monday'. Leave blank for no follow-up.",
         'emailDetail.expectedReplyTooltip.none': 'No follow-up reminder will be set for this email.',
         'emailDetail.expectedReplyTooltip.hours':
           "If they don't reply within {{count}}h, the email will reappear in your follow-up inbox.",

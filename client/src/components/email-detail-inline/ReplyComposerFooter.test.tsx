@@ -36,55 +36,59 @@ describe('ReplyComposerFooter', () => {
     jest.clearAllMocks();
   });
 
-  describe('onSend called with correct expectedReplyHours', () => {
-    it('sends 48 (default) when Send is clicked without changing selection', () => {
+  describe('follow-up duration input', () => {
+    const getInput = () => screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
+
+    it('renders a free-text input pre-filled with the default duration (no dropdown)', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 
-      fireEvent.click(screen.getByText('emailDetail.send'));
-
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined, false);
+      expect(getInput()).toHaveValue('48h');
+      expect(screen.queryByRole('combobox')).toBeNull();
     });
 
-    it('sends 0 when "None" is selected', () => {
+    it('sends the default duration string when Send is clicked unchanged', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: '0' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      // Must pass 0 (not undefined) so archive branch is reached
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '48h');
+    });
+
+    it('sends a typed natural-language duration string', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      fireEvent.change(getInput(), { target: { value: 'next Monday' } });
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, 'next Monday');
+    });
+
+    it('trims the typed duration before sending', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      fireEvent.change(getInput(), { target: { value: '  3d  ' } });
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '3d');
+    });
+
+    it('sends 0 hours (no follow-up) when the input is cleared', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      fireEvent.change(getInput(), { target: { value: '' } });
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      // Must pass 0 (not a duration) so the archive branch is reached.
       expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined, false);
-      expect(defaultProps.onSend).not.toHaveBeenCalledWith(undefined, undefined, undefined, false);
     });
 
-    it('sends 24 when 24h option is selected', () => {
+    it('treats a whitespace-only value as no follow-up', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: '24' } });
+      fireEvent.change(getInput(), { target: { value: '   ' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(24, undefined, undefined, false);
-    });
-
-    it('sends 72 when 3d option is selected', () => {
-      render(<ReplyComposerFooter {...defaultProps} />);
-
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: '72' } });
-      fireEvent.click(screen.getByText('emailDetail.send'));
-
-      expect(defaultProps.onSend).toHaveBeenCalledWith(72, undefined, undefined, false);
-    });
-
-    it('sends 168 when 7d option is selected', () => {
-      render(<ReplyComposerFooter {...defaultProps} />);
-
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: '168' } });
-      fireEvent.click(screen.getByText('emailDetail.send'));
-
-      expect(defaultProps.onSend).toHaveBeenCalledWith(168, undefined, undefined, false);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined, false);
     });
   });
 
@@ -95,7 +99,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, scheduledTime, false);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, scheduledTime, false, '48h');
     });
 
     it('sends undefined for scheduledSendAt when not provided', () => {
@@ -103,7 +107,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined, false);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '48h');
     });
   });
 
@@ -113,7 +117,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined, false);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '48h');
     });
 
     it('sends keepInAction=true when checkbox is checked', () => {
@@ -123,7 +127,7 @@ describe('ReplyComposerFooter', () => {
       fireEvent.click(checkbox);
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined, true);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, true, '48h');
     });
 
     it('renders "I still need to take action" label via i18n key', () => {
@@ -263,8 +267,8 @@ describe('ReplyComposerFooter', () => {
       const allButtons = within(popup).getAllByRole('button');
       const suggestionButtons = allButtons.slice(0, -1);
       fireEvent.click(suggestionButtons[0]);
-      // onSend should be called with a Date
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, expect.any(Date), false);
+      // onSend should be called with a Date (and the default follow-up duration)
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, expect.any(Date), false, '48h');
     });
 
     it('closes popup when Escape is pressed', () => {

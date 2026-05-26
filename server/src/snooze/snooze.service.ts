@@ -1,14 +1,12 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import * as chrono from "chrono-node";
 import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
-import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
-import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { parseDurationToDate } from "./parse-duration";
 
 @Injectable()
 export class SnoozeService {
@@ -162,64 +160,6 @@ export class SnoozeService {
   }
 
   private parseDuration(duration: string): Date {
-    const normalized = duration.toLowerCase().trim();
-    const now = new Date();
-
-    const dayMap: { [key: string]: number } = {
-      sun: 0,
-      mon: 1,
-      tue: 2,
-      wed: 3,
-      thu: 4,
-      fri: 5,
-      sat: 6,
-    };
-
-    if (dayMap[normalized] !== undefined) {
-      const targetDay = dayMap[normalized];
-      const currentDay = now.getDay();
-      let daysUntil = targetDay - currentDay;
-
-      if (daysUntil <= 0) {
-        daysUntil += SNOOZE_CONSTANTS.DAYS_IN_WEEK;
-      }
-
-      const nextDate = new Date(now);
-      nextDate.setDate(now.getDate() + daysUntil);
-      nextDate.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
-
-      return nextDate;
-    }
-
-    const parsed = chrono.parseDate(normalized);
-    if (parsed) {
-      return parsed;
-    }
-
-    const regex = /^(\d+)\s*(m|min|h|hr|d|w)$/;
-    const match = normalized.match(regex);
-
-    if (match) {
-      const value = parseInt(match[1]);
-      const unit = match[2];
-
-      switch (unit) {
-        case "m":
-        case "min":
-          return new Date(now.getTime() + value * MILLISECONDS.MINUTE);
-        case "h":
-        case "hr":
-          return new Date(now.getTime() + value * MILLISECONDS.HOUR);
-        case "d":
-          return new Date(now.getTime() + value * MILLISECONDS.DAY);
-        case "w":
-          return new Date(
-            now.getTime() +
-              value * SNOOZE_CONSTANTS.DAYS_IN_WEEK * MILLISECONDS.DAY,
-          );
-      }
-    }
-
-    return new Date(now.getTime() + MILLISECONDS.HOUR);
+    return parseDurationToDate(duration);
   }
 }

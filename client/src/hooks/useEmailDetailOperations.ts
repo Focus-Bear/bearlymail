@@ -671,6 +671,7 @@ export function useEmailDetailOperations(
       sendOptions: {
         files?: File[];
         expectedReplyHours?: number;
+        expectedReplyDuration?: string;
         forwardAttachmentIds?: string[];
         draftOverride?: string;
         scheduledSendAt?: Date;
@@ -681,6 +682,7 @@ export function useEmailDetailOperations(
       const {
         files = [],
         expectedReplyHours,
+        expectedReplyDuration,
         forwardAttachmentIds,
         draftOverride,
         scheduledSendAt,
@@ -777,6 +779,7 @@ export function useEmailDetailOperations(
           replyMode: currentReplyMode,
           subject: currentReplySubject || undefined,
           expectedReplyHours,
+          expectedReplyDuration,
           scheduledSendAt,
           files,
           inlineImages,
@@ -799,6 +802,7 @@ export function useEmailDetailOperations(
           routeAfterSend({
             keepInAction,
             expectedReplyHours,
+            expectedReplyDuration,
             scheduledSendAt,
             performArchiveAfterReply,
             performSnoozeAfterReply,

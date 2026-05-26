@@ -24,6 +24,7 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { EmailsService } from "../emails/emails.service";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
+import { durationToHours } from "../snooze/parse-duration";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
 import { buildReplySubject } from "../utils/reply-subject.util";
 import { RepliesService, ReplyRule } from "./replies.service";
@@ -107,6 +108,12 @@ export class RepliesController {
       replyAll?: boolean | string;
       isForward?: boolean | string;
       expectedReplyHours?: number | string;
+      /**
+       * Free-text follow-up window ("3d", "next Monday", "5pm"), parsed with
+       * the same parser as snooze. When present it takes precedence over
+       * expectedReplyHours and is converted to whole hours.
+       */
+      expectedReplyDuration?: string;
       forwardAttachmentIds?: string | string[];
       scheduledSendAt?: string;
       userTimezone?: string;
@@ -150,10 +157,17 @@ export class RepliesController {
     const forwardAttachmentIds = this.parseForwardAttachmentIds(
       body.forwardAttachmentIds,
     );
-    const expectedReplyHours =
-      typeof body.expectedReplyHours === "string"
-        ? parseInt(body.expectedReplyHours, 10)
-        : body.expectedReplyHours;
+    // A custom free-text follow-up window is parsed (identically to snooze)
+    // into whole hours and overrides the preset expectedReplyHours value.
+    const customDuration = body.expectedReplyDuration?.trim();
+    let expectedReplyHours: number | undefined;
+    if (customDuration) {
+      expectedReplyHours = durationToHours(customDuration);
+    } else if (typeof body.expectedReplyHours === "string") {
+      expectedReplyHours = parseInt(body.expectedReplyHours, 10);
+    } else {
+      ({ expectedReplyHours } = body);
+    }
     const isForward =
       typeof body.isForward === "string"
         ? body.isForward === BOOLEAN_STRING_VALUES.TRUE

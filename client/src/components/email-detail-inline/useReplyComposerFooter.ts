@@ -4,19 +4,14 @@ import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 
-export const DEFAULT_EXPECTED_REPLY_HOURS = 48;
+/**
+ * Default follow-up window pre-filled into the (editable) free-text input.
+ * Clearing the field means "no follow-up".
+ */
+export const DEFAULT_FOLLOW_UP_DURATION = '48h';
 
-const LABEL_KEY_NONE = 'none';
-const LABEL_KEY_HOURS = 'hours';
-const LABEL_KEY_DAYS = 'days';
-
-export const EXPECTED_REPLY_OPTIONS = [
-  { value: 0, labelKey: LABEL_KEY_NONE },
-  { value: 24, labelKey: LABEL_KEY_HOURS, count: 24 },
-  { value: 48, labelKey: LABEL_KEY_HOURS, count: 48 },
-  { value: 72, labelKey: LABEL_KEY_DAYS, count: 3 },
-  { value: 168, labelKey: LABEL_KEY_DAYS, count: 7 },
-] as const;
+// expectedReplyHours value that maps to "no follow-up" (archive after reply).
+const NO_FOLLOW_UP_HOURS = 0;
 
 export interface ReplyComposerFooterProps {
   sending: boolean;
@@ -24,7 +19,13 @@ export interface ReplyComposerFooterProps {
   draft: string | null;
   scheduledSendAt?: Date | null;
   onClose: () => void;
-  onSend: (expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date, keepInAction?: boolean) => void;
+  onSend: (
+    expectedReplyHours?: number,
+    draftOverride?: string,
+    scheduledSendAt?: Date,
+    keepInAction?: boolean,
+    expectedReplyDuration?: string
+  ) => void;
   onSchedule?: () => void;
   onClearSchedule?: () => void;
 }
@@ -37,27 +38,14 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
   const { sending, checkingTone, draft, scheduledSendAt, onSend, onSchedule } = props;
   const { t } = useTranslation();
 
-  const [expectedReplyHours, setExpectedReplyHours] = useState<number>(DEFAULT_EXPECTED_REPLY_HOURS);
+  const [followUpDuration, setFollowUpDuration] = useState<string>(DEFAULT_FOLLOW_UP_DURATION);
   const [keepInAction, setKeepInAction] = useState<boolean>(false);
   const [showSchedulePopup, setShowSchedulePopup] = useState<boolean>(false);
   const scheduleButtonRef = useRef<HTMLDivElement>(null);
 
+  const trimmedDuration = followUpDuration.trim();
+  const hasFollowUp = trimmedDuration.length > 0;
   const isDisabled = !draft || sending || checkingTone;
-
-  const getOptionLabel = (option: (typeof EXPECTED_REPLY_OPTIONS)[number]): string => {
-    if (option.labelKey === LABEL_KEY_NONE) {
-      return t('emailDetail.expectedReply.none');
-    }
-    return t(`emailDetail.expectedReply.${option.labelKey}`, { count: option.count });
-  };
-
-  const getSelectedOptionLabel = (): string => {
-    const selected = EXPECTED_REPLY_OPTIONS.find(opt => opt.value === expectedReplyHours);
-    if (!selected || selected.value === 0) {
-      return '';
-    }
-    return getOptionLabel(selected);
-  };
 
   const getButtonText = (): string => {
     if (checkingTone) {
@@ -66,15 +54,23 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
     return sending ? t('emailDetail.sending') : t('emailDetail.send');
   };
 
-  const handleSend = () => {
-    captureEvent(ANALYTICS_EVENTS.REPLY_SENT, {
-      expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null,
-    });
-    onSend(expectedReplyHours, undefined, scheduledSendAt || undefined, keepInAction);
+  const followUpAnalytics = () => ({
+    expected_reply_duration: hasFollowUp ? trimmedDuration : null,
+  });
+
+  // An empty field means "no follow-up" (archive after reply); otherwise the
+  // raw duration string is sent and parsed server-side, exactly like a snooze.
+  const dispatchSend = (sendAt?: Date) => {
+    if (hasFollowUp) {
+      onSend(undefined, undefined, sendAt, keepInAction, trimmedDuration);
+    } else {
+      onSend(NO_FOLLOW_UP_HOURS, undefined, sendAt, keepInAction);
+    }
   };
 
-  const handleExpectedReplyChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setExpectedReplyHours(Number(event.target.value));
+  const handleSend = () => {
+    captureEvent(ANALYTICS_EVENTS.REPLY_SENT, followUpAnalytics());
+    dispatchSend(scheduledSendAt || undefined);
   };
 
   const handleScheduleIconClick = () => {
@@ -85,10 +81,8 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
 
   const handleSelectSuggestion = (date: Date) => {
     setShowSchedulePopup(false);
-    captureEvent(ANALYTICS_EVENTS.REPLY_SCHEDULED, {
-      expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null,
-    });
-    onSend(expectedReplyHours, undefined, date, keepInAction);
+    captureEvent(ANALYTICS_EVENTS.REPLY_SCHEDULED, followUpAnalytics());
+    dispatchSend(date);
   };
 
   const handlePickCustom = () => {
@@ -98,13 +92,13 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
     }
   };
 
-  const expectedReplyTooltip =
-    expectedReplyHours > 0
-      ? t('emailDetail.expectedReply.tooltip', { time: getSelectedOptionLabel() })
-      : t('emailDetail.expectedReply.tooltipNoFollowUp');
+  const expectedReplyTooltip = hasFollowUp
+    ? t('emailDetail.expectedReply.tooltip', { time: trimmedDuration })
+    : t('emailDetail.expectedReply.tooltipNoFollowUp');
 
   return {
-    expectedReplyHours,
+    followUpDuration,
+    setFollowUpDuration,
     keepInAction,
     setKeepInAction,
     showSchedulePopup,
@@ -112,10 +106,8 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
     scheduleButtonRef,
     isDisabled,
     getButtonText,
-    getOptionLabel,
     expectedReplyTooltip,
     handleSend,
-    handleExpectedReplyChange,
     handleScheduleIconClick,
     handleSelectSuggestion,
     handlePickCustom,

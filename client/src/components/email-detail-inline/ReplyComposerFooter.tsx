@@ -22,12 +22,11 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = props => 
       {scheduledSendAt && <ScheduledTimeBanner scheduledSendAt={scheduledSendAt} onClearSchedule={onClearSchedule} />}
 
       <ExpectedReplyRow
-        expectedReplyHours={hook.expectedReplyHours}
+        followUpDuration={hook.followUpDuration}
         sending={sending}
         checkingTone={checkingTone}
         tooltipText={hook.expectedReplyTooltip}
-        getOptionLabel={hook.getOptionLabel}
-        onChange={hook.handleExpectedReplyChange}
+        onChange={hook.setFollowUpDuration}
       />
 
       <ActionCheckboxRow

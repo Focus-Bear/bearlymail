@@ -19,6 +19,12 @@ export interface SendReplyPayload {
   replyMode: string;
   subject?: string;
   expectedReplyHours?: number;
+  /**
+   * Free-text follow-up window ("3d", "next Monday") typed via the custom
+   * option. Parsed server-side with the same parser as snooze. Takes
+   * precedence over expectedReplyHours when set.
+   */
+  expectedReplyDuration?: string;
   scheduledSendAt?: Date;
   files: File[];
   /** Inline images keyed by their CID (from <img src="cid:…"> in the draft). */
@@ -44,6 +50,9 @@ export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   }
   if (payload.expectedReplyHours !== undefined) {
     formData.append('expectedReplyHours', String(payload.expectedReplyHours));
+  }
+  if (payload.expectedReplyDuration) {
+    formData.append('expectedReplyDuration', payload.expectedReplyDuration);
   }
   if (payload.scheduledSendAt) {
     formData.append('scheduledSendAt', payload.scheduledSendAt.toISOString());
@@ -79,6 +88,7 @@ export async function sendReplyRequest(payload: SendReplyPayload): Promise<void>
       subject: payload.subject || undefined,
       forwardAttachmentIds: payload.forwardAttachmentIds?.length ? payload.forwardAttachmentIds : undefined,
       expectedReplyHours: payload.expectedReplyHours,
+      expectedReplyDuration: payload.expectedReplyDuration || undefined,
       scheduledSendAt: payload.scheduledSendAt?.toISOString(),
     });
   }
@@ -87,6 +97,8 @@ export async function sendReplyRequest(payload: SendReplyPayload): Promise<void>
 export interface PostSendRoutingParams {
   keepInAction?: boolean;
   expectedReplyHours?: number;
+  /** Raw free-text follow-up window typed via the custom option. */
+  expectedReplyDuration?: string;
   scheduledSendAt?: Date;
   performArchiveAfterReply: () => void;
   performSnoozeAfterReply: (duration: string) => void;
@@ -97,6 +109,7 @@ export interface PostSendRoutingParams {
 export function routeAfterSend({
   keepInAction,
   expectedReplyHours,
+  expectedReplyDuration,
   scheduledSendAt,
   performArchiveAfterReply,
   performSnoozeAfterReply,
@@ -104,6 +117,12 @@ export function routeAfterSend({
   getInboxPath,
 }: PostSendRoutingParams): void {
   if (keepInAction) {
+    return;
+  }
+  // A custom follow-up window is snoozed with the raw text the user typed; the
+  // snooze endpoint parses it with the same parser used for expectedReplyHours.
+  if (expectedReplyDuration) {
+    performSnoozeAfterReply(expectedReplyDuration);
     return;
   }
   if (expectedReplyHours !== undefined) {

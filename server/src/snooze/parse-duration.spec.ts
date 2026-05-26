@@ -1,0 +1,83 @@
+import * as chrono from "chrono-node";
+
+import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
+import { MILLISECONDS } from "../constants/time-constants";
+import { durationToHours, parseDurationToDate } from "./parse-duration";
+
+jest.mock("chrono-node", () => ({
+  parseDate: jest.fn(),
+}));
+
+const mockedParseDate = chrono.parseDate as jest.Mock;
+
+describe("parse-duration", () => {
+  // Fixed reference time so relative durations and day-names are deterministic.
+  const now = new Date("2026-05-26T10:00:00.000Z");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: chrono can't parse the input, so relative/day-name handling runs.
+    mockedParseDate.mockReturnValue(null);
+  });
+
+  describe("parseDurationToDate", () => {
+    it("parses relative durations (m/h/d/w) from now", () => {
+      expect(parseDurationToDate("90m", now).getTime()).toBe(
+        now.getTime() + 90 * MILLISECONDS.MINUTE,
+      );
+      expect(parseDurationToDate("4h", now).getTime()).toBe(
+        now.getTime() + 4 * MILLISECONDS.HOUR,
+      );
+      expect(parseDurationToDate("3d", now).getTime()).toBe(
+        now.getTime() + 3 * MILLISECONDS.DAY,
+      );
+      expect(parseDurationToDate("2w", now).getTime()).toBe(
+        now.getTime() + 2 * SNOOZE_CONSTANTS.DAYS_IN_WEEK * MILLISECONDS.DAY,
+      );
+    });
+
+    it("resolves day names to the next occurrence at the default snooze hour", () => {
+      const result = parseDurationToDate("mon", now);
+      expect(result.getTime()).toBeGreaterThan(now.getTime());
+      expect(result.getHours()).toBe(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR);
+    });
+
+    it("defers to chrono for natural-language input", () => {
+      const chronoResult = new Date(now.getTime() + 5 * MILLISECONDS.HOUR);
+      mockedParseDate.mockReturnValue(chronoResult);
+
+      expect(parseDurationToDate("in 5 hours", now)).toBe(chronoResult);
+      expect(mockedParseDate).toHaveBeenCalledWith("in 5 hours", now);
+    });
+
+    it("falls back to one hour out when nothing parses", () => {
+      expect(parseDurationToDate("zzzzz", now).getTime()).toBe(
+        now.getTime() + MILLISECONDS.HOUR,
+      );
+    });
+  });
+
+  describe("durationToHours", () => {
+    it("converts relative durations to whole hours, rounding up", () => {
+      expect(durationToHours("4h", now)).toBe(4);
+      expect(durationToHours("3d", now)).toBe(72);
+      expect(durationToHours("2w", now)).toBe(336);
+      // 90 minutes rounds up to 2 hours.
+      expect(durationToHours("90m", now)).toBe(2);
+    });
+
+    it("never returns less than one hour (past or sub-hour targets)", () => {
+      mockedParseDate.mockReturnValue(
+        new Date(now.getTime() - MILLISECONDS.DAY),
+      );
+      expect(durationToHours("yesterday", now)).toBe(1);
+    });
+
+    it("converts a chrono-parsed absolute time to hours from now", () => {
+      mockedParseDate.mockReturnValue(
+        new Date(now.getTime() + 6 * MILLISECONDS.HOUR),
+      );
+      expect(durationToHours("5pm", now)).toBe(6);
+    });
+  });
+});

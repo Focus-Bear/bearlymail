@@ -63,7 +63,10 @@ export class EmailBacklogService {
       .addSelect("e.emailThreadId", "threadId")
       .where("e.emailThreadId IN (:...threadIds)", { threadIds })
       .andWhere(
-        "e.receivedAt = (SELECT MAX(e2.receivedAt) FROM emails e2 WHERE e2.emailThreadId = e.emailThreadId)",
+        // Identifiers in this raw subquery must be double-quoted: Postgres folds
+        // unquoted identifiers to lowercase, so `e2.receivedAt` would become
+        // `e2.receivedat` (which doesn't exist) and throw at runtime.
+        'e."receivedAt" = (SELECT MAX(e2."receivedAt") FROM emails e2 WHERE e2."emailThreadId" = e."emailThreadId")',
       )
       .getRawMany<{ id: string; threadId: string }>();
 

@@ -128,6 +128,22 @@ describe("EmailBacklogService", () => {
         expect.any(Object),
       );
     });
+
+    it("double-quotes camelCase identifiers in the latest-email subquery", async () => {
+      threadRepo.find.mockResolvedValue([{ id: "thread-1" }] as EmailThread[]);
+      const qb = mockQb([{ id: "email-1", threadId: "thread-1" }]);
+
+      await service.queueBacklogProcessing("user-1");
+
+      // The ad-hoc `e2` subquery alias is not rewritten by TypeORM, so its
+      // camelCase columns must be explicitly double-quoted — otherwise Postgres
+      // folds them to lowercase and throws `column e2.receivedat does not exist`.
+      const rawWhere = (qb.andWhere as jest.Mock).mock.calls
+        .map((args) => String(args[0]))
+        .join("\n");
+      expect(rawWhere).toContain('e2."receivedAt"');
+      expect(rawWhere).toContain('e2."emailThreadId"');
+    });
   });
 
   describe("getBacklogProgress", () => {

@@ -16,13 +16,33 @@ import {
   CompositeCategoryRuleSpecV3,
 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
+import { buildRuleMatchText } from "../llm/email-content-cleaner";
 import {
   evaluateComposite,
   specToV2,
 } from "./category-rules-auto-composite.helper";
 
 /** A single email reduced to the fields needed for composite matching. */
-export type MatchScanRow = Pick<Email, "from" | "subject" | "body">;
+export type MatchScanRow = Pick<
+  Email,
+  "from" | "subject" | "body" | "htmlBody"
+>;
+
+/**
+ * Caches the cleaned match text per row so repeated `countMatchesInRows`
+ * calls against the same rows (one per candidate spec) avoid re-running the
+ * HTML-stripping pipeline. Keyed by the row object so entries are GC'd with
+ * the row.
+ */
+const cleanedBodyCache = new WeakMap<MatchScanRow, string>();
+
+function getCleanedBodyForMatch(row: MatchScanRow): string {
+  const cached = cleanedBodyCache.get(row);
+  if (cached !== undefined) return cached;
+  const cleaned = buildRuleMatchText(row.body, row.htmlBody);
+  cleanedBodyCache.set(row, cleaned);
+  return cleaned;
+}
 
 /**
  * Fetches the user's most recent emails for in-memory match scanning. Email
@@ -39,7 +59,7 @@ export async function fetchRecentEmailsForMatching(
     where: { userId },
     order: { receivedAt: "DESC" },
     take: scanCount,
-    select: ["from", "subject", "body"],
+    select: ["from", "subject", "body", "htmlBody"],
   });
 }
 
@@ -56,7 +76,7 @@ export function countMatchesInRows(
       {
         from: row.from || "",
         subject: row.subject || "",
-        bodyTextForMatch: row.body || "",
+        bodyTextForMatch: getCleanedBodyForMatch(row),
       },
       normaliseSender,
     );

@@ -13,6 +13,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { buildRuleMatchText } from "../llm/email-content-cleaner";
 import { evaluateComposite } from "./category-rules-auto-composite.helper";
 
 export interface ValidateCompositeRuleResult {
@@ -52,6 +53,7 @@ export interface ValidationRow {
   from: string;
   subject: string;
   body: string;
+  htmlBody: string | null;
   categoryId: string | null;
 }
 
@@ -60,6 +62,7 @@ export interface DecryptedValidationRow {
   from: string;
   subject: string;
   body: string;
+  htmlBody: string | null;
   categoryId: string | null;
 }
 
@@ -96,6 +99,7 @@ export async function fetchRecentCategorisedEmailRows(
       e."from"        AS "from",
       e.subject       AS subject,
       e.body          AS body,
+      e."htmlBody"    AS "htmlBody",
       rt."categoryId" AS "categoryId"
     FROM recent_threads rt
     INNER JOIN emails e ON e."emailThreadId" = rt.id
@@ -123,6 +127,7 @@ export function decryptValidationRow(
     from: EncryptionHelper.decrypt(row.from),
     subject: EncryptionHelper.decrypt(row.subject),
     body: EncryptionHelper.decrypt(row.body),
+    htmlBody: row.htmlBody ? EncryptionHelper.decrypt(row.htmlBody) : null,
     categoryId: row.categoryId,
   };
 }
@@ -153,7 +158,7 @@ export function partitionMatchesByCategory(
       {
         from: row.from,
         subject: row.subject,
-        bodyTextForMatch: row.body,
+        bodyTextForMatch: buildRuleMatchText(row.body, row.htmlBody),
       },
       normaliseSender,
     );

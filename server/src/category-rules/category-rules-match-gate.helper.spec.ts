@@ -20,16 +20,19 @@ const rows: MatchScanRow[] = [
     from: "notifications@github.com",
     subject: "PR #42 merged",
     body: "Your pull request was merged.",
+    htmlBody: "",
   },
   {
     from: "notifications@github.com",
     subject: "Issue #7 opened",
     body: "Someone opened an issue.",
+    htmlBody: "",
   },
   {
     from: "billing@stripe.com",
     subject: "PR # invoice",
     body: "pull request unrelated",
+    htmlBody: "",
   },
 ];
 
@@ -67,6 +70,34 @@ describe("countMatchesInRows", () => {
       bodyNotContainsAny: ["PULL REQUEST"],
     };
     expect(countMatchesInRows(rows, upperBodyExclusion, identity)).toBe(0);
+  });
+
+  it("matches a body phrase that appears only in the HTML part", () => {
+    // text/plain is a stub; the real content ("pull request") is HTML-only.
+    const htmlOnly: MatchScanRow = {
+      from: "notifications@github.com",
+      subject: "PR #99",
+      body: "View this email in your browser",
+      htmlBody: "<p>Your <b>pull request</b> was approved.</p>",
+    };
+    expect(countMatchesInRows([htmlOnly], baseSpec, identity)).toBe(1);
+  });
+
+  it("applies a NOT-contains exclusion that appears only in the HTML part", () => {
+    // Mirrors the QA-email case: the "Pass" verdict is rendered in the HTML
+    // body, not the plain-text part. The exclusion must still fire.
+    const row: MatchScanRow = {
+      from: "notifications@github.com",
+      subject: "PR #1 merged",
+      body: "Your pull request was merged.",
+      htmlBody: "<div>QA Status: PASS &#9989;</div>",
+    };
+    expect(countMatchesInRows([row], baseSpec, identity)).toBe(1);
+    const withExclusion: CompositeCategoryRuleSpec = {
+      ...baseSpec,
+      bodyNotContainsAny: ["pass"],
+    };
+    expect(countMatchesInRows([row], withExclusion, identity)).toBe(0);
   });
 });
 

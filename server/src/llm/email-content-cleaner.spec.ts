@@ -1,8 +1,38 @@
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import {
+  buildRuleMatchText,
   cleanEmailContent,
   cleanEmailForThread,
   getEmailPreview,
 } from "./email-content-cleaner";
+
+describe("buildRuleMatchText", () => {
+  it("returns the plain-text body when there is no HTML", () => {
+    expect(buildRuleMatchText("Your pull request was merged", null)).toContain(
+      "pull request",
+    );
+  });
+
+  it("includes text that appears only in the HTML part", () => {
+    const result = buildRuleMatchText(
+      "View this email in your browser",
+      "<p>QA Status: <b>PASS</b></p>",
+    );
+    expect(result).toContain("View this email in your browser");
+    expect(result).toContain("PASS");
+  });
+
+  it("does not duplicate when plain text and HTML resolve to the same text", () => {
+    const result = buildRuleMatchText("Hello world", "<p>Hello world</p>");
+    expect(result).toBe("Hello world");
+  });
+
+  it("falls back to the HTML-derived text when the body is empty", () => {
+    expect(buildRuleMatchText("", "<div>Only in HTML</div>")).toContain(
+      "Only in HTML",
+    );
+  });
+});
 
 describe("EmailContentCleaner", () => {
   describe("cleanEmailContent", () => {
@@ -296,6 +326,42 @@ describe("EmailContentCleaner", () => {
       expect(result).toContain("Hello World");
       // Signature removal requires >50 chars before it
       expect(result).not.toContain("On Jan 1 wrote");
+    });
+  });
+
+  // Reproduces the QA-email bug: a verdict like "QA Status Pass" sits far below
+  // the classification preview cutoff. Deterministic rule matching must see it
+  // (via RULE_MATCH) so a body NOT-contains "Pass" can exclude the email.
+  describe("rule-match body length", () => {
+    const filler = "This is a normal sentence of email body text. ".repeat(40);
+    const marker = "Final verdict: QA Status Pass.";
+    const longBody = `${filler}${marker}`;
+
+    it("drops deep body text at the short classification preview length", () => {
+      expect(longBody.length).toBeGreaterThan(
+        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+      );
+      const cleaned = cleanEmailContent(
+        longBody,
+        null,
+        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+      );
+      expect(cleaned).not.toContain("QA Status Pass");
+    });
+
+    it("retains deep body text at the rule-match length", () => {
+      const cleaned = cleanEmailContent(
+        longBody,
+        null,
+        BODY_PREVIEW_LENGTHS.RULE_MATCH,
+      );
+      expect(cleaned).toContain("QA Status Pass");
+    });
+
+    it("keeps RULE_MATCH far larger than the classification preview", () => {
+      expect(BODY_PREVIEW_LENGTHS.RULE_MATCH).toBeGreaterThan(
+        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW * 10,
+      );
     });
   });
 });

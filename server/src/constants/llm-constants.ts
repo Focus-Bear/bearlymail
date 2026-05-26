@@ -42,6 +42,11 @@ export const BODY_PREVIEW_LENGTHS = {
   DEBUG_LOG_PREVIEW: 800,
   // Body preview length for email classification
   CLASSIFICATION_PREVIEW: 1000,
+  // Body length for deterministic composite-rule matching. Much larger than the
+  // classification preview so that body "contains" / "NOT contains" phrases deep
+  // in a long message (e.g. a QA "Pass"/"Fail" verdict at the end) are still
+  // seen — substring matching has no token cost, unlike the LLM classification.
+  RULE_MATCH: 50000,
 } as const;
 
 // Email content cleaner constants

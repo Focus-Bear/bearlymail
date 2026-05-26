@@ -20,7 +20,10 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { DebugService } from "../debug/debug.service";
 import { DEBUG_FEATURES } from "../debug/debug-feature-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
+import {
+  buildRuleMatchText,
+  cleanEmailContent,
+} from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { PriorityService } from "../priority/priority.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
@@ -182,10 +185,10 @@ export class LLMProcessor implements OnModuleInit {
     categoryRuleMatch: CategoryRuleMatch | null;
     bodyWithCategoryHint: string;
   }> {
-    const bodyTextForMatch = cleanEmailContent(
+    const bodyTextForMatch = buildRuleMatchText(
       email.body || "",
-      null,
-      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+      email.htmlBody,
+      BODY_PREVIEW_LENGTHS.RULE_MATCH,
     );
     const emailMetadata = {
       from: email.from || "",
@@ -221,10 +224,10 @@ export class LLMProcessor implements OnModuleInit {
     categoryName: string,
     workerId: string,
   ): Promise<void> {
-    const bodyTextForMatch = cleanEmailContent(
+    const bodyTextForMatch = buildRuleMatchText(
       email.body || "",
-      null,
-      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+      email.htmlBody,
+      BODY_PREVIEW_LENGTHS.RULE_MATCH,
     );
     const emailMetadata = {
       from: email.from || "",

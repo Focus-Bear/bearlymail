@@ -11,7 +11,10 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { CategoryShortlistService } from "../llm/category-shortlist.service";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
+import {
+  buildRuleMatchText,
+  cleanEmailContent,
+} from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { protoCategoryKey } from "../utils/category-key.util";
 import {
@@ -199,10 +202,19 @@ export class EmailDebugCategoryService {
       null,
       BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
+    // Deterministic rules match against (almost) the full message — plain text
+    // AND the HTML part — mirroring the real categoriser, so body contains /
+    // NOT-contains phrases deep in a long email or only in the HTML still apply.
+    // The shortlist still uses the short classification preview.
+    const bodyForRuleMatch = buildRuleMatchText(
+      email.body || "",
+      email.htmlBody,
+      BODY_PREVIEW_LENGTHS.RULE_MATCH,
+    );
     const meta = {
       from: email.from || "",
       subject: email.subject || "",
-      bodyTextForMatch: cleanedForShortlist,
+      bodyTextForMatch: bodyForRuleMatch,
     };
     const deterministicRules =
       await this.categoryRulesService.getDeterministicRulesDebug(userId, meta);

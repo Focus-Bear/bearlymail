@@ -92,6 +92,40 @@ export function cleanEmailContent(
 }
 
 /**
+ * Builds the text that deterministic composite-rule matching searches.
+ *
+ * Unlike {@link cleanEmailContent} — which prefers a single source (HTML when
+ * present, otherwise the plain-text body) — this UNIONS the cleaned plain-text
+ * body and the cleaned HTML-derived text, so a `contains` / `NOT contains`
+ * phrase matches when it appears in EITHER. This closes the gap where content
+ * lives only in the HTML part (e.g. marketing emails whose `text/plain` part is
+ * a stub like "View this email in your browser").
+ *
+ * Each source is capped at `maxLength` independently; the union is not
+ * re-truncated because substring matching has no token cost. When the two
+ * sources are identical (the common case where `body` is just the HTML stripped
+ * to text) only one copy is returned.
+ */
+export function buildRuleMatchText(
+  body: string | null | undefined,
+  htmlBody?: string | null,
+  maxLength: number = BODY_PREVIEW_LENGTHS.RULE_MATCH,
+): string {
+  const plain = cleanEmailContent(body, null, maxLength);
+  const fromHtml = htmlBody?.trim()
+    ? cleanEmailContent("", htmlBody, maxLength)
+    : "";
+
+  if (!fromHtml || fromHtml === plain) {
+    return plain;
+  }
+  if (!plain) {
+    return fromHtml;
+  }
+  return `${plain}\n\n${fromHtml}`;
+}
+
+/**
  * Strip HTML tags and decode entities
  */
 function stripHtml(html: string): string {

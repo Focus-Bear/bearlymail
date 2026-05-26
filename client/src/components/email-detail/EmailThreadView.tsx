@@ -3,11 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
-import { CleanBodyResult, CleanHtmlResult, InlineAttachmentRef } from 'utils/emailBodyUtils';
+import { CleanBodyResult, CleanHtmlResult, InlineAttachmentRef, looksLikeHtml } from 'utils/emailBodyUtils';
 
 import { EmailAttachments } from './EmailAttachments';
 import { ExpandCollapseButton } from './ExpandCollapseButton';
 import { ResolvedEmailBody } from './ResolvedEmailBody';
+
+/**
+ * HTML may live in either `htmlBody` or, for some sent/synced messages, the plain
+ * `body` field. Fall back to treating `body` as HTML when it contains markup so the
+ * iframe renderer preserves line breaks instead of textContent collapsing them.
+ */
+function getEffectiveHtmlBody(body?: string, htmlBody?: string): string {
+  return htmlBody || (looksLikeHtml(body || '') ? body || '' : '');
+}
 
 interface EmailThreadViewProps {
   email: Email;
@@ -85,7 +94,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
     const cleanHtmlByEmailId = useMemo(() => {
       const map = new Map<string, CleanHtmlResult>();
       for (const threadEmail of threadEmails) {
-        const rawHtmlBody = threadEmail.htmlBody || '';
+        const rawHtmlBody = getEffectiveHtmlBody(threadEmail.body, threadEmail.htmlBody);
         if (rawHtmlBody) {
           map.set(threadEmail.id, extractCleanHtmlBodyWithMeta(rawHtmlBody));
         }
@@ -95,7 +104,10 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
 
     // Pre-compute single-email view results (hooks must be called unconditionally,
     // even though these values are only used in the single-email branch below).
-    const singleEmailHtmlBody = email.htmlBody || '';
+    const singleEmailHtmlBody = useMemo(
+      () => getEffectiveHtmlBody(email.body, email.htmlBody),
+      [email.body, email.htmlBody]
+    );
     const singleCleanHtmlResult = useMemo(
       () => (singleEmailHtmlBody ? extractCleanHtmlBodyWithMeta(singleEmailHtmlBody) : null),
       [singleEmailHtmlBody, extractCleanHtmlBodyWithMeta]
@@ -122,7 +134,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
           {threadEmails.map(threadEmail => {
             const isExpanded = expandedThreadItems.has(threadEmail.id);
             const isCurrentEmail = threadEmail.id === email.id;
-            const rawHtmlBody = threadEmail.htmlBody || '';
+            const rawHtmlBody = isExpanded ? getEffectiveHtmlBody(threadEmail.body, threadEmail.htmlBody) : '';
             const cleanBodyResult = cleanBodiesByEmailId.get(threadEmail.id) ?? { text: '', wasTruncated: false };
             const cleanBody = cleanBodyResult.text;
             const cleanHtmlResult = cleanHtmlByEmailId.get(threadEmail.id);

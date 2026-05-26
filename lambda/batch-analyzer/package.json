@@ -11,6 +11,7 @@
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.0.0",
     "@aws-sdk/client-cloudwatch": "^3.0.0",
+    "@aws-sdk/client-kms": "^3.0.0",
     "@anthropic-ai/sdk": "^0.36.0",
     "openai": "^4.0.0",
     "@google/generative-ai": "^0.21.0",

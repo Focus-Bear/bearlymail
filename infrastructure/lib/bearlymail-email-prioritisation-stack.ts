@@ -25,6 +25,8 @@ import * as sns from "aws-cdk-lib/aws-sns";
 import { Construct } from "constructs";
 import * as path from "path";
 
+import { DATA_ENCRYPTION_KEY_ALIAS } from "./data-encryption-key-alias";
+
 export interface BearlyMailEmailPrioritisationStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
   readonly dbSecret: secretsmanager.ISecret;
@@ -170,6 +172,10 @@ export class BearlyMailEmailPrioritisationStack extends cdk.Stack {
           APP_SECRET_ARN: appSecrets.secretArn,
           PRIORITISE_PROMPT_PATH: "/var/task/prompts/prioritise-email.md",
           TRIAGE_PROMPT_PATH: "/var/task/prompts/batch-priority-triage.md",
+          // The Lambda resolves each user's data key via KMS (using this alias
+          // as the KeyId) to encrypt the per-user-encrypted email_threads
+          // explanation columns it writes (#2082).
+          KMS_KEY_ID: DATA_ENCRYPTION_KEY_ALIAS,
         },
         logGroup: new logs.LogGroup(this, "EmailPrioritiserFnLogGroup", {
           logGroupName: "/aws/lambda/bearlymail-email-prioritiser",
@@ -177,6 +183,20 @@ export class BearlyMailEmailPrioritisationStack extends cdk.Stack {
           removalPolicy: cdk.RemovalPolicy.DESTROY,
         }),
       },
+    );
+
+    // Grant kms:Decrypt on the per-user data-key CMK, scoped to its alias via
+    // the kms:RequestAlias condition (the Lambda passes the alias as KeyId).
+    // Avoids a cross-stack key reference (no circular dependency) and never
+    // recreates the key. Decrypt-only — unwraps existing per-user data keys.
+    lambdaRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["kms:Decrypt"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: { "kms:RequestAlias": DATA_ENCRYPTION_KEY_ALIAS },
+        },
+      }),
     );
 
     // SQS trigger: batch size 1

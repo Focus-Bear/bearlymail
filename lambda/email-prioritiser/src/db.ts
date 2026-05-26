@@ -8,8 +8,10 @@
  * Handles triage-preserved entries (no-op + unlock) and fallback entries.
  */
 import { Client } from "pg";
+import { encryptUtf8 } from "./encryption";
 import { getDbSecrets } from "./secrets";
 import type { PriorityBatchPayload, BatchPriorityResult } from "./types";
+import { resolveUserKey } from "./user-key";
 
 let pgClient: Client | null = null;
 let isConnected = false;
@@ -125,6 +127,7 @@ function buildPriorityExplanation(result: BatchPriorityResult, calculatedAt: str
  * - Normal result: update urgency_score, priority_explanation, category_id, etc.
  */
 export async function savePriorityResult(
+  userId: string,
   emailKey: string,
   result: BatchPriorityResult,
 ): Promise<void> {
@@ -173,26 +176,39 @@ export async function savePriorityResult(
       Math.min(100, result.urgencyScore + Math.round(result.goalAlignmentScore * 0.4)),
     );
 
-    // Upsert priority explanation JSONB — merge with existing to preserve old fields
     const priorityExplanation = JSON.stringify({
       score: finalScore,
       breakdown: breakdown.breakdown,
       calculatedAt,
     });
 
+    // Both explanation columns are encrypted-at-rest on the server
+    // (encryptedColumnTransformer / encryptedJsonTransformer, stored as text).
+    // Encrypt under the user's per-user key — writing plaintext (as before) or
+    // the wrong key would be inconsistent with how the server reads them.
+    const derivedKey = await resolveUserKey(db, userId);
+    const encryptedUrgencyExplanation =
+      result.urgencyExplanation != null
+        ? encryptUtf8(result.urgencyExplanation, derivedKey)
+        : null;
+    const encryptedPriorityExplanation = encryptUtf8(
+      priorityExplanation,
+      derivedKey,
+    );
+
     await db.query(
       `UPDATE email_threads SET
          urgency_score = $1,
          urgency_explanation = $2,
-         priority_explanation = $3::jsonb,
+         priority_explanation = $3,
          priority_score = $4,
          is_processing_priority = false,
          updated_at = NOW()
        WHERE id = $5`,
       [
         result.urgencyScore,
-        result.urgencyExplanation,
-        priorityExplanation,
+        encryptedUrgencyExplanation,
+        encryptedPriorityExplanation,
         finalScore,
         threadId,
       ],
@@ -223,7 +239,7 @@ export async function saveBatchResults(
       continue;
     }
     try {
-      await savePriorityResult(email.emailKey, result);
+      await savePriorityResult(payload.userId, email.emailKey, result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[db] Failed to save result for ${email.emailKey}: ${msg}`);

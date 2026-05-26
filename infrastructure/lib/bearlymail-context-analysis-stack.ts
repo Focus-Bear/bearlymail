@@ -25,6 +25,8 @@ import * as sns from "aws-cdk-lib/aws-sns";
 import { Construct } from "constructs";
 import * as path from "path";
 
+import { DATA_ENCRYPTION_KEY_ALIAS } from "./data-encryption-key-alias";
+
 export interface BearlyMailContextAnalysisStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
   readonly database: rds.IDatabaseInstance;
@@ -190,6 +192,9 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
         DB_SECRET_ARN: dbSecret.secretArn,
         APP_SECRET_ARN: appSecrets.secretArn,
         PROMPT_TEMPLATE_PATH: "/var/task/prompts/analyze-email-patterns.md",
+        // The Lambda resolves each user's data key via KMS (using this alias as
+        // the KeyId) to read/write the per-user-encrypted stats column (#2082).
+        KMS_KEY_ID: DATA_ENCRYPTION_KEY_ALIAS,
       },
       // Structured logging
       logGroup: new logs.LogGroup(this, "BatchAnalyzerFnLogGroup", {
@@ -198,6 +203,22 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
         removalPolicy: cdk.RemovalPolicy.DESTROY,
       }),
     });
+
+    // Grant kms:Decrypt on the per-user data-key CMK, scoped to its alias via
+    // the kms:RequestAlias condition (the Lambda passes the alias as KeyId).
+    // This avoids needing the generated key ARN / a cross-stack key reference,
+    // so there is no circular stack dependency and the key is never recreated.
+    // Decrypt-only: the Lambda unwraps existing per-user data keys; it never
+    // provisions new ones (that happens on the ECS side via GenerateDataKey).
+    lambdaRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["kms:Decrypt"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: { "kms:RequestAlias": DATA_ENCRYPTION_KEY_ALIAS },
+        },
+      }),
+    );
 
     // SQS trigger: batch size 1 — one Lambda per batch job
     batchAnalyzerFn.addEventSource(

@@ -77,3 +77,19 @@ export async function getDbSecrets(): Promise<DbSecrets> {
 export async function getLlmSecrets(): Promise<LlmSecrets> {
   return getSecret(LLM_SECRET_NAME) as Promise<LlmSecrets>;
 }
+
+/**
+ * The global ENCRYPTION_KEY (same JSON app secret as ECS / the batch Lambda).
+ * Used as the AES key material when KMS is disabled or a user has no per-user
+ * data key; the per-user key (when KMS is enabled) is derived in user-key.ts.
+ */
+export async function getEncryptionKeyString(): Promise<string> {
+  const raw = await getSecret(LLM_SECRET_NAME);
+  const key = raw.ENCRYPTION_KEY?.trim();
+  if (!key) {
+    throw new Error(
+      "ENCRYPTION_KEY is missing from the app secret — prioritiser cannot encrypt email_threads explanation columns",
+    );
+  }
+  return key;
+}

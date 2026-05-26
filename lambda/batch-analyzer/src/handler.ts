@@ -214,6 +214,7 @@ async function processBatch(
     .filter((id): id is string => !!id);
 
   await saveBatchResult(
+    userId,
     analysisRecordId,
     batchIndex,
     {
@@ -284,7 +285,7 @@ export const handler = async (
 
       // Record failure in DB so finalization can account for it
       try {
-        await saveBatchFailure(analysisRecordId, batchIndex, {
+        await saveBatchFailure(payload.userId, analysisRecordId, batchIndex, {
           error: errorMessage,
           failedAt: new Date().toISOString(),
           errorType,

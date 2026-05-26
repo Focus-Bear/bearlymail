@@ -13,12 +13,9 @@
  */
 import { Client } from "pg";
 
-import {
-  deriveKey,
-  encryptStatsForDb,
-  parseStatsFromDb,
-} from "./encryption";
-import { getDbSecrets, getEncryptionKeyString } from "./secrets";
+import { encryptStatsForDb, parseStatsFromDb } from "./encryption";
+import { getDbSecrets } from "./secrets";
+import { resolveUserKey } from "./user-key";
 
 let pgClient: Client | null = null;
 /**
@@ -115,6 +112,7 @@ function getBatchResultsMap(stats: Record<string, unknown>): Record<string, unkn
  * Uses row lock + decrypt/encrypt so data matches TypeORM encryption on the server.
  */
 export async function saveBatchResult(
+  userId: string,
   analysisRecordId: string,
   batchIndex: number,
   result: {
@@ -126,8 +124,9 @@ export async function saveBatchResult(
   batchSize: number,
 ): Promise<void> {
   const db = await getDbClient();
-  const encryptionKey = await getEncryptionKeyString();
-  const derivedKey = deriveKey(encryptionKey);
+  // `stats` is per-user encrypted after the KMS migration — resolve the user's
+  // data key (not the global key), or this decrypt/encrypt silently fails (#2082).
+  const derivedKey = await resolveUserKey(db, userId);
 
   await withTransaction(db, async () => {
     const { rows } = await db.query<{ stats: unknown }>(
@@ -170,6 +169,7 @@ export async function saveBatchResult(
  * Idempotency: if this batch index already has an entry in stats.batchResults, no-op.
  */
 export async function saveBatchFailure(
+  userId: string,
   analysisRecordId: string,
   batchIndex: number,
   error: {
@@ -180,8 +180,7 @@ export async function saveBatchFailure(
   },
 ): Promise<void> {
   const db = await getDbClient();
-  const encryptionKey = await getEncryptionKeyString();
-  const derivedKey = deriveKey(encryptionKey);
+  const derivedKey = await resolveUserKey(db, userId);
 
   await withTransaction(db, async () => {
     const { rows } = await db.query<{ stats: unknown }>(

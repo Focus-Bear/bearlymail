@@ -646,6 +646,9 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               autoSendCountdown={st.autoSendCountdown}
               onCancelAutoSend={ops.cancelAutoSend}
               onSendNow={ops.handleSendReply}
+              onInlineImagesChange={ops.setReplyInlineImages}
+              onFilesChange={ops.setReplyFiles}
+              onForwardAttachmentIdsChange={ops.setReplyForwardAttachmentIds}
               onDismissToneCheck={() => st.setToneCheckResult(null)}
               onSchedule={handleOpenTimePicker}
               onClearSchedule={handleClearSchedule}

@@ -855,6 +855,23 @@ export function useEmailDetailOperations(
   const handleSendReplyRef = useRef<typeof handleSendReply>(handleSendReply);
   handleSendReplyRef.current = handleSendReply;
 
+  // Tracks inline images, files, and forwarded attachments from ReplyComposer so the
+  // auto-send countdown can include them when it fires.
+  const replyInlineImagesRef = useRef<Map<string, File>>(new Map());
+  const setReplyInlineImages = useCallback((images: Map<string, File>) => {
+    replyInlineImagesRef.current = images;
+  }, []);
+
+  const replyFilesRef = useRef<File[]>([]);
+  const setReplyFiles = useCallback((files: File[]) => {
+    replyFilesRef.current = files;
+  }, []);
+
+  const replyForwardAttachmentIdsRef = useRef<string[]>([]);
+  const setReplyForwardAttachmentIds = useCallback((ids: string[]) => {
+    replyForwardAttachmentIdsRef.current = ids;
+  }, []);
+
   const cancelToneCheck = useCallback(() => {
     if (toneCheckAbortRef.current) {
       toneCheckAbortRef.current.abort();
@@ -899,7 +916,15 @@ export function useEmailDetailOperations(
       return;
     }
     if (autoSendCountdown <= 0) {
-      void handleSendReplyRef.current({});
+      const pendingInlineImages = replyInlineImagesRef.current.size > 0 ? replyInlineImagesRef.current : undefined;
+      const pendingFiles = replyFilesRef.current.length > 0 ? replyFilesRef.current : undefined;
+      const pendingForwardAttachmentIds =
+        replyForwardAttachmentIdsRef.current.length > 0 ? replyForwardAttachmentIdsRef.current : undefined;
+      void handleSendReplyRef.current({
+        inlineImages: pendingInlineImages,
+        files: pendingFiles,
+        forwardAttachmentIds: pendingForwardAttachmentIds,
+      });
       setAutoSendCountdown(null);
       return;
     }
@@ -1002,6 +1027,9 @@ export function useEmailDetailOperations(
     generateFromCustomPrompt,
     generatingFromCustomPrompt,
     handleSendReply,
+    setReplyInlineImages,
+    setReplyFiles,
+    setReplyForwardAttachmentIds,
     cancelToneCheck,
     disputeToneCheck,
     cancelAutoSend,

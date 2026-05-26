@@ -100,6 +100,12 @@ interface ReplyComposerProps {
   autoSendCountdown?: number | null;
   onCancelAutoSend?: () => void;
   onSendNow?: () => void;
+  /** Called whenever inline images change so parent can track them for the auto-send countdown */
+  onInlineImagesChange?: (images: Map<string, File>) => void;
+  /** Called whenever files change so parent can track them for the auto-send countdown */
+  onFilesChange?: (files: File[]) => void;
+  /** Called whenever forwarded attachment IDs change so parent can track them for the auto-send countdown */
+  onForwardAttachmentIdsChange?: (ids: string[]) => void;
 }
 
 const useDragFiles = (onFilesAdded: (newFiles: File[]) => void) => {
@@ -151,7 +157,10 @@ const useReplyComposerState = (
   onClose: () => void,
   onSend: ReplyComposerProps['onSend'],
   onDraftChange: (draft: string) => void,
-  onUseRevisedText: (text: string) => void
+  onUseRevisedText: (text: string) => void,
+  onInlineImagesChange?: (images: Map<string, File>) => void,
+  onFilesChange?: (files: File[]) => void,
+  onForwardAttachmentIdsChange?: (ids: string[]) => void
 ) => {
   const [files, setFiles] = useState<File[]>([]);
   const [forwardAttachmentIds, setForwardAttachmentIds] = useState<string[]>([]);
@@ -165,6 +174,19 @@ const useReplyComposerState = (
       setForwardAttachmentIds(initialAttachments.map(attachment => attachment.attachmentId));
     }
   }, [initialAttachments]);
+
+  // Keep parent refs in sync so the auto-send countdown handler can read current attachments
+  useEffect(() => {
+    onInlineImagesChange?.(inlineImages);
+  }, [inlineImages, onInlineImagesChange]);
+
+  useEffect(() => {
+    onFilesChange?.(files);
+  }, [files, onFilesChange]);
+
+  useEffect(() => {
+    onForwardAttachmentIdsChange?.(forwardAttachmentIds);
+  }, [forwardAttachmentIds, onForwardAttachmentIdsChange]);
 
   const handlePasteFiles = useCallback((pastedFiles: File[]) => {
     setFiles(prev => [...prev, ...pastedFiles]);
@@ -532,6 +554,9 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   autoSendCountdown,
   onCancelAutoSend,
   onSendNow,
+  onInlineImagesChange,
+  onFilesChange,
+  onForwardAttachmentIdsChange,
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -547,7 +572,16 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     handleSend,
     handleClose,
     handleUseRevisedText,
-  } = useReplyComposerState(attachments, onClose, onSend, onDraftChange, onUseRevisedText);
+  } = useReplyComposerState(
+    attachments,
+    onClose,
+    onSend,
+    onDraftChange,
+    onUseRevisedText,
+    onInlineImagesChange,
+    onFilesChange,
+    onForwardAttachmentIdsChange
+  );
   const { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop } = useDragFiles(newFiles =>
     setFiles(prev => [...prev, ...newFiles])
   );
@@ -609,7 +643,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onDismissToneCheck,
     autoSendCountdown,
     onCancelAutoSend,
-    onSendNow,
+    // Route through handleSend() so inlineImages state is captured (Bug 1: onSendNow bypassed it)
+    onSendNow: onSendNow ? () => handleSend() : undefined,
   };
 
   return (

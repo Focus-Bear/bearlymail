@@ -32,6 +32,9 @@ import { User } from "./user.entity";
 // For batch-status queries
 @Index(["userId", "isBatched", "batchReleaseAt"])
 @Index(["userId", "syncStatus", "syncStatusUpdatedAt"])
+// For the check-expired-snoozes cron that scans across all users every minute.
+// Partial index since only a small subset of threads are snoozed at any time.
+@Index(["isSnoozed", "snoozeUntil"], { where: '"isSnoozed" = true' })
 // For stuck-priority scans (fixStuckCalculatingThreads) — #2220
 @Index("IDX_email_threads_userId_isProcessingPriority", [
   "userId",

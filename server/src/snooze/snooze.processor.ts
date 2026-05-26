@@ -47,11 +47,19 @@ export class SnoozeProcessor implements OnModuleInit {
         tracker.startPhase("findExpiredSnoozes");
         const now = new Date();
 
+        // Select only the plaintext columns the handler needs. This cron runs
+        // across ALL users with no per-user key context, so hydrating the full
+        // entity would decrypt per-user-encrypted columns (urgencyExplanation,
+        // priorityExplanation, category, githubMetadata, …) with the global-key
+        // fallback and throw "FATAL: N consecutive decryption failures",
+        // failing the job every minute. The loop below only reads userId and
+        // threadId. See issue #2216.
         const expiredThreads = await this.emailThreadRepository.find({
           where: {
             isSnoozed: true,
             snoozeUntil: LessThanOrEqual(now),
           },
+          select: { id: true, userId: true, threadId: true },
         });
 
         tracker.endPhase("findExpiredSnoozes");

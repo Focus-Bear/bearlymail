@@ -146,7 +146,12 @@ export class CloudWatchService {
         { Name: "BudgetType", Value: budgetType },
       ];
 
-      // Add any additional metadata as dimensions (limited to 30 dimensions per metric)
+      // Add any additional metadata as dimensions (limited to 30 dimensions per metric).
+      // WARNING: only pass LOW-CARDINALITY values here (e.g. Mode, HasError). Each
+      // unique dimension value combination creates a separate CloudWatch metric
+      // series (~$0.30/series/month) and makes the metric impossible to aggregate.
+      // Never pass per-execution identifiers like JobId or UserId — keep those in
+      // the log fields for tracing instead.
       if (metadata) {
         Object.entries(metadata)
           // Leave room for the required dimensions

@@ -138,7 +138,12 @@ export class JobPerformanceTracker {
       }
     }
 
-    // Emit CloudWatch metrics for performance budget tracking
+    // Emit CloudWatch metrics for performance budget tracking.
+    // IMPORTANT: only low-cardinality values may be passed as metric dimensions.
+    // JobId/UserId are per-execution unique and must NOT be dimensions (they
+    // previously exploded the BearlyMail/Queue namespace to 158k+ series and made
+    // job metrics impossible to aggregate by job type). They remain in the log
+    // entry above for tracing. HasError is bounded ("true"/absent), so it is safe.
     if (this.cloudWatchService) {
       this.cloudWatchService
         .putPerformanceBudgetMetric({
@@ -148,8 +153,6 @@ export class JobPerformanceTracker {
           budgetMs: this.budget,
           exceeded,
           metadata: {
-            JobId: this.jobId,
-            ...(this.metadata.userId && { UserId: this.metadata.userId }),
             ...(error && { HasError: "true" }),
           },
         })

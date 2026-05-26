@@ -4,7 +4,7 @@ import * as path from "path";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
-import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
 interface JobLogEntry {
   timestamp: string;
@@ -127,11 +127,15 @@ export class JobPerformanceTracker {
 
     const logLine = `${JSON.stringify(logEntry)}\n`;
 
-    // Always log to file
-    try {
-      fs.appendFileSync(this.logFile, logLine, "utf8");
-    } catch (err) {
-      this.logger.error("Failed to write to performance log file:", err);
+    // Log to file in development only. In production the container filesystem
+    // is read-only, so the write throws ENOENT every time and the error log
+    // itself becomes high-volume CloudWatch spam.
+    if (isDevelopment) {
+      try {
+        fs.appendFileSync(this.logFile, logLine, "utf8");
+      } catch (err) {
+        this.logger.error("Failed to write to performance log file:", err);
+      }
     }
 
     // Emit CloudWatch metrics for performance budget tracking

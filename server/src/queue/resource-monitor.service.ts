@@ -7,7 +7,7 @@ import { DataSource } from "typeorm";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import { BYTE_CONVERSIONS } from "../constants/service-constants";
 import { MS_PER_SECOND } from "../constants/time-constants";
-import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
 interface ResourceMetrics {
   timestamp: string;
@@ -178,12 +178,16 @@ export class ResourceMonitorService implements OnModuleInit {
         database: dbMetrics,
       };
 
-      // Log to file
-      const logLine = `${JSON.stringify(metrics)}\n`;
-      try {
-        fs.appendFileSync(this.metricsLogFile, logLine);
-      } catch (error) {
-        this.logger.error("Failed to write resource metrics to file:", error);
+      // Log to file in development only. In production the container
+      // filesystem is read-only, so the write throws ENOENT every time and the
+      // error log itself becomes high-volume CloudWatch spam.
+      if (isDevelopment) {
+        const logLine = `${JSON.stringify(metrics)}\n`;
+        try {
+          fs.appendFileSync(this.metricsLogFile, logLine);
+        } catch (error) {
+          this.logger.error("Failed to write resource metrics to file:", error);
+        }
       }
 
       // Log warnings for high resource usage

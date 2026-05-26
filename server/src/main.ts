@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from "@nestjs/common";
+import { Logger, LogLevel, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
@@ -13,7 +13,16 @@ import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { AllExceptionsFilter } from "./filters/http-exception.filter";
 import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
+import { isDevelopment } from "./utils/logs-dir";
 import { securityHeadersMiddleware } from "./utils/security-headers.middleware";
+
+// Restrict log levels in production. The default Nest logger emits every level
+// including `debug`/`verbose`, which was flooding CloudWatch (e.g. per-error
+// "Captured global error to PostHog", per-tick autoscaling/metrics debug logs).
+// The worker entrypoint (worker.ts) already applies the same restriction.
+const LOG_LEVELS: LogLevel[] = isDevelopment
+  ? ["log", "error", "warn", "debug", "verbose"]
+  : ["log", "error", "warn"];
 
 // Initialize PostHog for global error tracking
 initializeGlobalErrorTracking();
@@ -42,13 +51,15 @@ async function bootstrap() {
     // Check if running in worker mode
     if (process.env.WORKER_MODE === BOOLEAN_STRING_VALUES.TRUE) {
       logger.log("Starting application in WORKER mode...");
-      await NestFactory.createApplicationContext(AppModule);
+      await NestFactory.createApplicationContext(AppModule, {
+        logger: LOG_LEVELS,
+      });
       // Keep the process alive
       // The pg-boss workers inside onModuleInit will handle the jobs
       return;
     }
 
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule, { logger: LOG_LEVELS });
 
     // Security headers middleware (CASA Tier 2/3 compliance)
     app.use(securityHeadersMiddleware);

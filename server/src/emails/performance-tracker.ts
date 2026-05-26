@@ -5,7 +5,7 @@ import * as path from "path";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { EMAIL_MODES, PERFORMANCE_OPERATIONS } from "../constants/domain-types";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
-import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
 // Performance budgets in milliseconds
 export const PERF_BUDGETS = {
@@ -133,11 +133,15 @@ export class PerformanceTracker {
         );
       });
 
-      // Append to log file
-      try {
-        fs.appendFileSync(this.logFile, logLine);
-      } catch (err) {
-        this.logger.error("Failed to write to performance log file:", err);
+      // Append to log file. Development only: the production container
+      // filesystem is read-only, so the write throws ENOENT every time and the
+      // error log itself becomes high-volume CloudWatch spam.
+      if (isDevelopment) {
+        try {
+          fs.appendFileSync(this.logFile, logLine);
+        } catch (err) {
+          this.logger.error("Failed to write to performance log file:", err);
+        }
       }
     }
   }

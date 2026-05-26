@@ -19,7 +19,7 @@ import * as path from "path";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { User } from "../database/entities/user.entity";
 import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
-import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 import { DataExportService } from "./data-export.service";
 import { DataImportService, ImportOptions } from "./data-import.service";
 import { UsersService } from "./users.service";
@@ -54,10 +54,15 @@ class ConsentStatusPerformanceTracker {
         `⚠️ PERF ISSUE: consent-status took ${duration}ms (budget: ${CONSENT_STATUS_BUDGET}ms)`,
       );
 
-      try {
-        fs.appendFileSync(this.logFile, logLine);
-      } catch (err) {
-        this.logger.error("Failed to write to performance log file:", err);
+      // Development only. In production the container filesystem is read-only,
+      // so the write throws ENOENT every time and the error log itself becomes
+      // high-volume CloudWatch spam.
+      if (isDevelopment) {
+        try {
+          fs.appendFileSync(this.logFile, logLine);
+        } catch (err) {
+          this.logger.error("Failed to write to performance log file:", err);
+        }
       }
     }
   }

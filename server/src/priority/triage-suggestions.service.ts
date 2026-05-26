@@ -18,7 +18,7 @@ import {
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
-import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 import { PriorityService } from "./priority.service";
 
@@ -145,10 +145,15 @@ class TriagePerformanceTracker {
         );
       });
 
-      try {
-        fs.appendFileSync(this.logFile, logLine);
-      } catch (err) {
-        this.logger.error("Failed to write to performance log file:", err);
+      // Development only. In production the container filesystem is read-only,
+      // so the write throws ENOENT every time and the error log itself becomes
+      // high-volume CloudWatch spam.
+      if (isDevelopment) {
+        try {
+          fs.appendFileSync(this.logFile, logLine);
+        } catch (err) {
+          this.logger.error("Failed to write to performance log file:", err);
+        }
       }
     }
   }

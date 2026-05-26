@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import PgBoss from "pg-boss";
 
-import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
 // Performance budget for batch-status endpoint (ms)
 export const BATCH_STATUS_BUDGET = 500;
@@ -79,10 +79,15 @@ export class BatchStatusPerformanceTracker {
         `⚠️ PERF ISSUE: batch-status took ${duration}ms (budget: ${BATCH_STATUS_BUDGET}ms)`,
       );
 
-      try {
-        fs.appendFileSync(this.logFile, logLine);
-      } catch (err) {
-        this.logger.error("Failed to write to performance log file:", err);
+      // Development only. In production the container filesystem is read-only,
+      // so the write throws ENOENT every time and the error log itself becomes
+      // high-volume CloudWatch spam.
+      if (isDevelopment) {
+        try {
+          fs.appendFileSync(this.logFile, logLine);
+        } catch (err) {
+          this.logger.error("Failed to write to performance log file:", err);
+        }
       }
     }
   }

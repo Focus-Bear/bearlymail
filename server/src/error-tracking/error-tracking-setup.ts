@@ -75,9 +75,8 @@ export function captureGlobalError(
     // the platform field that PostHog serde ingestion requires.
     // posthog.capture({ event: "" }) is unreliable per SDK warning.
     posthogClient.captureException(error, "backend-global-errors", properties);
-    logger.debug(
-      `Captured global error to PostHog: ${error.name} - ${error.message}`,
-    );
+    // Intentionally no success log here: this fires once per captured error and
+    // was a high-volume source of CloudWatch noise. Failures are still logged below.
   } catch (captureError) {
     logger.error("Failed to capture global error to PostHog", captureError);
     // nosemgrep

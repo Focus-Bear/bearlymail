@@ -10,7 +10,7 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { QUEUE_CONSTANTS } from "../constants/queue-constants";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import { MS_PER_SECOND } from "../constants/time-constants";
-import { ensureLogsDirSync, LOGS_DIR } from "../utils/logs-dir";
+import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
 const MAX_PROCESSING_TIMES_HISTORY = 1000;
 
@@ -237,6 +237,10 @@ export class QueueMonitorService implements OnModuleInit {
   }
 
   private logMetricsToFile(metrics: QueueHealthMetrics): void {
+    // Development only. In production the container filesystem is read-only, so
+    // the write throws ENOENT every time and the error log itself becomes
+    // high-volume CloudWatch spam.
+    if (!isDevelopment) return;
     const logLine = `${JSON.stringify(metrics)}\n`;
     try {
       fs.appendFileSync(this.metricsLogFile, logLine);

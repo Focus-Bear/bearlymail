@@ -456,9 +456,19 @@ export const encryptedJsonTransformer = {
     try {
       return JSON.parse(decrypted);
     } catch (err) {
-      logError(
-        "Failed to parse decrypted JSON",
-        err instanceof Error ? err : new Error(String(err)),
+      // Plain console.warn instead of logError() — logError dumps the full
+      // TypeORM hydration stack AND forwards a PostHog event for every failing
+      // row/column, which has been the single largest source of CloudWatch log
+      // spam. This branch is almost always reached because tryDecrypt() failed
+      // and returned raw ciphertext (fail-open), and that decryption failure is
+      // already telemetered by the throttled captureGlobalEvent in tryDecrypt.
+      if (EncryptionHelper.looksLikeEncryptedPayload(decrypted)) {
+        return null;
+      }
+      console.warn(
+        `encryptedJsonTransformer: failed to parse decrypted JSON, returning null (${
+          err instanceof Error ? err.message : String(err)
+        })`,
       );
       return null;
     }
@@ -497,9 +507,15 @@ export const globalEncryptedJsonTransformer = {
     try {
       return JSON.parse(decrypted);
     } catch (err) {
-      logError(
-        "Failed to parse decrypted JSON (global key)",
-        err instanceof Error ? err : new Error(String(err)),
+      // Plain console.warn instead of logError() — see encryptedJsonTransformer
+      // above. Avoids dumping a stack + PostHog event per failing row/column.
+      if (EncryptionHelper.looksLikeEncryptedPayload(decrypted)) {
+        return null;
+      }
+      console.warn(
+        `globalEncryptedJsonTransformer: failed to parse decrypted JSON, returning null (${
+          err instanceof Error ? err.message : String(err)
+        })`,
       );
       return null;
     }

@@ -1,12 +1,22 @@
 import * as cdk from "aws-cdk-lib";
+import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
+import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as sns from "aws-cdk-lib/aws-sns";
 import { Construct } from "constructs";
 
 export interface BearlyMailDatabaseStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
+  /**
+   * Optional explicit RDS instance type. When omitted, the size is resolved
+   * from the `dbInstanceSize` CDK context value (defaulting to `t4g.small`).
+   * See the instance-type resolution block below for details.
+   */
   readonly databaseInstanceType?: ec2.InstanceType;
+  /** Optional SNS topic ARN to notify when database health alarms fire. */
+  readonly alarmSnsTopicArn?: string;
 }
 
 export class BearlyMailDatabaseStack extends cdk.Stack {
@@ -59,9 +69,25 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
     // ============================================
     // RDS Database
     // ============================================
+    // Instance size is configurable via CDK context (`dbInstanceSize`) so it can
+    // be tuned per environment without code changes, e.g.:
+    //   cdk deploy BearlyMailDatabaseStack -c dbInstanceSize=micro
+    //
+    // Production default is `t4g.small` (2 GB RAM), bumped up from `t4g.micro`
+    // (1 GB). CloudWatch on the micro instance showed FreeableMemory bottoming
+    // out around ~90 MB with write latency spiking to ~110ms — memory pressure
+    // was forcing query spills to disk and amplifying slow queries (issue #2221).
+    // This is a conservative one-step bump; a resize is reversible by changing
+    // this value back, but triggers a brief failover/restart (Multi-AZ) so it
+    // must be scheduled in a maintenance window.
+    const dbInstanceSizeContext = this.node.tryGetContext("dbInstanceSize") as
+      | string
+      | undefined;
+    const dbInstanceSize = resolveInstanceSize(dbInstanceSizeContext);
+
     const databaseInstanceType =
       props.databaseInstanceType ||
-      ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO);
+      ec2.InstanceType.of(ec2.InstanceClass.T4G, dbInstanceSize);
 
     this.database = new rds.DatabaseInstance(this, "Database", {
       engine: rds.DatabaseInstanceEngine.postgres({
@@ -89,6 +115,91 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
 
     // Allow ECS tasks to connect to RDS
     this.database.connections.allowDefaultPortFromAnyIpv4();
+
+    // ============================================
+    // CloudWatch Alarms (RDS memory + burst capacity)
+    //
+    // These watch for the failure mode described in issue #2221: low free
+    // memory (query spills, latency spikes) and exhausted burst credits on the
+    // t4g burstable instance class. Alarm actions are only wired up when an SNS
+    // topic ARN is supplied (matching the pattern in the other stacks).
+    // ============================================
+    // Scale the FreeableMemory threshold to 10% of total RAM so the alarm stays
+    // meaningful across instance sizes — a static threshold would either fire
+    // constantly on micro (where 200 MB is 20% of RAM) or fire too late on
+    // large (where 200 MB is ~2.5%).
+    const sizeStr =
+      databaseInstanceType.toString().split(".")[1]?.toLowerCase() || "small";
+    const ramBytesBySize: Record<string, number> = {
+      micro: 1 * 1024 * 1024 * 1024,
+      small: 2 * 1024 * 1024 * 1024,
+      medium: 4 * 1024 * 1024 * 1024,
+      large: 8 * 1024 * 1024 * 1024,
+    };
+    const totalRamBytes = ramBytesBySize[sizeStr] || 2 * 1024 * 1024 * 1024;
+    const freeableMemoryThreshold = totalRamBytes * 0.1;
+
+    const lowFreeableMemoryAlarm = new cloudwatch.Alarm(
+      this,
+      "LowFreeableMemoryAlarm",
+      {
+        alarmName: "BearlyMail-Database-LowFreeableMemory",
+        alarmDescription:
+          "RDS FreeableMemory is low - risk of query spills and write latency spikes (issue #2221)",
+        metric: this.database.metricFreeableMemory({
+          period: cdk.Duration.minutes(5),
+          statistic: "Minimum",
+        }),
+        threshold: freeableMemoryThreshold,
+        evaluationPeriods: 3,
+        comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      },
+    );
+
+    // CPUCreditBalance is only emitted for burstable (t-series) instances. Skip
+    // the alarm entirely for non-burstable classes so it doesn't sit in
+    // INSUFFICIENT_DATA forever cluttering the dashboard.
+    const isBurstable = databaseInstanceType
+      .toString()
+      .toLowerCase()
+      .startsWith("t");
+    let lowCpuCreditBalanceAlarm: cloudwatch.Alarm | undefined;
+    if (isBurstable) {
+      lowCpuCreditBalanceAlarm = new cloudwatch.Alarm(
+        this,
+        "LowCpuCreditBalanceAlarm",
+        {
+          alarmName: "BearlyMail-Database-LowCpuCreditBalance",
+          alarmDescription:
+            "RDS CPUCreditBalance is low - burstable instance is close to CPU throttling",
+          metric: this.database.metric("CPUCreditBalance", {
+            period: cdk.Duration.minutes(5),
+            statistic: "Minimum",
+          }),
+          threshold: 20,
+          evaluationPeriods: 3,
+          comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
+          treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        },
+      );
+    }
+
+    if (props.alarmSnsTopicArn) {
+      const alarmTopic = sns.Topic.fromTopicArn(
+        this,
+        "DatabaseAlarmTopic",
+        props.alarmSnsTopicArn,
+      );
+      lowFreeableMemoryAlarm.addAlarmAction(
+        new cloudwatchActions.SnsAction(alarmTopic),
+      );
+      if (lowCpuCreditBalanceAlarm) {
+        lowCpuCreditBalanceAlarm.addAlarmAction(
+          new cloudwatchActions.SnsAction(alarmTopic),
+        );
+      }
+    }
 
     // ============================================
     // RDS Proxy (lives here to avoid cyclic dependency with ContextAnalysisStack)
@@ -175,4 +286,44 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
       exportName: "BearlyMail-RdsProxy-Endpoint",
     });
   }
+}
+
+/**
+ * Resolves the `dbInstanceSize` CDK context value to an `ec2.InstanceSize`.
+ *
+ * Defaults to `SMALL` (t4g.small, 2 GB) when no context is supplied — see the
+ * FreeableMemory evidence in issue #2221 for why micro (1 GB) was insufficient.
+ * Only a small allowlist of sizes is accepted to avoid typos silently
+ * provisioning an unexpected (and potentially expensive) instance.
+ */
+function resolveInstanceSize(
+  contextValue: string | undefined,
+): ec2.InstanceSize {
+  const allowed: Record<string, ec2.InstanceSize> = {
+    micro: ec2.InstanceSize.MICRO,
+    small: ec2.InstanceSize.SMALL,
+    medium: ec2.InstanceSize.MEDIUM,
+    large: ec2.InstanceSize.LARGE,
+  };
+
+  if (contextValue === undefined || contextValue === null) {
+    return ec2.InstanceSize.SMALL;
+  }
+
+  // Coerce + trim so non-string values from cdk.json (e.g. an accidental number
+  // or boolean) don't blow up at `.toLowerCase()`, and so stray whitespace
+  // doesn't cause the lookup to miss.
+  const normalized = String(contextValue).trim().toLowerCase();
+  if (!normalized) {
+    return ec2.InstanceSize.SMALL;
+  }
+
+  const size = allowed[normalized];
+  if (!size) {
+    throw new Error(
+      `Unsupported dbInstanceSize "${contextValue}". ` +
+        `Allowed values: ${Object.keys(allowed).join(", ")}.`,
+    );
+  }
+  return size;
 }

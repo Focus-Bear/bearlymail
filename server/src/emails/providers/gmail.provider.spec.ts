@@ -407,3 +407,136 @@ describe("GmailProvider — pagination retry & auth failures", () => {
     expect(Logger.prototype.warn).toHaveBeenCalled();
   });
 });
+
+describe("GmailProvider — read/search 403 insufficient-scope handling (#2218)", () => {
+  let provider: GmailProvider;
+  let usersService: jest.Mocked<UsersService>;
+
+  // A real Gmail "Request had insufficient authentication scopes" 403 shape.
+  const insufficientScopeError = Object.assign(
+    new Error("Request had insufficient authentication scopes."),
+    {
+      code: 403,
+      errors: [{ reason: "insufficientPermissions" }],
+      response: { status: 403 },
+    },
+  );
+
+  // A transient 403 rate-limit — must NOT be treated as an auth failure.
+  const rateLimitError = Object.assign(new Error("Rate Limit Exceeded"), {
+    code: 403,
+    errors: [{ reason: "userRateLimitExceeded" }],
+    response: { status: 403 },
+  });
+
+  function buildProviderWithListReject(
+    rejection: unknown,
+  ): Promise<GmailProvider> {
+    // Override the mocked googleapis gmail() so the search path uses a client
+    // whose messages.list rejects with the supplied error.
+    const { google } = jest.requireMock("googleapis");
+    (google.gmail as jest.Mock).mockReturnValue({
+      users: {
+        messages: { list: jest.fn().mockRejectedValue(rejection) },
+      },
+    });
+    return Test.createTestingModule({
+      providers: [
+        GmailProvider,
+        GmailSyncService,
+        { provide: UsersService, useValue: usersService },
+        {
+          provide: EmailsService,
+          useValue: {} as unknown as jest.Mocked<EmailsService>,
+        },
+        {
+          provide: ScanEmailService,
+          useValue: {} as unknown as jest.Mocked<ScanEmailService>,
+        },
+        {
+          provide: SyncHistoryService,
+          useValue: {} as unknown as jest.Mocked<SyncHistoryService>,
+        },
+        { provide: "PG_BOSS", useValue: { send: jest.fn() } },
+      ],
+    })
+      .compile()
+      .then((module) => module.get<GmailProvider>(GmailProvider));
+  }
+
+  beforeEach(() => {
+    usersService = {
+      findOneWithTokens: jest.fn().mockResolvedValue({
+        id: "user-123",
+        googleCalendarAccessToken: "access-token",
+        googleCalendarRefreshToken: "refresh-token",
+        updatedAt: new Date(),
+      }),
+      findOneLightweight: jest
+        .fn()
+        .mockResolvedValue({ id: "user-123", needsRelogin: false }),
+      update: jest.fn().mockResolvedValue(undefined),
+      markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<UsersService>;
+
+    jest.spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("flags needsRelogin and logs at WARN (not ERROR) on a 403 insufficient-scope error", async () => {
+    provider = await buildProviderWithListReject(insufficientScopeError);
+
+    const results = await provider.searchEmails("user-123", "test");
+
+    expect(results).toEqual([]);
+    expect(usersService.markNeedsRelogin).toHaveBeenCalledWith(
+      "user-123",
+      "gmail_read_auth_error",
+    );
+    expect(Logger.prototype.warn).toHaveBeenCalledWith(
+      expect.stringContaining("auth failure"),
+    );
+    expect(Logger.prototype.error).not.toHaveBeenCalled();
+  });
+
+  it("does NOT re-log (stays silent) when the account is already flagged needsRelogin", async () => {
+    (usersService.findOneLightweight as jest.Mock).mockResolvedValue({
+      id: "user-123",
+      needsRelogin: true,
+    });
+    provider = await buildProviderWithListReject(insufficientScopeError);
+
+    const results = await provider.searchEmails("user-123", "test");
+
+    expect(results).toEqual([]);
+    // markNeedsRelogin should not be invoked if the user is already flagged,
+    // avoiding redundant database queries. No auth-failure log line should be
+    // emitted on subsequent cycles for an already-flagged user. (Other
+    // unrelated warnings — e.g. missing OAuth env vars in the test harness —
+    // may fire, so we match our specific message.)
+    expect(usersService.markNeedsRelogin).not.toHaveBeenCalled();
+    expect(Logger.prototype.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining("auth failure"),
+    );
+    expect(Logger.prototype.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("Failed to search emails"),
+    );
+  });
+
+  it("logs at ERROR and does NOT flag relogin on a transient (rate-limit) 403", async () => {
+    provider = await buildProviderWithListReject(rateLimitError);
+
+    const results = await provider.searchEmails("user-123", "test");
+
+    expect(results).toEqual([]);
+    expect(usersService.markNeedsRelogin).not.toHaveBeenCalled();
+    expect(Logger.prototype.error).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to search emails"),
+    );
+  });
+});

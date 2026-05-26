@@ -118,8 +118,10 @@ export class GmailProvider implements EmailProvider {
       this.labelCacheExpiry.set(userId, Date.now() + this.LABEL_CACHE_TTL);
       return labelMap;
     } catch (error) {
-      this.logger.error(
-        `Failed to fetch Gmail labels: ${formatGaxiosError(error)}`,
+      await this.handleReadAuthError(
+        userId,
+        "Failed to fetch Gmail labels",
+        error,
       );
       return cached || new Map();
     }
@@ -207,6 +209,53 @@ export class GmailProvider implements EmailProvider {
     );
 
     return google.gmail({ version: "v1", auth: oauth2Client });
+  }
+
+  /**
+   * Handle an error caught from a non-mutating Gmail read/search call
+   * (labels, search, thread-fetch) that swallows the failure and returns an
+   * empty result rather than re-throwing.
+   *
+   * Terminal auth failures — a 403 "insufficient authentication scopes" or a
+   * 401 / `invalid_grant` — mean the account's token can never succeed until
+   * the user reconnects. Previously these were logged at ERROR (often with a
+   * stack) on every sync/search cycle, producing ~1k/day of low-value spam
+   * while the user got no signal to re-auth (#2218). For this class we instead
+   * flag the account for re-login (via `markNeedsRelogin`, which is idempotent
+   * and skips already-flagged users) and log a single WARN per account: if the
+   * account is already flagged we stay silent, so the log fires once on the
+   * cycle that first detects the failure rather than on every cycle after.
+   * Genuinely unexpected errors keep their ERROR severity so real problems
+   * stay visible.
+   */
+  private async handleReadAuthError(
+    userId: string,
+    context: string,
+    error: unknown,
+  ): Promise<void> {
+    if (isGmailAuthError(error)) {
+      try {
+        const user = await this.usersService.findOneLightweight(userId);
+        if (user && !user.needsRelogin) {
+          await this.usersService.markNeedsRelogin(
+            userId,
+            "gmail_read_auth_error",
+          );
+          this.logger.warn(
+            `${context} auth failure for user ${userId} — flagged needsRelogin, returning empty: ${formatGaxiosError(error)}`,
+          );
+        }
+      } catch (dbError) {
+        this.logger.error(
+          `Database error while handling read auth error for user ${userId}:`,
+          dbError,
+        );
+      }
+      return;
+    }
+    this.logger.error(
+      `${context} for user ${userId}: ${formatGaxiosError(error)}`,
+    );
   }
 
   async syncEmails(
@@ -433,9 +482,7 @@ export class GmailProvider implements EmailProvider {
       }
       return results;
     } catch (error) {
-      this.logger.error(
-        `Failed to search emails for user ${userId}: ${formatGaxiosError(error)}`,
-      );
+      await this.handleReadAuthError(userId, "Failed to search emails", error);
       return [];
     }
   }
@@ -460,8 +507,10 @@ export class GmailProvider implements EmailProvider {
         .map((msg) => parseGmailMessage(msg))
         .filter((msg): msg is RawEmailMessage => msg !== null);
     } catch (error) {
-      this.logger.error(
-        `Failed to fetch thread messages for user ${userId}: ${formatGaxiosError(error)}`,
+      await this.handleReadAuthError(
+        userId,
+        "Failed to fetch thread messages",
+        error,
       );
       return [];
     }
@@ -521,9 +570,7 @@ export class GmailProvider implements EmailProvider {
         (result): result is GmailSearchResult => result !== null,
       );
     } catch (error) {
-      this.logger.error(
-        `Failed metadata search for user ${userId}: ${formatGaxiosError(error)}`,
-      );
+      await this.handleReadAuthError(userId, "Failed metadata search", error);
       return [];
     }
   }

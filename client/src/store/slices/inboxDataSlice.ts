@@ -180,6 +180,29 @@ const inboxDataSlice = createSlice({
     },
     setCategorySummary: (state, action: PayloadAction<CategorySummaryItem[]>) => {
       state.categorySummary = action.payload;
+      // Fix #2062 race: a background summary refresh can re-inflate the count for a
+      // category the accordion already confirmed as empty (server returned 0 emails).
+      // If the category is in loadedCategoryNames AND has no matching emails in the
+      // Redux store, keep its count at 0 so the category stays hidden.
+      if (!state.categorySummary) {
+        return;
+      }
+      for (const cat of state.categorySummary) {
+        if (cat.count === 0) {
+          continue;
+        }
+        const catKey = cat.id ?? CATEGORY_KEY_UNCATEGORIZED;
+        if (!state.loadedCategoryNames.includes(catKey)) {
+          continue;
+        }
+        const isUncategorized = catKey === CATEGORY_KEY_UNCATEGORIZED;
+        const hasEmails = state.emails.some(email =>
+          isUncategorized ? !email.category_id : email.category_id === cat.id
+        );
+        if (!hasEmails) {
+          cat.count = 0;
+        }
+      }
     },
     markCategoryLoaded: (state, action: PayloadAction<string>) => {
       if (!state.loadedCategoryNames.includes(action.payload)) {

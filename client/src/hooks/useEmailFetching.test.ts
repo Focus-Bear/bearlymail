@@ -997,4 +997,62 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
       });
     });
   });
+
+  describe('setCategorySummary race condition (fix #2062 part 2)', () => {
+    // The first part of fix #2062 clears the summary count when a category fetch returns 0.
+    // But a concurrent background summary refresh can call setCategorySummary and re-inflate
+    // the count back to > 0, making the empty category reappear. The setCategorySummary reducer
+    // must not re-inflate counts for categories already confirmed empty by the server.
+
+    it('does not re-inflate count for a loaded category with 0 emails when setCategorySummary fires', async () => {
+      const { markCategoryLoaded, setCategorySummary, updateCategoryEmails } =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-var-requires
+        require('store/slices/inboxDataSlice') as typeof import('store/slices/inboxDataSlice');
+
+      store = createStoreWithSummary([{ id: 'uuid-race-2062', name: 'Work', count: 5 }]);
+
+      // Simulate: category was expanded, server returned 0 → emails removed, marked loaded
+      store.dispatch(updateCategoryEmails({ categoryKey: 'uuid-race-2062', emails: [] }));
+      store.dispatch(markCategoryLoaded('uuid-race-2062'));
+      // clearCategorySummaryCount would have already set count to 0 (tested above),
+      // but the race: background summary refresh now fires with stale count = 5
+      store.dispatch(setCategorySummary([{ id: 'uuid-race-2062', name: 'Work', count: 5 }]));
+
+      const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+      const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-race-2062');
+      // Count must stay 0 — summary refresh must not re-inflate a confirmed-empty category
+      expect(category?.count).toBe(0);
+    });
+
+    it('does NOT zero out a loaded category that still has emails', async () => {
+      const { markCategoryLoaded, setCategorySummary, updateCategoryEmails } =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-var-requires
+        require('store/slices/inboxDataSlice') as typeof import('store/slices/inboxDataSlice');
+
+      store = createStoreWithSummary([{ id: 'uuid-has-emails-race', name: 'Work', count: 3 }]);
+
+      const email = { id: 'e1', threadId: 't1', subject: 'Email', from: 'a@b.com', to: 'me@b.com', body: '', isRead: false, isArchived: false, starCount: 0, receivedAt: new Date().toISOString(), category: 'Work', category_id: 'uuid-has-emails-race' } as Email;
+      store.dispatch(updateCategoryEmails({ categoryKey: 'uuid-has-emails-race', emails: [email] }));
+      store.dispatch(markCategoryLoaded('uuid-has-emails-race'));
+      store.dispatch(setCategorySummary([{ id: 'uuid-has-emails-race', name: 'Work', count: 3 }]));
+
+      const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+      const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-has-emails-race');
+      expect(category?.count).toBe(3);
+    });
+
+    it('does NOT zero out a category that has not been loaded yet', async () => {
+      const { setCategorySummary } =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-var-requires
+        require('store/slices/inboxDataSlice') as typeof import('store/slices/inboxDataSlice');
+
+      store = createStoreWithSummary([]);
+      store.dispatch(setCategorySummary([{ id: 'uuid-not-loaded', name: 'Work', count: 4 }]));
+
+      const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+      const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-not-loaded');
+      // Not in loadedCategoryNames → count preserved as-is
+      expect(category?.count).toBe(4);
+    });
+  });
 });

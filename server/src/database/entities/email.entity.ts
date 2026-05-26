@@ -34,6 +34,11 @@ import { ZohoAccount } from "./zoho-account.entity";
 @Index(["userId", "isBatched", "batchReleaseAt"])
 // For contact-thread HMAC lookup (indexed SQL search — avoids full table scan)
 @Index(["userId", "senderEmailHmac"])
+// Partial index for reply-time stats aggregations (AVG(timeToReply)) — #2220.
+// Only rows with a real reply time are indexed, keeping it small.
+@Index("IDX_emails_userId_receivedAt_hasReplyTime", ["userId", "receivedAt"], {
+  where: '"timeToReply" > 0',
+})
 export class Email {
   @PrimaryGeneratedColumn("uuid")
   id: string;

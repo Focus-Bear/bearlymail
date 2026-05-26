@@ -32,6 +32,11 @@ import { User } from "./user.entity";
 // For batch-status queries
 @Index(["userId", "isBatched", "batchReleaseAt"])
 @Index(["userId", "syncStatus", "syncStatusUpdatedAt"])
+// For stuck-priority scans (fixStuckCalculatingThreads) — #2220
+@Index("IDX_email_threads_userId_isProcessingPriority", [
+  "userId",
+  "isProcessingPriority",
+])
 export class EmailThread {
   @PrimaryGeneratedColumn("uuid")
   id: string;

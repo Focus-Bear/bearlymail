@@ -251,9 +251,9 @@ export class ContactsService {
       .createQueryBuilder("contact")
       .where("contact.userId = :userId", { userId })
       .andWhere(
-        queryTokens
+        `(${queryTokens
           .map((_, i) => `contact.searchTokens LIKE :token${i}`)
-          .join(" OR "),
+          .join(" OR ")})`,
         queryTokens.reduce(
           (acc, token, i) => {
             acc[`token${i}`] = `%${token}%`;

@@ -215,21 +215,6 @@ class EncryptionHelper {
   }
 
   /**
-   * Safe decrypt — catches errors and returns the raw ciphertext instead of throwing.
-   * Use this in data-mapping contexts (TypeORM transformers, row mappers, processors)
-   * where a single corrupted row should not crash the entire request or worker.
-   *
-   * Circuit-breaker: after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive ciphertext
-   * failures, throws a fatal error to crash the process rather than silently serving
-   * encrypted data.
-   *
-   * Null/empty values and plaintext pass-through do NOT affect the failure counter —
-   * only actual ciphertext decryption attempts count. This prevents nullable columns
-   * from resetting the counter between real failures.
-   *
-   * Keep the throwing `decrypt()` for boot checks and token paths where failure must be fatal.
-   */
-  /**
    * True when the string matches stored AES-256-GCM column shape (`ivHex:tagHex:cipherHex`).
    * Used to treat tryDecrypt fail-open ciphertext as absent plaintext (e.g. inbox category bucketing).
    */
@@ -245,6 +230,24 @@ class EncryptionHelper {
     }
   }
 
+  /**
+   * Safe decrypt — catches errors and returns `null` on failure instead of
+   * throwing. Use this in data-mapping contexts (TypeORM transformers, row
+   * mappers, background processors) where a single undecryptable value must not
+   * crash the request or the (multi-tenant) worker.
+   *
+   * On failure it returns `null` — NEVER the raw ciphertext — and emits throttled
+   * `encryption-decrypt-failure` telemetry (the canonical signal; alarm on it).
+   * It does NOT crash the process: under per-user KMS encryption, a cross-user
+   * read without the per-user key legitimately fails the global-key fallback,
+   * and crashing on that would take down every tenant. A genuinely wrong/rotated
+   * GLOBAL key is caught at boot by `verifyExistingDataDecryption()`.
+   *
+   * Null/empty values and plaintext pass-through do NOT count as failures — only
+   * actual ciphertext decryption attempts do (kept for the telemetry counter).
+   *
+   * Keep the throwing `decrypt()` for boot checks and token paths where failure must be fatal.
+   */
   static tryDecrypt(encryptedText: string | null | undefined): string | null {
     if (!encryptedText) return null;
 
@@ -299,29 +302,48 @@ class EncryptionHelper {
         });
       }
 
+      // A single undecryptable value must NOT crash the process and must NEVER
+      // be returned as raw ciphertext.
+      //
+      // Previously this crashed the worker after N consecutive failures. Under
+      // per-user (KMS envelope) encryption that's actively harmful: a
+      // cross-user/background read that lacks the per-user key legitimately
+      // fails the global-key fallback, and the *process-global* counter then
+      // took down request-serving for every tenant. (See the snooze-cron
+      // worker crash-loop.) A genuinely wrong/rotated GLOBAL key is caught at
+      // boot by verifyExistingDataDecryption() — that, not a runtime counter,
+      // is the correct fail-fast gate.
+      //
+      // So: return null (never ciphertext), and lean on the throttled
+      // `encryption-decrypt-failure` telemetry above + the log below as the
+      // signal. Escalate the log to error level once failures are sustained so
+      // a real spike is still loud, but never throw.
+      const message =
+        primaryError instanceof Error
+          ? primaryError.message
+          : String(primaryError);
+      const detail =
+        `tryDecrypt: decryption failed (run of ${failures}) — ` +
+        `returning null (never raw ciphertext): ${message}`;
       if (failures >= MAX_CONSECUTIVE_DECRYPT_FAILURES) {
-        throw new Error(
-          `FATAL: ${failures} consecutive decryption failures. ` +
-            `ENCRYPTION_KEY is likely wrong or rotated mid-process. ` +
-            `Key fingerprint: ${encryptionKeyProvider.getFingerprint()}. ` +
-            `Crashing to prevent serving encrypted data to users.`,
-        );
+        // Sustained failures — likely a context/key problem worth investigating
+        // (e.g. a cross-user job reading per-user data without withUserKey).
+        // Loud, but NON-fatal. console.* (not logError) to avoid PostHog quota
+        // burn; the throttled captureGlobalEvent above is the canonical metric.
+        // Rate-limit console.error to avoid CloudWatch flooding when a worker
+        // grinds through thousands of undecryptable rows: log the first sustained
+        // failure, then only every 100th, so a real spike is still loud but a
+        // bulk-read storm doesn't burn log-ingestion budget.
+        if (
+          failures === MAX_CONSECUTIVE_DECRYPT_FAILURES ||
+          failures % 100 === 0
+        ) {
+          console.error(detail);
+        }
+      } else {
+        console.warn(detail);
       }
-
-      // Use a plain console.warn rather than logError() — logError forwards every
-      // call to PostHog, and a single corrupted column can fire this branch many
-      // times per request (one per row × one per encrypted column), which has
-      // exhausted the error-tracking quota in the past. The throttled
-      // captureGlobalEvent above is the canonical telemetry signal; this line is
-      // for human log readers only.
-      console.warn(
-        `tryDecrypt: decryption failed (failure ${failures}/${MAX_CONSECUTIVE_DECRYPT_FAILURES}) — returning raw ciphertext: ${
-          primaryError instanceof Error
-            ? primaryError.message
-            : String(primaryError)
-        }`,
-      );
-      return encryptedText ?? null;
+      return null;
     }
   }
 

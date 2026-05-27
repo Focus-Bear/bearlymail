@@ -251,23 +251,28 @@ describe("EncryptionHelper", () => {
       expect(EncryptionHelper.globalConsecutiveFailures).toBe(2);
     });
 
-    it("should throw FATAL after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive failures", () => {
+    it("does NOT throw/crash after many consecutive failures (per-user-era safety)", () => {
+      // Previously this crashed the process after 3 failures. Under per-user
+      // encryption, a cross-user read legitimately fails the global-key
+      // fallback, so crashing would take down every tenant. It must stay alive.
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
       EncryptionHelper.globalConsecutiveFailures = 0;
-      EncryptionHelper.tryDecrypt(badCiphertext);
-      EncryptionHelper.tryDecrypt(badCiphertext);
-      expect(() => EncryptionHelper.tryDecrypt(badCiphertext)).toThrow(
-        /FATAL: 3 consecutive decryption failures/,
-      );
+      expect(() => {
+        for (let i = 0; i < 10; i++) EncryptionHelper.tryDecrypt(badCiphertext);
+      }).not.toThrow();
     });
 
-    it("should return raw ciphertext on failure below threshold", () => {
+    it("returns null (NEVER raw ciphertext) on decryption failure", () => {
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
       EncryptionHelper.globalConsecutiveFailures = 0;
-      const result = EncryptionHelper.tryDecrypt(badCiphertext);
-      expect(result).toBe(badCiphertext);
+      // below threshold
+      expect(EncryptionHelper.tryDecrypt(badCiphertext)).toBeNull();
+      // and above threshold
+      EncryptionHelper.tryDecrypt(badCiphertext);
+      EncryptionHelper.tryDecrypt(badCiphertext);
+      expect(EncryptionHelper.tryDecrypt(badCiphertext)).toBeNull();
     });
   });
 

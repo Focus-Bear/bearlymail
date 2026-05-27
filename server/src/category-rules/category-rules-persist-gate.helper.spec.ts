@@ -130,6 +130,29 @@ describe("evaluateRulePersistGate", () => {
     expect(v3.subjectNotContainsAny).toEqual(["Issue #"]);
   });
 
+  it("strips a value-add exclusion that duplicates the candidate's own body phrase", async () => {
+    const mocks = makeMocks({
+      emails: [matchingEmail],
+      siblings: [siblingRule],
+      assess: {
+        addsValue: true,
+        reasoning: "distinct, but also returned a contradictory phrase",
+        subjectNotContainsAny: ["Issue #"],
+        // "pull request" is also a positive body-contains phrase of the
+        // candidate, so it must be dropped rather than persisted.
+        bodyNotContainsAny: ["pull request"],
+      },
+    });
+    const outcome = await evaluateRulePersistGate(baseParams(mocks));
+    expect(outcome.shouldPersist).toBe(true);
+    const v3 = outcome.finalSpec as Extract<
+      CompositeCategoryRuleSpec,
+      { v: 3 }
+    >;
+    expect(v3.subjectNotContainsAny).toEqual(["Issue #"]);
+    expect(v3.bodyNotContainsAny).toBeUndefined();
+  });
+
   it("rejects when the merged exclusion removes every match", async () => {
     const mocks = makeMocks({
       emails: [matchingEmail],

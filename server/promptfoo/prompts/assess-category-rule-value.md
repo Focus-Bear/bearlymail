@@ -23,5 +23,6 @@ Return ONLY valid JSON with no markdown formatting or extra text:
 Rules:
 - `subjectNotContainsAny`: at most {{maxSubjectNotPhrases}} short phrases, each 1–4 words.
 - `bodyNotContainsAny`: at most {{maxBodyNotPhrases}} short phrases, each 1–6 words.
+- NEVER return a NOT-contains phrase that also appears in the proposed rule's own "Subject contains" / "Body contains" list. That is self-contradictory — the rule could never match via that phrase. A NOT-contains phrase must distinguish the proposed rule from a sibling, not repeat its own positive conditions.
 - Be conservative: when genuinely unsure whether the proposed rule is redundant, set `addsValue` to true. The goal is to block clearly redundant rules, not to second-guess useful ones.
 - `reasoning` must be a non-empty string.

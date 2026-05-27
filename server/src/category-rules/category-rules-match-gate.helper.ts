@@ -122,6 +122,64 @@ export function specHasExclusion(spec: CompositeCategoryRuleSpec): boolean {
   );
 }
 
+/** Lower-cased, trimmed set of phrases for case-insensitive overlap checks. */
+function phraseKeySet(phrases: string[]): Set<string> {
+  return new Set(phrases.map((phrase) => phrase.trim().toLowerCase()));
+}
+
+/**
+ * Removes any NOT-contains phrase that is identical (case-insensitive) to a
+ * contains phrase in the same field. Such a phrase is self-contradictory: any
+ * email matching the positive condition would be excluded by the same text, so
+ * the positive phrase can never win. We keep the positive phrases and drop the
+ * contradictory exclusions (preserving the rule's other, valid exclusions).
+ *
+ * Returns the spec unchanged when there is no overlap. Always returns a v3 spec
+ * when a change is made so the result can carry the trimmed exclusion arrays.
+ */
+export function dropContradictoryExclusions(
+  spec: CompositeCategoryRuleSpec,
+): CompositeCategoryRuleSpec {
+  const v2 = specToV2(spec);
+  const subjectContainsKeys = phraseKeySet(v2.subjectContainsAny);
+  const bodyContainsKeys = phraseKeySet(v2.bodyContainsAny);
+
+  const subjectNot = (v2.subjectNotContainsAny ?? []).filter(
+    (phrase) => !subjectContainsKeys.has(phrase.trim().toLowerCase()),
+  );
+  const bodyNot = (v2.bodyNotContainsAny ?? []).filter(
+    (phrase) => !bodyContainsKeys.has(phrase.trim().toLowerCase()),
+  );
+
+  const subjectChanged =
+    subjectNot.length !== (v2.subjectNotContainsAny?.length ?? 0);
+  const bodyChanged = bodyNot.length !== (v2.bodyNotContainsAny?.length ?? 0);
+  if (!subjectChanged && !bodyChanged) {
+    return spec;
+  }
+
+  return {
+    v: 3,
+    fromMatchesAny: v2.senderMatchesAny,
+    subjectContainsAny: v2.subjectContainsAny,
+    bodyContainsAny: v2.bodyContainsAny,
+    ...(subjectNot.length > 0 && { subjectNotContainsAny: subjectNot }),
+    ...(bodyNot.length > 0 && { bodyNotContainsAny: bodyNot }),
+    ...(spec.v === 3 &&
+      spec.emailIsRead !== undefined && { emailIsRead: spec.emailIsRead }),
+    ...(spec.v === 3 &&
+      spec.emailAttachment !== undefined && {
+        emailAttachment: spec.emailAttachment,
+      }),
+    ...(spec.v === 3 &&
+      spec.emailReceived !== undefined && {
+        emailReceived: spec.emailReceived,
+      }),
+    ...(spec.v === 3 &&
+      spec.emailRead !== undefined && { emailRead: spec.emailRead }),
+  };
+}
+
 /** De-duplicates, trims, drops empties, and caps a phrase list. */
 function cleanPhrases(phrases: string[], cap: number): string[] {
   const seen = new Set<string>();
@@ -170,9 +228,14 @@ export function mergeExclusionsIntoSpec(
     ...(spec.v === 3 &&
       spec.emailIsRead !== undefined && { emailIsRead: spec.emailIsRead }),
     ...(spec.v === 3 &&
-      spec.emailAttachment && { emailAttachment: spec.emailAttachment }),
+      spec.emailAttachment !== undefined && {
+        emailAttachment: spec.emailAttachment,
+      }),
     ...(spec.v === 3 &&
-      spec.emailReceived && { emailReceived: spec.emailReceived }),
-    ...(spec.v === 3 && spec.emailRead && { emailRead: spec.emailRead }),
+      spec.emailReceived !== undefined && {
+        emailReceived: spec.emailReceived,
+      }),
+    ...(spec.v === 3 &&
+      spec.emailRead !== undefined && { emailRead: spec.emailRead }),
   };
 }

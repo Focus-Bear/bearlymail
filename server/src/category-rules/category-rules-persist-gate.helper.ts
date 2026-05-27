@@ -24,6 +24,7 @@ import { RuleSpecSummary } from "../llm/llm-rule-value";
 import { specToV2 } from "./category-rules-auto-composite.helper";
 import {
   countMatchesInRows,
+  dropContradictoryExclusions,
   fetchRecentEmailsForMatching,
   mergeExclusionsIntoSpec,
   specHasExclusion,
@@ -114,11 +115,14 @@ export async function evaluateRulePersistGate(
     normaliseSender,
     userId,
     categoryName,
-    candidateSpec,
     skipValueAdd,
     requireExclusions = true,
     compositeRules,
   } = params;
+
+  // Drop any NOT-contains phrase that duplicates a same-field contains phrase —
+  // such a rule is self-contradictory and would never match via that phrase.
+  const candidateSpec = dropContradictoryExclusions(params.candidateSpec);
 
   const rows = await fetchRecentEmailsForMatching(emailRepository, userId);
 
@@ -163,10 +167,12 @@ export async function evaluateRulePersistGate(
           detail: assessment.reasoning,
         };
       }
-      finalSpec = mergeExclusionsIntoSpec(
-        candidateSpec,
-        assessment.subjectNotContainsAny,
-        assessment.bodyNotContainsAny,
+      finalSpec = dropContradictoryExclusions(
+        mergeExclusionsIntoSpec(
+          candidateSpec,
+          assessment.subjectNotContainsAny,
+          assessment.bodyNotContainsAny,
+        ),
       );
     }
   }

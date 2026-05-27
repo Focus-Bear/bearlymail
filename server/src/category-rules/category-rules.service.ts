@@ -39,7 +39,10 @@ import {
   rulePatternMatches,
 } from "./category-rules-auto-composite.helper";
 import { deriveExclusionsForCompositeRule } from "./category-rules-derive-exclusions.helper";
-import { specHasExclusion } from "./category-rules-match-gate.helper";
+import {
+  dropContradictoryExclusions,
+  specHasExclusion,
+} from "./category-rules-match-gate.helper";
 import { evaluateRulePersistGate } from "./category-rules-persist-gate.helper";
 import {
   AUTOMATED_PREFIXES,
@@ -498,10 +501,12 @@ export class CategoryRulesService {
     if (!categoryName) {
       throw new BadRequestException("categoryName is required");
     }
-    const spec = this.normalizeCompositeSpecDto(dto);
+    const spec = dropContradictoryExclusions(
+      this.normalizeCompositeSpecDto(dto),
+    );
     if (!specHasExclusion(spec)) {
       throw new BadRequestException(
-        "A composite rule must include at least one subject or body NOT-contains phrase so it cannot match too broadly.",
+        "A composite rule must include at least one subject or body NOT-contains phrase so it cannot match too broadly. A NOT-contains phrase that duplicates a contains phrase is removed because it would never match.",
       );
     }
     const rule = this.categoryRuleRepository.create({
@@ -547,19 +552,21 @@ export class CategoryRulesService {
           "compositeSpec can only be set on composite rules",
         );
       }
-      const spec = this.normalizeCompositeSpecDto({
-        categoryName: rule.categoryName,
-        senderMatchesAny: dto.compositeSpec.senderMatchesAny,
-        fromMatchesAny: dto.compositeSpec.fromMatchesAny,
-        subjectContainsAny: dto.compositeSpec.subjectContainsAny,
-        bodyContainsAny: dto.compositeSpec.bodyContainsAny,
-        subjectNotContainsAny: dto.compositeSpec.subjectNotContainsAny,
-        bodyNotContainsAny: dto.compositeSpec.bodyNotContainsAny,
-        emailIsRead: dto.compositeSpec.emailIsRead,
-        emailAttachment: dto.compositeSpec.emailAttachment,
-        emailReceived: dto.compositeSpec.emailReceived,
-        emailRead: dto.compositeSpec.emailRead,
-      });
+      const spec = dropContradictoryExclusions(
+        this.normalizeCompositeSpecDto({
+          categoryName: rule.categoryName,
+          senderMatchesAny: dto.compositeSpec.senderMatchesAny,
+          fromMatchesAny: dto.compositeSpec.fromMatchesAny,
+          subjectContainsAny: dto.compositeSpec.subjectContainsAny,
+          bodyContainsAny: dto.compositeSpec.bodyContainsAny,
+          subjectNotContainsAny: dto.compositeSpec.subjectNotContainsAny,
+          bodyNotContainsAny: dto.compositeSpec.bodyNotContainsAny,
+          emailIsRead: dto.compositeSpec.emailIsRead,
+          emailAttachment: dto.compositeSpec.emailAttachment,
+          emailReceived: dto.compositeSpec.emailReceived,
+          emailRead: dto.compositeSpec.emailRead,
+        }),
+      );
       if (!specHasExclusion(spec)) {
         throw new BadRequestException(
           "A composite rule must include at least one subject or body NOT-contains phrase so it cannot match too broadly.",

@@ -1,6 +1,7 @@
 import { CompositeCategoryRuleSpec } from "../database/entities/category-rule.entity";
 import {
   countMatchesInRows,
+  dropContradictoryExclusions,
   type MatchScanRow,
   mergeExclusionsIntoSpec,
   specHasExclusion,
@@ -151,5 +152,46 @@ describe("mergeExclusionsIntoSpec", () => {
     const merged = mergeExclusionsIntoSpec(baseSpec, [], []);
     expect(merged.subjectNotContainsAny).toBeUndefined();
     expect(merged.bodyNotContainsAny).toBeUndefined();
+  });
+});
+
+describe("dropContradictoryExclusions", () => {
+  it("removes a body NOT-contains phrase that duplicates a body contains phrase", () => {
+    const spec: CompositeCategoryRuleSpec = {
+      v: 3,
+      fromMatchesAny: ["*@github.com"],
+      subjectContainsAny: ["Issue #"],
+      bodyContainsAny: ["left a comment", "created an issue"],
+      bodyNotContainsAny: ["left a comment", "requested your review"],
+    };
+    const cleaned = dropContradictoryExclusions(spec);
+    // Keeps the legitimate exclusion, drops the contradictory one.
+    expect(
+      (cleaned as Extract<CompositeCategoryRuleSpec, { v: 3 }>)
+        .bodyNotContainsAny,
+    ).toEqual(["requested your review"]);
+  });
+
+  it("matches contains/NOT-contains overlap case-insensitively", () => {
+    const spec: CompositeCategoryRuleSpec = {
+      v: 3,
+      fromMatchesAny: ["*@github.com"],
+      subjectContainsAny: ["PR #"],
+      bodyContainsAny: ["Left A Comment"],
+      bodyNotContainsAny: ["left a comment"],
+    };
+    const cleaned = dropContradictoryExclusions(spec) as Extract<
+      CompositeCategoryRuleSpec,
+      { v: 3 }
+    >;
+    expect(cleaned.bodyNotContainsAny).toBeUndefined();
+  });
+
+  it("returns the spec unchanged when there is no overlap", () => {
+    const spec: CompositeCategoryRuleSpec = {
+      ...baseSpec,
+      subjectNotContainsAny: ["Issue #"],
+    };
+    expect(dropContradictoryExclusions(spec)).toBe(spec);
   });
 });

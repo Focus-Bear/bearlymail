@@ -193,6 +193,7 @@ export class UsersService {
         "user.googleCalendarRefreshToken",
         "user.lastEmailSyncAt",
         "user.updatedAt",
+        "user.needsRelogin",
       ])
       .where("user.id = :id", { id })
       .getOne();

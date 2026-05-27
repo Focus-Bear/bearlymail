@@ -282,6 +282,21 @@ export class GmailProvider implements EmailProvider {
     if (!user?.googleCalendarAccessToken) return;
 
     const isRecentLogin = this.gmailSyncService.isWithinGracePeriod(user);
+
+    // Already flagged for re-auth: skip the sync entirely. The Gmail API call
+    // would 401/403 again (e.g. insufficient scopes) and produce a verbose
+    // per-cycle log cascade (handleSyncError + AuthLogger + provider-manager).
+    // Sync resumes automatically once the user re-authenticates — login clears
+    // needsRelogin. Respect the grace period so a just-logged-in user whose
+    // flag hasn't been cleared yet isn't skipped. Logged at debug so this
+    // steady-state skip itself adds no production log volume. See #2218.
+    if (user.needsRelogin && !isRecentLogin) {
+      this.logger.debug(
+        `[GmailProvider] Skipping sync for user ${userId} — needsRelogin set (awaiting re-auth)`,
+      );
+      return;
+    }
+
     if (!user.googleCalendarRefreshToken) {
       await this.gmailSyncService.handleMissingRefreshToken(userId, user);
     }

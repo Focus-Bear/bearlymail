@@ -99,6 +99,42 @@ describe("GmailProvider — validateToken", () => {
     jest.clearAllMocks();
   });
 
+  describe("needsRelogin skip (#2218 sync path)", () => {
+    it("skips sync (no Gmail API call) when needsRelogin is set and outside the grace period", async () => {
+      usersService.findOneWithTokens = jest.fn().mockResolvedValue({
+        ...mockUser,
+        needsRelogin: true,
+        // 10 minutes ago, i.e. outside the 5-minute grace period
+        updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+      });
+
+      await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
+
+      // Returned before creating the Gmail client / validating the token, so no
+      // API call and no redundant re-flagging.
+      expect(mockGetAccessToken).not.toHaveBeenCalled();
+      expect(usersService.markNeedsRelogin).not.toHaveBeenCalled();
+    });
+
+    it("does NOT skip when needsRelogin is set but the user is within the grace period", async () => {
+      usersService.findOneWithTokens = jest.fn().mockResolvedValue({
+        ...mockUser,
+        needsRelogin: true,
+        // within 5 minutes, i.e. grace active (just logged in)
+        updatedAt: new Date(),
+      });
+      const invalidTokenError = Object.assign(new Error("invalid_token"), {
+        response: { data: { error: "invalid_token" } },
+      });
+      mockGetAccessToken.mockRejectedValue(invalidTokenError);
+
+      await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
+
+      // Proceeded past the skip into token validation.
+      expect(mockGetAccessToken).toHaveBeenCalled();
+    });
+  });
+
   describe("invalid token — irrecoverable path", () => {
     it("sets needsRelogin and resolves (no throw) when response.data.error is invalid_token", async () => {
       // Simulate a Gaxios-style error with structured error code

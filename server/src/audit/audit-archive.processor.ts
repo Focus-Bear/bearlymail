@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import PgBoss from "pg-boss";
-import { LessThan, Repository } from "typeorm";
+import { Repository } from "typeorm";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -73,15 +73,33 @@ export class AuditArchiveProcessor implements OnModuleInit {
 
     // Loop until no more rows older than the cutoff remain.
     for (;;) {
-      const rows = await this.auditLogRepository.find({
-        where: { createdAt: LessThan(cutoff) },
-        order: { createdAt: "ASC" },
-        take: BATCH_SIZE,
-      });
+      // Use getRawMany() (NOT .find()) so TypeORM does NOT run the column
+      // transformers. This is a cross-user batch: the per-user-encrypted columns
+      // (metadata, ipAddress, userAgent) cannot be decrypted here (no per-user
+      // key), and we must NOT lose them. Archiving the raw stored ciphertext
+      // preserves the data faithfully (it stays encrypted at rest in S3 and can
+      // be decrypted later with the owning user's key if ever required).
+      const rows = await this.auditLogRepository
+        .createQueryBuilder("a")
+        .select([
+          "a.id AS id",
+          'a.userId AS "userId"',
+          "a.action AS action",
+          'a.targetType AS "targetType"',
+          'a.targetId AS "targetId"',
+          "a.metadata AS metadata",
+          'a.ipAddress AS "ipAddress"',
+          'a.userAgent AS "userAgent"',
+          'a.createdAt AS "createdAt"',
+        ])
+        .where("a.createdAt < :cutoff", { cutoff })
+        .orderBy("a.createdAt", "ASC")
+        .limit(BATCH_SIZE)
+        .getRawMany<RawAuditLogRow>();
 
       if (rows.length === 0) break;
 
-      const key = this.buildObjectKey(rows[0].createdAt);
+      const key = this.buildObjectKey(new Date(rows[0].createdAt));
       const ndjson = rows
         .map((row) => JSON.stringify(this.serialiseRow(row)))
         .join("\n");
@@ -122,17 +140,32 @@ export class AuditArchiveProcessor implements OnModuleInit {
     return `audit-logs/${year}/${month}/${day}/exported-${runStamp}.ndjson`;
   }
 
-  private serialiseRow(row: AuditLog): Record<string, unknown> {
+  private serialiseRow(row: RawAuditLogRow): Record<string, unknown> {
     return {
       id: row.id,
       userId: row.userId,
       action: row.action,
       targetType: row.targetType,
       targetId: row.targetId,
+      // metadata/ipAddress/userAgent are the raw stored values (ciphertext for
+      // per-user-encrypted rows) — preserved as-is, never decrypted here.
       metadata: row.metadata,
       ipAddress: row.ipAddress,
       userAgent: row.userAgent,
-      createdAt: row.createdAt.toISOString(),
+      createdAt: new Date(row.createdAt).toISOString(),
     };
   }
+}
+
+/** Raw (untransformed) audit_logs row as returned by getRawMany — encrypted columns stay as ciphertext. */
+interface RawAuditLogRow {
+  id: string;
+  userId: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  metadata: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: Date | string;
 }

@@ -1,7 +1,6 @@
 import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { AuditLog } from "../database/entities/audit-log.entity";
@@ -20,13 +19,24 @@ jest.mock("@aws-sdk/client-s3", () => {
 
 describe("AuditArchiveProcessor", () => {
   let processor: AuditArchiveProcessor;
-  let repo: jest.Mocked<Pick<Repository<AuditLog>, "find" | "delete">>;
+  let getRawMany: jest.Mock;
+  let repo: { createQueryBuilder: jest.Mock; delete: jest.Mock };
   let boss: { schedule: jest.Mock; work: jest.Mock };
 
   beforeEach(async () => {
     mockS3Send.mockClear();
+    // runArchive() now uses getRawMany() (not .find()) so TypeORM does not run
+    // the column transformers — encrypted columns are archived as raw ciphertext.
+    getRawMany = jest.fn();
+    const qb = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getRawMany,
+    };
     repo = {
-      find: jest.fn(),
+      createQueryBuilder: jest.fn(() => qb),
       delete: jest.fn().mockResolvedValue({ affected: 0 }),
     };
     boss = { schedule: jest.fn(), work: jest.fn() };
@@ -64,7 +74,7 @@ describe("AuditArchiveProcessor", () => {
       createdAt: new Date("2025-01-15T10:00:00Z"),
     };
 
-    repo.find.mockResolvedValueOnce([row]).mockResolvedValueOnce([]);
+    getRawMany.mockResolvedValueOnce([row]).mockResolvedValueOnce([]);
 
     const result = await processor.runArchive();
 
@@ -118,7 +128,7 @@ describe("AuditArchiveProcessor", () => {
       const result = await localProcessor.runArchive();
       expect(result).toEqual({ batches: 0, rowsArchived: 0 });
       expect(mockS3Send).not.toHaveBeenCalled();
-      expect(repo.find).not.toHaveBeenCalled();
+      expect(repo.createQueryBuilder).not.toHaveBeenCalled();
       expect(repo.delete).not.toHaveBeenCalled();
     } finally {
       if (originalEnv !== undefined) {
@@ -140,7 +150,7 @@ describe("AuditArchiveProcessor", () => {
       createdAt: new Date("2025-01-15T10:00:00Z"),
     };
 
-    repo.find.mockResolvedValueOnce([row]);
+    getRawMany.mockResolvedValueOnce([row]);
     mockS3Send.mockRejectedValueOnce(new Error("s3 down"));
 
     await expect(processor.runArchive()).rejects.toThrow("s3 down");

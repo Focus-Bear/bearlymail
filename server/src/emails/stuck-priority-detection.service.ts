@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
-import { Equal, IsNull, LessThan, Not, Or, Repository } from "typeorm";
+import { Equal, In, IsNull, LessThan, Not, Or, Repository } from "typeorm";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -9,6 +9,7 @@ import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { getJobPriority } from "../queue/job-priorities";
 
 /**
@@ -44,6 +45,7 @@ export class StuckPriorityDetectionService implements OnModuleInit {
     private readonly emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -179,36 +181,68 @@ export class StuckPriorityDetectionService implements OnModuleInit {
     cutoff: Date,
   ): Promise<EmailThread[]> {
     try {
+      // Step 1 — cross-user candidate scan, SCALAR columns only. We must NOT
+      // select priorityExplanation here: it's per-user encrypted, and decrypting
+      // it in this cross-user context (no per-user KMS key) fails for every row.
       const candidates = await this.emailThreadRepository.find({
         where: {
-          // Not currently being processed
           isProcessingPriority: false,
-          // Score is either null or 0 (no valid priority assigned)
           priorityScore: Or(IsNull(), Equal(0)),
           // priorityExplanation must exist (null case handled by findStuckThreadsWithNullExplanation)
           priorityExplanation: Not(IsNull()),
-          // Old enough to have had initial processing time
           createdAt: LessThan(cutoff),
         },
-        select: [
-          "id",
-          "userId",
-          "threadId",
-          "priorityRetryCount",
-          "priorityExplanation",
-          "createdAt",
-        ],
-        // fetch extra to account for post-filter reduction
+        select: ["id", "userId", "threadId", "priorityRetryCount", "createdAt"],
         take: StuckPriorityDetectionService.MAX_REQUEUE_PER_RUN * 2,
-        // oldest first
         order: { createdAt: "ASC" },
       });
 
-      // Filter in application code after decryption by the column transformer
-      return candidates.filter((thread) => {
-        const breakdown = thread.priorityExplanation?.breakdown;
-        return !breakdown || breakdown.length === 0;
-      });
+      // Step 2 — group by user so we can reload + decrypt priorityExplanation
+      // under each user's KMS key.
+      const byUser = new Map<string, string[]>();
+      for (const candidate of candidates) {
+        const ids = byUser.get(candidate.userId) ?? [];
+        ids.push(candidate.id);
+        byUser.set(candidate.userId, ids);
+      }
+
+      // Step 3 — per user, reload with priorityExplanation inside withUserKey
+      // (so the transformer can decrypt it) and keep only genuinely-empty
+      // breakdowns. Inspecting the breakdown is the whole point of this check,
+      // so it legitimately needs the decrypted value — hence per-user iteration.
+      const stuck: EmailThread[] = [];
+      for (const [userId, ids] of byUser) {
+        // Per-user try/catch: a single user's KMS key failure (misconfigured/
+        // disabled key, transient KMS error) must not block the safety net for
+        // everyone else.
+        try {
+          const withExplanation = await this.userEncryptionService.withUserKey(
+            userId,
+            () =>
+              this.emailThreadRepository.find({
+                where: { id: In(ids) },
+                select: [
+                  "id",
+                  "userId",
+                  "threadId",
+                  "priorityRetryCount",
+                  "createdAt",
+                  "priorityExplanation",
+                ],
+              }),
+          );
+          for (const thread of withExplanation) {
+            const breakdown = thread.priorityExplanation?.breakdown;
+            if (!breakdown || breakdown.length === 0) stuck.push(thread);
+          }
+        } catch (err) {
+          this.logger.error(
+            `Failed to load/decrypt priorityExplanation for user ${userId} — skipping`,
+            err,
+          );
+        }
+      }
+      return stuck;
     } catch (err) {
       this.logger.warn(
         "Could not query for threads with empty breakdown — skipping",

@@ -5,6 +5,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { ScanAnalysisService } from "./scan-analysis.service";
 
 @Injectable()
@@ -15,6 +16,7 @@ export class ScanAnalysisProcessor implements OnModuleInit {
   constructor(
     @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private readonly scanAnalysisService: ScanAnalysisService,
+    private readonly userEncryptionService: UserEncryptionService,
     private configService: ConfigService,
   ) {
     // Get CPU cores for optimal concurrency
@@ -49,7 +51,12 @@ export class ScanAnalysisProcessor implements OnModuleInit {
           `[Worker ${workerId}] Starting analysis of scan results for user ${userId}`,
         );
         try {
-          await this.scanAnalysisService.analyzeScanResults(userId);
+          // Wrap in the user's KMS key context: analyzeScanResults reads
+          // per-user-encrypted scan_emails and writes user_contexts, which fail
+          // (and previously crashed the worker) without the per-user key.
+          await this.userEncryptionService.withUserKey(userId, () =>
+            this.scanAnalysisService.analyzeScanResults(userId),
+          );
           this.logger.log(
             `[Worker ${workerId}] Completed analysis for user ${userId}`,
           );

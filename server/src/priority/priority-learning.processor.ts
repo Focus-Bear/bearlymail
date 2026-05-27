@@ -6,6 +6,7 @@ import PgBoss from "pg-boss";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { PriorityLearningService } from "./priority-learning.service";
 
@@ -19,6 +20,7 @@ export class PriorityLearningProcessor implements OnModuleInit {
     private priorityLearningService: PriorityLearningService,
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -64,10 +66,15 @@ export class PriorityLearningProcessor implements OnModuleInit {
         );
 
         try {
-          await this.priorityLearningService.learnFromStarSelection(
-            userId,
-            emailId,
-            starCount,
+          // Wrap in the user's KMS key context: learnFromStarSelection reads
+          // per-user-encrypted Email/EmailThread/UserContext rows, which fail
+          // (and previously crashed the worker) without the per-user key.
+          await this.userEncryptionService.withUserKey(userId, () =>
+            this.priorityLearningService.learnFromStarSelection(
+              userId,
+              emailId,
+              starCount,
+            ),
           );
           this.logger.log(
             `[Worker ${workerId}] Completed learning for email ${emailId}`,

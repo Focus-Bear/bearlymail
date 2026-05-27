@@ -12,6 +12,7 @@ import { CloudWatchService } from "../aws/cloudwatch.service";
 import { Email } from "../database/entities/email.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { LLMService } from "../llm/llm.service";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
@@ -141,6 +142,14 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
           useValue: mockSuggestedRepliesService,
         },
         { provide: CloudWatchService, useValue: mockCloudWatchService },
+        {
+          // withUserKey runs the callback directly (per-user key context is
+          // exercised in user-encryption.service.spec); here we just pass through.
+          provide: UserEncryptionService,
+          useValue: {
+            withUserKey: jest.fn((_userId: string, fn: () => unknown) => fn()),
+          },
+        },
       ],
     }).compile();
 

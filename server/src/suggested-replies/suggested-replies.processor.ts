@@ -11,6 +11,7 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
 import { LLMService } from "../llm/llm.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
@@ -64,6 +65,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     private llmService: LLMService,
     private usersService: UsersService,
     private cloudWatchService: CloudWatchService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   async onModuleInit() {
@@ -72,7 +74,20 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     await this.boss.work(
       JOB_NAMES.GENERATE_SUGGESTED_REPLIES,
       { teamSize: 4 },
-      (job: PgBoss.Job<object>) => this.handleGenerateSuggestedRepliesJob(job),
+      (job: PgBoss.Job<object>) => {
+        // Wrap in the user's KMS key context: this handler reads per-user-
+        // encrypted Email rows, which fail (and previously crashed the worker)
+        // without the per-user key.
+        const { userId } = (job.data ?? {}) as { userId?: string };
+        if (!userId) {
+          throw new Error(
+            "Cannot generate suggested replies: missing userId in job data",
+          );
+        }
+        return this.userEncryptionService.withUserKey(userId, () =>
+          this.handleGenerateSuggestedRepliesJob(job),
+        );
+      },
     );
 
     this.logger.log(

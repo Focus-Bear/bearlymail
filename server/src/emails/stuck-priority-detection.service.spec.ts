@@ -13,6 +13,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StuckPriorityDetectionService } from "./stuck-priority-detection.service";
 
 function makeThread(overrides: Partial<EmailThread> = {}): EmailThread {
@@ -72,6 +73,14 @@ describe("StuckPriorityDetectionService", () => {
         {
           provide: getRepositoryToken(EmailThread),
           useValue: mockThreadRepo,
+        },
+        {
+          // withUserKey runs the callback directly (per-user key context is
+          // exercised in user-encryption.service.spec); here we just pass through.
+          provide: UserEncryptionService,
+          useValue: {
+            withUserKey: jest.fn((_userId: string, fn: () => unknown) => fn()),
+          },
         },
       ],
     }).compile();

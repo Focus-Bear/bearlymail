@@ -10,6 +10,11 @@ ensureLogsDirSync();
 const AUTORESPONDER_LOG_FILE = path.join(LOGS_DIR, "autoresponder.log");
 
 function writeToAutoresponderLog(message: string): void {
+  // Development only. In production the container filesystem is read-only, so
+  // the append throws ENOENT every time and the logError() catch below dumps a
+  // stack + PostHog event — high-volume CloudWatch spam. The NestJS logger
+  // calls in each log* method are the prod-visible record.
+  if (!isDevelopment) return;
   try {
     ensureLogsDirSync();
     const timestamp = new Date().toISOString();

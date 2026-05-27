@@ -14,6 +14,11 @@ const DEBUG_LOG_FILE = path.join(LOGS_DIR, "debug.log");
 
 // Helper to write to log file
 function writeToAuthLog(message: string) {
+  // Development only. In production the container filesystem is read-only, so
+  // the append throws ENOENT every time and the logError() catch below dumps a
+  // stack + PostHog event — high-volume CloudWatch spam. The console log in
+  // logAuthFailure() is the prod-visible record.
+  if (!isDevelopment) return;
   try {
     // Ensure logs directory exists (in case it was deleted between boot and now).
     // No-op in production — ensureLogsDirSync() returns early when !isDevelopment.
@@ -31,6 +36,8 @@ function writeToAuthLog(message: string) {
 
 // Helper to write debug logs to file
 export function writeDebugLog(message: string) {
+  // Development only — see writeToAuthLog above (prod FS is read-only).
+  if (!isDevelopment) return;
   try {
     ensureLogsDirSync();
     const timestamp = new Date().toISOString();

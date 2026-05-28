@@ -13,6 +13,9 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as sns from 'aws-cdk-lib/aws-sns';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as route53 from 'aws-cdk-lib/aws-route53';
@@ -60,6 +63,8 @@ export interface BearlyMailStackProps extends cdk.StackProps {
   readonly rdsProxyEndpoint: string;
   /** RDS Proxy security group (from BearlyMailDatabaseStack) — ecsSecurityGroup ingress rule added here */
   readonly rdsProxySecurityGroup: ec2.ISecurityGroup;
+  /** Optional SNS topic ARN (from BearlyMailAlertingStack) to notify when app alarms fire. */
+  readonly alarmSnsTopicArn?: string;
 }
 
 export class BearlyMailStack extends cdk.Stack {
@@ -500,6 +505,71 @@ export class BearlyMailStack extends cdk.Stack {
       retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+
+    // ============================================
+    // Decrypt-failure alarm (KMS / encryption health)
+    //
+    // EncryptionHelper.tryDecrypt() logs `tryDecrypt: decryption failed` whenever
+    // ciphertext won't decrypt (and returns null — never raw ciphertext). Since
+    // Layer 1 (#2238) this no longer crashes the worker, so a spike is a silent
+    // CORRECTNESS signal, not an outage: rows are reading as empty. Causes, by
+    // scope: (a) all users + boot decryption check also failing => wrong/rotated
+    // GLOBAL key; (b) one user inside a background job => a cross-user read
+    // missing withUserKey (the #2243 regression class); (c) a few rows => legacy
+    // /corrupt ciphertext for one user.
+    //
+    // We surface it as a CloudWatch metric via a Logs metric filter on both the
+    // web and worker log groups (failures can originate in either), then alarm on
+    // the summed count. Threshold is intentionally low (the steady state after
+    // #2243 should be ~0) but not 1, to tolerate the odd transient/legacy row.
+    // Tune BearlyMail-Encryption-DecryptFailures in CloudWatch if it's noisy.
+    // ============================================
+    const DECRYPT_FAILURE_NAMESPACE = 'BearlyMail/Encryption';
+    const DECRYPT_FAILURE_METRIC = 'DecryptFailure';
+    const decryptFailureFilterPattern = logs.FilterPattern.literal(
+      '"tryDecrypt: decryption failed"',
+    );
+
+    for (const [scopeName, logGroup] of [
+      ['Web', webLogGroup],
+      ['Worker', workerLogGroup],
+    ] as const) {
+      new logs.MetricFilter(this, `${scopeName}DecryptFailureMetricFilter`, {
+        logGroup,
+        metricNamespace: DECRYPT_FAILURE_NAMESPACE,
+        metricName: DECRYPT_FAILURE_METRIC,
+        filterPattern: decryptFailureFilterPattern,
+        metricValue: '1',
+      });
+    }
+
+    const decryptFailureAlarm = new cloudwatch.Alarm(this, 'DecryptFailureAlarm', {
+      alarmName: 'BearlyMail-Encryption-DecryptFailures',
+      alarmDescription:
+        'Ciphertext failing to decrypt (tryDecrypt returning null). Not an outage since #2238 - a correctness signal. Triage by scope: all users => wrong/rotated global key; one user in a background job => missing withUserKey; a few rows => legacy/corrupt ciphertext.',
+      metric: new cloudwatch.Metric({
+        namespace: DECRYPT_FAILURE_NAMESPACE,
+        metricName: DECRYPT_FAILURE_METRIC,
+        statistic: 'Sum',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 5,
+      evaluationPeriods: 1,
+      comparisonOperator:
+        cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    if (props.alarmSnsTopicArn) {
+      const alarmTopic = sns.Topic.fromTopicArn(
+        this,
+        'EncryptionAlarmTopic',
+        props.alarmSnsTopicArn,
+      );
+      decryptFailureAlarm.addAlarmAction(
+        new cloudwatchActions.SnsAction(alarmTopic),
+      );
+    }
 
     // ============================================
     // ECR Repository for server images

@@ -10,6 +10,7 @@ import { BearlyMailDatabaseStack } from '../lib/bearlymail-database-stack';
 import { BearlyMailGitHubActionsStack } from '../lib/bearlymail-github-actions-stack';
 import { BearlyMailContextAnalysisStack } from '../lib/bearlymail-context-analysis-stack';
 import { BearlyMailEmailPrioritisationStack } from '../lib/bearlymail-email-prioritisation-stack';
+import { BearlyMailAlertingStack } from '../lib/bearlymail-alerting-stack';
 
 const PERMISSIONS_BOUNDARY_ARN = 'arn:aws:iam::789877399450:policy/BearlyMail-PermissionBoundary';
 
@@ -56,6 +57,32 @@ const domainName = 'app.bearlymail.com';
 const hostedZoneId = 'Z04117591ORLVZWX6SSWO';
 
 // ============================================
+// 0. Alerting Stack (shared SNS topic for all operational alarms)
+//    Created first and has no dependencies; its topic ARN is threaded into the
+//    downstream stacks so their CloudWatch alarms have a notification target.
+//    NOTE: each email subscriber must click the one-time AWS "Confirm
+//    subscription" email before alerts are delivered.
+// ============================================
+// Alert recipients are configurable without a code change:
+//   cdk deploy -c alertEmails=a@x.io,b@y.io   (highest precedence)
+//   ALERT_EMAILS=a@x.io,b@y.io cdk deploy
+// Defaults to the founder so it works out of the box with no extra config.
+const alertEmailsRaw =
+  (app.node.tryGetContext('alertEmails') as string | undefined) ||
+  process.env.ALERT_EMAILS ||
+  'jeremy@focusbear.io';
+const alertEmails = alertEmailsRaw
+  .split(',')
+  .map((e) => e.trim())
+  .filter((e) => e.length > 0);
+
+const alertingStack = new BearlyMailAlertingStack(app, 'BearlyMailAlertingStack', {
+  env,
+  description: 'BearlyMail - Operational alerting (shared SNS alarm topic)',
+  alertEmails,
+});
+
+// ============================================
 // 1. Networking Stack (VPC, Route53, Certificate)
 // ============================================
 const networkingStack = new BearlyMailNetworkingStack(app, 'BearlyMailNetworkingStack', {
@@ -80,10 +107,12 @@ const databaseStack = new BearlyMailDatabaseStack(app, 'BearlyMailDatabaseStack'
   env,
   description: 'BearlyMail - Database (RDS PostgreSQL)',
   vpc: networkingStack.vpc,
+  alarmSnsTopicArn: alertingStack.topicArn,
 });
 
 // Database depends only on networking (DB secret is created inside this stack to avoid cycle)
 databaseStack.addDependency(networkingStack);
+databaseStack.addDependency(alertingStack);
 
 // ============================================
 // 4. Context Analysis Stack (SQS + Lambda + RDS Proxy) — BEFORE AppStack
@@ -99,11 +128,13 @@ const contextAnalysisStack = new BearlyMailContextAnalysisStack(app, 'BearlyMail
   rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
   rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
   lambdaSecurityGroup: databaseStack.lambdaSecurityGroup,
+  alarmSnsTopicArn: alertingStack.topicArn,
 });
 
 contextAnalysisStack.addDependency(networkingStack);
 contextAnalysisStack.addDependency(databaseStack);
 contextAnalysisStack.addDependency(secretsStack);
+contextAnalysisStack.addDependency(alertingStack);
 
 // ============================================
 // 5. Email Prioritisation Stack (SQS + Lambda)
@@ -122,12 +153,14 @@ const emailPrioritisationStack = new BearlyMailEmailPrioritisationStack(
     rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
     rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
     lambdaSecurityGroup: databaseStack.lambdaSecurityGroup,
+    alarmSnsTopicArn: alertingStack.topicArn,
   },
 );
 
 emailPrioritisationStack.addDependency(networkingStack);
 emailPrioritisationStack.addDependency(databaseStack);
 emailPrioritisationStack.addDependency(secretsStack);
+emailPrioritisationStack.addDependency(alertingStack);
 
 // ============================================
 // 6. Application Stack (ECS, S3, CloudFront) — depends on EmailPrioritisationStack
@@ -150,6 +183,7 @@ const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
   emailPrioritisationQueue: emailPrioritisationStack.queue,
   rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
   rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
+  alarmSnsTopicArn: alertingStack.topicArn,
 });
 
 appStack.addDependency(networkingStack);
@@ -157,6 +191,7 @@ appStack.addDependency(secretsStack);
 appStack.addDependency(databaseStack);
 appStack.addDependency(contextAnalysisStack);
 appStack.addDependency(emailPrioritisationStack);
+appStack.addDependency(alertingStack);
 
 // ============================================
 // 7. GitHub Actions Stack (OIDC Provider + Deployment Role)

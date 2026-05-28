@@ -8,6 +8,7 @@ import { parseCategoryName } from "../utils/category-name.util";
 import { RawEmailRow, SYSTEM_LABELS } from "./email-inbox.types";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
+import { parseLabelsValue } from "./labels.util";
 
 /** Display name used for the null-category (uncategorized) bucket. */
 const OTHER_CATEGORY_NAME = "Other";
@@ -109,20 +110,22 @@ export class EmailInboxDecryptService {
 
   decryptEmailLabels(row: RawEmailRow): string[] {
     if (!row.labels) return [];
-    try {
-      const decrypted = EncryptionHelper.tryDecrypt(row.labels);
-      if (!decrypted) return [];
-      const parsed = JSON.parse(decrypted);
-      return Array.from(
-        new Set(parsed.filter((label: string) => !SYSTEM_LABELS.has(label))),
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Failed to decrypt/parse labels for email ${row.id}:`,
-        error,
+    const decrypted = EncryptionHelper.tryDecrypt(row.labels);
+    if (!decrypted) return [];
+    // Accept both the canonical JSON array and the legacy Postgres array-literal
+    // form (`{"INBOX",...}`) some rows were written in. parseLabelsValue never
+    // throws, so a malformed value yields a single debug line (suppressed in
+    // prod) instead of a WARN + full stack on every inbox load.
+    const parsed = parseLabelsValue(decrypted);
+    if (parsed === null) {
+      this.logger.debug(
+        `Unparseable labels for email ${row.id} — returning [] (re-encryption job repairs the row)`,
       );
       return [];
     }
+    return Array.from(
+      new Set(parsed.filter((label) => !SYSTEM_LABELS.has(label))),
+    );
   }
 
   decryptEncryptedJsonField<T>(
@@ -180,8 +183,22 @@ export class EmailInboxDecryptService {
           `[EmailInboxDecryptService] Updating labels for email ${email.id}`,
         );
         email.labels = unique;
+        // Write through manual encryption + raw SQL, NOT repository.update().
+        // repository.update() bypasses the encryptedJsonTransformer, so
+        // node-postgres serialises the JS array as a Postgres array literal
+        // (`{"INBOX",...}`) stored as plaintext — the same bug fixed in
+        // EmailCrudService.updateEmail, and the ongoing source of pg-array
+        // labels that crash JSON.parse on every subsequent inbox load.
+        // EncryptionHelper.encrypt picks up the current request's per-user
+        // KMS key (this method runs inside the inbox HTTP handler).
+        const encryptedLabels = EncryptionHelper.encrypt(
+          JSON.stringify(unique),
+        );
         this.emailRepository
-          .update(email.id, { labels: unique })
+          .query(`UPDATE emails SET labels = $1 WHERE id = $2`, [
+            encryptedLabels,
+            email.id,
+          ])
           .catch((err) =>
             this.logger.warn(
               `Failed to update labels for email ${email.id}`,

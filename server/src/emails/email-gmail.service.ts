@@ -10,6 +10,7 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { formatGaxiosError, isError } from "../types/common";
 import { UsersService } from "../users/users.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import { parseLabelsValue } from "./labels.util";
 
 @Injectable()
 export class EmailGmailService {
@@ -122,17 +123,16 @@ export class EmailGmailService {
     );
 
     if (emailWithLabels?.length > 0 && emailWithLabels[0].labels) {
-      try {
-        const decryptedLabels = EncryptionHelper.tryDecrypt(
-          emailWithLabels[0].labels,
-        );
-        if (decryptedLabels) {
-          return JSON.parse(decryptedLabels) as string[];
-        }
-      } catch (error) {
-        this.logger.warn(
-          `Failed to decrypt/parse labels for email ${email.id}:`,
-          error,
+      const decryptedLabels = EncryptionHelper.tryDecrypt(
+        emailWithLabels[0].labels,
+      );
+      if (decryptedLabels) {
+        // Accept both JSON and legacy Postgres array-literal labels; never
+        // throw (avoids a WARN + stack per call on legacy rows).
+        const parsed = parseLabelsValue(decryptedLabels);
+        if (parsed !== null) return parsed;
+        this.logger.debug(
+          `Unparseable labels for email ${email.id} — ignoring`,
         );
       }
     }

@@ -5,6 +5,11 @@ import { MoreThan, Repository } from "typeorm";
 
 import { GMAIL_LABELS } from "../constants/email-labels";
 import { Email } from "../database/entities/email.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
+import { parseCategoryName } from "../utils/category-name.util";
 
 const SCRYPT_KEY_LENGTH = 32;
 const SALT_BYTE_LENGTH = 16;
@@ -23,6 +28,7 @@ export interface ExportEmailRecord {
   body: string;
   isRead: boolean;
   isReceived: boolean;
+  category: string | null;
 }
 
 @Injectable()
@@ -30,6 +36,8 @@ export class EmailExportService {
   constructor(
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
+    @InjectRepository(UserContext)
+    private readonly userContextRepository: Repository<UserContext>,
   ) {}
 
   /**
@@ -45,6 +53,10 @@ export class EmailExportService {
    * Batches are fetched with keyset pagination (`WHERE id > lastId`) rather
    * than OFFSET so that performance does not degrade as the export walks
    * through a large `emails` table.
+   *
+   * Category names are resolved by pre-loading the user's EMAIL_CATEGORY
+   * contexts once before the batch loop and building an in-memory map, so
+   * there is only one extra DB round-trip regardless of mailbox size.
    */
   async exportEmails(userId: string, password: string): Promise<string> {
     if (!password || password.length < MIN_PASSWORD_LENGTH) {
@@ -52,6 +64,8 @@ export class EmailExportService {
         `Export password must be at least ${MIN_PASSWORD_LENGTH} characters`,
       );
     }
+
+    const categoryMap = await this.buildCategoryMap(userId);
 
     const salt = crypto.randomBytes(SALT_BYTE_LENGTH);
     const key = await this.deriveKey(password, salt);
@@ -72,18 +86,21 @@ export class EmailExportService {
           userId,
           ...(lastId ? { id: MoreThan(lastId) } : {}),
         },
+        relations: ["thread"],
         order: { id: "ASC" },
         take: EXPORT_BATCH_SIZE,
       });
       if (batch.length === 0) break;
 
       for (const email of batch) {
+        const categoryId = email.thread?.categoryId ?? null;
         const record: ExportEmailRecord = {
           senderDomain: this.extractDomainPattern(email.from),
           subject: email.subject ?? "",
           body: email.body ?? "",
           isRead: email.isRead,
           isReceived: this.determineIsReceived(email.labels),
+          category: categoryId ? (categoryMap.get(categoryId) ?? null) : null,
         };
         const chunk = (isFirst ? "" : ",") + JSON.stringify(record);
         encrypted += cipher.update(chunk, "utf8", "hex");
@@ -168,6 +185,19 @@ export class EmailExportService {
       authTag.toString("hex"),
       encrypted,
     ].join(":");
+  }
+
+  private async buildCategoryMap(userId: string): Promise<Map<string, string>> {
+    const contexts = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+      select: ["contextId", "contextValue"],
+    });
+    return new Map(
+      contexts.map((ctx) => [
+        ctx.contextId,
+        parseCategoryName(ctx.contextValue),
+      ]),
+    );
   }
 
   private deriveKey(password: string, salt: Buffer): Promise<Buffer> {

@@ -67,7 +67,6 @@ async function main(): Promise<void> {
 
   const blob = Buffer.from(result.CiphertextBlob).toString("base64");
 
-  // eslint-disable-next-line no-console
   console.log(
     [
       "",
@@ -83,7 +82,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error("Failed to wrap global key:", err);
   process.exit(1);
 });

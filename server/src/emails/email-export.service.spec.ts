@@ -3,7 +3,23 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { EmailExportService } from "./email-export.service";
+
+const makeThread = (overrides: Partial<EmailThread> = {}): EmailThread =>
+  ({
+    id: "thread-1",
+    userId: "user-1",
+    threadId: "gmail-thread-1",
+    starCount: 0,
+    isArchived: false,
+    categoryId: null,
+    ...overrides,
+  }) as EmailThread;
 
 const makeEmail = (overrides: Partial<Email> = {}): Email =>
   ({
@@ -14,12 +30,23 @@ const makeEmail = (overrides: Partial<Email> = {}): Email =>
     body: "World",
     isRead: false,
     labels: ["INBOX"],
+    thread: makeThread(),
     ...overrides,
   }) as Email;
+
+const makeContext = (overrides: Partial<UserContext> = {}): UserContext =>
+  ({
+    contextId: "ctx-1",
+    userId: "user-1",
+    contextKey: ContextKey.EMAIL_CATEGORY,
+    contextValue: "Work - Work-related emails",
+    ...overrides,
+  }) as UserContext;
 
 describe("EmailExportService", () => {
   let service: EmailExportService;
   const mockEmailRepository = { find: jest.fn() };
+  const mockUserContextRepository = { find: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -29,10 +56,15 @@ describe("EmailExportService", () => {
           provide: getRepositoryToken(Email),
           useValue: mockEmailRepository,
         },
+        {
+          provide: getRepositoryToken(UserContext),
+          useValue: mockUserContextRepository,
+        },
       ],
     }).compile();
 
     service = module.get<EmailExportService>(EmailExportService);
+    mockUserContextRepository.find.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -150,6 +182,7 @@ describe("EmailExportService", () => {
       expect(mockEmailRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { userId: "user-1" },
+          relations: ["thread"],
           take: expect.any(Number),
           order: { id: "ASC" },
         }),
@@ -228,6 +261,84 @@ describe("EmailExportService", () => {
 
       const result = await service.exportEmails("user-1", "securepassword");
       expect(result.split(":")).toHaveLength(4);
+    });
+
+    it("includes category from thread when categoryId matches a user context", async () => {
+      const categoryCtx = makeContext({
+        contextId: "cat-uuid-1",
+        contextValue: "Work - Work-related emails",
+      });
+      mockUserContextRepository.find.mockResolvedValueOnce([categoryCtx]);
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({
+          thread: makeThread({ categoryId: "cat-uuid-1" }),
+        }),
+      ]);
+
+      const encrypted = await service.exportEmails("user-1", "securepassword");
+      expect(encrypted).toBeTruthy();
+      expect(mockUserContextRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: "user-1", contextKey: ContextKey.EMAIL_CATEGORY },
+        }),
+      );
+    });
+
+    it("sets category to null when thread has no categoryId", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ thread: makeThread({ categoryId: null }) }),
+      ]);
+
+      const encrypted = await service.exportEmails("user-1", "securepassword");
+      expect(encrypted).toBeTruthy();
+    });
+
+    it("sets category to null when categoryId has no matching context", async () => {
+      mockUserContextRepository.find.mockResolvedValueOnce([]);
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ thread: makeThread({ categoryId: "unknown-uuid" }) }),
+      ]);
+
+      const encrypted = await service.exportEmails("user-1", "securepassword");
+      expect(encrypted).toBeTruthy();
+    });
+
+    it("resolves category display name by stripping description part", async () => {
+      const categoryCtx = makeContext({
+        contextId: "cat-uuid-2",
+        contextValue: "Personal - Personal messages",
+      });
+      mockUserContextRepository.find.mockResolvedValueOnce([categoryCtx]);
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ thread: makeThread({ categoryId: "cat-uuid-2" }) }),
+      ]);
+
+      const encrypted = await service.exportEmails("user-1", "securepassword");
+      expect(encrypted).toBeTruthy();
+    });
+
+    it("handles email with no thread relation gracefully", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ thread: undefined as unknown as EmailThread }),
+      ]);
+
+      await expect(
+        service.exportEmails("user-1", "securepassword"),
+      ).resolves.toBeTruthy();
+    });
+
+    it("pre-fetches category contexts only once regardless of batch count", async () => {
+      const batchSize = 500;
+      const firstBatch = Array.from({ length: batchSize }, (_, i) =>
+        makeEmail({ id: `email-${i}` }),
+      );
+      mockEmailRepository.find
+        .mockResolvedValueOnce(firstBatch)
+        .mockResolvedValueOnce([]);
+
+      await service.exportEmails("user-1", "securepassword");
+
+      expect(mockUserContextRepository.find).toHaveBeenCalledTimes(1);
     });
   });
 });

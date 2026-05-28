@@ -11,8 +11,8 @@ import { LLMReplyService } from "./llm-reply.service";
 import { LLMSearchService } from "./llm-search.service";
 import { LLMSummarizationService } from "./llm-summarization.service";
 import { LLMToneService } from "./llm-tone.service";
-import { getPrompt, loadPrompts } from "./prompts";
 import * as prompts from "./prompts";
+import { getPrompt, loadPrompts } from "./prompts";
 
 describe("LLMService", () => {
   let service: LLMService;

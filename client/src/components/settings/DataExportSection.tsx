@@ -7,13 +7,14 @@ import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
-import { STRING_NONE } from 'constants/strings';
+import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 
 import { formatImportDetails, type ImportResult, parseImportFile } from './dataExport.helpers';
 
 export type { ImportResult } from './dataExport.helpers';
 
 const BUTTON_VARIANT_PRIMARY = 'primary' as const;
+const MIN_EXPORT_PASSWORD_LENGTH = 8;
 
 interface ActionButtonProps {
   onClick: () => void;
@@ -119,6 +120,14 @@ export const DataExportSection: React.FC = () => {
   const [isImportHovered, setIsImportHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Email export state
+  const [isEmailExportFormOpen, setIsEmailExportFormOpen] = useState(false);
+  const [emailExportPassword, setEmailExportPassword] = useState('');
+  const [isEmailExporting, setIsEmailExporting] = useState(false);
+  const [isEmailExportHovered, setIsEmailExportHovered] = useState(false);
+  const [isEmailDownloadHovered, setIsEmailDownloadHovered] = useState(false);
+  const [isEmailCancelHovered, setIsEmailCancelHovered] = useState(false);
+
   const handleExport = async () => {
     captureEvent(ANALYTICS_EVENTS.DATA_EXPORT_INITIATED);
     setIsExporting(true);
@@ -170,6 +179,43 @@ export const DataExportSection: React.FC = () => {
       setIsImporting(false);
     }
   };
+
+  const handleEmailExportToggle = () => {
+    setIsEmailExportFormOpen((prev) => !prev);
+    setEmailExportPassword('');
+    setError(null);
+  };
+
+  const handleEmailExport = async () => {
+    if (isEmailExporting || emailExportPassword.length < MIN_EXPORT_PASSWORD_LENGTH) {
+      return;
+    }
+    setIsEmailExporting(true);
+    setError(null);
+    try {
+      // credentials: 'include' sends the HttpOnly JWT cookie automatically
+      const response = await fetch(`${API_URL}/emails/export`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: emailExportPassword }),
+      });
+      if (!response.ok) {
+        throw new Error('Email export failed');
+      }
+      const data = await response.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      downloadBlob(blob, `bearlymail-emails-export-${new Date().toISOString().split('T')[0]}.json`);
+      setIsEmailExportFormOpen(false);
+      setEmailExportPassword('');
+    } catch {
+      setError(t('settings.dataExport.emailExportError'));
+    } finally {
+      setIsEmailExporting(false);
+    }
+  };
+
+  const isBusy = isExporting || isImporting || isEmailExporting;
 
   return (
     <div
@@ -228,7 +274,7 @@ export const DataExportSection: React.FC = () => {
       <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap' }}>
         <ActionButton
           onClick={handleExport}
-          disabled={isExporting || isImporting}
+          disabled={isBusy}
           isHovered={isExportHovered}
           onMouseEnter={() => setIsExportHovered(true)}
           onMouseLeave={() => setIsExportHovered(false)}
@@ -246,14 +292,99 @@ export const DataExportSection: React.FC = () => {
 
         <ActionButton
           onClick={handleImportClick}
-          disabled={isExporting || isImporting}
+          disabled={isBusy}
           isHovered={isImportHovered}
           onMouseEnter={() => setIsImportHovered(true)}
           onMouseLeave={() => setIsImportHovered(false)}
           label={isImporting ? t('settings.dataExport.importing') : t('settings.dataExport.importButton')}
           variant="secondary"
         />
+
+        <ActionButton
+          onClick={handleEmailExportToggle}
+          disabled={isBusy}
+          isHovered={isEmailExportHovered}
+          onMouseEnter={() => setIsEmailExportHovered(true)}
+          onMouseLeave={() => setIsEmailExportHovered(false)}
+          label={t('settings.dataExport.emailExportButton')}
+          variant="primary"
+        />
       </div>
+
+      {isEmailExportFormOpen && (
+        <div
+          style={{
+            marginTop: theme.spacing.lg,
+            padding: theme.spacing.md,
+            backgroundColor: theme.colors.background.default,
+            borderRadius: theme.borderRadius.md,
+            border: `1px solid ${theme.colors.border.light}`,
+          }}
+        >
+          <p
+            style={{
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
+            {t('settings.dataExport.emailExportDescription')}
+          </p>
+          <label
+            htmlFor="email-export-password"
+            style={{
+              display: 'block',
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.sm,
+              marginBottom: theme.spacing.xs,
+            }}
+          >
+            {t('settings.dataExport.emailExportPasswordLabel')}
+          </label>
+          <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              id="email-export-password"
+              type="password"
+              value={emailExportPassword}
+              onChange={(event) => setEmailExportPassword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === KEY_ENTER) {
+                  handleEmailExport();
+                }
+              }}
+              placeholder={t('settings.dataExport.emailExportPasswordPlaceholder')}
+              disabled={isEmailExporting}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.md,
+                fontSize: theme.typography.fontSize.base,
+                backgroundColor: theme.colors.background.paper,
+                color: theme.colors.text.primary,
+                minWidth: '220px',
+              }}
+            />
+            <ActionButton
+              onClick={handleEmailExport}
+              disabled={isEmailExporting || emailExportPassword.length < MIN_EXPORT_PASSWORD_LENGTH}
+              isHovered={isEmailDownloadHovered}
+              onMouseEnter={() => setIsEmailDownloadHovered(true)}
+              onMouseLeave={() => setIsEmailDownloadHovered(false)}
+              label={isEmailExporting ? t('settings.dataExport.emailExporting') : t('settings.dataExport.emailExportDownload')}
+              variant="primary"
+            />
+            <ActionButton
+              onClick={handleEmailExportToggle}
+              disabled={isEmailExporting}
+              isHovered={isEmailCancelHovered}
+              onMouseEnter={() => setIsEmailCancelHovered(true)}
+              onMouseLeave={() => setIsEmailCancelHovered(false)}
+              label={t('settings.dataExport.emailExportCancel')}
+              variant="secondary"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

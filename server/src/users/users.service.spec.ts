@@ -190,9 +190,7 @@ describe("UsersService", () => {
   describe("markNeedsRelogin", () => {
     it("sets needsRelogin plus the logout reason and timestamp", async () => {
       const existingUser = { ...mockUser };
-      jest
-        .spyOn(service, "findOneLightweight")
-        .mockResolvedValue(existingUser);
+      jest.spyOn(service, "findOneLightweight").mockResolvedValue(existingUser);
       repository.findOne.mockResolvedValue(existingUser);
       repository.save.mockImplementation(async (user) => user as User);
 

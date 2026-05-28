@@ -3405,8 +3405,8 @@
     },
     "dataExport": {
       "title": "Exportar e Importar Datos",
-      "description": "Descarga todas tus configuraciones como un archivo JSON o importa configuraciones de otra cuenta. Esto incluye tu horario de lotes, remitentes bloqueados, palabras clave bloqueadas, contexto de IA, reglas de tono, reglas de resumen y configuración del respondedor automático. Los correos electrónicos no están incluidos ya que permanecen en tu proveedor de correo.",
-      "exportButton": "Exportar datos",
+      "description": "Descarga todas tus configuraciones como un archivo JSON o importa configuraciones de otra cuenta. Esto incluye tu horario de lotes, remitentes bloqueados, palabras clave bloqueadas, contexto de IA, reglas de tono, reglas de resumen y configuración del respondedor automático.",
+      "exportButton": "Exportar configuración",
       "exporting": "Exportando...",
       "exportError": "No se pudieron exportar los datos. Por favor intenta de nuevo.",
       "importButton": "Importar datos",
@@ -3415,7 +3415,15 @@
       "importSuccess": "¡Configuraciones importadas exitosamente!",
       "importSuccessDetails": "Importado: {{details}}",
       "selectFile": "Selecciona un archivo JSON exportado de BearlyMail",
-      "invalidFile": "Archivo inválido. Por favor selecciona un archivo JSON de exportación de BearlyMail válido."
+      "invalidFile": "Archivo inválido. Por favor selecciona un archivo JSON de exportación de BearlyMail válido.",
+      "emailExportButton": "Exportar correos",
+      "emailExportDescription": "Descarga todos tus correos como un archivo JSON cifrado para entrenamiento de ML o archivo. Protegido con una contraseña que elijas.",
+      "emailExportPasswordLabel": "Ingresa una contraseña para cifrar tu exportación:",
+      "emailExportPasswordPlaceholder": "Mín. 8 caracteres",
+      "emailExportDownload": "Descargar",
+      "emailExporting": "Exportando correos...",
+      "emailExportError": "No se pudieron exportar los correos. Por favor intenta de nuevo.",
+      "emailExportCancel": "Cancelar"
     },
     "confirmRemoveGithubToken": "¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
     "githubTokenRemoved": "GitHub desconectado exitosamente",

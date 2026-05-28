@@ -1036,8 +1036,8 @@
     },
     "dataExport": {
       "title": "Export & Import Data",
-      "description": "Download all your settings as a JSON file or import settings from another account. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings. Emails are not included as they remain in your email provider.",
-      "exportButton": "Export Data",
+      "description": "Download all your settings as a JSON file or import settings from another account. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings.",
+      "exportButton": "Export Settings",
       "exporting": "Exporting...",
       "exportError": "Failed to export data. Please try again.",
       "importButton": "Import Data",
@@ -1046,7 +1046,15 @@
       "importSuccess": "Successfully imported your settings!",
       "importSuccessDetails": "Imported: {{details}}",
       "selectFile": "Select a JSON file exported from BearlyMail",
-      "invalidFile": "Invalid file. Please select a valid BearlyMail export JSON file."
+      "invalidFile": "Invalid file. Please select a valid BearlyMail export JSON file.",
+      "emailExportButton": "Export Emails",
+      "emailExportDescription": "Download all your emails as an encrypted JSON file for ML training or archival. Protected with a password you choose.",
+      "emailExportPasswordLabel": "Enter a password to encrypt your export:",
+      "emailExportPasswordPlaceholder": "Min. 8 characters",
+      "emailExportDownload": "Download",
+      "emailExporting": "Exporting emails...",
+      "emailExportError": "Failed to export emails. Please try again.",
+      "emailExportCancel": "Cancel"
     },
     "confirmRemoveGithubToken": "Are you sure you want to disconnect your GitHub account?",
     "githubTokenRemoved": "GitHub disconnected successfully",

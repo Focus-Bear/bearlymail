@@ -74,6 +74,10 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+jest.mock('contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { isAdmin: false } }),
+}));
+
 jest.mock('theme/theme', () => ({ theme: { colors: { border: { light: '#ccc' } } } }));
 
 const DEFAULT_PROPS = {

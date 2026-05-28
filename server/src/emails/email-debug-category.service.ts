@@ -10,6 +10,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { CategoryShortlistService } from "../llm/category-shortlist.service";
 import {
   buildRuleMatchText,
@@ -109,6 +110,79 @@ export class EmailDebugCategoryService {
 
   private get protoCategoryRepository() {
     return this.dataSource.getRepository(ProtoCategory);
+  }
+
+  /**
+   * Lists every EMAIL_CATEGORY UserContext for a user with both the raw
+   * `contextValue` and the parsed name/description, plus per-name grouping.
+   *
+   * Diagnoses ghost-empty categories caused by duplicate UserContext rows that
+   * the server-side dedup misses — e.g. two rows for the same logical category
+   * stored with different separators (`"Name - Description"` vs
+   * `"Name: Description"`). `parseCategoryName` only splits on `" - "`, so the
+   * `":"` variant parses to a different name and the rows aren't merged. The
+   * inbox then renders both, often with one of them showing zero emails.
+   *
+   * `nameGroups` is sorted with `duplicateCount > 1` first so callers can scan
+   * the response for collisions.
+   */
+  async listEmailCategoryContexts(userId: string): Promise<{
+    totalContexts: number;
+    contexts: Array<{
+      contextId: string;
+      rawContextValue: string;
+      parsedName: string;
+      parsedDescription: string | null;
+      createdAt: Date;
+    }>;
+    nameGroups: Array<{
+      parsedName: string;
+      duplicateCount: number;
+      contextIds: string[];
+    }>;
+  }> {
+    const ctxs = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+      select: ["contextId", "contextValue", "createdAt"],
+    });
+    for (const ctx of ctxs) {
+      decryptUserContextEntityForApi(ctx);
+    }
+
+    const contexts = ctxs
+      .map((ctx) => {
+        const { name, description } = parseCategoryValue(ctx.contextValue);
+        return {
+          contextId: ctx.contextId,
+          rawContextValue: ctx.contextValue,
+          parsedName: name,
+          parsedDescription: description,
+          createdAt: ctx.createdAt,
+        };
+      })
+      .sort(
+        (ctxA, ctxB) => ctxA.createdAt.getTime() - ctxB.createdAt.getTime(),
+      );
+
+    const byName = new Map<string, string[]>();
+    for (const ctx of contexts) {
+      const ids = byName.get(ctx.parsedName) ?? [];
+      ids.push(ctx.contextId);
+      byName.set(ctx.parsedName, ids);
+    }
+    const nameGroups = Array.from(byName.entries())
+      .map(([parsedName, contextIds]) => ({
+        parsedName,
+        duplicateCount: contextIds.length,
+        contextIds,
+      }))
+      .sort((groupA, groupB) => groupB.duplicateCount - groupA.duplicateCount);
+
+    return {
+      totalContexts: contexts.length,
+      contexts,
+      nameGroups,
+    };
   }
 
   async getCategoryDebugData(

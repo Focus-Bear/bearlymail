@@ -36,6 +36,7 @@ import { DebugService } from "../debug/debug.service";
 import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
+import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import {
@@ -64,6 +65,7 @@ export class EmailDebugAdminController {
     private readonly emailInboxTraceService: EmailInboxTraceService,
     private readonly rawColumnsService: EmailDebugRawColumnsService,
     private readonly emailFollowUpService: EmailFollowUpService,
+    private readonly emailDebugCategoryService: EmailDebugCategoryService,
   ) {}
 
   // ─── Recategorization ────────────────────────────────────────────────────────
@@ -232,6 +234,20 @@ export class EmailDebugAdminController {
    *
    * categoryId of "uncategorized" or "Other" traces the null-category bucket.
    */
+  /**
+   * Lists every EMAIL_CATEGORY UserContext for the caller, with both raw
+   * `contextValue` and parsed name/description, grouped by parsed name so
+   * duplicate rows are obvious at a glance. Used by the inbox admin debug
+   * panel to diagnose ghost-empty categories (issue #2062).
+   */
+  @Get("debug/category-contexts")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async listCategoryContexts(@Request() req) {
+    return this.emailDebugCategoryService.listEmailCategoryContexts(
+      req.user.userId,
+    );
+  }
+
   @Get("debug/category-fetch-trace")
   @UseGuards(JwtAuthGuard, AdminGuard)
   async traceCategoryFetch(

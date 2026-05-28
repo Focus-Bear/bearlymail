@@ -14,6 +14,7 @@ import { ACCORDION_BUDGETS } from 'utils/performanceBudget';
 
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { CategoryAccordion, CategoryGroup } from 'components/inbox/CategoryAccordion';
+import { CategoryDebugPanel } from 'components/inbox/CategoryDebugPanel';
 import { DebugView } from 'components/inbox/DebugView';
 import { EmailListItem } from 'components/inbox/EmailListItem';
 import { EmailListStates } from 'components/inbox/EmailListStates';
@@ -24,6 +25,7 @@ import { ScheduledEmailsManager } from 'components/scheduled-emails/ScheduledEma
 import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE, PARAM_CATEGORY_IDS } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { FollowUpData } from 'hooks/useFollowUps';
@@ -194,6 +196,8 @@ export const InboxOtherCategoryContent: React.FC<InboxOtherCategoryContentProps>
 export interface InboxCategoryItemProps {
   categoryItem: { id: string | null; name: string; count: number };
   categoryKey: string;
+  /** Raw (un-merged) category summary, so the admin debug panel can expose duplicate-name UUIDs. */
+  categorySummary?: CategorySummaryItem[] | null;
   isExpanded: boolean;
   isLoaded: boolean;
   group: CategoryGroup | undefined;
@@ -217,6 +221,7 @@ export interface InboxCategoryItemProps {
 export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   categoryItem,
   categoryKey,
+  categorySummary,
   isExpanded,
   isLoaded,
   group,
@@ -237,8 +242,13 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.isAdmin === true;
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
+  // Admin debug shows for any empty category (issue #2062 — sometimes triggers
+  // with isLoaded=false, so deliberately don't gate on loaded state).
+  const isEmptyForAdminDebug = isAdmin && categoryEmails.length === 0;
   // Budget warning: subtle amber indicator when this category's fetch is approaching budget.
   const isNearBudget = useSelector(selectCategoryBudgetWarning(categoryKey));
 
@@ -307,11 +317,15 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   // returns 0 results) are not incorrectly auto-collapsed — the user explicitly
   // expanded them and should see an empty accordion rather than it snapping shut.
   useEffect(() => {
+    // Admins keep empty categories expanded so the inline debug panel stays visible.
+    if (isAdmin) {
+      return;
+    }
     if (isLoaded && categoryEmails.length === 0 && isExpanded && categoryItem.count === 0) {
       onToggleCategory(categoryKey);
       onAfterCollapse?.();
     }
-  }, [isLoaded, categoryEmails.length, categoryKey, isExpanded, onToggleCategory, categoryItem.count, onAfterCollapse]);
+  }, [isAdmin, isLoaded, categoryEmails.length, categoryKey, isExpanded, onToggleCategory, categoryItem.count, onAfterCollapse]);
   const isOtherCategory = categoryName === CATEGORY_OTHER;
   const hasProtoGroups = isOtherCategory && otherProtoGroups.length > 0;
 
@@ -401,6 +415,17 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
           categoryEmails.map((email, indexInCategory) => renderItem(email, globalIndex + indexInCategory))
         )}
       </CategoryAccordion>
+      {isEmptyForAdminDebug && (
+        <CategoryDebugPanel
+          categoryItem={categoryItem}
+          categoryKey={categoryKey}
+          categoryEmailsLength={categoryEmails.length}
+          isLoaded={isLoaded}
+          isExpanded={isExpanded}
+          categorySummary={categorySummary ?? null}
+          mode={mode}
+        />
+      )}
     </>
   );
 };
@@ -419,6 +444,8 @@ interface InboxCategoryListProps {
   deletingProtoCategoryId: string | null | undefined;
   expandedCategories: Set<string>;
   loadedCategoryNames?: string[];
+  /** Raw (un-merged) category summary, forwarded to InboxCategoryItem for the admin debug panel. */
+  categorySummary?: CategorySummaryItem[] | null;
   mode: InboxMode;
   emailListRef: React.RefObject<HTMLDivElement | null>;
   onToggleCategory: (category: string) => void;
@@ -442,6 +469,7 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
   deletingProtoCategoryId,
   expandedCategories,
   loadedCategoryNames,
+  categorySummary,
   mode,
   emailListRef,
   onToggleCategory,
@@ -451,6 +479,8 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
   onReanalyseOther,
   renderItem,
 }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.isAdmin === true;
   /**
    * Build a callback that scrolls the email list back up to the collapsed category's
    * header after it collapses. Delayed by COLLAPSE_ANIMATION_MS to allow the CSS grid
@@ -512,7 +542,10 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
         // (e.g. "Other" accordion expands but emails never display because all emails
         // have priority < minPriority). Requiring categoryItem.count === 0 ensures we
         // only hide after the server has confirmed the category is truly empty.
-        if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
+        //
+        // Admins keep empty categories rendered so the inline CategoryDebugPanel can
+        // explain why they are still here (issue #2062).
+        if (!isAdmin && isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
           return null;
         }
 
@@ -529,6 +562,7 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
             key={categoryKey}
             categoryItem={categoryItem}
             categoryKey={categoryKey}
+            categorySummary={categorySummary}
             isExpanded={isExpanded}
             isLoaded={isLoaded}
             group={group}
@@ -742,6 +776,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
     deletingProtoCategoryId,
     expandedCategories,
     loadedCategoryNames,
+    categorySummary,
     mode,
     emailListRef,
     onToggleCategory,

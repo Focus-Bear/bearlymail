@@ -72,7 +72,7 @@ export interface BearlyMailStackProps extends cdk.StackProps {
 // `blob:` in `img-src`). `object-src` stays `'none'` — the previews use `<iframe>`/`<img>`,
 // not `<object>`/`<embed>`, so we keep that hardening rather than loosening it pre-emptively.
 const FRONTEND_CSP =
-  "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'";
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'";
 
 export class BearlyMailStack extends cdk.Stack {
   /** ECS task role — shared with BearlyMailContextAnalysisStack to grant SQS send permissions */

@@ -2,15 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <script>
-      (function () {
-        var redirect = sessionStorage.getItem('spa-redirect');
-        if (redirect) {
-          sessionStorage.removeItem('spa-redirect');
-          history.replaceState(null, '', redirect);
-        }
-      })();
-    </script>
+    <!--
+      Externalised so the CSP can omit `script-src 'unsafe-inline'`. Must run before
+      the React bundle (which is `type="module"` and therefore deferred) so the SPA
+      router sees the restored URL on first render. See client/public/spa-redirect.js.
+    -->
+    <script src="/spa-redirect.js"></script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <link rel="apple-touch-icon" href="/favicon.svg" />

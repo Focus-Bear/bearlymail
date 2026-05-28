@@ -225,7 +225,6 @@ export const REFRESH_INTERVAL_30_SEC_MS = 30000;
 export const SIGNATURE_MIN_CONTENT_CHARS = 200; // Minimum content length before signature detection
 export const TEXT_SEARCH_LAST_CHARS = 100; // Number of last characters to search for in HTML position matching
 export const MIN_CONTENT_BEFORE_BOUNDARY = 20; // Minimum content before email boundary
-export const MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE = 50; // Less aggressive minimum content before boundary
 export const HTML_CUT_POINT_OFFSET_100 = 100; // Offset for finding HTML cut point
 export const HTML_CUT_POINT_OFFSET_50 = 50; // Offset for finding HTML cut point
 export const BLOCKQUOTE_MIN_POSITION = 20; // Minimum position before blockquote detection

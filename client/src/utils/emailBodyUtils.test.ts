@@ -437,7 +437,7 @@ describe('emailBodyUtils', () => {
     });
 
     it('should remove Gmail-style quoted content when content is long enough', () => {
-      // Content must be > MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE (50 chars) before boundary
+      // Content must be > MIN_CONTENT_BEFORE_BOUNDARY (20 chars) before boundary
       // Use date format that matches the regex: "On Day, DD Month YYYY at HH:MM"
       const longContent =
         'This is a much longer email content that exceeds the minimum threshold for boundary detection in extractCleanBody.';
@@ -482,6 +482,17 @@ describe('emailBodyUtils', () => {
       const result = extractCleanBody(content);
       // Should keep content if boundary is too early
       expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should strip quoted block when short reply precedes "On <UTC date> wrote:" header', () => {
+      // Regression: a 30-char reply was below the old 50-char threshold, so the
+      // quoted thread leaked into the preview. The HTML path already used 20 — align here.
+      const content =
+        'Ok please raise a pull request\n\nOn Mon, 25 May 2026 04:10:31 GMT, NAVJOT SINGH <105002221@student.swin.edu.au> wrote:\n> The push was completed successfully to my feature branch.';
+      const result = extractCleanBody(content);
+      expect(result).toContain('Ok please raise a pull request');
+      expect(result).not.toContain('wrote:');
+      expect(result).not.toContain('push was completed');
     });
 
     it('should handle content without quoted parts or signatures', () => {

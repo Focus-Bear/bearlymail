@@ -7,7 +7,6 @@ import {
   HTML_CUT_POINT_OFFSET_50,
   HTML_CUT_POINT_OFFSET_100,
   MIN_CONTENT_BEFORE_BOUNDARY,
-  MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE,
   SIGNATURE_MIN_CONTENT_CHARS,
   SIGNATURE_MIN_CONTENT_PLAINTEXT,
   TEXT_SEARCH_LAST_CHARS,
@@ -524,17 +523,15 @@ export function extractCleanBodyWithMeta(emailBody: string, htmlBody?: string): 
   let cutoffIndex = content.length;
   for (const pattern of boundaryPatterns) {
     const match = content.search(pattern);
-    if (match > 0 && match < cutoffIndex) {
-      if (match > MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE) {
-        cutoffIndex = match;
-      }
+    if (match > MIN_CONTENT_BEFORE_BOUNDARY && match < cutoffIndex) {
+      cutoffIndex = match;
     }
   }
 
   let wasTruncated = false;
-  if (cutoffIndex < content.length && cutoffIndex > MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE) {
+  if (cutoffIndex < content.length) {
     const cleaned = content.substring(0, cutoffIndex).trim();
-    if (cleaned.length > MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE) {
+    if (cleaned.length > MIN_CONTENT_BEFORE_BOUNDARY) {
       content = cleaned;
       wasTruncated = true;
     }

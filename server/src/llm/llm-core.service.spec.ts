@@ -1,0 +1,355 @@
+import { UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+
+import { UsersService } from "../users/users.service";
+import { LLMProvider, LLMRequest } from "./llm.types";
+import { LLMCoreService } from "./llm-core.service";
+import { TokenUsageService } from "./token-usage.service";
+
+// --- Vendor SDK mocks ---
+// Names are prefixed `mock*` so they survive jest.mock hoisting.
+
+const mockGeminiGenerateContent = jest.fn();
+const mockGeminiGetGenerativeModel = jest.fn(() => ({
+  generateContent: mockGeminiGenerateContent,
+}));
+
+const mockOpenAIChatCreate = jest.fn();
+const mockOpenAIResponsesCreate = jest.fn();
+
+const mockAnthropicMessagesCreate = jest.fn();
+
+jest.mock("@google/generative-ai", () => ({
+  GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
+    getGenerativeModel: mockGeminiGetGenerativeModel,
+  })),
+}));
+
+jest.mock("openai", () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    chat: { completions: { create: mockOpenAIChatCreate } },
+    responses: { create: mockOpenAIResponsesCreate },
+  })),
+}));
+
+jest.mock("@anthropic-ai/sdk", () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    messages: { create: mockAnthropicMessagesCreate },
+  })),
+}));
+
+// --- Test helpers ---
+
+const allKeysConfig: Record<string, string | undefined> = {
+  GEMINI_API_KEY: "gemini-key",
+  OPENAI_API_KEY: "openai-key",
+  ANTHROPIC_API_KEY: "anthropic-key",
+};
+
+function makeService(
+  config: Record<string, string | undefined> = allKeysConfig,
+) {
+  const configService = {
+    get: jest.fn((key: string) => config[key]),
+  } as unknown as ConfigService;
+
+  const usersService = {
+    findOneWithApiKey: jest.fn().mockResolvedValue(null),
+    findOneWithAnthropicKey: jest.fn().mockResolvedValue(null),
+  } as unknown as UsersService;
+
+  const tokenUsageService = {
+    logUsage: jest.fn().mockResolvedValue(undefined),
+  } as unknown as TokenUsageService;
+
+  const service = new LLMCoreService(
+    configService,
+    usersService,
+    tokenUsageService,
+  );
+  return { service, tokenUsageService, usersService };
+}
+
+const baseRequest: LLMRequest = { prompt: "Hello" };
+
+describe("LLMCoreService", () => {
+  beforeAll(() => {
+    // Make retry backoff instantaneous so the suite stays fast.
+    jest.spyOn(global, "setTimeout").mockImplementation(((fn: () => void) => {
+      fn();
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as unknown as typeof setTimeout);
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    mockGeminiGenerateContent.mockReset();
+    mockOpenAIChatCreate.mockReset();
+    mockOpenAIResponsesCreate.mockReset();
+    mockAnthropicMessagesCreate.mockReset();
+  });
+
+  describe("Gemini provider", () => {
+    it("maps Gemini usageMetadata to token-usage tracking fields", async () => {
+      mockGeminiGenerateContent.mockResolvedValue({
+        response: {
+          text: () => "gemini-result",
+          usageMetadata: {
+            promptTokenCount: 30,
+            candidatesTokenCount: 7,
+            totalTokenCount: 37,
+          },
+        },
+      });
+      const { service, tokenUsageService } = makeService();
+
+      const out = await service.generateText(baseRequest, LLMProvider.GEMINI);
+
+      expect(out).toBe("gemini-result");
+      expect(tokenUsageService.logUsage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: LLMProvider.GEMINI,
+          promptTokens: 30,
+          completionTokens: 7,
+          totalTokens: 37,
+        }),
+      );
+    });
+
+    it("requests JSON output by setting responseMimeType when jsonMode is true", async () => {
+      mockGeminiGenerateContent.mockResolvedValue({
+        response: { text: () => "{}", usageMetadata: undefined },
+      });
+      const { service } = makeService();
+
+      await service.generateText(
+        { prompt: "p", jsonMode: true },
+        LLMProvider.GEMINI,
+      );
+
+      expect(mockGeminiGenerateContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          generationConfig: expect.objectContaining({
+            responseMimeType: "application/json",
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("OpenAI provider", () => {
+    it("uses the chat completions endpoint for non-reasoning models and maps usage", async () => {
+      mockOpenAIChatCreate.mockResolvedValue({
+        choices: [{ message: { content: "openai-result" } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      });
+      const { service, tokenUsageService } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      const out = await service.generateText(baseRequest, LLMProvider.OPENAI);
+
+      expect(out).toBe("openai-result");
+      expect(mockOpenAIChatCreate).toHaveBeenCalledTimes(1);
+      expect(mockOpenAIResponsesCreate).not.toHaveBeenCalled();
+      expect(tokenUsageService.logUsage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: LLMProvider.OPENAI,
+          promptTokens: 10,
+          completionTokens: 5,
+          totalTokens: 15,
+        }),
+      );
+    });
+
+    it("requests JSON output via response_format on the chat completions endpoint", async () => {
+      mockOpenAIChatCreate.mockResolvedValue({
+        choices: [{ message: { content: "{}" } }],
+        usage: undefined,
+      });
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      await service.generateText(
+        { prompt: "p", jsonMode: true },
+        LLMProvider.OPENAI,
+      );
+
+      expect(mockOpenAIChatCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          response_format: { type: "json_object" },
+        }),
+      );
+    });
+
+    it("uses the Responses API for reasoning-capable models", async () => {
+      mockOpenAIResponsesCreate.mockResolvedValue({
+        output_text: "reasoning-result",
+        usage: { input_tokens: 8, output_tokens: 4, total_tokens: 12 },
+      });
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-5.4-mini",
+      });
+
+      const out = await service.generateText(baseRequest, LLMProvider.OPENAI);
+
+      expect(out).toBe("reasoning-result");
+      expect(mockOpenAIResponsesCreate).toHaveBeenCalledTimes(1);
+      expect(mockOpenAIChatCreate).not.toHaveBeenCalled();
+      expect(mockOpenAIResponsesCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reasoning: expect.any(Object),
+        }),
+      );
+    });
+  });
+
+  describe("Anthropic provider", () => {
+    it("returns the first text block and sums input+output tokens for total usage", async () => {
+      mockAnthropicMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "anthropic-result" }],
+        usage: { input_tokens: 20, output_tokens: 6 },
+      });
+      const { service, tokenUsageService } = makeService();
+
+      const out = await service.generateText(
+        baseRequest,
+        LLMProvider.ANTHROPIC,
+      );
+
+      expect(out).toBe("anthropic-result");
+      expect(tokenUsageService.logUsage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: LLMProvider.ANTHROPIC,
+          promptTokens: 20,
+          completionTokens: 6,
+          totalTokens: 26,
+        }),
+      );
+    });
+
+    it("appends a JSON directive to the system prompt when jsonMode is set and it is missing", async () => {
+      mockAnthropicMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "{}" }],
+        usage: { input_tokens: 1, output_tokens: 1 },
+      });
+      const { service } = makeService();
+
+      await service.generateText(
+        { prompt: "p", systemPrompt: "Base instructions", jsonMode: true },
+        LLMProvider.ANTHROPIC,
+      );
+
+      expect(mockAnthropicMessagesCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          system: expect.stringContaining("Base instructions"),
+        }),
+      );
+      expect(mockAnthropicMessagesCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          system: expect.stringContaining("Respond with valid JSON only"),
+        }),
+      );
+    });
+
+    it("does not duplicate the JSON directive when the system prompt already mentions JSON", async () => {
+      mockAnthropicMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "{}" }],
+        usage: { input_tokens: 1, output_tokens: 1 },
+      });
+      const { service } = makeService();
+
+      await service.generateText(
+        { prompt: "p", systemPrompt: "Return a JSON object.", jsonMode: true },
+        LLMProvider.ANTHROPIC,
+      );
+
+      expect(mockAnthropicMessagesCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          system: "Return a JSON object.",
+        }),
+      );
+    });
+
+    it("surfaces 401 as UnauthorizedException without falling back to another provider", async () => {
+      const authError = Object.assign(new Error("unauthorized"), {
+        status: 401,
+      });
+      mockAnthropicMessagesCreate.mockRejectedValue(authError);
+      const { service } = makeService();
+
+      await expect(
+        service.generateText(baseRequest, LLMProvider.ANTHROPIC),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      // Documents current behaviour: `retryOperation` wraps the Anthropic
+      // call, so a 401 is retried 3 times before being surfaced. This is
+      // wasteful — auth errors are permanent — but optimising it is a
+      // service-side change that belongs in a separate PR.
+      expect(mockAnthropicMessagesCreate).toHaveBeenCalledTimes(3);
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      expect(mockOpenAIChatCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("provider fallback", () => {
+    it("falls back from Gemini to OpenAI when Gemini fails", async () => {
+      mockGeminiGenerateContent.mockRejectedValue(new Error("gemini-down"));
+      mockOpenAIChatCreate.mockResolvedValue({
+        choices: [{ message: { content: "from-openai" } }],
+        usage: undefined,
+      });
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      const out = await service.generateText(baseRequest, LLMProvider.GEMINI);
+
+      expect(out).toBe("from-openai");
+      // 3 Gemini retries then a single successful OpenAI call.
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(3);
+      expect(mockOpenAIChatCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back from OpenAI to Gemini when OpenAI fails", async () => {
+      mockOpenAIChatCreate.mockRejectedValue(new Error("openai-down"));
+      mockGeminiGenerateContent.mockResolvedValue({
+        response: { text: () => "from-gemini", usageMetadata: undefined },
+      });
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      const out = await service.generateText(baseRequest, LLMProvider.OPENAI);
+
+      expect(out).toBe("from-gemini");
+      expect(mockOpenAIChatCreate).toHaveBeenCalledTimes(3);
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("getAvailableProviders", () => {
+    it("includes only providers whose API key was configured", () => {
+      const { service } = makeService({
+        GEMINI_API_KEY: "g",
+        OPENAI_API_KEY: "o",
+        // ANTHROPIC_API_KEY intentionally omitted
+      });
+      expect(service.getAvailableProviders()).toEqual([
+        LLMProvider.GEMINI,
+        LLMProvider.OPENAI,
+      ]);
+    });
+  });
+});

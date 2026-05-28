@@ -115,15 +115,18 @@ export class LLMCoreService {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      // Fallback to the other provider if available
+      // Fallback to the other provider if available. Strip `request.model`
+      // before falling back — it may name a provider-specific model (e.g.
+      // "gemini-3.1-flash-lite") that the fallback provider would reject.
+      const fallbackRequest: LLMRequest = { ...request, model: undefined };
       if (selectedProvider === LLMProvider.GEMINI) {
         this.logger.log(
           `Gemini failed, falling back to OpenAI (default provider)`,
         );
-        return await this.generateWithOpenAI(request, effectiveUserId);
+        return await this.generateWithOpenAI(fallbackRequest, effectiveUserId);
       } else if (selectedProvider === LLMProvider.OPENAI) {
         this.logger.log(`OpenAI failed, falling back to Gemini`);
-        return await this.generateWithGemini(request, effectiveUserId);
+        return await this.generateWithGemini(fallbackRequest, effectiveUserId);
       }
       throw error;
     }

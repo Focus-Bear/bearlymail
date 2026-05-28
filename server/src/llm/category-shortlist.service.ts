@@ -18,7 +18,7 @@ const DEFAULT_TOP_N = 10;
 const SHORTLIST_THRESHOLD = 12;
 
 /** Default model for shortlist classification. Override via CATEGORY_SHORTLIST_MODEL env var. */
-const DEFAULT_SHORTLIST_MODEL = "gpt-5.4-nano";
+const DEFAULT_SHORTLIST_MODEL = "gemini-3.1-flash-lite";
 
 /**
  * Platform keyword pinning: when the sender's email domain matches a known
@@ -82,10 +82,10 @@ export type CategoryItem = {
 /**
  * CategoryShortlistService — Step 1 of the two-step category analysis.
  *
- * Uses a cheap/fast model (gpt-5.4-nano by default) to pre-filter the full
- * category list down to the top-N most relevant candidates. The smart model
- * in Step 2 (PriorityAnalysisService) then only needs to reason over a short
- * list, reducing token usage by 18–33% for power users.
+ * Uses a cheap/fast model (gemini-3.1-flash-lite by default) to pre-filter the
+ * full category list down to the top-N most relevant candidates. The smart
+ * model in Step 2 (PriorityAnalysisService) then only needs to reason over a
+ * short list, reducing token usage by 18–33% for power users.
  *
  * The shortlist takes an email SUMMARY (not the raw body) and returns a JSON
  * object `{ "categories": [...] }` — NOT a bare array. "Other" is deliberately
@@ -94,7 +94,8 @@ export type CategoryItem = {
  * Always active when the category count exceeds the threshold.
  * Falls back to the full list if the shortlist call fails.
  *
- * Model defaults to gpt-5.4-nano. Override via CATEGORY_SHORTLIST_MODEL env var.
+ * Model defaults to gemini-3.1-flash-lite. Override via CATEGORY_SHORTLIST_MODEL
+ * env var.
  */
 @Injectable()
 export class CategoryShortlistService {
@@ -242,7 +243,7 @@ export class CategoryShortlistService {
           jsonMode: true,
           model,
         },
-        LLMProvider.OPENAI,
+        LLMProvider.GEMINI,
       );
 
       const shortlisted = this.parseShortlistResponse(response, allCategories);

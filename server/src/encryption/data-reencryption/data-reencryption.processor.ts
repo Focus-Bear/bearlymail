@@ -20,6 +20,14 @@ export interface ReencryptUserDataJobData {
 
 export interface ReencryptFanoutJobData {
   dryRun?: boolean;
+  /**
+   * When true, enqueue re-encryption jobs for ALL users — including those
+   * already stamped `dataReencryptedAt`. Required to clean up legacy bypassed
+   * (plaintext-at-rest) columns in users the original migration marked done
+   * before the bypassed-column handling existed. No-op when `dryRun` is true
+   * (the dry-run scan already covers every user).
+   */
+  force?: boolean;
 }
 
 export interface ReencryptFanoutResult {
@@ -65,11 +73,15 @@ export class DataReencryptionProcessor implements OnModuleInit {
     this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_USER_DATA}`);
 
     await this.boss.work(JOB_NAMES.REENCRYPT_FANOUT_ALL, async (job) => {
-      const { dryRun = false } = job.data as ReencryptFanoutJobData;
+      const { dryRun = false, force = false } =
+        job.data as ReencryptFanoutJobData;
+      // Skip the dataReencryptedAt filter when dry-running (scan everyone) or
+      // when an admin explicitly forces a rescan — needed to clean up legacy
+      // bypassed columns in users the original migration marked done.
       const users = await this.userRepository
         .createQueryBuilder("u")
         .select(["u.id"])
-        .where(dryRun ? "1=1" : "u.dataReencryptedAt IS NULL")
+        .where(dryRun || force ? "1=1" : "u.dataReencryptedAt IS NULL")
         .getMany();
 
       if (users.length === 0) {

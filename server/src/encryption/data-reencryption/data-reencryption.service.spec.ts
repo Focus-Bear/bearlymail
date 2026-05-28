@@ -451,4 +451,188 @@ describe("DataReencryptionService", () => {
     expect(result.tables[0].rowsFailed).toBe(25);
     expect(result.tables[0].failures.length).toBeLessThanOrEqual(20);
   });
+
+  describe("bypassed plaintext (transformer skipped at write time)", () => {
+    // The same emails-with-a-JSON-labels-column harness used to exercise the
+    // new pg-array / valid-JSON canonicalisation branch in
+    // computeReencryptedColumns. Mirrors buildEmailsSummaryService above.
+    function buildJsonLabelsService(): DataReencryptionService {
+      const labelsDataSource = {
+        entityMetadatas: [
+          {
+            tableName: "emails",
+            primaryColumns: [{ databaseName: "id" }],
+            columns: [
+              {
+                databaseName: "id",
+                propertyName: "id",
+                transformer: undefined,
+              },
+              {
+                databaseName: "userId",
+                propertyName: "userId",
+                transformer: undefined,
+              },
+              {
+                databaseName: "labels",
+                propertyName: "labels",
+                type: "text",
+                transformer: encryptedJsonTransformer,
+              },
+            ],
+          },
+        ],
+        transaction: jest.fn().mockImplementation(async (cb: unknown) => {
+          const callback = cb as (mgr: {
+            query: jest.Mock;
+          }) => Promise<unknown>;
+          return callback({ query: txQueryMock });
+        }),
+      } as unknown as jest.Mocked<DataSource>;
+
+      return new DataReencryptionService(
+        labelsDataSource,
+        userRepo,
+        userEncryption,
+        kmsService,
+      );
+    }
+
+    it("encrypts a bypassed plaintext string column under the per-user key", async () => {
+      // private_notes.content is a plain (encryptedColumnTransformer) column;
+      // a bypassed write left the plaintext sitting in the column as-is.
+      txQueryMock.mockImplementation((sql: string) => {
+        if (sql.includes("SELECT")) {
+          return Promise.resolve([
+            { id: "row-1", content: "leaked plaintext" },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await service.reencryptUser(userId);
+
+      expect(result.tables[0].rowsRewritten).toBe(1);
+      expect(result.tables[0].rowsFailed).toBe(0);
+      const updateCall = txQueryMock.mock.calls.find(([sql]) =>
+        /^\s*UPDATE\s/i.test(String(sql)),
+      );
+      expect(updateCall).toBeDefined();
+      const newCiphertext = (updateCall![1] as string[])[0];
+      // No longer plaintext, and decryptable under the per-user key.
+      expect(newCiphertext).not.toBe("leaked plaintext");
+      await runWithUserKey(userKey, async () => {
+        expect(EncryptionHelper.decrypt(newCiphertext)).toBe(
+          "leaked plaintext",
+        );
+      });
+    });
+
+    it("canonicalises and encrypts a Postgres array-literal labels value", async () => {
+      // The exact shape that floods the inbox logs:
+      //   `{"INBOX","IMPORTANT"}` (plaintext, bypassed transformer).
+      const jsonService = buildJsonLabelsService();
+      txQueryMock.mockImplementation((sql: string) => {
+        if (sql.includes("SELECT")) {
+          return Promise.resolve([
+            { id: "row-1", labels: '{"INBOX","IMPORTANT"}' },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await jsonService.reencryptUser(userId);
+
+      expect(result.tables[0].rowsRewritten).toBe(1);
+      expect(result.tables[0].rowsFailed).toBe(0);
+      const updateCall = txQueryMock.mock.calls.find(([sql]) =>
+        /^\s*UPDATE\s/i.test(String(sql)),
+      );
+      const stored = (updateCall![1] as string[])[0];
+      await runWithUserKey(userKey, async () => {
+        // Decrypts to the canonical JSON array form that JSON.parse accepts.
+        expect(EncryptionHelper.decrypt(stored)).toBe('["INBOX","IMPORTANT"]');
+      });
+    });
+
+    it("encrypts an already-valid JSON plaintext as-is", async () => {
+      const jsonService = buildJsonLabelsService();
+      txQueryMock.mockImplementation((sql: string) => {
+        if (sql.includes("SELECT")) {
+          return Promise.resolve([{ id: "row-1", labels: '["FOO","BAR"]' }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await jsonService.reencryptUser(userId);
+
+      expect(result.tables[0].rowsRewritten).toBe(1);
+      const updateCall = txQueryMock.mock.calls.find(([sql]) =>
+        /^\s*UPDATE\s/i.test(String(sql)),
+      );
+      const stored = (updateCall![1] as string[])[0];
+      await runWithUserKey(userKey, async () => {
+        expect(EncryptionHelper.decrypt(stored)).toBe('["FOO","BAR"]');
+      });
+    });
+
+    it("records a structured failure for an unrecoverable pg-array of objects ([object Object])", async () => {
+      // node-pg serialises an array of OBJECTS to `{"[object Object]",…}` —
+      // the original data is gone. labels is NOT clearable, so this must fail
+      // loudly rather than silently NULLing user data.
+      const jsonService = buildJsonLabelsService();
+      txQueryMock.mockImplementation((sql: string) => {
+        if (sql.includes("SELECT")) {
+          return Promise.resolve([
+            {
+              id: "row-1",
+              labels: '{"[object Object]","[object Object]"}',
+            },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await jsonService.reencryptUser(userId);
+
+      expect(result.tables[0].rowsFailed).toBe(1);
+      expect(result.tables[0].failures[0].reason).toBe(
+        "bypassed_unrecoverable",
+      );
+      expect(result.tables[0].failures[0].column).toBe("labels");
+      // No UPDATE issued for the unrecoverable column.
+      expect(
+        txQueryMock.mock.calls.some(([sql]) =>
+          /^\s*UPDATE\s/i.test(String(sql)),
+        ),
+      ).toBe(false);
+    });
+
+    it("skips empty / whitespace-only plaintext rather than failing the user (Gemini #2259)", async () => {
+      // EncryptionHelper.encrypt returns null for "" — without the empty-skip
+      // guard this would surface as a bogus `encrypt_failed` failure and block
+      // the user being marked re-encrypted.
+      txQueryMock.mockImplementation((sql: string) => {
+        if (sql.includes("SELECT")) {
+          return Promise.resolve([{ id: "row-1", content: "   " }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await service.reencryptUser(userId);
+
+      expect(result.tables[0].rowsFailed).toBe(0);
+      expect(result.tables[0].rowsRewritten).toBe(0);
+      expect(
+        txQueryMock.mock.calls.some(([sql]) =>
+          /^\s*UPDATE\s/i.test(String(sql)),
+        ),
+      ).toBe(false);
+      // User should still be marked complete (no blocking failures).
+      expect(userRepo.update).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({ dataReencryptedAt: expect.any(Date) }),
+      );
+    });
+  });
 });

@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import PgBoss from "pg-boss";
 import { IsNull, Not, Repository } from "typeorm";
 
@@ -116,7 +116,18 @@ class ReencryptOneUserDto {
 
 class StartReencryptionDto {
   @IsOptional()
+  @IsBoolean()
   dryRun?: boolean;
+
+  /**
+   * When true, the fan-out enqueues re-encryption for ALL users — including
+   * those already stamped `dataReencryptedAt`. Use to remediate legacy
+   * bypassed columns the original migration could not touch (because they
+   * were not ciphertext-shaped). No-op together with `dryRun`.
+   */
+  @IsOptional()
+  @IsBoolean()
+  force?: boolean;
 }
 
 @Controller("admin/reencryption")
@@ -164,16 +175,17 @@ export class DataReencryptionController {
   @Post("start")
   async startAll(@Body() body: StartReencryptionDto = {}) {
     const dryRun = body.dryRun ?? false;
-    const jobData: ReencryptFanoutJobData = { dryRun };
+    const force = body.force ?? false;
+    const jobData: ReencryptFanoutJobData = { dryRun, force };
     const jobId = await this.boss.send(
       JOB_NAMES.REENCRYPT_FANOUT_ALL,
       jobData,
       { priority: JobPriority.MEDIUM },
     );
     this.logger.log(
-      `Enqueued fan-out job ${jobId}${dryRun ? " (dry run)" : ""}`,
+      `Enqueued fan-out job ${jobId}${dryRun ? " (dry run)" : ""}${force ? " (force-rescan)" : ""}`,
     );
-    return { jobId, dryRun };
+    return { jobId, dryRun, force };
   }
 
   /**

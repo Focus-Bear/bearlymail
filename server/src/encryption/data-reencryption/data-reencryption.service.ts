@@ -3,6 +3,7 @@ import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, EntityManager, Repository } from "typeorm";
 
 import { User } from "../../database/entities/user.entity";
+import { parseLabelsValue } from "../../emails/labels.util";
 import { EncryptionHelper } from "../encryption.helper";
 import { encryptionKeyProvider } from "../encryption-key-provider";
 import { KmsEncryptionService } from "../kms-encryption.service";
@@ -10,6 +11,7 @@ import { UserEncryptionService } from "../user-encryption.service";
 import { runWithUserKey } from "../user-encryption-context";
 import {
   discoverEncryptedTables,
+  EncryptedColumn,
   EncryptedTable,
   STORAGE_KIND,
 } from "./encrypted-table-metadata";
@@ -37,6 +39,15 @@ export type ReencryptionFailureReason =
   | "neither_key"
   /** All key attempts succeeded but EncryptionHelper.encrypt returned null when re-wrapping. */
   | "encrypt_failed"
+  /**
+   * The stored value bypassed the encryption transformer (plaintext at rest,
+   * typically a Postgres array literal from a legacy `repository.update()` call)
+   * and the plaintext could not be canonicalised back into the column's expected
+   * shape — e.g. node-pg serialised an array of objects to `{"[object Object]"}`.
+   * Recoverable bypassed values are re-encrypted in place; this reason only
+   * surfaces for the unrecoverable ones.
+   */
+  | "bypassed_unrecoverable"
   /** Catch-all for unexpected errors (shouldn't happen — investigate if seen). */
   | "unknown";
 
@@ -130,6 +141,152 @@ function describeCiphertextShape(ciphertext: string): {
  * org-shared tables (organizations, organization_members), unscoped tables
  * (waitlist, feedback). These can be migrated separately if needed.
  */
+
+/**
+ * The canonical plaintext form of a bypassed (un-encrypted-at-rest) value, as it
+ * would have been produced if the write had gone through the column transformer.
+ *
+ * Returns null when the value cannot be safely recovered — e.g. node-postgres
+ * serialised an array of OBJECTS to `{"[object Object]","[object Object]"}` and
+ * the original objects are unrecoverable from those strings. The caller treats
+ * null as a row failure (or clears the column when it's regenerable).
+ *
+ * For string columns the plaintext IS the string. For JSON columns we accept
+ * (a) any value that already parses as JSON and (b) Postgres text[] literals of
+ * plain strings (`{"INBOX","IMPORTANT"}`) which we convert to JSON arrays.
+ */
+function canonicalisePlaintextForColumn(
+  value: string,
+  col: EncryptedColumn,
+): string | null {
+  if (!col.isJson) return value;
+
+  const trimmed = value.trim();
+  try {
+    JSON.parse(trimmed);
+    return trimmed;
+  } catch {
+    /* not valid JSON — fall through to the Postgres array-literal path */
+  }
+
+  const pgArray = parseLabelsValue(trimmed);
+  if (pgArray === null) return null;
+  // Reject the garbage shape that node-pg produces when an array of OBJECTS is
+  // serialised to a Postgres text[]: each element becomes the literal string
+  // "[object Object]". Empty elements are equally suspect.
+  if (pgArray.some((el) => el === "[object Object]" || el === "")) return null;
+  return JSON.stringify(pgArray);
+}
+
+/**
+ * Per-column outcomes the main loop dispatches on. Named-constant form so
+ * comparisons don't trigger the no-restricted-syntax magic-string rule.
+ */
+const COLUMN_REENCRYPT_OUTCOME = {
+  /** Already encrypted under the active per-user key — leave it alone. */
+  SKIP: "skip",
+  /** Replace the column value with the supplied ciphertext. */
+  UPDATE: "update",
+  /** Wipe the column to NULL (only for clearable/regenerable columns). */
+  CLEAR: "clear",
+  /** Don't touch the row; record a structured failure for diagnostics. */
+  FAILURE: "failure",
+} as const;
+
+type ColumnReencryptOutcome =
+  | { kind: typeof COLUMN_REENCRYPT_OUTCOME.SKIP }
+  | { kind: typeof COLUMN_REENCRYPT_OUTCOME.UPDATE; encrypted: string }
+  | { kind: typeof COLUMN_REENCRYPT_OUTCOME.CLEAR }
+  | {
+      kind: typeof COLUMN_REENCRYPT_OUTCOME.FAILURE;
+      reason: ReencryptionFailureReason;
+      errorMessage: string;
+    };
+
+/**
+ * Recover a column value that bypassed the encryption transformer at write
+ * time (plaintext at rest — e.g. a Postgres array literal `{"INBOX",...}`).
+ */
+function reencryptBypassedPlaintext(
+  value: string,
+  col: EncryptedColumn,
+): ColumnReencryptOutcome {
+  const canonical = canonicalisePlaintextForColumn(value, col);
+  if (canonical === null) {
+    if (col.clearOnDecryptFailure)
+      return { kind: COLUMN_REENCRYPT_OUTCOME.CLEAR };
+    return {
+      kind: COLUMN_REENCRYPT_OUTCOME.FAILURE,
+      reason: "bypassed_unrecoverable",
+      errorMessage: `bypassed transformer (plaintext at rest) and not canonicalisable to ${col.isJson ? "JSON" : "string"}`,
+    };
+  }
+  // EncryptionHelper.encrypt returns null on falsy/empty input, which would
+  // otherwise produce an `encrypt_failed` failure for a benign empty-string
+  // value and block the user from being stamped `dataReencryptedAt`. Empty/
+  // whitespace-only plaintext has no semantic content — leave it as-is.
+  if (canonical.trim() === "") {
+    return { kind: COLUMN_REENCRYPT_OUTCOME.SKIP };
+  }
+  const encrypted = EncryptionHelper.encrypt(canonical);
+  if (encrypted === null) {
+    return {
+      kind: COLUMN_REENCRYPT_OUTCOME.FAILURE,
+      reason: "encrypt_failed",
+      errorMessage: `EncryptionHelper.encrypt returned null when wrapping bypassed plaintext under user key`,
+    };
+  }
+  return { kind: COLUMN_REENCRYPT_OUTCOME.UPDATE, encrypted };
+}
+
+/**
+ * Re-encrypt a properly-shaped ciphertext value: skip if it already decrypts
+ * under the per-user key; otherwise decrypt under the legacy global key and
+ * re-wrap. Mirrors the previous inline logic in `computeReencryptedColumns`;
+ * extracted to keep that function under the max-statements lint budget.
+ */
+function reencryptCiphertextValue(
+  ciphertext: string,
+  col: EncryptedColumn,
+  userKey: Buffer,
+  globalKey: Buffer,
+): ColumnReencryptOutcome {
+  // silentDecryptWithKey on both attempts: at scale the legacy-key path is
+  // the common case, so logging every "wrong key" attempt would flood the
+  // error tracker.
+  const userKeyDecrypted = EncryptionHelper.silentDecryptWithKey(
+    ciphertext,
+    userKey,
+  );
+  if (userKeyDecrypted !== null && userKeyDecrypted !== ciphertext) {
+    return { kind: COLUMN_REENCRYPT_OUTCOME.SKIP };
+  }
+
+  const globalKeyDecrypted = EncryptionHelper.silentDecryptWithKey(
+    ciphertext,
+    globalKey,
+  );
+  if (globalKeyDecrypted === null || globalKeyDecrypted === ciphertext) {
+    if (col.clearOnDecryptFailure)
+      return { kind: COLUMN_REENCRYPT_OUTCOME.CLEAR };
+    return {
+      kind: COLUMN_REENCRYPT_OUTCOME.FAILURE,
+      reason: "neither_key",
+      errorMessage: `decrypts under neither user nor global key`,
+    };
+  }
+
+  const reencrypted = EncryptionHelper.encrypt(globalKeyDecrypted);
+  if (reencrypted === null) {
+    return {
+      kind: COLUMN_REENCRYPT_OUTCOME.FAILURE,
+      reason: "encrypt_failed",
+      errorMessage: `EncryptionHelper.encrypt returned null when re-wrapping under user key`,
+    };
+  }
+  return { kind: COLUMN_REENCRYPT_OUTCOME.UPDATE, encrypted: reencrypted };
+}
+
 @Injectable()
 export class DataReencryptionService {
   private readonly logger = new Logger(DataReencryptionService.name);
@@ -481,64 +638,38 @@ export class DataReencryptionService {
     let anyNeedingRewrite = false;
 
     for (const col of table.columns) {
-      const ciphertext = row[col.databaseName];
-      if (ciphertext === null || ciphertext === undefined) continue;
-      if (!EncryptionHelper.looksLikeEncryptedPayload(ciphertext)) continue;
+      const value = row[col.databaseName];
+      if (value === null || value === undefined) continue;
+
+      // Two paths share a single ColumnReencryptOutcome shape:
+      //   ciphertext-shaped → reencryptCiphertextValue (legacy global → per-user)
+      //   bypassed plaintext → reencryptBypassedPlaintext (e.g. pg-array `{"a","b"}`)
+      const outcome = EncryptionHelper.looksLikeEncryptedPayload(value)
+        ? reencryptCiphertextValue(value, col, userKey, globalKey)
+        : reencryptBypassedPlaintext(value, col);
 
       anyEncryptedColumn = true;
-
-      // Use silentDecryptWithKey on both attempts: at scale the legacy-key path
-      // is the common case, so logging on every "wrong key" attempt would flood
-      // the error tracker.
-      const userKeyDecrypted = EncryptionHelper.silentDecryptWithKey(
-        ciphertext,
-        userKey,
-      );
-      if (userKeyDecrypted !== null && userKeyDecrypted !== ciphertext) {
-        // Already encrypted under the per-user key — skip this column.
+      if (outcome.kind === COLUMN_REENCRYPT_OUTCOME.SKIP) continue;
+      if (outcome.kind === COLUMN_REENCRYPT_OUTCOME.UPDATE) {
+        updates[col.databaseName] = outcome.encrypted;
+        anyNeedingRewrite = true;
         continue;
       }
-
-      const globalKeyDecrypted = EncryptionHelper.silentDecryptWithKey(
-        ciphertext,
-        globalKey,
-      );
-      if (globalKeyDecrypted === null || globalKeyDecrypted === ciphertext) {
-        // Unrecoverable under either key. For regenerable/derived columns,
-        // wipe the corrupted value (it regenerates) instead of failing the
-        // whole user. For everything else, fail loudly — never silently
-        // destroy data we can't rebuild.
-        if (col.clearOnDecryptFailure) {
-          updates[col.databaseName] = null;
-          clearedColumns.push(col.databaseName);
-          anyNeedingRewrite = true;
-          continue;
-        }
-        return {
-          kind: "rowFailure",
-          failure: {
-            column: col.databaseName,
-            reason: "neither_key",
-            ciphertext,
-            errorMessage: `decrypts under neither user nor global key`,
-          },
-        };
+      if (outcome.kind === COLUMN_REENCRYPT_OUTCOME.CLEAR) {
+        updates[col.databaseName] = null;
+        clearedColumns.push(col.databaseName);
+        anyNeedingRewrite = true;
+        continue;
       }
-
-      const reencrypted = EncryptionHelper.encrypt(globalKeyDecrypted);
-      if (reencrypted === null) {
-        return {
-          kind: "rowFailure",
-          failure: {
-            column: col.databaseName,
-            reason: "encrypt_failed",
-            ciphertext,
-            errorMessage: `EncryptionHelper.encrypt returned null when re-wrapping under user key`,
-          },
-        };
-      }
-      updates[col.databaseName] = reencrypted;
-      anyNeedingRewrite = true;
+      return {
+        kind: "rowFailure",
+        failure: {
+          column: col.databaseName,
+          reason: outcome.reason,
+          ciphertext: value,
+          errorMessage: outcome.errorMessage,
+        },
+      };
     }
 
     if (!anyEncryptedColumn) return { kind: "noEncryptedValues" };

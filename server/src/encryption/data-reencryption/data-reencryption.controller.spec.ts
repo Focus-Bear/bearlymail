@@ -88,25 +88,41 @@ describe("DataReencryptionController", () => {
 
       expect(bossSend).toHaveBeenCalledWith(
         JOB_NAMES.REENCRYPT_FANOUT_ALL,
-        { dryRun: true },
+        { dryRun: true, force: false },
         { priority: JobPriority.MEDIUM },
       );
       // The previous synchronous version iterated all users inside the
       // request via createQueryBuilder — that's exactly what we moved into
       // the worker, so the controller must no longer call it.
       expect(userQueryBuilder).not.toHaveBeenCalled();
-      expect(response).toEqual({ jobId: "job-uuid-123", dryRun: true });
+      expect(response).toEqual({
+        jobId: "job-uuid-123",
+        dryRun: true,
+        force: false,
+      });
     });
 
-    it("defaults dryRun to false when omitted", async () => {
+    it("defaults dryRun and force to false when omitted", async () => {
       const response = await controller.startAll();
 
       expect(bossSend).toHaveBeenCalledWith(
         JOB_NAMES.REENCRYPT_FANOUT_ALL,
-        { dryRun: false },
+        { dryRun: false, force: false },
         { priority: JobPriority.MEDIUM },
       );
       expect(response.dryRun).toBe(false);
+      expect(response.force).toBe(false);
+    });
+
+    it("propagates force=true into the fan-out job (enables rescan of already-migrated users)", async () => {
+      const response = await controller.startAll({ force: true });
+
+      expect(bossSend).toHaveBeenCalledWith(
+        JOB_NAMES.REENCRYPT_FANOUT_ALL,
+        { dryRun: false, force: true },
+        { priority: JobPriority.MEDIUM },
+      );
+      expect(response.force).toBe(true);
     });
   });
 

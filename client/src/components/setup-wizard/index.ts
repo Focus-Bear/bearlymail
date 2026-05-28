@@ -1,4 +1,4 @@
-export { ContextAnalysisStep } from './ContextAnalysisStep';
-export { EmailImportStep } from './EmailImportStep';
+export { LearningStep } from './LearningStep';
+export { ScheduleStep } from './ScheduleStep';
 export { SetupWizard } from './SetupWizard';
 export { WelcomeStep } from './WelcomeStep';

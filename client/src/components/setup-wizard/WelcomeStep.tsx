@@ -1,160 +1,334 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { theme } from 'theme/theme';
 
 import { API_URL } from 'config/api';
+
+import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 interface WelcomeStepProps {
   onComplete: () => void;
   refreshUser: () => Promise<void>;
 }
 
-const ConsentField: React.FC<{
-  consentAccepted: boolean;
-  setConsentAccepted: (v: boolean) => void;
-  t: (tKey: string) => string;
-}> = ({ consentAccepted, setConsentAccepted, t }) => (
-  <div style={{ marginBottom: theme.spacing.lg }}>
-    <label style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, cursor: 'pointer' }}>
-      <input
-        type="checkbox"
-        checked={consentAccepted}
-        onChange={event => setConsentAccepted(event.target.checked)}
-        style={{
-          width: '20px',
-          height: '20px',
-          flexShrink: 0,
-          accentColor: theme.colors.primary.main,
-          cursor: 'pointer',
-        }}
-      />
-      <span style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base, flex: 1 }}>
-        {t('consent.iAcceptThe')}{' '}
-        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: theme.colors.primary.main }}>
-          {t('consent.termsOfUse')}
-        </a>{' '}
-        {t('consent.and')}{' '}
-        <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: theme.colors.primary.main }}>
-          {t('consent.privacyPolicy')}
-        </a>
-      </span>
-    </label>
-  </div>
-);
+const VARIANT_DONE = 'done';
+const VARIANT_GREEN = 'green';
+const VARIANT_BLUE = 'blue';
+type PropVariant = typeof VARIANT_DONE | typeof VARIANT_GREEN | typeof VARIANT_BLUE;
 
-const WelcomeHeader: React.FC<{ t: (key: string) => string }> = ({ t }) => (
-  <>
-    <h2
-      style={{
-        color: theme.colors.text.primary,
-        fontSize: theme.typography.fontSize['2xl'],
-        fontWeight: theme.typography.fontWeight.bold,
-        marginBottom: theme.spacing.md,
-        textAlign: 'center',
-      }}
-    >
-      {t('setupWizard.welcome.title')}
-    </h2>
+const FONT_WEIGHT_REGULAR = 400;
+const FONT_WEIGHT_SEMIBOLD = 600;
+const FONT_WEIGHT_BOLD = 700;
 
-    <p
-      style={{
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.base,
-        lineHeight: 1.6,
-        marginBottom: theme.spacing.lg,
-        textAlign: 'center',
-      }}
-    >
-      {t('setupWizard.welcome.description')}
-    </p>
-  </>
-);
+function pickIconColor(variant: PropVariant): string {
+  if (variant === VARIANT_DONE) {
+    return '#fff';
+  }
+  if (variant === VARIANT_GREEN) {
+    return TOK.green;
+  }
+  if (variant === VARIANT_BLUE) {
+    return TOK.blue;
+  }
+  return TOK.sunDark;
+}
 
-const WelcomePrivacyBlock: React.FC<{ t: (key: string) => string }> = ({ t }) => (
-  <div
-    style={{
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.lg,
-      marginBottom: theme.spacing.lg,
-    }}
-  >
-    <h3
-      style={{
-        color: theme.colors.text.primary,
-        fontSize: theme.typography.fontSize.xl,
-        fontWeight: theme.typography.fontWeight.semibold,
-        marginBottom: theme.spacing.sm,
-      }}
-    >
-      {t('setupWizard.welcome.privacyTitle')}
-    </h3>
-    <p
-      style={{
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.xl,
-        lineHeight: 1.6,
-        margin: 0,
-      }}
-    >
-      {t('setupWizard.welcome.privacyMessage')}
-    </p>
-  </div>
-);
-
-// Note (#1430): The "Use Your Own OpenAI Key (Optional)" field is NOT present in this component.
-// OpenAI API key configuration lives in Settings > Integrations (OpenAIApiKeySection) only.
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUser }) => {
   const { t } = useTranslation();
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const canContinue = consentAccepted;
+  const canContinue = consentAccepted && !isLoading;
 
   const handleContinue = async () => {
     if (!canContinue) {
       return;
     }
-
     setIsLoading(true);
     try {
       await axios.post(`${API_URL}/users/accept-consent`, { termsAccepted: true, privacyAccepted: true });
-
       await refreshUser();
       onComplete();
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      console.error('Failed to save consent:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div>
-      <WelcomeHeader t={t} />
-      <WelcomePrivacyBlock t={t} />
+    <section className="onboarding-pane" style={paneStyle}>
+      <h1 className="onboarding-h1" style={h1Style}>
+        {t('setupWizard.welcome.title')}{' '}
+        <em style={h1EmStyle}>{t('setupWizard.welcome.titleEmphasis')}</em>
+      </h1>
+      <p className="onboarding-lede" style={ledeStyle}>
+        {t('setupWizard.welcome.lede')}
+      </p>
 
-      <ConsentField consentAccepted={consentAccepted} setConsentAccepted={setConsentAccepted} t={t} />
+      <div style={propsGridStyle}>
+        <PropCard
+          variant={VARIANT_DONE}
+          icon={<CheckIconLarge />}
+          title={t('setupWizard.welcome.prop1Title')}
+          body={t('setupWizard.welcome.prop1Body')}
+          doneLabel={t('setupWizard.welcome.doneTag')}
+        />
+        <PropCard
+          variant={VARIANT_GREEN}
+          icon={<ClockIcon />}
+          title={t('setupWizard.welcome.prop2Title')}
+          body={t('setupWizard.welcome.prop2Body')}
+        />
+        <PropCard
+          variant={VARIANT_BLUE}
+          icon={<StarIcon />}
+          title={t('setupWizard.welcome.prop3Title')}
+          body={t('setupWizard.welcome.prop3Body')}
+        />
+      </div>
 
-      <button
-        onClick={handleContinue}
-        disabled={!canContinue || isLoading}
-        style={{
-          width: '100%',
-          padding: theme.spacing.lg,
-          backgroundColor: canContinue ? theme.colors.primary.main : theme.colors.border.light,
-          color: canContinue ? 'white' : theme.colors.text.disabled,
-          border: 'none',
-          borderRadius: theme.borderRadius.md,
-          fontSize: theme.typography.fontSize.base,
-          fontWeight: theme.typography.fontWeight.semibold,
-          cursor: canContinue ? 'pointer' : 'not-allowed',
-          transition: theme.transitions.default,
-        }}
-      >
-        {isLoading ? t('common.loading') : t('setupWizard.welcome.continue')}
-      </button>
+      <div style={actionsRowStyle}>
+        <label style={termsLabelStyle}>
+          <input
+            type="checkbox"
+            checked={consentAccepted}
+            onChange={event => setConsentAccepted(event.target.checked)}
+            style={termsCheckboxStyle}
+          />
+          <span>
+            {t('setupWizard.welcome.iAcceptThe')}{' '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" style={termsLinkStyle}>
+              {t('setupWizard.welcome.termsOfUse')}
+            </a>{' '}
+            {t('setupWizard.welcome.and')}{' '}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" style={termsLinkStyle}>
+              {t('setupWizard.welcome.privacyPolicy')}
+            </a>
+          </span>
+        </label>
+        <button onClick={handleContinue} disabled={!canContinue} style={primaryButtonStyle(canContinue)}>
+          {isLoading ? t('common.loading') : t('setupWizard.welcome.getStarted')}
+          {!isLoading && <ArrowRight />}
+        </button>
+      </div>
+    </section>
+  );
+};
+
+interface PropCardProps {
+  variant: PropVariant;
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  doneLabel?: string;
+}
+
+const PropCard: React.FC<PropCardProps> = ({ variant, icon, title, body, doneLabel }) => {
+  const isDone = variant === VARIANT_DONE;
+  const iconColor = pickIconColor(variant);
+  return (
+    <div className="onboarding-prop" style={propStyle()}>
+      <div style={propIconWrap(isDone, iconColor)}>{icon}</div>
+      <div>
+        <h3 style={propTitleStyle}>{title}</h3>
+        <p style={propBodyStyle}>{body}</p>
+      </div>
+      {doneLabel && (
+        <span className="done-tag" style={doneTagStyle}>
+          <CheckIconSmall /> {doneLabel}
+        </span>
+      )}
     </div>
   );
 };
+
+const CheckIconLarge: React.FC = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width="20"
+    height="20"
+  >
+    <path d="M5 12l4 4L19 7" />
+  </svg>
+);
+
+const CheckIconSmall: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" width="12" height="12">
+    <path d="M5 12l4 4L19 7" />
+  </svg>
+);
+
+const ClockIcon: React.FC = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width="20"
+    height="20"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+const StarIcon: React.FC = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width="20"
+    height="20"
+  >
+    <path d="M12 2l2.4 5 5.6.8-4 4 .9 5.6L12 14.8 7.1 17.4 8 11.8 4 7.8 9.6 7z" />
+  </svg>
+);
+
+const ArrowRight: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="16" height="16">
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+
+const paneStyle: React.CSSProperties = { display: 'block' };
+
+const h1Style: React.CSSProperties = {
+  fontSize: '32px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.025em',
+  fontWeight: FONT_WEIGHT_BOLD,
+  margin: '0 0 12px',
+  textWrap: 'balance' as React.CSSProperties['textWrap'],
+};
+
+const h1EmStyle: React.CSSProperties = {
+  fontStyle: 'normal',
+  fontFamily: TOK.fontSerif,
+  fontWeight: FONT_WEIGHT_REGULAR,
+  color: TOK.sunDark,
+  fontSize: '1.08em',
+};
+
+const ledeStyle: React.CSSProperties = {
+  fontSize: '16px',
+  lineHeight: 1.55,
+  color: TOK.ink2,
+  margin: '0 0 28px',
+};
+
+const propsGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  gridTemplateColumns: '1fr',
+  marginBottom: '28px',
+};
+
+const propStyle = (): React.CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: '40px 1fr auto',
+  gap: '14px',
+  padding: '14px 16px',
+  background: TOK.cream2,
+  border: `1px solid ${TOK.line}`,
+  borderRadius: '12px',
+  alignItems: 'center',
+});
+
+const propIconWrap = (isDone: boolean, iconColor: string): React.CSSProperties => ({
+  width: '40px',
+  height: '40px',
+  borderRadius: '10px',
+  background: isDone ? TOK.green : '#fff',
+  border: `1px solid ${isDone ? TOK.green : TOK.line2}`,
+  display: 'grid',
+  placeItems: 'center',
+  color: iconColor,
+});
+
+const propTitleStyle: React.CSSProperties = {
+  margin: '2px 0 4px',
+  fontSize: '15px',
+  fontWeight: FONT_WEIGHT_SEMIBOLD,
+  letterSpacing: '-0.005em',
+  color: TOK.ink,
+};
+
+const propBodyStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '13.5px',
+  color: TOK.ink3,
+  lineHeight: 1.5,
+};
+
+const doneTagStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '4px 10px',
+  borderRadius: '999px',
+  background: TOK.greenPale,
+  color: TOK.green,
+  fontSize: '11.5px',
+  fontWeight: FONT_WEIGHT_SEMIBOLD,
+};
+
+const actionsRowStyle: React.CSSProperties = {
+  marginTop: '28px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+};
+
+const termsLabelStyle: React.CSSProperties = {
+  flex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  fontSize: '13px',
+  color: TOK.ink2,
+  cursor: 'pointer',
+};
+
+const termsCheckboxStyle: React.CSSProperties = {
+  width: '16px',
+  height: '16px',
+  accentColor: TOK.sun,
+  cursor: 'pointer',
+  flexShrink: 0,
+};
+
+const termsLinkStyle: React.CSSProperties = {
+  color: TOK.ink,
+  textDecoration: 'underline',
+  textDecorationColor: TOK.line,
+  textUnderlineOffset: '2px',
+};
+
+const primaryButtonStyle = (enabled: boolean): React.CSSProperties => ({
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '8px',
+  height: '48px',
+  padding: '0 22px',
+  borderRadius: '12px',
+  fontSize: '15px',
+  fontWeight: FONT_WEIGHT_SEMIBOLD,
+  border: `1.5px solid ${enabled ? TOK.sun : TOK.sunPale2}`,
+  background: enabled ? TOK.sun : TOK.sunPale2,
+  color: '#fff',
+  cursor: enabled ? 'pointer' : 'not-allowed',
+  boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.12)',
+  transition: 'background .12s, border-color .12s, color .12s',
+});

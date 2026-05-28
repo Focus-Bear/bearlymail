@@ -133,6 +133,7 @@ tests:
       subject: "Meeting with trainees"
       contextNote: ""
       currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
       body: "Hi Jeremy, an online meeting would work well for us at 11.30am on 29th. It will be with trainees Harrison and Asher."
     assert:
       - type: javascript
@@ -148,8 +149,15 @@ tests:
           if (!parsed.meetingProposal || parsed.meetingProposal.hasProposal !== true) {
             throw new Error(`Expected meetingProposal.hasProposal=true for "11.30am on 29th". Got: ${JSON.stringify(parsed.meetingProposal)}`);
           }
-          if (!parsed.meetingProposal.proposedTime || !parsed.meetingProposal.proposedTime.startsWith('2026-05-29')) {
-            throw new Error(`Expected proposedTime on 2026-05-29. Got: ${parsed.meetingProposal.proposedTime}`);
+          const mp = parsed.meetingProposal;
+          if (!mp.proposedLocalTime || !mp.proposedLocalTime.startsWith('2026-05-29T11:30')) {
+            throw new Error(`Expected proposedLocalTime '2026-05-29T11:30:00' (no offset). Got: ${mp.proposedLocalTime}`);
+          }
+          if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(mp.proposedLocalTime)) {
+            throw new Error(`proposedLocalTime must NOT carry an offset/Z suffix. Got: ${mp.proposedLocalTime}`);
+          }
+          if (mp.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne' (no tz stated in email, fall back to userTimezone). Got: ${mp.proposedTimezone}`);
           }
           return true;
-    description: "Should detect a bare day-of-month + period time ('11.30am on 29th') as a meeting proposal"
+    description: "Should detect '11.30am on 29th' as a meeting proposal with local time + recipient timezone (no UTC math)"

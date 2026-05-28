@@ -8,6 +8,7 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { LLMService } from "../llm/llm.service";
+import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
 import { SummarizationService } from "./summarization.service";
 
@@ -55,6 +56,12 @@ describe("SummarizationService", () => {
     findOneForAuth: jest.fn().mockResolvedValue({ email: "user@example.com" }),
   };
 
+  const mockSchedulingPreferencesService = {
+    getPreferences: jest
+      .fn()
+      .mockResolvedValue({ timezone: "Australia/Melbourne" }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -90,6 +97,10 @@ describe("SummarizationService", () => {
         {
           provide: UsersService,
           useValue: mockUsersService,
+        },
+        {
+          provide: SchedulingPreferencesService,
+          useValue: mockSchedulingPreferencesService,
         },
       ],
     }).compile();
@@ -547,6 +558,14 @@ describe("matchRuleDeterministic", () => {
         { provide: EmailsService, useValue: mockEmailsServiceLocal },
         { provide: LLMService, useValue: mockLLMServiceLocal },
         { provide: UsersService, useValue: {} },
+        {
+          provide: SchedulingPreferencesService,
+          useValue: {
+            getPreferences: jest
+              .fn()
+              .mockResolvedValue({ timezone: "Australia/Melbourne" }),
+          },
+        },
         {
           provide: ErrorTrackingService,
           useValue: { captureException: jest.fn() },

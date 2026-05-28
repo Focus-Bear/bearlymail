@@ -6,8 +6,10 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMProvider } from "../llm/llm.types";
-import { logError } from "../utils/logger";
+import { createLogger, logError } from "../utils/logger";
 import type { CalendarService } from "./calendar.service";
+
+const proposalLog = createLogger("CalendarMeetingProposal");
 
 const ICAL_DATE_MIN_LENGTH = 8;
 const ICAL_YEAR_END = 4;
@@ -433,11 +435,17 @@ async function detectProposal(
     mostRecentReceivedAt <= thread.lastSummarizedAt;
 
   if (cacheIsFresh) {
+    proposalLog.debug(
+      `[detectProposal] serving CACHED summary proposal (not timezone-aware): hasProposal=${thread!.meetingProposal!.hasProposal} proposedTime="${thread!.meetingProposal!.proposedTime}" proposedTimeText="${thread!.meetingProposal!.proposedTimeText}"`,
+    );
     return thread!.meetingProposal!;
   }
 
   const prefs =
     await service.schedulingPreferencesService.getPreferences(userId);
+  proposalLog.debug(
+    `[detectProposal] cache stale/absent — running timezone-aware detect with userTimezone="${prefs.timezone}"`,
+  );
   return service.llmService.detectMeetingProposal(
     {
       from: emailForDetection.from,

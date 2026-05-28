@@ -8,6 +8,7 @@ import {
   PhishingSignals,
   validatePhishingConfidence,
 } from "../summarization/phishing-detection.service";
+import { convertLocalTimeInZoneToUtc } from "../utils/meeting-time.util";
 import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -138,6 +139,7 @@ export class LLMSummarizationService {
     fromName: string = "",
     existingActions: string[] = [],
     emailCategories: string = "",
+    userTimezone: string = "UTC",
   ): Promise<{
     summary: string;
     phishing: PhishingLLMResult | null;
@@ -207,6 +209,7 @@ export class LLMSummarizationService {
           : "",
       emailCategories,
       currentDatetime: new Date().toISOString(),
+      userTimezone,
     });
 
     const PHISHING_JSON_TOKEN_OVERHEAD = 150;
@@ -297,10 +300,25 @@ export class LLMSummarizationService {
     if (!value || typeof value !== "object") return null;
     const raw = value as Record<string, unknown>;
     if (typeof raw.hasProposal !== "boolean") return null;
+
+    // Prompts now return `proposedLocalTime` (naive wall-clock, no offset) +
+    // `proposedTimezone`. We convert to UTC deterministically here rather than
+    // trusting the LLM's timezone math. We also tolerate the legacy
+    // `proposedTime` field so any in-flight responses from older deploys still
+    // produce a usable result.
+    const proposedLocalTime =
+      typeof raw.proposedLocalTime === "string" ? raw.proposedLocalTime : null;
+    const proposedTimezone =
+      typeof raw.proposedTimezone === "string" ? raw.proposedTimezone : null;
+    const legacyProposedTime =
+      typeof raw.proposedTime === "string" ? raw.proposedTime : null;
+    const proposedTime =
+      convertLocalTimeInZoneToUtc(proposedLocalTime, proposedTimezone) ??
+      legacyProposedTime;
+
     return {
-      hasProposal: raw.hasProposal,
-      proposedTime:
-        typeof raw.proposedTime === "string" ? raw.proposedTime : null,
+      hasProposal: raw.hasProposal && proposedTime !== null,
+      proposedTime,
       proposedTimeText:
         typeof raw.proposedTimeText === "string" ? raw.proposedTimeText : null,
       topic: typeof raw.topic === "string" ? raw.topic : null,

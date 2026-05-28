@@ -77,6 +77,7 @@ Return a JSON object (no markdown fences) with exactly these fields.
 The **summary** value must be plain prose only. Do not put JSON or markdown inside the `summary` string.
 
 Current datetime (UTC): {{currentDatetime}}
+Recipient's local timezone (IANA): {{userTimezone}}
 
 {
   "summary": "<your action items here>",
@@ -85,13 +86,15 @@ Current datetime (UTC): {{currentDatetime}}
   "category": "<choose from the available categories listed below, or Other if none fit>",
   "categoryExplanation": "<one sentence explaining why this category was chosen>",
   "actionItems": [{ "description": "<task the recipient needs to do>", "confidence": <0.0-1.0> }],
-  "meetingProposal": { "hasProposal": <true|false>, "proposedTime": "<ISO 8601 UTC or null>", "proposedTimeText": "<human-readable text from email or null>", "topic": "<meeting title max 60 chars or null>", "durationMinutes": <integer or null> }
+  "meetingProposal": { "hasProposal": <true|false>, "proposedLocalTime": "<naive ISO 8601 wall-clock datetime in proposedTimezone, with NO 'Z' and NO offset suffix, or null>", "proposedTimezone": "<IANA name like 'Australia/Melbourne' OR fixed UTC offset like 'UTC-5', 'UTC+10', 'UTC+5:30', or null>", "proposedTimeText": "<human-readable text from email or null>", "topic": "<meeting title max 60 chars or null>", "durationMinutes": <integer or null> }
 }
 
 MEETING PROPOSAL DETECTION — for the `meetingProposal` field:
 - Set `hasProposal: true` ONLY when the email proposes a **specific** date AND time (e.g. "Tuesday April 15 at 9am", "11.30am on the 29th"). A bare day-of-month with no month named ("the 29th", "on the 3rd") counts as specific — resolve it to the next future occurrence of that day relative to the current datetime above (i.e. this month if the day has not yet passed, otherwise next month). Times may use a period or colon as the separator, with or without a space before am/pm (e.g. "11.30am" = 11:30 AM, "2 pm" = 14:00). DO NOT set true for vague requests like "let's find a time", "sometime next week", or "when are you free?"
-- `proposedTime`: convert to ISO 8601 UTC using the current datetime above. If timezone is unknown, assume UTC. Null if no specific proposal.
-- `proposedTimeText`: the time as written in the email. Null if no proposal.
+- DO NOT do any timezone math yourself. NEVER convert to UTC. Output the wall-clock time as the sender wrote it, paired with the timezone it's in. Code will convert to UTC deterministically.
+- `proposedLocalTime`: the wall-clock time **exactly as it should appear on a calendar invite in `proposedTimezone`**, with no offset suffix (e.g. "2026-04-15T09:00:00"). Never append "Z" or "+HH:MM". Null if no specific proposal.
+- `proposedTimezone`: if the email states a timezone (e.g. "9am Eastern", "11am AEST"), emit a fixed UTC offset such as "UTC-5" / "UTC-4" (Eastern Standard / Daylight), "UTC-8" / "UTC-7" (Pacific), "UTC" (GMT), "UTC+1" (BST/CET), "UTC+5:30" (IST), "UTC+10" / "UTC+11" (AEST/AEDT), "UTC+12" / "UTC+13" (NZST/NZDT). If no timezone is mentioned, output the recipient's IANA timezone exactly: "{{userTimezone}}" (do NOT default to UTC). Null if no specific proposal.
+- `proposedTimeText`: the time as written in the email, preserving any stated timezone. Null if no proposal.
 - `topic`: derive from subject/body, max 60 chars. Null if no proposal.
 - `durationMinutes`: extract if stated (e.g. "30-minute call" → 30). Null if not specified.
 

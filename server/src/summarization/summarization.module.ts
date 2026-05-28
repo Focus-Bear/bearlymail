@@ -7,6 +7,7 @@ import { SummarizationRule } from "../database/entities/summarization-rule.entit
 import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
+import { SchedulingPreferencesModule } from "../scheduling-preferences/scheduling-preferences.module";
 import { UsersModule } from "../users/users.module";
 import { SummarizationController } from "./summarization.controller";
 import { SummarizationService } from "./summarization.service";
@@ -21,6 +22,7 @@ import { SummarizationService } from "./summarization.service";
     ]),
     forwardRef(() => EmailsModule),
     LLMModule,
+    SchedulingPreferencesModule,
     UsersModule,
   ],
   controllers: [SummarizationController],

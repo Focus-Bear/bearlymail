@@ -3,6 +3,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { convertLocalTimeInZoneToUtc } from "../utils/meeting-time.util";
 import { normalizeGeneratedReplyPlaintext } from "../utils/reply-plaintext-format.util";
 import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMProvider } from "./llm.types";
@@ -21,6 +22,15 @@ import {
   renderPrompt,
   REPLY_PROMPT_IDS,
 } from "./prompts";
+
+/** Returned by detectMeetingProposal when no proposal can be parsed. */
+const EMPTY_MEETING_PROPOSAL = {
+  hasProposal: false,
+  proposedTime: null,
+  proposedTimeText: null,
+  topic: null,
+  durationMinutes: null,
+} as const;
 
 /**
  * Domain service for LLM-powered reply generation (options, drafts, meeting replies, follow-ups).
@@ -451,13 +461,7 @@ export class LLMReplyService {
       this.logger.error(
         "detect_meeting_proposal prompt not found — cannot detect meeting proposal",
       );
-      return {
-        hasProposal: false,
-        proposedTime: null,
-        proposedTimeText: null,
-        topic: null,
-        durationMinutes: null,
-      };
+      return EMPTY_MEETING_PROPOSAL;
     }
 
     const cleanedBody = cleanEmailContent(
@@ -466,13 +470,19 @@ export class LLMReplyService {
       BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
 
+    const effectiveTimezone = userTimezone || "UTC";
+    const currentDatetime = new Date().toISOString();
+    this.logger.debug(
+      `[detectMeetingProposal] subject="${email.subject}" from="${email.from}" userTimezone="${effectiveTimezone}" currentDatetime="${currentDatetime}"`,
+    );
+
     const prompt = renderPrompt(promptConfig.prompt || "", {
-      currentDatetime: new Date().toISOString(),
+      currentDatetime,
       from: email.from,
       fromName: email.fromName || email.from,
       subject: email.subject,
       body: cleanedBody,
-      userTimezone: userTimezone || "UTC",
+      userTimezone: effectiveTimezone,
     });
 
     try {
@@ -489,42 +499,58 @@ export class LLMReplyService {
         userId,
         LLM_OP_DETECT_MEETING_PROPOSAL,
       );
-
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        return {
-          hasProposal: false,
-          proposedTime: null,
-          proposedTimeText: null,
-          topic: null,
-          durationMinutes: null,
-        };
-      }
-
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        hasProposal?: boolean;
-        proposedTime?: string | null;
-        proposedTimeText?: string | null;
-        topic?: string | null;
-        durationMinutes?: number | null;
-      };
-
-      return {
-        hasProposal: parsed.hasProposal === true,
-        proposedTime: parsed.proposedTime ?? null,
-        proposedTimeText: parsed.proposedTimeText ?? null,
-        topic: parsed.topic ?? null,
-        durationMinutes: parsed.durationMinutes ?? null,
-      };
+      return this.parseDetectMeetingProposalResponse(
+        response,
+        effectiveTimezone,
+      );
     } catch (error) {
       this.logger.warn("Failed to detect meeting proposal", error);
-      return {
-        hasProposal: false,
-        proposedTime: null,
-        proposedTimeText: null,
-        topic: null,
-        durationMinutes: null,
-      };
+      return EMPTY_MEETING_PROPOSAL;
     }
+  }
+
+  private parseDetectMeetingProposalResponse(
+    response: string,
+    effectiveTimezone: string,
+  ): {
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  } {
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return EMPTY_MEETING_PROPOSAL;
+
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      hasProposal?: boolean;
+      proposedLocalTime?: string | null;
+      proposedTimezone?: string | null;
+      proposedTimeText?: string | null;
+      topic?: string | null;
+      durationMinutes?: number | null;
+    };
+
+    // Deterministic local-in-zone → UTC conversion. Falls back to the user's
+    // timezone if the LLM didn't emit one (it's instructed to, but guard).
+    const proposedTimezone = parsed.proposedTimezone ?? effectiveTimezone;
+    const proposedTime = convertLocalTimeInZoneToUtc(
+      parsed.proposedLocalTime ?? null,
+      proposedTimezone,
+    );
+
+    this.logger.debug(
+      `[detectMeetingProposal] userTimezone="${effectiveTimezone}" -> hasProposal=${parsed.hasProposal === true} proposedLocalTime="${parsed.proposedLocalTime ?? null}" proposedTimezone="${proposedTimezone}" proposedTimeUTC="${proposedTime}" proposedTimeText="${parsed.proposedTimeText ?? null}" durationMinutes=${parsed.durationMinutes ?? null}`,
+    );
+
+    const hasProposal = parsed.hasProposal === true && proposedTime !== null;
+
+    return {
+      hasProposal,
+      proposedTime,
+      proposedTimeText: parsed.proposedTimeText ?? null,
+      topic: parsed.topic ?? null,
+      durationMinutes: parsed.durationMinutes ?? null,
+    };
   }
 }

@@ -147,6 +147,7 @@ export class LLMService {
     fromName?: string;
     existingActions?: string[];
     emailCategories?: string;
+    userTimezone?: string;
   }): Promise<{
     summary: string;
     phishing: PhishingLLMResult | null;
@@ -174,6 +175,7 @@ export class LLMService {
       fromName = "",
       existingActions = [],
       emailCategories = "",
+      userTimezone = "UTC",
     } = options;
     return this.llmSummarizationService.summarizeEmailWithPhishingCheck(
       emailBody,
@@ -187,6 +189,7 @@ export class LLMService {
       fromName,
       existingActions,
       emailCategories,
+      userTimezone,
     );
   }
 

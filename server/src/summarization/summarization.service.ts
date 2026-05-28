@@ -22,6 +22,7 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { LLMProvider, LLMService } from "../llm/llm.service";
 import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { getPrompt, SUMMARY_PROMPT_IDS, SUMMARY_TYPES } from "../llm/prompts";
+import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import { matchAny } from "./pattern-matcher";
@@ -63,6 +64,7 @@ export class SummarizationService {
     private emailThreadRepository: Repository<EmailThread>,
     private errorTrackingService: ErrorTrackingService,
     private usersService: UsersService,
+    private schedulingPreferencesService: SchedulingPreferencesService,
   ) {}
 
   /**
@@ -556,6 +558,12 @@ export class SummarizationService {
       params.rule.type === SUMMARY_TYPES.SENDER_REQUEST
         ? SUMMARY_TYPES.TLDR
         : params.rule.type;
+    // Fetch the recipient's IANA timezone so the prompt can extract meeting
+    // proposals against the right local time (the conversion to UTC is done
+    // deterministically in code, not by the LLM).
+    const prefs = await this.schedulingPreferencesService.getPreferences(
+      params.userId,
+    );
     return this.llmService.summarizeEmailWithPhishingCheck({
       emailBody: params.bodyForLLM,
       emailSubject: params.subject,
@@ -568,6 +576,7 @@ export class SummarizationService {
       fromName: params.fromName,
       existingActions: params.existingActions,
       emailCategories: params.emailCategories,
+      userTimezone: prefs.timezone,
     });
   }
 

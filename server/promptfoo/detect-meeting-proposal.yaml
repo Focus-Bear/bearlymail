@@ -1,4 +1,4 @@
-description: "Tests for the meeting-proposal detection prompt (concrete time extraction)"
+description: "Tests for the meeting-proposal detection prompt (naive local + timezone extraction)"
 
 prompts:
   - file://prompts/detect-meeting-proposal.md
@@ -9,7 +9,7 @@ providers:
       temperature: 0
 
 tests:
-  - description: "Bare day-of-month + period time ('11.30am on 29th') is a concrete proposal"
+  - description: "Bare day-of-month + period time ('11.30am on 29th') extracts local time and recipient timezone"
     vars:
       currentDatetime: "2026-05-22T00:00:00Z"
       userTimezone: "Australia/Melbourne"
@@ -36,12 +36,18 @@ tests:
           if (parsed.hasProposal !== true) {
             throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
           }
-          if (!parsed.proposedTime || !parsed.proposedTime.startsWith('2026-05-29')) {
-            throw new Error(`Expected proposedTime on 2026-05-29. Got: ${parsed.proposedTime}`);
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-05-29T11:30')) {
+            throw new Error(`Expected proposedLocalTime '2026-05-29T11:30:00' (no offset). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(parsed.proposedLocalTime)) {
+            throw new Error(`proposedLocalTime must NOT carry an offset/Z suffix. Got: ${parsed.proposedLocalTime}`);
+          }
+          if (parsed.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne' (no tz stated in email, fall back to userTimezone). Got: ${parsed.proposedTimezone}`);
           }
           return true;
 
-  - description: "Relative date + colon time ('next Tuesday at 9am') is a concrete proposal"
+  - description: "Relative date + colon time ('next Tuesday at 9am') extracts local time and recipient timezone"
     vars:
       currentDatetime: "2026-05-22T00:00:00Z"
       userTimezone: "Australia/Melbourne"
@@ -64,8 +70,49 @@ tests:
           if (parsed.hasProposal !== true) {
             throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
           }
-          if (!parsed.proposedTime || !parsed.proposedTime.startsWith('2026-05-26')) {
-            throw new Error(`Expected proposedTime on 2026-05-26 (next Tuesday after Fri 2026-05-22). Got: ${parsed.proposedTime}`);
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-05-26T09:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-05-26T09:00:00' (next Tuesday after Fri 2026-05-22). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (parsed.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne'. Got: ${parsed.proposedTimezone}`);
+          }
+          return true;
+
+  - description: "Explicit timezone in email ('9am Eastern') extracts local time + stated tz as UTC offset"
+    vars:
+      currentDatetime: "2026-04-10T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "patricia@example.com"
+      fromName: "Patricia Lee"
+      subject: "Quarterly review"
+      body: |
+        Can we hop on a call at 9am Eastern on Wednesday April 15? Should take about 30 minutes.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-04-15T09:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-04-15T09:00:00'. Got: ${parsed.proposedLocalTime}`);
+          }
+          // "Eastern" on April 15 is EDT = UTC-4. Accept the offset form (prompt instructs offsets for stated zones)
+          // OR the IANA fallback the model may pick. Reject UTC and the recipient's Melbourne tz.
+          const tz = parsed.proposedTimezone;
+          const tzOk = tz === 'UTC-4' || tz === 'UTC-5' || tz === 'America/New_York';
+          if (!tzOk) {
+            throw new Error(`Expected proposedTimezone in {'UTC-4','UTC-5','America/New_York'} (email states Eastern, NOT recipient's tz). Got: ${tz}`);
+          }
+          if (parsed.durationMinutes !== 30) {
+            throw new Error(`Expected durationMinutes=30. Got: ${parsed.durationMinutes}`);
           }
           return true;
 

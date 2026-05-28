@@ -62,6 +62,7 @@ export interface RulePersistGateOutcome {
     | "ok"
     | "no_mailbox_match"
     | "redundant"
+    | "incoherent"
     | "no_exclusions"
     | "exclusions_removed_all_matches";
   detail?: string;
@@ -159,6 +160,14 @@ export async function evaluateRulePersistGate(
         maxBodyNotPhrases: CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
         userId,
       });
+      if (!assessment.makesSense) {
+        return {
+          shouldPersist: false,
+          finalSpec: null,
+          reason: "incoherent",
+          detail: assessment.reasoning,
+        };
+      }
       if (!assessment.addsValue) {
         return {
           shouldPersist: false,

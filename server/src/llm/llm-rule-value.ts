@@ -79,6 +79,12 @@ export interface AssessRuleValueParams {
 }
 
 export interface AssessRuleValueResult {
+  /**
+   * Whether the rule's conditions are logically coherent with the category's
+   * purpose (e.g. a "bot updates" rule must not exclude bot names). A rule that
+   * does not make sense should not be persisted.
+   */
+  makesSense: boolean;
   addsValue: boolean;
   reasoning: string;
   /** Disambiguating exclusions the LLM proposes to reduce sibling overlap. */
@@ -97,7 +103,20 @@ export type AssessRuleValueGenerateText = (request: {
   operation: typeof LLM_OP_ASSESS_CATEGORY_RULE_VALUE;
 }) => Promise<string>;
 
+/** The lower-cased string an LLM uses for a false boolean it returned as text. */
+const FALSE_STRING = "false";
+
+/**
+ * True when `value` is boolean false OR a stringified false ("false"/"False").
+ * Used so an LLM that emits a quoted boolean cannot bypass a verdict check.
+ * A missing/other value is NOT falsey, so verdicts fail open (default true).
+ */
+function isFalsey(value: unknown): boolean {
+  return String(value).toLowerCase() === FALSE_STRING;
+}
+
 const failOpen = (reasoning: string): AssessRuleValueResult => ({
+  makesSense: true,
   addsValue: true,
   reasoning,
   subjectNotContainsAny: [],
@@ -146,7 +165,12 @@ function parseAssessRuleValueResponse(
           .slice(0, cap)
       : [];
   return {
-    addsValue: parsed.addsValue !== false,
+    // Default both verdicts to true when absent so a malformed response
+    // fails open rather than silently discarding a usable rule. Treat a
+    // stringified boolean ("false"/"False") — which LLMs sometimes emit — as
+    // false rather than letting it bypass the check.
+    makesSense: !isFalsey(parsed.makesSense),
+    addsValue: !isFalsey(parsed.addsValue),
     reasoning:
       typeof parsed.reasoning === "string" ? parsed.reasoning.trim() : "",
     subjectNotContainsAny: parseStringArray(
@@ -216,7 +240,7 @@ export async function assessRuleAddsValue(
       logger,
     );
     logger.log(
-      `[ASSESS-RULE-VALUE] === SUCCESS === category="${categoryName}" addsValue=${result.addsValue} subjectNot=${result.subjectNotContainsAny.length} bodyNot=${result.bodyNotContainsAny.length}`,
+      `[ASSESS-RULE-VALUE] === SUCCESS === category="${categoryName}" makesSense=${result.makesSense} addsValue=${result.addsValue} subjectNot=${result.subjectNotContainsAny.length} bodyNot=${result.bodyNotContainsAny.length}`,
     );
     return result;
   } catch (error) {

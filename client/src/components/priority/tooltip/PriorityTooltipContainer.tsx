@@ -45,12 +45,14 @@ export const PriorityTooltipContainer: React.FC<PriorityTooltipContainerProps> =
         textAlign: 'left',
       }}
       onClick={event => {
+        // Keep the click inside the tooltip (don't bubble to row/close handlers)
+        // but DON'T preventDefault — that would block text selection.
         event.stopPropagation();
-        event.preventDefault();
       }}
       onMouseDown={event => {
+        // stopPropagation keeps the tooltip open; preventDefault is omitted so
+        // the user can click-drag to select (and copy) the category text.
         event.stopPropagation();
-        event.preventDefault();
       }}
     >
       {children}

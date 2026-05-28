@@ -128,6 +128,7 @@ describe("CategoryRulesService", () => {
     );
     // Default value-add verdict: adds value, no extra exclusions.
     llmCategoriesService.assessRuleAddsValue.mockResolvedValue({
+      makesSense: true,
       addsValue: true,
       reasoning: "adds value",
       subjectNotContainsAny: [],
@@ -305,6 +306,7 @@ describe("CategoryRulesService", () => {
       emailRepo.find.mockResolvedValue([matchingMailboxEmail]);
       repo.find.mockResolvedValue([siblingRule]);
       llmCategoriesService.assessRuleAddsValue.mockResolvedValue({
+        makesSense: true,
         addsValue: true,
         reasoning: "distinct from sibling",
         subjectNotContainsAny: [exclusion],
@@ -557,6 +559,7 @@ describe("CategoryRulesService", () => {
     it("discards a redundant rule when value-add reports no added value", async () => {
       armPersistGate();
       llmCategoriesService.assessRuleAddsValue.mockResolvedValue({
+        makesSense: true,
         addsValue: false,
         reasoning: "existing rule already covers these emails",
         subjectNotContainsAny: [],

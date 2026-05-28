@@ -44,6 +44,7 @@ const makeMocks = (opts: {
   emails: unknown[];
   siblings: unknown[];
   assess?: {
+    makesSense?: boolean;
     addsValue: boolean;
     reasoning: string;
     subjectNotContainsAny: string[];
@@ -56,12 +57,15 @@ const makeMocks = (opts: {
   } as never,
   llmCategoriesService: {
     assessRuleAddsValue: jest.fn().mockResolvedValue(
-      opts.assess ?? {
-        addsValue: true,
-        reasoning: "",
-        subjectNotContainsAny: [],
-        bodyNotContainsAny: [],
-      },
+      opts.assess
+        ? { makesSense: true, ...opts.assess }
+        : {
+            makesSense: true,
+            addsValue: true,
+            reasoning: "",
+            subjectNotContainsAny: [],
+            bodyNotContainsAny: [],
+          },
     ),
   } as never,
 });
@@ -107,6 +111,23 @@ describe("evaluateRulePersistGate", () => {
     const outcome = await evaluateRulePersistGate(baseParams(mocks));
     expect(outcome.shouldPersist).toBe(false);
     expect(outcome.reason).toBe("redundant");
+  });
+
+  it("rejects a rule the sense check deems incoherent for the category", async () => {
+    const mocks = makeMocks({
+      emails: [matchingEmail],
+      siblings: [siblingRule],
+      assess: {
+        makesSense: false,
+        addsValue: true,
+        reasoning: "excludes bot names from a bot category",
+        subjectNotContainsAny: [],
+        bodyNotContainsAny: [],
+      },
+    });
+    const outcome = await evaluateRulePersistGate(baseParams(mocks));
+    expect(outcome.shouldPersist).toBe(false);
+    expect(outcome.reason).toBe("incoherent");
   });
 
   it("persists a rule that adds value and gets a disambiguating exclusion", async () => {

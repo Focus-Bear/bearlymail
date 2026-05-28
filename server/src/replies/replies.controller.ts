@@ -117,6 +117,7 @@ export class RepliesController {
       forwardAttachmentIds?: string | string[];
       scheduledSendAt?: string;
       userTimezone?: string;
+      keepInAction?: boolean | string;
     },
     @UploadedFiles() allFiles?: Express.Multer.File[],
   ) {
@@ -172,6 +173,10 @@ export class RepliesController {
       typeof body.isForward === "string"
         ? body.isForward === BOOLEAN_STRING_VALUES.TRUE
         : !!body.isForward;
+    const keepInAction =
+      typeof body.keepInAction === "string"
+        ? body.keepInAction === BOOLEAN_STRING_VALUES.TRUE
+        : !!body.keepInAction;
 
     if (body.scheduledSendAt) {
       return this.scheduleReply(req.user.userId, id, body, {
@@ -194,6 +199,7 @@ export class RepliesController {
       bcc: body.bcc || undefined,
       subject: body.subject || undefined,
       isForward,
+      keepInAction,
     });
     return { message: "Reply sent successfully" };
   }

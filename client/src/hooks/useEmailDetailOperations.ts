@@ -784,6 +784,7 @@ export function useEmailDetailOperations(
           files,
           inlineImages,
           forwardAttachmentIds,
+          keepInAction,
         };
         try {
           await sendReplyRequest(payload);

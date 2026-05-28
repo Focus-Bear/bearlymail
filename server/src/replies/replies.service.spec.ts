@@ -31,6 +31,7 @@ describe("RepliesService", () => {
           provide: EmailsService,
           useValue: {
             getEmailById: jest.fn(),
+            archiveEmail: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -81,6 +82,8 @@ describe("RepliesService", () => {
           provide: FollowUpsService,
           useValue: {
             createFollowUp: jest.fn(),
+            findActiveFollowUpByThread: jest.fn().mockResolvedValue(null),
+            cancelFollowUp: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -647,6 +650,78 @@ describe("RepliesService", () => {
         // STAR_COUNTS.LOW
         1,
       );
+    });
+
+    describe("archive-on-no-follow-up (issue #2125)", () => {
+      // When the user replies without a follow-up duration, the thread must
+      // be archived. Otherwise it stays starred + sent-last and re-qualifies
+      // for Follow-Up mode via the implicit "starred + sent-last" rule.
+      it("archives the thread when no expectedReplyHours is provided", async () => {
+        const mockProvider = {
+          sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+        };
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+        await service.sendReply(userId, emailId, "Reply body");
+
+        expect(emailsService.archiveEmail).toHaveBeenCalledWith(
+          userId,
+          emailId,
+        );
+      });
+
+      it("archives the thread when expectedReplyHours is 0", async () => {
+        const mockProvider = {
+          sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+        };
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+        await service.sendReply(userId, emailId, "Reply body", {
+          expectedReplyHours: 0,
+        });
+
+        expect(emailsService.archiveEmail).toHaveBeenCalledWith(
+          userId,
+          emailId,
+        );
+      });
+
+      it("does NOT archive when keepInAction is true", async () => {
+        const mockProvider = {
+          sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+        };
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+        await service.sendReply(userId, emailId, "Reply body", {
+          keepInAction: true,
+        });
+
+        expect(emailsService.archiveEmail).not.toHaveBeenCalled();
+      });
+
+      it("does NOT archive when expectedReplyHours > 0 (follow-up scheduled)", async () => {
+        const mockProvider = {
+          sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+          syncStarStatusToGmail: jest.fn().mockResolvedValue(undefined),
+        };
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+        const snoozeService = module.get(SnoozeService);
+        const followUpsService = module.get(FollowUpsService);
+        const emailThreadService = module.get(EmailThreadService);
+        (snoozeService.snoozeEmail as jest.Mock).mockResolvedValue(undefined);
+        (followUpsService.createFollowUp as jest.Mock).mockResolvedValue(
+          undefined,
+        );
+        (
+          emailThreadService.updateThreadStarCount as jest.Mock
+        ).mockResolvedValue(undefined);
+
+        await service.sendReply(userId, emailId, "Reply body", {
+          expectedReplyHours: 48,
+        });
+
+        expect(emailsService.archiveEmail).not.toHaveBeenCalled();
+      });
     });
   });
 

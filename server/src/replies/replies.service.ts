@@ -717,9 +717,20 @@ ${closing}`;
       bcc?: string;
       subject?: string;
       isForward?: boolean;
+      /**
+       * User explicitly chose "Keep in Action" — preserve the thread state
+       * (no follow-up, no archive). Defaults to false.
+       */
+      keepInAction?: boolean;
     } = {},
   ): Promise<void> {
-    const { expectedReplyHours, cc, bcc, isForward = false } = options;
+    const {
+      expectedReplyHours,
+      cc,
+      bcc,
+      isForward = false,
+      keepInAction = false,
+    } = options;
 
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
@@ -783,6 +794,31 @@ ${closing}`;
       );
     }
 
+    await this.applyPostReplyThreadAction(userId, emailId, email, provider, {
+      keepInAction,
+      expectedReplyHours,
+    });
+  }
+
+  /**
+   * Routes the thread state after a reply is sent:
+   * - `keepInAction` → preserve star, just clear stale follow-ups
+   * - `expectedReplyHours > 0` → schedule a follow-up (snooze + downgrade star)
+   * - otherwise → archive (without this the thread re-emerges in Follow-Up
+   *   via the implicit "starred + sent-last" rule, see issue #2125)
+   */
+  private async applyPostReplyThreadAction(
+    userId: string,
+    emailId: string,
+    email: Email,
+    provider: Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>,
+    opts: { keepInAction: boolean; expectedReplyHours?: number },
+  ): Promise<void> {
+    const { keepInAction, expectedReplyHours } = opts;
+    if (keepInAction) {
+      await this.cancelExistingFollowUp(userId, email.threadId);
+      return;
+    }
     if (expectedReplyHours && expectedReplyHours > 0) {
       try {
         await this.createFollowUpAfterReply(
@@ -795,8 +831,16 @@ ${closing}`;
       } catch (followUpError) {
         this.logger.error("Failed to create follow-up:", followUpError);
       }
-    } else {
-      await this.cancelExistingFollowUp(userId, email.threadId);
+      return;
+    }
+    await this.cancelExistingFollowUp(userId, email.threadId);
+    try {
+      await this.emailsService.archiveEmail(userId, emailId);
+    } catch (archiveError) {
+      this.logger.error(
+        "Failed to archive thread after no-follow-up reply:",
+        archiveError,
+      );
     }
   }
 

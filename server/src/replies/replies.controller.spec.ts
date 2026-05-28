@@ -239,6 +239,7 @@ describe("RepliesController", () => {
           forwardAttachmentIds: undefined,
           inlineImages: undefined,
           isForward: false,
+          keepInAction: false,
           recipients: undefined,
         },
       );
@@ -286,6 +287,7 @@ describe("RepliesController", () => {
           forwardAttachmentIds: undefined,
           inlineImages: undefined,
           isForward: false,
+          keepInAction: false,
           recipients: undefined,
         },
       );
@@ -317,6 +319,7 @@ describe("RepliesController", () => {
           forwardAttachmentIds: ["attach-1", "attach-2"],
           inlineImages: undefined,
           isForward: false,
+          keepInAction: false,
           recipients: undefined,
         },
       );
@@ -348,8 +351,51 @@ describe("RepliesController", () => {
           forwardAttachmentIds: undefined,
           inlineImages: undefined,
           isForward: false,
+          keepInAction: false,
           recipients: undefined,
         },
+      );
+    });
+
+    it("should forward keepInAction=true to the service", async () => {
+      const userId = "user-123";
+      const emailId = "email-123";
+      const mockRequest = { user: { userId } };
+      const body = {
+        reply: "Thanks",
+        keepInAction: true,
+      };
+
+      mockRepliesService.sendReply.mockResolvedValue(undefined);
+
+      await controller.sendReply(mockRequest, emailId, body);
+
+      expect(repliesService.sendReply).toHaveBeenCalledWith(
+        userId,
+        emailId,
+        body.reply,
+        expect.objectContaining({ keepInAction: true }),
+      );
+    });
+
+    it("should coerce keepInAction string 'true' to boolean", async () => {
+      const userId = "user-123";
+      const emailId = "email-123";
+      const mockRequest = { user: { userId } };
+      const body = {
+        reply: "Thanks",
+        keepInAction: "true",
+      };
+
+      mockRepliesService.sendReply.mockResolvedValue(undefined);
+
+      await controller.sendReply(mockRequest, emailId, body);
+
+      expect(repliesService.sendReply).toHaveBeenCalledWith(
+        userId,
+        emailId,
+        body.reply,
+        expect.objectContaining({ keepInAction: true }),
       );
     });
 
@@ -380,6 +426,7 @@ describe("RepliesController", () => {
           forwardAttachmentIds: undefined,
           inlineImages: undefined,
           isForward: false,
+          keepInAction: false,
           recipients: "sender@example.com, other@example.com",
         },
       );

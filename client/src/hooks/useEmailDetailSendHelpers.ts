@@ -31,6 +31,12 @@ export interface SendReplyPayload {
   inlineImages?: Map<string, File>;
   /** Attachment IDs from the original email to carry through when forwarding. */
   forwardAttachmentIds?: string[];
+  /**
+   * User checked "Keep in Action" in the composer footer. Tells the server
+   * to preserve the thread's star count and archive state (no follow-up,
+   * no archive).
+   */
+  keepInAction?: boolean;
 }
 
 export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
@@ -53,6 +59,9 @@ export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   }
   if (payload.expectedReplyDuration) {
     formData.append('expectedReplyDuration', payload.expectedReplyDuration);
+  }
+  if (payload.keepInAction) {
+    formData.append('keepInAction', 'true');
   }
   if (payload.scheduledSendAt) {
     formData.append('scheduledSendAt', payload.scheduledSendAt.toISOString());
@@ -90,6 +99,7 @@ export async function sendReplyRequest(payload: SendReplyPayload): Promise<void>
       expectedReplyHours: payload.expectedReplyHours,
       expectedReplyDuration: payload.expectedReplyDuration || undefined,
       scheduledSendAt: payload.scheduledSendAt?.toISOString(),
+      keepInAction: payload.keepInAction || undefined,
     });
   }
 }

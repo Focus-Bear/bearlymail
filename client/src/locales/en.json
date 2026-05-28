@@ -545,7 +545,12 @@
       "customPlaceholder": "e.g., 48h, 3d, next Monday",
       "customTooltip": "Enter a time like '48h', '3d', '5pm', 'tomorrow', or 'next Monday'. Leave blank for no follow-up.",
       "tooltip": "If the other person doesn't reply within {{time}}, I'll pop the email up in the follow up inbox",
-      "tooltipNoFollowUp": "No follow-up reminder will be set for this email."
+      "tooltipNoFollowUp": "No follow-up reminder will be set for this email.",
+      "clear": "Clear follow-up duration",
+      "quick48h": "48h",
+      "quick3d": "In 3 days",
+      "quickNextMon": "Next Mon",
+      "quick2w": "In 2 weeks"
     },
     "sentiment": {
       "negative": "Negative",

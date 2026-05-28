@@ -90,6 +90,113 @@ describe('ReplyComposerFooter', () => {
 
       expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined, false);
     });
+
+    it('renders a clear button when the input has a value', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      // Default value is '48h' so the clear button should be visible
+      expect(screen.getByLabelText('emailDetail.expectedReply.clear')).toBeInTheDocument();
+    });
+
+    it('does not render a clear button when the input is empty', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      fireEvent.change(getInput(), { target: { value: '' } });
+
+      expect(screen.queryByLabelText('emailDetail.expectedReply.clear')).not.toBeInTheDocument();
+    });
+
+    it('clears the input when the X button is clicked', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      fireEvent.click(screen.getByLabelText('emailDetail.expectedReply.clear'));
+
+      expect(getInput()).toHaveValue('');
+    });
+
+    it('sends no follow-up after clicking the X button', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      fireEvent.click(screen.getByLabelText('emailDetail.expectedReply.clear'));
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined, false);
+    });
+
+    it('does not show quick option buttons when input is not focused', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      expect(screen.queryByTestId('follow-up-quick-options')).not.toBeInTheDocument();
+    });
+
+    it('shows quick option buttons when input is focused', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      const input = screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
+      fireEvent.focus(input);
+
+      expect(screen.getByTestId('follow-up-quick-options')).toBeInTheDocument();
+    });
+
+    it('hides quick option buttons when input loses focus', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      const input = screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
+      fireEvent.focus(input);
+      fireEvent.blur(input);
+
+      expect(screen.queryByTestId('follow-up-quick-options')).not.toBeInTheDocument();
+    });
+
+    it('sets input value when a quick option is selected', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      const input = screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
+      fireEvent.focus(input);
+
+      const quickOptions = screen.getByTestId('follow-up-quick-options');
+      const optionButtons = within(quickOptions).getAllByRole('button');
+      fireEvent.mouseDown(optionButtons[1]); // "In 3 days" → value "3d"
+
+      expect(input).toHaveValue('3d');
+    });
+
+    it('hides quick options after selecting one', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      const input = screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
+      fireEvent.focus(input);
+
+      const quickOptions = screen.getByTestId('follow-up-quick-options');
+      const optionButtons = within(quickOptions).getAllByRole('button');
+      fireEvent.mouseDown(optionButtons[0]); // "48h"
+
+      expect(screen.queryByTestId('follow-up-quick-options')).not.toBeInTheDocument();
+    });
+
+    it('sends the selected quick option duration when Send is clicked', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      const input = screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
+      fireEvent.focus(input);
+      const quickOptions = screen.getByTestId('follow-up-quick-options');
+      const optionButtons = within(quickOptions).getAllByRole('button');
+      fireEvent.mouseDown(optionButtons[2]); // "Next Mon" → value "next Monday"
+      fireEvent.blur(input);
+
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, 'next Monday');
+    });
+
+    it('does not show quick options when disabled (sending)', () => {
+      render(<ReplyComposerFooter {...defaultProps} sending />);
+
+      const input = screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
+      fireEvent.focus(input);
+
+      expect(screen.queryByTestId('follow-up-quick-options')).not.toBeInTheDocument();
+    });
   });
 
   describe('scheduledSendAt parameter', () => {

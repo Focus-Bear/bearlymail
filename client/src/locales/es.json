@@ -1070,7 +1070,12 @@
       "customPlaceholder": "p. ej., 48h, 3d, próximo lunes",
       "customTooltip": "Introduce un tiempo como '48h', '3d', '5pm', 'mañana' o 'próximo lunes'. Déjalo en blanco para no hacer seguimiento.",
       "tooltip": "Si la otra persona no responde en {{time}}, apareceré el correo en tu bandeja de seguimiento",
-      "tooltipNoFollowUp": "No se establecerá ningún recordatorio de seguimiento para este correo."
+      "tooltipNoFollowUp": "No se establecerá ningún recordatorio de seguimiento para este correo.",
+      "clear": "Borrar duración de seguimiento",
+      "quick48h": "48h",
+      "quick3d": "En 3 días",
+      "quickNextMon": "Próx. Lun",
+      "quick2w": "En 2 semanas"
     },
     "whenToUseLabel": "¿Cuándo se debe utilizar esta regla? (por ejemplo, \"Para correos electrónicos de mi gerente\", \"Para solicitudes de reunión\")",
     "whenToUsePlaceholder": "Describe cuándo usar esta regla...",

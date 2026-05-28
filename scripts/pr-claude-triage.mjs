@@ -55,6 +55,9 @@
  *
  * Env:
  *   GITHUB_REPOSITORY     default Focus-Bear/BearlyMail
+ *   PR_TRIAGE_SKIP_LABEL   PRs carrying this label are skipped entirely (no resolvers, comments, empty
+ *                            commits, or state labels) because an interactive agent/human is driving them.
+ *                            Unset = "claude-interactive"; empty = disable skipping.
  *   GEMINI_REVIEW_BOTS     comma-separated GitHub logins (default: gemini-code-assist)
  *   GEMINI_ACTIONED_LABEL  if this label is on the PR, we trust that all Gemini feedback is addressed
  *                            (Claude/author can add it when inline threads are not or cannot be "Resolved"

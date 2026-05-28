@@ -1,5 +1,12 @@
 export const DEFAULT_REPO = "Focus-Bear/BearlyMail";
 export const API_VERSION = "2022-11-28";
+/**
+ * PRs carrying this label are being actively driven by an interactive agent or a
+ * human; the triage automation skips them entirely (no resolvers, comments,
+ * empty commits, or state labels) so the two don't race on the same branch.
+ * Override with PR_TRIAGE_SKIP_LABEL; set that env to "" to disable skipping.
+ */
+export const DEFAULT_TRIAGE_SKIP_LABEL = "claude-interactive";
 export const DEFAULT_GEMINI_ACTIONED_LABEL = "all-gemini-feedback-actioned";
 /** Ask Claude (in claude.yml / triage prompts) to include this exact phrase when Gemini feedback is fully handled in code. */
 export const DEFAULT_GEMINI_CLAUDE_ATTESTATION_SUBSTRING = "All gemini comments resolved";

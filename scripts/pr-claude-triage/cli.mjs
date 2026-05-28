@@ -28,6 +28,7 @@ import {
 import {
   DEFAULT_GEMINI_CLAUDE_ATTESTATION_SUBSTRING,
   DEFAULT_REPO,
+  DEFAULT_TRIAGE_SKIP_LABEL,
 } from "./constants.mjs";
 import {
   fetchUnresolvedGeminiThreads,
@@ -69,6 +70,25 @@ import {
   triagePingRecommended,
   triageStateKeyHumanSentence,
 } from "./triage-state.mjs";
+
+/**
+ * Label that marks a PR as actively driven by an interactive agent/human. The
+ * triage automation skips such PRs entirely so it doesn't race the human/agent
+ * on the same branch. Override with PR_TRIAGE_SKIP_LABEL; set "" to disable.
+ */
+export function getTriageSkipLabel() {
+  const v = process.env.PR_TRIAGE_SKIP_LABEL;
+  if (v === "") return null;
+  return (v ?? DEFAULT_TRIAGE_SKIP_LABEL).trim() || null;
+}
+
+/** True when the PR carries the triage-skip label (read from the open-pulls payload). */
+export function prHasTriageSkipLabel(pr, skipLabel = getTriageSkipLabel()) {
+  if (!skipLabel) return false;
+  const labels = pr?.labels;
+  if (!Array.isArray(labels)) return false;
+  return labels.some((l) => l && l.name === skipLabel);
+}
 
 export function parseArgs(argv) {
   const out = {
@@ -160,6 +180,7 @@ Environment:
                             INSUFFICIENT_SUCCESS, GEMINI_REVIEW, WORKFLOW_APPROVAL, CI_MISSING, CI_IN_PROGRESS, NEEDS_ATTENTION
                             (empty = disable that slot)
   PR_TRIAGE_READY_FOR_REVIEW_LABEL  "Ready" state label; unset=ready-for-review; empty=disable that slot
+  PR_TRIAGE_SKIP_LABEL    PRs with this label are skipped entirely (interactive/human-driven); unset = "claude-interactive", empty = disable
   GEMINI_REVIEW_BOTS      comma-separated logins (default: gemini-code-assist)
   GEMINI_ACTIONED_LABEL   PR label name that means Gemini is fully addressed; unset = "all-gemini-feedback-actioned", empty = disable
   GEMINI_CLAUDE_ATTESTATION_SUBSTRING  substring the latest Claude issue comment must contain to waive Gemini API threads;
@@ -218,6 +239,17 @@ Environment:
   for (const pr of pulls) {
     let headSha = pr.head?.sha;
     if (!headSha) continue;
+
+    // Hands off: a PR an interactive agent/human is actively driving is skipped
+    // entirely (no resolvers, comments, empty commits, or state labels) so we
+    // don't race them on the same branch. Checked first, before any work.
+    const skipLabel = getTriageSkipLabel();
+    if (skipLabel && prHasTriageSkipLabel(pr, skipLabel)) {
+      console.log(
+        `[skip] PR #${pr.number} has '${skipLabel}' label — interactive/human-driven; triage automation skipping.`,
+      );
+      continue;
+    }
 
     const prMerge = await refreshPullMergeStatus(owner, repo, pr);
     const headRef = prMerge.head?.ref ?? "";

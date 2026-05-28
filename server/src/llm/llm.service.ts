@@ -460,6 +460,7 @@ export class LLMService {
     );
   }
 
+  // eslint-disable-next-line better-max-params/better-max-params
   async generateMeetingReply(
     originalEmail: {
       from: string;
@@ -471,6 +472,12 @@ export class LLMService {
     calendarBookingUrl?: string,
     provider?: LLMProvider,
     userId?: string,
+    userContext?: {
+      tone?: string;
+      commonPhrases?: string[];
+      writingStyle?: string;
+      emailExamples?: string[];
+    },
   ): Promise<string> {
     return this.llmReplyService.generateMeetingReply(
       originalEmail,
@@ -478,6 +485,7 @@ export class LLMService {
       calendarBookingUrl,
       provider,
       userId,
+      userContext,
     );
   }
 

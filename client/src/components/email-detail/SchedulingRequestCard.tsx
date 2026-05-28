@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -507,7 +508,11 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
     try {
       const response = await axios.post(`${API_URL}/calendar/meeting-reply/${email.id}`);
       if (response.data?.draft && onDraftReply) {
-        onDraftReply(response.data.draft);
+        // Convert plaintext (with \n\n paragraph breaks) to HTML so Tiptap renders
+        // proper paragraphs instead of collapsing newlines into a wall of text —
+        // mirrors the suggested-replies flow in useReplyDraftGeneration.
+        const htmlDraft = plainTextToHtml(normalizeAiReplyPlaintext(response.data.draft));
+        onDraftReply(htmlDraft);
       }
     } catch (err) {
       console.error('Failed to draft meeting reply:', err);

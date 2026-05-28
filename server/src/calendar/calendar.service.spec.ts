@@ -675,6 +675,7 @@ describe("CalendarService", () => {
         "http://localhost:3000/book/user-1",
         undefined,
         "user-1",
+        { emailExamples: [] },
       );
       expect(result).toBe("Here is my booking link...");
     });
@@ -702,6 +703,7 @@ describe("CalendarService", () => {
         BOOKING_URL,
         undefined,
         "user-1",
+        { emailExamples: [] },
       );
       expect(result).toBe("Here is my booking link...");
     });
@@ -726,6 +728,7 @@ describe("CalendarService", () => {
         BOOKING_URL,
         undefined,
         "user-1",
+        { emailExamples: [] },
       );
       expect(result).toBe("Booking via env var link...");
 
@@ -750,6 +753,7 @@ describe("CalendarService", () => {
         "https://app.bearlymail.com/book/user-1",
         undefined,
         "user-1",
+        { emailExamples: [] },
       );
       expect(result).toBe("Here is my booking link...");
 

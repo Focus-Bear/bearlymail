@@ -349,6 +349,18 @@ export async function generateMeetingReply(
         : LLMProvider.OPENAI;
   }
 
+  // Pull writing-style examples from the user's "How I write emails" settings
+  // so meeting replies match the same tone as regular suggested replies
+  // (see replies.service.ts:generateDraftReply for the canonical filter).
+  const user = await service.usersService.findOne(userId);
+  const toneRules = user?.toneSettings?.rules || [];
+  const emailExamples = toneRules.filter(
+    (rule: string) =>
+      !rule.startsWith("Tone:") &&
+      !rule.startsWith("Style:") &&
+      !rule.startsWith("Common phrase:"),
+  );
+
   try {
     return await service.llmService.generateMeetingReply(
       {
@@ -361,6 +373,7 @@ export async function generateMeetingReply(
       schedulingLinkUrl,
       llmProvider,
       userId,
+      { emailExamples },
     );
   } catch (error) {
     logError(

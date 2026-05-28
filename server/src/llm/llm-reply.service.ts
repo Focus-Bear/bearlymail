@@ -287,6 +287,7 @@ export class LLMReplyService {
     return normalizeGeneratedReplyPlaintext(draft);
   }
 
+  // eslint-disable-next-line better-max-params/better-max-params
   async generateMeetingReply(
     originalEmail: {
       from: string;
@@ -298,6 +299,12 @@ export class LLMReplyService {
     calendarBookingUrl?: string,
     provider?: LLMProvider,
     userId?: string,
+    userContext?: {
+      tone?: string;
+      commonPhrases?: string[];
+      writingStyle?: string;
+      emailExamples?: string[];
+    },
   ): Promise<string> {
     const cleanedBody = cleanEmailContent(
       originalEmail.body,
@@ -314,15 +321,24 @@ export class LLMReplyService {
     }
 
     const schedulingLinkUrl = calendarBookingUrl || "";
+    const tone = userContext?.tone || "professional";
+    const commonPhrases = userContext?.commonPhrases?.length
+      ? userContext.commonPhrases.slice(0, 3).join(", ")
+      : "";
+    const emailExamples = userContext?.emailExamples?.slice(0, 5) || [];
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
       schedulingLinkUrl,
       fromName: originalEmail.fromName || originalEmail.from,
       subject: originalEmail.subject,
       body: cleanedBody,
+      tone,
+      writingStyle: userContext?.writingStyle || "",
+      emailExamples,
+      commonPhrases,
     });
 
-    return await this.generateText(
+    const draft = await this.generateText(
       {
         prompt,
         systemPrompt: promptConfig.systemPrompt || "",
@@ -334,6 +350,7 @@ export class LLMReplyService {
       userId,
       LLM_OP_GENERATE_MEETING_REPLY,
     );
+    return normalizeGeneratedReplyPlaintext(draft);
   }
 
   // eslint-disable-next-line better-max-params/better-max-params

@@ -142,6 +142,45 @@ export class ContextFinalizationProcessor implements OnModuleInit {
   }
 
   /**
+   * Wrap resolveActualTotalBatches in withUserKey because ContextAnalysis.stats
+   * uses encryptedJsonTransformer (per-user KMS envelope): without the user key
+   * in AsyncLocalStorage, decryption fails open to null, and the call would
+   * falsely report "not found or has no stats". On failure, logs, finishes the
+   * tracker, and rethrows so the job can be retried.
+   */
+  private async resolveActualTotalBatchesWithUserKey(
+    workerId: string,
+    userId: string,
+    analysisRecordId: string,
+    totalBatchesFromJob: number,
+    tracker: JobPerformanceTracker,
+  ): Promise<number | null> {
+    try {
+      return await this.userEncryptionService.withUserKey(userId, () =>
+        this.resolveActualTotalBatches(
+          workerId,
+          analysisRecordId,
+          totalBatchesFromJob,
+        ),
+      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `[Worker ${workerId}] Failed to resolve actual total batches for ${analysisRecordId}: ${errorMessage}`,
+        errorStack || error,
+      );
+      writeAnalysisLog(
+        `[Worker ${workerId}] Failed to resolve actual total batches for ${analysisRecordId}: ${errorMessage}`,
+        "error",
+      );
+      tracker.finish(error as Error);
+      throw error;
+    }
+  }
+
+  /**
    * Re-queue this finalization job to run again after a short delay.
    * Enforces a maximum retry limit (MAX_FINALIZATION_RETRIES) to prevent
    * infinite re-queue loops. Marks the analysis as failed when limit is exceeded.
@@ -309,12 +348,12 @@ export class ContextFinalizationProcessor implements OnModuleInit {
       "log",
     );
 
-    // CRITICAL: Get actual totalBatches from analysis record stats, not from job data
-    // Job data might be stale or incorrect - always use the source of truth (DB stats)
-    const actualTotalBatches = await this.resolveActualTotalBatches(
+    const actualTotalBatches = await this.resolveActualTotalBatchesWithUserKey(
       workerId,
+      userId,
       analysisRecordId,
       totalBatches,
+      tracker,
     );
 
     if (actualTotalBatches === null) {

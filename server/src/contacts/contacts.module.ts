@@ -1,6 +1,7 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
+import { AuthModule } from "../auth/auth.module";
 import { Contact } from "../database/entities/contact.entity";
 import { ContactCustomField } from "../database/entities/contact-custom-field.entity";
 import { ContactCustomFieldValue } from "../database/entities/contact-custom-field-value.entity";
@@ -15,6 +16,8 @@ import { ContactCrmService } from "./contact-crm.service";
 import { ContactSyncProcessor } from "./contact-sync.processor";
 import { ContactsController } from "./contacts.controller";
 import { ContactsService } from "./contacts.service";
+import { ContactsDebugAdminController } from "./contacts-debug-admin.controller";
+import { ContactsDebugAdminService } from "./contacts-debug-admin.service";
 import {
   GmailContactsProvider,
   setGoogleAccountsServiceGetter,
@@ -33,11 +36,14 @@ import {
     forwardRef(() => UsersModule),
     GoogleAccountsModule,
     QueueModule,
+    // Provides AdminGuard + JwtAuthGuard for ContactsDebugAdminController.
+    forwardRef(() => AuthModule),
   ],
-  controllers: [ContactsController],
+  controllers: [ContactsDebugAdminController, ContactsController],
   providers: [
     ContactsService,
     ContactCrmService,
+    ContactsDebugAdminService,
     GmailContactsProvider,
     ContactSyncProcessor,
     {

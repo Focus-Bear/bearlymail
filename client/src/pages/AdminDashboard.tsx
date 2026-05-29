@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 
 import { AdminDashboardHeader } from 'components/admin/AdminDashboardHeader';
 import { AdminTabs } from 'components/admin/AdminTabs';
+import { ContactSearchDebugSection } from 'components/admin/ContactSearchDebugSection';
 import { ContextAnalysisSection } from 'components/admin/ContextAnalysisSection';
 import { EmailDecryptSection } from 'components/admin/EmailDecryptSection';
 import { FeedbackSection } from 'components/admin/FeedbackSection';
@@ -16,6 +17,7 @@ import { TokenUsageSection } from 'components/admin/TokenUsageSection';
 import { WaitlistSection } from 'components/admin/WaitlistSection';
 import { Sidebar } from 'components/inbox/Sidebar';
 import {
+  ADMIN_TAB_CONTACTS_DEBUG,
   ADMIN_TAB_CONTEXT_ANALYSIS,
   ADMIN_TAB_EMAIL_DECRYPT,
   ADMIN_TAB_FEEDBACK,
@@ -60,6 +62,7 @@ const AdminDashboard: React.FC = () => {
     usersTotal,
   } = useAdminDashboard();
 
+  // eslint-disable-next-line complexity -- linear tab dispatch; each new admin section adds one branch.
   const renderContent = () => {
     if (
       loading &&
@@ -70,7 +73,8 @@ const AdminDashboard: React.FC = () => {
       activeTab !== ADMIN_TAB_CONTEXT_ANALYSIS &&
       activeTab !== ADMIN_TAB_FEEDBACK &&
       activeTab !== ADMIN_TAB_EMAIL_DECRYPT &&
-      activeTab !== ADMIN_TAB_REENCRYPTION
+      activeTab !== ADMIN_TAB_REENCRYPTION &&
+      activeTab !== ADMIN_TAB_CONTACTS_DEBUG
     ) {
       return <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>{t('admin.dashboard.loading')}</div>;
     }
@@ -102,6 +106,9 @@ const AdminDashboard: React.FC = () => {
     }
     if (activeTab === ADMIN_TAB_REENCRYPTION) {
       return <ReencryptionSection />;
+    }
+    if (activeTab === ADMIN_TAB_CONTACTS_DEBUG) {
+      return <ContactSearchDebugSection />;
     }
     return (
       <SubscriptionsSection

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import {
+  ADMIN_TAB_CONTACTS_DEBUG,
   ADMIN_TAB_CONTEXT_ANALYSIS,
   ADMIN_TAB_EMAIL_DECRYPT,
   ADMIN_TAB_FEEDBACK,
@@ -67,6 +68,7 @@ export const AdminTabs: React.FC<AdminTabsProps> = ({ activeTab, onTabChange }) 
     { id: ADMIN_TAB_FEEDBACK, label: t('admin.dashboard.feedback') },
     { id: ADMIN_TAB_EMAIL_DECRYPT, label: t('admin.dashboard.emailDecrypt') },
     { id: ADMIN_TAB_REENCRYPTION, label: t('admin.dashboard.reencryption') },
+    { id: ADMIN_TAB_CONTACTS_DEBUG, label: 'Contacts debug' },
   ];
 
   return (

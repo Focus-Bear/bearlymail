@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { Contact, ContactTypeConfig } from 'types/contact';
 
+import { InlineContactSearchDebug } from 'components/admin/InlineContactSearchDebug';
 import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { EMOJI_MENU } from 'constants/emojis';
@@ -319,6 +320,8 @@ const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
           {error}
         </div>
       )}
+
+      <InlineContactSearchDebug query={searchQuery} />
 
       {(loading || searching) && (
         <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, color: theme.colors.text.secondary }}>

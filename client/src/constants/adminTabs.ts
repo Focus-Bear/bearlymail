@@ -8,6 +8,7 @@ export const ADMIN_TAB_CONTEXT_ANALYSIS = 'context-analysis' as const;
 export const ADMIN_TAB_FEEDBACK = 'feedback' as const;
 export const ADMIN_TAB_EMAIL_DECRYPT = 'email-decrypt' as const;
 export const ADMIN_TAB_REENCRYPTION = 'reencryption' as const;
+export const ADMIN_TAB_CONTACTS_DEBUG = 'contacts-debug' as const;
 
 export type AdminTab =
   | typeof ADMIN_TAB_WAITLIST
@@ -19,4 +20,5 @@ export type AdminTab =
   | typeof ADMIN_TAB_CONTEXT_ANALYSIS
   | typeof ADMIN_TAB_FEEDBACK
   | typeof ADMIN_TAB_EMAIL_DECRYPT
-  | typeof ADMIN_TAB_REENCRYPTION;
+  | typeof ADMIN_TAB_REENCRYPTION
+  | typeof ADMIN_TAB_CONTACTS_DEBUG;

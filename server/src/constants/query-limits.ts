@@ -33,6 +33,13 @@ export const QUERY_LIMITS = {
   CONTACTS_SEARCH_LIMIT: 50,
   CONTACTS_SEARCH_OFFSET: 20,
   CONTACTS_PAGE_SIZE: 20,
+  /**
+   * Maximum rows the admin contact-search diagnostic will materialise via
+   * `.getMany()` for inspection. Keeps memory + per-row KMS decrypt cost
+   * bounded on accounts with very large contact lists or broad queries.
+   * The total candidate count is reported separately via `.getCount()`.
+   */
+  CONTACTS_DEBUG_SCAN_CAP: 500,
   SEARCH_INDEX_TRIGRAM_PAD: 16,
   SUBSTRING_PREVIEW_LENGTH: 50,
   SUBSTRING_PREVIEW_LONG: 150,

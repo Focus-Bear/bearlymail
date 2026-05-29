@@ -83,6 +83,31 @@ describe('CategoryDebugTracePanel — shortlist section', () => {
     expect(shortlistItemTexts()).toEqual(SHORTLIST_NAMES);
   });
 
+  it('marks live shortlist items as "new" when they were not in the stored shortlist, and lists removed items', () => {
+    // Stored shortlist (what the original decision saw) lacks "QA passed issues"
+    // but includes a category that has since dropped out — so the live list should
+    // mark QA passed as new and show the dropped category in a "removed" block.
+    const storedShortlist = [
+      '🐛 Human GitHub issue status updates',
+      '🔧 GitHub PR Updates',
+      'Legacy Category Removed Since',
+    ];
+    render(<CategoryDebugTracePanel trace={makeTrace({})} storedShortlist={storedShortlist} />);
+
+    // "QA passed issues" also appears in the final-decision section, so scope
+    // the assertions to the listitems of the shortlist <ol>.
+    const itemTexts = screen.queryAllByRole('listitem').map(item => item.textContent ?? '');
+    const qaItem = itemTexts.find(text => text.startsWith('✅ QA passed issues'));
+    expect(qaItem).toContain('priority.categoryDebug.traceShortlistNewMarker');
+
+    const unchangedItem = itemTexts.find(text => text.startsWith('🔧 GitHub PR Updates'));
+    expect(unchangedItem).not.toContain('priority.categoryDebug.traceShortlistNewMarker');
+
+    // The "removed from original" block shows the dropped category.
+    expect(screen.getByText('priority.categoryDebug.traceShortlistRemovedLabel')).toBeInTheDocument();
+    expect(screen.getByText('Legacy Category Removed Since')).toBeInTheDocument();
+  });
+
   it('shows the skip reason and renders no list when shortlisting is skipped', () => {
     const trace = makeTrace({
       shortlist: {

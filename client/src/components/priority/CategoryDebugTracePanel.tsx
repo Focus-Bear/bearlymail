@@ -134,10 +134,49 @@ const TraceRuleAccordionItem: React.FC<TraceRuleAccordionItemProps> = ({ evaluat
 interface TraceShortlistSectionProps {
   winningRule: CategorizationTrace['deterministicRules']['winningRule'];
   shortlist: CategorizationTrace['shortlist'];
+  /** Shortlist that was passed to the smart model during the ORIGINAL decision. */
+  storedShortlist: string[] | null;
   translate: TFunction;
 }
 
-const TraceShortlistSection: React.FC<TraceShortlistSectionProps> = ({ winningRule, shortlist, translate }) => {
+/** Returns items in `source` that are not in `excluded` (case-insensitive). */
+function diffNames(source: string[], excluded: string[]): string[] {
+  const excludedLower = new Set(excluded.map(name => name.toLowerCase()));
+  return source.filter(name => !excludedLower.has(name.toLowerCase()));
+}
+
+interface TraceShortlistRemovedListProps {
+  removed: string[];
+  translate: TFunction;
+}
+
+const TraceShortlistRemovedList: React.FC<TraceShortlistRemovedListProps> = ({ removed, translate }) => (
+  <div style={{ marginTop: theme.spacing.sm, fontSize: theme.typography.fontSize.xs }}>
+    <div style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>
+      {translate('priority.categoryDebug.traceShortlistRemovedLabel')}
+    </div>
+    <ul
+      style={{
+        margin: 0,
+        paddingLeft: theme.spacing.lg,
+        color: theme.colors.text.tertiary,
+      }}
+    >
+      {removed.map(name => (
+        <li key={name} style={{ marginBottom: 2 }}>
+          {name}
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
+const TraceShortlistSection: React.FC<TraceShortlistSectionProps> = ({
+  winningRule,
+  shortlist,
+  storedShortlist,
+  translate,
+}) => {
   // Show the shortlisted categories whenever the shortlist actually ran (not skipped) and
   // produced names — even when a deterministic rule won. The rule overrides the final
   // category, but the shortlist still runs inside the priority prompt, so hiding it here
@@ -145,6 +184,16 @@ const TraceShortlistSection: React.FC<TraceShortlistSectionProps> = ({ winningRu
   // the rule (not the shortlist) determined the final category.
   const showOrderedList = !shortlist.skipped && shortlist.categoryNames.length > 0;
   const fallbackText = shortlistFallbackParagraph(shortlist, translate);
+
+  // Compute the diff vs. the shortlist the original decision saw. Null means
+  // nothing was stored (older threads or a thread never analysed), so we don't
+  // render a comparison at all.
+  const hasStoredComparison = storedShortlist !== null && storedShortlist !== undefined;
+  const storedNames = storedShortlist ?? [];
+  const newlyShortlistedSet = new Set(
+    diffNames(shortlist.categoryNames, storedNames).map(name => name.toLowerCase()),
+  );
+  const removedFromOriginal = diffNames(storedNames, shortlist.categoryNames);
 
   return (
     <div style={sectionStyle}>
@@ -170,6 +219,20 @@ const TraceShortlistSection: React.FC<TraceShortlistSectionProps> = ({ winningRu
       {shortlist.skipped && shortlist.skipReason ? (
         <p style={{ fontSize: theme.typography.fontSize.sm, marginTop: 0 }}>{shortlist.skipReason}</p>
       ) : null}
+      {showOrderedList && hasStoredComparison ? (
+        <p
+          style={{
+            margin: `0 0 ${theme.spacing.xs} 0`,
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.secondary,
+          }}
+        >
+          {translate('priority.categoryDebug.traceShortlistDiffSummary', {
+            newCount: newlyShortlistedSet.size,
+            removedCount: removedFromOriginal.length,
+          })}
+        </p>
+      ) : null}
       {showOrderedList ? (
         <ol
           style={{
@@ -178,17 +241,35 @@ const TraceShortlistSection: React.FC<TraceShortlistSectionProps> = ({ winningRu
             fontSize: theme.typography.fontSize.sm,
           }}
         >
-          {shortlist.categoryNames.map(name => (
-            <li key={name} style={{ marginBottom: theme.spacing.xs }}>
-              {name}
-            </li>
-          ))}
+          {shortlist.categoryNames.map(name => {
+            const isNew = newlyShortlistedSet.has(name.toLowerCase());
+            return (
+              <li key={name} style={{ marginBottom: theme.spacing.xs }}>
+                {name}
+                {hasStoredComparison && isNew ? (
+                  <span
+                    title={translate('priority.categoryDebug.traceShortlistNewTooltip')}
+                    style={{
+                      marginLeft: theme.spacing.xs,
+                      color: theme.colors.primary.main,
+                      fontWeight: theme.typography.fontWeight.semibold,
+                    }}
+                  >
+                    {translate('priority.categoryDebug.traceShortlistNewMarker')}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       ) : (
         <p style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: 0 }}>
           {fallbackText}
         </p>
       )}
+      {hasStoredComparison && removedFromOriginal.length > 0 ? (
+        <TraceShortlistRemovedList removed={removedFromOriginal} translate={translate} />
+      ) : null}
     </div>
   );
 };
@@ -307,9 +388,20 @@ const DeterministicRulesSection: React.FC<DeterministicRulesSectionProps> = ({
 
 interface CategoryDebugTracePanelProps {
   trace: CategorizationTrace;
+  /**
+   * The shortlist that was passed to the smart model during the ORIGINAL
+   * decision (`thread.shortlistedCategoryNames`). The shortlist section uses
+   * it to mark which live-shortlist items are new vs. the original, so the
+   * user can see why the original decision may differ. `null` means we have
+   * no record of the original shortlist and the comparison is skipped.
+   */
+  storedShortlist?: string[] | null;
 }
 
-export const CategoryDebugTracePanel: React.FC<CategoryDebugTracePanelProps> = ({ trace }) => {
+export const CategoryDebugTracePanel: React.FC<CategoryDebugTracePanelProps> = ({
+  trace,
+  storedShortlist = null,
+}) => {
   const { t: translate } = useTranslation();
   const { deterministicRules, shortlist, smartModel } = trace;
 
@@ -333,7 +425,12 @@ export const CategoryDebugTracePanel: React.FC<CategoryDebugTracePanelProps> = (
         evaluations={deterministicRules.evaluations}
         translate={translate}
       />
-      <TraceShortlistSection winningRule={deterministicRules.winningRule} shortlist={shortlist} translate={translate} />
+      <TraceShortlistSection
+        winningRule={deterministicRules.winningRule}
+        shortlist={shortlist}
+        storedShortlist={storedShortlist}
+        translate={translate}
+      />
       <TraceFinalDecisionSection smartModel={smartModel} translate={translate} />
 
       <p style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary, margin: 0 }}>

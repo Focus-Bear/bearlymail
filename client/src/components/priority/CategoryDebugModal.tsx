@@ -314,7 +314,10 @@ const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId, onClos
                 </div>
               )}
               {debugInfo.categorizationTrace && !traceLoading && (
-                <CategoryDebugTracePanel trace={debugInfo.categorizationTrace} />
+                <CategoryDebugTracePanel
+                  trace={debugInfo.categorizationTrace}
+                  storedShortlist={debugInfo.thread.shortlistedCategoryNames}
+                />
               )}
               <AccordionGroup
                 title={t('priority.categoryDebug.referenceAllCategories')}

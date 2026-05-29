@@ -1,33 +1,20 @@
-import { useEffect } from 'react';
-
-const FONTS_HREF =
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap';
-
-function injectLink(rel: string, href: string, crossOrigin = false): HTMLLinkElement {
-  const link = document.createElement('link');
-  link.rel = rel;
-  link.href = href;
-  if (crossOrigin) {
-    link.crossOrigin = '';
-  }
-  document.head.appendChild(link);
-  return link;
-}
+// Self-hosted landing-page font stack. Imported here rather than loaded from the
+// Google Fonts CDN at runtime so we don't relax the strict CSP or leak visitor IPs
+// to a third party. Weights mirror the previous css2 request:
+//   Inter 400/500/600/700/800, Instrument Serif 400 (roman + italic), JetBrains Mono 400/500.
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/inter/800.css';
+import '@fontsource/instrument-serif/400.css';
+import '@fontsource/instrument-serif/400-italic.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
 
 /**
- * Injects the landing-page font stack (Inter / Instrument Serif / JetBrains Mono)
- * into the document head, with the preconnect hints, and removes them on unmount.
- * Shared by every landing-v2 page so the font wiring lives in one place.
+ * Shared by every landing-v2 page so the font wiring lives in one place. The font
+ * faces are bundled via the static imports above; this hook is a no-op kept for a
+ * stable call site across the landing pages.
  */
-export function useLandingFonts(): void {
-  useEffect(() => {
-    const links = [
-      injectLink('preconnect', 'https://fonts.googleapis.com'),
-      injectLink('preconnect', 'https://fonts.gstatic.com', true),
-      injectLink('stylesheet', FONTS_HREF),
-    ];
-    return () => {
-      links.forEach(link => document.head.removeChild(link));
-    };
-  }, []);
-}
+export function useLandingFonts(): void {}

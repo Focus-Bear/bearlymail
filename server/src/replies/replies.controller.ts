@@ -118,6 +118,8 @@ export class RepliesController {
       scheduledSendAt?: string;
       userTimezone?: string;
       keepInAction?: boolean | string;
+      /** UI language (e.g. "en", "es") used to parse expectedReplyDuration. */
+      locale?: string;
     },
     @UploadedFiles() allFiles?: Express.Multer.File[],
   ) {
@@ -163,7 +165,11 @@ export class RepliesController {
     const customDuration = body.expectedReplyDuration?.trim();
     let expectedReplyHours: number | undefined;
     if (customDuration) {
-      expectedReplyHours = durationToHours(customDuration);
+      expectedReplyHours = durationToHours(
+        customDuration,
+        new Date(),
+        body.locale,
+      );
     } else if (typeof body.expectedReplyHours === "string") {
       expectedReplyHours = parseInt(body.expectedReplyHours, 10);
     } else {

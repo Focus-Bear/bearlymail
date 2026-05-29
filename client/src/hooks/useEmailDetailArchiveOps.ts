@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import i18n from 'i18next';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
@@ -152,7 +153,7 @@ function usePostReplyOps({ id, emails, dispatch, options, navigate, getInboxPath
       } else {
         navigate(getInboxPath());
       }
-      axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
+      axios.post(`${API_URL}/snooze/${id}`, { duration, locale: i18n.language }).catch(error => {
         console.error('Error snoozing email after reply:', error);
         dispatch(removeOptimisticSnooze(id));
         if (emailToSnooze) {

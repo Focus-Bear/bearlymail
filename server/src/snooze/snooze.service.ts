@@ -25,6 +25,7 @@ export class SnoozeService {
     userId: string,
     emailId: string,
     duration: string,
+    locale = "en",
   ): Promise<{ id: string; isSnoozed: boolean; snoozeUntil: Date }> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
@@ -34,7 +35,7 @@ export class SnoozeService {
       throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
-    const snoozeUntil = this.parseDuration(duration);
+    const snoozeUntil = this.parseDuration(duration, locale);
 
     const thread = await this.findThreadForEmail(email, emailId);
 
@@ -159,7 +160,7 @@ export class SnoozeService {
     return thread;
   }
 
-  private parseDuration(duration: string): Date {
-    return parseDurationToDate(duration);
+  private parseDuration(duration: string, locale = "en"): Date {
+    return parseDurationToDate(duration, new Date(), locale);
   }
 }

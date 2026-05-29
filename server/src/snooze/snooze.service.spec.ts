@@ -10,9 +10,16 @@ import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { SnoozeService } from "./snooze.service";
 
-jest.mock("chrono-node", () => ({
-  parseDate: jest.fn(),
-}));
+jest.mock("chrono-node", () => {
+  const parseDate = jest.fn();
+  // The parser selects chrono.<locale>.casual; share one mock so the existing
+  // `chrono.parseDate` assertions still control the default (English) path.
+  return {
+    parseDate,
+    en: { casual: { parseDate } },
+    es: { casual: { parseDate } },
+  };
+});
 
 describe("SnoozeService", () => {
   let service: SnoozeService;

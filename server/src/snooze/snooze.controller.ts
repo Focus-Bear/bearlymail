@@ -20,9 +20,14 @@ export class SnoozeController {
   async snoozeEmail(
     @Request() req,
     @Param("id") id: string,
-    @Body() body: { duration: string },
+    @Body() body: { duration: string; locale?: string },
   ): Promise<{ id: string; isSnoozed: boolean; snoozeUntil: Date }> {
-    return this.snoozeService.snoozeEmail(req.user.userId, id, body.duration);
+    return this.snoozeService.snoozeEmail(
+      req.user.userId,
+      id,
+      body.duration,
+      body.locale,
+    );
   }
 
   @Delete(":id")

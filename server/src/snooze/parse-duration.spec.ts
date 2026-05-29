@@ -4,11 +4,17 @@ import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { durationToHours, parseDurationToDate } from "./parse-duration";
 
-jest.mock("chrono-node", () => ({
-  parseDate: jest.fn(),
-}));
+jest.mock("chrono-node", () => {
+  const enParseDate = jest.fn();
+  const esParseDate = jest.fn();
+  return {
+    en: { casual: { parseDate: enParseDate } },
+    es: { casual: { parseDate: esParseDate } },
+  };
+});
 
-const mockedParseDate = chrono.parseDate as jest.Mock;
+const mockedParseDate = chrono.en.casual.parseDate as jest.Mock;
+const mockedEsParseDate = chrono.es.casual.parseDate as jest.Mock;
 
 describe("parse-duration", () => {
   // Fixed reference time so relative durations and day-names are deterministic.
@@ -18,6 +24,7 @@ describe("parse-duration", () => {
     jest.clearAllMocks();
     // Default: chrono can't parse the input, so relative/day-name handling runs.
     mockedParseDate.mockReturnValue(null);
+    mockedEsParseDate.mockReturnValue(null);
   });
 
   describe("parseDurationToDate", () => {
@@ -54,6 +61,39 @@ describe("parse-duration", () => {
       expect(parseDurationToDate("zzzzz", now).getTime()).toBe(
         now.getTime() + MILLISECONDS.HOUR,
       );
+    });
+
+    it("resolves Spanish day names when locale is es", () => {
+      // "lun" is Monday.
+      const result = parseDurationToDate("lun", now, "es");
+      expect(result.getTime()).toBeGreaterThan(now.getTime());
+      expect(result.getDay()).toBe(1);
+      expect(result.getHours()).toBe(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR);
+    });
+
+    it("resolves accented Spanish day names", () => {
+      // "mié" is Wednesday.
+      const result = parseDurationToDate("mié", now, "es");
+      expect(result.getDay()).toBe(3);
+    });
+
+    it("does not treat Spanish day names as days under English", () => {
+      // "mar" (Tuesday in Spanish) is not an English day name, so it falls
+      // through chrono (mocked null) and the relative regex to the 1h fallback.
+      expect(parseDurationToDate("mar", now, "en").getTime()).toBe(
+        now.getTime() + MILLISECONDS.HOUR,
+      );
+    });
+
+    it("uses chrono's Spanish parser when locale is es", () => {
+      const chronoResult = new Date(now.getTime() + 5 * MILLISECONDS.HOUR);
+      mockedEsParseDate.mockReturnValue(chronoResult);
+
+      expect(parseDurationToDate("próximo lunes", now, "es")).toBe(
+        chronoResult,
+      );
+      expect(mockedEsParseDate).toHaveBeenCalledWith("próximo lunes", now);
+      expect(mockedParseDate).not.toHaveBeenCalled();
     });
   });
 

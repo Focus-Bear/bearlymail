@@ -5,6 +5,7 @@
  * Extracted to keep the main hook file under the max-lines limit.
  */
 import axios from 'axios';
+import i18n from 'i18next';
 
 import { API_URL } from 'config/api';
 import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY } from 'constants/numbers';
@@ -59,6 +60,8 @@ export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   }
   if (payload.expectedReplyDuration) {
     formData.append('expectedReplyDuration', payload.expectedReplyDuration);
+    // Tell the server which language to parse the free-text duration in.
+    formData.append('locale', i18n.language);
   }
   if (payload.keepInAction) {
     formData.append('keepInAction', 'true');
@@ -98,6 +101,8 @@ export async function sendReplyRequest(payload: SendReplyPayload): Promise<void>
       forwardAttachmentIds: payload.forwardAttachmentIds?.length ? payload.forwardAttachmentIds : undefined,
       expectedReplyHours: payload.expectedReplyHours,
       expectedReplyDuration: payload.expectedReplyDuration || undefined,
+      // Tell the server which language to parse the free-text duration in.
+      locale: payload.expectedReplyDuration ? i18n.language : undefined,
       scheduledSendAt: payload.scheduledSendAt?.toISOString(),
       keepInAction: payload.keepInAction || undefined,
     });

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { humanizeDuration } from 'utils/parseDuration';
 
 import { InfoTooltip } from './InfoTooltip';
 
@@ -26,9 +27,14 @@ export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
   tooltipText,
   onChange,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isDisabled = sending || checkingTone;
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const preview = useMemo(
+    () => humanizeDuration(followUpDuration, i18n.language),
+    [followUpDuration, i18n.language]
+  );
+  const humanizedPreview = preview ? t(preview.i18nKey, preview.values) : null;
 
   const quickOptions = [
     { label: t('emailDetail.expectedReply.quick48h'), value: '48h' },
@@ -96,6 +102,19 @@ export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
           </button>
         )}
       </div>
+      {humanizedPreview && (
+        <span
+          data-testid="follow-up-humanized-preview"
+          style={{
+            display: 'block',
+            marginTop: '4px',
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.tertiary,
+          }}
+        >
+          {humanizedPreview}
+        </span>
+      )}
       {showSuggestions && !isDisabled && (
         <div
           data-testid="follow-up-quick-options"

@@ -3,40 +3,57 @@ import * as chrono from "chrono-node";
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 
-const DAY_NAME_TO_INDEX: { [key: string]: number } = {
-  sun: 0,
-  mon: 1,
-  tue: 2,
-  wed: 3,
-  thu: 4,
-  fri: 5,
-  sat: 6,
+// Day names (accent-stripped, lowercase) per supported UI language. English is
+// the default; Spanish mirrors the locales the client ships translations for.
+const DAY_NAMES_BY_LOCALE: { [locale: string]: { [day: string]: number } } = {
+  en: { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 },
+  es: { dom: 0, lun: 1, mar: 2, mie: 3, jue: 4, vie: 5, sab: 6 },
+};
+
+// chrono ships locale-specific parsers; fall back to the default (English) one.
+const CHRONO_BY_LOCALE: { [locale: string]: chrono.Chrono } = {
+  en: chrono.en.casual,
+  es: chrono.es.casual,
 };
 
 const RELATIVE_DURATION_REGEX = /^(\d+)\s*(m|min|h|hr|d|w)$/;
+
+function baseLocale(locale: string): string {
+  return locale.toLowerCase().split("-")[0];
+}
+
+/** Strips diacritics so "mié"/"sáb" match the accent-free day-name keys. */
+function deaccent(value: string): string {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
 
 /**
  * Parses a free-text duration/time into an absolute Date.
  *
  * Supports the same syntax as the snooze input so that snooze and reply
  * follow-up reminders behave identically:
- *   - day names ("mon", "wed") → next occurrence at the default snooze hour
- *   - natural language ("tomorrow", "5pm", "next Monday") via chrono
+ *   - day names ("mon"/"lun", "wed"/"mié") → next occurrence at the default hour
+ *   - natural language ("tomorrow", "5pm", "next Monday" / "mañana", "próximo lunes")
+ *     via chrono's locale-specific parser
  *   - relative durations ("4h", "90m", "3d", "2w")
  *
  * Falls back to one hour from `now` when the input cannot be parsed.
  *
  * @param duration Raw user-entered duration string.
  * @param now Reference time; injectable for deterministic tests.
+ * @param locale UI language (e.g. "en", "es"); selects day names + chrono parser.
  */
 export function parseDurationToDate(
   duration: string,
   now: Date = new Date(),
+  locale = "en",
 ): Date {
   const normalized = duration.toLowerCase().trim();
+  const base = baseLocale(locale);
+  const dayNames = DAY_NAMES_BY_LOCALE[base] ?? DAY_NAMES_BY_LOCALE.en;
 
-  if (DAY_NAME_TO_INDEX[normalized] !== undefined) {
-    const targetDay = DAY_NAME_TO_INDEX[normalized];
+  const targetDay = dayNames[deaccent(normalized)];
+  if (targetDay !== undefined) {
     const currentDay = now.getDay();
     let daysUntil = targetDay - currentDay;
 
@@ -51,11 +68,8 @@ export function parseDurationToDate(
     return nextDate;
   }
 
-  const parsed = chrono.parseDate(normalized, now);
-  if (parsed) {
-    return parsed;
-  }
-
+  // Match shorthand durations before chrono so "3d" / "2w" aren't
+  // interpreted as ordinal day-of-month ("3rd" / "2nd").
   const match = normalized.match(RELATIVE_DURATION_REGEX);
   if (match) {
     const value = parseInt(match[1], 10);
@@ -78,6 +92,12 @@ export function parseDurationToDate(
     }
   }
 
+  const parser = CHRONO_BY_LOCALE[base] ?? CHRONO_BY_LOCALE.en;
+  const parsed = parser.parseDate(normalized, now);
+  if (parsed) {
+    return parsed;
+  }
+
   return new Date(now.getTime() + MILLISECONDS.HOUR);
 }
 
@@ -91,12 +111,14 @@ export function parseDurationToDate(
  *
  * @param duration Raw user-entered duration string.
  * @param now Reference time; injectable for deterministic tests.
+ * @param locale UI language (e.g. "en", "es"); selects day names + chrono parser.
  */
 export function durationToHours(
   duration: string,
   now: Date = new Date(),
+  locale = "en",
 ): number {
-  const target = parseDurationToDate(duration, now);
+  const target = parseDurationToDate(duration, now, locale);
   const hours = Math.ceil(
     (target.getTime() - now.getTime()) / MILLISECONDS.HOUR,
   );

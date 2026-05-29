@@ -12,7 +12,8 @@ export interface EmailAttachment {
   inlineData?: string;
   /** Content-ID value from the MIME Content-ID header (without angle brackets).
    *  When set, this attachment is an inline image referenced in the HTML body
-   *  via `<img src="cid:{contentId}">`. */
+   *  via `<img src="cid:{contentId}">`. Client filters attachments with a
+   *  contentId out of the download list. */
   contentId?: string;
 }
 

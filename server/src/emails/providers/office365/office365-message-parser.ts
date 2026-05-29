@@ -2,7 +2,25 @@ import {
   CONTENT_TYPES,
   EMAIL_IMPORTANCE,
 } from "../../../constants/domain-types";
-import { RawEmailMessage } from "../../interfaces/email-provider.interface";
+import {
+  EmailAttachment,
+  RawEmailMessage,
+} from "../../interfaces/email-provider.interface";
+
+/**
+ * Microsoft Graph API file attachment
+ */
+export interface MicrosoftGraphAttachment {
+  id: string;
+  name?: string;
+  contentType?: string;
+  size?: number;
+  isInline?: boolean;
+  contentId?: string;
+  /** base64-encoded; present only when fetched individually */
+  contentBytes?: string;
+  "@odata.type"?: string;
+}
 
 /**
  * Microsoft Graph API message interface
@@ -46,6 +64,46 @@ export interface MicrosoftGraphMessage {
   parentFolderId?: string;
   webLink?: string;
   categories?: string[];
+  hasAttachments?: boolean;
+  attachments?: MicrosoftGraphAttachment[];
+}
+
+/**
+ * Strip angle brackets from a Content-ID value, mirroring Gmail's normalizeContentId.
+ * e.g. "<image001.png@01D...>" → "image001.png@01D..."
+ */
+export function normalizeContentId(contentId: string): string {
+  return contentId.replace(/^<|>$/g, "");
+}
+
+/**
+ * Convert a Microsoft Graph attachment list into EmailAttachment[].
+ * Only fileAttachments are included; referenceAttachments and itemAttachments are skipped.
+ * Inline images carry a contentId so the client can resolve cid: references.
+ */
+export function extractAttachmentsFromGraphAttachments(
+  attachments: MicrosoftGraphAttachment[],
+): EmailAttachment[] | undefined {
+  const result: EmailAttachment[] = [];
+  for (const att of attachments) {
+    if (!att.id) continue;
+    const odataType = att["@odata.type"] ?? "";
+    if (odataType && !odataType.includes("fileAttachment")) continue;
+
+    const attachment: EmailAttachment = {
+      attachmentId: att.id,
+      filename: att.name || "attachment",
+      mimeType: att.contentType || "application/octet-stream",
+      size: att.size ?? 0,
+    };
+
+    if (att.isInline && att.contentId) {
+      attachment.contentId = normalizeContentId(att.contentId);
+    }
+
+    result.push(attachment);
+  }
+  return result.length > 0 ? result : undefined;
 }
 
 /**
@@ -104,6 +162,10 @@ export function parseOffice365Message(
       "(No content)"
     : bodyContent || "(No content)";
 
+  const attachments = messageData.attachments
+    ? extractAttachmentsFromGraphAttachments(messageData.attachments)
+    : undefined;
+
   return {
     messageId: messageData.id,
     threadId,
@@ -120,6 +182,7 @@ export function parseOffice365Message(
       ? new Date(messageData.receivedDateTime)
       : new Date(),
     isRead: messageData.isRead || false,
+    attachments,
   };
 }
 

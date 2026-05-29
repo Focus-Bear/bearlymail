@@ -1,4 +1,8 @@
-import { parseOffice365Message } from "./office365-message-parser";
+import {
+  extractAttachmentsFromGraphAttachments,
+  normalizeContentId,
+  parseOffice365Message,
+} from "./office365-message-parser";
 
 describe("parseOffice365Message", () => {
   const baseMessage = {
@@ -99,5 +103,123 @@ describe("parseOffice365Message", () => {
       importance: "normal",
     });
     expect(result!.starCount).toBe(0);
+  });
+
+  it("should include attachments when messageData.attachments is set", () => {
+    const result = parseOffice365Message({
+      ...baseMessage,
+      hasAttachments: true,
+      attachments: [
+        {
+          id: "att-001",
+          name: "report.pdf",
+          contentType: "application/pdf",
+          size: 12345,
+          isInline: false,
+          "@odata.type": "#microsoft.graph.fileAttachment",
+        },
+      ],
+    });
+    expect(result!.attachments).toHaveLength(1);
+    expect(result!.attachments![0]).toMatchObject({
+      attachmentId: "att-001",
+      filename: "report.pdf",
+      mimeType: "application/pdf",
+      size: 12345,
+    });
+    expect(result!.attachments![0].contentId).toBeUndefined();
+  });
+
+  it("should capture inline image contentId with angle brackets stripped", () => {
+    const result = parseOffice365Message({
+      ...baseMessage,
+      hasAttachments: true,
+      attachments: [
+        {
+          id: "att-002",
+          name: "image001.png",
+          contentType: "image/png",
+          size: 4096,
+          isInline: true,
+          contentId: "<image001.png@01DA1234.5678ABCD>",
+          "@odata.type": "#microsoft.graph.fileAttachment",
+        },
+      ],
+    });
+    expect(result!.attachments).toHaveLength(1);
+    expect(result!.attachments![0].contentId).toBe(
+      "image001.png@01DA1234.5678ABCD",
+    );
+  });
+
+  it("should return undefined attachments when messageData.attachments is absent", () => {
+    const result = parseOffice365Message(baseMessage);
+    expect(result!.attachments).toBeUndefined();
+  });
+});
+
+describe("extractAttachmentsFromGraphAttachments", () => {
+  it("should return undefined for an empty array", () => {
+    expect(extractAttachmentsFromGraphAttachments([])).toBeUndefined();
+  });
+
+  it("should map a regular file attachment", () => {
+    const result = extractAttachmentsFromGraphAttachments([
+      {
+        id: "att-001",
+        name: "document.docx",
+        contentType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        size: 8192,
+        isInline: false,
+        "@odata.type": "#microsoft.graph.fileAttachment",
+      },
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result![0]).toMatchObject({
+      attachmentId: "att-001",
+      filename: "document.docx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      size: 8192,
+    });
+    expect(result![0].contentId).toBeUndefined();
+  });
+
+  it("should capture contentId for inline images and strip angle brackets", () => {
+    const result = extractAttachmentsFromGraphAttachments([
+      {
+        id: "att-img",
+        name: "logo.png",
+        contentType: "image/png",
+        size: 2048,
+        isInline: true,
+        contentId: "<logo.png@company.com>",
+        "@odata.type": "#microsoft.graph.fileAttachment",
+      },
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result![0].contentId).toBe("logo.png@company.com");
+  });
+
+  it("should skip non-fileAttachment odata types", () => {
+    const result = extractAttachmentsFromGraphAttachments([
+      {
+        id: "ref-001",
+        name: "shared-link",
+        "@odata.type": "#microsoft.graph.referenceAttachment",
+      },
+    ]);
+    expect(result).toBeUndefined();
+  });
+});
+
+describe("normalizeContentId", () => {
+  it("should strip leading and trailing angle brackets", () => {
+    expect(normalizeContentId("<image001.png@01DA>")).toBe("image001.png@01DA");
+  });
+
+  it("should leave a value without angle brackets unchanged", () => {
+    expect(normalizeContentId("image001.png@01DA")).toBe("image001.png@01DA");
   });
 });

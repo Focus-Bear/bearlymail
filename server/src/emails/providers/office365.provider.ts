@@ -13,7 +13,7 @@ import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
-import { DAYS } from "../../constants/time-constants";
+import { DAYS, MILLISECONDS } from "../../constants/time-constants";
 import { Office365Account } from "../../database/entities/office365-account.entity";
 import { User } from "../../database/entities/user.entity";
 import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
@@ -39,6 +39,10 @@ import {
   trashThread,
   unarchiveThread,
 } from "./office365/office365-actions.service";
+import {
+  fetchAttachmentMetadata,
+  getAttachment as getAttachmentFromGraph,
+} from "./office365/office365-attachments";
 import {
   isWithinGracePeriod,
   logOffice365AuthFailure as logAuthFailure,
@@ -120,20 +124,37 @@ export class Office365Provider implements EmailProvider {
       );
     }
 
-    const { accessToken } = primaryAccount;
-    const graphClient = this.client.createGraphClient(accessToken);
+    let currentAccessToken = primaryAccount.accessToken;
+    let graphClient = this.client.createGraphClient(currentAccessToken);
 
-    // Validate token
+    // Validate token — attempt a refresh on 401 before giving up
     try {
       await graphClient.get("/me", { params: { $select: "id" } });
       this.logger.debug(`Token validated for user ${userId}`);
-    } catch (refreshError: unknown) {
-      await this.handleTokenValidationError(
-        userId,
-        user,
-        primaryAccount,
-        refreshError,
-      );
+    } catch (validationError: unknown) {
+      if (isAuthError(validationError) && primaryAccount.refreshToken) {
+        try {
+          currentAccessToken = await this.client.refreshTokenIfNeeded(
+            userId,
+            primaryAccount.id,
+          );
+          graphClient = this.client.createGraphClient(currentAccessToken);
+        } catch {
+          await this.handleTokenValidationError(
+            userId,
+            user,
+            primaryAccount,
+            validationError,
+          );
+        }
+      } else {
+        await this.handleTokenValidationError(
+          userId,
+          user,
+          primaryAccount,
+          validationError,
+        );
+      }
     }
 
     try {
@@ -232,30 +253,25 @@ export class Office365Provider implements EmailProvider {
     graphClient: AxiosInstance,
     isInitialSync: boolean,
   ): Promise<void> {
-    const [inboxResponse, importantResponse] = await Promise.all([
-      graphClient.get("/me/mailFolders/inbox/messages", {
+    const since = new Date(
+      Date.now() - DAYS.WEEK * MILLISECONDS.DAY,
+    ).toISOString();
+
+    const inboxResponse = await graphClient.get(
+      "/me/mailFolders/inbox/messages",
+      {
         params: {
-          $filter: "isRead eq false",
+          $filter: `receivedDateTime ge ${since}`,
           $orderby: "receivedDateTime desc",
           $top: 500,
           $select:
             "id,conversationId,subject,from,receivedDateTime,isRead,importance",
         },
-      }),
-      graphClient.get("/me/messages", {
-        params: {
-          $filter: "importance eq 'high'",
-          $orderby: "receivedDateTime desc",
-          $top: 500,
-          $select:
-            "id,conversationId,subject,from,receivedDateTime,isRead,importance",
-        },
-        headers: { ConsistencyLevel: "eventual" },
-      }),
-    ]);
+      },
+    );
 
     const inboxMessages = inboxResponse.data.value || [];
-    const importantMessages = importantResponse.data.value || [];
+    const importantMessages: MicrosoftGraphMessage[] = [];
 
     const conversationMap = new Map<string, MicrosoftGraphMessage[]>();
     for (const msg of [...inboxMessages, ...importantMessages]) {
@@ -365,11 +381,23 @@ export class Office365Provider implements EmailProvider {
     const fullMsg = await graphClient.get(`/me/messages/${message.id}`, {
       params: {
         $select:
-          "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId",
+          "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,hasAttachments",
       },
     });
 
     const messageData = fullMsg.data as MicrosoftGraphMessage;
+    // hasAttachments can be unreliable for emails from external senders
+    // (e.g. Gmail inline images), so also fetch when the HTML body references
+    // cid: inline images. Skip otherwise to avoid Graph API throttling.
+    const hasInlineImages =
+      messageData.body?.content?.includes("cid:") ?? false;
+    if (messageData.hasAttachments || hasInlineImages) {
+      messageData.attachments = await fetchAttachmentMetadata(
+        graphClient,
+        message.id,
+        this.logger,
+      );
+    }
     const rawEmail = parseOffice365Message(messageData);
     if (!rawEmail) return;
 
@@ -378,10 +406,22 @@ export class Office365Provider implements EmailProvider {
       message.id,
     );
     if (existing) {
+      const updates: Partial<typeof existing> = {};
       if (existing.isRead !== messageData.isRead) {
-        await this.emailsService.updateEmail(userId, existing.id, {
-          isRead: messageData.isRead || false,
-        });
+        updates.isRead = messageData.isRead || false;
+      }
+      // Backfill attachments for emails that were synced before attachment
+      // support was implemented (existing.attachments is null/empty).
+      if (
+        rawEmail.attachments &&
+        rawEmail.attachments.length > 0 &&
+        (!existing.attachments || existing.attachments.length === 0)
+      ) {
+        updates.attachments =
+          rawEmail.attachments as typeof existing.attachments;
+      }
+      if (Object.keys(updates).length > 0) {
+        await this.emailsService.updateEmail(userId, existing.id, updates);
       }
       return;
     }
@@ -576,11 +616,16 @@ export class Office365Provider implements EmailProvider {
       const fullMsg = await graphClient.get(`/me/messages/${messageId}`, {
         params: {
           $select:
-            "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,categories",
+            "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,categories,hasAttachments",
         },
       });
 
       const messageData = fullMsg.data as MicrosoftGraphMessage;
+      messageData.attachments = await fetchAttachmentMetadata(
+        graphClient,
+        messageId,
+        this.logger,
+      );
       const rawEmail = parseOffice365Message(messageData);
       if (!rawEmail) {
         await this.updateScanProgress(userId);
@@ -795,17 +840,23 @@ export class Office365Provider implements EmailProvider {
   }
 
   async getAttachment(
-    _userId: string,
-    _messageId: string,
-    _attachmentId: string,
-    _attachmentMetadata?: { filename: string; mimeType: string; size: number },
+    userId: string,
+    messageId: string,
+    attachmentId: string,
+    attachmentMetadata?: { filename: string; mimeType: string; size: number },
   ): Promise<{
     attachmentBuffer: Buffer;
     filename: string;
     mimeType: string;
     size: number;
   }> {
-    throw new Error("Attachment download not yet implemented for Office365");
+    return getAttachmentFromGraph(
+      this,
+      userId,
+      messageId,
+      attachmentId,
+      attachmentMetadata,
+    );
   }
 
   async addLabelToThread(

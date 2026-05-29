@@ -257,9 +257,12 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   const isAdmin = user?.isAdmin === true;
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
-  // Admin debug shows for any empty category (issue #2062 — sometimes triggers
-  // with isLoaded=false, so deliberately don't gate on loaded state).
-  const isEmptyForAdminDebug = isAdmin && categoryEmails.length === 0;
+  // Match the badge value the user sees: emails.length when loaded, otherwise
+  // the cached summary count. A never-expanded category with summary.count > 0
+  // displays a non-zero badge and does NOT count as empty — only render the
+  // admin debug panel for accordions that actually appear at "0" on screen.
+  const displayedCount = isLoaded ? categoryEmails.length : categoryItem.count;
+  const isEmptyForAdminDebug = isAdmin && displayedCount === 0;
   // Budget warning: subtle amber indicator when this category's fetch is approaching budget.
   const isNearBudget = useSelector(selectCategoryBudgetWarning(categoryKey));
 

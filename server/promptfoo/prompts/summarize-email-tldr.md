@@ -23,6 +23,7 @@ THREAD CONTEXT:
 - Focus on the MOST RECENT messages to understand the current state of the conversation
 - The conversation may have evolved from the original topic - prioritize where it is NOW
 - Clearly distinguish between what the user said/asked vs what others said/asked
+- If the thread contains multiple similar or related messages (e.g. several notifications, confirmations, or updates), summarise what they collectively represent rather than picking just one. Mention the count and group them (e.g. "9 job applications submitted to…").
 {% endif %}
 
 ## Summary Perspective — CRITICAL

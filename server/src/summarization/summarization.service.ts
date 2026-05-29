@@ -3,7 +3,6 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
-import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -43,6 +42,12 @@ import {
 } from "./summarization.types";
 
 export type { SummarizationRule } from "./summarization.types";
+
+// Cap how many of a thread's messages are sent to the LLM for a summary. We
+// take the most recent N (the prompt prioritises recent state) so very long
+// threads — e.g. hundreds of notification emails — can't exhaust the context
+// window or spike token cost.
+const SUMMARY_THREAD_EMAIL_LIMIT = 100;
 
 @Injectable()
 export class SummarizationService {
@@ -161,20 +166,12 @@ export class SummarizationService {
     userRules: SummarizationRuleEntity[],
     userEmail: string,
   ): Promise<ThreadData> {
-    const allThreadEmails = await this.emailsService.getThreadEmails(
+    const allThreadEmails = await this.getRecentThreadEmailsChronological(
       userId,
       email.threadId,
-      { limit: 20, order: "ASC" },
     );
 
-    const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
-    const messagesToSummarize =
-      allThreadEmails.length <= sliceCount + 1
-        ? allThreadEmails
-        : [
-            allThreadEmails[0],
-            ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
-          ];
+    const messagesToSummarize = allThreadEmails;
     const threadText = buildThreadText(
       messagesToSummarize,
       allThreadEmails,
@@ -267,27 +264,23 @@ export class SummarizationService {
 
     const userEmail = await this.getUserEmail(userId);
 
-    const allThreadEmails = await this.emailsService.getThreadEmails(
+    const allThreadEmails = await this.getRecentThreadEmailsChronological(
       userId,
       email.threadId,
-      { limit: 20, order: "ASC" },
     );
 
-    const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
-    const messagesToSummarize =
-      allThreadEmails.length <= sliceCount + 1
-        ? allThreadEmails
-        : [
-            allThreadEmails[0],
-            ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
-          ];
+    const messagesToSummarize = allThreadEmails;
     const threadText = buildThreadText(
       messagesToSummarize,
       allThreadEmails,
       userEmail,
     );
     const emailWithHtml = email as EmailWithHtmlBody;
-    const subject = email.subject || "";
+    const mostRecentEmail = allThreadEmails[allThreadEmails.length - 1];
+    const subject =
+      allThreadEmails.length > 1
+        ? mostRecentEmail?.subject || email.subject || ""
+        : email.subject || "";
 
     try {
       return await this.generateLLMSummary({
@@ -335,20 +328,12 @@ export class SummarizationService {
     }
 
     const userEmail = await this.getUserEmail(userId);
-    const allThreadEmails = await this.emailsService.getThreadEmails(
+    const allThreadEmails = await this.getRecentThreadEmailsChronological(
       userId,
       email.threadId,
-      { limit: 20, order: "ASC" },
     );
 
-    const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
-    const messagesToSummarize =
-      allThreadEmails.length <= sliceCount + 1
-        ? allThreadEmails
-        : [
-            allThreadEmails[0],
-            ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
-          ];
+    const messagesToSummarize = allThreadEmails;
 
     const threadText = buildThreadText(
       messagesToSummarize,
@@ -356,7 +341,14 @@ export class SummarizationService {
       userEmail,
     );
     const emailWithHtml = email as EmailWithHtmlBody;
-    const subject = email.subject || "";
+    // For threads use the most recent email's subject so the LLM isn't anchored
+    // to whichever email the user happened to click — the summary should reflect
+    // the current state of the thread, not the entry point.
+    const mostRecent = allThreadEmails[allThreadEmails.length - 1];
+    const subject =
+      allThreadEmails.length > 1
+        ? mostRecent?.subject || email.subject || ""
+        : email.subject || "";
 
     const { phishingSignals } = buildPhishingContext(allThreadEmails);
 
@@ -703,6 +695,22 @@ export class SummarizationService {
   }
 
   /**
+   * Fetch the most recent messages of a thread in chronological (ASC) order,
+   * capped at SUMMARY_THREAD_EMAIL_LIMIT. We query newest-first then reverse so
+   * long threads surface their latest state rather than the oldest messages.
+   */
+  private async getRecentThreadEmailsChronological(
+    userId: string,
+    threadId: string,
+  ): Promise<Email[]> {
+    const emails = await this.emailsService.getThreadEmails(userId, threadId, {
+      order: "DESC",
+      limit: SUMMARY_THREAD_EMAIL_LIMIT,
+    });
+    return emails.reverse();
+  }
+
+  /**
    * Persists a freshly-generated summary to every email in the thread and
    * stamps `EmailThread.lastSummarizedAt` so future staleness checks work.
    *
@@ -723,7 +731,6 @@ export class SummarizationService {
     const threadEmails = await this.emailsService.getThreadEmails(
       userId,
       threadId,
-      { limit: 50 },
     );
 
     const threadEmailIds = threadEmails.map((email) => email.id);
@@ -738,8 +745,10 @@ export class SummarizationService {
 
     if (emailThreadId) {
       const latestReceivedAt = threadEmails.reduce<Date>(
-        (latest, threadEmail) =>
-          threadEmail.receivedAt > latest ? threadEmail.receivedAt : latest,
+        (latest, threadEmail) => {
+          const receivedAt = new Date(threadEmail.receivedAt);
+          return receivedAt > latest ? receivedAt : latest;
+        },
         new Date(0),
       );
       await this.emailThreadRepository.update(

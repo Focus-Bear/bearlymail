@@ -1,6 +1,17 @@
 import { EmailRecipient } from "../emails/interfaces/email-provider.interface";
 
 /**
+ * Extract the bare email address from a "Name <email>" or raw-address string,
+ * lower-cased and trimmed. Returns "" for empty input.
+ */
+export function extractEmailAddress(from: string | undefined | null): string {
+  if (!from) return "";
+  const match = from.match(/<([^>]+)>/);
+  if (match) return match[1].toLowerCase().trim();
+  return from.toLowerCase().trim();
+}
+
+/**
  * Split an RFC 5322 address list on commas that are NOT inside a double-quoted
  * display name. A display name such as `"Lastname, Firstname"` legally contains
  * a comma; a naive `split(",")` would shatter it into invalid fragments (a

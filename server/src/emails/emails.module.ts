@@ -83,6 +83,7 @@ import { EmailSyncProcessor } from "./email-sync.processor";
 import { EmailThreadService } from "./email-thread.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
+import { IncrementalSummaryHelperService } from "./incremental-summary-helper.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMProcessor } from "./llm-processor";
@@ -273,6 +274,7 @@ import { SyncHistoryService } from "./sync-history.service";
     LLMProcessor,
     LLMPriorityResultService,
     LLMPriorityBatchService,
+    IncrementalSummaryHelperService,
     LLMSummaryProcessorService,
     ArchiveEmailProcessor,
     EmailAdminService,

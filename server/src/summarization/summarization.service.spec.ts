@@ -359,6 +359,53 @@ describe("SummarizationService", () => {
   });
 
   describe("summarizeEmailWithPhishing (custom prompt)", () => {
+    it("should send the most recent thread messages (capped) to the LLM when refreshing a summary", async () => {
+      const userId = "user-123";
+      const emailId = "email-456";
+      const rule = { type: "tldr" as const };
+      const mockEmail = {
+        id: emailId,
+        subject: "Thread Subject",
+        body: "Latest message",
+        threadId: "thread-456",
+        from: "sender@example.com",
+        emailThreadId: "thread-row-456",
+      };
+      const mockThreadEmails = Array.from({ length: 7 }, (_, index) => ({
+        id: `email-${index + 1}`,
+        body: `Thread body ${index + 1}`,
+        receivedAt: new Date(`2024-01-0${index + 1}`),
+        from: `sender${index + 1}@example.com`,
+      }));
+
+      mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
+      mockEmailsService.getThreadEmails.mockResolvedValue(mockThreadEmails);
+      mockUsersService.findOneForAuth.mockResolvedValue({
+        email: "user@example.com",
+      });
+      mockLLMService.summarizeEmailWithPhishingCheck.mockResolvedValue({
+        summary: "Full thread summary",
+        phishing: null,
+        sentiment: null,
+        category: null,
+        categoryExplanation: null,
+        actionItems: null,
+        meetingProposal: null,
+      });
+
+      await service.summarizeEmailWithPhishing(userId, emailId, rule);
+
+      expect(mockEmailsService.getThreadEmails).toHaveBeenCalledWith(
+        userId,
+        "thread-456",
+        { order: "DESC", limit: 100 },
+      );
+      const llmArg =
+        mockLLMService.summarizeEmailWithPhishingCheck.mock.calls[0][0];
+      expect(llmArg.emailBody).toContain("Thread body 1");
+      expect(llmArg.emailBody).toContain("Thread body 7");
+    });
+
     it("should use summarizeCustomPromptWithPhishing for custom rules (single LLM call)", async () => {
       const userId = "user-123";
       const emailId = "email-456";

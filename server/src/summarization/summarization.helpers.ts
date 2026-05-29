@@ -4,7 +4,6 @@
  * inputs are passed explicitly.
  */
 
-import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
 import { cleanEmailForThread } from "../llm/email-content-cleaner";
@@ -195,7 +194,7 @@ export function isEmailFromUser(
 
 /**
  * Formats a list of messages into a single readable block for LLM summarisation.
- * Shows the original message plus the most-recent messages from the thread.
+ * Shows the full thread in chronological order.
  */
 export function buildThreadText(
   messagesToSummarize: Array<{
@@ -207,7 +206,6 @@ export function buildThreadText(
   allThreadEmails: Array<unknown>,
   userEmail: string = "",
 ): string {
-  const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
   return messagesToSummarize
     .map((emailEntry, idx) => {
       const emailWithHtml = emailEntry as EmailWithHtmlBody;
@@ -221,7 +219,7 @@ export function buildThreadText(
         emailWithHtml.htmlBody,
       );
       const messageLabel =
-        idx === 0 && allThreadEmails.length > sliceCount + 1
+        idx === 0 && allThreadEmails.length > 1
           ? "Original"
           : `Message ${idx + 1}`;
       return `[${messageLabel} from ${sender} on ${date}]:\n"""\n${cleanedBody}\n"""`;

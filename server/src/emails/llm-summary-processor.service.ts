@@ -1,15 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
-import { In, IsNull, Not, Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
-import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { ContactTypeClassifierService } from "../crm/contact-type-classifier.service";
-import {
-  Contact,
-  DEFAULT_CONTACT_TYPES,
-} from "../database/entities/contact.entity";
+import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
@@ -20,7 +16,9 @@ import { ProtoCategoriesService } from "../proto-categories/proto-categories.ser
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { SummarizationService } from "../summarization/summarization.service";
 import { parseCategoryName } from "../utils/category-name.util";
+import { extractEmailAddress } from "../utils/email-address.utils";
 import { EmailsService } from "./emails.service";
+import { IncrementalSummaryHelperService } from "./incremental-summary-helper.service";
 
 type SummaryJobEntry = {
   job: PgBoss.Job<unknown>;
@@ -48,12 +46,14 @@ type SummaryLlmCallResult = {
     durationMinutes: number | null;
   } | null;
   error: unknown;
+  // True when produced by the incremental path, which only updates the summary
+  // text and does not recompute phishing/sentiment/category for the new email.
+  incremental?: boolean;
 };
 
 // Constants for summary processing
 const SUMMARY_PROCESSOR_CONSTANTS = {
   SUBSTRING_PREVIEW_LENGTH: 8,
-  CONTACT_TYPE_CONFIDENCE_THRESHOLD: 0.6,
 } as const;
 
 /**
@@ -79,6 +79,7 @@ export class LLMSummaryProcessorService {
     private readonly protoCategoriesService: ProtoCategoriesService,
     private readonly cloudWatchService: CloudWatchService,
     private readonly userEncryptionService: UserEncryptionService,
+    private readonly incrementalSummaryHelper: IncrementalSummaryHelperService,
   ) {}
 
   async processSummaryJobBatch(
@@ -335,6 +336,36 @@ export class LLMSummaryProcessorService {
       async ({ userId, emailId, email }) => {
         try {
           const userRules = rulesMap.get(userId) || [];
+
+          // When the thread already has a summary, use incremental updates:
+          // pass only unsummarised emails (received after lastSummarizedAt) to
+          // the LLM rather than re-sending the entire thread every time.
+          const incrementalSummary =
+            await this.userEncryptionService.withUserKey(userId, () =>
+              this.incrementalSummaryHelper.computeIncrementalSummary(
+                userId,
+                email,
+              ),
+            );
+          if (incrementalSummary !== null) {
+            return {
+              emailId,
+              email,
+              summary: incrementalSummary as string,
+              phishingConfidence: null,
+              phishingReason: null,
+              sentimentScore: null,
+              sentimentExplanation: null,
+              category: null,
+              categoryExplanation: null,
+              actionItems: null,
+              meetingProposal: null,
+              error: null,
+              incremental: true,
+            };
+          }
+
+          // No existing summary — full summarisation for this email only.
           // summarizeEmailWithAutoRule re-fetches the thread's other emails,
           // which are encrypted columns. Wrap with the user's KMS key so
           // those reads decrypt correctly under per-user envelope encryption.
@@ -388,13 +419,6 @@ export class LLMSummaryProcessorService {
     const results = await Promise.all(summaryPromises);
     tracker.endPhase("llmCall");
     return results;
-  }
-
-  extractEmailAddress(from: string): string {
-    if (!from) return "";
-    const match = from.match(/<([^>]+)>/);
-    if (match) return match[1].toLowerCase().trim();
-    return from.toLowerCase().trim();
   }
 
   /**
@@ -498,11 +522,11 @@ export class LLMSummaryProcessorService {
       categoryExplanation,
       actionItems,
       meetingProposal,
+      incremental,
     } = result;
     const threadEmails = await this.emailsService.getThreadEmails(
       jobEntry.userId,
       email.threadId,
-      { limit: 50 },
     );
     const threadEmailIds = threadEmails.map((emailEntry) => emailEntry.id);
 
@@ -512,13 +536,26 @@ export class LLMSummaryProcessorService {
         summary: extractPlainSummary(summary!),
         isProcessingSummary: false,
         ...(sentimentScore !== null ? { sentimentScore } : {}),
-        phishingConfidence: phishingConfidence ?? null,
-        phishingReason: phishingReason ?? null,
+        // The incremental path doesn't re-run phishing detection, so leave any
+        // existing flags intact rather than overwriting them with null.
+        ...(incremental
+          ? {}
+          : {
+              phishingConfidence: phishingConfidence ?? null,
+              phishingReason: phishingReason ?? null,
+            }),
         ...(actionItems !== null ? { actionItemsJson: actionItems } : {}),
       },
     );
 
     if (email.emailThreadId) {
+      const latestReceivedAt = threadEmails.reduce<Date>(
+        (latest, threadEmail) => {
+          const receivedAt = new Date(threadEmail.receivedAt);
+          return receivedAt > latest ? receivedAt : latest;
+        },
+        new Date(0),
+      );
       const {
         matchedCategoryId,
         resolvedCategoryExplanation,
@@ -533,7 +570,7 @@ export class LLMSummaryProcessorService {
       await this.emailThreadRepository.update(
         { id: email.emailThreadId },
         {
-          lastSummarizedAt: new Date(),
+          lastSummarizedAt: latestReceivedAt,
           aiProcessingDeferred: false,
           ...(resolvedCategoryExplanation !== undefined
             ? { categoryExplanation: resolvedCategoryExplanation }
@@ -547,7 +584,7 @@ export class LLMSummaryProcessorService {
       );
     }
 
-    const senderEmail = this.extractEmailAddress(email.from || "");
+    const senderEmail = extractEmailAddress(email.from || "");
     if (senderEmail) {
       try {
         await this.contactTypeClassifierService.autoClassifyIfNeeded(
@@ -697,7 +734,8 @@ export class LLMSummaryProcessorService {
       return { handled: false };
     }
 
-    const existingSummary = await this.getThreadSummary(email.emailThreadId);
+    const existingSummary =
+      await this.incrementalSummaryHelper.getThreadSummary(email.emailThreadId);
     if (!existingSummary) return { handled: false };
 
     const threadPriorityExplanation = thread.priorityExplanation;
@@ -759,133 +797,40 @@ export class LLMSummaryProcessorService {
       `[Worker ${workerId}] Incremental check: skipping full recalc for thread ${email.emailThreadId} - ${incrementalResult.reason}`,
     );
 
-    if (incrementalResult.suggestedUrgencyDelta !== 0 && email.emailThreadId) {
-      const newUrgencyScore = Math.max(
-        0,
-        Math.min(
-          100,
-          (thread.urgencyScore || 0) + incrementalResult.suggestedUrgencyDelta,
-        ),
-      );
-      await this.emailThreadRepository.update(
-        { id: email.emailThreadId },
-        { urgencyScore: newUrgencyScore, isProcessingPriority: false },
-      );
-      this.logger.log(
-        `[Worker ${workerId}] Applied incremental urgency delta: ${incrementalResult.suggestedUrgencyDelta} (new score: ${newUrgencyScore})`,
-      );
-    }
+    await this.applyIncrementalUrgencyDelta(
+      thread,
+      email,
+      incrementalResult.suggestedUrgencyDelta,
+      workerId,
+    );
 
-    await this.updateSummaryIncrementally(email, existingSummary, userId);
+    await this.incrementalSummaryHelper.updateSummaryIncrementally(
+      email,
+      existingSummary,
+      userId,
+    );
     tracker.finish();
     return { handled: true };
   }
 
-  async getThreadSummary(
-    emailThreadId: string | undefined,
-  ): Promise<string | null> {
-    if (!emailThreadId) {
-      return null;
-    }
-    const emailWithSummary = await this.emailRepository.findOne({
-      where: { emailThreadId, summary: Not(IsNull()) },
-      select: ["summary"],
-    });
-    return emailWithSummary?.summary || null;
-  }
-
-  async updateSummaryIncrementally(
+  private async applyIncrementalUrgencyDelta(
+    thread: EmailThread,
     email: Email,
-    existingSummary: string,
-    userId: string,
+    suggestedUrgencyDelta: number,
+    workerId: string,
   ): Promise<void> {
-    try {
-      const senderEmail = this.extractEmailAddress(email.from || "");
-      let needsContactTypeGuess = false;
-      let contact: Contact | null = null;
+    if (suggestedUrgencyDelta === 0 || !email.emailThreadId) return;
 
-      if (senderEmail) {
-        const emailHash = SearchIndexHelper.hashExact(senderEmail);
-        contact = await this.contactRepository.findOne({
-          where: { userId, emailHash },
-          select: ["id", "contactType", "contactTypeAutoDetected"],
-        });
-
-        if (
-          contact &&
-          (!contact.contactType || contact.contactTypeAutoDetected)
-        ) {
-          needsContactTypeGuess = true;
-        }
-      }
-
-      const newEmailData = {
-        from: email.from || "",
-        fromName: email.fromName,
-        subject: email.subject || "",
-        body: email.body || "",
-        htmlBody: email.htmlBody,
-        receivedAt: email.receivedAt || new Date(),
-      };
-
-      const result =
-        await this.incrementalAnalysisService.updateSummaryIncrementally({
-          existingSummary,
-          newEmail: newEmailData,
-          isResolution: false,
-          userId,
-          needsContactTypeGuess,
-        });
-
-      if (result.updatedSummary && result.updatedSummary !== existingSummary) {
-        if (email.emailThreadId) {
-          const threadEmails = await this.emailRepository.find({
-            where: { emailThreadId: email.emailThreadId },
-            select: ["id"],
-          });
-          const threadEmailIds = threadEmails.map(
-            (emailEntry) => emailEntry.id,
-          );
-
-          await this.emailRepository.update(
-            { id: In(threadEmailIds) },
-            { summary: result.updatedSummary, isProcessingSummary: false },
-          );
-
-          await this.emailThreadRepository.update(
-            { id: email.emailThreadId },
-            { lastSummarizedAt: new Date() },
-          );
-
-          this.logger.log(
-            `Updated summary incrementally for thread ${email.emailThreadId} (${threadEmailIds.length} emails)`,
-          );
-        }
-      }
-
-      if (
-        needsContactTypeGuess &&
-        contact &&
-        result.suggestedContactType &&
-        (result.contactTypeConfidence ?? 0) >=
-          SUMMARY_PROCESSOR_CONSTANTS.CONTACT_TYPE_CONFIDENCE_THRESHOLD
-      ) {
-        if (
-          DEFAULT_CONTACT_TYPES.includes(
-            result.suggestedContactType as (typeof DEFAULT_CONTACT_TYPES)[number],
-          )
-        ) {
-          await this.contactRepository.update(contact.id, {
-            contactType: result.suggestedContactType,
-            contactTypeAutoDetected: true,
-          });
-          this.logger.log(
-            `Auto-classified contact ${senderEmail} as ${result.suggestedContactType} (confidence: ${result.contactTypeConfidence})`,
-          );
-        }
-      }
-    } catch (error) {
-      this.logger.warn("Failed to update summary incrementally:", error);
-    }
+    const newUrgencyScore = Math.max(
+      0,
+      Math.min(100, (thread.urgencyScore || 0) + suggestedUrgencyDelta),
+    );
+    await this.emailThreadRepository.update(
+      { id: email.emailThreadId },
+      { urgencyScore: newUrgencyScore, isProcessingPriority: false },
+    );
+    this.logger.log(
+      `[Worker ${workerId}] Applied incremental urgency delta: ${suggestedUrgencyDelta} (new score: ${newUrgencyScore})`,
+    );
   }
 }

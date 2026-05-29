@@ -451,7 +451,9 @@ export class EmailLifecycleService {
             JOB_NAMES.GENERATE_SUMMARY_BACKGROUND,
             false,
           ),
-          singletonKey: `generate-summary-thread-${savedEmail.emailThreadId || savedEmail.id}`,
+          // Do not singleton by thread here: a follow-up arriving within the
+          // previous 5-minute window must still enqueue a fresh summary job.
+          singletonKey: `generate-summary-email-${savedEmail.id}`,
           singletonMinutes: 5,
         },
       )

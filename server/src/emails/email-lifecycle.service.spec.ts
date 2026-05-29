@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BlockedKeywordsService } from "../blocked-keywords/blocked-keywords.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
@@ -387,6 +388,34 @@ describe("EmailLifecycleService", () => {
       await expect(
         service.invalidateSuggestedActionsCache("thread-1"),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe("queuePostSaveJobs", () => {
+    it("uses an email-specific singleton key so new messages in a thread can refresh the summary", async () => {
+      const savedEmail = mockPartial({
+        id: "email-2",
+        emailThreadId: "thread-row-1",
+        threadId: "provider-thread-1",
+      });
+      const thread = mockPartial({
+        id: "thread-row-1",
+        starCount: 0,
+      });
+
+      await service.queuePostSaveJobs("user-1", savedEmail, thread);
+
+      expect(boss.send).toHaveBeenCalledWith(
+        JOB_NAMES.GENERATE_SUMMARY,
+        {
+          userId: "user-1",
+          emailId: "email-2",
+          threadId: "thread-row-1",
+        },
+        expect.objectContaining({
+          singletonKey: "generate-summary-email-email-2",
+        }),
+      );
     });
   });
 

@@ -21,13 +21,13 @@ const translateMock = (key: string, opts?: Record<string, unknown>) => {
 
 describe('getNextDeliveryText', () => {
   beforeAll(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     // fixed reference time: 2026-03-12T12:00:00.000Z
-    jest.setSystemTime(new Date('2026-03-12T12:00:00.000Z'));
+    vi.setSystemTime(new Date('2026-03-12T12:00:00.000Z'));
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('returns null for null input', () => {
@@ -58,12 +58,12 @@ describe('getNextDeliveryText', () => {
 
 describe('getLastCheckText', () => {
   beforeAll(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-03-12T12:00:00.000Z'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-12T12:00:00.000Z'));
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('returns never checked for null', () => {

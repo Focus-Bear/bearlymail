@@ -27,8 +27,6 @@
     "@tiptap/pm": "^3.23.6",
     "@tiptap/react": "^3.23.6",
     "@tiptap/starter-kit": "^3.23.6",
-    "@types/dompurify": "^3.2.0",
-    "@types/jest": "^30.0.0",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "axios": "^1.16.1",
@@ -46,7 +44,6 @@
     "react-joyride": "^3.0.2",
     "react-redux": "^9.3.0",
     "react-router-dom": "^6.21.0",
-    "react-scripts": "5.0.1",
     "typescript": "^5.3.3",
     "web-vitals": "^5.2.0"
   },
@@ -56,8 +53,9 @@
     "preview": "vite preview",
     "storybook": "storybook dev",
     "build-storybook": "storybook build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
+    "test": "TZ=UTC vitest run",
+    "test:watch": "TZ=UTC vitest",
+    "test:coverage": "TZ=UTC vitest run --coverage",
     "type-check": "tsc --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
@@ -96,14 +94,9 @@
     "storybook": "^10.4.0",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.8",
-    "vite-tsconfig-paths": "^6.1.1"
-  },
-  "jest": {
-    "transformIgnorePatterns": [
-      "node_modules/(?!(axios)/)"
-    ],
-    "moduleNameMapper": {
-      "^(\\.\\./)*config/api$": "<rootDir>/src/__mocks__/config/api.ts"
-    }
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.7",
+    "@vitest/coverage-v8": "^4.1.7",
+    "jsdom": "^26.1.0"
   }
 }

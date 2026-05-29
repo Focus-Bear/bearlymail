@@ -7,13 +7,13 @@ import { ErrorBoundary } from './ErrorBoundary';
 
 // Suppress console.error noise from intentional error throws in tests
 beforeAll(() => {
-  jest.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterAll(() => {
   (console.error as jest.Mock).mockRestore();
 });
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string>) => {
       if (params) {
@@ -24,13 +24,13 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('utils/posthog', () => ({
-  captureException: jest.fn(),
+vi.mock('utils/posthog', () => ({
+  captureException: vi.fn(),
 }));
 
-jest.mock('utils/correlationId', () => ({
-  generateCorrelationId: jest.fn(() => 'TESTA'),
-  isNetworkError: jest.fn(() => false),
+vi.mock('utils/correlationId', () => ({
+  generateCorrelationId: vi.fn(() => 'TESTA'),
+  isNetworkError: vi.fn(() => false),
 }));
 
 // Component that throws on render
@@ -40,7 +40,7 @@ const ThrowingComponent: React.FC<{ error?: Error }> = ({ error = new Error('tes
 
 describe('ErrorBoundary', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (correlationId.generateCorrelationId as jest.Mock).mockReturnValue('TESTA');
     (correlationId.isNetworkError as jest.Mock).mockReturnValue(false);
   });

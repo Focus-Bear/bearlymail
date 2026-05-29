@@ -87,61 +87,61 @@ describe('getSettingsNavItems', () => {
 
 describe('makeScrollToSection', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('calls navigate with the correct /settings# path', () => {
-    const navigate = jest.fn();
+    const navigate = vi.fn();
     const scrollTo = makeScrollToSection(navigate);
     scrollTo('email-batching');
     expect(navigate).toHaveBeenCalledWith('/settings#email-batching', { replace: true });
   });
 
   it('does not navigate a second time after the delay', () => {
-    const navigate = jest.fn();
+    const navigate = vi.fn();
     const scrollTo = makeScrollToSection(navigate);
     scrollTo('context');
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(navigate).toHaveBeenCalledTimes(1);
   });
 
   it('calls scrollIntoView on the matched element after the delay', () => {
-    const scrollIntoView = jest.fn();
+    const scrollIntoView = vi.fn();
     const element = { scrollIntoView } as unknown as HTMLElement;
-    jest.spyOn(document, 'getElementById').mockReturnValue(element);
+    vi.spyOn(document, 'getElementById').mockReturnValue(element);
 
-    const navigate = jest.fn();
+    const navigate = vi.fn();
     const scrollTo = makeScrollToSection(navigate);
     scrollTo('blocked-senders');
 
     // scrollIntoView not called yet — timeout still pending
     expect(scrollIntoView).not.toHaveBeenCalled();
 
-    jest.advanceTimersByTime(SIDEBAR_SCROLL_DELAY_MS);
+    vi.advanceTimersByTime(SIDEBAR_SCROLL_DELAY_MS);
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
   });
 
   it('does not throw when the anchor element is not found in the DOM', () => {
-    jest.spyOn(document, 'getElementById').mockReturnValue(null);
-    const navigate = jest.fn();
+    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    const navigate = vi.fn();
     const scrollTo = makeScrollToSection(navigate);
     expect(() => {
       scrollTo('non-existent-anchor');
-      jest.runAllTimers();
+      vi.runAllTimers();
     }).not.toThrow();
   });
 
   it('passes the correct anchor to getElementById', () => {
-    const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValue(null);
-    const navigate = jest.fn();
+    const getElementByIdSpy = vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    const navigate = vi.fn();
     const scrollTo = makeScrollToSection(navigate);
     scrollTo('api-key');
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(getElementByIdSpy).toHaveBeenCalledWith('api-key');
   });
 });

@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event';
 
 import { ProjectStatusOption, ProjectStatusSelector } from './ProjectStatusSelector';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key,
   }),
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '24px' },
     colors: {
@@ -32,23 +32,23 @@ const OPTIONS: ProjectStatusOption[] = [
 
 describe('ProjectStatusSelector', () => {
   it('renders the combobox input', () => {
-    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={jest.fn()} />);
+    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={vi.fn()} />);
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
   it('shows loading text when loading is true', () => {
-    render(<ProjectStatusSelector options={[]} selectedId="" onSelect={jest.fn()} loading />);
+    render(<ProjectStatusSelector options={[]} selectedId="" onSelect={vi.fn()} loading />);
     expect(screen.getByText('Loading statuses…')).toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   it('shows empty state when there are no options and not loading', () => {
-    render(<ProjectStatusSelector options={[]} selectedId="" onSelect={jest.fn()} />);
+    render(<ProjectStatusSelector options={[]} selectedId="" onSelect={vi.fn()} />);
     expect(screen.getByText('No status options found for this project.')).toBeInTheDocument();
   });
 
   it('shows dropdown options on focus', async () => {
-    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={jest.fn()} />);
+    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={vi.fn()} />);
     await userEvent.click(screen.getByRole('combobox'));
     expect(screen.getByText('Backlog')).toBeInTheDocument();
     expect(screen.getByText('In Progress')).toBeInTheDocument();
@@ -56,14 +56,14 @@ describe('ProjectStatusSelector', () => {
   });
 
   it('filters options as user types', async () => {
-    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={jest.fn()} />);
+    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={vi.fn()} />);
     await userEvent.type(screen.getByRole('combobox'), 'prog');
     expect(screen.getByText('In Progress')).toBeInTheDocument();
     expect(screen.queryByText('Backlog')).not.toBeInTheDocument();
   });
 
   it('calls onSelect with option id when an option is clicked', async () => {
-    const onSelect = jest.fn();
+    const onSelect = vi.fn();
     render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={onSelect} />);
     await userEvent.click(screen.getByRole('combobox'));
     fireEvent.mouseDown(screen.getByText('Done'));
@@ -71,12 +71,12 @@ describe('ProjectStatusSelector', () => {
   });
 
   it('pre-fills input with the selected option name', () => {
-    render(<ProjectStatusSelector options={OPTIONS} selectedId="opt2" onSelect={jest.fn()} />);
+    render(<ProjectStatusSelector options={OPTIONS} selectedId="opt2" onSelect={vi.fn()} />);
     expect(screen.getByRole('combobox')).toHaveValue('In Progress');
   });
 
   it('renders color dots in the dropdown', async () => {
-    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={jest.fn()} />);
+    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={vi.fn()} />);
     await userEvent.click(screen.getByRole('combobox'));
     // Each option renders a color dot span (data-testid="color-dot")
     const dots = screen.getAllByTestId('color-dot');
@@ -84,7 +84,7 @@ describe('ProjectStatusSelector', () => {
   });
 
   it('renders the status label from translation key', () => {
-    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={jest.fn()} />);
+    render(<ProjectStatusSelector options={OPTIONS} selectedId="" onSelect={vi.fn()} />);
     expect(screen.getByText('quickActions.github.status')).toBeInTheDocument();
   });
 });

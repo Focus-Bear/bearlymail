@@ -1,7 +1,7 @@
 /**
  * Unit tests for emailCache.ts
  *
- * localStorage is provided by jsdom (configured via Jest/ts-jest).
+ * localStorage is provided by jsdom (configured via Vitest).
  */
 
 import { Email } from 'types/email';

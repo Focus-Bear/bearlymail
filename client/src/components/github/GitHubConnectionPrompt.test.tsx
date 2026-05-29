@@ -4,20 +4,20 @@ import axios from 'axios';
 
 import { GitHubConnectionPrompt } from './GitHubConnectionPrompt';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
-jest.mock('config/api', () => ({
+vi.mock('config/api', () => ({
   API_URL: 'http://localhost:3001',
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     colors: {
       background: { paper: '#fff' },
@@ -36,7 +36,7 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('constants/emojis', () => ({
+vi.mock('constants/emojis', () => ({
   EMOJI_OCTOPUS: '🐙',
   EMOJI_LINK: '🔗',
 }));
@@ -48,8 +48,8 @@ Object.defineProperty(window, 'location', {
 
 describe('GitHubConnectionPrompt', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    window.alert = jest.fn();
+    vi.clearAllMocks();
+    window.alert = vi.fn();
   });
 
   it('renders the connect button', () => {

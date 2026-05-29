@@ -67,7 +67,7 @@ describe('getCurrentTimeInTimezone', () => {
       { type: 'literal', value: '/' },
     ] as Intl.DateTimeFormatPart[];
 
-    jest.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValueOnce(mockParts);
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValueOnce(mockParts);
 
     const result = getCurrentTimeInTimezone('UTC');
     // Must not contain hour=24
@@ -78,7 +78,7 @@ describe('getCurrentTimeInTimezone', () => {
     expect(result).toMatch(
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$|^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
     );
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('Windows-style timezone strings (regression for #1167)', () => {

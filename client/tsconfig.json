@@ -21,7 +21,7 @@
     "paths": {
       "*": ["*"]
     },
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "vitest/globals"]
   },
   "include": ["src"],
   "exclude": ["node_modules/i18next/typescript"],

@@ -4,18 +4,18 @@ import { Contact } from 'types/contact';
 
 import { useComposeForm } from './useComposeForm';
 
-jest.mock('react-router-dom', () => ({
-  useSearchParams: jest.fn(),
+vi.mock('react-router-dom', () => ({
+  useSearchParams: vi.fn(),
 }));
 
 const mockUseSearchParams = useSearchParams as jest.MockedFunction<typeof useSearchParams>;
 
 describe('useComposeForm', () => {
-  const mockSetSearchParams = jest.fn();
+  const mockSetSearchParams = vi.fn();
   const mockSearchParams = new URLSearchParams();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockSearchParams.delete('to');
     mockSearchParams.delete('subject');
     mockUseSearchParams.mockReturnValue([mockSearchParams, mockSetSearchParams]);

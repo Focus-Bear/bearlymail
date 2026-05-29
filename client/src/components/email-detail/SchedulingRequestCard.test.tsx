@@ -20,10 +20,10 @@ import { Email } from 'types/email';
 
 import { SchedulingRequestCard } from './SchedulingRequestCard';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts && 'minutes' in opts) {
@@ -34,15 +34,15 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('contexts/AuthContext', () => ({
+vi.mock('contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
 
-jest.mock('utils/posthog', () => ({
-  captureEvent: jest.fn(),
+vi.mock('utils/posthog', () => ({
+  captureEvent: vi.fn(),
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '24px' },
     colors: {
@@ -61,7 +61,7 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('constants/numbers', () => ({
+vi.mock('constants/numbers', () => ({
   SCHEDULING_GAP_15_MIN: 15,
   SCHEDULING_GAP_30_MIN: 30,
   SCHEDULING_GAP_45_MIN: 45,
@@ -70,27 +70,27 @@ jest.mock('constants/numbers', () => ({
   SHORT_TIMEOUT_MS: 2000,
 }));
 
-jest.mock('constants/strings', () => ({
+vi.mock('constants/strings', () => ({
   STRING_NONE: 'none',
   STRING_TRANSPARENT: 'transparent',
 }));
 
-jest.mock('constants/colors', () => ({
+vi.mock('constants/colors', () => ({
   COLOR_NAMED_WHITE: '#ffffff',
 }));
 
-jest.mock('constants/emojis', () => ({
+vi.mock('constants/emojis', () => ({
   EMOJI_CALENDAR: '📅',
 }));
 
-jest.mock('constants/analytics-events', () => ({
+vi.mock('constants/analytics-events', () => ({
   ANALYTICS_EVENTS: {
     SCHEDULING_LINK_COPIED: 'scheduling_link_copied',
     SCHEDULING_DRAFT_REPLY_CLICKED: 'scheduling_draft_reply_clicked',
   },
 }));
 
-jest.mock('config/api', () => ({
+vi.mock('config/api', () => ({
   API_URL: 'http://localhost:3001',
 }));
 
@@ -135,8 +135,8 @@ const withProposalResponse = {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  (axios.isAxiosError as unknown as jest.Mock) = jest.fn(() => false);
+  vi.clearAllMocks();
+  (axios.isAxiosError as unknown as jest.Mock) = vi.fn(() => false);
 });
 
 describe('SchedulingRequestCard — loading behaviour (#1788)', () => {

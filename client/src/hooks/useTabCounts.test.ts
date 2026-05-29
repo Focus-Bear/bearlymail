@@ -3,7 +3,7 @@ import axios from 'axios';
 
 import { useTabCounts } from './useTabCounts';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3';
@@ -11,13 +11,13 @@ const TAB_COUNTS_POLL_INTERVAL_MS = 30_000;
 
 describe('useTabCounts', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('initialization', () => {
@@ -240,7 +240,7 @@ describe('useTabCounts', () => {
       // Advance time past one poll interval — no fetch should happen since
       // hasEverFetchedRef is still false
       await act(async () => {
-        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+        vi.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
       });
 
       expect(mockedAxios.get).not.toHaveBeenCalled();
@@ -265,7 +265,7 @@ describe('useTabCounts', () => {
 
       // Advance time to trigger the background poll
       await act(async () => {
-        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+        vi.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
       });
 
       await waitFor(() => {
@@ -298,7 +298,7 @@ describe('useTabCounts', () => {
 
       // Trigger background poll
       await act(async () => {
-        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+        vi.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
       });
 
       await waitFor(() => {
@@ -327,7 +327,7 @@ describe('useTabCounts', () => {
 
       // Advance three full poll intervals
       await act(async () => {
-        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS * 3);
+        vi.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS * 3);
       });
 
       await waitFor(() => {
@@ -359,7 +359,7 @@ describe('useTabCounts', () => {
 
       // Advance timer to trigger background poll — loading must NOT become true
       act(() => {
-        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+        vi.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
       });
       expect(result.current.loading).toBe(false);
 
@@ -427,7 +427,7 @@ describe('useTabCounts', () => {
 
       // Advance past the poll interval — no further requests should fire
       await act(async () => {
-        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS * 2);
+        vi.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS * 2);
       });
 
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
@@ -455,7 +455,7 @@ describe('useTabCounts', () => {
 
       // Background poll should still fire and call the API with force=true
       await act(async () => {
-        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+        vi.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
       });
 
       await waitFor(() => {

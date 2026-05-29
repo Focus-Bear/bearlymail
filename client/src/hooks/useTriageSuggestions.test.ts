@@ -7,13 +7,13 @@ import { TRIAGE_SUGGESTIONS_LIMIT_20 } from 'constants/numbers';
 
 import { useTriageSuggestions } from './useTriageSuggestions';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('useTriageSuggestions', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    console.error = vi.fn();
   });
 
   describe('initialization', () => {

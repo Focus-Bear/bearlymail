@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { DealFormModal } from 'components/crm/DealFormModal';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const labels: Record<string, string> = {
@@ -37,8 +37,8 @@ describe('DealFormModal contact typeahead', () => {
       { id: '2', name: 'Jeremy Nagel', email: 'jeremy@example.com' },
       { email: 'no-id@example.com' },
     ],
-    onSave: jest.fn(),
-    onClose: jest.fn(),
+    onSave: vi.fn(),
+    onClose: vi.fn(),
   };
 
   it('filters contacts and selects a matching contact', () => {

@@ -6,7 +6,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import { ComposeActions } from './ComposeActions';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
       if (params) {
@@ -17,7 +17,7 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('utils/dateUtils', () => ({
+vi.mock('utils/dateUtils', () => ({
   formatScheduledTime: (date: Date) => date.toISOString(),
 }));
 
@@ -26,12 +26,12 @@ describe('ComposeActions', () => {
     sending: false,
     sendSuccess: false,
     checkingTone: false,
-    onDiscard: jest.fn(),
-    onSend: jest.fn(),
+    onDiscard: vi.fn(),
+    onSend: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('idle state', () => {
@@ -116,13 +116,13 @@ describe('ComposeActions', () => {
     });
 
     it('renders schedule button when onSchedule is provided', () => {
-      const onSchedule = jest.fn();
+      const onSchedule = vi.fn();
       render(<ComposeActions {...defaultProps} onSchedule={onSchedule} />);
       expect(screen.getByText('compose.schedule')).toBeInTheDocument();
     });
 
     it('disables schedule button while checkingTone', () => {
-      const onSchedule = jest.fn();
+      const onSchedule = vi.fn();
       render(<ComposeActions {...defaultProps} checkingTone onSchedule={onSchedule} />);
       const scheduleButton = screen.getByText('compose.schedule');
       expect(scheduleButton).toBeDisabled();

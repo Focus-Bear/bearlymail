@@ -3,18 +3,18 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { ThreadItemHeader } from './ThreadItemHeader';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
-jest.mock('contexts/NotificationContext', () => ({
+vi.mock('contexts/NotificationContext', () => ({
   useNotifications: () => ({
-    showSuccess: jest.fn(),
+    showSuccess: vi.fn(),
   }),
 }));
-const mockWriteText = jest.fn().mockResolvedValue(undefined);
+const mockWriteText = vi.fn().mockResolvedValue(undefined);
 Object.assign(navigator, {
   clipboard: { writeText: mockWriteText },
 });
@@ -26,16 +26,16 @@ describe('ThreadItemHeader', () => {
     receivedAt: '2026-01-15T10:00:00Z',
     isExpanded: false,
     isCurrentEmail: false,
-    onToggle: jest.fn(),
+    onToggle: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('sender email display', () => {
@@ -88,7 +88,7 @@ describe('ThreadItemHeader', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
       });
 
       await waitFor(() => {
@@ -97,7 +97,7 @@ describe('ThreadItemHeader', () => {
     });
 
     it('should not propagate click to parent toggle', async () => {
-      const onToggle = jest.fn();
+      const onToggle = vi.fn();
       render(<ThreadItemHeader {...defaultProps} onToggle={onToggle} />);
       const copyButton = screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' });
       fireEvent.click(copyButton);
@@ -110,7 +110,7 @@ describe('ThreadItemHeader', () => {
 
     it('should handle clipboard failure gracefully', async () => {
       mockWriteText.mockRejectedValueOnce(new Error('Clipboard denied'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       render(<ThreadItemHeader {...defaultProps} />);
       const copyButton = screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' });

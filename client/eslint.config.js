@@ -1,7 +1,7 @@
 // ESLint 10 flat config.
 // Uses typescript-eslint v8 (natively supports ESLint 10) for TypeScript parsing.
-// eslint-plugin-react and eslint-plugin-react-hooks are available transitively
-// via react-scripts and are loaded directly here without FlatCompat.
+// eslint-plugin-react and eslint-plugin-react-hooks are direct devDependencies
+// and are loaded directly here without FlatCompat.
 const tseslint = require('typescript-eslint');
 const reactPlugin = require('eslint-plugin-react');
 const reactHooksPlugin = require('eslint-plugin-react-hooks');

@@ -78,7 +78,7 @@ cd client && npm run build
 
 # Tests
 cd server && npm run test:cov -- --forceExit
-cd client && npm test -- --watchAll=false --passWithNoTests
+cd client && npm test -- --passWithNoTests
 cd e2e && npm test
 
 # Promptfoo (LLM prompt tests)
@@ -1227,7 +1227,7 @@ describe("EmailsService Integration", () => {
 
 ### Client Tests (React Component Tests)
 
-**Framework**: Jest with React Testing Library
+**Framework**: Vitest with React Testing Library (jsdom). Configured in `client/vitest.config.ts`; globals (`describe`/`it`/`expect`/`vi`) are enabled, and `mockReset` is on to mirror the previous Create React App Jest preset.
 
 **Test location**: Co-located with components (`.test.ts` / `.test.tsx`)
 
@@ -1237,8 +1237,9 @@ describe("EmailsService Integration", () => {
 
 ```bash
 cd client
-npm test                              # Interactive watch mode
-npm test -- --watchAll=false --passWithNoTests  # CI mode
+npm test                              # Run once (Vitest, CI mode)
+npm run test:watch                    # Interactive watch mode
+npm test -- --passWithNoTests         # CI mode (tolerate no tests)
 npm run test:coverage                 # With coverage
 ```
 

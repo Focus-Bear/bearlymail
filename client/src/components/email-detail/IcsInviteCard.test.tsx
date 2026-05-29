@@ -15,16 +15,20 @@ import { Email } from 'types/email';
 
 import { IcsInviteCard } from './IcsInviteCard';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-// Mock i18next
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'en' },
-  }),
-}));
+// Mock i18next. `t` and `i18n` must be stable references across renders (like
+// real i18next), otherwise the component's fetchIcsInfo useCallback — which
+// depends on `t` — is recreated every render, re-running its effect and
+// clearing error state set by other handlers.
+vi.mock('react-i18next', () => {
+  const translate = (key: string) => key;
+  const i18n = { language: 'en' };
+  return {
+    useTranslation: () => ({ t: translate, i18n }),
+  };
+});
 
 function makeEmailWithIcs(overrides: Partial<Email> = {}): Email {
   return {
@@ -57,9 +61,9 @@ function makeAxiosError(message?: string): Error & { isAxiosError: boolean; resp
 
 describe('IcsInviteCard — error handling (#1116)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Make isAxiosError work properly in tests
-    (axios.isAxiosError as unknown as jest.Mock) = jest.fn(
+    (axios.isAxiosError as unknown as jest.Mock) = vi.fn(
       (err: unknown) => (err as { isAxiosError?: boolean })?.isAxiosError === true
     );
   });

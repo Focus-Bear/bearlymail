@@ -4,19 +4,19 @@ import { useEmailDetailDraftHandlers } from './useEmailDetailDraftHandlers';
 
 describe('useEmailDetailDraftHandlers', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   const makeSetters = () => ({
-    setDraft: jest.fn(),
-    setSelectedReplyOption: jest.fn(),
-    setReplyOptions: jest.fn(),
-    setToneCheckResult: jest.fn(),
-    setShowReplyComposer: jest.fn(),
+    setDraft: vi.fn(),
+    setSelectedReplyOption: vi.fn(),
+    setReplyOptions: vi.fn(),
+    setToneCheckResult: vi.fn(),
+    setShowReplyComposer: vi.fn(),
   });
 
   const replyOptions = [
@@ -40,7 +40,7 @@ describe('useEmailDetailDraftHandlers', () => {
 
     act(() => {
       result.current.handleDraftChange('new draft text');
-      jest.runAllTimers();
+      vi.runAllTimers();
     });
 
     expect(setters.setDraft).toHaveBeenCalledWith('new draft text');
@@ -219,7 +219,7 @@ describe('useEmailDetailDraftHandlers', () => {
 
     // Advance timers to fire the setTimeout(0) that clears the flag
     act(() => {
-      jest.runAllTimers();
+      vi.runAllTimers();
     });
 
     // Now user types — should reset to Custom

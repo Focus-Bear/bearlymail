@@ -12,9 +12,9 @@ import * as useEmailActionsBaseModule from './useEmailActionsBase';
 import * as useEmailFetchingModule from './useEmailFetching';
 import { useEmailManagement } from './useEmailManagement';
 
-jest.mock('axios');
-jest.mock('./useEmailFetching');
-jest.mock('./useEmailActionsBase');
+vi.mock('axios');
+vi.mock('./useEmailFetching');
+vi.mock('./useEmailActionsBase');
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedUseEmailFetching = useEmailFetchingModule as jest.Mocked<typeof useEmailFetchingModule>;
@@ -79,19 +79,19 @@ const createWrapper = (store: ReturnType<typeof createTestStore>) => {
 };
 
 describe('useEmailManagement', () => {
-  const mockFetchEmails = jest.fn();
-  const mockHandleSetStarCount = jest.fn();
-  const mockHandleArchive = jest.fn();
-  const mockHandleSnooze = jest.fn();
-  const mockOnSuggestionRemove = jest.fn();
+  const mockFetchEmails = vi.fn();
+  const mockHandleSetStarCount = vi.fn();
+  const mockHandleArchive = vi.fn();
+  const mockHandleSnooze = vi.fn();
+  const mockOnSuggestionRemove = vi.fn();
   let testStore: ReturnType<typeof createTestStore>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    console.error = vi.fn();
     testStore = createTestStore();
 
-    (mockedUseEmailFetching.useEmailFetching as jest.Mock) = jest.fn(() => ({
+    (mockedUseEmailFetching.useEmailFetching as jest.Mock) = vi.fn(() => ({
       fetchEmails: mockFetchEmails,
       emails: [],
       loading: true,
@@ -99,15 +99,15 @@ describe('useEmailManagement', () => {
       refreshing: false,
       loadingModeSwitch: false,
       fetchError: null,
-      setEmails: jest.fn(),
-      setDecrypting: jest.fn(),
-      setLoading: jest.fn(),
-      setRefreshing: jest.fn(),
-      setLoadingModeSwitch: jest.fn(),
-      setFetchError: jest.fn(),
+      setEmails: vi.fn(),
+      setDecrypting: vi.fn(),
+      setLoading: vi.fn(),
+      setRefreshing: vi.fn(),
+      setLoadingModeSwitch: vi.fn(),
+      setFetchError: vi.fn(),
     }));
 
-    (mockedUseEmailActionsBase.useEmailActionsBase as jest.Mock) = jest.fn(() => ({
+    (mockedUseEmailActionsBase.useEmailActionsBase as jest.Mock) = vi.fn(() => ({
       handleSetStarCount: mockHandleSetStarCount,
       handleArchive: mockHandleArchive,
       handleSnooze: mockHandleSnooze,

@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { DeterministicCategoryRulesPanel } from './DeterministicCategoryRulesPanel';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts && 'count' in opts) {
@@ -14,7 +14,7 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px' },
     colors: {
@@ -32,12 +32,12 @@ jest.mock('theme/theme', () => ({
 
 describe('DeterministicCategoryRulesPanel', () => {
   it('shows empty translation key when there are no rules', () => {
-    render(<DeterministicCategoryRulesPanel rules={[]} onToggleEnabled={jest.fn()} onDelete={jest.fn()} />);
+    render(<DeterministicCategoryRulesPanel rules={[]} onToggleEnabled={vi.fn()} onDelete={vi.fn()} />);
     expect(screen.getByText('settings.deterministicCategoryRules.empty')).toBeInTheDocument();
   });
 
   it('calls onToggleEnabled when the enabled checkbox changes', () => {
-    const onToggle = jest.fn();
+    const onToggle = vi.fn();
     render(
       <DeterministicCategoryRulesPanel
         rules={[
@@ -56,7 +56,7 @@ describe('DeterministicCategoryRulesPanel', () => {
           },
         ]}
         onToggleEnabled={onToggle}
-        onDelete={jest.fn()}
+        onDelete={vi.fn()}
       />
     );
     const checkbox = screen.getByRole('checkbox');

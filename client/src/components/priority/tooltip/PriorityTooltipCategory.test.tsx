@@ -6,19 +6,19 @@ import { PriorityTooltipCategory } from './PriorityTooltipCategory';
 
 const renderWithRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
-const mockWindowOpen = jest.fn();
+const mockWindowOpen = vi.fn();
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
-jest.mock('contexts/AuthContext', () => ({
+vi.mock('contexts/AuthContext', () => ({
   useAuth: () => ({ user: { isAdmin: false } }),
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px' },
     colors: {
@@ -34,15 +34,15 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('components/priority/CategoryDebugModal', () => ({
+vi.mock('components/priority/CategoryDebugModal', () => ({
   CategoryDebugModal: () => null,
 }));
 
-jest.mock('components/priority/CategoryOverrideModal', () => ({
+vi.mock('components/priority/CategoryOverrideModal', () => ({
   CategoryOverrideModal: () => null,
 }));
 
-jest.mock('constants/strings', () => ({
+vi.mock('constants/strings', () => ({
   CATEGORY_OTHER: 'Other',
 }));
 
@@ -54,11 +54,11 @@ const defaultProps = {
 describe('PriorityTooltipCategory', () => {
   beforeEach(() => {
     mockWindowOpen.mockClear();
-    jest.spyOn(window, 'open').mockImplementation(mockWindowOpen);
+    vi.spyOn(window, 'open').mockImplementation(mockWindowOpen);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('does not show edit rule button when categoryExplanation is absent', () => {

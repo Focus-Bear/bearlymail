@@ -1,23 +1,24 @@
 import { act, renderHook } from '@testing-library/react';
+import { devWarn } from 'utils/dev-logger';
 import { measurePerformance } from 'utils/performanceBudget';
 
 import { usePerformanceBudget } from './usePerformanceBudget';
 
-jest.mock('utils/dev-logger', () => ({
-  devLog: jest.fn(),
-  devWarn: jest.fn(),
+vi.mock('utils/dev-logger', () => ({
+  devLog: vi.fn(),
+  devWarn: vi.fn(),
 }));
 
-jest.mock('utils/performanceBudget', () => ({
-  measurePerformance: jest.fn(),
+vi.mock('utils/performanceBudget', () => ({
+  measurePerformance: vi.fn(),
   ACCORDION_BUDGETS: { CATEGORY_FETCH: 2000, CATEGORY_PAINT: 500, CATEGORY_TOTAL: 3000 },
 }));
 
 describe('usePerformanceBudget', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Set up measurePerformance mock implementation in beforeEach (not in the factory)
-    // because async functions in jest.mock factory closures do not resolve correctly.
+    // because async functions in vi.mock factory closures do not resolve correctly.
     (measurePerformance as jest.Mock).mockImplementation(async (_options, operation) => {
       const result = await operation();
       return { result, durationMs: 100, overBudget: false, overageMs: 0 };
@@ -54,7 +55,7 @@ describe('usePerformanceBudget', () => {
     // Spy is installed after renderHook to avoid React 19 scheduler consuming mock values
     const { result } = renderHook(() => usePerformanceBudget());
 
-    jest
+    vi
       .spyOn(performance, 'now')
       .mockReturnValueOnce(0) // markStart
       .mockReturnValueOnce(1500); // markEnd
@@ -70,16 +71,15 @@ describe('usePerformanceBudget', () => {
 
     expect(duration).toBe(1500);
 
-    jest.spyOn(performance, 'now').mockRestore();
+    vi.spyOn(performance, 'now').mockRestore();
   });
 
   it('markEnd calls devWarn when span exceeds budget', () => {
-    const { devWarn } = jest.requireMock('utils/dev-logger');
 
     // Spy is installed after renderHook to avoid React 19 scheduler consuming mock values
     const { result } = renderHook(() => usePerformanceBudget());
 
-    jest
+    vi
       .spyOn(performance, 'now')
       .mockReturnValueOnce(0) // markStart
       .mockReturnValueOnce(5000); // markEnd — 5000ms > 2000ms budget
@@ -93,16 +93,15 @@ describe('usePerformanceBudget', () => {
 
     expect(devWarn).toHaveBeenCalledWith(expect.stringContaining('exceeded budget'));
 
-    jest.spyOn(performance, 'now').mockRestore();
+    vi.spyOn(performance, 'now').mockRestore();
   });
 
   it('markEnd does not call devWarn when span is within budget', () => {
-    const { devWarn } = jest.requireMock('utils/dev-logger');
 
     // Spy is installed after renderHook to avoid React 19 scheduler consuming mock values
     const { result } = renderHook(() => usePerformanceBudget());
 
-    jest.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValueOnce(500); // 500ms < 2000ms budget
+    vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValueOnce(500); // 500ms < 2000ms budget
 
     act(() => {
       result.current.markStart('fast-span');
@@ -113,11 +112,10 @@ describe('usePerformanceBudget', () => {
 
     expect(devWarn).not.toHaveBeenCalled();
 
-    jest.spyOn(performance, 'now').mockRestore();
+    vi.spyOn(performance, 'now').mockRestore();
   });
 
   it('markStart calls devWarn when overwriting an existing span', () => {
-    const { devWarn } = jest.requireMock('utils/dev-logger');
 
     const { result } = renderHook(() => usePerformanceBudget());
 

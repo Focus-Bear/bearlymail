@@ -10,19 +10,19 @@ import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { useCategoryFetch } from './useCategoryFetch';
 
-jest.mock('utils/dev-logger', () => ({
-  devLog: jest.fn(),
-  devWarn: jest.fn(),
+vi.mock('utils/dev-logger', () => ({
+  devLog: vi.fn(),
+  devWarn: vi.fn(),
 }));
 
 // Note: async implementations must be set in beforeEach, not in the factory closure,
-// because async functions in jest.mock factory closures do not resolve correctly.
-jest.mock('utils/performanceBudget', () => ({
-  measurePerformance: jest.fn(),
+// because async functions in vi.mock factory closures do not resolve correctly.
+vi.mock('utils/performanceBudget', () => ({
+  measurePerformance: vi.fn(),
   ACCORDION_BUDGETS: { CATEGORY_FETCH: 2000, CATEGORY_PAINT: 500, CATEGORY_TOTAL: 3000 },
 }));
 
-jest.mock('hooks/useEmailFetching', () => ({
+vi.mock('hooks/useEmailFetching', () => ({
   getCategoryKey: (id: string | null | undefined, name: string) => id ?? name,
 }));
 
@@ -53,8 +53,8 @@ describe('useCategoryFetch — lookahead preload', () => {
   let fetchCategoryEmails: jest.Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    fetchCategoryEmails = jest.fn().mockResolvedValue(undefined);
+    vi.clearAllMocks();
+    fetchCategoryEmails = vi.fn().mockResolvedValue(undefined);
     (measurePerformance as jest.Mock).mockImplementation(async (_opts: unknown, op: () => Promise<unknown>) => {
       const result = await op();
       return { result, durationMs: 100, overBudget: false, overageMs: 0 };

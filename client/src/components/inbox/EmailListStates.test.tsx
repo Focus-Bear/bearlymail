@@ -10,7 +10,7 @@ import {
 
 import { EmailListStates } from './EmailListStates';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts) {
@@ -21,7 +21,7 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { sm: '8px', md: '12px', lg: '16px', xl: '20px', '3xl': '32px' },
     colors: {
@@ -39,7 +39,7 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('components/inbox/states', () => ({
+vi.mock('components/inbox/states', () => ({
   AllCaughtUpState: () => <div data-testid="all-caught-up-state">AllCaughtUp</div>,
   EmptyState: ({ mode }: { mode: string }) => <div data-testid="empty-state">{mode}</div>,
   ErrorState: ({ error }: { error: string }) => <div data-testid="error-state">{error}</div>,
@@ -92,12 +92,12 @@ const baseProps = {
   fetchError: null,
   emailsEmpty: false,
   mode: 'triage' as const,
-  onRetry: jest.fn(),
+  onRetry: vi.fn(),
 };
 
 describe('EmailListStates', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('loading states', () => {
@@ -132,15 +132,15 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
     });
 
     it('calls onUnlockPriorityTier(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD) on Yes', () => {
-      const onUnlockPriorityTier = jest.fn();
+      const onUnlockPriorityTier = vi.fn();
       render(
         <EmailListStates
           {...baseProps}
@@ -148,7 +148,7 @@ describe('EmailListStates', () => {
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
           onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={jest.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       fireEvent.click(screen.getByTestId('yes-btn'));
@@ -156,14 +156,14 @@ describe('EmailListStates', () => {
     });
 
     it('hides ProgressiveUnlockPrompt and shows FilteredEmptyState after dismissal when lower emails exist', () => {
-      const onDismissUnlockPrompt = jest.fn();
+      const onDismissUnlockPrompt = vi.fn();
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
           onDismissUnlockPrompt={onDismissUnlockPrompt}
         />
       );
@@ -182,8 +182,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
@@ -198,15 +198,15 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
     });
 
     it('calls onUnlockPriorityTier(MEDIUM_PRIORITY_THRESHOLD, HIGH_PRIORITY_THRESHOLD) when user clicks Yes on high-done prompt', () => {
-      const onUnlockPriorityTier = jest.fn();
+      const onUnlockPriorityTier = vi.fn();
       render(
         <EmailListStates
           {...baseProps}
@@ -214,7 +214,7 @@ describe('EmailListStates', () => {
           minPriority={HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
           onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={jest.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       fireEvent.click(screen.getByTestId('yes-btn'));
@@ -228,8 +228,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
@@ -244,15 +244,15 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={MEDIUM_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 5, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
     });
 
     it('calls onUnlockPriorityTier(LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD) when user clicks Yes on medium-done prompt', () => {
-      const onUnlockPriorityTier = jest.fn();
+      const onUnlockPriorityTier = vi.fn();
       render(
         <EmailListStates
           {...baseProps}
@@ -260,7 +260,7 @@ describe('EmailListStates', () => {
           minPriority={MEDIUM_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 5, veryLow: 0 }}
           onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={jest.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       fireEvent.click(screen.getByTestId('yes-btn'));
@@ -276,8 +276,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={0}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.getByTestId('all-caught-up-state')).toBeTruthy();
@@ -290,8 +290,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={0}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.queryByTestId('all-caught-up-state')).toBeNull();
@@ -307,8 +307,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={null}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
@@ -334,8 +334,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       // No prompt to dismiss (all tiers empty), goes directly to AllCaughtUpState
@@ -352,8 +352,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       // Should show prompt — skips empty high tier, picks medium via highDone message
@@ -369,8 +369,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
@@ -385,8 +385,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={null}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       // Falls through to generic EmptyState — acceptable during loading
@@ -397,15 +397,15 @@ describe('EmailListStates', () => {
 
   describe('FilteredEmptyState — onClearFilters wiring', () => {
     it('calls onClearFilters when "Show all" is clicked after dismiss', () => {
-      const onClearFilters = jest.fn();
+      const onClearFilters = vi.fn();
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
           onClearFilters={onClearFilters}
         />
       );
@@ -425,8 +425,8 @@ describe('EmailListStates', () => {
           emailsEmpty
           minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 5, medium: 2, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       fireEvent.click(screen.getByTestId('later-btn'));
@@ -446,8 +446,8 @@ describe('EmailListStates', () => {
           minPriority={null}
           maxPriority={0}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       // All tiers zero with maxPriority active → AllCaughtUpState (not generic EmptyState)
@@ -463,8 +463,8 @@ describe('EmailListStates', () => {
           minPriority={MEDIUM_PRIORITY_THRESHOLD}
           maxPriority={HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       // Filter active + lower emails exist → FilteredEmptyState (not generic EmptyState)
@@ -473,7 +473,7 @@ describe('EmailListStates', () => {
     });
 
     it('passes maxPriority prop without breaking existing progressive unlock behaviour', () => {
-      const onUnlockPriorityTier = jest.fn();
+      const onUnlockPriorityTier = vi.fn();
       render(
         <EmailListStates
           {...baseProps}
@@ -482,7 +482,7 @@ describe('EmailListStates', () => {
           maxPriority={null}
           priorityCounts={{ veryHigh: 0, high: 5, medium: 0, low: 0, veryLow: 0 }}
           onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={jest.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
@@ -498,8 +498,8 @@ describe('EmailListStates', () => {
           minPriority={null}
           maxPriority={null}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={jest.fn()}
-          onDismissUnlockPrompt={jest.fn()}
+          onUnlockPriorityTier={vi.fn()}
+          onDismissUnlockPrompt={vi.fn()}
         />
       );
       expect(screen.getByTestId('empty-state')).toBeTruthy();

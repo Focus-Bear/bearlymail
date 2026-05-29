@@ -3,11 +3,11 @@ import { TYPEOF_UNDEFINED } from 'constants/strings';
 import { normalizeAiReplyPlaintext, plainTextToHtml, removeSignature, sanitizeAndProcessHtml } from './emailUtils';
 
 // Mock DOMPurify for testing
-jest.mock('dompurify', () => {
-  const actualDomPurify = jest.requireActual('dompurify');
+vi.mock('dompurify', async (importOriginal) => {
+  const actualDomPurify = await importOriginal<typeof import('dompurify')>();
   return {
     __esModule: true,
-    default: actualDomPurify,
+    default: actualDomPurify.default,
   };
 });
 
@@ -102,10 +102,10 @@ describe('emailUtils', () => {
       if (typeof document === TYPEOF_UNDEFINED) {
         const mockElement = {
           innerHTML: '',
-          querySelectorAll: jest.fn(() => []),
+          querySelectorAll: vi.fn(() => []),
         };
         global.document = {
-          createElement: jest.fn(() => mockElement),
+          createElement: vi.fn(() => mockElement),
         } as unknown as Document;
       }
     });

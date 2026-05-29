@@ -5,13 +5,13 @@ import { API_URL } from 'config/api';
 
 import { useEmailDetail } from './useEmailDetail';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('useEmailDetail', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    console.error = vi.fn();
   });
 
   describe('initialization', () => {

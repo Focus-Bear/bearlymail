@@ -6,10 +6,10 @@ import { LINK_TYPE_PR } from 'constants/strings';
 
 import { useEmailDetailGithub } from './useEmailDetailGithub';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-jest.mock('queries/useUserProfileQuery', () => ({
+vi.mock('queries/useUserProfileQuery', () => ({
   useUserProfileQuery: () => ({ data: { githubToken: 'encrypted-token' } }),
 }));
 
@@ -24,7 +24,7 @@ const mockLink = {
 
 describe('useEmailDetailGithub', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (mockedAxios.isCancel as unknown as jest.Mock).mockReturnValue(false);
     (mockedAxios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
   });

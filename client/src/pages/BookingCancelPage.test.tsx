@@ -4,10 +4,10 @@ import axios from 'axios';
 
 import BookingCancelPage from './BookingCancelPage';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { language: 'en' },
@@ -38,7 +38,7 @@ const renderWithRouter = (token: string) => {
 
 describe('BookingCancelPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should show loading state initially', () => {

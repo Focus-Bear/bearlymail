@@ -12,51 +12,53 @@ import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { useEmailDetailOperations } from './useEmailDetailOperations';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const mockLocationState: { fromMode?: string } = {};
 
-jest.mock('react-router-dom', () => ({
+vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useLocation: () => ({ state: mockLocationState }),
 }));
 
-jest.mock('contexts/NotificationContext', () => ({
+vi.mock('contexts/NotificationContext', () => ({
   useNotifications: () => ({
-    showSuccess: jest.fn(),
-    showError: jest.fn(),
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
   }),
 }));
 
-jest.mock('contexts/AuthContext', () => ({
+vi.mock('contexts/AuthContext', () => ({
   useAuth: () => ({ user: { email: 'me@example.com' } }),
 }));
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-jest.mock('utils/posthog', () => ({ captureEvent: jest.fn() }));
+vi.mock('utils/posthog', () => ({ captureEvent: vi.fn() }));
 
-jest.mock('utils/emailBodyUtils', () => ({
-  extractCleanBody: jest.fn(),
-  removeSignature: jest.fn(),
-  extractCleanHtmlBody: jest.fn(),
-  sanitizeAndProcessHtml: jest.fn(),
+vi.mock('utils/emailBodyUtils', () => ({
+  extractCleanBody: vi.fn(),
+  extractCleanBodyWithMeta: vi.fn(),
+  extractCleanHtmlBody: vi.fn(),
+  extractCleanHtmlBodyWithMeta: vi.fn(),
+  removeSignature: vi.fn(),
+  sanitizeAndProcessHtml: vi.fn(),
 }));
 
-jest.mock('utils/githubUtils', () => ({
-  emailMentionsGitHub: jest.fn().mockReturnValue(false),
+vi.mock('utils/githubUtils', () => ({
+  emailMentionsGitHub: vi.fn().mockReturnValue(false),
 }));
 
 // Zero out animation delay to avoid test timeouts
-jest.mock('constants/numbers', () => ({
-  ...jest.requireActual('constants/numbers'),
+vi.mock('constants/numbers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('constants/numbers')>()),
   TIMEOUT_800_MS: 0,
 }));
 
-const mockNavigate = jest.fn();
+const mockNavigate = vi.fn();
 
 const TEST_EMAIL_ID = 'email-test-1';
 
@@ -97,98 +99,98 @@ const createMockState = () => ({
     from: 'test@test.com',
     body: 'Test body',
   }),
-  setEmail: jest.fn(),
+  setEmail: vi.fn(),
   threadEmails: [],
-  setThreadEmails: jest.fn(),
+  setThreadEmails: vi.fn(),
   expandedThreadItems: new Set<string>(),
-  setExpandedThreadItems: jest.fn(),
+  setExpandedThreadItems: vi.fn(),
   noteContent: '',
-  setNoteContent: jest.fn(),
+  setNoteContent: vi.fn(),
   notesCollapsed: true,
-  setNotesCollapsed: jest.fn(),
+  setNotesCollapsed: vi.fn(),
   summary: null,
-  setSummary: jest.fn(),
+  setSummary: vi.fn(),
   summaryType: 'tldr',
-  setSummaryType: jest.fn(),
+  setSummaryType: vi.fn(),
   isGeneratingSummary: false,
-  setIsGeneratingSummary: jest.fn(),
+  setIsGeneratingSummary: vi.fn(),
   summaryCollapsed: false,
-  setSummaryCollapsed: jest.fn(),
+  setSummaryCollapsed: vi.fn(),
   summaryDebug: null,
-  setSummaryDebug: jest.fn(),
+  setSummaryDebug: vi.fn(),
   showRuleModal: false,
-  setShowRuleModal: jest.fn(),
+  setShowRuleModal: vi.fn(),
   customRule: { whenToUse: '', howToSummarize: '' },
-  setCustomRule: jest.fn(),
+  setCustomRule: vi.fn(),
   customRules: [],
-  setCustomRules: jest.fn(),
+  setCustomRules: vi.fn(),
   actionItems: [],
-  setActionItems: jest.fn(),
+  setActionItems: vi.fn(),
   newActionItem: '',
-  setNewActionItem: jest.fn(),
+  setNewActionItem: vi.fn(),
   draft: 'Test reply',
-  setDraft: jest.fn(),
+  setDraft: vi.fn(),
   replyOptions: null,
-  setReplyOptions: jest.fn(),
+  setReplyOptions: vi.fn(),
   selectedReplyOption: 0,
-  setSelectedReplyOption: jest.fn(),
+  setSelectedReplyOption: vi.fn(),
   showReplyComposer: true,
-  setShowReplyComposer: jest.fn(),
+  setShowReplyComposer: vi.fn(),
   replyMode: 'reply' as const,
-  setReplyMode: jest.fn(),
+  setReplyMode: vi.fn(),
   replyRecipients: 'recipient@example.com',
-  setReplyRecipients: jest.fn(),
+  setReplyRecipients: vi.fn(),
   replyCc: '',
-  setReplyCc: jest.fn(),
+  setReplyCc: vi.fn(),
   replyBcc: '',
-  setReplyBcc: jest.fn(),
+  setReplyBcc: vi.fn(),
   replySubject: 'Re: Test Subject',
-  setReplySubject: jest.fn(),
+  setReplySubject: vi.fn(),
   showCc: false,
-  setShowCc: jest.fn(),
+  setShowCc: vi.fn(),
   showBcc: false,
-  setShowBcc: jest.fn(),
+  setShowBcc: vi.fn(),
   loadingReplies: false,
-  setLoadingReplies: jest.fn(),
+  setLoadingReplies: vi.fn(),
   sending: false,
-  setSending: jest.fn(),
+  setSending: vi.fn(),
   toneCheckResult: null,
-  setToneCheckResult: jest.fn(),
+  setToneCheckResult: vi.fn(),
   checkingTone: false,
-  setCheckingTone: jest.fn(),
+  setCheckingTone: vi.fn(),
   disputing: false,
-  setDisputing: jest.fn(),
+  setDisputing: vi.fn(),
   // Set accepted=true to bypass tone check in tests
   disputeResult: { accepted: true, rulesToRemove: [], explanation: '', rulesUpdated: false, remainingRules: [] },
-  setDisputeResult: jest.fn(),
+  setDisputeResult: vi.fn(),
   snoozeInput: '',
-  setSnoozeInput: jest.fn(),
+  setSnoozeInput: vi.fn(),
   showSnoozeInput: false,
-  setShowSnoozeInput: jest.fn(),
+  setShowSnoozeInput: vi.fn(),
   priorityExplanation: null,
-  setPriorityExplanation: jest.fn(),
+  setPriorityExplanation: vi.fn(),
   showPriorityExplanation: false,
-  setShowPriorityExplanation: jest.fn(),
+  setShowPriorityExplanation: vi.fn(),
   githubLinks: [],
-  setGithubLinks: jest.fn(),
+  setGithubLinks: vi.fn(),
   loadingGithub: false,
-  setLoadingGithub: jest.fn(),
+  setLoadingGithub: vi.fn(),
   hasGithubToken: false,
-  setHasGithubToken: jest.fn(),
+  setHasGithubToken: vi.fn(),
   suggestedActions: [],
-  setSuggestedActions: jest.fn(),
+  setSuggestedActions: vi.fn(),
   loadingSuggestedActions: false,
-  setLoadingSuggestedActions: jest.fn(),
+  setLoadingSuggestedActions: vi.fn(),
   showQuickActionsMenu: false,
-  setShowQuickActionsMenu: jest.fn(),
+  setShowQuickActionsMenu: vi.fn(),
   selectedAction: null,
-  setSelectedAction: jest.fn(),
+  setSelectedAction: vi.fn(),
   animationClass: null,
-  setAnimationClass: jest.fn(),
+  setAnimationClass: vi.fn(),
   loading: false,
-  setLoading: jest.fn(),
+  setLoading: vi.fn(),
   autoSendCountdown: null,
-  setAutoSendCountdown: jest.fn(),
+  setAutoSendCountdown: vi.fn(),
 });
 
 const createWrapper =
@@ -198,7 +200,7 @@ const createWrapper =
 
 describe('useEmailDetailOperations', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockNavigate.mockClear();
     // Reset location state so tests start without fromMode
     delete mockLocationState.fromMode;
@@ -284,7 +286,7 @@ describe('useEmailDetailOperations', () => {
     });
 
     it('calls onSnoozeComplete callback instead of navigating in split view', async () => {
-      const onSnoozeComplete = jest.fn();
+      const onSnoozeComplete = vi.fn();
       const store = createTestStore([]);
 
       const { result } = renderHook(
@@ -518,7 +520,7 @@ describe('useEmailDetailOperations', () => {
     });
 
     it('calls onArchiveComplete callback instead of navigating in split view', async () => {
-      const onArchiveComplete = jest.fn();
+      const onArchiveComplete = vi.fn();
       const store = createTestStore([]);
 
       const { result } = renderHook(
@@ -570,7 +572,7 @@ describe('useEmailDetailOperations', () => {
     });
 
     it('calls onSnoozeComplete callback instead of navigating in split view', async () => {
-      const onSnoozeComplete = jest.fn();
+      const onSnoozeComplete = vi.fn();
       const mockState = createMockState();
       mockState.snoozeInput = '2h';
       const store = createTestStore([]);

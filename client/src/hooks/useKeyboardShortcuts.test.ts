@@ -25,9 +25,9 @@ describe('useKeyboardShortcuts', () => {
     { id: '3', subject: 'Email 3' } as unknown as Email,
   ];
 
-  const mockSetSelectedEmailIndex = jest.fn();
-  const mockOnArchive = jest.fn();
-  const mockOnSetStarCount = jest.fn();
+  const mockSetSelectedEmailIndex = vi.fn();
+  const mockOnArchive = vi.fn();
+  const mockOnSetStarCount = vi.fn();
 
   // Store the original addEventListener and removeEventListener
   const originalAddEventListener = window.addEventListener;
@@ -37,24 +37,24 @@ describe('useKeyboardShortcuts', () => {
   let capturedKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
     capturedKeydownHandler = null;
 
     // Mock window.addEventListener to capture the handler
-    window.addEventListener = jest.fn((event: string, handler: EventListenerOrEventListenerObject) => {
+    window.addEventListener = vi.fn((event: string, handler: EventListenerOrEventListenerObject) => {
       if (event === EVENT_KEYDOWN && typeof handler === TYPEOF_FUNCTION) {
         capturedKeydownHandler = handler as (event: KeyboardEvent) => void;
       }
     });
-    window.removeEventListener = jest.fn();
+    window.removeEventListener = vi.fn();
   });
 
   afterEach(() => {
     // Restore original functions
     window.addEventListener = originalAddEventListener;
     window.removeEventListener = originalRemoveEventListener;
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   // Helper function to simulate a keydown event
@@ -359,7 +359,7 @@ describe('useKeyboardShortcuts', () => {
 
       // Fast-forward past the timeout (3 seconds)
       act(() => {
-        jest.advanceTimersByTime(3500);
+        vi.advanceTimersByTime(3500);
       });
 
       expect(result.current.pendingArchive).toBeNull();

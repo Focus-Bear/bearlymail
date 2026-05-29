@@ -5,14 +5,14 @@ import { render, screen } from '@testing-library/react';
 import { LoginFormSection } from './LoginFormSection';
 
 // Mock react-i18next
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
 // Mock theme
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { sm: '4px', md: '8px', lg: '16px', '2xl': '32px' },
     colors: {
@@ -36,17 +36,17 @@ const defaultProps = {
   email: '',
   password: '',
   error: '',
-  onEmailChange: jest.fn(),
-  onPasswordChange: jest.fn(),
-  onSubmit: jest.fn(),
-  onGoogleLogin: jest.fn(),
-  onMicrosoftLogin: jest.fn(),
-  onZohoLogin: jest.fn(),
+  onEmailChange: vi.fn(),
+  onPasswordChange: vi.fn(),
+  onSubmit: vi.fn(),
+  onGoogleLogin: vi.fn(),
+  onMicrosoftLogin: vi.fn(),
+  onZohoLogin: vi.fn(),
 };
 
 describe('LoginFormSection accessibility', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const renderInRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);

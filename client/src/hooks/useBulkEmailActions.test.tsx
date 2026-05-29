@@ -11,11 +11,11 @@ import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { useBulkEmailActions } from './useBulkEmailActions';
 
-jest.mock('utils/posthog', () => ({
-  captureEvent: jest.fn(),
+vi.mock('utils/posthog', () => ({
+  captureEvent: vi.fn(),
 }));
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const mockedCaptureEvent = captureEvent as jest.MockedFunction<typeof captureEvent>;
@@ -58,14 +58,14 @@ const createWrapper = (store: ReturnType<typeof createTestStore>) => {
 };
 
 describe('useBulkEmailActions', () => {
-  const mockHandleArchive = jest.fn();
-  const mockHandleSetStarCount = jest.fn();
-  const mockHandleBulkMarkAsRead = jest.fn();
-  const mockHandleBulkMarkAsUnread = jest.fn();
-  const mockSetSelectedEmailIds = jest.fn();
+  const mockHandleArchive = vi.fn();
+  const mockHandleSetStarCount = vi.fn();
+  const mockHandleBulkMarkAsRead = vi.fn();
+  const mockHandleBulkMarkAsUnread = vi.fn();
+  const mockSetSelectedEmailIds = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockHandleArchive.mockResolvedValue(undefined);
     mockHandleSetStarCount.mockResolvedValue(undefined);
     mockHandleBulkMarkAsRead.mockResolvedValue(undefined);

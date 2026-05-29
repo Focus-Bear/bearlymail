@@ -21,32 +21,32 @@ const mockRule = {
   updatedAt: '2025-01-01T00:00:00Z',
 };
 
-jest.mock('hooks/settings/useCategoryRules', () => ({
+vi.mock('hooks/settings/useCategoryRules', () => ({
   useCategoryRules: () => ({
     rules: [mockRule],
     loading: false,
-    createCompositeRule: jest.fn(),
-    patchRule: jest.fn(),
-    deleteRule: jest.fn(),
-    suggestRules: jest.fn(),
-    fetchRules: jest.fn(),
+    createCompositeRule: vi.fn(),
+    patchRule: vi.fn(),
+    deleteRule: vi.fn(),
+    suggestRules: vi.fn(),
+    fetchRules: vi.fn(),
   }),
 }));
 
-jest.mock('queries/useCategoryContextQuery', () => ({
+vi.mock('queries/useCategoryContextQuery', () => ({
   useCategoryContextQuery: () => ({ data: [] }),
 }));
 
-jest.mock('contexts/NotificationContext', () => ({
-  useNotifications: () => ({ showSuccess: jest.fn(), showError: jest.fn() }),
+vi.mock('contexts/NotificationContext', () => ({
+  useNotifications: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
 }));
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-jest.mock('hooks/settings/useCategoryRuleCompositeFormSubmit', () => ({
-  useCategoryRuleCompositeFormSubmit: () => jest.fn(),
+vi.mock('hooks/settings/useCategoryRuleCompositeFormSubmit', () => ({
+  useCategoryRuleCompositeFormSubmit: () => vi.fn(),
 }));
 
 describe('useDeterministicCategoryRulesSectionState — openEditRule URL param', () => {
@@ -55,7 +55,7 @@ describe('useDeterministicCategoryRulesSectionState — openEditRule URL param',
 
   afterEach(() => {
     window.history.replaceState({}, '', `${window.location.pathname}${originalSearch}${originalHash}`);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('opens the edit modal for a matching rule when openEditRule param is present', async () => {

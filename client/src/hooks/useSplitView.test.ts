@@ -5,8 +5,8 @@ import { TIMEOUT_300_MS } from 'constants/numbers';
 import { useResponsiveBreakpoints } from './useResponsiveBreakpoints';
 import { useSplitView } from './useSplitView';
 
-jest.mock('./useResponsiveBreakpoints', () => ({
-  useResponsiveBreakpoints: jest.fn(),
+vi.mock('./useResponsiveBreakpoints', () => ({
+  useResponsiveBreakpoints: vi.fn(),
 }));
 
 const mockedUseResponsiveBreakpoints = useResponsiveBreakpoints as jest.MockedFunction<typeof useResponsiveBreakpoints>;
@@ -20,22 +20,22 @@ describe('useSplitView', () => {
   const mockLocalStorage = (() => {
     let store: Record<string, string> = {};
     return {
-      getItem: jest.fn((key: string) => store[key] || null),
-      setItem: jest.fn((key: string, value: string) => {
+      getItem: vi.fn((key: string) => store[key] || null),
+      setItem: vi.fn((key: string, value: string) => {
         store[key] = value.toString();
       }),
-      removeItem: jest.fn((key: string) => {
+      removeItem: vi.fn((key: string) => {
         delete store[key];
       }),
-      clear: jest.fn(() => {
+      clear: vi.fn(() => {
         store = {};
       }),
     };
   })();
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
     mockedUseResponsiveBreakpoints.mockReturnValue({
       isMobile: false,
       isTablet: false,
@@ -46,12 +46,12 @@ describe('useSplitView', () => {
       writable: true,
     });
     mockLocalStorage.clear();
-    console.error = jest.fn();
+    console.error = vi.fn();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   describe('initialization', () => {
@@ -212,7 +212,7 @@ describe('useSplitView', () => {
       expect(mockLocalStorage.setItem).not.toHaveBeenCalled();
 
       act(() => {
-        jest.advanceTimersByTime(TIMEOUT_300_MS);
+        vi.advanceTimersByTime(TIMEOUT_300_MS);
       });
 
       await waitFor(() => {
@@ -230,7 +230,7 @@ describe('useSplitView', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(TIMEOUT_300_MS);
+        vi.advanceTimersByTime(TIMEOUT_300_MS);
       });
 
       await waitFor(() => {
@@ -251,7 +251,7 @@ describe('useSplitView', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(TIMEOUT_300_MS);
+        vi.advanceTimersByTime(TIMEOUT_300_MS);
       });
 
       await waitFor(() => {
@@ -320,7 +320,7 @@ describe('useSplitView', () => {
       unmount();
 
       act(() => {
-        jest.advanceTimersByTime(TIMEOUT_300_MS);
+        vi.advanceTimersByTime(TIMEOUT_300_MS);
       });
 
       expect(mockLocalStorage.setItem).not.toHaveBeenCalled();

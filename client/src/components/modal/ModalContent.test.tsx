@@ -5,7 +5,7 @@ import { ModalContent } from 'components/modal/ModalContent';
 
 describe('ModalContent', () => {
   it('stops mousedown from bubbling to parent containers', () => {
-    const onParentMouseDown = jest.fn();
+    const onParentMouseDown = vi.fn();
 
     render(
       <div onMouseDown={onParentMouseDown}>

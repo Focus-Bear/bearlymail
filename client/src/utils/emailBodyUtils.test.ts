@@ -9,15 +9,17 @@ import {
   stripHtmlTags,
 } from './emailBodyUtils';
 
-// Mock DOMPurify
-jest.mock('dompurify', () => ({
-  sanitize: jest.fn((html: string) => html), // Return as-is for testing
-  addHook: jest.fn(),
+// Mock DOMPurify (default export — the source uses `import DOMPurify from 'dompurify'`)
+vi.mock('dompurify', () => ({
+  default: {
+    sanitize: vi.fn((html: string) => html), // Return as-is for testing
+    addHook: vi.fn(),
+  },
 }));
 
 describe('emailBodyUtils', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('removeSignature', () => {

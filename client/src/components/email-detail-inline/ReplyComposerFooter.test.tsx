@@ -1,9 +1,9 @@
 import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
-import { ReplyComposerFooter } from './ReplyComposerFooter';
+import { getScheduleSuggestions, ReplyComposerFooter } from './ReplyComposerFooter';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
       if (params) {
@@ -15,11 +15,11 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('utils/posthog', () => ({
-  captureEvent: jest.fn(),
+vi.mock('utils/posthog', () => ({
+  captureEvent: vi.fn(),
 }));
 
-jest.mock('react-icons/fi', () => ({
+vi.mock('react-icons/fi', () => ({
   FiCalendar: () => <svg data-testid="icon-calendar" />,
   FiInfo: () => <svg data-testid="icon-info" />,
 }));
@@ -29,12 +29,12 @@ describe('ReplyComposerFooter', () => {
     sending: false,
     checkingTone: false,
     draft: 'Test reply content',
-    onClose: jest.fn(),
-    onSend: jest.fn(),
+    onClose: vi.fn(),
+    onSend: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('follow-up duration input', () => {
@@ -327,29 +327,29 @@ describe('ReplyComposerFooter', () => {
     });
 
     it('hides tooltip on mouse leave after delay', () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       render(<ReplyComposerFooter {...defaultProps} />);
       const triggers = screen.getAllByTestId('info-tooltip-trigger');
       fireEvent.mouseEnter(triggers[0]);
       expect(screen.getByRole('tooltip')).toBeInTheDocument();
       fireEvent.mouseLeave(triggers[0]);
       act(() => {
-        jest.runAllTimers();
+        vi.runAllTimers();
       });
       expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
   describe('schedule button', () => {
     it('renders FiCalendar icon when onSchedule is provided', () => {
-      const onSchedule = jest.fn();
+      const onSchedule = vi.fn();
       render(<ReplyComposerFooter {...defaultProps} onSchedule={onSchedule} />);
       expect(screen.getByTestId('icon-calendar')).toBeInTheDocument();
     });
 
     it('opens schedule popup when schedule button is clicked', () => {
-      const onSchedule = jest.fn();
+      const onSchedule = vi.fn();
       render(<ReplyComposerFooter {...defaultProps} onSchedule={onSchedule} />);
       fireEvent.click(screen.getByLabelText('emailDetail.schedule'));
       // Popup should appear
@@ -359,7 +359,7 @@ describe('ReplyComposerFooter', () => {
     });
 
     it('calls onSchedule when "Pick date & time..." is clicked in popup', () => {
-      const onSchedule = jest.fn();
+      const onSchedule = vi.fn();
       render(<ReplyComposerFooter {...defaultProps} onSchedule={onSchedule} />);
       fireEvent.click(screen.getByLabelText('emailDetail.schedule'));
       fireEvent.click(screen.getByText('emailDetail.schedulePopup.pickDateTime'));
@@ -367,7 +367,7 @@ describe('ReplyComposerFooter', () => {
     });
 
     it('calls onSend with a date when a suggestion is clicked', () => {
-      const onSchedule = jest.fn();
+      const onSchedule = vi.fn();
       render(<ReplyComposerFooter {...defaultProps} onSchedule={onSchedule} />);
       fireEvent.click(screen.getByLabelText('emailDetail.schedule'));
       // Click first suggestion button (there will be at least one)
@@ -380,7 +380,7 @@ describe('ReplyComposerFooter', () => {
     });
 
     it('closes popup when Escape is pressed', () => {
-      const onSchedule = jest.fn();
+      const onSchedule = vi.fn();
       render(<ReplyComposerFooter {...defaultProps} onSchedule={onSchedule} />);
       fireEvent.click(screen.getByLabelText('emailDetail.schedule'));
       expect(screen.getByTestId('schedule-popup')).toBeInTheDocument();
@@ -397,7 +397,6 @@ describe('ReplyComposerFooter', () => {
 
   describe('getScheduleSuggestions', () => {
     it('returns Monday morning suggestion on a Saturday', () => {
-      const { getScheduleSuggestions } = require('./ReplyComposerFooter');
       // Saturday = dow 6
       const saturday = new Date('2026-03-07T10:00:00'); // Saturday
       const suggestions = getScheduleSuggestions(saturday);
@@ -406,7 +405,6 @@ describe('ReplyComposerFooter', () => {
     });
 
     it('returns tomorrow morning on late evening weekday', () => {
-      const { getScheduleSuggestions } = require('./ReplyComposerFooter');
       const eveningMonday = new Date('2026-03-09T20:00:00'); // Monday evening
       const suggestions = getScheduleSuggestions(eveningMonday);
       expect(suggestions).toHaveLength(1);
@@ -414,7 +412,6 @@ describe('ReplyComposerFooter', () => {
     });
 
     it('returns this afternoon + tomorrow morning on weekday morning', () => {
-      const { getScheduleSuggestions } = require('./ReplyComposerFooter');
       const mondayMorning = new Date('2026-03-09T09:00:00'); // Monday morning
       const suggestions = getScheduleSuggestions(mondayMorning);
       expect(suggestions).toHaveLength(2);
@@ -423,7 +420,6 @@ describe('ReplyComposerFooter', () => {
     });
 
     it('returns tomorrow morning on weekday afternoon', () => {
-      const { getScheduleSuggestions } = require('./ReplyComposerFooter');
       const mondayAfternoon = new Date('2026-03-09T15:00:00'); // Monday afternoon
       const suggestions = getScheduleSuggestions(mondayAfternoon);
       expect(suggestions).toHaveLength(1);

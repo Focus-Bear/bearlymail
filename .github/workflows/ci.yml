@@ -95,7 +95,7 @@ jobs:
 
       - name: Run tests
         working-directory: client
-        run: npm test -- --watchAll=false --passWithNoTests
+        run: npm test -- --passWithNoTests
 
   server-lint:
     name: Server Lint

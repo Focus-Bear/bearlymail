@@ -13,11 +13,11 @@ import {
   navigateAfterSplitViewAction,
 } from './inboxCategoryHelpers';
 
-jest.mock('components/inbox/CategoryAccordion', () => ({
-  groupEmailsByCategory: jest.fn(),
+vi.mock('components/inbox/CategoryAccordion', () => ({
+  groupEmailsByCategory: vi.fn(),
 }));
 
-jest.mock('hooks/useEmailFetching', () => ({
+vi.mock('hooks/useEmailFetching', () => ({
   getCategoryKey: (id: string | null | undefined) => id ?? 'uncategorized',
 }));
 
@@ -329,8 +329,8 @@ describe('navigateAfterSplitViewAction', () => {
 
   function makeSplitView() {
     return {
-      openEmail: jest.fn(),
-      closeEmail: jest.fn(),
+      openEmail: vi.fn(),
+      closeEmail: vi.fn(),
     };
   }
 
@@ -340,7 +340,7 @@ describe('navigateAfterSplitViewAction', () => {
     mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [email])]);
 
     const splitView = makeSplitView();
-    const setIndex = jest.fn();
+    const setIndex = vi.fn();
     navigateAfterSplitViewAction('only', [email], MODE, splitView, setIndex);
 
     expect(splitView.closeEmail).toHaveBeenCalled();
@@ -359,7 +359,7 @@ describe('navigateAfterSplitViewAction', () => {
     mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [emailA, emailB, emailC])]);
 
     const splitView = makeSplitView();
-    const setIndex = jest.fn();
+    const setIndex = vi.fn();
     navigateAfterSplitViewAction('b', [emailA, emailB, emailC], MODE, splitView, setIndex);
 
     // B was at display index 1; remaining = [A, C]; index 1 = C
@@ -377,7 +377,7 @@ describe('navigateAfterSplitViewAction', () => {
     mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [emailA, emailB, emailC])]);
 
     const splitView = makeSplitView();
-    const setIndex = jest.fn();
+    const setIndex = vi.fn();
     navigateAfterSplitViewAction('c', [emailA, emailB, emailC], MODE, splitView, setIndex);
 
     // C was at display index 2; remaining = [A, B]; clamped to index 1 → B
@@ -394,7 +394,7 @@ describe('navigateAfterSplitViewAction', () => {
     mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [emailA, emailB])]);
 
     const splitView = makeSplitView();
-    const setIndex = jest.fn();
+    const setIndex = vi.fn();
     navigateAfterSplitViewAction('a', [emailA, emailB], MODE, splitView, setIndex);
 
     expect(splitView.openEmail).toHaveBeenCalledWith('b');
@@ -412,7 +412,7 @@ describe('navigateAfterSplitViewAction', () => {
     mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [emailA, emailB, emailC])]);
 
     const splitView = makeSplitView();
-    const setIndex = jest.fn();
+    const setIndex = vi.fn();
     navigateAfterSplitViewAction('b', [emailA, emailB, emailC], MODE, splitView, setIndex);
 
     // B is at index 1; remaining = [A, C]; index 1 = C
@@ -434,7 +434,7 @@ describe('navigateAfterSplitViewAction', () => {
     ]);
 
     const splitView = makeSplitView();
-    const setIndex = jest.fn();
+    const setIndex = vi.fn();
     navigateAfterSplitViewAction('b', [emailA, emailB, emailC, emailD], MODE, splitView, setIndex);
 
     // B was at display index 1; after removal remaining = [A, C, D]; index 1 = C

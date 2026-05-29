@@ -4,15 +4,15 @@ import axios from 'axios';
 
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, opts?: Record<string, unknown>) => (opts?.filename ? `${key}:${opts.filename}` : key) }),
 }));
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-const createObjectURLMock = jest.fn(() => 'blob:mock-url');
-const revokeObjectURLMock = jest.fn();
+const createObjectURLMock = vi.fn(() => 'blob:mock-url');
+const revokeObjectURLMock = vi.fn();
 Object.defineProperty(window, 'URL', {
   value: { createObjectURL: createObjectURLMock, revokeObjectURL: revokeObjectURLMock },
   writable: true,
@@ -35,14 +35,14 @@ const pdfAttachment = {
 const defaultProps = {
   emailId: 'email-1',
   attachment: imageAttachment,
-  onClose: jest.fn(),
-  onDownload: jest.fn().mockResolvedValue(undefined),
+  onClose: vi.fn(),
+  onDownload: vi.fn().mockResolvedValue(undefined),
 };
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   // Re-stub atob after clearAllMocks, which resets mock return values
-  global.atob = jest.fn(() => 'A');
+  global.atob = vi.fn(() => 'A');
   createObjectURLMock.mockReturnValue('blob:mock-url');
   mockedAxios.get.mockResolvedValue({
     data: { base64Content: 'QQ==', mimeType: 'image/png' },
@@ -82,14 +82,14 @@ describe('AttachmentPreviewModal', () => {
   });
 
   it('calls onClose when Escape key is pressed', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<AttachmentPreviewModal {...defaultProps} onClose={onClose} />);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('calls onClose when overlay background is clicked', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     const { container } = render(<AttachmentPreviewModal {...defaultProps} onClose={onClose} />);
     const overlay = container.firstChild as HTMLElement;
     fireEvent.click(overlay);
@@ -97,7 +97,7 @@ describe('AttachmentPreviewModal', () => {
   });
 
   it('calls onDownload when download button is clicked', async () => {
-    const onDownload = jest.fn().mockResolvedValue(undefined);
+    const onDownload = vi.fn().mockResolvedValue(undefined);
     render(<AttachmentPreviewModal {...defaultProps} onDownload={onDownload} />);
     await waitFor(() => screen.getByAltText('photo.png'));
     fireEvent.click(screen.getByLabelText('emailDetail.downloadAttachment'));

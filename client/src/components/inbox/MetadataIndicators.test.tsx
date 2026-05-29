@@ -7,11 +7,11 @@ import { Email } from 'types/email';
 
 import { MetadataIndicators } from './MetadataIndicators';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     colors: {
       accent: { info: '#E9902C' },
@@ -26,12 +26,12 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('constants/emojis', () => ({
+vi.mock('constants/emojis', () => ({
   EMOJI_CHECK: '✅',
   EMOJI_NOTE: '📝',
 }));
 
-jest.mock('components/email-detail/emailPhishingWarning.helpers', () => ({
+vi.mock('components/email-detail/emailPhishingWarning.helpers', () => ({
   shouldShowPhishingAlert: (confidence: string | null | undefined) =>
     confidence === 'medium' || confidence === 'high',
 }));

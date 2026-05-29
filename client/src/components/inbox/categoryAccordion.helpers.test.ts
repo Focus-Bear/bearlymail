@@ -86,12 +86,12 @@ describe('getCategoryIcon', () => {
 
 describe('makeArchiveKeyDownHandler', () => {
   function makeKeyEvent(key: string): KeyboardEvent {
-    return { key, stopPropagation: jest.fn() } as unknown as KeyboardEvent;
+    return { key, stopPropagation: vi.fn() } as unknown as KeyboardEvent;
   }
 
   it('calls onConfirm and stopPropagation when "y" is pressed', () => {
-    const onConfirm = jest.fn();
-    const onCancel = jest.fn();
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
     const handler = makeArchiveKeyDownHandler(onConfirm, onCancel);
     const event = makeKeyEvent('y');
     handler(event);
@@ -101,8 +101,8 @@ describe('makeArchiveKeyDownHandler', () => {
   });
 
   it('calls onConfirm when uppercase "Y" is pressed (case-insensitive)', () => {
-    const onConfirm = jest.fn();
-    const onCancel = jest.fn();
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
     const handler = makeArchiveKeyDownHandler(onConfirm, onCancel);
     const event = makeKeyEvent('Y');
     handler(event);
@@ -111,8 +111,8 @@ describe('makeArchiveKeyDownHandler', () => {
   });
 
   it('calls onCancel and stopPropagation when Escape is pressed', () => {
-    const onConfirm = jest.fn();
-    const onCancel = jest.fn();
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
     const handler = makeArchiveKeyDownHandler(onConfirm, onCancel);
     const event = makeKeyEvent('Escape');
     handler(event);
@@ -122,8 +122,8 @@ describe('makeArchiveKeyDownHandler', () => {
   });
 
   it('does nothing for other keys (e.g. Enter)', () => {
-    const onConfirm = jest.fn();
-    const onCancel = jest.fn();
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
     const handler = makeArchiveKeyDownHandler(onConfirm, onCancel);
     const event = makeKeyEvent('Enter');
     handler(event);

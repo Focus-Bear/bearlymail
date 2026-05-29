@@ -4,25 +4,25 @@ import axios, { AxiosError } from 'axios';
 
 import { CategoryDebugModal } from './CategoryDebugModal';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // createPortal renders inline for tests
-jest.mock('react-dom', () => ({
-  ...jest.requireActual('react-dom'),
+vi.mock('react-dom', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-dom')>()),
   createPortal: (node: React.ReactNode) => node,
 }));
 
-jest.mock('react-i18next', () => {
+vi.mock('react-i18next', () => {
   const translate = (key: string) => key;
   return {
     useTranslation: () => ({ t: translate }),
   };
 });
 
-jest.mock('config/api', () => ({ API_URL: 'http://localhost:3001' }));
+vi.mock('config/api', () => ({ API_URL: 'http://localhost:3001' }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px' },
     colors: {
@@ -45,16 +45,16 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('components/inbox/debug/AccordionGroup', () => ({
+vi.mock('components/inbox/debug/AccordionGroup', () => ({
   AccordionGroup: ({ children }: { children: React.ReactNode }) => <div data-testid="accordion">{children}</div>,
 }));
 
-jest.mock('components/modal', () => ({
+vi.mock('components/modal', () => ({
   ModalBackdrop: ({ children }: { children: React.ReactNode }) => <div data-testid="modal-backdrop">{children}</div>,
   ModalContent: ({ children }: { children: React.ReactNode }) => <div data-testid="modal-content">{children}</div>,
 }));
 
-jest.mock('components/modal/ModalHeaderWithClose', () => ({
+vi.mock('components/modal/ModalHeaderWithClose', () => ({
   ModalHeaderWithClose: ({ title, onClose }: { title: string; onClose: () => void }) => (
     <div>
       <span>{title}</span>
@@ -63,22 +63,22 @@ jest.mock('components/modal/ModalHeaderWithClose', () => ({
   ),
 }));
 
-jest.mock('./CategoryDebugPanels', () => ({
+vi.mock('./CategoryDebugPanels', () => ({
   EmailSection: () => <div data-testid="email-section" />,
   CategorySection: () => <div data-testid="category-section" />,
   UserContextSection: () => <div data-testid="user-context-section" />,
   CategoriesList: () => <div data-testid="categories-list" />,
 }));
 
-jest.mock('./CategoryDebugTracePanel', () => ({
+vi.mock('./CategoryDebugTracePanel', () => ({
   CategoryDebugTracePanel: () => <div data-testid="trace-panel" />,
 }));
 
-jest.mock('./categoryDebugUtils', () => ({
+vi.mock('./categoryDebugUtils', () => ({
   formatForGithubIssue: () => 'formatted debug info',
 }));
 
-jest.mock('constants/numbers', () => ({
+vi.mock('constants/numbers', () => ({
   OPACITY_DISABLED_ALT: 0.5,
   OPACITY_FULL: 1,
 }));
@@ -100,11 +100,11 @@ const debugData = {
 
 const defaultProps = {
   emailId: 'email-123',
-  onClose: jest.fn(),
+  onClose: vi.fn(),
 };
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   mockedAxios.isAxiosError.mockReturnValue(false);
 });
 

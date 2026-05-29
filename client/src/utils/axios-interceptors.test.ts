@@ -17,9 +17,9 @@ describe('axios-interceptors', () => {
   let responseUseSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    mockLogout = jest.fn();
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockLogout = vi.fn();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     // Clear any existing interceptors
     axios.interceptors.request.clear();
@@ -29,7 +29,7 @@ describe('axios-interceptors', () => {
     resetInterceptorsForTesting();
 
     // Spy on interceptor registration
-    responseUseSpy = jest.spyOn(axios.interceptors.response, 'use');
+    responseUseSpy = vi.spyOn(axios.interceptors.response, 'use');
 
     setupAxiosInterceptors(mockLogout);
 
@@ -40,7 +40,7 @@ describe('axios-interceptors', () => {
   afterEach(() => {
     axios.interceptors.request.clear();
     axios.interceptors.response.clear();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('setupAxiosInterceptors', () => {
@@ -57,7 +57,7 @@ describe('axios-interceptors', () => {
     it('should not register a request interceptor (cookies are sent automatically)', () => {
       // Reset and spy on request interceptor registration
       resetInterceptorsForTesting();
-      const requestUseSpy = jest.spyOn(axios.interceptors.request, 'use');
+      const requestUseSpy = vi.spyOn(axios.interceptors.request, 'use');
 
       setupAxiosInterceptors(mockLogout);
 

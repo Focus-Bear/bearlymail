@@ -13,31 +13,31 @@ import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { appendFilterParams, useEmailFetching } from './useEmailFetching';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-jest.mock('utils/emailCache', () => ({
-  clearCacheForMode: jest.fn(),
-  filterHash: jest.fn(filters => `hash_${filters?.minPriority ?? 'none'}_${filters?.maxPriority ?? 'none'}`),
-  getCachedCategoryEmails: jest.fn().mockReturnValue(null),
-  getCachedSummary: jest.fn().mockReturnValue(null),
-  invalidateSummaryCache: jest.fn(),
-  setCachedCategoryEmails: jest.fn(),
-  setCachedSummary: jest.fn(),
-  removeEmailFromCache: jest.fn(),
-  clearCache: jest.fn(),
+vi.mock('utils/emailCache', () => ({
+  clearCacheForMode: vi.fn(),
+  filterHash: vi.fn(filters => `hash_${filters?.minPriority ?? 'none'}_${filters?.maxPriority ?? 'none'}`),
+  getCachedCategoryEmails: vi.fn().mockReturnValue(null),
+  getCachedSummary: vi.fn().mockReturnValue(null),
+  invalidateSummaryCache: vi.fn(),
+  setCachedCategoryEmails: vi.fn(),
+  setCachedSummary: vi.fn(),
+  removeEmailFromCache: vi.fn(),
+  clearCache: vi.fn(),
 }));
 const mockedClearCacheForMode = emailCache.clearCacheForMode as jest.MockedFunction<
   typeof emailCache.clearCacheForMode
 >;
 
 // Legacy mock variables referenced in skipped tests
-const mockSetEmails = jest.fn();
-const mockSetDecrypting = jest.fn();
-const mockSetFetchError = jest.fn();
-const mockSetLoading = jest.fn();
-const mockSetRefreshing = jest.fn();
-const mockSetLoadingModeSwitch = jest.fn();
+const mockSetEmails = vi.fn();
+const mockSetDecrypting = vi.fn();
+const mockSetFetchError = vi.fn();
+const mockSetLoading = vi.fn();
+const mockSetRefreshing = vi.fn();
+const mockSetLoadingModeSwitch = vi.fn();
 
 // Create a test store
 const createTestStore = () =>
@@ -60,9 +60,9 @@ const createWrapper = () => {
 // Skipping tests that reference the old prop-based API until they can be refactored.
 describe.skip('useEmailFetching', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    console.log = jest.fn();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    console.log = vi.fn();
+    console.error = vi.fn();
   });
 
   const defaultProps = {
@@ -378,10 +378,10 @@ describe.skip('useEmailFetching', () => {
 // ─── Stale UUID self-healing ──────────────────────────────────────────────────
 describe('fetchCategoryEmails – stale UUID self-healing', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    console.log = jest.fn();
-    console.warn = jest.fn();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    console.log = vi.fn();
+    console.warn = vi.fn();
+    console.error = vi.fn();
     // Ensure cache always returns null so we don't hit the serve-from-cache path
     (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
   });
@@ -473,14 +473,14 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
   let store: ReturnType<typeof configureStore>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // react-scripts sets resetMocks: true, which resets mockReturnValue between tests.
     // Re-establish the default return values that the module-level mock factory sets.
     (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
     (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
-    console.log = jest.fn();
-    console.warn = jest.fn();
-    console.error = jest.fn();
+    console.log = vi.fn();
+    console.warn = vi.fn();
+    console.error = vi.fn();
     store = configureStore({ reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer } });
   });
 
@@ -605,7 +605,7 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
 
 describe('fetchEmails — cache invalidation on overrideFilters', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
     (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
   });
@@ -681,7 +681,7 @@ describe('fetchEmails — cache invalidation on filter change (fix #846)', () =>
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Default: no cached summary so fetchEmailsImpl doesn't short-circuit
     (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
     mockedAxios.get.mockResolvedValue({ data: { categories: [] } });
@@ -750,12 +750,12 @@ describe('fix #1689 – summaryItem null-guard in fetchCategoryEmailsImpl', () =
   let store: ReturnType<typeof configureStore>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
     (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
-    console.log = jest.fn();
-    console.warn = jest.fn();
-    console.error = jest.fn();
+    console.log = vi.fn();
+    console.warn = vi.fn();
+    console.error = vi.fn();
     store = configureStore({ reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer } });
   });
 
@@ -876,12 +876,12 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
   let store: ReturnType<typeof configureStore>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
     (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
-    console.log = jest.fn();
-    console.warn = jest.fn();
-    console.error = jest.fn();
+    console.log = vi.fn();
+    console.warn = vi.fn();
+    console.error = vi.fn();
   });
 
   const createStoreWithSummary = (summary: Array<{ id: string | null; name: string; count: number }>) =>
@@ -976,9 +976,9 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
       // Serve from cache (empty) then background refresh returns 0
       (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
       // Summary in ref shows count 7 (stale), background refresh returns 0
+      const { setCategorySummary } = await import('store/slices/inboxDataSlice');
       store.dispatch(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-var-requires
-        require('store/slices/inboxDataSlice').setCategorySummary([{ id: 'uuid-bg-empty-2062', name: 'Finance', count: 7 }])
+        setCategorySummary([{ id: 'uuid-bg-empty-2062', name: 'Finance', count: 7 }])
       );
       mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
 
@@ -1005,9 +1005,9 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
     // must not re-inflate counts for categories already confirmed empty by the server.
 
     it('does not re-inflate count for a loaded category with 0 emails when setCategorySummary fires', async () => {
-      const { markCategoryLoaded, setCategorySummary, updateCategoryEmails } =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-var-requires
-        require('store/slices/inboxDataSlice') as typeof import('store/slices/inboxDataSlice');
+      const { markCategoryLoaded, setCategorySummary, updateCategoryEmails } = await import(
+        'store/slices/inboxDataSlice'
+      );
 
       store = createStoreWithSummary([{ id: 'uuid-race-2062', name: 'Work', count: 5 }]);
 
@@ -1025,9 +1025,9 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
     });
 
     it('does NOT zero out a loaded category that still has emails', async () => {
-      const { markCategoryLoaded, setCategorySummary, updateCategoryEmails } =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-var-requires
-        require('store/slices/inboxDataSlice') as typeof import('store/slices/inboxDataSlice');
+      const { markCategoryLoaded, setCategorySummary, updateCategoryEmails } = await import(
+        'store/slices/inboxDataSlice'
+      );
 
       store = createStoreWithSummary([{ id: 'uuid-has-emails-race', name: 'Work', count: 3 }]);
 
@@ -1042,9 +1042,7 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
     });
 
     it('does NOT zero out a category that has not been loaded yet', async () => {
-      const { setCategorySummary } =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-var-requires
-        require('store/slices/inboxDataSlice') as typeof import('store/slices/inboxDataSlice');
+      const { setCategorySummary } = await import('store/slices/inboxDataSlice');
 
       store = createStoreWithSummary([]);
       store.dispatch(setCategorySummary([{ id: 'uuid-not-loaded', name: 'Work', count: 4 }]));

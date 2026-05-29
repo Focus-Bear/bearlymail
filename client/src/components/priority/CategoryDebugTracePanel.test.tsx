@@ -8,11 +8,11 @@ import { CategoryDebugTracePanel } from './CategoryDebugTracePanel';
 // only appears via an interpolated string would NOT render the dynamic value.
 // Shortlisted category names are rendered as raw text (not via t()), so they must
 // appear directly in the DOM when the ordered list is shown.
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px' },
     colors: {
@@ -30,11 +30,11 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('constants/category-rules', () => ({
+vi.mock('constants/category-rules', () => ({
   CATEGORY_RULE_KIND_COMPOSITE: 'composite',
 }));
 
-jest.mock('./CategoryDebugTraceEvaluationRow', () => ({
+vi.mock('./CategoryDebugTraceEvaluationRow', () => ({
   CategoryDebugTraceEvaluationRow: () => <div data-testid="evaluation-row" />,
 }));
 

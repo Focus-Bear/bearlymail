@@ -1,23 +1,25 @@
-// jest-dom adds custom jest matchers for asserting on DOM nodes.
-// allows you to do things like:
+// jest-dom adds custom matchers for asserting on DOM nodes, e.g.
 // expect(element).toHaveTextContent(/react/i)
-// learn more: https://github.com/testing-library/jest-dom
+// https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
 
-// Mock import.meta.env for Jest (Vite-specific feature)
-// This is needed because Jest doesn't support import.meta.env natively
-Object.defineProperty(globalThis, 'import', {
-  value: {
-    meta: {
-      env: {
-        VITE_API_URL: 'http://localhost:3001',
-        VITE_POSTHOG_KEY: '',
-        VITE_POSTHOG_HOST: '',
-        MODE: 'test',
-        DEV: false,
-        PROD: false,
-      },
-    },
+import { cleanup } from '@testing-library/react';
+import { afterEach, vi } from 'vitest';
+
+// Testing Library's `waitFor` pumps fake timers itself, but only when it detects
+// a Jest-style fake-timer environment: it requires a global `jest` object AND a
+// faked `setTimeout` carrying a `clock` property. Vitest's fake timers provide
+// the `clock` marker but no global `jest`, so without this shim `waitFor` hangs
+// until the 5s timeout whenever a test calls `vi.useFakeTimers()`. Exposing
+// `jest.advanceTimersByTime` (the only method waitFor uses) restores the
+// behaviour the suite was written against under Create React App's Jest setup.
+(globalThis as typeof globalThis & { jest?: { advanceTimersByTime(ms: number): void } }).jest = {
+  advanceTimersByTime: (ms: number) => {
+    vi.advanceTimersByTime(ms);
   },
-  writable: true,
+};
+
+// Unmount React trees between tests so DOM state doesn't leak across cases.
+afterEach(() => {
+  cleanup();
 });

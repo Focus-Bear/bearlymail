@@ -10,16 +10,16 @@ import { useSearch } from './useSearch';
 
 // useSearch → useConnectedAccounts → useConnectedAccountsQuery (TanStack Query).
 // Tests don't wrap in QueryClientProvider, so mock the query hook directly.
-jest.mock('queries/useConnectedAccountsQuery', () => ({
+vi.mock('queries/useConnectedAccountsQuery', () => ({
   useConnectedAccountsQuery: () => ({ data: [], isLoading: false }),
 }));
 
-jest.mock('axios');
-jest.mock('react-router-dom', () => ({
-  useNavigate: jest.fn(),
+vi.mock('axios');
+vi.mock('react-router-dom', () => ({
+  useNavigate: vi.fn(),
 }));
-jest.mock('utils/posthog', () => ({
-  captureEvent: jest.fn(),
+vi.mock('utils/posthog', () => ({
+  captureEvent: vi.fn(),
 }));
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -27,15 +27,15 @@ const mockedUseNavigate = useNavigate as jest.MockedFunction<typeof useNavigate>
 const mockedCaptureEvent = captureEvent as jest.MockedFunction<typeof captureEvent>;
 
 describe('useSearch', () => {
-  const mockNavigate = jest.fn();
+  const mockNavigate = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
-    console.log = jest.fn();
-    console.warn = jest.fn();
-    console.error = jest.fn();
-    window.alert = jest.fn();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    console.log = vi.fn();
+    console.warn = vi.fn();
+    console.error = vi.fn();
+    window.alert = vi.fn();
     mockedUseNavigate.mockReturnValue(mockNavigate);
     // axios.isAxiosError is auto-mocked; restore real behaviour so error narrowing works
     (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation(err => err?.isAxiosError === true);
@@ -44,8 +44,8 @@ describe('useSearch', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   describe('initialization', () => {
@@ -64,7 +64,7 @@ describe('useSearch', () => {
     it('should not search when query is empty', async () => {
       const { result } = renderHook(() => useSearch());
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -80,7 +80,7 @@ describe('useSearch', () => {
         result.current.setQuery('   ');
       });
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -99,7 +99,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockResolvedValueOnce({ data: mockResults });
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -132,13 +132,13 @@ describe('useSearch', () => {
       });
       mockedAxios.get.mockImplementation(() => delayedResponse);
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       act(() => {
         result.current.handleSearch(mockEvent);
       });
 
       await act(async () => {
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
       });
       expect(result.current.progressStep).toBe('Searching for emails...');
     });
@@ -152,7 +152,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -175,7 +175,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockResolvedValueOnce({ data: null });
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -201,7 +201,7 @@ describe('useSearch', () => {
       };
       mockedAxios.get.mockRejectedValueOnce(error);
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -224,7 +224,7 @@ describe('useSearch', () => {
       const error = new Error('Network error');
       mockedAxios.get.mockRejectedValueOnce(error);
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -247,7 +247,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -266,7 +266,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockRejectedValueOnce(new Error('Error'));
 
-      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -303,9 +303,8 @@ describe('search performance tracking (#1115)', () => {
     // Phase 2 ranking returns empty
     mockedAxios.post.mockResolvedValueOnce({ data: [] });
 
-    const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+    const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
     await act(async () => {
-      jest.advanceTimersByTime(100);
       await result.current.handleSearch(mockEvent);
     });
 
@@ -331,7 +330,7 @@ describe('search performance tracking (#1115)', () => {
     // Simulate slow response by manipulating Date.now
     const realDateNow = Date.now;
     let callCount = 0;
-    jest.spyOn(Date, 'now').mockImplementation(() => {
+    vi.spyOn(Date, 'now').mockImplementation(() => {
       callCount++;
       // First call (searchStartMs): return a fixed time
       // Subsequent calls (phase1DurationMs): return 2500ms later
@@ -341,7 +340,7 @@ describe('search performance tracking (#1115)', () => {
     mockedAxios.get.mockResolvedValueOnce({ data: [fakeEmail] });
     mockedAxios.post.mockResolvedValueOnce({ data: [] });
 
-    const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+    const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
     await act(async () => {
       await result.current.handleSearch(mockEvent);
     });
@@ -355,7 +354,7 @@ describe('search performance tracking (#1115)', () => {
       });
     });
 
-    jest.spyOn(Date, 'now').mockRestore();
+    vi.spyOn(Date, 'now').mockRestore();
     Date.now = realDateNow;
   });
 
@@ -367,13 +366,13 @@ describe('search performance tracking (#1115)', () => {
     });
 
     // Simulate fast response: Date.now returns same value both times
-    jest.spyOn(Date, 'now').mockReturnValue(1000000);
+    vi.spyOn(Date, 'now').mockReturnValue(1000000);
 
     const fakeEmail = { id: 'email-fast', subject: 'Fast', from: 'fast@example.com' };
     mockedAxios.get.mockResolvedValueOnce({ data: [fakeEmail] });
     mockedAxios.post.mockResolvedValueOnce({ data: [] });
 
-    const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
+    const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
     await act(async () => {
       await result.current.handleSearch(mockEvent);
     });
@@ -383,6 +382,6 @@ describe('search performance tracking (#1115)', () => {
       expect(slowCalls).toHaveLength(0);
     });
 
-    jest.spyOn(Date, 'now').mockRestore();
+    vi.spyOn(Date, 'now').mockRestore();
   });
 });

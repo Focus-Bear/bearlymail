@@ -6,7 +6,7 @@ import type { SuggestedAction } from 'components/quick-actions/QuickActionsMenu'
 
 import { GitHubLinksList } from './GitHubLinksList';
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '24px' },
     colors: {
@@ -21,7 +21,7 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('constants/strings', () => ({
+vi.mock('constants/strings', () => ({
   GITHUB_STATE_OPEN: 'open',
   GITHUB_STATUS_MERGED: 'merged',
   LINK_TYPE_ISSUE: 'issue',
@@ -32,12 +32,12 @@ jest.mock('constants/strings', () => ({
   STRING_NONE: 'none',
 }));
 
-jest.mock('constants/emojis', () => ({
+vi.mock('constants/emojis', () => ({
   EMOJI_CLIPBOARD: '📋',
 }));
 
 // Stub out sub-components so we can focus on routing logic
-jest.mock('./GitHubLinkCard', () => ({
+vi.mock('./GitHubLinkCard', () => ({
   GitHubLinkCard: ({ link, suggestedActions }: { link: GitHubLink; suggestedActions?: SuggestedAction[] }) => (
     <div data-testid={`card-${link.owner}-${link.repo}-${link.number}`}>
       {suggestedActions?.map((suggestedAction: SuggestedAction) => (

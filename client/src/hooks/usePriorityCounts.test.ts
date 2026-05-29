@@ -5,14 +5,14 @@ import { API_URL } from 'config/api';
 
 import { usePriorityCounts } from './usePriorityCounts';
 
-jest.mock('axios');
+vi.mock('axios');
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('usePriorityCounts', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    console.error = vi.fn();
   });
 
   it('fetches priority counts from the correct endpoint with default triage mode', async () => {

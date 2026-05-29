@@ -22,12 +22,12 @@ import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { useEmailActionsBase } from './useEmailActionsBase';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-jest.mock('utils/emailCache', () => ({
-  removeEmailFromCache: jest.fn(),
-  invalidateSummaryCache: jest.fn(),
+vi.mock('utils/emailCache', () => ({
+  removeEmailFromCache: vi.fn(),
+  invalidateSummaryCache: vi.fn(),
 }));
 
 const mockedRemoveEmailFromCache = emailCache.removeEmailFromCache as jest.MockedFunction<
@@ -90,12 +90,12 @@ const createWrapper = (store: ReturnType<typeof createTestStore>) => {
 };
 
 describe('useEmailActionsBase — handleSetStarCount', () => {
-  const mockFetchEmails = jest.fn().mockResolvedValue(undefined);
-  const mockOnSuggestionRemove = jest.fn();
-  const mockOnTabCountsUpdateOptimistically = jest.fn();
+  const mockFetchEmails = vi.fn().mockResolvedValue(undefined);
+  const mockOnSuggestionRemove = vi.fn();
+  const mockOnTabCountsUpdateOptimistically = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedAxios.put.mockResolvedValue({ data: {} });
   });
 

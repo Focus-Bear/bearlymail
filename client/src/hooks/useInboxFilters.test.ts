@@ -9,7 +9,7 @@ import {
 
 // useInboxFilters → useConnectedAccountsQuery (TanStack Query).
 // Tests don't wrap in QueryClientProvider, so mock the query hook directly.
-jest.mock('queries/useConnectedAccountsQuery', () => ({
+vi.mock('queries/useConnectedAccountsQuery', () => ({
   useConnectedAccountsQuery: () => ({ data: [], isLoading: false }),
 }));
 
@@ -54,7 +54,7 @@ describe('PRIORITY_RANGES', () => {
 describe('useInboxFilters', () => {
   beforeEach(() => {
     localStorage.clear();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('sanitizeStoredFilters (localStorage migration, fixes #1164)', () => {
@@ -169,7 +169,7 @@ describe('useInboxFilters', () => {
 
     it('falls back to Very High (50/null) when localStorage JSON is malformed', () => {
       localStorage.setItem(STORAGE_KEY, 'not-valid-json{{{');
-      console.error = jest.fn();
+      console.error = vi.fn();
 
       const { result } = renderHook(() => useInboxFilters());
 

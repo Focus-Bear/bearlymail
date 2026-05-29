@@ -7,9 +7,9 @@ import { API_URL } from 'config/api';
 
 import { useBlockSender } from './useBlockSender';
 
-jest.mock('axios');
-jest.mock('utils/posthog', () => ({
-  captureEvent: jest.fn(),
+vi.mock('axios');
+vi.mock('utils/posthog', () => ({
+  captureEvent: vi.fn(),
 }));
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -21,13 +21,13 @@ describe('useBlockSender', () => {
     { id: '2', from: 'good@example.com', subject: 'Good', receivedAt: '2024-01-02', threadId: 'thread-2' } as Email,
   ];
 
-  const mockSetEmails = jest.fn();
-  const mockOnHideBlockConfirm = jest.fn();
-  const mockFetchEmails = jest.fn();
+  const mockSetEmails = vi.fn();
+  const mockOnHideBlockConfirm = vi.fn();
+  const mockFetchEmails = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    console.error = vi.fn();
     mockFetchEmails.mockResolvedValue(undefined);
   });
 

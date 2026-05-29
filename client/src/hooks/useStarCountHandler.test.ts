@@ -6,22 +6,22 @@ import { PERCENTAGE_37_5, PERCENTAGE_62_5, PERCENTAGE_87_5 } from 'constants/num
 
 import { useStarCountHandler } from './useStarCountHandler';
 
-jest.mock('utils/posthog', () => ({
-  captureEvent: jest.fn(),
+vi.mock('utils/posthog', () => ({
+  captureEvent: vi.fn(),
 }));
 
-jest.mock('types/email', () => ({
-  ...jest.requireActual('types/email'),
-  getEmailPriorityScore: jest.fn(),
+vi.mock('types/email', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('types/email')>()),
+  getEmailPriorityScore: vi.fn(),
 }));
 
 const mockedCaptureEvent = captureEvent as jest.MockedFunction<typeof captureEvent>;
 const mockedGetEmailPriorityScore = getEmailPriorityScore as jest.MockedFunction<typeof getEmailPriorityScore>;
 
 describe('useStarCountHandler', () => {
-  const mockHandleSetStarCountBase = jest.fn();
-  const mockOnShowStarDiscrepancy = jest.fn();
-  const mockOnShowPriorityOverride = jest.fn();
+  const mockHandleSetStarCountBase = vi.fn();
+  const mockOnShowStarDiscrepancy = vi.fn();
+  const mockOnShowPriorityOverride = vi.fn();
 
   const mockEmails: Email[] = [
     {
@@ -47,7 +47,7 @@ describe('useStarCountHandler', () => {
   ];
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedGetEmailPriorityScore.mockReturnValue(50);
   });
 

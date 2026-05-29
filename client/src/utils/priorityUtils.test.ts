@@ -1,7 +1,7 @@
 import { getPriorityBadge } from './priorityUtils';
 
 // Mock the theme module
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     colors: {
       accent: {
@@ -98,7 +98,7 @@ describe('priorityUtils', () => {
     });
 
     it('should use translation function when provided', () => {
-      const tFunc = jest.fn((key: string) => {
+      const tFunc = vi.fn((key: string) => {
         const translations: Record<string, string> = {
           'priority.veryHigh': 'Muy Alto',
           'priority.high': 'Alto',

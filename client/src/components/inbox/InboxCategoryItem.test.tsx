@@ -12,10 +12,10 @@ import { CategoryGroup } from 'components/inbox/CategoryAccordion';
 
 import { InboxCategoryItem } from './InboxContentParts';
 
-jest.mock('utils/posthog', () => ({ captureEvent: jest.fn() }));
-jest.mock('axios');
+vi.mock('utils/posthog', () => ({ captureEvent: vi.fn() }));
+vi.mock('axios');
 
-jest.mock('components/inbox/CategoryAccordion', () => ({
+vi.mock('components/inbox/CategoryAccordion', () => ({
   CategoryAccordion: ({
     children,
     isExpanded,
@@ -36,49 +36,49 @@ jest.mock('components/inbox/CategoryAccordion', () => ({
   ),
 }));
 
-jest.mock('components/inbox/ProtoCategorySubAccordion', () => ({
+vi.mock('components/inbox/ProtoCategorySubAccordion', () => ({
   ProtoCategorySubAccordion: () => null,
 }));
 
-jest.mock('components/inbox/EmailListItem', () => ({
+vi.mock('components/inbox/EmailListItem', () => ({
   EmailListItem: () => null,
 }));
 
-jest.mock('components/inbox/DebugView', () => ({
+vi.mock('components/inbox/DebugView', () => ({
   DebugView: () => null,
 }));
 
-jest.mock('components/inbox/BatchInfoBar', () => ({
+vi.mock('components/inbox/BatchInfoBar', () => ({
   BatchInfoBar: () => null,
 }));
 
-jest.mock('components/inbox/EmailListStates', () => ({
+vi.mock('components/inbox/EmailListStates', () => ({
   EmailListStates: () => null,
 }));
 
-jest.mock('components/inbox/FollowUpActions', () => ({
+vi.mock('components/inbox/FollowUpActions', () => ({
   FollowUpActions: () => null,
 }));
 
-jest.mock('react-router-dom', () => ({
-  useNavigate: () => jest.fn(),
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
 }));
 
-jest.mock('react-redux', () => ({
-  ...jest.requireActual('react-redux'),
-  useDispatch: () => jest.fn(),
+vi.mock('react-redux', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-redux')>()),
+  useDispatch: () => vi.fn(),
   useSelector: () => false,
 }));
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-jest.mock('contexts/AuthContext', () => ({
+vi.mock('contexts/AuthContext', () => ({
   useAuth: () => ({ user: { isAdmin: false } }),
 }));
 
-jest.mock('theme/theme', () => ({ theme: { colors: { border: { light: '#ccc' } } } }));
+vi.mock('theme/theme', () => ({ theme: { colors: { border: { light: '#ccc' } } } }));
 
 const DEFAULT_PROPS = {
   categoryItem: { id: 'cat-1', name: 'Newsletters', count: 0 },
@@ -93,17 +93,17 @@ const DEFAULT_PROPS = {
   convertingProtoCategoryId: null,
   deletingProtoCategoryId: null,
   mode: 'triage' as const,
-  onToggleCategory: jest.fn(),
+  onToggleCategory: vi.fn(),
   onBulkArchive: undefined,
-  onConvertProtoCategory: jest.fn(),
-  onDeleteProtoCategoryFromInbox: jest.fn(),
-  onReanalyseOther: jest.fn(),
+  onConvertProtoCategory: vi.fn(),
+  onDeleteProtoCategoryFromInbox: vi.fn(),
+  onReanalyseOther: vi.fn(),
   renderItem: () => null,
 };
 
 describe('InboxCategoryItem – auto-collapse on empty category (#805)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('calls onToggleCategory when loaded category has 0 emails and is expanded', async () => {

@@ -7,19 +7,19 @@ import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
 
 import { useContactSearch } from './useContactSearch';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('useContactSearch', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    console.error = vi.fn();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   describe('initialization', () => {
@@ -82,7 +82,7 @@ describe('useContactSearch', () => {
       expect(mockedAxios.get).not.toHaveBeenCalled();
 
       act(() => {
-        jest.advanceTimersByTime(DEBOUNCE_DELAY_200_MS);
+        vi.advanceTimersByTime(DEBOUNCE_DELAY_200_MS);
       });
 
       await waitFor(() => {
@@ -101,7 +101,7 @@ describe('useContactSearch', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
       });
 
       act(() => {
@@ -109,7 +109,7 @@ describe('useContactSearch', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(DEBOUNCE_DELAY_200_MS);
+        vi.advanceTimersByTime(DEBOUNCE_DELAY_200_MS);
       });
 
       await waitFor(() => {
@@ -127,7 +127,7 @@ describe('useContactSearch', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(DEBOUNCE_DELAY_200_MS);
+        vi.advanceTimersByTime(DEBOUNCE_DELAY_200_MS);
       });
 
       await waitFor(() => {

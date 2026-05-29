@@ -11,6 +11,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { Email } from 'types/email';
+import { isCalendarInvitation } from 'utils/calendarUtils';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ACTION_TYPE_CALENDAR_CREATE_INVITE, ACTION_TYPE_SCHEDULING_REQUEST } from 'constants/strings';
@@ -20,55 +21,55 @@ import { EmailDetailActions } from './EmailDetailActions';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
-jest.mock('contexts/AuthContext', () => ({
+vi.mock('contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-1', email: 'test@example.com' } }),
 }));
 
-jest.mock('utils/posthog', () => ({
-  captureEvent: jest.fn(),
+vi.mock('utils/posthog', () => ({
+  captureEvent: vi.fn(),
 }));
 
-jest.mock('utils/calendarUtils', () => ({
-  isCalendarInvitation: jest.fn(() => false),
+vi.mock('utils/calendarUtils', () => ({
+  isCalendarInvitation: vi.fn(() => false),
 }));
 
-jest.mock('utils/unsubscribeUtils', () => ({
+vi.mock('utils/unsubscribeUtils', () => ({
   extractUnsubscribeLink: () => null,
 }));
 
-jest.mock('components/email-detail/CalendarInviteActions', () => ({
+vi.mock('components/email-detail/CalendarInviteActions', () => ({
   CalendarInviteActions: () => <div data-testid="CalendarInviteActions" />,
 }));
 
-jest.mock('components/email-detail/SchedulingRequestCard', () => ({
+vi.mock('components/email-detail/SchedulingRequestCard', () => ({
   SchedulingRequestCard: () => <div data-testid="SchedulingRequestCard" />,
 }));
 
-jest.mock('components/email-detail/QuickActionsSection', () => ({
+vi.mock('components/email-detail/QuickActionsSection', () => ({
   QuickActionsSection: ({ suggestedActions }: { suggestedActions: SuggestedAction[] }) => (
     <div data-testid="QuickActionsSection" data-count={suggestedActions.length} />
   ),
 }));
 
-jest.mock('components/email-detail/PriorityButtonRow', () => ({
+vi.mock('components/email-detail/PriorityButtonRow', () => ({
   PriorityButtonRow: () => <div data-testid="PriorityButtonRow" />,
 }));
 
-jest.mock('components/inbox/actions/SnoozeInputForm', () => ({
+vi.mock('components/inbox/actions/SnoozeInputForm', () => ({
   SnoozeInputForm: () => <div data-testid="SnoozeInputForm" />,
 }));
 
-jest.mock('components/email-detail/PrintableThread', () => ({
+vi.mock('components/email-detail/PrintableThread', () => ({
   PrintableThread: () => <div data-testid="PrintableThread" />,
 }));
 
-jest.mock('react-icons/fi', () => ({
+vi.mock('react-icons/fi', () => ({
   FiArchive: () => null,
   FiClock: () => null,
   FiCornerUpLeft: () => null,
@@ -76,17 +77,17 @@ jest.mock('react-icons/fi', () => ({
   FiPrinter: () => null,
 }));
 
-jest.mock('hooks/useResponsiveBreakpoints', () => ({
-  useResponsiveBreakpoints: jest.fn(() => ({ isMobile: false, isTablet: false, isDesktop: true })),
+vi.mock('hooks/useResponsiveBreakpoints', () => ({
+  useResponsiveBreakpoints: vi.fn(() => ({ isMobile: false, isTablet: false, isDesktop: true })),
 }));
 
-const mockUseResponsiveBreakpoints = jest.mocked(useResponsiveBreakpoints);
+const mockUseResponsiveBreakpoints = vi.mocked(useResponsiveBreakpoints);
 
-jest.mock('components/common/OverflowMenu', () => ({
+vi.mock('components/common/OverflowMenu', () => ({
   OverflowMenu: () => <div data-testid="OverflowMenu" />,
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '24px' },
     colors: {
@@ -100,7 +101,7 @@ jest.mock('theme/theme', () => ({
   },
 }));
 
-jest.mock('constants/layout', () => ({
+vi.mock('constants/layout', () => ({
   TOUCH_TARGET_MIN_PX: 44,
 }));
 
@@ -121,17 +122,17 @@ const baseProps = {
   schedulingActions: [] as SuggestedAction[],
   showQuickActionsMenu: false,
   selectedAction: null,
-  onShowQuickActionsMenu: jest.fn(),
-  onCloseQuickActionsMenu: jest.fn(),
-  onSelectAction: jest.fn(),
-  onCloseAction: jest.fn(),
-  onActionSuccess: jest.fn(),
-  onOpenReplyComposer: jest.fn(),
-  onArchive: jest.fn(),
-  onDelete: jest.fn(),
-  onSetStarCount: jest.fn(),
-  onBlockSender: jest.fn(),
-  onSnooze: jest.fn(),
+  onShowQuickActionsMenu: vi.fn(),
+  onCloseQuickActionsMenu: vi.fn(),
+  onSelectAction: vi.fn(),
+  onCloseAction: vi.fn(),
+  onActionSuccess: vi.fn(),
+  onOpenReplyComposer: vi.fn(),
+  onArchive: vi.fn(),
+  onDelete: vi.fn(),
+  onSetStarCount: vi.fn(),
+  onBlockSender: vi.fn(),
+  onSnooze: vi.fn(),
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -139,9 +140,8 @@ const baseProps = {
 beforeEach(() => {
   mockUseResponsiveBreakpoints.mockReturnValue({ isMobile: false, isTablet: false, isDesktop: true });
   // Reset the isCalendarInvitation mock to its default (false) before each test
-  const { isCalendarInvitation } = jest.requireMock('utils/calendarUtils') as { isCalendarInvitation: jest.Mock };
-  isCalendarInvitation.mockReset();
-  isCalendarInvitation.mockImplementation(() => false);
+  vi.mocked(isCalendarInvitation).mockReset();
+  vi.mocked(isCalendarInvitation).mockImplementation(() => false);
 });
 
 describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
@@ -149,8 +149,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
     // Simulate the bug: subject contains "Calendar Invitation" keywords (isCalendarInvitation returns
     // true) but the AI also detected a meeting proposal (schedulingActions is non-empty).
     // SchedulingRequestCard must win — the user needs "Create Calendar Invite", not Accept/Decline.
-    const { isCalendarInvitation } = jest.requireMock('utils/calendarUtils') as { isCalendarInvitation: jest.Mock };
-    isCalendarInvitation.mockReturnValueOnce(true);
+    vi.mocked(isCalendarInvitation).mockReturnValueOnce(true);
 
     render(
       <EmailDetailActions
@@ -158,7 +157,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
         schedulingActions={[
           { type: ACTION_TYPE_CALENDAR_CREATE_INVITE, label: 'Create invite' } as unknown as SuggestedAction,
         ]}
-        onRespondToInvitation={jest.fn()}
+        onRespondToInvitation={vi.fn()}
       />
     );
 
@@ -167,15 +166,14 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
   });
 
   it('shows CalendarInviteActions when email is a calendar invitation with no detected meeting proposal', () => {
-    const { isCalendarInvitation } = jest.requireMock('utils/calendarUtils') as { isCalendarInvitation: jest.Mock };
-    isCalendarInvitation.mockReturnValueOnce(true);
+    vi.mocked(isCalendarInvitation).mockReturnValueOnce(true);
 
     render(
       <EmailDetailActions
         {...baseProps}
         schedulingActions={[]}
         loadingSchedulingActions={false}
-        onRespondToInvitation={jest.fn()}
+        onRespondToInvitation={vi.fn()}
       />
     );
 
@@ -184,15 +182,14 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
   });
 
   it('does NOT show CalendarInviteActions while scheduling actions are loading (#1788)', () => {
-    const { isCalendarInvitation } = jest.requireMock('utils/calendarUtils') as { isCalendarInvitation: jest.Mock };
-    isCalendarInvitation.mockReturnValueOnce(true);
+    vi.mocked(isCalendarInvitation).mockReturnValueOnce(true);
 
     render(
       <EmailDetailActions
         {...baseProps}
         schedulingActions={[]}
         loadingSchedulingActions
-        onRespondToInvitation={jest.fn()}
+        onRespondToInvitation={vi.fn()}
       />
     );
 

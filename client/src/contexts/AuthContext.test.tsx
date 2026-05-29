@@ -7,26 +7,26 @@ import * as posthogModule from 'utils/posthog';
 import { AuthProvider, useAuth } from './AuthContext';
 
 // Mock dependencies
-jest.mock('axios');
-jest.mock('../utils/posthog', () => ({
-  captureEvent: jest.fn(),
-  resetPostHog: jest.fn(),
-  identifyUser: jest.fn(),
+vi.mock('axios');
+vi.mock('../utils/posthog', () => ({
+  captureEvent: vi.fn(),
+  resetPostHog: vi.fn(),
+  identifyUser: vi.fn(),
 }));
-jest.mock('./useAuthInitialization');
+vi.mock('./useAuthInitialization');
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedPosthog = posthogModule as jest.Mocked<typeof posthogModule>;
 
 // Mock useAuthInitialization
-const mockUseAuthInitialization = jest.fn();
-jest.mock('./useAuthInitialization', () => ({
+const mockUseAuthInitialization = vi.fn();
+vi.mock('./useAuthInitialization', () => ({
   useAuthInitialization: (...args: unknown[]) => mockUseAuthInitialization(...args),
 }));
 
 describe('AuthContext', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
     delete (axios.defaults.headers.common as Record<string, unknown>)['Authorization'];
 
@@ -66,7 +66,7 @@ describe('AuthContext', () => {
 
     it('should throw error when useAuth is used outside provider', () => {
       // Suppress console.error for this test
-      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       expect(() => {
         render(<TestComponent />);
@@ -365,7 +365,7 @@ describe('AuthContext', () => {
       const error = new Error('Refresh failed');
       mockedAxios.get.mockRejectedValue(error);
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       render(
         <AuthProvider>

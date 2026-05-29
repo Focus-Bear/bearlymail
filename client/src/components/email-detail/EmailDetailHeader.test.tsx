@@ -4,7 +4,7 @@ import { Email } from 'types/email';
 
 import { EmailDetailHeader } from './EmailDetailHeader';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string>) => {
       if (params) {
@@ -15,15 +15,15 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('react-router-dom', () => ({
-  useNavigate: () => jest.fn(),
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
 }));
 
-jest.mock('contexts/AuthContext', () => ({
+vi.mock('contexts/AuthContext', () => ({
   useAuth: () => ({ user: { email: 'me@example.com' } }),
 }));
 
-jest.mock('utils/emailUtils', () => ({
+vi.mock('utils/emailUtils', () => ({
   getCorrespondent: (_email: Email) => ({
     name: _email.fromName || _email.from || '',
     email: _email.from || '',
@@ -31,12 +31,12 @@ jest.mock('utils/emailUtils', () => ({
   }),
 }));
 
-jest.mock('contexts/NotificationContext', () => ({
+vi.mock('contexts/NotificationContext', () => ({
   useNotifications: () => ({
-    showSuccess: jest.fn(),
+    showSuccess: vi.fn(),
   }),
 }));
-const mockWriteText = jest.fn().mockResolvedValue(undefined);
+const mockWriteText = vi.fn().mockResolvedValue(undefined);
 Object.assign(navigator, {
   clipboard: { writeText: mockWriteText },
 });
@@ -59,17 +59,17 @@ describe('EmailDetailHeader', () => {
     threadEmails: [] as Email[],
     priorityExplanation: null,
     showPriorityExplanation: false,
-    onFetchPriorityExplanation: jest.fn(),
-    onClosePriorityExplanation: jest.fn(),
+    onFetchPriorityExplanation: vi.fn(),
+    onClosePriorityExplanation: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('sender email display', () => {
@@ -131,7 +131,7 @@ describe('EmailDetailHeader', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
       });
 
       await waitFor(() => {
@@ -141,7 +141,7 @@ describe('EmailDetailHeader', () => {
 
     it('should handle clipboard failure gracefully', async () => {
       mockWriteText.mockRejectedValueOnce(new Error('Clipboard denied'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       render(<EmailDetailHeader {...defaultProps} />);
       const copyButton = screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' });

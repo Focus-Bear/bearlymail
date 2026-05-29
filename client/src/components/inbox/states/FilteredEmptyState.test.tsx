@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { FilteredEmptyState } from './FilteredEmptyState';
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts) {
@@ -14,7 +14,7 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('theme/theme', () => ({
+vi.mock('theme/theme', () => ({
   theme: {
     spacing: { sm: '8px', md: '12px', lg: '16px', xl: '20px', '3xl': '32px' },
     colors: {
@@ -40,14 +40,14 @@ describe('FilteredEmptyState', () => {
   });
 
   it('renders the "Show all emails" button when onShowAll is provided', () => {
-    const onShowAll = jest.fn();
+    const onShowAll = vi.fn();
     render(<FilteredEmptyState currentTierLabel="High priority" lowerPriorityCount={5} onShowAll={onShowAll} />);
     const btn = screen.getByText('inbox.filteredEmpty.showAll');
     expect(btn).toBeTruthy();
   });
 
   it('calls onShowAll when the button is clicked', () => {
-    const onShowAll = jest.fn();
+    const onShowAll = vi.fn();
     render(<FilteredEmptyState currentTierLabel="High priority" lowerPriorityCount={5} onShowAll={onShowAll} />);
     fireEvent.click(screen.getByText('inbox.filteredEmpty.showAll'));
     expect(onShowAll).toHaveBeenCalledTimes(1);

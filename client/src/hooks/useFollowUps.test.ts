@@ -8,21 +8,21 @@ import { useFollowUpPolling } from 'hooks/useFollowUpPolling';
 
 import { ThreadWithFollowUp, useFollowUps } from './useFollowUps';
 
-jest.mock('axios');
-jest.mock('hooks/useFollowUpPolling', () => ({
-  useFollowUpPolling: jest.fn(),
+vi.mock('axios');
+vi.mock('hooks/useFollowUpPolling', () => ({
+  useFollowUpPolling: vi.fn(),
 }));
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedUseFollowUpPolling = useFollowUpPolling as jest.MockedFunction<typeof useFollowUpPolling>;
 
 describe('useFollowUps', () => {
-  const mockStartGenerationPolling = jest.fn();
+  const mockStartGenerationPolling = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
-    console.error = jest.fn();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    console.error = vi.fn();
     // axios.isAxiosError is auto-mocked; restore real behaviour so error narrowing works
     (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation(err => err?.isAxiosError === true);
     mockedUseFollowUpPolling.mockReturnValue({
@@ -31,8 +31,8 @@ describe('useFollowUps', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   describe('initialization', () => {
@@ -237,7 +237,7 @@ describe('useFollowUps', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(POLLING_INTERVAL_MS);
+        vi.advanceTimersByTime(POLLING_INTERVAL_MS);
       });
 
       await waitFor(() => {
@@ -257,7 +257,7 @@ describe('useFollowUps', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(POLLING_TIMEOUT_5_MIN_MS);
+        vi.advanceTimersByTime(POLLING_TIMEOUT_5_MIN_MS);
       });
 
       await waitFor(() => {

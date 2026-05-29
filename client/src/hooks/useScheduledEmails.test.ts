@@ -5,19 +5,19 @@ import { API_URL } from 'config/api';
 
 import { useScheduledEmails } from './useScheduledEmails';
 
-jest.mock('axios');
+vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Stable timezone for all tests
 const TEST_TIMEZONE = 'Australia/Melbourne';
 
 beforeEach(() => {
-  jest.spyOn(Intl, 'DateTimeFormat').mockReturnValue({
+  vi.spyOn(Intl, 'DateTimeFormat').mockReturnValue({
     resolvedOptions: () => ({ timeZone: TEST_TIMEZONE }) as Intl.ResolvedDateTimeFormatOptions,
-    format: jest.fn(),
-    formatToParts: jest.fn(),
-    formatRange: jest.fn(),
-    formatRangeToParts: jest.fn(),
+    format: vi.fn(),
+    formatToParts: vi.fn(),
+    formatRange: vi.fn(),
+    formatRangeToParts: vi.fn(),
   } as unknown as Intl.DateTimeFormat);
 
   mockedAxios.get.mockResolvedValue({ data: [] });
@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe('useScheduledEmails', () => {

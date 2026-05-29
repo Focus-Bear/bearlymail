@@ -18,8 +18,8 @@ describe('useResponsiveBreakpoints', () => {
     });
 
     // Mock addEventListener and removeEventListener
-    window.addEventListener = jest.fn();
-    window.removeEventListener = jest.fn();
+    window.addEventListener = vi.fn();
+    window.removeEventListener = vi.fn();
   });
 
   afterEach(() => {

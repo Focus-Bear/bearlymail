@@ -302,7 +302,7 @@ const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
           isCalendarInvitation() also fires on the same email.  Only fall back to
           CalendarInviteActions (Accept / Decline) when there is no meeting proposal. */}
       {!hasIcsAttachment && hasSchedulingRequest && (
-        <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />
+        <SchedulingRequestCard email={email} onDraftReply={onDraftReply} schedulingActions={schedulingActions} />
       )}
       {!hasIcsAttachment && !hasSchedulingRequest && !loadingSchedulingActions && isInvitation && onRespondToInvitation && (
         <CalendarInviteActions

@@ -6,6 +6,7 @@ import { Email } from 'types/email';
 import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
 
+import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
@@ -24,6 +25,7 @@ import { useAuth } from 'contexts/AuthContext';
 interface SchedulingRequestCardProps {
   email: Email;
   onDraftReply?: (draft: string) => void;
+  schedulingActions?: SuggestedAction[];
 }
 
 interface MeetingProposal {
@@ -451,7 +453,74 @@ const ProposedTimeCard: React.FC<ProposedTimeCardProps> = ({
   );
 };
 
-export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ email, onDraftReply }) => {
+interface SchedulingDebugPanelProps {
+  proposal: MeetingProposal | null;
+  proposalLoading: boolean;
+  schedulingActions: SuggestedAction[];
+}
+
+const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({
+  proposal,
+  proposalLoading,
+  schedulingActions,
+}) => {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const proposalData = proposalLoading
+    ? t('debug.schedulingCard.loading')
+    : JSON.stringify(proposal, null, 2);
+  return (
+    <div
+      style={{
+        marginTop: theme.spacing.sm,
+        borderTop: `1px dashed ${theme.colors.border.medium}`,
+        paddingTop: theme.spacing.sm,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={expanded}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.tertiary,
+          padding: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.xs,
+        }}
+      >
+        {expanded ? '▼' : '▶'} {t('debug.schedulingCard.toggle')}
+      </button>
+      {expanded && (
+        <div
+          style={{
+            marginTop: theme.spacing.xs,
+            backgroundColor: theme.colors.background.default,
+            borderRadius: theme.borderRadius.sm,
+            padding: theme.spacing.sm,
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: theme.colors.text.secondary,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+          }}
+        >
+          <strong>{t('debug.schedulingCard.actionsHeader', { count: schedulingActions.length })}</strong>
+          <div>{JSON.stringify(schedulingActions, null, 2)}</div>
+          <br />
+          <strong>{t('debug.schedulingCard.proposalHeader')}</strong>
+          <div>{proposalData}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ email, onDraftReply, schedulingActions = [] }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [linkCopied, setLinkCopied] = useState(false);
@@ -624,6 +693,13 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
             />
           )}
         </>
+      )}
+      {user?.isAdmin && (
+        <SchedulingDebugPanel
+          proposal={proposal}
+          proposalLoading={proposalLoading}
+          schedulingActions={schedulingActions}
+        />
       )}
     </div>
   );

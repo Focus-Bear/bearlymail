@@ -2514,6 +2514,12 @@
       "archived": "Archived",
       "yes": "YES",
       "no": "NO"
+    },
+    "schedulingCard": {
+      "toggle": "Debug (admin only)",
+      "actionsHeader": "Scheduling actions ({{count}}):",
+      "proposalHeader": "check-proposed-time result:",
+      "loading": "loading…"
     }
   },
   "search": {

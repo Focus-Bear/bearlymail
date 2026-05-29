@@ -875,6 +875,12 @@
       "archived": "Archivado",
       "yes": "SÍ",
       "no": "NO"
+    },
+    "schedulingCard": {
+      "toggle": "Depuración (solo admin)",
+      "actionsHeader": "Acciones de programación ({{count}}):",
+      "proposalHeader": "Resultado de check-proposed-time:",
+      "loading": "cargando…"
     }
   },
   "stepUp": {

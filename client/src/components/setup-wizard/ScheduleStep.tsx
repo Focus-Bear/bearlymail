@@ -210,16 +210,36 @@ const BatchList: React.FC<BatchListProps> = ({ times, labels, onChangeTime, t })
           <div style={batchLabelStyle}>{t(labels[idx] ?? labels[labels.length - 1])}</div>
           <small style={batchSubLabelStyle}>{t('setupWizard.schedule.batchSubLabel')}</small>
         </div>
-        <input
-          type="time"
+        <BatchTimeInput
           value={time}
-          onChange={event => onChangeTime(idx, event.target.value)}
-          style={batchInputStyle}
+          onChange={value => onChangeTime(idx, value)}
+          ariaLabel={t(labels[idx] ?? labels[labels.length - 1])}
         />
       </div>
     ))}
   </div>
 );
+
+interface BatchTimeInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+}
+
+const BatchTimeInput: React.FC<BatchTimeInputProps> = ({ value, onChange, ariaLabel }) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      type="time"
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={focused ? batchInputFocusStyle : batchInputStyle}
+      aria-label={ariaLabel}
+    />
+  );
+};
 
 const MoonIcon: React.FC = () => (
   <svg
@@ -371,9 +391,9 @@ const batchSubLabelStyle: React.CSSProperties = {
 };
 
 const batchInputStyle: React.CSSProperties = {
-  border: 0,
+  border: `1px solid ${TOK.line2}`,
   outline: 0,
-  background: TOK.cream2,
+  background: TOK.cream,
   font: 'inherit',
   fontSize: '14px',
   fontWeight: FONT_WEIGHT_SEMIBOLD,
@@ -383,6 +403,15 @@ const batchInputStyle: React.CSSProperties = {
   padding: '8px 12px',
   borderRadius: '8px',
   fontFamily: TOK.fontMono,
+  cursor: 'text',
+  transition: 'background 120ms ease, border-color 120ms ease, box-shadow 120ms ease',
+};
+
+const batchInputFocusStyle: React.CSSProperties = {
+  ...batchInputStyle,
+  background: '#FFFFFF',
+  border: `1px solid ${TOK.sun}`,
+  boxShadow: `0 0 0 3px ${TOK.sunPale}`,
 };
 
 const quietSummaryStyle: React.CSSProperties = {

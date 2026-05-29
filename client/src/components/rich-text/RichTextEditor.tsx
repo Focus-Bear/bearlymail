@@ -63,14 +63,38 @@ function generateInlineCid(): string {
   return `inline-${crypto.randomUUID()}@bearlymail`;
 }
 
+/**
+ * Convert a data: URI string to a File object so it can be uploaded as a MIME
+ * inline attachment, just like a natively pasted image file.
+ */
+function dataUriToFile(dataUri: string, filename: string): File | null {
+  const match = dataUri.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) {
+    return null;
+  }
+  const mimeType = match[1];
+  let binary: string;
+  try {
+    binary = atob(match[2]);
+  } catch {
+    return null;
+  }
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const ext = mimeType.split('/')[1] ?? 'png';
+  return new File([bytes], `${filename}.${ext}`, { type: mimeType });
+}
+
 function buildPasteHandler(
   onPasteFiles?: (files: File[]) => void,
   onInlineImage?: (cid: string, file: File) => void,
   trackBlobUrl?: (url: string) => void
 ) {
   return (_view: EditorView, event: ClipboardEvent): boolean => {
-    const items = event.clipboardData?.items;
-    if (!items) {
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) {
       return false;
     }
 
@@ -78,25 +102,71 @@ function buildPasteHandler(
     // skip image-file handling and let TipTap parse the HTML natively. Excel puts both a
     // PNG screenshot and the HTML table in the clipboard; without this check the image
     // wins and the table is lost.
-    if (clipboardHtmlHasTable(event.clipboardData ?? null)) {
+    if (clipboardHtmlHasTable(clipboardData)) {
       return false;
     }
 
     const nonImageFiles: File[] = [];
     const imageFiles: File[] = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.kind === FILE_KIND) {
-        const file = item.getAsFile();
-        if (file) {
-          if (file.type.startsWith('image/')) {
-            imageFiles.push(file);
-          } else {
-            nonImageFiles.push(file);
+
+    // Primary: iterate DataTransferItemList (Chrome, Firefox, modern Safari).
+    const items = clipboardData.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === FILE_KIND) {
+          const file = item.getAsFile();
+          if (file) {
+            if (file.type.startsWith('image/')) {
+              imageFiles.push(file);
+            } else {
+              nonImageFiles.push(file);
+            }
           }
         }
       }
     }
+
+    // Fallback 1: clipboardData.files — covers browsers (e.g. older Safari on Mac)
+    // where items may not expose pasted image files.
+    if (imageFiles.length === 0 && clipboardData.files.length > 0) {
+      for (const file of Array.from(clipboardData.files)) {
+        const isDuplicate =
+          imageFiles.some(existing => existing.name === file.name && existing.size === file.size) ||
+          nonImageFiles.some(existing => existing.name === file.name && existing.size === file.size);
+        if (isDuplicate) {
+          continue;
+        }
+        if (file.type.startsWith('image/')) {
+          imageFiles.push(file);
+        } else {
+          nonImageFiles.push(file);
+        }
+      }
+    }
+
+    // Fallback 2: extract data: URI images from clipboard HTML — handles copying
+    // images from web pages or email bodies where no file item is present (common
+    // on Mac when the image is rendered inline in another app's HTML).
+    // Use DOMParser rather than innerHTML on a detached div — innerHTML would
+    // trigger the browser to fetch external <img> resources (tracking pixels,
+    // referrer leaks) even though we only read data: URIs.
+    if (imageFiles.length === 0) {
+      const html = clipboardData.getData('text/html');
+      if (html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const imgs = doc.querySelectorAll('img[src^="data:image/"]');
+        imgs.forEach((img, idx) => {
+          const src = img.getAttribute('src') ?? '';
+          const file = dataUriToFile(src, `pasted-image-${idx}`);
+          if (file) {
+            imageFiles.push(file);
+          }
+        });
+      }
+    }
+
     if (imageFiles.length > 0) {
       event.preventDefault();
       imageFiles.forEach(file => {

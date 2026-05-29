@@ -60,6 +60,12 @@ export interface InboxEmailItemProps {
   mode: InboxMode;
   selectedEmailIds: Set<string>;
   selectedEmailIndex: number;
+  /** ID of the email currently open in the split-view panel. Takes precedence over
+   *  selectedEmailIndex for the highlight check because navigateAfterSplitViewAction
+   *  uses a different category ordering than InboxCategoryList (groupEmailsByCategory
+   *  vs stableCategoryOrder), which can cause the index-based check to highlight the
+   *  wrong email after archive/snooze from the split-view panel. */
+  splitViewSelectedEmailId?: string | null;
   triageSuggestions: Map<string, TriageSuggestion>;
   followUpDataMap: Map<string, FollowUpData>;
   priorityTooltip: InboxPriorityTooltip;
@@ -80,6 +86,7 @@ export const InboxEmailItem: React.FC<InboxEmailItemProps> = ({
   mode,
   selectedEmailIds,
   selectedEmailIndex,
+  splitViewSelectedEmailId,
   triageSuggestions,
   followUpDataMap,
   priorityTooltip,
@@ -94,7 +101,11 @@ export const InboxEmailItem: React.FC<InboxEmailItemProps> = ({
   recipientName,
 }) => {
   const suggestion = mode === MODE_TRIAGE ? triageSuggestions.get(email.id) || null : null;
-  const isSelected = selectedEmailIds.has(email.id) || selectedEmailIndex === emailIndex;
+  const isSelected =
+    selectedEmailIds.has(email.id) ||
+    (splitViewSelectedEmailId != null
+      ? email.id === splitViewSelectedEmailId
+      : selectedEmailIndex === emailIndex);
   const followUpData = mode === MODE_FOLLOW_UP ? followUpDataMap.get(email.threadId) : null;
 
   return (
@@ -751,6 +762,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
       mode={mode}
       selectedEmailIds={selectedEmailIds}
       selectedEmailIndex={selectedEmailIndex}
+      splitViewSelectedEmailId={splitView.selectedEmailId}
       triageSuggestions={triageSuggestions}
       followUpDataMap={followUpDataMap}
       priorityTooltip={priorityTooltip}

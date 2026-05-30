@@ -39,6 +39,7 @@ import {
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { CardType, useCardVisibilityPreferences } from 'hooks/useCardVisibilityPreferences';
+import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 import { useEmailDetailDraftHandlers } from 'hooks/useEmailDetailDraftHandlers';
 import { useEmailDetailDraftSync } from 'hooks/useEmailDetailDraftSync';
 import { useEmailDetailInitialization } from 'hooks/useEmailDetailInitialization';
@@ -476,6 +477,9 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   handleClearSchedule,
   onClose,
 }) => {
+  const { debugViewOpen } = useDebugViewOpen();
+  // Admin debug surfaces only appear once the bug icon has enabled debug mode.
+  const showAdminDebug = !!user?.isAdmin && debugViewOpen;
   const isCompactOrInline =
     effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT || effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
   const isInline = effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
@@ -702,7 +706,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             emailIsProcessingSummary={st.email?.isProcessingSummary}
             customRules={st.customRules}
             summaryDebug={st.summaryDebug}
-            showDebug={!!user?.isAdmin}
+            showDebug={showAdminDebug}
             onSummaryTypeChange={handleSummaryTypeChange}
             onToggleCollapsed={() => st.setSummaryCollapsed(!st.summaryCollapsed)}
             onShowRuleModal={() => {}}
@@ -723,7 +727,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           extractCleanBodyWithMeta={ops.extractCleanBodyWithMeta}
         />
       </div>
-      {user?.isAdmin && st.email && (
+      {showAdminDebug && st.email && (
         <EmailDetailDebugInfo
           email={st.email}
           threadEmails={st.threadEmails}

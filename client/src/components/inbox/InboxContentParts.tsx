@@ -27,6 +27,7 @@ import { INBOX_FETCH_LIMIT } from 'constants/numbers';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE, PARAM_CATEGORY_IDS } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useDebugMode } from 'hooks/useDebugMode';
+import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { FollowUpData } from 'hooks/useFollowUps';
 import { usePerformanceBudget } from 'hooks/usePerformanceBudget';
@@ -254,7 +255,9 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.isAdmin === true;
+  const { debugViewOpen } = useDebugViewOpen();
+  // Admin debug surfaces only appear once the bug icon has enabled debug mode.
+  const isAdmin = user?.isAdmin === true && debugViewOpen;
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
   // Match the badge value the user sees: emails.length when loaded, otherwise
@@ -494,7 +497,9 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
   renderItem,
 }) => {
   const { user } = useAuth();
-  const isAdmin = user?.isAdmin === true;
+  const { debugViewOpen } = useDebugViewOpen();
+  // Admin debug surfaces only appear once the bug icon has enabled debug mode.
+  const isAdmin = user?.isAdmin === true && debugViewOpen;
   /**
    * Build a callback that scrolls the email list back up to the collapsed category's
    * header after it collapses. Delayed by COLLAPSE_ANIMATION_MS to allow the CSS grid

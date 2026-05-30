@@ -5,6 +5,7 @@ import { Email, InboxMode } from 'types/email';
 import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
 import { DebugStarredData } from 'components/inbox/debug/types';
 import { API_URL } from 'config/api';
+import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 
 interface SyncStatus {
   lastSyncTime: string | null;
@@ -87,7 +88,9 @@ export interface ThreadLookupResult {
 
 interface UseDebugPanelReturn {
   debugViewOpen: boolean;
-  setDebugViewOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setDebugViewOpen: (value: boolean) => void;
+  mainPanelCollapsed: boolean;
+  setMainPanelCollapsed: (value: boolean) => void;
   syncStatus: SyncStatus | null;
   loadingSyncStatus: boolean;
   syncHistory: SyncHistoryEntry[] | null;
@@ -229,7 +232,11 @@ function useDebugAllEmails() {
 }
 
 export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
-  const [debugViewOpen, setDebugViewOpen] = useState(false);
+  // debugViewOpen is the master "debug mode" switch (bug icon), persisted so it
+  // applies across pages. mainPanelCollapsed only collapses this panel's body and
+  // is independent of debug mode, so collapsing never exits debug mode.
+  const { debugViewOpen, setDebugViewOpen } = useDebugViewOpen();
+  const [mainPanelCollapsed, setMainPanelCollapsed] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [loadingSyncStatus, setLoadingSyncStatus] = useState(false);
   const [syncHistory, setSyncHistory] = useState<SyncHistoryEntry[] | null>(null);
@@ -270,6 +277,8 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   return {
     debugViewOpen,
     setDebugViewOpen,
+    mainPanelCollapsed,
+    setMainPanelCollapsed,
     syncStatus,
     loadingSyncStatus,
     syncHistory,

@@ -296,8 +296,8 @@ const InboxView: React.FC = () => {
             emails={emails}
             allEmails={debugPanel.allEmails}
             loadingAllEmails={debugPanel.loadingAllEmails}
-            isOpen={debugPanel.debugViewOpen}
-            onToggle={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
+            isOpen={!debugPanel.mainPanelCollapsed}
+            onToggle={() => debugPanel.setMainPanelCollapsed(!debugPanel.mainPanelCollapsed)}
             onFetchAllEmails={() => debugPanel.fetchAllEmails(mode)}
             syncStatus={debugPanel.syncStatus}
             loadingSyncStatus={debugPanel.loadingSyncStatus}

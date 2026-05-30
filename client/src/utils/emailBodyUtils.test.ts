@@ -182,6 +182,48 @@ describe('emailBodyUtils', () => {
       const result = extractCleanHtmlBody(html);
       expect(result).toContain('Also could I get your date of birth');
     });
+
+    it('should strip quoted content when reply spans multiple div elements (no gmail_quote)', () => {
+      // Regression: when pre-boundary text spans multiple <div>s the 50-char indexOf
+      // fails because the raw HTML has </div><div> between the joined text nodes.
+      const html =
+        '<div><div>By the way do you use Mac or Windows?</div>' +
+        '<div>We currently only have Mac support but can do Windows soon.</div>' +
+        '<div>On Fri, 22 May 2026 06:20:33 GMT, Jeremy Nagel wrote:</div>' +
+        '<div>&gt; Fingers crossed</div></div>';
+      const result = extractCleanHtmlBody(html);
+      expect(result).toContain('By the way do you use Mac or Windows?');
+      expect(result).not.toContain('Fingers crossed');
+      expect(result).not.toContain('wrote:');
+    });
+
+    it('should strip quoted content when reply uses br-separated lines', () => {
+      // Regression: <br> tags cause textContent to join words without separator,
+      // so "line1<br>line2" becomes "line1line2" in text – indexOf("line1line2") fails.
+      const html =
+        '<div>By the way do you use Mac or Windows?<br>' +
+        'We currently only have Mac support but<br>' +
+        'can do Windows soon.<br>' +
+        'On Fri, 22 May 2026 06:20:33 GMT, Jeremy Nagel wrote:<br>' +
+        '&gt; Fingers crossed</div>';
+      const result = extractCleanHtmlBody(html);
+      expect(result).toContain('By the way do you use Mac or Windows?');
+      expect(result).not.toContain('Fingers crossed');
+      expect(result).not.toContain('wrote:');
+    });
+
+    it('should strip quoted content from short HTML reply before GMT boundary (multi-div)', () => {
+      // Mirrors the plain-text regression (extractCleanBody) but for the HTML path:
+      // a short reply in its own <div> before a GMT-style quote boundary.
+      const html =
+        '<div>Ok please raise a pull request</div>' +
+        '<div>On Mon, 25 May 2026 04:10:31 GMT, NAVJOT SINGH &lt;105002221@student.swin.edu.au&gt; wrote:</div>' +
+        '<div>&gt; The push was completed successfully to my feature branch.</div>';
+      const result = extractCleanHtmlBody(html);
+      expect(result).toContain('Ok please raise a pull request');
+      expect(result).not.toContain('wrote:');
+      expect(result).not.toContain('push was completed');
+    });
   });
 
   describe('sanitizeAndProcessHtml', () => {

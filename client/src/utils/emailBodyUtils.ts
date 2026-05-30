@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 
 import {
   BLOCKQUOTE_MIN_POSITION,
+  BOUNDARY_FALLBACK_SEARCH_CHARS,
   HTML_CUT_POINT_OFFSET_50,
   HTML_CUT_POINT_OFFSET_100,
   MIN_CONTENT_BEFORE_BOUNDARY,
@@ -169,19 +170,37 @@ export function extractCleanHtmlBodyWithMeta(htmlBody: string): CleanHtmlResult 
     }
   }
 
-  // If we found a boundary, find it in the HTML
+  // If we found a boundary, find it in the HTML.
+  // Try progressively shorter suffixes of the pre-boundary text to handle emails where
+  // the reply spans multiple HTML elements (e.g. several <div>s or <br>-separated lines).
+  // textContent concatenates text nodes without element separators, so a 50-char slice
+  // can straddle a tag boundary and fail with a direct indexOf on the raw HTML.
   if (cutoffIndex < textContent.length) {
     const textBeforeBoundary = textContent.substring(0, cutoffIndex);
-    // Find this text in the HTML (look for last 50 chars to be safe)
-    const searchText = textBeforeBoundary.slice(-HTML_CUT_POINT_OFFSET_50);
-    const htmlPos = htmlBody.indexOf(searchText);
-    if (htmlPos > 0) {
-      let cutPoint = htmlPos + searchText.length;
-      const nextTagStart = htmlBody.indexOf('<', cutPoint);
-      if (nextTagStart >= 0 && nextTagStart - cutPoint < HTML_CUT_POINT_OFFSET_100) {
-        cutPoint = nextTagStart;
+    const startLen = Math.min(HTML_CUT_POINT_OFFSET_50, textBeforeBoundary.length);
+    for (let searchLen = startLen; searchLen >= 10; searchLen -= 10) {
+      const searchText = textBeforeBoundary.slice(-searchLen);
+      if (!searchText) {
+        continue;
       }
-      return { html: htmlBody.substring(0, cutPoint).trim(), wasTruncated: true };
+      const htmlPos = htmlBody.indexOf(searchText);
+      if (htmlPos >= 0) {
+        let cutPoint = htmlPos + searchText.length;
+        const nextTagStart = htmlBody.indexOf('<', cutPoint);
+        if (nextTagStart >= 0 && nextTagStart - cutPoint < HTML_CUT_POINT_OFFSET_100) {
+          cutPoint = nextTagStart;
+        }
+        return { html: htmlBody.substring(0, cutPoint).trim(), wasTruncated: true };
+      }
+    }
+    // Final fallback: search for the start of the boundary text directly in the HTML.
+    // Handles emails where all pre-boundary content is fragmented across very small elements.
+    const boundaryStart = textContent.substring(cutoffIndex, cutoffIndex + BOUNDARY_FALLBACK_SEARCH_CHARS);
+    if (boundaryStart.length >= 8) {
+      const htmlBoundaryPos = htmlBody.indexOf(boundaryStart);
+      if (htmlBoundaryPos > BLOCKQUOTE_MIN_POSITION) {
+        return { html: htmlBody.substring(0, htmlBoundaryPos).trim(), wasTruncated: true };
+      }
     }
   }
 

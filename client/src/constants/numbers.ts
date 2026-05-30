@@ -228,6 +228,7 @@ export const MIN_CONTENT_BEFORE_BOUNDARY = 20; // Minimum content before email b
 export const HTML_CUT_POINT_OFFSET_100 = 100; // Offset for finding HTML cut point
 export const HTML_CUT_POINT_OFFSET_50 = 50; // Offset for finding HTML cut point
 export const BLOCKQUOTE_MIN_POSITION = 20; // Minimum position before blockquote detection
+export const BOUNDARY_FALLBACK_SEARCH_CHARS = 20; // Chars of boundary text used in fallback HTML search
 export const SIGNATURE_MIN_CONTENT_PLAINTEXT = 100; // Minimum content for plain text signature detection
 
 export const MAX_BADGE_DISPLAY = 99; // Maximum badge count before showing 99+

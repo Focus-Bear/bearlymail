@@ -220,8 +220,10 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
   const { t } = useTranslation();
   const [previewAttachment, setPreviewAttachment] = useState<EmailAttachment | null>(null);
 
-  // Inline images (those with a contentId) are rendered directly in the email body — exclude them here.
-  const visibleAttachments = attachments?.filter(att => !att.contentId) ?? [];
+  // Inline images (image MIME type with a contentId) are rendered directly in the email body — exclude
+  // them here. Non-image files (PDFs, documents, etc.) may also have a contentId if the sender's email
+  // client added a Content-ID header, but they are never embedded inline and must still be shown.
+  const visibleAttachments = attachments?.filter(att => !(att.contentId && att.mimeType?.toLowerCase().startsWith('image/'))) ?? [];
 
   if (visibleAttachments.length === 0) {
     return null;

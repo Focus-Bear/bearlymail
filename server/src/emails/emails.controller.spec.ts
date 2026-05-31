@@ -126,7 +126,8 @@ describe("EmailsController", () => {
         {
           provide: EmailExportService,
           useValue: {
-            exportEmails: jest.fn().mockResolvedValue("encrypted-export"),
+            exportEmails: jest.fn().mockResolvedValue(Buffer.from("mock-zip")),
+            getExportableEmails: jest.fn().mockResolvedValue([]),
           },
         },
       ],

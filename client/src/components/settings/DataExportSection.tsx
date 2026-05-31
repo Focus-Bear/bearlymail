@@ -203,9 +203,8 @@ export const DataExportSection: React.FC = () => {
       if (!response.ok) {
         throw new Error('Email export failed');
       }
-      const data = await response.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      downloadBlob(blob, `bearlymail-emails-export-${new Date().toISOString().split('T')[0]}.json`);
+      const blob = await response.blob();
+      downloadBlob(blob, `bearlymail-emails-export-${new Date().toISOString().split('T')[0]}.zip`);
       setIsEmailExportFormOpen(false);
       setEmailExportPassword('');
     } catch {

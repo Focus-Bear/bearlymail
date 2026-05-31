@@ -124,23 +124,138 @@ describe("EmailExportService", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // encryptExport / round-trip
+  // createEncryptedZip
   // ---------------------------------------------------------------------------
 
-  describe("encryptExport", () => {
-    it("produces a colon-delimited hex string with four parts", async () => {
-      const result = await service.encryptExport('{"test":1}', "password123");
-      const parts = result.split(":");
-      expect(parts).toHaveLength(4);
-      parts.forEach((part) => {
-        expect(part).toMatch(/^[0-9a-f]+$/i);
+  describe("createEncryptedZip", () => {
+    it("produces a non-empty Buffer with ZIP magic bytes (PK header)", async () => {
+      const result = await service.createEncryptedZip(
+        '{"test":1}',
+        "password123",
+      );
+      expect(result).toBeInstanceOf(Buffer);
+      expect(result.length).toBeGreaterThan(0);
+      // Standard ZIP files always start with the PK signature (0x50 0x4B)
+      expect(result[0]).toBe(0x50);
+      expect(result[1]).toBe(0x4b);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getExportableEmails
+  // ---------------------------------------------------------------------------
+
+  describe("getExportableEmails", () => {
+    it("returns an empty array when user has no emails", async () => {
+      mockEmailRepository.find.mockResolvedValue([]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result).toEqual([]);
+    });
+
+    it("returns plaintext email records", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({
+          from: "alice@example.com",
+          subject: "Hello",
+          body: "World",
+          isRead: true,
+          labels: ["INBOX"],
+        }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        senderDomain: ".*@example\\.com$",
+        subject: "Hello",
+        body: "World",
+        isRead: true,
+        isReceived: true,
+        category: null,
       });
     });
 
-    it("produces different output each call (random IV/salt)", async () => {
-      const first = await service.encryptExport("payload", "password123");
-      const second = await service.encryptExport("payload", "password123");
-      expect(first).not.toBe(second);
+    it("resolves category display name from thread categoryId", async () => {
+      const categoryCtx = makeContext({
+        contextId: "cat-uuid-1",
+        contextValue: "Work - Work-related emails",
+      });
+      mockUserContextRepository.find.mockResolvedValueOnce([categoryCtx]);
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ thread: makeThread({ categoryId: "cat-uuid-1" }) }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result[0].category).toBe("Work");
+    });
+
+    it("sets category to null when thread has no categoryId", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ thread: makeThread({ categoryId: null }) }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result[0].category).toBeNull();
+    });
+
+    it("marks sent emails as not received", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ labels: ["SENT"] }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result[0].isReceived).toBe(false);
+    });
+
+    it("fetches emails in fixed-size batches using keyset pagination", async () => {
+      const batchSize = 500;
+      const firstBatch = Array.from({ length: batchSize }, (_, i) =>
+        makeEmail({ id: `email-${i}` }),
+      );
+      mockEmailRepository.find
+        .mockResolvedValueOnce(firstBatch)
+        .mockResolvedValueOnce([makeEmail({ id: "email-500" })]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result).toHaveLength(batchSize + 1);
+      expect(mockEmailRepository.find).toHaveBeenCalledTimes(2);
+      const secondCall = mockEmailRepository.find.mock.calls[1][0];
+      expect(secondCall.where.id).toBeDefined();
+    });
+
+    it("pre-fetches category contexts only once regardless of batch count", async () => {
+      const batchSize = 500;
+      const firstBatch = Array.from({ length: batchSize }, (_, i) =>
+        makeEmail({ id: `email-${i}` }),
+      );
+      mockEmailRepository.find
+        .mockResolvedValueOnce(firstBatch)
+        .mockResolvedValueOnce([]);
+
+      await service.getExportableEmails("user-1");
+
+      expect(mockUserContextRepository.find).toHaveBeenCalledTimes(1);
+    });
+
+    it("handles null subject and body gracefully", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({
+          subject: null as unknown as string,
+          body: null as unknown as string,
+        }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result[0].subject).toBe("");
+      expect(result[0].body).toBe("");
     });
   });
 
@@ -149,6 +264,12 @@ describe("EmailExportService", () => {
   // ---------------------------------------------------------------------------
 
   describe("exportEmails", () => {
+    const MOCK_ZIP = Buffer.from("PK\x03\x04mock-zip-content");
+
+    beforeEach(() => {
+      jest.spyOn(service, "createEncryptedZip").mockResolvedValue(MOCK_ZIP);
+    });
+
     it("throws BadRequestException when password is missing", async () => {
       await expect(service.exportEmails("user-1", "")).rejects.toThrow(
         BadRequestException,
@@ -161,15 +282,15 @@ describe("EmailExportService", () => {
       );
     });
 
-    it("returns an encrypted string for valid input", async () => {
+    it("returns a Buffer for valid input", async () => {
       mockEmailRepository.find.mockResolvedValue([
         makeEmail({ from: "alice@example.com", subject: "Hi", body: "There" }),
       ]);
 
       const result = await service.exportEmails("user-1", "securepassword");
 
-      expect(typeof result).toBe("string");
-      expect(result.split(":")).toHaveLength(4);
+      expect(result).toBeInstanceOf(Buffer);
+      expect(result).toBe(MOCK_ZIP);
     });
 
     it("maps received emails correctly (no SENT label)", async () => {
@@ -256,11 +377,11 @@ describe("EmailExportService", () => {
       ).resolves.toBeTruthy();
     });
 
-    it("returns empty encrypted array when user has no emails", async () => {
+    it("returns a Buffer when user has no emails", async () => {
       mockEmailRepository.find.mockResolvedValue([]);
 
       const result = await service.exportEmails("user-1", "securepassword");
-      expect(result.split(":")).toHaveLength(4);
+      expect(result).toBeInstanceOf(Buffer);
     });
 
     it("includes category from thread when categoryId matches a user context", async () => {

@@ -27,8 +27,11 @@ import {
   Put,
   Query,
   Request,
+  Res,
+  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
+import type { Response } from "express";
 import PgBoss from "pg-boss";
 
 import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
@@ -49,13 +52,7 @@ import {
   BatchStatusPerformanceTracker,
   EMAIL_CONTROLLER_DEFAULTS,
 } from "./email-controller.helpers";
-import {
-  EmailExportService,
-  EXPORT_ALGORITHM,
-  EXPORT_KEY_DERIVATION,
-  ExportAlgorithm,
-  ExportKeyDerivation,
-} from "./email-export.service";
+import { EmailExportService } from "./email-export.service";
 import {
   CategoryOverrideBody,
   ExportEmailBody,
@@ -454,36 +451,29 @@ export class EmailsController {
   // ---------------------------------------------------------------------------
 
   /**
-   * Exports all emails for the authenticated user as an AES-256-GCM encrypted
-   * JSON payload.  The caller must supply a password; the encrypted data can
-   * only be read by someone who knows that password.
-   *
-   * Response body:
-   *   encryptedData  – colon-delimited hex string: salt:iv:authTag:ciphertext
-   *   algorithm      – "aes-256-gcm"
-   *   keyDerivation  – "scrypt"
-   *
-   * Each decrypted record contains:
-   *   senderDomain (regex), subject, body, isRead, isReceived
+   * Exports all emails for the authenticated user as a password-protected ZIP
+   * file. Email content is decrypted server-side so the JSON inside the ZIP is
+   * human-readable. The ZIP uses ZipCrypto (PKZIP 2.0) encryption, which is
+   * natively supported by macOS Archive Utility and Windows Explorer without
+   * any third-party software.
    */
   @Post("export")
   async exportEmails(
     @Request() req,
     @Body() body: ExportEmailBody,
-  ): Promise<{
-    encryptedData: string;
-    algorithm: ExportAlgorithm;
-    keyDerivation: ExportKeyDerivation;
-  }> {
-    const encryptedData = await this.emailExportService.exportEmails(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const zipBuffer = await this.emailExportService.exportEmails(
       req.user.userId,
       body.password,
     );
-    return {
-      encryptedData,
-      algorithm: EXPORT_ALGORITHM,
-      keyDerivation: EXPORT_KEY_DERIVATION,
-    };
+    const filename = `bearlymail-emails-${new Date().toISOString().split("T")[0]}.zip`;
+    res.set({
+      "Content-Type": "application/zip",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Length": zipBuffer.length,
+    });
+    return new StreamableFile(zipBuffer);
   }
 
   // ---------------------------------------------------------------------------

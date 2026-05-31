@@ -16,6 +16,7 @@ const CARD_OPTIONS: CardOption[] = [
   { type: 'actionItems', labelKey: 'emailDetail.actionItems' },
   { type: 'github', labelKey: 'emailDetail.cardLabels.github' },
   { type: 'crm', labelKey: 'emailDetail.cardLabels.crm' },
+  { type: 'senderContext', labelKey: 'emailDetail.cardLabels.senderContext' },
   { type: 'privateNotes', labelKey: 'emailDetail.privateNotes' },
 ];
 

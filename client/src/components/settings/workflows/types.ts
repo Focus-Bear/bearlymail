@@ -77,12 +77,15 @@ export interface MCPToolDefinition {
   inputSchema: object;
 }
 
+export type MCPServerPurpose = 'workflow' | 'sender_context';
+
 export interface MCPServerConfig {
   id: string;
   userId: string;
   name: string;
   serverUrl: string;
   apiKey?: string | null;
+  purpose: MCPServerPurpose;
   cachedTools: MCPToolDefinition[] | null;
   toolsCachedAt: string | null;
   enabled: boolean;

@@ -5,7 +5,13 @@ import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
 
 import { MCPServerManager } from './MCPServerManager';
-import { MCPServerConfig, WorkflowExecutionLog, WorkflowRule, WorkflowRuleFormValues } from './types';
+import {
+  MCPServerConfig,
+  MCPServerPurpose,
+  WorkflowExecutionLog,
+  WorkflowRule,
+  WorkflowRuleFormValues,
+} from './types';
 import { WorkflowEditor } from './WorkflowEditor';
 import { WorkflowExecutionHistory } from './WorkflowExecutionHistory';
 import { WorkflowsList } from './WorkflowsList';
@@ -109,8 +115,13 @@ export const WorkflowsSection: React.FC = () => {
 
   // ── MCP server management ─────────────────────────────────────────────────────
 
-  const handleAddMCPServer = async (name: string, serverUrl: string, apiKey?: string) => {
-    await axios.post(`${API_URL}/mcp-servers`, { name, serverUrl, apiKey });
+  const handleAddMCPServer = async (
+    name: string,
+    serverUrl: string,
+    apiKey: string | undefined,
+    purpose: MCPServerPurpose
+  ) => {
+    await axios.post(`${API_URL}/mcp-servers`, { name, serverUrl, apiKey, purpose });
     await loadData();
   };
 

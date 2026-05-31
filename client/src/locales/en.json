@@ -675,7 +675,8 @@
     "displaySettings": "Display Settings",
     "cardLabels": {
       "github": "GitHub",
-      "crm": "Deals"
+      "crm": "Deals",
+      "senderContext": "Sender Context"
     }
   },
   "settings": {
@@ -1710,6 +1711,15 @@
     "createDeal": "Create Deal",
     "errorLoadingDeals": "Error loading deals",
     "expectedClose": "Expected close"
+  },
+  "senderContext": {
+    "title": "Sender Context",
+    "expandToLoad": "Expand to look up the sender",
+    "noContext": "No context found for this sender",
+    "sourceCount_one": "{{count}} source",
+    "sourceCount_other": "{{count}} sources",
+    "refresh": "Refresh sender context",
+    "errorLoading": "Error loading sender context"
   },
   "deals": {
     "title": "Deals",

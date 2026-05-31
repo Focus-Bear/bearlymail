@@ -1143,7 +1143,8 @@
     "displaySettings": "Configuración de visualización",
     "cardLabels": {
       "github": "GitHub",
-      "crm": "Tratos"
+      "crm": "Tratos",
+      "senderContext": "Contexto del remitente"
     }
   },
   "contacts": {
@@ -1214,6 +1215,15 @@
     "createDeal": "Crear Negocio",
     "errorLoadingDeals": "Error al cargar negocios",
     "expectedClose": "Cierre esperado"
+  },
+  "senderContext": {
+    "title": "Contexto del remitente",
+    "expandToLoad": "Expande para buscar al remitente",
+    "noContext": "No se encontró contexto para este remitente",
+    "sourceCount_one": "{{count}} fuente",
+    "sourceCount_other": "{{count}} fuentes",
+    "refresh": "Actualizar contexto del remitente",
+    "errorLoading": "Error al cargar el contexto del remitente"
   },
   "deals": {
     "title": "Negocios",

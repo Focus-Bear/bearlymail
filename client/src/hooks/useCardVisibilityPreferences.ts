@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-export type CardType = 'summary' | 'actionItems' | 'github' | 'crm' | 'privateNotes';
+export type CardType = 'summary' | 'actionItems' | 'github' | 'crm' | 'senderContext' | 'privateNotes';
 
 const STORAGE_KEY = 'bearlymail_hidden_cards';
 

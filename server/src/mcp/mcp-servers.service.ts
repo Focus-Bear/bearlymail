@@ -2,13 +2,19 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { MCPServerConfig } from "../database/entities/mcp-server-config.entity";
+import {
+  MCP_SERVER_PURPOSES,
+  MCPServerConfig,
+  MCPServerPurpose,
+} from "../database/entities/mcp-server-config.entity";
 import { MCPClientManagerService } from "./mcp-client-manager.service";
+import { MCPSenderMappingService } from "./mcp-sender-mapping.service";
 
 export interface CreateMCPServerDto {
   name: string;
   serverUrl: string;
   apiKey?: string;
+  purpose?: MCPServerPurpose;
 }
 
 export interface UpdateMCPServerDto {
@@ -16,6 +22,7 @@ export interface UpdateMCPServerDto {
   serverUrl?: string;
   apiKey?: string;
   enabled?: boolean;
+  purpose?: MCPServerPurpose;
 }
 
 /**
@@ -31,6 +38,7 @@ export class MCPServersService {
     @InjectRepository(MCPServerConfig)
     private readonly configRepo: Repository<MCPServerConfig>,
     private readonly mcpClientManager: MCPClientManagerService,
+    private readonly senderMappingService: MCPSenderMappingService,
   ) {}
 
   async findAll(userId: string): Promise<MCPServerConfig[]> {
@@ -55,6 +63,7 @@ export class MCPServersService {
       name: dto.name,
       serverUrl: dto.serverUrl,
       apiKey: dto.apiKey ?? null,
+      purpose: dto.purpose ?? MCP_SERVER_PURPOSES.WORKFLOW,
     });
     const saved = await this.configRepo.save(config);
 
@@ -67,9 +76,28 @@ export class MCPServersService {
       );
     }
 
+    // Sender-context servers need a lookup mapping derived from their tools.
+    if (saved.purpose === MCP_SERVER_PURPOSES.SENDER_CONTEXT) {
+      await this.deriveSenderMappingSafely(saved.id, userId);
+    }
+
     return this.configRepo.findOne({
       where: { id: saved.id },
     }) as Promise<MCPServerConfig>;
+  }
+
+  /** Derive the sender-lookup mapping without letting a failure break the request. */
+  private async deriveSenderMappingSafely(
+    serverId: string,
+    userId: string,
+  ): Promise<void> {
+    try {
+      await this.senderMappingService.deriveMapping(serverId, userId);
+    } catch (err) {
+      this.logger.warn(
+        `Could not derive sender mapping for MCP server ${serverId}: ${(err as Error).message}`,
+      );
+    }
   }
 
   async update(
@@ -78,9 +106,45 @@ export class MCPServersService {
     dto: UpdateMCPServerDto,
   ): Promise<MCPServerConfig> {
     // Throws if not found / not owned — ownership check before mutation
-    await this.findOne(userId, id);
-    await this.configRepo.update({ id, userId }, dto);
-    return this.findOne(userId, id);
+    const existing = await this.findOne(userId, id);
+
+    // A new URL or API key means the cached tool list and any derived sender
+    // mapping are stale — clear them so we re-fetch/re-derive below.
+    const connectionChanged =
+      (dto.serverUrl !== undefined && dto.serverUrl !== existing.serverUrl) ||
+      (dto.apiKey !== undefined && dto.apiKey !== existing.apiKey);
+
+    const updatePayload: Partial<MCPServerConfig> = { ...dto };
+    if (connectionChanged) {
+      updatePayload.cachedTools = null;
+      updatePayload.toolsCachedAt = null;
+      updatePayload.senderLookupMapping = null;
+    }
+
+    await this.configRepo.update({ id, userId }, updatePayload);
+    const updated = await this.findOne(userId, id);
+
+    if (connectionChanged) {
+      try {
+        await this.mcpClientManager.getTools(id, true);
+      } catch (err) {
+        this.logger.warn(
+          `Could not fetch tools for updated MCP server ${id}: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    // Re-derive the mapping if this is now a sender-context server but has no
+    // mapping yet (e.g. purpose was just flipped from "workflow", or the
+    // connection details changed and the previous mapping was cleared above).
+    if (
+      updated.purpose === MCP_SERVER_PURPOSES.SENDER_CONTEXT &&
+      (!updated.senderLookupMapping || connectionChanged)
+    ) {
+      await this.deriveSenderMappingSafely(id, userId);
+      return this.findOne(userId, id);
+    }
+    return updated;
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -92,8 +156,12 @@ export class MCPServersService {
     userId: string,
     id: string,
   ): Promise<{ toolCount: number }> {
-    await this.findOne(userId, id);
+    const config = await this.findOne(userId, id);
     const tools = await this.mcpClientManager.getTools(id, true);
+    // The tool list changed — re-derive the sender mapping against it.
+    if (config.purpose === MCP_SERVER_PURPOSES.SENDER_CONTEXT) {
+      await this.deriveSenderMappingSafely(id, userId);
+    }
     return { toolCount: tools.length };
   }
 

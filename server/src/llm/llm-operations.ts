@@ -132,6 +132,9 @@ export const LLM_OP_DETECT_MEETING_PROPOSAL = "detect_meeting_proposal";
 // Check whether two category names are duplicates (Levenshtein near-match confirmation)
 export const LLM_OP_CHECK_CATEGORY_DUPLICATE = "check_category_duplicate";
 
+// Sender context: pick which MCP tool + arg looks up a person by email
+export const LLM_OP_DERIVE_MCP_SENDER_TOOL = "derive_mcp_sender_tool";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -181,6 +184,7 @@ export type LLMOperation =
   | typeof LLM_OP_BATCH_PRIORITY_TRIAGE
   | typeof LLM_OP_DETECT_MEETING_PROPOSAL
   | typeof LLM_OP_CHECK_CATEGORY_DUPLICATE
+  | typeof LLM_OP_DERIVE_MCP_SENDER_TOOL
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -229,5 +233,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_BATCH_PRIORITY_TRIAGE]: "Batch Priority Triage",
   [LLM_OP_DETECT_MEETING_PROPOSAL]: "Detect Meeting Proposal",
   [LLM_OP_CHECK_CATEGORY_DUPLICATE]: "Check Category Duplicate",
+  [LLM_OP_DERIVE_MCP_SENDER_TOOL]: "Derive MCP Sender Tool",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

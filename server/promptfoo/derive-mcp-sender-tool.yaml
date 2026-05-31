@@ -1,0 +1,84 @@
+description: "Tests for the MCP sender-tool derivation prompt (picks which MCP tool + arg looks up a person by email)"
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/derive-mcp-sender-tool.md
+
+tests:
+  - description: "Should return valid JSON with toolName and emailArgName fields"
+    vars:
+      toolsJson: |
+        [
+          {"name": "search_contacts", "description": "Search CRM contacts by email or name", "inputSchema": {"type": "object", "properties": {"email": {"type": "string"}}}},
+          {"name": "create_deal", "description": "Create a sales deal", "inputSchema": {"type": "object", "properties": {"title": {"type": "string"}}}}
+        ]
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (!('toolName' in parsed) || !('emailArgName' in parsed)) {
+            throw new Error(`Missing required fields: ${cleaned}`);
+          }
+          return true;
+
+  - description: "Should pick the email-based contact lookup tool and the email argument"
+    vars:
+      toolsJson: |
+        [
+          {"name": "search_contacts", "description": "Search CRM contacts by email address", "inputSchema": {"type": "object", "properties": {"email": {"type": "string"}}}},
+          {"name": "list_pipelines", "description": "List sales pipelines", "inputSchema": {"type": "object", "properties": {}}}
+        ]
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.toolName !== 'search_contacts') {
+            throw new Error(`Expected search_contacts, got: ${parsed.toolName}`);
+          }
+          if (parsed.emailArgName !== 'email') {
+            throw new Error(`Expected emailArgName 'email', got: ${parsed.emailArgName}`);
+          }
+          return true;
+
+  - description: "Should fall back to a generic query arg when no email-specific field exists"
+    vars:
+      toolsJson: |
+        [
+          {"name": "lookup_person", "description": "Look up a person in the directory by a free-text query (name or email)", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}}}
+        ]
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.toolName !== 'lookup_person') {
+            throw new Error(`Expected lookup_person, got: ${parsed.toolName}`);
+          }
+          if (parsed.emailArgName !== 'query') {
+            throw new Error(`Expected emailArgName 'query', got: ${parsed.emailArgName}`);
+          }
+          return true;
+
+  - description: "Should return nulls when no tool can look up a person by email"
+    vars:
+      toolsJson: |
+        [
+          {"name": "create_invoice", "description": "Create an invoice", "inputSchema": {"type": "object", "properties": {"amount": {"type": "number"}}}},
+          {"name": "send_sms", "description": "Send an SMS message", "inputSchema": {"type": "object", "properties": {"phone": {"type": "string"}, "body": {"type": "string"}}}}
+        ]
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.toolName !== null) {
+            throw new Error(`Expected null toolName for no-match, got: ${parsed.toolName}`);
+          }
+          return true;

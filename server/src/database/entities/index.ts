@@ -16,6 +16,7 @@ export { Feedback } from "./feedback.entity";
 export { FollowUp } from "./follow-up.entity";
 export { GitHubRepoMapping } from "./github-repo-mapping.entity";
 export { GoogleAccount } from "./google-account.entity";
+export { MCPSenderContextCache } from "./mcp-sender-context-cache.entity";
 export { MCPServerConfig } from "./mcp-server-config.entity";
 export { Office365Account } from "./office365-account.entity";
 export { Organization } from "./organization.entity";

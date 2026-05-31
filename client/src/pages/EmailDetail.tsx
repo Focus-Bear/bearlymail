@@ -18,6 +18,7 @@ import { EmailDetailSidebar } from 'components/email-detail/EmailDetailSidebar';
 import { EmailPhishingWarning } from 'components/email-detail/EmailPhishingWarning';
 import { shouldShowPhishingAlert } from 'components/email-detail/emailPhishingWarning.helpers';
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
+import { SenderContextSection } from 'components/email-detail/SenderContextSection';
 import { SummarySection } from 'components/email-detail/SummarySection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
 import { EmailNotFound } from 'components/email-detail-inline/EmailNotFound';
@@ -691,6 +692,14 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 />
               </div>
             )}
+            {!hiddenCards.has('senderContext') && (
+              <div style={{ marginBottom: theme.spacing.xl }}>
+                <SenderContextSection
+                  senderEmail={extractEmailAddress(st.email?.from)}
+                  onDismiss={() => hideCard('senderContext')}
+                />
+              </div>
+            )}
           </>
         )}
         {shouldShowPhishingAlert(st.email?.phishingConfidence) && st.email?.phishingConfidence && (
@@ -815,6 +824,12 @@ const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
             senderEmail={extractEmailAddress(st.email?.from)}
             emailSubject={st.email?.subject}
             onDismiss={() => onHideCard('crm')}
+          />
+        )}
+        {!hiddenCards.has('senderContext') && (
+          <SenderContextSection
+            senderEmail={extractEmailAddress(st.email?.from)}
+            onDismiss={() => onHideCard('senderContext')}
           />
         )}
       </>

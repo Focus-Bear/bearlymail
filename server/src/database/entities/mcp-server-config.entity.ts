@@ -17,6 +17,32 @@ export interface MCPToolDefinition {
 }
 
 /**
+ * What an MCP server connection is used for.
+ * - "workflow"       — invoked by user-defined workflow rules (feature #1483)
+ * - "sender_context" — queried to enrich the email-detail view with context
+ *   about the sender (e.g. CRM data from HubSpot)
+ */
+export const MCP_SERVER_PURPOSES = {
+  WORKFLOW: "workflow",
+  SENDER_CONTEXT: "sender_context",
+} as const;
+
+export type MCPServerPurpose =
+  (typeof MCP_SERVER_PURPOSES)[keyof typeof MCP_SERVER_PURPOSES];
+
+/**
+ * Cached decision of which tool to call (and with which argument) to look up a
+ * person by email on a sender-context server. Derived once per server by the LLM
+ * (see MCPSenderMappingService) and reused as a cheap deterministic call.
+ */
+export interface MCPSenderLookupMapping {
+  /** Name of the tool to invoke for a sender lookup. */
+  toolName: string;
+  /** Name of the tool input argument that takes the sender's email address. */
+  emailArgName: string;
+}
+
+/**
  * MCPServerConfig — stores connection details for a user-configured MCP server.
  * Credentials (serverUrl, apiKey) are encrypted at rest.
  *
@@ -59,6 +85,20 @@ export class MCPServerConfig {
 
   @Column({ type: "timestamp", nullable: true })
   toolsCachedAt: Date | null;
+
+  /**
+   * What this server is used for. Existing rows default to "workflow" so the
+   * Automated Workflows feature is unaffected.
+   */
+  @Column({ type: "text", default: "workflow" })
+  purpose: MCPServerPurpose;
+
+  /**
+   * For sender-context servers: the LLM-derived tool + argument used to look up
+   * a sender by email. Null until derived, or if no suitable tool was found.
+   */
+  @Column({ type: "jsonb", nullable: true })
+  senderLookupMapping: MCPSenderLookupMapping | null;
 
   @Column({ type: "boolean", default: true })
   enabled: boolean;

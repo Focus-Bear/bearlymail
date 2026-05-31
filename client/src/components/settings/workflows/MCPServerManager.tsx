@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { theme } from 'theme/theme';
 
-import { MCPServerConfig } from './types';
+import { MCPServerConfig, MCPServerPurpose } from './types';
 
 interface MCPServerManagerProps {
   servers: MCPServerConfig[];
-  onAdd: (name: string, serverUrl: string, apiKey?: string) => Promise<void>;
+  onAdd: (name: string, serverUrl: string, apiKey: string | undefined, purpose: MCPServerPurpose) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onRefresh: (id: string) => Promise<void>;
   onTest: (id: string) => Promise<{ ok: boolean; toolCount: number }>;
@@ -20,6 +20,7 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onA
   const [name, setName] = useState('');
   const [serverUrl, setServerUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [purpose, setPurpose] = useState<MCPServerPurpose>('workflow');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; toolCount: number }>>({});
@@ -33,10 +34,11 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onA
     setSaving(true);
     setError(null);
     try {
-      await onAdd(name.trim(), serverUrl.trim(), apiKey.trim() || undefined);
+      await onAdd(name.trim(), serverUrl.trim(), apiKey.trim() || undefined, purpose);
       setName('');
       setServerUrl('');
       setApiKey('');
+      setPurpose('workflow');
       setShowForm(false);
     } catch (err) {
       setError((err as Error).message);
@@ -138,6 +140,20 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onA
                 style={inputStyle}
               />
             </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 2 }}>Purpose</label>
+              <select
+                value={purpose}
+                onChange={evt => setPurpose(evt.target.value as MCPServerPurpose)}
+                style={inputStyle}
+              >
+                <option value="workflow">Workflow actions</option>
+                <option value="sender_context">Sender context (look up the email sender)</option>
+              </select>
+              <div style={{ fontSize: 11, color: theme.colors.text.secondary, marginTop: 2 }}>
+                Sender-context servers are queried when you open an email to show info about the sender (e.g. CRM data).
+              </div>
+            </div>
             {error && (
               <div
                 style={{
@@ -196,7 +212,22 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onA
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{server.name}</div>
+                  <div style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {server.name}
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 500,
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        background: theme.colors.background.paper,
+                        border: `1px solid ${theme.colors.border.default}`,
+                        color: theme.colors.text.secondary,
+                      }}
+                    >
+                      {server.purpose === 'sender_context' ? 'Sender context' : 'Workflow'}
+                    </span>
+                  </div>
                   <div style={{ color: theme.colors.text.secondary, fontSize: 12, marginTop: 2 }}>
                     {server.serverUrl}
                   </div>

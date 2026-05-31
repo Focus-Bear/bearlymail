@@ -6,11 +6,13 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Request,
   UseGuards,
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { MCPSenderContextService } from "./mcp-sender-context.service";
 import {
   CreateMCPServerDto,
   MCPServersService,
@@ -21,6 +23,9 @@ interface AuthenticatedRequest {
   user: { userId: string; email: string };
 }
 
+/** Truthy value the client must send to force-refresh the sender-context cache. */
+const REFRESH_TRUE_QUERY_VALUE = "true";
+
 /**
  * REST API for managing MCP server configurations.
  *
@@ -29,11 +34,32 @@ interface AuthenticatedRequest {
 @Controller("mcp-servers")
 @UseGuards(JwtAuthGuard)
 export class MCPServersController {
-  constructor(private readonly mcpServersService: MCPServersService) {}
+  constructor(
+    private readonly mcpServersService: MCPServersService,
+    private readonly senderContextService: MCPSenderContextService,
+  ) {}
 
   @Get()
   async list(@Request() req: AuthenticatedRequest) {
     return this.mcpServersService.findAll(req.user.userId);
+  }
+
+  /**
+   * Fetch context about an email sender from the user's sender-context MCP
+   * servers. Declared before the `:id` route so the literal path isn't
+   * captured by the param route.
+   */
+  @Get("sender-context")
+  async senderContext(
+    @Request() req: AuthenticatedRequest,
+    @Query("email") email: string,
+    @Query("refresh") refresh?: string,
+  ) {
+    return this.senderContextService.getSenderContext(
+      req.user.userId,
+      email,
+      refresh === REFRESH_TRUE_QUERY_VALUE,
+    );
   }
 
   @Post()

@@ -12,7 +12,7 @@ vi.mock('./useResponsiveBreakpoints', () => ({
 const mockedUseResponsiveBreakpoints = useResponsiveBreakpoints as jest.MockedFunction<typeof useResponsiveBreakpoints>;
 
 const STORAGE_KEY = 'bearlymail_split_position';
-const DEFAULT_SPLIT_POSITION = 50;
+const DEFAULT_SPLIT_POSITION = 38;
 const MIN_SPLIT_POSITION = 20;
 const MAX_SPLIT_POSITION = 80;
 

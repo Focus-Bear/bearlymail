@@ -26,6 +26,8 @@ import { LoadingSpinner } from 'components/email-detail-inline/LoadingSpinner';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
+import { ActionSidebar } from 'components/inbox/ActionSidebar';
+import { AskAiPanel } from 'components/inbox/AskAiPanel';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import {
@@ -303,8 +305,28 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       />
     );
 
-    // In compact or inline mode, render without sidebar/overlay
-    if (isCompact || isInline) {
+    // Compact (split-view): EmailDetailContent returns its own two-column layout
+    // (email body + action sidebar), so render it directly into a full-height column.
+    if (isCompact) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
+          {emailContent}
+          <CustomRuleModal
+            show={showRuleModal}
+            customRule={customRule}
+            onCustomRuleChange={state.setCustomRule}
+            onClose={() => {
+              state.setShowRuleModal(false);
+              state.setCustomRule({ whenToUse: '', howToSummarize: '' });
+            }}
+            onCreate={ops.handleCreateCustomRule}
+          />
+        </div>
+      );
+    }
+
+    // Inline (drawer/panel): single scrolling column, no sidebar.
+    if (isInline) {
       return (
         <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
           <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm }}>
@@ -461,6 +483,11 @@ interface EmailDetailNotesAndActionsProps {
   onToggleCardSettings: () => void;
   onCloseCardSettings: () => void;
   onShowCard: (card: CardType) => void;
+  /** Notes/tasks cards, rendered here unless they have been moved to the action sidebar. */
+  notesSection?: React.ReactNode;
+  tasksSection?: React.ReactNode;
+  /** When true, notes/tasks live in the action sidebar (split-view), so skip them here. */
+  assistantInSidebar?: boolean;
 }
 
 // Extracted to reduce main component line count
@@ -484,6 +511,8 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   const isCompactOrInline =
     effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT || effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
   const isInline = effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
+  // Split-view (compact) hosts the assistant cards in a dedicated right-hand sidebar.
+  const isCompact = effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT;
 
   const { hiddenCards, hideCard, showCard } = useCardVisibilityPreferences();
   const [showCardSettings, setShowCardSettings] = useState(false);
@@ -537,7 +566,55 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
       ops.handleSummarize(type);
     }
   };
-  return (
+
+  // Assistant cards (summary / tasks / notes) are built once and rendered either
+  // inline (full/inline views) or inside the split-view ActionSidebar (compact).
+  const notesSection = !hiddenCards.has('privateNotes') ? (
+    <PrivateNotesSection
+      noteContent={st.noteContent}
+      notesCollapsed={st.notesCollapsed}
+      onNoteContentChange={st.setNoteContent}
+      onToggleCollapsed={() => st.setNotesCollapsed(!st.notesCollapsed)}
+      onSaveNote={ops.handleSaveNote}
+      onDismiss={() => hideCard('privateNotes')}
+    />
+  ) : null;
+
+  const tasksSection = !hiddenCards.has('actionItems') ? (
+    <ActionItemsSection
+      actionItems={st.actionItems}
+      newActionItem={st.newActionItem}
+      isGeneratingSummary={st.isGeneratingSummary}
+      onNewActionItemChange={st.setNewActionItem}
+      onAddActionItem={ops.handleAddActionItem}
+      onToggleActionItem={ops.handleToggleActionItem}
+      onDeleteActionItem={ops.handleDeleteActionItem}
+      onExtractActions={ops.handleExtractActions}
+      onRegenerateActionItems={ops.handleRegenerateActionItems}
+      onDismiss={() => hideCard('actionItems')}
+    />
+  ) : null;
+
+  const summarySection =
+    !isInline && !hiddenCards.has('summary') ? (
+      <SummarySection
+        summary={st.summary}
+        summaryType={st.summaryType}
+        summaryCollapsed={st.summaryCollapsed}
+        isGeneratingSummary={st.isGeneratingSummary}
+        emailIsProcessingSummary={st.email?.isProcessingSummary}
+        customRules={st.customRules}
+        summaryDebug={st.summaryDebug}
+        showDebug={showAdminDebug}
+        onSummaryTypeChange={handleSummaryTypeChange}
+        onToggleCollapsed={() => st.setSummaryCollapsed(!st.summaryCollapsed)}
+        onShowRuleModal={() => {}}
+        onUseCustomRule={ops.handleUseCustomRule}
+        onDismiss={() => hideCard('summary')}
+      />
+    ) : null;
+
+  const mainContent = (
     <>
       <EmailDetailNotesAndActions
         state={st}
@@ -552,6 +629,9 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         onToggleCardSettings={() => setShowCardSettings(prev => !prev)}
         onCloseCardSettings={() => setShowCardSettings(false)}
         onShowCard={showCard}
+        notesSection={notesSection}
+        tasksSection={tasksSection}
+        assistantInSidebar={isCompact}
       />
       <div style={getEmailContentCardStyle(isCompactOrInline, isMobile)}>
         {/* Header is hidden for inline variant — no router/priority context needed in panel mode */}
@@ -705,24 +785,9 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         {shouldShowPhishingAlert(st.email?.phishingConfidence) && st.email?.phishingConfidence && (
           <EmailPhishingWarning confidence={st.email.phishingConfidence} reason={st.email.phishingReason ?? ''} />
         )}
-        {/* Summary section is omitted in inline variant — panel mode is not a primary reading surface */}
-        {!isInline && !hiddenCards.has('summary') && (
-          <SummarySection
-            summary={st.summary}
-            summaryType={st.summaryType}
-            summaryCollapsed={st.summaryCollapsed}
-            isGeneratingSummary={st.isGeneratingSummary}
-            emailIsProcessingSummary={st.email?.isProcessingSummary}
-            customRules={st.customRules}
-            summaryDebug={st.summaryDebug}
-            showDebug={showAdminDebug}
-            onSummaryTypeChange={handleSummaryTypeChange}
-            onToggleCollapsed={() => st.setSummaryCollapsed(!st.summaryCollapsed)}
-            onShowRuleModal={() => {}}
-            onUseCustomRule={ops.handleUseCustomRule}
-            onDismiss={() => hideCard('summary')}
-          />
-        )}
+        {/* Summary renders here for full view; in split-view it moves to the action sidebar.
+            It is always omitted in inline variant (summarySection is null there). */}
+        {!isCompact && summarySection}
         <EmailThreadView
           email={st.email as Email}
           threadEmails={st.threadEmails as Email[]}
@@ -751,6 +816,29 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
       )}
     </>
   );
+
+  // Split-view: email body on the left, collapsible assistant sidebar on the right.
+  if (isCompact) {
+    return (
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%', overflow: 'hidden' }}>
+        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm }}>
+          {mainContent}
+        </div>
+        <ActionSidebar
+          actionsContent={
+            <>
+              {summarySection}
+              {tasksSection}
+              {notesSection}
+            </>
+          }
+          askAiContent={<AskAiPanel />}
+        />
+      </div>
+    );
+  }
+
+  return mainContent;
 };
 
 const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
@@ -766,6 +854,9 @@ const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
   onToggleCardSettings,
   onCloseCardSettings,
   onShowCard,
+  notesSection = null,
+  tasksSection = null,
+  assistantInSidebar = false,
 }) => (
   <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
     <div style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.xs }}>
@@ -778,30 +869,9 @@ const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
         onClose={onCloseCardSettings}
       />
     </div>
-    {!hiddenCards.has('privateNotes') && (
-      <PrivateNotesSection
-        noteContent={st.noteContent}
-        notesCollapsed={st.notesCollapsed}
-        onNoteContentChange={st.setNoteContent}
-        onToggleCollapsed={() => st.setNotesCollapsed(!st.notesCollapsed)}
-        onSaveNote={ops.handleSaveNote}
-        onDismiss={() => onHideCard('privateNotes')}
-      />
-    )}
-    {!hiddenCards.has('actionItems') && (
-      <ActionItemsSection
-        actionItems={st.actionItems}
-        newActionItem={st.newActionItem}
-        isGeneratingSummary={st.isGeneratingSummary}
-        onNewActionItemChange={st.setNewActionItem}
-        onAddActionItem={ops.handleAddActionItem}
-        onToggleActionItem={ops.handleToggleActionItem}
-        onDeleteActionItem={ops.handleDeleteActionItem}
-        onExtractActions={ops.handleExtractActions}
-        onRegenerateActionItems={ops.handleRegenerateActionItems}
-        onDismiss={() => onHideCard('actionItems')}
-      />
-    )}
+    {/* Notes/tasks render here for full and inline views; in split-view they move to the action sidebar. */}
+    {!assistantInSidebar && notesSection}
+    {!assistantInSidebar && tasksSection}
     {/* In compact (split-view) mode, GitHub and CRM go here to match the previous compactMode=true layout */}
     {effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT && (
       <>

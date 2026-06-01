@@ -245,6 +245,25 @@
     "canWait": "Can wait",
     "getOnIt": "Get on it",
     "ohShit": "Oh sh$t",
+    "assistant": {
+      "actionsTab": "Actions",
+      "askAiTab": "Ask AI",
+      "collapse": "Collapse panel",
+      "expand": "Open assistant",
+      "ariaLabel": "Email assistant panel"
+    },
+    "askAi": {
+      "title": "Ask AI",
+      "subtitle": "Get help with this email — summaries, replies, and next steps.",
+      "inputPlaceholder": "Ask anything about this email…",
+      "comingSoon": "Coming soon",
+      "send": "Send",
+      "suggestedHeading": "Try asking",
+      "prompt1": "Summarize this thread",
+      "prompt2": "Draft a friendly reply",
+      "prompt3": "What needs my action?",
+      "disclaimer": "AI can make mistakes. Double-check important details."
+    },
     "otherActions": "Other actions",
     "suggested": "Suggested",
     "archive": "Archive",
@@ -1311,6 +1330,11 @@
     "troubleshooting": {
       "title": "Troubleshooting"
     },
+    "replayTour": {
+      "label": "Product tour",
+      "description": "Replay the guided walkthrough of triage, action, scheduled delivery, and the AI assistant panel.",
+      "button": "Replay tour"
+    },
     "version": "Version:",
     "builtAt": "Built:",
     "versionFooterLabel": "Application version",
@@ -1791,6 +1815,8 @@
       "actionContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
       "deliveryTitle": "Scheduled Delivery",
       "deliveryContent": "New emails are batched and delivered every few hours to prevent distractions. Use 'Deliver Now' if you need to check urgently.",
+      "assistantTitle": "Your AI Assistant Panel",
+      "assistantContent": "Open any email and a side panel appears on the right. The Actions tab gathers the summary, tasks, and notes, while the Ask AI tab (coming soon) will let you chat about the email — draft replies, get summaries, and spot what needs your attention.",
       "skip": "Skip",
       "next": "Next",
       "finish": "Finish",

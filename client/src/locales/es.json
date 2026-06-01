@@ -1788,6 +1788,25 @@
     "canWait": "Puede esperar",
     "getOnIt": "Ponte a ello",
     "ohShit": "Oh mierda",
+    "assistant": {
+      "actionsTab": "Acciones",
+      "askAiTab": "Preguntar a IA",
+      "collapse": "Contraer panel",
+      "expand": "Abrir asistente",
+      "ariaLabel": "Panel de asistente de correo"
+    },
+    "askAi": {
+      "title": "Preguntar a IA",
+      "subtitle": "Obtén ayuda con este correo: resúmenes, respuestas y próximos pasos.",
+      "inputPlaceholder": "Pregunta lo que quieras sobre este correo…",
+      "comingSoon": "Próximamente",
+      "send": "Enviar",
+      "suggestedHeading": "Prueba a preguntar",
+      "prompt1": "Resume este hilo",
+      "prompt2": "Redacta una respuesta amable",
+      "prompt3": "¿Qué requiere mi acción?",
+      "disclaimer": "La IA puede cometer errores. Verifica los detalles importantes."
+    },
     "clickToArchive": "Haz clic para archivar",
     "clickToSetPriority": "Haz clic para establecer prioridad: {{priority}}",
     "process": "Proceso",
@@ -2614,6 +2633,8 @@
     "tour": {
       "actionContent": "Destaca un correo electrónico para moverlo aquí. Este es su espacio de trabajo enfocado a los correos electrónicos que necesitan acción.",
       "actionTitle": "Pestaña Acción",
+      "assistantContent": "Abre cualquier correo y aparecerá un panel lateral a la derecha. La pestaña Acciones reúne el resumen, las tareas y las notas, mientras que la pestaña Preguntar a IA (próximamente) te permitirá conversar sobre el correo: redactar respuestas, obtener resúmenes y ver qué necesita tu atención.",
+      "assistantTitle": "Tu panel de asistente con IA",
       "deliveryContent": "Los nuevos correos electrónicos se agrupan y entregan cada pocas horas para evitar distracciones. Utilice 'Entregar ahora' si necesita realizar una verificación urgente.",
       "deliveryTitle": "Entrega programada",
       "finish": "Finalizar",
@@ -3595,6 +3616,11 @@
     },
     "troubleshooting": {
       "title": "Resolución de problemas"
+    },
+    "replayTour": {
+      "label": "Tour del producto",
+      "description": "Vuelve a ver la guía interactiva de triaje, acción, entrega programada y el panel del asistente con IA.",
+      "button": "Repetir tour"
     },
     "anthropicTitle": "Clave API de Anthropic (opcional)",
     "anthropicDesc": "Utilice su propia clave Anthropic para usar Claude Sonnet 4.6. Compatible con claves de API sk-ant-api03-* y tokens OAuth de corta duración sk-ant-oat-* generados por la CLI de Claude (claude auth token). Las claves se almacenan cifradas y nunca se devuelven al cliente en texto plano.",

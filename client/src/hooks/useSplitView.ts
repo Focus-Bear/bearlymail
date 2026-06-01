@@ -4,7 +4,9 @@ import { TIMEOUT_300_MS } from 'constants/numbers';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const STORAGE_KEY = 'bearlymail_split_position';
-const DEFAULT_SPLIT_POSITION = 50;
+// Email-list width as a % of the split container. The reading pane (which now also
+// hosts the action sidebar) gets the rest, so we bias toward a narrower list.
+const DEFAULT_SPLIT_POSITION = 38;
 const MIN_SPLIT_POSITION = 20;
 const MAX_SPLIT_POSITION = 80;
 

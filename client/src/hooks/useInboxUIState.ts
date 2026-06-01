@@ -67,6 +67,7 @@ export function useInboxUIState({
     { title: t('onboarding.tour.triageTitle'), content: t('onboarding.tour.triageContent') },
     { title: t('onboarding.tour.actionTitle'), content: t('onboarding.tour.actionContent') },
     { title: t('onboarding.tour.deliveryTitle'), content: t('onboarding.tour.deliveryContent') },
+    { title: t('onboarding.tour.assistantTitle'), content: t('onboarding.tour.assistantContent') },
   ];
 
   return {

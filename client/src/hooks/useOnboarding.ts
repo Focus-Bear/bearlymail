@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
+import { STRING_TRUE } from 'constants/strings';
 import { User } from 'contexts/AuthContext';
+
+const REPLAY_TOUR_PARAM = 'replayTour';
 
 interface ScanProgress {
   current: number;
@@ -30,10 +33,22 @@ interface UseOnboardingReturn {
 
 export function useOnboarding({ user, authLoading, refreshUser }: UseOnboardingProps): UseOnboardingReturn {
   const navigate = useNavigate();
+  const location = useLocation();
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [showScanModal, setShowScanModal] = useState(false);
   const [isScanning] = useState(false);
   const [scanProgress] = useState<ScanProgress | null>(null);
+
+  // Allow replaying the tour from Settings via ?replayTour=true
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get(REPLAY_TOUR_PARAM) === STRING_TRUE) {
+      setTourStep(0);
+      params.delete(REPLAY_TOUR_PARAM);
+      const search = params.toString();
+      navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate]);
 
   // Check if user needs to see tour
   useEffect(() => {

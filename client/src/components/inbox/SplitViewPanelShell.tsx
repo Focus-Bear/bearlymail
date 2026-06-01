@@ -139,6 +139,43 @@ interface SplitViewActionButtonsProps {
   t: (key: string) => string;
 }
 
+// Shared base so every action button has identical height, radius, and motion —
+// only the colour treatment (primary vs ghost) differs.
+const actionButtonBase: React.CSSProperties = {
+  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+  borderRadius: theme.borderRadius.md,
+  cursor: 'pointer',
+  fontSize: theme.typography.fontSize.sm,
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing.xs,
+  transition: theme.transitions.fast,
+  whiteSpace: 'nowrap',
+};
+
+const primaryActionStyle: React.CSSProperties = {
+  ...actionButtonBase,
+  backgroundColor: theme.colors.text.primary,
+  color: theme.colors.background.paper,
+  border: STRING_NONE,
+  fontWeight: theme.typography.fontWeight.semibold,
+};
+
+const ghostActionStyle: React.CSSProperties = {
+  ...actionButtonBase,
+  backgroundColor: COLOR_TRANSPARENT,
+  color: theme.colors.text.secondary,
+  border: `1px solid ${theme.colors.border.light}`,
+  fontWeight: theme.typography.fontWeight.medium,
+};
+
+const snoozeActiveStyle: React.CSSProperties = {
+  ...ghostActionStyle,
+  backgroundColor: theme.colors.primary.subtle,
+  color: theme.colors.primary.main,
+  border: `1px solid ${theme.colors.primary.main}`,
+};
+
 const SplitViewActionButtons: React.FC<SplitViewActionButtonsProps> = ({
   showSnoozeInput,
   onReply,
@@ -148,82 +185,21 @@ const SplitViewActionButtons: React.FC<SplitViewActionButtonsProps> = ({
   t,
 }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-    <button
-      onClick={onReply}
-      style={{
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        backgroundColor: theme.colors.text.primary,
-        color: theme.colors.background.paper,
-        border: STRING_NONE,
-        borderRadius: theme.borderRadius.md,
-        fontWeight: theme.typography.fontWeight.semibold,
-        cursor: 'pointer',
-        fontSize: theme.typography.fontSize.sm,
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.xs,
-      }}
-      title={t('emailDetail.replyAll')}
-    >
+    <button onClick={onReply} style={primaryActionStyle} title={t('emailDetail.replyAll')}>
       <FiCornerUpLeft size={15} />
       {t('emailDetail.replyAll')}
     </button>
-    <button
-      onClick={onForward}
-      style={{
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        backgroundColor: COLOR_TRANSPARENT,
-        color: theme.colors.text.secondary,
-        border: `1px solid ${theme.colors.border.medium}`,
-        borderRadius: theme.borderRadius.md,
-        fontWeight: theme.typography.fontWeight.medium,
-        cursor: 'pointer',
-        fontSize: theme.typography.fontSize.sm,
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.xs,
-      }}
-      title={t('emailDetail.forward')}
-    >
+    <button onClick={onForward} style={ghostActionStyle} title={t('emailDetail.forward')}>
       <FiCornerUpRight size={15} />
       {t('emailDetail.forward')}
     </button>
-    <div style={{ width: '1px', height: '28px', backgroundColor: theme.colors.border.light, flexShrink: 0 }} />
-    <button
-      onClick={onArchive}
-      style={{
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        backgroundColor: COLOR_TRANSPARENT,
-        color: theme.colors.text.secondary,
-        border: STRING_NONE,
-        borderRadius: theme.borderRadius.md,
-        fontWeight: theme.typography.fontWeight.medium,
-        cursor: 'pointer',
-        fontSize: theme.typography.fontSize.sm,
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.xs,
-      }}
-      title={t('emailDetail.archive')}
-    >
+    <button onClick={onArchive} style={ghostActionStyle} title={t('emailDetail.archive')}>
       <FiArchive size={15} />
       {t('emailDetail.archive')}
     </button>
     <button
       onClick={onSnoozeClick}
-      style={{
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        backgroundColor: showSnoozeInput ? theme.colors.primary.light : 'transparent',
-        color: theme.colors.text.secondary,
-        border: showSnoozeInput ? `1px solid ${theme.colors.primary.main}` : 'none',
-        borderRadius: theme.borderRadius.md,
-        fontWeight: theme.typography.fontWeight.medium,
-        cursor: 'pointer',
-        fontSize: theme.typography.fontSize.sm,
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.xs,
-      }}
+      style={showSnoozeInput ? snoozeActiveStyle : ghostActionStyle}
       title={t('emailDetail.snooze')}
     >
       <FiClock size={15} />
@@ -289,7 +265,7 @@ const SplitViewPriorityBar: React.FC<SplitViewPriorityBarProps> = ({
               alignItems: 'center',
               gap: '6px',
               whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
+              transition: theme.transitions.fast,
             }}
           >
             <span>{emoji}</span>

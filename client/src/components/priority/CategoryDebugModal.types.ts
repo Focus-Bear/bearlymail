@@ -47,6 +47,19 @@ export interface CategorizationTrace {
     llmCategoryBeforeRuleOverride?: string;
     llmExplanationBeforeRuleOverride?: string;
   };
+  /**
+   * Which email in the thread the rules were evaluated against. When this is
+   * not the latest reply, the trace and the stored thread category can diverge
+   * (a later reply may flip a NOT-contains exclusion).
+   */
+  evaluatedEmail: {
+    emailId: string;
+    isLatestInThread: boolean;
+    evaluatedReceivedAt: string | null;
+    latestReceivedAt: string | null;
+    latestEmailId: string | null;
+    threadEmailCount: number;
+  };
 }
 
 export interface CategoryDebugData {

@@ -83,6 +83,21 @@ export interface CategorizationTrace {
     llmCategoryBeforeRuleOverride?: string;
     llmExplanationBeforeRuleOverride?: string;
   };
+  /**
+   * Which email in the thread the rules were actually evaluated against. The
+   * stored thread category is computed once (from whichever email triggered
+   * priority processing), but the trace re-evaluates the currently-viewed
+   * email. When that is not the latest reply, a later reply could flip a
+   * NOT-contains exclusion, so the trace and the stored category can diverge.
+   */
+  evaluatedEmail: {
+    emailId: string;
+    isLatestInThread: boolean;
+    evaluatedReceivedAt: string | null;
+    latestReceivedAt: string | null;
+    latestEmailId: string | null;
+    threadEmailCount: number;
+  };
 }
 
 @Injectable()
@@ -313,7 +328,66 @@ export class EmailDebugCategoryService {
       protoCategories,
     });
 
-    return { deterministicRules, shortlist, smartModel };
+    const evaluatedEmail = await this.buildEvaluatedEmailMeta(userId, email);
+
+    return { deterministicRules, shortlist, smartModel, evaluatedEmail };
+  }
+
+  /**
+   * Determines whether the email the trace evaluated is the latest reply in its
+   * thread. The stored thread category may have been computed from a different
+   * (earlier) email, so surfacing this lets the UI warn when the trace and the
+   * stored category could legitimately disagree.
+   */
+  private async buildEvaluatedEmailMeta(
+    userId: string,
+    email: Email,
+  ): Promise<CategorizationTrace["evaluatedEmail"]> {
+    const evaluatedReceivedAt = email.receivedAt
+      ? email.receivedAt.toISOString()
+      : null;
+
+    if (!email.emailThreadId) {
+      return {
+        emailId: email.id,
+        isLatestInThread: true,
+        evaluatedReceivedAt,
+        latestReceivedAt: evaluatedReceivedAt,
+        latestEmailId: email.id,
+        threadEmailCount: 1,
+      };
+    }
+
+    const [latest, threadEmailCount] = await Promise.all([
+      this.emailRepository.findOne({
+        where: { emailThreadId: email.emailThreadId, userId },
+        order: { receivedAt: "DESC" },
+        select: ["id", "receivedAt"],
+      }),
+      this.emailRepository.count({
+        where: { emailThreadId: email.emailThreadId, userId },
+      }),
+    ]);
+
+    const evaluatedMs = email.receivedAt ? email.receivedAt.getTime() : null;
+    const latestMs = latest?.receivedAt ? latest.receivedAt.getTime() : null;
+    const isLatestInThread =
+      !latest ||
+      latest.id === email.id ||
+      latestMs === null ||
+      evaluatedMs === null ||
+      evaluatedMs >= latestMs;
+
+    return {
+      emailId: email.id,
+      isLatestInThread,
+      evaluatedReceivedAt,
+      latestReceivedAt: latest?.receivedAt
+        ? latest.receivedAt.toISOString()
+        : evaluatedReceivedAt,
+      latestEmailId: latest?.id ?? email.id,
+      threadEmailCount,
+    };
   }
 
   private async buildDebugShortlistTrace(

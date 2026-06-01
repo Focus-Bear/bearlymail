@@ -2745,6 +2745,7 @@
       "traceCompositeMatchedSubject": "Matched subject phrase: {{subject}}",
       "traceCompositeMatchedPhrase": "Matched body phrase: {{phrase}}",
       "traceNoRuleMatch": "No enabled deterministic rule matched this email.",
+      "traceNotLatestReplyWarning": "⚠️ These rules were evaluated against an older message in this {{count}}-message thread, not the latest reply (newest arrived {{latestDate}}; evaluated message received {{evaluatedDate}}). A later reply can flip a NOT-contains exclusion, so the stored thread category may not reflect the current thread. Open the latest reply to trace the rules against current content.",
       "traceApplied": "(applied)",
       "traceDisabled": "disabled",
       "tracePattern": "Pattern:",

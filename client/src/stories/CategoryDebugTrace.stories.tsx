@@ -102,6 +102,14 @@ const COMPOSITE_RULE_WINNING_TRACE: CategorizationTrace = {
     llmCategoryBeforeRuleOverride: 'Finance',
     llmExplanationBeforeRuleOverride: 'Email discusses financial matters and payment amounts.',
   },
+  evaluatedEmail: {
+    emailId: 'email-latest',
+    isLatestInThread: true,
+    evaluatedReceivedAt: '2026-06-01T09:00:00.000Z',
+    latestReceivedAt: '2026-06-01T09:00:00.000Z',
+    latestEmailId: 'email-latest',
+    threadEmailCount: 1,
+  },
 };
 
 const NO_RULE_MATCH_TRACE: CategorizationTrace = {
@@ -149,6 +157,14 @@ const NO_RULE_MATCH_TRACE: CategorizationTrace = {
     categoryExplanation: 'Casual personal email from a friend discussing weekend plans.',
     categoryConfidence: 'MEDIUM',
   },
+  evaluatedEmail: {
+    emailId: 'email-older',
+    isLatestInThread: false,
+    evaluatedReceivedAt: '2026-05-30T12:00:00.000Z',
+    latestReceivedAt: '2026-05-31T16:30:00.000Z',
+    latestEmailId: 'email-newest',
+    threadEmailCount: 4,
+  },
 };
 
 const SHORTLIST_ERROR_TRACE: CategorizationTrace = {
@@ -165,6 +181,14 @@ const SHORTLIST_ERROR_TRACE: CategorizationTrace = {
     category: 'Other',
     categoryExplanation: 'Could not narrow categories; defaulted to Other.',
     categoryConfidence: 'LOW',
+  },
+  evaluatedEmail: {
+    emailId: 'email-only',
+    isLatestInThread: true,
+    evaluatedReceivedAt: '2026-06-01T08:00:00.000Z',
+    latestReceivedAt: '2026-06-01T08:00:00.000Z',
+    latestEmailId: 'email-only',
+    threadEmailCount: 1,
   },
 };
 

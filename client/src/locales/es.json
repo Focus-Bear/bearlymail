@@ -2882,6 +2882,7 @@
       "traceCompositeMatchedSubject": "Frase de asunto coincidente: {{subject}}",
       "traceCompositeMatchedPhrase": "Frase de cuerpo coincidente: {{phrase}}",
       "traceNoRuleMatch": "Ninguna regla determinista habilitada coincide con este correo.",
+      "traceNotLatestReplyWarning": "⚠️ Estas reglas se evaluaron con un mensaje anterior de este hilo de {{count}} mensajes, no con la última respuesta (la más reciente llegó {{latestDate}}; el mensaje evaluado se recibió {{evaluatedDate}}). Una respuesta posterior puede invertir una exclusión NO-contiene, por lo que la categoría almacenada del hilo puede no reflejar el hilo actual. Abre la última respuesta para evaluar las reglas con el contenido actual.",
       "traceApplied": "(aplicada)",
       "traceDisabled": "desactivada",
       "tracePattern": "Patrón:",

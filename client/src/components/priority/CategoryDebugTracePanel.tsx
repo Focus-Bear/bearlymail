@@ -29,6 +29,52 @@ const summaryBaseStyle: React.CSSProperties = {
   userSelect: 'none',
 };
 
+function formatTraceDate(iso: string | null): string {
+  if (!iso) {
+    return '';
+  }
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+  return parsed.toLocaleString();
+}
+
+interface TraceStaleReplyWarningProps {
+  evaluatedEmail: CategorizationTrace['evaluatedEmail'] | undefined;
+  translate: TFunction;
+}
+
+/**
+ * Warns when the rules were evaluated against an email that is not the latest
+ * reply in its thread, since the stored thread category may have been computed
+ * from a different message (a later reply can flip a NOT-contains exclusion).
+ */
+const TraceStaleReplyWarning: React.FC<TraceStaleReplyWarningProps> = ({ evaluatedEmail, translate }) => {
+  if (!evaluatedEmail || evaluatedEmail.isLatestInThread) {
+    return null;
+  }
+  return (
+    <div
+      style={{
+        marginBottom: theme.spacing.md,
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.warning?.light || '#fff4e5',
+        border: `1px solid ${theme.colors.warning?.main || '#ed6c02'}`,
+        borderRadius: theme.borderRadius.sm,
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.primary,
+      }}
+    >
+      {translate('priority.categoryDebug.traceNotLatestReplyWarning', {
+        count: evaluatedEmail.threadEmailCount,
+        latestDate: formatTraceDate(evaluatedEmail.latestReceivedAt),
+        evaluatedDate: formatTraceDate(evaluatedEmail.evaluatedReceivedAt),
+      })}
+    </div>
+  );
+};
+
 function winningRuleTypeLabel(
   win: NonNullable<CategorizationTrace['deterministicRules']['winningRule']>,
   translate: TFunction
@@ -403,7 +449,7 @@ export const CategoryDebugTracePanel: React.FC<CategoryDebugTracePanelProps> = (
   storedShortlist = null,
 }) => {
   const { t: translate } = useTranslation();
-  const { deterministicRules, shortlist, smartModel } = trace;
+  const { deterministicRules, shortlist, smartModel, evaluatedEmail } = trace;
 
   return (
     <div style={{ marginTop: theme.spacing.md }}>
@@ -419,6 +465,8 @@ export const CategoryDebugTracePanel: React.FC<CategoryDebugTracePanelProps> = (
       >
         {translate('priority.categoryDebug.traceIntro')}
       </p>
+
+      <TraceStaleReplyWarning evaluatedEmail={evaluatedEmail} translate={translate} />
 
       <DeterministicRulesSection
         winningRule={deterministicRules.winningRule}

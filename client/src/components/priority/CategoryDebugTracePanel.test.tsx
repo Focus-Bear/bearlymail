@@ -45,6 +45,14 @@ function makeTrace(overrides: Partial<CategorizationTrace>): CategorizationTrace
     deterministicRules: { winningRule: null, evaluations: [] },
     shortlist: { skipped: false, categoryNames: SHORTLIST_NAMES },
     smartModel: { category: '✅ QA passed issues', categoryExplanation: 'Matched deterministic rule' },
+    evaluatedEmail: {
+      emailId: 'email-1',
+      isLatestInThread: true,
+      evaluatedReceivedAt: '2026-06-01T00:00:00.000Z',
+      latestReceivedAt: '2026-06-01T00:00:00.000Z',
+      latestEmailId: 'email-1',
+      threadEmailCount: 1,
+    },
     ...overrides,
   };
 }
@@ -123,5 +131,32 @@ describe('CategoryDebugTracePanel — shortlist section', () => {
       screen.getByText('Category count is at or below the shortlist threshold.')
     ).toBeInTheDocument();
     expect(shortlistItemTexts()).toEqual([]);
+  });
+});
+
+describe('CategoryDebugTracePanel — stale-reply warning', () => {
+  const WARNING_KEY = 'priority.categoryDebug.traceNotLatestReplyWarning';
+
+  it('warns when the rules were evaluated against an older reply in the thread', () => {
+    const trace = makeTrace({
+      evaluatedEmail: {
+        emailId: 'older-email',
+        isLatestInThread: false,
+        evaluatedReceivedAt: '2026-05-30T10:00:00.000Z',
+        latestReceivedAt: '2026-05-31T10:00:00.000Z',
+        latestEmailId: 'newest-email',
+        threadEmailCount: 3,
+      },
+    });
+
+    render(<CategoryDebugTracePanel trace={trace} />);
+
+    expect(screen.getByText(WARNING_KEY)).toBeInTheDocument();
+  });
+
+  it('does not warn when the evaluated email is the latest reply', () => {
+    render(<CategoryDebugTracePanel trace={makeTrace({})} />);
+
+    expect(screen.queryByText(WARNING_KEY)).not.toBeInTheDocument();
   });
 });

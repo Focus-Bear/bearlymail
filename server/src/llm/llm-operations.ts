@@ -114,6 +114,9 @@ export const LLM_OP_GENERATE_BOOKING_TITLE = "generate_booking_title";
 // Category shortlisting: pre-filter full category list to top-N candidates (cheap model)
 export const LLM_OP_CATEGORY_SHORTLIST = "category_shortlist";
 
+// Category shortlisting via embedding similarity (replaces the chat-model shortlist)
+export const LLM_OP_CATEGORY_EMBEDDING = "category_embedding";
+
 // Suggest generic composite category rules from email samples
 export const LLM_OP_SUGGEST_CATEGORY_RULES = "suggest_category_rules";
 
@@ -178,6 +181,7 @@ export type LLMOperation =
   | typeof LLM_OP_CHECK_PHISHING_ONLY
   | typeof LLM_OP_GENERATE_BOOKING_TITLE
   | typeof LLM_OP_CATEGORY_SHORTLIST
+  | typeof LLM_OP_CATEGORY_EMBEDDING
   | typeof LLM_OP_SUGGEST_CATEGORY_RULES
   | typeof LLM_OP_DERIVE_RULE_EXCLUSIONS
   | typeof LLM_OP_ASSESS_CATEGORY_RULE_VALUE
@@ -227,6 +231,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_CHECK_PHISHING_ONLY]: "Check Phishing Only",
   [LLM_OP_GENERATE_BOOKING_TITLE]: "Generate Booking Title",
   [LLM_OP_CATEGORY_SHORTLIST]: "Category Shortlist",
+  [LLM_OP_CATEGORY_EMBEDDING]: "Category Embedding",
   [LLM_OP_SUGGEST_CATEGORY_RULES]: "Suggest Category Rules",
   [LLM_OP_DERIVE_RULE_EXCLUSIONS]: "Derive Rule Exclusions",
   [LLM_OP_ASSESS_CATEGORY_RULE_VALUE]: "Assess Category Rule Value",

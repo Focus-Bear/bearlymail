@@ -1,24 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 
 import { CATEGORY_RESERVED_NAMES } from "../constants/domain-types";
-import { CATEGORY_SHORTLIST } from "../constants/llm-constants";
-import { LLMProvider } from "./llm.types";
-import { LLMCoreService } from "./llm-core.service";
-import { LLM_OP_CATEGORY_SHORTLIST } from "./llm-operations";
-import { getPrompt, renderPrompt } from "./prompts";
-
-/** Prompt key for the category shortlist prompt file. */
-export const CATEGORY_SHORTLIST_PROMPT_ID = "category_shortlist";
+import { cosineSimilarity, EmbeddingService } from "./embedding.service";
 
 /** Default number of categories to shortlist. */
 const DEFAULT_TOP_N = 10;
 
 /** Minimum category count before shortlisting is worth running. */
 const SHORTLIST_THRESHOLD = 12;
-
-/** Default model for shortlist classification. Override via CATEGORY_SHORTLIST_MODEL env var. */
-const DEFAULT_SHORTLIST_MODEL = "gemini-3.1-flash-lite";
 
 /**
  * Platform keyword pinning: when the sender's email domain matches a known
@@ -82,29 +71,38 @@ export type CategoryItem = {
 /**
  * CategoryShortlistService — Step 1 of the two-step category analysis.
  *
- * Uses a cheap/fast model (gemini-3.1-flash-lite by default) to pre-filter the
- * full category list down to the top-N most relevant candidates. The smart
- * model in Step 2 (PriorityAnalysisService) then only needs to reason over a
- * short list, reducing token usage by 18–33% for power users.
+ * Pre-filters the full category list down to the top-N most relevant candidates
+ * using embedding cosine similarity (no chat-model call). The smart model in
+ * Step 2 (PriorityAnalysisService) then only needs to reason over a short list,
+ * reducing token usage substantially for power users.
  *
- * The shortlist takes an email SUMMARY (not the raw body) and returns a JSON
- * object `{ "categories": [...] }` — NOT a bare array. "Other" is deliberately
- * excluded from the shortlist; the smart model decides if "Other" applies.
+ * Category embeddings are cached in-memory (categories rarely change); only the
+ * small email text is embedded per call. "Other" is deliberately excluded from
+ * the shortlist; the smart model decides if "Other" applies.
  *
  * Always active when the category count exceeds the threshold.
- * Falls back to the full list if the shortlist call fails.
- *
- * Model defaults to gemini-3.1-flash-lite. Override via CATEGORY_SHORTLIST_MODEL
- * env var.
+ * Falls back to the full list if embeddings are unavailable or fail.
  */
 @Injectable()
 export class CategoryShortlistService {
   private readonly logger = new Logger(CategoryShortlistService.name);
 
-  constructor(
-    private readonly llmCoreService: LLMCoreService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly embeddingService: EmbeddingService) {}
+
+  /** Text used to embed a category: name plus optional description. */
+  private categoryText(cat: CategoryItem): string {
+    return cat.description ? `${cat.name}: ${cat.description}` : cat.name;
+  }
+
+  /** Text used to embed an email for category matching. */
+  private emailText(email: {
+    from: string;
+    fromName?: string;
+    subject: string;
+    summary: string;
+  }): string {
+    return `From: ${email.fromName || email.from}\nSubject: ${email.subject}\n${email.summary}`;
+  }
 
   /**
    * Returns true when shortlisting should be applied:
@@ -173,7 +171,8 @@ export class CategoryShortlistService {
   }
 
   /**
-   * Return the top-N most relevant categories for a given email.
+   * Return the top-N most relevant categories for a given email, ranked by
+   * embedding cosine similarity between the email and each category.
    *
    * Takes the email SUMMARY (pre-computed by the caller) rather than the raw
    * body — the shortlist is a cheap pre-filter that doesn't need full content.
@@ -181,7 +180,7 @@ export class CategoryShortlistService {
    * Returns a filtered list WITHOUT "Other". The smart model in Step 2 decides
    * whether "Other" is the right choice if none of the shortlisted categories fit.
    *
-   * Falls back to `allCategories` if the LLM call fails.
+   * Falls back to `allCategories` if embeddings are unavailable or fail.
    */
   async getShortlist(
     email: {
@@ -197,10 +196,9 @@ export class CategoryShortlistService {
       return allCategories;
     }
 
-    const promptConfig = getPrompt(CATEGORY_SHORTLIST_PROMPT_ID);
-    if (!promptConfig) {
+    if (!this.embeddingService.isAvailable()) {
       this.logger.warn(
-        "category_shortlist prompt not found — falling back to full category list",
+        "CategoryShortlistService: embeddings unavailable — falling back to full category list",
       );
       return allCategories;
     }
@@ -209,158 +207,37 @@ export class CategoryShortlistService {
     const shortlistableCategories = allCategories.filter(
       (cat) => cat.name.toLowerCase() !== CATEGORY_RESERVED_NAMES.OTHER,
     );
-
-    const categoryListText = shortlistableCategories
-      .map((cat) => {
-        const idPart = cat.categoryKey ? `[id: ${cat.categoryKey}] ` : "";
-        const body = cat.description
-          ? `${idPart}"${cat.name}": ${cat.description}`
-          : `${idPart}"${cat.name}"`;
-        return `- ${body}`;
-      })
-      .join("\n");
-
-    const prompt = renderPrompt(promptConfig.prompt, {
-      topN: String(topN),
-      categories: categoryListText,
-      fromName: email.fromName || email.from,
-      subject: email.subject,
-      summary: email.summary,
-    });
-
-    const model =
-      this.configService.get<string>("CATEGORY_SHORTLIST_MODEL") ??
-      DEFAULT_SHORTLIST_MODEL;
-
-    try {
-      const response = await this.llmCoreService.generateText(
-        {
-          prompt,
-          systemPrompt: promptConfig.systemPrompt || "",
-          temperature: 0,
-          maxTokens: CATEGORY_SHORTLIST.MAX_TOKENS,
-          operation: LLM_OP_CATEGORY_SHORTLIST,
-          jsonMode: true,
-          model,
-        },
-        LLMProvider.GEMINI,
-      );
-
-      const shortlisted = this.parseShortlistResponse(response, allCategories);
-      return this.pinPlatformCategories(shortlisted, allCategories, email.from);
-    } catch (error) {
-      this.logger.error(
-        "CategoryShortlistService: shortlist LLM call failed — falling back to full category list",
-        error,
-      );
+    if (shortlistableCategories.length === 0) {
       return allCategories;
     }
-  }
 
-  /**
-   * Parse the LLM shortlist response into a filtered CategoryItem array.
-   *
-   * - Accepts a JSON object `{ "categories": [...] }` (or falls back to bare array for resilience).
-   * - Filters to items that match by categoryKey (preferred, case-insensitive) or display name (case-insensitive).
-   * - Does NOT append "Other" — the smart model (Step 2) decides if "Other" applies.
-   * - Falls back to allCategories on parse errors.
-   */
-  private extractShortlistNamesArray(response: string): unknown[] | null {
-    const objMatch = response.match(/\{[\s\S]*\}/);
-    if (objMatch) {
-      const parsed = JSON.parse(objMatch[0]) as Record<string, unknown>;
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        "categories" in parsed &&
-        Array.isArray(parsed["categories"])
-      ) {
-        return parsed["categories"] as unknown[];
-      }
-    }
-    const arrayMatch = response.match(/\[[\s\S]*\]/);
-    if (!arrayMatch) {
-      return null;
-    }
-    const parsed: unknown = JSON.parse(arrayMatch[0]);
-    return Array.isArray(parsed) ? parsed : null;
-  }
-
-  private resolveShortlistToken(entry: unknown): string | null {
-    if (typeof entry === "string") {
-      const trimmed = entry.trim();
-      return trimmed || null;
-    }
-    if (!entry || typeof entry !== "object" || !("id" in entry)) {
-      return null;
-    }
-    const idVal = (entry as { id: unknown }).id;
-    if (typeof idVal !== "string") {
-      return null;
-    }
-    const trimmed = idVal.trim();
-    return trimmed || null;
-  }
-
-  private buildShortlistLookupMaps(allCategories: CategoryItem[]): {
-    categoryByKeyLower: Map<string, CategoryItem>;
-    categoryByNameLower: Map<string, CategoryItem>;
-  } {
-    const eligible = allCategories.filter(
-      (cat) => cat.name.toLowerCase() !== CATEGORY_RESERVED_NAMES.OTHER,
-    );
-    const categoryByKeyLower = new Map<string, CategoryItem>();
-    const categoryByNameLower = new Map<string, CategoryItem>();
-    for (const cat of eligible) {
-      categoryByNameLower.set(cat.name.toLowerCase(), cat);
-      if (cat.categoryKey) {
-        categoryByKeyLower.set(cat.categoryKey.toLowerCase(), cat);
-      }
-    }
-    return { categoryByKeyLower, categoryByNameLower };
-  }
-
-  private parseShortlistResponse(
-    response: string,
-    allCategories: CategoryItem[],
-  ): CategoryItem[] {
     try {
-      const names = this.extractShortlistNamesArray(response);
-      if (!names) {
-        this.logger.warn(
-          "CategoryShortlistService: no JSON object or array found in shortlist response — using full list",
-        );
+      const [categoryVectors, emailVectors] = await Promise.all([
+        this.embeddingService.embed(
+          shortlistableCategories.map((cat) => this.categoryText(cat)),
+          { cache: true },
+        ),
+        this.embeddingService.embed([this.emailText(email)]),
+      ]);
+      const emailVector = emailVectors[0];
+
+      const ranked = shortlistableCategories
+        .map((cat, i) => ({
+          cat,
+          score: cosineSimilarity(emailVector, categoryVectors[i]),
+        }))
+        .sort((left, right) => right.score - left.score)
+        .slice(0, topN)
+        .map((entry) => entry.cat);
+
+      if (ranked.length === 0) {
         return allCategories;
       }
 
-      const { categoryByKeyLower, categoryByNameLower } =
-        this.buildShortlistLookupMaps(allCategories);
-
-      const shortlisted: CategoryItem[] = [];
-      const seen = new Set<string>();
-      for (const entry of names) {
-        const token = this.resolveShortlistToken(entry);
-        if (!token) continue;
-        const byKey = categoryByKeyLower.get(token.toLowerCase());
-        const found = byKey ?? categoryByNameLower.get(token.toLowerCase());
-        if (!found) continue;
-        const dedupeKey = found.categoryKey ?? found.name.toLowerCase();
-        if (seen.has(dedupeKey)) continue;
-        seen.add(dedupeKey);
-        shortlisted.push(found);
-      }
-
-      if (shortlisted.length === 0) {
-        this.logger.warn(
-          "CategoryShortlistService: shortlist returned no matching categories — using full list",
-        );
-        return allCategories;
-      }
-
-      return shortlisted;
+      return this.pinPlatformCategories(ranked, allCategories, email.from);
     } catch (error) {
       this.logger.error(
-        "CategoryShortlistService: failed to parse shortlist response — using full list",
+        "CategoryShortlistService: embedding shortlist failed — falling back to full category list",
         error,
       );
       return allCategories;

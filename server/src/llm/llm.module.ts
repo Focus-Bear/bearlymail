@@ -9,6 +9,7 @@ import { TokenUsage } from "../database/entities/token-usage.entity";
 import { User } from "../database/entities/user.entity";
 import { UsersModule } from "../users/users.module";
 import { CategoryShortlistService } from "./category-shortlist.service";
+import { EmbeddingService } from "./embedding.service";
 import { IncrementalAnalysisService } from "./incremental-analysis.service";
 import { LLMController } from "./llm.controller";
 import { LLMService } from "./llm.service";
@@ -45,6 +46,7 @@ import { TokenUsageService } from "./token-usage.service";
     LLMSummarizationService,
     LLMToneService,
     CategoryShortlistService,
+    EmbeddingService,
     PriorityAnalysisService,
     IncrementalAnalysisService,
     TokenUsageService,
@@ -61,6 +63,7 @@ import { TokenUsageService } from "./token-usage.service";
     LLMSummarizationService,
     LLMToneService,
     CategoryShortlistService,
+    EmbeddingService,
     PriorityAnalysisService,
     IncrementalAnalysisService,
     TokenUsageService,

@@ -1,25 +1,33 @@
-import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import {
-  CATEGORY_SHORTLIST_PROMPT_ID,
   type CategoryItem,
   CategoryShortlistService,
 } from "./category-shortlist.service";
-import { LLMCoreService } from "./llm-core.service";
-import * as prompts from "./prompts";
+import { EmbeddingService } from "./embedding.service";
 
-jest.mock("./prompts", () => ({
-  getPrompt: jest.fn(),
-  renderPrompt: jest.fn(),
-  loadPrompts: jest.fn(),
-  PRIORITY_PROMPT_IDS: {
-    ANALYZE_PRIORITY: "analyze_priority",
-    ANALYZE_PRIORITY_FEEDBACK: "analyze_priority_feedback",
-    INCREMENTAL_PRIORITY_CHECK: "incremental_priority_check",
-    CATEGORY_SHORTLIST: "category_shortlist",
-  },
-}));
+const VEC_DIM = 32;
+
+/** A one-hot vector with a 1 at `index` — used as a deterministic category embedding. */
+function oneHot(index: number): number[] {
+  const vec = new Array(VEC_DIM).fill(0) as number[];
+  vec[index] = 1;
+  return vec;
+}
+
+/**
+ * Build an email embedding whose cosine similarity to category i equals the
+ * weight at index i. Higher weight → ranked higher in the shortlist.
+ */
+function emailVectorFavouring(
+  weightsByIndex: Record<number, number>,
+): number[] {
+  const vec = new Array(VEC_DIM).fill(0) as number[];
+  for (const [idx, weight] of Object.entries(weightsByIndex)) {
+    vec[Number(idx)] = weight;
+  }
+  return vec;
+}
 
 const mockEmail = {
   from: "sender@example.com",
@@ -28,7 +36,7 @@ const mockEmail = {
   summary: "This is a test email summary.",
 };
 
-const allCategories = [
+const allCategories: CategoryItem[] = [
   {
     name: "Customer Support",
     description: "Support tickets",
@@ -58,32 +66,34 @@ const allCategories = [
 
 describe("CategoryShortlistService", () => {
   let service: CategoryShortlistService;
-  let mockLLMCoreService: jest.Mocked<Partial<LLMCoreService>>;
-  let mockConfigService: jest.Mocked<Partial<ConfigService>>;
+  let mockEmbeddingService: jest.Mocked<Partial<EmbeddingService>>;
+
+  /**
+   * Configure the embedding mock: category batches (cache:true) get one-hot
+   * vectors by position; the single email embed returns `emailVector`.
+   */
+  function setupEmbeddings(emailVector: number[]): void {
+    (mockEmbeddingService.isAvailable as jest.Mock).mockReturnValue(true);
+    (mockEmbeddingService.embed as jest.Mock).mockImplementation(
+      (texts: string[], options?: { cache?: boolean }) => {
+        if (options?.cache) {
+          return Promise.resolve(texts.map((_, i) => oneHot(i)));
+        }
+        return Promise.resolve([emailVector]);
+      },
+    );
+  }
 
   beforeEach(async () => {
-    mockLLMCoreService = {
-      generateText: jest.fn(),
+    mockEmbeddingService = {
+      isAvailable: jest.fn().mockReturnValue(true),
+      embed: jest.fn(),
     };
-
-    mockConfigService = {
-      get: jest.fn(),
-    };
-
-    (prompts.getPrompt as jest.Mock).mockReturnValue({
-      id: CATEGORY_SHORTLIST_PROMPT_ID,
-      prompt: "Pick {{topN}} from {{categories}} for email: {{subject}}",
-      systemPrompt: "You are a fast email categoriser.",
-    });
-    (prompts.renderPrompt as jest.Mock).mockReturnValue(
-      "Pick 10 from categories for email: Test Email",
-    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CategoryShortlistService,
-        { provide: LLMCoreService, useValue: mockLLMCoreService },
-        { provide: ConfigService, useValue: mockConfigService },
+        { provide: EmbeddingService, useValue: mockEmbeddingService },
       ],
     }).compile();
 
@@ -116,134 +126,21 @@ describe("CategoryShortlistService", () => {
     it("should return empty array when allCategories is empty", async () => {
       const result = await service.getShortlist(mockEmail, []);
       expect(result).toEqual([]);
-      expect(mockLLMCoreService.generateText).not.toHaveBeenCalled();
+      expect(mockEmbeddingService.embed).not.toHaveBeenCalled();
     });
 
-    it("should return full list when prompt config is not found", async () => {
-      (prompts.getPrompt as jest.Mock).mockReturnValue(null);
+    it("should return full list when embeddings are unavailable", async () => {
+      (mockEmbeddingService.isAvailable as jest.Mock).mockReturnValue(false);
       const result = await service.getShortlist(mockEmail, allCategories);
       expect(result).toEqual(allCategories);
-      expect(mockLLMCoreService.generateText).not.toHaveBeenCalled();
+      expect(mockEmbeddingService.embed).not.toHaveBeenCalled();
     });
 
-    it("should return filtered categories matching LLM response JSON object", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '{"categories": ["Customer Support", "Engineering", "Security"]}',
-      );
+    it("should rank categories by cosine similarity to the email", async () => {
+      // Favour Customer Support (0), Engineering (3), Security (11)
+      setupEmbeddings(emailVectorFavouring({ 0: 3, 3: 2, 11: 1 }));
 
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result.map((cat) => cat.name)).toContain("Customer Support");
-      expect(result.map((cat) => cat.name)).toContain("Engineering");
-      expect(result.map((cat) => cat.name)).toContain("Security");
-      // "Other" is NOT appended — smart model handles that in Step 2
-      expect(result.map((cat) => cat.name)).not.toContain("Other");
-    });
-
-    it("should NOT include Other even if categories contain it (Other handled by smart model)", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '{"categories": ["Customer Support", "Engineering"]}',
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result.map((cat) => cat.name)).not.toContain("Other");
-    });
-
-    it("should not include Other even if LLM response contains it", async () => {
-      // LLM shouldn't return Other (prompt excludes it), but even if it does we filter it
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '{"categories": ["Customer Support", "Other"]}',
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      // Customer Support should be included, Other should be excluded
-      expect(result.map((cat) => cat.name)).toContain("Customer Support");
-      expect(result.map((cat) => cat.name)).not.toContain("Other");
-    });
-
-    it("should also accept bare JSON array response for resilience", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '["Customer Support", "Engineering"]',
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result.map((cat) => cat.name)).toContain("Customer Support");
-      expect(result.map((cat) => cat.name)).toContain("Engineering");
-    });
-
-    it("should do case-insensitive matching of category names", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '["customer support", "ENGINEERING"]',
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result.map((cat) => cat.name)).toContain("Customer Support");
-      expect(result.map((cat) => cat.name)).toContain("Engineering");
-    });
-
-    it("should fall back to full list when LLM returns no matching categories", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '["NonExistentCategory", "AnotherFakeCategory"]',
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result).toEqual(allCategories);
-    });
-
-    it("should fall back to full list on LLM call failure", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockRejectedValue(
-        new Error("LLM service unavailable"),
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result).toEqual(allCategories);
-    });
-
-    it("should fall back to full list when response has no JSON array", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        "Sorry, I cannot help with that.",
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result).toEqual(allCategories);
-    });
-
-    it("should fall back to full list when response array is not strings", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        "[1, 2, 3]",
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result).toEqual(allCategories);
-    });
-
-    it("should pass topN parameter to prompt rendering", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '["Customer Support"]',
-      );
-
-      await service.getShortlist(mockEmail, allCategories, 5);
-
-      expect(prompts.renderPrompt).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ topN: "5" }),
-      );
-    });
-
-    it("should match shortlisted categories by stable categoryKey from LLM", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '{"categories": ["customer_support", "engineering", "security"]}',
-      );
-
-      const result = await service.getShortlist(mockEmail, allCategories);
+      const result = await service.getShortlist(mockEmail, allCategories, 3);
 
       expect(result.map((cat) => cat.name)).toEqual([
         "Customer Support",
@@ -252,14 +149,41 @@ describe("CategoryShortlistService", () => {
       ]);
     });
 
-    it("should accept { id } objects in categories array", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '{"categories": [{"id": "sales"}, {"id": "hr"}]}',
+    it("should never include Other", async () => {
+      setupEmbeddings(emailVectorFavouring({ 0: 3, 3: 2 }));
+      const result = await service.getShortlist(mockEmail, allCategories);
+      expect(result.map((cat) => cat.name)).not.toContain("Other");
+    });
+
+    it("should cap the result at topN", async () => {
+      setupEmbeddings(
+        emailVectorFavouring({ 0: 9, 1: 8, 2: 7, 3: 6, 4: 5, 5: 4 }),
+      );
+      const result = await service.getShortlist(mockEmail, allCategories, 5);
+      expect(result).toHaveLength(5);
+    });
+
+    it("should embed categories with caching enabled and the email without", async () => {
+      setupEmbeddings(emailVectorFavouring({ 0: 1 }));
+      await service.getShortlist(mockEmail, allCategories);
+
+      const { calls } = (mockEmbeddingService.embed as jest.Mock).mock;
+      const categoryCall = calls.find((call) => call[1]?.cache === true);
+      const emailCall = calls.find((call) => !call[1]?.cache);
+      expect(categoryCall).toBeDefined();
+      expect(emailCall).toBeDefined();
+      // Email embed receives exactly one text
+      expect(emailCall?.[0]).toHaveLength(1);
+    });
+
+    it("should fall back to full list when embedding fails", async () => {
+      (mockEmbeddingService.isAvailable as jest.Mock).mockReturnValue(true);
+      (mockEmbeddingService.embed as jest.Mock).mockRejectedValue(
+        new Error("embedding API unavailable"),
       );
 
       const result = await service.getShortlist(mockEmail, allCategories);
-
-      expect(result.map((cat) => cat.name)).toEqual(["Sales", "HR"]);
+      expect(result).toEqual(allCategories);
     });
   });
 
@@ -342,7 +266,7 @@ describe("CategoryShortlistService", () => {
   });
 
   describe("getShortlist — platform pinning integration", () => {
-    it("pins github categories when email is from github.com", async () => {
+    it("pins github categories even when they rank outside the top-N", async () => {
       const githubEmail = {
         from: "notifications@github.com",
         fromName: "GitHub",
@@ -363,14 +287,24 @@ describe("CategoryShortlistService", () => {
         },
       ];
 
-      // LLM shortlist returns only non-github categories
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '{"categories": ["customer_support", "engineering"]}',
+      // Favour the first 10 non-github categories so github ranks outside top-N
+      setupEmbeddings(
+        emailVectorFavouring({
+          0: 10,
+          1: 9,
+          2: 8,
+          3: 7,
+          4: 6,
+          5: 5,
+          6: 4,
+          7: 3,
+          8: 2,
+          9: 1,
+        }),
       );
 
       const result = await service.getShortlist(githubEmail, githubCategories);
 
-      // Both GitHub categories must be pinned even though LLM didn't select them
       expect(result.map((cat) => cat.name)).toContain("🐙 GitHub PRs");
       expect(result.map((cat) => cat.name)).toContain(
         "🔔 GitHub Notifications",
@@ -393,8 +327,19 @@ describe("CategoryShortlistService", () => {
         },
       ];
 
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        '{"categories": ["customer_support"]}',
+      setupEmbeddings(
+        emailVectorFavouring({
+          0: 10,
+          1: 9,
+          2: 8,
+          3: 7,
+          4: 6,
+          5: 5,
+          6: 4,
+          7: 3,
+          8: 2,
+          9: 1,
+        }),
       );
 
       const result = await service.getShortlist(
@@ -402,7 +347,6 @@ describe("CategoryShortlistService", () => {
         categoriesWithGitHub,
       );
 
-      // GitHub category should NOT be pinned for a non-GitHub sender
       expect(result.map((cat) => cat.name)).not.toContain("🐙 GitHub PRs");
     });
   });

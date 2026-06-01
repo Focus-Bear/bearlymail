@@ -148,12 +148,6 @@ export const SUGGESTED_REPLIES = {
   REPLY_MAX_TOKENS: 25,
 } as const;
 
-// Category shortlist LLM constants
-export const CATEGORY_SHORTLIST = {
-  // Max tokens for shortlist LLM response (JSON list of category names — short output)
-  MAX_TOKENS: 512,
-} as const;
-
 // Sentinel category value written to triage-preserved results.
 // Downstream logic uses this to distinguish preserved results from real LLM-assigned categories.
 export const TRIAGE_PRESERVED_CATEGORY = "__TRIAGE_PRESERVED__";

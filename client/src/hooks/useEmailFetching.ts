@@ -780,7 +780,15 @@ function serveSummaryFromCacheAndRefresh({
     .catch(err => console.warn('[fetchEmails] Background refresh failed:', err));
 }
 
-/** Reset inbox state before a full (non-cache) fetch. */
+/**
+ * Reset inbox state before a full (non-cache) fetch.
+ *
+ * Note: this only sets `decrypting`, NOT `loading`. `loading` drives the full-page
+ * InboxLoadingState takeover, which is only appropriate for the initial mount (its Redux
+ * initial value is true). Setting it here too made every filter change / tier switch blank
+ * the whole inbox and look like a full page refresh. `decrypting` shows an inline loading
+ * state within the email list while the sidebar and filters stay mounted.
+ */
 function dispatchFetchStart(dispatch: AppDispatch) {
   dispatch(setDecrypting(true));
   dispatch(setFetchError(null));

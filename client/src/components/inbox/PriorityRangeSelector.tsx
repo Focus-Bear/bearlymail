@@ -44,8 +44,16 @@ export interface PriorityBucket {
 
 /**
  * Visual bucket config for the range slider.
- * Min/max boundaries are sourced from PRIORITY_BUCKET_RANGES (constants/priorityBuckets.ts)
- * — single source of truth. Only display properties (trackColor, dotColor) are added here.
+ * Labels are sourced from PRIORITY_BUCKET_RANGES (constants/priorityBuckets.ts) so the bucket
+ * set stays the single source of truth. Only display properties (trackColor, dotColor) are added here.
+ *
+ * min/max are VISUAL slider positions (0-20-40-60-80-100), NOT actual server scores. They are
+ * compared against minVal/maxVal (also visual) throughout this component — in getBucketForValue,
+ * SegmentTrack, and BucketLabels — to decide which segment a thumb falls in and which segments are
+ * active. Reusing the score-based bounds from PRIORITY_BUCKET_RANGES here would desync the active
+ * highlight and labels from the thumb positions (e.g. a thumb sitting on a tick would look like it
+ * was "midway" because the highlighted range started one bucket over). The score↔visual mapping
+ * lives in constants/priorityBuckets.ts (SCORE_VISUAL_MAP) and is the only place scores are used.
  *
  * Fix #1526 bug 1: track colors now come from theme.colors.priorityBuckets instead of
  * hardcoded literals, so they participate in the theme system.
@@ -58,11 +66,12 @@ export const PRIORITY_BUCKETS: PriorityBucket[] = PRIORITY_BUCKET_RANGES.map((bu
     theme.colors.priorityBuckets.high,
     theme.colors.priorityBuckets.veryHigh,
   ];
+  const isLastBucket = index === PRIORITY_BUCKET_RANGES.length - 1;
   return {
     label: bucketDef.label,
-    // Visual slider positions: Very Low has score min=null → visual position 0 (VISUAL_SLIDER_MIN)
-    min: bucketDef.min ?? VISUAL_SLIDER_MIN,
-    max: bucketDef.max,
+    min: index * VISUAL_BUCKET_SIZE,
+    // Last bucket (Very High) has no upper cap → null, matching the "no max" filter semantics.
+    max: isLastBucket ? null : (index + 1) * VISUAL_BUCKET_SIZE,
     trackColor: TRACK_COLORS[index] ?? theme.colors.priorityBuckets.veryLow,
     dotColor: TRACK_COLORS[index] ?? theme.colors.priorityBuckets.veryLow,
   };
@@ -386,36 +395,51 @@ const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCount
 
 /**
  * Given the current slider positions and a clicked bucket's visual start position,
- * returns the new {minVal, maxVal} after snapping the nearest handle to the target.
- * Ties (equal distance from both handles) snap the min handle. The returned values
- * are clamped so there is always at least one bucket of separation between handles.
+ * returns the new {minVal, maxVal} after moving the nearest slider handle to expand
+ * or narrow the range.
+ *
+ * Distance is measured from each handle to the bucket CENTER so that clicking a bucket
+ * clearly outside the current range expands to include it (e.g. clicking "Very High" when
+ * filter is "Low → High" expands max to include VH rather than triggering the old
+ * narrowing-at-boundary edge case). When the result would be a no-op (handle already at
+ * the boundary), we swap to the other handle so something always visibly changes.
  *
  * Exported for unit testing.
  */
 export function computeBucketClick(
   minVal: number,
   maxVal: number,
-  targetVisualPos: number,
+  visualPos: number,
   bucketSize: number
 ): { newMinVal: number; newMaxVal: number } {
-  const distFromMin = Math.abs(minVal - targetVisualPos);
-  const distFromMax = Math.abs(maxVal - targetVisualPos);
+  const bucketCenter = visualPos + bucketSize / 2;
+  const bucketStart = visualPos;
+  const bucketEnd = Math.min(visualPos + bucketSize, SLIDER_MAX);
+
+  const distFromMin = Math.abs(minVal - bucketCenter);
+  const distFromMax = Math.abs(maxVal - bucketCenter);
+
+  let newMinVal: number;
+  let newMaxVal: number;
+
   if (distFromMin <= distFromMax) {
-    const newMinVal = Math.min(targetVisualPos, maxVal - bucketSize);
-    // When min is already at the target (no-op) and not at the slider left edge,
-    // narrow the range by snapping max one bucket to the right instead.
-    if (newMinVal === minVal && distFromMin === 0 && targetVisualPos > 0) {
-      return { newMinVal: minVal, newMaxVal: minVal + bucketSize };
+    newMinVal = Math.min(bucketStart, maxVal - bucketSize);
+    newMaxVal = maxVal;
+  } else {
+    newMinVal = minVal;
+    newMaxVal = Math.max(bucketEnd, minVal + bucketSize);
+  }
+
+  // If the chosen handle is already at that boundary, move the other one instead.
+  if (newMinVal === minVal && newMaxVal === maxVal) {
+    if (distFromMin <= distFromMax) {
+      newMaxVal = Math.max(bucketEnd, minVal + bucketSize);
+    } else {
+      newMinVal = Math.min(bucketStart, maxVal - bucketSize);
     }
-    return { newMinVal, newMaxVal: maxVal };
   }
-  const newMaxVal = Math.max(targetVisualPos, minVal + bucketSize);
-  // When max is already at the target (no-op), narrow the range by snapping
-  // min one bucket to the left instead.
-  if (newMaxVal === maxVal && distFromMax === 0) {
-    return { newMinVal: maxVal - bucketSize, newMaxVal: maxVal };
-  }
-  return { newMinVal: minVal, newMaxVal };
+
+  return { newMinVal, newMaxVal };
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -486,10 +510,6 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
     [minVal, onChange]
   );
 
-  /**
-   * Clicking a bucket label snaps the nearest handle (min or max) to the bucket's
-   * visual start position. Ties go to the min handle.
-   */
   const handleBucketClick = useCallback(
     (visualPos: number) => {
       const { newMinVal, newMaxVal } = computeBucketClick(minVal, maxVal, visualPos, VISUAL_BUCKET_SIZE);

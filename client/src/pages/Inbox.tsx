@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { theme } from 'theme/theme';
@@ -20,11 +20,11 @@ import { Sidebar } from 'components/inbox/Sidebar';
 import { PrioritisationInterstitial } from 'components/inbox/states';
 import { API_URL } from 'config/api';
 import { BUCKET_LABEL_ALL, PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
-import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
+import { ERROR_CODE_GMAIL_REQUIRED, MODE_TRIAGE } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
-import { VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+import { HIGH_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 import { GATE_FILTER_SWITCHED_KEY, usePrioritisationGate } from 'hooks/usePrioritisationGate';
 import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
@@ -178,6 +178,36 @@ const InboxView: React.FC = () => {
       clearJustUngated();
     }
   }, [justUngated, clearJustUngated, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails]);
+
+ 
+  const hasAutoAdvancedTierRef = useRef(false);
+  useEffect(() => {
+    if (mode !== MODE_TRIAGE || !priorityCounts || hasAutoAdvancedTierRef.current) {
+      return;
+    }
+    hasAutoAdvancedTierRef.current = true;
+
+    const min = filters.minPriority;
+    const max = filters.maxPriority;
+    const isDefaultOrUnfiltered =
+      (min === VERY_HIGH_PRIORITY_THRESHOLD && max === null) || (min === null && max === null);
+    if (!isDefaultOrUnfiltered) {
+      return;
+    }
+
+    if (priorityCounts.veryHigh > 0) {
+      if (min !== VERY_HIGH_PRIORITY_THRESHOLD) {
+        setPriorityFilter(VERY_HIGH_PRIORITY_THRESHOLD, null);
+        fetchEmails({ minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null });
+      }
+    } else if (priorityCounts.high > 0) {
+      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
+      fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
+    } else if (priorityCounts.medium > 0) {
+      setPriorityFilter(MEDIUM_PRIORITY_THRESHOLD, null);
+      fetchEmails({ minPriority: MEDIUM_PRIORITY_THRESHOLD, maxPriority: null });
+    }
+  }, [priorityCounts, mode, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails]);
 
   if (loading) {
     return <InboxLoadingState />;

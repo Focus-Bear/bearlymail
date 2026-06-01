@@ -51,7 +51,7 @@ describe("GitHubAppService - getAuthorizationUrl", () => {
   it("should generate authorization URL with base scopes by default", () => {
     const url = service.getAuthorizationUrl("user-1");
 
-    expect(url).toContain("scope=issues+read%3Aproject+read%3Aorg");
+    expect(url).toContain("scope=issues+project+read%3Aorg");
     expect(url).not.toContain("repo");
     expect(url).toContain("client_id=test-client-id");
     expect(url).toContain("state=mock-state-jwt");
@@ -60,7 +60,7 @@ describe("GitHubAppService - getAuthorizationUrl", () => {
   it("should generate authorization URL without repo scope when includeRepo is false", () => {
     const url = service.getAuthorizationUrl("user-1", false);
 
-    expect(url).toContain("scope=issues+read%3Aproject+read%3Aorg");
+    expect(url).toContain("scope=issues+project+read%3Aorg");
     expect(url).not.toContain("repo");
   });
 
@@ -70,7 +70,7 @@ describe("GitHubAppService - getAuthorizationUrl", () => {
     expect(url).toContain("repo");
     // Should still include base scopes
     expect(url).toContain("issues");
-    expect(url).toContain("read%3Aproject");
+    expect(url).toContain("project");
     expect(url).toContain("read%3Aorg");
   });
 

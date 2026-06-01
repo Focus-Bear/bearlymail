@@ -215,6 +215,24 @@ describe("GitHubProjectStatusService", () => {
       ).rejects.toThrow("403 Forbidden");
     });
 
+    it("should throw an actionable message when the token lacks the project scope", async () => {
+      mockGraphql.mockRejectedValue(
+        new Error(
+          "Request failed due to following response errors:\n - Your token has not been granted the required scopes to execute this query. The 'projectV2' field requires one of the following scopes: ['read:project'], but your token has only been granted the: ['repo'] scopes.",
+        ),
+      );
+
+      await expect(
+        service.getProjectStatusOptions(
+          MOCK_TOKEN,
+          OWNER,
+          REPO,
+          ISSUE_NUMBER,
+          PROJECT_NAME,
+        ),
+      ).rejects.toThrow("reconnect your GitHub account");
+    });
+
     it("should rethrow on 429 rate-limit errors", async () => {
       mockGraphql.mockRejectedValue(new Error("429 rate limit exceeded"));
 
@@ -285,6 +303,24 @@ describe("GitHubProjectStatusService", () => {
           "opt1",
         ),
       ).rejects.toThrow("GitHub token is invalid or expired");
+    });
+
+    it("should throw an actionable message when the token lacks the project scope", async () => {
+      mockGraphql.mockRejectedValue(
+        new Error(
+          "Request failed due to following response errors:\n - Your token has not been granted the required scopes to execute this query. The 'updateProjectV2ItemFieldValue' field requires one of the following scopes: ['project'], but your token has only been granted the: ['read:org', 'read:project', 'repo'] scopes.",
+        ),
+      );
+
+      await expect(
+        service.updateProjectItemStatus(
+          MOCK_TOKEN,
+          "PVT_projectId",
+          "PVTI_itemId",
+          "PVTSSF_fieldId",
+          "opt1",
+        ),
+      ).rejects.toThrow("reconnect your GitHub account");
     });
 
     it("should rethrow the original error on non-auth failures", async () => {

@@ -12,6 +12,8 @@ export const ERROR_MESSAGES = {
   GOOGLE_CALENDAR_NOT_CONNECTED: "Google Calendar not connected",
   GITHUB_TOKEN_NOT_CONFIGURED: "GitHub token not configured",
   GITHUB_TOKEN_INVALID: "GitHub token is invalid or expired",
+  GITHUB_TOKEN_MISSING_PROJECT_SCOPE:
+    "Your GitHub connection is missing the 'project' permission required to update project status. Please reconnect your GitHub account in Settings to grant the updated access.",
   REFRESH_TOKEN_MISSING: "Refresh token missing - please log in again",
   GMAIL_ACCESS_TOKEN_MISSING:
     "Gmail access token missing - please log in again",

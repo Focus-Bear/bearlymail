@@ -98,11 +98,13 @@ export class GitHubAppService {
       { expiresIn: "10m" },
     );
 
-    // Base scopes for GitHub integration (issues, projects, org membership)
-    // Add 'repo' scope when user needs private repository access
+    // Base scopes for GitHub integration (issues, projects, org membership).
+    // 'project' (read/write) is required to update a Projects v2 item's status;
+    // 'read:project' is read-only and cannot perform the mutation.
+    // Add 'repo' scope when user needs private repository access.
     const scope = includeRepo
-      ? "issues read:project read:org repo"
-      : "issues read:project read:org";
+      ? "issues project read:org repo"
+      : "issues project read:org";
 
     const params = new URLSearchParams({
       client_id: this.clientId,

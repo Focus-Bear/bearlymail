@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from "@nestjs/common";
 import { Octokit } from "@octokit/rest";
 
 import { GITHUB_FIELD_NAMES } from "../constants/domain-types";
@@ -172,15 +177,25 @@ export class GitHubProjectStatusService {
       this.logger.error(
         `Failed to fetch project status options for ${owner}/${repo}#${issueNumber} (project: ${projectName}): ${errorMessage}`,
       );
+      const lowerMessage = errorMessage.toLowerCase();
+      // GitHub returns scope errors as a GraphQL response error (HTTP 200), so
+      // they never match the 401/403 checks below. Detect a missing 'project'
+      // scope explicitly so callers surface an actionable message instead of a
+      // misleading "Project not found" 404.
+      if (lowerMessage.includes("scope") && lowerMessage.includes("project")) {
+        throw new ForbiddenException(
+          ERROR_MESSAGES.GITHUB_TOKEN_MISSING_PROJECT_SCOPE,
+        );
+      }
       // Re-throw auth and rate-limit errors so callers get a meaningful error
       // rather than a misleading "Project not found" 404.
       if (
-        errorMessage.includes("401") ||
-        errorMessage.includes("403") ||
-        errorMessage.includes("429") ||
-        errorMessage.toLowerCase().includes("bad credentials") ||
-        errorMessage.toLowerCase().includes("unauthorized") ||
-        errorMessage.toLowerCase().includes("rate limit")
+        lowerMessage.includes("401") ||
+        lowerMessage.includes("403") ||
+        lowerMessage.includes("429") ||
+        lowerMessage.includes("bad credentials") ||
+        lowerMessage.includes("unauthorized") ||
+        lowerMessage.includes("rate limit")
       ) {
         throw error;
       }
@@ -212,15 +227,24 @@ export class GitHubProjectStatusService {
       this.logger.error(
         `updateProjectItemStatus failed — projectId=${projectId}, itemId=${itemId}, fieldId=${fieldId}, optionId=${singleSelectOptionId}: ${errorMessage}`,
       );
-      if (
-        errorMessage.includes("401") ||
-        errorMessage.includes("403") ||
-        errorMessage.toLowerCase().includes("bad credentials") ||
-        errorMessage.toLowerCase().includes("unauthorized")
-      ) {
-        throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
+      const lowerMessage = errorMessage.toLowerCase();
+      // GitHub returns scope errors as a GraphQL response error (HTTP 200), so
+      // they never match the 401/403 checks below. Detect the missing 'project'
+      // scope explicitly and surface an actionable message instead of a 500.
+      if (lowerMessage.includes("scope") && lowerMessage.includes("project")) {
+        throw new ForbiddenException(
+          ERROR_MESSAGES.GITHUB_TOKEN_MISSING_PROJECT_SCOPE,
+        );
       }
-      throw error;
+      if (
+        lowerMessage.includes("401") ||
+        lowerMessage.includes("403") ||
+        lowerMessage.includes("bad credentials") ||
+        lowerMessage.includes("unauthorized")
+      ) {
+        throw new ForbiddenException(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
+      }
+      throw new InternalServerErrorException(errorMessage);
     }
   }
 }

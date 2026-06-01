@@ -281,19 +281,22 @@ export class EmailAdminService {
     > = {};
 
     if (queueStats?.rows) {
-      queueStats.rows.forEach(
-        (row: { jobType: string; state: string; count: string }) =>
-          this.mergeQueueStatsRow(row, statsByJobType),
-      );
+      (
+        queueStats.rows as Array<{
+          jobType: string;
+          state: string;
+          count: string;
+        }>
+      ).forEach((row) => this.mergeQueueStatsRow(row, statsByJobType));
     }
     if (archiveStats?.rows) {
-      archiveStats.rows.forEach(
-        (row: {
+      (
+        archiveStats.rows as Array<{
           jobType: string;
           completedCount: string;
           avgCompletionTimeMs: string | null;
-        }) => this.mergeArchiveStatsRow(row, statsByJobType),
-      );
+        }>
+      ).forEach((row) => this.mergeArchiveStatsRow(row, statsByJobType));
     }
 
     const statsArray = Object.entries(statsByJobType)

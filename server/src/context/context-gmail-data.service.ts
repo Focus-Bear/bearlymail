@@ -459,7 +459,11 @@ export class ContextEmailDataService {
           pageToken,
         });
         const threads = res.data.threads || [];
-        allIds.push(...threads.map((thread: { id: string }) => thread.id));
+        allIds.push(
+          ...threads
+            .map((thread) => thread.id)
+            .filter((id): id is string => typeof id === "string"),
+        );
         pageToken = res.data.nextPageToken || undefined;
         pageCount++;
         if (allIds.length >= limit || pageCount >= 10) {
@@ -839,7 +843,11 @@ export class ContextEmailDataService {
         pageToken: nextPageToken,
       });
       const threads = response.data.threads || [];
-      allThreadIds.push(...threads.map((thread: { id: string }) => thread.id));
+      allThreadIds.push(
+        ...threads
+          .map((thread) => thread.id)
+          .filter((id): id is string => typeof id === "string"),
+      );
       nextPageToken = response.data.nextPageToken || undefined;
       pageCount++;
       this.logger.log(

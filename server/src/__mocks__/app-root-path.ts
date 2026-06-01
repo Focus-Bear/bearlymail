@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 // Mock for app-root-path module
 const mockPath = process.cwd();
 

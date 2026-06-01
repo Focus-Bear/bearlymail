@@ -253,15 +253,13 @@ export class LLMProcessor implements OnModuleInit {
     userId: string,
     email: Email,
   ): Promise<{
-    contexts: Awaited<
-      ReturnType<typeof this.priorityCacheService.getUserContexts>
-    >;
+    contexts: Awaited<ReturnType<PriorityCacheService["getUserContexts"]>>;
     avgTimeToReply: Awaited<
-      ReturnType<typeof this.priorityCacheService.getAvgTimeToReply>
+      ReturnType<PriorityCacheService["getAvgTimeToReply"]>
     >;
     threadEmails: Email[];
     protoCategories: Awaited<
-      ReturnType<typeof this.protoCategoriesService.findActiveByUser>
+      ReturnType<ProtoCategoriesService["findActiveByUser"]>
     >;
   }> {
     const [contexts, avgTimeToReply, threadEmails, protoCategories] =
@@ -288,11 +286,9 @@ export class LLMProcessor implements OnModuleInit {
     tracker: JobPerformanceTracker;
     avgTimeToReply: number;
     threadEmails: Email[];
-    contexts: Awaited<
-      ReturnType<typeof this.priorityCacheService.getUserContexts>
-    >;
+    contexts: Awaited<ReturnType<PriorityCacheService["getUserContexts"]>>;
     userContext: ReturnType<LLMPriorityBatchService["buildUserContext"]>;
-    replyStatus: ReturnType<typeof this.determineThreadReplyStatus>;
+    replyStatus: ReturnType<LLMProcessor["determineThreadReplyStatus"]>;
     bodyForPriority: string;
   }): Promise<void> {
     const {

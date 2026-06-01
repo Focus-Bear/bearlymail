@@ -37,6 +37,7 @@ import {
   ACTION_TYPE_GITHUB_SEARCH_ISSUES,
   ACTION_TYPE_GITHUB_UPDATE_STATUS,
   ACTION_TYPE_SCHEDULING_REQUEST,
+  REPLY_MODE_FORWARD,
   SUMMARY_TYPE_CUSTOM,
   SUMMARY_TYPE_CUSTOM_PREFIX,
 } from 'constants/strings';
@@ -695,6 +696,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               checkingTone={st.checkingTone}
               toneCheckResult={st.toneCheckResult}
               sending={st.sending}
+              initialAttachments={st.replyMode === REPLY_MODE_FORWARD ? st.email?.attachments : undefined}
               textareaRef={replyTextareaRef}
               scheduledSendAt={scheduledSendAt}
               onReplyRecipientsChange={st.setReplyRecipients}

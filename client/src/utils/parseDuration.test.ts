@@ -21,8 +21,20 @@ describe('parseDurationToDate', () => {
     expect(parseDurationToDate('2w', now)).toEqual(new Date(2026, 5, 10, 10, 0, 0));
   });
 
-  it('parses minute durations', () => {
+  it('parses minute durations regardless of count', () => {
     expect(parseDurationToDate('90m', now)).toEqual(new Date(2026, 4, 27, 11, 30, 0));
+    expect(parseDurationToDate('13m', now)).toEqual(new Date(2026, 4, 27, 10, 13, 0));
+    expect(parseDurationToDate('3m', now)).toEqual(new Date(2026, 4, 27, 10, 3, 0));
+    expect(parseDurationToDate('12m', now)).toEqual(new Date(2026, 4, 27, 10, 12, 0));
+  });
+
+  it('always treats "Nmo" as months regardless of count', () => {
+    expect(parseDurationToDate('3mo', now)).toEqual(new Date(2026, 7, 27, 10, 0, 0));
+    expect(parseDurationToDate('18mo', now)).toEqual(new Date(2027, 10, 27, 10, 0, 0));
+  });
+
+  it('keeps "min" as minutes even at small counts', () => {
+    expect(parseDurationToDate('3min', now)).toEqual(new Date(2026, 4, 27, 10, 3, 0));
   });
 
   it('parses bare day names to the next occurrence at 9am', () => {

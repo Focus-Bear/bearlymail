@@ -36,10 +36,21 @@ export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
   );
   const humanizedPreview = preview ? t(preview.i18nKey, preview.values) : null;
 
+  // On Fridays a 48h follow-up lands on the weekend, so offer "next Monday"
+  // instead; every other day keeps the 48h option. On Fridays "3d" also lands
+  // on Monday, so drop it to avoid two functionally identical options.
+  const FRIDAY = 5;
+  const isFriday = new Date().getDay() === FRIDAY;
+  const firstOption = isFriday
+    ? { label: t('emailDetail.expectedReply.quickNextMon'), value: 'next Monday' }
+    : { label: t('emailDetail.expectedReply.quick48h'), value: '48h' };
+
   const quickOptions = [
-    { label: t('emailDetail.expectedReply.quick48h'), value: '48h' },
-    { label: t('emailDetail.expectedReply.quick3d'), value: '3d' },
-    { label: t('emailDetail.expectedReply.quickNextMon'), value: 'next Monday' },
+    firstOption,
+    ...(isFriday
+      ? []
+      : [{ label: t('emailDetail.expectedReply.quick3d'), value: '3d' }]),
+    { label: t('emailDetail.expectedReply.quick7d'), value: '7d' },
     { label: t('emailDetail.expectedReply.quick2w'), value: '2w' },
   ];
 

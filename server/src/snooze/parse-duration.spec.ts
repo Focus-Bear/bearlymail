@@ -43,6 +43,29 @@ describe("parse-duration", () => {
       );
     });
 
+    it("treats bare 'm' as minutes regardless of count", () => {
+      expect(parseDurationToDate("3m", now).getTime()).toBe(
+        now.getTime() + 3 * MILLISECONDS.MINUTE,
+      );
+      expect(parseDurationToDate("13m", now).getTime()).toBe(
+        now.getTime() + 13 * MILLISECONDS.MINUTE,
+      );
+    });
+
+    it("always treats 'mo' as months", () => {
+      const expected = new Date(now);
+      expected.setMonth(expected.getMonth() + 18);
+      expect(parseDurationToDate("18mo", now).getTime()).toBe(
+        expected.getTime(),
+      );
+    });
+
+    it("always treats 'min' as minutes", () => {
+      expect(parseDurationToDate("3min", now).getTime()).toBe(
+        now.getTime() + 3 * MILLISECONDS.MINUTE,
+      );
+    });
+
     it("resolves day names to the next occurrence at the default snooze hour", () => {
       const result = parseDurationToDate("mon", now);
       expect(result.getTime()).toBeGreaterThan(now.getTime());

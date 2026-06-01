@@ -182,12 +182,12 @@ describe('ReplyComposerFooter', () => {
       fireEvent.focus(input);
       const quickOptions = screen.getByTestId('follow-up-quick-options');
       const optionButtons = within(quickOptions).getAllByRole('button');
-      fireEvent.mouseDown(optionButtons[2]); // "Next Mon" → value "next Monday"
+      fireEvent.mouseDown(optionButtons[2]); // "In 7 days" → value "7d"
       fireEvent.blur(input);
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, 'next Monday');
+      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '7d');
     });
 
     it('does not show quick options when disabled (sending)', () => {

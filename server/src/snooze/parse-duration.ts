@@ -16,7 +16,7 @@ const CHRONO_BY_LOCALE: { [locale: string]: chrono.Chrono } = {
   es: chrono.es.casual,
 };
 
-const RELATIVE_DURATION_REGEX = /^(\d+)\s*(m|min|h|hr|d|w)$/;
+const RELATIVE_DURATION_REGEX = /^(\d+)\s*(mo|m|min|h|hr|d|w)$/;
 
 function baseLocale(locale: string): string {
   return locale.toLowerCase().split("-")[0];
@@ -28,6 +28,17 @@ function deaccent(value: string): string {
 }
 
 /**
+ * Adds whole calendar months to a date, preserving the time of day. Day-of-month
+ * overflow rolls forward (e.g. Jan 31 + 1 month → early March), which is fine for
+ * a follow-up reminder.
+ */
+function addMonths(from: Date, months: number): Date {
+  const result = new Date(from);
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+/**
  * Parses a free-text duration/time into an absolute Date.
  *
  * Supports the same syntax as the snooze input so that snooze and reply
@@ -36,6 +47,7 @@ function deaccent(value: string): string {
  *   - natural language ("tomorrow", "5pm", "next Monday" / "mañana", "próximo lunes")
  *     via chrono's locale-specific parser
  *   - relative durations ("4h", "90m", "3d", "2w")
+ *   - months: "3mo" (use "mo" explicitly; bare "m" is always minutes)
  *
  * Falls back to one hour from `now` when the input cannot be parsed.
  *
@@ -76,6 +88,8 @@ export function parseDurationToDate(
     const unit = match[2];
 
     switch (unit) {
+      case "mo":
+        return addMonths(now, value);
       case "m":
       case "min":
         return new Date(now.getTime() + value * MILLISECONDS.MINUTE);

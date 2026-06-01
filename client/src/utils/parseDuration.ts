@@ -20,8 +20,9 @@ const DAYS_IN_WEEK = 7;
 const DEFAULT_SNOOZE_HOUR = 9;
 const NOON_HOUR = 12;
 
-const RELATIVE_DURATION_REGEX = /^(\d+)\s*(m|min|h|hr|d|w)$/;
+const RELATIVE_DURATION_REGEX = /^(\d+)\s*(mo|m|min|h|hr|d|w)$/;
 
+const UNIT_MONTHS = 'mo';
 const UNIT_MINUTES = 'm';
 const UNIT_MINUTES_LONG = 'min';
 const UNIT_HOURS = 'h';
@@ -35,6 +36,17 @@ function baseLocale(locale: string): string {
 
 function deaccent(value: string): string {
   return value.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+}
+
+/**
+ * Adds whole calendar months to a date, preserving the time of day. Day-of-month
+ * overflow rolls forward (e.g. Jan 31 + 1 month → early March), which is fine for
+ * a follow-up reminder.
+ */
+function addMonths(from: Date, months: number): Date {
+  const result = new Date(from);
+  result.setMonth(result.getMonth() + months);
+  return result;
 }
 
 /**
@@ -74,6 +86,8 @@ export function parseDurationToDate(
     const value = parseInt(match[1], 10);
     const unit = match[2];
     switch (unit) {
+      case UNIT_MONTHS:
+        return addMonths(now, value);
       case UNIT_MINUTES:
       case UNIT_MINUTES_LONG:
         return new Date(now.getTime() + value * MS_PER_MINUTE);

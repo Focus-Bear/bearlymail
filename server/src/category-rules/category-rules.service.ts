@@ -43,6 +43,10 @@ import {
   dropContradictoryExclusions,
   specHasExclusion,
 } from "./category-rules-match-gate.helper";
+import {
+  MERGE_OUTCOME_WOULD_EXCEED_CAP,
+  mergeIntoSiblingRuleIfPossible,
+} from "./category-rules-merge-sibling.helper";
 import { evaluateRulePersistGate } from "./category-rules-persist-gate.helper";
 import {
   AUTOMATED_PREFIXES,
@@ -381,6 +385,32 @@ export class CategoryRulesService {
     );
     if (duplicate) {
       return duplicate;
+    }
+
+    // Same-category sibling with identical sender + subject conditions: merge
+    // the candidate's body phrases into that rule instead of creating a
+    // near-duplicate sibling. The value-add LLM was honestly accepting two
+    // rules whose only difference was a few body phrases — but a single rule
+    // with body phrases unioned is what we actually want.
+    const mergeResult = await mergeIntoSiblingRuleIfPossible({
+      compositeRules,
+      candidateSpec,
+      trimmedCategory,
+      maxBodyPhrases: CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES,
+      repository: this.categoryRuleRepository,
+      onMerged: (sibling) =>
+        this.logger.log(
+          `[CategoryRules] Merged body phrases into existing composite rule ${sibling.id} (same sender + subject for category "${trimmedCategory}")`,
+        ),
+    });
+    if (mergeResult) {
+      if (mergeResult.outcome === MERGE_OUTCOME_WOULD_EXCEED_CAP) {
+        this.logger.debug(
+          `[CategoryRules] Skipping auto composite rule — would merge into sibling rule ${mergeResult.rule.id} (same sender + subject) but combined body phrases would exceed cap for user ${userId} category="${trimmedCategory}"`,
+        );
+        return null;
+      }
+      return mergeResult.rule;
     }
 
     const gate = await evaluateRulePersistGate({

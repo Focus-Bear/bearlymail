@@ -579,6 +579,88 @@ describe("CategoryRulesService", () => {
       expect(repo.create).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
+
+    it("merges body phrases into an existing sibling with the same sender + subject", async () => {
+      // Sibling for the same category with matching sender + subject but a
+      // different body phrase — the union should land on the sibling, not a
+      // brand-new rule.
+      const sameSenderSubjectSibling = {
+        id: "sib-same",
+        ruleKind: "composite",
+        categoryName: "CI",
+        compositeSpec: {
+          v: 3 as const,
+          fromMatchesAny: ["alerts@acmecorp.com"],
+          subjectContainsAny: ["Build failed"],
+          bodyContainsAny: ["existing body phrase"],
+          subjectNotContainsAny: ["unrelated"],
+        },
+      };
+      repo.find.mockResolvedValue([sameSenderSubjectSibling]);
+      emailRepo.find.mockResolvedValue([matchingMailboxEmail]);
+      repo.save.mockImplementation((entity) => Promise.resolve(entity));
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(result?.id).toBe("sib-same");
+      const mergedSpec = sameSenderSubjectSibling.compositeSpec as {
+        bodyContainsAny: string[];
+        subjectNotContainsAny?: string[];
+      };
+      // Existing phrase is kept, new phrase from the candidate is appended.
+      expect(mergedSpec.bodyContainsAny).toEqual([
+        "existing body phrase",
+        "Pipeline step compile failed",
+      ]);
+      // Sibling's exclusions are preserved unchanged.
+      expect(mergedSpec.subjectNotContainsAny).toEqual(["unrelated"]);
+    });
+
+    it("discards the new rule when merging into a same-sender+subject sibling would exceed MAX_BODY_PHRASES", async () => {
+      // Sibling already at the cap (20 body phrases). The candidate's one new
+      // phrase would push it to 21 — we discard rather than silently lose it.
+      const cappedBody = Array.from(
+        { length: 20 },
+        (_, i) => `phrase ${i + 1}`,
+      );
+      const cappedSibling = {
+        id: "sib-capped",
+        ruleKind: "composite",
+        categoryName: "CI",
+        compositeSpec: {
+          v: 3 as const,
+          fromMatchesAny: ["alerts@acmecorp.com"],
+          subjectContainsAny: ["Build failed"],
+          bodyContainsAny: cappedBody,
+        },
+      };
+      repo.find.mockResolvedValue([cappedSibling]);
+      emailRepo.find.mockResolvedValue([matchingMailboxEmail]);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(result).toBeNull();
+      expect(repo.create).not.toHaveBeenCalled();
+      // Sibling's body phrases must not have been mutated.
+      expect(cappedSibling.compositeSpec.bodyContainsAny).toEqual(cappedBody);
+    });
   });
 
   // ---------------------------------------------------------------------------

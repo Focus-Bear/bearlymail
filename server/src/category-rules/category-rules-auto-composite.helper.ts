@@ -146,6 +146,147 @@ export function compositeAutoSpecsMatch(
 }
 
 /**
+ * True when two specs share the same sender pattern AND the same subject
+ * conditions (case-insensitive, order-independent) — regardless of body
+ * phrases or exclusions. Two such rules within the same category are
+ * redundant: their body phrases are an OR list, so the new rule's phrases
+ * should be merged into the existing one rather than persisted as a sibling
+ * with identical sender + subject filters.
+ */
+export function senderAndSubjectMatch(
+  first: CompositeCategoryRuleSpec,
+  second: CompositeCategoryRuleSpec,
+): boolean {
+  const v2First = specToV2(first);
+  const v2Second = specToV2(second);
+  const UNIT_SEP = "";
+  const packStringsCi = (values: string[] | undefined) =>
+    [...(values ?? [])]
+      .map((item) => item.trim().toLowerCase())
+      .sort()
+      .join(UNIT_SEP);
+  return (
+    packStringsCi(v2First.senderMatchesAny) ===
+      packStringsCi(v2Second.senderMatchesAny) &&
+    packStringsCi(v2First.subjectContainsAny) ===
+      packStringsCi(v2Second.subjectContainsAny)
+  );
+}
+
+interface PhraseUnionResult {
+  merged: string[];
+  addedAny: boolean;
+}
+
+/**
+ * Returns the case-insensitive union of `existingList` and `incomingList`,
+ * preserving the casing of the first occurrence of each phrase. Empty/blank
+ * phrases are skipped. `addedAny` reports whether any phrase from
+ * `incomingList` was new relative to `existingList`.
+ */
+function unionPhrasesCi(
+  existingList: string[] | undefined,
+  incomingList: string[] | undefined,
+): PhraseUnionResult {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const phrase of existingList ?? []) {
+    const trimmed = phrase.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(trimmed);
+  }
+  let addedAny = false;
+  for (const phrase of incomingList ?? []) {
+    const trimmed = phrase.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(trimmed);
+    addedAny = true;
+  }
+  return { merged, addedAny };
+}
+
+/**
+ * Returns a v3 spec built from `existing` whose `bodyContainsAny` is the
+ * case-insensitive union of `existing.bodyContainsAny` and
+ * `incoming.bodyContainsAny`, and whose `subjectNotContainsAny` /
+ * `bodyNotContainsAny` are the case-insensitive union of both sides'
+ * exclusions. The incoming exclusions were derived (via
+ * `deriveExclusionsForCompositeRule`) specifically to prevent the new body
+ * phrases from matching false positives, so discarding them would silently
+ * regress the merged rule's precision. Sender, subject, and v3 extras come
+ * from `existing` unchanged.
+ *
+ * Returns `null` when the merge would exceed `maxBodyPhrases`,
+ * `MAX_SUBJECT_NOT_PHRASES`, or `MAX_BODY_NOT_PHRASES` (caller should reject
+ * the new rule rather than silently lose phrases). Returns the `existing`
+ * spec reference unchanged when `incoming` adds no new body phrases and no
+ * new exclusions — the caller can short-circuit a save.
+ */
+export function mergeBodyPhrasesIntoSibling(
+  existing: CompositeCategoryRuleSpec,
+  incoming: CompositeCategoryRuleSpec,
+  maxBodyPhrases: number,
+): CompositeCategoryRuleSpec | null {
+  const existingV2 = specToV2(existing);
+  const incomingV2 = specToV2(incoming);
+
+  const body = unionPhrasesCi(
+    existingV2.bodyContainsAny,
+    incomingV2.bodyContainsAny,
+  );
+  const subjectNot = unionPhrasesCi(
+    existingV2.subjectNotContainsAny,
+    incomingV2.subjectNotContainsAny,
+  );
+  const bodyNot = unionPhrasesCi(
+    existingV2.bodyNotContainsAny,
+    incomingV2.bodyNotContainsAny,
+  );
+
+  if (!body.addedAny && !subjectNot.addedAny && !bodyNot.addedAny) {
+    return existing;
+  }
+  if (body.merged.length > maxBodyPhrases) {
+    return null;
+  }
+  if (
+    subjectNot.merged.length > CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES
+  ) {
+    return null;
+  }
+  if (bodyNot.merged.length > CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES) {
+    return null;
+  }
+
+  const mergedSubjectNot =
+    subjectNot.merged.length > 0 ? subjectNot.merged : undefined;
+  const mergedBodyNot = bodyNot.merged.length > 0 ? bodyNot.merged : undefined;
+  const v3Extras = existing.v === 3 ? existing : null;
+  return {
+    v: 3,
+    fromMatchesAny: existingV2.senderMatchesAny,
+    subjectContainsAny: existingV2.subjectContainsAny,
+    bodyContainsAny: body.merged,
+    ...(mergedSubjectNot && { subjectNotContainsAny: mergedSubjectNot }),
+    ...(mergedBodyNot && { bodyNotContainsAny: mergedBodyNot }),
+    ...(v3Extras?.emailIsRead !== undefined && {
+      emailIsRead: v3Extras.emailIsRead,
+    }),
+    ...(v3Extras?.emailAttachment && {
+      emailAttachment: v3Extras.emailAttachment,
+    }),
+    ...(v3Extras?.emailReceived && { emailReceived: v3Extras.emailReceived }),
+    ...(v3Extras?.emailRead && { emailRead: v3Extras.emailRead }),
+  };
+}
+
+/**
  * Returns true when `normFrom` matches the sender `normPattern`.
  * Supports domain wildcards of the form `*@domain.com`, which match any
  * address at that domain (e.g. `*@github.com` matches `notifications@github.com`).

@@ -403,75 +403,6 @@ export interface MeetingProposalResult {
 
 const DEFAULT_DURATION_MINUTES = 30;
 
-type DetectedProposal = {
-  hasProposal: boolean;
-  proposedTime: string | null;
-  proposedTimeText: string | null;
-  topic: string | null;
-  durationMinutes: number | null;
-};
-
-async function resolveEmailForDetection(
-  service: CalendarService,
-  userId: string,
-  email: Awaited<ReturnType<CalendarService["emailsService"]["getEmailById"]>>,
-) {
-  if (!email?.threadId) return email;
-  const recentEmails = await service.emailsService.getThreadEmails(
-    userId,
-    email.threadId,
-    { limit: 1, order: "DESC" },
-  );
-  return recentEmails.length > 0 ? recentEmails[0] : email;
-}
-
-async function detectProposal(
-  service: CalendarService,
-  userId: string,
-  thread: {
-    meetingProposal?: DetectedProposal;
-    lastSummarizedAt?: Date;
-  } | null,
-  emailForDetection: {
-    from: string;
-    fromName?: string;
-    subject: string;
-    body: string;
-    receivedAt?: Date;
-  },
-): Promise<DetectedProposal> {
-  const mostRecentReceivedAt = emailForDetection.receivedAt;
-  const cacheIsFresh =
-    thread?.meetingProposal != null &&
-    thread.lastSummarizedAt != null &&
-    mostRecentReceivedAt != null &&
-    mostRecentReceivedAt <= thread.lastSummarizedAt;
-
-  if (cacheIsFresh) {
-    proposalLog.debug(
-      `[detectProposal] serving CACHED summary proposal (not timezone-aware): hasProposal=${thread!.meetingProposal!.hasProposal} proposedTime="${thread!.meetingProposal!.proposedTime}" proposedTimeText="${thread!.meetingProposal!.proposedTimeText}"`,
-    );
-    return thread!.meetingProposal!;
-  }
-
-  const prefs =
-    await service.schedulingPreferencesService.getPreferences(userId);
-  proposalLog.debug(
-    `[detectProposal] cache stale/absent — running timezone-aware detect with userTimezone="${prefs.timezone}"`,
-  );
-  return service.llmService.detectMeetingProposal(
-    {
-      from: emailForDetection.from,
-      fromName: emailForDetection.fromName,
-      subject: emailForDetection.subject,
-      body: emailForDetection.body,
-    },
-    undefined,
-    userId,
-    prefs.timezone,
-  );
-}
-
 async function checkCalendarAvailability(
   service: CalendarService,
   user: {
@@ -511,13 +442,12 @@ async function checkCalendarAvailability(
 /**
  * Detects whether the email proposes a specific meeting time and checks calendar availability.
  *
- * Always detects from the most recent email in the thread so that a reply proposing a
- * rescheduled time (different from the original proposal) is picked up correctly.
- *
- * The cached EmailThread.meetingProposal is reused only when it is still fresh — i.e. when
- * the thread was re-summarised AFTER the most recent email arrived.  If a new email arrived
- * since the last summarisation the cache may reflect the old proposed time, so the LLM is
- * called again with the latest email's body.
+ * Detection always runs on the specific email the user is viewing (the one that triggered the
+ * scheduling panel) via the dedicated, timezone-aware `detectMeetingProposal` prompt. We do NOT
+ * fall back to the thread's most recent email or the cached EmailThread.meetingProposal: the
+ * cache is produced by the summarisation prompt, which lacks the timezone-offset rules, and
+ * keying off the most recent email caused the "Create Calendar Invite" button to disappear when
+ * a later reply in the thread didn't restate the proposed time.
  */
 export async function checkMeetingProposal(
   service: CalendarService,
@@ -529,22 +459,21 @@ export async function checkMeetingProposal(
     throw new Error("Email not found");
   }
 
-  const thread = email.emailThreadId
-    ? await service.emailThreadRepository.findOne({
-        where: { id: email.emailThreadId, userId },
-      })
-    : null;
-
-  const emailForDetection = await resolveEmailForDetection(
-    service,
-    userId,
-    email,
+  const prefs =
+    await service.schedulingPreferencesService.getPreferences(userId);
+  proposalLog.debug(
+    `[checkMeetingProposal] running timezone-aware detect on viewed email ${emailId} with userTimezone="${prefs.timezone}"`,
   );
-  const proposal = await detectProposal(
-    service,
+  const proposal = await service.llmService.detectMeetingProposal(
+    {
+      from: email.from,
+      fromName: email.fromName,
+      subject: email.subject || "",
+      body: email.body || email.htmlBody || "",
+    },
+    undefined,
     userId,
-    thread,
-    emailForDetection,
+    prefs.timezone,
   );
 
   if (!proposal.hasProposal || !proposal.proposedTime) {

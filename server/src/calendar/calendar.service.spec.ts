@@ -844,7 +844,9 @@ describe("CalendarService", () => {
 
       result.forEach((slot: { start: string }) => {
         const slotDate = new Date(slot.start);
-        const hours = slotDate.getHours();
+        // Slots are computed in the preference timezone, which defaults to UTC
+        // here — assert in UTC so the test is independent of the runner's zone.
+        const hours = slotDate.getUTCHours();
         expect(hours).toBeGreaterThanOrEqual(9);
         expect(hours).toBeLessThan(17);
       });
@@ -904,9 +906,11 @@ describe("CalendarService", () => {
     it("should handle 60-minute slot durations", () => {
       const date = new Date("2024-01-15T09:45:00Z");
       const result = alignToSlotBoundary(date, 60);
-      expect(result.getHours()).toBe(10);
-      expect(result.getMinutes()).toBe(0);
-      expect(result.getSeconds()).toBe(0);
+      // Input is UTC; assert in UTC so the rolled-over hour is independent of
+      // the runner's local timezone.
+      expect(result.getUTCHours()).toBe(10);
+      expect(result.getUTCMinutes()).toBe(0);
+      expect(result.getUTCSeconds()).toBe(0);
     });
 
     it("should handle time at exact boundary for 15-minute slots", () => {
@@ -1753,91 +1757,29 @@ describe("CalendarService", () => {
       expect(result.isAvailable).toBe(false);
     });
 
-    it("uses stored meetingProposal from EmailThread when cache is fresh", async () => {
-      const emailReceivedAt = new Date("2026-04-10T12:00:00Z");
-      // after email arrived
-      const summarizedAt = new Date("2026-04-10T13:00:00Z");
+    it("ignores the thread-level meetingProposal cache and re-detects from the viewed email", async () => {
       const emailWithThread = {
         ...mockEmail,
         threadId: "gmail-thread-1",
         emailThreadId: "thread-uuid-1",
-        receivedAt: emailReceivedAt,
+        body: "Let's meet on 10 June at 10:30am",
       };
       emailsService.getEmailById.mockResolvedValue(emailWithThread);
-      emailsService.getThreadEmails.mockResolvedValue([emailWithThread]);
+      // The cache says "no proposal" — if it were trusted, the button would be
+      // hidden. The timezone-aware detection on the viewed email must win.
       mockEmailThreadRepository.findOne = jest.fn().mockResolvedValue({
         id: "thread-uuid-1",
         meetingProposal: {
-          hasProposal: true,
-          proposedTime: "2026-04-15T09:00:00Z",
-          proposedTimeText: "Tuesday 15 April at 9am",
-          topic: "Stored Topic",
-          durationMinutes: 45,
+          hasProposal: false,
+          proposedTime: null,
         },
-        lastSummarizedAt: summarizedAt,
-      });
-      usersService.findOne.mockResolvedValue(mockUser);
-      mockCalendar.freebusy.query.mockResolvedValue({
-        data: { calendars: { primary: { busy: [] } } },
-      });
-
-      const result = await service.checkMeetingProposal("user-1", "email-1");
-
-      expect(result.hasProposal).toBe(true);
-      expect(result.proposedTime).toBe("2026-04-15T09:00:00Z");
-      expect(result.topic).toBe("Stored Topic");
-      expect(result.durationMinutes).toBe(45);
-      expect(result.isAvailable).toBe(true);
-      expect(llmService.detectMeetingProposal).not.toHaveBeenCalled();
-    });
-
-    it("re-detects from most recent thread email when cache is stale (newer email arrived after summarisation)", async () => {
-      const originalEmailReceivedAt = new Date("2026-04-10T12:00:00Z");
-      const summarizedAt = new Date("2026-04-10T13:00:00Z");
-      // A newer email arrived after the last summarisation — the cache is stale
-      const newerEmailReceivedAt = new Date("2026-04-11T09:00:00Z");
-
-      const originalEmail = {
-        ...mockEmail,
-        id: "email-1",
-        threadId: "gmail-thread-1",
-        emailThreadId: "thread-uuid-1",
-        receivedAt: originalEmailReceivedAt,
-        body: "Let's meet on Tuesday at 9am",
-      };
-      const newerEmail = {
-        ...mockEmail,
-        id: "email-2",
-        threadId: "gmail-thread-1",
-        emailThreadId: "thread-uuid-1",
-        receivedAt: newerEmailReceivedAt,
-        from: "sender@example.com",
-        body: "Actually, can we do Wednesday at 7am instead?",
-      };
-
-      emailsService.getEmailById.mockResolvedValue(originalEmail);
-      // getThreadEmails returns the NEWEST email first (DESC order)
-      emailsService.getThreadEmails.mockResolvedValue([newerEmail]);
-      mockEmailThreadRepository.findOne = jest.fn().mockResolvedValue({
-        id: "thread-uuid-1",
-        meetingProposal: {
-          hasProposal: true,
-          // stale: Tuesday 9am from original email
-          proposedTime: "2026-04-14T09:00:00Z",
-          proposedTimeText: "Tuesday 14 April at 9am",
-          topic: "Meeting",
-          durationMinutes: 30,
-        },
-        // before newerEmail arrived → cache is stale
-        lastSummarizedAt: summarizedAt,
       });
       llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
         hasProposal: true,
-        // Wednesday 7am from newer email
-        proposedTime: "2026-04-15T07:00:00Z",
-        proposedTimeText: "Wednesday 15 April at 7am",
+        proposedTime: "2026-06-10T00:30:00Z",
+        proposedTimeText: "10 June at 10:30am",
         topic: "Meeting",
-        durationMinutes: 60,
+        durationMinutes: 30,
       });
       usersService.findOne.mockResolvedValue(
         mockPartial({ ...mockUser, googleCalendarAccessToken: null }),
@@ -1846,12 +1788,57 @@ describe("CalendarService", () => {
       const result = await service.checkMeetingProposal("user-1", "email-1");
 
       expect(result.hasProposal).toBe(true);
-      // Should return the time from the NEWER email, not the stale cache
-      expect(result.proposedTime).toBe("2026-04-15T07:00:00Z");
-      expect(result.proposedTimeText).toBe("Wednesday 15 April at 7am");
-      // LLM should have been called with the newer email's content
+      expect(result.proposedTime).toBe("2026-06-10T00:30:00Z");
+      // The timezone-aware detection ran on the viewed email's body.
       expect(llmService.detectMeetingProposal).toHaveBeenCalledWith(
-        expect.objectContaining({ body: newerEmail.body }),
+        expect.objectContaining({ body: emailWithThread.body }),
+        undefined,
+        "user-1",
+        "UTC",
+      );
+    });
+
+    it("detects from the viewed email, not the most recent email in the thread", async () => {
+      const viewedEmail = {
+        ...mockEmail,
+        id: "email-1",
+        threadId: "gmail-thread-1",
+        emailThreadId: "thread-uuid-1",
+        body: "Let's meet on Tuesday at 9am",
+      };
+      const newerReply = {
+        ...mockEmail,
+        id: "email-2",
+        threadId: "gmail-thread-1",
+        emailThreadId: "thread-uuid-1",
+        from: "sender@example.com",
+        body: "Sounds good, see you then!",
+      };
+      emailsService.getEmailById.mockResolvedValue(viewedEmail);
+      // A newer reply exists in the thread but carries no proposal — detection
+      // must run on the email the user is actually viewing.
+      emailsService.getThreadEmails.mockResolvedValue([
+        newerReply,
+        viewedEmail,
+      ]);
+      mockEmailThreadRepository.findOne = jest.fn().mockResolvedValue(null);
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        hasProposal: true,
+        proposedTime: "2026-04-14T09:00:00Z",
+        proposedTimeText: "Tuesday 14 April at 9am",
+        topic: "Meeting",
+        durationMinutes: 30,
+      });
+      usersService.findOne.mockResolvedValue(
+        mockPartial({ ...mockUser, googleCalendarAccessToken: null }),
+      );
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.hasProposal).toBe(true);
+      expect(result.proposedTime).toBe("2026-04-14T09:00:00Z");
+      expect(llmService.detectMeetingProposal).toHaveBeenCalledWith(
+        expect.objectContaining({ body: viewedEmail.body }),
         undefined,
         "user-1",
         "UTC",

@@ -1,6 +1,8 @@
-import { NotFoundException } from "@nestjs/common";
+import { NotFoundException, StreamableFile } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import type { Response } from "express";
 
+import { AuditService } from "../audit/audit.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
@@ -74,6 +76,10 @@ describe("EmailsController", () => {
     blockEmailSender: jest.fn(),
   };
 
+  const mockAuditService = {
+    log: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmailsController],
@@ -129,6 +135,10 @@ describe("EmailsController", () => {
             exportEmails: jest.fn().mockResolvedValue(Buffer.from("mock-zip")),
             getExportableEmails: jest.fn().mockResolvedValue([]),
           },
+        },
+        {
+          provide: AuditService,
+          useValue: mockAuditService,
         },
       ],
     }).compile();
@@ -983,6 +993,60 @@ describe("EmailsController", () => {
 
       expect(result).toHaveLength(1);
       expect((result as { id: string }[])[0].id).toBe("no-results");
+    });
+  });
+
+  describe("exportEmails", () => {
+    it("should export emails and write an audit record (without the password)", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { userId },
+        ip: "10.0.0.5",
+        headers: { "user-agent": "Test-UA/1.0" },
+      };
+      const mockRes = { set: jest.fn() } as unknown as Response;
+
+      const result = await controller.exportEmails(
+        mockRequest,
+        { password: "super-secret-password" },
+        mockRes,
+      );
+
+      expect(result).toBeInstanceOf(StreamableFile);
+
+      expect(mockAuditService.log).toHaveBeenCalledTimes(1);
+      const auditArg = mockAuditService.log.mock.calls[0][0];
+      expect(auditArg).toEqual({
+        userId,
+        action: "EMAIL_BULK_EXPORT",
+        targetType: "user_emails",
+        targetId: userId,
+        ipAddress: "10.0.0.5",
+        userAgent: "Test-UA/1.0",
+      });
+      // The export password must never be logged.
+      expect(JSON.stringify(auditArg)).not.toContain("super-secret-password");
+    });
+
+    it("should still return when audit logging is missing ip/user-agent", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      const mockRes = { set: jest.fn() } as unknown as Response;
+
+      await controller.exportEmails(
+        mockRequest,
+        { password: "password123" },
+        mockRes,
+      );
+
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId,
+          action: "EMAIL_BULK_EXPORT",
+          ipAddress: null,
+          userAgent: null,
+        }),
+      );
     });
   });
 

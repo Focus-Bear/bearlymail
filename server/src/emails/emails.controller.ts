@@ -31,9 +31,11 @@ import {
   StreamableFile,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import PgBoss from "pg-boss";
 
+import { AuditService } from "../audit/audit.service";
 import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
@@ -63,6 +65,15 @@ import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { SearchEnrichmentService } from "./search-enrichment.service";
 
+/**
+ * Bulk export is a privileged personal-data access path: it reads the user's
+ * entire mailbox in one request. It is rate-limited far more tightly than
+ * ordinary endpoints to bound the blast radius of a stolen token and to make
+ * scripted bulk exfiltration expensive.
+ */
+const EXPORT_RATE_LIMIT = 5;
+const EXPORT_RATE_WINDOW_MS = 3_600_000;
+
 @Controller("emails")
 @UseGuards(JwtAuthGuard, EmailProviderRequiredGuard)
 export class EmailsController {
@@ -75,6 +86,7 @@ export class EmailsController {
     private readonly gmailProvider: GmailProvider,
     private readonly searchEnrichmentService: SearchEnrichmentService,
     private readonly emailExportService: EmailExportService,
+    private readonly auditService: AuditService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
@@ -458,15 +470,34 @@ export class EmailsController {
    * any third-party software.
    */
   @Post("export")
+  @Throttle({
+    default: { limit: EXPORT_RATE_LIMIT, ttl: EXPORT_RATE_WINDOW_MS },
+  })
   async exportEmails(
     @Request() req,
     @Body() body: ExportEmailBody,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
+    const { userId } = req.user;
     const zipBuffer = await this.emailExportService.exportEmails(
-      req.user.userId,
+      userId,
       body.password,
     );
+
+    // SAQ Q52 / GAP-12: a bulk personal-data export is a privileged access path
+    // and must leave an audit record. Awaited so the audit write is guaranteed
+    // before the sensitive data is returned — AuditService swallows its own
+    // errors so an audit-write failure never blocks the export.
+    // Never log the export password.
+    await this.auditService.log({
+      userId,
+      action: "EMAIL_BULK_EXPORT",
+      targetType: "user_emails",
+      targetId: userId,
+      ipAddress: req.ip ?? null,
+      userAgent: req.headers?.["user-agent"] ?? null,
+    });
+
     const filename = `bearlymail-emails-${new Date().toISOString().split("T")[0]}.zip`;
     res.set({
       "Content-Type": "application/zip",

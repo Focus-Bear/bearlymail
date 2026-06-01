@@ -23,6 +23,7 @@ export const PERCENTAGES = {
 } as const;
 
 export const RATIOS = {
+  ZERO: 0,
   TINY: 0.01,
   SMALL: 0.1,
   HALF: 0.5,

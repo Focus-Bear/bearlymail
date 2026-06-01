@@ -474,7 +474,7 @@ export class PriorityAnalysisService {
       {
         prompt,
         systemPrompt,
-        temperature: RATIOS.THIRTY_PERCENT,
+        temperature: RATIOS.ZERO,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         userId,
         operation: LLM_OP_ANALYZE_PRIORITY,

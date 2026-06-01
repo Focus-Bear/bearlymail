@@ -60,6 +60,12 @@ Do NOT include sentimentScore — it is pre-computed.
 - Code review feedback (review comments, approvals, change requests on an existing PR) → treat sender as code reviewer
 - Generic automation (CI pipelines, build notifications, **dependency updates, security bumps, Dependabot/Renovate PRs**) → does NOT qualify. A bot opening a PR to bump a library version is NOT code review feedback — it is an automated dependency update.
 
+**Step 2b: Honour exclusion clauses as hard constraints.** A category's description may carve out cases it explicitly does NOT cover. Treat any such exclusion as a hard constraint: if the email matches the excluded case, that category is **ineligible** — eliminate it now, no matter how well its NAME otherwise fits. Exclusions take many forms; recognise them generally rather than matching specific wording:
+- Negations / carve-outs: "exclude X", "not X", "except X", "does not include X", "other than X".
+- Scope limiters: "only X", "just X", "X only" — anything outside that scope is excluded.
+- Named or role-based exclusions: a specific person, sender, team, or actor type the category says to exclude (e.g. a category for human updates that excludes QA comments, or excludes named reviewers).
+- **Do NOT pick a category whose own description rules out this email.** When a category's name looks like a strong match but its description excludes this email's case, the correct choice is a different eligible category that fits the excluded case (e.g. a QA-specific category for a QA comment), or "Other" if none fits. Never override an exclusion just because the name matched.
+
 **Step 3:** Select best fitting category from remaining eligible categories. Evaluate ALL before choosing, using this strict priority order:
 
 **Priority 1 — Platform identity:** If the sender is from a recognisable platform (GitHub, Jira, Slack, etc.) AND a platform-specific category exists for that platform, prefer the platform category over a non-platform topic-based category (e.g. a security/compliance category, a newsletter category).

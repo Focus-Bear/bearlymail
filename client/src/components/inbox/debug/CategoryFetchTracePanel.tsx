@@ -28,6 +28,20 @@ interface CategoryFetchTraceDrop {
   reason: string;
 }
 
+interface CategoryFetchTraceThreadDetail {
+  threadId: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  clientGroupKey: string;
+  summaryBucketKey: string;
+  keyMismatch: boolean;
+  account: {
+    provider: 'google' | 'office365' | 'zoho' | 'unknown';
+    accountId: string | null;
+  };
+  inRawQuery: boolean;
+}
+
 interface CategoryFetchTrace {
   categoryId: string | null;
   categoryName: string;
@@ -44,6 +58,7 @@ interface CategoryFetchTrace {
   summaryOnlyThreadIds: string[];
   rawOnlyThreadIds: string[];
   summaryToRawDriftMs: number;
+  summaryThreadDetails: CategoryFetchTraceThreadDetail[];
 }
 
 interface Props {
@@ -143,6 +158,78 @@ const DropList: React.FC<{ drops: CategoryFetchTraceDrop[] }> = ({ drops }) => {
   );
 };
 
+/**
+ * Issue #2062 — the deciding evidence. For each thread the summary counted, shows
+ * its resolved categoryId/name, the account it's on, and whether the client group
+ * key diverges from the summary's bucket key. A mismatch where categoryName ===
+ * "Other" proves the naming-collision theory; threads missing from the raw query
+ * (inRawQuery=false) would instead implicate a server-side filter (e.g. account).
+ */
+const SummaryThreadDetails: React.FC<{ details?: CategoryFetchTraceThreadDetail[] }> = ({ details = [] }) => {
+  if (details.length === 0) {
+    return null;
+  }
+  const offenders = details.filter(detail => detail.keyMismatch);
+  const namedOther = offenders.filter(detail => detail.categoryName === 'Other');
+  const missingFromRaw = details.filter(detail => !detail.inRawQuery);
+
+  let verdict: string;
+  if (namedOther.length > 0) {
+    verdict = `🎯 ${namedOther.length} counted thread(s) carry a non-null categoryId but resolve to category name "Other" → naming collision (client keys by UUID, accordion keys "uncategorized").`;
+  } else if (offenders.length > 0) {
+    verdict = `⚠️ ${offenders.length} counted thread(s) have a key mismatch but their name is not "Other" — different cause (e.g. stale UUID).`;
+  } else if (missingFromRaw.length > 0) {
+    verdict = `⚠️ ${missingFromRaw.length} counted thread(s) are absent from the raw inbox query → a server-side filter (account/blocked/mode) dropped them, NOT a grouping-key issue.`;
+  } else {
+    verdict = '✅ No key mismatch and all counted threads present in the raw query.';
+  }
+
+  return (
+    <div>
+      <strong style={{ fontSize: theme.typography.fontSize.xs }}>Per-thread category &amp; account ({details.length}):</strong>
+      <div style={{ ...monoStyle, marginTop: theme.spacing.xs, color: theme.colors.text.primary }}>{verdict}</div>
+      <div
+        style={{
+          maxHeight: '200px',
+          overflowY: 'auto',
+          marginTop: theme.spacing.xs,
+          backgroundColor: COLOR_WHITE,
+          padding: theme.spacing.xs,
+          borderRadius: theme.borderRadius.sm,
+          border: '1px solid #E0E0E0',
+        }}
+      >
+        {details.map(detail => (
+          <div
+            key={detail.threadId}
+            style={{
+              ...monoStyle,
+              padding: '3px 4px',
+              borderBottom: '1px solid #F0F0F0',
+              backgroundColor: detail.keyMismatch ? COLOR_BG_ERROR : 'transparent',
+            }}
+          >
+            <div>{detail.threadId}</div>
+            <div style={{ color: theme.colors.text.secondary }}>
+              categoryId=<code style={codeStyle}>{detail.categoryId ?? 'null'}</code>{' '}
+              name=<code style={codeStyle}>{detail.categoryName ?? '(none)'}</code>
+            </div>
+            <div style={{ color: theme.colors.text.secondary }}>
+              clientKey=<code style={codeStyle}>{detail.clientGroupKey}</code>{' '}
+              summaryKey=<code style={codeStyle}>{detail.summaryBucketKey}</code>{' '}
+              {detail.keyMismatch ? <span style={{ color: COLOR_ERROR_DARK }}>✗ mismatch</span> : <span>✓ match</span>}
+            </div>
+            <div style={{ color: theme.colors.text.secondary }}>
+              account=<code style={codeStyle}>{detail.account.provider}:{detail.account.accountId ?? 'null'}</code>{' '}
+              inRawQuery=<code style={codeStyle}>{String(detail.inRawQuery)}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const TraceContent: React.FC<{ trace: CategoryFetchTrace }> = ({ trace }) => (
   <div
     style={{
@@ -166,6 +253,7 @@ const TraceContent: React.FC<{ trace: CategoryFetchTrace }> = ({ trace }) => (
     <StageRow label="After category filter" ids={trace.afterCategoryFilterThreadIds} />
     <StageRow label="After blocked filter" ids={trace.afterBlockedFilterThreadIds} />
     <StageRow label="After mode filter (final)" ids={trace.afterModeFilterThreadIds} />
+    <SummaryThreadDetails details={trace.summaryThreadDetails} />
     {trace.summaryOnlyThreadIds.length > 0 && (
       <div>
         <strong style={{ fontSize: theme.typography.fontSize.xs }}>Summary-only (not in raw query):</strong>

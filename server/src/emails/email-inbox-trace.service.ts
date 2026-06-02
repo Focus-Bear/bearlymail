@@ -26,6 +26,38 @@ export interface CategoryFetchTraceDrop {
   reason: string;
 }
 
+/**
+ * Per-thread breakdown for every thread the summary counted under this category.
+ * Surfaces the two fields that decide WHY the accordion loaded zero: the resolved
+ * category UUID/name (a real category literally named "Other" collides with the
+ * null-bucket sentinel) and the account the representative email belongs to (rules
+ * account-filtering in or out). Added for issue #2062.
+ */
+export interface CategoryFetchTraceThreadDetail {
+  threadId: string;
+  /** Representative email's resolved category UUID. null = genuinely uncategorized. */
+  categoryId: string | null;
+  /** Decrypted category display name (e.g. "Other"). */
+  categoryName: string | null;
+  /**
+   * Client group key the email maps to TODAY (`category_id ?? "uncategorized"`).
+   * If this is a UUID while `summaryBucketKey` is "uncategorized", the email files
+   * under a key the Other accordion never looks up — the empty-category bug.
+   */
+  clientGroupKey: string;
+  /** Key the summary's "Other" accordion looks up ("uncategorized" for the null bucket). */
+  summaryBucketKey: string;
+  /** True when clientGroupKey !== summaryBucketKey — i.e. this thread is an offender. */
+  keyMismatch: boolean;
+  /** Provider + account id of the representative email, for ruling account-filtering in/out. */
+  account: {
+    provider: "google" | "office365" | "zoho" | "unknown";
+    accountId: string | null;
+  };
+  /** True if this summary-counted thread was returned by the unfiltered raw inbox query. */
+  inRawQuery: boolean;
+}
+
 export interface CategoryFetchTrace {
   categoryId: string | null;
   /** Best-effort decrypted name; "Other" for the null-category bucket. */
@@ -58,6 +90,13 @@ export interface CategoryFetchTrace {
   rawOnlyThreadIds: string[];
   /** Wall-clock between summary call and inbox call, useful for diagnosing race conditions. */
   summaryToRawDriftMs: number;
+  /**
+   * Per-thread category/account breakdown for the threads the summary counted.
+   * The decisive evidence for issue #2062: shows whether a counted thread carries a
+   * non-null categoryId whose name resolves to "Other" (naming collision → key
+   * mismatch) versus being genuinely uncategorized, and which account it lives on.
+   */
+  summaryThreadDetails: CategoryFetchTraceThreadDetail[];
 }
 
 /**
@@ -129,6 +168,13 @@ export class EmailInboxTraceService {
       drops,
     );
 
+    const summaryThreadDetails = this.buildSummaryThreadDetails(
+      categoryId,
+      summaryThreadIds,
+      decrypted,
+      treatedAsOther,
+    );
+
     return this.buildTrace({
       categoryId,
       categoryName,
@@ -142,7 +188,64 @@ export class EmailInboxTraceService {
       afterModeFilter,
       drops,
       driftMs: rawStartedAt - summaryEndedAt,
+      summaryThreadDetails,
     });
+  }
+
+  /**
+   * For each thread the summary counted, surface the category UUID/name and account
+   * of its representative email — the evidence that decides issue #2062 between a
+   * naming collision (real category named "Other" with a non-null UUID) and account
+   * filtering. When `treatedAsOther`, the summary bucket key is always
+   * "uncategorized", so any thread whose representative carries a non-null
+   * `categoryId` is an offender (clientGroupKey is the UUID → key mismatch).
+   */
+  private buildSummaryThreadDetails(
+    requestedCategoryId: string,
+    summaryThreadIds: string[],
+    decrypted: InboxEmail[],
+    treatedAsOther: boolean,
+  ): CategoryFetchTraceThreadDetail[] {
+    const byThreadId = new Map<string, InboxEmail>();
+    for (const email of decrypted) {
+      if (!byThreadId.has(email.threadId))
+        byThreadId.set(email.threadId, email);
+    }
+    return summaryThreadIds.map((threadId) => {
+      const email = byThreadId.get(threadId);
+      const categoryId = email?.categoryId ?? null;
+      const categoryName = email?.category ?? null;
+      const clientGroupKey = categoryId ?? INBOX_UNCATEGORIZED_CATEGORY_KEY;
+      const summaryBucketKey = treatedAsOther
+        ? INBOX_UNCATEGORIZED_CATEGORY_KEY
+        : requestedCategoryId;
+      return {
+        threadId,
+        categoryId,
+        categoryName,
+        clientGroupKey,
+        summaryBucketKey,
+        keyMismatch: clientGroupKey !== summaryBucketKey,
+        account: this.resolveAccount(email),
+        inRawQuery: email !== undefined,
+      };
+    });
+  }
+
+  private resolveAccount(email: InboxEmail | undefined): {
+    provider: "google" | "office365" | "zoho" | "unknown";
+    accountId: string | null;
+  } {
+    if (email?.googleAccountId) {
+      return { provider: "google", accountId: email.googleAccountId };
+    }
+    if (email?.office365AccountId) {
+      return { provider: "office365", accountId: email.office365AccountId };
+    }
+    if (email?.zohoAccountId) {
+      return { provider: "zoho", accountId: email.zohoAccountId };
+    }
+    return { provider: "unknown", accountId: null };
   }
 
   private async fetchSummaryForCategory(
@@ -312,6 +415,7 @@ export class EmailInboxTraceService {
     afterModeFilter: InboxEmail[];
     drops: CategoryFetchTraceDrop[];
     driftMs: number;
+    summaryThreadDetails: CategoryFetchTraceThreadDetail[];
   }): CategoryFetchTrace {
     const rawQueryCategoryThreadIds = args.rawQueryCategoryEmails.map(
       (emailItem) => emailItem.threadId,
@@ -342,6 +446,7 @@ export class EmailInboxTraceService {
         (threadId) => !summarySet.has(threadId),
       ),
       summaryToRawDriftMs: args.driftMs,
+      summaryThreadDetails: args.summaryThreadDetails,
     };
   }
 

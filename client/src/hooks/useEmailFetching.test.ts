@@ -11,7 +11,7 @@ import { ERROR_GMAIL, ERROR_GMAIL_REQUIRED } from 'constants/strings';
 import inboxDataReducer from 'store/slices/inboxDataSlice';
 import inboxUIReducer from 'store/slices/inboxUISlice';
 
-import { appendFilterParams, useEmailFetching } from './useEmailFetching';
+import { appendFilterParams, getCategoryKey, useEmailFetching } from './useEmailFetching';
 
 vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -662,6 +662,27 @@ describe('appendFilterParams', () => {
     appendFilterParams(params, { accountIds: [], categories: [], minPriority: 15, maxPriority: 30 });
     expect(params.get('minPriority')).toBe('15');
     expect(params.get('maxPriority')).toBe('30');
+  });
+});
+
+// ─── Fix #2062: "Other"-named category with non-null UUID groups as uncategorized ─
+
+describe('getCategoryKey', () => {
+  it('returns the UUID for a normal named category', () => {
+    expect(getCategoryKey('uuid-sales', 'Sales')).toBe('uuid-sales');
+  });
+
+  it('returns "uncategorized" when id is null/undefined', () => {
+    expect(getCategoryKey(null, 'Other')).toBe('uncategorized');
+    expect(getCategoryKey(undefined)).toBe('uncategorized');
+  });
+
+  it('collapses an "Other"-named category to "uncategorized" even with a non-null UUID', () => {
+    // The server serializes any category named "Other" with id: null and merges
+    // its count into the uncategorized bucket. A real user category literally named
+    // "Other" still carries its UUID on the email row; keying it by that UUID would
+    // leave the summary's id-null "Other" accordion empty (count > 0, loaded 0).
+    expect(getCategoryKey('uuid-other', 'Other')).toBe('uncategorized');
   });
 });
 

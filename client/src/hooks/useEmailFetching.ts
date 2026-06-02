@@ -77,10 +77,22 @@ interface UseEmailFetchingProps {
 
 /**
  * Compute the stable category key used as the canonical identifier throughout the client.
- * Always returns the UUID when present, or the constant "uncategorized" string.
- * NEVER falls back to the name — name-based keys are gone.
+ *
+ * Returns the UUID when present, otherwise the constant "uncategorized" string —
+ * EXCEPT when the resolved display name is the reserved "Other" sentinel
+ * (`CATEGORY_OTHER`). The server collapses every category named "Other" into the
+ * null/uncategorized bucket (the summary serializes it with `id: null`, see
+ * email-inbox.service.ts), even when a real user category happens to be named
+ * "Other" and carries a non-null `category_id`. If we keyed those emails by their
+ * UUID, they would never match the summary's id-null "Other" accordion — the
+ * category would show a count but load zero emails (issue #2062). Mirroring the
+ * server's name-based collapse keeps producer (email rows) and consumer (summary
+ * accordions) keys in sync.
  */
-export function getCategoryKey(id: string | null | undefined, _name?: string): string {
+export function getCategoryKey(id: string | null | undefined, name?: string): string {
+  if (name === CATEGORY_OTHER) {
+    return 'uncategorized';
+  }
   return id ?? 'uncategorized';
 }
 

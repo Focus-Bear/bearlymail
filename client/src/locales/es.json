@@ -3688,6 +3688,7 @@
     "keyEsc": "Esc"
   },
   "sidebar": {
+    "collapse": "Contraer barra lateral",
     "expand": "Expandir barra lateral"
   },
   "stats": {

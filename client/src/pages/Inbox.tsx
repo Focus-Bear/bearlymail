@@ -118,6 +118,7 @@ const InboxView: React.FC = () => {
 
   const {
     isCollapsed: isSidebarCollapsed,
+    canToggleCollapse: canToggleSidebarCollapse,
     isMobileMenuOpen,
     toggleCollapse: handleToggleSidebarCollapse,
     openMobileMenu,
@@ -226,6 +227,7 @@ const InboxView: React.FC = () => {
         user={user}
         logout={logout}
         isCollapsed={isSidebarCollapsed}
+        canToggleCollapse={canToggleSidebarCollapse}
         onToggleCollapse={handleToggleSidebarCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
         onCloseMobileMenu={handleCloseMobileMenu}

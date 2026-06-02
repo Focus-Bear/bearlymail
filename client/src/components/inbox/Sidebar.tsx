@@ -227,6 +227,7 @@ interface SidebarProps {
   user: User | null;
   logout: () => void;
   isCollapsed?: boolean;
+  canToggleCollapse?: boolean;
   onToggleCollapse?: () => void;
   isMobileMenuOpen?: boolean;
   onCloseMobileMenu?: () => void;
@@ -383,6 +384,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   user,
   logout,
   isCollapsed = false,
+  canToggleCollapse = false,
   onToggleCollapse,
   isMobileMenuOpen = false,
   onCloseMobileMenu,
@@ -439,7 +441,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }),
         }}
       >
-        <SidebarHeader isCollapsed={effectiveIsCollapsed} />
+        <SidebarHeader
+          isCollapsed={effectiveIsCollapsed}
+          canToggleCollapse={canToggleCollapse && !isNarrow}
+          onToggleCollapse={onToggleCollapse}
+        />
         <SidebarNav
           translate={t}
           location={location}
@@ -449,12 +455,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isAdmin={user?.isAdmin}
           handleNavigationClick={handleNavigationClick}
         />
-        <SidebarFooter
-          userEmail={user?.email}
-          onLogout={logout}
-          isCollapsed={effectiveIsCollapsed}
-          onToggleCollapse={onToggleCollapse}
-        />
+        <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={effectiveIsCollapsed} />
       </div>
     </>
   );

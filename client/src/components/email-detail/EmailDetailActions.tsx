@@ -3,17 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight, FiPrinter } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { isCalendarInvitation } from 'utils/calendarUtils';
 import { captureEvent } from 'utils/posthog';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 
 import { OverflowMenu } from 'components/common/OverflowMenu';
-import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
-import { IcsInviteCard } from 'components/email-detail/IcsInviteCard';
+import { EmailSchedulingCards } from 'components/email-detail/EmailSchedulingCards';
 import { PrintableThread } from 'components/email-detail/PrintableThread';
 import { PriorityButtonRow } from 'components/email-detail/PriorityButtonRow';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
-import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -22,11 +19,8 @@ import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { TOUCH_TARGET_MIN_PX } from 'constants/layout';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import {
-  ACTION_TYPE_CALENDAR_CREATE_INVITE,
-  ACTION_TYPE_SCHEDULING_REQUEST,
   BUTTON_VARIANT_PRIMARY,
   BUTTON_VARIANT_SECONDARY,
-  ICS_MIME_TYPE,
   REPLY_MODE_FORWARD,
   STRING_NONE,
 } from 'constants/strings';
@@ -58,6 +52,9 @@ interface EmailDetailActionsProps {
   onRespondToInvitation?: (emailId: string, response: 'accepted' | 'declined' | 'tentative') => Promise<void>;
   onDraftReply?: (draft: string) => void;
   hideActionButtons?: boolean;
+  /** When true, the scheduling/calendar cards are suppressed here because they are
+   *  rendered in the split-view action sidebar instead (compact mode). */
+  hideSchedulingCards?: boolean;
 }
 
 // ── Shared button-style helper ─────────────────────────────────────────────
@@ -122,8 +119,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export // eslint-disable-next-line complexity -- pre-existing: complex render with many conditional branches
-const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
+export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   email,
   threadEmails = [],
   suggestedActions,
@@ -145,6 +141,8 @@ const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   onRespondToInvitation,
   onDraftReply,
   hideActionButtons = false,
+  hideSchedulingCards = false,
+  // eslint-disable-next-line complexity -- pre-existing: complex render with many conditional branches
 }) => {
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
@@ -162,29 +160,6 @@ const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
     [t]
   );
   const starCount = email?.starCount ?? 0;
-
-  const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
-
-  // Deterministic ICS attachment detection — checked via MIME type and filename,
-  // not via LLM. Takes priority over the generic SchedulingRequestCard.
-  const hasIcsAttachment = useMemo(
-    () =>
-      Array.isArray(email.attachments) &&
-      email.attachments.some(att => att.mimeType === ICS_MIME_TYPE || att.filename?.toLowerCase().endsWith('.ics')),
-    [email.attachments]
-  );
-
-  // Derive hasSchedulingRequest from the pre-partitioned schedulingActions list (not from
-  // suggestedActions, which now contains only non-GitHub, non-scheduling actions).
-  // This ensures SchedulingRequestCard and QuickActionsSection are mutually exclusive.
-  // Treat both scheduling_request and calendar_create_invite as scheduling triggers.
-  const hasSchedulingRequest = useMemo(
-    () =>
-      schedulingActions.some(
-        action => action.type === ACTION_TYPE_SCHEDULING_REQUEST || action.type === ACTION_TYPE_CALENDAR_CREATE_INVITE
-      ),
-    [schedulingActions]
-  );
 
   const unsubscribeLink = useMemo(() => {
     return extractUnsubscribeLink(email.htmlBody, email.body);
@@ -295,20 +270,15 @@ const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
         gap: theme.spacing.md,
       }}
     >
-      {hasIcsAttachment && <IcsInviteCard email={email} />}
-      {/* Meeting proposals take priority over generic calendar invitation detection.
-          If the AI identified a scheduling request / calendar_create_invite action,
-          show the SchedulingRequestCard (Create Calendar Invite) regardless of whether
-          isCalendarInvitation() also fires on the same email.  Only fall back to
-          CalendarInviteActions (Accept / Decline) when there is no meeting proposal. */}
-      {!hasIcsAttachment && hasSchedulingRequest && (
-        <SchedulingRequestCard email={email} onDraftReply={onDraftReply} schedulingActions={schedulingActions} />
-      )}
-      {!hasIcsAttachment && !hasSchedulingRequest && !loadingSchedulingActions && isInvitation && onRespondToInvitation && (
-        <CalendarInviteActions
+      {/* Scheduling/calendar cards — suppressed in compact (split-view), where they
+          render in the action sidebar instead. */}
+      {!hideSchedulingCards && (
+        <EmailSchedulingCards
           email={email}
-          onAccept={() => onRespondToInvitation(email.id, 'accepted')}
-          onDecline={() => onRespondToInvitation(email.id, 'declined')}
+          schedulingActions={schedulingActions}
+          loadingSchedulingActions={loadingSchedulingActions}
+          onDraftReply={onDraftReply}
+          onRespondToInvitation={onRespondToInvitation}
         />
       )}
 

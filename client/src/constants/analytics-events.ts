@@ -79,6 +79,7 @@ export const ANALYTICS_EVENTS = {
   SENDER_BLOCKED: 'sender_blocked',
   SENDER_UNBLOCKED: 'sender_unblocked',
   SETTINGS_VIEWED: 'settings_viewed',
+  SIDEBAR_COLLAPSE_CLICKED: 'sidebar_collapse_clicked',
   SIDEBAR_EXPAND_CLICKED: 'sidebar_expand_clicked',
   SIDEBAR_FOCUSBEAR_LINK_CLICKED: 'sidebar_focusbear_link_clicked',
   SIDEBAR_LOGOUT_CLICKED: 'sidebar_logout_clicked',

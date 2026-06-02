@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { STRING_TRUE } from 'constants/strings';
@@ -11,6 +11,8 @@ interface UseSidebarStateOptions {
 
 interface UseSidebarStateReturn {
   isCollapsed: boolean;
+  /** True when the collapse/expand toggle is meaningful (split view active or Settings page). */
+  canToggleCollapse: boolean;
   isMobileMenuOpen: boolean;
   toggleCollapse: () => void;
   openMobileMenu: () => void;
@@ -31,6 +33,17 @@ export function useSidebarState(options: UseSidebarStateOptions = {}): UseSideba
   useEffect(() => {
     localStorage.setItem(SIDEBAR_EXPANDED_KEY, String(manuallyExpanded));
   }, [manuallyExpanded]);
+
+  // Auto-collapse the nav the moment an email opens (split view goes inactive → active).
+  // Without this, the persisted manuallyExpanded=true from a previous session would keep
+  // the rail expanded, leaving no room for the email + action sidebar.
+  const prevSplitViewActive = useRef(splitViewActive);
+  useEffect(() => {
+    if (splitViewActive && !prevSplitViewActive.current) {
+      setManuallyExpanded(false);
+    }
+    prevSplitViewActive.current = splitViewActive;
+  }, [splitViewActive]);
 
   const toggleCollapse = useCallback(() => {
     // Toggle should work on Settings page and when split view is active
@@ -56,6 +69,7 @@ export function useSidebarState(options: UseSidebarStateOptions = {}): UseSideba
 
   return {
     isCollapsed,
+    canToggleCollapse: shouldRespectCollapseState,
     isMobileMenuOpen,
     toggleCollapse,
     openMobileMenu,

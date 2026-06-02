@@ -5,7 +5,6 @@ import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import { EMOJI_MENU } from 'constants/emojis';
 
 const sidebarBtnStyle: React.CSSProperties = {
   padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
@@ -37,15 +36,9 @@ interface SidebarFooterProps {
   userEmail?: string;
   onLogout: () => void;
   isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
 }
 
-export const SidebarFooter: React.FC<SidebarFooterProps> = ({
-  userEmail,
-  onLogout,
-  isCollapsed = false,
-  onToggleCollapse,
-}) => {
+export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogout, isCollapsed = false }) => {
   const { t } = useTranslation();
 
   return (
@@ -54,7 +47,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
         style={{
           borderTop: `1px solid ${theme.colors.border.light}`,
           paddingTop: theme.spacing.sm,
-          display: isCollapsed ? 'flex' : 'flex',
+          display: 'flex',
           flexDirection: isCollapsed ? 'column' : 'row',
           alignItems: 'center',
           justifyContent: isCollapsed ? 'center' : 'space-between',
@@ -75,33 +68,18 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
             {userEmail}
           </div>
         )}
-        {isCollapsed && onToggleCollapse ? (
-          <button
-            onClick={() => {
-              captureEvent(ANALYTICS_EVENTS.SIDEBAR_EXPAND_CLICKED);
-              onToggleCollapse();
-            }}
-            title={t('sidebar.expand')}
-            style={sidebarBtnStyle}
-            onMouseEnter={onSidebarBtnMouseEnter}
-            onMouseLeave={onSidebarBtnMouseLeave}
-          >
-            {EMOJI_MENU}
-          </button>
-        ) : (
-          <button
-            onClick={() => {
-              captureEvent(ANALYTICS_EVENTS.SIDEBAR_LOGOUT_CLICKED);
-              onLogout();
-            }}
-            title={isCollapsed ? t('auth.logout') : undefined}
-            style={sidebarBtnStyle}
-            onMouseEnter={onSidebarBtnMouseEnter}
-            onMouseLeave={onSidebarBtnMouseLeave}
-          >
-            {t('auth.logout')}
-          </button>
-        )}
+        <button
+          onClick={() => {
+            captureEvent(ANALYTICS_EVENTS.SIDEBAR_LOGOUT_CLICKED);
+            onLogout();
+          }}
+          title={isCollapsed ? t('auth.logout') : undefined}
+          style={sidebarBtnStyle}
+          onMouseEnter={onSidebarBtnMouseEnter}
+          onMouseLeave={onSidebarBtnMouseLeave}
+        >
+          {t('auth.logout')}
+        </button>
       </div>
       {!isCollapsed && (
         <footer style={{ marginTop: '2px', textAlign: 'left' }}>

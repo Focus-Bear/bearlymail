@@ -17,6 +17,7 @@ import { EmailDetailHeader } from 'components/email-detail/EmailDetailHeader';
 import { EmailDetailSidebar } from 'components/email-detail/EmailDetailSidebar';
 import { EmailPhishingWarning } from 'components/email-detail/EmailPhishingWarning';
 import { shouldShowPhishingAlert } from 'components/email-detail/emailPhishingWarning.helpers';
+import { EmailSchedulingCards } from 'components/email-detail/EmailSchedulingCards';
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
 import { SenderContextSection } from 'components/email-detail/SenderContextSection';
 import { SummarySection } from 'components/email-detail/SummarySection';
@@ -472,12 +473,7 @@ interface EmailDetailContentProps {
 }
 
 interface EmailDetailNotesAndActionsProps {
-  state: EmailDetailStateType;
-  ops: EmailDetailOpsType;
-  effectiveVariant: string;
   isMobile: boolean;
-  githubActions?: SuggestedAction[];
-  emailContext?: { subject: string; body?: string; from: string; fromName?: string } | null;
   hiddenCards: Set<CardType>;
   onHideCard: (card: CardType) => void;
   showCardSettings: boolean;
@@ -615,15 +611,66 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
       />
     ) : null;
 
+  // Scheduling/calendar card (ICS invite, scheduling request, or accept/decline).
+  // In split-view this lives in the action sidebar; in full/inline it stays inline
+  // inside EmailDetailActions, so this node is only consumed in compact mode.
+  const schedulingSection = st.email ? (
+    <EmailSchedulingCards
+      email={st.email}
+      schedulingActions={schedulingActions}
+      loadingSchedulingActions={st.loadingSuggestedActions}
+      onDraftReply={(replyDraft: string) => {
+        st.setDraft(replyDraft);
+        st.setShowReplyComposer(true);
+      }}
+      onRespondToInvitation={ops.handleRespondToInvitation}
+    />
+  ) : null;
+
+  // Contextual cards (GitHub status, CRM deals, sender history). Rendered inline in
+  // full/inline views; in split-view they move to the action sidebar.
+  const contextCardsSection = (
+    <>
+      {!hiddenCards.has('github') && (
+        <div style={{ marginBottom: theme.spacing.xl }}>
+          <GitHubStatusSection
+            links={st.githubLinks}
+            loading={st.loadingGithub}
+            hasToken={st.hasGithubToken}
+            onRefresh={ops.refreshGithubInfo}
+            emailSubject={st.email?.subject}
+            emailBody={st.email?.body}
+            emailHtmlBody={st.email?.htmlBody}
+            email={emailContext}
+            suggestedGitHubActions={githubActions}
+            onDismiss={() => hideCard('github')}
+          />
+        </div>
+      )}
+      {!hiddenCards.has('crm') && (
+        <div style={{ marginBottom: theme.spacing.xl }}>
+          <CRMDealsSection
+            senderEmail={extractEmailAddress(st.email?.from)}
+            emailSubject={st.email?.subject}
+            onDismiss={() => hideCard('crm')}
+          />
+        </div>
+      )}
+      {!hiddenCards.has('senderContext') && (
+        <div style={{ marginBottom: theme.spacing.xl }}>
+          <SenderContextSection
+            senderEmail={extractEmailAddress(st.email?.from)}
+            onDismiss={() => hideCard('senderContext')}
+          />
+        </div>
+      )}
+    </>
+  );
+
   const mainContent = (
     <>
       <EmailDetailNotesAndActions
-        state={st}
-        ops={ops}
-        effectiveVariant={effectiveVariant}
         isMobile={isMobile}
-        githubActions={githubActions}
-        emailContext={emailContext}
         hiddenCards={hiddenCards}
         onHideCard={hideCard}
         showCardSettings={showCardSettings}
@@ -676,6 +723,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               st.setShowReplyComposer(true);
             }}
             hideActionButtons={isCompactOrInline && !isInline}
+            hideSchedulingCards={isCompact}
           />
         )}
         {st.showReplyComposer && (
@@ -746,44 +794,8 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             />
           </div>
         )}
-        {/* GitHub + CRM sections: shown in full and inline modes; in compact mode they appear in EmailDetailNotesAndActions above instead */}
-        {effectiveVariant !== EMAIL_DETAIL_VARIANT_COMPACT && (
-          <>
-            {!hiddenCards.has('github') && (
-              <div style={{ marginBottom: theme.spacing.xl }}>
-                <GitHubStatusSection
-                  links={st.githubLinks}
-                  loading={st.loadingGithub}
-                  hasToken={st.hasGithubToken}
-                  onRefresh={ops.refreshGithubInfo}
-                  emailSubject={st.email?.subject}
-                  emailBody={st.email?.body}
-                  emailHtmlBody={st.email?.htmlBody}
-                  email={emailContext}
-                  suggestedGitHubActions={githubActions}
-                  onDismiss={() => hideCard('github')}
-                />
-              </div>
-            )}
-            {!hiddenCards.has('crm') && (
-              <div style={{ marginBottom: theme.spacing.xl }}>
-                <CRMDealsSection
-                  senderEmail={extractEmailAddress(st.email?.from)}
-                  emailSubject={st.email?.subject}
-                  onDismiss={() => hideCard('crm')}
-                />
-              </div>
-            )}
-            {!hiddenCards.has('senderContext') && (
-              <div style={{ marginBottom: theme.spacing.xl }}>
-                <SenderContextSection
-                  senderEmail={extractEmailAddress(st.email?.from)}
-                  onDismiss={() => hideCard('senderContext')}
-                />
-              </div>
-            )}
-          </>
-        )}
+        {/* Contextual cards: shown inline in full and inline modes; in split-view they move to the action sidebar instead. */}
+        {!isCompact && contextCardsSection}
         {shouldShowPhishingAlert(st.email?.phishingConfidence) && st.email?.phishingConfidence && (
           <EmailPhishingWarning confidence={st.email.phishingConfidence} reason={st.email.phishingReason ?? ''} />
         )}
@@ -829,9 +841,11 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         <ActionSidebar
           actionsContent={
             <>
+              {schedulingSection}
               {summarySection}
               {tasksSection}
               {notesSection}
+              {contextCardsSection}
             </>
           }
           askAiContent={<AskAiPanel />}
@@ -844,12 +858,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
 };
 
 const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
-  state: st,
-  ops,
-  effectiveVariant,
   isMobile,
-  githubActions = [],
-  emailContext = null,
   hiddenCards,
   onHideCard,
   showCardSettings,
@@ -874,37 +883,5 @@ const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
     {/* Notes/tasks render here for full and inline views; in split-view they move to the action sidebar. */}
     {!assistantInSidebar && notesSection}
     {!assistantInSidebar && tasksSection}
-    {/* In compact (split-view) mode, GitHub and CRM go here to match the previous compactMode=true layout */}
-    {effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT && (
-      <>
-        {!hiddenCards.has('github') && (
-          <GitHubStatusSection
-            links={st.githubLinks}
-            loading={st.loadingGithub}
-            hasToken={st.hasGithubToken}
-            onRefresh={ops.refreshGithubInfo}
-            emailSubject={st.email?.subject}
-            emailBody={st.email?.body}
-            emailHtmlBody={st.email?.htmlBody}
-            email={emailContext}
-            suggestedGitHubActions={githubActions}
-            onDismiss={() => onHideCard('github')}
-          />
-        )}
-        {!hiddenCards.has('crm') && (
-          <CRMDealsSection
-            senderEmail={extractEmailAddress(st.email?.from)}
-            emailSubject={st.email?.subject}
-            onDismiss={() => onHideCard('crm')}
-          />
-        )}
-        {!hiddenCards.has('senderContext') && (
-          <SenderContextSection
-            senderEmail={extractEmailAddress(st.email?.from)}
-            onDismiss={() => onHideCard('senderContext')}
-          />
-        )}
-      </>
-    )}
   </div>
 );

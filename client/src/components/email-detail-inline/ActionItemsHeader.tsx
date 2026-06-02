@@ -32,7 +32,14 @@ export const ActionItemsHeader: React.FC<ActionItemsHeaderProps> = ({
 
   return (
     <div
-      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        flexWrap: 'wrap',
+        marginBottom: theme.spacing.md,
+      }}
     >
       <h3
         style={{
@@ -43,11 +50,12 @@ export const ActionItemsHeader: React.FC<ActionItemsHeaderProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: theme.spacing.sm,
+          minWidth: 0,
         }}
       >
         ✅ {t('emailDetail.actionItems')}
       </h3>
-      <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexShrink: 0 }}>
         {actionItems.some(item => item.source === ACTION_ITEM_SOURCE_LLM) && onRegenerateActionItems && (
           <button
             onClick={() => {

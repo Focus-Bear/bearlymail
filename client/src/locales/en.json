@@ -1460,6 +1460,31 @@
           "error": "Error message",
           "rawOutput": "Raw pg-boss output"
         }
+      },
+      "contactTokens": {
+        "title": "Contact search-token backfill",
+        "description": "Regenerates the blind-index searchTokens for every user's contacts that have NULL/empty tokens, so contacts synced before the search feature become findable. Runs as one background job under each user's KMS key. Idempotent — only NULL/empty rows are touched. Use Dry-run to preview impact, then Start real run.",
+        "actions": {
+          "dryRun": "Start dry-run (all users)",
+          "start": "Start real run (all users)"
+        },
+        "startConfirm": "This will regenerate search tokens for every user with NULL/empty contact tokens. Continue?",
+        "cancelled": "Cancelled.",
+        "enqueued": "Enqueued backfill job {{jobId}}.",
+        "polling": "Backfill running…",
+        "complete": "Backfill complete.",
+        "failed": "Backfill job failed. Check worker logs.",
+        "noResult": "Backfill job ended in state \"{{state}}\" without a result. Check worker logs.",
+        "resultTitle": "Backfill results",
+        "dryRunBadge": "(dry run)",
+        "columns": {
+          "totalUsers": "Total users",
+          "succeededUsers": "Succeeded users",
+          "failedUsers": "Failed users",
+          "totalScanned": "Scanned",
+          "totalUpdated": "Updated",
+          "totalEmpty": "Empty (no tokens)"
+        }
       }
     },
     "emailDecrypt": {

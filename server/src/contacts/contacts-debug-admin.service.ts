@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Contact } from "../database/entities/contact.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 import { SearchIndexHelper } from "./search-index.helper";
 
@@ -49,6 +50,11 @@ const GMAIL_SEARCH_PAGE_SIZE = 10;
  * cap the request and let the admin re-run if `remaining > 0`.
  */
 const REBUILD_BATCH_SIZE = 500;
+
+/** Rows processed per DB page within a single user during the all-users backfill. */
+const BACKFILL_PAGE_SIZE = 500;
+
+const NULL_OR_EMPTY_TOKENS = `(contact.searchTokens IS NULL OR contact.searchTokens = '' OR contact.searchTokens = '[]')`;
 
 /**
  * `{ input, hash }` so the admin UI can see *why* each token exists
@@ -161,6 +167,22 @@ export interface RebuildSearchTokensResult {
   errors: Array<{ contactId: string; error: string }>;
 }
 
+export interface BackfillAllUsersResult {
+  dryRun: boolean;
+  /** Distinct users found with at least one NULL/empty-token contact. */
+  totalUsers: number;
+  /** Users processed without throwing. */
+  succeededUsers: number;
+  /** Users whose backfill threw (e.g. key resolution failed) — retryable. */
+  failedUsers: number;
+  /** Contacts scanned across all users (rows with NULL/empty tokens). */
+  totalScanned: number;
+  /** Contacts whose searchTokens were written (always 0 in dry-run). */
+  totalUpdated: number;
+  /** Contacts whose PII was undecryptable, yielding empty tokens. */
+  totalEmpty: number;
+}
+
 @Injectable()
 export class ContactsDebugAdminService {
   private readonly logger = new Logger(ContactsDebugAdminService.name);
@@ -169,7 +191,136 @@ export class ContactsDebugAdminService {
     @InjectRepository(Contact)
     private contactRepository: Repository<Contact>,
     private gmailContactsProvider: GmailContactsProvider,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
+
+  /**
+   * Backfills blind-index `searchTokens` for every user's contacts that
+   * currently have NULL/empty values (#2030). Iterates distinct owning users
+   * and wraps each in `withUserKey()` so TypeORM transformers decrypt the
+   * encrypted name/email columns under the correct per-user KMS key — a plain
+   * SQL/TypeORM migration only holds the global key and cannot do this.
+   *
+   * Idempotent: only touches NULL/''/'[]' rows, so re-running (or a PgBoss
+   * retry after an expired job) safely resumes where it left off. One user
+   * failing (e.g. key resolution error) is isolated and counted, not fatal.
+   */
+  async backfillAllUsers(
+    options: { dryRun?: boolean } = {},
+  ): Promise<BackfillAllUsersResult> {
+    const dryRun = options.dryRun ?? false;
+
+    const userRows: Array<{ userId: string }> = await this.contactRepository
+      .createQueryBuilder("contact")
+      .select("DISTINCT contact.userId", "userId")
+      .where(NULL_OR_EMPTY_TOKENS)
+      .getRawMany();
+
+    const result: BackfillAllUsersResult = {
+      dryRun,
+      totalUsers: userRows.length,
+      succeededUsers: 0,
+      failedUsers: 0,
+      totalScanned: 0,
+      totalUpdated: 0,
+      totalEmpty: 0,
+    };
+
+    for (const { userId } of userRows) {
+      try {
+        const userResult = await this.userEncryptionService.withUserKey(
+          userId,
+          () => this.backfillUserAllPages(userId, dryRun),
+        );
+        result.succeededUsers += 1;
+        result.totalScanned += userResult.scanned;
+        result.totalUpdated += userResult.updated;
+        result.totalEmpty += userResult.empty;
+      } catch (error) {
+        result.failedUsers += 1;
+        this.logger.error(
+          `Contact searchTokens backfill failed for user ${userId}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+
+    this.logger.log(
+      `Contact searchTokens backfill ${dryRun ? "(dry run) " : ""}done: ` +
+        `${result.succeededUsers}/${result.totalUsers} user(s), ` +
+        `scanned ${result.totalScanned}, updated ${result.totalUpdated}, ` +
+        `${result.totalEmpty} undecryptable, ${result.failedUsers} failed.`,
+    );
+    return result;
+  }
+
+  /**
+   * Pages through one user's NULL/empty-token contacts and regenerates tokens.
+   * Assumes the caller has already established the user's KMS key in ALS
+   * (via `withUserKey`).
+   *
+   * Paging is keyed off how many already-processed rows still match the filter:
+   * - dry-run writes nothing, so every scanned row still matches — advance by
+   *   `scanned`.
+   * - a real run rewrites rows with non-empty tokens out of the filter, but a
+   *   contact whose PII can't decrypt yields `[]`, which *still* matches. Those
+   *   empties stay at the front (lowest ids), so advancing by `empty` skips
+   *   exactly them. Advancing by 0 would re-fetch a full page of empties
+   *   forever — an infinite loop for any user with ≥PAGE_SIZE undecryptable rows.
+   */
+  private async backfillUserAllPages(
+    userId: string,
+    dryRun: boolean,
+  ): Promise<{ scanned: number; updated: number; empty: number }> {
+    let scanned = 0;
+    let updated = 0;
+    let empty = 0;
+
+    for (;;) {
+      const page = await this.contactRepository
+        .createQueryBuilder("contact")
+        .where("contact.userId = :userId", { userId })
+        .andWhere(NULL_OR_EMPTY_TOKENS)
+        .orderBy("contact.id", "ASC")
+        .limit(BACKFILL_PAGE_SIZE)
+        .offset(dryRun ? scanned : empty)
+        .getMany();
+
+      if (page.length === 0) break;
+
+      for (const contact of page) {
+        scanned += 1;
+        const tokens = this.computeTokens(contact);
+        if (tokens.length === 0) empty += 1;
+        if (!dryRun) {
+          await this.contactRepository.update(
+            { id: contact.id },
+            { searchTokens: JSON.stringify(tokens) },
+          );
+          updated += 1;
+        }
+      }
+
+      if (page.length < BACKFILL_PAGE_SIZE) break;
+    }
+
+    return { scanned, updated, empty };
+  }
+
+  private computeTokens(contact: Contact): string[] {
+    const emailLocalPart = SearchIndexHelper.extractEmailLocalPart(
+      contact.email,
+    );
+    const emailDomain = SearchIndexHelper.extractEmailDomain(contact.email);
+    return SearchIndexHelper.generateSearchTokens(
+      contact.name,
+      contact.firstName,
+      contact.lastName,
+      contact.company,
+      emailLocalPart,
+      emailDomain,
+    );
+  }
 
   async diagnoseSearch(
     userId: string,
@@ -392,16 +543,7 @@ export class ContactsDebugAdminService {
    * column directly (avoids re-encrypting unchanged PII).
    */
   private async regenerateRow(row: Contact): Promise<void> {
-    const emailLocalPart = SearchIndexHelper.extractEmailLocalPart(row.email);
-    const emailDomain = SearchIndexHelper.extractEmailDomain(row.email);
-    const tokens = SearchIndexHelper.generateSearchTokens(
-      row.name,
-      row.firstName,
-      row.lastName,
-      row.company,
-      emailLocalPart,
-      emailDomain,
-    );
+    const tokens = this.computeTokens(row);
     await this.contactRepository.update(
       { id: row.id },
       { searchTokens: JSON.stringify(tokens) },

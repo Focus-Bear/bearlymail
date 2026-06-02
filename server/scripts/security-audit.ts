@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+/// <reference types="node" />
 /**
  * Automatic Security Audit Script
  *

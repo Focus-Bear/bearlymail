@@ -13,6 +13,7 @@ import { GoogleAccountsService } from "../google-accounts/google-accounts.servic
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
 import { ContactCrmService } from "./contact-crm.service";
+import { ContactSearchTokenBackfillProcessor } from "./contact-search-token-backfill.processor";
 import { ContactSyncProcessor } from "./contact-sync.processor";
 import { ContactsController } from "./contacts.controller";
 import { ContactsService } from "./contacts.service";
@@ -46,6 +47,7 @@ import {
     ContactsDebugAdminService,
     GmailContactsProvider,
     ContactSyncProcessor,
+    ContactSearchTokenBackfillProcessor,
     {
       provide: "GMAIL_GAS_INIT",
       inject: [GoogleAccountsService],

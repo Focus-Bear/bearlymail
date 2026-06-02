@@ -41,6 +41,7 @@
     "analyze-queries": "ts-node -r tsconfig-paths/register scripts/analyze-slow-queries.ts",
     "jobs:reset": "ts-node -r tsconfig-paths/register src/scripts/reset-stuck-jobs.ts",
     "fix:stuck-calculating": "ts-node -r tsconfig-paths/register src/scripts/fix-stuck-calculating.ts",
+    "backfill:contact-search-tokens": "ts-node -r tsconfig-paths/register src/scripts/backfill-contact-search-tokens.ts",
     "seed:test-user": "ts-node -r tsconfig-paths/register scripts/seed-test-user.ts",
     "seed:search-data": "ts-node -r tsconfig-paths/register scripts/seed-search-data.ts",
     "seed:qa": "ts-node -r tsconfig-paths/register scripts/seed-qa-user.ts",

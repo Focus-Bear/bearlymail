@@ -70,6 +70,11 @@ export const JOB_NAMES = {
   // Contact sync
   SYNC_CONTACTS: "sync-contacts",
 
+  // Contact blind-index backfill (admin-triggered, idempotent). Regenerates
+  // searchTokens for every user's contacts with NULL/empty tokens, running
+  // under each user's KMS key so encrypted PII decrypts correctly (#2030).
+  BACKFILL_CONTACT_SEARCH_TOKENS: "backfill-contact-search-tokens",
+
   // GitHub metadata
   FETCH_GITHUB_METADATA: "fetch-github-metadata",
 

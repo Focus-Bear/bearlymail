@@ -96,6 +96,31 @@
           "error": "Mensaje de error",
           "rawOutput": "Salida cruda de pg-boss"
         }
+      },
+      "contactTokens": {
+        "title": "Backfill de tokens de búsqueda de contactos",
+        "description": "Regenera los searchTokens del índice ciego para los contactos de cada usuario que tengan tokens NULL/vacíos, para que los contactos sincronizados antes de la función de búsqueda se vuelvan encontrables. Se ejecuta como un único job en segundo plano bajo la clave KMS de cada usuario. Idempotente — solo se tocan las filas NULL/vacías. Usa Dry-run para previsualizar el impacto, luego Iniciar ejecución real.",
+        "actions": {
+          "dryRun": "Iniciar dry-run (todos los usuarios)",
+          "start": "Iniciar ejecución real (todos los usuarios)"
+        },
+        "startConfirm": "Esto regenerará los tokens de búsqueda para cada usuario con tokens de contacto NULL/vacíos. ¿Continuar?",
+        "cancelled": "Cancelado.",
+        "enqueued": "Job de backfill encolado {{jobId}}.",
+        "polling": "Backfill en ejecución…",
+        "complete": "Backfill completo.",
+        "failed": "El job de backfill falló. Revisa los logs del worker.",
+        "noResult": "El job de backfill terminó en estado \"{{state}}\" sin resultado. Revisa los logs del worker.",
+        "resultTitle": "Resultados del backfill",
+        "dryRunBadge": "(dry run)",
+        "columns": {
+          "totalUsers": "Usuarios totales",
+          "succeededUsers": "Usuarios con éxito",
+          "failedUsers": "Usuarios fallidos",
+          "totalScanned": "Escaneados",
+          "totalUpdated": "Actualizados",
+          "totalEmpty": "Vacíos (sin tokens)"
+        }
       }
     },
     "emailDecrypt": {

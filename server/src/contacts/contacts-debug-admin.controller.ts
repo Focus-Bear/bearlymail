@@ -3,15 +3,24 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
+  Logger,
+  Param,
   Post,
   Query,
   Request,
   UseGuards,
 } from "@nestjs/common";
+import PgBoss from "pg-boss";
 
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
+import { JobPriority } from "../queue/job-priorities";
+import { BackfillContactSearchTokensJobData } from "./contact-search-token-backfill.processor";
 import {
+  BackfillAllUsersResult,
   ContactsDebugAdminService,
   ContactSearchDebugResult,
   RebuildSearchTokensResult,
@@ -30,8 +39,11 @@ import {
 @Controller("contacts/admin")
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class ContactsDebugAdminController {
+  private readonly logger = new Logger(ContactsDebugAdminController.name);
+
   constructor(
     private readonly contactsDebugAdminService: ContactsDebugAdminService,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   /**
@@ -77,5 +89,49 @@ export class ContactsDebugAdminController {
     return this.contactsDebugAdminService.rebuildSearchTokens(req.user.userId, {
       contactId,
     });
+  }
+
+  /**
+   * Enqueue the all-users `searchTokens` backfill (#2030). Unlike
+   * `rebuild-search-tokens` (the caller's own contacts only, synchronous), this
+   * fans across every user with NULL/empty tokens. It runs as a single
+   * background job — each user is re-encryption-key-scoped inside the worker —
+   * so the request returns a jobId immediately rather than holding the ALB
+   * connection for a multi-user scan. Poll
+   * `GET /contacts/admin/backfill-search-tokens/job/:jobId` for the summary.
+   */
+  @Post("backfill-search-tokens/start")
+  async startBackfillSearchTokens(@Body() body: { dryRun?: boolean } = {}) {
+    const dryRun = body?.dryRun ?? false;
+    const jobData: BackfillContactSearchTokensJobData = { dryRun };
+    // Generous expiry: a one-time backfill over a large contact set can exceed
+    // the 15-min default. Idempotent, so a retry on expiry resumes cleanly.
+    const jobId = await this.boss.send(
+      JOB_NAMES.BACKFILL_CONTACT_SEARCH_TOKENS,
+      jobData,
+      { priority: JobPriority.LOW, expireInHours: 6 },
+    );
+    this.logger.log(
+      `Enqueued contact searchTokens backfill job ${jobId}${dryRun ? " (dry run)" : ""}`,
+    );
+    return { jobId, dryRun };
+  }
+
+  /**
+   * Poll a backfill job's state and (on completion) its persisted summary.
+   * Returns `state: "not_found"` once PgBoss prunes the completed job.
+   */
+  @Get("backfill-search-tokens/job/:jobId")
+  async getBackfillSearchTokensJob(@Param("jobId") jobId: string) {
+    const job = await this.boss.getJobById(jobId);
+    if (!job) {
+      return { state: "not_found" as const, output: null };
+    }
+    return {
+      state: job.state,
+      output: (job.output as BackfillAllUsersResult | null) ?? null,
+      createdOn: job.createdon,
+      completedOn: job.completedon,
+    };
   }
 }

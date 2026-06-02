@@ -129,11 +129,12 @@ const TERMINAL_JOB_STATES: ReadonlySet<JobState> = new Set([
 
 async function pollJobUntilTerminal<TOutput>(
   jobId: string,
+  buildUrl: (id: string) => string = (id) => `${REENCRYPTION_BASE}/job/${id}`,
 ): Promise<JobStatusResponse<TOutput>> {
   const deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
   while (Date.now() < deadline) {
     const { data } = await axios.get<JobStatusResponse<TOutput>>(
-      `${REENCRYPTION_BASE}/job/${jobId}`,
+      buildUrl(jobId),
       { withCredentials: true },
     );
     if (TERMINAL_JOB_STATES.has(data.state)) {
@@ -141,7 +142,19 @@ async function pollJobUntilTerminal<TOutput>(
     }
     await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL_MS));
   }
-  throw new Error('Re-encryption job did not complete within 10 minutes');
+  throw new Error('Job did not complete within 10 minutes');
+}
+
+const CONTACT_TOKENS_BASE = `${API_URL}/contacts/admin`;
+
+interface BackfillAllUsersResult {
+  dryRun: boolean;
+  totalUsers: number;
+  succeededUsers: number;
+  failedUsers: number;
+  totalScanned: number;
+  totalUpdated: number;
+  totalEmpty: number;
 }
 
 export const ReencryptionSection: React.FC = () => {
@@ -482,6 +495,196 @@ export const ReencryptionSection: React.FC = () => {
           >
             {status.tablesInScope.join(', ')}
           </p>
+        </div>
+      )}
+
+      <ContactTokenBackfillSubsection />
+    </div>
+  );
+};
+
+const ContactTokenBackfillSubsection: React.FC = () => {
+  const { t } = useTranslation();
+  const [inFlight, setInFlight] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<BackfillAllUsersResult | null>(null);
+
+  const run = useCallback(
+    async (dryRun: boolean, label: string): Promise<void> => {
+      if (!dryRun && !window.confirm(t('admin.reencryption.contactTokens.startConfirm'))) {
+        setMessage(t('admin.reencryption.contactTokens.cancelled'));
+        return;
+      }
+      setInFlight(label);
+      setMessage(null);
+      setResult(null);
+      try {
+        const { data: enqueueResp } = await axios.post<{ jobId: string }>(
+          `${CONTACT_TOKENS_BASE}/backfill-search-tokens/start`,
+          { dryRun },
+          { withCredentials: true },
+        );
+        setMessage(
+          t('admin.reencryption.contactTokens.enqueued', {
+            jobId: enqueueResp.jobId,
+          }),
+        );
+        const finalStatus = await pollJobUntilTerminal<BackfillAllUsersResult>(
+          enqueueResp.jobId,
+          (id) => `${CONTACT_TOKENS_BASE}/backfill-search-tokens/job/${id}`,
+        );
+        if (finalStatus.state === JOB_STATE_FAILED) {
+          throw new Error(t('admin.reencryption.contactTokens.failed'));
+        }
+        if (finalStatus.state !== JOB_STATE_COMPLETED || !finalStatus.output) {
+          throw new Error(
+            t('admin.reencryption.contactTokens.noResult', {
+              state: finalStatus.state,
+            }),
+          );
+        }
+        setResult(finalStatus.output);
+        setMessage(t('admin.reencryption.contactTokens.complete'));
+      } catch (err) {
+        setMessage(
+          `Error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      } finally {
+        setInFlight(null);
+      }
+    },
+    [t],
+  );
+
+  const dryRunLabel = t('admin.reencryption.contactTokens.actions.dryRun');
+  const startLabel = t('admin.reencryption.contactTokens.actions.start');
+
+  return (
+    <div
+      style={{
+        marginTop: theme.spacing.xl,
+        paddingTop: theme.spacing.xl,
+        borderTop: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
+      <h2
+        style={{
+          margin: 0,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize['2xl'],
+          fontWeight: theme.typography.fontWeight.bold,
+          color: theme.colors.text.primary,
+        }}
+      >
+        {t('admin.reencryption.contactTokens.title')}
+      </h2>
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.lg,
+          maxWidth: 720,
+        }}
+      >
+        {t('admin.reencryption.contactTokens.description')}
+      </p>
+
+      <div
+        style={{
+          display: 'flex',
+          gap: theme.spacing.md,
+          marginBottom: theme.spacing.lg,
+          flexWrap: 'wrap',
+        }}
+      >
+        <ActionButton
+          label={dryRunLabel}
+          tone="primary"
+          disabled={inFlight !== null}
+          inFlight={inFlight === dryRunLabel}
+          onClick={() => run(true, dryRunLabel)}
+        />
+        <ActionButton
+          label={startLabel}
+          tone="danger"
+          disabled={inFlight !== null}
+          inFlight={inFlight === startLabel}
+          onClick={() => run(false, startLabel)}
+        />
+      </div>
+
+      {message && (
+        <div
+          role="status"
+          style={{
+            padding: theme.spacing.md,
+            marginBottom: theme.spacing.lg,
+            backgroundColor: message.startsWith('Error:')
+              ? theme.colors.error.light
+              : theme.colors.success.light,
+            color: message.startsWith('Error:')
+              ? theme.colors.error.main
+              : theme.colors.success.main,
+            borderRadius: 4,
+          }}
+        >
+          {message}
+        </div>
+      )}
+
+      {result && (
+        <div style={{ marginTop: theme.spacing.lg }}>
+          <h3
+            style={{
+              fontSize: theme.typography.fontSize.lg,
+              fontWeight: theme.typography.fontWeight.semibold,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
+            {t('admin.reencryption.contactTokens.resultTitle')}
+            {result.dryRun
+              ? ` ${t('admin.reencryption.contactTokens.dryRunBadge')}`
+              : ''}
+          </h3>
+          <div
+            style={{
+              display: 'flex',
+              gap: theme.spacing.lg,
+              flexWrap: 'wrap',
+            }}
+          >
+            <StatusCard
+              label={t('admin.reencryption.contactTokens.columns.totalUsers')}
+              value={result.totalUsers}
+              tone="neutral"
+            />
+            <StatusCard
+              label={t(
+                'admin.reencryption.contactTokens.columns.succeededUsers',
+              )}
+              value={result.succeededUsers}
+              tone="success"
+            />
+            <StatusCard
+              label={t('admin.reencryption.contactTokens.columns.failedUsers')}
+              value={result.failedUsers}
+              tone={result.failedUsers > 0 ? 'warning' : 'neutral'}
+            />
+            <StatusCard
+              label={t('admin.reencryption.contactTokens.columns.totalScanned')}
+              value={result.totalScanned}
+              tone="neutral"
+            />
+            <StatusCard
+              label={t('admin.reencryption.contactTokens.columns.totalUpdated')}
+              value={result.totalUpdated}
+              tone="success"
+            />
+            <StatusCard
+              label={t('admin.reencryption.contactTokens.columns.totalEmpty')}
+              value={result.totalEmpty}
+              tone={result.totalEmpty > 0 ? 'warning' : 'neutral'}
+            />
+          </div>
         </div>
       )}
     </div>

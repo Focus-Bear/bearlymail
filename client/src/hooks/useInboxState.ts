@@ -93,23 +93,28 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const _internalInboxFilters = useInboxFilters();
   const inboxFilters = options.inboxFilters ?? _internalInboxFilters;
 
-  // Stable ref for the splitView.openEmail callback so we can wire it after splitView is created
-  // (useEmailManagement is instantiated before useInboxUIState which provides splitView)
-  const openEmailRef = useRef<((emailId: string) => void) | null>(null);
-  // Stable ref for isMobile — wired after splitView is created (same pattern as openEmailRef)
-  const isMobileRef = useRef<boolean>(false);
   // Action tab pulse state — set true when email moves to signal where it went
   const [actionTabPulsing, setActionTabPulsing] = useState(false);
-  const onEmailMovedInTriage = useCallback((emailId: string) => {
-    // Always pulse the Action tab to show where the email went (mobile + desktop)
+  const actionTabPulseRafRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (actionTabPulseRafRef.current !== null) {
+        cancelAnimationFrame(actionTabPulseRafRef.current);
+      }
+    };
+  }, []);
+  const onEmailMovedInTriage = useCallback(() => {
+    // Pulse the Action tab to show where the email went (mobile + desktop)
     // Force a class removal/re-add cycle via requestAnimationFrame so rapid
     // prioritisations each re-trigger the animation even if it's already running.
     setActionTabPulsing(false);
-    requestAnimationFrame(() => setActionTabPulsing(true));
-    if (!isMobileRef.current) {
-      // On desktop, also open the email in split view
-      openEmailRef.current?.(emailId);
+    if (actionTabPulseRafRef.current !== null) {
+      cancelAnimationFrame(actionTabPulseRafRef.current);
     }
+    actionTabPulseRafRef.current = requestAnimationFrame(() => {
+      setActionTabPulsing(true);
+      actionTabPulseRafRef.current = null;
+    });
   }, []);
 
   // Email management hook
@@ -209,11 +214,6 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     openEmail: openEmailWithNavigate,
     closeEmail: closeEmailWithNavigate,
   };
-
-  // Wire openEmailRef to openEmailWithNavigate so onEmailMovedInTriage also navigates.
-  openEmailRef.current = openEmailWithNavigate;
-  // Wire isMobileRef so onEmailMovedInTriage can check without it being a dep.
-  isMobileRef.current = splitView.isMobile;
 
   // Initialization hook
   const { hasInitiallyLoaded, hasRunAnalysis } = useInboxInitialization({

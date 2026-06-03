@@ -2,11 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
+import { Email, EnrichedSearchResult, GmailSearchResult } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 
-import { useSearch } from './useSearch';
+import { applyRelevanceRanking, useSearch } from './useSearch';
 
 // useSearch → useConnectedAccounts → useConnectedAccountsQuery (TanStack Query).
 // Tests don't wrap in QueryClientProvider, so mock the query hook directly.
@@ -383,5 +384,68 @@ describe('search performance tracking (#1115)', () => {
     });
 
     vi.spyOn(Date, 'now').mockRestore();
+  });
+});
+
+describe('applyRelevanceRanking', () => {
+  const enriched = (id: string, messageId: string): EnrichedSearchResult =>
+    ({
+      id,
+      messageId,
+      threadId: `thread-${id}`,
+      subject: `Subject ${id}`,
+      from: `${id}@example.com`,
+      date: '2026-06-01T00:00:00.000Z',
+      snippet: '',
+      isRead: false,
+      labelIds: [],
+      enrichmentStatus: 'enriched',
+      body: '',
+    }) as EnrichedSearchResult;
+
+  const pending = (messageId: string): GmailSearchResult => ({
+    messageId,
+    threadId: `thread-${messageId}`,
+    subject: `Pending ${messageId}`,
+    from: `${messageId}@example.com`,
+    date: '2026-06-01T00:00:00.000Z',
+    snippet: '',
+    isRead: false,
+    labelIds: [],
+    enrichmentStatus: 'pending',
+  });
+
+  it('reorders enriched results by the ranked order and grafts relevance metadata', () => {
+    const current = [enriched('a', 'm-a'), enriched('b', 'm-b'), enriched('c', 'm-c')];
+    const ranked = [
+      { id: 'c', relevanceScore: 95, searchExplanation: 'best' },
+      { id: 'a', relevanceScore: 80, searchExplanation: 'ok' },
+      { id: 'b', relevanceScore: 60, searchExplanation: 'meh' },
+    ] as Array<Email & { relevanceScore?: number; searchExplanation?: string }>;
+
+    const result = applyRelevanceRanking(current, ranked);
+
+    expect(result.map(item => (item as EnrichedSearchResult).id)).toEqual(['c', 'a', 'b']);
+    expect((result[0] as EnrichedSearchResult).relevanceScore).toBe(95);
+    expect((result[0] as EnrichedSearchResult).searchExplanation).toBe('best');
+  });
+
+  it('keeps results the ranker dropped (e.g. still-pending) at the end, in original order', () => {
+    const current = [enriched('a', 'm-a'), pending('m-x'), enriched('b', 'm-b')];
+    // Ranker only returned 'b' then 'a'; the pending one was never enriched.
+    const ranked = [
+      { id: 'b', relevanceScore: 90 },
+      { id: 'a', relevanceScore: 70 },
+    ] as Array<Email & { relevanceScore?: number; searchExplanation?: string }>;
+
+    const result = applyRelevanceRanking(current, ranked);
+
+    expect(result.map(item => (item as EnrichedSearchResult).id ?? (item as GmailSearchResult).messageId)).toEqual([
+      'b',
+      'a',
+      'm-x',
+    ]);
+    // The dropped/pending item is untouched (no relevance grafted).
+    expect((result[2] as GmailSearchResult).enrichmentStatus).toBe('pending');
   });
 });

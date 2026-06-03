@@ -40,7 +40,10 @@ import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guar
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { isUuid } from "../common/uuid.utils";
-import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
+import {
+  BOOLEAN_STRING_VALUES,
+  EMAIL_PROVIDER_TYPES,
+} from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -309,6 +312,40 @@ export class EmailsController {
   // search/rank and search/expand live in EmailSearchOpsController
   // ---------------------------------------------------------------------------
 
+  /**
+   * Decide whether to serve a search via the instant (metadata-first, background
+   * enrichment) path or the legacy synchronous path.
+   *
+   * Instant search relies on GmailProvider.searchEmailsMetadataOnly, which
+   * Office365/Zoho don't offer. We therefore only take the instant path when
+   * every account the search would actually hit is a Gmail account — otherwise a
+   * mixed-provider user would silently lose their Office365/Zoho results.
+   *
+   * Set INSTANT_SEARCH_ENABLED=false to force the legacy path for all users (kill switch).
+   */
+  private async shouldUseInstantSearch(
+    userId: string,
+    selectedAccountTypes?: string[],
+  ): Promise<boolean> {
+    if (process.env.INSTANT_SEARCH_ENABLED === BOOLEAN_STRING_VALUES.FALSE) {
+      return false;
+    }
+    const accounts =
+      (await this.emailsService.getConnectedAccounts(userId)) ?? [];
+    const active = accounts.filter((account) => account.isActive);
+    const effective = selectedAccountTypes?.length
+      ? active.filter((account) =>
+          selectedAccountTypes.includes(account.provider),
+        )
+      : active;
+    return (
+      effective.length > 0 &&
+      effective.every(
+        (account) => account.provider === EMAIL_PROVIDER_TYPES.GMAIL,
+      )
+    );
+  }
+
   @Get("search")
   async searchEmails(
     @Request() req,
@@ -329,16 +366,17 @@ export class EmailsController {
     const skipLlmRanking = skipLlm === BOOLEAN_STRING_VALUES.TRUE;
 
     // ---------------------------------------------------------------------------
-    // Instant search path (INSTANT_SEARCH_ENABLED=true)
+    // Instant search path
     // Phase 1: return metadata-only results immediately (< 500 ms)
     // Phase 2: background enrichment, polled via GET /emails/search/enrichment/:jobId
     //
-    // NOTE: Instant search is Gmail-only. Office365 and Zoho do not expose a
-    // metadata-only fetch equivalent, so they always return empty results on
-    // this path. Users with Office365 or Zoho accounts should disable
-    // INSTANT_SEARCH_ENABLED — they will be served by the legacy path below.
+    // Auto-enabled when every account the search would hit is Gmail (see
+    // shouldUseInstantSearch). Office365/Zoho/mixed users fall through to the
+    // legacy path so they don't silently lose results from their other providers.
     // ---------------------------------------------------------------------------
-    if (process.env.INSTANT_SEARCH_ENABLED === BOOLEAN_STRING_VALUES.TRUE) {
+    if (
+      await this.shouldUseInstantSearch(req.user.userId, selectedAccountTypes)
+    ) {
       try {
         const { userId } = req.user;
 

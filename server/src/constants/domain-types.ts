@@ -50,6 +50,16 @@ export const LLM_PROVIDER_STRINGS = {
   GEMINI: "gemini",
 } as const;
 
+/** Connected email account provider types. */
+export const EMAIL_PROVIDER_TYPES = {
+  GMAIL: "gmail",
+  OFFICE365: "office365",
+  ZOHO: "zoho",
+} as const;
+
+export type EmailProviderType =
+  (typeof EMAIL_PROVIDER_TYPES)[keyof typeof EMAIL_PROVIDER_TYPES];
+
 export type LlmProviderString =
   (typeof LLM_PROVIDER_STRINGS)[keyof typeof LLM_PROVIDER_STRINGS];
 

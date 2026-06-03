@@ -20,6 +20,7 @@ describe("EmailsController", () => {
   let controller: EmailsController;
   let emailsService: EmailsService;
   let searchEnrichmentService: SearchEnrichmentService;
+  let gmailProvider: GmailProvider;
 
   const mockEmailsService = {
     getInbox: jest.fn(),
@@ -37,6 +38,9 @@ describe("EmailsController", () => {
     getPriorityExplanation: jest.fn(),
     getThreadEmails: jest.fn(),
     getPriorityCounts: jest.fn(),
+    // Default: no connected accounts → search uses the legacy path. Individual
+    // instant-search tests override this with a Gmail-only account list.
+    getConnectedAccounts: jest.fn().mockResolvedValue([]),
   };
 
   const mockBatchScheduleService = {
@@ -148,6 +152,7 @@ describe("EmailsController", () => {
     searchEnrichmentService = module.get<SearchEnrichmentService>(
       SearchEnrichmentService,
     );
+    gmailProvider = module.get<GmailProvider>(GmailProvider);
   });
 
   afterEach(() => {
@@ -993,6 +998,105 @@ describe("EmailsController", () => {
 
       expect(result).toHaveLength(1);
       expect((result as { id: string }[])[0].id).toBe("no-results");
+    });
+
+    it("should use the instant path (not the legacy service) when the user is Gmail-only", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      mockEmailsService.getConnectedAccounts.mockResolvedValue([
+        {
+          id: "a1",
+          email: "a@gmail.com",
+          provider: "gmail",
+          isPrimary: true,
+          isActive: true,
+        },
+      ]);
+      (gmailProvider.searchEmailsMetadataOnly as jest.Mock).mockResolvedValue([
+        { messageId: "m1", threadId: "t1", subject: "Hi", from: "a@gmail.com" },
+      ]);
+
+      const result = (await controller.searchEmails(
+        mockRequest,
+        "test query",
+        undefined,
+        undefined,
+        "true",
+      )) as { enrichmentJobId: string | null; results: unknown[] };
+
+      expect(mockEmailsService.searchEmails).not.toHaveBeenCalled();
+      expect(gmailProvider.searchEmailsMetadataOnly).toHaveBeenCalledWith(
+        userId,
+        "test query",
+        50,
+      );
+      expect(searchEnrichmentService.startEnrichmentJob).toHaveBeenCalled();
+      expect(result.enrichmentJobId).toBe("mock-job-id");
+      expect(result.results).toHaveLength(1);
+    });
+
+    it("should use the legacy path when the user has a non-Gmail provider (mixed accounts)", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+      mockEmailsService.getConnectedAccounts.mockResolvedValue([
+        {
+          id: "a1",
+          email: "a@gmail.com",
+          provider: "gmail",
+          isPrimary: true,
+          isActive: true,
+        },
+        {
+          id: "a2",
+          email: "b@outlook.com",
+          provider: "office365",
+          isPrimary: false,
+          isActive: true,
+        },
+      ]);
+      mockEmailsService.searchEmails.mockResolvedValue([
+        { id: "1", subject: "Test" },
+      ]);
+
+      await controller.searchEmails(
+        mockRequest,
+        "test query",
+        undefined,
+        undefined,
+        "true",
+      );
+
+      expect(mockEmailsService.searchEmails).toHaveBeenCalled();
+      expect(gmailProvider.searchEmailsMetadataOnly).not.toHaveBeenCalled();
+    });
+
+    it("should honour INSTANT_SEARCH_ENABLED=false as a kill switch even for Gmail-only users", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+      mockEmailsService.getConnectedAccounts.mockResolvedValue([
+        {
+          id: "a1",
+          email: "a@gmail.com",
+          provider: "gmail",
+          isPrimary: true,
+          isActive: true,
+        },
+      ]);
+      mockEmailsService.searchEmails.mockResolvedValue([]);
+      const previous = process.env.INSTANT_SEARCH_ENABLED;
+      process.env.INSTANT_SEARCH_ENABLED = "false";
+
+      try {
+        await controller.searchEmails(
+          mockRequest,
+          "test query",
+          undefined,
+          undefined,
+          "true",
+        );
+        expect(mockEmailsService.searchEmails).toHaveBeenCalled();
+        expect(gmailProvider.searchEmailsMetadataOnly).not.toHaveBeenCalled();
+      } finally {
+        process.env.INSTANT_SEARCH_ENABLED = previous;
+      }
     });
   });
 

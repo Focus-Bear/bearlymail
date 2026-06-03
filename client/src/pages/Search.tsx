@@ -390,8 +390,10 @@ const Search: React.FC = () => {
                   getScoreColor={getScoreColor}
                   getPriorityBadge={getPriorityBadge}
                   queriesTried={search.queriesTried}
+                  searchDurationMs={search.searchDurationMs}
                   instantResults={search.isInstantSearch ? search.instantResults : undefined}
                   isInstantEmpty={search.isInstantSearch ? search.isInstantEmpty : undefined}
+                  instantRankStatus={search.isInstantSearch ? search.instantRankStatus : undefined}
                 />
               </>
             )}

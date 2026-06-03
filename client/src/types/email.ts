@@ -59,6 +59,20 @@ export interface EnrichedSearchResult extends GmailSearchResult {
 }
 
 /**
+ * Lifecycle of the instant-search relevance ranking:
+ * - GMAIL_ORDER: results are shown in Gmail's native order (no AI relevance yet)
+ * - RE_RANKING:  background AI relevance re-rank is in flight
+ * - RE_RANKED:   results have been reordered by AI relevance
+ */
+export const INSTANT_RANK_STATUS = {
+  GMAIL_ORDER: 'gmail-order',
+  RE_RANKING: 're-ranking',
+  RE_RANKED: 're-ranked',
+} as const;
+
+export type InstantRankStatus = (typeof INSTANT_RANK_STATUS)[keyof typeof INSTANT_RANK_STATUS];
+
+/**
  * Combined instant search response shape (when INSTANT_SEARCH_ENABLED=true on backend).
  * The `results` array holds GmailSearchResult items initially; enriched items are
  * merged in-place via polling.

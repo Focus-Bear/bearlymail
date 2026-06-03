@@ -2,12 +2,19 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
-import { Email, EnrichedSearchResult, getEmailPriorityScore, GmailSearchResult } from 'types/email';
+import {
+  Email,
+  EnrichedSearchResult,
+  getEmailPriorityScore,
+  GmailSearchResult,
+  INSTANT_RANK_STATUS,
+  InstantRankStatus,
+} from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { MAX_SEARCH_RESULT_LENGTH } from 'constants/numbers';
+import { MAX_SEARCH_RESULT_LENGTH, MS_PER_SECOND } from 'constants/numbers';
 import { SEARCH_RESULT_NO_RESULTS, STATUS_PENDING, STRING_NA } from 'constants/strings';
 
 interface SearchDebugInfo {
@@ -38,10 +45,19 @@ interface SearchResultsProps {
   getScoreColor: (score: number) => string;
   getPriorityBadge: (score?: number) => { label: string; color: string; bg: string };
   queriesTried?: Array<{ query: string; resultCount: number; accountType?: string }>;
+  /** Wall-clock time (ms) the visible search took to return its first results. */
+  searchDurationMs?: number | null;
   /** Instant search results (mix of pending GmailSearchResult and enriched Email). */
   instantResults?: Array<GmailSearchResult | Email>;
   /** True when the instant search path completed but returned zero results. */
   isInstantEmpty?: boolean;
+  /** AI relevance re-rank lifecycle for instant results. */
+  instantRankStatus?: InstantRankStatus | null;
+}
+
+/** Human-friendly search duration, e.g. "420ms" or "1.4s". */
+function formatSearchDuration(ms: number): string {
+  return ms < MS_PER_SECOND ? `${ms}ms` : `${(ms / MS_PER_SECOND).toFixed(1)}s`;
 }
 
 /**
@@ -115,6 +131,43 @@ const PendingResultCard: React.FC<{ result: GmailSearchResult }> = ({ result }) 
   );
 };
 
+/**
+ * Small status chip clarifying how the instant results are currently ordered:
+ * Gmail's native order, an in-flight AI re-rank, or the finished AI relevance order.
+ */
+const RankStatusChip: React.FC<{ status: InstantRankStatus }> = ({ status }) => {
+  const { t } = useTranslation();
+  const isRanking = status === INSTANT_RANK_STATUS.RE_RANKING;
+  const label =
+    status === INSTANT_RANK_STATUS.GMAIL_ORDER
+      ? t('search.sortedByGmail')
+      : isRanking
+        ? t('search.reRankingByRelevance')
+        : t('search.rankedByRelevance');
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        fontSize: theme.typography.fontSize.sm,
+        color: isRanking ? theme.colors.primary.main : theme.colors.text.tertiary,
+        backgroundColor: isRanking ? theme.colors.primary.subtle : theme.colors.background.subtle,
+        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+        borderRadius: theme.borderRadius.full,
+      }}
+    >
+      {isRanking && (
+        <>
+          <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>🤖</span>
+          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        </>
+      )}
+      <span>{label}</span>
+    </span>
+  );
+};
+
 export const SearchResults: React.FC<SearchResultsProps> = ({
   searchResults,
   isRefining,
@@ -124,11 +177,20 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   getScoreColor,
   getPriorityBadge,
   queriesTried,
+  searchDurationMs,
   instantResults,
   isInstantEmpty,
+  instantRankStatus,
 }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  const durationLabel =
+    typeof searchDurationMs === 'number' ? (
+      <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>
+        {t('search.took', { duration: formatSearchDuration(searchDurationMs) })}
+      </span>
+    ) : null;
 
   // ---------------------------------------------------------------------------
   // Instant search path — render mixed pending/enriched results
@@ -156,6 +218,25 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   if (instantResults && instantResults.length > 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.lg,
+            marginBottom: theme.spacing.sm,
+          }}
+        >
+          <span>
+            {t('search.found', {
+              count: instantResults.length,
+              plural: instantResults.length !== 1 ? 's' : '',
+            })}
+          </span>
+          {durationLabel}
+          {instantRankStatus && <RankStatusChip status={instantRankStatus} />}
+        </div>
         {instantResults.map((result, index) => {
           const gmailResult = result as GmailSearchResult;
           // Pending card (metadata only)
@@ -215,19 +296,52 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
                 {email.body?.slice(0, MAX_SEARCH_RESULT_LENGTH)}
               </div>
-              {priority && (
+              {enriched.relevanceScore !== undefined ? (
                 <div style={{ marginTop: theme.spacing.xs }}>
                   <span
                     style={{
                       fontSize: theme.typography.fontSize.xs,
-                      color: priority.color,
-                      backgroundColor: priority.bg,
+                      color: getScoreColor(enriched.relevanceScore),
+                      backgroundColor: getScoreBackgroundColor(enriched.relevanceScore),
                       padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                       borderRadius: theme.borderRadius.full,
+                      fontWeight: theme.typography.fontWeight.medium,
                     }}
                   >
-                    {priority.label}
+                    {t('search.relevance', { score: enriched.relevanceScore })}
                   </span>
+                </div>
+              ) : (
+                priority && (
+                  <div style={{ marginTop: theme.spacing.xs }}>
+                    <span
+                      style={{
+                        fontSize: theme.typography.fontSize.xs,
+                        color: priority.color,
+                        backgroundColor: priority.bg,
+                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                        borderRadius: theme.borderRadius.full,
+                      }}
+                    >
+                      {priority.label}
+                    </span>
+                  </div>
+                )
+              )}
+              {enriched.searchExplanation && (
+                <div
+                  style={{
+                    marginTop: theme.spacing.xs,
+                    padding: theme.spacing.sm,
+                    backgroundColor: theme.colors.primary.subtle,
+                    borderRadius: theme.borderRadius.sm,
+                    fontSize: theme.typography.fontSize.sm,
+                    color: theme.colors.text.secondary,
+                    fontStyle: 'italic',
+                    borderLeft: `3px solid ${theme.colors.primary.main}`,
+                  }}
+                >
+                  💡 {enriched.searchExplanation}
                 </div>
               )}
             </div>
@@ -372,6 +486,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         >
           {t('search.found', { count: searchResults.length, plural: searchResults.length !== 1 ? 's' : '' })}
         </div>
+        {durationLabel}
         {isRefining && (
           <div
             style={{

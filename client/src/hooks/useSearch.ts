@@ -21,6 +21,8 @@ import {
   EnrichedSearchResult,
   EnrichmentStatusResponse,
   GmailSearchResult,
+  INSTANT_RANK_STATUS,
+  InstantRankStatus,
   InstantSearchResponse,
 } from 'types/email';
 import { getAxiosErrorMessage } from 'utils/errors';
@@ -108,17 +110,98 @@ function mergeEnrichedResults(
   });
 }
 
+/** Result shape returned by POST /emails/search/rank (Email + AI relevance metadata). */
+type RankedEmail = Email & { relevanceScore?: number; searchExplanation?: string };
+
+/**
+ * Reorder the instant results by AI relevance and graft the relevanceScore +
+ * searchExplanation onto each enriched result. Results the ranker dropped (or
+ * that never enriched) keep their relative order at the end, so nothing is lost.
+ */
+export function applyRelevanceRanking(
+  current: Array<GmailSearchResult | Email>,
+  ranked: RankedEmail[]
+): Array<GmailSearchResult | Email> {
+  const rankPos = new Map<string, number>();
+  const metaById = new Map<string, { relevanceScore?: number; searchExplanation?: string }>();
+  ranked.forEach((item, index) => {
+    rankPos.set(item.id, index);
+    metaById.set(item.id, { relevanceScore: item.relevanceScore, searchExplanation: item.searchExplanation });
+  });
+
+  const positionOf = (item: GmailSearchResult | Email): number => {
+    const id = (item as EnrichedSearchResult).id;
+    return id != null && rankPos.has(id) ? (rankPos.get(id) as number) : Number.MAX_SAFE_INTEGER;
+  };
+
+  const annotated = current.map(item => {
+    const id = (item as EnrichedSearchResult).id;
+    const meta = id ? metaById.get(id) : undefined;
+    return meta ? ({ ...item, ...meta } as GmailSearchResult | Email) : item;
+  });
+  return [...annotated].sort((first, second) => positionOf(first) - positionOf(second));
+}
+
+/**
+ * Re-rank the enriched instant results by AI relevance once enrichment finishes.
+ * Reuses the same /emails/search/rank endpoint the legacy path uses. Falls open
+ * (keeps Gmail order) on any error.
+ */
+async function rerankInstantResults(options: {
+  query: string;
+  enrichedResults: EnrichedSearchResult[];
+  currentSession: number;
+  searchSessionRef: MutableRefObject<number>;
+  setInstantResults: React.Dispatch<React.SetStateAction<Array<GmailSearchResult | Email>>>;
+  setInstantRankStatus: React.Dispatch<React.SetStateAction<InstantRankStatus | null>>;
+}): Promise<void> {
+  const { query, enrichedResults, currentSession, searchSessionRef, setInstantResults, setInstantRankStatus } = options;
+  const emailIds = enrichedResults.map(result => result.id).filter(Boolean);
+  if (emailIds.length === 0) {
+    setInstantRankStatus(INSTANT_RANK_STATUS.RE_RANKED);
+    return;
+  }
+  setInstantRankStatus(INSTANT_RANK_STATUS.RE_RANKING);
+  try {
+    const response = await axios.post<RankedEmail[]>(`${API_URL}/emails/search/rank`, {
+      emailIds,
+      query,
+      maxResults: 50,
+    });
+    if (currentSession !== searchSessionRef.current) {
+      return;
+    }
+    const ranked = response.data ?? [];
+    if (ranked.length > 0) {
+      setInstantResults(prev => applyRelevanceRanking(prev, ranked));
+    }
+    setInstantRankStatus(INSTANT_RANK_STATUS.RE_RANKED);
+  } catch (rerankError) {
+    console.error('[Search] Instant re-rank failed:', rerankError);
+    // Fail open — keep the Gmail-ordered results rather than blanking them.
+    if (currentSession === searchSessionRef.current) {
+      setInstantRankStatus(INSTANT_RANK_STATUS.RE_RANKED);
+    }
+  }
+}
+
 const POLL_INTERVAL_MS = 2500;
 const MAX_POLLS = 15;
 
 async function pollEnrichmentUpdates(options: {
   jobId: string;
+  query: string;
   currentSession: number;
   searchSessionRef: MutableRefObject<number>;
   setInstantResults: React.Dispatch<React.SetStateAction<Array<GmailSearchResult | Email>>>;
   setEnrichmentProgress: React.Dispatch<React.SetStateAction<EnrichmentProgressState | null>>;
+  setInstantRankStatus: React.Dispatch<React.SetStateAction<InstantRankStatus | null>>;
 }): Promise<void> {
-  const { jobId, currentSession, searchSessionRef, setInstantResults, setEnrichmentProgress } = options;
+  const { jobId, query, currentSession, searchSessionRef, setInstantResults, setEnrichmentProgress, setInstantRankStatus } =
+    options;
+
+  let lastEnriched: EnrichedSearchResult[] = [];
+  let completed = false;
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise<void>(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
@@ -137,12 +220,14 @@ async function pollEnrichmentUpdates(options: {
       }
 
       if (enrichedResults.length > 0) {
+        lastEnriched = enrichedResults;
         setInstantResults(prev => mergeEnrichedResults(prev, enrichedResults) as Array<GmailSearchResult | Email>);
       }
 
       setEnrichmentProgress({ total: progress.total, enriched: progress.enriched });
 
       if (status === STATUS_COMPLETE || status === STATUS_FAILED) {
+        completed = status === STATUS_COMPLETE;
         break;
       }
     } catch (pollError) {
@@ -160,6 +245,18 @@ async function pollEnrichmentUpdates(options: {
   if (currentSession === searchSessionRef.current) {
     setEnrichmentProgress(null);
   }
+
+  // Once bodies are synced, re-rank the results by AI relevance in the background.
+  if (completed && currentSession === searchSessionRef.current) {
+    await rerankInstantResults({
+      query,
+      enrichedResults: lastEnriched,
+      currentSession,
+      searchSessionRef,
+      setInstantResults,
+      setInstantRankStatus,
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +270,7 @@ interface SearchStateSetters {
   setProgressStep: (s: string) => void;
   setLoading: (v: boolean) => void;
   setQueriesTried: (items: Array<{ query: string; resultCount: number; accountType?: string }>) => void;
+  setSearchDurationMs: (ms: number) => void;
 }
 
 async function runPhase2Ranking(options: {
@@ -274,6 +372,7 @@ async function processSearchResults(options: {
   setters.setSearchResults(responseData);
   setters.setLoading(false);
   const phase1DurationMs = Date.now() - searchStartMs;
+  setters.setSearchDurationMs(phase1DurationMs);
   captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
     query_length: query.trim().length,
     has_query: !!query.trim(),
@@ -358,6 +457,8 @@ export const useSearch = () => {
   const [queriesTried, setQueriesTried] = useState<Array<{ query: string; resultCount: number; accountType?: string }>>(
     []
   );
+  /** Wall-clock time (ms) for the visible search to return its first results. */
+  const [searchDurationMs, setSearchDurationMs] = useState<number | null>(null);
 
   // Instant search state
   const [instantResults, setInstantResults] = useState<Array<GmailSearchResult | Email>>([]);
@@ -365,6 +466,8 @@ export const useSearch = () => {
   const [isInstantSearch, setIsInstantSearch] = useState(false);
   /** True when the instant search path returned zero results (distinct from a non-instant empty). */
   const [isInstantEmpty, setIsInstantEmpty] = useState(false);
+  /** Tracks the AI relevance re-rank lifecycle for instant results (null = not applicable). */
+  const [instantRankStatus, setInstantRankStatus] = useState<InstantRankStatus | null>(null);
 
   const searchSessionRef = useRef(0);
 
@@ -388,6 +491,8 @@ export const useSearch = () => {
       setEnrichmentProgress(null);
       setIsInstantSearch(false);
       setIsInstantEmpty(false);
+      setInstantRankStatus(null);
+      setSearchDurationMs(null);
 
       const progressInterval = setInterval(() => {
         setProgressStep('Searching for emails...');
@@ -403,6 +508,7 @@ export const useSearch = () => {
         setProgressStep,
         setLoading,
         setQueriesTried,
+        setSearchDurationMs,
       };
 
       try {
@@ -418,6 +524,7 @@ export const useSearch = () => {
 
           setIsInstantSearch(true);
           setLoading(false);
+          setSearchDurationMs(Date.now() - searchStartMs);
 
           if (results.length === 0) {
             setIsInstantEmpty(true);
@@ -427,6 +534,7 @@ export const useSearch = () => {
 
           setIsInstantEmpty(false);
           setInstantResults(results);
+          setInstantRankStatus(INSTANT_RANK_STATUS.GMAIL_ORDER);
           setEnrichmentProgress({ total: totalGmailResults, enriched: 0 });
 
           captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
@@ -442,10 +550,12 @@ export const useSearch = () => {
           if (enrichmentJobId) {
             pollEnrichmentUpdates({
               jobId: enrichmentJobId,
+              query,
               currentSession,
               searchSessionRef,
               setInstantResults,
               setEnrichmentProgress,
+              setInstantRankStatus,
             });
           }
           return;
@@ -492,6 +602,7 @@ export const useSearch = () => {
     isRefining,
     hasSearched,
     progressStep,
+    searchDurationMs,
     handleSearch,
     connectedAccounts,
     selectedAccountTypes,
@@ -502,5 +613,6 @@ export const useSearch = () => {
     enrichmentProgress,
     isInstantSearch,
     isInstantEmpty,
+    instantRankStatus,
   };
 };

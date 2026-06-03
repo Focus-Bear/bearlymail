@@ -8,6 +8,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { GitHubCategoryOverrideService } from "../github/github-category-override.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { UsersService } from "../users/users.service";
+import { buildHonestCategoryExplanation } from "./category-explanation.helper";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 
 type ServiceWithPrivate = LLMPriorityResultService & {
@@ -187,6 +188,54 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
         );
         expect(emailThreadRepository.update).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe("buildHonestCategoryExplanation", () => {
+    it("names the AI-suggested category when routed to a proto", () => {
+      const result = buildHonestCategoryExplanation({
+        explanation: "Looks like a QA notification.",
+        finalCategory: "Other",
+        categoryId: null,
+        protoCategoryId: "proto-1",
+        protoSuggestedName: "QA Passed",
+      });
+      expect(result).toContain("Looks like a QA notification.");
+      expect(result).toContain('"QA Passed"');
+      expect(result).toContain("pending promotion");
+      expect(result).not.toContain("not found in your category list");
+    });
+
+    it("falls back to a generic proto note when no name is known", () => {
+      const result = buildHonestCategoryExplanation({
+        explanation: null,
+        finalCategory: "Other",
+        categoryId: null,
+        protoCategoryId: "proto-1",
+        protoSuggestedName: null,
+      });
+      expect(result).toContain("an AI-suggested category");
+      expect(result).toContain("pending promotion");
+    });
+
+    it("still warns when a non-proto category is unresolved", () => {
+      const result = buildHonestCategoryExplanation({
+        explanation: "Picked QA Passed.",
+        finalCategory: "QA Passed",
+        categoryId: null,
+        protoCategoryId: null,
+      });
+      expect(result).toContain("not found in your category list");
+    });
+
+    it("returns the explanation unchanged when the category resolved", () => {
+      const result = buildHonestCategoryExplanation({
+        explanation: "Picked QA Passed.",
+        finalCategory: "QA Passed",
+        categoryId: "ctx-1",
+        protoCategoryId: null,
+      });
+      expect(result).toBe("Picked QA Passed.");
     });
   });
 });

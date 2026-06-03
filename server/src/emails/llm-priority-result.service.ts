@@ -21,6 +21,7 @@ import { GitHubCategoryOverrideService } from "../github/github-category-overrid
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
+import { buildHonestCategoryExplanation } from "./category-explanation.helper";
 
 type PriorityLlmResult = {
   urgencyScore: number;
@@ -216,11 +217,19 @@ export class LLMPriorityResultService {
       );
     const categoryId = githubOverrideCategoryId ?? llmCategoryId;
 
-    const resolvedCategoryExplanation = this.buildHonestCategoryExplanation(
-      llmResult.categoryExplanation || thread.categoryExplanation || null,
+    const protoSuggestedName =
+      llmResult.protoCategorySuggestion?.name ??
+      (llmResult.category && llmResult.category !== "Other"
+        ? llmResult.category
+        : null);
+    const resolvedCategoryExplanation = buildHonestCategoryExplanation({
+      explanation:
+        llmResult.categoryExplanation || thread.categoryExplanation || null,
       finalCategory,
       categoryId,
-    );
+      protoCategoryId,
+      protoSuggestedName,
+    });
 
     await this.emailThreadRepository.update(
       { id: emailThreadId },
@@ -729,8 +738,13 @@ export class LLMPriorityResultService {
       lookupCategoryContextId,
     } = options;
     let { finalCategory, categoryId, protoCategoryId } = options;
+    // Don't override when the email was deliberately routed to a proto category
+    // (protoCategoryId set): the direct-proto-match path intentionally leaves
+    // finalCategory as "Other" while tracking the proto. Overriding here would
+    // wipe protoCategoryId and falsely report "category not found → Other".
     if (
       (!finalCategory || finalCategory === "Other") &&
+      !protoCategoryId &&
       llmResult.category &&
       llmResult.category !== "Other"
     ) {
@@ -877,26 +891,5 @@ export class LLMPriorityResultService {
     const match = from.match(/<([^>]+)>/);
     if (match) return match[1].toLowerCase().trim();
     return from.toLowerCase().trim();
-  }
-
-  /**
-   * Build an honest categoryExplanation: when the priority path resolved
-   * a non-Other category but categoryId is still null (no matching UserContext),
-   * append a disambiguation note so the debug panel shows why this email is in Other.
-   */
-  buildHonestCategoryExplanation(
-    explanation: string | null,
-    finalCategory: string | null,
-    categoryId: string | null,
-  ): string | null {
-    if (
-      categoryId === null &&
-      finalCategory &&
-      finalCategory !== "Other" &&
-      explanation
-    ) {
-      return `${explanation} (Note: category "${finalCategory}" not found in your category list — email placed in Other)`;
-    }
-    return explanation;
   }
 }

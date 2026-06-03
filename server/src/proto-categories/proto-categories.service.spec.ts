@@ -10,6 +10,7 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { EmbeddingService } from "../llm/embedding.service";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { ProtoCategoriesService } from "./proto-categories.service";
 
@@ -44,6 +45,11 @@ const mockCategoryKeyService = () => ({
 
 const mockLLMCoreService = () => ({
   generateText: jest.fn(),
+});
+
+const mockEmbeddingService = () => ({
+  isAvailable: jest.fn().mockReturnValue(false),
+  embed: jest.fn(),
 });
 
 function makeUserContext(
@@ -83,6 +89,7 @@ describe("ProtoCategoriesService", () => {
   let userContextRepo: ReturnType<typeof mockUserContextRepo>;
   let dataSource: ReturnType<typeof mockDataSource>;
   let llmCoreService: ReturnType<typeof mockLLMCoreService>;
+  let embeddingService: ReturnType<typeof mockEmbeddingService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -109,6 +116,10 @@ describe("ProtoCategoriesService", () => {
           provide: LLMCoreService,
           useFactory: mockLLMCoreService,
         },
+        {
+          provide: EmbeddingService,
+          useFactory: mockEmbeddingService,
+        },
       ],
     }).compile();
 
@@ -117,6 +128,7 @@ describe("ProtoCategoriesService", () => {
     userContextRepo = module.get(getRepositoryToken(UserContext));
     dataSource = module.get(getDataSourceToken());
     llmCoreService = module.get(LLMCoreService);
+    embeddingService = module.get(EmbeddingService);
   });
 
   describe("findMatchingFullCategory", () => {
@@ -240,6 +252,62 @@ describe("ProtoCategoriesService", () => {
       expect(result).toBeNull();
     });
 
+    it("catches semantic paraphrase via embedding similarity + LLM (full)", async () => {
+      const stored = makeUserContext("ctx-1", "QA Passed - Test results");
+      userContextRepo.find.mockResolvedValue([stored]);
+      const txRepo = {
+        findOne: jest.fn().mockResolvedValue(stored),
+        update: jest.fn().mockResolvedValue({}),
+      };
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: unknown) => Promise<unknown>) =>
+          cb({ getRepository: () => txRepo }),
+      );
+      embeddingService.isAvailable.mockReturnValue(true);
+      embeddingService.embed.mockImplementation((texts: string[]) =>
+        Promise.resolve(
+          texts.map((text) =>
+            text === "QA Passed" || text === "Tests Green" ? [1, 0] : [0, 1],
+          ),
+        ),
+      );
+      llmCoreService.generateText.mockResolvedValue(
+        '{"isDuplicate": true, "reasoning": "Same outcome"}',
+      );
+
+      const result = await service.findMatchingFullCategory(
+        "user-1",
+        "Tests Green",
+      );
+      expect(embeddingService.embed).toHaveBeenCalled();
+      expect(result).toEqual({ name: "QA Passed", contextId: "ctx-1" });
+      expect(txRepo.update).toHaveBeenCalledWith(
+        { contextId: "ctx-1" },
+        expect.objectContaining({
+          alternateNames: expect.arrayContaining(["Tests Green"]),
+        }),
+      );
+    });
+
+    it("does not embed-match when similarity is below threshold", async () => {
+      userContextRepo.find.mockResolvedValue([
+        makeUserContext("ctx-1", "Finance Reports"),
+      ]);
+      embeddingService.isAvailable.mockReturnValue(true);
+      embeddingService.embed.mockImplementation((texts: string[]) =>
+        Promise.resolve(
+          texts.map((text) => (text === "Tests Green" ? [1, 0] : [0, 1])),
+        ),
+      );
+
+      const result = await service.findMatchingFullCategory(
+        "user-1",
+        "Tests Green",
+      );
+      expect(result).toBeNull();
+      expect(llmCoreService.generateText).not.toHaveBeenCalled();
+    });
+
     it("blocks broad platform catch-all via Phase 4 shared-token check (issue #2065 follow-up)", async () => {
       const stored = makeUserContext(
         "ctx-github-prs",
@@ -361,6 +429,66 @@ describe("ProtoCategoriesService", () => {
       );
       expect(result).toBeNull();
       expect(llmCoreService.generateText).not.toHaveBeenCalled();
+    });
+
+    it("catches semantic paraphrase via embedding similarity + LLM (proto)", async () => {
+      const proto = Object.assign(new ProtoCategory(), {
+        id: "proto-1",
+        userId: "user-1",
+        name: "QA Passed",
+        isPromoted: false,
+        emailCount: 2,
+      });
+      protoCategoryRepo.find.mockResolvedValue([proto]);
+      protoCategoryRepo.findOne.mockResolvedValue(null);
+      embeddingService.isAvailable.mockReturnValue(true);
+      embeddingService.embed.mockImplementation((texts: string[]) =>
+        Promise.resolve(
+          texts.map((text) =>
+            text === "QA Passed" || text === "Tests Green" ? [1, 0] : [0, 1],
+          ),
+        ),
+      );
+      llmCoreService.generateText.mockResolvedValue(
+        '{"isDuplicate": true, "reasoning": "Same outcome"}',
+      );
+
+      const result = await service.findMatchingProtoCategory(
+        "user-1",
+        "Tests Green",
+      );
+      expect(embeddingService.embed).toHaveBeenCalled();
+      expect(result).toBe(proto);
+    });
+
+    it("returns null when embedding flags a candidate but LLM rejects it", async () => {
+      const proto = Object.assign(new ProtoCategory(), {
+        id: "proto-1",
+        userId: "user-1",
+        name: "QA Passed",
+        isPromoted: false,
+        emailCount: 2,
+      });
+      protoCategoryRepo.find.mockResolvedValue([proto]);
+      protoCategoryRepo.findOne.mockResolvedValue(null);
+      embeddingService.isAvailable.mockReturnValue(true);
+      embeddingService.embed.mockImplementation((texts: string[]) =>
+        Promise.resolve(
+          texts.map((text) =>
+            text === "QA Passed" || text === "Tests Green" ? [1, 0] : [0, 1],
+          ),
+        ),
+      );
+      llmCoreService.generateText.mockResolvedValue(
+        '{"isDuplicate": false, "reasoning": "Different"}',
+      );
+
+      const result = await service.findMatchingProtoCategory(
+        "user-1",
+        "Tests Green",
+      );
+      expect(result).toBeNull();
+      expect(llmCoreService.generateText).toHaveBeenCalled();
     });
   });
 

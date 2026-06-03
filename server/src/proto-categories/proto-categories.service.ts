@@ -16,6 +16,7 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { cosineSimilarity, EmbeddingService } from "../llm/embedding.service";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_CHECK_CATEGORY_DUPLICATE } from "../llm/llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "../llm/prompts";
@@ -34,6 +35,12 @@ const MAX_LLM_DEDUP_CANDIDATES = 2;
 
 // Significant tokens must be at least this long to be considered.
 const SIGNIFICANT_TOKEN_MIN_LENGTH = 3;
+
+// Minimum embedding cosine similarity between two category names for them to be
+// treated as semantic near-duplicates worth confirming with the LLM. Tuned so
+// paraphrases ("QA Passed" vs "Tests Green") clear the bar while unrelated
+// names ("Finance" vs "Recruitment") do not.
+const EMBEDDING_DUPLICATE_THRESHOLD = 0.82;
 
 // Common words that appear in category names but carry no platform signal.
 const STOP_WORDS = new Set([
@@ -76,6 +83,7 @@ export class ProtoCategoriesService {
     private dataSource: DataSource,
     private categoryKeyAssignmentService: CategoryKeyAssignmentService,
     private llmCoreService: LLMCoreService,
+    private embeddingService: EmbeddingService,
   ) {}
 
   /**
@@ -354,13 +362,65 @@ export class ProtoCategoriesService {
       }
     }
 
-    return this.findSharedTokenMatch(
+    const sharedTokenMatch = await this.findSharedTokenMatch(
       suggestedName,
       suggestionWithoutEmoji,
       categories,
       new Set(nearDuplicates.map((nd) => nd.category.contextId)),
       userId,
     );
+    if (sharedTokenMatch) return sharedTokenMatch;
+
+    return this.findEmbeddingFullMatch(suggestedName, categories, userId);
+  }
+
+  /**
+   * Final fallback for findMatchingFullCategory: embedding cosine-similarity
+   * candidates confirmed by the LLM. Catches semantic paraphrase-duplicates
+   * ("QA Passed" vs "Tests Green") that Levenshtein and shared-token matching
+   * miss. Persists a confirmed match as an alternate name to skip the LLM next
+   * time.
+   */
+  private async findEmbeddingFullMatch(
+    suggestedName: string,
+    categories: UserContext[],
+    userId: string,
+  ): Promise<{ name: string; contextId: string } | null> {
+    const byName = new Map<string, UserContext>();
+    for (const category of categories) {
+      byName.set(parseCategoryName(category.contextValue), category);
+    }
+
+    const embeddingNames = await this.findEmbeddingSimilarNames(
+      suggestedName,
+      [...byName.keys()],
+      new Set(),
+      userId,
+    );
+
+    for (const candidateName of embeddingNames) {
+      const candidate = byName.get(candidateName);
+      if (!candidate) continue;
+      try {
+        const isDuplicate = await this.checkCategoryDuplicate(
+          suggestedName,
+          candidateName,
+          userId,
+        );
+        if (isDuplicate) {
+          await this.saveAlternateName(candidate, suggestedName);
+          this.logger.log(
+            `Embedding+LLM duplicate: "${suggestedName}" → "${candidateName}"`,
+          );
+          return { name: candidateName, contextId: candidate.contextId };
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Embedding+LLM duplicate check failed for "${suggestedName}" vs "${candidateName}": ${err}`,
+        );
+      }
+    }
+    return null;
   }
 
   /**
@@ -484,7 +544,55 @@ export class ProtoCategoriesService {
       .sort((left, right) => left.distance - right.distance)
       .slice(0, MAX_LLM_DEDUP_CANDIDATES);
 
-    for (const { category } of nearDuplicates) {
+    const levenshteinCandidates = nearDuplicates.map(
+      ({ category }) => category,
+    );
+    const levenshteinMatch = await this.confirmDuplicateProto(
+      suggestedName,
+      levenshteinCandidates,
+      userId,
+      "Levenshtein+LLM duplicate (proto)",
+    );
+    if (levenshteinMatch) return levenshteinMatch;
+
+    const checkedNames = new Set(
+      levenshteinCandidates.map((category) =>
+        category.name.toLowerCase().trim(),
+      ),
+    );
+    const embeddingNames = await this.findEmbeddingSimilarNames(
+      suggestedName,
+      activeCategories.map((category) => category.name),
+      checkedNames,
+      userId,
+    );
+    const embeddingCandidates = embeddingNames
+      .map((name) =>
+        activeCategories.find((category) => category.name === name),
+      )
+      .filter((category): category is ProtoCategory => category != null);
+
+    return this.confirmDuplicateProto(
+      suggestedName,
+      embeddingCandidates,
+      userId,
+      "Embedding+LLM duplicate (proto)",
+    );
+  }
+
+  /**
+   * Runs the LLM duplicate check over `candidates` in order and returns the
+   * first proto category the LLM confirms as a duplicate of `suggestedName`,
+   * or null. Errors are logged and skipped so a single LLM failure never
+   * aborts the whole matching pass.
+   */
+  private async confirmDuplicateProto(
+    suggestedName: string,
+    candidates: ProtoCategory[],
+    userId: string,
+    logLabel: string,
+  ): Promise<ProtoCategory | null> {
+    for (const category of candidates) {
       try {
         const isDuplicate = await this.checkCategoryDuplicate(
           suggestedName,
@@ -493,18 +601,61 @@ export class ProtoCategoriesService {
         );
         if (isDuplicate) {
           this.logger.log(
-            `Levenshtein+LLM duplicate (proto): "${suggestedName}" → "${category.name}"`,
+            `${logLabel}: "${suggestedName}" → "${category.name}"`,
           );
           return category;
         }
       } catch (err) {
         this.logger.warn(
-          `LLM duplicate check failed (proto) for "${suggestedName}" vs "${category.name}": ${err}`,
+          `${logLabel} check failed for "${suggestedName}" vs "${category.name}": ${err}`,
         );
       }
     }
-
     return null;
+  }
+
+  /**
+   * Returns category names whose embedding cosine similarity to `suggestedName`
+   * is at least EMBEDDING_DUPLICATE_THRESHOLD, most-similar first, capped at
+   * MAX_LLM_DEDUP_CANDIDATES and excluding any name in `excludeNames`
+   * (lowercased). Catches semantic paraphrase-duplicates that Levenshtein and
+   * shared-token matching miss. Returns [] when embeddings are unavailable so
+   * callers fall back to their lexical checks only.
+   */
+  private async findEmbeddingSimilarNames(
+    suggestedName: string,
+    candidateNames: string[],
+    excludeNames: Set<string>,
+    userId?: string,
+  ): Promise<string[]> {
+    if (!this.embeddingService.isAvailable()) return [];
+    const pool = candidateNames.filter(
+      (name) => !excludeNames.has(name.toLowerCase().trim()),
+    );
+    if (pool.length === 0) return [];
+
+    try {
+      const [suggestionVectors, poolVectors] = await Promise.all([
+        this.embeddingService.embed([suggestedName], { cache: true, userId }),
+        this.embeddingService.embed(pool, { cache: true, userId }),
+      ]);
+      const suggestionVector = suggestionVectors[0];
+
+      return pool
+        .map((name, index) => ({
+          name,
+          score: cosineSimilarity(suggestionVector, poolVectors[index]),
+        }))
+        .filter((entry) => entry.score >= EMBEDDING_DUPLICATE_THRESHOLD)
+        .sort((left, right) => right.score - left.score)
+        .slice(0, MAX_LLM_DEDUP_CANDIDATES)
+        .map((entry) => entry.name);
+    } catch (err) {
+      this.logger.warn(
+        `Embedding similarity check failed for "${suggestedName}": ${err}`,
+      );
+      return [];
+    }
   }
 
   async updateProtoCategoryName(

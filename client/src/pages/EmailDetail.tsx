@@ -848,7 +848,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               {contextCardsSection}
             </>
           }
-          askAiContent={<AskAiPanel />}
+          askAiContent={<AskAiPanel emailId={st.email?.id} />}
         />
       </div>
     );

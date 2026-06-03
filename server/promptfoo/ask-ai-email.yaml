@@ -1,0 +1,116 @@
+description: "Ask AI email assistant prompts for BearlyMail"
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/ask-ai-email.md
+
+tests:
+  - vars:
+      subject: "Q3 budget review"
+      from: "sarah.chen@acme.com"
+      fromName: "Sarah Chen"
+      isThread: false
+      body: "Hi, can you send over the Q3 budget proposal by Friday? The board meeting is on Monday and I need time to review it over the weekend. Thanks, Sarah"
+      hasHistory: false
+      history: []
+      question: "What is the deadline?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // The deadline is explicitly Friday — the answer must surface it.
+          if (!lower.includes('friday')) {
+            throw new Error(`Expected the answer to mention the Friday deadline. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Should answer a factual question grounded in the email"
+
+  - vars:
+      subject: "Lunch next week?"
+      from: "mike@example.com"
+      fromName: "Mike"
+      isThread: false
+      body: "Hey, are you free for lunch sometime next week? Would be great to catch up. No rush. Mike"
+      hasHistory: false
+      history: []
+      question: "What is Mike's phone number?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // The phone number is NOT in the email — the model must not invent one.
+          if (/\d{3}[-.\s]?\d{3,4}/.test(text)) {
+            throw new Error(`Model fabricated a phone number not present in the email. Got: ${text.substring(0, 300)}`);
+          }
+          // Should acknowledge the information is absent.
+          const admits = lower.includes("doesn't") || lower.includes('does not') || lower.includes("isn't") ||
+                         lower.includes('is not') || lower.includes('no ') || lower.includes('not mention') ||
+                         lower.includes('not include') || lower.includes('not provide') || lower.includes("don't");
+          if (!admits) {
+            throw new Error(`Expected the model to say the info is not in the email. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Should refuse to fabricate facts that are not in the email"
+
+  - vars:
+      subject: "Re: Contract renewal"
+      from: "legal@vendor.com"
+      fromName: "Dana Lopez"
+      isThread: true
+      body: "[Message 1 from Dana Lopez on 1/10/2026]:\nHi, our current contract expires on March 31. Do you want to renew for another year at the same rate?\n\n---\n\n[Message 2 from You on 1/11/2026]:\nThanks Dana. Can you confirm whether the support tier stays the same?\n\n---\n\n[Message 3 from Dana Lopez on 1/12/2026]:\nYes, same support tier. Renewal would start April 1."
+      hasHistory: false
+      history: []
+      question: "Draft a short reply agreeing to renew."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // Should be a concise, ready-to-send reply.
+          if (text.length < 20) {
+            throw new Error(`Expected a drafted reply, got something too short: ${text}`);
+          }
+          if (text.length > 700) {
+            throw new Error(`Expected a short reply, got ${text.length} chars`);
+          }
+          // Should not contain placeholder brackets — info is present in the thread.
+          if (/\[(your name|insert|placeholder|name here)\]/i.test(text)) {
+            throw new Error(`Reply contains placeholder brackets it should have filled. Got: ${text.substring(0, 300)}`);
+          }
+          // Should be relevant to the renewal.
+          if (!lower.includes('renew') && !lower.includes('contract') && !lower.includes('dana')) {
+            throw new Error(`Expected the reply to address the renewal. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Should draft a first-person reply grounded in the thread"
+
+  - vars:
+      subject: "Onboarding steps"
+      from: "hr@company.com"
+      fromName: "People Team"
+      isThread: false
+      body: "Welcome aboard! Before your first day please: 1) complete the tax form, 2) upload a photo for your badge, and 3) read the security policy. Reach out if you have questions."
+      hasHistory: true
+      history:
+        - role: "user"
+          content: "Summarize this email."
+        - role: "assistant"
+          content: "It's a welcome email asking you to complete three onboarding tasks before day one."
+      question: "How many tasks are there?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // There are exactly three tasks.
+          if (!lower.includes('three') && !lower.includes('3')) {
+            throw new Error(`Expected the answer to state there are three tasks. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Should use conversation history and count items correctly"

@@ -7,6 +7,7 @@ import {
 import type { LLMRequest } from "./llm.types";
 import { LLMProvider } from "./llm.types";
 import { LLMActionsService } from "./llm-actions.service";
+import { AskAboutEmailOptions, LLMAskService } from "./llm-ask.service";
 import { LLMCategoriesService } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMMiscService } from "./llm-misc.service";
@@ -34,6 +35,7 @@ export class LLMService {
   constructor(
     private readonly llmCoreService: LLMCoreService,
     private readonly llmActionsService: LLMActionsService,
+    private readonly llmAskService: LLMAskService,
     private readonly llmCategoriesService: LLMCategoriesService,
     private readonly llmMiscService: LLMMiscService,
     private readonly llmPatternsService: LLMPatternsService,
@@ -61,6 +63,12 @@ export class LLMService {
 
   getDefaultProvider(): LLMProvider {
     return this.llmCoreService.getDefaultProvider();
+  }
+
+  // ─── Ask AI (email assistant) ──────────────────────────────────────────────
+
+  async askAboutEmail(options: AskAboutEmailOptions): Promise<string> {
+    return this.llmAskService.askAboutEmail(options);
   }
 
   // ─── Patterns ────────────────────────────────────────────────────────────

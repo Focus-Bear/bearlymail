@@ -14,6 +14,7 @@ import { IncrementalAnalysisService } from "./incremental-analysis.service";
 import { LLMController } from "./llm.controller";
 import { LLMService } from "./llm.service";
 import { LLMActionsService } from "./llm-actions.service";
+import { LLMAskService } from "./llm-ask.service";
 import { LLMCategoriesService } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMMiscService } from "./llm-misc.service";
@@ -38,6 +39,7 @@ import { TokenUsageService } from "./token-usage.service";
     LLMService,
     LLMCoreService,
     LLMActionsService,
+    LLMAskService,
     LLMCategoriesService,
     LLMMiscService,
     LLMPatternsService,
@@ -55,6 +57,7 @@ import { TokenUsageService } from "./token-usage.service";
     LLMService,
     LLMCoreService,
     LLMActionsService,
+    LLMAskService,
     LLMCategoriesService,
     LLMMiscService,
     LLMPatternsService,

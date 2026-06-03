@@ -95,6 +95,13 @@ export const UTILITY_PROMPT_IDS = {
 } as const;
 
 /**
+ * Named constants for assistant/chat prompt IDs.
+ */
+export const ASSISTANT_PROMPT_IDS = {
+  ASK_AI_EMAIL: "ask_ai_email",
+} as const;
+
+/**
  * Named constants for summary type strings.
  *
  * Use these in comparisons and assignments instead of inline string literals.
@@ -230,6 +237,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "derive-mcp-sender-tool.md",
     key: UTILITY_PROMPT_IDS.DERIVE_MCP_SENDER_TOOL,
+  },
+  {
+    file: "ask-ai-email.md",
+    key: ASSISTANT_PROMPT_IDS.ASK_AI_EMAIL,
   },
 ];
 

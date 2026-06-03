@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Post,
   Request,
   UseGuards,
@@ -20,6 +21,16 @@ import {
 } from "../utils/user-display-fields.util";
 import { validateAnthropicKey } from "./anthropic-key-validator";
 import { LLMService } from "./llm.service";
+import {
+  ASK_AI_ROLE_ASSISTANT,
+  ASK_AI_ROLE_USER,
+  AskAiTurn,
+} from "./llm-ask.service";
+
+/** Max characters accepted for a single Ask-AI question. */
+const ASK_AI_MAX_QUESTION_LENGTH = 2000;
+/** Max prior turns of conversation history accepted from the client. */
+const ASK_AI_MAX_HISTORY_TURNS = 12;
 
 @Controller("llm")
 @UseGuards(JwtAuthGuard)
@@ -235,6 +246,77 @@ export class LLMController {
       rulesUpdated: false,
       remainingRules: currentRules,
     };
+  }
+
+  /**
+   * Free-form Q&A grounded in a single email/thread the user has open.
+   * The email is fetched by id (scoped to the requesting user) and its content
+   * is passed to the LLM via the ask-ai-email prompt. Nothing is persisted —
+   * conversation history is supplied by the client on each turn.
+   */
+  @Post("ask-email")
+  async askEmail(
+    @Request() req: { user: { userId: string } },
+    @Body()
+    body: {
+      emailId: string;
+      question: string;
+      history?: AskAiTurn[];
+    },
+  ) {
+    if (!body.emailId || typeof body.emailId !== "string") {
+      throw new BadRequestException("Email ID is required");
+    }
+    const question = body.question?.trim();
+    if (!question) {
+      throw new BadRequestException("Question is required");
+    }
+    if (question.length > ASK_AI_MAX_QUESTION_LENGTH) {
+      throw new BadRequestException(
+        `Question too long — keep it under ${ASK_AI_MAX_QUESTION_LENGTH} characters`,
+      );
+    }
+    if (!body.emailId || typeof body.emailId !== "string") {
+      throw new BadRequestException("Email ID is required");
+    }
+
+    const email = await this.emailRepository.findOne({
+      where: { id: body.emailId, userId: req.user.userId },
+    });
+    if (!email) {
+      throw new NotFoundException("Email not found");
+    }
+
+    // Sanitize client-supplied history: keep only well-formed user/assistant
+    // turns and cap the number of turns to bound the prompt size.
+    const history: AskAiTurn[] = (body.history ?? [])
+      .filter(
+        (turn): turn is AskAiTurn =>
+          Boolean(turn) &&
+          typeof turn.content === "string" &&
+          turn.content.trim().length > 0 &&
+          (turn.role === ASK_AI_ROLE_USER ||
+            turn.role === ASK_AI_ROLE_ASSISTANT),
+      )
+      .slice(-ASK_AI_MAX_HISTORY_TURNS);
+
+    // Heuristic: thread bodies concatenate multiple messages with separators.
+    const emailBody = email.body ?? "";
+    const isThread =
+      emailBody.includes("[Message") && emailBody.includes("---");
+
+    const answer = await this.llmService.askAboutEmail({
+      subject: email.subject ?? "",
+      from: email.from ?? "",
+      fromName: email.fromName ?? "",
+      body: emailBody,
+      isThread,
+      question,
+      history,
+      userId: req.user.userId,
+    });
+
+    return { answer };
   }
 
   // ─── Anthropic API key management ────────────────────────────────────────

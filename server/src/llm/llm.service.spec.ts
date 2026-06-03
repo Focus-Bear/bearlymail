@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { extractPlainSummary, LLMService } from "./llm.service";
 import { LLMProvider } from "./llm.types";
 import { LLMActionsService } from "./llm-actions.service";
+import { LLMAskService } from "./llm-ask.service";
 import { LLMCategoriesService } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMMiscService } from "./llm-misc.service";
@@ -35,6 +36,7 @@ describe("LLMService", () => {
         LLMService,
         { provide: LLMCoreService, useValue: mockLLMCoreService },
         LLMActionsService,
+        LLMAskService,
         LLMCategoriesService,
         LLMMiscService,
         LLMPatternsService,

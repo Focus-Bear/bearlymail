@@ -10,6 +10,7 @@ export const ANALYTICS_EVENTS = {
   ACTION_ITEMS_SUGGEST_CLICKED: 'action_items_suggest_clicked',
   ANALYZE_CONTEXT_CLICKED: 'analyze_context_clicked',
   ANALYZE_EMAILS_BUTTON_CLICKED: 'analyze_emails_button_clicked',
+  ASK_AI_QUESTION_SENT: 'ask_ai_question_sent',
   BLOCKED_KEYWORD_ADDED: 'blocked_keyword_added',
   BULK_ARCHIVE_CLICKED: 'bulk_archive_clicked',
   BULK_FOLLOWUPS_GENERATE_CLICKED: 'bulk_followups_generate_clicked',

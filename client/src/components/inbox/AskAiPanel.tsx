@@ -1,19 +1,25 @@
 /**
- * AskAiPanel — UI shell for the "Ask AI" tab in the email action sidebar.
+ * AskAiPanel — the "Ask AI" tab in the email action sidebar.
  *
- * This is a mock surface: the input is disabled and suggested prompts are
- * non-functional. Backend wiring (streaming chat against the open email's
- * context) is tracked in Focus-Bear/BearlyMail#2315.
+ * Free-form Q&A grounded in the single email/thread the user has open. Posts to
+ * the NestJS `/llm/ask-email` endpoint via {@link useAskAi}. The conversation is
+ * in-memory only and resets when a different email is opened.
  */
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiSend, FiZap } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import { STRING_NONE } from 'constants/strings';
+import { KEY_ENTER, STRING_NONE } from 'constants/strings';
+import { ASK_AI_ROLE_USER, AskAiMessage, useAskAi } from 'hooks/useAskAi';
 
 const SUGGESTED_PROMPT_KEYS = ['inbox.askAi.prompt1', 'inbox.askAi.prompt2', 'inbox.askAi.prompt3'] as const;
+
+interface AskAiPanelProps {
+  /** Id of the email the conversation is grounded in. */
+  emailId?: string;
+}
 
 const AskAiHeader: React.FC = () => {
   const { t } = useTranslation();
@@ -37,63 +43,147 @@ const AskAiHeader: React.FC = () => {
       <span style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.semibold }}>
         {t('inbox.askAi.title')}
       </span>
-      <span
-        style={{
-          marginLeft: 'auto',
-          fontSize: theme.typography.fontSize.xs,
-          fontWeight: theme.typography.fontWeight.semibold,
-          color: theme.colors.primary.main,
-          backgroundColor: theme.colors.primary.subtle,
-          padding: `2px ${theme.spacing.sm}`,
-          borderRadius: theme.borderRadius.full,
-        }}
-      >
-        {t('inbox.askAi.comingSoon')}
-      </span>
     </div>
   );
 };
 
-const AskAiSuggestions: React.FC = () => {
-  const { t } = useTranslation();
+const MessageBubble: React.FC<{ message: AskAiMessage }> = ({ message }) => {
+  const isUser = message.role === ASK_AI_ROLE_USER;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-      <span
-        style={{
-          fontSize: theme.typography.fontSize.xs,
-          fontWeight: theme.typography.fontWeight.semibold,
-          color: theme.colors.text.tertiary,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-        }}
-      >
-        {t('inbox.askAi.suggestedHeading')}
-      </span>
-      {SUGGESTED_PROMPT_KEYS.map(key => (
-        <button
-          key={key}
-          type="button"
-          disabled
-          style={{
-            textAlign: 'left',
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: theme.colors.background.subtle,
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.light}`,
-            borderRadius: theme.borderRadius.md,
-            fontSize: theme.typography.fontSize.sm,
-            cursor: 'not-allowed',
-          }}
-        >
-          {t(key)}
-        </button>
-      ))}
+    <div
+      style={{
+        alignSelf: isUser ? 'flex-end' : 'flex-start',
+        maxWidth: '85%',
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        borderRadius: theme.borderRadius.lg,
+        backgroundColor: isUser ? theme.colors.primary.main : theme.colors.background.subtle,
+        color: isUser ? theme.colors.text.inverse : theme.colors.text.primary,
+        border: isUser ? STRING_NONE : `1px solid ${theme.colors.border.light}`,
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.normal,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+      }}
+    >
+      {message.content}
     </div>
   );
 };
 
-const AskAiInput: React.FC = () => {
+interface AskAiConversationProps {
+  messages: AskAiMessage[];
+  isLoading: boolean;
+  hasError: boolean;
+  onSuggested: (prompt: string) => void;
+}
+
+const AskAiConversation: React.FC<AskAiConversationProps> = ({ messages, isLoading, hasError, onSuggested }) => {
   const { t } = useTranslation();
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, isLoading, hasError]);
+
+  const isEmpty = messages.length === 0;
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+      <AskAiHeader />
+      {isEmpty ? (
+        <>
+          <p
+            style={{
+              margin: 0,
+              fontSize: theme.typography.fontSize.md,
+              color: theme.colors.text.tertiary,
+              lineHeight: theme.typography.lineHeight.normal,
+            }}
+          >
+            {t('inbox.askAi.subtitle')}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+            <span
+              style={{
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: theme.typography.fontWeight.semibold,
+                color: theme.colors.text.tertiary,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {t('inbox.askAi.suggestedHeading')}
+            </span>
+            {SUGGESTED_PROMPT_KEYS.map(key => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onSuggested(t(key))}
+                style={{
+                  textAlign: 'left',
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: theme.colors.background.subtle,
+                  color: theme.colors.text.secondary,
+                  border: `1px solid ${theme.colors.border.light}`,
+                  borderRadius: theme.borderRadius.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  cursor: 'pointer',
+                }}
+              >
+                {t(key)}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+          {messages.map((message, index) => (
+            <MessageBubble key={`${message.role}-${index}`} message={message} />
+          ))}
+          {isLoading && (
+            <span
+              style={{
+                alignSelf: 'flex-start',
+                fontSize: theme.typography.fontSize.sm,
+                color: theme.colors.text.tertiary,
+                fontStyle: 'italic',
+              }}
+            >
+              {t('inbox.askAi.thinking')}
+            </span>
+          )}
+          {hasError && (
+            <span style={{ alignSelf: 'flex-start', fontSize: theme.typography.fontSize.sm, color: theme.colors.error.main }}>
+              {t('inbox.askAi.error')}
+            </span>
+          )}
+        </div>
+      )}
+      <div ref={endRef} />
+    </div>
+  );
+};
+
+interface AskAiInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  disabled: boolean;
+}
+
+const AskAiInput: React.FC<AskAiInputProps> = ({ value, onChange, onSubmit, disabled }) => {
+  const { t } = useTranslation();
+  const canSend = value.trim().length > 0 && !disabled;
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === KEY_ENTER && !event.shiftKey) {
+      event.preventDefault();
+      if (canSend) {
+        onSubmit();
+      }
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
       <div
@@ -104,12 +194,15 @@ const AskAiInput: React.FC = () => {
           padding: theme.spacing.sm,
           borderRadius: theme.borderRadius.md,
           border: `1px solid ${theme.colors.border.light}`,
-          backgroundColor: theme.colors.background.subtle,
+          backgroundColor: theme.colors.background.paper,
         }}
       >
         <input
           type="text"
-          disabled
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
           placeholder={t('inbox.askAi.inputPlaceholder')}
           aria-label={t('inbox.askAi.inputPlaceholder')}
           style={{
@@ -118,13 +211,14 @@ const AskAiInput: React.FC = () => {
             border: STRING_NONE,
             backgroundColor: COLOR_TRANSPARENT,
             fontSize: theme.typography.fontSize.sm,
-            color: theme.colors.text.secondary,
+            color: theme.colors.text.primary,
             outline: STRING_NONE,
           }}
         />
         <button
           type="button"
-          disabled
+          onClick={onSubmit}
+          disabled={!canSend}
           aria-label={t('inbox.askAi.send')}
           style={{
             display: 'inline-flex',
@@ -134,9 +228,9 @@ const AskAiInput: React.FC = () => {
             height: '32px',
             borderRadius: theme.borderRadius.md,
             border: STRING_NONE,
-            backgroundColor: theme.colors.primary.subtle,
-            color: theme.colors.primary.main,
-            cursor: 'not-allowed',
+            backgroundColor: canSend ? theme.colors.primary.main : theme.colors.primary.subtle,
+            color: canSend ? theme.colors.text.inverse : theme.colors.primary.main,
+            cursor: canSend ? 'pointer' : 'not-allowed',
             flexShrink: 0,
           }}
         >
@@ -150,25 +244,23 @@ const AskAiInput: React.FC = () => {
   );
 };
 
-export const AskAiPanel: React.FC = () => {
-  const { t } = useTranslation();
+export const AskAiPanel: React.FC<AskAiPanelProps> = ({ emailId }) => {
+  const { messages, input, setInput, isLoading, hasError, send } = useAskAi(emailId);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: theme.spacing.md }}>
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-        <AskAiHeader />
-        <p
-          style={{
-            margin: 0,
-            fontSize: theme.typography.fontSize.md,
-            color: theme.colors.text.tertiary,
-            lineHeight: theme.typography.lineHeight.normal,
-          }}
-        >
-          {t('inbox.askAi.subtitle')}
-        </p>
-        <AskAiSuggestions />
-      </div>
-      <AskAiInput />
+      <AskAiConversation
+        messages={messages}
+        isLoading={isLoading}
+        hasError={hasError}
+        onSuggested={prompt => send(prompt)}
+      />
+      <AskAiInput
+        value={input}
+        onChange={setInput}
+        onSubmit={() => send(input)}
+        disabled={isLoading || !emailId}
+      />
     </div>
   );
 };

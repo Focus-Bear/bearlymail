@@ -138,6 +138,9 @@ export const LLM_OP_CHECK_CATEGORY_DUPLICATE = "check_category_duplicate";
 // Sender context: pick which MCP tool + arg looks up a person by email
 export const LLM_OP_DERIVE_MCP_SENDER_TOOL = "derive_mcp_sender_tool";
 
+// Ask AI: free-form question answering grounded in the open email/thread
+export const LLM_OP_ASK_AI_EMAIL = "ask_ai_email";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -189,6 +192,7 @@ export type LLMOperation =
   | typeof LLM_OP_DETECT_MEETING_PROPOSAL
   | typeof LLM_OP_CHECK_CATEGORY_DUPLICATE
   | typeof LLM_OP_DERIVE_MCP_SENDER_TOOL
+  | typeof LLM_OP_ASK_AI_EMAIL
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -239,5 +243,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_DETECT_MEETING_PROPOSAL]: "Detect Meeting Proposal",
   [LLM_OP_CHECK_CATEGORY_DUPLICATE]: "Check Category Duplicate",
   [LLM_OP_DERIVE_MCP_SENDER_TOOL]: "Derive MCP Sender Tool",
+  [LLM_OP_ASK_AI_EMAIL]: "Ask AI (Email Assistant)",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

@@ -121,6 +121,31 @@
           "totalUpdated": "Actualizados",
           "totalEmpty": "Vacíos (sin tokens)"
         }
+      },
+      "categoryRuleIds": {
+        "title": "Backfill de IDs de reglas de categoría",
+        "description": "Vincula cada regla de categoría con su categoría por ID estable (FK categoryId) en lugar del nombre cifrado, para que renombrar una categoría ya no rompa sus reglas. Rellena las reglas creadas antes de que existiera la FK. Se ejecuta como un único job en segundo plano bajo la clave KMS de cada usuario. Idempotente — solo se tocan las reglas sin categoryId. Usa Dry-run para previsualizar, luego Iniciar ejecución real.",
+        "actions": {
+          "dryRun": "Iniciar dry-run (todos los usuarios)",
+          "start": "Iniciar ejecución real (todos los usuarios)"
+        },
+        "startConfirm": "Esto vinculará cada regla de categoría sin vincular con su categoría. ¿Continuar?",
+        "cancelled": "Cancelado.",
+        "enqueued": "Job de backfill encolado {{jobId}}.",
+        "polling": "Backfill en ejecución…",
+        "complete": "Backfill completo.",
+        "failed": "El job de backfill falló. Revisa los logs del worker.",
+        "noResult": "El job de backfill terminó en estado \"{{state}}\" sin resultado. Revisa los logs del worker.",
+        "resultTitle": "Resultados del backfill",
+        "dryRunBadge": "(dry run)",
+        "columns": {
+          "totalUsers": "Usuarios totales",
+          "succeededUsers": "Usuarios con éxito",
+          "failedUsers": "Usuarios fallidos",
+          "totalScanned": "Escaneados",
+          "totalMatched": "Vinculados",
+          "totalOrphaned": "Huérfanos (sin categoría)"
+        }
       }
     },
     "emailDecrypt": {

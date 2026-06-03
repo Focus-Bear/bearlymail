@@ -21,7 +21,6 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
-import { parseCategoryName } from "../utils/category-name.util";
 import { computeEmailHmac } from "../utils/hmac-email";
 import type {
   CategoryRuleDto,
@@ -43,10 +42,6 @@ import {
   dropContradictoryExclusions,
   specHasExclusion,
 } from "./category-rules-match-gate.helper";
-import {
-  MERGE_OUTCOME_WOULD_EXCEED_CAP,
-  mergeIntoSiblingRuleIfPossible,
-} from "./category-rules-merge-sibling.helper";
 import { evaluateRulePersistGate } from "./category-rules-persist-gate.helper";
 import {
   AUTOMATED_PREFIXES,
@@ -58,6 +53,7 @@ import {
   buildSuggestions,
   countDistinctThreadsForSenderHmac,
 } from "./category-rules-suggest.helper";
+import { findCategoryContextIdByName } from "./category-rules-validate.helper";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
 import { PatchCategoryRuleDto } from "./dto/patch-category-rule.dto";
 import { SuggestCategoryRulesDto } from "./dto/suggest-category-rules.dto";
@@ -77,6 +73,17 @@ export class CategoryRulesService {
     private readonly userContextRepository: Repository<UserContext>,
     private readonly llmCategoriesService: LLMCategoriesService,
   ) {}
+
+  private findCategoryId(
+    userId: string,
+    categoryName: string,
+  ): Promise<string | null> {
+    return findCategoryContextIdByName(
+      this.userContextRepository,
+      userId,
+      categoryName,
+    );
+  }
 
   private extractDomain(from: string): string | null {
     const match = from.match(/<([^>]+)>/) || from.match(/([^\s]+@[^\s]+)/);
@@ -187,16 +194,23 @@ export class CategoryRulesService {
       patternHash,
     } = ruleParams;
 
-    const existing = await this.categoryRuleRepository.findOne({
-      where: { userId, ruleType, patternHash, ruleKind: "legacy" },
-    });
+    const [existing, categoryId] = await Promise.all([
+      this.categoryRuleRepository.findOne({
+        where: { userId, ruleType, patternHash, ruleKind: "legacy" },
+      }),
+      this.findCategoryId(userId, categoryName),
+    ]);
 
     if (existing) {
-      if (existing.categoryName !== categoryName) {
+      if (
+        existing.categoryName !== categoryName ||
+        existing.categoryId !== categoryId
+      ) {
         this.logger.log(
           `[CategoryRules] Updating category for existing rule ${existing.id}: "${existing.categoryName}" → "${categoryName}"`,
         );
         existing.categoryName = categoryName;
+        existing.categoryId = categoryId;
         await this.categoryRuleRepository.save(existing);
       }
       return existing;
@@ -205,6 +219,7 @@ export class CategoryRulesService {
     const rule = this.categoryRuleRepository.create({
       userId,
       categoryName,
+      categoryId,
       ruleType,
       pattern,
       patternHash,
@@ -336,14 +351,16 @@ export class CategoryRulesService {
       return null;
     }
 
+    const categoryId = await this.findCategoryId(userId, trimmedCategory);
+
     const outcome = await deriveExclusionsForCompositeRule({
       emailThreadRepository: this.emailThreadRepository,
-      userContextRepository: this.userContextRepository,
       llmCategoriesService: this.llmCategoriesService,
       normaliseSender: (raw) => this.normaliseSender(raw),
       userId,
       positiveSpec,
       categoryName: trimmedCategory,
+      categoryId,
     });
     if (!outcome.passes || !outcome.finalSpec) {
       this.logger.debug(
@@ -356,6 +373,7 @@ export class CategoryRulesService {
       userId,
       outcome.finalSpec,
       trimmedCategory,
+      categoryId,
     );
   }
 
@@ -368,6 +386,7 @@ export class CategoryRulesService {
     userId: string,
     candidateSpec: CompositeCategoryRuleSpec,
     trimmedCategory: string,
+    categoryId: string | null,
   ): Promise<CategoryRule | null> {
     // Fetch composite rules once and share with both the duplicate check and
     // the persist gate (which uses them for the value-add comparison) to avoid
@@ -382,35 +401,10 @@ export class CategoryRulesService {
       compositeRules,
       candidateSpec,
       trimmedCategory,
+      categoryId,
     );
     if (duplicate) {
       return duplicate;
-    }
-
-    // Same-category sibling with identical sender + subject conditions: merge
-    // the candidate's body phrases into that rule instead of creating a
-    // near-duplicate sibling. The value-add LLM was honestly accepting two
-    // rules whose only difference was a few body phrases — but a single rule
-    // with body phrases unioned is what we actually want.
-    const mergeResult = await mergeIntoSiblingRuleIfPossible({
-      compositeRules,
-      candidateSpec,
-      trimmedCategory,
-      maxBodyPhrases: CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES,
-      repository: this.categoryRuleRepository,
-      onMerged: (sibling) =>
-        this.logger.log(
-          `[CategoryRules] Merged body phrases into existing composite rule ${sibling.id} (same sender + subject for category "${trimmedCategory}")`,
-        ),
-    });
-    if (mergeResult) {
-      if (mergeResult.outcome === MERGE_OUTCOME_WOULD_EXCEED_CAP) {
-        this.logger.debug(
-          `[CategoryRules] Skipping auto composite rule — would merge into sibling rule ${mergeResult.rule.id} (same sender + subject) but combined body phrases would exceed cap for user ${userId} category="${trimmedCategory}"`,
-        );
-        return null;
-      }
-      return mergeResult.rule;
     }
 
     const gate = await evaluateRulePersistGate({
@@ -420,6 +414,7 @@ export class CategoryRulesService {
       normaliseSender: (raw) => this.normaliseSender(raw),
       userId,
       categoryName: trimmedCategory,
+      categoryId,
       candidateSpec,
       compositeRules,
     });
@@ -434,6 +429,7 @@ export class CategoryRulesService {
       userId,
       gate.finalSpec,
       trimmedCategory,
+      categoryId,
     );
   }
 
@@ -471,6 +467,7 @@ export class CategoryRulesService {
     compositeRules: CategoryRule[],
     spec: CompositeCategoryRuleSpec,
     trimmedCategory: string,
+    categoryId: string | null,
   ): Promise<CategoryRule | null> {
     for (const rule of compositeRules) {
       if (!rule.compositeSpec) {
@@ -479,7 +476,11 @@ export class CategoryRulesService {
       if (!compositeAutoSpecsMatch(rule.compositeSpec, spec)) {
         continue;
       }
-      if (rule.categoryName !== trimmedCategory) {
+      if (
+        rule.categoryId !== categoryId ||
+        rule.categoryName !== trimmedCategory
+      ) {
+        rule.categoryId = categoryId;
         rule.categoryName = trimmedCategory;
         await this.categoryRuleRepository.save(rule);
         this.logger.log(
@@ -495,10 +496,12 @@ export class CategoryRulesService {
     userId: string,
     spec: CompositeCategoryRuleSpec,
     trimmedCategory: string,
+    categoryId: string | null,
   ): Promise<CategoryRule> {
     const created = this.categoryRuleRepository.create({
       userId,
       categoryName: trimmedCategory,
+      categoryId,
       ruleKind: "composite",
       compositeSpec: spec,
       ruleType: null,
@@ -534,6 +537,7 @@ export class CategoryRulesService {
     const spec = dropContradictoryExclusions(
       this.normalizeCompositeSpecDto(dto),
     );
+    const categoryId = await this.findCategoryId(userId, categoryName);
     if (!specHasExclusion(spec)) {
       throw new BadRequestException(
         "A composite rule must include at least one subject or body NOT-contains phrase so it cannot match too broadly. A NOT-contains phrase that duplicates a contains phrase is removed because it would never match.",
@@ -542,6 +546,7 @@ export class CategoryRulesService {
     const rule = this.categoryRuleRepository.create({
       userId,
       categoryName,
+      categoryId,
       ruleKind: "composite",
       compositeSpec: spec,
       ruleType: null,
@@ -574,6 +579,7 @@ export class CategoryRulesService {
         throw new BadRequestException("categoryName cannot be empty");
       }
       rule.categoryName = name;
+      rule.categoryId = await this.findCategoryId(userId, name);
     }
 
     if (dto.compositeSpec !== undefined) {
@@ -628,26 +634,26 @@ export class CategoryRulesService {
     userId: string,
     email: EmailMetadata,
   ): Promise<CategoryRuleMatch | null> {
-    const [rules, validCategoryNames] = await Promise.all([
+    const [rules, validCategoryIds] = await Promise.all([
       this.categoryRuleRepository.find({
         where: { userId, isEnabled: true },
         order: { createdAt: "ASC" },
       }),
-      this.getUserCategoryNames(userId),
+      this.getUserCategoryIds(userId),
     ]);
 
     if (rules.length === 0) {
       return null;
     }
 
-    // When the user has categories defined, skip rules pointing to deleted categories
-    // so that a valid lower-priority rule can still win (rather than returning null).
+    // Skip rules with no categoryId (unmatched legacy rows) or whose category
+    // has been deleted, so a valid lower-priority rule can still win.
     const eligibleRules =
-      validCategoryNames.size > 0
+      validCategoryIds.size > 0
         ? rules.filter((rule) => {
-            if (!validCategoryNames.has(rule.categoryName)) {
+            if (!rule.categoryId || !validCategoryIds.has(rule.categoryId)) {
               this.logger.warn(
-                `[CategoryRules] Skipping rule ${rule.id} (category "${rule.categoryName}" no longer exists) for user ${userId}`,
+                `[CategoryRules] Skipping rule ${rule.id} (categoryId ${rule.categoryId ?? "null"} not in valid set) for user ${userId}`,
               );
               return false;
             }
@@ -686,6 +692,7 @@ export class CategoryRulesService {
       if (matches) {
         return {
           categoryName: rule.categoryName,
+          categoryId: rule.categoryId,
           ruleId: rule.id,
           ruleType: null,
           ruleKind: "composite",
@@ -725,6 +732,7 @@ export class CategoryRulesService {
 
     const toLegacyMatch = (rule: CategoryRule): CategoryRuleMatch => ({
       categoryName: rule.categoryName,
+      categoryId: rule.categoryId,
       ruleId: rule.id,
       ruleType: rule.ruleType,
       ruleKind: "legacy",
@@ -776,12 +784,12 @@ export class CategoryRulesService {
     return match;
   }
 
-  private async getUserCategoryNames(userId: string): Promise<Set<string>> {
+  private async getUserCategoryIds(userId: string): Promise<Set<string>> {
     const contexts = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["contextValue"],
+      select: ["contextId"],
     });
-    return new Set(contexts.map((ctx) => parseCategoryName(ctx.contextValue)));
+    return new Set(contexts.map((ctx) => ctx.contextId));
   }
 
   async getDeterministicRulesDebug(
@@ -871,6 +879,7 @@ export class CategoryRulesService {
     return {
       id: rule.id,
       categoryName: rule.categoryName,
+      categoryId: rule.categoryId,
       ruleKind: rule.ruleKind,
       ruleType: rule.ruleType,
       pattern: rule.pattern ?? "",

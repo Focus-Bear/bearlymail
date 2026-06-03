@@ -171,18 +171,6 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
         query: jest.fn().mockResolvedValue(opts.rows),
       },
     };
-    const userContextRepository = {
-      find: jest.fn().mockResolvedValue(
-        opts.targetCategoryId
-          ? [
-              {
-                contextId: opts.targetCategoryId,
-                contextValue: categoryName,
-              },
-            ]
-          : [],
-      ),
-    };
     const llmCategoriesService = {
       deriveExclusionPhrasesFromFalsePositives: jest
         .fn()
@@ -192,8 +180,8 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
     };
     return {
       emailThreadRepository,
-      userContextRepository,
       llmCategoriesService,
+      categoryId: opts.targetCategoryId,
     };
   }
 
@@ -201,7 +189,7 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
     const deps = buildDeps({ rows: [], targetCategoryId: TARGET_CATEGORY_ID });
 
     const outcome = await deriveExclusionsForCompositeRule({
-      ...(deps as any),
+      ...deps,
       normaliseSender: normalise,
       userId,
       positiveSpec,
@@ -222,7 +210,7 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
     const deps = buildDeps({ rows, targetCategoryId: TARGET_CATEGORY_ID });
 
     const outcome = await deriveExclusionsForCompositeRule({
-      ...(deps as any),
+      ...deps,
       normaliseSender: normalise,
       userId,
       positiveSpec,
@@ -253,7 +241,7 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
     });
 
     const outcome = await deriveExclusionsForCompositeRule({
-      ...(deps as any),
+      ...deps,
       normaliseSender: normalise,
       userId,
       positiveSpec,
@@ -282,7 +270,7 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
     });
 
     const outcome = await deriveExclusionsForCompositeRule({
-      ...(deps as any),
+      ...deps,
       normaliseSender: normalise,
       userId,
       positiveSpec,

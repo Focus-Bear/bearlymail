@@ -1485,6 +1485,31 @@
           "totalUpdated": "Updated",
           "totalEmpty": "Empty (no tokens)"
         }
+      },
+      "categoryRuleIds": {
+        "title": "Category-rule ID backfill",
+        "description": "Links each category rule to its category by stable ID (categoryId FK) instead of the encrypted name, so renaming a category no longer breaks its rules. Backfills rules created before the FK existed. Runs as one background job under each user's KMS key. Idempotent — only rules with no categoryId are touched. Use Dry-run to preview, then Start real run.",
+        "actions": {
+          "dryRun": "Start dry-run (all users)",
+          "start": "Start real run (all users)"
+        },
+        "startConfirm": "This will link every unlinked category rule to its category. Continue?",
+        "cancelled": "Cancelled.",
+        "enqueued": "Enqueued backfill job {{jobId}}.",
+        "polling": "Backfill running…",
+        "complete": "Backfill complete.",
+        "failed": "Backfill job failed. Check worker logs.",
+        "noResult": "Backfill job ended in state \"{{state}}\" without a result. Check worker logs.",
+        "resultTitle": "Backfill results",
+        "dryRunBadge": "(dry run)",
+        "columns": {
+          "totalUsers": "Total users",
+          "succeededUsers": "Succeeded users",
+          "failedUsers": "Failed users",
+          "totalScanned": "Scanned",
+          "totalMatched": "Linked",
+          "totalOrphaned": "Orphaned (no category)"
+        }
       }
     },
     "emailDecrypt": {

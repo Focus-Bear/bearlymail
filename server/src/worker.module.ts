@@ -7,6 +7,7 @@ import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
+import { CategoryRuleIdBackfillModule } from "./category-rules/category-rule-id-backfill.module";
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContextModule } from "./context/context.module";
 import { createTypeOrmConfig } from "./database/typeorm-config.factory";
@@ -76,6 +77,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     BlockedKeywordsModule,
     NotesModule,
     PusherModule,
+    CategoryRuleIdBackfillModule,
     ContactsModule,
     ScheduledEmailsModule,
     WorkflowsModule,

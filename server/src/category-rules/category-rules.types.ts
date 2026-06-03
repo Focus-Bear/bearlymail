@@ -44,6 +44,7 @@ export interface CategoryRuleSuggestion {
 
 export interface CategoryRuleMatch {
   categoryName: string;
+  categoryId: string | null;
   ruleId: string;
   ruleType: CategoryRuleType | null;
   ruleKind: CategoryRuleKind;
@@ -52,6 +53,7 @@ export interface CategoryRuleMatch {
 export interface CategoryRuleDto {
   id: string;
   categoryName: string;
+  categoryId: string | null;
   ruleKind: CategoryRuleKind;
   ruleType: CategoryRuleType | null;
   pattern: string;

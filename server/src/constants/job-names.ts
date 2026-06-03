@@ -75,6 +75,11 @@ export const JOB_NAMES = {
   // under each user's KMS key so encrypted PII decrypts correctly (#2030).
   BACKFILL_CONTACT_SEARCH_TOKENS: "backfill-contact-search-tokens",
 
+  // Category-rule categoryId FK backfill (admin-triggered, idempotent). Links
+  // each rule to its UserContext by decrypting categoryName under each user's
+  // KMS key, since renaming a category used to silently break name-keyed rules.
+  BACKFILL_CATEGORY_RULE_IDS: "backfill-category-rule-ids",
+
   // GitHub metadata
   FETCH_GITHUB_METADATA: "fetch-github-metadata",
 

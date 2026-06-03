@@ -88,6 +88,15 @@ export class CategoryRule {
   @Column("text", { transformer: encryptedColumnTransformer })
   categoryName: string;
 
+  /**
+   * FK to `user_contexts.contextId` (EMAIL_CATEGORY). Source of truth for
+   * category matching — replaces name-based lookup so renames don't break rules.
+   * SET NULL on delete so the rule is not lost if the category is deleted.
+   * Null on legacy rows that predate the migration (treated as orphaned/skipped).
+   */
+  @Column({ type: "uuid", nullable: true })
+  categoryId: string | null;
+
   @Column({
     type: "enum",
     enum: [

@@ -37,6 +37,8 @@ export interface RulePersistGateParams {
   normaliseSender: (raw: string) => string;
   userId: string;
   categoryName: string;
+  /** FK UUID matching UserContext.contextId — used for sibling filtering. */
+  categoryId: string | null;
   candidateSpec: CompositeCategoryRuleSpec;
   /** When true, skip the LLM value-add comparison (used for manual creation). */
   skipValueAdd?: boolean;
@@ -62,7 +64,6 @@ export interface RulePersistGateOutcome {
     | "ok"
     | "no_mailbox_match"
     | "redundant"
-    | "incoherent"
     | "no_exclusions"
     | "exclusions_removed_all_matches";
   detail?: string;
@@ -82,20 +83,18 @@ function specToSummary(spec: CompositeCategoryRuleSpec): RuleSpecSummary {
 async function fetchSiblingSpecs(
   categoryRuleRepository: Repository<CategoryRule>,
   userId: string,
-  categoryName: string,
+  categoryId: string | null,
   prefetched?: CategoryRule[],
 ): Promise<CompositeCategoryRuleSpec[]> {
-  // categoryName is an encrypted column, so it cannot be filtered in SQL — the
-  // transformer decrypts on read, then we filter in memory.
+  if (!categoryId) return [];
   const composite =
     prefetched ??
     (await categoryRuleRepository.find({
-      where: { userId, ruleKind: "composite" },
+      where: { userId, ruleKind: "composite", categoryId },
     }));
   return composite
     .filter(
-      (rule) =>
-        rule.categoryName === categoryName && rule.compositeSpec != null,
+      (rule) => rule.categoryId === categoryId && rule.compositeSpec != null,
     )
     .map((rule) => rule.compositeSpec as CompositeCategoryRuleSpec)
     .slice(0, CATEGORY_RULE_COMPOSITE.VALUE_ADD_MAX_EXISTING_RULES);
@@ -116,6 +115,7 @@ export async function evaluateRulePersistGate(
     normaliseSender,
     userId,
     categoryName,
+    categoryId,
     skipValueAdd,
     requireExclusions = true,
     compositeRules,
@@ -148,7 +148,7 @@ export async function evaluateRulePersistGate(
     const siblingSpecs = await fetchSiblingSpecs(
       categoryRuleRepository,
       userId,
-      categoryName,
+      categoryId,
       compositeRules,
     );
     if (siblingSpecs.length > 0) {
@@ -160,14 +160,6 @@ export async function evaluateRulePersistGate(
         maxBodyNotPhrases: CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
         userId,
       });
-      if (!assessment.makesSense) {
-        return {
-          shouldPersist: false,
-          finalSpec: null,
-          reason: "incoherent",
-          detail: assessment.reasoning,
-        };
-      }
       if (!assessment.addsValue) {
         return {
           shouldPersist: false,

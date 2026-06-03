@@ -21,7 +21,6 @@ import { Repository } from "typeorm";
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CompositeCategoryRuleSpec } from "../database/entities/category-rule.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { UserContext } from "../database/entities/user-context.entity";
 import {
   ExclusionDerivationSample,
   LLMCategoriesService,
@@ -30,7 +29,6 @@ import {
   DecryptedValidationRow,
   decryptValidationRow,
   fetchRecentCategorisedEmailRows,
-  findCategoryContextIdByName,
   partitionMatchesByCategory,
 } from "./category-rules-validate.helper";
 
@@ -48,12 +46,13 @@ export interface DeriveExclusionsOutcome {
 
 export interface DeriveExclusionsParams {
   emailThreadRepository: Repository<EmailThread>;
-  userContextRepository: Repository<UserContext>;
   llmCategoriesService: LLMCategoriesService;
   normaliseSender: (raw: string) => string;
   userId: string;
   positiveSpec: CompositeCategoryRuleSpec;
   categoryName: string;
+  /** FK UUID from UserContext — used directly instead of a name-based lookup. */
+  categoryId: string | null;
 }
 
 function rowToSample(row: DecryptedValidationRow): ExclusionDerivationSample {
@@ -177,19 +176,13 @@ export async function deriveExclusionsForCompositeRule(
 ): Promise<DeriveExclusionsOutcome> {
   const {
     emailThreadRepository,
-    userContextRepository,
     llmCategoriesService,
     normaliseSender,
     userId,
     positiveSpec,
     categoryName,
+    categoryId: targetCategoryId,
   } = params;
-
-  const targetCategoryId = await findCategoryContextIdByName(
-    userContextRepository,
-    userId,
-    categoryName,
-  );
 
   const rawRows = await fetchRecentCategorisedEmailRows(
     emailThreadRepository,

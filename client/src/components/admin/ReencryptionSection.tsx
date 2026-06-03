@@ -146,6 +146,7 @@ async function pollJobUntilTerminal<TOutput>(
 }
 
 const CONTACT_TOKENS_BASE = `${API_URL}/contacts/admin`;
+const CATEGORY_RULE_IDS_BASE = `${API_URL}/category-rules/admin`;
 
 interface BackfillAllUsersResult {
   dryRun: boolean;
@@ -155,6 +156,16 @@ interface BackfillAllUsersResult {
   totalScanned: number;
   totalUpdated: number;
   totalEmpty: number;
+}
+
+interface BackfillCategoryRuleIdsResult {
+  dryRun: boolean;
+  totalUsers: number;
+  succeededUsers: number;
+  failedUsers: number;
+  totalScanned: number;
+  totalMatched: number;
+  totalOrphaned: number;
 }
 
 export const ReencryptionSection: React.FC = () => {
@@ -499,6 +510,7 @@ export const ReencryptionSection: React.FC = () => {
       )}
 
       <ContactTokenBackfillSubsection />
+      <CategoryRuleIdBackfillSubsection />
     </div>
   );
 };
@@ -683,6 +695,208 @@ const ContactTokenBackfillSubsection: React.FC = () => {
               label={t('admin.reencryption.contactTokens.columns.totalEmpty')}
               value={result.totalEmpty}
               tone={result.totalEmpty > 0 ? 'warning' : 'neutral'}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CategoryRuleIdBackfillSubsection: React.FC = () => {
+  const { t } = useTranslation();
+  const [inFlight, setInFlight] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<BackfillCategoryRuleIdsResult | null>(
+    null,
+  );
+
+  const run = useCallback(
+    async (dryRun: boolean, label: string): Promise<void> => {
+      if (
+        !dryRun &&
+        !window.confirm(t('admin.reencryption.categoryRuleIds.startConfirm'))
+      ) {
+        setMessage(t('admin.reencryption.categoryRuleIds.cancelled'));
+        return;
+      }
+      setInFlight(label);
+      setMessage(null);
+      setResult(null);
+      try {
+        const { data: enqueueResp } = await axios.post<{ jobId: string }>(
+          `${CATEGORY_RULE_IDS_BASE}/backfill-ids/start`,
+          { dryRun },
+          { withCredentials: true },
+        );
+        setMessage(
+          t('admin.reencryption.categoryRuleIds.enqueued', {
+            jobId: enqueueResp.jobId,
+          }),
+        );
+        const finalStatus =
+          await pollJobUntilTerminal<BackfillCategoryRuleIdsResult>(
+            enqueueResp.jobId,
+            (id) => `${CATEGORY_RULE_IDS_BASE}/backfill-ids/job/${id}`,
+          );
+        if (finalStatus.state === JOB_STATE_FAILED) {
+          throw new Error(t('admin.reencryption.categoryRuleIds.failed'));
+        }
+        if (finalStatus.state !== JOB_STATE_COMPLETED || !finalStatus.output) {
+          throw new Error(
+            t('admin.reencryption.categoryRuleIds.noResult', {
+              state: finalStatus.state,
+            }),
+          );
+        }
+        setResult(finalStatus.output);
+        setMessage(t('admin.reencryption.categoryRuleIds.complete'));
+      } catch (err) {
+        setMessage(
+          `Error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      } finally {
+        setInFlight(null);
+      }
+    },
+    [t],
+  );
+
+  const dryRunLabel = t('admin.reencryption.categoryRuleIds.actions.dryRun');
+  const startLabel = t('admin.reencryption.categoryRuleIds.actions.start');
+
+  return (
+    <div
+      style={{
+        marginTop: theme.spacing.xl,
+        paddingTop: theme.spacing.xl,
+        borderTop: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
+      <h2
+        style={{
+          margin: 0,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize['2xl'],
+          fontWeight: theme.typography.fontWeight.bold,
+          color: theme.colors.text.primary,
+        }}
+      >
+        {t('admin.reencryption.categoryRuleIds.title')}
+      </h2>
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.lg,
+          maxWidth: 720,
+        }}
+      >
+        {t('admin.reencryption.categoryRuleIds.description')}
+      </p>
+
+      <div
+        style={{
+          display: 'flex',
+          gap: theme.spacing.md,
+          marginBottom: theme.spacing.lg,
+          flexWrap: 'wrap',
+        }}
+      >
+        <ActionButton
+          label={dryRunLabel}
+          tone="primary"
+          disabled={inFlight !== null}
+          inFlight={inFlight === dryRunLabel}
+          onClick={() => run(true, dryRunLabel)}
+        />
+        <ActionButton
+          label={startLabel}
+          tone="danger"
+          disabled={inFlight !== null}
+          inFlight={inFlight === startLabel}
+          onClick={() => run(false, startLabel)}
+        />
+      </div>
+
+      {message && (
+        <div
+          role="status"
+          style={{
+            padding: theme.spacing.md,
+            marginBottom: theme.spacing.lg,
+            backgroundColor: message.startsWith('Error:')
+              ? theme.colors.error.light
+              : theme.colors.success.light,
+            color: message.startsWith('Error:')
+              ? theme.colors.error.main
+              : theme.colors.success.main,
+            borderRadius: 4,
+          }}
+        >
+          {message}
+        </div>
+      )}
+
+      {result && (
+        <div style={{ marginTop: theme.spacing.lg }}>
+          <h3
+            style={{
+              fontSize: theme.typography.fontSize.lg,
+              fontWeight: theme.typography.fontWeight.semibold,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
+            {t('admin.reencryption.categoryRuleIds.resultTitle')}
+            {result.dryRun
+              ? ` ${t('admin.reencryption.categoryRuleIds.dryRunBadge')}`
+              : ''}
+          </h3>
+          <div
+            style={{
+              display: 'flex',
+              gap: theme.spacing.lg,
+              flexWrap: 'wrap',
+            }}
+          >
+            <StatusCard
+              label={t('admin.reencryption.categoryRuleIds.columns.totalUsers')}
+              value={result.totalUsers}
+              tone="neutral"
+            />
+            <StatusCard
+              label={t(
+                'admin.reencryption.categoryRuleIds.columns.succeededUsers',
+              )}
+              value={result.succeededUsers}
+              tone="success"
+            />
+            <StatusCard
+              label={t(
+                'admin.reencryption.categoryRuleIds.columns.failedUsers',
+              )}
+              value={result.failedUsers}
+              tone={result.failedUsers > 0 ? 'warning' : 'neutral'}
+            />
+            <StatusCard
+              label={t(
+                'admin.reencryption.categoryRuleIds.columns.totalScanned',
+              )}
+              value={result.totalScanned}
+              tone="neutral"
+            />
+            <StatusCard
+              label={t(
+                'admin.reencryption.categoryRuleIds.columns.totalMatched',
+              )}
+              value={result.totalMatched}
+              tone="success"
+            />
+            <StatusCard
+              label={t(
+                'admin.reencryption.categoryRuleIds.columns.totalOrphaned',
+              )}
+              value={result.totalOrphaned}
+              tone={result.totalOrphaned > 0 ? 'warning' : 'neutral'}
             />
           </div>
         </div>

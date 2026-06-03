@@ -207,7 +207,10 @@ export async function searchEmailsViaZoho(
   const response = await zohoClient.get(
     `/accounts/${zohoAccountId}/messages/search`,
     {
-      params: { query, limit: maxResults },
+      params: {
+        searchKey: query,
+        limit: maxResults
+      },
     },
   );
   return response.data.data || [];

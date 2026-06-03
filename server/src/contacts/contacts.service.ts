@@ -243,28 +243,41 @@ export class ContactsService {
 
     // Generate query tokens for fuzzy search
     const queryTokens = SearchIndexHelper.generateQueryTokens(query);
+    if (queryTokens.length === 0) {
+      return [];
+    }
 
-    // Search using LIKE on searchTokens (stored as JSON array of hashes)
-    // This is a simplified approach - for production, consider using
-    // a dedicated search index (Elasticsearch, PostgreSQL full-text search)
+    // Blind-index search on the hashed-token column. A contact is a *candidate*
+    // if its stored searchTokens contain ANY of the query token hashes — but a
+    // single shared trigram (e.g. "kos") is enough to match, so a popular query
+    // yields hundreds of weak candidates. We therefore:
+    //   1. Rank by how MANY query tokens each contact matches. An exact name
+    //      match hits every token and must outrank a one-trigram coincidence;
+    //      ordering only by contactFrequency buried zero-frequency exact matches
+    //      below high-frequency incidental ones (#2030).
+    //   2. Fetch a generous relevance-ranked candidate pool and apply the
+    //      visible-field filter BEFORE truncating to `limit`. Truncating first
+    //      (the old `.take(limit)`) dropped genuine matches that ranked below
+    //      the cut even though they were the only true hits.
+    const tokenParams: Record<string, string> = {};
+    const likeClauses: string[] = [];
+    const scoreClauses: string[] = [];
+    queryTokens.forEach((token, i) => {
+      tokenParams[`token${i}`] = `%${token}%`;
+      likeClauses.push(`contact.searchTokens LIKE :token${i}`);
+      scoreClauses.push(
+        `(CASE WHEN contact.searchTokens LIKE :token${i} THEN 1 ELSE 0 END)`,
+      );
+    });
+
     const contacts = await this.contactRepository
       .createQueryBuilder("contact")
       .where("contact.userId = :userId", { userId })
-      .andWhere(
-        `(${queryTokens
-          .map((_, i) => `contact.searchTokens LIKE :token${i}`)
-          .join(" OR ")})`,
-        queryTokens.reduce(
-          (acc, token, i) => {
-            acc[`token${i}`] = `%${token}%`;
-            return acc;
-          },
-          {} as Record<string, string>,
-        ),
-      )
-      .orderBy("contact.contactFrequency", "DESC")
+      .andWhere(`(${likeClauses.join(" OR ")})`, tokenParams)
+      .orderBy(scoreClauses.join(" + "), "DESC")
+      .addOrderBy("contact.contactFrequency", "DESC")
       .addOrderBy("contact.isFavorite", "DESC")
-      .take(limit)
+      .take(Math.max(limit, QUERY_LIMITS.CONTACTS_SEARCH_CANDIDATE_POOL))
       .getMany();
 
     // Also search directly from Gmail for real-time results

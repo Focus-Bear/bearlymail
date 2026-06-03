@@ -292,22 +292,35 @@ describe("ContactsService", () => {
     it("should respect limit parameter", async () => {
       const userId = "user-123";
       const query = "test";
+      // 30 local contacts whose visible fields all match "test" so the
+      // post-filter doesn't drop them and we can verify the final slice.
+      const manyContacts = Array.from({ length: 30 }, (_, i) => ({
+        id: `contact-${i}`,
+        email: `test${i}@example.com`,
+        name: `Test User ${i}`,
+        contactFrequency: 30 - i,
+        isFavorite: false,
+      }));
       const queryBuilder = {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         addOrderBy: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([]),
+        getMany: jest.fn().mockResolvedValue(manyContacts),
       };
 
       mockRepository.findOne.mockResolvedValue(null);
       mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
       mockGmailContactsProvider.searchContacts.mockResolvedValue([]);
 
-      await service.searchContacts(userId, query, 5);
+      const result = await service.searchContacts(userId, query, 5);
 
-      expect(queryBuilder.take).toHaveBeenCalledWith(5);
+      // DB pulls a generous relevance-ranked pool so the visible-field filter
+      // and final slice happen in memory (see CONTACTS_SEARCH_CANDIDATE_POOL).
+      expect(queryBuilder.take).toHaveBeenCalledWith(200);
+      // The user's `limit` is enforced on the merged, filtered results.
+      expect(result).toHaveLength(5);
     });
 
     it("should filter Gmail results to only show contacts matching visible fields", async () => {

@@ -27,6 +27,7 @@ import {
 const EMPTY_MEETING_PROPOSAL = {
   hasProposal: false,
   proposedTime: null,
+  windowEnd: null,
   proposedTimeText: null,
   topic: null,
   durationMinutes: null,
@@ -469,6 +470,7 @@ export class LLMReplyService {
   ): Promise<{
     hasProposal: boolean;
     proposedTime: string | null;
+    windowEnd: string | null;
     proposedTimeText: string | null;
     topic: string | null;
     durationMinutes: number | null;
@@ -532,6 +534,7 @@ export class LLMReplyService {
   ): {
     hasProposal: boolean;
     proposedTime: string | null;
+    windowEnd: string | null;
     proposedTimeText: string | null;
     topic: string | null;
     durationMinutes: number | null;
@@ -542,6 +545,7 @@ export class LLMReplyService {
     const parsed = JSON.parse(jsonMatch[0]) as {
       hasProposal?: boolean;
       proposedLocalTime?: string | null;
+      proposedLocalTimeEnd?: string | null;
       proposedTimezone?: string | null;
       proposedTimeText?: string | null;
       topic?: string | null;
@@ -555,9 +559,14 @@ export class LLMReplyService {
       parsed.proposedLocalTime ?? null,
       proposedTimezone,
     );
+    // End of the proposed window (only present when the sender gave a range).
+    const windowEnd = convertLocalTimeInZoneToUtc(
+      parsed.proposedLocalTimeEnd ?? null,
+      proposedTimezone,
+    );
 
     this.logger.debug(
-      `[detectMeetingProposal] userTimezone="${effectiveTimezone}" -> hasProposal=${parsed.hasProposal === true} proposedLocalTime="${parsed.proposedLocalTime ?? null}" proposedTimezone="${proposedTimezone}" proposedTimeUTC="${proposedTime}" proposedTimeText="${parsed.proposedTimeText ?? null}" durationMinutes=${parsed.durationMinutes ?? null}`,
+      `[detectMeetingProposal] userTimezone="${effectiveTimezone}" -> hasProposal=${parsed.hasProposal === true} proposedLocalTime="${parsed.proposedLocalTime ?? null}" proposedLocalTimeEnd="${parsed.proposedLocalTimeEnd ?? null}" proposedTimezone="${proposedTimezone}" proposedTimeUTC="${proposedTime}" windowEndUTC="${windowEnd}" proposedTimeText="${parsed.proposedTimeText ?? null}" durationMinutes=${parsed.durationMinutes ?? null}`,
     );
 
     const hasProposal = parsed.hasProposal === true && proposedTime !== null;
@@ -565,6 +574,7 @@ export class LLMReplyService {
     return {
       hasProposal,
       proposedTime,
+      windowEnd,
       proposedTimeText: parsed.proposedTimeText ?? null,
       topic: parsed.topic ?? null,
       durationMinutes: parsed.durationMinutes ?? null,

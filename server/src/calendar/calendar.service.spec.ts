@@ -1755,6 +1755,76 @@ describe("CalendarService", () => {
 
       expect(result.hasProposal).toBe(true);
       expect(result.isAvailable).toBe(false);
+      expect(result.suggestedTime).toBeNull();
+    });
+
+    it("finds a free slot inside a proposed window and suggests it", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      // Sender offered "between 1 and 4" → a 3-hour window, no explicit meeting length.
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        hasProposal: true,
+        proposedTime: "2026-07-08T13:00:00Z",
+        windowEnd: "2026-07-08T16:00:00Z",
+        proposedTimeText: "Wednesday 8 July between 1 and 4",
+        topic: "Seminar Series",
+        durationMinutes: null,
+      });
+      usersService.findOne.mockResolvedValue(mockUser);
+      // Busy 1:00–2:00 inside the window; free from 2:00 onward.
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [
+                { start: "2026-07-08T13:00:00Z", end: "2026-07-08T14:00:00Z" },
+              ],
+            },
+          },
+        },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.isAvailable).toBe(true);
+      expect(result.suggestedTime).toBe("2026-07-08T14:00:00.000Z");
+      // The whole window is queried, not just the first 30 minutes.
+      expect(mockCalendar.freebusy.query).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestBody: expect.objectContaining({
+            timeMin: "2026-07-08T13:00:00.000Z",
+            timeMax: "2026-07-08T16:00:00.000Z",
+          }),
+        }),
+      );
+    });
+
+    it("returns isAvailable=false when a proposed window is fully booked", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        hasProposal: true,
+        proposedTime: "2026-07-08T13:00:00Z",
+        windowEnd: "2026-07-08T16:00:00Z",
+        proposedTimeText: "Wednesday 8 July between 1 and 4",
+        topic: "Seminar Series",
+        durationMinutes: null,
+      });
+      usersService.findOne.mockResolvedValue(mockUser);
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [
+                { start: "2026-07-08T13:00:00Z", end: "2026-07-08T16:00:00Z" },
+              ],
+            },
+          },
+        },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.isAvailable).toBe(false);
+      expect(result.suggestedTime).toBeNull();
     });
 
     it("ignores the thread-level meetingProposal cache and re-detects from the viewed email", async () => {

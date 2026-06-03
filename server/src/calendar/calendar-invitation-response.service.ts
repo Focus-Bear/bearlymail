@@ -394,14 +394,64 @@ Best regards`;
 export interface MeetingProposalResult {
   hasProposal: boolean;
   proposedTime: string | null;
+  /** End of the proposed window when the sender gave a range (e.g. "between 1 and 4"); null for a fixed time. */
+  windowEnd: string | null;
   proposedTimeText: string | null;
   topic: string | null;
   durationMinutes: number | null;
   isAvailable: boolean | null;
+  /**
+   * UTC ISO start of a free slot of the meeting's length. For a single fixed time this equals
+   * proposedTime when free; for a window it's the first free slot found inside it. null if no slot
+   * is free (conflict) or availability could not be checked.
+   */
+  suggestedTime: string | null;
   calendarConnected: boolean;
 }
 
 const DEFAULT_DURATION_MINUTES = 30;
+
+/**
+ * Finds the first free slot of `durationMs` within [windowStart, windowEnd] that doesn't overlap any
+ * busy period. Returns the slot start, or null if the window can't fit a free slot of that length.
+ */
+function findFreeSlot(
+  busyPeriods: { start?: string | null; end?: string | null }[],
+  windowStart: Date,
+  windowEnd: Date,
+  durationMs: number,
+): Date | null {
+  const sorted = busyPeriods
+    .map((period) => ({
+      start: new Date(period.start ?? "").getTime(),
+      end: new Date(period.end ?? "").getTime(),
+    }))
+    .filter(
+      (period) => !Number.isNaN(period.start) && !Number.isNaN(period.end),
+    )
+    .sort((first, second) => first.start - second.start);
+
+  let candidate = windowStart.getTime();
+  const limit = windowEnd.getTime();
+
+  for (const busy of sorted) {
+    // Busy period already behind the candidate.
+    if (busy.end <= candidate) continue;
+    // A gap before this busy period fits the meeting — but only if the slot also fits the window.
+    // candidate only grows in later iterations, so if it can't fit the window now, it never will.
+    if (busy.start - candidate >= durationMs) {
+      if (candidate + durationMs <= limit) {
+        return new Date(candidate);
+      }
+      return null;
+    }
+    // Otherwise jump past the busy period and keep looking.
+    candidate = Math.max(candidate, busy.end);
+    if (candidate + durationMs > limit) return null;
+  }
+
+  return candidate + durationMs <= limit ? new Date(candidate) : null;
+}
 
 async function checkCalendarAvailability(
   service: CalendarService,
@@ -412,30 +462,63 @@ async function checkCalendarAvailability(
   },
   proposedTime: string,
   durationMinutes: number | null,
-): Promise<boolean | null> {
+  windowEnd: string | null,
+): Promise<{ isAvailable: boolean | null; suggestedTime: string | null }> {
   try {
     const duration = durationMinutes ?? DEFAULT_DURATION_MINUTES;
+    const durationMs = duration * MILLISECONDS.MINUTE;
     const proposedStart = new Date(proposedTime);
-    const proposedEnd = new Date(
-      proposedStart.getTime() + duration * MILLISECONDS.MINUTE,
-    );
+
+    // Any valid range past the proposed start counts as a window. If it's too narrow to fit the
+    // meeting, findFreeSlot will return null and we'll report isAvailable: false rather than
+    // suggesting a time that would overflow the sender's window.
+    const windowEndDate = windowEnd ? new Date(windowEnd) : null;
+    const isWindow =
+      windowEndDate !== null &&
+      !Number.isNaN(windowEndDate.getTime()) &&
+      windowEndDate.getTime() > proposedStart.getTime();
+
+    const queryEnd = isWindow
+      ? (windowEndDate as Date)
+      : new Date(proposedStart.getTime() + durationMs);
+
     const oauth2Client = service.createOAuth2Client(user);
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
     const freebusyResponse = await calendar.freebusy.query({
       requestBody: {
         timeMin: proposedStart.toISOString(),
-        timeMax: proposedEnd.toISOString(),
+        timeMax: queryEnd.toISOString(),
         items: [{ id: "primary" }],
       },
     });
     const busyPeriods = freebusyResponse.data.calendars?.primary?.busy ?? [];
-    return busyPeriods.length === 0;
+
+    if (isWindow) {
+      // The sender offered a range — find the first free slot inside it rather
+      // than flagging a conflict just because part of the window is busy.
+      const slot = findFreeSlot(
+        busyPeriods,
+        proposedStart,
+        queryEnd,
+        durationMs,
+      );
+      return {
+        isAvailable: slot !== null,
+        suggestedTime: slot ? slot.toISOString() : null,
+      };
+    }
+
+    const free = busyPeriods.length === 0;
+    return {
+      isAvailable: free,
+      suggestedTime: free ? proposedStart.toISOString() : null,
+    };
   } catch (error) {
     logError(
       "Failed to check calendar availability for proposed meeting time",
       error instanceof Error ? error : new Error(String(error)),
     );
-    return null;
+    return { isAvailable: null, suggestedTime: null };
   }
 }
 
@@ -477,21 +560,38 @@ export async function checkMeetingProposal(
   );
 
   if (!proposal.hasProposal || !proposal.proposedTime) {
-    return { ...proposal, isAvailable: null, calendarConnected: false };
+    return {
+      ...proposal,
+      isAvailable: null,
+      suggestedTime: null,
+      calendarConnected: false,
+    };
   }
 
   const user = await service.usersService.findOne(userId);
   if (!user?.googleCalendarAccessToken) {
-    return { ...proposal, isAvailable: null, calendarConnected: false };
+    return {
+      ...proposal,
+      isAvailable: null,
+      suggestedTime: null,
+      calendarConnected: false,
+    };
   }
 
-  const isAvailable = await checkCalendarAvailability(
+  const { isAvailable, suggestedTime } = await checkCalendarAvailability(
     service,
     user,
     proposal.proposedTime,
     proposal.durationMinutes,
+    proposal.windowEnd ?? null,
   );
-  return { ...proposal, isAvailable, calendarConnected: true };
+  return {
+    ...proposal,
+    windowEnd: proposal.windowEnd ?? null,
+    isAvailable,
+    suggestedTime,
+    calendarConnected: true,
+  };
 }
 
 const HTTP_NOT_FOUND = 404;

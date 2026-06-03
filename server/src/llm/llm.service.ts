@@ -736,6 +736,7 @@ export class LLMService {
   ): Promise<{
     hasProposal: boolean;
     proposedTime: string | null;
+    windowEnd: string | null;
     proposedTimeText: string | null;
     topic: string | null;
     durationMinutes: number | null;

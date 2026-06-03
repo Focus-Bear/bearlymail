@@ -141,6 +141,42 @@ tests:
           }
           return true;
 
+  - description: "Time window ('between 1 and 4') extracts start + end of the window, leaves durationMinutes null"
+    vars:
+      currentDatetime: "2026-06-02T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "events@adhdseminars.org"
+      fromName: "Seminar Team"
+      subject: "ADHD, Behaviour & Mental Health Seminar Series"
+      body: |
+        Hi Jeremy,
+
+        Would you be available on Wednesday 8th July between 1 and 4 to record the seminar?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-07-08T13:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-07-08T13:00:00' (start of window). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (!parsed.proposedLocalTimeEnd || !parsed.proposedLocalTimeEnd.startsWith('2026-07-08T16:00')) {
+            throw new Error(`Expected proposedLocalTimeEnd '2026-07-08T16:00:00' (end of window). Got: ${parsed.proposedLocalTimeEnd}`);
+          }
+          if (parsed.durationMinutes !== null && parsed.durationMinutes !== undefined) {
+            throw new Error(`Expected durationMinutes=null (window width is not the meeting length). Got: ${parsed.durationMinutes}`);
+          }
+          return true;
+
   - description: "Time with no date ('around 3pm') is NOT a concrete proposal"
     vars:
       currentDatetime: "2026-05-22T00:00:00Z"

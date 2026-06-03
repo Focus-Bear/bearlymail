@@ -31,6 +31,7 @@ vi.mock('react-i18next', () => ({
       }
       return key;
     },
+    i18n: { language: 'en-US' },
   }),
 }));
 
@@ -125,11 +126,33 @@ const noProposalResponse = {
 const withProposalResponse = {
   hasProposal: true,
   proposedTime: '2026-05-19T22:15:00Z',
+  windowEnd: null,
   proposedTimeText: 'May 19 at 6:15pm Eastern',
   topic: 'Meeting',
   durationMinutes: 30,
   isAvailable: true,
+  suggestedTime: '2026-05-19T22:15:00Z',
   calendarConnected: true,
+};
+
+/** Sender proposed a window ("between 1 and 4"); a free slot was found inside it. */
+const windowWithFreeSlotResponse = {
+  hasProposal: true,
+  proposedTime: '2026-07-08T03:00:00Z',
+  windowEnd: '2026-07-08T06:00:00Z',
+  proposedTimeText: 'Wednesday 8th July between 1 and 4',
+  topic: 'Seminar Series',
+  durationMinutes: null,
+  isAvailable: true,
+  suggestedTime: '2026-07-08T04:00:00Z',
+  calendarConnected: true,
+};
+
+/** Sender proposed a window but every slot inside it is booked. */
+const windowFullyBookedResponse = {
+  ...windowWithFreeSlotResponse,
+  isAvailable: false,
+  suggestedTime: null,
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -223,6 +246,55 @@ describe('SchedulingRequestCard — review-first flow (#1788 fix #3)', () => {
     expect(mockedAxios.post).toHaveBeenCalledWith(
       expect.stringContaining('/calendar/check-proposed-time/'),
     );
+  });
+});
+
+describe('SchedulingRequestCard — proposed time windows', () => {
+  it('surfaces the free slot found inside a proposed window', async () => {
+    mockedAxios.post.mockResolvedValueOnce({ data: windowWithFreeSlotResponse });
+
+    render(<SchedulingRequestCard email={makeEmail()} />);
+
+    // Leave the review form to reveal the availability line.
+    await waitFor(() => {
+      expect(
+        screen.getByText('emailDetail.schedulingRequest.proposedTime.cancel')
+      ).toBeInTheDocument();
+    });
+    await userEvent.click(
+      screen.getByText('emailDetail.schedulingRequest.proposedTime.cancel')
+    );
+
+    // A window with a free slot shows "free at …", never the blunt conflict warning.
+    expect(
+      screen.getByText('emailDetail.schedulingRequest.proposedTime.freeAt')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('emailDetail.schedulingRequest.proposedTime.conflict')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the busy-window message when no slot is free in the proposed window', async () => {
+    mockedAxios.post.mockResolvedValueOnce({ data: windowFullyBookedResponse });
+
+    render(<SchedulingRequestCard email={makeEmail()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('emailDetail.schedulingRequest.proposedTime.cancel')
+      ).toBeInTheDocument();
+    });
+    await userEvent.click(
+      screen.getByText('emailDetail.schedulingRequest.proposedTime.cancel')
+    );
+
+    expect(
+      screen.getByText('emailDetail.schedulingRequest.proposedTime.busyWindow')
+    ).toBeInTheDocument();
+    // The single-time "conflict" copy must not be used for a window.
+    expect(
+      screen.queryByText('emailDetail.schedulingRequest.proposedTime.conflict')
+    ).not.toBeInTheDocument();
   });
 });
 

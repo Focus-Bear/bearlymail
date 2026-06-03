@@ -31,10 +31,14 @@ interface SchedulingRequestCardProps {
 interface MeetingProposal {
   hasProposal: boolean;
   proposedTime: string | null;
+  /** End of the proposed window when the sender gave a range; null for a fixed time. */
+  windowEnd: string | null;
   proposedTimeText: string | null;
   topic: string | null;
   durationMinutes: number | null;
   isAvailable: boolean | null;
+  /** Start of the free slot to suggest/pre-fill (UTC ISO); null on conflict or check failure. */
+  suggestedTime: string | null;
   calendarConnected: boolean;
 }
 
@@ -120,6 +124,42 @@ function isoToDatetimeLocal(iso: string): string {
 function datetimeLocalToIso(local: string): string {
   const date = new Date(local);
   return isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
+/** Format a UTC ISO string as a short local clock time, e.g. "2:00 PM". */
+function formatLocalClockTime(iso: string, locale?: string): string {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * Resolves the availability line shown under the proposed time. When the sender gave a window
+ * (proposal.windowEnd set), the backend finds the first free slot inside it, so we surface that
+ * slot ("free at 2:00 PM") instead of a blunt conflict warning.
+ */
+function resolveAvailabilityText(
+  proposal: MeetingProposal,
+  translate: ReturnType<typeof useTranslation>['t'],
+  locale?: string,
+): string | null {
+  const prefix = 'emailDetail.schedulingRequest.proposedTime';
+  const isWindow = Boolean(proposal.windowEnd);
+
+  if (proposal.isAvailable === true) {
+    if (isWindow && proposal.suggestedTime) {
+      return translate(`${prefix}.freeAt`, {
+        time: formatLocalClockTime(proposal.suggestedTime, locale),
+      });
+    }
+    return translate(`${prefix}.available`);
+  }
+  if (proposal.isAvailable === false) {
+    return translate(isWindow ? `${prefix}.busyWindow` : `${prefix}.conflict`);
+  }
+  return proposal.calendarConnected ? translate(`${prefix}.checkFailed`) : null;
 }
 
 const DURATION_OPTIONS = [
@@ -296,7 +336,7 @@ const ProposedTimeCard: React.FC<ProposedTimeCardProps> = ({
   emailSubject,
   onCreateInvite,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Start in editing mode so the user always reviews details before creating (#1788).
   const [isEditing, setIsEditing] = useState(true);
 
@@ -307,24 +347,20 @@ const ProposedTimeCard: React.FC<ProposedTimeCardProps> = ({
         ? theme.colors.accent.error
         : theme.colors.text.tertiary;
 
-  const availabilityText =
-    proposal.isAvailable === true
-      ? t('emailDetail.schedulingRequest.proposedTime.available')
-      : proposal.isAvailable === false
-        ? t('emailDetail.schedulingRequest.proposedTime.conflict')
-        : proposal.calendarConnected
-          ? t('emailDetail.schedulingRequest.proposedTime.checkFailed')
-          : null;
+  const availabilityText = resolveAvailabilityText(proposal, t, i18n.language);
+
+  // Pre-fill the invite with the suggested free slot when available, else the proposed start.
+  const initialInviteTime = proposal.suggestedTime ?? proposal.proposedTime;
 
   const handleConfirmEdit = (time: string, duration: number, topic: string) => {
     setIsEditing(false);
     onCreateInvite(time, duration, topic);
   };
 
-  if (isEditing && proposal.proposedTime) {
+  if (isEditing && initialInviteTime) {
     return (
       <EditMeetingForm
-        initialTime={proposal.proposedTime}
+        initialTime={initialInviteTime}
         initialDuration={proposal.durationMinutes ?? DEFAULT_DURATION}
         initialTopic={proposal.topic ?? emailSubject ?? ''}
         onConfirm={handleConfirmEdit}

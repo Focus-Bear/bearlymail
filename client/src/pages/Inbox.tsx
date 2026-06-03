@@ -285,7 +285,10 @@ const InboxView: React.FC = () => {
           onToggleFilterBar={toggleFilterBar}
           onClearFilters={() => {
             clearFilters();
-            fetchEmails();
+            // Pass cleared filter values explicitly to avoid stale closure sending old filter params.
+            // clearFilters() schedules a React state update (async), so fetchEmails() without
+            // overrides would capture the pre-clear values and fetch the wrong emails. Fix #2334.
+            fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
           }}
           isAdmin={user?.isAdmin}
           debugViewOpen={debugPanel.debugViewOpen}
@@ -457,7 +460,8 @@ const InboxView: React.FC = () => {
               }}
               onClearFilters={() => {
                 clearFilters();
-                fetchEmails();
+                // Pass cleared filter values explicitly to avoid stale closure. Fix #2334.
+                fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
               }}
               onSplitViewArchive={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex, expandedCategories)}
               onSplitViewSnooze={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex, expandedCategories)}

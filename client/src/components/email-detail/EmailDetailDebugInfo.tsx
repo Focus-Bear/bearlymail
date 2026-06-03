@@ -144,6 +144,29 @@ interface FollowUpDebugInfo {
   };
 }
 
+interface PhishingDebugInfo {
+  emailId: string;
+  from: string | null;
+  fromName: string | null;
+  stored: {
+    confidence: 'low' | 'medium' | 'high' | null;
+    reason: string | null;
+  };
+  signals: {
+    hasDomainMismatch: boolean;
+    senderDomain: string | null;
+    linkedDomains: string[];
+    suspiciousKeywords: string[];
+    rawScore: number;
+  };
+  displayNameCheck: {
+    mismatch: boolean;
+    displayName: string | null;
+    senderDomain: string | null;
+    detail: string;
+  };
+}
+
 interface GitHubScanResult {
   bodyClassification: RawColumnClassification;
   bodyDecrypted: boolean;
@@ -181,6 +204,9 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
   const [loadingFollowUp, setLoadingFollowUp] = useState(false);
   const [followUpDebug, setFollowUpDebug] = useState<FollowUpDebugInfo | null>(null);
   const [followUpError, setFollowUpError] = useState<string | null>(null);
+  const [loadingPhishing, setLoadingPhishing] = useState(false);
+  const [phishingDebug, setPhishingDebug] = useState<PhishingDebugInfo | null>(null);
+  const [phishingError, setPhishingError] = useState<string | null>(null);
 
   const handleShowRawColumns = async () => {
     if (!emailData?.id || loadingRawColumns) {
@@ -221,6 +247,27 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
       setFollowUpError(msg);
     } finally {
       setLoadingFollowUp(false);
+    }
+  };
+
+  const handleShowPhishingDebug = async () => {
+    if (!emailData?.id || loadingPhishing) {
+      return;
+    }
+    setLoadingPhishing(true);
+    setPhishingDebug(null);
+    setPhishingError(null);
+    try {
+      const response = await axios.get<PhishingDebugInfo>(
+        `${API_URL}/emails/${emailData.id}/debug/phishing`,
+      );
+      setPhishingDebug(response.data);
+    } catch (err) {
+      console.error('phishingDebug:', err);
+      const msg = getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.phishingFailed');
+      setPhishingError(msg);
+    } finally {
+      setLoadingPhishing(false);
     }
   };
 
@@ -566,6 +613,78 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
                   {t('debug.emailDetail.githubScanNoLinks')}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+        <div style={{ marginTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
+          <strong>{t('debug.emailDetail.phishingTitle')}</strong>
+          <div>
+            <strong>{t('debug.emailDetail.phishingStoredConfidence')}:</strong>{' '}
+            <span style={{ color: emailData.phishingConfidence ? 'orange' : theme.colors.text.secondary, fontWeight: 600 }}>
+              {emailData.phishingConfidence ?? t('debug.emailDetail.phishingNotFlagged')}
+            </span>
+          </div>
+          {emailData.phishingReason && (
+            <div>
+              <strong>{t('debug.emailDetail.phishingStoredReason')}:</strong> {emailData.phishingReason}
+            </div>
+          )}
+          <div style={{ marginTop: theme.spacing.sm }}>
+            <button
+              type="button"
+              disabled={loadingPhishing}
+              onClick={() => void handleShowPhishingDebug()}
+              style={{
+                padding: '2px 8px',
+                fontSize: '11px',
+                backgroundColor: theme.colors.background.paper,
+                color: theme.colors.text.primary,
+                border: `1px solid ${theme.colors.border.light}`,
+                borderRadius: '4px',
+                cursor: loadingPhishing ? 'not-allowed' : 'pointer',
+                opacity: loadingPhishing ? DISABLED_CONTROL_OPACITY : 1,
+              }}
+            >
+              {loadingPhishing
+                ? t('debug.emailDetail.phishingLoading')
+                : t('debug.emailDetail.phishingLoad')}
+            </button>
+          </div>
+          {phishingError && (
+            <div style={{ marginTop: theme.spacing.sm, color: 'red', fontWeight: 600 }}>
+              {phishingError}
+            </div>
+          )}
+          {phishingDebug && (
+            <div style={{ marginTop: theme.spacing.sm }}>
+              <div style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.sm }}>
+                <strong>{t('debug.emailDetail.phishingSenderSection')}</strong>
+                <div>{t('debug.emailDetail.phishingFromName')}: {phishingDebug.fromName ?? t('debug.emailDetail.notAvailable')}</div>
+                <div>{t('debug.emailDetail.phishingFrom')}: {phishingDebug.from ?? t('debug.emailDetail.notAvailable')}</div>
+                <div>{t('debug.emailDetail.phishingSenderDomain')}: {phishingDebug.signals.senderDomain ?? t('debug.emailDetail.notAvailable')}</div>
+              </div>
+              <div style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.sm }}>
+                <strong>{t('debug.emailDetail.phishingDisplayNameCheckSection')}</strong>
+                <div>
+                  {t('debug.emailDetail.phishingDisplayNameMismatch')}:{' '}
+                  <span style={{ color: phishingDebug.displayNameCheck.mismatch ? 'red' : 'green', fontWeight: 600 }}>
+                    {phishingDebug.displayNameCheck.mismatch ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
+                  </span>
+                </div>
+                <div>{phishingDebug.displayNameCheck.detail}</div>
+              </div>
+              <div style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.sm }}>
+                <strong>{t('debug.emailDetail.phishingSignalsSection')}</strong>
+                <div>
+                  {t('debug.emailDetail.phishingDomainMismatch')}:{' '}
+                  <span style={{ color: phishingDebug.signals.hasDomainMismatch ? 'red' : 'green', fontWeight: 600 }}>
+                    {phishingDebug.signals.hasDomainMismatch ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
+                  </span>
+                </div>
+                <div>{t('debug.emailDetail.phishingLinkedDomains')}: {phishingDebug.signals.linkedDomains.join(', ') || t('debug.emailDetail.phishingNone')}</div>
+                <div>{t('debug.emailDetail.phishingSuspiciousKeywords')}: {phishingDebug.signals.suspiciousKeywords.join(', ') || t('debug.emailDetail.phishingNone')}</div>
+                <div>{t('debug.emailDetail.phishingRawScore')}: {phishingDebug.signals.rawScore}</div>
+              </div>
             </div>
           )}
         </div>

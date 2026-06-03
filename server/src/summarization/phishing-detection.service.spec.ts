@@ -8,6 +8,7 @@
  */
 
 import {
+  detectDisplayNameDomainMismatch,
   detectPhishingSignal,
   extractPhishingSignals,
   mergePhishingSignals,
@@ -166,6 +167,56 @@ describe("mergePhishingSignals", () => {
 // ---------------------------------------------------------------------------
 // validatePhishingConfidence
 // ---------------------------------------------------------------------------
+
+describe("detectDisplayNameDomainMismatch", () => {
+  it("flags a brand display name sent from an unrelated domain", () => {
+    const result = detectDisplayNameDomainMismatch(
+      "SendGrid",
+      "esmsolutions.com",
+    );
+    expect(result.mismatch).toBe(true);
+    expect(result.detail).toContain("possible brand impersonation");
+  });
+
+  it("does not flag when the display name matches the sender domain", () => {
+    expect(
+      detectDisplayNameDomainMismatch("SendGrid", "sendgrid.net").mismatch,
+    ).toBe(false);
+    expect(
+      detectDisplayNameDomainMismatch("Focus Bear", "focusbear.io").mismatch,
+    ).toBe(false);
+  });
+
+  it("matches against the registered domain label on subdomains", () => {
+    expect(
+      detectDisplayNameDomainMismatch("PayPal", "secure.paypal.com").mismatch,
+    ).toBe(false);
+  });
+
+  it("matches the brand label when the sender uses a multi-part public suffix", () => {
+    expect(
+      detectDisplayNameDomainMismatch("Amazon", "amazon.co.uk").mismatch,
+    ).toBe(false);
+    expect(
+      detectDisplayNameDomainMismatch("BBC", "news.bbc.co.uk").mismatch,
+    ).toBe(false);
+    expect(
+      detectDisplayNameDomainMismatch("Globo", "globo.com.br").mismatch,
+    ).toBe(false);
+  });
+
+  it("returns no mismatch when data is missing", () => {
+    expect(
+      detectDisplayNameDomainMismatch(null, "esmsolutions.com").mismatch,
+    ).toBe(false);
+    expect(detectDisplayNameDomainMismatch("SendGrid", null).mismatch).toBe(
+      false,
+    );
+    expect(
+      detectDisplayNameDomainMismatch("   ", "esmsolutions.com").mismatch,
+    ).toBe(false);
+  });
+});
 
 describe("validatePhishingConfidence", () => {
   it("returns valid confidence levels", () => {

@@ -51,6 +51,7 @@ import { EmailDebugController } from "./email-debug.controller";
 import { EmailDebugService } from "./email-debug.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
+import { EmailDebugPhishingService } from "./email-debug-phishing.service";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
 import { EmailExportService } from "./email-export.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
@@ -281,6 +282,7 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailExportService,
     EmailDebugCategoryService,
     EmailDebugRawColumnsService,
+    EmailDebugPhishingService,
     EmailSearchRankingService,
     SearchEnrichmentService,
     StuckPriorityDetectionService,

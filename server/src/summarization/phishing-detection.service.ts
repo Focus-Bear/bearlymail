@@ -399,6 +399,101 @@ export function detectPhishingSignal(
 }
 
 /**
+ * Common second-level domains used in multi-part public suffixes (e.g. ".co.uk",
+ * ".com.br"). When a sender's domain ends in one of these, the registered brand
+ * label is the third-to-last part, not the second-to-last.
+ */
+const MULTI_PART_TLD_SLDS = new Set([
+  "co",
+  "com",
+  "org",
+  "net",
+  "gov",
+  "edu",
+  "ac",
+]);
+
+/**
+ * Extract the registered brand label from a hostname, handling common multi-part
+ * public suffixes. For "amazon.co.uk" returns "amazon"; for "mail.esmsolutions.com"
+ * returns "esmsolutions". Falls back to the original hostname when extraction fails.
+ */
+function extractDomainLabel(senderDomain: string): string {
+  const parts = senderDomain.split(".");
+  const isMultiPartTld =
+    parts.length >= 3 && MULTI_PART_TLD_SLDS.has(parts[parts.length - 2]);
+  const labelIndex = isMultiPartTld ? parts.length - 3 : parts.length - 2;
+  return parts[labelIndex] ?? senderDomain;
+}
+
+/**
+ * Result of comparing a sender's display name against their actual email domain.
+ * Used for debugging brand-impersonation phishing (e.g. display name "SendGrid"
+ * sent from noreply@esmsolutions.com). This signal is NOT yet wired into the
+ * production verdict path — it is surfaced in the admin phishing debug panel only.
+ */
+export interface DisplayNameDomainCheck {
+  /** True when the display name doesn't appear to relate to the sender's domain */
+  mismatch: boolean;
+  displayName: string | null;
+  senderDomain: string | null;
+  /** Human-readable explanation of the verdict */
+  detail: string;
+}
+
+/**
+ * Detect when a sender's display name looks unrelated to their actual email domain
+ * — a common brand-impersonation phishing pattern that the domain-link and keyword
+ * checks miss entirely.
+ *
+ * Compares the registered domain label (e.g. "esmsolutions" from "mail.esmsolutions.com")
+ * against the alphanumeric-normalised display name. If neither contains the other, the
+ * names are considered unrelated. This is a coarse heuristic intended for debugging,
+ * so it will flag legitimate personal-name senders too — it is a signal, not a verdict.
+ */
+export function detectDisplayNameDomainMismatch(
+  fromName: string | null | undefined,
+  senderDomain: string | null,
+): DisplayNameDomainCheck {
+  const displayName = fromName?.trim() || null;
+  if (!displayName || !senderDomain) {
+    return {
+      mismatch: false,
+      displayName,
+      senderDomain,
+      detail: "Insufficient data (missing display name or sender domain)",
+    };
+  }
+
+  const domainLabel = extractDomainLabel(senderDomain);
+  const normalizedName = displayName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normalizedDomain = domainLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  if (!normalizedName || !normalizedDomain) {
+    return {
+      mismatch: false,
+      displayName,
+      senderDomain,
+      detail:
+        "Insufficient data (display name or domain has no comparable text)",
+    };
+  }
+
+  const related =
+    normalizedDomain.includes(normalizedName) ||
+    normalizedName.includes(normalizedDomain);
+
+  return {
+    mismatch: !related,
+    displayName,
+    senderDomain,
+    detail: related
+      ? `Display name "${displayName}" matches sender domain "${senderDomain}"`
+      : `Display name "${displayName}" does not appear in sender domain "${senderDomain}" — possible brand impersonation`,
+  };
+}
+
+/**
  * Pick the stronger of two PhishingSignals (useful when aggregating thread signals).
  */
 export function mergePhishingSignals(

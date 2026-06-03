@@ -37,6 +37,7 @@ import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
+import { EmailDebugPhishingService } from "./email-debug-phishing.service";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import {
@@ -66,6 +67,7 @@ export class EmailDebugAdminController {
     private readonly rawColumnsService: EmailDebugRawColumnsService,
     private readonly emailFollowUpService: EmailFollowUpService,
     private readonly emailDebugCategoryService: EmailDebugCategoryService,
+    private readonly phishingDebugService: EmailDebugPhishingService,
   ) {}
 
   // ─── Recategorization ────────────────────────────────────────────────────────
@@ -209,6 +211,19 @@ export class EmailDebugAdminController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   async getFollowUpStatus(@Request() req, @Param("id") id: string) {
     return this.emailFollowUpService.getFollowUpDebugInfo(req.user.userId, id);
+  }
+
+  /**
+   * Explain the phishing verdict for one email — returns the stored LLM
+   * confidence/reason, the keyword/domain signals that fed it, and a
+   * display-name vs sender-domain impersonation check. Diagnoses why a
+   * spoofed email (e.g. "SendGrid" sent from a mismatched domain) slipped
+   * through.
+   */
+  @Get(":id/debug/phishing")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getPhishingDebug(@Param("id") id: string) {
+    return this.phishingDebugService.getPhishingDebugInfo(id);
   }
 
   @Get(":id/debug/category")

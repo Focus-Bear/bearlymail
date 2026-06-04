@@ -63,6 +63,7 @@ describe("SubscriptionsService", () => {
     mockConfigGet = jest.fn().mockImplementation((key: string) => {
       if (key === "REVENUECAT_API_KEY") return "test-api-key";
       if (key === "REVENUECAT_WEBHOOK_SECRET") return "test-webhook-secret";
+      if (key === "REVENUECAT_PROJECT_ID") return "test-project-id";
       return null;
     });
 
@@ -290,14 +291,9 @@ describe("SubscriptionsService", () => {
         .mockResolvedValueOnce(rcUser);
       mockedAxios.get.mockResolvedValue({
         data: {
-          subscriber: {
-            entitlements: {
-              premium: {
-                expires_date: "2030-01-01T00:00:00Z",
-                will_renew: true,
-              },
-            },
-          },
+          items: [
+            { entitlement_id: "bearlymail_starter", expires_at: 1893456000000 },
+          ],
         },
       });
 
@@ -906,8 +902,7 @@ describe("SubscriptionsService", () => {
       });
     });
 
-    it("should check RevenueCat when user has RevenueCat ID and API key", async () => {
-      configService.get.mockReturnValue("test-api-key");
+    it("should check RevenueCat (v2 active entitlements) when user is linked", async () => {
       const revenueCatUser = {
         ...mockUser,
         revenueCatUserId: "rc-user-123",
@@ -916,14 +911,9 @@ describe("SubscriptionsService", () => {
       repository.findOne.mockResolvedValue(revenueCatUser);
       mockedAxios.get.mockResolvedValue({
         data: {
-          subscriber: {
-            entitlements: {
-              premium: {
-                expires_date: "2025-01-01T00:00:00Z",
-                will_renew: true,
-              },
-            },
-          },
+          items: [
+            { entitlement_id: "bearlymail_starter", expires_at: 1893456000000 },
+          ],
         },
       });
       repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
@@ -931,7 +921,7 @@ describe("SubscriptionsService", () => {
       const result = await service.checkSubscriptionStatus("user-1");
 
       expect(mockedAxios.get).toHaveBeenCalledWith(
-        "https://api.revenuecat.com/v1/subscribers/rc-user-123",
+        "https://api.revenuecat.com/v2/projects/test-project-id/customers/rc-user-123/active_entitlements",
         {
           headers: {
             Authorization: "Bearer test-api-key",
@@ -940,6 +930,7 @@ describe("SubscriptionsService", () => {
         },
       );
       expect(result.isActive).toBe(true);
+      expect(result.status).toBe("active");
     });
 
     it("should fall back to database status when RevenueCat check fails", async () => {
@@ -1009,14 +1000,9 @@ describe("SubscriptionsService", () => {
       repository.findOne.mockResolvedValue(user);
       mockedAxios.get.mockResolvedValue({
         data: {
-          subscriber: {
-            entitlements: {
-              premium: {
-                expires_date: "2027-01-01T00:00:00Z",
-                will_renew: true,
-              },
-            },
-          },
+          items: [
+            { entitlement_id: "bearlymail_starter", expires_at: 1893456000000 },
+          ],
         },
       });
       repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
@@ -1025,7 +1011,7 @@ describe("SubscriptionsService", () => {
         event: {
           type: "INITIAL_PURCHASE",
           app_user_id: "rc-user-123",
-          product_id: "premium",
+          product_id: "prod_individual_sku",
         },
       };
 

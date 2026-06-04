@@ -80,8 +80,9 @@ export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
   private readonly apiKey: string | null = null;
   private readonly webhookSecret: string | null = null;
-  // RevenueCat API base URL
-  private readonly baseUrl = "https://api.revenuecat.com/v1";
+  private readonly projectId: string | null = null;
+  // RevenueCat REST API v2 base URL
+  private readonly baseUrl = "https://api.revenuecat.com/v2";
 
   constructor(
     @InjectRepository(User)
@@ -95,11 +96,18 @@ export class SubscriptionsService {
     this.apiKey = this.configService.get<string>("REVENUECAT_API_KEY") || null;
     this.webhookSecret =
       this.configService.get<string>("REVENUECAT_WEBHOOK_SECRET") || null;
-    if (this.apiKey) {
+    this.projectId =
+      this.configService.get<string>("REVENUECAT_PROJECT_ID") || null;
+    if (this.apiKey && this.projectId) {
       this.logger.log("RevenueCat API initialized");
+    } else if (this.apiKey && !this.projectId) {
+      this.logger.warn(
+        "REVENUECAT_PROJECT_ID not set — RevenueCat API reads (v2) are disabled; " +
+          "webhooks still process from their payload",
+      );
     } else {
       this.logger.warn(
-        "REVENUECAT_API_KEY not found, RevenueCat features disabled",
+        "REVENUECAT_API_KEY not found, RevenueCat API reads disabled",
       );
     }
     if (!this.webhookSecret) {
@@ -166,6 +174,47 @@ export class SubscriptionsService {
   }
 
   /**
+   * Fetches a customer's active entitlements via the RevenueCat REST API v2:
+   *   GET /projects/{projectId}/customers/{id}/active_entitlements
+   *
+   * Returns a normalised, still-active list. `expires_at` may arrive as either
+   * an epoch-ms number or an ISO 8601 string depending on the RC API version,
+   * so both are accepted; `null` means no expiry. Returns [] when the API
+   * isn't configured (apiKey/projectId) so callers transparently fall back to
+   * the webhook-maintained DB status.
+   * Requires only the `customer_information:customers:read` v2 permission.
+   */
+  private async getActiveEntitlements(
+    customerId: string,
+  ): Promise<{ entitlementId: string; expiresAt: Date | null }[]> {
+    if (!this.apiKey || !this.projectId) return [];
+    const responseBody = await this.makeRevenueCatRequest(
+      `/projects/${this.projectId}/customers/${encodeURIComponent(
+        customerId,
+      )}/active_entitlements`,
+    );
+    const items: Array<{
+      entitlement_id?: string;
+      expires_at?: string | number | null;
+    }> = responseBody?.items ?? [];
+    const now = Date.now();
+    return items
+      .filter((item) => {
+        if (!item.entitlement_id) return false;
+        if (item.expires_at == null) return true;
+        const expiresTime =
+          typeof item.expires_at === "number"
+            ? item.expires_at
+            : new Date(item.expires_at).getTime();
+        return !isNaN(expiresTime) && expiresTime > now;
+      })
+      .map((item) => ({
+        entitlementId: item.entitlement_id as string,
+        expiresAt: item.expires_at != null ? new Date(item.expires_at) : null,
+      }));
+  }
+
+  /**
    * Start a 7-day free trial for a user
    */
   async startTrial(
@@ -227,37 +276,38 @@ export class SubscriptionsService {
       }
     }
 
-    // Check RevenueCat if user has a RevenueCat ID
-    if (user.revenueCatUserId && this.apiKey) {
+    // Sync from RevenueCat (v2 active entitlements) if the user is linked.
+    // Any active entitlement → active access; the local "trial" state is owned
+    // by startTrial(), not RevenueCat.
+    if (user.revenueCatUserId && this.apiKey && this.projectId) {
       try {
-        const customerInfo = await this.makeRevenueCatRequest(
-          `/subscribers/${user.revenueCatUserId}`,
-        );
-        const activeEntitlements = customerInfo.subscriber?.entitlements || {};
-        const activeEntitlementKeys = Object.keys(activeEntitlements).filter(
-          (key) =>
-            activeEntitlements[key]?.expires_date === null ||
-            new Date(activeEntitlements[key].expires_date) > new Date(),
-        );
-
-        // Check if user has active entitlement
-        if (activeEntitlementKeys.length > 0) {
-          // User has active subscription via RevenueCat
-          const firstEntitlement = activeEntitlements[activeEntitlementKeys[0]];
-          const status = firstEntitlement?.will_renew
-            ? SUBSCRIPTION_STATUS.ACTIVE
-            : SUBSCRIPTION_STATUS.TRIAL;
-          const expiresAt = firstEntitlement?.expires_date
-            ? new Date(firstEntitlement.expires_date)
-            : undefined;
-
+        const active = await this.getActiveEntitlements(user.revenueCatUserId);
+        if (active.length > 0) {
+          const expiresAt = active[0].expiresAt ?? undefined;
           await this.userRepository.update(userId, {
-            subscriptionStatus: status,
+            subscriptionStatus: SUBSCRIPTION_STATUS.ACTIVE,
             subscriptionExpiresAt: expiresAt,
             revenueCatUserId: user.revenueCatUserId,
           });
 
-          return { status, expiresAt, isActive: true };
+          return {
+            status: SUBSCRIPTION_STATUS.ACTIVE,
+            expiresAt,
+            isActive: true,
+          };
+        }
+        // RC successfully returned zero active entitlements. If the DB still
+        // says ACTIVE (e.g. an EXPIRATION/CANCELLATION webhook was missed),
+        // demote to EXPIRED so the user doesn't retain paid access on the
+        // strength of a stale local flag.
+        if (user.subscriptionStatus === SUBSCRIPTION_STATUS.ACTIVE) {
+          await this.userRepository.update(userId, {
+            subscriptionStatus: SUBSCRIPTION_STATUS.EXPIRED,
+          });
+          return {
+            status: SUBSCRIPTION_STATUS.EXPIRED,
+            isActive: false,
+          };
         }
       } catch (error) {
         this.logger.error(
@@ -292,11 +342,10 @@ export class SubscriptionsService {
    * Handle webhook from RevenueCat
    */
   async handleWebhook(payload: RevenueCatWebhookPayload): Promise<void> {
-    if (!this.apiKey) {
-      this.logger.warn("RevenueCat not initialized, ignoring webhook");
-      return;
-    }
-
+    // Webhook processing does not require the API key: org/volume events are
+    // resolved entirely from the payload, and the individual path degrades
+    // gracefully when the API isn't configured. Authenticity is enforced by the
+    // signature check in the controller.
     try {
       const { event } = payload;
       const { app_user_id } = event;
@@ -327,39 +376,19 @@ export class SubscriptionsService {
         case "INITIAL_PURCHASE":
         case "RENEWAL":
         case "PRODUCT_CHANGE":
-          if (this.apiKey) {
-            try {
-              const customerInfo = await this.makeRevenueCatRequest(
-                `/subscribers/${app_user_id}`,
-              );
-              const activeEntitlements =
-                customerInfo.subscriber?.entitlements || {};
-              const activeEntitlementKeys = Object.keys(
-                activeEntitlements,
-              ).filter(
-                (key) =>
-                  activeEntitlements[key]?.expires_date === null ||
-                  new Date(activeEntitlements[key].expires_date) > new Date(),
-              );
-
-              if (activeEntitlementKeys.length > 0) {
-                const firstEntitlement =
-                  activeEntitlements[activeEntitlementKeys[0]];
-                const expiresAt = firstEntitlement?.expires_date
-                  ? new Date(firstEntitlement.expires_date)
-                  : undefined;
-
-                await this.userRepository.update(user.id, {
-                  subscriptionStatus: SUBSCRIPTION_STATUS.ACTIVE,
-                  subscriptionExpiresAt: expiresAt,
-                  revenueCatUserId: app_user_id,
-                });
-              }
-            } catch (error) {
-              this.logger.error(
-                `Failed to fetch customer info for ${app_user_id}: ${sanitizeAxiosError(error)}`,
-              );
+          try {
+            const active = await this.getActiveEntitlements(app_user_id);
+            if (active.length > 0) {
+              await this.userRepository.update(user.id, {
+                subscriptionStatus: SUBSCRIPTION_STATUS.ACTIVE,
+                subscriptionExpiresAt: active[0].expiresAt ?? undefined,
+                revenueCatUserId: app_user_id,
+              });
             }
+          } catch (error) {
+            this.logger.error(
+              `Failed to fetch customer info for ${app_user_id}: ${sanitizeAxiosError(error)}`,
+            );
           }
           break;
 

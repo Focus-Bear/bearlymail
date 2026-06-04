@@ -8,7 +8,6 @@ import {
 } from "../constants/llm-constants";
 import {
   NEWSLETTER_DISCOUNT,
-  PRIORITY_SCORES,
   SENTIMENT_THRESHOLDS,
 } from "../constants/priority-constants";
 import { Email } from "../database/entities/email.entity";
@@ -22,6 +21,7 @@ import { ProtoCategoriesService } from "../proto-categories/proto-categories.ser
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
 import { buildHonestCategoryExplanation } from "./category-explanation.helper";
+import { applyEmergencyDelivery } from "./emergency-delivery.helper";
 
 type PriorityLlmResult = {
   urgencyScore: number;
@@ -102,7 +102,7 @@ export class LLMPriorityResultService {
     contexts: Array<{ contextKey: string; contextValue: string }>,
     userId: string,
     workerId: string,
-  ): Promise<void> {
+  ): Promise<number> {
     let thread: EmailThread | null = null;
     if (email.emailThreadId) {
       thread = await this.emailThreadRepository.findOne({
@@ -152,6 +152,8 @@ export class LLMPriorityResultService {
         priorityExplanation,
       });
     }
+
+    return finalScore;
   }
 
   private async persistPriorityToThread(args: {
@@ -239,6 +241,7 @@ export class LLMPriorityResultService {
           urgencyUpdate.explanation || thread.urgencyExplanation,
         priorityExplanation,
         priorityScore: finalScore,
+        prioritySource: "llm" as const,
         ...(categoryId !== null && categoryId !== undefined
           ? { categoryId }
           : {}),
@@ -287,18 +290,13 @@ export class LLMPriorityResultService {
     starCount: number,
     isBatched: boolean,
   ): Promise<void> {
-    // Starred + already delivered (was visible in Action/Follow-Up before the email arrived): no-op.
-    if (starCount > 0 && !isBatched) return;
-    if (finalScore < PRIORITY_SCORES.HIGH_THRESHOLD) return;
-    await this.emailThreadRepository.update(
-      { id: emailThreadId, userId },
-      {
-        isBatched: false,
-        batchReleaseAt: null,
-        wasDeliveredEarly: true,
-        batchDecisionReason: `Emergency delivery (score ${finalScore})`,
-      },
-    );
+    await applyEmergencyDelivery(this.emailThreadRepository, {
+      emailThreadId,
+      userId,
+      finalScore,
+      starCount,
+      isBatched,
+    });
   }
 
   calculatePriorityBreakdown(

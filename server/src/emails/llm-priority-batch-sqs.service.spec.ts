@@ -18,9 +18,11 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { DebugService } from "../debug/debug.service";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
+import { PriorityRulesService } from "../priority-rules/priority-rules.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { EmailsService } from "./emails.service";
+import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
@@ -159,6 +161,14 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
         {
           provide: PriorityAnalysisFinalizerService,
           useValue: mockFinalizer,
+        },
+        {
+          provide: LLMDeterministicPriorityService,
+          useValue: { tryHandle: jest.fn().mockResolvedValue(false) },
+        },
+        {
+          provide: PriorityRulesService,
+          useValue: { shadowAndMine: jest.fn() },
         },
       ],
     }).compile();

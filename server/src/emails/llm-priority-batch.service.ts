@@ -6,11 +6,6 @@ import { In, Repository } from "typeorm";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
-import {
-  BODY_PREVIEW_LENGTHS,
-  QA_KEYWORD_REGEX,
-  QA_KEYWORD_SCAN,
-} from "../constants/llm-constants";
 import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
 import { ENV_BOOLEAN_STRING } from "../constants/service-constants";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -23,18 +18,20 @@ import {
 } from "../database/entities/user-context.entity";
 import { DebugService } from "../debug/debug.service";
 import { DEBUG_FEATURES } from "../debug/debug-feature-names";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
 import {
   BatchPriorityResult,
   PriorityAnalysisService,
 } from "../llm/priority-analysis.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
+import { PriorityRulesService } from "../priority-rules/priority-rules.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
 import { protoCategoryKey } from "../utils/category-key.util";
 import { parseCategoryValue } from "../utils/category-name.util";
+import { buildBatchEmailPayloads } from "./batch-email-payloads.helper";
 import { EmailsService } from "./emails.service";
+import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
@@ -76,6 +73,8 @@ export class LLMPriorityBatchService {
     private readonly debugService: DebugService,
     private readonly prioritySqsDispatchService: PrioritySqsDispatchService,
     private readonly priorityAnalysisFinalizerService: PriorityAnalysisFinalizerService,
+    private readonly deterministicPriorityService: LLMDeterministicPriorityService,
+    private readonly priorityRulesService: PriorityRulesService,
   ) {}
 
   private async checkHasNewEmails(
@@ -245,7 +244,17 @@ export class LLMPriorityBatchService {
               workerId,
               email.id,
             );
-            return shouldSkip ? null : email;
+            if (shouldSkip) return null;
+            // Deterministic skip: a sender with a learned priority rule (and a
+            // category rule) is scored in code and excluded from the LLM batch.
+            const handledByRule =
+              await this.deterministicPriorityService.tryHandle(
+                userId,
+                email,
+                thread,
+                workerId,
+              );
+            return handledByRule ? null : email;
           }),
       )
     ).filter(
@@ -282,13 +291,21 @@ export class LLMPriorityBatchService {
         continue;
       }
       try {
-        await this.priorityResultService.applyPriorityResult(
+        const finalScore = await this.priorityResultService.applyPriorityResult(
           email,
           llmResult as Parameters<
             LLMPriorityResultService["applyPriorityResult"]
           >[1],
           contexts,
           userId,
+          workerId,
+        );
+        // Feed batch-scored emails into shadow comparison + rule mining, same
+        // as the single refine path.
+        await this.priorityRulesService.shadowAndMine(
+          userId,
+          email,
+          finalScore,
           workerId,
         );
       } catch (updateError) {
@@ -298,64 +315,6 @@ export class LLMPriorityBatchService {
         );
       }
     }
-  }
-
-  buildBatchEmailPayloads(
-    emailsToProcess: Email[],
-    threadMap?: Map<string, EmailThread>,
-    categoryMap?: Map<string, string>,
-  ): Array<{
-    emailKey: string;
-    from: string;
-    fromName?: string;
-    senderJobTitle?: string;
-    subject: string;
-    body: string;
-    preComputedSentimentScore?: number;
-    existingUrgencyScore?: number;
-    existingCategory?: string;
-  }> {
-    return emailsToProcess.map((email) => {
-      // For QA-related emails, always use raw body so the categorisation LLM sees
-      // the actual pass/fail verdict — summaries may strip it out (fixes #1453 Bug 1).
-      const isQaRelated =
-        QA_KEYWORD_REGEX.test(email.subject || "") ||
-        QA_KEYWORD_REGEX.test(
-          email.body?.substring(
-            0,
-            QA_KEYWORD_SCAN.QA_KEYWORD_BODY_SCAN_CHARS,
-          ) || "",
-        );
-      const bodyForBatch =
-        !isQaRelated && email.summary?.trim()
-          ? email.summary
-          : cleanEmailContent(
-              email.body,
-              email.htmlBody,
-              BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-            );
-      const thread =
-        threadMap && email.emailThreadId
-          ? threadMap.get(email.emailThreadId)
-          : undefined;
-      return {
-        emailKey: email.id,
-        from: email.from || "",
-        fromName: email.fromName,
-        senderJobTitle: email.senderJobTitle,
-        subject: email.subject || "",
-        body: bodyForBatch,
-        preComputedSentimentScore: email.sentimentScore ?? undefined,
-        existingUrgencyScore:
-          thread?.urgencyScore !== undefined && thread.urgencyScore !== null
-            ? thread.urgencyScore
-            : undefined,
-        existingCategory:
-          thread?.categoryId && categoryMap
-            ? categoryMap.get(thread.categoryId)
-            : undefined,
-      };
-    });
   }
 
   /** Load a thread map for the given emails so callers can access existing urgency scores. */
@@ -639,7 +598,7 @@ export class LLMPriorityBatchService {
         }),
     );
 
-    const emailPayloads = this.buildBatchEmailPayloads(
+    const emailPayloads = buildBatchEmailPayloads(
       emails,
       threadMap,
       categoryMap,
@@ -703,7 +662,7 @@ export class LLMPriorityBatchService {
           return [(ctx as UserContext).contextId, name] as const;
         }),
     );
-    const batchEmails = this.buildBatchEmailPayloads(
+    const batchEmails = buildBatchEmailPayloads(
       emailsNeedingFullAnalysis,
       threadMapForPayload,
       categoryMap,

@@ -264,6 +264,14 @@ export class EmailThread {
   categorySource: "summary" | "priority" | null;
 
   @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "How priorityScore was last set: 'llm' (analyze_priority) or 'rule' (deterministic priority rule). Rule-scored threads are excluded when mining new priority rules to avoid a self-reinforcing feedback loop.",
+  })
+  prioritySource: "llm" | "rule" | null;
+
+  @Column({
     type: "uuid",
     nullable: true,
     comment:

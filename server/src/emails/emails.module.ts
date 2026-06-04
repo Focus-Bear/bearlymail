@@ -32,6 +32,7 @@ import { GoogleAccountsModule } from "../google-accounts/google-accounts.module"
 import { LLMModule } from "../llm/llm.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { PriorityModule } from "../priority/priority.module";
+import { PriorityRulesModule } from "../priority-rules/priority-rules.module";
 import { ProtoCategoriesModule } from "../proto-categories/proto-categories.module";
 import { QueueModule } from "../queue/queue.module";
 import { ScheduledEmailsModule } from "../scheduled-emails/scheduled-emails.module";
@@ -90,11 +91,13 @@ import { EmailThreadService } from "./email-thread.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { IncrementalSummaryHelperService } from "./incremental-summary-helper.service";
+import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMProcessor } from "./llm-processor";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
+import { PriorityRuleMiningCron } from "./priority-rule-mining.cron";
 import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { GmailSyncService } from "./providers/gmail-sync.service";
@@ -147,6 +150,7 @@ import { SyncHistoryService } from "./sync-history.service";
     forwardRef(() => SubscriptionsModule),
     DebugModule,
     CategoryRulesModule,
+    PriorityRulesModule,
   ],
   // EmailsController must be LAST: it defines @Get(":id"), which otherwise steals
   // paths like recategorize-progress, backlog-progress, etc. from sibling controllers.
@@ -281,6 +285,8 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailSyncProcessor,
     LLMProcessor,
     LLMPriorityResultService,
+    LLMDeterministicPriorityService,
+    PriorityRuleMiningCron,
     LLMPriorityBatchService,
     IncrementalSummaryHelperService,
     LLMSummaryProcessorService,

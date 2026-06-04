@@ -20,19 +20,19 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { DebugService } from "../debug/debug.service";
 import { DEBUG_FEATURES } from "../debug/debug-feature-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
-import {
-  buildRuleMatchText,
-  cleanEmailContent,
-} from "../llm/email-content-cleaner";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { PriorityService } from "../priority/priority.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
+import { PriorityRulesService } from "../priority-rules/priority-rules.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { EmailsService } from "./emails.service";
+import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
+import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 // Preview length constants for log messages
 const ORCHESTRATOR_CONSTANTS = {
@@ -69,10 +69,12 @@ export class LLMProcessor implements OnModuleInit {
     private cloudWatchService: CloudWatchService,
     private protoCategoriesService: ProtoCategoriesService,
     private priorityResultService: LLMPriorityResultService,
+    private deterministicPriorityService: LLMDeterministicPriorityService,
     private priorityBatchService: LLMPriorityBatchService,
     private summaryProcessorService: LLMSummaryProcessorService,
     private debugService: DebugService,
     private categoryRulesService: CategoryRulesService,
+    private priorityRulesService: PriorityRulesService,
     private readonly userEncryptionService: UserEncryptionService,
   ) {
     const cpuCores = os.cpus().length;
@@ -171,10 +173,6 @@ export class LLMProcessor implements OnModuleInit {
     return { email, thread };
   }
 
-  /**
-   * Look up a deterministic category rule for the email and build the body hint string.
-   * Returns the matched rule (or null) and the body text to send to the LLM.
-   */
   private async resolveCategoryHint(
     userId: string,
     emailId: string,
@@ -185,16 +183,7 @@ export class LLMProcessor implements OnModuleInit {
     categoryRuleMatch: CategoryRuleMatch | null;
     bodyWithCategoryHint: string;
   }> {
-    const bodyTextForMatch = buildRuleMatchText(
-      email.body || "",
-      email.htmlBody,
-      BODY_PREVIEW_LENGTHS.RULE_MATCH,
-    );
-    const emailMetadata = {
-      from: email.from || "",
-      subject: email.subject || "",
-      bodyTextForMatch,
-    };
+    const emailMetadata = buildRuleEmailMetadata(email);
     const categoryRuleMatch = await this.categoryRulesService.findMatchingRule(
       userId,
       emailMetadata,
@@ -224,16 +213,7 @@ export class LLMProcessor implements OnModuleInit {
     categoryName: string,
     workerId: string,
   ): Promise<void> {
-    const bodyTextForMatch = buildRuleMatchText(
-      email.body || "",
-      email.htmlBody,
-      BODY_PREVIEW_LENGTHS.RULE_MATCH,
-    );
-    const emailMetadata = {
-      from: email.from || "",
-      subject: email.subject || "",
-      bodyTextForMatch,
-    };
+    const emailMetadata = buildRuleEmailMetadata(email);
     try {
       await this.categoryRulesService.generateCompositeRuleFromEmail(
         userId,
@@ -337,11 +317,20 @@ export class LLMProcessor implements OnModuleInit {
     }
     tracker.endPhase("llmCall");
     tracker.startPhase("dbUpdate");
-    await this.priorityResultService.applyPriorityResult(
+    const finalScore = await this.priorityResultService.applyPriorityResult(
       email,
       llmResult,
       contexts,
       userId,
+      workerId,
+    );
+    // Shadow-compare any deterministic priority rule against the LLM's score
+    // and mine/refresh a rule for this sender. Never skips the LLM yet and never
+    // throws (issue: deterministic priority rules, Phase 1).
+    await this.priorityRulesService.shadowAndMine(
+      userId,
+      email,
+      finalScore,
       workerId,
     );
     tracker.endPhase("dbUpdate");
@@ -466,6 +455,17 @@ export class LLMProcessor implements OnModuleInit {
         );
         if (!fetchResult) return;
         const { email, thread } = fetchResult;
+
+        const skipped = await this.deterministicPriorityService.tryHandle(
+          userId,
+          email,
+          thread,
+          workerId,
+        );
+        if (skipped) {
+          tracker.finish();
+          return;
+        }
 
         const incrementalResult =
           await this.summaryProcessorService.tryIncrementalAnalysis({

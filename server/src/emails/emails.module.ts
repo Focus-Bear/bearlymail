@@ -35,6 +35,7 @@ import { PriorityModule } from "../priority/priority.module";
 import { ProtoCategoriesModule } from "../proto-categories/proto-categories.module";
 import { QueueModule } from "../queue/queue.module";
 import { ScheduledEmailsModule } from "../scheduled-emails/scheduled-emails.module";
+import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.module";
 import { SummarizationModule } from "../summarization/summarization.module";
 import { UsersModule } from "../users/users.module";
@@ -143,6 +144,7 @@ import { SyncHistoryService } from "./sync-history.service";
     ProtoCategoriesModule,
     AwsModule,
     forwardRef(() => ScheduledEmailsModule),
+    forwardRef(() => SubscriptionsModule),
     DebugModule,
     CategoryRulesModule,
   ],

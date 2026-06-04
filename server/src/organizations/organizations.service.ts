@@ -103,6 +103,74 @@ export class OrganizationsService {
     return saved;
   }
 
+  /**
+   * Ensures the user belongs to an organisation (the "org of one" model).
+   *
+   * Every user is an org: an individual is simply an org with a single seat.
+   * This is idempotent and safe to call on every login:
+   *   - if the user already owns an org, returns it;
+   *   - if the user is an active member of someone else's org (a team), returns
+   *     that org — they don't need a personal one;
+   *   - otherwise creates a personal org (maxSeats=1) with the user as owner.
+   *
+   * The DB enforces one-org-per-owner via a unique index on ownerId, so a race
+   * between concurrent logins resolves to a single org (the loser re-reads it).
+   */
+  async ensurePersonalOrg(userId: string): Promise<Organization> {
+    const existingOwned = await this.orgRepo.findOne({
+      where: { ownerId: userId },
+    });
+    if (existingOwned) return existingOwned;
+
+    const membership = await this.memberRepo.findOne({
+      where: { userId, status: MEMBER_STATUS.ACTIVE },
+      relations: ["organization"],
+    });
+    if (membership) return membership.organization;
+
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
+
+    const orgName = user.displayName ?? user.name ?? "Personal workspace";
+    try {
+      const saved = await this.orgRepo.manager.transaction(async (tx) => {
+        const org = tx.create(Organization, {
+          name: orgName,
+          ownerId: userId,
+          maxSeats: 1,
+        });
+        const savedOrg = await tx.save(org);
+
+        const ownerMember = tx.create(OrganizationMember, {
+          organizationId: savedOrg.id,
+          userId,
+          email: user.email,
+          emailHash: EncryptionHelper.hashEmail(user.email),
+          role: MEMBER_ROLES.OWNER,
+          status: MEMBER_STATUS.ACTIVE,
+          displayName: user.displayName ?? user.name ?? null,
+          inviteToken: null,
+          inviteExpires: null,
+          invitedBy: userId,
+        });
+        await tx.save(ownerMember);
+
+        return savedOrg;
+      });
+
+      this.logger.log(
+        `Personal org ${saved.id} provisioned for user ${userId}`,
+      );
+      return saved;
+    } catch (err) {
+      // A concurrent login may have created the org first (unique ownerId index).
+      // Re-read and return it rather than failing the login.
+      const raced = await this.orgRepo.findOne({ where: { ownerId: userId } });
+      if (raced) return raced;
+      throw err;
+    }
+  }
+
   // ─── Get my org ──────────────────────────────────────────────────────────────
 
   /**

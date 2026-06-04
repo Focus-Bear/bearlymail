@@ -11,6 +11,7 @@ import {
 import { User } from "../database/entities/user.entity";
 import { Waitlist } from "../database/entities/waitlist.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthService } from "./auth.service";
@@ -93,6 +94,10 @@ describe("AuthService", () => {
       getMfaStatus: jest.fn(),
     };
 
+    const mockOrganizationsService = {
+      ensurePersonalOrg: jest.fn().mockResolvedValue({ id: "org-1" }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -119,6 +124,10 @@ describe("AuthService", () => {
         {
           provide: TotpService,
           useValue: mockTotpService,
+        },
+        {
+          provide: OrganizationsService,
+          useValue: mockOrganizationsService,
         },
       ],
     }).compile();

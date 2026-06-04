@@ -442,7 +442,7 @@ export class ZohoProvider implements EmailProvider {
     await this.emailsService.createEmail(
       userId,
       { ...rawEmail, starCount } as RawEmailMessage,
-      { skipBatching: isInitialSync },
+      { skipBatching: isInitialSync, countTowardVolume: !isInitialSync },
     );
   }
 

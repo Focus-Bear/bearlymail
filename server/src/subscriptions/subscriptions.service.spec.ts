@@ -337,7 +337,8 @@ describe("SubscriptionsService", () => {
 
   describe("handleOrgSubscriptionEvent (via handleWebhook)", () => {
     const orgProduct = "bearlymail_seat_5";
-    const volumeProduct = "bearlymail_starter";
+    // Volume tiers are keyed by entitlement id; the store product_id is a Stripe SKU.
+    const volumeEntitlement = "bearlymail_starter";
 
     const orgOwner = {
       ...mockUser,
@@ -383,7 +384,7 @@ describe("SubscriptionsService", () => {
       );
     });
 
-    it("INITIAL_PURCHASE: sets volumeTierProductId and emailVolumeLimit for volume product", async () => {
+    it("INITIAL_PURCHASE: resolves the tier from the entitlement, ignoring the Stripe product_id", async () => {
       userRepository.findOne
         .mockResolvedValueOnce(orgOwner)
         .mockResolvedValueOnce(orgOwner);
@@ -395,14 +396,16 @@ describe("SubscriptionsService", () => {
         event: {
           type: "INITIAL_PURCHASE",
           app_user_id: "rc-org-user",
-          product_id: volumeProduct,
+          // Store SKU that is NOT a known tier — the entitlement decides the tier.
+          product_id: "prod_Udh5PuHXFM1L21",
+          entitlement_ids: [volumeEntitlement],
         },
       });
 
       expect(orgRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          volumeTierProductId: volumeProduct,
-          emailVolumeLimit: VOLUME_TIERS[volumeProduct].limit,
+          volumeTierProductId: volumeEntitlement,
+          emailVolumeLimit: VOLUME_TIERS[volumeEntitlement].limit,
         }),
       );
     });
@@ -632,6 +635,45 @@ describe("SubscriptionsService", () => {
 
       const result = await service.trackEmailProcessed("missing-org");
 
+      expect(result).toEqual({ allowed: true, percentUsed: 0 });
+    });
+  });
+
+  // ─── trackEmailForUser ────────────────────────────────────────────────────────
+
+  describe("trackEmailForUser", () => {
+    it("returns null when the user has no active org membership", async () => {
+      memberRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.trackEmailForUser("user-1");
+
+      expect(result).toBeNull();
+      expect(orgRepository.increment).not.toHaveBeenCalled();
+    });
+
+    it("resolves the org and tracks the email against it", async () => {
+      memberRepository.findOne.mockResolvedValue(
+        mockPartial({ organizationId: "org-1" }),
+      );
+      orgRepository.increment.mockResolvedValue(mockPartial({}));
+      orgRepository.findOne.mockResolvedValue(
+        mockPartial({
+          id: "org-1",
+          emailsUsedThisCycle: 10,
+          emailVolumeLimit: 3000,
+        }),
+      );
+
+      const result = await service.trackEmailForUser("user-1");
+
+      expect(memberRepository.findOne).toHaveBeenCalledWith({
+        where: { userId: "user-1", status: "active" },
+      });
+      expect(orgRepository.increment).toHaveBeenCalledWith(
+        { id: "org-1" },
+        "emailsUsedThisCycle",
+        1,
+      );
       expect(result).toEqual({ allowed: true, percentUsed: 0 });
     });
   });

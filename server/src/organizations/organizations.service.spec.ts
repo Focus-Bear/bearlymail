@@ -26,6 +26,10 @@ const mockOrgRepo = {
   findOneOrFail: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
+  // ensurePersonalOrg wraps creation in a transaction via orgRepo.manager.
+  // Tests that exercise that path bind a stub implementation in their
+  // describe-block beforeEach (afterEach() resets all mocks).
+  manager: { transaction: jest.fn() },
 };
 
 const mockMemberRepo = {
@@ -563,6 +567,116 @@ describe("OrganizationsService", () => {
       const result = await service.getVolumeUsage(ORG_ID);
 
       expect(result.tier).toBe("none");
+    });
+  });
+
+  // ─── ensurePersonalOrg ───────────────────────────────────────────────────────
+
+  describe("ensurePersonalOrg", () => {
+    // afterEach() resets all mocks (including manager.transaction's
+    // implementation), so re-bind the tx stub before each case.
+    beforeEach(() => {
+      mockOrgRepo.manager.transaction.mockImplementation(
+        async (cb: (tx: unknown) => unknown) => {
+          const tx = {
+            create: (entity: { name: string }, payload: unknown) => {
+              if (entity === Organization) return mockOrgRepo.create(payload);
+              if (entity === OrganizationMember)
+                return mockMemberRepo.create(payload);
+              throw new Error(
+                `Unexpected entity in tx.create: ${entity?.name}`,
+              );
+            },
+            save: (payload: { organizationId?: string }) => {
+              if (payload && "organizationId" in payload) {
+                return mockMemberRepo.save(payload);
+              }
+              return mockOrgRepo.save(payload);
+            },
+          };
+          return cb(tx);
+        },
+      );
+    });
+
+    it("returns the existing org when the user already owns one", async () => {
+      const owned = makeOrg();
+      mockOrgRepo.findOne.mockResolvedValue(owned);
+
+      const result = await service.ensurePersonalOrg(USER_ID);
+
+      expect(result).toBe(owned);
+      expect(mockOrgRepo.create).not.toHaveBeenCalled();
+      expect(mockMemberRepo.save).not.toHaveBeenCalled();
+    });
+
+    it("returns the team org when the user is an active member (no personal org)", async () => {
+      mockOrgRepo.findOne.mockResolvedValue(null);
+      const teamOrg = makeOrg({ id: "team-org", ownerId: "someone-else" });
+      mockMemberRepo.findOne.mockResolvedValue(
+        makeMember({ organization: teamOrg } as Partial<OrganizationMember>),
+      );
+
+      const result = await service.ensurePersonalOrg(USER_ID);
+
+      expect(result).toBe(teamOrg);
+      expect(mockOrgRepo.create).not.toHaveBeenCalled();
+    });
+
+    it("provisions a single-seat personal org + owner member when the user has none", async () => {
+      // no owned org, no membership
+      mockOrgRepo.findOne.mockResolvedValueOnce(null);
+      mockMemberRepo.findOne.mockResolvedValue(null);
+      mockUserRepo.findOne.mockResolvedValue(makeUser());
+      const savedOrg = makeOrg();
+      mockOrgRepo.create.mockReturnValue(savedOrg);
+      mockOrgRepo.save.mockResolvedValue(savedOrg);
+      mockMemberRepo.create.mockImplementation((member) => member);
+      mockMemberRepo.save.mockImplementation((member) =>
+        Promise.resolve(member),
+      );
+
+      const result = await service.ensurePersonalOrg(USER_ID);
+
+      expect(result).toBe(savedOrg);
+      expect(mockOrgRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ownerId: USER_ID, maxSeats: 1 }),
+      );
+      expect(mockMemberRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: ORG_ID,
+          userId: USER_ID,
+          role: "owner",
+          status: "active",
+        }),
+      );
+    });
+
+    it("recovers from a concurrent-creation race by re-reading the org", async () => {
+      // owned lookup: none initially, then the racing winner's org on retry
+      const racedOrg = makeOrg();
+      mockOrgRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(racedOrg);
+      mockMemberRepo.findOne.mockResolvedValue(null);
+      mockUserRepo.findOne.mockResolvedValue(makeUser());
+      mockOrgRepo.create.mockReturnValue(makeOrg());
+      // save throws as if the unique ownerId index was violated
+      mockOrgRepo.save.mockRejectedValue(new Error("duplicate key value"));
+
+      const result = await service.ensurePersonalOrg(USER_ID);
+
+      expect(result).toBe(racedOrg);
+    });
+
+    it("throws NotFound when the user does not exist", async () => {
+      mockOrgRepo.findOne.mockResolvedValue(null);
+      mockMemberRepo.findOne.mockResolvedValue(null);
+      mockUserRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.ensurePersonalOrg(USER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

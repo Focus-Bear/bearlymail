@@ -23,6 +23,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { User } from "../database/entities/user.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
@@ -74,7 +75,27 @@ export class AuthService {
     private waitlistService: WaitlistService,
     @Inject(forwardRef(() => EmailBacklogService))
     private emailBacklogService: EmailBacklogService,
+    @Inject(forwardRef(() => OrganizationsService))
+    private organizationsService: OrganizationsService,
   ) {}
+
+  /**
+   * Best-effort provisioning of the user's "org of one". Runs on every successful
+   * login so existing users are backfilled lazily and new users get an org
+   * immediately. Never blocks login — a failure here is logged and swallowed
+   * (the backfill migration and the next login both act as safety nets).
+   */
+  private async provisionPersonalOrg(userId: string): Promise<void> {
+    try {
+      await this.organizationsService.ensurePersonalOrg(userId);
+    } catch (err) {
+      this.logger.error(
+        `Failed to provision personal org for user ${userId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
 
   async validateUser(
     email: string,
@@ -159,6 +180,7 @@ export class AuthService {
     }
 
     user = await this.checkWaitlistApproval(user, email, isJeremy);
+    await this.provisionPersonalOrg(user.id);
     this.logLoginSuccess(user, isNewUser);
     this.scheduleSyncJobs(user.id);
 
@@ -466,6 +488,8 @@ export class AuthService {
       }
     }
 
+    await this.provisionPersonalOrg(user.id);
+
     const { password: _password, ...result } = user;
     return result;
   }
@@ -537,6 +561,8 @@ export class AuthService {
         );
       }
     }
+
+    await this.provisionPersonalOrg(user.id);
 
     const { password: _password, ...result } = user;
     return result;

@@ -23,7 +23,7 @@ export class Organization {
   name: string;
 
   @Column({ type: "uuid" })
-  @Index()
+  @Index({ unique: true })
   ownerId: string;
 
   @ManyToOne(() => User, { nullable: false, onDelete: "RESTRICT" })
@@ -46,7 +46,8 @@ export class Organization {
   @Column({
     type: "varchar",
     nullable: true,
-    comment: "Volume tier product ID from RevenueCat (starter|growth|business)",
+    comment:
+      "Volume tier entitlement ID from RevenueCat (starter|growth|enterprise)",
   })
   volumeTierProductId: string | null;
 

@@ -16,6 +16,7 @@ import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { getJobPriority } from "../queue/job-priorities";
+import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
 import { UsersService } from "../users/users.service";
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
@@ -48,6 +49,8 @@ export class EmailLifecycleService {
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
+    @Inject(forwardRef(() => SubscriptionsService))
+    private subscriptionsService: SubscriptionsService,
     @Inject(forwardRef(() => SuggestedRepliesService))
     private suggestedRepliesService?: SuggestedRepliesService,
   ) {}
@@ -55,7 +58,7 @@ export class EmailLifecycleService {
   async createEmail(
     userId: string,
     emailData: EmailDataWithOptionalThreadProps,
-    options?: { skipBatching?: boolean },
+    options?: { skipBatching?: boolean; countTowardVolume?: boolean },
     queueBatchPriorityRefinement?: (
       userId: string,
       emailId: string,
@@ -117,12 +120,13 @@ export class EmailLifecycleService {
       });
     }
 
-    const deferredEmail = await this.maybeDeferInactiveUser(
+    const skipped = await this.maybeSkipAiProcessing(
       userId,
       thread,
       email,
+      options,
     );
-    if (deferredEmail) return deferredEmail;
+    if (skipped) return skipped;
 
     thread.isProcessingPriority = true;
     await this.emailThreadRepository.save(thread);
@@ -154,6 +158,26 @@ export class EmailLifecycleService {
     return savedEmail;
   }
 
+  /**
+   * Runs the pre-AI degradation gates in order: inactive-user deferral, then
+   * org volume-limit gating. Returns the saved (degraded) email if either gate
+   * fires, or null to continue with full AI processing.
+   */
+  private async maybeSkipAiProcessing(
+    userId: string,
+    thread: EmailThread,
+    email: Email,
+    options?: { countTowardVolume?: boolean },
+  ): Promise<Email | null> {
+    const deferredEmail = await this.maybeDeferInactiveUser(
+      userId,
+      thread,
+      email,
+    );
+    if (deferredEmail) return deferredEmail;
+    return this.maybeGateOnVolume(userId, thread, email, options);
+  }
+
   private async maybeDeferInactiveUser(
     userId: string,
     thread: EmailThread,
@@ -168,6 +192,49 @@ export class EmailLifecycleService {
     const savedEmail = await this.emailRepository.save(email);
     this.logger.log(
       `Skipping AI processing for user ${userId} (inactive >${process.env.AI_INACTIVITY_THRESHOLD_DAYS ?? "3"} days), thread ${thread.id}`,
+    );
+    return savedEmail;
+  }
+
+  /**
+   * Meters an inbound email against the org's volume tier and, if the tier is
+   * exhausted, persists it without AI processing (still visible in the inbox).
+   * Returns the degraded email when gated, or null to continue normally.
+   *
+   * Only live provider sync passes countTowardVolume — historical scans and
+   * manual creation are never metered or gated.
+   */
+  private async maybeGateOnVolume(
+    userId: string,
+    thread: EmailThread,
+    email: Email,
+    options?: { countTowardVolume?: boolean },
+  ): Promise<Email | null> {
+    if (!options?.countTowardVolume) return null;
+    const volume = await this.subscriptionsService.trackEmailForUser(userId);
+    if (volume && !volume.allowed) {
+      return this.saveOverVolumeEmail(thread, email);
+    }
+    return null;
+  }
+
+  /**
+   * Persists an email whose org has exhausted its volume tier. The email stays
+   * visible in the inbox, but priority/summary/thread AI jobs are skipped — the
+   * same degraded path used for inactive users. The thread is flagged so the
+   * email can be reprocessed if the user upgrades or a new cycle begins.
+   */
+  private async saveOverVolumeEmail(
+    thread: EmailThread,
+    email: Email,
+  ): Promise<Email> {
+    thread.aiProcessingDeferred = true;
+    thread.isProcessingPriority = false;
+    await this.emailThreadRepository.save(thread);
+    email.isProcessingSummary = false;
+    const savedEmail = await this.emailRepository.save(email);
+    this.logger.warn(
+      `Email ${savedEmail.id} saved without AI processing — org over email volume limit (thread ${thread.id})`,
     );
     return savedEmail;
   }

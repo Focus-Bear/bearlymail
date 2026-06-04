@@ -466,7 +466,7 @@ export class GmailSyncService {
         starCount,
         labels: rawEmail.labelIds,
       } as EmailDataWithOptionalThreadProps,
-      { skipBatching: isInitialSync },
+      { skipBatching: isInitialSync, countTowardVolume: !isInitialSync },
     );
   }
 

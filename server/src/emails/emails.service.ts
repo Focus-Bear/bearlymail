@@ -447,7 +447,7 @@ export class EmailsService {
   async createEmail(
     userId: string,
     emailData: EmailDataWithOptionalThreadProps,
-    options?: { skipBatching?: boolean },
+    options?: { skipBatching?: boolean; countTowardVolume?: boolean },
   ): Promise<Email> {
     return this.emailServiceDeps.emailLifecycleService.createEmail(
       userId,

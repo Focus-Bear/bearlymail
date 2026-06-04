@@ -10,6 +10,7 @@ import { ActionItem } from "../database/entities/action-item.entity";
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
@@ -37,6 +38,7 @@ describe("EmailLifecycleService", () => {
   let batchScheduleService: jest.Mocked<BatchScheduleService>;
   let emailThreadService: jest.Mocked<EmailThreadService>;
   let usersService: jest.Mocked<UsersService>;
+  let subscriptionsService: { trackEmailForUser: jest.Mock };
   let boss: { send: jest.Mock };
 
   beforeEach(async () => {
@@ -133,6 +135,12 @@ describe("EmailLifecycleService", () => {
               .mockResolvedValue(undefined),
           },
         },
+        {
+          provide: SubscriptionsService,
+          useValue: {
+            trackEmailForUser: jest.fn().mockResolvedValue(null),
+          },
+        },
       ],
     }).compile();
 
@@ -145,6 +153,7 @@ describe("EmailLifecycleService", () => {
     batchScheduleService = module.get(BatchScheduleService);
     emailThreadService = module.get(EmailThreadService);
     usersService = module.get(UsersService);
+    subscriptionsService = module.get(SubscriptionsService);
     contactRepository = module.get(getRepositoryToken(Contact));
   });
 
@@ -573,6 +582,114 @@ describe("EmailLifecycleService", () => {
         threadId: "thread-1",
       });
 
+      expect(thread.isProcessingPriority).toBe(true);
+    });
+  });
+
+  describe("createEmail — over-volume gating", () => {
+    const arrangeActiveUser = (thread: EmailThread, emailObj: Email) => {
+      emailThreadService.getOrCreateEmailThread.mockResolvedValue(thread);
+      blockedSendersService.isSenderBlocked.mockResolvedValue(false);
+      blockedKeywordsService.checkSubjectForBlockedKeywords.mockResolvedValue(
+        false,
+      );
+      usersService.isUserActive.mockResolvedValue(true);
+      emailRepository.create.mockReturnValue(emailObj);
+      emailThreadRepository.save.mockResolvedValue(thread);
+      emailRepository.save.mockResolvedValue({
+        ...emailObj,
+        id: "email-1",
+      } as Email);
+      emailThreadRepository.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
+      actionItemRepository.delete.mockResolvedValue({ affected: 0, raw: [] });
+      contactRepository.findOne.mockResolvedValue(null);
+    };
+
+    const makeThread = () =>
+      ({
+        id: "thread-1",
+        aiProcessingDeferred: false,
+        isProcessingPriority: false,
+        starCount: 0,
+        batchReleaseAt: null,
+        priorityScore: 0,
+      }) as EmailThread;
+
+    const makeEmail = () =>
+      mockPartial({
+        id: "email-1",
+        isProcessingSummary: false,
+        labels: null,
+        emailThreadId: "thread-1",
+      });
+
+    it("saves without AI processing when the org is over its volume limit", async () => {
+      const thread = makeThread();
+      arrangeActiveUser(thread, makeEmail());
+      subscriptionsService.trackEmailForUser.mockResolvedValue({
+        allowed: false,
+        percentUsed: 105,
+      });
+
+      const result = await service.createEmail(
+        "user-1",
+        {
+          subject: "Over limit",
+          from: "sender@test.com",
+          threadId: "thread-1",
+        },
+        { countTowardVolume: true },
+      );
+
+      expect(subscriptionsService.trackEmailForUser).toHaveBeenCalledWith(
+        "user-1",
+      );
+      expect(thread.aiProcessingDeferred).toBe(true);
+      expect(thread.isProcessingPriority).toBe(false);
+      expect(boss.send).not.toHaveBeenCalledWith(
+        JOB_NAMES.GENERATE_SUMMARY,
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(result.id).toBe("email-1");
+    });
+
+    it("processes normally when under the limit", async () => {
+      const thread = makeThread();
+      arrangeActiveUser(thread, makeEmail());
+      subscriptionsService.trackEmailForUser.mockResolvedValue({
+        allowed: true,
+        percentUsed: 40,
+      });
+
+      await service.createEmail(
+        "user-1",
+        {
+          subject: "Under limit",
+          from: "sender@test.com",
+          threadId: "thread-1",
+        },
+        { countTowardVolume: true },
+      );
+
+      expect(thread.isProcessingPriority).toBe(true);
+    });
+
+    it("does not meter when countTowardVolume is not set (scan/manual paths)", async () => {
+      const thread = makeThread();
+      arrangeActiveUser(thread, makeEmail());
+
+      await service.createEmail("user-1", {
+        subject: "Scan",
+        from: "sender@test.com",
+        threadId: "thread-1",
+      });
+
+      expect(subscriptionsService.trackEmailForUser).not.toHaveBeenCalled();
       expect(thread.isProcessingPriority).toBe(true);
     });
   });

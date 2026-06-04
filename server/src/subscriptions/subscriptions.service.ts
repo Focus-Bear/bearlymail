@@ -22,11 +22,6 @@ export { VOLUME_TIER_NONE, VOLUME_TIERS };
 /** Threshold (as a percentage) at which a warning is emitted for email volume usage. */
 export const EMAIL_VOLUME_WARNING_THRESHOLD_PERCENT = 80;
 
-function isOrgProduct(productId: string | undefined): boolean {
-  if (!productId) return false;
-  return productId.startsWith("bearlymail_seat") || productId in VOLUME_TIERS;
-}
-
 /**
  * RevenueCat webhook event payload structure
  * See: https://www.revenuecat.com/docs/webhooks
@@ -35,12 +30,42 @@ export interface RevenueCatWebhookPayload {
   event: {
     app_user_id: string;
     product_id?: string;
+    // Entitlement identifiers granted by this event. The product_id is a store
+    // SKU (e.g. a Stripe `prod_...` id) and is NOT stable across platforms, so
+    // volume tiers are keyed off entitlements instead. `entitlement_id` is the
+    // deprecated singular form RevenueCat still sends on some events.
+    entitlement_ids?: string[];
+    entitlement_id?: string;
     type?: string;
     // Additional event properties that vary by event type
     [key: string]: unknown;
   };
   // Additional webhook properties
   [key: string]: unknown;
+}
+
+type RevenueCatEvent = RevenueCatWebhookPayload["event"];
+
+/** Normalises the event's entitlement identifiers (array or deprecated singular). */
+function getEventEntitlementIds(event: RevenueCatEvent): string[] {
+  if (Array.isArray(event.entitlement_ids)) return event.entitlement_ids;
+  return typeof event.entitlement_id === "string" ? [event.entitlement_id] : [];
+}
+
+/** Returns the volume-tier entitlement granted by the event, if any. */
+function getVolumeTierFromEvent(event: RevenueCatEvent): string | undefined {
+  return getEventEntitlementIds(event).find((id) => id in VOLUME_TIERS);
+}
+
+/**
+ * An event is org-level when it grants a volume-tier entitlement or is a
+ * per-seat product. Everything is volume-based and every user is an org-of-one,
+ * so volume purchases always route through the org handler.
+ */
+function isOrgEvent(event: RevenueCatEvent): boolean {
+  const productId = event.product_id;
+  if (productId?.startsWith("bearlymail_seat")) return true;
+  return getVolumeTierFromEvent(event) !== undefined;
 }
 
 /**
@@ -286,10 +311,10 @@ export class SubscriptionsService {
         return;
       }
 
-      const productId = event.product_id as string | undefined;
-
-      // Route org-level product events separately
-      if (isOrgProduct(productId)) {
+      // Route org-level events (volume-tier entitlements or seat products)
+      // separately. The tier is decided by entitlement, not by the store-level
+      // product_id (which is a Stripe SKU).
+      if (isOrgEvent(event)) {
         await this.handleOrgSubscriptionEvent(event);
         this.logger.log(
           `Processed org RevenueCat webhook: ${event.type} for user ${user.id}`,
@@ -565,13 +590,15 @@ export class SubscriptionsService {
 
   /**
    * Handles org-level RevenueCat webhook events.
-   * Updates Organization.maxSeats and volume tier based on product.
+   * Updates Organization.maxSeats and volume tier. The volume tier is decided
+   * by the granted entitlement (a stable slug), not the store product_id.
    */
   private async handleOrgSubscriptionEvent(
     event: RevenueCatWebhookPayload["event"],
   ): Promise<void> {
     const appUserId = event.app_user_id;
     const productId = event.product_id as string | undefined;
+    const tierEntitlement = getVolumeTierFromEvent(event);
 
     const org = await this.findOrgForRcUser(appUserId);
 
@@ -589,9 +616,9 @@ export class SubscriptionsService {
       if (productId && productId.startsWith("bearlymail_seat")) {
         org.maxSeats = seatQty;
         org.revenueCatOrgSubscriptionId = appUserId;
-      } else if (productId && productId in VOLUME_TIERS) {
-        org.volumeTierProductId = productId;
-        org.emailVolumeLimit = VOLUME_TIERS[productId].limit;
+      } else if (tierEntitlement) {
+        org.volumeTierProductId = tierEntitlement;
+        org.emailVolumeLimit = VOLUME_TIERS[tierEntitlement].limit;
       }
       org.billingCycleStart = new Date();
     } else if (eventType === "RENEWAL") {
@@ -605,7 +632,7 @@ export class SubscriptionsService {
 
     await this.orgRepository.save(org);
     this.logger.log(
-      `Org ${org.id} updated from RC event ${eventType} (product: ${productId ?? "none"})`,
+      `Org ${org.id} updated from RC event ${eventType} (tier: ${tierEntitlement ?? productId ?? "none"})`,
     );
 
     await this.syncOrgSeatSubscriptions(org, eventType);
@@ -673,6 +700,23 @@ export class SubscriptionsService {
 
     const allowed = org.emailsUsedThisCycle <= org.emailVolumeLimit;
     return { allowed, percentUsed };
+  }
+
+  /**
+   * Resolves the user's active org and records one processed email against it.
+   * Returns null when the user has no active org membership (no metering /
+   * gating applies — fail open). Under the org-of-one model every user has a
+   * personal org, so this normally resolves; null is the safe fallback for any
+   * user not yet backfilled.
+   */
+  async trackEmailForUser(
+    userId: string,
+  ): Promise<{ allowed: boolean; percentUsed: number } | null> {
+    const membership = await this.memberRepository.findOne({
+      where: { userId, status: MEMBER_STATUS.ACTIVE },
+    });
+    if (!membership) return null;
+    return this.trackEmailProcessed(membership.organizationId);
   }
 
   /**

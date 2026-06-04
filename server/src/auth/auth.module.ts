@@ -8,6 +8,7 @@ import { EmailModule } from "../email/email.module";
 import { EmailsModule } from "../emails/emails.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
+import { OrganizationsModule } from "../organizations/organizations.module";
 import { UsersModule } from "../users/users.module";
 import { WaitlistModule } from "../waitlist/waitlist.module";
 import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
@@ -35,6 +36,7 @@ import { ZohoStrategy } from "./zoho.strategy";
     forwardRef(() => Office365AccountsModule),
     forwardRef(() => ZohoAccountsModule),
     forwardRef(() => WaitlistModule),
+    forwardRef(() => OrganizationsModule),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

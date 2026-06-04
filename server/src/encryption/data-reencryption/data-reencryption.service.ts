@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
-import { DataSource, EntityManager, Repository } from "typeorm";
+import { DataSource, EntityManager, IsNull, Not, Repository } from "typeorm";
 
 import { User } from "../../database/entities/user.entity";
 import { parseLabelsValue } from "../../emails/labels.util";
@@ -15,6 +15,16 @@ import {
   EncryptedTable,
   STORAGE_KIND,
 } from "./encrypted-table-metadata";
+import {
+  buildPerUserHealthQuery,
+  buildTableHealthQuery,
+  ColumnHealth,
+  ReencryptionHealth,
+  UserHealthEntry,
+} from "./reencryption-health";
+
+/** Cap on the number of most-affected users returned by the health scan. */
+const TOP_AFFECTED_USERS_LIMIT = 10;
 
 const BATCH_SIZE = 100;
 
@@ -311,6 +321,98 @@ export class DataReencryptionService {
    */
   getTables(): readonly EncryptedTable[] {
     return discoverEncryptedTables(this.dataSource);
+  }
+
+  /**
+   * Scan every encrypted column and report how its values are ACTUALLY shaped
+   * on disk — encrypted-at-rest vs plaintext (bypassed transformer). This is
+   * the truthful health signal: a row needs remediation iff a per-user
+   * encrypted column holds a non-null, non-encrypted-shaped value. Unlike the
+   * `dataReencryptedAt` stamp, it can't be fooled by "the job visited this
+   * user once" and a brand-new user with clean data scores zero.
+   *
+   * Read-only. Uses bounded per-row predicates (the encrypted-shape check is a
+   * prefix-anchored regex), so even large tables are a single cheap seq scan.
+   * Runs tables sequentially to avoid saturating the connection pool.
+   *
+   * Note: this detects PLAINTEXT-at-rest (the security gap + log-spam source).
+   * It cannot tell whether an encrypted-shaped value is under the legacy global
+   * key vs the per-user key — that key-rotation check still requires the
+   * decrypt-based dry-run. The two are complementary.
+   */
+  async getHealth(): Promise<ReencryptionHealth> {
+    const tables = this.getTables();
+    const byColumn: ColumnHealth[] = [];
+    const userTotals = new Map<string, number>();
+    let rowsNeedingRemediation = 0;
+
+    for (const table of tables) {
+      const { sql, columns } = buildTableHealthQuery(table);
+      const [agg] = (await this.dataSource.query(sql)) as Array<
+        Record<string, number | string>
+      >;
+      const total = Number(agg?.total ?? 0);
+      rowsNeedingRemediation += Number(agg?.rows_needing ?? 0);
+
+      columns.forEach((col, i) => {
+        const nonNull = Number(agg?.[`nn_${i}`] ?? 0);
+        const encrypted = Number(agg?.[`enc_${i}`] ?? 0);
+        byColumn.push({
+          table: table.tableName,
+          column: col.databaseName,
+          total,
+          nonNull,
+          encrypted,
+          needsRemediation: nonNull - encrypted,
+          pgArrayLiteral: Number(agg?.[`pg_${i}`] ?? 0),
+        });
+      });
+
+      const userRows = (await this.dataSource.query(
+        buildPerUserHealthQuery(table),
+      )) as Array<{ user_id: string; needs: number | string }>;
+      for (const row of userRows) {
+        userTotals.set(
+          row.user_id,
+          (userTotals.get(row.user_id) ?? 0) + Number(row.needs),
+        );
+      }
+    }
+
+    const [jobVisitedUsers, totalUsers] = await Promise.all([
+      this.userRepository.count({
+        where: { dataReencryptedAt: Not(IsNull()) },
+      }),
+      this.userRepository.count(),
+    ]);
+
+    const topAffectedUsers: UserHealthEntry[] = Array.from(userTotals.entries())
+      .map(([userId, rows]) => ({ userId, rowsNeedingRemediation: rows }))
+      .sort(
+        (left, right) =>
+          right.rowsNeedingRemediation - left.rowsNeedingRemediation,
+      )
+      .slice(0, TOP_AFFECTED_USERS_LIMIT);
+
+    byColumn.sort(
+      (left, right) =>
+        right.needsRemediation - left.needsRemediation ||
+        left.table.localeCompare(right.table) ||
+        left.column.localeCompare(right.column),
+    );
+
+    return {
+      generatedAt: new Date().toISOString(),
+      scannedTables: tables.length,
+      rowsNeedingRemediation,
+      columnsAffected: byColumn.filter((col) => col.needsRemediation > 0)
+        .length,
+      byColumn,
+      topAffectedUsers,
+      jobVisitedUsers,
+      neverVisitedUsers: totalUsers - jobVisitedUsers,
+      totalUsers,
+    };
   }
 
   /**

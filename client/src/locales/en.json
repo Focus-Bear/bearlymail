@@ -1423,7 +1423,30 @@
       "actions": {
         "dryRunSelf": "Dry-run self",
         "startDryRunAll": "Start dry-run all",
-        "startAll": "Start real run (all users)"
+        "startAll": "Start real run (all users)",
+        "refreshHealth": "Re-scan health"
+      },
+      "health": {
+        "rowsNeedingRemediation": "Rows needing remediation",
+        "rowsNeedingRemediationHint": "Rows with a value stored as plaintext (bypassed encryption). This is the real signal — a clean account scores 0.",
+        "columnsAffected": "Columns affected",
+        "jobVisitedUsers": "Users visited by job",
+        "jobVisitedUsersHint": "Only tracks whether the re-encryption job ran for a user — NOT whether their data is encrypted at rest.",
+        "breakdownTitle": "Plaintext-at-rest breakdown",
+        "breakdownSubtitle": "Per encrypted column: how many stored values are plaintext (not encrypted-shaped) and need remediation.",
+        "allEncrypted": "Every scanned value is encrypted at rest. Nothing to remediate. ✅",
+        "topUsersTitle": "Top affected users",
+        "scannedNote": "Scanned {{tables}} encrypted tables. Detects plaintext at rest; the per-key (global→user) check still requires a dry-run.",
+        "columns": {
+          "table": "Table",
+          "column": "Column",
+          "needsRemediation": "Needs remediation",
+          "pgArray": "of which pg-array",
+          "encrypted": "Encrypted",
+          "total": "Total",
+          "user": "User",
+          "rows": "Rows needing remediation"
+        }
       },
       "columns": {
         "table": "Table",

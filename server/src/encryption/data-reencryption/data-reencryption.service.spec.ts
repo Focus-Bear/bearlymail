@@ -635,4 +635,76 @@ describe("DataReencryptionService", () => {
       );
     });
   });
+
+  describe("getHealth", () => {
+    function mockHealthQueries(
+      tableAgg: Record<string, number>,
+      perUser: Array<{ user_id: string; needs: number }>,
+    ): jest.Mock {
+      const queryMock = jest.fn().mockImplementation((sql: string) => {
+        if (sql.includes("rows_needing")) return Promise.resolve([tableAgg]);
+        if (sql.includes("GROUP BY")) return Promise.resolve(perUser);
+        return Promise.resolve([]);
+      });
+      (dataSource as unknown as { query: jest.Mock }).query = queryMock;
+      return queryMock;
+    }
+
+    it("classifies plaintext-at-rest rows and surfaces the real remediation count + top users", async () => {
+      // The single test table (private_notes.content): 10 rows, 7 encrypted,
+      // 3 plaintext-at-rest (2 of them pg-array literals).
+      mockHealthQueries(
+        { total: 10, nn_0: 10, enc_0: 7, pg_0: 2, rows_needing: 3 },
+        [
+          { user_id: "user-a", needs: 2 },
+          { user_id: "user-b", needs: 1 },
+        ],
+      );
+      // First count() = jobVisited (dataReencryptedAt IS NOT NULL); second = total.
+      (userRepo as unknown as { count: jest.Mock }).count = jest
+        .fn()
+        .mockResolvedValueOnce(5)
+        .mockResolvedValueOnce(8);
+
+      const health = await service.getHealth();
+
+      expect(health.rowsNeedingRemediation).toBe(3);
+      expect(health.scannedTables).toBe(1);
+      expect(health.columnsAffected).toBe(1);
+      expect(health.byColumn).toHaveLength(1);
+      expect(health.byColumn[0]).toMatchObject({
+        table: "private_notes",
+        column: "content",
+        total: 10,
+        nonNull: 10,
+        encrypted: 7,
+        needsRemediation: 3,
+        pgArrayLiteral: 2,
+      });
+      expect(health.topAffectedUsers).toEqual([
+        { userId: "user-a", rowsNeedingRemediation: 2 },
+        { userId: "user-b", rowsNeedingRemediation: 1 },
+      ]);
+      expect(health.jobVisitedUsers).toBe(5);
+      expect(health.totalUsers).toBe(8);
+      expect(health.neverVisitedUsers).toBe(3);
+    });
+
+    it("reports zero needing remediation when every value is encrypted-shaped", async () => {
+      mockHealthQueries(
+        { total: 4, nn_0: 4, enc_0: 4, pg_0: 0, rows_needing: 0 },
+        [],
+      );
+      (userRepo as unknown as { count: jest.Mock }).count = jest
+        .fn()
+        .mockResolvedValue(2);
+
+      const health = await service.getHealth();
+
+      expect(health.rowsNeedingRemediation).toBe(0);
+      expect(health.columnsAffected).toBe(0);
+      expect(health.topAffectedUsers).toEqual([]);
+      expect(health.byColumn[0].needsRemediation).toBe(0);
+    });
+  });
 });

@@ -55,7 +55,30 @@
       "actions": {
         "dryRunSelf": "Dry-run propio",
         "startDryRunAll": "Iniciar dry-run para todos",
-        "startAll": "Iniciar ejecución real (todos los usuarios)"
+        "startAll": "Iniciar ejecución real (todos los usuarios)",
+        "refreshHealth": "Re-escanear estado"
+      },
+      "health": {
+        "rowsNeedingRemediation": "Filas que requieren corrección",
+        "rowsNeedingRemediationHint": "Filas con un valor almacenado como texto plano (omitió el cifrado). Esta es la señal real — una cuenta limpia marca 0.",
+        "columnsAffected": "Columnas afectadas",
+        "jobVisitedUsers": "Usuarios visitados por el trabajo",
+        "jobVisitedUsersHint": "Solo indica si el trabajo de re-cifrado se ejecutó para un usuario — NO si sus datos están cifrados en reposo.",
+        "breakdownTitle": "Desglose de texto plano en reposo",
+        "breakdownSubtitle": "Por columna cifrada: cuántos valores almacenados son texto plano (sin forma cifrada) y requieren corrección.",
+        "allEncrypted": "Todos los valores escaneados están cifrados en reposo. Nada que corregir. ✅",
+        "topUsersTitle": "Usuarios más afectados",
+        "scannedNote": "Se escanearon {{tables}} tablas cifradas. Detecta texto plano en reposo; la comprobación por clave (global→usuario) aún requiere un dry-run.",
+        "columns": {
+          "table": "Tabla",
+          "column": "Columna",
+          "needsRemediation": "Requiere corrección",
+          "pgArray": "de los cuales pg-array",
+          "encrypted": "Cifrados",
+          "total": "Total",
+          "user": "Usuario",
+          "rows": "Filas que requieren corrección"
+        }
       },
       "columns": {
         "table": "Tabla",

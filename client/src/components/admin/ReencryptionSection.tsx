@@ -12,6 +12,38 @@ interface ReencryptionStatus {
   tablesInScope: string[];
 }
 
+interface ColumnHealth {
+  table: string;
+  column: string;
+  total: number;
+  nonNull: number;
+  encrypted: number;
+  needsRemediation: number;
+  pgArrayLiteral: number;
+}
+
+interface UserHealthEntry {
+  userId: string;
+  rowsNeedingRemediation: number;
+}
+
+/**
+ * Truthful data-at-rest health from GET /admin/reencryption/health. Unlike the
+ * `dataReencryptedAt` stamp (migrated/pending), this counts rows that actually
+ * hold plaintext at rest — so a brand-new user with clean data scores zero.
+ */
+interface ReencryptionHealth {
+  generatedAt: string;
+  scannedTables: number;
+  rowsNeedingRemediation: number;
+  columnsAffected: number;
+  byColumn: ColumnHealth[];
+  topAffectedUsers: UserHealthEntry[];
+  jobVisitedUsers: number;
+  neverVisitedUsers: number;
+  totalUsers: number;
+}
+
 interface DryRunTableResult {
   table: string;
   rowsScanned: number;
@@ -168,9 +200,35 @@ interface BackfillCategoryRuleIdsResult {
   totalOrphaned: number;
 }
 
+/**
+ * The "Start real run" button is enabled only when there's actually work to do:
+ * plaintext-at-rest rows to remediate, OR users the job has never visited. While
+ * the health scan is still loading (`null`), keep the button disabled — clicking
+ * before health resolves would call `realRunForce(null) === false`, skipping
+ * exactly the visited-but-plaintext rows that need remediation.
+ */
+export function shouldEnableRealRun(health: ReencryptionHealth | null): boolean {
+  if (!health) {
+    return false;
+  }
+  return health.rowsNeedingRemediation > 0 || health.neverVisitedUsers > 0;
+}
+
+/**
+ * A real run must `force` a rescan of already-migrated users precisely when the
+ * health scan found plaintext-at-rest rows — those users are stamped
+ * `dataReencryptedAt`, so a non-forced run would skip exactly the rows that
+ * need fixing. When the only work is never-visited users, no force is needed.
+ */
+export function realRunForce(health: ReencryptionHealth | null): boolean {
+  return (health?.rowsNeedingRemediation ?? 0) > 0;
+}
+
 export const ReencryptionSection: React.FC = () => {
   const { t } = useTranslation();
   const [status, setStatus] = useState<ReencryptionStatus | null>(null);
+  const [health, setHealth] = useState<ReencryptionHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionInFlight, setActionInFlight] = useState<string | null>(null);
@@ -195,9 +253,28 @@ export const ReencryptionSection: React.FC = () => {
     }
   }, []);
 
+  // The data-at-rest health scan. Separate from /status because it does real
+  // table scans (a few seconds) — we don't want it to block the initial render.
+  const refreshHealth = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const { data } = await axios.get<ReencryptionHealth>(
+        `${REENCRYPTION_BASE}/health`,
+        { withCredentials: true },
+      );
+      setHealth(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     refreshStatus();
-  }, [refreshStatus]);
+    refreshHealth();
+  }, [refreshStatus, refreshHealth]);
 
   const runAction = useCallback(
     async (
@@ -213,6 +290,7 @@ export const ReencryptionSection: React.FC = () => {
         const message = await operation();
         setActionResult(message);
         await refreshStatus();
+        await refreshHealth();
       } catch (err) {
         setActionResult(
           `Error: ${err instanceof Error ? err.message : String(err)}`,
@@ -221,7 +299,7 @@ export const ReencryptionSection: React.FC = () => {
         setActionInFlight(null);
       }
     },
-    [refreshStatus],
+    [refreshStatus, refreshHealth],
   );
 
   const fetchFanoutResults = useCallback(
@@ -296,7 +374,9 @@ export const ReencryptionSection: React.FC = () => {
 
   const handleStartDryRunAll = () =>
     runAction(t('admin.reencryption.actions.startDryRunAll'), () =>
-      runFanout(true),
+      // Dry-run already scans every user server-side; force is redundant but
+      // explicit so the preview always covers already-migrated users too.
+      runFanout(true, true),
     );
 
   const handleStartAll = () =>
@@ -304,13 +384,13 @@ export const ReencryptionSection: React.FC = () => {
       if (!window.confirm(t('admin.reencryption.startAllConfirm'))) {
         throw new Error(t('admin.reencryption.cancelled'));
       }
-      return runFanout(false);
+      return runFanout(false, realRunForce(health));
     });
 
-  async function runFanout(dryRun: boolean): Promise<string> {
+  async function runFanout(dryRun: boolean, force: boolean): Promise<string> {
     const { data: enqueueResp } = await axios.post<{ jobId: string }>(
       `${REENCRYPTION_BASE}/start`,
-      { dryRun },
+      { dryRun, force },
       { withCredentials: true },
     );
     const finalStatus = await pollJobUntilTerminal<FanoutResult>(
@@ -338,6 +418,23 @@ export const ReencryptionSection: React.FC = () => {
         {t('admin.dashboard.loading')}
       </div>
     );
+  }
+
+  // Headline card values precomputed to keep the JSX free of nested ternaries.
+  const healthValue = (value: number | undefined): number | string => {
+    if (health) {
+      return value ?? 0;
+    }
+    if (healthLoading) {
+      return '…';
+    }
+    return '—';
+  };
+  let visitedDisplay = '—';
+  if (health) {
+    visitedDisplay = `${health.jobVisitedUsers}/${health.totalUsers}`;
+  } else if (status) {
+    visitedDisplay = `${status.migratedUsers}/${status.totalUsers}`;
   }
 
   return (
@@ -378,31 +475,35 @@ export const ReencryptionSection: React.FC = () => {
         </div>
       )}
 
-      {status && (
-        <div
-          style={{
-            display: 'flex',
-            gap: theme.spacing.lg,
-            marginBottom: theme.spacing.lg,
-          }}
-        >
-          <StatusCard
-            label={t('admin.reencryption.migratedUsers')}
-            value={status.migratedUsers}
-            tone="success"
-          />
-          <StatusCard
-            label={t('admin.reencryption.pendingUsers')}
-            value={status.pendingUsers}
-            tone="warning"
-          />
-          <StatusCard
-            label={t('admin.reencryption.totalUsers')}
-            value={status.totalUsers}
-            tone="neutral"
-          />
-        </div>
-      )}
+      {/* Truthful data-at-rest health — the real signal. A value sitting in a
+          column as plaintext (bypassed transformer) is what needs remediation;
+          the job-visited stamp below is NOT a health indicator. */}
+      <div
+        style={{
+          display: 'flex',
+          gap: theme.spacing.lg,
+          marginBottom: theme.spacing.lg,
+          flexWrap: 'wrap',
+        }}
+      >
+        <StatusCard
+          label={t('admin.reencryption.health.rowsNeedingRemediation')}
+          value={healthValue(health?.rowsNeedingRemediation)}
+          tone={(health?.rowsNeedingRemediation ?? 0) > 0 ? 'error' : 'success'}
+          hint={t('admin.reencryption.health.rowsNeedingRemediationHint')}
+        />
+        <StatusCard
+          label={t('admin.reencryption.health.columnsAffected')}
+          value={healthValue(health?.columnsAffected)}
+          tone={(health?.columnsAffected ?? 0) > 0 ? 'warning' : 'neutral'}
+        />
+        <StatusCard
+          label={t('admin.reencryption.health.jobVisitedUsers')}
+          value={visitedDisplay}
+          tone="neutral"
+          hint={t('admin.reencryption.health.jobVisitedUsersHint')}
+        />
+      </div>
 
       <div
         style={{
@@ -433,11 +534,22 @@ export const ReencryptionSection: React.FC = () => {
         <ActionButton
           label={t('admin.reencryption.actions.startAll')}
           tone="danger"
-          disabled={actionInFlight !== null || status?.pendingUsers === 0}
+          // Enable when there's actually something to do: plaintext rows to
+          // remediate (force rescan) OR users the job has never visited.
+          disabled={actionInFlight !== null || !shouldEnableRealRun(health)}
           inFlight={actionInFlight === t('admin.reencryption.actions.startAll')}
           onClick={handleStartAll}
         />
+        <ActionButton
+          label={t('admin.reencryption.actions.refreshHealth')}
+          tone="primary"
+          disabled={actionInFlight !== null || healthLoading}
+          inFlight={healthLoading}
+          onClick={refreshHealth}
+        />
       </div>
+
+      {health && <HealthBreakdownSection health={health} />}
 
       {actionResult && (
         <div
@@ -907,15 +1019,195 @@ const CategoryRuleIdBackfillSubsection: React.FC = () => {
 
 interface StatusCardProps {
   label: string;
-  value: number;
-  tone: 'success' | 'warning' | 'neutral';
+  value: number | string;
+  tone: 'success' | 'warning' | 'neutral' | 'error';
+  hint?: string;
 }
 
-const StatusCard: React.FC<StatusCardProps> = ({ label, value, tone }) => {
+interface HealthBreakdownSectionProps {
+  health: ReencryptionHealth;
+}
+
+const numCell = {
+  textAlign: 'right' as const,
+  padding: theme.spacing.sm,
+};
+const headRow = {
+  borderBottom: `1px solid ${theme.colors.border.light}`,
+};
+
+/**
+ * Per-column + per-user breakdown of plaintext-at-rest values — the actionable
+ * detail behind the "rows needing remediation" headline. Only columns with a
+ * non-zero count are listed; a clean scan shows an explicit all-encrypted note.
+ */
+const HealthBreakdownSection: React.FC<HealthBreakdownSectionProps> = ({
+  health,
+}) => {
+  const { t } = useTranslation();
+  const affectedColumns = health.byColumn.filter(
+    (col) => col.needsRemediation > 0,
+  );
+
+  return (
+    <div style={{ marginTop: theme.spacing.lg }}>
+      <h3
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: theme.typography.fontWeight.semibold,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
+        {t('admin.reencryption.health.breakdownTitle')}
+      </h3>
+      <p
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        {t('admin.reencryption.health.breakdownSubtitle')}
+      </p>
+
+      {affectedColumns.length === 0 ? (
+        <div
+          role="status"
+          style={{
+            padding: theme.spacing.md,
+            backgroundColor: theme.colors.success.light,
+            color: theme.colors.success.main,
+            borderRadius: 4,
+          }}
+        >
+          {t('admin.reencryption.health.allEncrypted')}
+        </div>
+      ) : (
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          <thead>
+            <tr style={headRow}>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.health.columns.table')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.health.columns.column')}
+              </th>
+              <th style={numCell}>
+                {t('admin.reencryption.health.columns.needsRemediation')}
+              </th>
+              <th style={numCell}>
+                {t('admin.reencryption.health.columns.pgArray')}
+              </th>
+              <th style={numCell}>
+                {t('admin.reencryption.health.columns.encrypted')}
+              </th>
+              <th style={numCell}>
+                {t('admin.reencryption.health.columns.total')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {affectedColumns.map((col) => (
+              <tr key={`${col.table}.${col.column}`} style={headRow}>
+                <td style={{ padding: theme.spacing.sm }}>{col.table}</td>
+                <td style={{ padding: theme.spacing.sm }}>{col.column}</td>
+                <td
+                  style={{
+                    ...numCell,
+                    color: theme.colors.error.main,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                  }}
+                >
+                  {col.needsRemediation}
+                </td>
+                <td style={numCell}>{col.pgArrayLiteral}</td>
+                <td style={numCell}>{col.encrypted}</td>
+                <td style={numCell}>{col.total}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {health.topAffectedUsers.length > 0 && (
+        <div style={{ marginTop: theme.spacing.lg }}>
+          <h4
+            style={{
+              fontSize: theme.typography.fontSize.md,
+              fontWeight: theme.typography.fontWeight.semibold,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
+            {t('admin.reencryption.health.topUsersTitle')}
+          </h4>
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
+            <thead>
+              <tr style={headRow}>
+                <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                  {t('admin.reencryption.health.columns.user')}
+                </th>
+                <th style={numCell}>
+                  {t('admin.reencryption.health.columns.rows')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {health.topAffectedUsers.map((user) => (
+                <tr key={user.userId} style={headRow}>
+                  <td
+                    style={{
+                      padding: theme.spacing.sm,
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    {user.userId}
+                  </td>
+                  <td style={numCell}>{user.rowsNeedingRemediation}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p
+        style={{
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.secondary,
+          marginTop: theme.spacing.sm,
+        }}
+      >
+        {t('admin.reencryption.health.scannedNote', {
+          tables: health.scannedTables,
+        })}
+      </p>
+    </div>
+  );
+};
+
+const StatusCard: React.FC<StatusCardProps> = ({
+  label,
+  value,
+  tone,
+  hint,
+}) => {
   const colors = {
     success: theme.colors.success.main,
     warning: theme.colors.warning.main,
     neutral: theme.colors.text.primary,
+    error: theme.colors.error.main,
   };
   return (
     <div
@@ -945,6 +1237,17 @@ const StatusCard: React.FC<StatusCardProps> = ({ label, value, tone }) => {
       >
         {value}
       </div>
+      {hint && (
+        <div
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.secondary,
+            marginTop: theme.spacing.xs,
+          }}
+        >
+          {hint}
+        </div>
+      )}
     </div>
   );
 };

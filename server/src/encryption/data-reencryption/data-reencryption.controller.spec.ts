@@ -16,12 +16,14 @@ describe("DataReencryptionController", () => {
   let bossGetJobById: jest.Mock;
   let reencryptUser: jest.Mock;
   let userQueryBuilder: jest.Mock;
+  let getHealth: jest.Mock;
 
   beforeEach(async () => {
     bossSend = jest.fn().mockResolvedValue("job-uuid-123");
     bossGetJobById = jest.fn();
     reencryptUser = jest.fn();
     userQueryBuilder = jest.fn();
+    getHealth = jest.fn();
 
     const moduleRef = await Test.createTestingModule({
       controllers: [DataReencryptionController],
@@ -32,7 +34,7 @@ describe("DataReencryptionController", () => {
         },
         {
           provide: DataReencryptionService,
-          useValue: { reencryptUser, getTables: () => [] },
+          useValue: { reencryptUser, getTables: () => [], getHealth },
         },
         {
           provide: getRepositoryToken(User),
@@ -50,6 +52,28 @@ describe("DataReencryptionController", () => {
       .compile();
 
     controller = moduleRef.get(DataReencryptionController);
+  });
+
+  describe("health", () => {
+    it("delegates to the service's getHealth() scan", async () => {
+      const fakeHealth = {
+        generatedAt: "2026-06-04T00:00:00.000Z",
+        scannedTables: 2,
+        rowsNeedingRemediation: 12,
+        columnsAffected: 1,
+        byColumn: [],
+        topAffectedUsers: [{ userId: "u1", rowsNeedingRemediation: 12 }],
+        jobVisitedUsers: 10,
+        neverVisitedUsers: 0,
+        totalUsers: 10,
+      };
+      getHealth.mockResolvedValue(fakeHealth);
+
+      const response = await controller.health();
+
+      expect(getHealth).toHaveBeenCalledTimes(1);
+      expect(response).toEqual(fakeHealth);
+    });
   });
 
   describe("dryRunSelf", () => {

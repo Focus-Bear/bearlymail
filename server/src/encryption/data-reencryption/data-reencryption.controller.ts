@@ -163,6 +163,17 @@ export class DataReencryptionController {
   }
 
   /**
+   * Truthful health of the encrypted data at rest. Unlike `/status` (which only
+   * reports the `dataReencryptedAt` job-visited stamp), this scans every
+   * encrypted column and reports how many rows actually hold plaintext-at-rest
+   * values — the real "needs remediation" number. Read-only; safe to poll.
+   */
+  @Get("health")
+  async health() {
+    return this.service.getHealth();
+  }
+
+  /**
    * Enqueue a fan-out job that, in the worker, queries eligible users and
    * bulk-inserts one re-encryption job per user. Idempotent — already-migrated
    * users are skipped at job time.

@@ -4,7 +4,7 @@ import axios from 'axios';
 
 import { API_URL } from 'config/api';
 import { MS_PER_SECOND, POLLING_INTERVAL_MS, SECONDS_PER_MINUTE } from 'constants/numbers';
-import { useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
+import { type AnalyzeProgress, useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
 
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
@@ -22,7 +22,6 @@ interface ImportProgress {
 const IMPORT_TARGET = 100;
 const IMPORT_TIMEOUT_MINUTES = 5;
 const IMPORT_TIMEOUT_MS = IMPORT_TIMEOUT_MINUTES * SECONDS_PER_MINUTE * MS_PER_SECOND;
-const STAGE_COUNT = 5;
 const ANALYSIS_WEIGHT = 0.7;
 const IMPORT_WEIGHT = 0.3;
 const PROGRESS_CAP_BEFORE_READY = 0.99;
@@ -32,77 +31,117 @@ const DIM_OPACITY = 0.35;
 const FULL_OPACITY = 1;
 const ACTIVE_WEIGHT = 600;
 const INACTIVE_WEIGHT = 400;
-const HISTORY_TOTAL_DAYS = 90;
-const FAST_REPLY_SENDERS = 412;
-const TOPIC_CLUSTERS = 18;
-const NEWSLETTER_SENDERS = 247;
-const URGENCY_BASE_PCT = 50;
-const URGENCY_RANGE_PCT = 44;
 
-const ROW_HISTORY = 'history';
-const ROW_FAST_REPLY = 'fastReply';
-const ROW_TOPICS = 'topics';
-const ROW_NEWSLETTERS = 'newsletters';
-const ROW_URGENCY = 'urgency';
+type TFn = (key: string, values?: Record<string, unknown>) => string;
 
-interface LearnRow {
-  rowKey: string;
-  labelKey: string;
-  countFormatter: (progress: number) => string;
+const PHASE_SYNC = 0;
+const PHASE_ANALYZE = 1;
+const PHASE_CALIBRATE = 2;
+
+/**
+ * Collapses the analysis backend's real, monotonic status messageKey onto one
+ * of the three phases the UI shows. The backend reports
+ * starting → fetching → analyzing → finalizing → complete; we group the email
+ * fetch with the inbox sync, analysing on its own, and finalising with
+ * calibration. Anything unrecognised (or no analysis yet) falls back to the
+ * first phase.
+ */
+const ANALYSIS_STAGE_PHASE: Record<string, number> = {
+  'settings.analysis.progress.starting': PHASE_SYNC,
+  'settings.analysis.progress.searching': PHASE_SYNC,
+  'settings.analysis.progress.fetching': PHASE_SYNC,
+  'settings.analysis.progress.preparing': PHASE_ANALYZE,
+  'settings.analysis.progress.identifyingVip': PHASE_ANALYZE,
+  'settings.analysis.progress.analyzing': PHASE_ANALYZE,
+  'settings.analysis.progress.analyzingGeneric': PHASE_ANALYZE,
+  'settings.analysis.progress.processingResults': PHASE_CALIBRATE,
+  'settings.analysis.progress.savingInsights': PHASE_CALIBRATE,
+  'settings.analysis.progress.finalizing': PHASE_CALIBRATE,
+  'settings.analysis.progress.complete': PHASE_CALIBRATE,
+  'settings.analysis.progress.completeSimple': PHASE_CALIBRATE,
+};
+
+const PHASE_LABEL_KEYS = [
+  'setupWizard.learning.phaseSync',
+  'setupWizard.learning.phaseAnalyze',
+  'setupWizard.learning.phaseCalibrate',
+];
+
+interface RealProgress {
+  syncedCount: number;
+  threadCount?: number;
+  analyzedCount?: number;
+  vipCount?: number;
 }
 
-const LEARN_ROWS: LearnRow[] = [
-  {
-    rowKey: ROW_HISTORY,
-    labelKey: 'setupWizard.learning.row1',
-    countFormatter: progress => `${Math.round(progress * HISTORY_TOTAL_DAYS)} / ${HISTORY_TOTAL_DAYS} days`,
-  },
-  {
-    rowKey: ROW_FAST_REPLY,
-    labelKey: 'setupWizard.learning.row2',
-    countFormatter: progress => `${Math.round(progress * FAST_REPLY_SENDERS)} / ${FAST_REPLY_SENDERS} senders`,
-  },
-  {
-    rowKey: ROW_TOPICS,
-    labelKey: 'setupWizard.learning.row3',
-    countFormatter: progress => `${Math.round(progress * TOPIC_CLUSTERS)} topics`,
-  },
-  {
-    rowKey: ROW_NEWSLETTERS,
-    labelKey: 'setupWizard.learning.row4',
-    countFormatter: progress => `${Math.round(progress * NEWSLETTER_SENDERS)} senders`,
-  },
-  {
-    rowKey: ROW_URGENCY,
-    labelKey: 'setupWizard.learning.row5',
-    countFormatter: progress => `${URGENCY_BASE_PCT + Math.round(progress * URGENCY_RANGE_PCT)}%`,
-  },
-];
-
-const STAGE_TITLE_KEYS = [
-  'setupWizard.learning.stage1Title',
-  'setupWizard.learning.stage2Title',
-  'setupWizard.learning.stage3Title',
-  'setupWizard.learning.stage4Title',
-  'setupWizard.learning.stage5Title',
-];
-
-const STAGE_DETAIL_KEYS = [
-  'setupWizard.learning.stage1Detail',
-  'setupWizard.learning.stage2Detail',
-  'setupWizard.learning.stage3Detail',
-  'setupWizard.learning.stage4Detail',
-  'setupWizard.learning.stage5Detail',
-];
-
-function pickRowProgress(idx: number, activeStageIdx: number, displayProgress: number): number {
-  if (idx < activeStageIdx) {
-    return PROGRESS_MAX;
+function getCurrentPhase(messageKey: string | undefined): number {
+  if (!messageKey) {
+    return PHASE_SYNC;
   }
-  if (idx === activeStageIdx) {
-    return Math.min(PROGRESS_MAX, displayProgress * STAGE_COUNT - idx);
+  return ANALYSIS_STAGE_PHASE[messageKey] ?? PHASE_SYNC;
+}
+
+interface LearningView {
+  displayProgress: number;
+  canFinish: boolean;
+  currentPhase: number;
+  realProgress: RealProgress;
+}
+
+/**
+ * Derives the real, observable progress shown on the learning screen from the
+ * two backend signals: the context-analysis poll (a real 0-100 percentage plus
+ * per-stage counts) and the email-import poll (real synced-thread count). The
+ * bar blends both; the phase is taken from the analysis stage; counts are the
+ * raw numbers the backend reports — nothing is synthesised.
+ */
+function computeLearningView(
+  analyzeProgress: AnalyzeProgress,
+  importProgress: ImportProgress,
+  timedOut: boolean,
+): LearningView {
+  const progress = analyzeProgress.progress;
+  const analysisProgress = progress ? Math.min(PROGRESS_MAX, progress.current / Math.max(1, progress.total)) : 0;
+  const importProgressPct = Math.min(PROGRESS_MAX, importProgress.prioritizedCount / IMPORT_TARGET);
+  const overallProgress = Math.min(PROGRESS_MAX, ANALYSIS_WEIGHT * analysisProgress + IMPORT_WEIGHT * importProgressPct);
+  const displayProgress = importProgress.isReady ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, overallProgress);
+  const canFinish = (importProgress.isReady && analyzeProgress.isComplete) || timedOut;
+  const realProgress: RealProgress = {
+    syncedCount: importProgress.prioritizedCount,
+    threadCount: progress?.threadCount,
+    analyzedCount: progress?.analyzedCount,
+    vipCount: progress?.stats?.vipContactsEvaluated,
+  };
+  // Phase index past the last row once finished, so every row reads as done.
+  const currentPhase = canFinish ? PHASE_LABEL_KEYS.length : getCurrentPhase(progress?.messageKey);
+  return { displayProgress, canFinish, currentPhase, realProgress };
+}
+
+/** Live status line for the active phase, interpolating real counts from the backend. */
+function buildStatusDetail(translate: TFn, phase: number, rp: RealProgress): string {
+  if (phase === PHASE_ANALYZE) {
+    return rp.threadCount
+      ? translate('setupWizard.learning.statusAnalyze', { analyzed: rp.analyzedCount ?? 0, total: rp.threadCount })
+      : translate('setupWizard.learning.statusAnalyzeGeneric');
   }
-  return 0;
+  if (phase === PHASE_CALIBRATE) {
+    return translate('setupWizard.learning.statusCalibrate');
+  }
+  return translate('setupWizard.learning.statusSync', { count: rp.syncedCount });
+}
+
+/** Real count shown on the right of each phase row (empty until the number exists). */
+function buildPhaseCount(translate: TFn, phaseIdx: number, rp: RealProgress): string {
+  if (phaseIdx === PHASE_SYNC) {
+    return translate('setupWizard.learning.countMessages', { count: rp.syncedCount });
+  }
+  if (phaseIdx === PHASE_ANALYZE) {
+    if (rp.threadCount) {
+      return `${rp.analyzedCount ?? 0} / ${rp.threadCount}`;
+    }
+    return rp.analyzedCount ? String(rp.analyzedCount) : '';
+  }
+  return rp.vipCount !== undefined ? translate('setupWizard.learning.countVip', { count: rp.vipCount }) : '';
 }
 
 function pickRowBorderColor(active: boolean, done: boolean): string {
@@ -227,22 +266,18 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
     };
   }, []);
 
-  const analysisProgress = analyzeProgress.progress
-    ? Math.min(PROGRESS_MAX, analyzeProgress.progress.current / Math.max(1, analyzeProgress.progress.total))
-    : 0;
-  const importProgressPct = Math.min(PROGRESS_MAX, importProgress.prioritizedCount / IMPORT_TARGET);
-  const overallProgress = Math.min(PROGRESS_MAX, ANALYSIS_WEIGHT * analysisProgress + IMPORT_WEIGHT * importProgressPct);
-  const displayProgress = importProgress.isReady ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, overallProgress);
-  const activeStageIdx = Math.min(STAGE_COUNT - 1, Math.floor(displayProgress * STAGE_COUNT));
-  const isFullyComplete = importProgress.isReady && analyzeProgress.isComplete;
-  const canFinish = isFullyComplete || timedOut;
+  const { displayProgress, canFinish, currentPhase, realProgress } = computeLearningView(
+    analyzeProgress,
+    importProgress,
+    timedOut,
+  );
 
-  const headerTitle = isFullyComplete
+  const headerTitle = canFinish
     ? t('setupWizard.learning.readyTitle')
-    : t(STAGE_TITLE_KEYS[activeStageIdx]);
-  const headerDetail = isFullyComplete
+    : t(PHASE_LABEL_KEYS[Math.min(currentPhase, PHASE_LABEL_KEYS.length - 1)]);
+  const headerDetail = canFinish
     ? t('setupWizard.learning.readyDetail')
-    : t(STAGE_DETAIL_KEYS[activeStageIdx]);
+    : buildStatusDetail(t, currentPhase, realProgress);
 
   return (
     <section className="onboarding-pane" style={paneStyle}>
@@ -260,7 +295,7 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
         displayProgress={displayProgress}
       />
 
-      <LearningRows activeStageIdx={activeStageIdx} canFinish={canFinish} displayProgress={displayProgress} t={t} />
+      <LearningRows currentPhase={currentPhase} canFinish={canFinish} realProgress={realProgress} t={t} />
 
       <PrivacyCard t={t} />
 
@@ -295,30 +330,33 @@ const LearningHeader: React.FC<LearningHeaderProps> = ({ canFinish, headerTitle,
       <div style={learnHeadTitleStyle}>{headerTitle}</div>
       <div style={learnHeadSubStyle}>{headerDetail}</div>
     </div>
-    <div style={progressTrackStyle}>
-      <div style={progressFillStyle(displayProgress * PERCENT_MULT)} />
+    <div style={progressMeterStyle}>
+      <div style={progressTrackStyle}>
+        <div style={progressFillStyle(displayProgress * PERCENT_MULT)} />
+      </div>
+      <span style={progressPercentStyle}>{Math.round(displayProgress * PERCENT_MULT)}%</span>
     </div>
   </div>
 );
 
 interface LearningRowsProps {
-  activeStageIdx: number;
+  currentPhase: number;
   canFinish: boolean;
-  displayProgress: number;
-  t: (key: string) => string;
+  realProgress: RealProgress;
+  t: TFn;
 }
 
-const LearningRows: React.FC<LearningRowsProps> = ({ activeStageIdx, canFinish, displayProgress, t }) => (
+const LearningRows: React.FC<LearningRowsProps> = ({ currentPhase, canFinish, realProgress, t }) => (
   <div style={learnRowsStyle}>
-    {LEARN_ROWS.map((row, idx) => {
-      const isActive = idx === activeStageIdx && !canFinish;
-      const isDone = idx < activeStageIdx || canFinish;
-      const rowProgress = pickRowProgress(idx, activeStageIdx, displayProgress);
+    {PHASE_LABEL_KEYS.map((labelKey, idx) => {
+      const isActive = idx === currentPhase && !canFinish;
+      const isDone = idx < currentPhase || canFinish;
+      const count = buildPhaseCount(t, idx, realProgress);
       return (
-        <div key={row.rowKey} style={learnRowStyle(isActive, isDone)}>
+        <div key={labelKey} style={learnRowStyle(isActive, isDone)}>
           <span style={learnNumStyle(isActive, isDone)}>{isDone ? '✓' : idx + 1}</span>
-          <span style={learnLabelStyle}>{t(row.labelKey)}</span>
-          <span style={learnCountStyle(isActive, isDone)}>{row.countFormatter(rowProgress)}</span>
+          <span style={learnLabelStyle}>{t(labelKey)}</span>
+          <span style={learnCountStyle(isActive, isDone)}>{count}</span>
         </div>
       );
     })}
@@ -421,14 +459,29 @@ const learnHeadSubStyle: React.CSSProperties = {
   marginTop: '2px',
 };
 
+const progressMeterStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  marginLeft: 'auto',
+  flexShrink: 0,
+};
+
 const progressTrackStyle: React.CSSProperties = {
   height: '6px',
   background: TOK.cream3,
   borderRadius: '999px',
   overflow: 'hidden',
-  marginLeft: 'auto',
   width: '100px',
-  flexShrink: 0,
+};
+
+const progressPercentStyle: React.CSSProperties = {
+  fontFamily: TOK.fontMono,
+  fontSize: '12px',
+  fontWeight: ACTIVE_WEIGHT,
+  color: TOK.ink2,
+  minWidth: '34px',
+  textAlign: 'right',
 };
 
 const progressFillStyle = (percent: number): React.CSSProperties => ({

@@ -24,6 +24,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
+import { getJobPriority } from "../queue/job-priorities";
 import { logError } from "../utils/logger";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
@@ -564,6 +565,37 @@ export class AuthController {
     }
   }
 
+  /**
+   * Enqueue an immediate inbox sync for a freshly connected (or reconnected)
+   * mailbox. The OAuth "connect" flow returns early without going through
+   * login()/scheduleSyncJobs(), so without this the inbox stays empty until
+   * the next 5-minute fetch cron runs — which makes onboarding look broken
+   * (e.g. Outlook showing zero emails).
+   *
+   * Note: no `singletonMinutes` here on purpose. login() and the fetch cron
+   * enqueue the same `singletonKey` with a 5-minute throttle, and the login
+   * sync usually fires (and finds nothing) seconds before the mailbox is
+   * connected. A throttled send would be debounced away inside that window;
+   * `singletonKey` alone still dedupes against an in-flight job without
+   * suppressing this one.
+   */
+  private queueEmailFetchForConnectedAccount(userId: string): void {
+    this.boss
+      .send(
+        JOB_NAMES.FETCH_USER_EMAILS,
+        { userId },
+        {
+          priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
+          singletonKey: `fetch-user-emails-${userId}`,
+        },
+      )
+      .catch((err) => {
+        this.logger.warn(
+          `Failed to queue email fetch for newly connected account user ${userId}: ${err}`,
+        );
+      });
+  }
+
   private async handleGoogleConnectionState(
     state: string,
     req,
@@ -641,6 +673,7 @@ export class AuthController {
             );
           });
       }
+      this.queueEmailFetchForConnectedAccount(stateData.userId);
       res.redirect(`${frontendUrl}/settings?googleConnected=true`);
       return true;
     } catch (err) {
@@ -708,6 +741,7 @@ export class AuthController {
           isPrimary,
         });
       }
+      this.queueEmailFetchForConnectedAccount(stateData.userId);
       res.redirect(`${frontendUrl}/settings?office365Connected=true`);
       return true;
     } catch (err) {
@@ -830,6 +864,7 @@ export class AuthController {
           isPrimary,
         });
       }
+      this.queueEmailFetchForConnectedAccount(stateData.userId);
       res.redirect(`${frontendUrl}/settings?zohoConnected=true`);
       return true;
     } catch (err) {

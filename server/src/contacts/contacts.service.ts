@@ -259,22 +259,14 @@ export class ContactsService {
     //      visible-field filter BEFORE truncating to `limit`. Truncating first
     //      (the old `.take(limit)`) dropped genuine matches that ranked below
     //      the cut even though they were the only true hits.
-    const tokenParams: Record<string, string> = {};
-    const likeClauses: string[] = [];
-    const scoreClauses: string[] = [];
-    queryTokens.forEach((token, i) => {
-      tokenParams[`token${i}`] = `%${token}%`;
-      likeClauses.push(`contact.searchTokens LIKE :token${i}`);
-      scoreClauses.push(
-        `(CASE WHEN contact.searchTokens LIKE :token${i} THEN 1 ELSE 0 END)`,
-      );
-    });
+    const { tokenParams, orClause, matchScoreExpr } =
+      SearchIndexHelper.buildTokenMatchSql(queryTokens);
 
     const contacts = await this.contactRepository
       .createQueryBuilder("contact")
       .where("contact.userId = :userId", { userId })
-      .andWhere(`(${likeClauses.join(" OR ")})`, tokenParams)
-      .orderBy(scoreClauses.join(" + "), "DESC")
+      .andWhere(`(${orClause})`, tokenParams)
+      .orderBy(matchScoreExpr, "DESC")
       .addOrderBy("contact.contactFrequency", "DESC")
       .addOrderBy("contact.isFavorite", "DESC")
       .take(Math.max(limit, QUERY_LIMITS.CONTACTS_SEARCH_CANDIDATE_POOL))

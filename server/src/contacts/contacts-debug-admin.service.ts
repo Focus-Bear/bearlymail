@@ -17,9 +17,11 @@ import { SearchIndexHelper } from "./search-index.helper";
 const SQL_CANDIDATES_RESPONSE_CAP = 50;
 
 /**
- * The production `searchContacts()` call uses `.take(8)` (the client always
- * passes `limit=8`). We surface that number so the diagnostic can report
- * "your target was at position 47 / would not have survived take(8)".
+ * The production `searchContacts()` call relevance-ranks a candidate pool,
+ * applies the visible-field filter, then truncates to the caller's `limit`
+ * (the client passes `limit=8`). We surface that number so the diagnostic can
+ * report "your target ranked 9th among matching contacts / would not appear in
+ * the top 8".
  */
 const PROD_SEARCH_TAKE_LIMIT = 8;
 
@@ -340,23 +342,21 @@ export class ContactsDebugAdminService {
     // thousands of rows for broad queries on large contact lists. The
     // accurate total is surfaced via a parallel `.getCount()` so we can
     // flag when extra matching rows existed beyond the cap.
+    // Mirror the production ranking in ContactsService.searchContacts: order by
+    // how MANY query tokens each contact matches (relevance) before frequency,
+    // so positionInSqlOrder reflects what the user actually gets. Ordering only
+    // by contactFrequency (the old behaviour) misreported a zero-frequency
+    // exact match as buried at position 77 (#2030).
+    const { tokenParams, orClause, matchScoreExpr } =
+      SearchIndexHelper.buildTokenMatchSql(tokenHashes);
+
     const buildCandidateQuery = () =>
       this.contactRepository
         .createQueryBuilder("contact")
         .where("contact.userId = :userId", { userId })
-        .andWhere(
-          `(${tokenHashes
-            .map((_, i) => `contact.searchTokens LIKE :token${i}`)
-            .join(" OR ")})`,
-          tokenHashes.reduce(
-            (acc, token, i) => {
-              acc[`token${i}`] = `%${token}%`;
-              return acc;
-            },
-            {} as Record<string, string>,
-          ),
-        )
-        .orderBy("contact.contactFrequency", "DESC")
+        .andWhere(`(${orClause})`, tokenParams)
+        .orderBy(matchScoreExpr, "DESC")
+        .addOrderBy("contact.contactFrequency", "DESC")
         .addOrderBy("contact.isFavorite", "DESC");
 
     const [sqlCandidates, sqlMatchingTotalCount] = tokenHashes.length
@@ -374,6 +374,21 @@ export class ContactsDebugAdminService {
     const annotated: SqlCandidateRow[] = sqlCandidates.map((row, index) =>
       annotateRow(row, index, queryTokens, query),
     );
+
+    // Production: relevance-rank → post-filter → take(limit). So a candidate
+    // survives iff it passes the post-filter AND its rank *among
+    // post-filter-passing candidates* (in SQL order) is within the limit.
+    // Raw SQL position over-counts rows that rank high but get dropped by the
+    // post-filter and never occupy a result slot.
+    let passingRank = 0;
+    for (const candidate of annotated) {
+      if (candidate.passesPostFilter) {
+        candidate.wouldSurviveTake8 = passingRank < PROD_SEARCH_TAKE_LIMIT;
+        passingRank += 1;
+      } else {
+        candidate.wouldSurviveTake8 = false;
+      }
+    }
 
     const gmailConnected = await this.gmailContactsProvider.isConnected(userId);
     let gmailResults: Array<{
@@ -593,6 +608,15 @@ export class ContactsDebugAdminService {
     const positionInSqlOrder = ctx.sqlCandidates.findIndex(
       (candidate) => candidate.id === row.id,
     );
+    // Production fetches a relevance-ranked candidate pool, applies the
+    // visible-field filter, THEN truncates to the caller's limit. So the target
+    // is returned iff it passes the post-filter and its rank *among
+    // post-filter-passing candidates* — not its raw SQL position — is within
+    // the limit. (Raw position can be pushed down by higher-relevance rows that
+    // themselves fail the post-filter and never occupy a result slot.)
+    const rankAmongPassing = ctx.sqlCandidates
+      .filter((candidate) => candidate.passesPostFilter)
+      .findIndex((candidate) => candidate.id === row.id);
 
     return {
       found: true,
@@ -614,7 +638,9 @@ export class ContactsDebugAdminService {
       postFilterReason: postFilter.reason,
       positionInSqlOrder,
       wouldSurviveTake8:
-        positionInSqlOrder >= 0 && positionInSqlOrder < PROD_SEARCH_TAKE_LIMIT,
+        postFilter.passes &&
+        rankAmongPassing >= 0 &&
+        rankAmongPassing < PROD_SEARCH_TAKE_LIMIT,
       // Distinguishes "ranked beyond the diagnostic's scan cap" from "didn't
       // match the OR clause at all" — both surface as positionInSqlOrder=-1.
       rankedBeyondScanCap:
@@ -651,10 +677,12 @@ function buildAnnotatedQueryTokens(query: string): AnnotatedToken[] {
     }
   }
 
-  const padded = `  ${normalized}  `;
-  for (let i = 0; i < padded.length - (TRIGRAM_LENGTH - 1); i++) {
-    const trigram = padded.substring(i, i + TRIGRAM_LENGTH);
-    if (trigram.trim().length > 0) {
+  // Mirror SearchIndexHelper.generateTrigrams: non-padded interior trigrams
+  // only. The old space-padded edge grams ("  k", "os ") were unselective
+  // starts-with/ends-with tokens that drowned real matches (#2030).
+  for (let i = 0; i + TRIGRAM_LENGTH <= normalized.length; i++) {
+    const trigram = normalized.substring(i, i + TRIGRAM_LENGTH);
+    if (!/\s/.test(trigram)) {
       push(trigram, "trigram");
     }
   }
@@ -705,7 +733,10 @@ function annotateRow(
     passesPostFilter: postFilter.passes,
     postFilterReason: postFilter.reason,
     positionInSqlOrder,
-    wouldSurviveTake8: positionInSqlOrder < PROD_SEARCH_TAKE_LIMIT,
+    // Caller overwrites this after annotating the full list, using the rank
+    // among post-filter-passing candidates (matches production's
+    // rank → post-filter → take order).
+    wouldSurviveTake8: false,
   };
 }
 

@@ -1,4 +1,15 @@
+import * as crypto from "crypto";
+
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { SearchIndexHelper } from "./search-index.helper";
+
+/** Mirror of the private SearchIndexHelper.hashToken (sha256, first 16 hex). */
+const hash = (input: string): string =>
+  crypto
+    .createHash("sha256")
+    .update(input)
+    .digest("hex")
+    .substring(0, QUERY_LIMITS.SEARCH_INDEX_TRIGRAM_PAD);
 
 describe("SearchIndexHelper", () => {
   describe("hashExact", () => {
@@ -266,6 +277,73 @@ describe("SearchIndexHelper", () => {
         "first.last@example.com",
       );
       expect(local).toBe("first.last");
+    });
+  });
+
+  // #2030: the old generateTrigrams padded the string with spaces, emitting
+  // boundary grams ("  k", " ky", "os ", "s  ") that act as unselective
+  // starts-with/ends-with tokens. On the query side they matched almost every
+  // contact, exploding the candidate set and burying real matches.
+  describe("trigram selectivity (#2030)", () => {
+    it("emits genuine interior trigrams for a query", () => {
+      const tokens = SearchIndexHelper.generateQueryTokens("kyriakos");
+      for (const trigram of ["kyr", "yri", "ria", "iak", "ako", "kos"]) {
+        expect(tokens).toContain(hash(trigram));
+      }
+    });
+
+    it("does NOT emit space-padded boundary grams", () => {
+      const tokens = SearchIndexHelper.generateQueryTokens("kyriakos");
+      // The degenerate 1–2 char edge grams the old padding produced.
+      for (const edgeGram of ["  k", " ky", "os ", "s  "]) {
+        expect(tokens).not.toContain(hash(edgeGram));
+      }
+    });
+
+    it("never emits a token containing whitespace", () => {
+      // Two words so the old code would have produced cross-boundary grams too.
+      const tokens = SearchIndexHelper.generateSearchTokens("kyriakos gold");
+      // Reconstruct every plausible whitespace-bearing gram and assert absence.
+      const normalized = "kyriakos gold";
+      for (let i = 0; i + 3 <= normalized.length; i++) {
+        const gram = normalized.substring(i, i + 3);
+        if (/\s/.test(gram)) {
+          expect(tokens).not.toContain(hash(gram));
+        }
+      }
+      // Padded edge grams too.
+      for (const edgeGram of ["  k", " ky", "ld ", "d  "]) {
+        expect(tokens).not.toContain(hash(edgeGram));
+      }
+    });
+
+    it("query trigrams are a subset of stored tokens for the same term", () => {
+      // Guarantees the query still matches existing stored data (which contains
+      // the same interior trigrams) without relying on the removed edge grams.
+      const query = SearchIndexHelper.generateQueryTokens("kyriakos");
+      const stored = new Set(
+        SearchIndexHelper.generateSearchTokens("kyriakos"),
+      );
+      for (const token of query) {
+        expect(stored.has(token)).toBe(true);
+      }
+    });
+
+    it("a dissimilar name shares NO token with the query (no longer a candidate)", () => {
+      // "katryna" shares only a leading "k" with "kyriakos" — under the old
+      // edge-gram scheme that single "  k" gram made it a candidate. With
+      // interior-only trigrams and prefixes ≥2 chars, they share nothing.
+      const query = new Set(SearchIndexHelper.generateQueryTokens("kyriakos"));
+      const stored = SearchIndexHelper.generateSearchTokens("katryna");
+      for (const token of stored) {
+        expect(query.has(token)).toBe(false);
+      }
+    });
+
+    it("short words yield no trigram but still produce word/prefix tokens", () => {
+      const tokens = SearchIndexHelper.generateQueryTokens("jo");
+      expect(tokens).toContain(hash("jo"));
+      expect(tokens.length).toBeGreaterThan(0);
     });
   });
 });

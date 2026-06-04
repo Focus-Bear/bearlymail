@@ -2,6 +2,9 @@ import * as crypto from "crypto";
 
 import { QUERY_LIMITS } from "../constants/query-limits";
 
+/** Sliding-window size for fuzzy-match trigrams. */
+const TRIGRAM_LENGTH = 3;
+
 /**
  * Helper for creating searchable blind indexes.
  *
@@ -65,17 +68,26 @@ export class SearchIndexHelper {
   }
 
   /**
-   * Generate trigrams from a string
+   * Generate interior trigrams (3-character sliding windows) from a string.
+   *
+   * We deliberately do NOT pad the string with whitespace. Space-padded edge
+   * grams like "  k" or "os " collapse to a 1–2 character signal — effectively
+   * "name starts with k" / "ends with s" — that matches almost every contact.
+   * On the query side they exploded the candidate set into hundreds of weak
+   * one-token matches and buried genuine matches (#2030). Prefix matching is
+   * already covered precisely by the word-prefix tokens, so the edge grams
+   * added noise without adding precision.
+   *
+   * Trigrams that span a word boundary (i.e. contain whitespace) are skipped —
+   * they aren't a meaningful substring of any single term. Words shorter than
+   * 3 characters yield no trigram and rely on the word/prefix tokens instead.
    */
   private static generateTrigrams(text: string): string[] {
     const trigrams: string[] = [];
-    // Pad for edge trigrams
-    const padded = `  ${text}  `;
 
-    for (let i = 0; i < padded.length - 2; i++) {
-      const trigram = padded.substring(i, i + 3);
-      if (trigram.trim().length > 0) {
-        // Skip whitespace-only trigrams
+    for (let i = 0; i + TRIGRAM_LENGTH <= text.length; i++) {
+      const trigram = text.substring(i, i + TRIGRAM_LENGTH);
+      if (!/\s/.test(trigram)) {
         trigrams.push(trigram);
       }
     }
@@ -128,6 +140,37 @@ export class SearchIndexHelper {
     }
 
     return Array.from(tokens);
+  }
+
+  /**
+   * Builds the SQL fragments for a blind-index token match against the
+   * `contact.searchTokens` column — the OR clause that defines candidates and
+   * the relevance-score expression (count of matched query tokens). Shared
+   * bind params keep the OR clause and the score expression referencing the
+   * same `:tokenN` values. Single source of truth for both production search
+   * (`ContactsService.searchContacts`) and the admin diagnostic
+   * (`ContactsDebugAdminService.diagnoseSearch`).
+   */
+  static buildTokenMatchSql(tokenHashes: string[]): {
+    tokenParams: Record<string, string>;
+    orClause: string;
+    matchScoreExpr: string;
+  } {
+    const tokenParams: Record<string, string> = {};
+    const likeClauses: string[] = [];
+    const scoreClauses: string[] = [];
+    tokenHashes.forEach((token, i) => {
+      tokenParams[`token${i}`] = `%${token}%`;
+      likeClauses.push(`contact.searchTokens LIKE :token${i}`);
+      scoreClauses.push(
+        `(CASE WHEN contact.searchTokens LIKE :token${i} THEN 1 ELSE 0 END)`,
+      );
+    });
+    return {
+      tokenParams,
+      orClause: likeClauses.join(" OR "),
+      matchScoreExpr: scoreClauses.join(" + "),
+    };
   }
 
   /**

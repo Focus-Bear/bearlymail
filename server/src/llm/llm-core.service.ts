@@ -170,16 +170,20 @@ export class LLMCoreService {
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
+      // Pass the static system prompt as Gemini's systemInstruction (a stable,
+      // identical-per-call prefix) rather than concatenating it into the user
+      // message. This lets Gemini's implicit context caching reuse the prefix
+      // across calls (large discount on the cached input tokens) — the OpenAI
+      // path already separates system/user the same way.
       const model = this.geminiClient!.getGenerativeModel({
         model: modelName,
+        ...(request.systemPrompt
+          ? { systemInstruction: request.systemPrompt }
+          : {}),
       });
 
-      const fullPrompt = request.systemPrompt
-        ? `${request.systemPrompt}\n\n${request.prompt}`
-        : request.prompt;
-
       const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+        contents: [{ role: "user", parts: [{ text: request.prompt }] }],
         generationConfig: {
           temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
           maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
@@ -197,9 +201,16 @@ export class LLMCoreService {
           promptTokenCount?: number;
           candidatesTokenCount?: number;
           totalTokenCount?: number;
+          cachedContentTokenCount?: number;
         };
       };
       if (usageMetadata) {
+        const cachedTokens = usageMetadata.cachedContentTokenCount || 0;
+        if (cachedTokens > 0) {
+          this.logger.log(
+            `Gemini implicit cache hit: ${cachedTokens}/${usageMetadata.promptTokenCount || 0} prompt tokens cached (${request.operation || LLM_OP_UNKNOWN})`,
+          );
+        }
         await this.tokenUsageService.logUsage({
           userId: userId || null,
           operation: request.operation || LLM_OP_UNKNOWN,

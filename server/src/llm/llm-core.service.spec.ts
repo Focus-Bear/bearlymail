@@ -140,6 +140,49 @@ describe("LLMCoreService", () => {
         }),
       );
     });
+
+    it("passes systemPrompt as systemInstruction and keeps it out of the user message", async () => {
+      mockGeminiGetGenerativeModel.mockClear();
+      mockGeminiGenerateContent.mockResolvedValue({
+        response: { text: () => "ok", usageMetadata: undefined },
+      });
+      const { service } = makeService();
+
+      await service.generateText(
+        { prompt: "BODY", systemPrompt: "STATIC RULES" },
+        LLMProvider.GEMINI,
+      );
+
+      // Static block becomes a cacheable systemInstruction...
+      expect(mockGeminiGetGenerativeModel).toHaveBeenCalledWith(
+        expect.objectContaining({ systemInstruction: "STATIC RULES" }),
+      );
+      // ...and the user message is ONLY the dynamic body (no concatenation).
+      expect(mockGeminiGenerateContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contents: [{ role: "user", parts: [{ text: "BODY" }] }],
+        }),
+      );
+    });
+
+    it("omits systemInstruction when there is no system prompt", async () => {
+      mockGeminiGetGenerativeModel.mockClear();
+      mockGeminiGenerateContent.mockResolvedValue({
+        response: { text: () => "ok", usageMetadata: undefined },
+      });
+      const { service } = makeService();
+
+      await service.generateText({ prompt: "p" }, LLMProvider.GEMINI);
+
+      expect(mockGeminiGetGenerativeModel.mock.calls[0][0]).not.toHaveProperty(
+        "systemInstruction",
+      );
+      expect(mockGeminiGenerateContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contents: [{ role: "user", parts: [{ text: "p" }] }],
+        }),
+      );
+    });
   });
 
   describe("OpenAI provider", () => {

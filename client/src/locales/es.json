@@ -3598,7 +3598,8 @@
       "emailExportPasswordLabel": "Ingresa una contraseña para el archivo ZIP:",
       "emailExportPasswordPlaceholder": "Mín. 8 caracteres",
       "emailExportDownload": "Descargar",
-      "emailExporting": "Exportando correos...",
+      "emailExporting": "Preparando exportación...",
+      "emailExportReady": "Tu exportación de correos se está descargando.",
       "emailExportError": "No se pudieron exportar los correos. Por favor intenta de nuevo.",
       "emailExportCancel": "Cancelar"
     },

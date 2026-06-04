@@ -19,6 +19,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
   Logger,
   NotFoundException,
@@ -27,12 +29,9 @@ import {
   Put,
   Query,
   Request,
-  Res,
-  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import type { Response } from "express";
 import PgBoss from "pg-boss";
 
 import { AuditService } from "../audit/audit.service";
@@ -57,7 +56,7 @@ import {
   BatchStatusPerformanceTracker,
   EMAIL_CONTROLLER_DEFAULTS,
 } from "./email-controller.helpers";
-import { EmailExportService } from "./email-export.service";
+import { EmailExportJobService } from "./email-export-job.service";
 import {
   CategoryOverrideBody,
   ExportEmailBody,
@@ -88,7 +87,7 @@ export class EmailsController {
     private readonly emailAdminService: EmailAdminService,
     private readonly gmailProvider: GmailProvider,
     private readonly searchEnrichmentService: SearchEnrichmentService,
-    private readonly emailExportService: EmailExportService,
+    private readonly emailExportJobService: EmailExportJobService,
     private readonly auditService: AuditService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
@@ -501,32 +500,27 @@ export class EmailsController {
   // ---------------------------------------------------------------------------
 
   /**
-   * Exports all emails for the authenticated user as a password-protected ZIP
-   * file. Email content is decrypted server-side so the JSON inside the ZIP is
-   * human-readable. The ZIP uses ZipCrypto (PKZIP 2.0) encryption, which is
-   * natively supported by macOS Archive Utility and Windows Explorer without
-   * any third-party software.
+   * Queues a password-protected ZIP export of all the user's emails and returns
+   * an `exportId` to poll. The actual build (fetch every email, decrypt, JSON,
+   * zip, upload to S3) runs in a background worker — done inline it exceeded the
+   * 60s ALB idle timeout and 504'd for large mailboxes (#2024). Poll
+   * `GET /emails/export/:id` for status and the download URL.
    */
   @Post("export")
+  @HttpCode(HttpStatus.ACCEPTED)
   @Throttle({
     default: { limit: EXPORT_RATE_LIMIT, ttl: EXPORT_RATE_WINDOW_MS },
   })
-  async exportEmails(
-    @Request() req,
-    @Body() body: ExportEmailBody,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<StreamableFile> {
+  async exportEmails(@Request() req, @Body() body: ExportEmailBody) {
     const { userId } = req.user;
-    const zipBuffer = await this.emailExportService.exportEmails(
+    const { exportId } = await this.emailExportJobService.requestExport(
       userId,
       body.password,
     );
 
     // SAQ Q52 / GAP-12: a bulk personal-data export is a privileged access path
-    // and must leave an audit record. Awaited so the audit write is guaranteed
-    // before the sensitive data is returned — AuditService swallows its own
-    // errors so an audit-write failure never blocks the export.
-    // Never log the export password.
+    // and must leave an audit record. AuditService swallows its own errors so an
+    // audit-write failure never blocks the export. Never log the export password.
     await this.auditService.log({
       userId,
       action: "EMAIL_BULK_EXPORT",
@@ -536,13 +530,19 @@ export class EmailsController {
       userAgent: req.headers?.["user-agent"] ?? null,
     });
 
-    const filename = `bearlymail-emails-${new Date().toISOString().split("T")[0]}.zip`;
-    res.set({
-      "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": zipBuffer.length,
-    });
-    return new StreamableFile(zipBuffer);
+    return { exportId };
+  }
+
+  /**
+   * Returns the status of a queued export and, once complete, a short-lived
+   * presigned download URL. Scoped to the authenticated user.
+   *
+   * Two path segments (`export/:id`) so this never collides with the catch-all
+   * `@Get(":id")` single-segment route defined later in this controller.
+   */
+  @Get("export/:id")
+  async getEmailExportStatus(@Request() req, @Param("id") id: string) {
+    return this.emailExportJobService.getStatus(req.user.userId, id);
   }
 
   // ---------------------------------------------------------------------------

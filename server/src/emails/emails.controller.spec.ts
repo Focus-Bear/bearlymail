@@ -1,6 +1,5 @@
-import { NotFoundException, StreamableFile } from "@nestjs/common";
+import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import type { Response } from "express";
 
 import { AuditService } from "../audit/audit.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
@@ -10,7 +9,7 @@ import { Office365AccountsService } from "../office365-accounts/office365-accoun
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
-import { EmailExportService } from "./email-export.service";
+import { EmailExportJobService } from "./email-export-job.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
@@ -134,10 +133,10 @@ describe("EmailsController", () => {
           },
         },
         {
-          provide: EmailExportService,
+          provide: EmailExportJobService,
           useValue: {
-            exportEmails: jest.fn().mockResolvedValue(Buffer.from("mock-zip")),
-            getExportableEmails: jest.fn().mockResolvedValue([]),
+            requestExport: jest.fn().mockResolvedValue({ exportId: "exp-123" }),
+            getStatus: jest.fn(),
           },
         },
         {
@@ -1101,22 +1100,19 @@ describe("EmailsController", () => {
   });
 
   describe("exportEmails", () => {
-    it("should export emails and write an audit record (without the password)", async () => {
+    it("enqueues an export job and writes an audit record (without the password)", async () => {
       const userId = "user-123";
       const mockRequest = {
         user: { userId },
         ip: "10.0.0.5",
         headers: { "user-agent": "Test-UA/1.0" },
       };
-      const mockRes = { set: jest.fn() } as unknown as Response;
 
-      const result = await controller.exportEmails(
-        mockRequest,
-        { password: "super-secret-password" },
-        mockRes,
-      );
+      const result = await controller.exportEmails(mockRequest, {
+        password: "super-secret-password",
+      });
 
-      expect(result).toBeInstanceOf(StreamableFile);
+      expect(result).toEqual({ exportId: "exp-123" });
 
       expect(mockAuditService.log).toHaveBeenCalledTimes(1);
       const auditArg = mockAuditService.log.mock.calls[0][0];
@@ -1132,16 +1128,11 @@ describe("EmailsController", () => {
       expect(JSON.stringify(auditArg)).not.toContain("super-secret-password");
     });
 
-    it("should still return when audit logging is missing ip/user-agent", async () => {
+    it("still returns when audit logging is missing ip/user-agent", async () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
-      const mockRes = { set: jest.fn() } as unknown as Response;
 
-      await controller.exportEmails(
-        mockRequest,
-        { password: "password123" },
-        mockRes,
-      );
+      await controller.exportEmails(mockRequest, { password: "password123" });
 
       expect(mockAuditService.log).toHaveBeenCalledWith(
         expect.objectContaining({

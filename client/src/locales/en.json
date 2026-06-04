@@ -1079,7 +1079,8 @@
       "emailExportPasswordLabel": "Enter a password for the ZIP file:",
       "emailExportPasswordPlaceholder": "Min. 8 characters",
       "emailExportDownload": "Download",
-      "emailExporting": "Exporting emails...",
+      "emailExporting": "Preparing export...",
+      "emailExportReady": "Your email export is downloading.",
       "emailExportError": "Failed to export emails. Please try again.",
       "emailExportCancel": "Cancel"
     },

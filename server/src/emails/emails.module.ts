@@ -16,6 +16,7 @@ import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { CategoryOverride } from "../database/entities/category-override.entity";
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
+import { EmailExport } from "../database/entities/email-export.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { FollowUp } from "../database/entities/follow-up.entity";
 import { Organization } from "../database/entities/organization.entity";
@@ -53,7 +54,10 @@ import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailDebugPhishingService } from "./email-debug-phishing.service";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
+import { EmailExportProcessor } from "./email-export.processor";
 import { EmailExportService } from "./email-export.service";
+import { EmailExportJobService } from "./email-export-job.service";
+import { EmailExportStorageService } from "./email-export-storage.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import { EmailGmailService } from "./email-gmail.service";
 import { EmailInboxService } from "./email-inbox.service";
@@ -105,6 +109,7 @@ import { SyncHistoryService } from "./sync-history.service";
     CategoryKeysModule,
     TypeOrmModule.forFeature([
       Email,
+      EmailExport,
       EmailThread,
       Organization,
       OrganizationMember,
@@ -280,6 +285,9 @@ import { SyncHistoryService } from "./sync-history.service";
     ArchiveEmailProcessor,
     EmailAdminService,
     EmailExportService,
+    EmailExportStorageService,
+    EmailExportJobService,
+    EmailExportProcessor,
     EmailDebugCategoryService,
     EmailDebugRawColumnsService,
     EmailDebugPhishingService,

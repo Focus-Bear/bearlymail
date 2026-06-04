@@ -95,6 +95,63 @@ function downloadBlob(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
+// Email export is built asynchronously in a background worker (it used to 504 at
+// the ALB timeout for large mailboxes). The POST returns an id to poll, and the
+// finished ZIP is fetched from a short-lived presigned S3 URL.
+const EMAIL_EXPORT_POLL_INTERVAL_MS = 2000;
+const EMAIL_EXPORT_MAX_POLLS = 150; // 150 × 2s = 5 minutes
+
+const EMAIL_EXPORT_STATUS_COMPLETED = 'completed';
+const EMAIL_EXPORT_STATUS_FAILED = 'failed';
+const EMAIL_EXPORT_STATUS_CHECK_FAILED_MESSAGE = 'Email export status check failed';
+
+type EmailExportStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+interface EmailExportStatusResponse {
+  id: string;
+  status: EmailExportStatus;
+  downloadUrl?: string;
+  error?: string | null;
+}
+
+async function requestEmailExport(password: string): Promise<string> {
+  const response = await fetch(`${API_URL}/emails/export`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) {
+    throw new Error('Email export request failed');
+  }
+  const payload = (await response.json()) as { exportId: string };
+  return payload.exportId;
+}
+
+async function fetchEmailExportStatus(exportId: string): Promise<EmailExportStatusResponse> {
+  const response = await fetch(`${API_URL}/emails/export/${exportId}`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    throw new Error(EMAIL_EXPORT_STATUS_CHECK_FAILED_MESSAGE);
+  }
+  return (await response.json()) as EmailExportStatusResponse;
+}
+
+function triggerUrlDownload(url: string) {
+  const link = document.createElement('a');
+  link.href = url;
+  // The presigned URL already sets Content-Disposition, so the filename is fixed
+  // server-side; this attribute is a best-effort hint for same-origin cases.
+  link.download = 'bearlymail-emails.zip';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 async function submitImport(importData: unknown): Promise<ImportResult> {
   // credentials: 'include' sends the HttpOnly JWT cookie automatically (OWASP ASVS GAP-4)
   const response = await fetch(`${API_URL}/users/me/import`, {
@@ -192,19 +249,39 @@ export const DataExportSection: React.FC = () => {
     }
     setIsEmailExporting(true);
     setError(null);
+    setSuccessMessage(null);
     try {
-      // credentials: 'include' sends the HttpOnly JWT cookie automatically
-      const response = await fetch(`${API_URL}/emails/export`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: emailExportPassword }),
-      });
-      if (!response.ok) {
-        throw new Error('Email export failed');
+      const exportId = await requestEmailExport(emailExportPassword);
+
+      // Poll until the worker finishes building the ZIP, then download it.
+      // Transient status-check failures (e.g. brief network blip) are swallowed
+      // so a single hiccup doesn't abort an export the worker is still building.
+      let downloadUrl: string | undefined;
+      for (let i = 0; i < EMAIL_EXPORT_MAX_POLLS; i++) {
+        await delay(EMAIL_EXPORT_POLL_INTERVAL_MS);
+        try {
+          const status = await fetchEmailExportStatus(exportId);
+          if (status.status === EMAIL_EXPORT_STATUS_COMPLETED && status.downloadUrl) {
+            downloadUrl = status.downloadUrl;
+            break;
+          }
+          if (status.status === EMAIL_EXPORT_STATUS_FAILED) {
+            throw new Error(status.error || 'Email export failed');
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message === EMAIL_EXPORT_STATUS_CHECK_FAILED_MESSAGE) {
+            continue;
+          }
+          throw err;
+        }
       }
-      const blob = await response.blob();
-      downloadBlob(blob, `bearlymail-emails-export-${new Date().toISOString().split('T')[0]}.zip`);
+
+      if (!downloadUrl) {
+        throw new Error('Email export timed out');
+      }
+
+      triggerUrlDownload(downloadUrl);
+      setSuccessMessage(t('settings.dataExport.emailExportReady'));
       setIsEmailExportFormOpen(false);
       setEmailExportPassword('');
     } catch {

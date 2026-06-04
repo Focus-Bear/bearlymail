@@ -51,6 +51,8 @@ export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
   [JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS]: JobPriority.LOW,
   [JOB_NAMES.EVALUATE_WORKFLOWS]: JobPriority.LOW,
   [JOB_NAMES.REENCRYPT_USER_DATA]: JobPriority.VERY_LOW,
+  // User-triggered and the user is actively waiting on the download.
+  [JOB_NAMES.EXPORT_EMAILS]: JobPriority.MEDIUM_HIGH,
 };
 
 /**

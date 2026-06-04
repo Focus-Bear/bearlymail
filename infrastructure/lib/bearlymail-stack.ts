@@ -252,6 +252,37 @@ export class BearlyMailStack extends cdk.Stack {
     }));
 
     // ============================================
+    // Email Exports Bucket (#2024) — private, short-lived
+    // ============================================
+    // Holds password-protected ZIPs produced by the export-emails worker job.
+    // Objects auto-expire after 1 day (downloads use short-lived presigned URLs,
+    // so there's no reason to retain them). The worker writes; the web service
+    // reads to mint presigned GET URLs.
+    const emailExportsBucket = new s3.Bucket(this, 'EmailExportsBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      lifecycleRules: [
+        {
+          // Bulk email exports are transient; delete a day after creation.
+          expiration: cdk.Duration.days(1),
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // Worker writes the ZIP; web reads it back to presign a download URL.
+    emailExportsBucket.grantPut(taskRole);
+    emailExportsBucket.grantRead(taskRole);
+    emailExportsBucket.grantDelete(taskRole);
+
+    new cdk.CfnOutput(this, 'EmailExportsBucketName', {
+      value: emailExportsBucket.bucketName,
+      description: 'Email exports S3 bucket (set EMAIL_EXPORTS_BUCKET to this value)',
+    });
+
+    // ============================================
     // GuardDuty Malware Protection for S3 (GAP-1)
     // ============================================
     // IAM role that GuardDuty assumes to read objects and write scan result tags.
@@ -618,6 +649,7 @@ export class BearlyMailStack extends cdk.Stack {
         CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
         EMAIL_PRIORITISATION_SQS_QUEUE_URL: props.emailPrioritisationQueue?.queueUrl ?? '',
         FEEDBACK_SCREENSHOTS_BUCKET: feedbackScreenshotsBucket.bucketName,
+        EMAIL_EXPORTS_BUCKET: emailExportsBucket.bucketName,
         KMS_KEY_ID: dataEncryptionKey.keyArn,
       },
       secrets: {
@@ -750,6 +782,7 @@ export class BearlyMailStack extends cdk.Stack {
         CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
         EMAIL_PRIORITISATION_SQS_QUEUE_URL: props.emailPrioritisationQueue?.queueUrl ?? '',
         AUDIT_LOG_ARCHIVE_BUCKET: auditLogArchiveBucket.bucketName,
+        EMAIL_EXPORTS_BUCKET: emailExportsBucket.bucketName,
         KMS_KEY_ID: dataEncryptionKey.keyArn,
       },
       secrets: {

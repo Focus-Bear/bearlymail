@@ -16,7 +16,7 @@ import { parseCategoryName } from "../utils/category-name.util";
 const archiverZipEncrypted = require("archiver-zip-encrypted");
 archiver.registerFormat("zip-encrypted", archiverZipEncrypted);
 
-const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 8;
 const EXPORT_BATCH_SIZE = 500;
 
 export interface ExportEmailRecord {

@@ -31,6 +31,16 @@ export const CONTEXT_ANALYSIS_STATUS = {
 export type ContextAnalysisStatus =
   (typeof CONTEXT_ANALYSIS_STATUS)[keyof typeof CONTEXT_ANALYSIS_STATUS];
 
+export const EMAIL_EXPORT_STATUS = {
+  PENDING: "pending",
+  RUNNING: "running",
+  COMPLETED: "completed",
+  FAILED: "failed",
+} as const;
+
+export type EmailExportStatus =
+  (typeof EMAIL_EXPORT_STATUS)[keyof typeof EMAIL_EXPORT_STATUS];
+
 export const FOLLOW_UP_GENERATION_STATUS = {
   GENERATING: "generating",
 } as const;

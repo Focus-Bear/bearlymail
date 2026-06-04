@@ -437,65 +437,153 @@ class EncryptionHelper {
 }
 
 /**
- * TypeORM transformer for encrypted columns.
- * Uses tryDecrypt on read so a single corrupted column does not crash entity hydration.
+ * Brand attached to every encryption column transformer so consumers — chiefly
+ * the re-encryption table discovery — can recognise them by CAPABILITY rather
+ * than by object identity. Identity breaks the moment a per-column factory
+ * instance (carrying a `field` label) is used instead of the shared singleton,
+ * which silently drops that table from re-encryption scope.
  */
-export const encryptedColumnTransformer = {
-  to: (value: string | null | undefined): string | null =>
-    EncryptionHelper.encrypt(value),
-  from: (value: string | null | undefined): string | null =>
-    EncryptionHelper.tryDecrypt(value),
-};
+export const ENCRYPTED_TRANSFORMER_META = Symbol(
+  "bearlymail.encryptedTransformerMeta",
+);
+
+/** Which key a transformer uses — the per-user KMS data key, or the global key. */
+export const ENCRYPTED_TRANSFORMER_SCOPE = {
+  USER: "user",
+  GLOBAL: "global",
+} as const;
+
+/** Whether a transformer's decrypted value is JSON, plain text, or an email. */
+export const ENCRYPTED_TRANSFORMER_KIND = {
+  TEXT: "text",
+  JSON: "json",
+  EMAIL: "email",
+} as const;
+
+export interface EncryptedTransformerMeta {
+  /** Whether the decrypted value is JSON (must be JSON.parsed) or a plain string. */
+  kind: (typeof ENCRYPTED_TRANSFORMER_KIND)[keyof typeof ENCRYPTED_TRANSFORMER_KIND];
+  /** Which key the transformer uses — the per-user KMS data key, or the global key. */
+  scope: (typeof ENCRYPTED_TRANSFORMER_SCOPE)[keyof typeof ENCRYPTED_TRANSFORMER_SCOPE];
+  /** Optional `table.column` label, surfaced in decrypt-failure logs for debugging. */
+  field?: string;
+}
+
+function brandTransformer<T extends object>(
+  transformer: T,
+  meta: EncryptedTransformerMeta,
+): T {
+  return Object.assign(transformer, { [ENCRYPTED_TRANSFORMER_META]: meta });
+}
+
+/** Read the encryption brand off a TypeORM transformer, if it has one. */
+export function getEncryptedTransformerMeta(
+  transformer: unknown,
+): EncryptedTransformerMeta | undefined {
+  if (
+    transformer &&
+    (typeof transformer === "object" || typeof transformer === "function") &&
+    ENCRYPTED_TRANSFORMER_META in transformer
+  ) {
+    return (transformer as Record<symbol, unknown>)[
+      ENCRYPTED_TRANSFORMER_META
+    ] as EncryptedTransformerMeta;
+  }
+  return undefined;
+}
+
+const UNLABELLED_FIELD = "(unlabelled column)";
 
 /**
- * For email addresses - we need to query by them, so we store:
- * - emailHash: SHA-256 hash for querying (not encrypted)
- * - email: encrypted actual email
+ * Shared decrypt-then-parse for the JSON transformers. On failure it returns
+ * null (never raw ciphertext) and, only when the value is genuinely NOT
+ * encrypted-shaped (i.e. plaintext / bypassed-transformer data — the thing
+ * worth knowing about), logs a single line NAMING THE FIELD so an operator can
+ * see exactly which `table.column` holds the bad data. If the value is still
+ * encrypted-shaped, tryDecrypt fail-opened and there's nothing useful to say.
  *
- * Uses tryDecrypt on read so a corrupted email column does not crash entity hydration.
+ * Plain console.warn (never logError): logError dumps the full TypeORM
+ * hydration stack AND forwards a PostHog event per failing row/column, which
+ * was the single largest source of CloudWatch log spam.
  */
-export const emailTransformer = {
-  to: (value: string | null | undefined): string | null =>
-    EncryptionHelper.encrypt(value),
-  from: (value: string | null | undefined): string | null =>
-    EncryptionHelper.tryDecrypt(value),
-};
-
-/**
- * TypeORM transformer for encrypted JSON fields.
- * Encrypts arbitrary JSON data on write, decrypts on read.
- * Uses tryDecrypt on read so a corrupted JSON column does not crash entity hydration.
- */
-export const encryptedJsonTransformer = {
-  to: (value: unknown): string | null => {
-    if (value === null || value === undefined) return null;
-    const stringified = JSON.stringify(value);
-    return EncryptionHelper.encrypt(stringified);
-  },
-  from: (value: string | null | undefined): unknown => {
-    const decrypted = EncryptionHelper.tryDecrypt(value);
-    if (!decrypted) return null;
-    try {
-      return JSON.parse(decrypted);
-    } catch (err) {
-      // Plain console.warn instead of logError() — logError dumps the full
-      // TypeORM hydration stack AND forwards a PostHog event for every failing
-      // row/column, which has been the single largest source of CloudWatch log
-      // spam. This branch is almost always reached because tryDecrypt() failed
-      // and returned raw ciphertext (fail-open), and that decryption failure is
-      // already telemetered by the throttled captureGlobalEvent in tryDecrypt.
-      if (EncryptionHelper.looksLikeEncryptedPayload(decrypted)) {
-        return null;
-      }
-      console.warn(
-        `encryptedJsonTransformer: failed to parse decrypted JSON, returning null (${
-          err instanceof Error ? err.message : String(err)
-        })`,
-      );
+function parseDecryptedJson(
+  decrypted: string,
+  transformerName: string,
+  field: string | undefined,
+): unknown {
+  try {
+    return JSON.parse(decrypted);
+  } catch (err) {
+    if (EncryptionHelper.looksLikeEncryptedPayload(decrypted)) {
       return null;
     }
-  },
-};
+    console.warn(
+      `${transformerName}: failed to parse decrypted JSON for ${
+        field ?? UNLABELLED_FIELD
+      }, returning null (${err instanceof Error ? err.message : String(err)})`,
+    );
+    return null;
+  }
+}
+
+/**
+ * TypeORM transformer factory for encrypted text columns. Pass a `table.column`
+ * label so any future diagnostics can attribute it. Uses tryDecrypt on read so
+ * a single corrupted column does not crash entity hydration.
+ */
+export function makeEncryptedColumnTransformer(field?: string) {
+  return brandTransformer(
+    {
+      to: (value: string | null | undefined): string | null =>
+        EncryptionHelper.encrypt(value),
+      from: (value: string | null | undefined): string | null =>
+        EncryptionHelper.tryDecrypt(value),
+    },
+    { kind: "text", scope: "user", field },
+  );
+}
+/** Shared, field-less transformer for the common case. */
+export const encryptedColumnTransformer = makeEncryptedColumnTransformer();
+
+/**
+ * For email addresses — we store `emailHash` (SHA-256, queryable) separately and
+ * encrypt the actual `email`. Uses tryDecrypt on read so a corrupted email
+ * column does not crash entity hydration.
+ */
+export function makeEmailTransformer(field?: string) {
+  return brandTransformer(
+    {
+      to: (value: string | null | undefined): string | null =>
+        EncryptionHelper.encrypt(value),
+      from: (value: string | null | undefined): string | null =>
+        EncryptionHelper.tryDecrypt(value),
+    },
+    { kind: "email", scope: "user", field },
+  );
+}
+export const emailTransformer = makeEmailTransformer();
+
+/**
+ * TypeORM transformer factory for encrypted JSON columns. Pass a `table.column`
+ * label so the decrypt-failure log names exactly which column holds bad data.
+ */
+export function makeEncryptedJsonTransformer(field?: string) {
+  return brandTransformer(
+    {
+      to: (value: unknown): string | null => {
+        if (value === null || value === undefined) return null;
+        return EncryptionHelper.encrypt(JSON.stringify(value));
+      },
+      from: (value: string | null | undefined): unknown => {
+        const decrypted = EncryptionHelper.tryDecrypt(value);
+        if (!decrypted) return null;
+        return parseDecryptedJson(decrypted, "encryptedJsonTransformer", field);
+      },
+    },
+    { kind: "json", scope: "user", field },
+  );
+}
+export const encryptedJsonTransformer = makeEncryptedJsonTransformer();
 
 /**
  * TypeORM transformers for User entity fields.
@@ -504,45 +592,55 @@ export const encryptedJsonTransformer = {
  * Reason: the JWT guard loads the User entity before the UserEncryptionInterceptor
  * sets the per-user key in AsyncLocalStorage, causing a chicken-and-egg failure.
  */
-export const globalEncryptedColumnTransformer = {
-  to: (value: string | null | undefined): string | null =>
-    EncryptionHelper.encryptWithGlobalKey(value),
-  from: (value: string | null | undefined): string | null =>
-    EncryptionHelper.tryDecryptWithGlobalKey(value),
-};
+export function makeGlobalEncryptedColumnTransformer(field?: string) {
+  return brandTransformer(
+    {
+      to: (value: string | null | undefined): string | null =>
+        EncryptionHelper.encryptWithGlobalKey(value),
+      from: (value: string | null | undefined): string | null =>
+        EncryptionHelper.tryDecryptWithGlobalKey(value),
+    },
+    { kind: "text", scope: "global", field },
+  );
+}
+export const globalEncryptedColumnTransformer =
+  makeGlobalEncryptedColumnTransformer();
 
-export const globalEmailTransformer = {
-  to: (value: string | null | undefined): string | null =>
-    EncryptionHelper.encryptWithGlobalKey(value),
-  from: (value: string | null | undefined): string | null =>
-    EncryptionHelper.tryDecryptWithGlobalKey(value),
-};
+export function makeGlobalEmailTransformer(field?: string) {
+  return brandTransformer(
+    {
+      to: (value: string | null | undefined): string | null =>
+        EncryptionHelper.encryptWithGlobalKey(value),
+      from: (value: string | null | undefined): string | null =>
+        EncryptionHelper.tryDecryptWithGlobalKey(value),
+    },
+    { kind: "email", scope: "global", field },
+  );
+}
+export const globalEmailTransformer = makeGlobalEmailTransformer();
 
-export const globalEncryptedJsonTransformer = {
-  to: (value: unknown): string | null => {
-    if (value === null || value === undefined) return null;
-    return EncryptionHelper.encryptWithGlobalKey(JSON.stringify(value));
-  },
-  from: (value: string | null | undefined): unknown => {
-    const decrypted = EncryptionHelper.tryDecryptWithGlobalKey(value);
-    if (!decrypted) return null;
-    try {
-      return JSON.parse(decrypted);
-    } catch (err) {
-      // Plain console.warn instead of logError() — see encryptedJsonTransformer
-      // above. Avoids dumping a stack + PostHog event per failing row/column.
-      if (EncryptionHelper.looksLikeEncryptedPayload(decrypted)) {
-        return null;
-      }
-      console.warn(
-        `globalEncryptedJsonTransformer: failed to parse decrypted JSON, returning null (${
-          err instanceof Error ? err.message : String(err)
-        })`,
-      );
-      return null;
-    }
-  },
-};
+export function makeGlobalEncryptedJsonTransformer(field?: string) {
+  return brandTransformer(
+    {
+      to: (value: unknown): string | null => {
+        if (value === null || value === undefined) return null;
+        return EncryptionHelper.encryptWithGlobalKey(JSON.stringify(value));
+      },
+      from: (value: string | null | undefined): unknown => {
+        const decrypted = EncryptionHelper.tryDecryptWithGlobalKey(value);
+        if (!decrypted) return null;
+        return parseDecryptedJson(
+          decrypted,
+          "globalEncryptedJsonTransformer",
+          field,
+        );
+      },
+    },
+    { kind: "json", scope: "global", field },
+  );
+}
+export const globalEncryptedJsonTransformer =
+  makeGlobalEncryptedJsonTransformer();
 
 /**
  * Shared helper: decrypt an encrypted contextValue and extract the display name.

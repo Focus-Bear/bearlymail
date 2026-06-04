@@ -11,7 +11,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
@@ -138,7 +138,7 @@ export class UserContext {
    */
   @Column("text", {
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("user_contexts.alternateNames"),
     comment:
       "Alternate names/misspellings for EMAIL_CATEGORY rows — enables fuzzy " +
       "dedup without repeated LLM calls (issue #2065). Stored as encrypted " +

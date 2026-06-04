@@ -5,12 +5,20 @@ import {
 } from "./category-rules-derive-exclusions.helper";
 import { DecryptedValidationRow } from "./category-rules-validate.helper";
 
-jest.mock("../encryption/encryption.helper", () => ({
-  EncryptionHelper: {
-    // Tests pass plaintext rows through manager.query — no real encryption.
-    decrypt: (value: string) => value,
-  },
-}));
+jest.mock("../encryption/encryption.helper", () => {
+  const noopTransformer = {
+    to: (value: unknown) => value,
+    from: (value: unknown) => value,
+  };
+  return {
+    EncryptionHelper: {
+      // Tests pass plaintext rows through manager.query — no real encryption.
+      decrypt: (value: string) => value,
+    },
+    makeEncryptedJsonTransformer: () => noopTransformer,
+    makeGlobalEncryptedJsonTransformer: () => noopTransformer,
+  };
+});
 
 const normalise = (raw: string): string => {
   const match = raw.match(/<([^>]+)>/) || raw.match(/([^\s]+@[^\s]+)/);

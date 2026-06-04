@@ -11,7 +11,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { Email } from "./email.entity";
 import { User } from "./user.entity";
@@ -67,7 +67,7 @@ export class ActionItem {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("action_items.metadata"),
     comment: "Action-specific metadata (e.g., GitHub issue info)",
   })
   metadata: Record<string, unknown> | null;

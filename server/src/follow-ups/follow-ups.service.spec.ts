@@ -16,12 +16,20 @@ import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { FollowUpsService } from "./follow-ups.service";
 
-jest.mock("../encryption/encryption.helper", () => ({
-  // Simple mock - returns as-is
-  EncryptionHelper: {
-    decrypt: jest.fn((encryptedValue: string) => encryptedValue),
-  },
-}));
+jest.mock("../encryption/encryption.helper", () => {
+  const noopTransformer = {
+    to: (value: unknown) => value,
+    from: (value: unknown) => value,
+  };
+  return {
+    // Simple mock - returns as-is
+    EncryptionHelper: {
+      decrypt: jest.fn((encryptedValue: string) => encryptedValue),
+    },
+    makeEncryptedJsonTransformer: () => noopTransformer,
+    makeGlobalEncryptedJsonTransformer: () => noopTransformer,
+  };
+});
 
 describe("FollowUpsService", () => {
   let service: FollowUpsService;

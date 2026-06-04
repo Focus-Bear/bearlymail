@@ -11,7 +11,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
@@ -65,20 +65,20 @@ export class ScheduledEmail {
   emailId: string | null;
 
   @Column("text", {
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("scheduled_emails.to"),
     comment: "To recipients",
   })
   to: EmailRecipient[];
 
   @Column("text", {
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("scheduled_emails.cc"),
     nullable: true,
     comment: "CC recipients",
   })
   cc: EmailRecipient[] | null;
 
   @Column("text", {
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("scheduled_emails.bcc"),
     nullable: true,
     comment: "BCC recipients",
   })
@@ -99,7 +99,7 @@ export class ScheduledEmail {
   body: string;
 
   @Column("text", {
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("scheduled_emails.attachments"),
     nullable: true,
     comment: "Attachments (base64 encoded)",
   })
@@ -140,7 +140,9 @@ export class ScheduledEmail {
   expectedReplyHours: number | null;
 
   @Column("text", {
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer(
+      "scheduled_emails.forwardAttachmentIds",
+    ),
     nullable: true,
     comment:
       "Forward attachment IDs if this is a reply with forwarded attachments",

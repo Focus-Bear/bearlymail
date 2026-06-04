@@ -8,7 +8,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 
 /**
@@ -43,7 +43,7 @@ export class AuditLog {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("audit_logs.metadata"),
   })
   metadata: Record<string, unknown> | null;
 

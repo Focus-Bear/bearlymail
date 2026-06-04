@@ -11,7 +11,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
@@ -125,7 +125,10 @@ export class CategoryRule {
   })
   ruleKind: CategoryRuleKind;
 
-  @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
+  @Column("text", {
+    nullable: true,
+    transformer: makeEncryptedJsonTransformer("category_rules.compositeSpec"),
+  })
   compositeSpec: CompositeCategoryRuleSpec | null;
 
   @Column({ default: true })

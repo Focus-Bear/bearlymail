@@ -15,11 +15,19 @@ import { OrganizationsService } from "./organizations.service";
 
 // EncryptionHelper.hashEmail is used for emailHash computation;
 // mock it to return a stable value in tests.
-jest.mock("../encryption/encryption.helper", () => ({
-  EncryptionHelper: {
-    hashEmail: (email: string) => `hash:${email.toLowerCase()}`,
-  },
-}));
+jest.mock("../encryption/encryption.helper", () => {
+  const noopTransformer = {
+    to: (value: unknown) => value,
+    from: (value: unknown) => value,
+  };
+  return {
+    EncryptionHelper: {
+      hashEmail: (email: string) => `hash:${email.toLowerCase()}`,
+    },
+    makeEncryptedJsonTransformer: () => noopTransformer,
+    makeGlobalEncryptedJsonTransformer: () => noopTransformer,
+  };
+});
 
 const mockOrgRepo = {
   findOne: jest.fn(),

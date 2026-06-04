@@ -12,7 +12,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { Email } from "./email.entity";
 import { ProtoCategory } from "./proto-category.entity";
@@ -94,7 +94,9 @@ export class EmailThread {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer(
+      "email_threads.priorityExplanation",
+    ),
     comment: "Precomputed priority explanation (thread-level)",
   })
   priorityExplanation: {
@@ -126,7 +128,10 @@ export class EmailThread {
   priorityRetryCount: number;
 
   // GitHub issue/PR metadata
-  @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
+  @Column("text", {
+    nullable: true,
+    transformer: makeEncryptedJsonTransformer("email_threads.githubMetadata"),
+  })
   githubMetadata: {
     links: Array<{
       type: "issue" | "pr";
@@ -321,7 +326,9 @@ export class EmailThread {
 
   @Column("text", {
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer(
+      "email_threads.shortlistedCategoryNames",
+    ),
     comment:
       "Category names that were shortlisted and passed to the smart model during priority analysis. " +
       "Null means shortlisting was not applicable (category count below threshold) or not yet run. " +
@@ -339,7 +346,7 @@ export class EmailThread {
 
   @Column("text", {
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("email_threads.meetingProposal"),
     comment:
       "Meeting proposal detected during summarization (stored to avoid re-running LLM on every email open). " +
       "hasProposal=false means no specific time was found; null means not yet analysed.",

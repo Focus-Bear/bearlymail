@@ -12,11 +12,19 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "./users.service";
 
-jest.mock("../encryption/encryption.helper", () => ({
-  EncryptionHelper: {
-    hashEmail: jest.fn((email: string) => `hash_${email.toLowerCase()}`),
-  },
-}));
+jest.mock("../encryption/encryption.helper", () => {
+  const noopTransformer = {
+    to: (value: unknown) => value,
+    from: (value: unknown) => value,
+  };
+  return {
+    EncryptionHelper: {
+      hashEmail: jest.fn((email: string) => `hash_${email.toLowerCase()}`),
+    },
+    makeEncryptedJsonTransformer: () => noopTransformer,
+    makeGlobalEncryptedJsonTransformer: () => noopTransformer,
+  };
+});
 
 jest.mock("../auth/auth-logger", () => ({
   writeDebugLog: jest.fn(),

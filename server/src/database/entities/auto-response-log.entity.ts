@@ -11,7 +11,7 @@ import {
 import { AutoResponseLogPriority } from "../../auto-responder/types/auto-responder.types";
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { EmailThread } from "./email-thread.entity";
 import { User } from "./user.entity";
@@ -80,7 +80,9 @@ export class AutoResponseLog {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer(
+      "auto_response_logs.classificationDetails",
+    ),
     comment: "Classification details for debugging",
   })
   classificationDetails: {

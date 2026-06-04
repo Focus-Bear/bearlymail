@@ -4,6 +4,8 @@ import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
   EncryptionHelper,
+  getEncryptedTransformerMeta,
+  makeEncryptedJsonTransformer,
 } from "./encryption.helper";
 import { encryptionKeyProvider } from "./encryption-key-provider";
 
@@ -441,6 +443,48 @@ describe("EncryptionHelper", () => {
       const encrypted = encryptedJsonTransformer.to(number);
       const decrypted = encryptedJsonTransformer.from(encrypted);
       expect(decrypted).toBe(number);
+    });
+  });
+
+  describe("field-aware transformers (decrypt-failure attribution)", () => {
+    it("names the table.column field in the parse-failure log for bypassed plaintext", () => {
+      const transformer = makeEncryptedJsonTransformer("emails.labels");
+      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        // A legacy Postgres array literal stored as plaintext (the labels bug).
+        // tryDecrypt passes it through (no ':'), then JSON.parse fails.
+        const result = transformer.from('{"INBOX","IMPORTANT"}');
+        expect(result).toBeNull();
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(String(warnSpy.mock.calls[0][0])).toContain("emails.labels");
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it("falls back to an explicit placeholder when no field label is given", () => {
+      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        // The shared singleton has no field label.
+        expect(encryptedJsonTransformer.from('{"A","B"}')).toBeNull();
+        expect(String(warnSpy.mock.calls[0][0])).toContain("unlabelled");
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it("brands factory and singleton transformers for re-encryption discovery", () => {
+      expect(getEncryptedTransformerMeta(encryptedJsonTransformer)).toEqual({
+        kind: "json",
+        scope: "user",
+        field: undefined,
+      });
+      expect(
+        getEncryptedTransformerMeta(
+          makeEncryptedJsonTransformer("emails.labels"),
+        ),
+      ).toEqual({ kind: "json", scope: "user", field: "emails.labels" });
+      expect(getEncryptedTransformerMeta({})).toBeUndefined();
     });
   });
 });

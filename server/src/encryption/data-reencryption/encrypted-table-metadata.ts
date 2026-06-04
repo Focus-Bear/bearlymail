@@ -1,16 +1,40 @@
 import { DataSource, EntityMetadata } from "typeorm";
 
 import {
-  emailTransformer,
-  encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  ENCRYPTED_TRANSFORMER_KIND,
+  ENCRYPTED_TRANSFORMER_SCOPE,
+  getEncryptedTransformerMeta,
 } from "../encryption.helper";
 
-export const USER_KEY_TRANSFORMERS: ReadonlySet<unknown> = new Set<unknown>([
-  encryptedColumnTransformer,
-  encryptedJsonTransformer,
-  emailTransformer,
-]);
+/**
+ * True when a TypeORM transformer encrypts under the PER-USER KMS data key
+ * (so its column is in scope for per-user re-encryption). Brand-based, not
+ * identity-based, so it works for both the shared singletons and the
+ * per-column `make*Transformer("table.col")` factory instances.
+ *
+ * Global-key transformers (User entity email/name/tone) return `false`: they
+ * stay readable via the global-key fallback and are out of per-user scope.
+ */
+export function isUserKeyTransformer(transformer: unknown): boolean {
+  if (Array.isArray(transformer)) {
+    return transformer.some(isUserKeyTransformer);
+  }
+  return (
+    getEncryptedTransformerMeta(transformer)?.scope ===
+    ENCRYPTED_TRANSFORMER_SCOPE.USER
+  );
+}
+
+/** True when the transformer's decrypted value is JSON (must be JSON.parsed). */
+function isJsonTransformer(transformer: unknown): boolean {
+  if (Array.isArray(transformer)) {
+    return transformer.some(isJsonTransformer);
+  }
+  return (
+    getEncryptedTransformerMeta(transformer)?.kind ===
+    ENCRYPTED_TRANSFORMER_KIND.JSON
+  );
+}
 
 /**
  * Columns (`<table>.<databaseName>`) whose ciphertext is safe to WIPE when it
@@ -99,11 +123,11 @@ export function discoverEncryptedTables(
     if (!primaryKey) continue;
 
     const encryptedColumns = meta.columns
-      .filter((col) => USER_KEY_TRANSFORMERS.has(col.transformer))
+      .filter((col) => isUserKeyTransformer(col.transformer))
       .map(
         (col): EncryptedColumn => ({
           databaseName: col.databaseName,
-          isJson: col.transformer === encryptedJsonTransformer,
+          isJson: isJsonTransformer(col.transformer),
           storageKind: resolveStorageKind(col.type),
           clearOnDecryptFailure: CLEARABLE_ON_DECRYPT_FAILURE.has(
             `${meta.tableName}.${col.databaseName}`,

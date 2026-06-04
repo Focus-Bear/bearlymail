@@ -8,7 +8,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 
 /**
@@ -91,7 +91,7 @@ export class ScanEmail {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("scan_emails.labels"),
     comment: "Email labels from provider (Gmail labels, Office365 categories)",
   })
   labels: string[];

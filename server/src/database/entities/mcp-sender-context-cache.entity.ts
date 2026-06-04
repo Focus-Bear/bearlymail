@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
-import { encryptedJsonTransformer } from "../../encryption/encryption.helper";
+import { makeEncryptedJsonTransformer } from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
 /**
@@ -53,7 +53,9 @@ export class MCPSenderContextCache {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer(
+      "mcp_sender_context_cache.entries",
+    ),
   })
   entries: MCPSenderContextEntry[] | null;
 

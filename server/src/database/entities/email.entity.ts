@@ -10,7 +10,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { EmailThread } from "./email-thread.entity";
 import { GoogleAccount } from "./google-account.entity";
@@ -187,7 +187,7 @@ export class Email {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("emails.actionItemsJson"),
     comment:
       "Structured action items extracted during summary pass: Array<{ description: string; confidence: number }>",
   })
@@ -196,7 +196,7 @@ export class Email {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("emails.labels"),
     comment: "JSON stringified list of labels",
   })
   labels: string[];
@@ -204,7 +204,7 @@ export class Email {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("emails.attachments"),
     comment:
       "JSON array of attachment metadata: {attachmentId, filename, mimeType, size, inlineData?}[]",
   })

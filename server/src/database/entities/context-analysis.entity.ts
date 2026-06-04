@@ -11,7 +11,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
-import { encryptedJsonTransformer } from "../../encryption/encryption.helper";
+import { makeEncryptedJsonTransformer } from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
 /**
@@ -67,7 +67,7 @@ export class ContextAnalysis {
   @Column({
     type: "jsonb",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("context_analyses.stats"),
   })
   stats: {
     // Core statistics (set during finalization)

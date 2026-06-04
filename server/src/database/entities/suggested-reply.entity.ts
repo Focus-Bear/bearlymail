@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
-import { encryptedJsonTransformer } from "../../encryption/encryption.helper";
+import { makeEncryptedJsonTransformer } from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
 @Entity("suggested_replies")
@@ -28,7 +28,7 @@ export class SuggestedReply {
 
   @Column({
     type: "text",
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("suggested_replies.options"),
     comment: "Array of suggested reply options with label and text",
   })
   options: Array<{ label: string; text: string }>;

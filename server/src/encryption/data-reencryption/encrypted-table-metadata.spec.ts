@@ -15,10 +15,11 @@ import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
   globalEncryptedColumnTransformer,
+  makeEncryptedJsonTransformer,
 } from "../encryption.helper";
 import {
   discoverEncryptedTables,
-  USER_KEY_TRANSFORMERS,
+  isUserKeyTransformer,
 } from "./encrypted-table-metadata";
 
 function fakeDataSource(entityMetadatas: unknown[]) {
@@ -74,6 +75,33 @@ describe("discoverEncryptedTables", () => {
     expect(
       tables[0].columns.find((col) => col.databaseName === "subject")?.isJson,
     ).toBe(false);
+  });
+
+  it("discovers per-column factory transformers (field-labelled) just like the singletons", () => {
+    // The migration to make*Transformer("table.col") must NOT drop a column
+    // from re-encryption scope — discovery is brand-based, not identity-based.
+    const meta = {
+      tableName: "emails",
+      primaryColumns: [{ databaseName: "id" }],
+      columns: [
+        { databaseName: "id", propertyName: "id", transformer: undefined },
+        {
+          databaseName: "userId",
+          propertyName: "userId",
+          transformer: undefined,
+        },
+        {
+          databaseName: "labels",
+          propertyName: "labels",
+          transformer: makeEncryptedJsonTransformer("emails.labels"),
+        },
+      ],
+    };
+
+    const [table] = discoverEncryptedTables(fakeDataSource([meta]));
+    const labels = table.columns.find((col) => col.databaseName === "labels");
+    expect(labels).toBeDefined();
+    expect(labels?.isJson).toBe(true);
   });
 
   it("excludes entities without a userId column", () => {
@@ -271,7 +299,7 @@ describe("entity @Column transformer captures (issue #1700)", () => {
         (col) => col.target === entity,
       );
       const withRealTransformer = cols.filter((col) =>
-        USER_KEY_TRANSFORMERS.has(
+        isUserKeyTransformer(
           (col.options as { transformer?: unknown })?.transformer,
         ),
       );

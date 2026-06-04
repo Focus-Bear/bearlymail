@@ -12,7 +12,7 @@ import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.t
 import {
   globalEmailTransformer,
   globalEncryptedColumnTransformer,
-  globalEncryptedJsonTransformer,
+  makeGlobalEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { ActionItem } from "./action-item.entity";
 import { Email } from "./email.entity";
@@ -256,7 +256,7 @@ export class User {
   @Column({
     type: "text",
     nullable: true,
-    transformer: globalEncryptedJsonTransformer,
+    transformer: makeGlobalEncryptedJsonTransformer("users.toneSettings"),
     comment: "e.g., { rules: ['Be concise', 'Use non-violent communication'] }",
   })
   toneSettings: { rules: string[] };
@@ -264,7 +264,9 @@ export class User {
   @Column({
     type: "text",
     nullable: true,
-    transformer: globalEncryptedJsonTransformer,
+    transformer: makeGlobalEncryptedJsonTransformer(
+      "users.autoResponderSettings",
+    ),
     comment: "Auto-responder configuration settings",
   })
   autoResponderSettings: AutoResponderConfig | null;

@@ -11,7 +11,7 @@ import {
 
 import {
   encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { Contact } from "./contact.entity";
 import { DealStage } from "./deal-stage.entity";
@@ -66,7 +66,7 @@ export class Deal {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: makeEncryptedJsonTransformer("deals.metadata"),
     comment: "Arbitrary metadata as encrypted JSON",
   })
   metadata: Record<string, unknown> | null;

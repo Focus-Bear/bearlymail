@@ -4,6 +4,7 @@ import { Organization } from "../entities/organization.entity";
 import { OrganizationMember } from "../entities/organization-member.entity";
 import { User } from "../entities/user.entity";
 import { EncryptionHelper } from "../../encryption/encryption.helper";
+import { encryptionKeyProvider } from "../../encryption/encryption-key-provider";
 
 /**
  * Org-of-one backfill.
@@ -25,6 +26,16 @@ export class BackfillPersonalOrgs1794400000000 implements MigrationInterface {
   name = "BackfillPersonalOrgs1794400000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // This migration intentionally uses the entity manager so the encryption
+    // transformers on User (read) and Organization.name / OrganizationMember.email
+    // (write) fire. But the migration runner (data-source.ts) does NOT boot the
+    // encryption key the way main.ts/worker.ts do, so those transformers throw
+    // "getKey() called before initialize()". Initialise it here exactly as the
+    // app does at boot (KMS-aware, falls back to the static env key). Idempotent.
+    if (!encryptionKeyProvider.isInitialized()) {
+      await encryptionKeyProvider.initializeFromManagedKey();
+    }
+
     const orgRepo = queryRunner.manager.getRepository(Organization);
     const memberRepo = queryRunner.manager.getRepository(OrganizationMember);
     const userRepo = queryRunner.manager.getRepository(User);

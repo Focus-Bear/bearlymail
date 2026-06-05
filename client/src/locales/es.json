@@ -2176,20 +2176,47 @@
       "demo": {
         "title": "BearlyMail · Tuesday, 10:42 AM",
         "live": "Live",
+        "calloutLabel": "Prueba la demo en vivo",
+        "filter": "Filtrar",
+        "settings": "Ajustes",
+        "tourReplay": "↻ Tour",
+        "tourReplayTitle": "Repetir el tour",
+        "readReceived": "Leer correo completo",
+        "readSent": "Leer lo que enviaste",
+        "followupSend": "✉️ Enviar seguimiento",
+        "followupSent": "✓ Seguimiento enviado",
+        "replyLock": {
+          "text": "Responder, enviar y posponer forman parte de la app completa.",
+          "cta": "Regístrate para probar la experiencia completa →"
+        },
         "tabs": {
           "triage": "Triage",
           "action": "Action",
           "followUp": "Follow Up"
         },
         "banner": {
-          "prefix": "Next batch in",
-          "time": "3h 48m",
-          "suffix": "· last checked for urgent emails: just now"
+          "prefix": "Próximo lote a las",
+          "time": "2pm",
+          "suffix": "· última comprobación de correos urgentes: hace un momento"
         },
         "topic": {
           "prefix": "UX:",
-          "body": " Design communications, UX/UI feedback, creative project planning, design jams, external collaboration",
-          "archiveAll": "Archive All"
+          "body": " Comunicaciones de diseño, feedback de UX/UI, planificación de proyectos creativos, sesiones de diseño, colaboración externa",
+          "archiveAll": "Archivar todo"
+        },
+        "topics": {
+          "triage": {
+            "prefix": "UX:",
+            "body": " Comunicaciones de diseño, feedback de UX/UI, planificación de proyectos creativos, sesiones de diseño, colaboración externa"
+          },
+          "action": {
+            "prefix": "Para actuar:",
+            "body": " ordenados por importancia — atiende primero el de arriba y sigue con el resto."
+          },
+          "followup": {
+            "prefix": "Esperando respuesta:",
+            "body": " correos que enviaste y que nadie ha contestado todavía — recuérdaselos con un clic."
+          }
         },
         "email": {
           "from": "Aria Patel",
@@ -2200,15 +2227,86 @@
           "body": "Onboarding step 3 has a 41% drop-off at the password screen. Aria wants to jump on a quick call today to ship a fix."
         },
         "prioritise": {
-          "label": "Prioritise:",
-          "canWait": "Can wait",
-          "getOnIt": "Get on it",
-          "ohShit": "Oh sh$t"
+          "label": "Prioriza:",
+          "canWait": "Puede esperar",
+          "getOnIt": "Ponte con ello",
+          "ohShit": "¡Madre mía!"
         },
         "actions": {
-          "archive": "🗄 Archive",
-          "snooze": "⏰ Snooze",
-          "block": "🚫 Block sender"
+          "archive": "🗄 Archivar",
+          "snooze": "⏰ Posponer",
+          "block": "🚫 Bloquear remitente"
+        },
+        "cards": {
+          "aria": {
+            "sender": "Aria Patel",
+            "contactChip": "👤 Cliente",
+            "priorityLabel": "Alta (74)",
+            "time": "9 may, 19:00",
+            "subject": "Flujo de onboarding: gran abandono en el paso 3, ¿podemos lanzar un arreglo hoy?",
+            "preview": "Hola Jeremy, acabo de revisar los analytics y hay un abandono claro en el paso 3 del flujo de onboarding…",
+            "detail": "Hola Jeremy,\n\nAcabo de revisar los analytics y hay un abandono claro en el paso 3 del flujo de onboarding que lanzamos anoche. Un 41 % de los nuevos usuarios se va en la pantalla de contraseña.\n\n¿Podemos hacer una llamada rápida para repasar un arreglo? Cualquier hora me sirve hoy — con 15 minutos basta para decidir si revertimos o parcheamos.\n\nGracias,\nAria"
+          },
+          "sam": {
+            "sender": "Sam Rivera",
+            "contactChip": "👤 Compañero",
+            "priorityLabel": "Media (28)",
+            "time": "7:54",
+            "subject": "¿Puedes aprobar hoy el nuevo flujo de pago?",
+            "preview": "Diseño cerró la versión final — solo falta tu visto bueno antes de que ingeniería lo retome…",
+            "detail": "Hola,\n\nDiseño cerró el nuevo flujo de pago y dejé notas en Figma. Ingeniería puede empezar mañana si lo apruebas hoy.\n\nNada que bloquee — solo me gustaría que revisaras el paso del pago antes de comprometernos.\n\nSam"
+          },
+          "notion": {
+            "sender": "Notion",
+            "contactChip": "🔔 Notificación",
+            "priorityLabel": "Baja (9)",
+            "time": "Ayer",
+            "subject": "3 comentarios nuevos en el documento del roadmap del Q3",
+            "preview": "Priya, Marcus y 1 persona más comentaron en «Roadmap del Q3»…",
+            "detail": "Priya Shah comentó:\n«¿Deberíamos adelantar la revisión de facturación frente a búsqueda?»\n\nMarcus Lee comentó:\n«+1 — me lanzo a dimensionarlo esta semana.»\n\nNormalmente los hojeas y respondes en lote — nada urgente."
+          },
+          "daniel": {
+            "sender": "Daniel Okafor",
+            "contactChip": "👤 CEO",
+            "priorityLabel": "Alta (68)",
+            "time": "8:12",
+            "subject": "¿Comentarios al plan del Q3 antes del jueves?",
+            "preview": "Leí el borrador anoche — buena dirección. Dos dudas sobre el ramp-up de contratación…",
+            "detail": "Hola — leí anoche el borrador del Q3, buena dirección en general.\n\nDos dudas antes de la revisión del jueves:\n1. El ramp-up de contratación asume cerrar los dos roles senior a finales de julio. ¿Realista?\n2. ¿Podemos adelantar la migración de infraestructura un sprint sin poner en riesgo el lanzamiento?\n\nSin prisa hoy, pero me gustaría tener las respuestas antes de presentarlo al consejo.\n\nDaniel"
+          },
+          "acme": {
+            "sender": "Acme Legal",
+            "contactChip": "👤 Proveedor",
+            "priorityLabel": "Alta (61)",
+            "time": "Ayer",
+            "subject": "Contrato con cambios listo para tu revisión",
+            "preview": "Hemos devuelto el MSA con los cambios de la llamada del martes. Dos puntos abiertos…",
+            "detail": "Hola,\n\nHemos devuelto el MSA con los cambios de la llamada del martes. Los cambios en seguimiento van adjuntos.\n\nDos puntos abiertos siguen necesitando tu visto bueno:\n• Límite de responsabilidad — proponemos 12 meses de tarifas.\n• Anexo de tratamiento de datos — un matiz de redacción sobre subprocesadores.\n\nSi te encaja, podemos tener firmas para el viernes.\n\nSaludos,\nAcme Legal"
+          },
+          "morgan": {
+            "sender": "Para: Morgan Lee",
+            "waitChip": "⏳ Sin respuesta · 3d",
+            "time": "Enviado lun, 9:02",
+            "subject": "Re: Propuesta de partnership — ¿próximos pasos?",
+            "preview": "Hola Morgan, solo confirmo si viste la propuesta — encantado de hacer una llamada…",
+            "detail": "Hola Morgan,\n\nSolo confirmo si viste la propuesta de partnership que envié la semana pasada. Sin presión, pero me encantaría avanzar antes de fin de mes.\n\nEncantado de hacer una llamada rápida si te resulta más fácil.\n\nGracias,\nJeremy"
+          },
+          "jordan": {
+            "sender": "Para: Jordan Blake",
+            "waitChip": "⏳ Sin respuesta · 5d",
+            "time": "Enviado el mié pasado",
+            "subject": "Re: Factura #2207 — fechas de pago",
+            "preview": "Hola Jordan, retomando lo de la factura del mes pasado — avísame…",
+            "detail": "Hola Jordan,\n\nRetomando lo de la factura #2207 del mes pasado. ¿Puedes decirme aproximadamente cuándo está programado el pago?\n\nEncantado de reenviar el PDF si te resulta más fácil.\n\nUn saludo,\nJeremy"
+          },
+          "taylor": {
+            "sender": "Para: Taylor Kim",
+            "waitChip": "⏳ Sin respuesta · 2d",
+            "time": "Enviado mar, 16:30",
+            "subject": "Re: Feedback de la beta — ¿15 min esta semana?",
+            "preview": "Hola Taylor, me encantaría tu opinión sobre la nueva build — cualquier hueco vale…",
+            "detail": "Hola Taylor,\n\nMe encantaría tener 15 minutos para escuchar tu opinión sobre la nueva build antes de lanzarla a más gente. Cualquier hueco esta semana me sirve.\n\nSin problema si vas con todo — incluso notas en asíncrono ayudarían.\n\nGracias,\nJeremy"
+          }
         },
         "foot": {
           "nextBatch": "Next batch in",
@@ -2216,25 +2314,37 @@
         },
         "empty": {
           "triage": {
-            "title": "Inbox zero in Triage",
-            "sub": "Nothing to decide on. Next batch arrives in 3h 48m."
+            "icon": "✨",
+            "title": "Bandeja vacía en Triage",
+            "sub": "Nada por decidir. El próximo lote llega a las 14:00."
           },
           "action": {
-            "title": "No new emails in Action",
-            "sub": "Triaged \"Oh sh$t\" or \"Get on it\" emails land here."
+            "title": "Sin correos nuevos en Action",
+            "sub": "Los correos clasificados como «Oh sh$t» o «A por ello» aterrizan aquí."
           },
           "followup": {
-            "title": "Nothing waiting in Follow Up",
-            "sub": "Batched, lower-priority emails live here until the next batch."
+            "icon": "✅",
+            "title": "Sin respuestas pendientes",
+            "sub": "Todos a los que esperabas ya te han contestado. Bien hecho."
           }
         },
         "routed": {
-          "canWait": "Sent to Follow Up · batched",
-          "getOnIt": "Moved to Action",
-          "ohShit": "Bumped to top of Action — tap the tab to view"
+          "canWait": "Pospuesto · vuelve en tu próximo lote",
+          "getOnIt": "Movido a Action",
+          "ohShit": "Subido al principio de Action",
+          "archived": "Archivado",
+          "followupSent": "Seguimiento enviado ✓"
+        },
+        "tour": {
+          "priorityScore": "Cada correo recibe una <b>puntuación de prioridad</b> de 0 a 100 — BearlyMail lee de quién viene y qué te están pidiendo de verdad.",
+          "sortedByPriority": "Tu bandeja está <b>ordenada por prioridad</b>, no por hora. Lo que importa sube arriba; los boletines y el ruido caen al fondo.",
+          "pulsingReaction": "Un toque y lo clasificas. La <b>reacción que parpadea</b> es la sugerencia de BearlyMail para este correo — pruébala.",
+          "skip": "Saltar tour",
+          "next": "Siguiente →",
+          "done": "Entendido →"
         },
         "floats": {
-          "urgent": "Urgent team reply — broke through"
+          "urgent": "Respuesta urgente del equipo — pasó el filtro"
         }
       },
       "problem": {

@@ -6,6 +6,7 @@ import { captureEvent } from 'utils/posthog';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 
 import { LiveDemo } from './LiveDemo';
+import { LiveDemoRich } from './LiveDemoRich';
 import { openWaitlist } from './waitlistStore';
 
 const DEFAULT_HERO_PREFIX = 'landing.v2.hero';
@@ -95,7 +96,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </div>
           </div>
 
-          <LiveDemo i18nPrefix={demoPrefix} />
+          {demoPrefix === DEFAULT_DEMO_PREFIX ? (
+            <LiveDemoRich />
+          ) : (
+            <LiveDemo i18nPrefix={demoPrefix} />
+          )}
         </div>
       </div>
     </section>

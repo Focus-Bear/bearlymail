@@ -19,6 +19,11 @@ export const LANDING_STYLES = `
   --sun-dark: #C57316;
   --green: #1F8A5B;
   --red: #D84A2A;
+  --warning: #F59E0B;
+  --warning-light: #FEF3C7;
+  --ribbon-text: #7A3E00;
+  --cust: #4A2EAA;
+  --prio-red: #B42318;
   --shadow-card: 0 1px 0 rgba(11,11,11,.04), 0 24px 48px -28px rgba(11,11,11,.18);
   --shadow-soft: 0 1px 0 rgba(11,11,11,.04), 0 8px 24px -12px rgba(11,11,11,.10);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -973,5 +978,253 @@ export const LANDING_STYLES = `
   .bearlymail-landing h1.display { font-size: 36px; }
   .bearlymail-landing .compare-row { grid-template-columns: 1fr; gap: 4px; }
   .bearlymail-landing .compare-row .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+}
+
+/* =======================================================================
+ * Rich interactive demo (default landing hero) — ports Landing.html.
+ * All rules are scoped under .demo-rich so the persona landing demos
+ * (which still use the simpler LiveDemo) are untouched.
+ * ======================================================================= */
+
+/* "Try the live demo" callout + hand-drawn arrow */
+.bearlymail-landing .demo-rich .demo { transform: none; z-index: 1; }
+.bearlymail-landing .demo-callout {
+  display: flex; align-items: flex-end; gap: 10px;
+  margin: 0 0 8px 6px;
+}
+.bearlymail-landing .demo-callout .label {
+  font-family: "Instrument Serif", "Georgia", serif;
+  font-size: 34px; line-height: 1; color: var(--sun-dark);
+  transform: rotate(-3deg); white-space: nowrap;
+}
+.bearlymail-landing .demo-callout .arrow { width: 72px; height: 52px; color: var(--sun-dark); flex-shrink: 0; }
+@media (max-width: 980px) { .bearlymail-landing .demo-callout { justify-content: center; margin-left: 0; } }
+@media (max-width: 520px) {
+  .bearlymail-landing .demo-callout .label { font-size: 28px; }
+  .bearlymail-landing .demo-callout .arrow { width: 58px; height: 42px; }
+}
+
+.bearlymail-landing .demo-rich .tour-replay {
+  font-size: 11px; font-weight: 600; color: var(--ink-3);
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 9px; cursor: pointer; margin-right: 4px;
+  transition: color .12s, border-color .12s;
+}
+.bearlymail-landing .demo-rich .tour-replay:hover { color: var(--ink); border-color: var(--line-2); }
+
+/* Scrollable pane stack */
+.bearlymail-landing .demo-rich .demo-panes {
+  position: relative;
+  max-height: 360px; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+.bearlymail-landing .demo-rich .demo-panes::-webkit-scrollbar { width: 8px; }
+.bearlymail-landing .demo-rich .demo-panes::-webkit-scrollbar-track { background: transparent; }
+.bearlymail-landing .demo-rich .demo-panes::-webkit-scrollbar-thumb {
+  background: var(--line); border-radius: 999px; border: 2px solid #fff; background-clip: padding-box;
+}
+.bearlymail-landing .demo-rich .demo-panes.flying-active { overflow: visible; }
+.bearlymail-landing .demo-rich .demo-pane[hidden] { display: none; }
+.bearlymail-landing .demo-rich .demo-pane { padding: 14px 14px 18px; }
+.bearlymail-landing .demo-rich .topic-group,
+.bearlymail-landing .demo-rich .topic-head { position: relative; }
+.bearlymail-landing .demo-rich .card-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+/* Email card */
+.bearlymail-landing .demo-rich .email-card {
+  position: relative; overflow: hidden; margin-top: 0;
+  background: #fff; border-radius: 12px;
+  border: 1px solid var(--line); border-left: 4px solid var(--sun);
+  box-shadow: var(--shadow-soft); padding: 16px 18px; cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.bearlymail-landing .demo-rich .email-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.bearlymail-landing .demo-rich .email-card:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
+.bearlymail-landing .demo-rich .email-card.urgent-card {
+  border: 2px solid var(--warning); border-left: 4px solid var(--warning); padding-top: 40px;
+}
+.bearlymail-landing .demo-rich .email-card.just-moved { animation: blm-just-moved 1.8s ease; }
+@keyframes blm-just-moved {
+  0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sun) 60%, transparent); }
+  100% { box-shadow: var(--shadow-soft); }
+}
+.bearlymail-landing .demo-rich .email-card.snoozing { animation: blm-snooze-out .48s ease forwards; pointer-events: none; }
+@keyframes blm-snooze-out { to { transform: translateY(26px) scale(.96); opacity: 0; } }
+
+.bearlymail-landing .demo-rich .email-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px;
+}
+.bearlymail-landing .demo-rich .email-from { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.bearlymail-landing .demo-rich .email-from .sender { font-size: 15px; color: var(--ink); font-weight: 600; letter-spacing: -0.005em; }
+.bearlymail-landing .demo-rich .email-time { font-size: 12px; color: var(--ink-4); white-space: nowrap; padding-top: 1px; }
+
+.bearlymail-landing .demo-rich .chip {
+  display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 6px;
+  font-size: 11px; font-weight: 500; line-height: 1.4; border: 1px solid; white-space: nowrap; flex-shrink: 0;
+}
+.bearlymail-landing .demo-rich .chip-team {
+  background: color-mix(in srgb, var(--cust) 12%, #fff); color: var(--cust);
+  border-color: color-mix(in srgb, var(--cust) 28%, transparent);
+}
+.bearlymail-landing .demo-rich .chip-prio {
+  background: var(--sun-pale); color: var(--prio-red); border-color: var(--prio-red);
+  border-radius: 999px; padding: 2px 8px;
+}
+.bearlymail-landing .demo-rich .chip-prio-med {
+  background: #F9D8B3; color: #7A4E12; border-color: color-mix(in srgb, var(--sun) 50%, transparent);
+}
+.bearlymail-landing .demo-rich .chip-prio-low {
+  background: var(--sun-pale); color: var(--sun-dark); border-color: color-mix(in srgb, var(--sun) 40%, transparent);
+}
+.bearlymail-landing .demo-rich .chip-wait {
+  background: #FFF6E6; color: #8A5A12; border-color: color-mix(in srgb, var(--sun) 35%, transparent);
+  border-radius: 999px; padding: 2px 8px;
+}
+
+.bearlymail-landing .demo-rich .email-subj { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 6px; line-height: 1.35; }
+.bearlymail-landing .demo-rich .email-preview {
+  font-size: 14px; color: var(--ink-2); line-height: 1.55; margin-bottom: 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bearlymail-landing .demo-rich .email-card.open .email-preview { display: none; }
+
+/* Read toggle + detail body */
+.bearlymail-landing .demo-rich .read-toggle {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; white-space: nowrap;
+  font-size: 12px; font-weight: 600; color: var(--sun-dark); background: none; border: none; padding: 0; cursor: pointer;
+}
+.bearlymail-landing .demo-rich .read-toggle .chev { transition: transform .2s ease; font-size: 10px; }
+.bearlymail-landing .demo-rich .email-card.open .read-toggle .chev { transform: rotate(180deg); }
+.bearlymail-landing .demo-rich .email-detail {
+  display: none; margin: 2px 0 12px; padding: 16px; background: var(--cream-2);
+  border: 1px solid var(--line); border-radius: 8px; color: var(--ink-2);
+  font-size: 13px; line-height: 1.8; white-space: pre-wrap;
+}
+.bearlymail-landing .demo-rich .email-card.open .email-detail { display: block; }
+
+/* Reply lock CTA */
+.bearlymail-landing .demo-rich .reply-lock {
+  display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  margin: 0 0 12px; padding: 11px 14px; border: 1px dashed var(--line);
+  border-radius: 10px; background: var(--cream-2);
+}
+.bearlymail-landing .demo-rich .reply-lock-ic { font-size: 14px; line-height: 1; }
+.bearlymail-landing .demo-rich .reply-lock-txt { font-size: 12.5px; color: var(--ink-3); }
+.bearlymail-landing .demo-rich .reply-lock-cta {
+  font-size: 12.5px; font-weight: 600; color: var(--sun-dark); background: none; border: none;
+  text-decoration: none; margin-left: auto; white-space: nowrap; cursor: pointer; padding: 0;
+}
+.bearlymail-landing .demo-rich .reply-lock-cta:hover { text-decoration: underline; }
+
+/* Action row */
+.bearlymail-landing .demo-rich .email-foot {
+  display: flex; flex-direction: row; gap: 16px; align-items: center; flex-wrap: wrap;
+  background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-top: 4px;
+}
+.bearlymail-landing .demo-rich .prio-block { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bearlymail-landing .demo-rich .prio-label { font-size: 12px; color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+.bearlymail-landing .demo-rich .prio-row {
+  position: relative; display: flex; align-items: center; gap: 4px; padding: 4px 8px;
+  background: var(--cream-2); border: 1px solid var(--line); border-radius: 8px; width: max-content;
+}
+.bearlymail-landing .demo-rich .prio-btn {
+  appearance: none; background: transparent; border: none; padding: 2px 6px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0;
+  opacity: 0.4; transition: opacity .12s, transform .1s; position: relative;
+}
+.bearlymail-landing .demo-rich .prio-btn:hover { opacity: 1; transform: scale(1.08); }
+.bearlymail-landing .demo-rich .prio-btn.active { opacity: 1; }
+.bearlymail-landing .demo-rich .prio-btn .emo { font-size: 22px; line-height: 1; }
+.bearlymail-landing .demo-rich .prio-btn .emo-l { font-size: 10px; color: var(--ink-3); white-space: nowrap; }
+.bearlymail-landing .demo-rich .prio-btn.active .emo-l { color: var(--sun-dark); font-weight: 600; }
+.bearlymail-landing .demo-rich .prio-btn.pulse { animation: blm-prio-pulse 1.9s ease-out infinite; }
+.bearlymail-landing .demo-rich .prio-btn.pulse::after {
+  content: ""; position: absolute; inset: -3px; border-radius: 12px; border: 2px solid var(--sun);
+  pointer-events: none; animation: blm-prio-ring 1.9s ease-out infinite;
+}
+.bearlymail-landing .demo-rich .prio-btn.pulse:hover { animation-play-state: paused; }
+.bearlymail-landing .demo-rich .prio-btn.pulse:hover::after { animation-play-state: paused; opacity: 0.95; }
+
+.bearlymail-landing .demo-rich .row-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+.bearlymail-landing .demo-rich .row-act {
+  display: inline-flex; align-items: center; gap: 4px; background: transparent; border: none;
+  cursor: pointer; font-size: 12px; color: var(--ink-3); padding: 0 2px; position: relative;
+}
+.bearlymail-landing .demo-rich .row-act:hover { color: var(--ink); }
+.bearlymail-landing .demo-rich .row-act.pulse { color: var(--sun-dark); border-radius: 8px; animation: blm-prio-pulse 1.9s ease-out infinite; }
+.bearlymail-landing .demo-rich .row-act.pulse::after {
+  content: ""; position: absolute; inset: -4px -7px; border-radius: 10px; border: 2px solid var(--sun);
+  pointer-events: none; animation: blm-prio-ring 1.9s ease-out infinite;
+}
+.bearlymail-landing .demo-rich .row-act.pulse:hover { animation-play-state: paused; }
+.bearlymail-landing .demo-rich .row-act.pulse:hover::after { animation-play-state: paused; opacity: 0.95; }
+
+/* Follow-up send button */
+.bearlymail-landing .demo-rich .fu-send {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+  color: var(--sun-dark); background: var(--sun-pale);
+  border: 1px solid color-mix(in srgb, var(--sun) 32%, transparent); border-radius: 8px;
+  padding: 7px 12px; cursor: pointer; transition: background .12s, border-color .12s, color .12s;
+}
+.bearlymail-landing .demo-rich .fu-send:hover { background: #fff; }
+.bearlymail-landing .demo-rich .fu-send.sent {
+  color: var(--green); background: #E7F5EE; border-color: color-mix(in srgb, var(--green) 35%, transparent); cursor: default;
+}
+
+/* Animated tap cursor on the recommended reaction */
+.bearlymail-landing .demo-rich .tap-hint { position: absolute; right: 2px; bottom: -20px; width: 30px; height: 30px; pointer-events: none; z-index: 4; }
+.bearlymail-landing .demo-rich .tap-hint .cursor {
+  position: absolute; right: 0; bottom: 0; width: 24px; height: 24px;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.3)); animation: blm-tap-move 2.2s ease-in-out infinite;
+}
+.bearlymail-landing .demo-rich .tap-hint .ring {
+  position: absolute; right: 4px; top: -2px; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--sun); animation: blm-tap-ring 2.2s ease-out infinite;
+}
+@keyframes blm-tap-move { 0%, 100% { transform: translate(7px, 7px); } 42%, 58% { transform: translate(0, 0); } }
+@keyframes blm-tap-ring {
+  0%, 38% { opacity: 0; transform: scale(.35); }
+  50% { opacity: .85; transform: scale(.55); }
+  78%, 100% { opacity: 0; transform: scale(1.7); }
+}
+.bearlymail-landing .demo-rich .demo.engaged .tap-hint { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .bearlymail-landing .demo-rich .tap-hint .cursor, .bearlymail-landing .demo-rich .tap-hint .ring { animation: none; }
+}
+
+/* Mini product tour */
+.bearlymail-landing .demo-rich .tour { position: absolute; inset: 0; z-index: 40; display: none; pointer-events: none; }
+.bearlymail-landing .demo-rich .tour.on { display: block; pointer-events: auto; }
+.bearlymail-landing .demo-rich .tour-dim { position: absolute; background: rgba(20, 20, 20, 0.55); pointer-events: auto; }
+.bearlymail-landing .demo-rich .tour-spot {
+  position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 12px; pointer-events: none;
+  transition: left .38s cubic-bezier(.4,0,.2,1), top .38s cubic-bezier(.4,0,.2,1), width .38s cubic-bezier(.4,0,.2,1), height .38s cubic-bezier(.4,0,.2,1);
+}
+.bearlymail-landing .demo-rich .tour-spot::after {
+  content: ""; position: absolute; inset: -3px; border-radius: 14px; border: 2px solid var(--sun);
+  pointer-events: none; animation: blm-prio-ring 1.8s ease-out infinite;
+}
+.bearlymail-landing .demo-rich .tour-pop {
+  position: absolute; left: 0; top: 0; width: min(284px, 78%); background: #fff;
+  border: 1px solid var(--line-2); border-radius: 14px; box-shadow: 0 18px 44px rgba(20, 20, 20, 0.24);
+  padding: 16px 16px 14px; z-index: 2;
+  transition: left .38s cubic-bezier(.4,0,.2,1), top .38s cubic-bezier(.4,0,.2,1);
+}
+.bearlymail-landing .demo-rich .tour-pop .step-dots { display: flex; gap: 5px; margin-bottom: 10px; }
+.bearlymail-landing .demo-rich .tour-pop .step-dots i { width: 6px; height: 6px; border-radius: 999px; background: var(--cream-3); transition: background .2s; }
+.bearlymail-landing .demo-rich .tour-pop .step-dots i.on { background: var(--sun); }
+.bearlymail-landing .demo-rich .tour-txt { font-size: 13.5px; line-height: 1.5; color: var(--ink); margin-bottom: 14px; }
+.bearlymail-landing .demo-rich .tour-txt b { color: var(--sun-dark); font-weight: 700; }
+.bearlymail-landing .demo-rich .tour-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bearlymail-landing .demo-rich .tour-skip { background: none; border: none; font-size: 12.5px; color: var(--ink-3); cursor: pointer; padding: 6px 2px; }
+.bearlymail-landing .demo-rich .tour-skip:hover { color: var(--ink); }
+.bearlymail-landing .demo-rich .tour-next {
+  font-size: 12.5px; font-weight: 700; color: var(--ink); background: var(--sun); border: none;
+  border-radius: 9px; padding: 8px 15px; cursor: pointer; transition: filter .12s;
+}
+.bearlymail-landing .demo-rich .tour-next:hover { filter: brightness(.96); }
+@media (prefers-reduced-motion: reduce) {
+  .bearlymail-landing .demo-rich .tour-spot, .bearlymail-landing .demo-rich .tour-pop { transition: none; }
+  .bearlymail-landing .demo-rich .tour-spot::after { animation: none; }
 }
 `;

@@ -3209,20 +3209,47 @@
       "demo": {
         "title": "BearlyMail · Tuesday, 10:42 AM",
         "live": "Live",
+        "calloutLabel": "Try the live demo",
+        "filter": "Filter",
+        "settings": "Settings",
+        "tourReplay": "↻ Tour",
+        "tourReplayTitle": "Replay the tour",
+        "readReceived": "Read full email",
+        "readSent": "Read what you sent",
+        "followupSend": "✉️ Send follow-up",
+        "followupSent": "✓ Follow-up sent",
+        "replyLock": {
+          "text": "Reply, send & snooze are part of the full app.",
+          "cta": "Sign up to try the full experience →"
+        },
         "tabs": {
           "triage": "Triage",
           "action": "Action",
           "followUp": "Follow Up"
         },
         "banner": {
-          "prefix": "Next batch in",
-          "time": "3h 48m",
+          "prefix": "Next batch at",
+          "time": "2pm",
           "suffix": "· last checked for urgent emails: just now"
         },
         "topic": {
           "prefix": "UX:",
           "body": " Design communications, UX/UI feedback, creative project planning, design jams, external collaboration",
           "archiveAll": "Archive All"
+        },
+        "topics": {
+          "triage": {
+            "prefix": "UX:",
+            "body": " Design communications, UX/UI feedback, creative project planning, design jams, external collaboration"
+          },
+          "action": {
+            "prefix": "To action:",
+            "body": " ranked by importance — deal with the top one first, then move on."
+          },
+          "followup": {
+            "prefix": "Waiting on a reply:",
+            "body": " emails you sent that nobody's answered yet — nudge them in one click."
+          }
         },
         "email": {
           "from": "Aria Patel",
@@ -3243,28 +3270,111 @@
           "snooze": "⏰ Snooze",
           "block": "🚫 Block sender"
         },
+        "cards": {
+          "aria": {
+            "sender": "Aria Patel",
+            "contactChip": "👤 Customer",
+            "priorityLabel": "High (74)",
+            "time": "9 May, 19:00",
+            "subject": "Onboarding flow: sharp drop-off on step 3, can we ship a fix today?",
+            "preview": "Hi Jeremy, just dug into the analytics and there's a clear drop-off on step 3 of the onboarding flow…",
+            "detail": "Hi Jeremy,\n\nJust dug into the analytics and there's a clear drop-off on step 3 of the onboarding flow we shipped last night. About 41% of new users are bouncing at the password screen.\n\nCan we jump on a quick call to walk through a fix? Happy any time today — even 15 minutes would help us decide whether to roll back or patch.\n\nThanks,\nAria"
+          },
+          "sam": {
+            "sender": "Sam Rivera",
+            "contactChip": "👤 Teammate",
+            "priorityLabel": "Medium (28)",
+            "time": "7:54 AM",
+            "subject": "Can you sign off on the new checkout flow today?",
+            "preview": "Design's locked the final — just need your thumbs-up before eng picks it up…",
+            "detail": "Hey,\n\nDesign's locked the new checkout flow and I've left notes in Figma. Eng can start tomorrow if you sign off today.\n\nNothing blocking — just want your eyes on the payment step before we commit.\n\nSam"
+          },
+          "notion": {
+            "sender": "Notion",
+            "contactChip": "🔔 Notification",
+            "priorityLabel": "Low (9)",
+            "time": "Yesterday",
+            "subject": "3 new comments on the Q3 roadmap doc",
+            "preview": "Priya, Marcus and 1 other commented on “Q3 Roadmap”…",
+            "detail": "Priya Shah commented:\n“Should we move the billing rework ahead of search?”\n\nMarcus Lee commented:\n“+1 — happy to scope it this week.”\n\nYou usually skim these and reply in a batch — nothing time-sensitive."
+          },
+          "daniel": {
+            "sender": "Daniel Okafor",
+            "contactChip": "👤 CEO",
+            "priorityLabel": "High (68)",
+            "time": "8:12 AM",
+            "subject": "Thoughts on the Q3 plan before Thursday?",
+            "preview": "Read the draft last night — strong direction. Two questions on the hiring ramp…",
+            "detail": "Hey — read the Q3 draft last night, strong direction overall.\n\nTwo questions before Thursday's review:\n1. The hiring ramp assumes we close the two senior roles by end of July. Realistic?\n2. Can we pull the infra migration forward a sprint without risking the launch?\n\nNo rush today, but I'd like answers before we present to the board.\n\nDaniel"
+          },
+          "acme": {
+            "sender": "Acme Legal",
+            "contactChip": "👤 Vendor",
+            "priorityLabel": "High (61)",
+            "time": "Yesterday",
+            "subject": "Contract redline ready for your review",
+            "preview": "We've turned the MSA around with the changes from Tuesday's call. Two open points…",
+            "detail": "Hi,\n\nWe've turned around the MSA with the changes from Tuesday's call. Tracked changes are attached.\n\nTwo open points still need your sign-off:\n• Liability cap — we've proposed 12 months of fees.\n• Data-processing addendum — minor wording on sub-processors.\n\nIf those work, we can have signatures by Friday.\n\nBest,\nAcme Legal"
+          },
+          "morgan": {
+            "sender": "To: Morgan Lee",
+            "waitChip": "⏳ No reply · 3d",
+            "time": "Sent Mon, 9:02 AM",
+            "subject": "Re: Partnership proposal — next steps?",
+            "preview": "Hi Morgan, just checking you saw the proposal — happy to hop on a call…",
+            "detail": "Hi Morgan,\n\nJust checking you saw the partnership proposal I sent last week. No pressure, but I'd love to get this moving before end of month.\n\nHappy to hop on a quick call if that's easier.\n\nThanks,\nJeremy"
+          },
+          "jordan": {
+            "sender": "To: Jordan Blake",
+            "waitChip": "⏳ No reply · 5d",
+            "time": "Sent last Wed",
+            "subject": "Re: Invoice #2207 — payment timing",
+            "preview": "Hi Jordan, circling back on the invoice from last month — let me know…",
+            "detail": "Hi Jordan,\n\nCircling back on invoice #2207 from last month. Could you let me know roughly when payment is scheduled?\n\nHappy to resend the PDF if it's easier.\n\nCheers,\nJeremy"
+          },
+          "taylor": {
+            "sender": "To: Taylor Kim",
+            "waitChip": "⏳ No reply · 2d",
+            "time": "Sent Tue, 4:30 PM",
+            "subject": "Re: Beta feedback — 15 min this week?",
+            "preview": "Hi Taylor, would love your take on the new build — any slot works…",
+            "detail": "Hi Taylor,\n\nWould love 15 minutes to hear your take on the new build before we ship it wider. Any slot this week works for me.\n\nNo worries if you're slammed — even async notes would help.\n\nThanks,\nJeremy"
+          }
+        },
         "foot": {
           "nextBatch": "Next batch in",
           "summary": "{{triage}} in Triage · {{action}} in Action · {{followup}} in Follow Up"
         },
         "empty": {
           "triage": {
+            "icon": "✨",
             "title": "Inbox zero in Triage",
-            "sub": "Nothing to decide on. Next batch arrives in 3h 48m."
+            "sub": "Nothing left to decide on. Next batch arrives at 2pm."
           },
           "action": {
             "title": "No new emails in Action",
             "sub": "Triaged \"Oh sh$t\" or \"Get on it\" emails land here."
           },
           "followup": {
-            "title": "Nothing waiting in Follow Up",
-            "sub": "Batched, lower-priority emails live here until the next batch."
+            "icon": "✅",
+            "title": "No replies pending",
+            "sub": "Everyone you're waiting on has gotten back to you. Nice."
           }
         },
         "routed": {
-          "canWait": "Sent to Follow Up · batched",
+          "canWait": "Snoozed · returns in your next batch",
           "getOnIt": "Moved to Action",
-          "ohShit": "Bumped to top of Action — tap the tab to view"
+          "ohShit": "Bumped to the top of Action",
+          "archived": "Archived",
+          "followupSent": "Follow-up sent ✓"
+        },
+        "tour": {
+          "priorityScore": "Every email gets a <b>priority score</b> from 0–100 — BearlyMail reads who it's from and what they're actually asking.",
+          "sortedByPriority": "Your inbox is <b>sorted by priority</b>, not time. What matters floats to the top; newsletters and noise sink to the bottom.",
+          "pulsingReaction": "One tap triages it. The <b>pulsing reaction</b> is BearlyMail's suggestion for this email — give it a try.",
+          "skip": "Skip tour",
+          "next": "Next →",
+          "done": "Got it →"
         },
         "floats": {
           "urgent": "Urgent team reply — broke through"

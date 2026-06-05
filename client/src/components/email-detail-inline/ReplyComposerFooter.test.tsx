@@ -40,6 +40,17 @@ describe('ReplyComposerFooter', () => {
   describe('follow-up duration input', () => {
     const getInput = () => screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
 
+    // On Fridays the quick-options array drops "3d" and replaces "48h" with
+    // "next Monday", which shifts the indices these tests rely on. Pin to a
+    // non-Friday so the buttons are always [48h, 3d, 7d, 2w].
+    beforeEach(() => {
+      vi.spyOn(Date.prototype, 'getDay').mockReturnValue(1); // Monday
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     it('renders a free-text input pre-filled with the default duration (no dropdown)', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 

@@ -166,11 +166,15 @@ describe('ReplyComposerFooter', () => {
       const input = screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
       fireEvent.focus(input);
 
+      // Select by label, not position: the quick-option set is date-dependent
+      // (on Fridays "48h"→"next Monday" and "3d" is dropped), so indices shift.
+      // "7d" is present every day.
       const quickOptions = screen.getByTestId('follow-up-quick-options');
-      const optionButtons = within(quickOptions).getAllByRole('button');
-      fireEvent.mouseDown(optionButtons[1]); // "In 3 days" → value "3d"
+      fireEvent.mouseDown(
+        within(quickOptions).getByText('emailDetail.expectedReply.quick7d'),
+      );
 
-      expect(input).toHaveValue('3d');
+      expect(input).toHaveValue('7d');
     });
 
     it('hides quick options after selecting one', () => {
@@ -191,9 +195,11 @@ describe('ReplyComposerFooter', () => {
 
       const input = screen.getByPlaceholderText('emailDetail.expectedReply.customPlaceholder');
       fireEvent.focus(input);
+      // Select "7d" by label — present every day (see note above).
       const quickOptions = screen.getByTestId('follow-up-quick-options');
-      const optionButtons = within(quickOptions).getAllByRole('button');
-      fireEvent.mouseDown(optionButtons[2]); // "In 7 days" → value "7d"
+      fireEvent.mouseDown(
+        within(quickOptions).getByText('emailDetail.expectedReply.quick7d'),
+      );
       fireEvent.blur(input);
 
       fireEvent.click(screen.getByText('emailDetail.send'));

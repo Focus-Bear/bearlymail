@@ -78,6 +78,10 @@ jobs:
           DB_USERNAME: test
           DB_PASSWORD: test
           DB_NAME: test
+          # Required since BackfillPersonalOrgs1794400000000 initialises the
+          # encryption key provider (it uses entity I/O whose transformers need
+          # a key). Same throwaway value the smoke-test server steps use below.
+          ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
         run: npx typeorm migration:run -d dist/data-source.js
 
       # ============================================

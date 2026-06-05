@@ -3,6 +3,13 @@ import { theme } from 'theme/theme';
 
 import { MCPServerConfig, MCPServerPurpose } from './types';
 
+/** Short badge label per server purpose. */
+const PURPOSE_LABELS: Record<MCPServerPurpose, string> = {
+  workflow: 'Workflow',
+  sender_context: 'Sender context',
+  ask_ai: 'Ask AI',
+};
+
 interface MCPServerManagerProps {
   servers: MCPServerConfig[];
   onAdd: (name: string, serverUrl: string, apiKey: string | undefined, purpose: MCPServerPurpose) => Promise<void>;
@@ -149,9 +156,13 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onA
               >
                 <option value="workflow">Workflow actions</option>
                 <option value="sender_context">Sender context (look up the email sender)</option>
+                <option value="ask_ai">Ask AI (let the assistant use this tool, e.g. Google Drive)</option>
               </select>
               <div style={{ fontSize: 11, color: theme.colors.text.secondary, marginTop: 2 }}>
                 Sender-context servers are queried when you open an email to show info about the sender (e.g. CRM data).
+                Ask AI servers are offered to the assistant as tools it can call while answering — tools the server marks
+                as destructive are never exposed. The server URL must handle its own auth (e.g. a Google Drive MCP server
+                that completes Google OAuth); paste its endpoint and token below.
               </div>
             </div>
             {error && (
@@ -225,7 +236,7 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onA
                         color: theme.colors.text.secondary,
                       }}
                     >
-                      {server.purpose === 'sender_context' ? 'Sender context' : 'Workflow'}
+                      {PURPOSE_LABELS[server.purpose] ?? 'Workflow'}
                     </span>
                   </div>
                   <div style={{ color: theme.colors.text.secondary, fontSize: 12, marginTop: 2 }}>

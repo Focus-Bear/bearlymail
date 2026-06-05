@@ -7,14 +7,20 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiSend, FiZap } from 'react-icons/fi';
+import { FiSearch, FiSend, FiTool, FiZap } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
-import { ASK_AI_ROLE_USER, AskAiMessage, useAskAi } from 'hooks/useAskAi';
+import { ASK_AI_ROLE_USER, AskAiMessage, AskAiToolActivity, useAskAi } from 'hooks/useAskAi';
 
-const SUGGESTED_PROMPT_KEYS = ['inbox.askAi.prompt1', 'inbox.askAi.prompt2', 'inbox.askAi.prompt3'] as const;
+const SUGGESTED_PROMPT_KEYS = [
+  'inbox.askAi.prompt1',
+  'inbox.askAi.prompt2',
+  'inbox.askAi.prompt3',
+  'inbox.askAi.prompt4',
+] as const;
 
 interface AskAiPanelProps {
   /** Id of the email the conversation is grounded in. */
@@ -47,25 +53,54 @@ const AskAiHeader: React.FC = () => {
   );
 };
 
+/** Built-in email-search tool name (mirrors the server's SEARCH_EMAILS_TOOL). */
+const SEARCH_EMAILS_TOOL = 'search_emails';
+
+const ToolActivityChips: React.FC<{ activity: NonNullable<AskAiMessage['toolActivity']> }> = ({ activity }) => (
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.xs, marginBottom: theme.spacing.xs }}>
+    {activity.map((item, index) => (
+      <span
+        key={`${item.tool}-${index}`}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: `2px ${theme.spacing.sm}`,
+          borderRadius: theme.borderRadius.full,
+          backgroundColor: theme.colors.primary.subtle,
+          color: theme.colors.primary.main,
+          fontSize: theme.typography.fontSize.xs,
+          fontWeight: theme.typography.fontWeight.medium,
+        }}
+      >
+        {item.tool === SEARCH_EMAILS_TOOL ? <FiSearch size={11} /> : <FiTool size={11} />}
+        {item.label}
+      </span>
+    ))}
+  </div>
+);
+
 const MessageBubble: React.FC<{ message: AskAiMessage }> = ({ message }) => {
   const isUser = message.role === ASK_AI_ROLE_USER;
+  const hasActivity = !isUser && Boolean(message.toolActivity?.length);
   return (
-    <div
-      style={{
-        alignSelf: isUser ? 'flex-end' : 'flex-start',
-        maxWidth: '85%',
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        borderRadius: theme.borderRadius.lg,
-        backgroundColor: isUser ? theme.colors.primary.main : theme.colors.background.subtle,
-        color: isUser ? theme.colors.text.inverse : theme.colors.text.primary,
-        border: isUser ? STRING_NONE : `1px solid ${theme.colors.border.light}`,
-        fontSize: theme.typography.fontSize.sm,
-        lineHeight: theme.typography.lineHeight.normal,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
-    >
-      {message.content}
+    <div style={{ alignSelf: isUser ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+      {hasActivity && <ToolActivityChips activity={message.toolActivity!} />}
+      <div
+        style={{
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          borderRadius: theme.borderRadius.lg,
+          backgroundColor: isUser ? theme.colors.primary.main : theme.colors.background.subtle,
+          color: isUser ? theme.colors.text.inverse : theme.colors.text.primary,
+          border: isUser ? STRING_NONE : `1px solid ${theme.colors.border.light}`,
+          fontSize: theme.typography.fontSize.sm,
+          lineHeight: theme.typography.lineHeight.normal,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        {message.content}
+      </div>
     </div>
   );
 };
@@ -74,10 +109,19 @@ interface AskAiConversationProps {
   messages: AskAiMessage[];
   isLoading: boolean;
   hasError: boolean;
+  errorMessage: string | null;
+  liveActivity: AskAiToolActivity[];
   onSuggested: (prompt: string) => void;
 }
 
-const AskAiConversation: React.FC<AskAiConversationProps> = ({ messages, isLoading, hasError, onSuggested }) => {
+const AskAiConversation: React.FC<AskAiConversationProps> = ({
+  messages,
+  isLoading,
+  hasError,
+  errorMessage,
+  liveActivity,
+  onSuggested,
+}) => {
   const { t } = useTranslation();
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -134,6 +178,20 @@ const AskAiConversation: React.FC<AskAiConversationProps> = ({ messages, isLoadi
               </button>
             ))}
           </div>
+          <Link
+            to="/settings#workflows"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.primary.main,
+              textDecoration: 'none',
+            }}
+          >
+            <FiTool size={12} />
+            {t('inbox.askAi.connectTools')}
+          </Link>
         </>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
@@ -141,20 +199,22 @@ const AskAiConversation: React.FC<AskAiConversationProps> = ({ messages, isLoadi
             <MessageBubble key={`${message.role}-${index}`} message={message} />
           ))}
           {isLoading && (
-            <span
-              style={{
-                alignSelf: 'flex-start',
-                fontSize: theme.typography.fontSize.sm,
-                color: theme.colors.text.tertiary,
-                fontStyle: 'italic',
-              }}
-            >
-              {t('inbox.askAi.thinking')}
-            </span>
+            <div style={{ alignSelf: 'flex-start', display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
+              {liveActivity.length > 0 && <ToolActivityChips activity={liveActivity} />}
+              <span
+                style={{
+                  fontSize: theme.typography.fontSize.sm,
+                  color: theme.colors.text.tertiary,
+                  fontStyle: 'italic',
+                }}
+              >
+                {t('inbox.askAi.thinking')}
+              </span>
+            </div>
           )}
           {hasError && (
             <span style={{ alignSelf: 'flex-start', fontSize: theme.typography.fontSize.sm, color: theme.colors.error.main }}>
-              {t('inbox.askAi.error')}
+              {errorMessage ?? t('inbox.askAi.error')}
             </span>
           )}
         </div>
@@ -245,7 +305,7 @@ const AskAiInput: React.FC<AskAiInputProps> = ({ value, onChange, onSubmit, disa
 };
 
 export const AskAiPanel: React.FC<AskAiPanelProps> = ({ emailId }) => {
-  const { messages, input, setInput, isLoading, hasError, send } = useAskAi(emailId);
+  const { messages, input, setInput, isLoading, hasError, errorMessage, liveActivity, send } = useAskAi(emailId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: theme.spacing.md }}>
@@ -253,6 +313,8 @@ export const AskAiPanel: React.FC<AskAiPanelProps> = ({ emailId }) => {
         messages={messages}
         isLoading={isLoading}
         hasError={hasError}
+        errorMessage={errorMessage}
+        liveActivity={liveActivity}
         onSuggested={prompt => send(prompt)}
       />
       <AskAiInput

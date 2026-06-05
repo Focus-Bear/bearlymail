@@ -99,6 +99,7 @@ export const UTILITY_PROMPT_IDS = {
  */
 export const ASSISTANT_PROMPT_IDS = {
   ASK_AI_EMAIL: "ask_ai_email",
+  ASK_AI_AGENT: "ask_ai_agent",
 } as const;
 
 /**
@@ -241,6 +242,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "ask-ai-email.md",
     key: ASSISTANT_PROMPT_IDS.ASK_AI_EMAIL,
+  },
+  {
+    file: "ask-ai-agent.md",
+    key: ASSISTANT_PROMPT_IDS.ASK_AI_AGENT,
   },
 ];
 

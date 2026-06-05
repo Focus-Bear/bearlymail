@@ -77,7 +77,7 @@ export interface MCPToolDefinition {
   inputSchema: object;
 }
 
-export type MCPServerPurpose = 'workflow' | 'sender_context';
+export type MCPServerPurpose = 'workflow' | 'sender_context' | 'ask_ai';
 
 export interface MCPServerConfig {
   id: string;

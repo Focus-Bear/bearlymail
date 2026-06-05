@@ -151,6 +151,7 @@ Need to modify something? Here's where to find it:
 | **Priority calculation**                         | `server/src/llm/priority-analysis.service.ts`                                |
 | **Email summarization**                          | `server/src/summarization/summarization.service.ts`                          |
 | **Reply generation**                             | `server/src/replies/replies.service.ts`                                      |
+| **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry) |
 | **Context analysis (VIP detection, categories)** | `server/src/context/context.service.ts`                                      |
 | **Gmail provider implementation**                | `server/src/emails/providers/gmail.provider.ts`                              |
 | **Office365 provider implementation**            | `server/src/emails/providers/office365.provider.ts`                          |

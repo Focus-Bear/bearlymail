@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -15,13 +16,33 @@ import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
 import { UsersService } from "../users/users.service";
+import {
+  fromAnthropicMessage,
+  toAnthropicMessages,
+  toAnthropicTools,
+} from "./anthropic-tool-translation";
 import { LLMProvider, LLMRequest } from "./llm.types";
-import { LLM_OP_UNKNOWN } from "./llm-operations";
+import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
 import { supportsReasoningEffort } from "./llm-utils";
 import { TokenUsageService } from "./token-usage.service";
 
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
+
+/** Parameters for a single provider-agnostic tool-calling step. */
+export interface ToolChatParams {
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+  tools?: OpenAI.Chat.Completions.ChatCompletionTool[];
+  userId?: string;
+  operation?: LLMOperation;
+  maxTokens?: number;
+  temperature?: number;
+  model?: string;
+  /** Per-request timeout in ms. */
+  timeoutMs?: number;
+  /** Abort signal to cancel the in-flight request. */
+  signal?: AbortSignal;
+}
 
 @Injectable()
 export class LLMCoreService {
@@ -351,18 +372,22 @@ export class LLMCoreService {
     return completion.choices[0]?.message?.content || "";
   }
 
-  private async generateWithOpenAI(
-    request: LLMRequest,
+  /**
+   * Resolve the OpenAI client to use for a request: the user's own key takes
+   * precedence over the system key. Shared by plain-text generation and the
+   * tool-calling path so both honour a user-supplied key.
+   */
+  private async resolveOpenAiClient(
     userId?: string,
-  ): Promise<string> {
-    let { openaiClient } = this;
-    let apiKeySource = "system";
+  ): Promise<{ client: OpenAI; apiKeySource: "system" | "user" }> {
+    let client = this.openaiClient;
+    let apiKeySource: "system" | "user" = "system";
 
     if (userId) {
       try {
         const user = await this.usersService.findOneWithApiKey(userId);
         if (user?.openAiApiKey) {
-          openaiClient = new OpenAI({ apiKey: user.openAiApiKey });
+          client = new OpenAI({ apiKey: user.openAiApiKey });
           apiKeySource = "user";
           this.logger.debug(`Using user's OpenAI API key for user ${userId}`);
         }
@@ -374,9 +399,212 @@ export class LLMCoreService {
       }
     }
 
-    if (!openaiClient) {
-      throw new Error("OpenAI client not initialized");
+    if (!client) {
+      throw new ServiceUnavailableException(
+        "OpenAI is not configured. Set OPENAI_API_KEY on the server, or add your own OpenAI key in Settings → Integrations.",
+      );
     }
+    return { client, apiKeySource };
+  }
+
+  /**
+   * Run a single OpenAI chat-completions step that may emit tool calls.
+   *
+   * Unlike {@link generateText}, this returns the raw assistant message so the
+   * caller can drive an agentic loop: if `message.tool_calls` is present it
+   * executes the tools and calls again with the results; otherwise
+   * `message.content` is the final answer. Used by the Ask AI agent.
+   *
+   * OpenAI is required here (tool-calling support); there is no Gemini fallback.
+   */
+  async openAiChatWithTools(
+    params: ToolChatParams,
+  ): Promise<OpenAI.Chat.Completions.ChatCompletionMessage> {
+    const { client, apiKeySource } = await this.resolveOpenAiClient(
+      params.userId,
+    );
+    const model =
+      params.model ||
+      this.configService.get<string>("OPENAI_ASK_AI_MODEL") ||
+      this.configService.get<string>("OPENAI_MODEL") ||
+      "gpt-5.4-mini";
+
+    return this.retryOperation(async () => {
+      const startTime = Date.now();
+      this.logger.debug(
+        `OpenAI tool step using model ${model} (${apiKeySource} key)`,
+      );
+
+      const completion = await client.chat.completions.create(
+        {
+          model,
+          messages: params.messages,
+          temperature: params.temperature ?? RATIOS.THIRTY_PERCENT,
+          max_completion_tokens:
+            params.maxTokens || QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+          ...(params.tools && params.tools.length > 0
+            ? { tools: params.tools, tool_choice: "auto" as const }
+            : {}),
+        },
+        {
+          ...(params.timeoutMs ? { timeout: params.timeoutMs } : {}),
+          ...(params.signal ? { signal: params.signal } : {}),
+        },
+      );
+
+      if (completion.usage) {
+        await this.tokenUsageService.logUsage({
+          userId: params.userId || null,
+          operation: params.operation || LLM_OP_UNKNOWN,
+          provider: LLMProvider.OPENAI,
+          model,
+          promptTokens: completion.usage.prompt_tokens || 0,
+          completionTokens: completion.usage.completion_tokens || 0,
+          totalTokens: completion.usage.total_tokens || 0,
+          durationMs: Date.now() - startTime,
+        });
+      }
+
+      const message = completion.choices[0]?.message;
+      if (!message) {
+        throw new Error("OpenAI returned no message in tool step");
+      }
+      return message;
+    });
+  }
+
+  /**
+   * Provider-agnostic tool-calling step: tries OpenAI first, then falls back to
+   * Anthropic (which also supports tool use) so a single provider outage doesn't
+   * take Ask AI down. Never falls back on an abort/timeout. Returns the result in
+   * OpenAI message shape so callers stay provider-agnostic.
+   */
+  async chatWithTools(
+    params: ToolChatParams,
+  ): Promise<OpenAI.Chat.Completions.ChatCompletionMessage> {
+    try {
+      return await this.openAiChatWithTools(params);
+    } catch (err) {
+      if (this.isAbortError(err)) throw err;
+      this.logger.warn(
+        `OpenAI tool step failed (${(err as Error).message}); trying Anthropic`,
+      );
+      try {
+        return await this.anthropicChatWithTools(params);
+      } catch (fallbackErr) {
+        if (this.isAbortError(fallbackErr)) throw fallbackErr;
+        // Surface the clearer "not configured" cause if OpenAI raised it.
+        throw err instanceof ServiceUnavailableException ? err : fallbackErr;
+      }
+    }
+  }
+
+  private isAbortError(error: unknown): boolean {
+    const name = (error as { name?: string })?.name ?? "";
+    return name === "AbortError" || name === "APIUserAbortError";
+  }
+
+  /**
+   * Anthropic tool-calling step. Translates the OpenAI-shaped messages/tools to
+   * Anthropic's tool_use/tool_result format, calls the model, and maps the reply
+   * back to an OpenAI ChatCompletionMessage.
+   */
+  async anthropicChatWithTools(
+    params: ToolChatParams,
+  ): Promise<OpenAI.Chat.Completions.ChatCompletionMessage> {
+    const { client, apiKeySource } = await this.resolveAnthropicClient(
+      params.userId,
+    );
+    const model =
+      this.configService.get<string>("ANTHROPIC_MODEL") || "claude-sonnet-4-6";
+    const { system, messages } = toAnthropicMessages(params.messages);
+    const tools = toAnthropicTools(params.tools);
+
+    return this.retryOperation(async () => {
+      const startTime = Date.now();
+      this.logger.debug(
+        `Anthropic tool step using model ${model} (${apiKeySource} key)`,
+      );
+
+      const createParams: Anthropic.MessageCreateParamsNonStreaming = {
+        model,
+        max_tokens: params.maxTokens || QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        messages,
+        ...(system ? { system } : {}),
+        ...(tools.length > 0 ? { tools } : {}),
+      };
+      const requestOptions = {
+        ...(params.timeoutMs ? { timeout: params.timeoutMs } : {}),
+        ...(params.signal ? { signal: params.signal } : {}),
+      };
+
+      let response: Anthropic.Message;
+      try {
+        response = await client.messages.create(createParams, requestOptions);
+      } catch (err: unknown) {
+        const { status } = err as { status?: number };
+        if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) {
+          throw new UnauthorizedException(
+            "Your Anthropic API key is invalid or has expired. Please update it in Settings → Integrations.",
+          );
+        }
+        throw err;
+      }
+
+      if (response.usage) {
+        await this.tokenUsageService.logUsage({
+          userId: params.userId || null,
+          operation: params.operation || LLM_OP_UNKNOWN,
+          provider: LLMProvider.ANTHROPIC,
+          model,
+          promptTokens: response.usage.input_tokens,
+          completionTokens: response.usage.output_tokens,
+          totalTokens:
+            response.usage.input_tokens + response.usage.output_tokens,
+          durationMs: Date.now() - startTime,
+        });
+      }
+
+      return fromAnthropicMessage(response);
+    });
+  }
+
+  /** Resolve the Anthropic client (user key takes precedence over system key). */
+  private async resolveAnthropicClient(
+    userId?: string,
+  ): Promise<{ client: Anthropic; apiKeySource: "system" | "user" }> {
+    let client = this.anthropicClient;
+    let apiKeySource: "system" | "user" = "system";
+
+    if (userId) {
+      try {
+        const user = await this.usersService.findOneWithAnthropicKey(userId);
+        if (user?.anthropicApiKey) {
+          client = new Anthropic({ apiKey: user.anthropicApiKey });
+          apiKeySource = "user";
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Failed to fetch Anthropic key for userId=${userId}, using system key`,
+          err,
+        );
+      }
+    }
+
+    if (!client) {
+      throw new ServiceUnavailableException(
+        "Anthropic is not configured. Set ANTHROPIC_API_KEY on the server, or add your own key in Settings → Integrations.",
+      );
+    }
+    return { client, apiKeySource };
+  }
+
+  private async generateWithOpenAI(
+    request: LLMRequest,
+    userId?: string,
+  ): Promise<string> {
+    const { client: openaiClient, apiKeySource } =
+      await this.resolveOpenAiClient(userId);
 
     const model =
       request.model ||

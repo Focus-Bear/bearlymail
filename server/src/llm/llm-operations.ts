@@ -141,6 +141,10 @@ export const LLM_OP_DERIVE_MCP_SENDER_TOOL = "derive_mcp_sender_tool";
 // Ask AI: free-form question answering grounded in the open email/thread
 export const LLM_OP_ASK_AI_EMAIL = "ask_ai_email";
 
+// Ask AI (agentic): tool-using assistant that can search the user's emails and
+// call connected MCP tools (e.g. Google Drive) to answer a question
+export const LLM_OP_ASK_AI_AGENT = "ask_ai_agent";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -193,6 +197,7 @@ export type LLMOperation =
   | typeof LLM_OP_CHECK_CATEGORY_DUPLICATE
   | typeof LLM_OP_DERIVE_MCP_SENDER_TOOL
   | typeof LLM_OP_ASK_AI_EMAIL
+  | typeof LLM_OP_ASK_AI_AGENT
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -244,5 +249,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_CHECK_CATEGORY_DUPLICATE]: "Check Category Duplicate",
   [LLM_OP_DERIVE_MCP_SENDER_TOOL]: "Derive MCP Sender Tool",
   [LLM_OP_ASK_AI_EMAIL]: "Ask AI (Email Assistant)",
+  [LLM_OP_ASK_AI_AGENT]: "Ask AI (Agentic Assistant)",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

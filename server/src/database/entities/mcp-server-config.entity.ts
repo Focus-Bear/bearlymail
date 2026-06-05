@@ -10,10 +10,24 @@ import {
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
+/**
+ * Optional behaviour hints an MCP server may advertise per tool (MCP spec
+ * `annotations`). Used to keep known-destructive tools away from the Ask AI
+ * assistant, which calls tools autonomously.
+ */
+export interface MCPToolAnnotations {
+  title?: string;
+  /** True if the tool does not modify its environment. */
+  readOnlyHint?: boolean;
+  /** True if the tool may perform destructive (irreversible) updates. */
+  destructiveHint?: boolean;
+}
+
 export interface MCPToolDefinition {
   name: string;
   description: string;
   inputSchema: object;
+  annotations?: MCPToolAnnotations;
 }
 
 /**
@@ -21,10 +35,13 @@ export interface MCPToolDefinition {
  * - "workflow"       — invoked by user-defined workflow rules (feature #1483)
  * - "sender_context" — queried to enrich the email-detail view with context
  *   about the sender (e.g. CRM data from HubSpot)
+ * - "ask_ai"         — exposed to the Ask AI assistant as callable tools so it
+ *   can answer questions using external resources (e.g. Google Drive)
  */
 export const MCP_SERVER_PURPOSES = {
   WORKFLOW: "workflow",
   SENDER_CONTEXT: "sender_context",
+  ASK_AI: "ask_ai",
 } as const;
 
 export type MCPServerPurpose =

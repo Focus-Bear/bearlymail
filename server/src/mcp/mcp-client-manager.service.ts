@@ -6,6 +6,7 @@ import { Repository } from "typeorm";
 import { assertSafeOutboundUrl } from "../common/url-validation.utils";
 import {
   MCPServerConfig,
+  MCPToolAnnotations,
   MCPToolDefinition,
 } from "../database/entities/mcp-server-config.entity";
 
@@ -134,10 +135,16 @@ export class MCPClientManagerService {
     }
 
     return result.tools.map(
-      (tool: { name: string; description?: string; inputSchema?: object }) => ({
+      (tool: {
+        name: string;
+        description?: string;
+        inputSchema?: object;
+        annotations?: MCPToolAnnotations;
+      }) => ({
         name: tool.name,
         description: tool.description ?? "",
         inputSchema: tool.inputSchema ?? {},
+        ...(tool.annotations ? { annotations: tool.annotations } : {}),
       }),
     );
   }

@@ -7,6 +7,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ActionItemsModule } from "./action-items/action-items.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
+import { AskAiModule } from "./ask-ai/ask-ai.module";
 import { AuthModule } from "./auth/auth.module";
 import { UserThrottlerGuard } from "./auth/user-throttler.guard";
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
@@ -166,6 +167,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     ProtoCategoriesModule,
     WorkflowsModule,
     MCPModule,
+    AskAiModule,
   ],
   controllers: [AppController],
   providers: [

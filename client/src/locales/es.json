@@ -1891,7 +1891,7 @@
     },
     "askAi": {
       "title": "Preguntar a IA",
-      "subtitle": "Obtén ayuda con este correo: resúmenes, respuestas y próximos pasos.",
+      "subtitle": "Obtén ayuda con este correo: busca en tus otros correos, redacta respuestas y encuentra lo que requiere acción.",
       "inputPlaceholder": "Pregunta lo que quieras sobre este correo…",
       "send": "Enviar",
       "thinking": "Pensando…",
@@ -1900,7 +1900,9 @@
       "prompt1": "Resume este hilo",
       "prompt2": "Redacta una respuesta amable",
       "prompt3": "¿Qué requiere mi acción?",
-      "disclaimer": "La IA puede cometer errores. Verifica los detalles importantes."
+      "prompt4": "Busca otros correos de este remitente",
+      "disclaimer": "La IA puede cometer errores. Verifica los detalles importantes.",
+      "connectTools": "Conecta Google Drive y otras herramientas"
     },
     "clickToArchive": "Haz clic para archivar",
     "clickToSetPriority": "Haz clic para establecer prioridad: {{priority}}",

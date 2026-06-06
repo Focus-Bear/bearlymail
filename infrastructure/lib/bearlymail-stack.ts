@@ -1085,10 +1085,19 @@ export class BearlyMailStack extends cdk.Stack {
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
+        // Migrations that touch encrypted columns (e.g. BackfillPersonalOrgs)
+        // initialise the encryption key provider, which needs the same crypto
+        // env as the web/worker tasks — otherwise it throws "ENCRYPTION_KEY not
+        // set" and the migration (and the whole deploy) fails.
+        KMS_KEY_ID: dataEncryptionKey.keyArn,
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
         DB_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, 'password'),
+        ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(
+          appSecrets,
+          'ENCRYPTION_KEY',
+        ),
       },
     });
 

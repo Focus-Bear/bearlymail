@@ -28,11 +28,15 @@ type SplitViewHandle = { openEmail: (id: string) => void; closeEmail: () => void
  * After an email is removed from the split-view panel (archive, snooze, priority change),
  * navigate to the email that visually replaces it and update the left-panel highlight.
  *
- * Uses display order (category-grouped) so the "next" email matches what the user
- * sees on screen, not the flat server-sort order. Only considers emails in expanded
- * (visible) categories — emails inside collapsed drawers are invisible to the user
- * and should never be navigated to. Fixes: wrong email opened + wrong highlight after
- * split-view actions.
+ * Navigation priority:
+ * 1. Stay within the same drawer — pick the next email at the same position within
+ *    the removed email's category. This avoids jumping to a different drawer when
+ *    the user is working through a category one email at a time.
+ * 2. If the drawer is now empty, fall back to the next email in the flat display
+ *    order across all visible categories.
+ *
+ * Only considers emails in expanded (visible) categories — collapsed drawers are
+ * invisible and should never receive auto-navigation focus.
  */
 export function navigateAfterSplitViewAction(
   removedEmailId: string,
@@ -42,23 +46,15 @@ export function navigateAfterSplitViewAction(
   setSelectedEmailIndex: (index: number) => void,
   expandedCategories?: Set<string>
 ): void {
-  // Include the removed email even if it is already marked archived so we can
-  // determine its visual position before it disappears from the list.
+  // Include the removed email so we can determine its position before it disappears.
   const activeWithRemoved = emails.filter(email => !email.isArchived || email.id === removedEmailId);
 
-  // Only consider emails in expanded (visible) categories. Filter the grouped
-  // output directly so the visibility check uses the same category key the UI
-  // renders (including the phishing override inside groupEmailsByCategory).
-  // If expandedCategories is not provided, fall back to all emails (safe default).
   const groupedEmails = groupEmailsByCategory(activeWithRemoved, mode);
-  const displayOrdered = (
-    expandedCategories
-      ? groupedEmails.filter(group => expandedCategories.has(group.category))
-      : groupedEmails
-  ).flatMap(group => group.emails);
-  const removedDisplayIndex = displayOrdered.findIndex(email => email.id === removedEmailId);
+  const visibleGroups = expandedCategories
+    ? groupedEmails.filter(group => expandedCategories.has(group.category))
+    : groupedEmails;
 
-  // Remaining visible emails after the action, in display order
+  const displayOrdered = visibleGroups.flatMap(group => group.emails);
   const remaining = displayOrdered.filter(email => email.id !== removedEmailId);
 
   if (remaining.length === 0) {
@@ -66,13 +62,33 @@ export function navigateAfterSplitViewAction(
     return;
   }
 
-  // The email that slides up to fill the removed email's visual slot
-  const nextDisplayIndex = Math.min(
-    removedDisplayIndex >= 0 ? removedDisplayIndex : 0,
-    remaining.length - 1
+  // Find the drawer (category group) that owns the removed email.
+  const removedGroup = visibleGroups.find(group =>
+    group.emails.some(email => email.id === removedEmailId)
   );
-  splitView.openEmail(remaining[nextDisplayIndex].id);
-  setSelectedEmailIndex(nextDisplayIndex);
+  const siblingsInSameDrawer = removedGroup
+    ? removedGroup.emails.filter(email => email.id !== removedEmailId)
+    : [];
+
+  let nextEmailId: string;
+
+  if (siblingsInSameDrawer.length > 0) {
+    // Stay in the same drawer: use the same position, clamped to the new last index.
+    const positionInDrawer = removedGroup!.emails.findIndex(email => email.id === removedEmailId);
+    nextEmailId = siblingsInSameDrawer[Math.min(positionInDrawer, siblingsInSameDrawer.length - 1)].id;
+  } else {
+    // Drawer is now empty — fall back to the next email in the overall display order.
+    const removedDisplayIndex = displayOrdered.findIndex(email => email.id === removedEmailId);
+    const fallbackIndex = Math.min(
+      removedDisplayIndex >= 0 ? removedDisplayIndex : 0,
+      remaining.length - 1
+    );
+    nextEmailId = remaining[fallbackIndex].id;
+  }
+
+  const nextIndexInRemaining = remaining.findIndex(email => email.id === nextEmailId);
+  splitView.openEmail(nextEmailId);
+  setSelectedEmailIndex(nextIndexInRemaining);
 }
 
 /**

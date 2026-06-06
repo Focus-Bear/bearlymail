@@ -420,9 +420,9 @@ describe('navigateAfterSplitViewAction', () => {
     expect(setIndex).toHaveBeenCalledWith(1);
   });
 
-  it('navigates across category boundaries when the removed email is the last in its category', () => {
-    // Two categories: cat1=[A, B], cat2=[C, D] — display order: A(0), B(1), C(2), D(3)
-    // User archives B; remaining = [A, C, D]; nextDisplayIndex = min(1, 2) = 1 → C
+  it('stays within the same drawer when other emails remain in the removed email\'s category', () => {
+    // Two categories: cat-1=[A, B], cat-2=[C, D] — display order: A(0), B(1), C(2), D(3)
+    // User archives B. cat-1 still has A, so navigation stays in cat-1 → A.
     const emailA = makeEmail({ id: 'a' });
     const emailB = makeEmail({ id: 'b' });
     const emailC = makeEmail({ id: 'c' });
@@ -437,7 +437,30 @@ describe('navigateAfterSplitViewAction', () => {
     const setIndex = vi.fn();
     navigateAfterSplitViewAction('b', [emailA, emailB, emailC, emailD], MODE, splitView, setIndex);
 
-    // B was at display index 1; after removal remaining = [A, C, D]; index 1 = C
+    // B's drawer (cat-1) still has A; stay in drawer. remaining=[A, C, D]; A's index = 0
+    expect(splitView.openEmail).toHaveBeenCalledWith('a');
+    expect(setIndex).toHaveBeenCalledWith(0);
+  });
+
+  it('falls back across category boundaries when the removed email is the only one in its drawer', () => {
+    // Three categories: cat-1=[A], cat-2=[B], cat-3=[C, D] — display order: A(0), B(1), C(2), D(3)
+    // User archives B; cat-2 becomes empty, fall back to flat order. removedDisplayIndex(B)=1.
+    const emailA = makeEmail({ id: 'a' });
+    const emailB = makeEmail({ id: 'b' });
+    const emailC = makeEmail({ id: 'c' });
+    const emailD = makeEmail({ id: 'd' });
+
+    mockGroupEmailsByCategory.mockReturnValue([
+      makeGroup('cat-1', [emailA]),
+      makeGroup('cat-2', [emailB]),
+      makeGroup('cat-3', [emailC, emailD]),
+    ]);
+
+    const splitView = makeSplitView();
+    const setIndex = vi.fn();
+    navigateAfterSplitViewAction('b', [emailA, emailB, emailC, emailD], MODE, splitView, setIndex);
+
+    // cat-2 is empty; fall back: remaining=[A, C, D], index min(1, 2) = 1 → C
     expect(splitView.openEmail).toHaveBeenCalledWith('c');
     expect(setIndex).toHaveBeenCalledWith(1);
   });

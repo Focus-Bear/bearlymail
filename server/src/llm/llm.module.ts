@@ -7,6 +7,7 @@ import { Email } from "../database/entities/email.entity";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { User } from "../database/entities/user.entity";
+import { DebugModule } from "../debug/debug.module";
 import { UsersModule } from "../users/users.module";
 import { CategoryShortlistService } from "./category-shortlist.service";
 import { EmbeddingService } from "./embedding.service";
@@ -33,6 +34,7 @@ import { TokenUsageService } from "./token-usage.service";
     TypeOrmModule.forFeature([TokenUsage, PromptExampleEntity, Email, User]),
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
+    DebugModule,
   ],
   controllers: [LLMController, TokenUsageController],
   providers: [

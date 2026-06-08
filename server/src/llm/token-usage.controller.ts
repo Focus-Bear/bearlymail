@@ -133,4 +133,24 @@ export class TokenUsageController {
       await this.tokenUsageService.getDuplicateSummarizationReport(options);
     return { ...report, timestamp: new Date().toISOString() };
   }
+
+  /**
+   * Get duplicate LLM-call report: prompt-content hashes that recurred across
+   * calls (same system+user prompt run more than once), with the call sites and
+   * operations responsible. Requires the `llm_call_fingerprint` debug feature to
+   * have been enabled; returns [] otherwise.
+   */
+  @Get("duplicate-calls")
+  async getDuplicateCalls(
+    @Query("days") days?: string,
+    @Query("limit") limit?: string,
+  ) {
+    const parsedDays = days ? parseInt(days, 10) : undefined;
+    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const duplicates = await this.tokenUsageService.findDuplicateLlmCalls(
+      parsedDays && parsedDays > 0 ? parsedDays : undefined,
+      parsedLimit && parsedLimit > 0 ? parsedLimit : undefined,
+    );
+    return { duplicates, timestamp: new Date().toISOString() };
+  }
 }

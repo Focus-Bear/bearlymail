@@ -89,6 +89,7 @@ export const JOB_NAMES = {
 
   // Data retention
   CLEANUP_INACTIVE_ACCOUNTS: "cleanup-inactive-accounts",
+  PRUNE_OLD_DATA: "prune-old-data",
 
   // Encryption migration (admin-triggered, idempotent)
   REENCRYPT_USER_DATA: "reencrypt-user-data",

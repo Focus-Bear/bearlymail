@@ -1,11 +1,15 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { createHash } from "crypto";
 import { Repository } from "typeorm";
 
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { User } from "../database/entities/user.entity";
+import { DebugService, DuplicateLlmCall } from "../debug/debug.service";
+import { DEBUG_FEATURES } from "../debug/debug-feature-names";
+import { captureLlmCallSite } from "./call-site.util";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
 import { SUMMARY_PROMPT_IDS } from "./prompts";
 
@@ -98,6 +102,7 @@ export class TokenUsageService implements OnModuleInit {
     private promptExampleRepository: Repository<PromptExampleEntity>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private readonly debugService: DebugService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -284,12 +289,53 @@ export class TokenUsageService implements OnModuleInit {
       this.logger.debug(
         `Logged token usage: ${usageData.operation} - ${usageData.totalTokens} tokens (${usageData.provider}/${usageData.model}), containsHtml: ${containsHtml}`,
       );
+      await this.logCallFingerprint(usageData);
       return saved;
     } catch (error) {
       // Don't throw - token logging should not break the main flow
       this.logger.error("Failed to log token usage", error);
       return null as unknown as TokenUsage;
     }
+  }
+
+  /**
+   * Records a content fingerprint (md5 of system+user prompt) + call site for
+   * the LLM call, so duplicate calls (identical content) can be found later.
+   * Gated by the `llm_call_fingerprint` debug feature so the hash/stack work is
+   * skipped entirely when disabled. Stored as debug_data → inherits its
+   * retention. No-op for calls without prompt text (e.g. tool-calling paths).
+   */
+  private async logCallFingerprint(
+    usageData: TokenUsageLogData,
+  ): Promise<void> {
+    if (!usageData.promptText) return;
+    if (
+      !(await this.debugService.isEnabled(DEBUG_FEATURES.LLM_CALL_FINGERPRINT))
+    ) {
+      return;
+    }
+    const content = `${usageData.systemPromptText ?? ""} ${usageData.promptText}`;
+    const contentHash = createHash("md5").update(content).digest("hex");
+    await this.debugService.log(
+      DEBUG_FEATURES.LLM_CALL_FINGERPRINT,
+      usageData.userId ?? null,
+      {
+        contentHash,
+        callSite: captureLlmCallSite(),
+        operation: usageData.operation,
+        provider: usageData.provider,
+        model: usageData.model,
+        promptTokens: usageData.promptTokens,
+      },
+    );
+  }
+
+  /** Prompt-content hashes that recurred across recent LLM calls (admin tool). */
+  async findDuplicateLlmCalls(
+    sinceDays?: number,
+    limit?: number,
+  ): Promise<DuplicateLlmCall[]> {
+    return this.debugService.findDuplicateLlmCalls(sinceDays, limit);
   }
 
   /**

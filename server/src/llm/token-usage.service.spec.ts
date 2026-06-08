@@ -4,8 +4,15 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { User } from "../database/entities/user.entity";
+import { DebugService } from "../debug/debug.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { TokenUsageService } from "./token-usage.service";
+
+const mockDebugService = () => ({
+  isEnabled: jest.fn().mockResolvedValue(false),
+  log: jest.fn().mockResolvedValue(undefined),
+  findDuplicateLlmCalls: jest.fn().mockResolvedValue([]),
+});
 
 const mockTokenUsageRepository = () => ({
   create: jest.fn(),
@@ -47,6 +54,7 @@ describe("TokenUsageService - getUsageByUser", () => {
           provide: getRepositoryToken(User),
           useValue: userRepo,
         },
+        { provide: DebugService, useValue: mockDebugService() },
       ],
     }).compile();
 

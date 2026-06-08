@@ -18,6 +18,7 @@ import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { GitHubModule } from "./github/github.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
 import { LLMModule } from "./llm/llm.module";
+import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { MCPModule } from "./mcp/mcp.module";
 import { NotesModule } from "./notes/notes.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
@@ -82,6 +83,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     ScheduledEmailsModule,
     WorkflowsModule,
     MCPModule,
+    MaintenanceModule,
   ],
 })
 export class WorkerModule {}

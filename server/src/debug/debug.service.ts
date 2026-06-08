@@ -4,6 +4,15 @@ import { LessThan, Repository } from "typeorm";
 
 import { DebugConfig } from "../database/entities/debug-config.entity";
 import { DebugData } from "../database/entities/debug-data.entity";
+import { DEBUG_FEATURES } from "./debug-feature-names";
+
+/** A content hash seen more than once across recent LLM calls. */
+export interface DuplicateLlmCall {
+  contentHash: string;
+  count: number;
+  callSites: string[];
+  operations: string[];
+}
 
 /** Simple in-memory cache entry for feature-enabled lookups. */
 interface CacheEntry {
@@ -74,6 +83,32 @@ export class DebugService {
         err,
       );
     }
+  }
+
+  /**
+   * Find prompt-content hashes that recur across recent LLM calls (the
+   * llm_call_fingerprint feature). Each row is a hash seen >1×, with the
+   * distinct call sites and operations that produced it — i.e. the redundant
+   * LLM calls. Returns [] when the feature has never been enabled.
+   */
+  async findDuplicateLlmCalls(
+    sinceDays = 14,
+    limit = 200,
+  ): Promise<DuplicateLlmCall[]> {
+    const cutoff = new Date(Date.now() - sinceDays * MS_PER_DAY);
+    return this.debugDataRepo.query(
+      `SELECT payload->>'contentHash' AS "contentHash",
+              COUNT(*)::int AS "count",
+              jsonb_agg(DISTINCT payload->>'callSite') AS "callSites",
+              jsonb_agg(DISTINCT payload->>'operation') AS "operations"
+       FROM debug_data
+       WHERE feature = $1 AND "createdAt" > $2 AND payload ? 'contentHash'
+       GROUP BY payload->>'contentHash'
+       HAVING COUNT(*) > 1
+       ORDER BY COUNT(*) DESC
+       LIMIT $3`,
+      [DEBUG_FEATURES.LLM_CALL_FINGERPRINT, cutoff, limit],
+    );
   }
 
   /**

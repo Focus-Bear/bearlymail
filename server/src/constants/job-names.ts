@@ -96,6 +96,10 @@ export const JOB_NAMES = {
   // REENCRYPT_USER_DATA jobs. Keeps `/start` off the HTTP request path so
   // enqueueing for thousands of users never 504s.
   REENCRYPT_FANOUT_ALL: "reencrypt-fanout-all",
+  // Read-only data-at-rest health scan. A job (not a sync endpoint) because the
+  // per-column SQL scans large tables (emails, email_threads) and exceeded the
+  // ALB idle timeout, leaving the dashboard stuck loading.
+  REENCRYPT_HEALTH_SCAN: "reencrypt-health-scan",
 
   // Audit log archival (SAQ Q52: nightly export of rows older than 90 days to S3 Glacier)
   AUDIT_LOG_ARCHIVE: "audit-log-archive",

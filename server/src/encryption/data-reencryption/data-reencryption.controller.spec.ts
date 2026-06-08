@@ -76,6 +76,20 @@ describe("DataReencryptionController", () => {
     });
   });
 
+  describe("startHealthScan", () => {
+    it("enqueues the health-scan job (off the HTTP path) and returns the jobId", async () => {
+      const response = await controller.startHealthScan();
+
+      expect(bossSend).toHaveBeenCalledWith(
+        JOB_NAMES.REENCRYPT_HEALTH_SCAN,
+        {},
+        { priority: JobPriority.HIGH },
+      );
+      expect(getHealth).not.toHaveBeenCalled();
+      expect(response).toEqual({ jobId: "job-uuid-123" });
+    });
+  });
+
   describe("dryRunSelf", () => {
     it("enqueues a job for the calling user and returns the job id", async () => {
       const response = await controller.dryRunSelf({

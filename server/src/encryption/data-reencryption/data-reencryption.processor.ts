@@ -120,6 +120,19 @@ export class DataReencryptionProcessor implements OnModuleInit {
       } satisfies ReencryptFanoutResult;
     });
     this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_FANOUT_ALL}`);
+
+    await this.boss.work(JOB_NAMES.REENCRYPT_HEALTH_SCAN, async () => {
+      this.logger.log("Running data-at-rest health scan");
+      // Runs in the worker (no ALB idle timeout) — the per-column SQL scans on
+      // large tables can take tens of seconds. Returning the result persists it
+      // as the job `output` so the admin UI can poll GET …/job/:jobId for it.
+      const health = await this.service.getHealth();
+      this.logger.log(
+        `Health scan complete: ${health.rowsNeedingRemediation} row(s) need remediation across ${health.columnsAffected} column(s)`,
+      );
+      return health;
+    });
+    this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_HEALTH_SCAN}`);
   }
 }
 

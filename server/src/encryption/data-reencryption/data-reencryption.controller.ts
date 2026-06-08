@@ -174,6 +174,24 @@ export class DataReencryptionController {
   }
 
   /**
+   * Enqueue the data-at-rest health scan as a background job and return a jobId.
+   * The synchronous GET /health above scans large tables (emails, email_threads)
+   * and routinely exceeds the ALB idle timeout, leaving the dashboard stuck
+   * loading — so the UI uses this job path and polls GET …/job/:jobId for the
+   * ReencryptionHealth output. HIGH priority: it's an interactive admin action.
+   */
+  @Post("health/scan")
+  async startHealthScan() {
+    const jobId = await this.boss.send(
+      JOB_NAMES.REENCRYPT_HEALTH_SCAN,
+      {},
+      { priority: JobPriority.HIGH },
+    );
+    this.logger.log(`Enqueued health scan as job ${jobId}`);
+    return { jobId };
+  }
+
+  /**
    * Enqueue a fan-out job that, in the worker, queries eligible users and
    * bulk-inserts one re-encryption job per user. Idempotent — already-migrated
    * users are skipped at job time.

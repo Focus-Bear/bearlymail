@@ -1437,6 +1437,7 @@
         "breakdownTitle": "Plaintext-at-rest breakdown",
         "breakdownSubtitle": "Per encrypted column: how many stored values are plaintext (not encrypted-shaped) and need remediation.",
         "allEncrypted": "Every scanned value is encrypted at rest. Nothing to remediate. ✅",
+        "scanFailed": "Health scan job ended in state \"{{state}}\" without a result. Check worker logs.",
         "topUsersTitle": "Top affected users",
         "scannedNote": "Scanned {{tables}} encrypted tables. Detects plaintext at rest; the per-key (global→user) check still requires a dry-run.",
         "columns": {

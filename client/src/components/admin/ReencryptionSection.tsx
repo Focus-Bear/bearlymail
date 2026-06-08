@@ -258,18 +258,39 @@ export const ReencryptionSection: React.FC = () => {
   const refreshHealth = useCallback(async () => {
     setHealthLoading(true);
     try {
-      const { data } = await axios.get<ReencryptionHealth>(
-        `${REENCRYPTION_BASE}/health`,
+      // Run the scan as a background job and poll: the per-column SQL scans
+      // large tables (emails, email_threads) and exceeds the ALB idle timeout
+      // if done synchronously, which left these cards stuck loading.
+      const { data: enqueueResp } = await axios.post<{ jobId: string }>(
+        `${REENCRYPTION_BASE}/health/scan`,
+        {},
         { withCredentials: true },
       );
-      setHealth(data);
+      if (!enqueueResp?.jobId) {
+        throw new Error(
+          t('admin.reencryption.health.scanFailed', {
+            state: 'no_job_id',
+          }),
+        );
+      }
+      const finalStatus = await pollJobUntilTerminal<ReencryptionHealth>(
+        enqueueResp.jobId,
+      );
+      if (finalStatus.state !== JOB_STATE_COMPLETED || !finalStatus.output) {
+        throw new Error(
+          t('admin.reencryption.health.scanFailed', {
+            state: finalStatus.state,
+          }),
+        );
+      }
+      setHealth(finalStatus.output);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setHealthLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     refreshStatus();

@@ -67,6 +67,7 @@
         "breakdownTitle": "Desglose de texto plano en reposo",
         "breakdownSubtitle": "Por columna cifrada: cuántos valores almacenados son texto plano (sin forma cifrada) y requieren corrección.",
         "allEncrypted": "Todos los valores escaneados están cifrados en reposo. Nada que corregir. ✅",
+        "scanFailed": "El trabajo de escaneo de estado terminó en estado \"{{state}}\" sin resultado. Revisa los registros del worker.",
         "topUsersTitle": "Usuarios más afectados",
         "scannedNote": "Se escanearon {{tables}} tablas cifradas. Detecta texto plano en reposo; la comprobación por clave (global→usuario) aún requiere un dry-run.",
         "columns": {

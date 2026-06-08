@@ -309,21 +309,47 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     editorProps: { handlePaste: stablePasteHandler },
   });
 
-  useEffect(() => {
-    if (editor) {
-      const currentContent = editor.getHTML();
-      const newContent = content || '';
-      const editorIsEmpty = currentContent === TAG_EMPTY_PARAGRAPH || currentContent === '';
-      const contentIsEmpty = !newContent || newContent === TAG_EMPTY_PARAGRAPH;
+  // Reconcile the editor against the controlled `content` prop — but never while
+  // an IME or the macOS native emoji picker (Cmd+Ctrl+Space) composition is in
+  // progress. Those insert via composition events, and replacing the focused
+  // text node mid-composition makes ProseMirror abort the composition, so the
+  // emoji is silently dropped. Guarding on `view.composing` lets the composition
+  // commit; we re-sync afterwards on `compositionend`.
+  const syncContentToEditor = useCallback(() => {
+    if (!editor || editor.isDestroyed || editor.view?.composing) {
+      return;
+    }
+    const currentContent = editor.getHTML();
+    const newContent = content || '';
+    const editorIsEmpty = currentContent === TAG_EMPTY_PARAGRAPH || currentContent === '';
+    const contentIsEmpty = !newContent || newContent === TAG_EMPTY_PARAGRAPH;
 
-      if (editorIsEmpty && contentIsEmpty) {
-        return;
-      }
-      if (currentContent !== newContent) {
-        editor.commands.setContent(newContent);
-      }
+    if (editorIsEmpty && contentIsEmpty) {
+      return;
+    }
+    if (currentContent !== newContent) {
+      // emitUpdate: false — a programmatic sync must not re-fire onUpdate, which
+      // would loop back through onChange and re-enter this reconciliation.
+      editor.commands.setContent(newContent, { emitUpdate: false });
     }
   }, [content, editor]);
+
+  useEffect(() => {
+    syncContentToEditor();
+  }, [syncContentToEditor]);
+
+  // The guarded sync above is skipped during composition, so the editor and the
+  // `content` prop can be briefly out of sync. Reconcile once the composition
+  // commits. queueMicrotask defers past ProseMirror's own composition flush.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !editor.view) {
+      return;
+    }
+    const { dom } = editor.view;
+    const handleCompositionEnd = () => queueMicrotask(syncContentToEditor);
+    dom.addEventListener('compositionend', handleCompositionEnd);
+    return () => dom.removeEventListener('compositionend', handleCompositionEnd);
+  }, [editor, syncContentToEditor]);
 
   useEffect(() => {
     if (editor) {

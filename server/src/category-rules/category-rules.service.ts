@@ -646,20 +646,31 @@ export class CategoryRulesService {
       return null;
     }
 
-    // Skip rules with no categoryId (unmatched legacy rows) or whose category
-    // has been deleted, so a valid lower-priority rule can still win.
-    const eligibleRules =
-      validCategoryIds.size > 0
-        ? rules.filter((rule) => {
-            if (!rule.categoryId || !validCategoryIds.has(rule.categoryId)) {
-              this.logger.warn(
-                `[CategoryRules] Skipping rule ${rule.id} (categoryId ${rule.categoryId ?? "null"} not in valid set) for user ${userId}`,
-              );
-              return false;
-            }
-            return true;
-          })
-        : rules;
+    // Skip rules with no categoryId (legacy rows created before rules carried a
+    // category UUID) or whose category has been deleted, so a valid
+    // lower-priority rule can still win.
+    const eligibleRules = rules.filter((rule) => {
+      // Legacy rules without a category UUID can never resolve to a real
+      // category, so they must never match — even for users who have no
+      // categories at all.
+      if (!rule.categoryId) {
+        this.logger.debug(
+          `[CategoryRules] Skipping rule ${rule.id} (legacy rule with no categoryId) for user ${userId}`,
+        );
+        return false;
+      }
+      // When we know the user's categories, also drop rules pointing at a
+      // category that has since been deleted. If the set is empty (e.g. a
+      // transient read), keep rules that do carry a categoryId rather than
+      // nuking all matching.
+      if (validCategoryIds.size > 0 && !validCategoryIds.has(rule.categoryId)) {
+        this.logger.debug(
+          `[CategoryRules] Skipping rule ${rule.id} (categoryId ${rule.categoryId} not in valid set) for user ${userId}`,
+        );
+        return false;
+      }
+      return true;
+    });
 
     const compositeHit = this.findFirstCompositeRuleMatch(eligibleRules, email);
     if (compositeHit) {

@@ -718,6 +718,20 @@ describe("CategoryRulesService", () => {
 
   describe("findMatchingRule", () => {
     const userId = "user-1";
+    const DEFAULT_CATEGORY_ID = "cat-default";
+
+    beforeEach(() => {
+      // By default the user has one valid category that the test rules below
+      // reference via `categoryId: DEFAULT_CATEGORY_ID`. Tests that need a
+      // different category set override this mock.
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextId: DEFAULT_CATEGORY_ID,
+          contextValue: "Billing - Payment receipts",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+    });
 
     it("returns null when no rules exist", async () => {
       repo.find.mockResolvedValue([]);
@@ -745,6 +759,7 @@ describe("CategoryRulesService", () => {
           pattern: "noreply@stripe.com",
           patternHash: hash,
           categoryName: "Billing",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
         },
@@ -776,6 +791,7 @@ describe("CategoryRulesService", () => {
           pattern: "@github.com",
           patternHash: hash,
           categoryName: "GitHub Notifications",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
         },
@@ -811,6 +827,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "QA",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -849,6 +866,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "QA Alerts",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -866,6 +884,7 @@ describe("CategoryRulesService", () => {
           pattern: "@github.com",
           patternHash: hash,
           categoryName: "GitHub",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           createdAt: new Date("2024-06-01"),
@@ -892,6 +911,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "QA",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -922,6 +942,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "Invoices",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -958,6 +979,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "Receipts",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -990,6 +1012,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "Invoices",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -1021,6 +1044,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "GitHub Notifications",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -1054,6 +1078,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "GitHub Notifications",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -1085,6 +1110,7 @@ describe("CategoryRulesService", () => {
           pattern: null,
           patternHash: null,
           categoryName: "Legacy QA",
+          categoryId: DEFAULT_CATEGORY_ID,
           subjectPrefix: null,
           isEnabled: true,
           compositeSpec: {
@@ -1245,7 +1271,7 @@ describe("CategoryRulesService", () => {
       expect(repo.increment).toHaveBeenCalledWith({ id: "r1" }, "hitCount", 1);
     });
 
-    it("uses a matching rule when user has no categories at all (no EMAIL_CATEGORY contexts)", async () => {
+    it("excludes a legacy rule with no categoryId even when user has no categories at all", async () => {
       const hash = crypto
         .createHash("sha256")
         .update("noreply@stripe.com")
@@ -1259,6 +1285,8 @@ describe("CategoryRulesService", () => {
           pattern: "noreply@stripe.com",
           patternHash: hash,
           categoryName: "Billing",
+          // No categoryId — a legacy rule from before rules carried a category
+          // UUID. It can never resolve to a real category, so it must not match.
           subjectPrefix: null,
           isEnabled: true,
         },
@@ -1272,8 +1300,8 @@ describe("CategoryRulesService", () => {
         subject: "Your receipt",
       });
 
-      expect(match).not.toBeNull();
-      expect(match?.categoryName).toBe("Billing");
+      expect(match).toBeNull();
+      expect(repo.increment).not.toHaveBeenCalled();
     });
   });
 

@@ -341,15 +341,27 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // The guarded sync above is skipped during composition, so the editor and the
   // `content` prop can be briefly out of sync. Reconcile once the composition
   // commits. queueMicrotask defers past ProseMirror's own composition flush.
+  // Latest-ref pattern: syncContentToEditor changes on every keystroke (it
+  // closes over `content`), so depending on it would re-bind the DOM listener
+  // on each keystroke. Read through a ref so the effect only runs when the
+  // editor itself is (re)created.
+  const syncContentRef = useRef(syncContentToEditor);
   useEffect(() => {
-    if (!editor || editor.isDestroyed || !editor.view) {
+    syncContentRef.current = syncContentToEditor;
+  }, [syncContentToEditor]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) {
       return;
     }
-    const { dom } = editor.view;
-    const handleCompositionEnd = () => queueMicrotask(syncContentToEditor);
+    const dom = editor.view?.dom;
+    if (!dom) {
+      return;
+    }
+    const handleCompositionEnd = () => queueMicrotask(() => syncContentRef.current());
     dom.addEventListener('compositionend', handleCompositionEnd);
     return () => dom.removeEventListener('compositionend', handleCompositionEnd);
-  }, [editor, syncContentToEditor]);
+  }, [editor]);
 
   useEffect(() => {
     if (editor) {

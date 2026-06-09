@@ -38,7 +38,7 @@
     "emoji-mart": "^5.6.0",
     "i18next": "^26.2.0",
     "i18next-browser-languagedetector": "^8.2.1",
-    "posthog-js": "^1.298.0",
+    "posthog-js": "^1.382.0",
     "pusher-js": "^8.5.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

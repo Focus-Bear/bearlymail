@@ -3861,6 +3861,162 @@
       "notInAnyGroup": "No pertenece a ningún grupo",
       "addedToGroup": "Agregado a {{name}}",
       "removedFromGroup": "Eliminado de {{name}}"
+    },
+    "workflows": {
+      "action": {
+        "typeMcpTool": "🔧 Herramienta MCP",
+        "typeReply": "↩️ Respuesta automática",
+        "typeWebhook": "🌐 Webhook",
+        "addAction": "+ Añadir acción",
+        "actionHeading": "Acción {{number}}: {{label}}",
+        "mcpServer": "Servidor MCP",
+        "selectServer": "— Selecciona un servidor —",
+        "tool": "Herramienta",
+        "selectTool": "— Selecciona una herramienta —",
+        "toolOption": "{{name}} — {{description}}",
+        "parametersLabel": "Parámetros (admite {{variable}} y {{ai:instruction}})",
+        "addParameter": "+ Añadir parámetro",
+        "replyTemplateLabel": "Cuerpo de la plantilla de respuesta (admite {{variable}} y {{ai:…}})",
+        "url": "URL",
+        "method": "Método",
+        "bodyTemplateLabel": "Plantilla del cuerpo (JSON con sustitución de {{variable}})"
+      },
+      "condition": {
+        "fromLabel": "De (patrones del remitente)",
+        "fromHint": "Glob (*@upwork.com), regex (/billing/i) o texto plano. Vacío = cualquier remitente.",
+        "fromPlaceholder": "*@upwork.com",
+        "subjectLabel": "Patrones de asunto",
+        "subjectHint": "Glob, regex o subcadena de texto plano. Vacío = cualquier asunto.",
+        "subjectPlaceholder": "resumen de facturación",
+        "hideAdvanced": "▲ Ocultar avanzado",
+        "showAdvanced": "▼ Avanzado (condición de IA)",
+        "naturalLanguageLabel": "Condición en lenguaje natural (opcional)",
+        "naturalLanguageHint": "Evaluada por IA tras la coincidencia de patrones. Ej. «resumen de facturación con partidas de una plataforma para autónomos».",
+        "naturalLanguagePlaceholder": "Describe cuándo debe activarse este flujo de trabajo…"
+      },
+      "editor": {
+        "errorNameRequired": "Introduce un nombre para este flujo de trabajo.",
+        "errorActionRequired": "Añade al menos una acción.",
+        "errorSaveFailed": "No se pudo guardar el flujo de trabajo.",
+        "editTitle": "Editar flujo de trabajo",
+        "newTitle": "Nuevo flujo de trabajo",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "p. ej. Facturación de Upwork → tarea de Focus Bear",
+        "whenSectionTitle": "Cuándo (condición)",
+        "thenSectionTitle": "Entonces (acciones)",
+        "enableImmediately": "Activar este flujo de trabajo de inmediato",
+        "saveWorkflow": "Guardar flujo de trabajo"
+      },
+      "history": {
+        "loadingExecutionHistory": "Cargando historial de ejecución…",
+        "noExecutionsYet": "Aún no hay ejecuciones.",
+        "statusSuccess": "correcto",
+        "statusPartialFailure": "fallo parcial",
+        "statusFailed": "fallido",
+        "statusRunning": "en ejecución",
+        "statusPending": "pendiente",
+        "threadLabel": "Hilo:",
+        "failedActions": "Acciones fallidas",
+        "actionError": "Acción {{index}}: {{error}}"
+      },
+      "list": {
+        "emptyState": "Aún no hay flujos de trabajo. Haz clic en «Añadir flujo de trabajo» para crear tu primera regla de automatización.",
+        "statusActive": "Activo",
+        "statusDisabled": "Desactivado",
+        "actionCount_one": "{{count}} acción",
+        "actionCount_other": "{{count}} acciones",
+        "disable": "Desactivar",
+        "enable": "Activar",
+        "conditionFrom": "De: {{value}}",
+        "conditionSubject": "Asunto: {{value}}",
+        "conditionAny": "Coincide con cualquier correo"
+      },
+      "section": {
+        "loadError": "No se pudieron cargar los flujos de trabajo. Actualiza la página.",
+        "toggleError": "No se pudo activar/desactivar el flujo de trabajo. Inténtalo de nuevo.",
+        "deleteConfirm": "¿Eliminar esta regla de flujo de trabajo?",
+        "deleteError": "No se pudo eliminar el flujo de trabajo. Inténtalo de nuevo.",
+        "title": "Flujos de trabajo",
+        "description": "Automatiza acciones cuando lleguen correos coincidentes: crea tareas de Focus Bear, envía respuestas, llama a webhooks y más.",
+        "addWorkflow": "+ Añadir flujo de trabajo",
+        "loadingWorkflows": "Cargando flujos de trabajo…",
+        "recentExecutionHistory": "Historial de ejecución reciente"
+      }
+    },
+    "mcp": {
+      "purpose": {
+        "workflow": {
+          "label": "Acciones de flujo de trabajo",
+          "description": "Se puede invocar como paso de acción dentro de tus flujos de trabajo automatizados."
+        },
+        "senderContext": {
+          "label": "Contexto del remitente",
+          "description": "Se consulta al abrir un correo para mostrar información sobre el remitente (p. ej. datos de CRM)."
+        },
+        "askAi": {
+          "label": "Preguntar a la IA",
+          "description": "Se ofrece al asistente como herramientas que puede usar al responder. Las herramientas destructivas nunca se exponen."
+        }
+      },
+      "preset": {
+        "googleDrive": {
+          "tagline": "Permite que el asistente busque y lea tus archivos de Drive",
+          "instructions": "Conecta un servidor MCP de Google Drive para que Preguntar a la IA pueda buscar en tus archivos. El servidor debe completar el OAuth de Google por sí mismo: pega su URL de endpoint y token de acceso abajo."
+        },
+        "zohoBigin": {
+          "tagline": "Muestra detalles del CRM sobre el remitente del correo",
+          "instructions": "Conecta tu servidor MCP de Zoho Bigin para mostrar información de contactos y negocios al abrir un correo. Pega el endpoint del servidor y un token con acceso de lectura a tus datos de Bigin."
+        },
+        "hubspot": {
+          "tagline": "Muestra detalles del CRM sobre el remitente del correo",
+          "instructions": "Conecta tu servidor MCP de HubSpot para mostrar información de contactos, empresas y negocios al abrir un correo. Pega el endpoint del servidor y un token de aplicación privada con permisos de lectura del CRM."
+        },
+        "custom": {
+          "tagline": "Conecta cualquier servidor MCP mediante URL",
+          "instructions": "Conecta cualquier servidor compatible con MCP. Elige un propósito y luego pega la URL del endpoint y (opcionalmente) un token de autenticación. El servidor gestiona su propia autenticación."
+        }
+      },
+      "grid": {
+        "customServer": "Servidor personalizado"
+      },
+      "manager": {
+        "connectAnother": "Conectar otra app",
+        "connectFirst": "Conectar una app",
+        "testFailed": "La prueba falló: {{message}}"
+      },
+      "form": {
+        "errorRequired": "El nombre y la URL del servidor son obligatorios.",
+        "connectCustom": "Conectar un servidor MCP personalizado",
+        "connectNamed": "Conectar {{name}}",
+        "name": "Nombre",
+        "serverUrl": "URL del servidor",
+        "apiKey": "Clave de API (opcional)",
+        "purpose": "Propósito",
+        "purposeWorkflow": "Acciones de flujo de trabajo",
+        "purposeSenderContext": "Contexto del remitente (buscar el remitente del correo)",
+        "purposeAskAi": "Preguntar a la IA (deja que el asistente use esta herramienta)"
+      },
+      "connect": "Conectar",
+      "connecting": "Conectando…",
+      "card": {
+        "toolsDiscovered_one": "{{count}} herramienta descubierta",
+        "toolsDiscovered_other": "{{count}} herramientas descubiertas",
+        "toolsNotFetched": "Herramientas aún no obtenidas",
+        "connected_one": "✓ Conectado ({{count}} herramienta)",
+        "connected_other": "✓ Conectado ({{count}} herramientas)",
+        "connectionFailed": "✗ Conexión fallida",
+        "test": "Probar",
+        "testing": "Probando…",
+        "refreshTools": "Actualizar herramientas"
+      },
+      "section": {
+        "title": "Apps conectadas",
+        "description": "Conecta servidores MCP para Google Drive, tu CRM y más. Las apps conectadas pueden mostrar el contexto del remitente al abrir un correo, potenciar Preguntar a la IA y ejecutarse como acciones dentro de tus flujos de trabajo.",
+        "loadError": "No se pudieron cargar las apps conectadas. Actualiza la página.",
+        "refreshError": "No se pudieron actualizar las herramientas. Inténtalo de nuevo.",
+        "removeError": "No se pudo eliminar la app conectada. Inténtalo de nuevo.",
+        "loading": "Cargando apps conectadas…"
+      }
     }
   },
   "keyboard": {

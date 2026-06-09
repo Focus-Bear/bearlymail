@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { ActionBuilder } from './ActionBuilder';
@@ -25,6 +26,7 @@ const emptyCondition: WorkflowCondition = {
  * Part of feature #1483 — Automated Email Workflows.
  */
 export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers, onSave, onCancel }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState(rule?.name ?? '');
   const [enabled, setEnabled] = useState(rule?.enabled ?? true);
   const [condition, setCondition] = useState<WorkflowCondition>(rule?.condition ?? { ...emptyCondition });
@@ -34,11 +36,11 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setError('Please enter a name for this workflow.');
+      setError(t('settings.workflows.editor.errorNameRequired'));
       return;
     }
     if (actions.length === 0) {
-      setError('Please add at least one action.');
+      setError(t('settings.workflows.editor.errorActionRequired'));
       return;
     }
 
@@ -47,7 +49,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers
     try {
       await onSave({ name: name.trim(), enabled, condition, actions });
     } catch (err) {
-      setError((err as Error).message ?? 'Failed to save workflow.');
+      setError((err as Error).message ?? t('settings.workflows.editor.errorSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -98,17 +100,19 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers
     <div style={overlayStyle} onClick={handleOverlayClick}>
       <div style={modalStyle}>
         <h2 style={{ ...theme.typography.heading.h2, marginBottom: theme.spacing.lg }}>
-          {rule ? 'Edit Workflow' : 'New Workflow'}
+          {rule ? t('settings.workflows.editor.editTitle') : t('settings.workflows.editor.newTitle')}
         </h2>
 
         {/* Name */}
         <div style={{ marginBottom: theme.spacing.lg }}>
-          <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 14 }}>Name</label>
+          <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 14 }}>
+            {t('settings.workflows.editor.nameLabel')}
+          </label>
           <input
             type="text"
             value={name}
             onChange={evt => setName(evt.target.value)}
-            placeholder="e.g. Upwork billing → Focus Bear task"
+            placeholder={t('settings.workflows.editor.namePlaceholder')}
             style={{
               width: '100%',
               padding: '8px 12px',
@@ -122,13 +126,13 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers
 
         {/* Condition */}
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>When (condition)</div>
+          <div style={sectionTitleStyle}>{t('settings.workflows.editor.whenSectionTitle')}</div>
           <ConditionBuilder condition={condition} onChange={setCondition} />
         </div>
 
         {/* Actions */}
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>Then (actions)</div>
+          <div style={sectionTitleStyle}>{t('settings.workflows.editor.thenSectionTitle')}</div>
           <ActionBuilder actions={actions} mcpServers={mcpServers} onChange={setActions} />
         </div>
 
@@ -141,7 +145,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers
             onChange={evt => setEnabled(evt.target.checked)}
           />
           <label htmlFor="workflow-enabled" style={{ fontSize: 14, cursor: 'pointer' }}>
-            Enable this workflow immediately
+            {t('settings.workflows.editor.enableImmediately')}
           </label>
         </div>
 
@@ -173,7 +177,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers
               fontSize: 14,
             }}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -190,7 +194,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers
               fontWeight: 600,
             }}
           >
-            {saving ? 'Saving…' : 'Save Workflow'}
+            {saving ? t('common.saving') : t('settings.workflows.editor.saveWorkflow')}
           </button>
         </div>
       </div>

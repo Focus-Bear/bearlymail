@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { WorkflowExecutionLog } from './types';
@@ -7,6 +8,8 @@ interface WorkflowExecutionHistoryProps {
   logs: WorkflowExecutionLog[];
   loading?: boolean;
 }
+
+const ACTION_RESULT_FAILED = 'failed';
 
 const STATUS_COLORS: Record<WorkflowExecutionLog['status'], { bg: string; color: string }> = {
   success: { bg: '#d4edda', color: '#155724' },
@@ -21,18 +24,35 @@ const STATUS_COLORS: Record<WorkflowExecutionLog['status'], { bg: string; color:
  * Part of feature #1483 — Automated Email Workflows.
  */
 export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> = ({ logs, loading }) => {
+  const { t } = useTranslation();
+
   if (loading) {
-    return <p style={{ color: theme.colors.text.secondary, fontSize: 13 }}>Loading execution history…</p>;
+    return (
+      <p style={{ color: theme.colors.text.secondary, fontSize: 13 }}>
+        {t('settings.workflows.history.loadingExecutionHistory')}
+      </p>
+    );
   }
 
   if (logs.length === 0) {
-    return <p style={{ color: theme.colors.text.secondary, fontSize: 13 }}>No executions yet.</p>;
+    return (
+      <p style={{ color: theme.colors.text.secondary, fontSize: 13 }}>
+        {t('settings.workflows.history.noExecutionsYet')}
+      </p>
+    );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {logs.map(log => {
         const colors = STATUS_COLORS[log.status] ?? STATUS_COLORS.pending;
+        const statusLabels: Record<WorkflowExecutionLog['status'], string> = {
+          success: t('settings.workflows.history.statusSuccess'),
+          partial_failure: t('settings.workflows.history.statusPartialFailure'),
+          failed: t('settings.workflows.history.statusFailed'),
+          running: t('settings.workflows.history.statusRunning'),
+          pending: t('settings.workflows.history.statusPending'),
+        };
         return (
           <div
             key={log.id}
@@ -46,7 +66,8 @@ export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> =
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>
-                Thread: <code style={{ fontSize: 12 }}>{log.emailThreadId.slice(0, 8)}…</code>
+                {t('settings.workflows.history.threadLabel')}{' '}
+                <code style={{ fontSize: 12 }}>{log.emailThreadId.slice(0, 8)}…</code>
               </span>
               <span
                 style={{
@@ -58,23 +79,26 @@ export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> =
                   color: colors.color,
                 }}
               >
-                {log.status.replace('_', ' ')}
+                {statusLabels[log.status] ?? statusLabels.pending}
               </span>
             </div>
             <div style={{ color: theme.colors.text.secondary, marginTop: 4 }}>
               {new Date(log.executedAt).toLocaleString()}
             </div>
-            {log.actionResults && log.actionResults.some(result => result.status === 'failed') && (
+            {log.actionResults && log.actionResults.some(result => result.status === ACTION_RESULT_FAILED) && (
               <details style={{ marginTop: 6 }}>
                 <summary style={{ cursor: 'pointer', fontSize: 12, color: theme.colors.error.dark }}>
-                  Failed actions
+                  {t('settings.workflows.history.failedActions')}
                 </summary>
                 <ul style={{ margin: '4px 0 0 0', paddingLeft: 16 }}>
                   {log.actionResults
-                    .filter(result => result.status === 'failed')
+                    .filter(result => result.status === ACTION_RESULT_FAILED)
                     .map((result, idx) => (
                       <li key={idx} style={{ fontSize: 12, color: theme.colors.error.dark }}>
-                        Action {result.actionIndex + 1}: {result.error}
+                        {t('settings.workflows.history.actionError', {
+                          index: result.actionIndex + 1,
+                          error: result.error,
+                        })}
                       </li>
                     ))}
                 </ul>

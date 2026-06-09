@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
 import {
@@ -15,26 +17,37 @@ interface ActionBuilderProps {
   onChange: (actions: WorkflowAction[]) => void;
 }
 
-type ActionType = 'mcp_tool' | 'reply' | 'webhook';
+const ACTION_TYPE = { MCP_TOOL: 'mcp_tool', REPLY: 'reply', WEBHOOK: 'webhook' } as const;
 
-const ACTION_TYPE_LABELS: Record<ActionType, string> = {
-  mcp_tool: '🔧 MCP Tool',
-  reply: '↩️ Auto-Reply',
-  webhook: '🌐 Webhook',
-};
+type ActionType = (typeof ACTION_TYPE)[keyof typeof ACTION_TYPE];
+
+/**
+ * These labels document the `{{variable}}` / `{{ai:…}}` template syntax, so the
+ * double-brace text must render literally. Overriding the interpolation
+ * delimiters to `[[ ]]` stops i18next from treating `{{ }}` as interpolation.
+ */
+const LITERAL_BRACE_INTERPOLATION = { interpolation: { prefix: '[[', suffix: ']]' } } as const;
+
+const getActionTypeLabels = (translate: TFunction): Record<ActionType, string> => ({
+  mcp_tool: translate('settings.workflows.action.typeMcpTool'),
+  reply: translate('settings.workflows.action.typeReply'),
+  webhook: translate('settings.workflows.action.typeWebhook'),
+});
 
 /**
  * Builds the "Then" action list for a workflow rule.
  * Supports MCP tool calls, auto-replies, and webhooks.
  */
 export const ActionBuilder: React.FC<ActionBuilderProps> = ({ actions, mcpServers, onChange }) => {
+  const { t } = useTranslation();
+  const actionTypeLabels = getActionTypeLabels(t);
   const [adding, setAdding] = useState<ActionType | null>(null);
 
   const addAction = (type: ActionType) => {
     let newAction: WorkflowAction;
-    if (type === 'mcp_tool') {
+    if (type === ACTION_TYPE.MCP_TOOL) {
       newAction = { type: 'mcp_tool', serverId: '', toolName: '', parameters: {}, label: '' } as WorkflowActionMCPTool;
-    } else if (type === 'reply') {
+    } else if (type === ACTION_TYPE.REPLY) {
       newAction = { type: 'reply', templateBody: '', label: '' } as WorkflowActionReply;
     } else {
       newAction = { type: 'webhook', url: '', method: 'POST', bodyTemplate: '{}', label: '' } as WorkflowActionWebhook;
@@ -70,9 +83,9 @@ export const ActionBuilder: React.FC<ActionBuilderProps> = ({ actions, mcpServer
 
       {adding ? (
         <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-          {(Object.keys(ACTION_TYPE_LABELS) as ActionType[]).map(type => (
+          {(Object.keys(actionTypeLabels) as ActionType[]).map(type => (
             <button key={type} type="button" onClick={() => addAction(type)} style={addButtonStyle}>
-              {ACTION_TYPE_LABELS[type]}
+              {actionTypeLabels[type]}
             </button>
           ))}
           <button
@@ -80,12 +93,12 @@ export const ActionBuilder: React.FC<ActionBuilderProps> = ({ actions, mcpServer
             onClick={() => setAdding(null)}
             style={{ ...addButtonStyle, color: theme.colors.text.secondary }}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
       ) : (
         <button type="button" onClick={() => setAdding('mcp_tool')} style={addButtonStyle}>
-          + Add Action
+          {t('settings.workflows.action.addAction')}
         </button>
       )}
     </div>
@@ -101,6 +114,8 @@ interface ActionFormProps {
 }
 
 const ActionForm: React.FC<ActionFormProps> = ({ index, action, mcpServers, onUpdate, onRemove }) => {
+  const { t } = useTranslation();
+  const actionTypeLabels = getActionTypeLabels(t);
   const labelStyle: React.CSSProperties = {
     fontSize: 12,
     fontWeight: 600,
@@ -135,7 +150,10 @@ const ActionForm: React.FC<ActionFormProps> = ({ index, action, mcpServers, onUp
         }}
       >
         <span style={{ fontWeight: 600, fontSize: 13 }}>
-          Action {index + 1}: {ACTION_TYPE_LABELS[action.type as keyof typeof ACTION_TYPE_LABELS] ?? action.type}
+          {t('settings.workflows.action.actionHeading', {
+            number: index + 1,
+            label: actionTypeLabels[action.type as keyof typeof actionTypeLabels] ?? action.type,
+          })}
         </span>
         <button
           type="button"
@@ -148,11 +166,11 @@ const ActionForm: React.FC<ActionFormProps> = ({ index, action, mcpServers, onUp
             fontSize: 13,
           }}
         >
-          Remove
+          {t('common.remove')}
         </button>
       </div>
 
-      {action.type === 'mcp_tool' && (
+      {action.type === ACTION_TYPE.MCP_TOOL && (
         <MCPToolActionForm
           action={action as WorkflowActionMCPTool}
           mcpServers={mcpServers}
@@ -162,7 +180,7 @@ const ActionForm: React.FC<ActionFormProps> = ({ index, action, mcpServers, onUp
         />
       )}
 
-      {action.type === 'reply' && (
+      {action.type === ACTION_TYPE.REPLY && (
         <ReplyActionForm
           action={action as WorkflowActionReply}
           onChange={onUpdate}
@@ -171,7 +189,7 @@ const ActionForm: React.FC<ActionFormProps> = ({ index, action, mcpServers, onUp
         />
       )}
 
-      {action.type === 'webhook' && (
+      {action.type === ACTION_TYPE.WEBHOOK && (
         <WebhookActionForm
           action={action as WorkflowActionWebhook}
           onChange={onUpdate}
@@ -190,6 +208,7 @@ const MCPToolActionForm: React.FC<{
   inputStyle: React.CSSProperties;
   labelStyle: React.CSSProperties;
 }> = ({ action, mcpServers, onChange, inputStyle, labelStyle }) => {
+  const { t } = useTranslation();
   const selectedServer = mcpServers.find(server => server.id === action.serverId);
   const tools = selectedServer?.cachedTools ?? [];
 
@@ -204,13 +223,13 @@ const MCPToolActionForm: React.FC<{
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div>
-        <label style={labelStyle}>MCP Server</label>
+        <label style={labelStyle}>{t('settings.workflows.action.mcpServer')}</label>
         <select
           value={action.serverId}
           onChange={evt => onChange({ ...action, serverId: evt.target.value, toolName: '' })}
           style={inputStyle}
         >
-          <option value="">— Select server —</option>
+          <option value="">{t('settings.workflows.action.selectServer')}</option>
           {mcpServers.map(server => (
             <option key={server.id} value={server.id}>
               {server.name}
@@ -221,16 +240,16 @@ const MCPToolActionForm: React.FC<{
 
       {action.serverId && (
         <div>
-          <label style={labelStyle}>Tool</label>
+          <label style={labelStyle}>{t('settings.workflows.action.tool')}</label>
           <select
             value={action.toolName}
             onChange={evt => onChange({ ...action, toolName: evt.target.value })}
             style={inputStyle}
           >
-            <option value="">— Select tool —</option>
+            <option value="">{t('settings.workflows.action.selectTool')}</option>
             {tools.map(tool => (
               <option key={tool.name} value={tool.name}>
-                {tool.name} — {tool.description}
+                {t('settings.workflows.action.toolOption', { name: tool.name, description: tool.description })}
               </option>
             ))}
           </select>
@@ -238,9 +257,7 @@ const MCPToolActionForm: React.FC<{
       )}
 
       <div>
-        <label style={labelStyle}>
-          Parameters (supports {'{{variables}}'} and {'{{ai:instruction}}'})
-        </label>
+        <label style={labelStyle}>{t('settings.workflows.action.parametersLabel', LITERAL_BRACE_INTERPOLATION)}</label>
         {Object.entries(action.parameters).map(([key, value], paramIdx) => (
           <div key={paramIdx} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
             <input
@@ -280,7 +297,7 @@ const MCPToolActionForm: React.FC<{
             padding: 0,
           }}
         >
-          + Add parameter
+          {t('settings.workflows.action.addParameter')}
         </button>
       </div>
     </div>
@@ -292,59 +309,67 @@ const ReplyActionForm: React.FC<{
   onChange: (act: WorkflowAction) => void;
   inputStyle: React.CSSProperties;
   labelStyle: React.CSSProperties;
-}> = ({ action, onChange, inputStyle, labelStyle }) => (
-  <div>
-    <label style={labelStyle}>
-      Reply template body (supports {'{{variables}}'} and {'{{ai:...}}'})
-    </label>
-    <textarea
-      value={action.templateBody}
-      onChange={evt => onChange({ ...action, templateBody: evt.target.value })}
-      placeholder="Hi {{fromName}},&#10;&#10;{{ai:Write a brief acknowledgement of this email.}}"
-      style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
-    />
-  </div>
-);
+}> = ({ action, onChange, inputStyle, labelStyle }) => {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <label style={labelStyle}>
+        {t('settings.workflows.action.replyTemplateLabel', LITERAL_BRACE_INTERPOLATION)}
+      </label>
+      <textarea
+        value={action.templateBody}
+        onChange={evt => onChange({ ...action, templateBody: evt.target.value })}
+        placeholder={'Hi {{fromName}},\n\n{{ai:Write a brief acknowledgement of this email.}}'}
+        style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
+      />
+    </div>
+  );
+};
 
 const WebhookActionForm: React.FC<{
   action: WorkflowActionWebhook;
   onChange: (act: WorkflowAction) => void;
   inputStyle: React.CSSProperties;
   labelStyle: React.CSSProperties;
-}> = ({ action, onChange, inputStyle, labelStyle }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-    <div>
-      <label style={labelStyle}>URL</label>
-      <input
-        type="url"
-        value={action.url}
-        onChange={evt => onChange({ ...action, url: evt.target.value })}
-        placeholder="https://..."
-        style={inputStyle}
-      />
+}> = ({ action, onChange, inputStyle, labelStyle }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div>
+        <label style={labelStyle}>{t('settings.workflows.action.url')}</label>
+        <input
+          type="url"
+          value={action.url}
+          onChange={evt => onChange({ ...action, url: evt.target.value })}
+          placeholder="https://..."
+          style={inputStyle}
+        />
+      </div>
+      <div>
+        <label style={labelStyle}>{t('settings.workflows.action.method')}</label>
+        <select
+          value={action.method}
+          onChange={evt => onChange({ ...action, method: evt.target.value as 'POST' | 'PUT' })}
+          style={inputStyle}
+        >
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+        </select>
+      </div>
+      <div>
+        <label style={labelStyle}>
+          {t('settings.workflows.action.bodyTemplateLabel', LITERAL_BRACE_INTERPOLATION)}
+        </label>
+        <textarea
+          value={action.bodyTemplate}
+          onChange={evt => onChange({ ...action, bodyTemplate: evt.target.value })}
+          placeholder={'{"subject": "{{subject}}", "summary": "{{summary}}"}'}
+          style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
+        />
+      </div>
     </div>
-    <div>
-      <label style={labelStyle}>Method</label>
-      <select
-        value={action.method}
-        onChange={evt => onChange({ ...action, method: evt.target.value as 'POST' | 'PUT' })}
-        style={inputStyle}
-      >
-        <option value="POST">POST</option>
-        <option value="PUT">PUT</option>
-      </select>
-    </div>
-    <div>
-      <label style={labelStyle}>Body template (JSON with {'{{variables}}'})</label>
-      <textarea
-        value={action.bodyTemplate}
-        onChange={evt => onChange({ ...action, bodyTemplate: evt.target.value })}
-        placeholder='{"subject": "{{subject}}", "summary": "{{summary}}"}'
-        style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 const addButtonStyle: React.CSSProperties = {
   padding: '6px 14px',

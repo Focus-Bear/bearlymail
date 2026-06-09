@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
 import { WorkflowRule } from './types';
@@ -9,6 +11,10 @@ interface WorkflowsListProps {
   onEdit: (rule: WorkflowRule) => void;
   onDelete: (id: string) => void;
 }
+
+const BUTTON_VARIANT = { PRIMARY: 'primary', SECONDARY: 'secondary', DANGER: 'danger' } as const;
+
+type ButtonVariant = (typeof BUTTON_VARIANT)[keyof typeof BUTTON_VARIANT];
 
 const statusBadgeStyle = (enabled: boolean): React.CSSProperties => ({
   display: 'inline-block',
@@ -21,6 +27,8 @@ const statusBadgeStyle = (enabled: boolean): React.CSSProperties => ({
 });
 
 export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, onEdit, onDelete }) => {
+  const { t } = useTranslation();
+
   if (rules.length === 0) {
     return (
       <p
@@ -31,7 +39,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, o
           padding: theme.spacing.xl,
         }}
       >
-        No workflows yet. Click &quot;Add Workflow&quot; to create your first automation rule.
+        {t('settings.workflows.list.emptyState')}
       </p>
     );
   }
@@ -56,12 +64,14 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, o
               <span style={{ ...theme.typography.body.large, fontWeight: 600, color: theme.colors.text.primary }}>
                 {rule.name}
               </span>
-              <span style={statusBadgeStyle(rule.enabled)}>{rule.enabled ? 'Active' : 'Disabled'}</span>
+              <span style={statusBadgeStyle(rule.enabled)}>
+                {rule.enabled ? t('settings.workflows.list.statusActive') : t('settings.workflows.list.statusDisabled')}
+              </span>
             </div>
             <div style={{ marginTop: 4, ...theme.typography.body.small, color: theme.colors.text.secondary }}>
-              {describeCondition(rule)}
+              {describeCondition(rule, t)}
               {' · '}
-              {rule.actions.length} action{rule.actions.length !== 1 ? 's' : ''}
+              {t('settings.workflows.list.actionCount', { count: rule.actions.length })}
             </div>
           </div>
 
@@ -69,15 +79,15 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, o
             <button
               onClick={() => onToggle(rule.id)}
               style={buttonStyle('secondary')}
-              title={rule.enabled ? 'Disable' : 'Enable'}
+              title={rule.enabled ? t('settings.workflows.list.disable') : t('settings.workflows.list.enable')}
             >
-              {rule.enabled ? 'Disable' : 'Enable'}
+              {rule.enabled ? t('settings.workflows.list.disable') : t('settings.workflows.list.enable')}
             </button>
             <button onClick={() => onEdit(rule)} style={buttonStyle('secondary')}>
-              Edit
+              {t('common.edit')}
             </button>
             <button onClick={() => onDelete(rule.id)} style={buttonStyle('danger')}>
-              Delete
+              {t('common.delete')}
             </button>
           </div>
         </div>
@@ -86,21 +96,32 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, o
   );
 };
 
-function describeCondition(rule: WorkflowRule): string {
+function describeCondition(rule: WorkflowRule, translate: TFunction): string {
   const parts: string[] = [];
-  if (rule.condition.fromPatterns.length > 0) {
-    parts.push(`From: ${rule.condition.fromPatterns.slice(0, 2).join(', ')}`);
+  const fromPatterns = rule.condition.fromPatterns ?? [];
+  const subjectPatterns = rule.condition.subjectPatterns ?? [];
+
+  if (fromPatterns.length > 0) {
+    parts.push(
+      translate('settings.workflows.list.conditionFrom', {
+        value: fromPatterns.slice(0, 2).join(', '),
+      }),
+    );
   }
-  if (rule.condition.subjectPatterns.length > 0) {
-    parts.push(`Subject: ${rule.condition.subjectPatterns.slice(0, 2).join(', ')}`);
+  if (subjectPatterns.length > 0) {
+    parts.push(
+      translate('settings.workflows.list.conditionSubject', {
+        value: subjectPatterns.slice(0, 2).join(', '),
+      }),
+    );
   }
   if (parts.length === 0) {
-    return 'Matches any email';
+    return translate('settings.workflows.list.conditionAny');
   }
   return parts.join('; ');
 }
 
-function buttonStyle(variant: 'primary' | 'secondary' | 'danger'): React.CSSProperties {
+function buttonStyle(variant: ButtonVariant): React.CSSProperties {
   const base: React.CSSProperties = {
     padding: '4px 12px',
     borderRadius: 6,
@@ -109,7 +130,7 @@ function buttonStyle(variant: 'primary' | 'secondary' | 'danger'): React.CSSProp
     fontSize: 13,
     fontWeight: 500,
   };
-  if (variant === 'primary') {
+  if (variant === BUTTON_VARIANT.PRIMARY) {
     return {
       ...base,
       background: theme.colors.primary.main,
@@ -117,7 +138,7 @@ function buttonStyle(variant: 'primary' | 'secondary' | 'danger'): React.CSSProp
       borderColor: theme.colors.primary.main,
     };
   }
-  if (variant === 'danger') {
+  if (variant === BUTTON_VARIANT.DANGER) {
     return {
       ...base,
       background: theme.colors.background.paper,

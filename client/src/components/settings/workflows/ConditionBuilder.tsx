@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { WorkflowCondition } from './types';
@@ -8,11 +9,14 @@ interface ConditionBuilderProps {
   onChange: (condition: WorkflowCondition) => void;
 }
 
+const ENTER_KEY = 'Enter';
+
 /**
  * Builds the "When" condition part of a workflow rule.
  * Supports from/subject patterns and optional natural-language condition.
  */
 export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, onChange }) => {
+  const { t } = useTranslation();
   const [fromInput, setFromInput] = useState('');
   const [subjectInput, setSubjectInput] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(Boolean(condition.naturalLanguageCondition));
@@ -44,9 +48,9 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, o
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
       {/* From patterns */}
       <div>
-        <label style={labelStyle}>From (sender patterns)</label>
+        <label style={labelStyle}>{t('settings.workflows.condition.fromLabel')}</label>
         <p style={{ ...theme.typography.body.small, color: theme.colors.text.secondary, marginBottom: 4 }}>
-          Glob (*@upwork.com), regex (/billing/i), or plain text. Empty = match any sender.
+          {t('settings.workflows.condition.fromHint')}
         </p>
         <PatternTagInput
           patterns={condition.fromPatterns}
@@ -54,15 +58,15 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, o
           onInputChange={setFromInput}
           onAdd={inputVal => addPattern('fromPatterns', inputVal, () => setFromInput(''))}
           onRemove={idx => removePattern('fromPatterns', idx)}
-          placeholder="*@upwork.com"
+          placeholder={t('settings.workflows.condition.fromPlaceholder')}
         />
       </div>
 
       {/* Subject patterns */}
       <div>
-        <label style={labelStyle}>Subject patterns</label>
+        <label style={labelStyle}>{t('settings.workflows.condition.subjectLabel')}</label>
         <p style={{ ...theme.typography.body.small, color: theme.colors.text.secondary, marginBottom: 4 }}>
-          Glob, regex, or plain text substring. Empty = match any subject.
+          {t('settings.workflows.condition.subjectHint')}
         </p>
         <PatternTagInput
           patterns={condition.subjectPatterns}
@@ -70,7 +74,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, o
           onInputChange={setSubjectInput}
           onAdd={inputVal => addPattern('subjectPatterns', inputVal, () => setSubjectInput(''))}
           onRemove={idx => removePattern('subjectPatterns', idx)}
-          placeholder="billing summary"
+          placeholder={t('settings.workflows.condition.subjectPlaceholder')}
         />
       </div>
 
@@ -88,18 +92,20 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, o
             padding: 0,
           }}
         >
-          {showAdvanced ? '▲ Hide advanced' : '▼ Advanced (AI condition)'}
+          {showAdvanced
+            ? t('settings.workflows.condition.hideAdvanced')
+            : t('settings.workflows.condition.showAdvanced')}
         </button>
         {showAdvanced && (
           <div style={{ marginTop: theme.spacing.sm }}>
-            <label style={labelStyle}>Natural-language condition (optional)</label>
+            <label style={labelStyle}>{t('settings.workflows.condition.naturalLanguageLabel')}</label>
             <p style={{ ...theme.typography.body.small, color: theme.colors.text.secondary, marginBottom: 4 }}>
-              Evaluated by AI after pattern matching. E.g. "billing summary with line items from a freelancer platform".
+              {t('settings.workflows.condition.naturalLanguageHint')}
             </p>
             <textarea
               value={condition.naturalLanguageCondition ?? ''}
               onChange={evt => onChange({ ...condition, naturalLanguageCondition: evt.target.value || null })}
-              placeholder="Describe when this workflow should trigger…"
+              placeholder={t('settings.workflows.condition.naturalLanguagePlaceholder')}
               style={{
                 width: '100%',
                 minHeight: 80,
@@ -134,7 +140,9 @@ const PatternTagInput: React.FC<PatternTagInputProps> = ({
   onAdd,
   onRemove,
   placeholder,
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <div>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
       {patterns.map((pattern, idx) => (
@@ -155,6 +163,7 @@ const PatternTagInput: React.FC<PatternTagInputProps> = ({
           <button
             type="button"
             onClick={() => onRemove(idx)}
+            aria-label={t('common.remove')}
             style={{
               background: 'none',
               border: 'none',
@@ -175,7 +184,7 @@ const PatternTagInput: React.FC<PatternTagInputProps> = ({
         value={inputValue}
         onChange={evt => onInputChange(evt.target.value)}
         onKeyDown={evt => {
-          if (evt.key === 'Enter' || evt.key === ',') {
+          if (evt.key === ENTER_KEY || evt.key === ',') {
             evt.preventDefault();
             onAdd(inputValue);
           }
@@ -201,8 +210,9 @@ const PatternTagInput: React.FC<PatternTagInputProps> = ({
           fontSize: 13,
         }}
       >
-        Add
+        {t('common.add')}
       </button>
     </div>
   </div>
-);
+  );
+};

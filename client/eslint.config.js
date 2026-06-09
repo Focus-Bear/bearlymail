@@ -423,15 +423,16 @@ module.exports = tseslint.config(
     },
   },
 
-  // Workflow settings components — technical config UI, i18n tracked as follow-up
+  // Workflow & MCP settings components — dense config UI with many inline style
+  // values; relax magic-number / array-key rules only (i18n is fully enforced).
   {
     files: [
       '**/components/settings/workflows/**/*.tsx',
       '**/components/settings/workflows/**/*.ts',
+      '**/components/settings/mcp/**/*.tsx',
+      '**/components/settings/mcp/**/*.ts',
     ],
     rules: {
-      'i18next/no-literal-string': 'off',
-      'no-restricted-syntax': 'off',
       'no-magic-numbers': 'off',
       'react/no-array-index-key': 'off',
     },

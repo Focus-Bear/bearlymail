@@ -1,17 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
 import { API_URL } from 'config/api';
 
-import { MCPServerManager } from './MCPServerManager';
-import {
-  MCPServerConfig,
-  MCPServerPurpose,
-  WorkflowExecutionLog,
-  WorkflowRule,
-  WorkflowRuleFormValues,
-} from './types';
+import { MCPServerConfig, WorkflowExecutionLog, WorkflowRule, WorkflowRuleFormValues } from './types';
 import { WorkflowEditor } from './WorkflowEditor';
 import { WorkflowExecutionHistory } from './WorkflowExecutionHistory';
 import { WorkflowsList } from './WorkflowsList';
@@ -23,6 +17,7 @@ import { WorkflowsList } from './WorkflowsList';
  * Part of feature #1483 — Automated Email Workflows.
  */
 export const WorkflowsSection: React.FC = () => {
+  const { t } = useTranslation();
   const [rules, setRules] = useState<WorkflowRule[]>([]);
   const [mcpServers, setMCPServers] = useState<MCPServerConfig[]>([]);
   const [executions, setExecutions] = useState<WorkflowExecutionLog[]>([]);
@@ -30,7 +25,6 @@ export const WorkflowsSection: React.FC = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<WorkflowRule | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [showMCP, setShowMCP] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -44,11 +38,11 @@ export const WorkflowsSection: React.FC = () => {
       setRules(rulesRes.data);
       setMCPServers(serversRes.data);
     } catch {
-      setError('Failed to load workflows. Please refresh.');
+      setError(t('settings.workflows.section.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadData();
@@ -87,7 +81,7 @@ export const WorkflowsSection: React.FC = () => {
       await axios.patch(`${API_URL}/workflows/${id}/toggle`);
       await loadData();
     } catch {
-      setError('Failed to toggle workflow. Please try again.');
+      setError(t('settings.workflows.section.toggleError'));
     }
   };
 
@@ -97,51 +91,20 @@ export const WorkflowsSection: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this workflow rule?')) {
+    if (!window.confirm(t('settings.workflows.section.deleteConfirm'))) {
       return;
     }
     try {
       await axios.delete(`${API_URL}/workflows/${id}`);
       await loadData();
     } catch {
-      setError('Failed to delete workflow. Please try again.');
+      setError(t('settings.workflows.section.deleteError'));
     }
   };
 
   const handleAddNew = () => {
     setEditingRule(null);
     setEditorOpen(true);
-  };
-
-  // ── MCP server management ─────────────────────────────────────────────────────
-
-  const handleAddMCPServer = async (
-    name: string,
-    serverUrl: string,
-    apiKey: string | undefined,
-    purpose: MCPServerPurpose
-  ) => {
-    await axios.post(`${API_URL}/mcp-servers`, { name, serverUrl, apiKey, purpose });
-    await loadData();
-  };
-
-  const handleRemoveMCPServer = async (id: string) => {
-    await axios.delete(`${API_URL}/mcp-servers/${id}`);
-    await loadData();
-  };
-
-  const handleRefreshMCPServer = async (id: string) => {
-    try {
-      await axios.post(`${API_URL}/mcp-servers/${id}/refresh`);
-      await loadData();
-    } catch {
-      setError('Failed to refresh MCP server tools. Please try again.');
-    }
-  };
-
-  const handleTestMCPServer = async (id: string) => {
-    const res = await axios.post<{ ok: boolean; toolCount: number }>(`${API_URL}/mcp-servers/${id}/test`);
-    return res.data;
   };
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -167,10 +130,9 @@ export const WorkflowsSection: React.FC = () => {
         }}
       >
         <div>
-          <h2 style={{ ...theme.typography.heading.h2, margin: 0 }}>Workflows</h2>
+          <h2 style={{ ...theme.typography.heading.h2, margin: 0 }}>{t('settings.workflows.section.title')}</h2>
           <p style={{ ...theme.typography.body.medium, color: theme.colors.text.secondary, marginTop: 4 }}>
-            Automate actions when matching emails arrive — create Focus Bear tasks, send replies, call webhooks, and
-            more.
+            {t('settings.workflows.section.description')}
           </p>
         </div>
         <button
@@ -188,7 +150,7 @@ export const WorkflowsSection: React.FC = () => {
             flexShrink: 0,
           }}
         >
-          + Add Workflow
+          {t('settings.workflows.section.addWorkflow')}
         </button>
       </div>
 
@@ -208,51 +170,13 @@ export const WorkflowsSection: React.FC = () => {
       )}
 
       {loading ? (
-        <p style={{ color: theme.colors.text.secondary }}>Loading workflows…</p>
+        <p style={{ color: theme.colors.text.secondary }}>{t('settings.workflows.section.loadingWorkflows')}</p>
       ) : (
         <WorkflowsList rules={rules} onToggle={handleToggle} onEdit={handleEdit} onDelete={handleDelete} />
       )}
 
-      {/* MCP Servers */}
-      <div style={{ marginTop: theme.spacing.xl }}>
-        <button
-          type="button"
-          onClick={() => setShowMCP(!showMCP)}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: theme.colors.text.primary,
-            fontSize: 14,
-            fontWeight: 600,
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          {showMCP ? '▲' : '▼'} MCP Server Connections
-          {mcpServers.length > 0 && (
-            <span style={{ fontSize: 12, color: theme.colors.text.secondary, fontWeight: 400 }}>
-              ({mcpServers.length} server{mcpServers.length !== 1 ? 's' : ''} connected)
-            </span>
-          )}
-        </button>
-        {showMCP && (
-          <div style={{ marginTop: theme.spacing.md }}>
-            <MCPServerManager
-              servers={mcpServers}
-              onAdd={handleAddMCPServer}
-              onRemove={handleRemoveMCPServer}
-              onRefresh={handleRefreshMCPServer}
-              onTest={handleTestMCPServer}
-            />
-          </div>
-        )}
-      </div>
-
       {/* Execution history */}
-      <div style={{ marginTop: theme.spacing.lg }}>
+      <div style={{ marginTop: theme.spacing.xl }}>
         <button
           type="button"
           onClick={() => setShowHistory(!showHistory)}
@@ -266,7 +190,7 @@ export const WorkflowsSection: React.FC = () => {
             padding: 0,
           }}
         >
-          {showHistory ? '▲' : '▼'} Recent Execution History
+          {showHistory ? '▲' : '▼'} {t('settings.workflows.section.recentExecutionHistory')}
         </button>
         {showHistory && (
           <div style={{ marginTop: theme.spacing.md }}>

@@ -1366,6 +1366,162 @@
       "notInAnyGroup": "Not in any group",
       "addedToGroup": "Added to {{name}}",
       "removedFromGroup": "Removed from {{name}}"
+    },
+    "workflows": {
+      "action": {
+        "typeMcpTool": "🔧 MCP Tool",
+        "typeReply": "↩️ Auto-Reply",
+        "typeWebhook": "🌐 Webhook",
+        "addAction": "+ Add Action",
+        "actionHeading": "Action {{number}}: {{label}}",
+        "mcpServer": "MCP Server",
+        "selectServer": "— Select server —",
+        "tool": "Tool",
+        "selectTool": "— Select tool —",
+        "toolOption": "{{name}} — {{description}}",
+        "parametersLabel": "Parameters (supports {{variable}} and {{ai:instruction}})",
+        "addParameter": "+ Add parameter",
+        "replyTemplateLabel": "Reply template body (supports {{variable}} and {{ai:…}})",
+        "url": "URL",
+        "method": "Method",
+        "bodyTemplateLabel": "Body template (JSON with {{variable}} substitution)"
+      },
+      "condition": {
+        "fromLabel": "From (sender patterns)",
+        "fromHint": "Glob (*@upwork.com), regex (/billing/i), or plain text. Empty = match any sender.",
+        "fromPlaceholder": "*@upwork.com",
+        "subjectLabel": "Subject patterns",
+        "subjectHint": "Glob, regex, or plain text substring. Empty = match any subject.",
+        "subjectPlaceholder": "billing summary",
+        "hideAdvanced": "▲ Hide advanced",
+        "showAdvanced": "▼ Advanced (AI condition)",
+        "naturalLanguageLabel": "Natural-language condition (optional)",
+        "naturalLanguageHint": "Evaluated by AI after pattern matching. E.g. \"billing summary with line items from a freelancer platform\".",
+        "naturalLanguagePlaceholder": "Describe when this workflow should trigger…"
+      },
+      "editor": {
+        "errorNameRequired": "Please enter a name for this workflow.",
+        "errorActionRequired": "Please add at least one action.",
+        "errorSaveFailed": "Failed to save workflow.",
+        "editTitle": "Edit Workflow",
+        "newTitle": "New Workflow",
+        "nameLabel": "Name",
+        "namePlaceholder": "e.g. Upwork billing → Focus Bear task",
+        "whenSectionTitle": "When (condition)",
+        "thenSectionTitle": "Then (actions)",
+        "enableImmediately": "Enable this workflow immediately",
+        "saveWorkflow": "Save Workflow"
+      },
+      "history": {
+        "loadingExecutionHistory": "Loading execution history…",
+        "noExecutionsYet": "No executions yet.",
+        "statusSuccess": "success",
+        "statusPartialFailure": "partial failure",
+        "statusFailed": "failed",
+        "statusRunning": "running",
+        "statusPending": "pending",
+        "threadLabel": "Thread:",
+        "failedActions": "Failed actions",
+        "actionError": "Action {{index}}: {{error}}"
+      },
+      "list": {
+        "emptyState": "No workflows yet. Click \"Add Workflow\" to create your first automation rule.",
+        "statusActive": "Active",
+        "statusDisabled": "Disabled",
+        "actionCount_one": "{{count}} action",
+        "actionCount_other": "{{count}} actions",
+        "disable": "Disable",
+        "enable": "Enable",
+        "conditionFrom": "From: {{value}}",
+        "conditionSubject": "Subject: {{value}}",
+        "conditionAny": "Matches any email"
+      },
+      "section": {
+        "loadError": "Failed to load workflows. Please refresh.",
+        "toggleError": "Failed to toggle workflow. Please try again.",
+        "deleteConfirm": "Delete this workflow rule?",
+        "deleteError": "Failed to delete workflow. Please try again.",
+        "title": "Workflows",
+        "description": "Automate actions when matching emails arrive — create Focus Bear tasks, send replies, call webhooks, and more.",
+        "addWorkflow": "+ Add Workflow",
+        "loadingWorkflows": "Loading workflows…",
+        "recentExecutionHistory": "Recent Execution History"
+      }
+    },
+    "mcp": {
+      "purpose": {
+        "workflow": {
+          "label": "Workflow actions",
+          "description": "Callable as an action step inside your automated workflows."
+        },
+        "senderContext": {
+          "label": "Sender context",
+          "description": "Queried when you open an email to show info about the sender (e.g. CRM data)."
+        },
+        "askAi": {
+          "label": "Ask AI",
+          "description": "Offered to the assistant as tools it can call while answering. Destructive tools are never exposed."
+        }
+      },
+      "preset": {
+        "googleDrive": {
+          "tagline": "Let the assistant search & read your Drive files",
+          "instructions": "Connect a Google Drive MCP server so Ask AI can look things up in your files. The server must complete Google OAuth itself — paste its endpoint URL and access token below."
+        },
+        "zohoBigin": {
+          "tagline": "Show CRM details about the email sender",
+          "instructions": "Connect your Zoho Bigin MCP server to surface contact and deal info when you open an email. Paste the server endpoint and a token with read access to your Bigin data."
+        },
+        "hubspot": {
+          "tagline": "Show CRM details about the email sender",
+          "instructions": "Connect your HubSpot MCP server to surface contact, company and deal info when you open an email. Paste the server endpoint and a private-app token with CRM read scopes."
+        },
+        "custom": {
+          "tagline": "Connect any MCP server by URL",
+          "instructions": "Connect any MCP-compatible server. Pick a purpose, then paste the endpoint URL and (optionally) an auth token. The server handles its own authentication."
+        }
+      },
+      "grid": {
+        "customServer": "Custom server"
+      },
+      "manager": {
+        "connectAnother": "Connect another app",
+        "connectFirst": "Connect an app",
+        "testFailed": "Test failed: {{message}}"
+      },
+      "form": {
+        "errorRequired": "Name and Server URL are required.",
+        "connectCustom": "Connect a custom MCP server",
+        "connectNamed": "Connect {{name}}",
+        "name": "Name",
+        "serverUrl": "Server URL",
+        "apiKey": "API Key (optional)",
+        "purpose": "Purpose",
+        "purposeWorkflow": "Workflow actions",
+        "purposeSenderContext": "Sender context (look up the email sender)",
+        "purposeAskAi": "Ask AI (let the assistant use this tool)"
+      },
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "card": {
+        "toolsDiscovered_one": "{{count}} tool discovered",
+        "toolsDiscovered_other": "{{count}} tools discovered",
+        "toolsNotFetched": "Tools not yet fetched",
+        "connected_one": "✓ Connected ({{count}} tool)",
+        "connected_other": "✓ Connected ({{count}} tools)",
+        "connectionFailed": "✗ Connection failed",
+        "test": "Test",
+        "testing": "Testing…",
+        "refreshTools": "Refresh Tools"
+      },
+      "section": {
+        "title": "Connected Apps",
+        "description": "Connect MCP servers for Google Drive, your CRM and more. Connected apps can show sender context when you open an email, power Ask AI, and run as actions inside your workflows.",
+        "loadError": "Failed to load connected apps. Please refresh.",
+        "refreshError": "Failed to refresh tools. Please try again.",
+        "removeError": "Failed to remove the connected app. Please try again.",
+        "loading": "Loading connected apps…"
+      }
     }
   },
   "admin": {

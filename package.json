@@ -33,6 +33,6 @@
     "concurrently": "^10.0.1"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.1057.0"
+    "@aws-sdk/client-kms": "^3.1063.0"
   }
 }

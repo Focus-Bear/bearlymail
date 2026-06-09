@@ -30,7 +30,7 @@
     "npm": ">=9.x"
   },
   "devDependencies": {
-    "concurrently": "^10.0.1"
+    "concurrently": "^10.0.3"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1063.0"

@@ -483,17 +483,29 @@ export class GmailProvider implements EmailProvider {
         if (!pageToken || messages.length === 0) break;
       }
 
+      // Fetch full messages concurrently in capped batches. Done serially this
+      // loop was the dominant cost of search (~N sequential round-trips for N
+      // hits); batching cuts wall-clock by ~the concurrency factor while keeping
+      // result order and the existing auth-error semantics (any failure still
+      // propagates to the catch below → handleReadAuthError).
+      const SEARCH_FETCH_CONCURRENCY = 10;
       const results: RawEmailMessage[] = [];
-
-      for (const msg of allMessages) {
-        if (!msg.id) continue;
-        const fullMsg = await gmail.users.messages.get({
-          userId: "me",
-          id: msg.id,
-          format: "full",
-        });
-        const parsed = parseGmailMessage(fullMsg.data);
-        if (parsed) results.push(parsed);
+      for (let i = 0; i < allMessages.length; i += SEARCH_FETCH_CONCURRENCY) {
+        const batch = allMessages.slice(i, i + SEARCH_FETCH_CONCURRENCY);
+        const parsedBatch = await Promise.all(
+          batch.map(async (msg) => {
+            if (!msg.id) return null;
+            const fullMsg = await gmail.users.messages.get({
+              userId: "me",
+              id: msg.id,
+              format: "full",
+            });
+            return parseGmailMessage(fullMsg.data);
+          }),
+        );
+        for (const parsed of parsedBatch) {
+          if (parsed) results.push(parsed);
+        }
       }
       return results;
     } catch (error) {

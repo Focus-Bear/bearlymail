@@ -391,8 +391,14 @@ export class EmailSearchService {
   }
 
   /**
-   * Fetch matched emails from DB; if empty, trigger targeted provider sync and re-query.
-   * Extracted from searchEmails() as part of issue #939 batch 2.
+   * Resolve provider search hits to local DB emails, syncing any that aren't in
+   * the DB yet (typically just-arrived emails).
+   *
+   * Previously this returned early as soon as ANY hit was already in the DB,
+   * which silently dropped provider results that hadn't been synced — most
+   * visibly a just-received email the user was searching for. We now always
+   * detect the missing hits and sync their threads (bounded) so the newest
+   * emails appear in results.
    */
   private async syncAndFetchMatchedEmails(
     userId: string,
@@ -401,24 +407,27 @@ export class EmailSearchService {
     skipSync?: boolean,
     maxSyncThreads?: number,
   ): Promise<{ emails: Email[]; noResultsReason?: string }> {
-    const initial = await this.fetchMatchedDbEmails(userId, rawEmails);
-    if (initial.length > 0) return { emails: initial };
+    const dbByMessageId = await this.fetchMatchedDbEmailMap(userId, rawEmails);
 
-    // Phase 1 fast path: skip provider sync to stay within performance budget.
-    // Missing emails will become available after the next background sync.
-    if (skipSync) {
-      this.logger.log(
-        `[SEARCH] skipSync=true — skipping targeted provider sync for Phase 1 (user ${userId})`,
-      );
-      return { emails: [] };
+    const missingRaw = rawEmails.filter((rawEmail) => {
+      const messageId = rawEmail.messageId as string | undefined;
+      return messageId != null && !dbByMessageId.has(messageId);
+    });
+
+    // Everything is already local, or we're on the fast path that defers syncing
+    // to the next background pass — return what we have, in provider order.
+    if (missingRaw.length === 0 || skipSync) {
+      if (missingRaw.length > 0 && skipSync) {
+        this.logger.log(
+          `[SEARCH] skipSync=true — ${missingRaw.length} hit(s) not yet synced for user ${userId}; deferring to background sync`,
+        );
+      }
+      return { emails: this.buildOrderedResults(rawEmails, dbByMessageId) };
     }
 
-    const messageIds = rawEmails
-      .map((emailEntry) => emailEntry.messageId as string | undefined)
-      .filter((id): id is string => id != null);
-
+    // Sync only the threads for the missing hits (bounded), then re-resolve.
     const byProvider = new Map<string, Set<string>>();
-    for (const rawEmail of rawEmails) {
+    for (const rawEmail of missingRaw) {
       const threadId = rawEmail.threadId as string | undefined;
       const providerType = (rawEmail._providerType as string) || "gmail";
       if (threadId) {
@@ -454,28 +463,25 @@ export class EmailSearchService {
       }
     }
 
-    const syncedDbEmails = await this.emailRepository.find({
-      where: { userId, messageId: In(messageIds) },
-      order: { receivedAt: "DESC" },
-    });
-    const syncedMap = new Map(
-      syncedDbEmails.map((emailItem) => [emailItem.messageId, emailItem]),
+    const refreshedByMessageId = await this.fetchMatchedDbEmailMap(
+      userId,
+      rawEmails,
     );
-    const synced = this.buildOrderedResults(rawEmails, syncedMap);
+    const ordered = this.buildOrderedResults(rawEmails, refreshedByMessageId);
 
-    if (synced.length === 0) {
+    if (ordered.length === 0) {
       return {
         emails: [],
         noResultsReason:
           "Emails found in your email provider but could not be synced to BearlyMail. They will appear after the next automatic sync.",
       };
     }
-    return { emails: synced };
+    return { emails: ordered };
   }
 
   private buildOrderedResults(
     rawEmails: RawSearchEmail[],
-    syncedMap: Map<string | undefined, Email>,
+    syncedMap: Map<string, Email>,
   ): Email[] {
     return rawEmails
       .map((rawEmail) => {
@@ -614,40 +620,40 @@ export class EmailSearchService {
     });
   }
 
-  private async fetchMatchedDbEmails(
+  /**
+   * Load the DB emails for the given provider hits, keyed by messageId.
+   * Decrypts each entity so callers can return content safely. Hits with no DB
+   * row simply don't appear in the map.
+   */
+  private async fetchMatchedDbEmailMap(
     userId: string,
     rawEmails: RawSearchEmail[],
-  ): Promise<Email[]> {
+  ): Promise<Map<string, Email>> {
     const messageIds = rawEmails
       .map((emailEntry) => emailEntry.messageId as string | undefined)
       .filter((id): id is string => id != null);
 
     if (messageIds.length === 0) {
-      return [];
+      return new Map();
     }
 
     const dbEmails = await this.emailRepository.find({
-      where: { userId, messageId: In(messageIds as string[]) },
+      where: { userId, messageId: In(messageIds) },
       order: { receivedAt: "DESC" },
     });
 
-    const emailMap = new Map(
-      dbEmails.map((emailEntry) => [emailEntry.messageId, emailEntry]),
-    );
-    const matchedEmails: Email[] = [];
-    for (const rawEmail of rawEmails) {
-      const messageId = rawEmail.messageId as string | undefined;
-      if (messageId && emailMap.has(messageId)) {
-        matchedEmails.push(emailMap.get(messageId)!);
-      }
-    }
     // Re-decrypt fields that may have been skipped during partial entity hydration.
     // This guards against any QueryBuilder edge-cases where TypeORM transformers
     // are not applied, ensuring encrypted content is never returned in search results.
-    for (const email of matchedEmails) {
+    for (const email of dbEmails) {
       decryptEmailEntityForApi(email);
     }
-    return matchedEmails;
+    return new Map(
+      dbEmails.map((emailEntry) => [
+        emailEntry.messageId as string,
+        emailEntry,
+      ]),
+    );
   }
 
   private async searchAllProviders(

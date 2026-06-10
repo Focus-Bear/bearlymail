@@ -40,7 +40,9 @@ export class CategoryKeyAssignmentService {
   private async loadUsedKeys(userId: string): Promise<Set<string>> {
     const rows = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["categoryKey"],
+      select: {
+        categoryKey: true,
+      },
     });
     const set = new Set<string>();
     for (const row of rows) {

@@ -328,7 +328,11 @@ export class EmailInboxService {
   ): Promise<Map<string, string>> {
     const ctxs = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["contextId", "contextValue", "createdAt"],
+      select: {
+        contextId: true,
+        contextValue: true,
+        createdAt: true,
+      },
     });
     for (const ctx of ctxs) {
       decryptUserContextEntityForApi(ctx);
@@ -441,7 +445,10 @@ export class EmailInboxService {
       const requestedUuids = new Set(realIds);
       const ctxs = await this.userContextRepository.find({
         where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-        select: ["contextId", "contextValue"],
+        select: {
+          contextId: true,
+          contextValue: true,
+        },
       });
       for (const ctx of ctxs) {
         decryptUserContextEntityForApi(ctx);

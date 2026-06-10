@@ -62,7 +62,12 @@ export class CategoryDedupService {
         contextKey: ContextKey.EMAIL_CATEGORY,
         needsCategoryDedup: true,
       },
-      select: ["contextId", "userId", "contextValue", "createdAt"],
+      select: {
+        contextId: true,
+        userId: true,
+        contextValue: true,
+        createdAt: true,
+      },
     });
 
     if (flaggedContexts.length === 0) return;

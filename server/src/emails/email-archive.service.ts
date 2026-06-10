@@ -81,7 +81,9 @@ export class EmailArchiveService {
 
     const threadEmails = await this.emailRepository.find({
       where: { userId, threadId, isRead: false },
-      select: ["id"],
+      select: {
+        id: true,
+      },
     });
     if (threadEmails.length > 0) {
       await this.emailReadService.bulkMarkAsRead(
@@ -135,7 +137,10 @@ export class EmailArchiveService {
 
     const emails = await this.emailRepository.find({
       where: { userId, id: In(emailIds) },
-      select: ["id", "threadId"],
+      select: {
+        id: true,
+        threadId: true,
+      },
     });
     if (emails.length === 0) {
       this.logger.warn(
@@ -166,7 +171,9 @@ export class EmailArchiveService {
 
     const unreadEmails = await this.emailRepository.find({
       where: { userId, threadId: In(threadIds), isRead: false },
-      select: ["id"],
+      select: {
+        id: true,
+      },
     });
     if (unreadEmails.length > 0) {
       await this.emailReadService.bulkMarkAsRead(
@@ -263,7 +270,10 @@ export class EmailArchiveService {
     // Fetch all email category contexts once — used for both new and original name resolution.
     const allCtxs = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["contextId", "contextValue"],
+      select: {
+        contextId: true,
+        contextValue: true,
+      },
     });
     for (const ctx of allCtxs) {
       decryptUserContextEntityForApi(ctx);

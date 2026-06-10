@@ -102,7 +102,11 @@ export class GitHubMetadataProcessor implements OnModuleInit {
   ): Promise<void> {
     const thread = await this.emailThreadRepository.findOne({
       where: { id: threadId, userId },
-      select: ["id", "categoryId", "githubMetadata"],
+      select: {
+        id: true,
+        categoryId: true,
+        githubMetadata: true,
+      },
     });
     if (!thread?.githubMetadata?.links?.length) {
       return;

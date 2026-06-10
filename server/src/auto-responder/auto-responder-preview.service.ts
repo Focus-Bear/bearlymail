@@ -217,7 +217,9 @@ export class AutoResponderPreviewService {
     // Get user's email to filter out sent emails
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ["email"],
+      select: {
+        email: true,
+      },
     });
 
     if (!user) {
@@ -231,14 +233,14 @@ export class AutoResponderPreviewService {
       where: { userId },
       order: { receivedAt: "DESC" },
       take: limit * 3,
-      select: [
-        "id",
-        "from",
-        "fromName",
-        "subject",
-        "receivedAt",
-        "emailThreadId",
-      ],
+      select: {
+        id: true,
+        from: true,
+        fromName: true,
+        subject: true,
+        receivedAt: true,
+        emailThreadId: true,
+      },
     });
 
     // Filter out emails sent by the user (only show incoming emails)
@@ -254,7 +256,9 @@ export class AutoResponderPreviewService {
         if (email.emailThreadId) {
           const thread = await this.emailThreadRepository.findOne({
             where: { id: email.emailThreadId, userId },
-            select: ["priorityScore"],
+            select: {
+              priorityScore: true,
+            },
           });
           priorityScore = thread?.priorityScore || null;
         }

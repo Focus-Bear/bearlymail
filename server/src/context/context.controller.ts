@@ -651,7 +651,10 @@ export class ContextController {
     const users = userIds.length
       ? await this.userRepository.find({
           where: { id: In(userIds) },
-          select: ["id", "email"],
+          select: {
+            id: true,
+            email: true,
+          },
         })
       : [];
     const userMap = new Map(users.map((user) => [user.id, user.email]));

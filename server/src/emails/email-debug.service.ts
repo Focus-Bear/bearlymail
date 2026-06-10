@@ -7,6 +7,10 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { isError } from "../types/common";
+import type {
+  GmailApiResolveResult,
+  ThreadLookupResult,
+} from "./email-debug.types";
 import {
   analyzeStarredThread,
   buildConditionReasons,
@@ -20,7 +24,6 @@ import {
 } from "./email-debug-thread.helpers";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
-import type { GmailLookupAttempt } from "./providers/gmail/gmail-lookup";
 
 const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
 import PgBoss from "pg-boss";
@@ -34,50 +37,6 @@ import {
   EmailDebugCategoryService,
 } from "./email-debug-category.service";
 import { SyncHistoryEntry, SyncHistoryService } from "./sync-history.service";
-
-export interface ThreadLookupResult {
-  found: boolean;
-  threadId: string;
-  thread: {
-    id: string;
-    threadId: string;
-    starCount: number;
-    isArchived: boolean;
-    priorityScore: number | null;
-    updatedAt: Date;
-    batchDecisionReason: string | null;
-    wasDeliveredEarly: boolean;
-  } | null;
-  emails: Array<{
-    id: string;
-    subject: string;
-    from: string;
-    receivedAt: Date;
-    isSnoozed: boolean;
-    snoozeUntil: Date | null;
-    isBatched: boolean;
-    batchReleaseAt: Date | null;
-  }>;
-  visibility: {
-    wouldShowInTriage: boolean;
-    wouldShowInAction: boolean;
-    wouldShowInFollowUp: boolean;
-  };
-  reasons: string[];
-}
-
-export interface GmailApiResolveResult {
-  foundInGmailApi: boolean;
-  apiMessageId: string | null;
-  apiThreadId: string | null;
-  subject: string | null;
-  from: string | null;
-  receivedAt: string | null;
-  connectedEmail: string | null;
-  idsTried: string[];
-  attempts: GmailLookupAttempt[];
-  error?: string;
-}
 
 @Injectable()
 export class EmailDebugService {
@@ -156,18 +115,17 @@ export class EmailDebugService {
       gmailStarredThreadIds.length > 0
         ? await this.emailThreadRepository.find({
             where: { userId, threadId: In(gmailStarredThreadIds) },
-            select: [
-              "id",
-              "threadId",
-              "starCount",
-              "isArchived",
-              // source of truth (fixes #1293 — category column removed)
-              "categoryId",
-              "syncStatus",
-              "syncStatusUpdatedAt",
-              "isBatched",
-              "batchReleaseAt",
-            ],
+            select: {
+              id: true,
+              threadId: true,
+              starCount: true,
+              isArchived: true,
+              categoryId: true,
+              syncStatus: true,
+              syncStatusUpdatedAt: true,
+              isBatched: true,
+              batchReleaseAt: true,
+            },
           })
         : [];
 
@@ -234,7 +192,12 @@ export class EmailDebugService {
     const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
     const entities = await this.emailThreadRepository.find({
       where: { userId, syncStatus: "unsynced" },
-      select: ["threadId", "syncStatusUpdatedAt", "isArchived", "starCount"],
+      select: {
+        threadId: true,
+        syncStatusUpdatedAt: true,
+        isArchived: true,
+        starCount: true,
+      },
     });
     return entities
       .filter(
@@ -365,14 +328,14 @@ export class EmailDebugService {
     // Get orphan emails (no emailThreadId)
     const orphanEmailsList = await this.emailRepository.find({
       where: { userId, emailThreadId: IsNull() },
-      select: [
-        "id",
-        "threadId",
-        "emailThreadId",
-        "subject",
-        "from",
-        "receivedAt",
-      ],
+      select: {
+        id: true,
+        threadId: true,
+        emailThreadId: true,
+        subject: true,
+        from: true,
+        receivedAt: true,
+      },
       // Limit to 50 for performance
       take: QUERY_LIMITS.MAX_RESULTS_DEFAULT,
     });
@@ -494,7 +457,12 @@ export class EmailDebugService {
         userId,
         isProcessingPriority: true,
       },
-      select: ["id", "threadId", "updatedAt", "priorityExplanation"],
+      select: {
+        id: true,
+        threadId: true,
+        updatedAt: true,
+        priorityExplanation: true,
+      },
     });
 
     // Filter to only those that are actually stuck (older than 10 minutes or no breakdown)
@@ -519,7 +487,9 @@ export class EmailDebugService {
         // Get an email from this thread to use for the job
         const email = await this.emailRepository.findOne({
           where: { emailThreadId: thread.id, userId },
-          select: ["id"],
+          select: {
+            id: true,
+          },
         });
 
         if (!email) {
@@ -698,7 +668,11 @@ export class EmailDebugService {
     // Find the email with this message ID
     const email = await this.emailRepository.findOne({
       where: { userId, messageId },
-      select: ["id", "threadId", "emailThreadId"],
+      select: {
+        id: true,
+        threadId: true,
+        emailThreadId: true,
+      },
     });
 
     if (!email) {
@@ -898,7 +872,12 @@ export class EmailDebugService {
         userId,
         syncStatus: "unsynced",
       },
-      select: ["id", "threadId", "syncStatusUpdatedAt", "isArchived"],
+      select: {
+        id: true,
+        threadId: true,
+        syncStatusUpdatedAt: true,
+        isArchived: true,
+      },
     });
 
     const actuallyStale = staleThreads.filter(

@@ -67,7 +67,9 @@ export class GitHubCategoryOverrideService {
   async bootstrapReservedCategoriesForUser(userId: string): Promise<void> {
     const existing = await this.contextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["categoryKey"],
+      select: {
+        categoryKey: true,
+      },
     });
     const existingKeys = new Set(
       existing
@@ -104,7 +106,9 @@ export class GitHubCategoryOverrideService {
   ): Promise<string | null> {
     const ctx = await this.contextRepository.findOne({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY, categoryKey },
-      select: ["contextId"],
+      select: {
+        contextId: true,
+      },
     });
     return ctx?.contextId ?? null;
   }

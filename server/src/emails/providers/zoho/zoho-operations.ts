@@ -209,7 +209,7 @@ export async function searchEmailsViaZoho(
     {
       params: {
         searchKey: query,
-        limit: maxResults
+        limit: maxResults,
       },
     },
   );

@@ -490,18 +490,18 @@ export class SubscriptionsService {
     totalPages: number;
   }> {
     const [rawUsers, total] = await this.userRepository.findAndCount({
-      select: [
-        "id",
-        "email",
-        "name",
-        "subscriptionStatus",
-        "subscriptionExpiresAt",
-        "trialStartedAt",
-        "createdAt",
-        "needsRelogin",
-        "lastLogoutReason",
-        "lastLogoutAt",
-      ],
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        subscriptionStatus: true,
+        subscriptionExpiresAt: true,
+        trialStartedAt: true,
+        createdAt: true,
+        needsRelogin: true,
+        lastLogoutReason: true,
+        lastLogoutAt: true,
+      },
       order: { createdAt: "DESC" },
       skip: (page - 1) * limit,
       take: limit,

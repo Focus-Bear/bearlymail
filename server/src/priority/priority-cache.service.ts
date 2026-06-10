@@ -90,7 +90,9 @@ export class PriorityCacheService {
       take: 10,
       order: { receivedAt: "DESC" },
       // Only select what we need
-      select: ["timeToReply"],
+      select: {
+        timeToReply: true,
+      },
     });
 
     const avgTimeToReply =

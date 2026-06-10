@@ -141,7 +141,9 @@ export class EmailAssignmentService {
         organizationId: actorMembership.organizationId,
         status: "active",
       },
-      select: ["userId"],
+      select: {
+        userId: true,
+      },
     });
     const orgUserIds = orgMembers
       .map((member) => member.userId)

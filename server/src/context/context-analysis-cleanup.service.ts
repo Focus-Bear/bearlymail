@@ -69,7 +69,11 @@ export class ContextAnalysisCleanupService implements OnModuleInit {
           status: "running",
           updatedAt: LessThan(cutoff),
         },
-        select: ["id", "userId", "updatedAt"],
+        select: {
+          id: true,
+          userId: true,
+          updatedAt: true,
+        },
       });
     } catch (err) {
       this.logger.error("Failed to query for stuck analyses", err);

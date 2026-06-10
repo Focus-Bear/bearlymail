@@ -525,7 +525,7 @@ describe("AutoResponderService", () => {
 
       expect(emailRepository.findOne).toHaveBeenCalledWith({
         where: { messageId: "mock-msg-id", userId: "user-1" },
-        select: ["id"],
+        select: { id: true },
       });
       expect(emailRepository.update).toHaveBeenCalledWith("existing-email-id", {
         sentByAutoResponder: true,

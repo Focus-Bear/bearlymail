@@ -195,7 +195,10 @@ export class BlockedSendersService {
     // Refresh cache
     const blocked = await this.blockedSenderRepository.find({
       where: { userId },
-      select: ["emailHash", "domainHash"],
+      select: {
+        emailHash: true,
+        domainHash: true,
+      },
     });
 
     const emailHashes = new Set<string>();

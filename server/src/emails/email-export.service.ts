@@ -59,7 +59,9 @@ export class EmailExportService {
           userId,
           ...(lastId ? { id: MoreThan(lastId) } : {}),
         },
-        relations: ["thread"],
+        relations: {
+          thread: true,
+        },
         order: { id: "ASC" },
         take: EXPORT_BATCH_SIZE,
       });
@@ -162,7 +164,10 @@ export class EmailExportService {
   private async buildCategoryMap(userId: string): Promise<Map<string, string>> {
     const contexts = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["contextId", "contextValue"],
+      select: {
+        contextId: true,
+        contextValue: true,
+      },
     });
     return new Map(
       contexts.map((ctx) => [

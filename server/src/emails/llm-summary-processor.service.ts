@@ -269,7 +269,10 @@ export class LLMSummaryProcessorService {
     if (threadIds.length > 0) {
       const threads = await this.emailThreadRepository.find({
         where: { id: In(threadIds) },
-        select: ["id", "lastSummarizedAt"],
+        select: {
+          id: true,
+          lastSummarizedAt: true,
+        },
       });
       for (const thread of threads) {
         threadLastSummarizedMap.set(thread.id, thread.lastSummarizedAt ?? null);

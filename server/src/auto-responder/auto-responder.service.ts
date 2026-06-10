@@ -108,7 +108,9 @@ export class AutoResponderService {
   > {
     const thread = await this.emailThreadRepository.findOne({
       where: { id: emailThreadId, userId },
-      relations: ["emails"],
+      relations: {
+        emails: true,
+      },
     });
 
     if (!thread || !thread.emails || thread.emails.length === 0) {
@@ -466,7 +468,9 @@ export class AutoResponderService {
         contextId: thread.categoryId,
         contextKey: ContextKey.EMAIL_CATEGORY,
       },
-      select: ["contextValue"],
+      select: {
+        contextValue: true,
+      },
     });
     if (categoryCtx) {
       decryptUserContextEntityForApi(categoryCtx);
@@ -644,7 +648,9 @@ export class AutoResponderService {
     if (sentResult?.messageId) {
       const existingEmail = await this.emailRepository.findOne({
         where: { messageId: sentResult.messageId, userId },
-        select: ["id"],
+        select: {
+          id: true,
+        },
       });
       if (existingEmail) {
         await this.emailRepository.update(existingEmail.id, {

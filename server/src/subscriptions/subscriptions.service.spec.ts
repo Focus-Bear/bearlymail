@@ -1192,18 +1192,18 @@ describe("SubscriptionsService", () => {
       expect(result.page).toBe(1);
       expect(result.totalPages).toBe(1);
       expect(repository.findAndCount).toHaveBeenCalledWith({
-        select: [
-          "id",
-          "email",
-          "name",
-          "subscriptionStatus",
-          "subscriptionExpiresAt",
-          "trialStartedAt",
-          "createdAt",
-          "needsRelogin",
-          "lastLogoutReason",
-          "lastLogoutAt",
-        ],
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          subscriptionStatus: true,
+          subscriptionExpiresAt: true,
+          trialStartedAt: true,
+          createdAt: true,
+          needsRelogin: true,
+          lastLogoutReason: true,
+          lastLogoutAt: true,
+        },
         order: { createdAt: "DESC" },
         skip: 0,
         take: 50,

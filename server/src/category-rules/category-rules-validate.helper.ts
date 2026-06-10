@@ -35,7 +35,10 @@ export async function findCategoryContextIdByName(
   if (!normalised) return null;
   const contexts = await userContextRepository.find({
     where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-    select: ["contextId", "contextValue"],
+    select: {
+      contextId: true,
+      contextValue: true,
+    },
   });
   const match = contexts.find(
     (ctx) => ctx.contextValue?.trim().toLowerCase() === normalised,

@@ -188,7 +188,9 @@ export class SearchEnrichmentService {
       // toEnrichedResult can read starCount and priorityScore without any-casts.
       const dbEmails = await this.emailRepository.find({
         where: { userId, messageId: In(threadMessageIds) },
-        relations: ["thread"],
+        relations: {
+          thread: true,
+        },
       });
       const dbMap = new Map(dbEmails.map((email) => [email.messageId, email]));
 

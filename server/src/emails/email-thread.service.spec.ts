@@ -191,7 +191,7 @@ describe("EmailThreadService", () => {
       expect(result).toEqual(["thread-1", "thread-2", "thread-3"]);
       expect(mockEmailThreadRepository.find).toHaveBeenCalledWith({
         where: { userId, isArchived: false },
-        select: ["threadId"],
+        select: { threadId: true },
       });
     });
 

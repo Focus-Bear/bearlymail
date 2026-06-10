@@ -77,7 +77,9 @@ export class EmailStatusService {
     const nextBatch = await this.emailThreadRepository.findOne({
       where: { userId, isBatched: true, batchReleaseAt: MoreThan(now) },
       order: { batchReleaseAt: "ASC" },
-      select: ["batchReleaseAt"],
+      select: {
+        batchReleaseAt: true,
+      },
     });
     return nextBatch?.batchReleaseAt || null;
   }
@@ -118,7 +120,11 @@ export class EmailStatusService {
         const latestEmail = await this.emailRepository.findOne({
           where: { emailThreadId: thread.id, userId },
           order: { receivedAt: "DESC" },
-          select: ["subject", "from", "fromName"],
+          select: {
+            subject: true,
+            from: true,
+            fromName: true,
+          },
         });
         return {
           subject: latestEmail?.subject || "No subject",
@@ -141,7 +147,9 @@ export class EmailStatusService {
     // Query user_contexts directly — source of truth for category names (fixes #1293).
     const ctxs = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["contextValue"],
+      select: {
+        contextValue: true,
+      },
     });
     for (const ctx of ctxs) {
       decryptUserContextEntityForApi(ctx);

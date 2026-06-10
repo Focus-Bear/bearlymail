@@ -666,7 +666,9 @@ export class PriorityService {
   ): Promise<void> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
-      relations: ["thread"],
+      relations: {
+        thread: true,
+      },
     });
 
     if (!email) {

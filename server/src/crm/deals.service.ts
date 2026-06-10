@@ -75,7 +75,9 @@ export class DealsService {
   ): Promise<void> {
     const contact = await this.contactRepository.findOne({
       where: { id: contactId, userId },
-      select: ["id"],
+      select: {
+        id: true,
+      },
     });
     if (!contact) {
       throw new ForbiddenException(
@@ -90,7 +92,9 @@ export class DealsService {
   ): Promise<void> {
     const stage = await this.dealStageRepository.findOne({
       where: { id: stageId, userId },
-      select: ["id"],
+      select: {
+        id: true,
+      },
     });
     if (!stage) {
       throw new ForbiddenException(
@@ -228,7 +232,10 @@ export class DealsService {
   async getDeals(userId: string): Promise<DealResponse[]> {
     const deals = await this.dealRepository.find({
       where: { userId },
-      relations: ["stage", "contact"],
+      relations: {
+        stage: true,
+        contact: true,
+      },
       order: { sortOrder: "ASC", createdAt: "DESC" },
     });
 
@@ -238,7 +245,10 @@ export class DealsService {
   async getDeal(userId: string, dealId: string): Promise<DealResponse> {
     const deal = await this.dealRepository.findOne({
       where: { id: dealId, userId },
-      relations: ["stage", "contact"],
+      relations: {
+        stage: true,
+        contact: true,
+      },
     });
     if (!deal) throw new NotFoundException(ERROR_MESSAGES.DEAL_NOT_FOUND);
     return this.toDealResponse(deal);
@@ -414,7 +424,10 @@ export class DealsService {
   ): Promise<DealResponse[]> {
     const deals = await this.dealRepository.find({
       where: { userId, contactId },
-      relations: ["stage", "contact"],
+      relations: {
+        stage: true,
+        contact: true,
+      },
       order: { sortOrder: "ASC", createdAt: "DESC" },
     });
 
@@ -436,7 +449,9 @@ export class DealsService {
 
     const contact = await this.contactRepository.findOne({
       where: { userId, emailHash },
-      select: ["id"],
+      select: {
+        id: true,
+      },
     });
 
     if (!contact) {

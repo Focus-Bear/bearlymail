@@ -252,7 +252,9 @@ export class EmailLifecycleService {
     if (email.senderEmailHmac) {
       const senderContact = await this.contactRepository.findOne({
         where: { userId, emailHash: email.senderEmailHmac },
-        select: ["id"],
+        select: {
+          id: true,
+        },
       });
       email.senderContactId = senderContact?.id ?? null;
     }

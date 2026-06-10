@@ -148,14 +148,14 @@ export class StuckPriorityDetectionService implements OnModuleInit {
           // Old enough to have had initial processing time
           createdAt: LessThan(cutoff),
         },
-        select: [
-          "id",
-          "userId",
-          "threadId",
-          "priorityRetryCount",
-          "priorityExplanation",
-          "createdAt",
-        ],
+        select: {
+          id: true,
+          userId: true,
+          threadId: true,
+          priorityRetryCount: true,
+          priorityExplanation: true,
+          createdAt: true,
+        },
         // fetch extra to account for post-filter deduplication
         take: StuckPriorityDetectionService.MAX_REQUEUE_PER_RUN * 2,
         // oldest first
@@ -192,7 +192,13 @@ export class StuckPriorityDetectionService implements OnModuleInit {
           priorityExplanation: Not(IsNull()),
           createdAt: LessThan(cutoff),
         },
-        select: ["id", "userId", "threadId", "priorityRetryCount", "createdAt"],
+        select: {
+          id: true,
+          userId: true,
+          threadId: true,
+          priorityRetryCount: true,
+          createdAt: true,
+        },
         take: StuckPriorityDetectionService.MAX_REQUEUE_PER_RUN * 2,
         order: { createdAt: "ASC" },
       });
@@ -221,14 +227,14 @@ export class StuckPriorityDetectionService implements OnModuleInit {
             () =>
               this.emailThreadRepository.find({
                 where: { id: In(ids) },
-                select: [
-                  "id",
-                  "userId",
-                  "threadId",
-                  "priorityRetryCount",
-                  "createdAt",
-                  "priorityExplanation",
-                ],
+                select: {
+                  id: true,
+                  userId: true,
+                  threadId: true,
+                  priorityRetryCount: true,
+                  createdAt: true,
+                  priorityExplanation: true,
+                },
               }),
           );
           for (const thread of withExplanation) {
@@ -260,7 +266,9 @@ export class StuckPriorityDetectionService implements OnModuleInit {
     // Get an email from this thread to use for the refine-priority job
     const email = await this.emailRepository.findOne({
       where: { emailThreadId: thread.id, userId: thread.userId },
-      select: ["id"],
+      select: {
+        id: true,
+      },
       order: { receivedAt: "DESC" },
     });
 

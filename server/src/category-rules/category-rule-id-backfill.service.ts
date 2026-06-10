@@ -121,7 +121,10 @@ export class CategoryRuleIdBackfillService {
   ): Promise<{ scanned: number; matched: number; orphaned: number }> {
     const rules = await this.categoryRuleRepository.find({
       where: { userId, categoryId: IsNull() },
-      select: ["id", "categoryName"],
+      select: {
+        id: true,
+        categoryName: true,
+      },
     });
 
     let matched = 0;

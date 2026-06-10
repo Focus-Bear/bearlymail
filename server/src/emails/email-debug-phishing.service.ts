@@ -58,7 +58,10 @@ export class EmailDebugPhishingService {
       throw new NotFoundException(`Email ${emailId} not found`);
     }
 
-    const signals = extractPhishingSignals(email.from ?? undefined, email.body ?? "");
+    const signals = extractPhishingSignals(
+      email.from ?? undefined,
+      email.body ?? "",
+    );
     const displayNameCheck = detectDisplayNameDomainMismatch(
       email.fromName,
       signals.senderDomain,

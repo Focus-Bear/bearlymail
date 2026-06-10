@@ -799,7 +799,10 @@ export class ContactsService {
     );
     const contacts = await this.contactRepository.find({
       where: { userId, emailHash: In(emailHashes) },
-      select: ["contactType", "email"],
+      select: {
+        contactType: true,
+        email: true,
+      },
     });
 
     const result: Record<string, string> = {};

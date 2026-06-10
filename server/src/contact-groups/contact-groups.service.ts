@@ -51,7 +51,9 @@ export class ContactGroupsService {
   ): Promise<ContactGroupMemberSummary[]> {
     const members = await this.memberRepo.find({
       where: { groupId },
-      relations: ["contact"],
+      relations: {
+        contact: true,
+      },
     });
     return members.map((member) => ({
       contactId: member.contactId,

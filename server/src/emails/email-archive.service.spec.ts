@@ -160,7 +160,7 @@ describe("EmailArchiveService", () => {
 
       expect(mockUserContextRepository.find).toHaveBeenCalledWith({
         where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-        select: ["contextId", "contextValue"],
+        select: { contextId: true, contextValue: true },
       });
 
       expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(

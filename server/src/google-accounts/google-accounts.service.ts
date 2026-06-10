@@ -94,7 +94,9 @@ export class GoogleAccountsService {
   ): Promise<string | null> {
     const row = await this.googleAccountRepository.findOne({
       where: { id: googleAccountId, isActive: true },
-      select: ["userId"],
+      select: {
+        userId: true,
+      },
     });
     return row?.userId ?? null;
   }

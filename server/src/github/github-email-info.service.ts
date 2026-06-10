@@ -389,7 +389,9 @@ export class GitHubEmailInfoService {
           contextId: thread.categoryId,
           contextKey: ContextKey.EMAIL_CATEGORY,
         },
-        select: ["contextValue"],
+        select: {
+          contextValue: true,
+        },
       });
       if (categoryCtx) {
         decryptUserContextEntityForApi(categoryCtx);
@@ -509,7 +511,10 @@ export class GitHubEmailInfoService {
   ): Promise<EmailThreadMetadata[]> {
     const emails = await this.emailRepository.find({
       where: { id: In(emailIds), userId },
-      select: ["id", "emailThreadId"],
+      select: {
+        id: true,
+        emailThreadId: true,
+      },
     });
 
     if (emails.length === 0) return [];

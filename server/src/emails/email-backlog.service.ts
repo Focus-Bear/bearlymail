@@ -28,7 +28,9 @@ export class EmailBacklogService {
 
     const deferredThreads = await this.threadRepository.find({
       where: { userId, aiProcessingDeferred: true },
-      select: ["id"],
+      select: {
+        id: true,
+      },
       order: { updatedAt: "DESC" },
       take: BACKLOG_LIMIT,
     });

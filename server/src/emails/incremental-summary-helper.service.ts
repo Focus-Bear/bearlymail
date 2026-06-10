@@ -51,7 +51,10 @@ export class IncrementalSummaryHelperService {
       this.getThreadSummary(email.emailThreadId),
       this.emailThreadRepository.findOne({
         where: { id: email.emailThreadId },
-        select: ["id", "lastSummarizedAt"],
+        select: {
+          id: true,
+          lastSummarizedAt: true,
+        },
       }),
     ]);
 
@@ -116,7 +119,11 @@ export class IncrementalSummaryHelperService {
         const emailHash = SearchIndexHelper.hashExact(senderEmail);
         contact = await this.contactRepository.findOne({
           where: { userId, emailHash },
-          select: ["id", "contactType", "contactTypeAutoDetected"],
+          select: {
+            id: true,
+            contactType: true,
+            contactTypeAutoDetected: true,
+          },
         });
 
         if (
@@ -149,7 +156,9 @@ export class IncrementalSummaryHelperService {
         if (email.emailThreadId) {
           const threadEmails = await this.emailRepository.find({
             where: { emailThreadId: email.emailThreadId },
-            select: ["id"],
+            select: {
+              id: true,
+            },
           });
           const threadEmailIds = threadEmails.map(
             (emailEntry) => emailEntry.id,
@@ -207,7 +216,9 @@ export class IncrementalSummaryHelperService {
     }
     const emailWithSummary = await this.emailRepository.findOne({
       where: { emailThreadId, summary: Not(IsNull()) },
-      select: ["summary"],
+      select: {
+        summary: true,
+      },
     });
     return emailWithSummary?.summary || null;
   }

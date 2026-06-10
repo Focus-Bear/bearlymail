@@ -294,7 +294,10 @@ export class CategoryRulesService {
           where: { userId, senderEmailHmac: senderHmac },
           order: { receivedAt: "DESC" },
           take: CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER,
-          select: ["subject", "body"],
+          select: {
+            subject: true,
+            body: true,
+          },
         })
       : [];
 
@@ -798,7 +801,9 @@ export class CategoryRulesService {
   private async getUserCategoryIds(userId: string): Promise<Set<string>> {
     const contexts = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["contextId"],
+      select: {
+        contextId: true,
+      },
     });
     return new Set(contexts.map((ctx) => ctx.contextId));
   }

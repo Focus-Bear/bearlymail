@@ -54,7 +54,10 @@ async function findCategoryContextId(
 
   const contexts = await userContextRepository.find({
     where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-    select: ["contextId", "contextValue"],
+    select: {
+      contextId: true,
+      contextValue: true,
+    },
   });
 
   // contextValue is auto-decrypted by the TypeORM transformer
@@ -138,7 +141,11 @@ async function fetchSampleEmails(
     where: { userId, senderEmailHmac: senderHmac },
     order: { receivedAt: "DESC" },
     take: CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER,
-    select: ["from", "subject", "body"],
+    select: {
+      from: true,
+      subject: true,
+      body: true,
+    },
   });
 }
 
@@ -317,7 +324,9 @@ export async function buildSuggestions(
     candidateRows.map(async (row) => {
       const probe = await repositories.email.findOne({
         where: { userId, senderEmailHmac: row.hmac },
-        select: ["from"],
+        select: {
+          from: true,
+        },
       });
       if (!probe) return null;
       const normSender = normaliseSender(probe.from);
@@ -341,7 +350,9 @@ export async function buildSuggestions(
 
   const existingRules = await repositories.rule.find({
     where: { userId, ruleKind: "composite" },
-    select: ["compositeSpec"],
+    select: {
+      compositeSpec: true,
+    },
   });
 
   const suggestions: CategoryRuleSuggestion[] = [];

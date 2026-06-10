@@ -401,7 +401,10 @@ export class UsersService {
   async findOneActivityTimestamp(userId: string): Promise<Date | null> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ["id", "lastActivityAt"],
+      select: {
+        id: true,
+        lastActivityAt: true,
+      },
     });
     return user?.lastActivityAt ?? null;
   }
@@ -416,7 +419,10 @@ export class UsersService {
   ): Promise<boolean> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ["id", "lastActivityAt"],
+      select: {
+        id: true,
+        lastActivityAt: true,
+      },
     });
     if (!user?.lastActivityAt) return false;
     const HOURS_PER_DAY = 24;
@@ -451,7 +457,9 @@ export class UsersService {
         { lastActivityAt: LessThan(threshold) },
         { lastActivityAt: IsNull() },
       ],
-      select: ["id"],
+      select: {
+        id: true,
+      },
     });
     return users.map((user) => user.id);
   }

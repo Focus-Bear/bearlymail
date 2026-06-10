@@ -289,7 +289,11 @@ export class ContextCategoryService {
     // Fix #1258: fetch existing category names to prevent creating duplicates
     const existing = await this.contextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["contextId", "contextValue", "categoryKey"],
+      select: {
+        contextId: true,
+        contextValue: true,
+        categoryKey: true,
+      },
     });
     for (const ctx of existing) {
       decryptUserContextEntityForApi(ctx);
@@ -336,7 +340,9 @@ export class ContextCategoryService {
     // categoryId IS NULL means "Other" (fixes #1293 — denorm column removed).
     const threads = await this.emailThreadRepository.find({
       where: { userId, isArchived: false, categoryId: IsNull() },
-      select: ["id"],
+      select: {
+        id: true,
+      },
     });
     const otherThreadIds = threads.map((thread) => thread.id);
 

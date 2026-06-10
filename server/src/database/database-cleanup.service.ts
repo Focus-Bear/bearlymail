@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
-import { InjectConnection } from "@nestjs/typeorm";
-import { Connection } from "typeorm";
+import { InjectDataSource } from "@nestjs/typeorm";
+import { DataSource } from "typeorm";
 
 import { getErrorMessage, isError } from "../types/common";
 
@@ -8,7 +8,7 @@ import { getErrorMessage, isError } from "../types/common";
 export class DatabaseCleanupService implements OnApplicationBootstrap {
   private readonly logger = new Logger(DatabaseCleanupService.name);
 
-  constructor(@InjectConnection() private connection: Connection) {}
+  constructor(@InjectDataSource() private connection: DataSource) {}
 
   async onApplicationBootstrap() {
     try {

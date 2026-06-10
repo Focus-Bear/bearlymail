@@ -88,7 +88,10 @@ async function bulkRecalculatePriority(userId?: string, limit: number = 100) {
         // Get an email from this thread to use for the job
         const email = await emailRepository.findOne({
           where: { emailThreadId: thread.id },
-          select: ["id", "userId"],
+          select: {
+            id: true,
+            userId: true,
+          },
         });
 
         if (!email) {

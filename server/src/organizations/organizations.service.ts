@@ -124,7 +124,9 @@ export class OrganizationsService {
 
     const membership = await this.memberRepo.findOne({
       where: { userId, status: MEMBER_STATUS.ACTIVE },
-      relations: ["organization"],
+      relations: {
+        organization: true,
+      },
     });
     if (membership) return membership.organization;
 
@@ -183,7 +185,9 @@ export class OrganizationsService {
   }> {
     const membership = await this.memberRepo.findOne({
       where: { userId, status: MEMBER_STATUS.ACTIVE },
-      relations: ["organization"],
+      relations: {
+        organization: true,
+      },
     });
     if (!membership) {
       throw new NotFoundException("You are not a member of any organisation");
@@ -364,7 +368,10 @@ export class OrganizationsService {
   ): Promise<{ orgName: string; inviterName: string; role: OrgRole } | null> {
     const member = await this.memberRepo.findOne({
       where: { inviteToken: token, status: "pending" },
-      relations: ["organization", "invitedByUser"],
+      relations: {
+        organization: true,
+        invitedByUser: true,
+      },
     });
 
     if (!member) return null;

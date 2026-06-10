@@ -110,7 +110,10 @@ export class LLMController {
     if (body.emailId) {
       const email = await this.emailRepository.findOne({
         where: { id: body.emailId, userId: req.user.userId },
-        select: ["id", "actionItemsJson"],
+        select: {
+          id: true,
+          actionItemsJson: true,
+        },
       });
       if (email?.actionItemsJson && email.actionItemsJson.length > 0) {
         return email.actionItemsJson;

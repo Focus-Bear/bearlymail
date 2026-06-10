@@ -303,7 +303,7 @@ describe("EmailExportService", () => {
       expect(mockEmailRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { userId: "user-1" },
-          relations: ["thread"],
+          relations: { thread: true },
           take: expect.any(Number),
           order: { id: "ASC" },
         }),

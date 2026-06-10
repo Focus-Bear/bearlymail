@@ -158,7 +158,10 @@ export class ScheduledEmailsService {
         scheduledSendAt: LessThanOrEqual(now),
       },
       order: { scheduledSendAt: "ASC" },
-      select: ["id", "userId"],
+      select: {
+        id: true,
+        userId: true,
+      },
     });
 
     this.logger.log(`Found ${dueEmailRefs.length} emails due to be sent`);

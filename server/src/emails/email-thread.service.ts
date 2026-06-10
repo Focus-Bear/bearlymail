@@ -83,7 +83,9 @@ export class EmailThreadService {
   async getAllNonArchivedThreadIds(userId: string): Promise<string[]> {
     const threads = await this.emailThreadRepository.find({
       where: { userId, isArchived: false },
-      select: ["threadId"],
+      select: {
+        threadId: true,
+      },
     });
     return threads.map((thread) => thread.threadId);
   }
@@ -317,7 +319,10 @@ export class EmailThreadService {
     const threadIds = updates.map((update) => update.threadId);
     const currentThreads = await this.emailThreadRepository.find({
       where: { userId, threadId: In(threadIds) },
-      select: ["threadId", "starCount"],
+      select: {
+        threadId: true,
+        starCount: true,
+      },
     });
 
     const currentStarCounts = new Map<string, number>();
@@ -408,7 +413,12 @@ export class EmailThreadService {
 
     const threads = await this.emailThreadRepository.find({
       where: { userId, threadId: In(threadIds) },
-      select: ["threadId", "updatedAt", "starCount", "isArchived"],
+      select: {
+        threadId: true,
+        updatedAt: true,
+        starCount: true,
+        isArchived: true,
+      },
     });
     return threads.map((thread) => ({
       threadId: thread.threadId,
@@ -425,7 +435,11 @@ export class EmailThreadService {
   > {
     const threads = await this.emailThreadRepository.find({
       where: { userId, starCount: MoreThan(0) },
-      select: ["threadId", "starCount", "isArchived"],
+      select: {
+        threadId: true,
+        starCount: true,
+        isArchived: true,
+      },
     });
     return threads.map((thread) => ({
       threadId: thread.threadId,

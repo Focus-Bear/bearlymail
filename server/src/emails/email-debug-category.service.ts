@@ -158,7 +158,11 @@ export class EmailDebugCategoryService {
   }> {
     const ctxs = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["contextId", "contextValue", "createdAt"],
+      select: {
+        contextId: true,
+        contextValue: true,
+        createdAt: true,
+      },
     });
     for (const ctx of ctxs) {
       decryptUserContextEntityForApi(ctx);
@@ -362,7 +366,10 @@ export class EmailDebugCategoryService {
       this.emailRepository.findOne({
         where: { emailThreadId: email.emailThreadId, userId },
         order: { receivedAt: "DESC" },
-        select: ["id", "receivedAt"],
+        select: {
+          id: true,
+          receivedAt: true,
+        },
       }),
       this.emailRepository.count({
         where: { emailThreadId: email.emailThreadId, userId },

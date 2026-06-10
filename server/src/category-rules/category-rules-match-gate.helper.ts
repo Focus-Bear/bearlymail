@@ -59,7 +59,12 @@ export async function fetchRecentEmailsForMatching(
     where: { userId },
     order: { receivedAt: "DESC" },
     take: scanCount,
-    select: ["from", "subject", "body", "htmlBody"],
+    select: {
+      from: true,
+      subject: true,
+      body: true,
+      htmlBody: true,
+    },
   });
 }
 

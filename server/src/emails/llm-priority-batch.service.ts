@@ -89,7 +89,10 @@ export class LLMPriorityBatchService {
     const mostRecentEmail = await this.emailRepository.findOne({
       where: { emailThreadId: email.emailThreadId },
       order: { receivedAt: "DESC" },
-      select: ["id", "receivedAt"],
+      select: {
+        id: true,
+        receivedAt: true,
+      },
     });
 
     if (!mostRecentEmail) return false;
@@ -799,7 +802,10 @@ export class LLMPriorityBatchService {
     ];
     const threads = await this.emailThreadRepository.find({
       where: { id: In(threadIds) },
-      select: ["id", "priorityRetryCount"],
+      select: {
+        id: true,
+        priorityRetryCount: true,
+      },
     });
     const threadMap = new Map(threads.map((thread) => [thread.id, thread]));
 

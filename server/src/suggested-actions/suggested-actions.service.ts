@@ -240,7 +240,9 @@ export class SuggestedActionsService {
             contextId: thread.categoryId,
             contextKey: ContextKey.EMAIL_CATEGORY,
           },
-          select: ["contextValue"],
+          select: {
+            contextValue: true,
+          },
         });
         if (categoryCtx) {
           decryptUserContextEntityForApi(categoryCtx);

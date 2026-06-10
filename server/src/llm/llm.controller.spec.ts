@@ -556,7 +556,7 @@ describe("LLMController (Integration)", () => {
       expect(mockLLMService.extractActionItems).not.toHaveBeenCalled();
       expect(mockEmailRepository.findOne).toHaveBeenCalledWith({
         where: { id: "email-1", userId: "test-user-id" },
-        select: ["id", "actionItemsJson"],
+        select: { id: true, actionItemsJson: true },
       });
     });
 

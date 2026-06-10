@@ -28,7 +28,12 @@ export class CategoryKeyBackfillService {
         contextKey: ContextKey.EMAIL_CATEGORY,
         categoryKey: IsNull(),
       },
-      select: ["contextId", "userId", "contextValue", "categoryKey"],
+      select: {
+        contextId: true,
+        userId: true,
+        contextValue: true,
+        categoryKey: true,
+      },
     });
 
     if (rows.length === 0) {
@@ -74,7 +79,9 @@ export class CategoryKeyBackfillService {
   private async loadExistingKeysForUser(userId: string): Promise<Set<string>> {
     const existing = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: ["categoryKey"],
+      select: {
+        categoryKey: true,
+      },
     });
     const set = new Set<string>();
     for (const row of existing) {

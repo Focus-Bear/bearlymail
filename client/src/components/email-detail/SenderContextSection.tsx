@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiDatabase, FiRefreshCw } from 'react-icons/fi';
+import { FiDatabase, FiRefreshCw, FiSettings } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+
+const CONTEXT_PROVIDERS_SETTINGS_PATH = '/settings#workflows';
 
 const SENDER_CONTEXT_ACCENT = '#0EA5E9'; // Sky blue
 const SENDER_CONTEXT_BG = '#F0F9FF';
@@ -70,10 +73,52 @@ interface SectionContentProps {
   loading: boolean;
   error: string | null;
   entries: SenderContextEntry[];
+  onConfigure: () => void;
   t: (key: string) => string;
 }
 
-const SectionContent: React.FC<SectionContentProps> = ({ loading, error, entries, t }) => {
+const EmptyState: React.FC<{ onConfigure: () => void; t: (key: string) => string }> = ({ onConfigure, t }) => (
+  <div
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+      padding: theme.spacing.lg,
+      textAlign: 'center',
+    }}
+  >
+    <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+      {t('senderContext.noContext')}
+    </div>
+    <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
+      {t('senderContext.emptyHint')}
+    </div>
+    <button
+      type="button"
+      onClick={onConfigure}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        marginTop: theme.spacing.xs,
+        padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+        backgroundColor: COLOR_NAMED_WHITE,
+        border: `1px solid ${SENDER_CONTEXT_ACCENT}`,
+        borderRadius: theme.borderRadius.md,
+        color: SENDER_CONTEXT_ACCENT,
+        fontSize: theme.typography.fontSize.sm,
+        fontWeight: theme.typography.fontWeight.medium,
+        cursor: 'pointer',
+      }}
+    >
+      <FiSettings size={14} />
+      {t('senderContext.configureProviders')}
+    </button>
+  </div>
+);
+
+const SectionContent: React.FC<SectionContentProps> = ({ loading, error, entries, onConfigure, t }) => {
   if (loading) {
     return (
       <div style={{ padding: theme.spacing.md, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
@@ -89,18 +134,7 @@ const SectionContent: React.FC<SectionContentProps> = ({ loading, error, entries
     );
   }
   if (entries.length === 0) {
-    return (
-      <div
-        style={{
-          padding: theme.spacing.md,
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
-          textAlign: 'center',
-        }}
-      >
-        {t('senderContext.noContext')}
-      </div>
-    );
+    return <EmptyState onConfigure={onConfigure} t={t} />;
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
@@ -153,6 +187,7 @@ const useSenderContext = (senderEmail: string | undefined) => {
 
 export const SenderContextSection: React.FC<SenderContextSectionProps> = ({ senderEmail, onDismiss }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const { entries, loading, error, hasFetched, fetchContext } = useSenderContext(senderEmail);
 
@@ -213,7 +248,13 @@ export const SenderContextSection: React.FC<SenderContextSectionProps> = ({ send
       onDismiss={onDismiss}
       dismissTitle={t('emailDetail.hideCard')}
     >
-      <SectionContent loading={loading} error={error} entries={entries} t={t} />
+      <SectionContent
+        loading={loading}
+        error={error}
+        entries={entries}
+        onConfigure={() => navigate(CONTEXT_PROVIDERS_SETTINGS_PATH)}
+        t={t}
+      />
     </CollapsibleSection>
   );
 };

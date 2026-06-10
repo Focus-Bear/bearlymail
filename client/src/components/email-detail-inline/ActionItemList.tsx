@@ -1,12 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiX } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { EMOJI_CLOSE } from 'constants/emojis';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
+const ACTION_ITEMS_ACCENT = '#16A34A';
 
 interface ActionItem {
   id?: string;
@@ -44,25 +45,42 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
                 onToggleActionItem(item.id, event.target.checked);
               }
             }}
-            style={{ marginTop: '4px', cursor: 'pointer' }}
+            style={{
+              marginTop: '3px',
+              width: '16px',
+              height: '16px',
+              flexShrink: 0,
+              accentColor: ACTION_ITEMS_ACCENT,
+              cursor: 'pointer',
+            }}
           />
           <span
             style={{
               flex: 1,
+              fontSize: theme.typography.fontSize.sm,
+              lineHeight: 1.4,
               textDecoration: item.isCompleted ? 'line-through' : 'none',
               color: item.isCompleted ? theme.colors.text.tertiary : theme.colors.text.primary,
+              wordBreak: 'break-word',
             }}
           >
             {item.description}
             {item.source === ACTION_ITEM_SOURCE_LLM && (
               <span
                 style={{
-                  fontSize: '0.7rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  verticalAlign: 'middle',
+                  fontSize: '0.625rem',
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
                   backgroundColor: theme.colors.primary.subtle,
                   color: theme.colors.primary.main,
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  marginLeft: theme.spacing.sm,
+                  padding: '1px 5px',
+                  borderRadius: theme.borderRadius.sm,
+                  marginLeft: theme.spacing.xs,
                 }}
               >
                 {t('emailDetail.aiBadge')}
@@ -80,10 +98,10 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
                 border: 'none',
                 color: theme.colors.text.tertiary,
                 cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                padding: theme.spacing.xs,
+                padding: '2px',
                 display: 'flex',
                 alignItems: 'center',
+                flexShrink: 0,
                 opacity: 0.6,
               }}
               onMouseEnter={event => {
@@ -96,7 +114,7 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
               }}
               title={t('emailDetail.deleteActionItem')}
             >
-              {EMOJI_CLOSE}
+              <FiX size={15} />
             </button>
           )}
         </div>

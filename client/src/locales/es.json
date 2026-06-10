@@ -1316,6 +1316,8 @@
     "title": "Contexto del remitente",
     "expandToLoad": "Expande para buscar al remitente",
     "noContext": "No se encontró contexto para este remitente",
+    "emptyHint": "Conecta un proveedor de contexto para obtener detalles sobre quién te escribe.",
+    "configureProviders": "Configurar proveedores de contexto",
     "sourceCount_one": "{{count}} fuente",
     "sourceCount_other": "{{count}} fuentes",
     "refresh": "Actualizar contexto del remitente",

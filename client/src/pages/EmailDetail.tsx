@@ -564,6 +564,24 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
     }
   };
 
+  // Card-visibility cog. In full/inline views it renders above the inline cards (inside
+  // EmailDetailNotesAndActions); in split-view the cards move to the sidebar, so the cog
+  // travels with them and is rendered at the top of the Actions tab there.
+  const cardSettingsControl = (
+    <div style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.xs }}>
+      <span onMouseDown={event => event.stopPropagation()}>
+        <CardDisplaySettingsButton onClick={() => setShowCardSettings(prev => !prev)} />
+      </span>
+      <CardDisplaySettings
+        hiddenCards={hiddenCards}
+        onShowCard={showCard}
+        onHideCard={hideCard}
+        isOpen={showCardSettings}
+        onClose={() => setShowCardSettings(false)}
+      />
+    </div>
+  );
+
   // Assistant cards (summary / tasks / notes) are built once and rendered either
   // inline (full/inline views) or inside the split-view ActionSidebar (compact).
   const notesSection = !hiddenCards.has('privateNotes') ? (
@@ -841,6 +859,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         <ActionSidebar
           actionsContent={
             <>
+              {cardSettingsControl}
               {schedulingSection}
               {summarySection}
               {tasksSection}
@@ -868,20 +887,28 @@ const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
   notesSection = null,
   tasksSection = null,
   assistantInSidebar = false,
-}) => (
-  <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
-    <div style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.xs }}>
-      <CardDisplaySettingsButton onClick={onToggleCardSettings} />
-      <CardDisplaySettings
-        hiddenCards={hiddenCards}
-        onShowCard={onShowCard}
-        onHideCard={onHideCard}
-        isOpen={showCardSettings}
-        onClose={onCloseCardSettings}
-      />
+}) => {
+  // In split-view the cog and the notes/tasks cards live in the action sidebar instead,
+  // so this inline block has nothing to render.
+  if (assistantInSidebar) {
+    return null;
+  }
+  return (
+    <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.xs }}>
+        <span onMouseDown={event => event.stopPropagation()}>
+          <CardDisplaySettingsButton onClick={onToggleCardSettings} />
+        </span>
+        <CardDisplaySettings
+          hiddenCards={hiddenCards}
+          onShowCard={onShowCard}
+          onHideCard={onHideCard}
+          isOpen={showCardSettings}
+          onClose={onCloseCardSettings}
+        />
+      </div>
+      {notesSection}
+      {tasksSection}
     </div>
-    {/* Notes/tasks render here for full and inline views; in split-view they move to the action sidebar. */}
-    {!assistantInSidebar && notesSection}
-    {!assistantInSidebar && tasksSection}
-  </div>
-);
+  );
+};

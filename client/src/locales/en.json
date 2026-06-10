@@ -1977,6 +1977,8 @@
     "title": "Sender Context",
     "expandToLoad": "Expand to look up the sender",
     "noContext": "No context found for this sender",
+    "emptyHint": "Connect a context provider to pull in details about who's emailing you.",
+    "configureProviders": "Configure context providers",
     "sourceCount_one": "{{count}} source",
     "sourceCount_other": "{{count}} sources",
     "refresh": "Refresh sender context",

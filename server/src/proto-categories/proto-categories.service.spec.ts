@@ -505,4 +505,84 @@ describe("ProtoCategoriesService", () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe("promoteToCategory", () => {
+    const makeProto = (overrides = {}): ProtoCategory =>
+      ({
+        id: "proto-1",
+        userId: "user-1",
+        name: "Meeting Acceptance Notifications",
+        description: "Calendar acceptance confirmations",
+        emailCount: 5,
+        isPromoted: false,
+        ...overrides,
+      }) as ProtoCategory;
+
+    it("returns early without creating a category when already promoted", async () => {
+      const result = await service.promoteToCategory(
+        makeProto({ isPromoted: true }),
+      );
+      expect(result.isPromoted).toBe(true);
+      expect(userContextRepo.save).not.toHaveBeenCalled();
+    });
+
+    it("folds into an existing near-duplicate category instead of creating a duplicate", async () => {
+      // A sibling proto already promoted into this real category.
+      userContextRepo.find.mockResolvedValue([
+        makeUserContext(
+          "ctx-existing",
+          "Acceptances to Internal Meetings - standup, OKR, planning",
+        ),
+      ]);
+      llmCoreService.generateText.mockResolvedValue(
+        '{"isDuplicate": true, "reasoning": "Both are meeting acceptance notifications"}',
+      );
+      const txRepo = {
+        findOne: jest
+          .fn()
+          .mockResolvedValue(makeUserContext("ctx-existing", "x")),
+        update: jest.fn().mockResolvedValue({}),
+      };
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: unknown) => Promise<unknown>) =>
+          cb({ getRepository: () => txRepo }),
+      );
+      protoCategoryRepo.update.mockResolvedValue({});
+      protoCategoryRepo.findOne.mockResolvedValue(
+        makeProto({ isPromoted: true, promotedCategoryId: "ctx-existing" }),
+      );
+
+      await service.promoteToCategory(makeProto());
+
+      // No new category minted...
+      expect(userContextRepo.save).not.toHaveBeenCalled();
+      // ...proto pointed at the existing category...
+      expect(txRepo.update).toHaveBeenCalledWith(
+        { id: "proto-1" },
+        expect.objectContaining({
+          isPromoted: true,
+          promotedCategoryId: "ctx-existing",
+        }),
+      );
+      // ...and its threads reassigned to the existing category.
+      expect(txRepo.update).toHaveBeenCalledWith(
+        { protoCategoryId: "proto-1" },
+        expect.objectContaining({ categoryId: "ctx-existing" }),
+      );
+    });
+
+    it("creates a new category when no duplicate exists", async () => {
+      userContextRepo.find.mockResolvedValue([]);
+      userContextRepo.create.mockImplementation((ctx: unknown) => ctx);
+      userContextRepo.save.mockResolvedValue({ contextId: "ctx-new" });
+      protoCategoryRepo.update.mockResolvedValue({});
+      protoCategoryRepo.findOne.mockResolvedValue(
+        makeProto({ isPromoted: true, promotedCategoryId: "ctx-new" }),
+      );
+
+      await service.promoteToCategory(makeProto());
+
+      expect(userContextRepo.save).toHaveBeenCalled();
+    });
+  });
 });

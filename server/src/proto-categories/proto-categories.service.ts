@@ -204,6 +204,23 @@ export class ProtoCategoriesService {
       `Promoting proto category "${protoCategory.name}" to real category (count: ${protoCategory.emailCount})`,
     );
 
+    // Re-run the LLM dedup check against the *current* set of real categories.
+    // The check that ran when this proto was created compared against an older
+    // snapshot — a sibling proto may have promoted into a near-duplicate real
+    // category in the meantime (issue: duplicate auto-promoted categories).
+    // If we find a match, fold this proto into the existing category instead of
+    // minting a second one.
+    const existingMatch = await this.findMatchingFullCategory(
+      protoCategory.userId,
+      protoCategory.name,
+    );
+    if (existingMatch) {
+      this.logger.log(
+        `Proto category "${protoCategory.name}" matches existing category "${existingMatch.name}" — folding in instead of creating a duplicate`,
+      );
+      return this.foldProtoIntoCategory(protoCategory, existingMatch.contextId);
+    }
+
     const categoryValue = protoCategory.description
       ? `${protoCategory.name} - ${protoCategory.description}`
       : protoCategory.name;
@@ -245,6 +262,43 @@ export class ProtoCategoriesService {
     this.logger.log(
       `Successfully promoted proto category "${protoCategory.name}" to real category (contextId: ${savedContext.contextId})`,
     );
+
+    const updated = await this.protoCategoryRepository.findOne({
+      where: { id: protoCategory.id },
+    });
+
+    return updated || protoCategory;
+  }
+
+  /**
+   * Marks a proto category as promoted into an *existing* real category instead
+   * of creating a new one. Reassigns the proto's threads to the existing
+   * category and records it as the promotion target. Used when the promotion-time
+   * dedup check finds a near-duplicate real category that didn't exist (or wasn't
+   * yet a real category) when this proto was first created.
+   */
+  private async foldProtoIntoCategory(
+    protoCategory: ProtoCategory,
+    existingCategoryId: string,
+  ): Promise<ProtoCategory> {
+    await this.dataSource.transaction(async (manager) => {
+      await manager.getRepository(ProtoCategory).update(
+        { id: protoCategory.id },
+        {
+          isPromoted: true,
+          promotedCategoryId: existingCategoryId,
+        },
+      );
+
+      await manager.getRepository(EmailThread).update(
+        { protoCategoryId: protoCategory.id },
+        {
+          categoryId: existingCategoryId,
+          categoryExplanation: `Folded into existing category on promotion (proto: ${protoCategory.name})`,
+          protoCategoryId: null,
+        },
+      );
+    });
 
     const updated = await this.protoCategoryRepository.findOne({
       where: { id: protoCategory.id },

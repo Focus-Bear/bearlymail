@@ -317,8 +317,15 @@ export class EmailsController {
    *
    * Instant search relies on GmailProvider.searchEmailsMetadataOnly, which
    * Office365/Zoho don't offer. We therefore only take the instant path when
-   * every account the search would actually hit is a Gmail account — otherwise a
+   * every provider the search would actually hit is Gmail — otherwise a
    * mixed-provider user would silently lose their Office365/Zoho results.
+   *
+   * IMPORTANT: this resolves connected providers via getConnectedProviderTypes
+   * (the EmailProviderManager / isConnected source that the search itself uses),
+   * NOT the google_accounts/office365_accounts tables. Those tables can disagree
+   * with isConnected for SSO-login / token-only connections — which previously
+   * routed Gmail-only SSO users to the slow legacy path. The decision must use
+   * the same source the search uses so the two always agree.
    *
    * Set INSTANT_SEARCH_ENABLED=false to force the legacy path for all users (kill switch).
    */
@@ -327,22 +334,37 @@ export class EmailsController {
     selectedAccountTypes?: string[],
   ): Promise<boolean> {
     if (process.env.INSTANT_SEARCH_ENABLED === BOOLEAN_STRING_VALUES.FALSE) {
+      this.logger.log(
+        `[SEARCH ROUTING] user=${userId} decision=legacy reason=kill-switch (INSTANT_SEARCH_ENABLED=false)`,
+      );
       return false;
     }
-    const accounts =
-      (await this.emailsService.getConnectedAccounts(userId)) ?? [];
-    const active = accounts.filter((account) => account.isActive);
-    const effective = selectedAccountTypes?.length
-      ? active.filter((account) =>
-          selectedAccountTypes.includes(account.provider),
-        )
-      : active;
-    return (
-      effective.length > 0 &&
-      effective.every(
-        (account) => account.provider === EMAIL_PROVIDER_TYPES.GMAIL,
-      )
-    );
+
+    try {
+      const connected =
+        await this.emailsService.getConnectedProviderTypes(userId);
+      const effective = selectedAccountTypes?.length
+        ? connected.filter((type) => selectedAccountTypes.includes(type))
+        : connected;
+      const useInstant =
+        effective.length > 0 &&
+        effective.every((type) => type === EMAIL_PROVIDER_TYPES.GMAIL);
+
+      this.logger.log(
+        `[SEARCH ROUTING] user=${userId} ` +
+          `connected=[${connected.join(",") || "none"}] ` +
+          `selected=[${selectedAccountTypes?.join(",") || "all"}] ` +
+          `effective=[${effective.join(",") || "none"}] ` +
+          `decision=${useInstant ? "instant" : "legacy"}`,
+      );
+      return useInstant;
+    } catch (error) {
+      this.logger.error(
+        `[SEARCH ROUTING] user=${userId} decision=legacy reason=error (falling back to legacy)`,
+        error,
+      );
+      return false;
+    }
   }
 
   @Get("search")

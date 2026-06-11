@@ -37,9 +37,9 @@ describe("EmailsController", () => {
     getPriorityExplanation: jest.fn(),
     getThreadEmails: jest.fn(),
     getPriorityCounts: jest.fn(),
-    // Default: no connected accounts → search uses the legacy path. Individual
-    // instant-search tests override this with a Gmail-only account list.
-    getConnectedAccounts: jest.fn().mockResolvedValue([]),
+    // Default: no connected providers → search uses the legacy path. Individual
+    // instant-search tests override this with a Gmail-only provider list.
+    getConnectedProviderTypes: jest.fn().mockResolvedValue([]),
   };
 
   const mockBatchScheduleService = {
@@ -1002,15 +1002,7 @@ describe("EmailsController", () => {
     it("should use the instant path (not the legacy service) when the user is Gmail-only", async () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
-      mockEmailsService.getConnectedAccounts.mockResolvedValue([
-        {
-          id: "a1",
-          email: "a@gmail.com",
-          provider: "gmail",
-          isPrimary: true,
-          isActive: true,
-        },
-      ]);
+      mockEmailsService.getConnectedProviderTypes.mockResolvedValue(["gmail"]);
       (gmailProvider.searchEmailsMetadataOnly as jest.Mock).mockResolvedValue([
         { messageId: "m1", threadId: "t1", subject: "Hi", from: "a@gmail.com" },
       ]);
@@ -1036,21 +1028,9 @@ describe("EmailsController", () => {
 
     it("should use the legacy path when the user has a non-Gmail provider (mixed accounts)", async () => {
       const mockRequest = { user: { userId: "user-123" } };
-      mockEmailsService.getConnectedAccounts.mockResolvedValue([
-        {
-          id: "a1",
-          email: "a@gmail.com",
-          provider: "gmail",
-          isPrimary: true,
-          isActive: true,
-        },
-        {
-          id: "a2",
-          email: "b@outlook.com",
-          provider: "office365",
-          isPrimary: false,
-          isActive: true,
-        },
+      mockEmailsService.getConnectedProviderTypes.mockResolvedValue([
+        "gmail",
+        "office365",
       ]);
       mockEmailsService.searchEmails.mockResolvedValue([
         { id: "1", subject: "Test" },
@@ -1070,15 +1050,7 @@ describe("EmailsController", () => {
 
     it("should honour INSTANT_SEARCH_ENABLED=false as a kill switch even for Gmail-only users", async () => {
       const mockRequest = { user: { userId: "user-123" } };
-      mockEmailsService.getConnectedAccounts.mockResolvedValue([
-        {
-          id: "a1",
-          email: "a@gmail.com",
-          provider: "gmail",
-          isPrimary: true,
-          isActive: true,
-        },
-      ]);
+      mockEmailsService.getConnectedProviderTypes.mockResolvedValue(["gmail"]);
       mockEmailsService.searchEmails.mockResolvedValue([]);
       const previous = process.env.INSTANT_SEARCH_ENABLED;
       process.env.INSTANT_SEARCH_ENABLED = "false";

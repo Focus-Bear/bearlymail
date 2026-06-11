@@ -1,6 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { In } from "typeorm";
 
+import {
+  EMAIL_PROVIDER_TYPES,
+  type EmailProviderType,
+} from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -116,6 +120,36 @@ export class EmailsService {
   > {
     return this.emailServiceDeps.emailStatusService.getConnectedAccounts(
       userId,
+    );
+  }
+
+  /**
+   * Provider types ("gmail" | "office365" | "zoho") the user actually searches
+   * across — resolved via the same EmailProviderManager source the search uses
+   * (provider.isConnected), NOT the google_accounts/office365_accounts tables.
+   *
+   * Routing decisions (e.g. instant vs legacy search) must use this so they
+   * agree with what the search actually queries. The account tables can disagree
+   * with isConnected for SSO-login / token-only connections.
+   */
+  async getConnectedProviderTypes(userId: string): Promise<string[]> {
+    const providerTypes = [
+      EMAIL_PROVIDER_TYPES.GMAIL,
+      EMAIL_PROVIDER_TYPES.OFFICE365,
+      EMAIL_PROVIDER_TYPES.ZOHO,
+    ];
+    const results = await Promise.all(
+      providerTypes.map(async (type) => {
+        const provider =
+          await this.emailServiceDeps.emailProviderManager.getProvider(
+            userId,
+            type,
+          );
+        return provider ? type : null;
+      }),
+    );
+    return results.filter(
+      (type): type is EmailProviderType => type !== null,
     );
   }
 

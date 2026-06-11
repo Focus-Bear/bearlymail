@@ -1,4 +1,4 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 import { UsersService } from "../users/users.service";
@@ -334,11 +334,9 @@ describe("LLMCoreService", () => {
         service.generateText(baseRequest, LLMProvider.ANTHROPIC),
       ).rejects.toBeInstanceOf(UnauthorizedException);
 
-      // Documents current behaviour: `retryOperation` wraps the Anthropic
-      // call, so a 401 is retried 3 times before being surfaced. This is
-      // wasteful — auth errors are permanent — but optimising it is a
-      // service-side change that belongs in a separate PR.
-      expect(mockAnthropicMessagesCreate).toHaveBeenCalledTimes(3);
+      // 401 is permanent — retrying can never fix it, so the upstream call
+      // fires exactly once before bubbling up.
+      expect(mockAnthropicMessagesCreate).toHaveBeenCalledTimes(1);
       expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
       expect(mockOpenAIChatCreate).not.toHaveBeenCalled();
     });
@@ -379,6 +377,120 @@ describe("LLMCoreService", () => {
       expect(out).toBe("from-gemini");
       expect(mockOpenAIChatCreate).toHaveBeenCalledTimes(3);
       expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Gemini billing 429 handling", () => {
+    function billingError() {
+      return Object.assign(
+        new Error(
+          "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent: [429 Too Many Requests] Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing.",
+        ),
+        { status: 429 },
+      );
+    }
+
+    it("skips retries on a Gemini billing 429 and falls back to OpenAI immediately", async () => {
+      mockGeminiGenerateContent.mockRejectedValue(billingError());
+      mockOpenAIChatCreate.mockResolvedValue({
+        choices: [{ message: { content: "from-openai" } }],
+        usage: undefined,
+      });
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      const out = await service.generateText(baseRequest, LLMProvider.GEMINI);
+
+      expect(out).toBe("from-openai");
+      // No retry storm: one Gemini call, one OpenAI fallback. Previously this
+      // would have been 3 Gemini calls before falling back.
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+      expect(mockOpenAIChatCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens the circuit breaker after a billing 429 so subsequent calls skip Gemini entirely", async () => {
+      mockGeminiGenerateContent.mockRejectedValueOnce(billingError());
+      mockOpenAIChatCreate.mockResolvedValue({
+        choices: [{ message: { content: "from-openai" } }],
+        usage: undefined,
+      });
+      const warnSpy = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
+      const errorSpy = jest
+        .spyOn(Logger.prototype, "error")
+        .mockImplementation(() => undefined);
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      await service.generateText(baseRequest, LLMProvider.GEMINI);
+      await service.generateText(baseRequest, LLMProvider.GEMINI);
+      await service.generateText(baseRequest, LLMProvider.GEMINI);
+
+      // First call hits Gemini once (billing 429), the next two short-circuit
+      // before ever touching the SDK — all three resolve via OpenAI.
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+      expect(mockOpenAIChatCreate).toHaveBeenCalledTimes(3);
+
+      // Only one "opening circuit" WARN across all three calls — concurrent
+      // callers must not each log the trip event.
+      const openingWarns = warnSpy.mock.calls.filter(([msg]) =>
+        typeof msg === "string" ? msg.includes("opening circuit") : false,
+      );
+      expect(openingWarns).toHaveLength(1);
+
+      // Bypass calls (after the trip) must NOT emit ERROR logs — the whole
+      // point of bypassing instead of throwing is to keep logs clean during
+      // a billing outage. The first call's outer "Error generating text with
+      // gemini" log is expected; calls 2 and 3 must not add to it.
+      const geminiErrorLogs = errorSpy.mock.calls.filter(([msg]) =>
+        typeof msg === "string"
+          ? msg.includes("Error generating text with gemini")
+          : false,
+      );
+      expect(geminiErrorLogs).toHaveLength(1);
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it("closes the circuit breaker after the cooldown window elapses", async () => {
+      const FIVE_MINUTES_MS = 5 * 60 * 1000;
+      const t0 = 1_000_000_000;
+      const dateSpy = jest.spyOn(Date, "now").mockReturnValue(t0);
+      mockGeminiGenerateContent
+        .mockRejectedValueOnce(billingError())
+        .mockResolvedValueOnce({
+          response: {
+            text: () => "from-gemini-again",
+            usageMetadata: undefined,
+          },
+        });
+      mockOpenAIChatCreate.mockResolvedValue({
+        choices: [{ message: { content: "from-openai" } }],
+        usage: undefined,
+      });
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      // First call trips the breaker at t0; fallback to OpenAI.
+      await service.generateText(baseRequest, LLMProvider.GEMINI);
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+
+      // Advance past the cooldown window; Gemini should be tried again.
+      dateSpy.mockReturnValue(t0 + FIVE_MINUTES_MS + 1);
+      const out = await service.generateText(baseRequest, LLMProvider.GEMINI);
+
+      expect(out).toBe("from-gemini-again");
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(2);
+
+      dateSpy.mockRestore();
     });
   });
 

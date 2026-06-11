@@ -28,6 +28,36 @@ import { TokenUsageService } from "./token-usage.service";
 
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
+const HTTP_TOO_MANY_REQUESTS = 429;
+
+/**
+ * Gemini returns 429 for two different conditions: a real per-minute quota
+ * exceed (retryable), and prepayment credit depletion (NOT retryable — only
+ * a billing top-up fixes it). The message text is the only way to tell them
+ * apart from the SDK error.
+ */
+function isGeminiBillingError(error: unknown): boolean {
+  const status = (error as { status?: number } | null)?.status;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    status === HTTP_TOO_MANY_REQUESTS && /prepayment credits/i.test(message)
+  );
+}
+
+/**
+ * Errors that retries can never fix — short-circuit `retryOperation` so we
+ * fall through to the provider fallback on the first failure instead of
+ * burning two extra upstream calls per request.
+ *  - 401/403: invalid/expired API key.
+ *  - UnauthorizedException: the Anthropic path's wrapped form of the above.
+ *  - Gemini billing 429: see `isGeminiBillingError`.
+ */
+function isPermanentLLMError(error: unknown): boolean {
+  if (error instanceof UnauthorizedException) return true;
+  const status = (error as { status?: number } | null)?.status;
+  if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) return true;
+  return isGeminiBillingError(error);
+}
 
 /** Parameters for a single provider-agnostic tool-calling step. */
 export interface ToolChatParams {
@@ -44,6 +74,12 @@ export interface ToolChatParams {
   signal?: AbortSignal;
 }
 
+/**
+ * How long to skip Gemini after we see a billing-depletion 429. Calls during
+ * this window fail fast and fall back to OpenAI without ever hitting Google.
+ */
+const GEMINI_BILLING_CIRCUIT_MS = 5 * MILLISECONDS.MINUTE;
+
 @Injectable()
 export class LLMCoreService {
   private readonly logger = new Logger(LLMCoreService.name);
@@ -51,6 +87,11 @@ export class LLMCoreService {
   private openaiClient: OpenAI | null = null;
   private anthropicClient: Anthropic | null = null;
   private defaultProvider: LLMProvider;
+  /**
+   * Epoch ms after which Gemini calls are allowed again. 0 = circuit closed.
+   * Per-process state (web and worker each maintain their own breaker).
+   */
+  private geminiBillingCircuitOpenUntil = 0;
 
   constructor(
     private configService: ConfigService,
@@ -161,6 +202,9 @@ export class LLMCoreService {
       try {
         return await operation();
       } catch (error) {
+        // Auth and billing failures are permanent — retrying just multiplies
+        // upstream cost. Bail immediately so the outer fallback can take over.
+        if (isPermanentLLMError(error)) throw error;
         if (i === maxRetries - 1) throw error;
         const delay =
           Math.pow(2, i) * MILLISECONDS.SECOND +
@@ -176,6 +220,22 @@ export class LLMCoreService {
     throw new Error("Max retries exceeded");
   }
 
+  private isGeminiCircuitOpen(): boolean {
+    return Date.now() < this.geminiBillingCircuitOpenUntil;
+  }
+
+  private tripGeminiBillingCircuit(): void {
+    // Multiple in-flight calls can all see the billing 429 at once. Only the
+    // first one to trip logs — the rest would just be log spam.
+    const wasOpen = this.isGeminiCircuitOpen();
+    this.geminiBillingCircuitOpenUntil = Date.now() + GEMINI_BILLING_CIRCUIT_MS;
+    if (!wasOpen) {
+      this.logger.warn(
+        `Gemini billing 429 (prepayment credits depleted) — opening circuit for ${GEMINI_BILLING_CIRCUIT_MS / MILLISECONDS.MINUTE} minutes; falling back to OpenAI in the meantime.`,
+      );
+    }
+  }
+
   private async generateWithGemini(
     request: LLMRequest,
     userId?: string,
@@ -183,6 +243,14 @@ export class LLMCoreService {
     // Note: Gemini doesn't support user-specific API keys, always uses system key
     if (!this.geminiClient) {
       throw new Error("Gemini client not initialized");
+    }
+    // Circuit breaker: after a billing 429, skip Gemini entirely for a window
+    // so we don't keep hammering a paywall. Bypass straight to OpenAI rather
+    // than throwing — throwing would emit a noisy ERROR-with-stack-trace log
+    // per request via the outer `generateText` catch, for the whole window.
+    // Strip `request.model` because it may name a Gemini-specific model.
+    if (this.isGeminiCircuitOpen()) {
+      return this.generateWithOpenAI({ ...request, model: undefined }, userId);
     }
 
     const modelName =
@@ -203,14 +271,25 @@ export class LLMCoreService {
           : {}),
       });
 
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: request.prompt }] }],
-        generationConfig: {
-          temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
-          maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-          ...(request.jsonMode && { responseMimeType: "application/json" }),
-        },
-      });
+      let result: Awaited<ReturnType<typeof model.generateContent>>;
+      try {
+        result = await model.generateContent({
+          contents: [{ role: "user", parts: [{ text: request.prompt }] }],
+          generationConfig: {
+            temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+            maxOutputTokens:
+              request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+            ...(request.jsonMode && { responseMimeType: "application/json" }),
+          },
+        });
+      } catch (error) {
+        // Trip the circuit breaker the moment we see a billing 429 so any
+        // calls already queued behind us skip Gemini and fall back to OpenAI.
+        if (isGeminiBillingError(error)) {
+          this.tripGeminiBillingCircuit();
+        }
+        throw error;
+      }
 
       const durationMs = Date.now() - startTime;
       const { response } = result;

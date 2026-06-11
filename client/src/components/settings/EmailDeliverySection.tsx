@@ -42,6 +42,7 @@ interface EmailDeliverySectionProps {
   onFetchData: () => Promise<void>;
   onBatchScheduleChange: (schedule: BatchSchedule) => void;
   onNewDeliveryTimeChange: (time: string) => void;
+  onSaveBatchSchedule: (schedule: BatchSchedule) => Promise<boolean>;
   onUnblockSender: (id: string) => Promise<void>;
   onUnblockKeyword: (id: string) => Promise<void>;
   onAddKeyword: (keyword: string, exactMatch: boolean, reason?: string) => Promise<void>;
@@ -58,6 +59,7 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
   onFetchData,
   onBatchScheduleChange,
   onNewDeliveryTimeChange,
+  onSaveBatchSchedule,
   onUnblockSender,
   onUnblockKeyword,
   onAddKeyword,
@@ -87,6 +89,7 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
         newDeliveryTime={newDeliveryTime}
         onBatchScheduleChange={onBatchScheduleChange}
         onNewDeliveryTimeChange={onNewDeliveryTimeChange}
+        onSaveBatchSchedule={onSaveBatchSchedule}
       />
       <BlockedSendersSection blockedSenders={blockedSenders} onUnblockSender={onUnblockSender} />
       <BlockedKeywordsSection

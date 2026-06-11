@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
+import { ConfirmModal } from 'components/ConfirmModal';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { AccountDeletionSection } from 'components/settings/AccountDeletionSection';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
@@ -27,14 +29,17 @@ import { useAutoResponder } from 'hooks/useAutoResponder';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useSidebarState } from 'hooks/useSidebarState';
+import { useUnsavedChangesGuard } from 'hooks/useUnsavedChangesGuard';
 
 const GITHUB_CALLBACK_CONNECTED = 'connected';
 const GITHUB_CALLBACK_ERROR = 'error';
 const AUTO_ANALYZE_QUERY_VALUE = 'true';
 
 const Settings: React.FC = () => {
+  const { t } = useTranslation();
   const { user, logout, refreshUser } = useAuth();
   const settingsData = useSettingsData();
+  const unsavedChangesGuard = useUnsavedChangesGuard(settingsData.isBatchScheduleDirty);
   const autoResponder = useAutoResponder();
   const hasTriggeredAutoAnalyze = useRef(false);
   const { isMobile, isTablet } = useResponsiveBreakpoints();
@@ -159,6 +164,16 @@ const Settings: React.FC = () => {
           onDismiss={settingsData.dismissAnalyzeProgress}
         />
 
+        <ConfirmModal
+          isOpen={unsavedChangesGuard.pendingPath !== null}
+          title={t('settings.unsavedChanges.title')}
+          message={t('settings.unsavedChanges.message')}
+          confirmLabel={t('settings.unsavedChanges.leave')}
+          cancelLabel={t('settings.unsavedChanges.stay')}
+          onConfirm={unsavedChangesGuard.confirmNavigation}
+          onCancel={unsavedChangesGuard.cancelNavigation}
+        />
+
         <SettingsHeader />
 
         <EmailDeliverySection
@@ -172,6 +187,7 @@ const Settings: React.FC = () => {
           onFetchData={settingsData.fetchData}
           onBatchScheduleChange={settingsData.setBatchSchedule}
           onNewDeliveryTimeChange={settingsData.setNewDeliveryTime}
+          onSaveBatchSchedule={settingsData.updateBatchSchedule}
           onUnblockSender={settingsData.handleUnblockSender}
           onUnblockKeyword={settingsData.handleUnblockKeyword}
           onAddKeyword={settingsData.handleAddKeyword}

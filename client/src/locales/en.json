@@ -754,6 +754,12 @@
     "batchHoursUpdated": "Batch hours updated successfully",
     "batchScheduleUpdated": "Batch schedule updated successfully",
     "batchScheduleError": "Failed to update batch schedule",
+    "unsavedChanges": {
+      "title": "Unsaved changes",
+      "message": "You have unsaved changes to your email delivery schedule. If you leave now, they will be lost.",
+      "leave": "Leave without saving",
+      "stay": "Keep editing"
+    },
     "batchHoursError": "Failed to update batch hours",
     "toneRulesError": "Failed to update tone rules",
     "enterApiKey": "Please enter an OpenAI API key",
@@ -4058,7 +4064,8 @@
     "noData": "No email data available for this period.",
     "noReplyData": "-",
     "periodDays_one": "{{count}}d",
-    "periodDays_other": "{{count}}d"
+    "periodDays_other": "{{count}}d",
+    "dateRangeLabel": "Selected date range"
   },
   "errorBoundary": {
     "title": "Oops! Something went wrong",

@@ -3265,6 +3265,12 @@
     "batchHoursUpdated": "Horas de lote actualizadas exitosamente",
     "batchScheduleError": "Error al actualizar el horario de lotes",
     "batchScheduleUpdated": "Horario de lotes actualizado correctamente",
+    "unsavedChanges": {
+      "title": "Cambios sin guardar",
+      "message": "Tienes cambios sin guardar en tu horario de entrega de correos. Si sales ahora, se perderán.",
+      "leave": "Salir sin guardar",
+      "stay": "Seguir editando"
+    },
     "blockedKeywords": {
       "addKeyword": "Agregar palabra clave",
       "blocked": "Obstruido",
@@ -4061,7 +4067,8 @@
     "noData": "No hay datos de correos disponibles para este período.",
     "noReplyData": "-",
     "periodDays_one": "{{count}}d",
-    "periodDays_other": "{{count}}d"
+    "periodDays_other": "{{count}}d",
+    "dateRangeLabel": "Rango de fechas seleccionado"
   },
   "errorBoundary": {
     "title": "¡Vaya! Algo salió mal",

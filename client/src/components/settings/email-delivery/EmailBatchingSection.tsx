@@ -1,11 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import { theme } from 'theme/theme';
 
 import { DeliveryDaysSelector } from 'components/settings/email-delivery/DeliveryDaysSelector';
 import { DeliveryTimesManager } from 'components/settings/email-delivery/DeliveryTimesManager';
-import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
@@ -86,6 +84,7 @@ interface EmailBatchingSectionProps {
   newDeliveryTime: string;
   onBatchScheduleChange: (schedule: BatchSchedule) => void;
   onNewDeliveryTimeChange: (time: string) => void;
+  onSaveBatchSchedule: (schedule: BatchSchedule) => Promise<boolean>;
 }
 
 export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
@@ -93,15 +92,15 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
   newDeliveryTime,
   onBatchScheduleChange,
   onNewDeliveryTimeChange,
+  onSaveBatchSchedule,
 }) => {
   const { t } = useTranslation();
 
   const handleUpdateBatchSchedule = async () => {
-    try {
-      await axios.put(`${API_URL}/batch-schedule`, batchSchedule);
+    const saved = await onSaveBatchSchedule(batchSchedule);
+    if (saved) {
       alert(t('settings.batchScheduleUpdated') || 'Delivery schedule updated!');
-    } catch (error) {
-      console.error('Error updating batch schedule:', error);
+    } else {
       alert(t('settings.batchScheduleError') || 'Failed to update delivery schedule');
     }
   };

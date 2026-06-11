@@ -181,10 +181,13 @@ const DailyChart: React.FC<{
   const maxCount = Math.max(...dailyCounts.map(day => day.total), 1);
   const CHART_HEIGHT = 160;
   const BAR_GAP = 2;
+  const TARGET_LABEL_COUNT = 10;
   const barWidth =
     dailyCounts.length > 0
       ? Math.max(2, Math.min(MONTHS_IN_YEAR, Math.floor(CHART_BAR_MAX_WIDTH / dailyCounts.length) - BAR_GAP))
       : 8;
+  const showEveryLabel = dailyCounts.length <= DAYS_IN_MONTH_MAX;
+  const labelStep = showEveryLabel ? 1 : Math.ceil(dailyCounts.length / TARGET_LABEL_COUNT);
 
   return (
     <div
@@ -197,7 +200,7 @@ const DailyChart: React.FC<{
         paddingBottom: theme.spacing.md,
       }}
     >
-      {dailyCounts.map(day => {
+      {dailyCounts.map((day, index) => {
         const barHeight = Math.max(2, (day.total / maxCount) * (CHART_HEIGHT - CHART_BAR_HEIGHT_OFFSET));
         const dateObj = new Date(day.date);
         const label = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
@@ -211,6 +214,7 @@ const DailyChart: React.FC<{
               flexDirection: 'column',
               alignItems: 'center',
               flexShrink: 0,
+              position: 'relative',
             }}
           >
             <div
@@ -222,13 +226,29 @@ const DailyChart: React.FC<{
                 transition: theme.transitions.default,
               }}
             />
-            {dailyCounts.length <= DAYS_IN_MONTH_MAX && (
+            {showEveryLabel && (
               <span
                 style={{
                   ...theme.typography.body.small,
                   color: theme.colors.text.tertiary,
                   marginTop: '2px',
                   whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </span>
+            )}
+            {!showEveryLabel && index % labelStep === 0 && (
+              <span
+                style={{
+                  ...theme.typography.body.small,
+                  color: theme.colors.text.tertiary,
+                  whiteSpace: 'nowrap',
+                  position: 'absolute',
+                  top: '100%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  marginTop: '2px',
                 }}
               >
                 {label}
@@ -241,6 +261,42 @@ const DailyChart: React.FC<{
   );
 };
 
+interface DateTimeFormatWithRange extends Intl.DateTimeFormat {
+  formatRange?: (startDate: Date, endDate: Date) => string;
+}
+
+/**
+ * Shows the concrete date range covered by the selected stats period,
+ * e.g. "12 Apr – 11 Jun 2026", using locale-aware formatting.
+ */
+const StatsDateRangeLabel: React.FC<{ days: number }> = ({ days }) => {
+  const { t, i18n } = useTranslation();
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - (days - 1));
+  const formatter = new Intl.DateTimeFormat(i18n.language, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }) as DateTimeFormatWithRange;
+  const rangeText = formatter.formatRange
+    ? formatter.formatRange(startDate, endDate)
+    : `${formatter.format(startDate)} – ${formatter.format(endDate)}`;
+
+  return (
+    <span
+      aria-label={t('stats.dateRangeLabel')}
+      style={{
+        ...theme.typography.body.medium,
+        color: theme.colors.text.secondary,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {rangeText}
+    </span>
+  );
+};
+
 interface StatsPeriodSelectorProps {
   days: number;
   setDays: (days: number) => void;
@@ -249,26 +305,29 @@ interface StatsPeriodSelectorProps {
 const StatsPeriodSelector: React.FC<StatsPeriodSelectorProps> = ({ days, setDays }) => {
   const { t } = useTranslation();
   return (
-    <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-      {PERIOD_OPTIONS.map(option => (
-        <button
-          key={option}
-          onClick={() => setDays(option)}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.sm,
-            border: `1px solid ${days === option ? theme.colors.primary.main : theme.colors.border.light}`,
-            backgroundColor: days === option ? theme.colors.primary.main : 'transparent',
-            color: days === option ? 'white' : theme.colors.text.secondary,
-            cursor: 'pointer',
-            ...theme.typography.body.large,
-            fontWeight: days === option ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
-            transition: theme.transitions.fast,
-          }}
-        >
-          {t('stats.periodDays', { count: option })}
-        </button>
-      ))}
+    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+      <StatsDateRangeLabel days={days} />
+      <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+        {PERIOD_OPTIONS.map(option => (
+          <button
+            key={option}
+            onClick={() => setDays(option)}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              borderRadius: theme.borderRadius.sm,
+              border: `1px solid ${days === option ? theme.colors.primary.main : theme.colors.border.light}`,
+              backgroundColor: days === option ? theme.colors.primary.main : 'transparent',
+              color: days === option ? 'white' : theme.colors.text.secondary,
+              cursor: 'pointer',
+              ...theme.typography.body.large,
+              fontWeight: days === option ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
+              transition: theme.transitions.fast,
+            }}
+          >
+            {t('stats.periodDays', { count: option })}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };

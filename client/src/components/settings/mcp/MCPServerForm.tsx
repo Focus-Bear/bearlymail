@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { MCPServerPurpose } from 'components/settings/workflows/types';
+import { MCP_AUTH_TYPES, MCPServerPurpose } from 'components/settings/workflows/types';
 
 import { MCPProviderPreset } from './mcpPresets';
 
 interface MCPServerFormProps {
   preset: MCPProviderPreset;
   onConnect: (name: string, serverUrl: string, apiKey: string | undefined, purpose: MCPServerPurpose) => Promise<void>;
+  /** Create the connection and redirect to the provider's OAuth consent screen. */
+  onStartOAuth: (name: string, serverUrl: string, purpose: MCPServerPurpose) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -33,8 +35,9 @@ const labelStyle: React.CSSProperties = {
  * Connect form for a single MCP server, pre-filled from the chosen provider
  * preset. All fields stay editable — the preset only seeds sensible defaults.
  */
-export const MCPServerForm: React.FC<MCPServerFormProps> = ({ preset, onConnect, onCancel }) => {
+export const MCPServerForm: React.FC<MCPServerFormProps> = ({ preset, onConnect, onStartOAuth, onCancel }) => {
   const { t } = useTranslation();
+  const isOAuth = preset.authType === MCP_AUTH_TYPES.OAUTH;
   const [name, setName] = useState(preset.name);
   const [serverUrl, setServerUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -50,7 +53,12 @@ export const MCPServerForm: React.FC<MCPServerFormProps> = ({ preset, onConnect,
     setSaving(true);
     setError(null);
     try {
-      await onConnect(name.trim(), serverUrl.trim(), apiKey.trim() || undefined, purpose);
+      if (isOAuth) {
+        // Resolves into a full-page redirect to the provider's consent screen.
+        await onStartOAuth(name.trim(), serverUrl.trim(), purpose);
+      } else {
+        await onConnect(name.trim(), serverUrl.trim(), apiKey.trim() || undefined, purpose);
+      }
     } catch (err) {
       setError((err as Error).message);
       setSaving(false);
@@ -126,16 +134,31 @@ export const MCPServerForm: React.FC<MCPServerFormProps> = ({ preset, onConnect,
             style={inputStyle}
           />
         </div>
-        <div>
-          <label style={labelStyle}>{t('settings.mcp.form.apiKey')}</label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={evt => setApiKey(evt.target.value)}
-            placeholder="Bearer token or API key"
-            style={inputStyle}
-          />
-        </div>
+        {isOAuth ? (
+          <div
+            style={{
+              padding: '8px 10px',
+              background: theme.colors.primary.subtle,
+              borderRadius: theme.borderRadius.sm,
+              color: theme.colors.text.secondary,
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            {t('settings.mcp.form.oauthNote')}
+          </div>
+        ) : (
+          <div>
+            <label style={labelStyle}>{t('settings.mcp.form.apiKey')}</label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={evt => setApiKey(evt.target.value)}
+              placeholder="Bearer token or API key"
+              style={inputStyle}
+            />
+          </div>
+        )}
         <div>
           <label style={labelStyle}>{t('settings.mcp.form.purpose')}</label>
           <select value={purpose} onChange={evt => setPurpose(evt.target.value as MCPServerPurpose)} style={inputStyle}>

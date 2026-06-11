@@ -1,7 +1,7 @@
 import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
-import { MCPServerPurpose } from 'components/settings/workflows/types';
+import { MCPAuthType, MCPServerPurpose } from 'components/settings/workflows/types';
 
 /**
  * Display metadata for each MCP server purpose: a human label, a one-line
@@ -33,8 +33,8 @@ export const getPurposeMeta = (
 /**
  * A one-click starting point for connecting a known third-party MCP server.
  * Selecting a preset pre-fills the connect form with a sensible name and
- * purpose plus provider-specific guidance; the user still pastes the server's
- * own endpoint URL and auth token (the server handles its own OAuth).
+ * purpose plus provider-specific guidance. OAuth presets redirect to the
+ * provider's consent screen; bearer presets take a pasted endpoint + token.
  */
 export interface MCPProviderPreset {
   /** Stable key for the preset. */
@@ -49,6 +49,11 @@ export interface MCPProviderPreset {
   tagline: string;
   /** Pre-selected purpose for this provider. */
   purpose: MCPServerPurpose;
+  /**
+   * How this provider authenticates. "oauth" runs the MCP authorization flow
+   * (redirect to consent); "bearer" uses a pasted API key / token.
+   */
+  authType: MCPAuthType;
   /** Placeholder for the Server URL field. */
   urlPlaceholder: string;
   /** Guidance shown above the form fields once the preset is chosen. */
@@ -65,6 +70,7 @@ export const getMcpProviderPresets = (translate: TFunction): MCPProviderPreset[]
     brandColor: '#1FA463',
     tagline: translate('settings.mcp.preset.googleDrive.tagline'),
     purpose: 'ask_ai',
+    authType: 'oauth',
     urlPlaceholder: 'https://your-drive-mcp.example.com/mcp',
     instructions: translate('settings.mcp.preset.googleDrive.instructions'),
   },
@@ -75,6 +81,7 @@ export const getMcpProviderPresets = (translate: TFunction): MCPProviderPreset[]
     brandColor: '#E42527',
     tagline: translate('settings.mcp.preset.zohoBigin.tagline'),
     purpose: 'sender_context',
+    authType: 'bearer',
     urlPlaceholder: 'https://your-bigin-mcp.example.com/mcp',
     instructions: translate('settings.mcp.preset.zohoBigin.instructions'),
   },
@@ -85,6 +92,7 @@ export const getMcpProviderPresets = (translate: TFunction): MCPProviderPreset[]
     brandColor: '#FF7A59',
     tagline: translate('settings.mcp.preset.hubspot.tagline'),
     purpose: 'sender_context',
+    authType: 'bearer',
     urlPlaceholder: 'https://your-hubspot-mcp.example.com/mcp',
     instructions: translate('settings.mcp.preset.hubspot.instructions'),
   },
@@ -95,6 +103,7 @@ export const getMcpProviderPresets = (translate: TFunction): MCPProviderPreset[]
     brandColor: theme.colors.text.secondary,
     tagline: translate('settings.mcp.preset.custom.tagline'),
     purpose: 'workflow',
+    authType: 'bearer',
     urlPlaceholder: 'https://api.example.com/mcp',
     instructions: translate('settings.mcp.preset.custom.instructions'),
     isCustom: true,

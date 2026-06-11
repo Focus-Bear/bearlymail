@@ -12,6 +12,7 @@ import { MCPServerForm } from './MCPServerForm';
 interface MCPServerManagerProps {
   servers: MCPServerConfig[];
   onAdd: (name: string, serverUrl: string, apiKey: string | undefined, purpose: MCPServerPurpose) => Promise<void>;
+  onStartOAuth: (name: string, serverUrl: string, purpose: MCPServerPurpose) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onRefresh: (id: string) => Promise<void>;
   onTest: (id: string) => Promise<{ ok: boolean; toolCount: number }>;
@@ -23,7 +24,14 @@ interface MCPServerManagerProps {
  *
  * Part of feature #1483 — Automated Email Workflows.
  */
-export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onAdd, onRemove, onRefresh, onTest }) => {
+export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
+  servers,
+  onAdd,
+  onStartOAuth,
+  onRemove,
+  onRefresh,
+  onTest,
+}) => {
   const { t } = useTranslation();
   const [selectedPreset, setSelectedPreset] = useState<MCPProviderPreset | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
@@ -89,6 +97,7 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onA
         <MCPServerForm
           preset={selectedPreset}
           onConnect={handleConnect}
+          onStartOAuth={onStartOAuth}
           onCancel={() => setSelectedPreset(null)}
         />
       ) : (

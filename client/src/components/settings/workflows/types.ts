@@ -79,6 +79,10 @@ export interface MCPToolDefinition {
 
 export type MCPServerPurpose = 'workflow' | 'sender_context' | 'ask_ai';
 
+export const MCP_AUTH_TYPES = { NONE: 'none', BEARER: 'bearer', OAUTH: 'oauth' } as const;
+
+export type MCPAuthType = (typeof MCP_AUTH_TYPES)[keyof typeof MCP_AUTH_TYPES];
+
 export interface MCPServerConfig {
   id: string;
   userId: string;
@@ -86,6 +90,7 @@ export interface MCPServerConfig {
   serverUrl: string;
   apiKey?: string | null;
   purpose: MCPServerPurpose;
+  authType?: MCPAuthType;
   cachedTools: MCPToolDefinition[] | null;
   toolsCachedAt: string | null;
   enabled: boolean;

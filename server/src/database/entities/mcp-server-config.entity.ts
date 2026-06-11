@@ -48,6 +48,33 @@ export type MCPServerPurpose =
   (typeof MCP_SERVER_PURPOSES)[keyof typeof MCP_SERVER_PURPOSES];
 
 /**
+ * How a connection authenticates to its MCP server.
+ * - "none"   — no auth
+ * - "bearer" — static API key / token sent as `Authorization: Bearer`
+ * - "oauth"  — MCP-native OAuth 2.0 (metadata discovery + dynamic client
+ *   registration + PKCE authorization code), with refreshable access tokens
+ */
+export const MCP_AUTH_TYPES = {
+  NONE: "none",
+  BEARER: "bearer",
+  OAUTH: "oauth",
+} as const;
+
+export type MCPAuthType = (typeof MCP_AUTH_TYPES)[keyof typeof MCP_AUTH_TYPES];
+
+/**
+ * Subset of an authorization server's discovered metadata (RFC 8414 /
+ * OpenID Connect discovery) needed to drive the OAuth flow.
+ */
+export interface MCPOAuthMetadata {
+  issuer?: string;
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
+  registrationEndpoint?: string;
+  scopesSupported?: string[];
+}
+
+/**
  * Cached decision of which tool to call (and with which argument) to look up a
  * person by email on a sender-context server. Derived once per server by the LLM
  * (see MCPSenderMappingService) and reused as a cheap deterministic call.
@@ -92,6 +119,68 @@ export class MCPServerConfig {
     transformer: encryptedColumnTransformer,
   })
   apiKey: string | null;
+
+  /** How this connection authenticates. Existing rows default to "bearer". */
+  @Column({ type: "text", default: "bearer" })
+  authType: MCPAuthType;
+
+  // ── OAuth state (only populated when authType === "oauth") ──────────────────
+
+  /** Encrypted OAuth access token used as the bearer credential. */
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+  })
+  accessToken: string | null;
+
+  /** Encrypted OAuth refresh token used to mint new access tokens. */
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+  })
+  refreshToken: string | null;
+
+  /** When the current access token expires (used to refresh proactively). */
+  @Column({ type: "timestamp", nullable: true })
+  tokenExpiresAt: Date | null;
+
+  /** Encrypted client ID issued by dynamic client registration. */
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+  })
+  oauthClientId: string | null;
+
+  /** Encrypted client secret, if the authorization server issued one. */
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+  })
+  oauthClientSecret: string | null;
+
+  /** Discovered authorization-server endpoints (public URLs, not secret). */
+  @Column({ type: "jsonb", nullable: true })
+  oauthMetadata: MCPOAuthMetadata | null;
+
+  /** Space-separated scopes requested during authorization. */
+  @Column({ type: "text", nullable: true })
+  oauthScope: string | null;
+
+  /** CSRF `state` for the in-flight authorization; cleared once exchanged. */
+  @Column({ type: "text", nullable: true })
+  oauthAuthState: string | null;
+
+  /** Encrypted PKCE verifier for the in-flight authorization; cleared once used. */
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+  })
+  oauthCodeVerifier: string | null;
 
   /**
    * Cached tool definitions from the MCP server's tools/list endpoint.

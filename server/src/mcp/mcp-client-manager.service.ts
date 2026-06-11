@@ -5,10 +5,12 @@ import { Repository } from "typeorm";
 
 import { assertSafeOutboundUrl } from "../common/url-validation.utils";
 import {
+  MCP_AUTH_TYPES,
   MCPServerConfig,
   MCPToolAnnotations,
   MCPToolDefinition,
 } from "../database/entities/mcp-server-config.entity";
+import { MCPOAuthService } from "./mcp-oauth.service";
 
 const TOOL_CALL_TIMEOUT_MS = 30_000;
 const SECONDS_PER_MINUTE = 60;
@@ -34,6 +36,7 @@ export class MCPClientManagerService {
   constructor(
     @InjectRepository(MCPServerConfig)
     private readonly configRepo: Repository<MCPServerConfig>,
+    private readonly oauthService: MCPOAuthService,
   ) {}
 
   /**
@@ -99,11 +102,20 @@ export class MCPClientManagerService {
 
   // ── Private MCP HTTP client ─────────────────────────────────────────────────
 
-  private buildHeaders(config: MCPServerConfig): Record<string, string> {
+  /**
+   * Build request headers, resolving the bearer credential from either the
+   * static API key or — for OAuth connections — a valid (auto-refreshed) token.
+   */
+  private async buildHeaders(
+    config: MCPServerConfig,
+  ): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    if (config.apiKey) {
+    if (config.authType === MCP_AUTH_TYPES.OAUTH) {
+      headers["Authorization"] =
+        `Bearer ${await this.oauthService.getValidAccessToken(config)}`;
+    } else if (config.apiKey) {
       headers["Authorization"] = `Bearer ${config.apiKey}`;
     }
     return headers;
@@ -124,7 +136,7 @@ export class MCPClientManagerService {
         params: {},
       },
       {
-        headers: this.buildHeaders(config),
+        headers: await this.buildHeaders(config),
         timeout: TOOL_CALL_TIMEOUT_MS,
       },
     );
@@ -171,7 +183,7 @@ export class MCPClientManagerService {
         },
       },
       {
-        headers: this.buildHeaders(config),
+        headers: await this.buildHeaders(config),
         timeout: TOOL_CALL_TIMEOUT_MS,
       },
     );

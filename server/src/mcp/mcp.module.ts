@@ -5,6 +5,8 @@ import { MCPSenderContextCache } from "../database/entities/mcp-sender-context-c
 import { MCPServerConfig } from "../database/entities/mcp-server-config.entity";
 import { LLMModule } from "../llm/llm.module";
 import { MCPClientManagerService } from "./mcp-client-manager.service";
+import { MCPOAuthController } from "./mcp-oauth.controller";
+import { MCPOAuthService } from "./mcp-oauth.service";
 import { MCPSenderContextService } from "./mcp-sender-context.service";
 import { MCPSenderMappingService } from "./mcp-sender-mapping.service";
 import { MCPServersController } from "./mcp-servers.controller";
@@ -23,15 +25,17 @@ import { MCPServersService } from "./mcp-servers.service";
     TypeOrmModule.forFeature([MCPServerConfig, MCPSenderContextCache]),
     LLMModule,
   ],
-  controllers: [MCPServersController],
+  controllers: [MCPOAuthController, MCPServersController],
   providers: [
     MCPClientManagerService,
+    MCPOAuthService,
     MCPServersService,
     MCPSenderMappingService,
     MCPSenderContextService,
   ],
   exports: [
     MCPClientManagerService,
+    MCPOAuthService,
     MCPServersService,
     MCPSenderContextService,
   ],

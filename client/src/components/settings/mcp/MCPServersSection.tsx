@@ -8,6 +8,9 @@ import { API_URL } from 'config/api';
 
 import { MCPServerManager } from './MCPServerManager';
 
+/** Value of the `?mcpConnected` redirect param when authorization succeeded. */
+const OAUTH_RESULT_SUCCESS = 'success';
+
 /**
  * Standalone settings card for connecting third-party apps over MCP. Kept
  * separate from the Workflows card so connections are managed in one place and
@@ -20,6 +23,7 @@ export const MCPServersSection: React.FC = () => {
   const [servers, setServers] = useState<MCPServerConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   const loadServers = useCallback(async () => {
     setLoading(true);
@@ -38,6 +42,31 @@ export const MCPServersSection: React.FC = () => {
     void loadServers();
   }, [loadServers]);
 
+  // Surface the result of the OAuth redirect (?mcpConnected=success|error),
+  // then strip the param so a refresh doesn't re-show the banner.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('mcpConnected');
+    if (!result) {
+      return;
+    }
+    setNotice(
+      result === OAUTH_RESULT_SUCCESS
+        ? { ok: true, text: t('settings.mcp.section.connectedSuccess') }
+        : { ok: false, text: t('settings.mcp.section.connectedError') }
+    );
+    if (result === OAUTH_RESULT_SUCCESS) {
+      void loadServers();
+    }
+    params.delete('mcpConnected');
+    const query = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+    );
+  }, [t, loadServers]);
+
   const handleAdd = async (
     name: string,
     serverUrl: string,
@@ -46,6 +75,28 @@ export const MCPServersSection: React.FC = () => {
   ) => {
     await axios.post(`${API_URL}/mcp-servers`, { name, serverUrl, apiKey, purpose });
     await loadServers();
+  };
+
+  // OAuth providers: create the connection, then redirect to the provider's
+  // consent screen. The browser returns to this page via the callback above.
+  const handleStartOAuth = async (name: string, serverUrl: string, purpose: MCPServerPurpose) => {
+    const created = await axios.post<MCPServerConfig>(`${API_URL}/mcp-servers`, {
+      name,
+      serverUrl,
+      purpose,
+      authType: 'oauth',
+    });
+    try {
+      const { data } = await axios.get<{ authorizationUrl: string }>(
+        `${API_URL}/mcp-servers/${created.data.id}/oauth/start`
+      );
+      window.location.href = data.authorizationUrl;
+    } catch (err) {
+      // Authorization couldn't start (e.g. the server doesn't support OAuth) —
+      // remove the half-created connection so it doesn't linger unauthorized.
+      await axios.delete(`${API_URL}/mcp-servers/${created.data.id}`).catch(() => undefined);
+      throw err;
+    }
   };
 
   const handleRemove = async (id: string) => {
@@ -89,6 +140,21 @@ export const MCPServersSection: React.FC = () => {
         </p>
       </div>
 
+      {notice && (
+        <div
+          style={{
+            padding: '8px 12px',
+            background: notice.ok ? theme.colors.success.light : theme.colors.error.light,
+            borderRadius: theme.borderRadius.sm,
+            color: notice.ok ? theme.colors.success.main : theme.colors.error.dark,
+            fontSize: 13,
+            marginBottom: theme.spacing.md,
+          }}
+        >
+          {notice.text}
+        </div>
+      )}
+
       {error && (
         <div
           style={{
@@ -110,6 +176,7 @@ export const MCPServersSection: React.FC = () => {
         <MCPServerManager
           servers={servers}
           onAdd={handleAdd}
+          onStartOAuth={handleStartOAuth}
           onRemove={handleRemove}
           onRefresh={handleRefresh}
           onTest={handleTest}

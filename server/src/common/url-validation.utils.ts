@@ -29,8 +29,8 @@ const PRIVATE_HOST_RE =
  *
  * @param raw   - The raw URL string to validate.
  * @param label - A short description used in error messages (e.g. "webhook URL").
- * @throws {Error} if the URL is malformed, uses a non-HTTPS scheme, or targets
- *                 a private/loopback address.
+ * @throws {Error} if the URL is malformed, uses a non-HTTPS scheme, contains
+ *                 userinfo (`user:pass@host`), or targets a private/loopback host.
  */
 export function assertSafeOutboundUrl(raw: string, label: string): void {
   let parsed: URL;
@@ -43,6 +43,15 @@ export function assertSafeOutboundUrl(raw: string, label: string): void {
   if (parsed.protocol !== "https:") {
     throw new Error(
       `${label}: only https:// URLs are allowed (got "${parsed.protocol}")`,
+    );
+  }
+
+  // Reject userinfo (e.g. `https://accounts.google.com@evil.com/`). The actual
+  // host is `evil.com`, but the leading segment can be used to phish users who
+  // glance at the URL bar before redirect resolves.
+  if (parsed.username !== "" || parsed.password !== "") {
+    throw new Error(
+      `${label}: URLs with userinfo (user:pass@host) are not allowed`,
     );
   }
 

@@ -1466,7 +1466,7 @@
       "preset": {
         "googleDrive": {
           "tagline": "Let the assistant search & read your Drive files",
-          "instructions": "Connect a Google Drive MCP server so Ask AI can look things up in your files. The server must complete Google OAuth itself — paste its endpoint URL and access token below."
+          "instructions": "Connect your Google Drive so Ask AI can search and read your files. You'll be redirected to Google to sign in and approve access — no token to paste. Enter your Google Drive MCP server's URL below to begin."
         },
         "zohoBigin": {
           "tagline": "Show CRM details about the email sender",
@@ -1499,7 +1499,8 @@
         "purpose": "Purpose",
         "purposeWorkflow": "Workflow actions",
         "purposeSenderContext": "Sender context (look up the email sender)",
-        "purposeAskAi": "Ask AI (let the assistant use this tool)"
+        "purposeAskAi": "Ask AI (let the assistant use this tool)",
+        "oauthNote": "You'll be redirected to sign in and authorize access — no API key needed."
       },
       "connect": "Connect",
       "connecting": "Connecting…",
@@ -1520,7 +1521,9 @@
         "loadError": "Failed to load connected apps. Please refresh.",
         "refreshError": "Failed to refresh tools. Please try again.",
         "removeError": "Failed to remove the connected app. Please try again.",
-        "loading": "Loading connected apps…"
+        "loading": "Loading connected apps…",
+        "connectedSuccess": "App connected.",
+        "connectedError": "Couldn't finish connecting. Please check the server URL and try again."
       }
     }
   },

@@ -3973,7 +3973,7 @@
       "preset": {
         "googleDrive": {
           "tagline": "Permite que el asistente busque y lea tus archivos de Drive",
-          "instructions": "Conecta un servidor MCP de Google Drive para que Preguntar a la IA pueda buscar en tus archivos. El servidor debe completar el OAuth de Google por sí mismo: pega su URL de endpoint y token de acceso abajo."
+          "instructions": "Conecta tu Google Drive para que Preguntar a la IA pueda buscar y leer tus archivos. Se te redirigirá a Google para iniciar sesión y aprobar el acceso, sin pegar ningún token. Introduce abajo la URL del servidor MCP de tu Google Drive para empezar."
         },
         "zohoBigin": {
           "tagline": "Muestra detalles del CRM sobre el remitente del correo",
@@ -4006,7 +4006,8 @@
         "purpose": "Propósito",
         "purposeWorkflow": "Acciones de flujo de trabajo",
         "purposeSenderContext": "Contexto del remitente (buscar el remitente del correo)",
-        "purposeAskAi": "Preguntar a la IA (deja que el asistente use esta herramienta)"
+        "purposeAskAi": "Preguntar a la IA (deja que el asistente use esta herramienta)",
+        "oauthNote": "Se te redirigirá para iniciar sesión y autorizar el acceso, sin necesidad de clave de API."
       },
       "connect": "Conectar",
       "connecting": "Conectando…",
@@ -4027,7 +4028,9 @@
         "loadError": "No se pudieron cargar las apps conectadas. Actualiza la página.",
         "refreshError": "No se pudieron actualizar las herramientas. Inténtalo de nuevo.",
         "removeError": "No se pudo eliminar la app conectada. Inténtalo de nuevo.",
-        "loading": "Cargando apps conectadas…"
+        "loading": "Cargando apps conectadas…",
+        "connectedSuccess": "App conectada.",
+        "connectedError": "No se pudo completar la conexión. Comprueba la URL del servidor e inténtalo de nuevo."
       }
     }
   },

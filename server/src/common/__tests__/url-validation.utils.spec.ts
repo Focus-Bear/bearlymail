@@ -91,6 +91,26 @@ describe("assertSafeOutboundUrl", () => {
     });
   });
 
+  describe("userinfo injection — should throw (phishing protection)", () => {
+    it("rejects URLs with a username", () => {
+      expect(() =>
+        assertSafeOutboundUrl(
+          "https://accounts.google.com@evil.com/auth",
+          "OAuth endpoint",
+        ),
+      ).toThrow("userinfo");
+    });
+
+    it("rejects URLs with username and password", () => {
+      expect(() =>
+        assertSafeOutboundUrl(
+          "https://user:pass@evil.com/auth",
+          "OAuth endpoint",
+        ),
+      ).toThrow("userinfo");
+    });
+  });
+
   describe("invalid URL — should throw", () => {
     it("rejects non-URL strings", () => {
       expect(() => assertSafeOutboundUrl("not-a-url", "webhook URL")).toThrow(

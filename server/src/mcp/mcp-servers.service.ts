@@ -3,7 +3,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import {
+  MCP_AUTH_TYPES,
   MCP_SERVER_PURPOSES,
+  MCPAuthType,
   MCPServerConfig,
   MCPServerPurpose,
 } from "../database/entities/mcp-server-config.entity";
@@ -15,6 +17,7 @@ export interface CreateMCPServerDto {
   serverUrl: string;
   apiKey?: string;
   purpose?: MCPServerPurpose;
+  authType?: MCPAuthType;
 }
 
 export interface UpdateMCPServerDto {
@@ -58,14 +61,22 @@ export class MCPServersService {
     userId: string,
     dto: CreateMCPServerDto,
   ): Promise<MCPServerConfig> {
+    const authType = dto.authType ?? MCP_AUTH_TYPES.BEARER;
     const config = this.configRepo.create({
       userId,
       name: dto.name,
       serverUrl: dto.serverUrl,
       apiKey: dto.apiKey ?? null,
       purpose: dto.purpose ?? MCP_SERVER_PURPOSES.WORKFLOW,
+      authType,
     });
     const saved = await this.configRepo.save(config);
+
+    // OAuth connections aren't usable until the user completes authorization,
+    // so skip eager tool fetch / mapping derivation until tokens exist.
+    if (authType === MCP_AUTH_TYPES.OAUTH) {
+      return saved;
+    }
 
     // Eagerly fetch tool list so UI can show tools immediately
     try {
@@ -84,6 +95,24 @@ export class MCPServersService {
     return this.configRepo.findOne({
       where: { id: saved.id },
     }) as Promise<MCPServerConfig>;
+  }
+
+  /**
+   * After OAuth completes, fetch tools and derive sender mapping so the
+   * connection is immediately usable. Best-effort: never throws.
+   */
+  async onOAuthConnected(serverId: string, userId: string): Promise<void> {
+    try {
+      await this.mcpClientManager.getTools(serverId, true);
+    } catch (err) {
+      this.logger.warn(
+        `Could not fetch tools after OAuth for ${serverId}: ${(err as Error).message}`,
+      );
+    }
+    const config = await this.configRepo.findOne({ where: { id: serverId } });
+    if (config?.purpose === MCP_SERVER_PURPOSES.SENDER_CONTEXT) {
+      await this.deriveSenderMappingSafely(serverId, userId);
+    }
   }
 
   /** Derive the sender-lookup mapping without letting a failure break the request. */

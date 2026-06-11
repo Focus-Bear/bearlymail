@@ -8,7 +8,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { EmailExportService } from "./email-export.service";
+import { EmailExportService, MAX_EXPORT_EMAILS } from "./email-export.service";
 
 const makeThread = (overrides: Partial<EmailThread> = {}): EmailThread =>
   ({
@@ -460,6 +460,64 @@ describe("EmailExportService", () => {
       await service.exportEmails("user-1", "securepassword");
 
       expect(mockUserContextRepository.find).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("streamExportableRecords", () => {
+    it("yields one record per email without accumulating", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ subject: "A" }),
+        makeEmail({ subject: "B" }),
+      ]);
+
+      const out: string[] = [];
+      for await (const record of service.streamExportableRecords("user-1")) {
+        out.push(record.subject);
+      }
+
+      expect(out).toEqual(["A", "B"]);
+    });
+
+    it("caps at the most recent MAX_EXPORT_EMAILS messages", async () => {
+      mockEmailRepository.find.mockResolvedValue([]);
+
+      // Drain the generator so the query runs.
+
+      for await (const _ of service.streamExportableRecords("user-1")) {
+        // no-op
+      }
+
+      expect(mockEmailRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: MAX_EXPORT_EMAILS,
+          order: { receivedAt: "DESC" },
+        }),
+      );
+    });
+  });
+
+  describe("buildEncryptedZipStream", () => {
+    it("streams a non-empty encrypted zip and counts the records", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ subject: "A" }),
+        makeEmail({ subject: "B" }),
+      ]);
+
+      const { archive, recordCount } = service.buildEncryptedZipStream(
+        "user-1",
+        "securepassword",
+      );
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of archive) {
+        chunks.push(chunk as Buffer);
+      }
+      const zip = Buffer.concat(chunks);
+
+      // PK ZIP local-file-header magic — proves a real archive was produced.
+      expect(zip.subarray(0, 2).toString("latin1")).toBe("PK");
+      expect(zip.length).toBeGreaterThan(0);
+      expect(recordCount()).toBe(2);
     });
   });
 });

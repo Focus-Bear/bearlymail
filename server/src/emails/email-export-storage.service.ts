@@ -2,10 +2,11 @@ import { Injectable, Logger } from "@nestjs/common";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
-  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Readable } from "stream";
 
 /** How long (seconds) a presigned download URL stays valid. */
 const PRESIGN_GET_EXPIRY_SECONDS = 300;
@@ -42,20 +43,40 @@ export class EmailExportStorageService {
     return this.bucket.length > 0;
   }
 
-  async upload(key: string, body: Buffer): Promise<void> {
+  /**
+   * Streams `body` to S3 via a multipart upload (`@aws-sdk/lib-storage`), so the
+   * full ZIP is never held in memory. Returns the number of bytes uploaded.
+   *
+   * This is the whole point of the async export: a large mailbox's ZIP can be
+   * hundreds of MB, and buffering it (PutObject on a Buffer) OOM-killed the
+   * worker mid-build, leaving the job stuck in "running" (#2024).
+   */
+  async uploadStream(key: string, body: Readable): Promise<{ bytes: number }> {
     if (!this.bucket) {
       throw new Error("EMAIL_EXPORTS_BUCKET not configured");
     }
-    await this.s3.send(
-      new PutObjectCommand({
+
+    const upload = new Upload({
+      client: this.s3,
+      params: {
         Bucket: this.bucket,
         Key: key,
         Body: body,
         ContentType: "application/zip",
         ACL: "private",
-      }),
-    );
-    this.logger.log(`Uploaded email export: key=${key}, bytes=${body.length}`);
+      },
+    });
+
+    let bytes = 0;
+    upload.on("httpUploadProgress", (progress) => {
+      if (progress.loaded) {
+        bytes = progress.loaded;
+      }
+    });
+
+    await upload.done();
+    this.logger.log(`Uploaded email export: key=${key}, bytes=${bytes}`);
+    return { bytes };
   }
 
   async getPresignedUrl(key: string): Promise<string> {

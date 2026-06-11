@@ -20,11 +20,10 @@ describe("EmailExportJobService", () => {
     findOne: jest.fn(),
   };
   const mockExportService = {
-    getExportableEmails: jest.fn(),
-    createEncryptedZip: jest.fn(),
+    buildEncryptedZipStream: jest.fn(),
   };
   const mockStorage = {
-    upload: jest.fn(),
+    uploadStream: jest.fn(),
     getPresignedUrl: jest.fn(),
   };
   const mockBoss = { send: jest.fn() };
@@ -99,23 +98,23 @@ describe("EmailExportJobService", () => {
       encryptedPassword: `enc:${Buffer.from("secretpw").toString("base64")}`,
     };
 
-    it("builds, uploads, and marks the export completed", async () => {
-      mockExportService.getExportableEmails.mockResolvedValue([
-        { a: 1 },
-        { a: 2 },
-      ]);
-      const zip = Buffer.from("zipdata");
-      mockExportService.createEncryptedZip.mockResolvedValue(zip);
+    it("streams the zip to S3 and marks the export completed", async () => {
+      const archive = { fake: "stream" };
+      mockExportService.buildEncryptedZipStream.mockReturnValue({
+        archive,
+        recordCount: () => 2,
+      });
+      mockStorage.uploadStream.mockResolvedValue({ bytes: 4096 });
 
       await service.runExport(data);
 
-      expect(mockExportService.createEncryptedZip).toHaveBeenCalledWith(
-        expect.any(String),
+      expect(mockExportService.buildEncryptedZipStream).toHaveBeenCalledWith(
+        "user-1",
         "secretpw",
       );
-      expect(mockStorage.upload).toHaveBeenCalledWith(
+      expect(mockStorage.uploadStream).toHaveBeenCalledWith(
         "exports/user-1/exp-1.zip",
-        zip,
+        archive,
       );
       const completion = mockRepo.update.mock.calls.find(
         ([, patch]) => patch.status === "completed",
@@ -123,25 +122,26 @@ describe("EmailExportJobService", () => {
       expect(completion?.[1]).toMatchObject({
         status: "completed",
         s3Key: "exports/user-1/exp-1.zip",
-        fileSize: zip.length,
+        fileSize: 4096,
         emailCount: 2,
       });
     });
 
     it("marks the export failed and rethrows on error", async () => {
-      mockExportService.getExportableEmails.mockRejectedValue(
-        new Error("db down"),
-      );
+      mockExportService.buildEncryptedZipStream.mockReturnValue({
+        archive: { fake: "stream" },
+        recordCount: () => 0,
+      });
+      mockStorage.uploadStream.mockRejectedValue(new Error("s3 down"));
 
-      await expect(service.runExport(data)).rejects.toThrow("db down");
+      await expect(service.runExport(data)).rejects.toThrow("s3 down");
       const failure = mockRepo.update.mock.calls.find(
         ([, patch]) => patch.status === "failed",
       );
       expect(failure?.[1]).toMatchObject({
         status: "failed",
-        errorMessage: "db down",
+        errorMessage: "s3 down",
       });
-      expect(mockStorage.upload).not.toHaveBeenCalled();
     });
   });
 

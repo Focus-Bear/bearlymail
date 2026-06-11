@@ -127,15 +127,14 @@ export class EmailExportJobService {
         throw new Error("Failed to decrypt export password");
       }
 
-      const records = await this.exportService.getExportableEmails(userId);
-      const zip = await this.exportService.createEncryptedZip(
-        JSON.stringify(records),
-        password,
-      );
-
+      // Fully streamed: DB batches → JSON → zip → S3 multipart upload. Nothing
+      // is accumulated, so memory stays bounded no matter how big the mailbox.
       const key = `exports/${userId}/${exportId}.zip`;
-      await this.storage.upload(key, zip);
+      const { archive, recordCount } =
+        this.exportService.buildEncryptedZipStream(userId, password);
+      const { bytes } = await this.storage.uploadStream(key, archive);
 
+      const emailCount = recordCount();
       const expiresAt = new Date(Date.now() + EMAIL_EXPORT.TTL_MS);
 
       await this.exportRepository.update(
@@ -143,14 +142,14 @@ export class EmailExportJobService {
         {
           status: EMAIL_EXPORT_STATUS.COMPLETED,
           s3Key: key,
-          fileSize: zip.length,
-          emailCount: records.length,
+          fileSize: bytes,
+          emailCount,
           expiresAt,
         },
       );
 
       this.logger.log(
-        `Completed email export ${exportId} for user ${userId}: ${records.length} emails, ${zip.length} bytes`,
+        `Completed email export ${exportId} for user ${userId}: ${emailCount} emails, ${bytes} bytes`,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

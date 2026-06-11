@@ -1077,7 +1077,7 @@
       "selectFile": "Select a JSON file exported from BearlyMail",
       "invalidFile": "Invalid file. Please select a valid BearlyMail export JSON file.",
       "emailExportButton": "Export Emails",
-      "emailExportDescription": "Download all your emails as a password-protected ZIP file. Open it on macOS (double-click) or Windows (right-click → Extract All) using the password you choose.",
+      "emailExportDescription": "Download your most recent 500 emails as a password-protected ZIP file. Open it on macOS (double-click) or Windows (right-click → Extract All) using the password you choose.",
       "emailExportPasswordLabel": "Enter a password for the ZIP file:",
       "emailExportPasswordPlaceholder": "Min. 8 characters",
       "emailExportDownload": "Download",

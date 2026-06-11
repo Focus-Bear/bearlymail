@@ -1,6 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as os from "os";
 import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
@@ -30,13 +29,13 @@ export class EmailExportProcessor implements OnModuleInit {
     private readonly userEncryptionService: UserEncryptionService,
     private readonly configService: ConfigService,
   ) {
-    const cpuCores = os.cpus().length;
-    const defaultConcurrency = Math.max(1, Math.min(cpuCores - 1, 2));
+    // Default to 1: building an export streams a whole mailbox through this
+    // process, so running several at once per worker would multiply peak memory.
     const parsed = parseInt(
       this.configService.get<string>("JOB_EXPORT_CONCURRENCY") || "",
       10,
     );
-    this.concurrency = Number.isNaN(parsed) ? defaultConcurrency : parsed;
+    this.concurrency = Number.isNaN(parsed) ? 1 : parsed;
   }
 
   async onModuleInit() {

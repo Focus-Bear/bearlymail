@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as archiver from "archiver";
+import { Readable } from "stream";
 import { MoreThan, Repository } from "typeorm";
 
 import { GMAIL_LABELS } from "../constants/email-labels";
@@ -18,6 +19,13 @@ archiver.registerFormat("zip-encrypted", archiverZipEncrypted);
 
 export const MIN_PASSWORD_LENGTH = 8;
 const EXPORT_BATCH_SIZE = 500;
+
+/**
+ * Hard cap on how many emails an export includes. A full mailbox can be tens of
+ * thousands of messages; capping at the most recent N keeps the export fast and
+ * its memory/size bounded. Raise with care (the build streams, so it scales).
+ */
+export const MAX_EXPORT_EMAILS = 500;
 
 export interface ExportEmailRecord {
   senderDomain: string;
@@ -125,6 +133,92 @@ export class EmailExportService {
       archive.append(content, { name: "emails.json" });
       archive.finalize();
     });
+  }
+
+  /**
+   * Streams the most recent {@link MAX_EXPORT_EMAILS} emails as
+   * {@link ExportEmailRecord}s. The cap bounds the export's size and memory; the
+   * records are yielded one at a time (nothing accumulated) so the downstream
+   * zip/upload stays streamed end to end.
+   *
+   * Must run inside the caller's `withUserKey` context so the TypeORM
+   * transformers decrypt under the user's key.
+   */
+  async *streamExportableRecords(
+    userId: string,
+  ): AsyncGenerator<ExportEmailRecord> {
+    const categoryMap = await this.buildCategoryMap(userId);
+
+    const emails = await this.emailRepository.find({
+      where: { userId },
+      relations: {
+        thread: true,
+      },
+      order: { receivedAt: "DESC" },
+      take: MAX_EXPORT_EMAILS,
+    });
+
+    for (const email of emails) {
+      const categoryId = email.thread?.categoryId ?? null;
+      yield {
+        senderDomain: this.extractDomainPattern(email.from),
+        subject: email.subject ?? "",
+        body: email.body ?? "",
+        isRead: email.isRead,
+        isReceived: this.determineIsReceived(email.labels),
+        category: categoryId ? (categoryMap.get(categoryId) ?? null) : null,
+      };
+    }
+  }
+
+  /**
+   * Builds the password-protected ZIP as a fully streamed pipeline:
+   * DB batches → incremental JSON → zip. The returned `archive` is a Readable
+   * the caller pipes straight to S3; the ZIP is never buffered in memory.
+   *
+   * `recordCount()` returns the number of emails written so far — call it after
+   * the archive has been fully consumed to get the final count.
+   */
+  buildEncryptedZipStream(
+    userId: string,
+    password: string,
+  ): { archive: archiver.Archiver; recordCount: () => number } {
+    const counter = { count: 0 };
+
+    const jsonStream = Readable.from(this.streamRecordsAsJson(userId, counter));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const archive = (archiver as any).create("zip-encrypted", {
+      zlib: { level: 8 },
+      encryptionMethod: "zip20",
+      password,
+    }) as archiver.Archiver;
+
+    archive.append(jsonStream, { name: "emails.json" });
+    // Don't await: finalize streams the entries. If the source errors, surface
+    // it on the archive stream so the S3 upload (its consumer) rejects.
+    archive.finalize().catch((err) => archive.destroy(err as Error));
+
+    return { archive, recordCount: () => counter.count };
+  }
+
+  /**
+   * Yields the records as the chunks of a JSON array (`[ {…}, {…} ]`), counting
+   * each emitted record into `counter`. Kept private — callers use
+   * {@link buildEncryptedZipStream}.
+   */
+  private async *streamRecordsAsJson(
+    userId: string,
+    counter: { count: number },
+  ): AsyncGenerator<string> {
+    yield "[";
+    let first = true;
+    for await (const record of this.streamExportableRecords(userId)) {
+      yield (first ? "\n" : ",\n") + JSON.stringify(record, null, 2);
+      first = false;
+      counter.count += 1;
+    }
+    yield "\n]\n";
   }
 
   /**

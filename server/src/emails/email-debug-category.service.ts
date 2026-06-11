@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { DataSource } from "typeorm";
 
 import { CategoryRulesService } from "../category-rules/category-rules.service";
+import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -37,6 +38,8 @@ export interface CategoryDebugData {
     categorySource: "summary" | "priority" | null;
     /** Category names that were shortlisted and passed to the smart model during the last priority analysis. Null means shortlisting was not applicable or not yet run. */
     shortlistedCategoryNames: string[] | null;
+    /** What the deterministic-rule step saw when this thread's category was last set by priority analysis. Null for older threads or categories set by summarization. */
+    categoryRuleTrace: CategoryRuleTraceSnapshot | null;
   };
   emailCategories: Array<{
     id: string;
@@ -261,6 +264,7 @@ export class EmailDebugCategoryService {
         categoryExplanation: thread?.categoryExplanation || null,
         categorySource: thread?.categorySource || null,
         shortlistedCategoryNames: thread?.shortlistedCategoryNames ?? null,
+        categoryRuleTrace: thread?.categoryRuleTrace ?? null,
       },
       emailCategories,
       protoCategories,

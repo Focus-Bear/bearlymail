@@ -1306,6 +1306,118 @@ describe("CategoryRulesService", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // findMatchingRuleWithTrace
+  // ---------------------------------------------------------------------------
+
+  describe("findMatchingRuleWithTrace", () => {
+    const userId = "user-1";
+
+    const compositeQaRule = (overrides: Record<string, unknown> = {}) => ({
+      id: "c1",
+      ruleKind: "composite",
+      ruleType: null,
+      pattern: null,
+      patternHash: null,
+      categoryName: "QA",
+      // A categoryId is required for a rule to be eligible (rules with a null
+      // categoryId are always skipped by the matcher).
+      categoryId: "cat-qa",
+      subjectPrefix: null,
+      isEnabled: true,
+      hitCount: 0,
+      compositeSpec: {
+        v: 1,
+        sender: "notifications@github.com",
+        subjectContains: "issue",
+        bodyContainsAny: ["QA Passed"],
+      },
+      createdAt: new Date("2024-01-01"),
+      ...overrides,
+    });
+
+    const qaEmail = {
+      from: "notifications@github.com",
+      subject: "Re: issue 123",
+      bodyTextForMatch: "The workflow reports QA Passed on main.",
+    };
+
+    it("returns the winner and a snapshot when an enabled rule matches", async () => {
+      repo.find.mockResolvedValue([compositeQaRule()]);
+      repo.increment.mockResolvedValue({});
+
+      const { match, snapshot } = await service.findMatchingRuleWithTrace(
+        userId,
+        qaEmail,
+      );
+
+      expect(match?.ruleId).toBe("c1");
+      expect(snapshot.ruleStepRan).toBe(true);
+      expect(snapshot.rulesConsideredCount).toBe(1);
+      expect(snapshot.winningRuleId).toBe("c1");
+      expect(snapshot.winningRuleCategoryName).toBe("QA");
+      expect(snapshot.matchedButNotWinningRuleIds).toEqual([]);
+      expect(Number.isNaN(new Date(snapshot.evaluatedAt).getTime())).toBe(
+        false,
+      );
+      expect(repo.increment).toHaveBeenCalledTimes(1);
+      expect(repo.increment).toHaveBeenCalledWith({ id: "c1" }, "hitCount", 1);
+    });
+
+    it("records a disabled-but-matching rule with no winner", async () => {
+      repo.find.mockResolvedValue([compositeQaRule({ isEnabled: false })]);
+
+      const { match, snapshot } = await service.findMatchingRuleWithTrace(
+        userId,
+        qaEmail,
+      );
+
+      expect(match).toBeNull();
+      expect(snapshot.winningRuleId).toBeNull();
+      expect(snapshot.winningRuleCategoryName).toBeNull();
+      expect(snapshot.rulesConsideredCount).toBe(1);
+      expect(snapshot.matchedButNotWinningRuleIds).toEqual(["c1"]);
+      expect(repo.increment).not.toHaveBeenCalled();
+    });
+
+    it("excludes the winner and lists other matching rules as not-applied", async () => {
+      repo.find.mockResolvedValue([
+        compositeQaRule({ id: "winner" }),
+        compositeQaRule({ id: "loser", categoryName: "QA Duplicate" }),
+      ]);
+      repo.increment.mockResolvedValue({});
+
+      const { match, snapshot } = await service.findMatchingRuleWithTrace(
+        userId,
+        qaEmail,
+      );
+
+      expect(match?.ruleId).toBe("winner");
+      expect(snapshot.winningRuleId).toBe("winner");
+      expect(snapshot.rulesConsideredCount).toBe(2);
+      expect(snapshot.matchedButNotWinningRuleIds).toEqual(["loser"]);
+      expect(repo.increment).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports no match when no rule pattern matches the email", async () => {
+      repo.find.mockResolvedValue([compositeQaRule()]);
+
+      const { match, snapshot } = await service.findMatchingRuleWithTrace(
+        userId,
+        {
+          from: "someone@example.com",
+          subject: "unrelated",
+          bodyTextForMatch: "nothing here",
+        },
+      );
+
+      expect(match).toBeNull();
+      expect(snapshot.winningRuleId).toBeNull();
+      expect(snapshot.matchedButNotWinningRuleIds).toEqual([]);
+      expect(repo.increment).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // normalizeCompositeSpecDto
   // ---------------------------------------------------------------------------
 

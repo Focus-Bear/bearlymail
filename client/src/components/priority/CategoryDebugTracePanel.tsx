@@ -5,7 +5,12 @@ import { theme } from 'theme/theme';
 
 import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
 
-import type { CategorizationTrace, CategoryRuleEvaluationDebug } from './CategoryDebugModal.types';
+import type {
+  CategorizationTrace,
+  CategoryRuleEvaluationDebug,
+  CategoryRuleTraceSnapshot,
+} from './CategoryDebugModal.types';
+import { CategoryDebugProcessingTimeSummary } from './CategoryDebugProcessingTimeSummary';
 import { CategoryDebugTraceEvaluationRow } from './CategoryDebugTraceEvaluationRow';
 
 const sectionStyle: React.CSSProperties = {
@@ -92,15 +97,49 @@ function evaluationRuleTypeLabel(ev: CategoryRuleEvaluationDebug, translate: TFu
   return ev.ruleType ?? translate('priority.categoryDebug.traceRuleLegacyUnknown');
 }
 
-function ruleStatusLabel(ev: CategoryRuleEvaluationDebug, translate: TFunction): string {
+/**
+ * True when the rule was created AFTER the email was last processed, so it
+ * could not have applied at the time even though it matches the email now.
+ */
+function isRuleNewerThanProcessing(
+  ev: CategoryRuleEvaluationDebug,
+  snapshot: CategoryRuleTraceSnapshot | null | undefined
+): boolean {
+  if (!snapshot || !ev.createdAt) {
+    return false;
+  }
+  const created = new Date(ev.createdAt).getTime();
+  const processed = new Date(snapshot.evaluatedAt).getTime();
+  if (Number.isNaN(created) || Number.isNaN(processed)) {
+    return false;
+  }
+  return created > processed;
+}
+
+function ruleStatusLabel(
+  ev: CategoryRuleEvaluationDebug,
+  snapshot: CategoryRuleTraceSnapshot | null | undefined,
+  translate: TFunction
+): string {
   if (ev.isWinningRule) {
     return translate('priority.categoryDebug.traceRuleStatusWinner');
   }
-  if (ev.isEnabled && ev.patternMatches) {
-    return translate('priority.categoryDebug.traceRuleStatusFlagged');
-  }
-  if (!ev.isEnabled && ev.patternMatches) {
-    return translate('priority.categoryDebug.traceRuleStatusDisabledButWouldMatch');
+  if (ev.patternMatches) {
+    if (!ev.isEnabled) {
+      return translate('priority.categoryDebug.traceRuleStatusDisabledButWouldMatch');
+    }
+    if (ev.categoryExists === false) {
+      // The matcher silently skips a rule whose category link is broken, so it
+      // can never be applied even though its pattern matches. This is the most
+      // important "matches but never fires" case to surface explicitly.
+      return translate('priority.categoryDebug.traceRuleStatusMatchedCategoryMissing');
+    }
+    if (isRuleNewerThanProcessing(ev, snapshot)) {
+      return translate('priority.categoryDebug.traceRuleStatusMatchedNewer');
+    }
+    // Enabled, matches, but did not win: lost to an earlier rule. Flagged amber
+    // so it is not mistaken for an applied match.
+    return translate('priority.categoryDebug.traceRuleStatusMatchedNotApplied');
   }
   return translate('priority.categoryDebug.traceRuleStatusNoMatch');
 }
@@ -109,8 +148,10 @@ function ruleStatusAccentColor(evaluation: CategoryRuleEvaluationDebug): string 
   if (evaluation.isWinningRule) {
     return theme.colors.primary.main;
   }
-  if (evaluation.isEnabled && evaluation.patternMatches) {
-    return theme.colors.feedback?.success || '#2e7d32';
+  // Any non-winning match is amber — it matches but was NOT applied, which is
+  // exactly the confusion this view exists to resolve.
+  if (evaluation.patternMatches) {
+    return theme.colors.warning?.main || '#ed6c02';
   }
   return theme.colors.text.tertiary;
 }
@@ -144,10 +185,15 @@ function shortlistFallbackParagraph(
 
 interface TraceRuleAccordionItemProps {
   evaluation: CategoryRuleEvaluationDebug;
+  snapshot: CategoryRuleTraceSnapshot | null | undefined;
   translate: TFunction;
 }
 
-const TraceRuleAccordionItem: React.FC<TraceRuleAccordionItemProps> = ({ evaluation, translate }) => (
+const TraceRuleAccordionItem: React.FC<TraceRuleAccordionItemProps> = ({
+  evaluation,
+  snapshot,
+  translate,
+}) => (
   <details
     style={{
       border: `1px solid ${theme.colors.border?.default || '#e8e8e8'}`,
@@ -168,7 +214,7 @@ const TraceRuleAccordionItem: React.FC<TraceRuleAccordionItemProps> = ({ evaluat
           color: ruleStatusAccentColor(evaluation),
         }}
       >
-        {ruleStatusLabel(evaluation, translate)}
+        {ruleStatusLabel(evaluation, snapshot, translate)}
       </span>
     </summary>
     <div style={{ paddingBottom: theme.spacing.sm, paddingLeft: theme.spacing.xs }}>
@@ -387,12 +433,15 @@ const TraceFinalDecisionSection: React.FC<TraceFinalDecisionSectionProps> = ({ s
 interface DeterministicRulesSectionProps {
   winningRule: CategorizationTrace['deterministicRules']['winningRule'];
   evaluations: CategoryRuleEvaluationDebug[];
+  /** Stored processing-time snapshot for the side-by-side comparison. */
+  processingSnapshot: CategoryRuleTraceSnapshot | null | undefined;
   translate: TFunction;
 }
 
 const DeterministicRulesSection: React.FC<DeterministicRulesSectionProps> = ({
   winningRule,
   evaluations,
+  processingSnapshot,
   translate,
 }) => {
   const sortedEvaluations = useMemo(() => sortRuleEvaluations(evaluations), [evaluations]);
@@ -402,6 +451,11 @@ const DeterministicRulesSection: React.FC<DeterministicRulesSectionProps> = ({
       <div style={{ fontWeight: theme.typography.fontWeight.semibold, marginBottom: theme.spacing.xs }}>
         {translate('priority.categoryDebug.traceDeterministic')}
       </div>
+      <CategoryDebugProcessingTimeSummary
+        snapshot={processingSnapshot}
+        liveWinningRuleId={winningRule?.ruleId ?? null}
+        translate={translate}
+      />
       {winningRule ? (
         <p style={{ margin: `0 0 ${theme.spacing.sm} 0`, fontSize: theme.typography.fontSize.sm }}>
           {translate('priority.categoryDebug.traceWinner', {
@@ -425,7 +479,12 @@ const DeterministicRulesSection: React.FC<DeterministicRulesSectionProps> = ({
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
         {sortedEvaluations.map(evaluation => (
-          <TraceRuleAccordionItem key={evaluation.id} evaluation={evaluation} translate={translate} />
+          <TraceRuleAccordionItem
+            key={evaluation.id}
+            evaluation={evaluation}
+            snapshot={processingSnapshot}
+            translate={translate}
+          />
         ))}
       </div>
     </div>
@@ -442,11 +501,18 @@ interface CategoryDebugTracePanelProps {
    * no record of the original shortlist and the comparison is skipped.
    */
   storedShortlist?: string[] | null;
+  /**
+   * The deterministic-rule snapshot captured when the thread's category was last
+   * set (`thread.categoryRuleTrace`). Lets the deterministic section show the
+   * ORIGINAL outcome next to the live re-run. `null`/undefined means none stored.
+   */
+  processingSnapshot?: CategoryRuleTraceSnapshot | null;
 }
 
 export const CategoryDebugTracePanel: React.FC<CategoryDebugTracePanelProps> = ({
   trace,
   storedShortlist = null,
+  processingSnapshot = null,
 }) => {
   const { t: translate } = useTranslation();
   const { deterministicRules, shortlist, smartModel, evaluatedEmail } = trace;
@@ -471,6 +537,7 @@ export const CategoryDebugTracePanel: React.FC<CategoryDebugTracePanelProps> = (
       <DeterministicRulesSection
         winningRule={deterministicRules.winningRule}
         evaluations={deterministicRules.evaluations}
+        processingSnapshot={processingSnapshot}
         translate={translate}
       />
       <TraceShortlistSection

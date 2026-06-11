@@ -10,6 +10,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
+import type { CategoryRuleTraceSnapshot } from "../../category-rules/category-rules.types";
 import {
   encryptedColumnTransformer,
   makeEncryptedJsonTransformer,
@@ -343,6 +344,20 @@ export class EmailThread {
       "Stored for debug purposes — visible in the category debug view.",
   })
   shortlistedCategoryNames: string[] | null;
+
+  @Column("text", {
+    nullable: true,
+    transformer: makeEncryptedJsonTransformer(
+      "email_threads.categoryRuleTrace",
+    ),
+    comment:
+      "Snapshot of the deterministic category-rule evaluation captured when this thread's " +
+      "category was last set during priority analysis: whether the rule step ran, how many " +
+      "rules existed, the winning rule (if any), and which rules matched but were not applied. " +
+      "Null means no processing-time snapshot was captured (older thread, or category set by " +
+      "the summarization step). Stored for debug purposes — visible in the category debug view.",
+  })
+  categoryRuleTrace: CategoryRuleTraceSnapshot | null;
 
   @Column({
     default: false,

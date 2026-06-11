@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
+import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import {
   BODY_PREVIEW_LENGTHS,
   PRIORITY_ANALYSIS_FALLBACK,
@@ -70,6 +71,12 @@ type PriorityResult = {
   protoCategorySuggestion?: { name: string; description: string };
   /** Category names that were shortlisted and passed to the smart model. Null when shortlisting was skipped (category count below threshold). */
   shortlistedCategoryNames: string[] | null;
+  /**
+   * Snapshot of the deterministic-rule step, attached by the single-email
+   * refiner after analysis so it can be persisted for the category-debug view.
+   * Not produced by `analyzePriority` itself.
+   */
+  categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
 };
 
 export type BatchPriorityResult = PriorityResult & {

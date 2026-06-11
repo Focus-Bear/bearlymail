@@ -317,6 +317,7 @@ const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId, onClos
                 <CategoryDebugTracePanel
                   trace={debugInfo.categorizationTrace}
                   storedShortlist={debugInfo.thread.shortlistedCategoryNames}
+                  processingSnapshot={debugInfo.thread.categoryRuleTrace}
                 />
               )}
               <AccordionGroup

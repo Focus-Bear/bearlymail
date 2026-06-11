@@ -6,7 +6,10 @@ import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { CategoryRulesService } from "../category-rules/category-rules.service";
-import { CategoryRuleMatch } from "../category-rules/category-rules.types";
+import {
+  CategoryRuleMatch,
+  CategoryRuleTraceSnapshot,
+} from "../category-rules/category-rules.types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import {
@@ -182,12 +185,14 @@ export class LLMProcessor implements OnModuleInit {
   ): Promise<{
     categoryRuleMatch: CategoryRuleMatch | null;
     bodyWithCategoryHint: string;
+    ruleTraceSnapshot: CategoryRuleTraceSnapshot;
   }> {
     const emailMetadata = buildRuleEmailMetadata(email);
-    const categoryRuleMatch = await this.categoryRulesService.findMatchingRule(
-      userId,
-      emailMetadata,
-    );
+    const { match: categoryRuleMatch, snapshot: ruleTraceSnapshot } =
+      await this.categoryRulesService.findMatchingRuleWithTrace(
+        userId,
+        emailMetadata,
+      );
     if (categoryRuleMatch) {
       const kindOrType =
         categoryRuleMatch.ruleType ?? categoryRuleMatch.ruleKind;
@@ -198,7 +203,7 @@ export class LLMProcessor implements OnModuleInit {
     const bodyWithCategoryHint = categoryRuleMatch
       ? `[Category pre-assigned by deterministic rule: "${categoryRuleMatch.categoryName}". Focus on urgency and goal-alignment scoring only.]\n\n${bodyForPriority}`
       : bodyForPriority;
-    return { categoryRuleMatch, bodyWithCategoryHint };
+    return { categoryRuleMatch, bodyWithCategoryHint, ruleTraceSnapshot };
   }
 
   /**
@@ -284,7 +289,7 @@ export class LLMProcessor implements OnModuleInit {
       replyStatus,
       bodyForPriority,
     } = options;
-    const { categoryRuleMatch, bodyWithCategoryHint } =
+    const { categoryRuleMatch, bodyWithCategoryHint, ruleTraceSnapshot } =
       await this.resolveCategoryHint(
         userId,
         emailId,
@@ -315,6 +320,10 @@ export class LLMProcessor implements OnModuleInit {
       // category, so navigating by category name alone opens the wrong one).
       llmResult.categoryExplanation = `Matched deterministic rule (${kindOrType}): category="${categoryRuleMatch.categoryName}" (rule:${categoryRuleMatch.ruleId})`;
     }
+    // Persist what the rule step actually saw so the category-debug view can show
+    // the ORIGINAL outcome (rule matched / no rule matched / matched-but-disabled)
+    // instead of only a live re-run against the current rule set.
+    llmResult.categoryRuleTrace = ruleTraceSnapshot;
     tracker.endPhase("llmCall");
     tracker.startPhase("dbUpdate");
     const finalScore = await this.priorityResultService.applyPriorityResult(

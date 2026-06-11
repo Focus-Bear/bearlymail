@@ -1,7 +1,11 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 
-import { CategorizationTrace } from './CategoryDebugModal.types';
+import {
+  CategorizationTrace,
+  CategoryRuleEvaluationDebug,
+  CategoryRuleTraceSnapshot,
+} from './CategoryDebugModal.types';
 import { CategoryDebugTracePanel } from './CategoryDebugTracePanel';
 
 // i18n mock returns the key (and ignores interpolation params), so any text that
@@ -158,5 +162,96 @@ describe('CategoryDebugTracePanel — stale-reply warning', () => {
     render(<CategoryDebugTracePanel trace={makeTrace({})} />);
 
     expect(screen.queryByText(WARNING_KEY)).not.toBeInTheDocument();
+  });
+});
+
+describe('CategoryDebugTracePanel — processing-time history', () => {
+  const KEY = 'priority.categoryDebug';
+
+  function makeEval(overrides: Partial<CategoryRuleEvaluationDebug>): CategoryRuleEvaluationDebug {
+    return {
+      id: 'rule-1',
+      ruleKind: 'composite',
+      ruleType: null,
+      categoryName: 'QA',
+      pattern: '',
+      subjectPrefix: null,
+      isEnabled: true,
+      hitCount: 0,
+      patternMatches: false,
+      isWinningRule: false,
+      createdAt: '2026-05-01T00:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  const snapshotNoWinner: CategoryRuleTraceSnapshot = {
+    evaluatedAt: '2026-06-01T00:00:00.000Z',
+    ruleStepRan: true,
+    rulesConsideredCount: 5,
+    winningRuleId: null,
+    winningRuleCategoryName: null,
+    matchedButNotWinningRuleIds: ['d1'],
+  };
+
+  it('shows the no-record message when no snapshot is provided', () => {
+    render(<CategoryDebugTracePanel trace={makeTrace({})} />);
+
+    expect(screen.getByText(`${KEY}.traceProcessingNoRecord`)).toBeInTheDocument();
+  });
+
+  it('shows the processing-time outcome and matched-not-applied note from the snapshot', () => {
+    render(<CategoryDebugTracePanel trace={makeTrace({})} processingSnapshot={snapshotNoWinner} />);
+
+    expect(screen.getByText(`${KEY}.traceProcessingNoRuleMatched`)).toBeInTheDocument();
+    expect(screen.getByText(`${KEY}.traceProcessingMatchedNotApplied`)).toBeInTheDocument();
+    expect(screen.queryByText(`${KEY}.traceProcessingDivergence`)).not.toBeInTheDocument();
+  });
+
+  it('warns about divergence when a rule wins the live re-run but not at processing time', () => {
+    const trace = makeTrace({
+      deterministicRules: {
+        winningRule: { categoryName: 'QA', ruleId: 'rule-x', ruleType: null, ruleKind: 'composite' },
+        evaluations: [],
+      },
+    });
+
+    render(<CategoryDebugTracePanel trace={trace} processingSnapshot={snapshotNoWinner} />);
+
+    expect(screen.getByText(`${KEY}.traceProcessingDivergence`)).toBeInTheDocument();
+  });
+
+  it('flags a disabled match and a created-after-processing match distinctly (not as a winner)', () => {
+    const trace = makeTrace({
+      deterministicRules: {
+        winningRule: null,
+        evaluations: [
+          makeEval({ id: 'd1', isEnabled: false, patternMatches: true, createdAt: '2026-05-01T00:00:00.000Z' }),
+          makeEval({ id: 'n1', isEnabled: true, patternMatches: true, createdAt: '2026-06-05T00:00:00.000Z' }),
+        ],
+      },
+    });
+
+    render(<CategoryDebugTracePanel trace={trace} processingSnapshot={snapshotNoWinner} />);
+
+    expect(screen.getByText(`${KEY}.traceRuleStatusDisabledButWouldMatch`)).toBeInTheDocument();
+    expect(screen.getByText(`${KEY}.traceRuleStatusMatchedNewer`)).toBeInTheDocument();
+    // Neither should be reported as the applied winner.
+    expect(screen.queryByText(`${KEY}.traceRuleStatusWinner`)).not.toBeInTheDocument();
+  });
+
+  it('flags a matching rule whose category no longer exists (the silent-skip case)', () => {
+    const trace = makeTrace({
+      deterministicRules: {
+        winningRule: null,
+        evaluations: [
+          makeEval({ id: 'broken', isEnabled: true, patternMatches: true, categoryExists: false }),
+        ],
+      },
+    });
+
+    render(<CategoryDebugTracePanel trace={trace} />);
+
+    expect(screen.getByText(`${KEY}.traceRuleStatusMatchedCategoryMissing`)).toBeInTheDocument();
   });
 });

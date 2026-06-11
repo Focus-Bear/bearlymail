@@ -138,6 +138,14 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
         {' · '}
         {translate('priority.categoryDebug.traceHits', { count: ev.hitCount })}
       </span>
+      {ev.patternMatches && ev.isEnabled && ev.categoryExists === false ? (
+        <>
+          <br />
+          <span style={{ color: theme.colors.warning?.main || '#ed6c02' }}>
+            {translate('priority.categoryDebug.traceRuleCategoryMissingDetail')}
+          </span>
+        </>
+      ) : null}
       {ev.ruleKind === CATEGORY_RULE_KIND_COMPOSITE ? (
         <>
           {' · '}

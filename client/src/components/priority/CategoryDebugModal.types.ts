@@ -14,13 +14,33 @@ export interface CategoryRuleEvaluationDebug {
   ruleKind: 'legacy' | 'composite';
   ruleType: string | null;
   categoryName: string;
+  /** The rule's category FK (UUID), or null when the rule was never linked. */
+  categoryId?: string | null;
+  /** Whether the rule's category link is still valid; false = matcher skips it even if the pattern matches. */
+  categoryExists?: boolean;
   pattern: string;
   subjectPrefix: string | null;
   isEnabled: boolean;
   hitCount: number;
   patternMatches: boolean;
   isWinningRule: boolean;
+  /** ISO creation timestamp; optional for backward compatibility with cached responses. */
+  createdAt?: string;
   compositeDetail?: CompositeRuleEvaluationDetailClient;
+}
+
+/**
+ * Stored record of what the deterministic-rule step did when this thread's
+ * category was last set during priority processing. Lets the debug view show
+ * the ORIGINAL outcome next to a live re-run.
+ */
+export interface CategoryRuleTraceSnapshot {
+  evaluatedAt: string;
+  ruleStepRan: boolean;
+  rulesConsideredCount: number;
+  winningRuleId: string | null;
+  winningRuleCategoryName: string | null;
+  matchedButNotWinningRuleIds: string[];
 }
 
 export interface CategorizationTrace {
@@ -76,6 +96,8 @@ export interface CategoryDebugData {
     categorySource: 'summary' | 'priority' | null;
     /** Category names that were shortlisted and passed to the smart model during the last priority analysis. Null means shortlisting was not applicable or not yet run. */
     shortlistedCategoryNames: string[] | null;
+    /** What the deterministic-rule step saw when this thread's category was last set by priority analysis. Null for older threads or categories set by summarization. */
+    categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
   };
   emailCategories: Array<{
     id: string;

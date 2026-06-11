@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import {
   EMAIL_CLASSIFICATION,
   SUGGESTED_REPLIES,
@@ -20,6 +21,7 @@ import { GitHubCategoryOverrideService } from "../github/github-category-overrid
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
+import { buildCategoryColumnUpdates } from "./category-column-updates.helper";
 import { buildHonestCategoryExplanation } from "./category-explanation.helper";
 import { applyEmergencyDelivery } from "./emergency-delivery.helper";
 
@@ -37,6 +39,12 @@ type PriorityLlmResult = {
   protoCategorySuggestion?: { name: string; description: string };
   /** Category names passed to the smart model after shortlisting. Null when shortlisting was skipped. */
   shortlistedCategoryNames?: string[] | null;
+  /**
+   * Snapshot of the deterministic-rule step at processing time. Undefined on
+   * paths that do not run rules (e.g. batch priority) so the column is left
+   * untouched; set (possibly with a null winner) by the single-email refiner.
+   */
+  categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
 };
 
 type PriorityBreakdownItem = {
@@ -242,18 +250,16 @@ export class LLMPriorityResultService {
         priorityExplanation,
         priorityScore: finalScore,
         prioritySource: "llm" as const,
-        ...(categoryId !== null && categoryId !== undefined
-          ? { categoryId }
-          : {}),
         categoryExplanation: resolvedCategoryExplanation,
-        // Track which step last set the category (debug field for issue #1509)
-        ...(finalCategory && finalCategory !== "Other"
-          ? { categorySource: "priority" as const }
-          : {}),
         protoCategoryId,
         isProcessingPriority: false,
         aiProcessingDeferred: false,
         shortlistedCategoryNames: llmResult.shortlistedCategoryNames ?? null,
+        ...buildCategoryColumnUpdates(
+          categoryId,
+          finalCategory,
+          llmResult.categoryRuleTrace,
+        ),
       },
     );
 

@@ -25,6 +25,21 @@ function appendCategorySection(lines: string[], thread: CategoryDebugData['threa
   if (thread.categoryExplanation) {
     lines.push(`- **Explanation**: ${thread.categoryExplanation}`);
   }
+  const snapshot = thread.categoryRuleTrace;
+  if (snapshot) {
+    const winner = snapshot.winningRuleId
+      ? `${snapshot.winningRuleCategoryName ?? '?'} (rule ${snapshot.winningRuleId})`
+      : 'none';
+    const matchedNotWinning =
+      snapshot.matchedButNotWinningRuleIds.length > 0
+        ? snapshot.matchedButNotWinningRuleIds.join(', ')
+        : '—';
+    lines.push(
+      `- **Rule trace (processing time)**: ${snapshot.evaluatedAt} | rulesConsidered=${snapshot.rulesConsideredCount} winner=${winner} matchedButNotApplied=[${matchedNotWinning}]`
+    );
+  } else {
+    lines.push('- **Rule trace (processing time)**: none recorded');
+  }
   lines.push('');
 }
 

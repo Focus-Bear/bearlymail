@@ -3,10 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
-import {
-  CATEGORY_RULE_KINDS,
-  CATEGORY_RULE_MATCH_MODES,
-} from "../constants/domain-types";
+import { CATEGORY_RULE_MATCH_MODES } from "../constants/domain-types";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 import {
   CategoryRule,
@@ -27,17 +24,20 @@ import type {
   CategoryRuleEvaluationDebug,
   CategoryRuleMatch,
   CategoryRuleSuggestion,
-  CompositeRuleEvaluationDetail,
+  CategoryRuleTraceSnapshot,
   DeterministicRulesDebug,
   EmailMetadata,
 } from "./category-rules.types";
 import {
   compositeAutoSpecsMatch,
   EmailHashes,
-  evaluateComposite,
-  rulePatternMatches,
 } from "./category-rules-auto-composite.helper";
 import { deriveExclusionsForCompositeRule } from "./category-rules-derive-exclusions.helper";
+import {
+  buildEmailHashes,
+  findFirstCompositeRuleMatch,
+  findLegacyRuleMatch,
+} from "./category-rules-match.helper";
 import {
   dropContradictoryExclusions,
   specHasExclusion,
@@ -53,6 +53,11 @@ import {
   buildSuggestions,
   countDistinctThreadsForSenderHmac,
 } from "./category-rules-suggest.helper";
+import {
+  buildRuleEvaluationDebug,
+  categoryLinkIsValid,
+  collectMatchingRuleIds,
+} from "./category-rules-trace.helper";
 import { findCategoryContextIdByName } from "./category-rules-validate.helper";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
 import { PatchCategoryRuleDto } from "./dto/patch-category-rule.dto";
@@ -619,18 +624,12 @@ export class CategoryRulesService {
   }
 
   private buildEmailHashes(email: EmailMetadata): EmailHashes {
-    const normalisedSender = this.normaliseSender(email.from);
-    const domain = this.extractDomain(email.from);
-    const subjectPrefix = this.extractSubjectPrefix(email.subject);
-    const senderHash = SearchIndexHelper.hashExact(normalisedSender);
-    const domainPattern = domain ? `@${domain}` : null;
-    const domainHash = domainPattern
-      ? SearchIndexHelper.hashExact(domainPattern)
-      : null;
-    const prefixHash = subjectPrefix
-      ? SearchIndexHelper.hashExact(subjectPrefix.toLowerCase())
-      : null;
-    return { senderHash, domainPattern, domainHash, subjectPrefix, prefixHash };
+    return buildEmailHashes(
+      email,
+      (raw) => this.normaliseSender(raw),
+      (raw) => this.extractDomain(raw),
+      (subject) => this.extractSubjectPrefix(subject),
+    );
   }
 
   async peekMatchingRule(
@@ -649,140 +648,48 @@ export class CategoryRulesService {
       return null;
     }
 
-    // Skip rules with no categoryId (legacy rows created before rules carried a
-    // category UUID) or whose category has been deleted, so a valid
-    // lower-priority rule can still win.
-    const eligibleRules = rules.filter((rule) => {
-      // Legacy rules without a category UUID can never resolve to a real
-      // category, so they must never match — even for users who have no
-      // categories at all.
-      if (!rule.categoryId) {
-        this.logger.debug(
-          `[CategoryRules] Skipping rule ${rule.id} (legacy rule with no categoryId) for user ${userId}`,
-        );
-        return false;
-      }
-      // When we know the user's categories, also drop rules pointing at a
-      // category that has since been deleted. If the set is empty (e.g. a
-      // transient read), keep rules that do carry a categoryId rather than
-      // nuking all matching.
-      if (validCategoryIds.size > 0 && !validCategoryIds.has(rule.categoryId)) {
-        this.logger.debug(
-          `[CategoryRules] Skipping rule ${rule.id} (categoryId ${rule.categoryId} not in valid set) for user ${userId}`,
-        );
-        return false;
-      }
-      return true;
-    });
+    const eligibleRules = this.filterEligibleRules(
+      rules,
+      validCategoryIds,
+      userId,
+    );
 
-    const compositeHit = this.findFirstCompositeRuleMatch(eligibleRules, email);
+    const compositeHit = findFirstCompositeRuleMatch(
+      eligibleRules,
+      email,
+      (raw) => this.normaliseSender(raw),
+    );
     if (compositeHit) {
       return compositeHit;
     }
 
-    return this.findLegacyRuleMatch(eligibleRules, email);
+    return findLegacyRuleMatch(eligibleRules, this.buildEmailHashes(email));
   }
 
-  private findFirstCompositeRuleMatch(
+  /**
+   * Keeps only rules eligible to set a category: those whose `categoryId` still
+   * points at one of the user's existing categories. Rules with no categoryId
+   * (legacy rows created before rules carried a category UUID) can never
+   * resolve to a real category, so they are always skipped — even for users
+   * who have no categories at all. Rules pointing at a deleted category are
+   * skipped when we know the user's categories, so a valid lower-priority rule
+   * can still win. If the valid set is empty (e.g. a transient read), keep
+   * rules that do carry a categoryId rather than dropping all matches.
+   */
+  private filterEligibleRules(
     rules: CategoryRule[],
-    email: EmailMetadata,
-  ): CategoryRuleMatch | null {
-    for (const rule of rules) {
-      if (rule.ruleKind !== CATEGORY_RULE_MATCH_MODES.COMPOSITE) {
-        continue;
+    validCategoryIds: Set<string>,
+    userId: string,
+  ): CategoryRule[] {
+    return rules.filter((rule) => {
+      if (categoryLinkIsValid(rule, validCategoryIds)) {
+        return true;
       }
-      const spec = rule.compositeSpec;
-      if (
-        !spec ||
-        (spec.v !== CATEGORY_RULE_COMPOSITE.SPEC_VERSION &&
-          spec.v !== CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V2 &&
-          spec.v !== CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V1)
-      ) {
-        continue;
-      }
-      const { matches } = evaluateComposite(spec, email, (raw) =>
-        this.normaliseSender(raw),
+      this.logger.debug(
+        `[CategoryRules] Skipping rule ${rule.id} (categoryId ${rule.categoryId ?? "null"} not eligible) for user ${userId}`,
       );
-      if (matches) {
-        return {
-          categoryName: rule.categoryName,
-          categoryId: rule.categoryId,
-          ruleId: rule.id,
-          ruleType: null,
-          ruleKind: "composite",
-        };
-      }
-    }
-    return null;
-  }
-
-  private findLegacyRuleMatch(
-    rules: CategoryRule[],
-    email: EmailMetadata,
-  ): CategoryRuleMatch | null {
-    const legacyRules = rules.filter(
-      (rule) =>
-        rule.ruleKind === CATEGORY_RULE_KINDS.LEGACY &&
-        rule.ruleType != null &&
-        rule.patternHash != null,
-    );
-
-    const hashes = this.buildEmailHashes(email);
-    type RuleKey = string;
-    const ruleMap = new Map<RuleKey, CategoryRule>();
-    for (const rule of legacyRules) {
-      ruleMap.set(`${rule.ruleType}:${rule.patternHash}`, rule);
-    }
-
-    return this.lookupLegacyRuleInMap(ruleMap, hashes);
-  }
-
-  private lookupLegacyRuleInMap(
-    ruleMap: Map<string, CategoryRule>,
-    hashes: EmailHashes,
-  ): CategoryRuleMatch | null {
-    const { senderHash, domainPattern, domainHash, subjectPrefix, prefixHash } =
-      hashes;
-
-    const toLegacyMatch = (rule: CategoryRule): CategoryRuleMatch => ({
-      categoryName: rule.categoryName,
-      categoryId: rule.categoryId,
-      ruleId: rule.id,
-      ruleType: rule.ruleType,
-      ruleKind: "legacy",
+      return false;
     });
-
-    const exactMatch = ruleMap.get(`exact_sender:${senderHash}`);
-    if (exactMatch) {
-      return toLegacyMatch(exactMatch);
-    }
-
-    if (domainPattern && subjectPrefix) {
-      const combinedHashInput = `${domainPattern.toLowerCase()}|${subjectPrefix.toLowerCase()}`;
-      const combinedHash = SearchIndexHelper.hashExact(combinedHashInput);
-      const combinedMatch = ruleMap.get(
-        `sender_domain_and_subject_prefix:${combinedHash}`,
-      );
-      if (combinedMatch) {
-        return toLegacyMatch(combinedMatch);
-      }
-    }
-
-    if (domainHash) {
-      const domainMatch = ruleMap.get(`sender_domain:${domainHash}`);
-      if (domainMatch) {
-        return toLegacyMatch(domainMatch);
-      }
-    }
-
-    if (prefixHash) {
-      const prefixMatch = ruleMap.get(`subject_prefix:${prefixHash}`);
-      if (prefixMatch) {
-        return toLegacyMatch(prefixMatch);
-      }
-    }
-
-    return null;
   }
 
   async findMatchingRule(
@@ -796,6 +703,69 @@ export class CategoryRulesService {
 
     await this.incrementHitCount(match.ruleId);
     return match;
+  }
+
+  /**
+   * Like `findMatchingRule`, but also returns a compact snapshot of what the
+   * rule step saw — for persisting on the thread (issue: rule-trace history).
+   *
+   * Computes the winner with the exact same eligibility as `peekMatchingRule`
+   * (enabled, valid category, composite-first in creation order) from a SINGLE
+   * fetch of all rules, plus the IDs of every other rule whose pattern matched
+   * (disabled / lost / removed-category) so the debug view can explain why a
+   * "matching" rule was not applied. Increments the winner's hit count once,
+   * matching `findMatchingRule`'s side effect.
+   */
+  async findMatchingRuleWithTrace(
+    userId: string,
+    email: EmailMetadata,
+  ): Promise<{
+    match: CategoryRuleMatch | null;
+    snapshot: CategoryRuleTraceSnapshot;
+  }> {
+    const [rules, validCategoryIds] = await Promise.all([
+      this.categoryRuleRepository.find({
+        where: { userId },
+        order: { createdAt: "ASC" },
+      }),
+      this.getUserCategoryIds(userId),
+    ]);
+
+    const evaluatedAt = new Date().toISOString();
+    const enabledRules = rules.filter((rule) => rule.isEnabled);
+    const eligibleRules = this.filterEligibleRules(
+      enabledRules,
+      validCategoryIds,
+      userId,
+    );
+    const hashes = this.buildEmailHashes(email);
+    const match =
+      findFirstCompositeRuleMatch(eligibleRules, email, (raw) =>
+        this.normaliseSender(raw),
+      ) ?? findLegacyRuleMatch(eligibleRules, hashes);
+
+    const matchedButNotWinningRuleIds = collectMatchingRuleIds(
+      rules,
+      email,
+      hashes,
+      (raw) => this.normaliseSender(raw),
+    ).filter((ruleId) => ruleId !== match?.ruleId);
+
+    if (match) {
+      await this.incrementHitCount(match.ruleId);
+    }
+
+    return {
+      match,
+      snapshot: {
+        evaluatedAt,
+        ruleStepRan: true,
+        rulesConsideredCount: rules.length,
+        winningRuleId: match?.ruleId ?? null,
+        winningRuleCategoryName: match?.categoryName ?? null,
+        matchedButNotWinningRuleIds,
+      },
+    };
   }
 
   private async getUserCategoryIds(userId: string): Promise<Set<string>> {
@@ -812,61 +782,26 @@ export class CategoryRulesService {
     userId: string,
     email: EmailMetadata,
   ): Promise<DeterministicRulesDebug> {
-    const [rules, winningRule] = await Promise.all([
+    const [rules, winningRule, validCategoryIds] = await Promise.all([
       this.categoryRuleRepository.find({
         where: { userId },
         order: { createdAt: "DESC" },
       }),
       this.peekMatchingRule(userId, email),
+      this.getUserCategoryIds(userId),
     ]);
 
     const hashes = this.buildEmailHashes(email);
-    const evaluations: CategoryRuleEvaluationDebug[] = rules.map((rule) => {
-      if (rule.ruleKind === CATEGORY_RULE_MATCH_MODES.COMPOSITE) {
-        const spec = rule.compositeSpec;
-        let patternMatches = false;
-        let compositeDetail: CompositeRuleEvaluationDetail | undefined;
-        if (
-          spec &&
-          (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION ||
-            spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V2 ||
-            spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V1)
-        ) {
-          const ev = evaluateComposite(spec, email, (raw) =>
-            this.normaliseSender(raw),
-          );
-          patternMatches = ev.matches;
-          compositeDetail = ev.detail;
-        }
-        return {
-          id: rule.id,
-          ruleKind: "composite",
-          ruleType: null,
-          categoryName: rule.categoryName,
-          pattern: "",
-          subjectPrefix: null,
-          isEnabled: rule.isEnabled,
-          hitCount: rule.hitCount,
-          patternMatches,
-          isWinningRule: winningRule?.ruleId === rule.id,
-          compositeDetail,
-        };
-      }
-
-      const patternMatches = rulePatternMatches(rule, hashes);
-      return {
-        id: rule.id,
-        ruleKind: "legacy",
-        ruleType: rule.ruleType,
-        categoryName: rule.categoryName,
-        pattern: rule.pattern || "",
-        subjectPrefix: rule.subjectPrefix,
-        isEnabled: rule.isEnabled,
-        hitCount: rule.hitCount,
-        patternMatches,
+    const evaluations: CategoryRuleEvaluationDebug[] = rules.map((rule) =>
+      buildRuleEvaluationDebug({
+        rule,
+        email,
+        hashes,
         isWinningRule: winningRule?.ruleId === rule.id,
-      };
-    });
+        categoryExists: categoryLinkIsValid(rule, validCategoryIds),
+        normaliseSender: (raw) => this.normaliseSender(raw),
+      }),
+    );
 
     return { winningRule, evaluations };
   }

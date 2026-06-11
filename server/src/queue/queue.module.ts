@@ -12,6 +12,7 @@ import PgBoss from "pg-boss";
 
 import { AwsModule } from "../aws/aws.module";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import { logErrorToFile } from "../utils/error-logger";
 import { QueueAutoscalingService } from "./queue-autoscaling.service";
 import { QueueMonitorService } from "./queue-monitor.service";
@@ -47,8 +48,8 @@ import { ResourceMonitorService } from "./resource-monitor.service";
           // max_connections alongside the TypeORM pool. Tune DB_PGBOSS_POOL_SIZE
           // in production based on your RDS instance's max_connections limit.
           max: pgBossPoolSize,
-          // Worker settings
-          noSupervisor: false,
+          // Worker settings (pg-boss v10 replaced `noSupervisor` with
+          // `supervise`, which defaults to true — i.e. the previous behaviour).
           // Job defaults - reasonable retry settings
           retryLimit: 3,
           retryDelay: 10,
@@ -73,6 +74,17 @@ import { ResourceMonitorService } from "./resource-monitor.service";
         try {
           await boss.start();
           logger.log("PgBoss started successfully");
+
+          // pg-boss v10+ requires every queue to be created before it can be
+          // used by send()/work(). Register all known job queues up front, here
+          // in the factory, so they exist before any module's bootstrap hooks
+          // start producing or consuming. createQueue is idempotent.
+          for (const queueName of Object.values(JOB_NAMES)) {
+            await boss.createQueue(queueName);
+          }
+          logger.log(
+            `Registered ${Object.values(JOB_NAMES).length} pg-boss queues`,
+          );
 
           // Set up automatic reconnection handling
           boss.on("stopped", () => {

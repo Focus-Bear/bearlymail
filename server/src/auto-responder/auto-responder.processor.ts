@@ -6,6 +6,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
 import { getJobPriority } from "../queue/job-priorities";
+import { registerWorker } from "../queue/register-worker";
 import { AutoResponderService } from "./auto-responder.service";
 import { QUEUE_CONFIG } from "./auto-responder-constants";
 import { autoresponderLogger } from "./autoresponder-logger";
@@ -28,7 +29,8 @@ export class AutoResponderProcessor implements OnModuleInit {
 
   async onModuleInit() {
     // Register worker for auto-responder jobs
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.AUTO_RESPONDER,
       {
         // Process up to 5 jobs concurrently

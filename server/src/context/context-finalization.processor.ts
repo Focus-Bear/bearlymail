@@ -14,6 +14,7 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
+import { registerWorker } from "../queue/register-worker";
 import { ContextService } from "./context.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
 
@@ -79,7 +80,8 @@ export class ContextFinalizationProcessor implements OnModuleInit {
       "log",
     );
 
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS,
       { teamSize: this.finalizationConcurrency } as { teamSize: number },
       async (job) => {

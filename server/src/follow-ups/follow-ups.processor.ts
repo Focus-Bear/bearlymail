@@ -27,6 +27,7 @@ import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { LLMService } from "../llm/llm.service";
+import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
 import { analyzeThreadStyle } from "../utils/thread-style-extractor";
@@ -71,33 +72,41 @@ export class FollowUpsProcessor implements OnModuleInit {
 
   async onModuleInit() {
     this.logger.log("Registering generate-follow-up-draft worker");
-    await this.boss.work(JOB_NAMES.GENERATE_FOLLOW_UP_DRAFT, async (job) => {
-      // Wrap in the user's KMS key context: these handlers read per-user-
-      // encrypted Email/FollowUp rows (and the error paths re-read them), which
-      // fail (and previously crashed the worker) without the per-user key.
-      const { userId } = (job.data ?? {}) as { userId?: string };
-      if (!userId) {
-        throw new Error(
-          "Cannot generate follow-up draft: missing userId in job data",
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.GENERATE_FOLLOW_UP_DRAFT,
+      async (job) => {
+        // Wrap in the user's KMS key context: these handlers read per-user-
+        // encrypted Email/FollowUp rows (and the error paths re-read them), which
+        // fail (and previously crashed the worker) without the per-user key.
+        const { userId } = (job.data ?? {}) as { userId?: string };
+        if (!userId) {
+          throw new Error(
+            "Cannot generate follow-up draft: missing userId in job data",
+          );
+        }
+        await this.userEncryptionService.withUserKey(userId, () =>
+          this.handleGenerateFollowUpDraftJob(job as PgBoss.Job),
         );
-      }
-      await this.userEncryptionService.withUserKey(userId, () =>
-        this.handleGenerateFollowUpDraftJob(job as PgBoss.Job),
-      );
-    });
+      },
+    );
 
     this.logger.log("Registering bulk-send-follow-ups worker");
-    await this.boss.work(JOB_NAMES.BULK_SEND_FOLLOW_UPS, async (job) => {
-      const { userId } = (job.data ?? {}) as { userId?: string };
-      if (!userId) {
-        throw new Error(
-          "Cannot bulk send follow-ups: missing userId in job data",
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.BULK_SEND_FOLLOW_UPS,
+      async (job) => {
+        const { userId } = (job.data ?? {}) as { userId?: string };
+        if (!userId) {
+          throw new Error(
+            "Cannot bulk send follow-ups: missing userId in job data",
+          );
+        }
+        await this.userEncryptionService.withUserKey(userId, () =>
+          this.handleBulkSendFollowUpsJob(job as PgBoss.Job),
         );
-      }
-      await this.userEncryptionService.withUserKey(userId, () =>
-        this.handleBulkSendFollowUpsJob(job as PgBoss.Job),
-      );
-    });
+      },
+    );
 
     this.logger.log("Follow-ups processor initialized");
   }

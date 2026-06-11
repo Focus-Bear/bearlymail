@@ -6,6 +6,7 @@ import PgBoss from "pg-boss";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { registerWorker } from "../queue/register-worker";
 import {
   EmailExportJobService,
   ExportEmailsJobData,
@@ -43,7 +44,8 @@ export class EmailExportProcessor implements OnModuleInit {
       `Registering export-emails worker with concurrency: ${this.concurrency}`,
     );
 
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.EXPORT_EMAILS,
       { teamSize: this.concurrency } as PgBoss.WorkOptions,
       async (job) => {

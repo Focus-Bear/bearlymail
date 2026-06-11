@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { registerWorker } from "../queue/register-worker";
 import { DebugService } from "./debug.service";
 
 const DEBUG_CLEANUP_JOB = "debug-data-cleanup";
@@ -20,7 +21,7 @@ export class DebugCleanupService implements OnModuleInit {
     try {
       // Schedule daily cleanup job at 02:00 UTC
       await this.boss.schedule(DEBUG_CLEANUP_JOB, "0 2 * * *", {});
-      await this.boss.work(DEBUG_CLEANUP_JOB, async () => {
+      await registerWorker(this.boss, DEBUG_CLEANUP_JOB, async () => {
         this.logger.log("Running scheduled debug_data cleanup...");
         try {
           const deleted = await this.debugService.cleanupExpiredData();

@@ -263,15 +263,18 @@ export class DataReencryptionController {
    */
   @Get("job/:jobId")
   async getJob(@Param("jobId") jobId: string) {
-    const job = await this.boss.getJobById(jobId);
+    const job = await this.boss.getJobById(
+      JOB_NAMES.REENCRYPT_USER_DATA,
+      jobId,
+    );
     if (!job) {
       return { state: "not_found" as const, output: null };
     }
     return {
       state: job.state,
       output: (job.output as UserReencryptionResult | null) ?? null,
-      createdOn: job.createdon,
-      completedOn: job.completedon,
+      createdOn: job.createdOn,
+      completedOn: job.completedOn,
     };
   }
 
@@ -296,7 +299,10 @@ export class DataReencryptionController {
   async getFanoutResults(
     @Param("jobId") jobId: string,
   ): Promise<FanoutResultsResponse> {
-    const fanoutJob = await this.boss.getJobById(jobId);
+    const fanoutJob = await this.boss.getJobById(
+      JOB_NAMES.REENCRYPT_FANOUT_ALL,
+      jobId,
+    );
     if (!fanoutJob) {
       return {
         state: CHILD_STATE_NOT_FOUND,
@@ -322,7 +328,10 @@ export class DataReencryptionController {
       const chunk = childIds.slice(i, i + CHILD_FETCH_CHUNK_SIZE);
       const chunkResults = await Promise.all(
         chunk.map(async (childId) => {
-          const childJob = await this.boss.getJobById(childId);
+          const childJob = await this.boss.getJobById(
+            JOB_NAMES.REENCRYPT_USER_DATA,
+            childId,
+          );
           if (!childJob) {
             return {
               jobId: childId,

@@ -9,6 +9,7 @@ import { PRIORITY_RULE_GATES } from "../constants/priority-rule.constants";
 import { Email } from "../database/entities/email.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { PriorityRulesService } from "../priority-rules/priority-rules.service";
+import { registerWorker } from "../queue/register-worker";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 /**
@@ -45,7 +46,7 @@ export class PriorityRuleMiningCron implements OnModuleInit {
       JOB_NAMES.MINE_PRIORITY_RULES,
       PriorityRuleMiningCron.SCAN_CRON,
     );
-    await this.boss.work(JOB_NAMES.MINE_PRIORITY_RULES, async () => {
+    await registerWorker(this.boss, JOB_NAMES.MINE_PRIORITY_RULES, async () => {
       await this.sweep();
     });
     this.logger.log("Priority-rule mining sweep registered (every 30 minutes)");

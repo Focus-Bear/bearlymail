@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { registerWorker } from "../queue/register-worker";
 import {
   BackfillCategoryRuleIdsResult,
   CategoryRuleIdBackfillService,
@@ -32,16 +33,20 @@ export class CategoryRuleIdBackfillProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.boss.work(JOB_NAMES.BACKFILL_CATEGORY_RULE_IDS, async (job) => {
-      const { dryRun = false } =
-        (job.data as BackfillCategoryRuleIdsJobData) ?? {};
-      this.logger.log(
-        `Starting category-rule categoryId backfill${dryRun ? " (dry run)" : ""}`,
-      );
-      const result: BackfillCategoryRuleIdsResult =
-        await this.backfillService.backfillAllUsers({ dryRun });
-      return result;
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.BACKFILL_CATEGORY_RULE_IDS,
+      async (job) => {
+        const { dryRun = false } =
+          (job.data as BackfillCategoryRuleIdsJobData) ?? {};
+        this.logger.log(
+          `Starting category-rule categoryId backfill${dryRun ? " (dry run)" : ""}`,
+        );
+        const result: BackfillCategoryRuleIdsResult =
+          await this.backfillService.backfillAllUsers({ dryRun });
+        return result;
+      },
+    );
     this.logger.log(
       `Worker registered: ${JOB_NAMES.BACKFILL_CATEGORY_RULE_IDS}`,
     );

@@ -80,6 +80,7 @@ describe("PriorityAnalysisFinalizerService", () => {
       );
       expect(mockBoss.work).toHaveBeenCalledWith(
         JOB_NAMES.FINALIZE_STALLED_PRIORITY_RUNS,
+        { batchSize: 1 },
         expect.any(Function),
       );
     });

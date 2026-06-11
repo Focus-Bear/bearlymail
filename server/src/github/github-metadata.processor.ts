@@ -7,6 +7,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { GitHubCategoryOverrideService } from "./github-category-override.service";
 import { GitHubEmailInfoService } from "./github-email-info.service";
@@ -34,7 +35,8 @@ export class GitHubMetadataProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.boss.work<FetchGitHubMetadataJob>(
+    await registerWorker<FetchGitHubMetadataJob>(
+      this.boss,
       JOB_NAMES.FETCH_GITHUB_METADATA,
       { teamConcurrency: 5 },
       async (job) => {

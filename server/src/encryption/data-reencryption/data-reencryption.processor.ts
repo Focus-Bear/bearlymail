@@ -8,6 +8,7 @@ import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
 import { User } from "../../database/entities/user.entity";
 import { JobPriority } from "../../queue/job-priorities";
+import { registerWorker } from "../../queue/register-worker";
 import {
   DataReencryptionService,
   UserReencryptionResult,
@@ -53,85 +54,97 @@ export class DataReencryptionProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.boss.work(JOB_NAMES.REENCRYPT_USER_DATA, async (job) => {
-      const { userId, dryRun } = job.data as ReencryptUserDataJobData;
-      this.logger.log(
-        `Re-encrypting data for user ${userId}${dryRun ? " (dry run)" : ""}`,
-      );
-      const result: UserReencryptionResult = await this.service.reencryptUser(
-        userId,
-        { dryRun },
-      );
-      this.logger.log(
-        `Re-encryption complete for user ${userId}: ${JSON.stringify(summarise(result))}`,
-      );
-      // Returning the result persists it as `output` on the PgBoss job record,
-      // so the admin UI can poll GET /admin/reencryption/job/:jobId to see the
-      // per-table breakdown after a dry-run-self.
-      return result;
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.REENCRYPT_USER_DATA,
+      async (job) => {
+        const { userId, dryRun } = job.data as ReencryptUserDataJobData;
+        this.logger.log(
+          `Re-encrypting data for user ${userId}${dryRun ? " (dry run)" : ""}`,
+        );
+        const result: UserReencryptionResult = await this.service.reencryptUser(
+          userId,
+          { dryRun },
+        );
+        this.logger.log(
+          `Re-encryption complete for user ${userId}: ${JSON.stringify(summarise(result))}`,
+        );
+        // Returning the result persists it as `output` on the PgBoss job record,
+        // so the admin UI can poll GET /admin/reencryption/job/:jobId to see the
+        // per-table breakdown after a dry-run-self.
+        return result;
+      },
+    );
     this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_USER_DATA}`);
 
-    await this.boss.work(JOB_NAMES.REENCRYPT_FANOUT_ALL, async (job) => {
-      const { dryRun = false, force = false } =
-        job.data as ReencryptFanoutJobData;
-      // Skip the dataReencryptedAt filter when dry-running (scan everyone) or
-      // when an admin explicitly forces a rescan — needed to clean up legacy
-      // bypassed columns in users the original migration marked done.
-      const users = await this.userRepository
-        .createQueryBuilder("u")
-        .select(["u.id"])
-        .where(dryRun || force ? "1=1" : "u.dataReencryptedAt IS NULL")
-        .getMany();
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.REENCRYPT_FANOUT_ALL,
+      async (job) => {
+        const { dryRun = false, force = false } =
+          job.data as ReencryptFanoutJobData;
+        // Skip the dataReencryptedAt filter when dry-running (scan everyone) or
+        // when an admin explicitly forces a rescan — needed to clean up legacy
+        // bypassed columns in users the original migration marked done.
+        const users = await this.userRepository
+          .createQueryBuilder("u")
+          .select(["u.id"])
+          .where(dryRun || force ? "1=1" : "u.dataReencryptedAt IS NULL")
+          .getMany();
 
-      if (users.length === 0) {
+        if (users.length === 0) {
+          this.logger.log(
+            `Fan-out: no eligible users${dryRun ? " (dry run)" : ""}`,
+          );
+          return {
+            enqueued: 0,
+            dryRun,
+            childJobIds: [],
+          } satisfies ReencryptFanoutResult;
+        }
+
+        // Pre-generate UUIDs so we can return them as the fan-out's output —
+        // pg-boss v9's `insert()` returns void, so this is the only way to
+        // surface child job IDs to the aggregation endpoint.
+        const inserts = users.map((user) => ({
+          id: crypto.randomUUID(),
+          name: JOB_NAMES.REENCRYPT_USER_DATA,
+          // eslint-disable-next-line id-denylist
+          data: { userId: user.id, dryRun } as ReencryptUserDataJobData,
+          priority: JobPriority.VERY_LOW,
+        }));
+
+        // Single bulk insert beats N round-trips to pg — the whole point of
+        // moving fan-out off the HTTP path.
+        await this.boss.insert(inserts);
+
         this.logger.log(
-          `Fan-out: no eligible users${dryRun ? " (dry run)" : ""}`,
+          `Fan-out: enqueued ${users.length} re-encryption jobs${dryRun ? " (dry run)" : ""}`,
         );
         return {
-          enqueued: 0,
+          enqueued: users.length,
           dryRun,
-          childJobIds: [],
+          childJobIds: inserts.map((insert) => insert.id),
         } satisfies ReencryptFanoutResult;
-      }
-
-      // Pre-generate UUIDs so we can return them as the fan-out's output —
-      // pg-boss v9's `insert()` returns void, so this is the only way to
-      // surface child job IDs to the aggregation endpoint.
-      const inserts = users.map((user) => ({
-        id: crypto.randomUUID(),
-        name: JOB_NAMES.REENCRYPT_USER_DATA,
-        // eslint-disable-next-line id-denylist
-        data: { userId: user.id, dryRun } as ReencryptUserDataJobData,
-        priority: JobPriority.VERY_LOW,
-      }));
-
-      // Single bulk insert beats N round-trips to pg — the whole point of
-      // moving fan-out off the HTTP path.
-      await this.boss.insert(inserts);
-
-      this.logger.log(
-        `Fan-out: enqueued ${users.length} re-encryption jobs${dryRun ? " (dry run)" : ""}`,
-      );
-      return {
-        enqueued: users.length,
-        dryRun,
-        childJobIds: inserts.map((insert) => insert.id),
-      } satisfies ReencryptFanoutResult;
-    });
+      },
+    );
     this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_FANOUT_ALL}`);
 
-    await this.boss.work(JOB_NAMES.REENCRYPT_HEALTH_SCAN, async () => {
-      this.logger.log("Running data-at-rest health scan");
-      // Runs in the worker (no ALB idle timeout) — the per-column SQL scans on
-      // large tables can take tens of seconds. Returning the result persists it
-      // as the job `output` so the admin UI can poll GET …/job/:jobId for it.
-      const health = await this.service.getHealth();
-      this.logger.log(
-        `Health scan complete: ${health.rowsNeedingRemediation} row(s) need remediation across ${health.columnsAffected} column(s)`,
-      );
-      return health;
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.REENCRYPT_HEALTH_SCAN,
+      async () => {
+        this.logger.log("Running data-at-rest health scan");
+        // Runs in the worker (no ALB idle timeout) — the per-column SQL scans on
+        // large tables can take tens of seconds. Returning the result persists it
+        // as the job `output` so the admin UI can poll GET …/job/:jobId for it.
+        const health = await this.service.getHealth();
+        this.logger.log(
+          `Health scan complete: ${health.rowsNeedingRemediation} row(s) need remediation across ${health.columnsAffected} column(s)`,
+        );
+        return health;
+      },
+    );
     this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_HEALTH_SCAN}`);
   }
 }

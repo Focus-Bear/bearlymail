@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { DeletionReason } from "../database/entities/deleted-account.entity";
+import { registerWorker } from "../queue/register-worker";
 import { logErrorToFile } from "../utils/error-logger";
 import { UsersService } from "./users.service";
 
@@ -36,8 +37,10 @@ export class AccountDeletionProcessor implements OnModuleInit {
       JOB_NAMES.CLEANUP_INACTIVE_ACCOUNTS,
       CLEANUP_CRON_SCHEDULE,
     );
-    await this.boss.work(JOB_NAMES.CLEANUP_INACTIVE_ACCOUNTS, async () =>
-      this.handleCleanupInactiveAccounts(),
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.CLEANUP_INACTIVE_ACCOUNTS,
+      async () => this.handleCleanupInactiveAccounts(),
     );
     this.logger.log(
       "AccountDeletionProcessor initialized — inactive-account cleanup scheduled at 03:00 UTC daily",

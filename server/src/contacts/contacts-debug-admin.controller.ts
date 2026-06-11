@@ -123,15 +123,18 @@ export class ContactsDebugAdminController {
    */
   @Get("backfill-search-tokens/job/:jobId")
   async getBackfillSearchTokensJob(@Param("jobId") jobId: string) {
-    const job = await this.boss.getJobById(jobId);
+    const job = await this.boss.getJobById(
+      JOB_NAMES.BACKFILL_CONTACT_SEARCH_TOKENS,
+      jobId,
+    );
     if (!job) {
       return { state: "not_found" as const, output: null };
     }
     return {
       state: job.state,
       output: (job.output as BackfillAllUsersResult | null) ?? null,
-      createdOn: job.createdon,
-      completedOn: job.completedon,
+      createdOn: job.createdOn,
+      completedOn: job.completedOn,
     };
   }
 }

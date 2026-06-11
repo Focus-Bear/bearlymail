@@ -8,6 +8,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { registerWorker } from "../queue/register-worker";
 import { PriorityLearningService } from "./priority-learning.service";
 
 @Injectable()
@@ -43,7 +44,8 @@ export class PriorityLearningProcessor implements OnModuleInit {
     this.logger.log(
       `Starting learn-from-star worker with concurrency: ${this.learnConcurrency}`,
     );
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.LEARN_FROM_STAR,
       // teamSize is a valid pg-boss work option for parallel job processing
       { teamSize: this.learnConcurrency } as PgBoss.WorkOptions,

@@ -11,6 +11,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
+import { registerWorker } from "../queue/register-worker";
 
 @Injectable()
 export class SnoozeProcessor implements OnModuleInit {
@@ -34,78 +35,83 @@ export class SnoozeProcessor implements OnModuleInit {
   }
 
   private async registerSnoozeCheckWorker() {
-    await this.boss.work(JOB_NAMES.CHECK_EXPIRED_SNOOZES, async (job) => {
-      const workerId = job.id || "unknown";
-      const tracker = new JobPerformanceTracker(
-        JOB_NAMES.CHECK_EXPIRED_SNOOZES,
-        workerId,
-        this.cloudWatchService,
-      );
-
-      this.logger.log("[Snooze] Starting expired snooze check");
-      try {
-        tracker.startPhase("findExpiredSnoozes");
-        const now = new Date();
-
-        // Select only the plaintext columns the handler needs. This cron runs
-        // across ALL users with no per-user key context, so hydrating the full
-        // entity would decrypt per-user-encrypted columns (urgencyExplanation,
-        // priorityExplanation, category, githubMetadata, …) with the global-key
-        // fallback and throw "FATAL: N consecutive decryption failures",
-        // failing the job every minute. The loop below only reads userId and
-        // threadId. See issue #2216.
-        const expiredThreads = await this.emailThreadRepository.find({
-          where: {
-            isSnoozed: true,
-            snoozeUntil: LessThanOrEqual(now),
-          },
-          select: { id: true, userId: true, threadId: true },
-        });
-
-        tracker.endPhase("findExpiredSnoozes");
-        tracker.startPhase("queueUnsnoozeJobs");
-
-        this.logger.log(
-          `[Snooze] Found ${expiredThreads.length} expired snoozed threads`,
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.CHECK_EXPIRED_SNOOZES,
+      async (job) => {
+        const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker(
+          JOB_NAMES.CHECK_EXPIRED_SNOOZES,
+          workerId,
+          this.cloudWatchService,
         );
 
-        let jobsQueued = 0;
-        for (const thread of expiredThreads) {
-          try {
-            await this.boss.send(
-              JOB_NAMES.UNSNOOZE_THREAD,
-              { userId: thread.userId, threadId: thread.threadId },
-              {
-                priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
-                singletonKey: `unsnooze-thread-${thread.threadId}`,
-                singletonMinutes: 5,
-              },
-            );
-            jobsQueued++;
-          } catch (queueError) {
-            this.logger.error(
-              `[Snooze] Error queueing unsnooze job for thread ${thread.threadId}:`,
-              queueError,
-            );
+        this.logger.log("[Snooze] Starting expired snooze check");
+        try {
+          tracker.startPhase("findExpiredSnoozes");
+          const now = new Date();
+
+          // Select only the plaintext columns the handler needs. This cron runs
+          // across ALL users with no per-user key context, so hydrating the full
+          // entity would decrypt per-user-encrypted columns (urgencyExplanation,
+          // priorityExplanation, category, githubMetadata, …) with the global-key
+          // fallback and throw "FATAL: N consecutive decryption failures",
+          // failing the job every minute. The loop below only reads userId and
+          // threadId. See issue #2216.
+          const expiredThreads = await this.emailThreadRepository.find({
+            where: {
+              isSnoozed: true,
+              snoozeUntil: LessThanOrEqual(now),
+            },
+            select: { id: true, userId: true, threadId: true },
+          });
+
+          tracker.endPhase("findExpiredSnoozes");
+          tracker.startPhase("queueUnsnoozeJobs");
+
+          this.logger.log(
+            `[Snooze] Found ${expiredThreads.length} expired snoozed threads`,
+          );
+
+          let jobsQueued = 0;
+          for (const thread of expiredThreads) {
+            try {
+              await this.boss.send(
+                JOB_NAMES.UNSNOOZE_THREAD,
+                { userId: thread.userId, threadId: thread.threadId },
+                {
+                  priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
+                  singletonKey: `unsnooze-thread-${thread.threadId}`,
+                  singletonMinutes: 5,
+                },
+              );
+              jobsQueued++;
+            } catch (queueError) {
+              this.logger.error(
+                `[Snooze] Error queueing unsnooze job for thread ${thread.threadId}:`,
+                queueError,
+              );
+            }
           }
+
+          tracker.endPhase("queueUnsnoozeJobs");
+          tracker.finish();
+
+          this.logger.log(
+            `[Snooze] Queued ${jobsQueued} unsnooze jobs for expired snoozes`,
+          );
+        } catch (error) {
+          this.logger.error("[Snooze] Error in check-expired-snoozes:", error);
+          tracker.finish(error as Error);
+          throw error;
         }
-
-        tracker.endPhase("queueUnsnoozeJobs");
-        tracker.finish();
-
-        this.logger.log(
-          `[Snooze] Queued ${jobsQueued} unsnooze jobs for expired snoozes`,
-        );
-      } catch (error) {
-        this.logger.error("[Snooze] Error in check-expired-snoozes:", error);
-        tracker.finish(error as Error);
-        throw error;
-      }
-    });
+      },
+    );
   }
 
   private async registerUnsnoozeThreadWorker() {
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.UNSNOOZE_THREAD,
       { teamSize: 3 },
       async (job) => {

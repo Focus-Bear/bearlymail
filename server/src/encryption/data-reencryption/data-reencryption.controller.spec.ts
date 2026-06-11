@@ -202,19 +202,21 @@ describe("DataReencryptionController", () => {
       };
       const createdOn = new Date("2026-05-11T10:00:00Z");
       const completedOn = new Date("2026-05-11T10:00:30Z");
-      // PgBoss exposes timestamps as lowercase keys on JobWithMetadata
-      // (`createdon` / `completedon`) — matches the raw pg column names. The
-      // controller normalises to camelCase for the response payload.
+      // pg-boss v10 exposes JobWithMetadata timestamps as camelCase
+      // (`createdOn` / `completedOn`); the controller passes them through.
       bossGetJobById.mockResolvedValue({
         state: "completed",
         output: result,
-        createdon: createdOn,
-        completedon: completedOn,
+        createdOn,
+        completedOn,
       });
 
       const response = await controller.getJob("job-uuid-123");
 
-      expect(bossGetJobById).toHaveBeenCalledWith("job-uuid-123");
+      expect(bossGetJobById).toHaveBeenCalledWith(
+        JOB_NAMES.REENCRYPT_USER_DATA,
+        "job-uuid-123",
+      );
       expect(response.state).toBe("completed");
       expect(response.output).toEqual(result);
       expect(response.createdOn).toBe(createdOn);
@@ -234,8 +236,8 @@ describe("DataReencryptionController", () => {
       bossGetJobById.mockResolvedValue({
         state: "active",
         output: null,
-        createdon: createdOn,
-        completedon: null,
+        createdOn,
+        completedOn: null,
       });
 
       const response = await controller.getJob("job-uuid-123");
@@ -263,7 +265,7 @@ describe("DataReencryptionController", () => {
     it("aggregates per-table totals + attaches userId to each failure", async () => {
       // Fan-out enqueued two children. One completed cleanly, one completed
       // with row-level failures.
-      bossGetJobById.mockImplementation((id: string) => {
+      bossGetJobById.mockImplementation((_name: string, id: string) => {
         if (id === "fanout-1") {
           return Promise.resolve({
             state: "completed",
@@ -365,7 +367,7 @@ describe("DataReencryptionController", () => {
       // FAILED child has e.g. `{ message: "boom" }` rather than a
       // UserReencryptionResult. Iterating `out.tables` on that shape used to
       // throw "TypeError: out.tables is not iterable" and return HTTP 500.
-      bossGetJobById.mockImplementation((id: string) => {
+      bossGetJobById.mockImplementation((_name: string, id: string) => {
         if (id === "fanout-mixed") {
           return Promise.resolve({
             state: "completed",
@@ -445,7 +447,7 @@ describe("DataReencryptionController", () => {
       // childJobErrors table — leaving the admin with "Children failed: N"
       // and zero diagnostic information. Now we extract from multiple shapes
       // AND fall back to the raw output preview.
-      bossGetJobById.mockImplementation((id: string) => {
+      bossGetJobById.mockImplementation((_name: string, id: string) => {
         if (id === "fanout-weird") {
           return Promise.resolve({
             state: "completed",
@@ -520,7 +522,7 @@ describe("DataReencryptionController", () => {
       // Belt-and-braces for shape drift: even if a future code path returns a
       // partial result on the COMPLETED path, aggregation should skip it
       // rather than throw.
-      bossGetJobById.mockImplementation((id: string) => {
+      bossGetJobById.mockImplementation((_name: string, id: string) => {
         if (id === "fanout-partial") {
           return Promise.resolve({
             state: "completed",
@@ -549,7 +551,7 @@ describe("DataReencryptionController", () => {
     });
 
     it("counts in-progress children but reports them as not-yet-terminal", async () => {
-      bossGetJobById.mockImplementation((id: string) => {
+      bossGetJobById.mockImplementation((_name: string, id: string) => {
         if (id === "fanout-running") {
           return Promise.resolve({
             state: "completed",

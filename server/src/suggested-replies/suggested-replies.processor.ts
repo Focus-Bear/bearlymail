@@ -15,6 +15,7 @@ import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
 import { LLMService } from "../llm/llm.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import {
   normalizeEncryptedUserText,
@@ -71,7 +72,8 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
   async onModuleInit() {
     this.logger.log("Registering generate-suggested-replies worker");
 
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.GENERATE_SUGGESTED_REPLIES,
       { teamSize: 4 },
       (job: PgBoss.Job<object>) => {

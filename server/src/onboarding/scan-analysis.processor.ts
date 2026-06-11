@@ -6,6 +6,7 @@ import PgBoss from "pg-boss";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { registerWorker } from "../queue/register-worker";
 import { ScanAnalysisService } from "./scan-analysis.service";
 
 @Injectable()
@@ -40,7 +41,8 @@ export class ScanAnalysisProcessor implements OnModuleInit {
     this.logger.log(
       `Registering analyze-scan-results worker with concurrency: ${this.analysisConcurrency}`,
     );
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.ANALYZE_SCAN_RESULTS,
       // teamSize is a valid pg-boss work option for parallel job processing
       { teamSize: this.analysisConcurrency } as PgBoss.WorkOptions,

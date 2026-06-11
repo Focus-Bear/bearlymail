@@ -8,6 +8,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { MILLISECONDS } from "../constants/time-constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { PriorityAnalysisRun } from "../database/entities/priority-analysis-run.entity";
+import { registerWorker } from "../queue/register-worker";
 
 /**
  * Tracks Lambda-dispatched priority analysis runs and unlocks threads that get
@@ -49,9 +50,13 @@ export class PriorityAnalysisFinalizerService implements OnModuleInit {
       PriorityAnalysisFinalizerService.SCAN_CRON,
     );
 
-    await this.boss.work(JOB_NAMES.FINALIZE_STALLED_PRIORITY_RUNS, async () => {
-      await this.detectAndFinalizeStalledRuns();
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.FINALIZE_STALLED_PRIORITY_RUNS,
+      async () => {
+        await this.detectAndFinalizeStalledRuns();
+      },
+    );
 
     this.logger.log("Priority analysis finalizer job registered successfully");
   }

@@ -104,6 +104,7 @@ describe("StuckPriorityDetectionService", () => {
       );
       expect(mockBoss.work).toHaveBeenCalledWith(
         JOB_NAMES.DETECT_STUCK_PRIORITIES,
+        { batchSize: 1 },
         expect.any(Function),
       );
     });

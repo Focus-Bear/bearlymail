@@ -28,6 +28,7 @@ import {
 
 export { classifyBatchError } from "./context-batch-analysis.helpers";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { registerWorker } from "../queue/register-worker";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 
 interface BatchAnalysisJob {
@@ -105,7 +106,8 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     );
     // TODO: Remove after SQS migration is confirmed stable and no in-flight PgBoss
     // ANALYZE_CONTEXT_BATCH jobs remain. New batches go exclusively via SQS → Lambda.
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.ANALYZE_CONTEXT_BATCH,
       { teamSize: this.batchConcurrency },
       (job) => this.handleBatchAnalysisJob(job as PgBoss.Job<BatchAnalysisJob>),

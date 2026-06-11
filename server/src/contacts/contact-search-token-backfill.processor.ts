@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { registerWorker } from "../queue/register-worker";
 import {
   BackfillAllUsersResult,
   ContactsDebugAdminService,
@@ -34,7 +35,8 @@ export class ContactSearchTokenBackfillProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.BACKFILL_CONTACT_SEARCH_TOKENS,
       async (job) => {
         const { dryRun = false } =

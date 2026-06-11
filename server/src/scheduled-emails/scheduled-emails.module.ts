@@ -15,6 +15,7 @@ import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
 import { EmailsModule } from "../emails/emails.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
+import { registerWorker } from "../queue/register-worker";
 import { UsersModule } from "../users/users.module";
 import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { ScheduledEmailsController } from "./scheduled-emails.controller";
@@ -56,9 +57,13 @@ export class ScheduledEmailsModule implements OnModuleInit {
     );
 
     // Register job processor
-    await this.boss.work(JOB_NAMES.SEND_SCHEDULED_EMAILS, async () => {
-      await this.sendScheduledEmailsProcessor.process();
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.SEND_SCHEDULED_EMAILS,
+      async () => {
+        await this.sendScheduledEmailsProcessor.process();
+      },
+    );
 
     this.logger.log("Scheduled emails cron job registered (every 5 minutes)");
   }

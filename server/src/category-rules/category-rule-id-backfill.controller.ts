@@ -58,15 +58,18 @@ export class CategoryRuleIdBackfillController {
    */
   @Get("backfill-ids/job/:jobId")
   async getBackfillIdsJob(@Param("jobId") jobId: string) {
-    const job = await this.boss.getJobById(jobId);
+    const job = await this.boss.getJobById(
+      JOB_NAMES.BACKFILL_CATEGORY_RULE_IDS,
+      jobId,
+    );
     if (!job) {
       return { state: "not_found" as const, output: null };
     }
     return {
       state: job.state,
       output: (job.output as BackfillCategoryRuleIdsResult | null) ?? null,
-      createdOn: job.createdon,
-      completedOn: job.completedon,
+      createdOn: job.createdOn,
+      completedOn: job.completedOn,
     };
   }
 }

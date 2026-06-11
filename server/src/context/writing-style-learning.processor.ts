@@ -10,6 +10,7 @@ import { DAYS } from "../constants/time-constants";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { ContextEmailDataService } from "./context-gmail-data.service";
@@ -40,8 +41,10 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
       LEARNING_CHECK_CRON,
     );
 
-    await this.boss.work(JOB_NAMES.CHECK_WRITING_STYLE_LEARNING, (job) =>
-      this.runWritingStyleLearningCheck(job.id || "unknown"),
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.CHECK_WRITING_STYLE_LEARNING,
+      (job) => this.runWritingStyleLearningCheck(job.id || "unknown"),
     );
 
     this.logger.log("Writing style learning processor registered");

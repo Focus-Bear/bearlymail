@@ -10,6 +10,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
+import { registerWorker } from "../queue/register-worker";
 import { WorkflowContext } from "./types/workflow.types";
 import { WorkflowExecutionService } from "./workflow-execution.service";
 import { WorkflowsService } from "./workflows.service";
@@ -51,7 +52,8 @@ export class WorkflowProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.EVALUATE_WORKFLOWS,
       { teamConcurrency: 5, teamSize: 1 },
       async (job) => {

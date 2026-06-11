@@ -166,6 +166,7 @@ describe("AuditArchiveProcessor", () => {
     );
     expect(boss.work).toHaveBeenCalledWith(
       "audit-log-archive",
+      { batchSize: 1 },
       expect.any(Function),
     );
   });

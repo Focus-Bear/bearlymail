@@ -16,6 +16,7 @@ import {
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
+import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -92,87 +93,97 @@ export class EmailSyncProcessor implements OnModuleInit {
 
   // Worker for scheduling email fetch jobs (every 5 minutes) - queues individual fetch-user-emails jobs for each user
   private async registerFetchSchedulerWorker(): Promise<void> {
-    await this.boss.work(JOB_NAMES.SCHEDULE_EMAIL_FETCH_JOBS, async (job) => {
-      const workerId = job.id || "unknown";
-      const tracker = new JobPerformanceTracker(
-        JOB_NAMES.SCHEDULE_EMAIL_FETCH_JOBS,
-        workerId,
-        this.cloudWatchService,
-      );
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.SCHEDULE_EMAIL_FETCH_JOBS,
+      async (job) => {
+        const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker(
+          JOB_NAMES.SCHEDULE_EMAIL_FETCH_JOBS,
+          workerId,
+          this.cloudWatchService,
+        );
 
-      this.logger.log("Starting email fetch job scheduling (5-minute check)");
-      try {
-        tracker.startPhase("fetchUsers");
-        const users = await this.usersService.findAll();
-        tracker.endPhase("fetchUsers");
-        tracker.startPhase("queueJobs");
+        this.logger.log("Starting email fetch job scheduling (5-minute check)");
+        try {
+          tracker.startPhase("fetchUsers");
+          const users = await this.usersService.findAll();
+          tracker.endPhase("fetchUsers");
+          tracker.startPhase("queueJobs");
 
-        const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
-        let jobsQueued = 0;
-        let jobsSkipped = 0;
+          const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
+          let jobsQueued = 0;
+          let jobsSkipped = 0;
 
-        for (const user of users) {
-          try {
-            // Check if user was synced recently - skip if within 5 minutes
-            if (user.lastEmailSyncAt && user.lastEmailSyncAt > fiveMinutesAgo) {
-              const secondsSinceSync = Math.round(
-                (Date.now() - user.lastEmailSyncAt.getTime()) / MS_PER_SECOND,
+          for (const user of users) {
+            try {
+              // Check if user was synced recently - skip if within 5 minutes
+              if (
+                user.lastEmailSyncAt &&
+                user.lastEmailSyncAt > fiveMinutesAgo
+              ) {
+                const secondsSinceSync = Math.round(
+                  (Date.now() - user.lastEmailSyncAt.getTime()) / MS_PER_SECOND,
+                );
+                this.logger.debug(
+                  `Skipping user ${user.id} - last sync was ${secondsSinceSync}s ago (< 5 minutes)`,
+                );
+                jobsSkipped++;
+                continue;
+              }
+
+              const provider =
+                await this.emailProviderManager.getPrimaryProvider(user.id);
+              if (provider) {
+                // Use singletonKey to prevent duplicate fetch jobs per user
+                await this.boss.send(
+                  JOB_NAMES.FETCH_USER_EMAILS,
+                  { userId: user.id },
+                  {
+                    priority: getJobPriority(
+                      JOB_NAMES.FETCH_USER_EMAILS,
+                      false,
+                    ),
+                    // Scheduled fetch = medium priority
+                    singletonKey: `fetch-user-emails-${user.id}`,
+                    // Don't allow another fetch for same user within 5 minutes
+                    singletonMinutes: 5,
+                  },
+                );
+                jobsQueued++;
+              }
+            } catch (userError) {
+              this.logger.error(
+                `Error processing user ${user.id} for email fetch scheduling:`,
+                userError,
               );
-              this.logger.debug(
-                `Skipping user ${user.id} - last sync was ${secondsSinceSync}s ago (< 5 minutes)`,
-              );
-              jobsSkipped++;
-              continue;
+              // Continue with other users instead of failing entire job
             }
-
-            const provider = await this.emailProviderManager.getPrimaryProvider(
-              user.id,
-            );
-            if (provider) {
-              // Use singletonKey to prevent duplicate fetch jobs per user
-              await this.boss.send(
-                JOB_NAMES.FETCH_USER_EMAILS,
-                { userId: user.id },
-                {
-                  priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
-                  // Scheduled fetch = medium priority
-                  singletonKey: `fetch-user-emails-${user.id}`,
-                  // Don't allow another fetch for same user within 5 minutes
-                  singletonMinutes: 5,
-                },
-              );
-              jobsQueued++;
-            }
-          } catch (userError) {
-            this.logger.error(
-              `Error processing user ${user.id} for email fetch scheduling:`,
-              userError,
-            );
-            // Continue with other users instead of failing entire job
           }
-        }
-        tracker.endPhase("queueJobs");
-        tracker.finish();
+          tracker.endPhase("queueJobs");
+          tracker.finish();
 
-        this.logger.log(
-          `Scheduled ${jobsQueued} email fetch jobs, skipped ${jobsSkipped} users (recently synced)`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Error in schedule-email-fetch-jobs: ${sanitizeAxiosError(error)}`,
-          error instanceof Error ? error.stack : undefined,
-        );
-        tracker.finish(error as Error);
-        throw error;
-      }
-    });
+          this.logger.log(
+            `Scheduled ${jobsQueued} email fetch jobs, skipped ${jobsSkipped} users (recently synced)`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Error in schedule-email-fetch-jobs: ${sanitizeAxiosError(error)}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+          tracker.finish(error as Error);
+          throw error;
+        }
+      },
+    );
   }
 
   private async registerFetchUserEmailsWorker(): Promise<void> {
     // Use CPU-based concurrency for parallel fetches
     // Add retry on failure - jobs will be retried automatically
     // Supports continuation jobs with threadIds for processing large mailboxes in chunks
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.FETCH_USER_EMAILS,
       {
         teamSize: this.syncConcurrency,
@@ -248,7 +259,8 @@ export class EmailSyncProcessor implements OnModuleInit {
 
   // Worker for scheduling extended email fetch jobs (every 2 hours) - fetches ALL inbox emails (no date filter)
   private async registerExtendedFetchSchedulerWorker(): Promise<void> {
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.SCHEDULE_EXTENDED_EMAIL_FETCH_JOBS,
       async (job) => {
         const workerId = job.id || "unknown";
@@ -318,7 +330,8 @@ export class EmailSyncProcessor implements OnModuleInit {
 
   // Worker for extended email fetch (full inbox, no date filter)
   private async registerExtendedFetchWorker(): Promise<void> {
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.FETCH_USER_EMAILS_EXTENDED,
       {
         teamSize: this.syncConcurrency,
@@ -374,7 +387,8 @@ export class EmailSyncProcessor implements OnModuleInit {
   // Worker for scheduling inbox status verification (every 2 hours)
   // Queues individual verify-user-inbox-status jobs per user
   private async registerVerifyInboxStatusScheduler(): Promise<void> {
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.SCHEDULE_VERIFY_INBOX_STATUS,
       async (job) => {
         const workerId = job.id || "unknown";
@@ -440,7 +454,8 @@ export class EmailSyncProcessor implements OnModuleInit {
   // Worker for verifying inbox status per user - checks all non-archived BearlyMail threads
   // against Gmail and archives any that have been archived in Gmail
   private async registerVerifyInboxStatusWorker(): Promise<void> {
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.VERIFY_USER_INBOX_STATUS,
       { teamSize: this.syncConcurrency } as { teamSize: number },
       async (job) => {
@@ -479,7 +494,7 @@ export class EmailSyncProcessor implements OnModuleInit {
   // Legacy and deprecated job handlers
   private async registerLegacyWorkers(): Promise<void> {
     // Keep 'sync-gmail' for backwards compatibility, but route to new system
-    await this.boss.work(JOB_NAMES.SYNC_GMAIL, async (job) => {
+    await registerWorker(this.boss, JOB_NAMES.SYNC_GMAIL, async (job) => {
       const { userId } = job.data as { userId: string };
       this.logger.debug(
         `Starting background email sync for user ${userId} (legacy route)`,
@@ -496,7 +511,7 @@ export class EmailSyncProcessor implements OnModuleInit {
     });
 
     // Handle legacy 'sync-all-users' jobs - ignore/delete them
-    await this.boss.work(JOB_NAMES.SYNC_ALL_USERS, async (job) => {
+    await registerWorker(this.boss, JOB_NAMES.SYNC_ALL_USERS, async (job) => {
       this.logger.warn(
         `Legacy 'sync-all-users' job detected (id: ${job.id}). This job type is deprecated. Ignoring.`,
       );
@@ -505,29 +520,38 @@ export class EmailSyncProcessor implements OnModuleInit {
     });
 
     // Handle legacy 'queue-user-syncs-urgent' jobs - route to new system
-    await this.boss.work(JOB_NAMES.QUEUE_USER_SYNCS_URGENT, async (job) => {
-      const workerId = job.id || "unknown";
-      this.logger.warn(
-        `Legacy 'queue-user-syncs-urgent' job detected (id: ${workerId}). This job type is deprecated. Ignoring.`,
-      );
-      // Don't throw error - just complete the job to remove it from queue
-      // The new 'schedule-email-fetch-jobs' job handles this functionality
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.QUEUE_USER_SYNCS_URGENT,
+      async (job) => {
+        const workerId = job.id || "unknown";
+        this.logger.warn(
+          `Legacy 'queue-user-syncs-urgent' job detected (id: ${workerId}). This job type is deprecated. Ignoring.`,
+        );
+        // Don't throw error - just complete the job to remove it from queue
+        // The new 'schedule-email-fetch-jobs' job handles this functionality
+      },
+    );
 
     // Handle legacy 'sync-all-users-urgent' jobs - route to new system
-    await this.boss.work(JOB_NAMES.SYNC_ALL_USERS_URGENT, async (job) => {
-      const workerId = job.id || "unknown";
-      this.logger.warn(
-        `Legacy 'sync-all-users-urgent' job detected (id: ${workerId}). This job type is deprecated. Ignoring.`,
-      );
-      // Don't throw error - just complete the job to remove it from queue
-      // The new 'schedule-email-fetch-jobs' job handles this functionality
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.SYNC_ALL_USERS_URGENT,
+      async (job) => {
+        const workerId = job.id || "unknown";
+        this.logger.warn(
+          `Legacy 'sync-all-users-urgent' job detected (id: ${workerId}). This job type is deprecated. Ignoring.`,
+        );
+        // Don't throw error - just complete the job to remove it from queue
+        // The new 'schedule-email-fetch-jobs' job handles this functionality
+      },
+    );
   }
 
   // Worker for historical scan - just queues individual email jobs
   private async registerScanHistoryWorker(): Promise<void> {
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.SCAN_HISTORY,
       { teamSize: this.syncConcurrency },
       async (job) => {
@@ -574,7 +598,8 @@ export class EmailSyncProcessor implements OnModuleInit {
     this.logger.log(
       `Registering scan-history-email worker with teamSize: ${this.scanConcurrency}`,
     );
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.SCAN_HISTORY_EMAIL,
       { teamSize: this.scanConcurrency },
       async (job) => {

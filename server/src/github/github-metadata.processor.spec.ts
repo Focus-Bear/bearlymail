@@ -88,7 +88,7 @@ describe("GitHubMetadataProcessor", () => {
   it("registers a worker for FETCH_GITHUB_METADATA", () => {
     expect(mockBoss.work).toHaveBeenCalledWith(
       JOB_NAMES.FETCH_GITHUB_METADATA,
-      expect.objectContaining({ teamConcurrency: 5 }),
+      { batchSize: 1 },
       expect.any(Function),
     );
   });
@@ -112,13 +112,15 @@ describe("GitHubMetadataProcessor", () => {
       },
     );
 
-    await workHandler({
-      data: {
-        userId: "user-1",
-        emailId: "email-1",
-        threadId: "thread-1",
+    await workHandler([
+      {
+        data: {
+          userId: "user-1",
+          emailId: "email-1",
+          threadId: "thread-1",
+        },
       },
-    });
+    ]);
 
     expect(mockUserEncryptionService.withUserKey).toHaveBeenCalledWith(
       "user-1",
@@ -139,13 +141,15 @@ describe("GitHubMetadataProcessor", () => {
     );
 
     await expect(
-      workHandler({
-        data: {
-          userId: "user-1",
-          emailId: "email-1",
-          threadId: "thread-1",
+      workHandler([
+        {
+          data: {
+            userId: "user-1",
+            emailId: "email-1",
+            threadId: "thread-1",
+          },
         },
-      }),
+      ]),
     ).rejects.toThrow("boom");
   });
 });

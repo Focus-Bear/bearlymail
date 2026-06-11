@@ -8,6 +8,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { ContextService } from "./context.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
@@ -50,7 +51,8 @@ export class ContextAnalysisProcessor implements OnModuleInit {
       `===== Context Analysis Worker Registered ===== (concurrency: ${this.contextConcurrency})`,
       "log",
     );
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.ANALYZE_CONTEXT,
       { teamSize: this.contextConcurrency } as { teamSize: number },
       async (job) => {

@@ -30,6 +30,7 @@ import { PriorityCacheService } from "../priority/priority-cache.service";
 import { PriorityRulesService } from "../priority-rules/priority-rules.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { registerWorker } from "../queue/register-worker";
 import { EmailsService } from "./emails.service";
 import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
@@ -101,7 +102,8 @@ export class LLMProcessor implements OnModuleInit {
     this.logger.log(
       `Starting priority refinement worker with concurrency: ${this.priorityConcurrency}`,
     );
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.REFINE_PRIORITY,
       { teamSize: this.priorityConcurrency },
       async (job) => this.handleRefinePriorityJob(job as PgBoss.Job),
@@ -114,6 +116,9 @@ export class LLMProcessor implements OnModuleInit {
     this.logger.log(
       `Starting summary generation worker with ${parallelCalls} parallel LLM calls per batch`,
     );
+    // Genuine batch worker: v10 delivers a Job[] of up to `batchSize`, which
+    // this handler processes together via processSummaryJobBatch. Calls
+    // boss.work directly rather than the single-job registerWorker adapter.
     await this.boss.work(
       JOB_NAMES.GENERATE_SUMMARY,
       { batchSize: parallelCalls },
@@ -138,7 +143,8 @@ export class LLMProcessor implements OnModuleInit {
     );
 
     this.logger.log("Starting batch priority refinement worker");
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.REFINE_PRIORITY_BATCH,
       { teamSize: Math.max(2, Math.floor(this.priorityConcurrency / 2)) },
       async (job) => this.handleRefinePriorityBatchJob(job as PgBoss.Job),

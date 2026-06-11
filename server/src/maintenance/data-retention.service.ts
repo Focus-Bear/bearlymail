@@ -4,6 +4,7 @@ import { DataSource } from "typeorm";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { registerWorker } from "../queue/register-worker";
 
 /** One table's retention policy: delete rows whose `column` is older than `days`. */
 interface RetentionPolicy {
@@ -57,7 +58,7 @@ export class DataRetentionService implements OnModuleInit {
         JOB_NAMES.PRUNE_OLD_DATA,
         DataRetentionService.SCAN_CRON,
       );
-      await this.boss.work(JOB_NAMES.PRUNE_OLD_DATA, async () => {
+      await registerWorker(this.boss, JOB_NAMES.PRUNE_OLD_DATA, async () => {
         await this.pruneAll();
       });
       this.logger.log("Data-retention sweep registered (daily 03:30 UTC)");

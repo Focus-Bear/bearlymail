@@ -69,6 +69,7 @@ describe("AccountDeletionProcessor", () => {
 
       expect(mockBoss.work).toHaveBeenCalledWith(
         JOB_NAMES.CLEANUP_INACTIVE_ACCOUNTS,
+        { batchSize: 1 },
         expect.any(Function),
       );
     });

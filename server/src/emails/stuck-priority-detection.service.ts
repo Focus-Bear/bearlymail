@@ -11,6 +11,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { getJobPriority } from "../queue/job-priorities";
+import { registerWorker } from "../queue/register-worker";
 
 /**
  * Periodic safety-net service that detects email threads stuck at priority=0
@@ -58,9 +59,13 @@ export class StuckPriorityDetectionService implements OnModuleInit {
       StuckPriorityDetectionService.DETECTION_CRON,
     );
 
-    await this.boss.work(JOB_NAMES.DETECT_STUCK_PRIORITIES, async () => {
-      await this.detectAndRequeueStalePriorityThreads();
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.DETECT_STUCK_PRIORITIES,
+      async () => {
+        await this.detectAndRequeueStalePriorityThreads();
+      },
+    );
 
     this.logger.log("Stuck-priority detection job registered successfully");
   }

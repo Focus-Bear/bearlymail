@@ -9,6 +9,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MILLISECONDS } from "../constants/time-constants";
 import { AuditLog } from "../database/entities/audit-log.entity";
+import { registerWorker } from "../queue/register-worker";
 
 const RETENTION_DAYS = 90;
 const BATCH_SIZE = 1000;
@@ -53,7 +54,7 @@ export class AuditArchiveProcessor implements OnModuleInit {
   async onModuleInit() {
     // 03:30 UTC daily — off-peak for our user base.
     await this.boss.schedule(JOB_NAMES.AUDIT_LOG_ARCHIVE, "30 3 * * *");
-    await this.boss.work(JOB_NAMES.AUDIT_LOG_ARCHIVE, async () => {
+    await registerWorker(this.boss, JOB_NAMES.AUDIT_LOG_ARCHIVE, async () => {
       await this.runArchive();
     });
   }

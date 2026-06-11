@@ -7,6 +7,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MILLISECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import { registerWorker } from "../queue/register-worker";
 
 /**
  * Periodic cleanup service that detects context analyses stuck in "running"
@@ -44,9 +45,13 @@ export class ContextAnalysisCleanupService implements OnModuleInit {
       ContextAnalysisCleanupService.CLEANUP_CRON,
     );
 
-    await this.boss.work(JOB_NAMES.CLEANUP_STUCK_ANALYSES, async () => {
-      await this.cleanupStuckAnalyses();
-    });
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.CLEANUP_STUCK_ANALYSES,
+      async () => {
+        await this.cleanupStuckAnalyses();
+      },
+    );
 
     this.logger.log("Stuck-analysis cleanup job registered successfully");
   }

@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { registerWorker } from "../queue/register-worker";
 import { logErrorToFile } from "../utils/error-logger";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailsService } from "./emails.service";
@@ -32,11 +33,14 @@ export class ArchiveEmailProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.boss.work(JOB_NAMES.ARCHIVE_EMAIL, async (job) =>
+    await registerWorker(this.boss, JOB_NAMES.ARCHIVE_EMAIL, async (job) =>
       this.handleArchiveEmail(job.data as ArchiveEmailJobData),
     );
-    await this.boss.work(JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC, async (job) =>
-      this.handleArchiveProviderSync(job.data as ArchiveProviderSyncJobData),
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC,
+      async (job) =>
+        this.handleArchiveProviderSync(job.data as ArchiveProviderSyncJobData),
     );
     this.logger.log(
       "ArchiveEmailProcessor initialized - archive-email and archive-email-provider-sync handlers registered",

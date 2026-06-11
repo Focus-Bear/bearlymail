@@ -6,6 +6,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { PusherService } from "../pusher/pusher.service";
+import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { ContactsService } from "./contacts.service";
 
@@ -25,59 +26,64 @@ export class ContactSyncProcessor implements OnModuleInit {
   async onModuleInit() {
     await this.boss.schedule(JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS, "0 3 * * *");
 
-    await this.boss.work(JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS, async () => {
-      this.logger.log("Starting daily contact sync scheduling");
-      try {
-        const users = await this.usersService.findAll();
-        let jobsQueued = 0;
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS,
+      async () => {
+        this.logger.log("Starting daily contact sync scheduling");
+        try {
+          const users = await this.usersService.findAll();
+          let jobsQueued = 0;
 
-        for (const user of users) {
-          try {
-            /** Check if user should have contact sync based on User entity tokens */
-            const hasUserToken = !!user.googleCalendarAccessToken;
+          for (const user of users) {
+            try {
+              /** Check if user should have contact sync based on User entity tokens */
+              const hasUserToken = !!user.googleCalendarAccessToken;
 
-            /** Check if user has any active GoogleAccount with a valid token */
-            let hasGoogleAccount = false;
-            if (!hasUserToken) {
-              try {
-                const primary = await this.googleAccountsService.findPrimary(
-                  user.id,
-                );
-                hasGoogleAccount = !!primary?.accessToken;
-              } catch {
-                hasGoogleAccount = false;
+              /** Check if user has any active GoogleAccount with a valid token */
+              let hasGoogleAccount = false;
+              if (!hasUserToken) {
+                try {
+                  const primary = await this.googleAccountsService.findPrimary(
+                    user.id,
+                  );
+                  hasGoogleAccount = !!primary?.accessToken;
+                } catch {
+                  hasGoogleAccount = false;
+                }
               }
-            }
 
-            if (hasUserToken || hasGoogleAccount) {
-              await this.boss.send(
-                JOB_NAMES.SYNC_CONTACTS,
-                { userId: user.id },
-                {
-                  singletonKey: `sync-contacts-${user.id}`,
-                  singletonMinutes: 60,
-                },
+              if (hasUserToken || hasGoogleAccount) {
+                await this.boss.send(
+                  JOB_NAMES.SYNC_CONTACTS,
+                  { userId: user.id },
+                  {
+                    singletonKey: `sync-contacts-${user.id}`,
+                    singletonMinutes: 60,
+                  },
+                );
+                jobsQueued++;
+              }
+            } catch (userError) {
+              this.logger.error(
+                `Error scheduling contact sync for user ${user.id}:`,
+                userError,
               );
-              jobsQueued++;
             }
-          } catch (userError) {
-            this.logger.error(
-              `Error scheduling contact sync for user ${user.id}:`,
-              userError,
-            );
           }
+
+          this.logger.log(
+            `Scheduled ${jobsQueued} contact sync jobs for daily sync`,
+          );
+        } catch (error) {
+          this.logger.error("Error in schedule-contact-sync-jobs:", error);
+          throw error;
         }
+      },
+    );
 
-        this.logger.log(
-          `Scheduled ${jobsQueued} contact sync jobs for daily sync`,
-        );
-      } catch (error) {
-        this.logger.error("Error in schedule-contact-sync-jobs:", error);
-        throw error;
-      }
-    });
-
-    await this.boss.work(
+    await registerWorker(
+      this.boss,
       JOB_NAMES.SYNC_CONTACTS,
       { teamSize: 3 } as PgBoss.WorkOptions,
       async (job) => {

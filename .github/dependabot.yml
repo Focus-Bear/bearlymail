@@ -25,6 +25,12 @@ updates:
       # We pin @types/node to the major matching our runtime (Node 24).
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # TypeORM 1.0.0 removed string-array form of `select` (must now be
+      # `{ field: true }`) and dropped the `Connection` export. The codebase
+      # uses both extensively across ~48 files. Pin to 0.3.x until we
+      # schedule a deliberate migration.
+      - dependency-name: "typeorm"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

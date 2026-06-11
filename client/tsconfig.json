@@ -21,7 +21,8 @@
     "paths": {
       "*": ["*"]
     },
-    "types": ["vite/client", "node", "vitest/globals"]
+    "types": ["vite/client", "node", "vitest/globals"],
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"],
   "exclude": ["node_modules/i18next/typescript"],

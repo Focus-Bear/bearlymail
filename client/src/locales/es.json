@@ -2197,6 +2197,7 @@
         "title": "BearlyMail · Tuesday, 10:42 AM",
         "live": "Live",
         "calloutLabel": "Prueba la demo en vivo",
+        "restart": "↺ Reiniciar demo",
         "filter": "Filtrar",
         "settings": "Ajustes",
         "tourReplay": "↻ Tour",
@@ -2255,7 +2256,25 @@
         "actions": {
           "archive": "🗄 Archivar",
           "snooze": "⏰ Posponer",
-          "block": "🚫 Bloquear remitente"
+          "block": "🚫 Bloquear remitente",
+          "tryInApp": "Pruébalo en la app real"
+        },
+        "skeleton": {
+          "first": {
+            "sender": "Maya Chen",
+            "subject": "Re: Notas de planificación del sprint",
+            "time": "9:14"
+          },
+          "second": {
+            "sender": "Equipo de finanzas",
+            "subject": "Informe de gastos aprobado",
+            "time": "8:47"
+          },
+          "third": {
+            "sender": "Boletín de producto",
+            "subject": "Tu resumen de proyectos del lunes",
+            "time": "Ayer"
+          }
         },
         "cards": {
           "aria": {
@@ -2353,6 +2372,7 @@
           "getOnIt": "Movido a Action",
           "ohShit": "Subido al principio de Action",
           "archived": "Archivado",
+          "archiveDone": "Archivado — una cosa menos 🎉",
           "followupSent": "Seguimiento enviado ✓"
         },
         "tour": {

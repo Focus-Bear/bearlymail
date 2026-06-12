@@ -1,4 +1,4 @@
-/* eslint-disable i18next/no-literal-string, max-lines-per-function */
+/* eslint-disable max-lines-per-function */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,15 +6,17 @@ import { EmergencyDeliveryRibbon } from 'components/inbox/EmergencyDeliveryRibbo
 
 import {
   type DemoTab,
-  INITIAL_TRIAGE,
   PRIO_CAN_WAIT,
   PRIO_GET_ON_IT,
   PRIO_OH_SHIT,
-  type PrioChoice,
+  SKELETON_ROW_IDS,
   TAB_ACTION,
   TAB_FOLLOWUP,
   TAB_TRIAGE,
 } from './constants';
+import { DemoSkeletonRows } from './DemoSkeletonRows';
+import { DemoTabButton } from './DemoTabButton';
+import { PrioButton } from './PrioButton';
 import { useDemoAnimation } from './useDemoAnimation';
 
 const EMPTY_ICONS: Record<DemoTab, string> = {
@@ -25,6 +27,15 @@ const EMPTY_ICONS: Record<DemoTab, string> = {
 
 const DEFAULT_DEMO_PREFIX = 'landing.v2.demo';
 
+/** Initials for the sender avatar, e.g. "Aria Patel" → "AP". */
+const senderInitials = (name: string): string =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join('');
+
 interface LiveDemoProps {
   /** Root i18n key for the demo strings (without trailing dot). Defaults to
    * landing.v2.demo so the original landing keeps working unchanged. */
@@ -33,8 +44,10 @@ interface LiveDemoProps {
 
 export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PREFIX }) => {
   const { t } = useTranslation();
-  const localT = (suffix: string, options?: Record<string, unknown>): string =>
-    options ? t(`${i18nPrefix}.${suffix}`, options) : t(`${i18nPrefix}.${suffix}`);
+  const localT = (suffix: string, options?: Record<string, unknown>): string => {
+    const keys = [`${i18nPrefix}.${suffix}`, `${DEFAULT_DEMO_PREFIX}.${suffix}`];
+    return options ? t(keys, options) : t(keys);
+  };
 
   const {
     counts,
@@ -45,26 +58,49 @@ export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PR
     flying,
     bumpedTab,
     toastKey,
+    hasInteracted,
     cardRef,
     triageTabRef,
     actionTabRef,
     followupTabRef,
     handleTabClick,
     handlePrioClick,
+    handleArchiveClick,
+    handleRestartClick,
+    handleDemoMouseEnter,
+    handleDemoMouseLeave,
   } = useDemoAnimation();
 
   const cardVisible = ownerTab === activeTab;
+  const showSkeletons = activeTab === TAB_ACTION;
+  const skeletonRowsAbove =
+    showSkeletons && cardVisible && selectedPrio === PRIO_GET_ON_IT
+      ? SKELETON_ROW_IDS.slice(0, 1)
+      : [];
+  const skeletonRowsBelow = showSkeletons ? SKELETON_ROW_IDS.slice(skeletonRowsAbove.length) : [];
+  const showEmpty = !cardVisible && !showSkeletons;
   const emptyTitle = localT(`empty.${activeTab}.title`);
   const emptySub = localT(`empty.${activeTab}.sub`);
   const emptyIcon = EMPTY_ICONS[activeTab];
-  const topicPill = ownerTab === TAB_TRIAGE && activeTab === TAB_TRIAGE ? INITIAL_TRIAGE : 0;
+  const topicPill = skeletonRowsAbove.length + skeletonRowsBelow.length + (cardVisible ? 1 : 0);
+  const senderName = localT('email.from');
 
   return (
-    <div className="demo-wrap">
-      <div className="chip-float chip-1">
-        <span className="ic">⚡</span> {localT('floats.urgent')}
-      </div>
-      <div className="demo" role="img" aria-label={localT('title')}>
+    <div
+      className="demo-wrap"
+      onMouseEnter={handleDemoMouseEnter}
+      onMouseLeave={handleDemoMouseLeave}
+    >
+      {hasInteracted ? (
+        <div className="chip-float chip-1">
+          <span className="ic">⚡</span> {localT('floats.urgent')}
+        </div>
+      ) : (
+        <div className="chip-float chip-try">
+          <span className="ic">👇</span> {localT('calloutLabel')}
+        </div>
+      )}
+      <div className="demo" role="group" aria-label={localT('title')}>
         <div className="demo-bar">
           <div className="demo-dots">
             <span />
@@ -73,6 +109,11 @@ export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PR
           </div>
           <div className="demo-title">{localT('title')}</div>
           <div className="demo-clock">
+            {hasInteracted && (
+              <button type="button" className="demo-restart" onClick={handleRestartClick}>
+                {localT('restart')}
+              </button>
+            )}
             <span className="live" /> {localT('live')}
           </div>
         </div>
@@ -105,7 +146,7 @@ export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PR
             count={counts[TAB_FOLLOWUP]}
             onActivate={handleTabClick}
           />
-          <div className="demo-tab demo-tab-filter" aria-label="Filter">
+          <div className="demo-tab demo-tab-filter" aria-label={localT('filter')}>
             <span className="filter-box" />
           </div>
         </div>
@@ -120,7 +161,6 @@ export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PR
 
         <div className="topic-group">
           <div className="topic-head">
-            <span className="chev">▾</span>
             <span className="topic-ic">👋</span>
             <div className="topic-title">
               <b>{localT('topic.prefix')}</b>
@@ -133,6 +173,10 @@ export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PR
             </span>
           </div>
 
+          {skeletonRowsAbove.length > 0 && (
+            <DemoSkeletonRows rowIds={skeletonRowsAbove} localT={localT} />
+          )}
+
           <div
             ref={cardRef}
             className={`email-card email-card-with-ribbon${flying ? ' flying' : ''}`}
@@ -141,7 +185,11 @@ export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PR
             <EmergencyDeliveryRibbon />
             <div className="email-head">
               <div className="email-from">
-                <b>{localT('email.from')}</b>
+                <span className="unread-dot" aria-hidden="true" />
+                <span className="sender-avatar" aria-hidden="true">
+                  {senderInitials(senderName)}
+                </span>
+                <b>{senderName}</b>
                 <span className="chip chip-team">{localT('email.customerChip')}</span>
                 <span className="chip chip-prio">{localT('email.priorityChip')}</span>
               </div>
@@ -181,14 +229,24 @@ export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PR
                 </div>
               </div>
               <div className="row-actions">
-                <span className="row-act">{localT('actions.archive')}</span>
-                <span className="row-act">{localT('actions.snooze')}</span>
-                <span className="row-act">{localT('actions.block')}</span>
+                <button type="button" className="row-act" onClick={handleArchiveClick}>
+                  {localT('actions.archive')}
+                </button>
+                <span className="row-act row-act-disabled" title={localT('actions.tryInApp')}>
+                  {localT('actions.snooze')}
+                </span>
+                <span className="row-act row-act-disabled" title={localT('actions.tryInApp')}>
+                  {localT('actions.block')}
+                </span>
               </div>
             </div>
           </div>
 
-          {!cardVisible && (
+          {skeletonRowsBelow.length > 0 && (
+            <DemoSkeletonRows rowIds={skeletonRowsBelow} localT={localT} />
+          )}
+
+          {showEmpty && (
             <div className="empty-state">
               <div className="empty-ic">{emptyIcon}</div>
               <div className="empty-title">{emptyTitle}</div>
@@ -222,54 +280,3 @@ export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PR
     </div>
   );
 };
-
-// ===== Internal helpers =====
-
-interface DemoTabButtonProps {
-  name: DemoTab;
-  label: string;
-  tabRef: React.RefObject<HTMLButtonElement | null>;
-  isActive: boolean;
-  isBumped: boolean;
-  count: number;
-  onActivate: (name: DemoTab) => void;
-}
-
-const DemoTabButton: React.FC<DemoTabButtonProps> = ({
-  name,
-  label,
-  tabRef,
-  isActive,
-  isBumped,
-  count,
-  onActivate,
-}) => (
-  <button
-    type="button"
-    ref={tabRef}
-    className={`demo-tab${isActive ? ' active' : ''}${isBumped ? ' bump' : ''}`}
-    onClick={() => onActivate(name)}
-  >
-    {label} <span className="count">{count}</span>
-  </button>
-);
-
-interface PrioButtonProps {
-  prio: PrioChoice;
-  label: string;
-  emoji: string;
-  selected: boolean;
-  pulse: boolean;
-  onClick: (prio: PrioChoice) => void;
-}
-
-const PrioButton: React.FC<PrioButtonProps> = ({ prio, label, emoji, selected, pulse, onClick }) => (
-  <button
-    type="button"
-    className={`prio-btn${pulse ? ' pulse' : ''}${selected ? ' active' : ''}`}
-    onClick={() => onClick(prio)}
-  >
-    <span className="emo">{emoji}</span>
-    <span className="emo-l">{label}</span>
-  </button>
-);

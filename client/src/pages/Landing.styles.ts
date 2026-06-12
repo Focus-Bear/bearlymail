@@ -323,6 +323,15 @@ export const LANDING_STYLES = `
 }
 .bearlymail-landing .email-from { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .bearlymail-landing .email-from b { font-size: 14px; color: var(--ink); font-weight: 600; }
+.bearlymail-landing .email-from .unread-dot {
+  width: 8px; height: 8px; border-radius: 999px; background: var(--sun); flex-shrink: 0;
+}
+.bearlymail-landing .email-from .sender-avatar {
+  width: 28px; height: 28px; border-radius: 999px;
+  display: grid; place-items: center; flex-shrink: 0;
+  background: var(--sun-pale); color: var(--sun-dark);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+}
 .bearlymail-landing .chip {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 999px;
@@ -384,7 +393,37 @@ export const LANDING_STYLES = `
 
 .bearlymail-landing .row-actions { display: flex; gap: 14px; flex-wrap: wrap; }
 .bearlymail-landing .row-act { font-size: 11.5px; color: var(--ink-3); }
-.bearlymail-landing .row-act:hover { color: var(--ink); }
+.bearlymail-landing button.row-act {
+  appearance: none; background: transparent; border: 0; padding: 0;
+  font: inherit; font-size: 11.5px; color: var(--ink-3);
+  cursor: pointer; transition: color .12s;
+}
+.bearlymail-landing button.row-act:hover { color: var(--ink); }
+.bearlymail-landing .row-act-disabled { opacity: 0.45; cursor: default; }
+
+.bearlymail-landing .skel-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 10px; padding: 12px 18px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--cream-2); opacity: 0.6;
+}
+.bearlymail-landing .skel-row .skel-avatar {
+  width: 24px; height: 24px; border-radius: 999px;
+  display: grid; place-items: center; flex-shrink: 0;
+  background: var(--cream-3); color: var(--ink-4);
+  font-size: 10px; font-weight: 700;
+}
+.bearlymail-landing .skel-row .skel-sender { font-size: 12.5px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+.bearlymail-landing .skel-row .skel-subj { flex: 1; min-width: 0; font-size: 12px; color: var(--ink-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bearlymail-landing .skel-row .skel-time { font-size: 11px; color: var(--ink-4); white-space: nowrap; }
+
+.bearlymail-landing .demo-restart {
+  font-size: 11px; font-weight: 600; color: var(--ink-3);
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 9px; cursor: pointer; margin-right: 4px;
+  transition: color .12s, border-color .12s;
+}
+.bearlymail-landing .demo-restart:hover { color: var(--ink); border-color: var(--line-2); }
 
 .bearlymail-landing .demo-foot {
   display: flex; align-items: center; gap: 10px; justify-content: space-between;
@@ -408,9 +447,12 @@ export const LANDING_STYLES = `
 .bearlymail-landing .chip-1 .ic { background: var(--sun-pale); color: var(--sun-dark); }
 .bearlymail-landing .chip-2 { bottom: -22px; right: -32px; transform: rotate(3deg); }
 .bearlymail-landing .chip-2 .ic { background: #DCEFE5; color: var(--green); }
+.bearlymail-landing .chip-try { top: -22px; left: -28px; transform: rotate(-4deg); }
+.bearlymail-landing .chip-try .ic { background: var(--sun-pale); color: var(--sun-dark); }
 @media (max-width: 1100px) {
   .bearlymail-landing .chip-1 { left: 8px; }
   .bearlymail-landing .chip-2 { right: 8px; }
+  .bearlymail-landing .chip-try { left: 8px; }
 }
 @media (max-width: 520px) { .bearlymail-landing .chip-1, .bearlymail-landing .chip-2 { display: none; } }
 

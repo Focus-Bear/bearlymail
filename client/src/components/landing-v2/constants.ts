@@ -14,7 +14,7 @@ export const PRIO_GET_ON_IT: PrioChoice = 'get-on-it';
 export const PRIO_OH_SHIT: PrioChoice = 'oh-shit';
 
 export const FLY_ANIMATION_MS = 720;
-export const RESET_AFTER_MS = 12_000;
+export const RESET_AFTER_MS = 30_000;
 export const TOAST_VISIBLE_MS = 3_800;
 export const BUMP_HIGHLIGHT_MS = 600;
 export const STEP_AUTOCYCLE_MS = 4_500;
@@ -35,6 +35,10 @@ export const PRIO_ROUTES: Record<PrioChoice, { dest: Exclude<DemoTab, 'triage'>;
   [PRIO_GET_ON_IT]: { dest: TAB_ACTION, toastKeySuffix: 'routed.getOnIt' },
   [PRIO_OH_SHIT]: { dest: TAB_ACTION, toastKeySuffix: 'routed.ohShit' },
 };
+
+/** i18n ids (under <prefix>.skeleton.*) for the static placeholder rows that
+ * pad the Action tab so "top of Action" is visually meaningful. */
+export const SKELETON_ROW_IDS = ['first', 'second', 'third'] as const;
 
 /* =========================================================================
  * Rich demo (default landing page only) — multi-email triage, click-to-read,

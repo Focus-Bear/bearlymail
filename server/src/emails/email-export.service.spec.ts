@@ -2,6 +2,7 @@ import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { CategoryOverride } from "../database/entities/category-override.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
@@ -47,6 +48,7 @@ describe("EmailExportService", () => {
   let service: EmailExportService;
   const mockEmailRepository = { find: jest.fn() };
   const mockUserContextRepository = { find: jest.fn() };
+  const mockCategoryOverrideRepository = { find: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -60,11 +62,16 @@ describe("EmailExportService", () => {
           provide: getRepositoryToken(UserContext),
           useValue: mockUserContextRepository,
         },
+        {
+          provide: getRepositoryToken(CategoryOverride),
+          useValue: mockCategoryOverrideRepository,
+        },
       ],
     }).compile();
 
     service = module.get<EmailExportService>(EmailExportService);
     mockUserContextRepository.find.mockResolvedValue([]);
+    mockCategoryOverrideRepository.find.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -256,6 +263,94 @@ describe("EmailExportService", () => {
 
       expect(result[0].subject).toBe("");
       expect(result[0].body).toBe("");
+    });
+
+    it("includes thread-level training labels and metadata features", async () => {
+      const receivedAt = new Date("2026-06-01T10:30:00.000Z");
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({
+          threadId: "gmail-thread-1",
+          receivedAt,
+          sentimentScore: -20,
+          userPriorityOverride: 90,
+          attachments: [
+            {
+              attachmentId: "a1",
+              filename: "f.pdf",
+              mimeType: "application/pdf",
+              size: 10,
+            },
+          ],
+          thread: makeThread({
+            starCount: 2,
+            priorityScore: 73,
+            urgencyScore: 55,
+          } as Partial<EmailThread>),
+        }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result[0]).toMatchObject({
+        threadId: "gmail-thread-1",
+        receivedAt: "2026-06-01T10:30:00.000Z",
+        hasAttachments: true,
+        starCount: 2,
+        priorityScore: 73,
+        urgencyScore: 55,
+        sentimentScore: -20,
+        userPriorityOverride: 90,
+        categoryIsUserCorrected: false,
+      });
+    });
+
+    it("exports null labels and false flags when thread data is absent", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ thread: undefined as unknown as EmailThread }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result[0]).toMatchObject({
+        starCount: null,
+        priorityScore: null,
+        urgencyScore: null,
+        categoryIsUserCorrected: false,
+        hasAttachments: false,
+      });
+    });
+
+    it("flags categoryIsUserCorrected when the thread has a category override", async () => {
+      mockCategoryOverrideRepository.find.mockResolvedValue([
+        { emailThreadId: "thread-1" } as CategoryOverride,
+      ]);
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ thread: makeThread({ id: "thread-1" }) }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result[0].categoryIsUserCorrected).toBe(true);
+    });
+
+    it("includes a stable sha256 senderHash of the lowercased address", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        makeEmail({ from: "Alice <ALICE@Example.com>" }),
+        makeEmail({ id: "email-2", from: "alice@example.com" }),
+      ]);
+
+      const result = await service.getExportableEmails("user-1");
+
+      expect(result[0].senderHash).toMatch(/^[0-9a-f]{64}$/);
+      expect(result[0].senderHash).toBe(result[1].senderHash);
+    });
+  });
+
+  describe("hashSenderAddress", () => {
+    it("returns null when no address can be extracted", () => {
+      expect(service.hashSenderAddress(null)).toBeNull();
+      expect(service.hashSenderAddress("")).toBeNull();
+      expect(service.hashSenderAddress("not-an-email")).toBeNull();
     });
   });
 

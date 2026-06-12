@@ -15,7 +15,8 @@ const ContactGroupsPage: React.FC = () => {
   const { user, logout } = useAuth();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const { isCollapsed, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } = useSidebarState();
+  const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } =
+    useSidebarState({ alwaysToggleable: true });
 
   return (
     <div style={{ display: STRING_FLEX, height: '100vh', overflow: STRING_HIDDEN }}>
@@ -23,6 +24,7 @@ const ContactGroupsPage: React.FC = () => {
         user={user}
         logout={logout}
         isCollapsed={isCollapsed}
+        canToggleCollapse={canToggleCollapse}
         onToggleCollapse={toggleCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
         onCloseMobileMenu={closeMobileMenu}

@@ -12,6 +12,8 @@
     "edit": "Edit",
     "remove": "Remove",
     "back": "Back",
+    "backToInbox": "Back to Inbox",
+    "openNavigationMenu": "Open navigation menu",
     "add": "Add",
     "auto": "Auto",
     "custom": "Custom",
@@ -545,7 +547,6 @@
     "replyScheduledSuccess": "Reply scheduled successfully!",
     "replySentError": "Failed to send reply. Please try again.",
     "schedule": "Schedule",
-    "backToInbox": "Back to Inbox",
     "clickToCopyEmail": "Click to copy email address",
     "emailCopied": "Copied!",
     "clickToSeeScore": "Click to see why this score was assigned",
@@ -712,7 +713,6 @@
   },
   "settings": {
     "title": "Settings",
-    "backToInbox": "Back to Inbox",
     "contextAboutMeTitle": "Context About Me",
     "howIWrite": "How I write emails",
     "toneConfig": "Configure rules for the tone checker to enforce when drafting replies. This is learned from your sent emails.",
@@ -1544,7 +1544,6 @@
     "dashboard": {
       "title": "Admin Dashboard",
       "description": "Manage waitlist, subscriptions, and system jobs",
-      "backToInbox": "Back to Inbox",
       "loading": "Loading...",
       "waitlist": "Waitlist",
       "subscriptions": "Subscriptions",
@@ -1897,7 +1896,6 @@
     "sending": "Sending...",
     "sent": "Sent",
     "discard": "Discard",
-    "backToInbox": "Back to Inbox",
     "syncContacts": "Sync Contacts",
     "syncing": "Syncing...",
     "frequentContacts": "Frequent Contacts",
@@ -1931,7 +1929,6 @@
   },
   "contacts": {
     "title": "Contacts",
-    "backToInbox": "Back to Inbox",
     "syncContacts": "Sync Contacts",
     "syncing": "Syncing...",
     "syncNow": "Sync Now",
@@ -2845,7 +2842,7 @@
   "search": {
     "title": "Search Emails",
     "help": "Help",
-    "backToInbox": "← Back to Inbox",
+    "backToSearchResults": "Back to search results",
     "placeholder": "Ask a question or search (e.g., 'emails from John', 'meeting confirmations', 'from:john@example.com')",
     "hint": "💡 Ask a question in natural language or use Gmail search syntax: from:, to:, subject:, has:attachment, before:, after:, etc.",
     "search": "Search",

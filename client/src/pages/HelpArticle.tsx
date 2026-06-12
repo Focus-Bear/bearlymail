@@ -12,7 +12,9 @@ const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
-  const { isCollapsed, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState();
+  const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState({
+    alwaysToggleable: true,
+  });
 
   const getArticleContent = () => {
     if (!articleId) {
@@ -72,6 +74,7 @@ const HelpArticle: React.FC = () => {
           user={user}
           logout={logout}
           isCollapsed={isCollapsed}
+          canToggleCollapse={canToggleCollapse}
           onToggleCollapse={toggleCollapse}
           isMobileMenuOpen={isMobileMenuOpen}
           onCloseMobileMenu={closeMobileMenu}
@@ -89,6 +92,7 @@ const HelpArticle: React.FC = () => {
         user={user}
         logout={logout}
         isCollapsed={isCollapsed}
+        canToggleCollapse={canToggleCollapse}
         onToggleCollapse={toggleCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
         onCloseMobileMenu={closeMobileMenu}

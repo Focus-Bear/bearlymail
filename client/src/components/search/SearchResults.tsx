@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import {
   Email,
@@ -15,7 +15,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MAX_SEARCH_RESULT_LENGTH, MS_PER_SECOND } from 'constants/numbers';
-import { SEARCH_RESULT_NO_RESULTS, STATUS_PENDING, STRING_NA } from 'constants/strings';
+import { NAVIGATION_SOURCE_SEARCH, SEARCH_RESULT_NO_RESULTS, STATUS_PENDING, STRING_NA } from 'constants/strings';
 
 interface SearchDebugInfo {
   message?: string;
@@ -183,7 +183,19 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   instantRankStatus,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+
+  /** Open an email while remembering the search URL so the back button can return to these results. */
+  const openEmail = (emailId: string, resultIndex: number) => {
+    captureEvent(ANALYTICS_EVENTS.SEARCH_RESULT_CLICKED, {
+      result_index: resultIndex,
+      email_id: emailId,
+    });
+    navigate(`/email/${emailId}`, {
+      state: { from: NAVIGATION_SOURCE_SEARCH, search: location.search },
+    });
+  };
 
   const durationLabel =
     typeof searchDurationMs === 'number' ? (
@@ -253,13 +265,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           return (
             <div
               key={email.id || gmailResult.messageId}
-              onClick={() => {
-                captureEvent(ANALYTICS_EVENTS.SEARCH_RESULT_CLICKED, {
-                  result_index: index,
-                  email_id: email.id,
-                });
-                navigate(`/email/${email.id}`);
-              }}
+              onClick={() => openEmail(email.id, index)}
               style={{
                 backgroundColor: theme.colors.background.paper,
                 borderRadius: theme.borderRadius.lg,
@@ -549,13 +555,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           return (
             <div
               key={email.id}
-              onClick={() => {
-                captureEvent(ANALYTICS_EVENTS.SEARCH_RESULT_CLICKED, {
-                  result_index: index,
-                  email_id: email.id,
-                });
-                navigate(`/email/${email.id}`);
-              }}
+              onClick={() => openEmail(email.id, index)}
               style={{
                 backgroundColor: theme.colors.background.paper,
                 borderRadius: theme.borderRadius.lg,

@@ -177,6 +177,7 @@ interface ContactDetailStateViewProps {
   user: User | null;
   logout: () => void;
   isCollapsed: boolean;
+  canToggleCollapse: boolean;
   onToggleCollapse: () => void;
   isMobileMenuOpen: boolean;
   onCloseMobileMenu: () => void;
@@ -188,6 +189,7 @@ const ContactDetailStateView: React.FC<ContactDetailStateViewProps> = ({
   user,
   logout,
   isCollapsed,
+  canToggleCollapse,
   onToggleCollapse,
   isMobileMenuOpen,
   onCloseMobileMenu,
@@ -199,6 +201,7 @@ const ContactDetailStateView: React.FC<ContactDetailStateViewProps> = ({
       user={user}
       logout={logout}
       isCollapsed={isCollapsed}
+      canToggleCollapse={canToggleCollapse}
       onToggleCollapse={onToggleCollapse}
       isMobileMenuOpen={isMobileMenuOpen}
       onCloseMobileMenu={onCloseMobileMenu}
@@ -560,7 +563,8 @@ const ContactDetailPage: React.FC = () => {
   const { user, logout } = useAuth();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const { isCollapsed, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } = useSidebarState();
+  const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } =
+    useSidebarState({ alwaysToggleable: true });
 
   const { contact, contactTypes, loading, error, fetchContact, getTypeConfig } = useContactDetailData(contactId);
   const { handleUpdateField, handleAddNote, handleDeleteNote, handleSetCustomFieldValue, handleAddCustomField } =
@@ -593,6 +597,7 @@ const ContactDetailPage: React.FC = () => {
     user,
     logout,
     isCollapsed,
+    canToggleCollapse,
     onToggleCollapse: toggleCollapse,
     isMobileMenuOpen,
     onCloseMobileMenu: closeMobileMenu,

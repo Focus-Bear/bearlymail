@@ -1,9 +1,14 @@
 import React from 'react';
 
+import { SidebarPageLayout } from 'components/layout/SidebarPageLayout';
 import { ScheduledEmailsManager } from 'components/scheduled-emails/ScheduledEmailsManager';
 
 const ScheduledEmails: React.FC = () => {
-  return <ScheduledEmailsManager />;
+  return (
+    <SidebarPageLayout>
+      <ScheduledEmailsManager />
+    </SidebarPageLayout>
+  );
 };
 
 export default ScheduledEmails;

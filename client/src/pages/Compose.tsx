@@ -7,6 +7,7 @@ import { Contact } from 'types/contact';
 import { getNextMorning } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
+import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeBody } from 'components/compose/ComposeBody';
 import { ComposeMessages } from 'components/compose/ComposeMessages';
@@ -16,6 +17,7 @@ import { TimePicker } from 'components/compose/TimePicker';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
+import { SidebarPageLayout } from 'components/layout/SidebarPageLayout';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
@@ -188,32 +190,9 @@ const Compose: React.FC = () => {
       !!scheduledSendAt);
 
   // Guards reload/close via beforeunload and intercepts in-app link clicks
-  // (the sidebar arrives on this page once nav-consistency lands) while the
-  // draft is unsent.
+  // (the sidebar and the BackToInboxLink render as real links on this page)
+  // while the draft is unsent.
   const { pendingPath, confirmNavigation, cancelNavigation } = useUnsavedChangesGuard(isDirty);
-  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
-
-  const handleBackToInbox = () => {
-    if (isDirty) {
-      setLeaveTarget('/inbox');
-      return;
-    }
-    navigate('/inbox');
-  };
-
-  const handleConfirmLeave = () => {
-    if (pendingPath) {
-      confirmNavigation();
-    } else if (leaveTarget) {
-      navigate(leaveTarget);
-    }
-    setLeaveTarget(null);
-  };
-
-  const handleCancelLeave = () => {
-    cancelNavigation();
-    setLeaveTarget(null);
-  };
 
   const handleOpenTimePicker = useCallback(() => {
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -263,13 +242,7 @@ const Compose: React.FC = () => {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: theme.colors.background.default,
-        padding: theme.spacing.lg,
-      }}
-    >
+    <SidebarPageLayout>
       <div
         style={{
           display: 'flex',
@@ -281,24 +254,7 @@ const Compose: React.FC = () => {
           paddingBottom: theme.spacing.md,
         }}
       >
-        <button
-          onClick={handleBackToInbox}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.base,
-            padding: '8px 12px',
-            borderRadius: theme.borderRadius.md,
-            transition: theme.transitions.default,
-          }}
-        >
-          {t('compose.backToInbox')}
-        </button>
+        <BackToInboxLink />
 
         <button
           onClick={handleSyncContacts}
@@ -429,13 +385,13 @@ const Compose: React.FC = () => {
       </div>
 
       <ConfirmModal
-        isOpen={!!pendingPath || !!leaveTarget}
+        isOpen={!!pendingPath}
         title={t('compose.unsavedChangesTitle')}
         message={scheduledSendAt ? t('compose.confirmLeaveScheduled') : t('compose.confirmLeave')}
         confirmLabel={t('compose.leaveAnyway')}
         cancelLabel={t('compose.keepEditing')}
-        onConfirm={handleConfirmLeave}
-        onCancel={handleCancelLeave}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
       />
 
       {showTimePicker && (
@@ -450,7 +406,7 @@ const Compose: React.FC = () => {
           lastSelectedTime={lastSelectedTime}
         />
       )}
-    </div>
+    </SidebarPageLayout>
   );
 };
 

@@ -1,14 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { COLOR_TRANSPARENT } from 'constants/colors';
 
 export const SearchHeader: React.FC = () => {
-  const navigate = useNavigate();
   const { t } = useTranslation();
 
   return (
@@ -59,22 +58,7 @@ export const SearchHeader: React.FC = () => {
             {t('search.help')}
           </Link>
         </div>
-        <button
-          onClick={() => {
-            captureEvent(ANALYTICS_EVENTS.SEARCH_BACK_TO_INBOX_CLICKED);
-            navigate('/inbox');
-          }}
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: COLOR_TRANSPARENT,
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-          }}
-        >
-          {t('search.backToInbox')}
-        </button>
+        <BackToInboxLink onClick={() => captureEvent(ANALYTICS_EVENTS.SEARCH_BACK_TO_INBOX_CLICKED)} />
       </div>
     </header>
   );

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 
 import { STRING_TRUE } from 'constants/strings';
 
@@ -7,11 +6,17 @@ const SIDEBAR_EXPANDED_KEY = 'bearlymail-sidebar-expanded';
 
 interface UseSidebarStateOptions {
   splitViewActive?: boolean;
+  /**
+   * When true the collapse/expand toggle is always available and the persisted
+   * collapse state is respected. Standard sidebar pages (Settings, Stats, etc.)
+   * pass this; the Inbox keeps the split-view-driven behaviour instead.
+   */
+  alwaysToggleable?: boolean;
 }
 
 interface UseSidebarStateReturn {
   isCollapsed: boolean;
-  /** True when the collapse/expand toggle is meaningful (split view active or Settings page). */
+  /** True when the collapse/expand toggle is meaningful (split view active or an always-toggleable page). */
   canToggleCollapse: boolean;
   isMobileMenuOpen: boolean;
   toggleCollapse: () => void;
@@ -20,9 +25,7 @@ interface UseSidebarStateReturn {
 }
 
 export function useSidebarState(options: UseSidebarStateOptions = {}): UseSidebarStateReturn {
-  const { splitViewActive = false } = options;
-  const location = useLocation();
-  const isSettingsPage = location.pathname.startsWith('/settings');
+  const { splitViewActive = false, alwaysToggleable = false } = options;
 
   const [manuallyExpanded, setManuallyExpanded] = useState<boolean>(() => {
     const stored = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
@@ -46,11 +49,11 @@ export function useSidebarState(options: UseSidebarStateOptions = {}): UseSideba
   }, [splitViewActive]);
 
   const toggleCollapse = useCallback(() => {
-    // Toggle should work on Settings page and when split view is active
-    if (splitViewActive || isSettingsPage) {
+    // Toggle works on always-toggleable pages and when split view is active
+    if (splitViewActive || alwaysToggleable) {
       setManuallyExpanded(prev => !prev);
     }
-  }, [splitViewActive, isSettingsPage]);
+  }, [splitViewActive, alwaysToggleable]);
 
   const openMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(true);
@@ -62,9 +65,9 @@ export function useSidebarState(options: UseSidebarStateOptions = {}): UseSideba
 
   // Sidebar should respect manual collapse state when:
   // 1. Split view is active on Inbox page, OR
-  // 2. User is on Settings page
+  // 2. The page opted in via alwaysToggleable (standard sidebar pages)
   // Otherwise, sidebar is always expanded
-  const shouldRespectCollapseState = splitViewActive || isSettingsPage;
+  const shouldRespectCollapseState = splitViewActive || alwaysToggleable;
   const isCollapsed = shouldRespectCollapseState ? !manuallyExpanded : false;
 
   return {

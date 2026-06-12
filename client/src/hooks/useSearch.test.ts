@@ -16,8 +16,19 @@ vi.mock('queries/useConnectedAccountsQuery', () => ({
 }));
 
 vi.mock('axios');
+// Mutable holder so URL-sync tests can change the simulated ?q= param between renders.
+const urlSearchHolder = vi.hoisted(() => ({ current: '' }));
 vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(),
+  // Stable non-mock implementation so vitest's mockReset doesn't wipe it between tests.
+  // The setter mirrors the real router by writing back to the holder, so the
+  // URL-sync effect sees the same params handleSearch just pushed.
+  useSearchParams: () => [
+    new URLSearchParams(urlSearchHolder.current),
+    (next: Record<string, string>) => {
+      urlSearchHolder.current = new URLSearchParams(next).toString();
+    },
+  ],
 }));
 vi.mock('utils/posthog', () => ({
   captureEvent: vi.fn(),
@@ -33,6 +44,7 @@ describe('useSearch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    urlSearchHolder.current = '';
     console.log = vi.fn();
     console.warn = vi.fn();
     console.error = vi.fn();
@@ -287,6 +299,55 @@ describe('useSearch', () => {
       });
 
       expect(result.current.query).toBe('new query');
+    });
+  });
+
+  describe('URL query sync', () => {
+    it('runs the search from the URL on mount', async () => {
+      urlSearchHolder.current = 'q=invoice';
+      const { result } = renderHook(() => useSearch());
+
+      await waitFor(() => {
+        expect(result.current.hasSearched).toBe(true);
+      });
+      expect(result.current.query).toBe('invoice');
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        expect.stringContaining('/emails/search'),
+        expect.objectContaining({ params: expect.objectContaining({ q: 'invoice' }) })
+      );
+    });
+
+    it('clearing the URL query resets the previous search input and results', async () => {
+      urlSearchHolder.current = 'q=invoice';
+      const { result, rerender } = renderHook(() => useSearch());
+
+      await waitFor(() => {
+        expect(result.current.hasSearched).toBe(true);
+      });
+      expect(result.current.query).toBe('invoice');
+
+      // Simulate the sidebar Search click / manual clear removing ?q= from the URL.
+      urlSearchHolder.current = '';
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.hasSearched).toBe(false);
+      });
+      expect(result.current.query).toBe('');
+      expect(result.current.searchResults).toEqual([]);
+      expect(result.current.instantResults).toEqual([]);
+      expect(result.current.loading).toBe(false);
+    });
+
+    it('does not clear a query the user is typing on a blank search page', () => {
+      const { result, rerender } = renderHook(() => useSearch());
+
+      act(() => {
+        result.current.setQuery('draft query');
+      });
+      rerender();
+
+      expect(result.current.query).toBe('draft query');
     });
   });
 });

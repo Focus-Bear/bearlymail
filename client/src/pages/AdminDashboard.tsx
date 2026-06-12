@@ -41,7 +41,8 @@ const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const { isCollapsed, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } = useSidebarState();
+  const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } =
+    useSidebarState({ alwaysToggleable: true });
   const {
     activeTab,
     setActiveTab,
@@ -142,6 +143,7 @@ const AdminDashboard: React.FC = () => {
         user={user}
         logout={logout}
         isCollapsed={isCollapsed}
+        canToggleCollapse={canToggleCollapse}
         onToggleCollapse={toggleCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
         onCloseMobileMenu={closeMobileMenu}

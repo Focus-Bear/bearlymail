@@ -4,7 +4,6 @@
       "allUsers": "Todos los usuarios",
       "approve": "Aprobar",
       "approved": "Aprobado",
-      "backToInbox": "Volver a la bandeja de entrada",
       "days": "días",
       "description": "Administrar listas de espera, suscripciones y trabajos del sistema",
       "expires": "Vence",
@@ -557,6 +556,8 @@
     "auto": "Automático",
     "custom": "Personalizado",
     "back": "Atrás",
+    "backToInbox": "Volver a la bandeja de entrada",
+    "openNavigationMenu": "Abrir el menú de navegación",
     "cancel": "Cancel",
     "close": "Cerca",
     "closeNotification": "Cerrar notificación",
@@ -592,7 +593,6 @@
   "compose": {
     "addBcc": "Agregar CCO",
     "addCc": "Agregar CC",
-    "backToInbox": "Volver a la bandeja de entrada",
     "bcc": "BCC",
     "bodyPlaceholder": "Escribe tu mensaje...",
     "cc": "CC",
@@ -1036,7 +1036,6 @@
     "aiBadge": "AI",
     "aiSummary": "Resumen de IA",
     "archive": "Archivo",
-    "backToInbox": "Volver a la bandeja de entrada",
     "calendarInvite": {
       "accept": "Aceptar",
       "acceptError": "No se pudo aceptar la invitación. Por favor inténtalo de nuevo.",
@@ -1257,7 +1256,6 @@
   },
   "contacts": {
     "title": "Contactos",
-    "backToInbox": "Volver a la bandeja de entrada",
     "syncContacts": "Sincronizar contactos",
     "syncing": "Sincronizando...",
     "syncNow": "Sincronizar ahora",
@@ -3233,7 +3231,7 @@
     "searching": "Searching..."
   },
   "search": {
-    "backToInbox": "← Volver a la bandeja de entrada",
+    "backToSearchResults": "Volver a los resultados de búsqueda",
     "baseRelevanceDescription": "Qué tan relevante es el correo electrónico para tu consulta de búsqueda",
     "baseRelevanceScore": "Puntuación de relevancia base",
     "clickToSeeBreakdown": "Haz clic para ver el desglose de puntuación",
@@ -3317,7 +3315,6 @@
     "analyzeEmails": "Analizar correos electrónicos",
     "analyzing": "Analizando...",
     "apiKeyError": "No se pudo guardar la clave API",
-    "backToInbox": "Volver a la bandeja de entrada",
     "batchHoursError": "No se pudieron actualizar las horas del lote",
     "batchHoursUpdated": "Horas de lote actualizadas exitosamente",
     "batchScheduleError": "Error al actualizar el horario de lotes",

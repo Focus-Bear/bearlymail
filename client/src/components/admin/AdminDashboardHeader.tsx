@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
+import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { STRING_NONE } from 'constants/strings';
 
 interface AdminDashboardHeaderProps {
@@ -10,7 +10,6 @@ interface AdminDashboardHeaderProps {
 }
 
 export const AdminDashboardHeader: React.FC<AdminDashboardHeaderProps> = ({ onLogout }) => {
-  const navigate = useNavigate();
   const { t } = useTranslation();
 
   return (
@@ -36,19 +35,7 @@ export const AdminDashboardHeader: React.FC<AdminDashboardHeaderProps> = ({ onLo
         <p style={{ color: theme.colors.text.secondary }}>{t('admin.dashboard.description')}</p>
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.md }}>
-        <button
-          onClick={() => navigate('/inbox')}
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-            backgroundColor: theme.colors.common.transparent,
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-          }}
-        >
-          {t('admin.dashboard.backToInbox')}
-        </button>
+        <BackToInboxLink />
         <button
           onClick={onLogout}
           style={{

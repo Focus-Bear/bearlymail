@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { Sidebar } from 'components/inbox/Sidebar';
+import { SidebarPageLayout } from 'components/layout/SidebarPageLayout';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { EMOJI_MENU } from 'constants/emojis';
 import {
   CALENDAR_DAYS_AHEAD,
   CHART_BAR_HEIGHT_OFFSET,
@@ -17,10 +16,7 @@ import {
   STATS_PERIOD_14_DAYS,
 } from 'constants/numbers';
 import { STRING_NONE, STRING_UPPERCASE } from 'constants/strings';
-import { useAuth } from 'contexts/AuthContext';
 import { CategoryStats, ProcessedEmailStats, useEmailStats } from 'hooks/useEmailStats';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { useSidebarState } from 'hooks/useSidebarState';
 
 const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MINUTES_PER_HOUR, CALENDAR_DAYS_AHEAD] as const;
 
@@ -531,79 +527,24 @@ const StatsBodyContent: React.FC<StatsBodyContentProps> = ({
 
 const Stats: React.FC = () => {
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
   const [days, setDays] = useState<number>(DAYS_IN_MONTH_30);
   const { stats, loading, error, refetch } = useEmailStats(days);
-  const { isMobile, isTablet } = useResponsiveBreakpoints();
-  const isNarrow = isMobile || isTablet;
-  const { isCollapsed, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } = useSidebarState();
 
   const maxEmails = stats ? Math.max(...stats.categoryStats.map(cat => cat.totalEmails), 1) : 1;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100vh',
-        backgroundColor: theme.colors.background.default,
-        overflow: 'hidden',
-      }}
-    >
-      <Sidebar
-        user={user}
-        logout={logout}
-        isCollapsed={isCollapsed}
-        onToggleCollapse={toggleCollapse}
-        isMobileMenuOpen={isMobileMenuOpen}
-        onCloseMobileMenu={closeMobileMenu}
+    <SidebarPageLayout>
+      <StatsBodyContent
+        stats={stats}
+        loading={loading}
+        error={error}
+        refetch={refetch}
+        days={days}
+        setDays={setDays}
+        maxEmails={maxEmails}
+        t={t}
       />
-
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl,
-        }}
-      >
-        {isNarrow && (
-          <button
-            onClick={openMobileMenu}
-            style={{
-              position: 'fixed',
-              top: theme.spacing.md,
-              left: theme.spacing.md,
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              border: `1px solid ${theme.colors.border.medium}`,
-              backgroundColor: theme.colors.background.paper,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.5rem',
-              transition: theme.transitions.fast,
-              boxShadow: theme.shadows.md,
-              zIndex: 100,
-            }}
-            aria-label="Open navigation menu"
-          >
-            {EMOJI_MENU}
-          </button>
-        )}
-
-        <StatsBodyContent
-          stats={stats}
-          loading={loading}
-          error={error}
-          refetch={refetch}
-          days={days}
-          setDays={setDays}
-          maxEmails={maxEmails}
-          t={t}
-        />
-      </div>
-    </div>
+    </SidebarPageLayout>
   );
 };
 

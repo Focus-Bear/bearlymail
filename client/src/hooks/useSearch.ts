@@ -13,7 +13,7 @@
  * polling loop merges enriched results in-place.
  */
 import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 import {
@@ -31,7 +31,7 @@ import { captureEvent } from 'utils/posthog';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { SEARCH_RESULT_NO_RESULTS, STATUS_COMPLETE, STATUS_FAILED } from 'constants/strings';
+import { SEARCH_QUERY_PARAM, SEARCH_RESULT_NO_RESULTS, STATUS_COMPLETE, STATUS_FAILED } from 'constants/strings';
 
 interface ConnectedAccount {
   id: string;
@@ -448,7 +448,8 @@ function useConnectedAccounts() {
 
 export const useSearch = () => {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [query, setQuery] = useState(() => searchParams.get(SEARCH_QUERY_PARAM) ?? '');
   const [searchResults, setSearchResults] = useState<Email[]>([]);
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
@@ -470,14 +471,15 @@ export const useSearch = () => {
   const [instantRankStatus, setInstantRankStatus] = useState<InstantRankStatus | null>(null);
 
   const searchSessionRef = useRef(0);
+  /** Last query that was actually executed — prevents the URL-sync effect from re-running it. */
+  const lastExecutedQueryRef = useRef<string | null>(null);
 
   const { connectedAccounts, selectedAccountTypes, handleAccountToggle } = useConnectedAccounts();
 
-  const handleSearch = useCallback(
+  const runSearch = useCallback(
 // eslint-disable-next-line max-statements -- pre-existing: complex async handler with many conditional branches
-    async (event: React.FormEvent) => {
-      event.preventDefault();
-      if (!query.trim()) {
+    async (searchQuery: string) => {
+      if (!searchQuery.trim()) {
         return;
       }
 
@@ -512,7 +514,7 @@ export const useSearch = () => {
       };
 
       try {
-        const params = buildSearchParams(query, selectedAccountTypes, connectedAccounts);
+        const params = buildSearchParams(searchQuery, selectedAccountTypes, connectedAccounts);
         const response = await axios.get(`${API_URL}/emails/search`, { params });
         stopProgress();
 
@@ -538,8 +540,8 @@ export const useSearch = () => {
           setEnrichmentProgress({ total: totalGmailResults, enriched: 0 });
 
           captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
-            query_length: query.trim().length,
-            has_query: !!query.trim(),
+            query_length: searchQuery.trim().length,
+            has_query: !!searchQuery.trim(),
             result_count: results.length,
             selected_accounts: selectedAccountTypes.length,
             phase: 'instant',
@@ -550,7 +552,7 @@ export const useSearch = () => {
           if (enrichmentJobId) {
             pollEnrichmentUpdates({
               jobId: enrichmentJobId,
-              query,
+              query: searchQuery,
               currentSession,
               searchSessionRef,
               setInstantResults,
@@ -565,13 +567,13 @@ export const useSearch = () => {
         // Legacy path: backend returned Email[]
         // -----------------------------------------------------------------------
         if (!response.data?.length) {
-          setSearchResults([createNoResultsMarker(query, 'Backend returned empty array - check server logs')]);
+          setSearchResults([createNoResultsMarker(searchQuery, 'Backend returned empty array - check server logs')]);
           setLoading(false);
           return;
         }
         await processSearchResults({
           responseData: response.data,
-          query,
+          query: searchQuery,
           currentSession,
           searchSessionRef,
           selectedAccountTypes,
@@ -590,8 +592,55 @@ export const useSearch = () => {
         }
       }
     },
-    [query, navigate, selectedAccountTypes, connectedAccounts]
+    [navigate, selectedAccountTypes, connectedAccounts]
   );
+
+  const handleSearch = useCallback(
+    async (event: React.FormEvent) => {
+      event.preventDefault();
+      const trimmed = query.trim();
+      if (!trimmed) {
+        return;
+      }
+      lastExecutedQueryRef.current = trimmed;
+      // Keep the query in the URL so returning from an opened email (or sharing
+      // the link) restores the same search.
+      setSearchParams({ [SEARCH_QUERY_PARAM]: trimmed });
+      await runSearch(trimmed);
+    },
+    [query, runSearch, setSearchParams]
+  );
+
+  // Restore the search from the URL on mount / back-navigation (e.g. returning
+  // from an email opened from the results list). When the URL query is removed
+  // (sidebar Search click, manual clear) the previous input and results are
+  // reset; the ref guard means a blank search page where the user is typing a
+  // not-yet-executed query is left untouched.
+  useEffect(() => {
+    const urlQuery = searchParams.get(SEARCH_QUERY_PARAM)?.trim();
+    if (urlQuery && urlQuery !== lastExecutedQueryRef.current) {
+      lastExecutedQueryRef.current = urlQuery;
+      setQuery(urlQuery);
+      runSearch(urlQuery);
+    } else if (!urlQuery && lastExecutedQueryRef.current !== null) {
+      lastExecutedQueryRef.current = null;
+      // Invalidate any in-flight search/enrichment so a late response cannot
+      // repopulate the cleared results.
+      searchSessionRef.current += 1;
+      setQuery('');
+      setSearchResults([]);
+      setInstantResults([]);
+      setHasSearched(false);
+      setLoading(false);
+      setIsRefining(false);
+      setIsInstantSearch(false);
+      setIsInstantEmpty(false);
+      setInstantRankStatus(null);
+      setEnrichmentProgress(null);
+      setQueriesTried([]);
+      setSearchDurationMs(null);
+    }
+  }, [searchParams, runSearch]);
 
   return {
     query,

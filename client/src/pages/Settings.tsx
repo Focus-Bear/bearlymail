@@ -45,7 +45,7 @@ const Settings: React.FC = () => {
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
   const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } =
-    useSidebarState();
+    useSidebarState({ alwaysToggleable: true });
 
   // Handle OAuth callback
   useEffect(() => {

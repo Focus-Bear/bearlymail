@@ -115,6 +115,7 @@ export const ANALYTICS_EVENTS = {
   SIDEBAR_STATS_CLICKED: 'sidebar_stats_clicked',
   SIDEBAR_SETTINGS_CLICKED: 'sidebar_settings_clicked',
   SIDEBAR_ADMIN_CLICKED: 'sidebar_admin_clicked',
+  SIDEBAR_HELP_CLICKED: 'sidebar_help_clicked',
   SIDEBAR_SCHEDULED_CLICKED: 'sidebar_scheduled_clicked',
   CALENDAR_INVITE_ACCEPT_CLICKED: 'calendar_invite_accept_clicked',
   CALENDAR_INVITE_DECLINE_CLICKED: 'calendar_invite_decline_clicked',

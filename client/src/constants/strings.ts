@@ -320,6 +320,13 @@ export const ROUTE_CRM_DEALS = '/crm/deals' as const;
 export const ROUTE_CRM_CONTACT_GROUPS = '/crm/contact-groups' as const;
 export const ROUTE_SCHEDULED = '/scheduled' as const;
 export const ROUTE_COMPOSE = '/compose' as const;
+export const ROUTE_HELP = '/help' as const;
+
+// Navigation state (location.state.from) sources
+export const NAVIGATION_SOURCE_SEARCH = 'search' as const;
+
+// URL query parameter holding the search query on the Search page
+export const SEARCH_QUERY_PARAM = 'q' as const;
 
 // Scroll behavior
 export const SCROLL_BEHAVIOR_SMOOTH = 'smooth' as const;

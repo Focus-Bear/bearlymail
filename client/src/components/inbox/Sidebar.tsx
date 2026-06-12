@@ -17,6 +17,7 @@ import {
   ROUTE_CRM_CONTACT_GROUPS,
   ROUTE_CRM_CONTACTS,
   ROUTE_CRM_DEALS,
+  ROUTE_HELP,
   ROUTE_INBOX,
   ROUTE_SCHEDULED,
   ROUTE_SEARCH,
@@ -48,6 +49,7 @@ const SIDEBAR_ROUTE_EVENTS: Record<string, string> = {
   [ROUTE_CRM_CONTACTS]: ANALYTICS_EVENTS.SIDEBAR_CONTACTS_CLICKED,
   [ROUTE_CRM_DEALS]: ANALYTICS_EVENTS.SIDEBAR_DEALS_CLICKED,
   [ROUTE_STATS]: ANALYTICS_EVENTS.SIDEBAR_STATS_CLICKED,
+  [ROUTE_HELP]: ANALYTICS_EVENTS.SIDEBAR_HELP_CLICKED,
   [ROUTE_SETTINGS]: ANALYTICS_EVENTS.SIDEBAR_SETTINGS_CLICKED,
   [ROUTE_ADMIN]: ANALYTICS_EVENTS.SIDEBAR_ADMIN_CLICKED,
 };
@@ -350,31 +352,25 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
     />
-    {!effectiveIsCollapsed && (
-      <div style={{ marginTop: theme.spacing.xs }}>
-        <SidebarItem
-          label={translate('settings.title')}
-          path={ROUTE_SETTINGS}
-          icon="⚙️"
-          active={isSettingsPage}
-          isCollapsed={effectiveIsCollapsed}
-          onNavigationClick={handleNavigationClick}
-        />
-        {isSettingsPage && <SettingsSubNav hash={location.hash} />}
-      </div>
-    )}
-    {effectiveIsCollapsed && (
-      <div style={{ marginTop: theme.spacing.xs }}>
-        <SidebarItem
-          label={translate('settings.title')}
-          path={ROUTE_SETTINGS}
-          icon="⚙️"
-          active={isSettingsPage}
-          isCollapsed={effectiveIsCollapsed}
-          onNavigationClick={handleNavigationClick}
-        />
-      </div>
-    )}
+    <SidebarItem
+      label={translate('help.title')}
+      path={ROUTE_HELP}
+      icon="❓"
+      active={location.pathname === ROUTE_HELP || location.pathname.startsWith(`${ROUTE_HELP}/`)}
+      isCollapsed={effectiveIsCollapsed}
+      onNavigationClick={handleNavigationClick}
+    />
+    <div style={{ marginTop: theme.spacing.xs }}>
+      <SidebarItem
+        label={translate('settings.title')}
+        path={ROUTE_SETTINGS}
+        icon="⚙️"
+        active={isSettingsPage}
+        isCollapsed={effectiveIsCollapsed}
+        onNavigationClick={handleNavigationClick}
+      />
+      {!effectiveIsCollapsed && isSettingsPage && <SettingsSubNav hash={location.hash} />}
+    </div>
     {isAdmin && (
       <div style={{ marginTop: theme.spacing.sm }}>
         <SidebarItem

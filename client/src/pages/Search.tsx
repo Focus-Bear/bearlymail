@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { SidebarPageLayout } from 'components/layout/SidebarPageLayout';
 import { EnrichmentProgress } from 'components/search/EnrichmentProgress';
 import { SearchForm } from 'components/search/SearchForm';
 import { SearchHeader } from 'components/search/SearchHeader';
@@ -273,14 +274,7 @@ const Search: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: theme.colors.background.default,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <SidebarPageLayout fullBleed>
       <SearchHeader />
 
       <div
@@ -404,7 +398,7 @@ const Search: React.FC = () => {
       {selectedScoreBreakdown && (
         <ScoreBreakdownModal scoreInfo={selectedScoreBreakdown} onClose={() => setSelectedScoreBreakdown(null)} />
       )}
-    </div>
+    </SidebarPageLayout>
   );
 };
 

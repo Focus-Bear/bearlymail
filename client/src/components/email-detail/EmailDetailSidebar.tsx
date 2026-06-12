@@ -5,17 +5,30 @@ import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_BACK } from 'constants/emojis';
+import { NAVIGATION_SOURCE_SEARCH, ROUTE_SEARCH } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+
+interface EmailDetailNavigationState {
+  fromMode?: string;
+  fromBasePath?: string;
+  /** Set to 'search' when the email was opened from the search results list. */
+  from?: string;
+  /** URL query string (e.g. '?q=invoice') to restore when returning to search. */
+  search?: string;
+}
 
 export const EmailDetailSidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
-  const state = location.state as { fromMode?: string; fromBasePath?: string } | null;
+  const state = location.state as EmailDetailNavigationState | null;
+  const isFromSearch = state?.from === NAVIGATION_SOURCE_SEARCH;
   const fromMode = state?.fromMode ?? sessionStorage.getItem('bearlymail_lastInboxMode') ?? undefined;
   const fromBasePath = state?.fromBasePath ?? sessionStorage.getItem('bearlymail_lastBasePath') ?? '/inbox';
-  const backPath = fromMode ? `${fromBasePath}/${fromMode}` : fromBasePath;
+  const inboxPath = fromMode ? `${fromBasePath}/${fromMode}` : fromBasePath;
+  const backPath = isFromSearch ? `${ROUTE_SEARCH}${state?.search ?? ''}` : inboxPath;
+  const backLabel = isFromSearch ? t('search.backToSearchResults') : t('common.backToInbox');
 
   // On mobile, render as floating overlay button
   if (isMobile) {
@@ -42,7 +55,7 @@ export const EmailDetailSidebar: React.FC = () => {
         }}
         onMouseEnter={event => (event.currentTarget.style.backgroundColor = theme.colors.background.default)}
         onMouseLeave={event => (event.currentTarget.style.backgroundColor = theme.colors.background.paper)}
-        title={t('emailDetail.backToInbox')}
+        title={backLabel}
       >
         {EMOJI_BACK}
       </button>
@@ -79,7 +92,7 @@ export const EmailDetailSidebar: React.FC = () => {
         }}
         onMouseEnter={event => (event.currentTarget.style.backgroundColor = theme.colors.background.default)}
         onMouseLeave={event => (event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT)}
-        title={t('emailDetail.backToInbox')}
+        title={backLabel}
       >
         {EMOJI_BACK}
       </button>

@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
+import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { HelpFeedbackBanner } from 'components/feedback/HelpFeedbackBanner';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useAuth } from 'contexts/AuthContext';
@@ -18,8 +19,9 @@ interface HelpArticle {
 const Help: React.FC = () => {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { isCollapsed, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState();
+  const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState({
+    alwaysToggleable: true,
+  });
   const articles: HelpArticle[] = [
     {
       id: 'context',
@@ -71,6 +73,7 @@ const Help: React.FC = () => {
         user={user}
         logout={logout}
         isCollapsed={isCollapsed}
+        canToggleCollapse={canToggleCollapse}
         onToggleCollapse={toggleCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
         onCloseMobileMenu={closeMobileMenu}
@@ -78,21 +81,9 @@ const Help: React.FC = () => {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <button
-              onClick={() => navigate('/inbox')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: theme.colors.primary.main,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.base,
-                marginBottom: theme.spacing.lg,
-                padding: 0,
-                textDecoration: 'underline',
-              }}
-            >
-              ← {t('settings.backToInbox')}
-            </button>
+            <div style={{ marginBottom: theme.spacing.lg }}>
+              <BackToInboxLink />
+            </div>
 
             <h1
               style={{

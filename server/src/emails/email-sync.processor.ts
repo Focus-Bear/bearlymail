@@ -68,7 +68,7 @@ export class EmailSyncProcessor implements OnModuleInit {
       "*/5 * * * *",
     );
 
-    // Schedule extended sync (all inbox, no date filter) every 2 hours to catch any missed emails
+    // Schedule extended sync (full ongoing sync window) every 2 hours to catch any missed emails
     await this.boss.schedule(
       JOB_NAMES.SCHEDULE_EXTENDED_EMAIL_FETCH_JOBS,
       "0 */2 * * *",
@@ -271,7 +271,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         );
 
         this.logger.log(
-          "Starting extended email fetch job scheduling (full inbox sync, no date filter)",
+          "Starting extended email fetch job scheduling (full ongoing sync window)",
         );
         try {
           tracker.startPhase("fetchUsers");
@@ -287,7 +287,9 @@ export class EmailSyncProcessor implements OnModuleInit {
                 await this.emailProviderManager.getPrimaryProvider(user.id);
               if (provider) {
                 // Use singletonKey to prevent duplicate extended fetch jobs per user
-                // noDateFilter: true fetches ALL inbox emails without `after:` restriction
+                // noDateFilter: true fetches the full ongoing sync window
+                // (clamped by sync-window-policy.ts) instead of the
+                // incremental window
                 await this.boss.send(
                   JOB_NAMES.FETCH_USER_EMAILS_EXTENDED,
                   { userId: user.id, noDateFilter: true },
@@ -314,7 +316,7 @@ export class EmailSyncProcessor implements OnModuleInit {
           tracker.finish();
 
           this.logger.log(
-            `Scheduled ${jobsQueued} extended email fetch jobs (full inbox, no date filter)`,
+            `Scheduled ${jobsQueued} extended email fetch jobs (full ongoing sync window)`,
           );
         } catch (error) {
           this.logger.error(
@@ -352,7 +354,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         tracker.setMetadata({ userId });
 
         this.logger.log(
-          `[Worker ${workerId}] Starting extended email fetch (${noDateFilter ? "no date filter" : `${syncWindowHours ?? HOURS.TWO_DAYS}h`}) for user ${userId}`,
+          `[Worker ${workerId}] Starting extended email fetch (${noDateFilter ? "full sync window" : `${syncWindowHours ?? HOURS.TWO_DAYS}h`}) for user ${userId}`,
         );
         await this.userEncryptionService.withUserKey(userId, async () => {
           try {

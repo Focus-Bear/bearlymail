@@ -31,6 +31,11 @@ import {
 } from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import {
+  getOldestAllowedSyncDate,
+  resolveMaxFetchResults,
+  shouldFlagSyncWindowLimited,
+} from "../sync-window-policy";
+import {
   archiveThread,
   fetchThreadMessagesZoho,
   searchEmails,
@@ -44,7 +49,11 @@ import {
   logZohoAuthFailure as logAuthFailure,
 } from "./zoho/zoho-auth";
 import { ZohoClient } from "./zoho/zoho-client";
-import { parseZohoMessage, ZohoMailMessage } from "./zoho/zoho-message-parser";
+import {
+  parseReceivedTimeMs,
+  parseZohoMessage,
+  ZohoMailMessage,
+} from "./zoho/zoho-message-parser";
 import { isAuthError } from "./zoho/zoho-operations";
 import {
   getExistingThreadUpdates,
@@ -279,17 +288,41 @@ export class ZohoProvider implements EmailProvider {
     const inboxFolderId = folderMap[ZOHO_FOLDER_IDS.INBOX];
     this.logger.debug(`[performSync] inboxFolderId: ${inboxFolderId}`);
 
-    // Single inbox fetch — sortorder and importance not supported by Zoho AU
+    // Single inbox fetch — sortorder and importance not supported by Zoho AU.
+    // Sync-window policy: the initial sync caps at INITIAL_SYNC_MAX_EMAILS.
+    const fetchLimit = resolveMaxFetchResults(isInitialSync);
     const inboxResponse = await zohoClient.get(
       `accounts/${zohoAccountId}/messages/view`,
-      { params: { limit: QUERY_LIMITS.INBOX_TOTAL, folderId: inboxFolderId } },
+      { params: { limit: fetchLimit, folderId: inboxFolderId } },
     );
 
     this.logger.debug(
       `[performSync] inboxMessages count: ${inboxResponse.data.data?.length}`,
     );
 
-    const inboxMessages = inboxResponse.data.data || [];
+    const allInboxMessages: ZohoMailMessage[] = inboxResponse.data.data || [];
+
+    // Zoho's list endpoint has no date-filter parameter, so the ongoing
+    // sync window is applied here. High-importance ("starred") messages are
+    // kept regardless of age, matching the policy.
+    const syncWindowStart = getOldestAllowedSyncDate();
+    const inboxMessages = allInboxMessages.filter(
+      (message) =>
+        message.importance === EMAIL_IMPORTANCE.HIGH ||
+        parseReceivedTimeMs(message.receivedTime) >= syncWindowStart.getTime(),
+    );
+
+    // Initial-sync overflow: a full page means the mailbox holds more mail
+    // than the cap imported; window-filtered messages were skipped too.
+    if (
+      shouldFlagSyncWindowLimited({
+        isInitialSync,
+        hitFetchCap: allInboxMessages.length >= fetchLimit,
+        olderMailExists: inboxMessages.length < allInboxMessages.length,
+      })
+    ) {
+      await this.usersService.markSyncWindowLimited(userId);
+    }
 
     const threadMap = new Map<string, ZohoMailMessage[]>();
     for (const msg of inboxMessages) {

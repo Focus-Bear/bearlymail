@@ -1720,6 +1720,10 @@
     "andMore": "y {{count}} más",
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
+    "syncWindowBanner": {
+      "message": "Aviso: no estamos sincronizando tus correos antiguos. Solo hemos sincronizado los últimos 7 días de correo.",
+      "dismiss": "Descartar"
+    },
     "batchInfo": {
       "changeInSettings": "Cambiar en Configuración",
       "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",

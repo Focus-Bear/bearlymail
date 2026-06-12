@@ -104,6 +104,18 @@ export class UsersService {
     });
   }
 
+  /**
+   * Flags that the user's initial email sync skipped older mail because of the
+   * sync-window policy (500-email cap / 7-day window). Read by the client via
+   * GET /users/me to show the "we're not syncing your old emails" banner.
+   */
+  async markSyncWindowLimited(userId: string): Promise<void> {
+    this.logger.log(
+      `[SYNC_WINDOW] user=${userId} initial sync skipped older mail — setting syncWindowLimited`,
+    );
+    await this.update(userId, { syncWindowLimited: true });
+  }
+
   async create(userData: Partial<User>): Promise<User> {
     // Generate email hash if email is provided
     if (userData.email && !userData.emailHash) {

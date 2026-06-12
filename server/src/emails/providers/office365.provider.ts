@@ -7,13 +7,12 @@ import {
   EMAIL_IMPORTANCE,
   OFFICE365_FOLDER_IDS,
 } from "../../constants/domain-types";
-import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
 import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
-import { DAYS, MILLISECONDS } from "../../constants/time-constants";
+import { DAYS } from "../../constants/time-constants";
 import { Office365Account } from "../../database/entities/office365-account.entity";
 import { User } from "../../database/entities/user.entity";
 import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
@@ -31,6 +30,10 @@ import {
 } from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import {
+  getOldestAllowedSyncDate,
+  resolveMaxFetchResults,
+} from "../sync-window-policy";
+import {
   archiveThread,
   fetchThreadMessagesOffice365,
   searchEmails,
@@ -44,6 +47,7 @@ import {
   getAttachment as getAttachmentFromGraph,
 } from "./office365/office365-attachments";
 import {
+  handleMissingOffice365RefreshToken,
   isWithinGracePeriod,
   logOffice365AuthFailure as logAuthFailure,
 } from "./office365/office365-auth";
@@ -57,6 +61,7 @@ import {
   getExistingThreadUpdates,
   verifyThreadStatusesInOffice365,
 } from "./office365/office365-sync";
+import { flagSyncWindowLimitedIfNeeded } from "./office365/office365-sync-window";
 
 @Injectable()
 export class Office365Provider implements EmailProvider {
@@ -116,11 +121,12 @@ export class Office365Provider implements EmailProvider {
 
     // Validate refresh token
     if (!primaryAccount.refreshToken) {
-      await this.handleMissingRefreshToken(
-        userId,
-        user,
-        primaryAccount,
-        isRecentLogin,
+      await handleMissingOffice365RefreshToken(
+        {
+          office365AccountsService: this.office365AccountsService,
+          logger: this.logger,
+        },
+        { userId, user, primaryAccount, isRecentLogin },
       );
     }
 
@@ -165,43 +171,6 @@ export class Office365Provider implements EmailProvider {
     } catch (error: unknown) {
       await this.handleSyncError(userId, user, primaryAccount, error);
     }
-  }
-
-  private async handleMissingRefreshToken(
-    userId: string,
-    user: User,
-    primaryAccount: Office365Account,
-    isRecentLogin: boolean,
-  ): Promise<never> {
-    await logAuthFailure(
-      userId,
-      user.email || null,
-      "syncEmails-missingRefreshToken",
-      new Error("Refresh token missing"),
-      {
-        hasAccessToken: !!primaryAccount.accessToken,
-        isRecentLogin,
-        userUpdatedAt: user?.updatedAt?.toISOString() || null,
-      },
-    );
-
-    if (!isRecentLogin && !primaryAccount.needsRelogin) {
-      await this.office365AccountsService.updateTokens(
-        primaryAccount.id,
-        userId,
-        primaryAccount.accessToken,
-        undefined,
-      );
-      throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
-    } else if (isRecentLogin) {
-      this.logger.warn(
-        `⚠️ Refresh token missing for recently logged-in user ${userId}, but within grace period.`,
-      );
-      throw new Error(
-        "Refresh token missing (within grace period - will retry)",
-      );
-    }
-    throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
   }
 
   private async handleTokenValidationError(
@@ -253,9 +222,10 @@ export class Office365Provider implements EmailProvider {
     graphClient: AxiosInstance,
     isInitialSync: boolean,
   ): Promise<void> {
-    const since = new Date(
-      Date.now() - DAYS.WEEK * MILLISECONDS.DAY,
-    ).toISOString();
+    // Sync-window policy: every fetch is limited to the ongoing window, and
+    // the initial sync caps at the most recent INITIAL_SYNC_MAX_EMAILS.
+    const since = getOldestAllowedSyncDate().toISOString();
+    const maxResults = resolveMaxFetchResults(isInitialSync);
 
     const inboxResponse = await graphClient.get(
       "/me/mailFolders/inbox/messages",
@@ -263,7 +233,7 @@ export class Office365Provider implements EmailProvider {
         params: {
           $filter: `receivedDateTime ge ${since}`,
           $orderby: "receivedDateTime desc",
-          $top: 500,
+          $top: maxResults,
           $select:
             "id,conversationId,subject,from,receivedDateTime,isRead,importance",
         },
@@ -272,6 +242,18 @@ export class Office365Provider implements EmailProvider {
 
     const inboxMessages = inboxResponse.data.value || [];
     const importantMessages: MicrosoftGraphMessage[] = [];
+
+    if (isInitialSync) {
+      await flagSyncWindowLimitedIfNeeded(
+        { usersService: this.usersService, logger: this.logger },
+        {
+          userId,
+          graphClient,
+          since,
+          hitFetchCap: inboxMessages.length >= maxResults,
+        },
+      );
+    }
 
     const conversationMap = new Map<string, MicrosoftGraphMessage[]>();
     for (const msg of [...inboxMessages, ...importantMessages]) {

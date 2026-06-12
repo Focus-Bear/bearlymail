@@ -657,6 +657,7 @@ export class AuthService {
         needsRelogin: user.needsRelogin,
         hasSeenTour: user.hasSeenTour,
         hasScannedHistory: user.hasScannedHistory,
+        syncWindowLimited: user.syncWindowLimited,
         isAdmin: user.isAdmin,
         isApproved: user.isApproved,
         termsAcceptedAt: user.termsAcceptedAt,

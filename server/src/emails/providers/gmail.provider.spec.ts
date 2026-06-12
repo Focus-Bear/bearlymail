@@ -383,7 +383,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
       100,
     );
 
-    expect(result).toEqual(["t1"]);
+    expect(result).toEqual({ threadIds: ["t1"], hasMore: false });
     // Should have retried (called more than once)
     expect(
       (fakeGmail.users.threads.list as jest.Mock).mock.calls.length,

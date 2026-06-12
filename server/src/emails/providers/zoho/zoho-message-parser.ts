@@ -76,7 +76,8 @@ function importanceToStarCount(
   return 0;
 }
 
-function parseReceivedTimeMs(raw: number | string | undefined): number {
+/** Zoho AU returns receivedTime in either seconds or milliseconds — normalise to ms. */
+export function parseReceivedTimeMs(raw: number | string | undefined): number {
   if (!raw) return Date.now();
   const parsed = typeof raw === "string" ? parseInt(raw, 10) : raw;
   return parsed < ZOHO_SECONDS_EPOCH_THRESHOLD

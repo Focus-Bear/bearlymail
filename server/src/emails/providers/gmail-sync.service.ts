@@ -22,7 +22,7 @@ import { getJobPriority } from "../../queue/job-priorities";
 import { formatGaxiosError, isApiError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { logErrorToFile } from "../../utils/error-logger";
-import { GmailRateLimitError, InvalidTokenError } from "../../utils/errors";
+import { InvalidTokenError } from "../../utils/errors";
 import {
   EmailDataWithOptionalThreadProps,
   EmailsService,
@@ -30,6 +30,11 @@ import {
 import { EmailAttachment } from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
+import {
+  resolveMaxFetchResults,
+  resolveSyncWindowStart,
+  shouldFlagSyncWindowLimited,
+} from "../sync-window-policy";
 import { GmailProvider } from "./gmail.provider";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
 import {
@@ -41,6 +46,10 @@ import {
   refreshAttachmentsFromGmailForThread,
   refreshAttachmentsFromGmailForUser,
 } from "./gmail-sync.refresh-attachments";
+import {
+  fetchAllThreadsWithPagination,
+  olderMailExistsBeyondWindow,
+} from "./gmail-sync.thread-list";
 import { verifyInboxStatusForUser } from "./gmail-sync.verify-inbox";
 
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
@@ -172,188 +181,83 @@ export class GmailSyncService {
 
   // ── Thread Fetching ───────────────────────────────────────────────────────
 
-  async fetchThreadsPageWithRetry(
-    gmail: gmail_v1.Gmail,
-    query: string,
-    maxResultsForPage: number,
-    pageToken: string | undefined,
-    pageCount: number,
-  ): Promise<gmail_v1.Schema$ListThreadsResponse> {
-    const MAX_RETRIES = 4;
-    const MAX_BACKOFF_SECONDS = 32;
-    const MIN_WAIT_MS = 500;
-    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-    let attempt = 0;
-    let lastError: unknown = null;
-
-    while (attempt < MAX_RETRIES) {
-      try {
-        const response = await gmail.users.threads.list({
-          userId: "me",
-          maxResults: maxResultsForPage,
-          q: query,
-          pageToken,
-        });
-        return response.data;
-      } catch (error: unknown) {
-        lastError = error;
-        const errObj = error as {
-          response?: { status?: number; headers?: Record<string, string> };
-        };
-        const status = errObj?.response?.status;
-        const headers = errObj?.response?.headers ?? {};
-
-        if (status === HTTP_STATUS.TOO_MANY_REQUESTS) {
-          const retryAfterHeader =
-            headers["retry-after"] || headers["Retry-After"];
-          const retryAfterSeconds = retryAfterHeader
-            ? parseInt(retryAfterHeader, 10)
-            : undefined;
-          const hint = retryAfterSeconds
-            ? ` (Retry-After: ${retryAfterSeconds}s)`
-            : "";
-          this.logger.warn(
-            `[GmailSync] Rate limit (429) on page ${pageCount + 1}${hint} — aborting`,
-          );
-          throw new GmailRateLimitError(
-            `Gmail rate limit exceeded${hint}; sync aborted`,
-            Number.isNaN(retryAfterSeconds) ? undefined : retryAfterSeconds,
-          );
-        }
-
-        if (status && status >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
-          attempt++;
-          const waitSeconds = Math.min(2 ** attempt, MAX_BACKOFF_SECONDS);
-          const waitMs = Math.max(MIN_WAIT_MS, waitSeconds * MS_PER_SECOND);
-          this.logger.warn(
-            `[GmailSync] threads.list returned ${status}; retry ${attempt}/${MAX_RETRIES} after ${waitMs}ms`,
-          );
-          await sleep(waitMs);
-          continue;
-        }
-        throw error;
-      }
-    }
-
-    this.logger.error(
-      `[GmailSync] Failed to fetch threads.list after ${MAX_RETRIES} attempts: ${formatGaxiosError(lastError)}`,
-      lastError instanceof Error ? lastError.stack : undefined,
-    );
-    throw lastError;
-  }
-
+  /** Delegate kept as the public listing API (used by GmailProvider + specs). */
   async fetchAllThreadsWithPagination(
     gmail: gmail_v1.Gmail,
     query: string,
     maxResults: number,
-  ): Promise<string[]> {
-    const allThreadIds: string[] = [];
-    let pageToken: string | undefined;
-    const MAX_PAGES = 10;
-    let pageCount = 0;
-
-    while (allThreadIds.length < maxResults && pageCount < MAX_PAGES) {
-      const maxResultsForPage = Math.min(100, maxResults - allThreadIds.length);
-      const response = await this.fetchThreadsPageWithRetry(
-        gmail,
-        query,
-        maxResultsForPage,
-        pageToken,
-        pageCount,
-      );
-      const threads = response?.threads || [];
-      allThreadIds.push(
-        ...threads
-          .map((thread: gmail_v1.Schema$Thread) => thread.id)
-          .filter(Boolean),
-      );
-      pageToken = response?.nextPageToken || undefined;
-      pageCount++;
-      if (!pageToken || threads.length === 0) break;
-    }
-
-    if (
-      pageCount >= MAX_PAGES ||
-      (pageToken && allThreadIds.length >= maxResults)
-    ) {
-      this.logger.warn(
-        `[GmailSync] Pagination truncated: ${pageCount} pages, ${allThreadIds.length} ids`,
-      );
-    }
-    return allThreadIds;
+  ): Promise<{ threadIds: string[]; hasMore: boolean }> {
+    return fetchAllThreadsWithPagination(this.logger, gmail, query, maxResults);
   }
 
-  private calculateSyncWindowStart(
-    user: User | null,
-    syncWindowHours?: number,
-  ): Date {
-    const fourHoursInMs = 4 * MILLISECONDS.HOUR;
-    if (syncWindowHours !== undefined)
-      return new Date(Date.now() - syncWindowHours * MILLISECONDS.HOUR);
-    if (user?.lastEmailSyncAt)
-      return new Date(user.lastEmailSyncAt.getTime() - fourHoursInMs);
-    return new Date(Date.now() - DAYS.WEEK * MILLISECONDS.DAY);
-  }
-
-  async fetchGmailThreadIds(
-    userId: string,
-    gmail: gmail_v1.Gmail,
-    syncWindowHours: number | undefined,
-    noDateFilter: boolean,
-    queries: string[],
-  ): Promise<{ allThreadIds: Set<string>; syncWindowStart: Date | null }> {
+  async fetchGmailThreadIds(params: {
+    userId: string;
+    gmail: gmail_v1.Gmail;
+    syncWindowHours: number | undefined;
+    noDateFilter: boolean;
+    queries: string[];
+    isInitialSync: boolean;
+  }): Promise<{
+    allThreadIds: Set<string>;
+    syncWindowStart: Date;
+    inboxHasMore: boolean;
+  }> {
+    const { userId, gmail, syncWindowHours, noDateFilter, queries } = params;
     const user = await this.usersService.findOneWithTokens(userId);
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
     const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
-    let syncWindowStart: Date | null = null;
-    let inboxQuery: string;
-    let sentQuery: string;
 
+    // Sync-window policy: every fetch is clamped to the ongoing window — the
+    // extended (noDateFilter) sync gets the full window instead of no filter.
+    // Starred threads are fetched separately below regardless of age.
+    const syncWindowStart = resolveSyncWindowStart({
+      lastEmailSyncAt: user.lastEmailSyncAt,
+      syncWindowHours,
+      noDateFilter,
+    });
+    const syncWindowTimestamp = Math.floor(
+      syncWindowStart.getTime() / MS_PER_SECOND,
+    );
+    const afterQuery = `after:${syncWindowTimestamp}`;
+    const inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
+    const sentQuery = noDateFilter
+      ? `in:sent ${baseQuery} newer_than:2d`
+      : `in:sent ${baseQuery} ${afterQuery}`;
     if (noDateFilter) {
-      inboxQuery = `in:inbox ${baseQuery}`;
-      sentQuery = `in:sent ${baseQuery} newer_than:2d`;
       this.logger.log(
-        `[SYNC] noDateFilter=true: fetching all inbox emails without date restriction`,
+        `[SYNC] noDateFilter=true: fetching the full ${QUERY_LIMITS.ONGOING_SYNC_WINDOW_DAYS}-day sync window`,
       );
-    } else {
-      syncWindowStart = this.calculateSyncWindowStart(user, syncWindowHours);
-      const syncWindowTimestamp = Math.floor(
-        syncWindowStart.getTime() / MS_PER_SECOND,
-      );
-      const afterQuery = `after:${syncWindowTimestamp}`;
-      inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
-      sentQuery = `in:sent ${baseQuery} ${afterQuery}`;
     }
 
     const starredQuery = `is:starred in:inbox ${baseQuery}`;
     queries.push(inboxQuery, starredQuery, sentQuery);
 
-    const [inboxThreadIds, starredThreadIds, sentThreadIds] = await Promise.all(
-      [
-        this.fetchAllThreadsWithPagination(
-          gmail,
-          inboxQuery,
-          QUERY_LIMITS.INBOX_TOTAL,
-        ),
-        this.fetchAllThreadsWithPagination(
-          gmail,
-          starredQuery,
-          QUERY_LIMITS.INBOX_TOTAL,
-        ),
-        this.fetchAllThreadsWithPagination(
-          gmail,
-          sentQuery,
-          QUERY_LIMITS.THREAD_QUERY,
-        ),
-      ],
-    );
+    const [inboxResult, starredResult, sentResult] = await Promise.all([
+      this.fetchAllThreadsWithPagination(
+        gmail,
+        inboxQuery,
+        resolveMaxFetchResults(params.isInitialSync),
+      ),
+      this.fetchAllThreadsWithPagination(
+        gmail,
+        starredQuery,
+        QUERY_LIMITS.INBOX_TOTAL,
+      ),
+      this.fetchAllThreadsWithPagination(
+        gmail,
+        sentQuery,
+        QUERY_LIMITS.THREAD_QUERY,
+      ),
+    ]);
 
     const allThreadIds = new Set([
-      ...inboxThreadIds,
-      ...starredThreadIds,
-      ...sentThreadIds,
+      ...inboxResult.threadIds,
+      ...starredResult.threadIds,
+      ...sentResult.threadIds,
     ]);
-    return { allThreadIds, syncWindowStart };
+    return { allThreadIds, syncWindowStart, inboxHasMore: inboxResult.hasMore };
   }
 
   // ── Sync Core ─────────────────────────────────────────────────────────────
@@ -386,13 +290,37 @@ export class GmailSyncService {
       );
       allThreadIds = new Set(providedThreadIds);
     } else {
-      ({ allThreadIds, syncWindowStart } = await this.fetchGmailThreadIds(
-        userId,
-        gmail,
-        syncWindowHours,
-        noDateFilter,
-        queries,
-      ));
+      let inboxHasMore: boolean;
+      ({ allThreadIds, syncWindowStart, inboxHasMore } =
+        await this.fetchGmailThreadIds({
+          userId,
+          gmail,
+          syncWindowHours,
+          noDateFilter,
+          queries,
+          isInitialSync,
+        }));
+
+      if (isInitialSync) {
+        // Hitting the fetch cap already flags the sync window as limited, so
+        // the older-mail network probe is only needed when the cap wasn't hit.
+        const olderMailExists = inboxHasMore
+          ? false
+          : await olderMailExistsBeyondWindow(
+              this.logger,
+              gmail,
+              syncWindowStart,
+            );
+        if (
+          shouldFlagSyncWindowLimited({
+            isInitialSync,
+            hitFetchCap: inboxHasMore,
+            olderMailExists,
+          })
+        ) {
+          await this.usersService.markSyncWindowLimited(userId);
+        }
+      }
     }
 
     const existingThreads = await this.emailsService.getThreadsByThreadIds(
@@ -491,7 +419,7 @@ export class GmailSyncService {
     const starUpdates: { threadId: string; starCount: number }[] = [];
     const archivedUpdates: { threadId: string; isArchived: boolean }[] = [];
     const BATCH_SIZE = 5;
-    const MAX_THREADS = 500;
+    const MAX_THREADS = QUERY_LIMITS.INBOX_TOTAL;
 
     for (
       let i = 0;
@@ -602,7 +530,7 @@ export class GmailSyncService {
     gmail: gmail_v1.Gmail,
   ): Promise<void> {
     try {
-      const [inboxThreadIdList, starredThreadIdList] = await Promise.all([
+      const [inboxResult, starredResult] = await Promise.all([
         this.fetchAllThreadsWithPagination(
           gmail,
           GMAIL_INBOX_QUERY,
@@ -615,8 +543,8 @@ export class GmailSyncService {
         ),
       ]);
 
-      const inboxThreadIds = new Set(inboxThreadIdList);
-      const starredThreadIds = new Set(starredThreadIdList);
+      const inboxThreadIds = new Set(inboxResult.threadIds);
+      const starredThreadIds = new Set(starredResult.threadIds);
       const dbThreads = await this.emailsService.getAllThreadsForSync(userId);
 
       const updates = dbThreads

@@ -18,6 +18,7 @@ import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { PrioritisationInterstitial } from 'components/inbox/states';
+import { SyncWindowBanner } from 'components/inbox/SyncWindowBanner';
 import { API_URL } from 'config/api';
 import { BUCKET_LABEL_ALL, PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
 import { ERROR_CODE_GMAIL_REQUIRED, MODE_TRIAGE } from 'constants/strings';
@@ -382,6 +383,7 @@ const InboxView: React.FC = () => {
           />
         ) : (
           <>
+            {user && <SyncWindowBanner userId={user.id} syncWindowLimited={user.syncWindowLimited} />}
             {/* "Analysing priority..." virtual category for remaining unprioritised emails */}
             {priorityCounts && priorityCounts.unprioritised > 0 && (
               <div style={{ padding: `${theme.spacing.sm} ${theme.spacing.md} 0` }}>

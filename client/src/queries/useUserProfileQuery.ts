@@ -30,6 +30,8 @@ export interface UserProfile {
   needsRelogin?: boolean;
   hasSeenTour?: boolean;
   hasScannedHistory?: boolean;
+  /** True when the initial sync skipped older mail (cap/window) — shows the inbox banner. */
+  syncWindowLimited?: boolean;
   isAdmin?: boolean;
   isApproved?: boolean;
   termsAcceptedAt?: string;

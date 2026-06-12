@@ -96,8 +96,11 @@ export interface SyncEmailsOptions {
   isContinuation?: boolean;
 
   /**
-   * When true, skip the `after:` date filter on the inbox query.
-   * Used by the 2-hour extended sync so it fetches ALL inbox emails regardless of age.
+   * When true, fetch the full ongoing sync window (ONGOING_SYNC_WINDOW_DAYS)
+   * instead of the incremental window. Used by the 2-hour extended sync to
+   * catch any missed emails. Despite the name, the fetch is still clamped to
+   * the sync-window policy (see sync-window-policy.ts) — the name is kept for
+   * compatibility with in-flight job payloads.
    */
   noDateFilter?: boolean;
 }

@@ -254,6 +254,13 @@ export class User {
   lastEmailSyncAt: Date | null;
 
   @Column({
+    default: false,
+    comment:
+      "True when the initial sync skipped older mail (500-email cap / 7-day window). Drives the client 'old emails not synced' banner.",
+  })
+  syncWindowLimited: boolean;
+
+  @Column({
     type: "text",
     nullable: true,
     transformer: makeGlobalEncryptedJsonTransformer("users.toneSettings"),

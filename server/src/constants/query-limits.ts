@@ -18,6 +18,17 @@ export type InboxMode = (typeof INBOX_MODES)[keyof typeof INBOX_MODES];
 
 export const QUERY_LIMITS = {
   INBOX_TOTAL: 500,
+  /**
+   * Sync-window policy (see emails/sync-window-policy.ts): the initial sync
+   * caps at this many most-recent emails.
+   */
+  INITIAL_SYNC_MAX_EMAILS: 500,
+  /**
+   * Sync-window policy: after the initial sync, ongoing syncs only fetch
+   * emails at most this many days old (starred emails are fetched regardless
+   * of age).
+   */
+  ONGOING_SYNC_WINDOW_DAYS: 7,
   INBOX_PROCESS_TOTAL: 1000,
   INBOX_PAGE_SIZE: 50,
   THREAD_QUERY: 100,

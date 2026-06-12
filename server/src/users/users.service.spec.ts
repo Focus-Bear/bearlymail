@@ -216,6 +216,23 @@ describe("UsersService", () => {
     });
   });
 
+  describe("markSyncWindowLimited", () => {
+    it("persists syncWindowLimited=true for the user", async () => {
+      const existingUser = { ...mockUser, syncWindowLimited: false };
+      repository.findOne.mockResolvedValue(existingUser);
+      repository.save.mockImplementation(async (user) => user as User);
+
+      await service.markSyncWindowLimited("user-1");
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+      });
+      expect(repository.save).toHaveBeenCalledTimes(1);
+      const saved = repository.save.mock.calls[0][0] as User;
+      expect(saved.syncWindowLimited).toBe(true);
+    });
+  });
+
   describe("update", () => {
     it("should update user", async () => {
       const existingUser = { ...mockUser };

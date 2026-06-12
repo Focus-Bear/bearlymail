@@ -612,11 +612,12 @@ export class GmailProvider implements EmailProvider {
     if (!gmail) {
       throw new Error("Gmail auth expired or not connected");
     }
-    return this.gmailSyncService.fetchAllThreadsWithPagination(
+    const result = await this.gmailSyncService.fetchAllThreadsWithPagination(
       gmail,
       `is:starred ${GMAIL_INBOX_QUERY}`,
       QUERY_LIMITS.INBOX_TOTAL,
     );
+    return result.threadIds;
   }
 
   async getInboxThreadIds(userId: string): Promise<string[]> {
@@ -624,11 +625,12 @@ export class GmailProvider implements EmailProvider {
     if (!gmail) {
       throw new Error("Gmail auth expired or not connected");
     }
-    return this.gmailSyncService.fetchAllThreadsWithPagination(
+    const result = await this.gmailSyncService.fetchAllThreadsWithPagination(
       gmail,
       GMAIL_INBOX_QUERY,
       QUERY_LIMITS.INBOX_TOTAL,
     );
+    return result.threadIds;
   }
 
   async addLabelToThread(

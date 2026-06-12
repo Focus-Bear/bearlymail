@@ -275,6 +275,10 @@
     "blockSender": "Block sender",
     "unsubscribe": "Unsubscribe",
     "nextBatch": "Next batch",
+    "syncWindowBanner": {
+      "message": "Heads up: we're not syncing your old emails. We've only synced the last 7 days worth.",
+      "dismiss": "Dismiss"
+    },
     "batchInfo": {
       "lastUrgentCheck": "Last checked for urgent emails",
       "neverChecked": "never",

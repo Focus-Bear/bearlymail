@@ -492,6 +492,8 @@ describe("EmailsController", () => {
       const mockThread = {
         id: threadId,
         userId,
+        priorityScore: 62,
+        isProcessingPriority: false,
         githubMetadata: {
           links: [
             {
@@ -511,6 +513,8 @@ describe("EmailsController", () => {
 
       expect(result).toEqual({
         ...mockEmail,
+        priorityScore: 62,
+        isProcessingPriority: false,
         githubMetadata: {
           links: [
             {
@@ -526,6 +530,59 @@ describe("EmailsController", () => {
         userId,
         threadId,
       );
+    });
+
+    it("should include the canonical thread-level priorityScore so the detail view matches the inbox list", async () => {
+      const userId = "user-123";
+      const emailId = "04547756-9d11-42b4-beae-227d52377fcd";
+      const threadId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+      const mockRequest = { user: { userId } };
+      const mockEmail = {
+        id: emailId,
+        subject: "Test",
+        emailThreadId: threadId,
+      };
+      const mockThread = {
+        id: threadId,
+        userId,
+        priorityScore: 47,
+        isProcessingPriority: true,
+        githubMetadata: null,
+      };
+
+      mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
+      mockEmailAdminService.getEmailThreadById.mockResolvedValue(mockThread);
+
+      const result = await controller.getEmail(mockRequest, emailId);
+
+      expect(result).toEqual({
+        ...mockEmail,
+        priorityScore: 47,
+        isProcessingPriority: true,
+      });
+    });
+
+    it("should return null priorityScore when the thread cannot be found", async () => {
+      const userId = "user-123";
+      const emailId = "04547756-9d11-42b4-beae-227d52377fcd";
+      const threadId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+      const mockRequest = { user: { userId } };
+      const mockEmail = {
+        id: emailId,
+        subject: "Test",
+        emailThreadId: threadId,
+      };
+
+      mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
+      mockEmailAdminService.getEmailThreadById.mockResolvedValue(null);
+
+      const result = await controller.getEmail(mockRequest, emailId);
+
+      expect(result).toEqual({
+        ...mockEmail,
+        priorityScore: null,
+        isProcessingPriority: false,
+      });
     });
 
     it("should throw error when email not found", async () => {

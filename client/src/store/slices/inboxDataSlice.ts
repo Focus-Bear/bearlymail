@@ -180,10 +180,13 @@ const inboxDataSlice = createSlice({
     },
     setCategorySummary: (state, action: PayloadAction<CategorySummaryItem[]>) => {
       state.categorySummary = action.payload;
-      // Fix #2062 race: a background summary refresh can re-inflate the count for a
-      // category the accordion already confirmed as empty (server returned 0 emails).
-      // If the category is in loadedCategoryNames AND has no matching emails in the
-      // Redux store, keep its count at 0 so the category stays hidden.
+      // A summary refresh can disagree with a category the accordion loaded as empty
+      // (a category fetch returned 0 emails but the summary reports count > 0). The old
+      // behaviour clamped the count to 0, but that permanently hid REAL categories after
+      // a single bad/mis-keyed empty fetch (the vanish-on-expand bug). The summary is the
+      // more authoritative side, so keep its count and instead un-mark the category as
+      // loaded: the accordion refetches its emails, and if the server again returns 0 the
+      // reconciliation guard in useEmailFetching hides the category for good.
       if (!state.categorySummary) {
         return;
       }
@@ -200,7 +203,7 @@ const inboxDataSlice = createSlice({
           isUncategorized ? !email.category_id : email.category_id === cat.id
         );
         if (!hasEmails) {
-          cat.count = 0;
+          state.loadedCategoryNames = state.loadedCategoryNames.filter(loadedKey => loadedKey !== catKey);
         }
       }
     },

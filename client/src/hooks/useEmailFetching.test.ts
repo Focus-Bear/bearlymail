@@ -888,11 +888,14 @@ describe('fix #1689 – summaryItem null-guard in fetchCategoryEmailsImpl', () =
 
 // ─── Fix #2062: stale empty categories from cache ─────────────────────────────
 
-describe('fix #2062 – stale empty categories hidden immediately', () => {
+describe('fix #2062 + vanish-on-expand – empty category fetches reconcile with the live summary', () => {
   // When the API returns 0 emails for a category but the Redux summary still shows
-  // a stale count > 0 (from cached data), the summary should be updated immediately
-  // so buildDisplayCategories filters out the empty category without waiting for the
-  // background summary refresh.
+  // count > 0, the two sides disagree and we cannot tell locally which one is stale.
+  // The hook must refetch the live summary and let the server decide:
+  //   - genuinely empty → fresh summary omits the category → hidden (the #2062 ghost case)
+  //   - mis-keyed/wrong fetch → fresh summary keeps it → category stays VISIBLE
+  // The old behaviour zeroed the count locally in both cases, which made real
+  // categories vanish the moment the user expanded them.
 
   let store: ReturnType<typeof configureStore>;
 
@@ -920,10 +923,24 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
     ({ children }: { children: React.ReactNode }) =>
       React.createElement(Provider, { store: testStore, children });
 
+  /** Mock GET so category fetches return `emails` and summary refetches return `categories`. */
+  const mockInboxAndSummaryGet = (
+    emails: Email[],
+    categories: Array<{ id: string | null; name: string; count: number }>
+  ) => {
+    mockedAxios.get.mockImplementation((url: string) => {
+      if (url.includes('/emails/inbox-summary')) {
+        return Promise.resolve({ data: { total: categories.reduce((sum, cat) => sum + cat.count, 0), categories } });
+      }
+      return Promise.resolve({ data: { emails } });
+    });
+  };
+
   describe('fetchCategoryEmails (direct API path)', () => {
-    it('removes category from summary when API returns 0 emails and summary shows stale count > 0', async () => {
+    it('removes category from summary when API returns 0 emails and the live summary confirms it is empty', async () => {
       store = createStoreWithSummary([{ id: 'uuid-empty-2062', name: 'Work', count: 5 }]);
-      mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+      // Live summary no longer contains the category → server confirms it is gone.
+      mockInboxAndSummaryGet([], []);
 
       const { result } = renderHook(
         () => useEmailFetching({ mode: 'triage' }),
@@ -935,9 +952,75 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
       await waitFor(() => {
         const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
         const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-empty-2062');
-        // Category removed from summary (count went to 0, no remaining emails)
+        // Category removed from summary once the LIVE summary confirms it is empty
         expect(category).toBeUndefined();
       });
+    });
+
+    it('keeps the category VISIBLE and un-marks it loaded when the live summary still reports emails (vanish-on-expand regression)', async () => {
+      store = createStoreWithSummary([{ id: 'uuid-vanish-bug', name: 'Work', count: 5 }]);
+      // Category fetch wrongly returns 0 emails, but the live summary still reports 5 —
+      // the fetch was the stale side (e.g. mis-keyed UUID or transient error).
+      mockInboxAndSummaryGet([], [{ id: 'uuid-vanish-bug', name: 'Work', count: 5 }]);
+
+      const { result } = renderHook(
+        () => useEmailFetching({ mode: 'triage' }),
+        { wrapper: makeWrapper(store) }
+      );
+
+      await result.current.fetchCategoryEmails('Work', 'uuid-vanish-bug');
+
+      await waitFor(() => {
+        const summaryCalls = mockedAxios.get.mock.calls.filter(call =>
+          String(call[0]).includes('/emails/inbox-summary')
+        );
+        expect(summaryCalls.length).toBeGreaterThan(0);
+      });
+
+      const state = store.getState() as {
+        inboxData: {
+          categorySummary: Array<{ id: string | null; name: string; count: number }> | null;
+          loadedCategoryNames: string[];
+        };
+      };
+      const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-vanish-bug');
+      // The category must NOT vanish — the live summary is authoritative
+      expect(category).toBeDefined();
+      expect(category?.count).toBe(5);
+      // And it must be un-marked as loaded so the accordion refetches its emails
+      expect(state.inboxData.loadedCategoryNames).not.toContain('uuid-vanish-bug');
+    });
+
+    it('falls back to hiding the category locally on the second empty fetch for the same key (loop guard)', async () => {
+      store = createStoreWithSummary([{ id: 'uuid-persistent', name: 'Work', count: 5 }]);
+      // Server persistently disagrees: summary always says 5, category fetch always returns 0.
+      mockInboxAndSummaryGet([], [{ id: 'uuid-persistent', name: 'Work', count: 5 }]);
+
+      const { result } = renderHook(
+        () => useEmailFetching({ mode: 'triage' }),
+        { wrapper: makeWrapper(store) }
+      );
+
+      // First empty fetch → reconciles with live summary (category kept, un-marked loaded)
+      await result.current.fetchCategoryEmails('Work', 'uuid-persistent');
+      await waitFor(() => {
+        const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
+        expect(state.inboxData.loadedCategoryNames).not.toContain('uuid-persistent');
+      });
+
+      // Second empty fetch → loop guard kicks in and hides the category locally
+      await result.current.fetchCategoryEmails('Work', 'uuid-persistent');
+
+      await waitFor(() => {
+        const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+        const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-persistent');
+        expect(category).toBeUndefined();
+      });
+      // Only ONE summary reconciliation request was made (bounded, no loop)
+      const summaryCalls = mockedAxios.get.mock.calls.filter(call =>
+        String(call[0]).includes('/emails/inbox-summary')
+      );
+      expect(summaryCalls).toHaveLength(1);
     });
 
     it('does NOT update summary when API returns emails', async () => {
@@ -968,7 +1051,7 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
       expect(category?.count).toBe(3);
     });
 
-    it('does NOT update summary when API returns 0 emails but summary already shows count 0', async () => {
+    it('does NOT refetch the summary when API returns 0 emails but summary already shows count 0', async () => {
       store = createStoreWithSummary([{ id: 'uuid-already-zero-2062', name: 'Work', count: 0 }]);
       mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
 
@@ -983,15 +1066,19 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
         expect(emailCache.setCachedCategoryEmails).toHaveBeenCalled();
       });
 
-      // Summary should remain unchanged (count was already 0)
+      // Summary should remain unchanged (count was already 0) and no reconciliation fired
       const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
       const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-already-zero-2062');
       expect(category?.count).toBe(0);
+      const summaryCalls = mockedAxios.get.mock.calls.filter(call =>
+        String(call[0]).includes('/emails/inbox-summary')
+      );
+      expect(summaryCalls).toHaveLength(0);
     });
   });
 
   describe('serveCategoryFromCacheAndRefresh (background refresh path)', () => {
-    it('removes category from summary when background refresh returns 0 emails and summary shows stale count', async () => {
+    it('removes category from summary when background refresh returns 0 emails and the live summary confirms it', async () => {
       store = createStoreWithSummary([{ id: 'uuid-bg-empty-2062', name: 'Finance', count: 7 }]);
 
       // Serve from cache (empty) then background refresh returns 0
@@ -1001,7 +1088,7 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
       store.dispatch(
         setCategorySummary([{ id: 'uuid-bg-empty-2062', name: 'Finance', count: 7 }])
       );
-      mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+      mockInboxAndSummaryGet([], []);
 
       const { result } = renderHook(
         () => useEmailFetching({ mode: 'triage' }),
@@ -1013,19 +1100,20 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
       await waitFor(() => {
         const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
         const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-bg-empty-2062');
-        // Category removed from summary once background refresh confirms 0 emails
+        // Category removed from summary once the live summary confirms 0 emails
         expect(category).toBeUndefined();
       });
     });
   });
 
-  describe('setCategorySummary race condition (fix #2062 part 2)', () => {
-    // The first part of fix #2062 clears the summary count when a category fetch returns 0.
-    // But a concurrent background summary refresh can call setCategorySummary and re-inflate
-    // the count back to > 0, making the empty category reappear. The setCategorySummary reducer
-    // must not re-inflate counts for categories already confirmed empty by the server.
+  describe('setCategorySummary loaded-but-empty disagreement (vanish-on-expand fix)', () => {
+    // When a summary payload reports count > 0 for a category that is marked loaded with
+    // 0 emails in the store, the two sides disagree. The summary is the more authoritative
+    // side, so the reducer keeps the count and un-marks the category as loaded (triggering
+    // a refetch) instead of clamping the count to 0 — the clamp permanently hid REAL
+    // categories after a single bad empty fetch.
 
-    it('does not re-inflate count for a loaded category with 0 emails when setCategorySummary fires', async () => {
+    it('keeps the summary count and un-marks the category as loaded when the store has 0 emails for it', async () => {
       const { markCategoryLoaded, setCategorySummary, updateCategoryEmails } = await import(
         'store/slices/inboxDataSlice'
       );
@@ -1035,14 +1123,20 @@ describe('fix #2062 – stale empty categories hidden immediately', () => {
       // Simulate: category was expanded, server returned 0 → emails removed, marked loaded
       store.dispatch(updateCategoryEmails({ categoryKey: 'uuid-race-2062', emails: [] }));
       store.dispatch(markCategoryLoaded('uuid-race-2062'));
-      // clearCategorySummaryCount would have already set count to 0 (tested above),
-      // but the race: background summary refresh now fires with stale count = 5
+      // A summary refresh now fires and still reports count = 5
       store.dispatch(setCategorySummary([{ id: 'uuid-race-2062', name: 'Work', count: 5 }]));
 
-      const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+      const state = store.getState() as {
+        inboxData: {
+          categorySummary: Array<{ id: string | null; name: string; count: number }> | null;
+          loadedCategoryNames: string[];
+        };
+      };
       const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-race-2062');
-      // Count must stay 0 — summary refresh must not re-inflate a confirmed-empty category
-      expect(category?.count).toBe(0);
+      // The summary count wins (category stays visible)...
+      expect(category?.count).toBe(5);
+      // ...and the category is un-marked loaded so its emails are refetched
+      expect(state.inboxData.loadedCategoryNames).not.toContain('uuid-race-2062');
     });
 
     it('does NOT zero out a loaded category that still has emails', async () => {

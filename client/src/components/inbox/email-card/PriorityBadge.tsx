@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { usePriorityCalculatedFlash } from 'hooks/usePriorityCalculatedFlash';
+
 interface PriorityBadgeProps {
   priorityLabel: string;
   priorityColor: string;
@@ -18,6 +20,9 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
   isProcessingPriority,
 }) => {
   const { t } = useTranslation();
+  // Briefly show a ✅ confirmation when the spinner resolves while the badge is mounted,
+  // instead of jumping straight from "Calculating..." to the label.
+  const showCalculated = usePriorityCalculatedFlash(isProcessingPriority);
 
   return (
     <span
@@ -53,7 +58,14 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
           {t('email.calculating')}
         </>
       ) : (
-        `${priorityLabel} (${priorityScore.toFixed(0)})`
+        <>
+          {showCalculated && (
+            <span role="img" aria-label={t('email.priorityCalculated')} title={t('email.priorityCalculated')}>
+              ✅
+            </span>
+          )}
+          {`${priorityLabel} (${priorityScore.toFixed(0)})`}
+        </>
       )}
     </span>
   );

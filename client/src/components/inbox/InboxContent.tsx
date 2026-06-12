@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Email, InboxMode, TriageSuggestion } from 'types/email';
 
+import { ReanalyseConfirmModal } from 'components/inbox/ReanalyseConfirmModal';
 import { ResizableDivider } from 'components/inbox/ResizableDivider';
 import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
 import { RecategorizeProgressBar } from 'components/settings/RecategorizeProgressBar';
@@ -179,6 +180,14 @@ export const InboxContent: React.FC<InboxContentProps> = props => {
     [emails, splitView.selectedEmailId]
   );
 
+  // The reanalyse button on the "Other" accordion recategorises the WHOLE inbox,
+  // so require an explicit confirmation that states the real scope before starting.
+  const [showReanalyseConfirm, setShowReanalyseConfirm] = useState(false);
+  const handleConfirmReanalyse = () => {
+    setShowReanalyseConfirm(false);
+    void handleReanalyseOther();
+  };
+
   const listPanelProps = {
     emailListRef,
     sentinelRef,
@@ -226,7 +235,7 @@ export const InboxContent: React.FC<InboxContentProps> = props => {
     onBulkArchive,
     onConvertProtoCategory: handleConvertProtoCategory,
     onDeleteProtoCategoryFromInbox: handleDeleteProtoCategoryFromInbox,
-    onReanalyseOther: handleReanalyseOther,
+    onReanalyseOther: () => setShowReanalyseConfirm(true),
     minPriority,
     maxPriority,
     priorityCounts,
@@ -239,6 +248,11 @@ export const InboxContent: React.FC<InboxContentProps> = props => {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
       <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissRecategorizeProgress} />
+      <ReanalyseConfirmModal
+        isOpen={showReanalyseConfirm}
+        onConfirm={handleConfirmReanalyse}
+        onCancel={() => setShowReanalyseConfirm(false)}
+      />
       <div ref={splitViewContainerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
         <InboxEmailListPanel {...listPanelProps} />
         {!splitView.isMobile && splitView.selectedEmailId && !splitView.panelExpanded && (

@@ -6,6 +6,7 @@ import { getPriorityBadge } from 'utils/priorityUtils';
 
 import { PriorityTooltip } from 'components/priority/PriorityTooltip';
 import { CATEGORY_OTHER } from 'constants/strings';
+import { usePriorityCalculatedFlash } from 'hooks/usePriorityCalculatedFlash';
 
 interface PriorityBadgeProps {
   email: Email;
@@ -34,6 +35,10 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
   const { t } = useTranslation();
   const priorityScore = getEmailPriorityScore(email);
   const priority = getPriorityBadge(priorityScore, t);
+  const isCalculating = isEmailPriorityCalculating(email);
+  // Briefly show a ✅ confirmation when the spinner resolves while the badge is mounted,
+  // instead of jumping straight from "Calculating..." to the label.
+  const showCalculated = usePriorityCalculatedFlash(isCalculating);
 
   return (
     <span
@@ -56,13 +61,13 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
       onClick={event => {
         event.stopPropagation();
         event.preventDefault();
-        if (isEmailPriorityCalculating(email)) {
+        if (isCalculating) {
           return;
         }
         priorityTooltip.togglePriorityTooltip(email.id);
       }}
     >
-      {isEmailPriorityCalculating(email) ? (
+      {isCalculating ? (
         <>
           <span
             style={{
@@ -78,7 +83,14 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
           🔄 {t('email.calculating')}
         </>
       ) : (
-        `${priority.label} (${priorityScore.toFixed(0)})`
+        <>
+          {showCalculated && (
+            <span role="img" aria-label={t('email.priorityCalculated')} title={t('email.priorityCalculated')}>
+              ✅
+            </span>
+          )}
+          {`${priority.label} (${priorityScore.toFixed(0)})`}
+        </>
       )}
 
       {priorityTooltip.hoveredPriorityEmailId === email.id && (

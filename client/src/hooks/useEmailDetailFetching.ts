@@ -16,6 +16,10 @@ interface Email {
   body: string;
   htmlBody?: string;
   receivedAt: string;
+  /** Canonical thread-level priority score, attached by GET /emails/:id so the
+   *  detail view shows the same number the inbox list sorts/displays. */
+  priorityScore?: number | null;
+  isProcessingPriority?: boolean;
   githubMetadata?: {
     links: GitHubLink[];
   };

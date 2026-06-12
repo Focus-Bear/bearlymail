@@ -186,6 +186,7 @@
     "processingPriority": "Processing Priority...",
     "generatingSummary": "Generating Summary...",
     "calculating": "Calculating...",
+    "priorityCalculated": "Priority calculated",
     "batched": "Batched",
     "categoryMatchFailed": "The AI suggested a category that does not exist in your settings"
   },
@@ -390,7 +391,10 @@
       "archiveAll": "Archive All",
       "archiveAllTooltip": "Archive all emails in this category",
       "editCategories": "Edit email categories",
-      "reanalyseCategories": "Recategorise inbox emails",
+      "reanalyseCategories": "Re-sort all categories",
+      "reanalyseConfirmTitle": "Re-sort ALL inbox categories?",
+      "reanalyseConfirmMessage": "This re-sorts ALL your inbox categories, not just Other — every email in triage, action and follow-up will be recategorised. Continue?",
+      "reanalyseConfirmCta": "Recategorise everything",
       "reanalysingCategories": "Recategorising...",
       "reanalyseSuccess": "Generated {{count}} new categories. {{reclassifyCount}} emails queued for reclassification.",
       "reanalyseNoNewCategories": "No new categories could be generated from the emails in Other",
@@ -474,7 +478,12 @@
       "low": "Low priority"
     },
     "catchingUp": "Catching up on {{remaining}} email thread(s) missed while you were away...",
-    "catchingUpTooltip": "AI processing was paused while you were inactive. Processing now in the background."
+    "catchingUpTooltip": "AI processing was paused while you were inactive. Processing now in the background.",
+    "batchSummary": {
+      "total_one": "{{count}} email to triage",
+      "total_other": "{{count}} emails to triage",
+      "band": "{{count}} {{label}}"
+    }
   },
   "emailDetail": {
     "attachments": "Attachments ({{count}})",
@@ -821,6 +830,7 @@
         "status": "{{processed}} of {{total}} emails processed",
         "statusWithFailed": "{{processed}} of {{total}} emails processed ({{failed}} failed)",
         "remaining": "· {{pending}} remaining",
+        "eta": "· ~{{minutes}} min remaining",
         "dismiss": "Dismiss recategorisation progress"
       },
       "consolidateConfirm": "This will consolidate your email categories using AI. Duplicate or similar categories will be merged. Continue?",

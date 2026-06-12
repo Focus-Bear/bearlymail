@@ -634,6 +634,16 @@ export class EmailsController {
         req.user.userId,
         email.emailThreadId,
       );
+      // The inbox list sorts and displays the denormalized thread-level priorityScore
+      // (the canonical value per the EmailThread schema). The Email entity has no
+      // priority fields of its own, so without this the detail view's
+      // getEmailPriorityScore() fell back to 0 / a recomputed breakdown total and
+      // showed a different score than the list.
+      const response: Record<string, unknown> = {
+        ...email,
+        priorityScore: thread?.priorityScore ?? null,
+        isProcessingPriority: thread?.isProcessingPriority ?? false,
+      };
       if (thread && thread.githubMetadata && thread.githubMetadata.links) {
         const seenUrls = new Set<string>();
         const uniqueLinks = thread.githubMetadata.links.filter((link) => {
@@ -644,11 +654,9 @@ export class EmailsController {
           seenUrls.add(key);
           return true;
         });
-        return {
-          ...email,
-          githubMetadata: { links: uniqueLinks },
-        };
+        response.githubMetadata = { links: uniqueLinks };
       }
+      return response;
     }
 
     return email;

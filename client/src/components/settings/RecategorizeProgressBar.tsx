@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { formatEtaMinutes } from 'hooks/settings/recategorizeEta';
 import { RecategorizeProgressState } from 'hooks/settings/useRecategorizeProgress';
 
 interface RecategorizeProgressBarProps {
@@ -42,7 +43,7 @@ export const RecategorizeProgressBar: React.FC<RecategorizeProgressBarProps> = (
     return null;
   }
 
-  const { total, completed, failed, pending, isComplete } = progress;
+  const { total, completed, failed, pending, isComplete, etaMs } = progress;
   const processed = completed + failed;
   const percentage = total > 0 ? Math.round((processed / total) * 100) : 0;
 
@@ -128,6 +129,11 @@ export const RecategorizeProgressBar: React.FC<RecategorizeProgressBarProps> = (
         {pending > 0 && !isComplete && (
           <span style={{ marginLeft: '4px' }}>
             {t('settings.emailCategories.recategorizeProgress.remaining', { pending })}
+          </span>
+        )}
+        {etaMs !== null && !isComplete && (
+          <span style={{ marginLeft: '4px' }}>
+            {t('settings.emailCategories.recategorizeProgress.eta', { minutes: formatEtaMinutes(etaMs) })}
           </span>
         )}
       </p>

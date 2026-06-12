@@ -3,6 +3,7 @@ import axios from 'axios';
 
 import { API_URL } from 'config/api';
 import { POLLING_INTERVAL_MS, RECATEGORIZE_ZERO_TOTAL_MAX_POLLS } from 'constants/numbers';
+import { appendThroughputSample, estimateRemainingMs, ThroughputSample } from 'hooks/settings/recategorizeEta';
 
 const STORAGE_KEY = 'recategorize_progress';
 
@@ -20,6 +21,8 @@ export interface RecategorizeProgressState {
   pending: number;
   isComplete: boolean;
   isShowing: boolean;
+  /** Estimated remaining time from observed throughput, or null until enough samples exist. */
+  etaMs: number | null;
 }
 
 const loadFromStorage = (): StoredProgress | null => {
@@ -59,6 +62,7 @@ export const useRecategorizeProgress = () => {
     pending: 0,
     isComplete: false,
     isShowing: false,
+    etaMs: null,
   });
 
   const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,6 +70,8 @@ export const useRecategorizeProgress = () => {
   const isPollingRef = useRef(false);
   /** Backend may briefly report total=0; after several polls with no jobs, stop waiting (legacy mismatch). */
   const zeroTotalStreakRef = useRef(0);
+  /** Observed (timestamp, processed) samples used to estimate the remaining time. */
+  const throughputSamplesRef = useRef<ThroughputSample[]>([]);
 
   const stopPolling = useCallback(() => {
     cancelledRef.current = true;
@@ -110,6 +116,12 @@ export const useRecategorizeProgress = () => {
         (total > 0 && pending === 0) ||
         (zeroTotalStreakRef.current >= RECATEGORIZE_ZERO_TOTAL_MAX_POLLS && storedTotal > 0);
 
+      throughputSamplesRef.current = appendThroughputSample(throughputSamplesRef.current, {
+        timestampMs: Date.now(),
+        processed: completed + failed,
+      });
+      const etaMs = isComplete ? null : estimateRemainingMs(throughputSamplesRef.current, pending);
+
       setProgress({
         batchId,
         total: effectiveTotal,
@@ -118,6 +130,7 @@ export const useRecategorizeProgress = () => {
         pending,
         isComplete,
         isShowing: true,
+        etaMs,
       });
 
       if (!isComplete && !cancelledRef.current) {
@@ -167,6 +180,7 @@ export const useRecategorizeProgress = () => {
       cancelledRef.current = false;
       isPollingRef.current = false;
       zeroTotalStreakRef.current = 0;
+      throughputSamplesRef.current = [];
 
       const stored: StoredProgress = {
         batchId,
@@ -183,17 +197,18 @@ export const useRecategorizeProgress = () => {
         pending: total,
         isComplete: false,
         isShowing: true,
+        etaMs: null,
       });
 
       pollProgress(batchId, total);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing
     [stopPolling, pollProgress]
   );
 
   const dismiss = useCallback(() => {
     stopPolling();
     clearStorage();
+    throughputSamplesRef.current = [];
     setProgress({
       batchId: null,
       total: 0,
@@ -202,6 +217,7 @@ export const useRecategorizeProgress = () => {
       pending: 0,
       isComplete: false,
       isShowing: false,
+      etaMs: null,
     });
   }, [stopPolling]);
 

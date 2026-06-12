@@ -997,6 +997,7 @@
   "email": {
     "batched": "por lotes",
     "calculating": "Calculador...",
+    "priorityCalculated": "Prioridad calculada",
     "generatingSummary": "Generando resumen...",
     "processingPriority": "Prioridad de procesamiento...",
     "waitlistApproval": {
@@ -1767,7 +1768,10 @@
       "archiveAll": "Archivar todo",
       "archiveAllTooltip": "Archivar todos los correos en esta categoría",
       "editCategories": "Editar categorías de correo",
-      "reanalyseCategories": "Recategorizar correos de la bandeja",
+      "reanalyseCategories": "Reordenar todas las categorías",
+      "reanalyseConfirmTitle": "¿Reordenar TODAS las categorías de la bandeja?",
+      "reanalyseConfirmMessage": "Esto reordena TODAS las categorías de tu bandeja, no solo Otros: todos los correos en triaje, acción y seguimiento se recategorizarán. ¿Continuar?",
+      "reanalyseConfirmCta": "Recategorizar todo",
       "reanalysingCategories": "Recategorizando...",
       "reanalyseSuccess": "Se generaron {{count}} nuevas categorías. {{reclassifyCount}} correos en cola para reclasificación.",
       "reanalyseNoNewCategories": "No se pudieron generar nuevas categorías a partir de los correos en Otros",
@@ -1993,7 +1997,12 @@
       "low": "Prioridad baja"
     },
     "catchingUp": "Procesando {{remaining}} hilo(s) de correo pendiente(s) de cuando estabas ausente...",
-    "catchingUpTooltip": "El procesamiento de IA se pausó mientras estabas inactivo. Procesando ahora en segundo plano."
+    "catchingUpTooltip": "El procesamiento de IA se pausó mientras estabas inactivo. Procesando ahora en segundo plano.",
+    "batchSummary": {
+      "total_one": "{{count}} correo por clasificar",
+      "total_other": "{{count}} correos por clasificar",
+      "band": "{{count}} {{label}}"
+    }
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",
@@ -3435,6 +3444,7 @@
         "status": "{{processed}} de {{total}} correos procesados",
         "statusWithFailed": "{{processed}} de {{total}} correos procesados ({{failed}} fallaron)",
         "remaining": "· {{pending}} restantes",
+        "eta": "· ~{{minutes}} min restantes",
         "dismiss": "Cerrar progreso de recategorización"
       },
       "consolidateConfirm": "¿Esto consolidará tus categorías de correo usando IA. Las categorías duplicadas o similares se fusionarán. ¿Continuar?",

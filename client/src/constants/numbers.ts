@@ -83,6 +83,8 @@ export const HTTP_FORBIDDEN = 403;
 export const DEBOUNCE_DELAY_MS = 300;
 export const LONG_TIMEOUT_MS = 10000;
 export const SHORT_TIMEOUT_MS = 2000;
+/** How long the ✅ "priority calculated" confirmation shows after the spinner resolves. */
+export const PRIORITY_CALCULATED_FLASH_MS = 2000;
 export const POLLING_INTERVAL_MS = 2000; // 2 seconds
 /** Stop recategorise progress spinner when backend keeps reporting total=0 for this many polls. */
 export const RECATEGORIZE_ZERO_TOTAL_MAX_POLLS = 12;

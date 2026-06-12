@@ -3,6 +3,7 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as certificatemanager from "aws-cdk-lib/aws-certificatemanager";
 import * as cr from "aws-cdk-lib/custom-resources";
+import * as ses from "aws-cdk-lib/aws-ses";
 import { Construct } from "constructs";
 import { getCertificateProviderFunction } from "./certificate-provider";
 
@@ -190,6 +191,50 @@ export class BearlyMailNetworkingStack extends cdk.Stack {
       this.queueDashboardCertificateArn =
         queueDashboardCertificate.certificateArn;
     }
+
+
+    // ============================================
+    // SES sending identity
+    // ============================================
+    // Transactional email (waitlist confirmations, booking notifications)
+    // sends from the apex domain. Its DNS lives in Cloudflare — only
+    // app.bearlymail.com is delegated to Route53 — so the verification
+    // records cannot be created here. The outputs below list the exact
+    // records to add in Cloudflare (DNS only, not proxied); SES flips the
+    // identity to "verified" automatically once they resolve.
+    const sendingDomainSource = props?.domainName ?? "bearlymail.com";
+    const sendingDomain =
+      sendingDomainSource.includes(".") &&
+      sendingDomainSource.split(".").length > 2
+        ? sendingDomainSource.split(".").slice(-2).join(".")
+        : sendingDomainSource;
+    const mailFromDomain = `mail.${sendingDomain}`;
+    const sendingIdentity = new ses.EmailIdentity(this, "SendingIdentity", {
+      identity: ses.Identity.domain(sendingDomain),
+      mailFromDomain,
+    });
+
+    sendingIdentity.dkimRecords.forEach((record, index) => {
+      new cdk.CfnOutput(this, `SesDkimRecord${index + 1}`, {
+        value: `CNAME ${record.name} -> ${record.value}`,
+        description: `DKIM CNAME ${index + 1}/3 for ${sendingDomain} - add in Cloudflare`,
+      });
+    });
+
+    new cdk.CfnOutput(this, "SesMailFromMxRecord", {
+      value: `MX ${mailFromDomain} -> 10 feedback-smtp.${this.region}.amazonses.com`,
+      description: "Custom MAIL FROM MX record - add in Cloudflare",
+    });
+
+    new cdk.CfnOutput(this, "SesMailFromSpfRecord", {
+      value: `TXT ${mailFromDomain} -> "v=spf1 include:amazonses.com ~all"`,
+      description: "Custom MAIL FROM SPF record - add in Cloudflare",
+    });
+
+    new cdk.CfnOutput(this, "SesDmarcRecord", {
+      value: `TXT _dmarc.${sendingDomain} -> "v=DMARC1; p=none; rua=mailto:jeremy@focusbear.io"`,
+      description: "Recommended DMARC policy record - add in Cloudflare",
+    });
 
     // ============================================
     // Outputs

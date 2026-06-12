@@ -18,6 +18,7 @@ import {
   ROUTE_CRM_CONTACTS,
   ROUTE_CRM_DEALS,
   ROUTE_INBOX,
+  ROUTE_SCHEDULED,
   ROUTE_SEARCH,
   ROUTE_SETTINGS,
   ROUTE_STATS,
@@ -42,6 +43,7 @@ interface SidebarItemProps {
 const SIDEBAR_ROUTE_EVENTS: Record<string, string> = {
   [ROUTE_INBOX]: ANALYTICS_EVENTS.SIDEBAR_INBOX_CLICKED,
   [ROUTE_COMPOSE]: ANALYTICS_EVENTS.SIDEBAR_COMPOSE_CLICKED,
+  [ROUTE_SCHEDULED]: ANALYTICS_EVENTS.SIDEBAR_SCHEDULED_CLICKED,
   [ROUTE_SEARCH]: ANALYTICS_EVENTS.SIDEBAR_SEARCH_CLICKED,
   [ROUTE_CRM_CONTACTS]: ANALYTICS_EVENTS.SIDEBAR_CONTACTS_CLICKED,
   [ROUTE_CRM_DEALS]: ANALYTICS_EVENTS.SIDEBAR_DEALS_CLICKED,
@@ -307,6 +309,14 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       path={ROUTE_COMPOSE}
       icon="✏️"
       active={location.pathname === ROUTE_COMPOSE}
+      isCollapsed={effectiveIsCollapsed}
+      onNavigationClick={handleNavigationClick}
+    />
+    <SidebarItem
+      label={translate('scheduledEmails.sidebarLabel')}
+      path={ROUTE_SCHEDULED}
+      icon="🕐"
+      active={location.pathname === ROUTE_SCHEDULED}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
     />

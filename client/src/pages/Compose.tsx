@@ -13,6 +13,7 @@ import { ComposeMessages } from 'components/compose/ComposeMessages';
 import { FrequentContactsList } from 'components/compose/FrequentContactsList';
 import { RecipientFields } from 'components/compose/RecipientFields';
 import { TimePicker } from 'components/compose/TimePicker';
+import { ConfirmModal } from 'components/ConfirmModal';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 import { API_URL } from 'config/api';
@@ -24,6 +25,7 @@ import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
+import { useUnsavedChangesGuard } from 'hooks/useUnsavedChangesGuard';
 
 const Compose: React.FC = () => {
   const navigate = useNavigate();
@@ -115,7 +117,7 @@ const Compose: React.FC = () => {
     [search.activeField, handleAddRecipient]
   );
 
-  const handleSend = async () => {
+  const handleSend = async (options: { bypassToneCheck?: boolean } = {}) => {
     if (form.to.length === 0) {
       setError(t('compose.errorNoRecipient'));
       return;
@@ -131,9 +133,13 @@ const Compose: React.FC = () => {
 
     setError(null);
 
-    const toneOk = await checkTone(form.body.trim());
-    if (!toneOk) {
-      return;
+    if (options.bypassToneCheck) {
+      setToneCheckResult(null);
+    } else {
+      const toneOk = await checkTone(form.body.trim());
+      if (!toneOk) {
+        return;
+      }
     }
 
     setSending(true);
@@ -155,25 +161,58 @@ const Compose: React.FC = () => {
       userTimezone: scheduledSendAt ? userTimezone : undefined,
     };
 
-    setSendSuccess(true);
-    setSending(false);
-
-    navigationTimeoutRef.current = setTimeout(() => {
-      navigate('/inbox');
-    }, DELAY_1_5_SECONDS_MS);
-
-    axios.post(`${API_URL}/emails/send`, payload).catch((err: unknown) => {
+    try {
+      await axios.post(`${API_URL}/emails/send`, payload);
+      setSendSuccess(true);
+      navigationTimeoutRef.current = setTimeout(() => {
+        navigate('/inbox');
+      }, DELAY_1_5_SECONDS_MS);
+    } catch (err: unknown) {
       console.error('Error sending email:', err);
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-        navigationTimeoutRef.current = null;
-      }
-      setSendSuccess(false);
       // eslint-disable-next-line id-denylist -- axios error response type uses 'data' property
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || t('compose.errorSendFailed'));
       showError(axiosErr.response?.data?.message || t('compose.errorSendFailed'));
-    });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const isDirty =
+    !sendSuccess &&
+    (form.to.length > 0 ||
+      form.cc.length > 0 ||
+      form.bcc.length > 0 ||
+      !!form.subject.trim() ||
+      !!form.body.trim() ||
+      !!scheduledSendAt);
+
+  // Guards reload/close via beforeunload and intercepts in-app link clicks
+  // (the sidebar arrives on this page once nav-consistency lands) while the
+  // draft is unsent.
+  const { pendingPath, confirmNavigation, cancelNavigation } = useUnsavedChangesGuard(isDirty);
+  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
+
+  const handleBackToInbox = () => {
+    if (isDirty) {
+      setLeaveTarget('/inbox');
+      return;
+    }
+    navigate('/inbox');
+  };
+
+  const handleConfirmLeave = () => {
+    if (pendingPath) {
+      confirmNavigation();
+    } else if (leaveTarget) {
+      navigate(leaveTarget);
+    }
+    setLeaveTarget(null);
+  };
+
+  const handleCancelLeave = () => {
+    cancelNavigation();
+    setLeaveTarget(null);
   };
 
   const handleOpenTimePicker = useCallback(() => {
@@ -243,7 +282,7 @@ const Compose: React.FC = () => {
         }}
       >
         <button
-          onClick={() => navigate('/inbox')}
+          onClick={handleBackToInbox}
           style={{
             background: 'none',
             border: 'none',
@@ -336,7 +375,12 @@ const Compose: React.FC = () => {
             subject={form.subject}
             body={form.body}
             onSubjectChange={form.setSubject}
-            onBodyChange={form.setBody}
+            onBodyChange={text => {
+              form.setBody(text);
+              if (toneCheckResult && !toneCheckResult.isOk) {
+                setToneCheckResult(null);
+              }
+            }}
           />
 
           <FrequentContactsList
@@ -364,7 +408,7 @@ const Compose: React.FC = () => {
             }}
           />
 
-          <ComposeMessages error={error} sendSuccess={sendSuccess} />
+          <ComposeMessages error={error} sendSuccess={sendSuccess} scheduledFor={scheduledSendAt} />
         </div>
 
         <ComposeActions
@@ -372,12 +416,27 @@ const Compose: React.FC = () => {
           sendSuccess={sendSuccess}
           checkingTone={checkingTone}
           onDiscard={() => navigate('/inbox')}
-          onSend={handleSend}
+          onSend={() => void handleSend()}
           onSchedule={handleOpenTimePicker}
           scheduledSendAt={scheduledSendAt}
           onClearSchedule={() => setScheduledSendAt(null)}
+          toneCheckFailed={!!(toneCheckResult && !toneCheckResult.isOk)}
+          onSendAnyway={() => {
+            captureEvent(ANALYTICS_EVENTS.TONE_CHECK_SEND_ANYWAY);
+            void handleSend({ bypassToneCheck: true });
+          }}
         />
       </div>
+
+      <ConfirmModal
+        isOpen={!!pendingPath || !!leaveTarget}
+        title={t('compose.unsavedChangesTitle')}
+        message={scheduledSendAt ? t('compose.confirmLeaveScheduled') : t('compose.confirmLeave')}
+        confirmLabel={t('compose.leaveAnyway')}
+        cancelLabel={t('compose.keepEditing')}
+        onConfirm={handleConfirmLeave}
+        onCancel={handleCancelLeave}
+      />
 
       {showTimePicker && (
         <TimePicker

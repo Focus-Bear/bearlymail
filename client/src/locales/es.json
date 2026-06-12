@@ -600,7 +600,7 @@
     "emailSentSuccess": "¡Correo electrónico enviado exitosamente!",
     "errorNoBody": "Por favor ingresa el cuerpo de un mensaje",
     "errorNoRecipient": "Por favor agregue al menos un destinatario",
-    "errorNoSubject": "Por favor ingresa un asunto",
+    "errorNoSubject": "Añade un asunto: los correos necesitan uno antes de poder enviarse",
     "errorSendFailed": "No se pudo enviar el correo electrónico. Por favor inténtalo de nuevo.",
     "frequentContacts": "Contactos frecuentes",
     "newMessage": "Nuevo mensaje",
@@ -625,7 +625,17 @@
     "forwardedAttachments": "Adjuntos reenviados:",
     "sendAnywayOverride": "Enviar de todas formas (urgente / zona horaria diferente)",
     "scheduledFor": "Enviando {{time}}",
-    "clearSchedule": "Borrar hora programada"
+    "clearSchedule": "Borrar hora programada",
+    "scheduleSend": "Programar envío",
+    "scheduled": "Programado",
+    "scheduledBanner": "Se enviará {{time}}. No se envía nada hasta que pulses \"Programar envío\".",
+    "emailScheduledSuccess": "¡Correo programado para {{time}}! Gestiónalo desde Programados en la barra lateral.",
+    "confirmLeave": "Tienes un correo sin enviar. ¿Salir sin enviarlo?",
+    "confirmLeaveScheduled": "Tu correo aún no está programado: primero pulsa \"Programar envío\". ¿Salir de todos modos?",
+    "editRecipient": "Haz clic para editar",
+    "unsavedChangesTitle": "Correo sin enviar",
+    "leaveAnyway": "Salir de todos modos",
+    "keepEditing": "Seguir editando"
   },
   "consent": {
     "acceptAndContinue": "Aceptar y continuar",
@@ -1241,7 +1251,9 @@
       "github": "GitHub",
       "crm": "Tratos",
       "senderContext": "Contexto del remitente"
-    }
+    },
+    "sendAnywayHold": "Mantén pulsado para enviar de todos modos",
+    "sendAnywayHoldMessage": "Ok, revisa bien que el correo sea apropiado 😅"
   },
   "contacts": {
     "title": "Contactos",
@@ -1372,7 +1384,8 @@
     "confirmCancel": "¿Estás seguro de que quieres cancelar este correo programado?",
     "to": "Para",
     "typeReply": "Responder",
-    "typeNew": "Nuevo Correo"
+    "typeNew": "Nuevo Correo",
+    "sidebarLabel": "Programados"
   },
   "footer": {
     "focusBear": "Oso de enfoque",

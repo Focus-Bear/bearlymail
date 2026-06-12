@@ -1,5 +1,5 @@
 /* eslint-disable max-lines-per-function */
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
@@ -68,6 +68,15 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
   // ── Drag-and-drop state ─────────────────────────────────────────────────────
   const [dragSource, setDragSource] = useState<{ field: FieldType; email: string } | null>(null);
   const [dragOverField, setDragOverField] = useState<FieldType | null>(null);
+  const inputRefs = useRef<Partial<Record<FieldType, HTMLInputElement | null>>>({});
+
+  // Clicking a chip turns it back into editable text in the field's input.
+  const handleEditRecipient = (recipient: Recipient, field: FieldType) => {
+    onRemoveRecipient(recipient.email, field);
+    onSetActiveField(field);
+    onSearchQueryChange(recipient.email);
+    requestAnimationFrame(() => inputRefs.current[field]?.focus());
+  };
 
   const getRecipients = (field: FieldType): Recipient[] => {
     if (field === EMAIL_FIELD_TO) {
@@ -164,7 +173,13 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                 cursor: 'grab',
               }}
             >
-              <span style={{ color: theme.colors.text.primary }}>{recipient.name || recipient.email}</span>
+              <span
+                onClick={() => handleEditRecipient(recipient, field)}
+                title={t('compose.editRecipient')}
+                style={{ color: theme.colors.text.primary, cursor: 'pointer' }}
+              >
+                {recipient.name || recipient.email}
+              </span>
               <button
                 onClick={() => onRemoveRecipient(recipient.email, field)}
                 style={{
@@ -183,6 +198,9 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             </div>
           ))}
           <input
+            ref={el => {
+              inputRefs.current[field] = el;
+            }}
             type="text"
             value={isActive ? searchQuery : ''}
             onChange={event => {

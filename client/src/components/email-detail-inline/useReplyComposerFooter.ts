@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { REPLY_MODE_FORWARD } from 'constants/strings';
 
 /**
  * Default follow-up window pre-filled into the (editable) free-text input.
@@ -17,6 +18,9 @@ export interface ReplyComposerFooterProps {
   sending: boolean;
   checkingTone: boolean;
   draft: string | null;
+  replyMode?: 'reply' | 'replyAll' | 'forward';
+  /** True when the last tone check failed; swaps Send for a hold-to-confirm button. */
+  toneCheckFailed?: boolean;
   scheduledSendAt?: Date | null;
   onClose: () => void;
   onSend: (
@@ -35,7 +39,7 @@ export interface ReplyComposerFooterProps {
  * Keeps the component itself a thin composition of sub-components.
  */
 export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
-  const { sending, checkingTone, draft, scheduledSendAt, onSend, onSchedule } = props;
+  const { sending, checkingTone, draft, replyMode, scheduledSendAt, onSend, onSchedule } = props;
   const { t } = useTranslation();
 
   const [followUpDuration, setFollowUpDuration] = useState<string>(DEFAULT_FOLLOW_UP_DURATION);
@@ -45,7 +49,9 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
 
   const trimmedDuration = followUpDuration.trim();
   const hasFollowUp = trimmedDuration.length > 0;
-  const isDisabled = !draft || sending || checkingTone;
+  // Forwards may be sent without any added text — the original message is the content.
+  const isMissingDraft = !draft && replyMode !== REPLY_MODE_FORWARD;
+  const isDisabled = isMissingDraft || sending || checkingTone;
 
   const getButtonText = (): string => {
     if (checkingTone) {
@@ -60,17 +66,24 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
 
   // An empty field means "no follow-up" (archive after reply); otherwise the
   // raw duration string is sent and parsed server-side, exactly like a snooze.
-  const dispatchSend = (sendAt?: Date) => {
+  const dispatchSend = (sendAt?: Date, draftOverride?: string) => {
     if (hasFollowUp) {
-      onSend(undefined, undefined, sendAt, keepInAction, trimmedDuration);
+      onSend(undefined, draftOverride, sendAt, keepInAction, trimmedDuration);
     } else {
-      onSend(NO_FOLLOW_UP_HOURS, undefined, sendAt, keepInAction);
+      onSend(NO_FOLLOW_UP_HOURS, draftOverride, sendAt, keepInAction);
     }
   };
 
   const handleSend = () => {
     captureEvent(ANALYTICS_EVENTS.REPLY_SENT, followUpAnalytics());
     dispatchSend(scheduledSendAt || undefined);
+  };
+
+  // Passing the draft as draftOverride skips the tone check in the send handler,
+  // so a failed tone check can be deliberately overridden via hold-to-confirm.
+  const handleSendAnyway = () => {
+    captureEvent(ANALYTICS_EVENTS.TONE_CHECK_SEND_ANYWAY, followUpAnalytics());
+    dispatchSend(scheduledSendAt || undefined, draft ?? undefined);
   };
 
   const handleScheduleIconClick = () => {
@@ -108,6 +121,7 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
     getButtonText,
     expectedReplyTooltip,
     handleSend,
+    handleSendAnyway,
     handleScheduleIconClick,
     handleSelectSuggestion,
     handlePickCustom,

@@ -366,16 +366,24 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
         draftOverride,
         scheduledSendAtOverride,
       } = sendOptions;
-      const rawDraft = draftOverride || draft;
+      const isForward = replyMode === REPLY_MODE_FORWARD;
+      const rawDraft = draftOverride ?? draft ?? '';
       const scheduleTime = scheduledSendAtOverride || scheduledSendAt;
-      if (!emailId || !rawDraft) {
+      // Forwards may be sent without added text — the forwarded message is the content.
+      if (!emailId || (!rawDraft && !isForward)) {
         return;
       }
       // Swap blob: preview URLs back to cid: references before tone-check and send.
       const draftToSend = replaceBlobUrlsWithCids(rawDraft);
       // Pass the scheduled send time so the server can suppress timing nags when
       // the user has already queued the email for a specific delivery time.
-      if (!draftOverride && !(await checkTone(draftToSend, scheduleTime?.toISOString() ?? null))) {
+      // A provided draftOverride is a deliberate override (revised text or
+      // hold-to-send-anyway) and skips the check; so does an empty forward body.
+      if (
+        draftOverride === undefined &&
+        draftToSend.trim() &&
+        !(await checkTone(draftToSend, scheduleTime?.toISOString() ?? null))
+      ) {
         return;
       }
       setShowReplyComposer(false);

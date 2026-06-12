@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FiCalendar } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 
+import { HoldToConfirmButton } from 'components/common/HoldToConfirmButton';
 import { InlineSpinner } from 'components/common/InlineSpinner';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
@@ -15,8 +16,11 @@ interface ButtonRowProps {
   checkingTone: boolean;
   showSchedulePopup: boolean;
   buttonText: string;
+  /** True when the last tone check failed; swaps Send for a hold-to-confirm button. */
+  toneCheckFailed?: boolean;
   onClose: () => void;
   onSend: () => void;
+  onSendAnyway?: () => void;
   onScheduleIconClick: () => void;
   onSelectSuggestion: (date: Date) => void;
   onPickCustom: () => void;
@@ -32,8 +36,10 @@ export const ButtonRow: React.FC<ButtonRowProps> = ({
   checkingTone,
   showSchedulePopup,
   buttonText,
+  toneCheckFailed = false,
   onClose,
   onSend,
+  onSendAnyway,
   onScheduleIconClick,
   onSelectSuggestion,
   onPickCustom,
@@ -61,28 +67,37 @@ export const ButtonRow: React.FC<ButtonRowProps> = ({
         {t('common.cancel')}
       </button>
 
-      <button
-        onClick={onSend}
-        disabled={isDisabled}
-        style={{
-          padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-          backgroundColor: isDisabled ? theme.colors.background.subtle : theme.colors.primary.main,
-          color: isDisabled ? theme.colors.text.tertiary : 'white',
-          border: STRING_NONE,
-          borderRadius: theme.borderRadius.md,
-          cursor: isDisabled ? 'not-allowed' : 'pointer',
-          fontSize: theme.typography.fontSize.sm,
-          fontWeight: theme.typography.fontWeight.medium,
-          minWidth: '120px',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: theme.spacing.xs,
-        }}
-      >
-        {(checkingTone || sending) && <InlineSpinner size={14} />}
-        {buttonText}
-      </button>
+      {toneCheckFailed && onSendAnyway ? (
+        <HoldToConfirmButton
+          label={t('emailDetail.sendAnywayHold')}
+          holdMessage={t('emailDetail.sendAnywayHoldMessage')}
+          onConfirm={onSendAnyway}
+          disabled={isDisabled}
+        />
+      ) : (
+        <button
+          onClick={onSend}
+          disabled={isDisabled}
+          style={{
+            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+            backgroundColor: isDisabled ? theme.colors.background.subtle : theme.colors.primary.main,
+            color: isDisabled ? theme.colors.text.tertiary : 'white',
+            border: STRING_NONE,
+            borderRadius: theme.borderRadius.md,
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            minWidth: '120px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing.xs,
+          }}
+        >
+          {(checkingTone || sending) && <InlineSpinner size={14} />}
+          {buttonText}
+        </button>
+      )}
 
       <div ref={scheduleButtonRef} style={{ position: 'relative' }}>
         <button

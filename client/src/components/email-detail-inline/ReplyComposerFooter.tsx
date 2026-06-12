@@ -42,8 +42,10 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = props => 
         checkingTone={checkingTone}
         showSchedulePopup={hook.showSchedulePopup}
         buttonText={hook.getButtonText()}
+        toneCheckFailed={props.toneCheckFailed}
         onClose={onClose}
         onSend={hook.handleSend}
+        onSendAnyway={hook.handleSendAnyway}
         onScheduleIconClick={hook.handleScheduleIconClick}
         onSelectSuggestion={hook.handleSelectSuggestion}
         onPickCustom={hook.handlePickCustom}

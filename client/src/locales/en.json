@@ -706,7 +706,9 @@
       "github": "GitHub",
       "crm": "Deals",
       "senderContext": "Sender Context"
-    }
+    },
+    "sendAnywayHold": "Hold to send anyway",
+    "sendAnywayHoldMessage": "Ok - double check to make sure the email is appropriate 😅"
   },
   "settings": {
     "title": "Settings",
@@ -1901,7 +1903,7 @@
     "frequentContacts": "Frequent Contacts",
     "emailSentSuccess": "Email sent successfully!",
     "errorNoRecipient": "Please add at least one recipient",
-    "errorNoSubject": "Please enter a subject",
+    "errorNoSubject": "Please add a subject — emails need one before they can be sent",
     "errorNoBody": "Please enter a message body",
     "errorSendFailed": "Failed to send email. Please try again.",
     "schedule": "Schedule",
@@ -1915,7 +1917,17 @@
     "forwardedAttachments": "Forwarded attachments:",
     "sendAnywayOverride": "Send anyway (urgent / different timezone)",
     "scheduledFor": "Sending {{time}}",
-    "clearSchedule": "Clear scheduled time"
+    "clearSchedule": "Clear scheduled time",
+    "scheduleSend": "Schedule send",
+    "scheduled": "Scheduled",
+    "scheduledBanner": "Will send {{time}}. Nothing is sent until you click \"Schedule send\".",
+    "emailScheduledSuccess": "Email scheduled for {{time}}! Manage it from Scheduled in the sidebar.",
+    "confirmLeave": "You have an unsent email. Leave without sending?",
+    "confirmLeaveScheduled": "Your email is not scheduled yet — you still need to click \"Schedule send\". Leave anyway?",
+    "editRecipient": "Click to edit",
+    "unsavedChangesTitle": "Unsent email",
+    "leaveAnyway": "Leave anyway",
+    "keepEditing": "Keep editing"
   },
   "contacts": {
     "title": "Contacts",
@@ -2046,7 +2058,8 @@
     "confirmCancel": "Are you sure you want to cancel this scheduled email?",
     "to": "To",
     "typeReply": "Reply",
-    "typeNew": "New Email"
+    "typeNew": "New Email",
+    "sidebarLabel": "Scheduled"
   },
   "footer": {
     "madeBy": "Made by",

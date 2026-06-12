@@ -1,13 +1,16 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { formatScheduledTime } from 'utils/dateUtils';
 
 interface ComposeMessagesProps {
   error: string | null;
   sendSuccess: boolean;
+  /** When set, the success message describes a scheduled send instead of an immediate one. */
+  scheduledFor?: Date | null;
 }
 
-export const ComposeMessages: React.FC<ComposeMessagesProps> = ({ error, sendSuccess }) => {
+export const ComposeMessages: React.FC<ComposeMessagesProps> = ({ error, sendSuccess, scheduledFor }) => {
   const { t } = useTranslation();
 
   if (!error && !sendSuccess) {
@@ -44,7 +47,9 @@ export const ComposeMessages: React.FC<ComposeMessagesProps> = ({ error, sendSuc
             gap: '8px',
           }}
         >
-          {t('compose.emailSentSuccess')}
+          {scheduledFor
+            ? t('compose.emailScheduledSuccess', { time: formatScheduledTime(scheduledFor) })
+            : t('compose.emailSentSuccess')}
         </div>
       )}
     </>

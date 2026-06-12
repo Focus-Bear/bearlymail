@@ -92,6 +92,7 @@ export const ANALYTICS_EVENTS = {
   TONE_CHECK_SCHEDULE_FOR_MORNING_COMPOSE: 'tone_check_schedule_for_morning_compose',
   TONE_CHECK_DISPUTE_AUTO_SEND_TRIGGERED: 'tone_check_dispute_auto_send_triggered',
   TONE_CHECK_DISPUTE_AUTO_SEND_CANCELLED: 'tone_check_dispute_auto_send_cancelled',
+  TONE_CHECK_SEND_ANYWAY: 'tone_check_send_anyway',
   TONE_RULE_ADDED: 'tone_rule_added',
   TONE_RULE_EDITED: 'tone_rule_edited',
   TONE_RULE_REMOVED: 'tone_rule_removed',
@@ -114,6 +115,7 @@ export const ANALYTICS_EVENTS = {
   SIDEBAR_STATS_CLICKED: 'sidebar_stats_clicked',
   SIDEBAR_SETTINGS_CLICKED: 'sidebar_settings_clicked',
   SIDEBAR_ADMIN_CLICKED: 'sidebar_admin_clicked',
+  SIDEBAR_SCHEDULED_CLICKED: 'sidebar_scheduled_clicked',
   CALENDAR_INVITE_ACCEPT_CLICKED: 'calendar_invite_accept_clicked',
   CALENDAR_INVITE_DECLINE_CLICKED: 'calendar_invite_decline_clicked',
 } as const;

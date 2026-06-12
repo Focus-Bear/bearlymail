@@ -133,12 +133,12 @@ describe('ComposeActions', () => {
     it('renders scheduled time indicator when scheduledSendAt is provided', () => {
       const scheduledTime = new Date('2026-04-10T09:00:00Z');
       render(<ComposeActions {...defaultProps} scheduledSendAt={scheduledTime} />);
-      expect(screen.getByText(/compose.scheduledFor/)).toBeInTheDocument();
+      expect(screen.getByText(/compose.scheduledBanner/)).toBeInTheDocument();
     });
 
     it('does not render indicator when scheduledSendAt is not provided', () => {
       render(<ComposeActions {...defaultProps} />);
-      expect(screen.queryByText(/compose.scheduledFor/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/compose.scheduledBanner/)).not.toBeInTheDocument();
     });
   });
 });

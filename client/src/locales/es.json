@@ -2431,8 +2431,8 @@
             "body": "Choose 2×, 3×, or 4× daily. Set quiet hours: no email before 11 AM, none after 6 PM. Block off entire weekends. Your inbox stops being someone else's interrupt."
           },
           "ranked": {
-            "title": "What matters first, one action at a time.",
-            "body": "Every batch is ranked 0–100 by importance based on your behaviour. Deal with the CEO's question before the Zoom recording notification — without thinking about it."
+            "title": "Lo importante primero, una acción a la vez.",
+            "body": "Cada lote se clasifica de 0 a 100 según su importancia, basándose en tu comportamiento. Marca tú mismo a tus remitentes VIP y corrige cualquier puntuación: la clasificación aprende de ti. Atiende la pregunta del CEO antes que la notificación de la grabación de Zoom, sin tener que pensarlo."
           },
           "snooze": {
             "title": "Snoozing that takes one second.",
@@ -2578,6 +2578,22 @@
             "q": "What if I miss something genuinely time-sensitive?",
             "a": "Truly urgent emails break through immediately. The model learns what \"urgent\" means for you by watching how quickly you reply, who you prioritise, and what you archive without reading. The bar for breaking through is high by design, so only things that genuinely interrupt your flow get through."
           },
+          "priorityScore": {
+            "q": "¿Cómo se calcula la puntuación de prioridad?",
+            "a": "Se determina basándose en tu contexto, no en una fórmula genérica. La puntuación tiene en cuenta quién envía el correo —incluidos los remitentes VIP que tú mismo marcas—, los proyectos y objetivos en los que trabajas, las fechas límite y las señales de urgencia del mensaje. Si una puntuación te parece incorrecta, puedes corregirla y BearlyMail aprende de cada corrección."
+          },
+          "lowScore": {
+            "q": "¿Y si algo importante recibe una puntuación baja?",
+            "a": "Hay medidas de seguridad. Puedes marcar a los remitentes importantes como VIP para que nunca queden enterrados, la detección de urgencia permite que el correo realmente urgente evite la entrega por lotes por completo, y nada queda oculto: siempre puedes ver todos los correos y ordenarlos por fecha en la aplicación."
+          },
+          "vip": {
+            "q": "¿Puedo marcar yo mismo a los remitentes importantes?",
+            "a": "Sí. Los remitentes VIP son totalmente editables: añade o quita a quien quieras en cualquier momento. BearlyMail también aprende quiénes son tus VIP a partir de cómo destacas y respondes, pero la última palabra siempre es tuya."
+          },
+          "manualTriage": {
+            "q": "¿Por qué sigo clasificando manualmente si los correos ya tienen puntuación?",
+            "a": "La puntuación te dice qué es probable que importe; la clasificación le dice a BearlyMail qué requiere realmente una acción de tu parte. Al destacar un correo, pasa a tu lista de Acción, ordenada por prioridad para que lo más importante quede arriba, y el sistema aprende de cada decisión que tomas."
+          },
           "colleagues": {
             "q": "Will my colleagues notice I’m slower to reply?",
             "a": "Probably not. Most replies that feel \"instant\" are really under an hour, which still happens with 3× daily delivery. For people you always want to hear from immediately, mark them as VIPs and their email skips the batch."
@@ -2585,6 +2601,10 @@
           "providers": {
             "q": "Will it work with Gmail, Outlook, or iCloud?",
             "a": "Yes. BearlyMail sits on top of your existing account. No migration, no new email address. Gmail and Microsoft 365 are supported at launch; iCloud and Fastmail follow shortly after."
+          },
+          "calendar": {
+            "q": "¿Funciona con mi calendario?",
+            "a": "Sí. BearlyMail se integra con Google Calendar para agendar reuniones: cuando un correo se convierte en una reunión, puede consultar tu disponibilidad y ayudarte a programarla sin salir de tu bandeja de entrada."
           },
           "peek": {
             "q": "Can I peek at what’s being held?",

@@ -5,8 +5,13 @@ import { FaqItem } from './FaqItem';
 
 const FAQ_KEYS = [
   'timeSensitive',
+  'priorityScore',
+  'lowScore',
+  'vip',
+  'manualTriage',
   'colleagues',
   'providers',
+  'calendar',
   'peek',
   'ai',
   'gmailImportant',

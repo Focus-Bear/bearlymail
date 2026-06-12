@@ -3640,7 +3640,7 @@
           },
           "ranked": {
             "title": "What matters first, one action at a time.",
-            "body": "Every batch is ranked 0–100 by importance based on your behaviour. Deal with the CEO's question before the Zoom recording notification — without thinking about it."
+            "body": "Every batch is ranked 0–100 by importance based on your behaviour. Mark your VIP senders yourself and correct any score — the ranking learns from you. Deal with the CEO's question before the Zoom recording notification — without thinking about it."
           },
           "snooze": {
             "title": "Snoozing that takes one second.",
@@ -3786,6 +3786,22 @@
             "q": "What if I miss something genuinely time-sensitive?",
             "a": "Truly urgent emails break through immediately. The model learns what \"urgent\" means for you by watching how quickly you reply, who you prioritise, and what you archive without reading. The bar for breaking through is high by design, so only things that genuinely interrupt your flow get through."
           },
+          "priorityScore": {
+            "q": "How is the priority score calculated?",
+            "a": "It's learned from your context, not a generic formula. The score weighs who's sending — including the VIP senders you mark yourself — the projects and goals you're currently working on, deadlines, and urgency signals in the message. If a score looks wrong, you can correct it, and BearlyMail learns from every correction."
+          },
+          "lowScore": {
+            "q": "What if something important gets a low score?",
+            "a": "There are safety nets. You can mark important senders as VIPs so they're never buried, urgent-detection lets time-critical email bypass batching entirely, and nothing is ever hidden — you can always see every email and sort by time in the app."
+          },
+          "vip": {
+            "q": "Can I mark important senders myself?",
+            "a": "Yes. VIP senders are fully user-editable — add or remove anyone at any time. BearlyMail also learns VIPs automatically from how you star and reply, but you always have the final say."
+          },
+          "manualTriage": {
+            "q": "Why do I still triage manually if emails already have scores?",
+            "a": "Scores tell you what's likely to matter; triage tells BearlyMail what actually needs action from you. Starring an email moves it to your Action list, ordered by priority so the most important work sits on top — and the system learns from every choice you make."
+          },
           "colleagues": {
             "q": "Will my colleagues notice I’m slower to reply?",
             "a": "Probably not. Most replies that feel \"instant\" are really under an hour, which still happens with 3× daily delivery. For people you always want to hear from immediately, mark them as VIPs and their email skips the batch."
@@ -3793,6 +3809,10 @@
           "providers": {
             "q": "Will it work with Gmail, Outlook, or iCloud?",
             "a": "Yes. BearlyMail sits on top of your existing account. No migration, no new email address. Gmail and Microsoft 365 are supported at launch; iCloud and Fastmail follow shortly after."
+          },
+          "calendar": {
+            "q": "Does it work with my calendar?",
+            "a": "Yes. BearlyMail integrates with Google Calendar for meeting scheduling, so when an email turns into a meeting it can check your availability and help you schedule it without leaving your inbox."
           },
           "peek": {
             "q": "Can I peek at what’s being held?",

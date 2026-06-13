@@ -71,8 +71,10 @@ export interface BearlyMailStackProps extends cdk.StackProps {
 // PDFs in an `<iframe>` (needs `frame-src 'self' blob:`) and images in an `<img>` (needs
 // `blob:` in `img-src`). `object-src` stays `'none'` — the previews use `<iframe>`/`<img>`,
 // not `<object>`/`<embed>`, so we keep that hardening rather than loosening it pre-emptively.
+// The admin Queue Dashboard tab iframes the @pg-boss/dashboard service hosted at
+// queue.api.app.bearlymail.com — that origin must be whitelisted in `frame-src`.
 const FRONTEND_CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'";
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'self' blob: https://queue.api.app.bearlymail.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'";
 
 export class BearlyMailStack extends cdk.Stack {
   /** ECS task role — shared with BearlyMailContextAnalysisStack to grant SQS send permissions */

@@ -109,6 +109,11 @@ export const JOB_NAMES = {
   // emails off the HTTP request path and uploads it to S3. The synchronous
   // export used to 504 at the 60s ALB idle timeout for large mailboxes.
   EXPORT_EMAILS: "export-emails",
+
+  // Daily cleanup of expired rows from the debug_data table (see
+  // DebugCleanupService). Must be registered here so the queue.module.ts boot
+  // loop creates it before DebugCleanupService.onModuleInit tries to schedule.
+  DEBUG_DATA_CLEANUP: "debug-data-cleanup",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

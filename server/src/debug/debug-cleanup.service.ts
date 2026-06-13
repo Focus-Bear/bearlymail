@@ -2,10 +2,11 @@ import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import { registerWorker } from "../queue/register-worker";
 import { DebugService } from "./debug.service";
 
-const DEBUG_CLEANUP_JOB = "debug-data-cleanup";
+const DEBUG_CLEANUP_JOB = JOB_NAMES.DEBUG_DATA_CLEANUP;
 
 /** Runs daily cleanup of expired debug_data rows. */
 @Injectable()

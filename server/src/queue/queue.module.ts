@@ -17,6 +17,7 @@ import { logErrorToFile } from "../utils/error-logger";
 import { QueueAutoscalingService } from "./queue-autoscaling.service";
 import { QueueMonitorService } from "./queue-monitor.service";
 import { ResourceMonitorService } from "./resource-monitor.service";
+import { startBossWithDeadlockRetry } from "./start-boss-with-deadlock-retry";
 
 @Global()
 @Module({
@@ -72,7 +73,7 @@ import { ResourceMonitorService } from "./resource-monitor.service";
         });
 
         try {
-          await boss.start();
+          await startBossWithDeadlockRetry(boss, logger);
           logger.log("PgBoss started successfully");
 
           // pg-boss v10+ requires every queue to be created before it can be
@@ -89,7 +90,7 @@ import { ResourceMonitorService } from "./resource-monitor.service";
           // Set up automatic reconnection handling
           boss.on("stopped", () => {
             logger.warn("PgBoss stopped, attempting to restart...");
-            boss.start().catch((err) => {
+            startBossWithDeadlockRetry(boss, logger).catch((err) => {
               logger.error("Failed to restart PgBoss:", err);
               logErrorToFile("Failed to restart PgBoss", err, "QueueModule");
             });

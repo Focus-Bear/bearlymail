@@ -20,7 +20,7 @@ import { NODE_ENV_VALUES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
-import { MINUTES_PER_HOUR } from "../constants/time-constants";
+import { SECONDS } from "../constants/time-constants";
 import { User } from "../database/entities/user.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
 import { OrganizationsService } from "../organizations/organizations.service";
@@ -388,7 +388,7 @@ export class AuthService {
           {
             priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
             singletonKey: `fetch-user-emails-${userId}`,
-            singletonMinutes: 5,
+            singletonSeconds: SECONDS.FIVE_MINUTES,
           },
         )
         .catch((err) =>
@@ -403,7 +403,7 @@ export class AuthService {
           { userId },
           {
             singletonKey: `sync-contacts-${userId}`,
-            singletonMinutes: MINUTES_PER_HOUR,
+            singletonSeconds: SECONDS.HOUR,
           },
         )
         .catch((err) =>

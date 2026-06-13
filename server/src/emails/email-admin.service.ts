@@ -9,7 +9,12 @@ import { QUEUE_JOB_STATE } from "../constants/domain-statuses";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { INBOX_MODES } from "../constants/query-limits";
-import { DAYS, HOURS, HOURS_PER_DAY } from "../constants/time-constants";
+import {
+  DAYS,
+  HOURS,
+  HOURS_PER_DAY,
+  SECONDS,
+} from "../constants/time-constants";
 import { ContactsService } from "../contacts/contacts.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { decryptContextValue } from "../encryption/encryption.helper";
@@ -357,7 +362,7 @@ export class EmailAdminService {
         {
           priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true),
           singletonKey: `recategorize-${email.id}`,
-          singletonMinutes: 1,
+          singletonSeconds: SECONDS.MINUTE,
         },
       );
       if (jobId != null) queued++;

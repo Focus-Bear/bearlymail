@@ -17,6 +17,7 @@ import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { JobPriority } from "../queue/job-priorities";
 import { BackfillContactSearchTokensJobData } from "./contact-search-token-backfill.processor";
 import {
@@ -109,7 +110,7 @@ export class ContactsDebugAdminController {
     const jobId = await this.boss.send(
       JOB_NAMES.BACKFILL_CONTACT_SEARCH_TOKENS,
       jobData,
-      { priority: JobPriority.LOW, expireInHours: 6 },
+      { priority: JobPriority.LOW, expireInSeconds: SECONDS.SIX_HOURS },
     );
     this.logger.log(
       `Enqueued contact searchTokens backfill job ${jobId}${dryRun ? " (dry run)" : ""}`,

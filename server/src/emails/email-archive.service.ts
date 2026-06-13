@@ -5,6 +5,8 @@ import { In, Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { CategoryOverride } from "../database/entities/category-override.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -104,12 +106,12 @@ export class EmailArchiveService {
 
     this.boss
       .send(
-        "archive-email-provider-sync",
+        JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC,
         { userId, threadId, wasStarred: isStarred },
         {
-          priority: getJobPriority("archive-email-provider-sync", true),
+          priority: getJobPriority(JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC, true),
           singletonKey: `archive-provider-sync-${threadId}`,
-          singletonMinutes: 5,
+          singletonSeconds: SECONDS.FIVE_MINUTES,
         },
       )
       .then((jobId) => {
@@ -200,12 +202,15 @@ export class EmailArchiveService {
     for (const threadId of threadIds) {
       this.boss
         .send(
-          "archive-email-provider-sync",
+          JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC,
           { userId, threadId, wasStarred: starredSet.has(threadId) },
           {
-            priority: getJobPriority("archive-email-provider-sync", true),
+            priority: getJobPriority(
+              JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC,
+              true,
+            ),
             singletonKey: `archive-provider-sync-${threadId}`,
-            singletonMinutes: 5,
+            singletonSeconds: SECONDS.FIVE_MINUTES,
           },
         )
         .catch((err) =>

@@ -116,7 +116,7 @@ export class DataReencryptionProcessor implements OnModuleInit {
 
         // Single bulk insert beats N round-trips to pg — the whole point of
         // moving fan-out off the HTTP path.
-        await this.boss.insert(inserts);
+        await this.boss.insert(JOB_NAMES.REENCRYPT_USER_DATA, inserts);
 
         this.logger.log(
           `Fan-out: enqueued ${users.length} re-encryption jobs${dryRun ? " (dry run)" : ""}`,

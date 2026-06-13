@@ -14,6 +14,7 @@ import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { JobPriority } from "../queue/job-priorities";
 import { BackfillCategoryRuleIdsJobData } from "./category-rule-id-backfill.processor";
 import { BackfillCategoryRuleIdsResult } from "./category-rule-id-backfill.service";
@@ -44,7 +45,7 @@ export class CategoryRuleIdBackfillController {
     const jobId = await this.boss.send(
       JOB_NAMES.BACKFILL_CATEGORY_RULE_IDS,
       jobData,
-      { priority: JobPriority.LOW, expireInHours: 6 },
+      { priority: JobPriority.LOW, expireInSeconds: SECONDS.SIX_HOURS },
     );
     this.logger.log(
       `Enqueued category-rule categoryId backfill job ${jobId}${dryRun ? " (dry run)" : ""}`,

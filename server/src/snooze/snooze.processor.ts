@@ -6,6 +6,7 @@ import { LessThanOrEqual, Repository } from "typeorm";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -82,7 +83,7 @@ export class SnoozeProcessor implements OnModuleInit {
                 {
                   priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
                   singletonKey: `unsnooze-thread-${thread.threadId}`,
-                  singletonMinutes: 5,
+                  singletonSeconds: SECONDS.FIVE_MINUTES,
                 },
               );
               jobsQueued++;

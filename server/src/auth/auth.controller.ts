@@ -22,6 +22,7 @@ import { AUTH_CONSTANTS } from "../constants/auth-constants";
 import { AUTH_ACTION_TYPES, NODE_ENV_VALUES } from "../constants/domain-types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { getJobPriority } from "../queue/job-priorities";
@@ -664,7 +665,7 @@ export class AuthController {
             { userId: stateData.userId },
             {
               singletonKey: `sync-contacts-${stateData.userId}`,
-              singletonMinutes: 30,
+              singletonSeconds: SECONDS.THIRTY_MINUTES,
             },
           )
           .catch((err) => {

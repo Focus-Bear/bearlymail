@@ -10,7 +10,7 @@ import {
   MAX_FINALIZATION_RETRIES,
   RETRY_CONSTANTS,
 } from "../constants/service-constants";
-import { MILLISECONDS } from "../constants/time-constants";
+import { MILLISECONDS, SECONDS } from "../constants/time-constants";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
@@ -235,7 +235,7 @@ export class ContextFinalizationProcessor implements OnModuleInit {
         priority: getJobPriority(JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS, false),
         singletonKey: `finalize-context-analysis-${analysisRecordId}-retry-${Date.now()}`,
         // Short duration for retry jobs
-        singletonMinutes: 1,
+        singletonSeconds: SECONDS.MINUTE,
         startAfter: new Date(
           Date.now() +
             RETRY_CONSTANTS.FINALIZATION_RETRY_DELAY_SECONDS *

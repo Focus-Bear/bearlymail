@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss = require("pg-boss");
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
 import { getJobPriority } from "../queue/job-priorities";
@@ -116,7 +117,7 @@ export class AutoResponderProcessor implements OnModuleInit {
           retryLimit: 2,
           retryDelay: QUEUE_CONFIG.RETRY_DELAY_SECONDS,
           // Expire after 1 hour
-          expireInMinutes: 60,
+          expireInSeconds: SECONDS.HOUR,
           // Prevent duplicate jobs for same thread
           singletonKey: `auto-responder-${emailThreadId}`,
         },

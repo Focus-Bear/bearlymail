@@ -9,7 +9,7 @@ import { BlockedSendersService } from "../blocked-senders/blocked-senders.servic
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
-import { MINUTES, MS_PER_SECOND } from "../constants/time-constants";
+import { MS_PER_SECOND, SECONDS } from "../constants/time-constants";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Contact } from "../database/entities/contact.entity";
@@ -523,7 +523,7 @@ export class EmailLifecycleService {
           // Do not singleton by thread here: a follow-up arriving within the
           // previous 5-minute window must still enqueue a fresh summary job.
           singletonKey: `generate-summary-email-${savedEmail.id}`,
-          singletonMinutes: 5,
+          singletonSeconds: SECONDS.FIVE_MINUTES,
         },
       )
       .catch((err) => {
@@ -572,7 +572,7 @@ export class EmailLifecycleService {
           retryLimit: 3,
           retryDelay: 30,
           singletonKey: `github-metadata-${savedEmail.emailThreadId}`,
-          singletonMinutes: MINUTES.HOUR,
+          singletonSeconds: SECONDS.HOUR,
         },
       )
       .catch((err) =>
@@ -590,7 +590,7 @@ export class EmailLifecycleService {
           priority: getJobPriority(JOB_NAMES.AUTO_RESPONDER),
           retryLimit: 2,
           retryDelay: 30,
-          expireInMinutes: MINUTES.HOUR,
+          expireInSeconds: SECONDS.HOUR,
           singletonKey: `auto-responder-${savedEmail.emailThreadId}`,
         },
       )
@@ -616,7 +616,7 @@ export class EmailLifecycleService {
           priority: getJobPriority(JOB_NAMES.EVALUATE_WORKFLOWS),
           retryLimit: 3,
           retryDelay: 30,
-          expireInMinutes: MINUTES.HOUR,
+          expireInSeconds: SECONDS.HOUR,
           startAfter: 60,
           singletonKey: `workflow-eval-${savedEmail.emailThreadId}`,
         },
@@ -666,7 +666,7 @@ export class EmailLifecycleService {
         {
           priority: getJobPriority(JOB_NAMES.ARCHIVE_EMAIL, false),
           singletonKey: `archive-blocked-${savedEmail.threadId}`,
-          singletonMinutes: 5,
+          singletonSeconds: SECONDS.FIVE_MINUTES,
         },
       )
       .then((jobId) => {
@@ -761,7 +761,7 @@ export class EmailLifecycleService {
               false,
             ),
             singletonKey: `refine-priority-${emailIds[0]}`,
-            singletonMinutes: 1,
+            singletonSeconds: SECONDS.MINUTE,
           },
         )
         .catch((err) =>

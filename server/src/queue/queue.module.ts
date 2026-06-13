@@ -13,6 +13,7 @@ import PgBoss from "pg-boss";
 import { AwsModule } from "../aws/aws.module";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { logErrorToFile } from "../utils/error-logger";
 import { QueueAutoscalingService } from "./queue-autoscaling.service";
 import { QueueMonitorService } from "./queue-monitor.service";
@@ -49,15 +50,10 @@ import { startBossWithDeadlockRetry } from "./start-boss-with-deadlock-retry";
           // max_connections alongside the TypeORM pool. Tune DB_PGBOSS_POOL_SIZE
           // in production based on your RDS instance's max_connections limit.
           max: pgBossPoolSize,
-          // Worker settings (pg-boss v10 replaced `noSupervisor` with
-          // `supervise`, which defaults to true — i.e. the previous behaviour).
-          // Job defaults - reasonable retry settings
-          retryLimit: 3,
-          retryDelay: 10,
-          retryBackoff: false,
-          expireInMinutes: 15,
-          deleteAfterHours: 24,
-          archiveCompletedAfterSeconds: 3600,
+          // pg-boss v10 replaced `noSupervisor` with `supervise` (defaults to
+          // true). Job defaults (retry/expire/delete) are no longer constructor
+          // options in v11 — they are per-queue policies applied via
+          // createQueue() below (see DEFAULT_QUEUE_OPTIONS).
         });
 
         // Handle connection errors gracefully
@@ -67,10 +63,8 @@ import { startBossWithDeadlockRetry } from "./start-boss-with-deadlock-retry";
           // Don't throw - let pg-boss handle reconnection
         });
 
-        // Handle worker errors - these are logged but don't crash the app
-        boss.on("monitor-states", (_monitor) => {
-          // Monitor is running, connection is healthy
-        });
+        // (pg-boss v11 removed the `monitor-states` event; queue health is now
+        // observed via getQueues() in QueueMonitorService.)
 
         try {
           await startBossWithDeadlockRetry(boss, logger);
@@ -80,8 +74,19 @@ import { startBossWithDeadlockRetry } from "./start-boss-with-deadlock-retry";
           // used by send()/work(). Register all known job queues up front, here
           // in the factory, so they exist before any module's bootstrap hooks
           // start producing or consuming. createQueue is idempotent.
+          //
+          // v11 moved retry/retention defaults off the constructor onto
+          // per-queue policies, so apply them here as the default for every
+          // queue (matches the previous global defaults).
+          const DEFAULT_QUEUE_OPTIONS = {
+            retryLimit: 3,
+            retryDelay: 10,
+            retryBackoff: false,
+            expireInSeconds: SECONDS.FIFTEEN_MINUTES,
+            retentionSeconds: SECONDS.DAY,
+          };
           for (const queueName of Object.values(JOB_NAMES)) {
-            await boss.createQueue(queueName);
+            await boss.createQueue(queueName, DEFAULT_QUEUE_OPTIONS);
           }
           logger.log(
             `Registered ${Object.values(JOB_NAMES).length} pg-boss queues`,

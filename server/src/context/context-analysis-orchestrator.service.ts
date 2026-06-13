@@ -8,7 +8,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { DAYS, MINUTES } from "../constants/time-constants";
+import { DAYS, SECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { getJobPriority } from "../queue/job-priorities";
@@ -558,7 +558,7 @@ export class ContextAnalysisOrchestratorService {
       {
         priority: getJobPriority(JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS, false),
         singletonKey: `finalize-context-analysis-${analysisRecord.id}`,
-        singletonMinutes: MINUTES.HOUR,
+        singletonSeconds: SECONDS.HOUR,
         startAfter: new Date(Date.now() + finalizationDelayMs),
       },
     );

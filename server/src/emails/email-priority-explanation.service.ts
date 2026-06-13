@@ -13,7 +13,7 @@ import {
   PRIORITY_SCORES,
   SENTIMENT_THRESHOLDS,
 } from "../constants/priority-constants";
-import { MILLISECONDS } from "../constants/time-constants";
+import { MILLISECONDS, SECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
@@ -487,7 +487,7 @@ export class EmailPriorityExplanationService {
           {
             priority: getJobPriority("refine-priority-background", false),
             singletonKey: `refine-priority-${emailId}`,
-            singletonMinutes: 5,
+            singletonSeconds: SECONDS.FIVE_MINUTES,
           },
         )
         .catch((err) =>

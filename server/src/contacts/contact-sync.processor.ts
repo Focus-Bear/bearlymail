@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { PusherService } from "../pusher/pusher.service";
@@ -59,7 +60,7 @@ export class ContactSyncProcessor implements OnModuleInit {
                   { userId: user.id },
                   {
                     singletonKey: `sync-contacts-${user.id}`,
-                    singletonMinutes: 60,
+                    singletonSeconds: SECONDS.HOUR,
                   },
                 );
                 jobsQueued++;

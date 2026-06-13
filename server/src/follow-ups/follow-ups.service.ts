@@ -8,6 +8,7 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { SECONDS } from "../constants/time-constants";
 import { ContextService } from "../context/context.service";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -520,7 +521,7 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
         },
         {
           singletonKey: `generate-draft-${followUp.id}`,
-          singletonMinutes: 5,
+          singletonSeconds: SECONDS.FIVE_MINUTES,
         },
       );
     }

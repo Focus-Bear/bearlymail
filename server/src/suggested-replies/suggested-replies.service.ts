@@ -6,6 +6,7 @@ import { Repository } from "typeorm";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { SECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { SuggestedReply } from "../database/entities/suggested-reply.entity";
 import { getJobPriority } from "../queue/job-priorities";
@@ -107,7 +108,7 @@ export class SuggestedRepliesService {
       {
         priority: getJobPriority(JOB_NAMES.GENERATE_SUGGESTED_REPLIES, false),
         singletonKey: `generate-suggested-replies-${userId}-${threadId}`,
-        singletonMinutes: 5,
+        singletonSeconds: SECONDS.FIVE_MINUTES,
       },
     );
   }

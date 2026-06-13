@@ -3,7 +3,7 @@ import { DataSource, In, IsNull, Not } from "typeorm";
 
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { MILLISECONDS } from "../constants/time-constants";
+import { MILLISECONDS, SECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { isError } from "../types/common";
@@ -518,7 +518,7 @@ export class EmailDebugService {
               false,
             ),
             singletonKey: `refine-priority-thread-${thread.id}`,
-            singletonMinutes: 1,
+            singletonSeconds: SECONDS.MINUTE,
           },
         );
 

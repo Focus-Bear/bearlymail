@@ -47,6 +47,7 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { SECONDS } from "../constants/time-constants";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
@@ -836,7 +837,7 @@ export class EmailsController {
       {
         priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, true),
         singletonKey: `fetch-user-emails-${req.user.userId}`,
-        singletonMinutes: 5,
+        singletonSeconds: SECONDS.FIVE_MINUTES,
       },
     );
     return this.emailsService.forceCheckNewEmails(req.user.userId);

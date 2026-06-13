@@ -25,6 +25,7 @@ import { isUuid } from "../common/uuid.utils";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { isError } from "../types/common";
 import { UsersService } from "../users/users.service";
@@ -220,7 +221,7 @@ export class GitHubController {
               retryLimit: 3,
               retryDelay: 30,
               singletonKey: `github-metadata-${item.threadId}`,
-              singletonMinutes: 60,
+              singletonSeconds: SECONDS.HOUR,
             },
           )
           .catch((err: unknown) => {

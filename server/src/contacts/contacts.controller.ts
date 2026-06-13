@@ -17,6 +17,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { SECONDS } from "../constants/time-constants";
 import { ContactSearchResult, ContactsService } from "./contacts.service";
 
 @Controller("contacts")
@@ -226,7 +227,7 @@ export class ContactsController {
       { userId: req.user.userId },
       {
         singletonKey: `sync-contacts-${req.user.userId}`,
-        singletonMinutes: 1,
+        singletonSeconds: SECONDS.MINUTE,
       },
     );
     return { message: "Contact sync started in the background." };

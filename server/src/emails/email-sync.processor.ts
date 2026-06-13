@@ -10,8 +10,8 @@ import {
   DAYS,
   HOURS,
   MILLISECONDS,
-  MINUTES,
   MS_PER_SECOND,
+  SECONDS,
 } from "../constants/time-constants";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
@@ -147,7 +147,7 @@ export class EmailSyncProcessor implements OnModuleInit {
                     // Scheduled fetch = medium priority
                     singletonKey: `fetch-user-emails-${user.id}`,
                     // Don't allow another fetch for same user within 5 minutes
-                    singletonMinutes: 5,
+                    singletonSeconds: SECONDS.FIVE_MINUTES,
                   },
                 );
                 jobsQueued++;
@@ -300,7 +300,7 @@ export class EmailSyncProcessor implements OnModuleInit {
                     ),
                     singletonKey: `fetch-user-emails-extended-${user.id}`,
                     // Don't allow another extended fetch for same user within 2 hours
-                    singletonMinutes: 2 * MINUTES.HOUR,
+                    singletonSeconds: SECONDS.TWO_HOURS,
                   },
                 );
                 jobsQueued++;
@@ -425,7 +425,7 @@ export class EmailSyncProcessor implements OnModuleInit {
                       false,
                     ),
                     singletonKey: `verify-user-inbox-status-${user.id}`,
-                    singletonMinutes: 2 * MINUTES.HOUR,
+                    singletonSeconds: SECONDS.TWO_HOURS,
                   },
                 );
                 jobsQueued++;

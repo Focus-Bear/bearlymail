@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as archiver from "archiver";
 import * as crypto from "crypto";
-import { Readable } from "stream";
+import { PassThrough, Readable } from "stream";
 import { MoreThan, Repository } from "typeorm";
 
 import { GMAIL_LABELS } from "../constants/email-labels";
@@ -228,10 +228,31 @@ export class EmailExportService {
   buildEncryptedZipStream(
     userId: string,
     password: string,
-  ): { archive: archiver.Archiver; recordCount: () => number } {
+  ): { archive: Readable; recordCount: () => number } {
     const counter = { count: 0 };
 
-    const jsonStream = Readable.from(this.streamRecordsAsJson(userId, counter));
+    // archiver streams are userland readable-stream instances, not core
+    // node:stream Readables, and @aws-sdk/lib-storage rejects them ("Body Data
+    // is unsupported format"). Pipe through a core PassThrough so S3 receives
+    // a real core stream.
+    const body = new PassThrough();
+    // Keep a permanent error listener: archiver's pipe machinery re-emits
+    // 'error' on the destination, and an EventEmitter 'error' with no listener
+    // crashes the worker. Consumers still observe the failure — async
+    // iteration (which @aws-sdk/lib-storage uses) rejects on a destroyed
+    // stream regardless of when it attaches.
+    body.on("error", () => undefined);
+
+    // The JSON source must never error inside archiver — archiver re-emits
+    // entry-source errors on internal streams with no listeners (unhandled
+    // error) and never surfaces them to the consumer, which would hang the S3
+    // upload and leave the export job stuck in "running". Instead, catch the
+    // failure here and abort the output stream directly so the upload rejects.
+    const jsonStream = Readable.from(
+      this.yieldRecordsAbortingOnError(userId, counter, (err) =>
+        body.destroy(err),
+      ),
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const archive = (archiver as any).create("zip-encrypted", {
@@ -241,11 +262,39 @@ export class EmailExportService {
     }) as archiver.Archiver;
 
     archive.append(jsonStream, { name: "emails.json" });
-    // Don't await: finalize streams the entries. If the source errors, surface
-    // it on the archive stream so the S3 upload (its consumer) rejects.
+    // Don't await: finalize streams the entries. If the archive itself errors,
+    // surface it on the output stream so the S3 upload (its consumer) rejects.
     archive.finalize().catch((err) => archive.destroy(err as Error));
+    archive.on("error", (err: Error) => body.destroy(err));
+    archive.pipe(body);
 
-    return { archive, recordCount: () => counter.count };
+    // pipe() never destroys its source when the destination goes away, so if
+    // the consumer (the S3 upload) aborts, tear down the zip and the DB
+    // generator explicitly instead of leaving them running in the background.
+    body.on("close", () => {
+      archive.destroy();
+      jsonStream.destroy();
+    });
+
+    return { archive: body, recordCount: () => counter.count };
+  }
+
+  /**
+   * Wraps {@link streamRecordsAsJson} so a failure (e.g. the DB going away
+   * mid-export) ends the stream cleanly and reports the error via `onError`
+   * instead of erroring the stream — see {@link buildEncryptedZipStream} for
+   * why archiver must never see an erroring entry source.
+   */
+  private async *yieldRecordsAbortingOnError(
+    userId: string,
+    counter: { count: number },
+    onError: (err: Error) => void,
+  ): AsyncGenerator<string> {
+    try {
+      yield* this.streamRecordsAsJson(userId, counter);
+    } catch (err) {
+      onError(err instanceof Error ? err : new Error(String(err)));
+    }
   }
 
   /**

@@ -1,6 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import { Readable } from "stream";
 
 import { CategoryOverride } from "../database/entities/category-override.entity";
 import { Email } from "../database/entities/email.entity";
@@ -592,6 +593,37 @@ describe("EmailExportService", () => {
   });
 
   describe("buildEncryptedZipStream", () => {
+    it("returns a core node:stream Readable (required by @aws-sdk/lib-storage)", () => {
+      mockEmailRepository.find.mockResolvedValue([]);
+
+      const { archive } = service.buildEncryptedZipStream(
+        "user-1",
+        "securepassword",
+      );
+
+      // lib-storage's chunker does `data instanceof Readable` against the core
+      // stream module; archiver's own streams (userland readable-stream) fail
+      // that check with "Body Data is unsupported format" (prod export bug).
+      expect(archive).toBeInstanceOf(Readable);
+    });
+
+    it("propagates source errors to the returned stream so the upload rejects", async () => {
+      mockEmailRepository.find.mockRejectedValue(new Error("db down"));
+
+      const { archive } = service.buildEncryptedZipStream(
+        "user-1",
+        "securepassword",
+      );
+
+      await expect(
+        (async () => {
+          for await (const _ of archive) {
+            // drain
+          }
+        })(),
+      ).rejects.toThrow("db down");
+    });
+
     it("streams a non-empty encrypted zip and counts the records", async () => {
       mockEmailRepository.find.mockResolvedValue([
         makeEmail({ subject: "A" }),

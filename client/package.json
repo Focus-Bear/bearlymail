@@ -85,7 +85,7 @@
     "@storybook/react-vite": "^10.4.0",
     "@types/node": "~24",
     "@vitejs/plugin-react": "^6.0.2",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "eslint": "^10.4.0",
     "eslint-plugin-i18next": "^6.1.4",
     "eslint-plugin-react": "^7.37.5",

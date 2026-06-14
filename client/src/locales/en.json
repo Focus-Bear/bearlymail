@@ -483,7 +483,9 @@
       "total_one": "{{count}} email to triage",
       "total_other": "{{count}} emails to triage",
       "band": "{{count}} {{label}}"
-    }
+    },
+    "familyCategoryCount_one": "{{count}} category",
+    "familyCategoryCount_other": "{{count}} categories"
   },
   "emailDetail": {
     "attachments": "Attachments ({{count}})",
@@ -1547,6 +1549,21 @@
         "connectedSuccess": "App connected.",
         "connectedError": "Couldn't finish connecting. Please check the server URL and try again."
       }
+    },
+    "categoryFamilies": {
+      "title": "Category families",
+      "description": "Group your categories into families. Families let the inbox and the local model work at a coarse level when the exact category is uncertain. They're set up automatically and you can adjust them here.",
+      "loading": "Loading families…",
+      "loadError": "Couldn't load category families. Please try again.",
+      "otherGroup": "Other / Uncategorised",
+      "familyNameLabel": "Family name",
+      "rename": "Rename",
+      "categoryCount_one": "{{count}} category",
+      "categoryCount_other": "{{count}} categories",
+      "moveCategoryLabel": "Move category to family",
+      "newFamilyLabel": "New family name",
+      "newFamilyPlaceholder": "New family name…",
+      "create": "Create family"
     }
   },
   "admin": {

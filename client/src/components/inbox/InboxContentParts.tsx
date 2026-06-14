@@ -3,7 +3,7 @@
  * the max-lines-per-function limit. All components are co-located here because they
  * are only used by InboxContent.
  */
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -19,6 +19,8 @@ import { DebugView } from 'components/inbox/DebugView';
 import { EmailListItem } from 'components/inbox/EmailListItem';
 import { EmailListStates } from 'components/inbox/EmailListStates';
 import { FollowUpActions } from 'components/inbox/FollowUpActions';
+import { orderCategoriesByFamily } from 'components/inbox/inboxFamilyGrouping';
+import { InboxFamilyHeader } from 'components/inbox/InboxFamilyHeader';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
 import { AnalysingPriorityCategory } from 'components/inbox/states/AnalysingPriorityCategory';
 import { TriageBatchSummary } from 'components/inbox/TriageBatchSummary';
@@ -27,6 +29,7 @@ import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE, PARAM_CATEGORY_IDS } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { useCategoryFamilyMap } from 'hooks/useCategoryFamilies';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 import { getCategoryKey } from 'hooks/useEmailFetching';
@@ -501,6 +504,33 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
   const { debugViewOpen } = useDebugViewOpen();
   // Admin debug surfaces only appear once the bug icon has enabled debug mode.
   const isAdmin = user?.isAdmin === true && debugViewOpen;
+
+  // Two-level accordion: group the category list under family headers. Until
+  // families load (or for users with none) `grouping.isGrouped` is false and we
+  // render the flat list exactly as before — no behavioural change.
+  const { familyByCategoryId, familyOrder } = useCategoryFamilyMap();
+  const grouping = useMemo(
+    () => orderCategoriesByFamily(displayCategories, familyByCategoryId, familyOrder),
+    [displayCategories, familyByCategoryId, familyOrder]
+  );
+  const orderedCategories = grouping.ordered;
+  const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set());
+  const toggleFamily = useCallback((family: string) => {
+    setCollapsedFamilies(prev => {
+      const next = new Set(prev);
+      if (next.has(family)) {
+next.delete(family);
+} else {
+next.add(family);
+}
+      return next;
+    });
+  }, []);
+  const familyCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    grouping.familyByKey.forEach(family => counts.set(family, (counts.get(family) ?? 0) + 1));
+    return counts;
+  }, [grouping.familyByKey]);
   /**
    * Build a callback that scrolls the email list back up to the collapsed category's
    * header after it collapses. Delayed by COLLAPSE_ANIMATION_MS to allow the CSS grid
@@ -549,12 +579,25 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
 
   return (
     <>
-      {displayCategories.map((categoryItem, catIdx) => {
+      {orderedCategories.map((categoryItem, catIdx) => {
         const categoryKey = getCategoryKey(categoryItem.id, categoryItem.name);
         const isExpanded = expandedCategories.has(categoryKey);
         const isLoaded = (loadedCategoryNames ?? []).includes(categoryKey);
         const group = emailCategoryMap.get(categoryKey);
         const categoryEmails = group?.emails ?? [];
+
+        // Two-level accordion bits. `family` is undefined when not grouping.
+        const family = grouping.isGrouped ? grouping.familyByKey.get(categoryKey) : undefined;
+        const isFamilyCollapsed = family !== undefined && collapsedFamilies.has(family);
+        const familyHeader =
+          family !== undefined && grouping.firstInFamily.has(categoryKey) ? (
+            <InboxFamilyHeader
+              family={family}
+              categoryCount={familyCounts.get(family) ?? 0}
+              isCollapsed={isFamilyCollapsed}
+              onToggle={() => toggleFamily(family)}
+            />
+          ) : null;
 
         // Hide category once loaded with no remaining emails AND the server summary
         // also reports zero. Without the count guard, a category disappears when a
@@ -565,42 +608,55 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
         //
         // Admins keep empty categories rendered so the inline CategoryDebugPanel can
         // explain why they are still here (issue #2062).
-        if (!isAdmin && isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
-          return null;
+        // Render the category as header-only (or nothing) when it's an empty
+        // loaded category, or when its family is collapsed. In both cases the
+        // family header still shows if this is the family's first category, so
+        // the header doesn't vanish when its lead category empties/collapses.
+        const isEmptyLoaded =
+          !isAdmin && isLoaded && categoryEmails.length === 0 && categoryItem.count === 0;
+        if (isEmptyLoaded || isFamilyCollapsed) {
+          return familyHeader ? (
+            <React.Fragment key={categoryKey}>{familyHeader}</React.Fragment>
+          ) : null;
         }
 
         let globalIndex = 0;
         for (let i = 0; i < catIdx; i++) {
-            const prevKey = getCategoryKey(displayCategories[i].id, displayCategories[i].name);
-            if (expandedCategories.has(prevKey)) {
-              globalIndex += emailCategoryMap.get(prevKey)?.emails.length ?? 0;
-         }
-}
+          const prev = orderedCategories[i];
+          const prevKey = getCategoryKey(prev.id, prev.name);
+          const prevFamily = grouping.isGrouped ? grouping.familyByKey.get(prevKey) : undefined;
+          const prevHidden = prevFamily !== undefined && collapsedFamilies.has(prevFamily);
+          if (expandedCategories.has(prevKey) && !prevHidden) {
+            globalIndex += emailCategoryMap.get(prevKey)?.emails.length ?? 0;
+          }
+        }
 
         return (
-          <InboxCategoryItem
-            key={categoryKey}
-            categoryItem={categoryItem}
-            categoryKey={categoryKey}
-            categorySummary={categorySummary}
-            isExpanded={isExpanded}
-            isLoaded={isLoaded}
-            group={group}
-            globalIndex={globalIndex}
-            otherProtoGroups={otherProtoGroups}
-            protoCategories={protoCategories}
-            isReanalysingOther={isReanalysingOther}
-            convertingProtoCategoryId={convertingProtoCategoryId}
-            deletingProtoCategoryId={deletingProtoCategoryId}
-            mode={mode}
-            onToggleCategory={onToggleCategory}
-            onBulkArchive={onBulkArchive}
-            onConvertProtoCategory={onConvertProtoCategory}
-            onDeleteProtoCategoryFromInbox={onDeleteProtoCategoryFromInbox}
-            onReanalyseOther={onReanalyseOther}
-            renderItem={renderItem}
-            onAfterCollapse={makeAfterCollapseHandler(categoryKey)}
-          />
+          <React.Fragment key={categoryKey}>
+            {familyHeader}
+            <InboxCategoryItem
+              categoryItem={categoryItem}
+              categoryKey={categoryKey}
+              categorySummary={categorySummary}
+              isExpanded={isExpanded}
+              isLoaded={isLoaded}
+              group={group}
+              globalIndex={globalIndex}
+              otherProtoGroups={otherProtoGroups}
+              protoCategories={protoCategories}
+              isReanalysingOther={isReanalysingOther}
+              convertingProtoCategoryId={convertingProtoCategoryId}
+              deletingProtoCategoryId={deletingProtoCategoryId}
+              mode={mode}
+              onToggleCategory={onToggleCategory}
+              onBulkArchive={onBulkArchive}
+              onConvertProtoCategory={onConvertProtoCategory}
+              onDeleteProtoCategoryFromInbox={onDeleteProtoCategoryFromInbox}
+              onReanalyseOther={onReanalyseOther}
+              renderItem={renderItem}
+              onAfterCollapse={makeAfterCollapseHandler(categoryKey)}
+            />
+          </React.Fragment>
         );
       })}
     </>

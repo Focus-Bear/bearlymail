@@ -5,6 +5,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "../auth/auth.module";
 import { AwsModule } from "../aws/aws.module";
 import { CategoryKeysModule } from "../category-keys/category-keys.module";
+import { CategoryFamily } from "../database/entities/category-family.entity";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -14,6 +15,8 @@ import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
+import { CategoryFamilyController } from "./category-family.controller";
+import { CategoryFamilyService } from "./category-family.service";
 import { ContextController } from "./context.controller";
 import { ContextService } from "./context.service";
 import { ContextAnalysisProcessor } from "./context-analysis.processor";
@@ -45,6 +48,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
       Email,
       EmailThread,
       ContextAnalysis,
+      CategoryFamily,
       User,
     ]),
     LLMModule,
@@ -54,9 +58,10 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     AwsModule,
     forwardRef(() => AuthModule),
   ],
-  controllers: [ContextController],
+  controllers: [ContextController, CategoryFamilyController],
   providers: [
     ContextService,
+    CategoryFamilyService,
     ContextAnalysisHelpersService,
     ContextAnalysisQueryService,
     ContextAnalysisOrchestratorService,
@@ -82,6 +87,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextService,
     ContextCrudService,
     ContextCategoryService,
+    CategoryFamilyService,
     ContextAnalysisProgressService,
     WritingStyleLearningService,
   ],

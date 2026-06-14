@@ -2002,7 +2002,9 @@
       "total_one": "{{count}} correo por clasificar",
       "total_other": "{{count}} correos por clasificar",
       "band": "{{count}} {{label}}"
-    }
+    },
+    "familyCategoryCount_one": "{{count}} categoría",
+    "familyCategoryCount_other": "{{count}} categorías"
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",
@@ -4102,6 +4104,21 @@
         "connectedSuccess": "App conectada.",
         "connectedError": "No se pudo completar la conexión. Comprueba la URL del servidor e inténtalo de nuevo."
       }
+    },
+    "categoryFamilies": {
+      "title": "Familias de categorías",
+      "description": "Agrupa tus categorías en familias. Las familias permiten que la bandeja y el modelo local trabajen a nivel general cuando la categoría exacta es incierta. Se configuran automáticamente y puedes ajustarlas aquí.",
+      "loading": "Cargando familias…",
+      "loadError": "No se pudieron cargar las familias de categorías. Inténtalo de nuevo.",
+      "otherGroup": "Otros / Sin categorizar",
+      "familyNameLabel": "Nombre de la familia",
+      "rename": "Renombrar",
+      "categoryCount_one": "{{count}} categoría",
+      "categoryCount_other": "{{count}} categorías",
+      "moveCategoryLabel": "Mover categoría a familia",
+      "newFamilyLabel": "Nombre de la nueva familia",
+      "newFamilyPlaceholder": "Nombre de la nueva familia…",
+      "create": "Crear familia"
     }
   },
   "keyboard": {

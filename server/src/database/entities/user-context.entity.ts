@@ -87,6 +87,18 @@ export class UserContext {
   })
   categoryKey: string | null;
 
+  /**
+   * Family this category belongs to ({@link CategoryFamily}). Only meaningful on
+   * EMAIL_CATEGORY rows. Null means unassigned — the category shows under the
+   * "Other / Uncategorised" family until it is assigned (by the taxonomy seeder
+   * or the user).
+   */
+  @Column({
+    type: "uuid",
+    nullable: true,
+  })
+  familyId: string | null;
+
   @Column({
     type: "int",
     nullable: true,

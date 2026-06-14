@@ -1,0 +1,11 @@
+# Scoped to the local-models/ Docker build context (the inference image).
+# Keeps the image small and never ships local data or trained artefacts.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+*.joblib
+*.json
+emails.json
+data/

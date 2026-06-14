@@ -1,4 +1,7 @@
 node_modules
+**/node_modules
+cdk.out
+**/cdk.out
 npm-debug.log
 .env
 .env.local

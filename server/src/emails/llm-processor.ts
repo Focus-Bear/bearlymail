@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Optional,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as os from "os";
 import PgBoss from "pg-boss";
@@ -25,6 +31,7 @@ import { DEBUG_FEATURES } from "../debug/debug-feature-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
+import { LocalModelInferenceService } from "../local-model/local-model-inference.service";
 import { PriorityService } from "../priority/priority.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
 import { PriorityRulesService } from "../priority-rules/priority-rules.service";
@@ -80,6 +87,10 @@ export class LLMProcessor implements OnModuleInit {
     private categoryRulesService: CategoryRulesService,
     private priorityRulesService: PriorityRulesService,
     private readonly userEncryptionService: UserEncryptionService,
+    // Optional: shadow-compares the local model vs the LLM. No-op unless
+    // LOCAL_MODEL_SHADOW_ENABLED is set; never throws.
+    @Optional()
+    private readonly localModelInferenceService?: LocalModelInferenceService,
   ) {
     const cpuCores = os.cpus().length;
     const defaultConcurrency = Math.max(4, cpuCores * 2);
@@ -269,6 +280,25 @@ export class LLMProcessor implements OnModuleInit {
   }
 
   /** Run the LLM call, apply category override, persist result, and attempt rule generation. */
+  /** Shadow-compare the local category/priority model against the LLM result.
+   * No-op unless wired and enabled; never throws. */
+  private async shadowCompareLocalModel(
+    userId: string,
+    email: Email,
+    llmResult: { category?: string },
+    finalScore: number,
+  ): Promise<void> {
+    if (!this.localModelInferenceService) {
+      return;
+    }
+    await this.localModelInferenceService.shadowCompareEmail(
+      userId,
+      email,
+      llmResult.category ?? null,
+      finalScore,
+    );
+  }
+
   private async runLlmAndPersist(options: {
     userId: string;
     emailId: string;
@@ -339,6 +369,7 @@ export class LLMProcessor implements OnModuleInit {
       userId,
       workerId,
     );
+    await this.shadowCompareLocalModel(userId, email, llmResult, finalScore);
     // Shadow-compare any deterministic priority rule against the LLM's score
     // and mine/refresh a rule for this sender. Never skips the LLM yet and never
     // throws (issue: deterministic priority rules, Phase 1).

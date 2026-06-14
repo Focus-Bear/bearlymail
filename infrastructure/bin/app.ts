@@ -10,6 +10,7 @@ import { BearlyMailDatabaseStack } from '../lib/bearlymail-database-stack';
 import { BearlyMailGitHubActionsStack } from '../lib/bearlymail-github-actions-stack';
 import { BearlyMailContextAnalysisStack } from '../lib/bearlymail-context-analysis-stack';
 import { BearlyMailEmailPrioritisationStack } from '../lib/bearlymail-email-prioritisation-stack';
+import { BearlyMailLocalModelServingStack } from '../lib/bearlymail-local-model-serving-stack';
 import { BearlyMailAlertingStack } from '../lib/bearlymail-alerting-stack';
 
 const PERMISSIONS_BOUNDARY_ARN = 'arn:aws:iam::789877399450:policy/BearlyMail-PermissionBoundary';
@@ -192,6 +193,23 @@ appStack.addDependency(databaseStack);
 appStack.addDependency(contextAnalysisStack);
 appStack.addDependency(emailPrioritisationStack);
 appStack.addDependency(alertingStack);
+
+// ============================================
+// 6b. Local Model Serving Stack (S3 model bucket + container inference Lambda)
+// ============================================
+const localModelServingStack = new BearlyMailLocalModelServingStack(
+  app,
+  'BearlyMailLocalModelServingStack',
+  {
+    env,
+    description:
+      'BearlyMail - Local model serving (S3 model bucket + container inference Lambda)',
+    vpc: networkingStack.vpc,
+    alarmSnsTopicArn: alertingStack.topicArn,
+  },
+);
+localModelServingStack.addDependency(networkingStack);
+localModelServingStack.addDependency(alertingStack);
 
 // ============================================
 // 7. GitHub Actions Stack (OIDC Provider + Deployment Role)

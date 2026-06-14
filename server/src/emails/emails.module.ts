@@ -30,6 +30,7 @@ import { DebugModule } from "../debug/debug.module";
 import { GitHubModule } from "../github/github.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { LLMModule } from "../llm/llm.module";
+import { LocalModelModule } from "../local-model/local-model.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { PriorityModule } from "../priority/priority.module";
 import { PriorityRulesModule } from "../priority-rules/priority-rules.module";
@@ -111,6 +112,7 @@ import { SyncHistoryService } from "./sync-history.service";
 @Module({
   imports: [
     CategoryKeysModule,
+    LocalModelModule,
     TypeOrmModule.forFeature([
       Email,
       EmailExport,

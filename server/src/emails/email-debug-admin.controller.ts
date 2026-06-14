@@ -33,6 +33,7 @@ import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { DebugService } from "../debug/debug.service";
+import { getJobPriority } from "../queue/job-priorities";
 import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
@@ -374,5 +375,27 @@ export class EmailDebugAdminController {
   async deleteDebugData(@Param("feature") feature: string) {
     const deleted = await this.debugService.deleteFeatureData(feature);
     return { feature, deleted };
+  }
+
+  /**
+   * On-demand trigger for the local-model training-data feed: enqueues a
+   * per-user export to `training-data/<userId>.json` instead of waiting for the
+   * weekly cron. Targets `body.userId` (a real user with enough history — admin
+   * accounts rarely clear the record threshold), defaulting to the caller.
+   * Bootstraps/validates the training loop; run the training task afterwards.
+   */
+  @Post("admin/export-training-data")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async exportTrainingData(@Request() req, @Body() body: { userId?: string }) {
+    const targetUserId = body.userId || req.user.userId;
+    await this.boss.send(
+      JOB_NAMES.EXPORT_TRAINING_DATA,
+      { userId: targetUserId },
+      {
+        priority: getJobPriority(JOB_NAMES.EXPORT_TRAINING_DATA),
+        singletonKey: `export-training-data-${targetUserId}`,
+      },
+    );
+    return { enqueued: true, userId: targetUserId };
   }
 }

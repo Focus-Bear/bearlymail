@@ -208,6 +208,17 @@ export class BearlyMailStack extends cdk.Stack {
     // Grant SQS send permissions for email prioritisation queue (optional for backward compat)
     props.emailPrioritisationQueue?.grantSendMessages(taskRole);
 
+    // Allow the worker to invoke the local-model inference Lambda
+    // (BearlyMailLocalModelServingStack). Referenced by ARN built from the
+    // fixed function name so this stack needn't depend on the serving stack.
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['lambda:InvokeFunction'],
+      resources: [
+        `arn:${this.partition}:lambda:${this.region}:${this.account}:function:bearlymail-local-model-inference`,
+      ],
+    }));
+
     // ============================================
     // KMS Customer Managed Key — per-user envelope encryption (GAP-3)
     //
@@ -765,6 +776,9 @@ export class BearlyMailStack extends cdk.Stack {
       taskRole: taskRole,
     });
 
+    const localModelShadowEnabled = this.node.tryGetContext(
+      'localModelShadowEnabled',
+    );
     const workerContainer = workerTaskDefinition.addContainer('WorkerContainer', {
       image: serverImage,
       command: ['node', 'dist/worker.js'],
@@ -786,6 +800,17 @@ export class BearlyMailStack extends cdk.Stack {
         AUDIT_LOG_ARCHIVE_BUCKET: auditLogArchiveBucket.bucketName,
         EMAIL_EXPORTS_BUCKET: emailExportsBucket.bucketName,
         KMS_KEY_ID: dataEncryptionKey.keyArn,
+        // Local category/priority model (BearlyMailLocalModelServingStack). The
+        // worker invokes this Lambda in shadow mode; flip the flag to 'true'
+        // (or deploy with -c localModelShadowEnabled=true) once a model bundle
+        // exists in S3. Off by default so it's a true no-op until then.
+        LOCAL_MODEL_INFERENCE_FUNCTION: 'bearlymail-local-model-inference',
+        // Accept either a boolean (cdk.json) or the string 'true'
+        // (-c localModelShadowEnabled=true); anything else (incl. undefined) is off.
+        LOCAL_MODEL_SHADOW_ENABLED:
+          localModelShadowEnabled === true || localModelShadowEnabled === 'true'
+            ? 'true'
+            : 'false',
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),

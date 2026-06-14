@@ -399,6 +399,17 @@ jobs:
           
           echo "Migration task completed successfully!"
 
+      # Deployed AFTER the app-critical steps above so a serving-stack issue
+      # (e.g. a new IAM permission the boundary must allow) can't block the app
+      # deploy. Builds the inference + training container images and creates the
+      # S3 model bucket, inference Lambda, and weekly training task. Safe to run
+      # repeatedly; the worker only invokes the Lambda when shadow mode is on.
+      - name: CDK Deploy Local Model Serving Stack
+        working-directory: infrastructure
+        run: |
+          npx cdk deploy BearlyMailLocalModelServingStack \
+            --require-approval never
+
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest

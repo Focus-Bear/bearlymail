@@ -3085,7 +3085,22 @@
       "mfaPrompt": "Enter your 6-digit authenticator code to access this admin feature:",
       "mfaTokenLabel": "6-digit authenticator code",
       "mfaVerify": "Verify",
-      "mfaError": "Invalid code. Please check your authenticator app and try again."
+      "mfaError": "Invalid code. Please check your authenticator app and try again.",
+      "localModel": {
+        "title": "Local model",
+        "notScored": "The local model hasn't scored this thread yet.",
+        "decidedBy": "Decided by",
+        "decidedByLocal": "Local model",
+        "decidedByLlm": "LLM",
+        "family": "Family",
+        "category": "Category",
+        "priority": "Priority",
+        "local": "Local",
+        "llm": "LLM",
+        "agree": "match",
+        "disagree": "differs",
+        "belowThreshold": "below threshold → LLM"
+      }
     }
   },
   "quickActions": {

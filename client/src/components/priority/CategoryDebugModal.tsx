@@ -15,6 +15,7 @@ import { CategoryDebugData, CategoryDebugModalProps } from './CategoryDebugModal
 import { CategoriesList, CategorySection, EmailSection, UserContextSection } from './CategoryDebugPanels';
 import { CategoryDebugTracePanel } from './CategoryDebugTracePanel';
 import { formatForGithubIssue } from './categoryDebugUtils';
+import { LocalModelDecisionPanel } from './LocalModelDecisionPanel';
 
 const MFA_VERIFICATION_REQUIRED = 'MFA_VERIFICATION_REQUIRED';
 const MFA_SETUP_REQUIRED = 'MFA_SETUP_REQUIRED';
@@ -313,6 +314,9 @@ const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId, onClos
                   {t('priority.categoryDebug.traceLoading')}
                 </div>
               )}
+              <LocalModelDecisionPanel
+                localModelDebug={debugInfo.thread.localModelDebug}
+              />
               {debugInfo.categorizationTrace && !traceLoading && (
                 <CategoryDebugTracePanel
                   trace={debugInfo.categorizationTrace}

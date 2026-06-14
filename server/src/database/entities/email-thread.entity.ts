@@ -15,6 +15,7 @@ import {
   encryptedColumnTransformer,
   makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
+import type { LocalModelDebugSnapshot } from "../../local-model/local-model.types";
 import { Email } from "./email.entity";
 import { ProtoCategory } from "./proto-category.entity";
 import { User } from "./user.entity";
@@ -263,6 +264,17 @@ export class EmailThread {
       "Which processing step last set the category: 'summary' (from summarization step) or 'priority' (from priority analysis step). Useful for debugging mis-categorisation.",
   })
   categorySource: "summary" | "priority" | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: makeEncryptedJsonTransformer("email_threads.localModelDebug"),
+    comment:
+      "What the local category/priority model predicted, the LLM's answer, " +
+      "agreement, and which decided (decidedBy). Powers the category debug UI. " +
+      "Null until the local model has scored this thread.",
+  })
+  localModelDebug: LocalModelDebugSnapshot | null;
 
   @Column({
     type: "varchar",

@@ -3183,7 +3183,22 @@
       "mfaPrompt": "Introduzca su código de autenticación de 6 dígitos para acceder a esta función de administrador:",
       "mfaTokenLabel": "Código de autenticador de 6 dígitos",
       "mfaVerify": "Verificar",
-      "mfaError": "Código no válido. Revise su aplicación de autenticación e inténtelo de nuevo."
+      "mfaError": "Código no válido. Revise su aplicación de autenticación e inténtelo de nuevo.",
+      "localModel": {
+        "title": "Modelo local",
+        "notScored": "El modelo local aún no ha evaluado este hilo.",
+        "decidedBy": "Decidido por",
+        "decidedByLocal": "Modelo local",
+        "decidedByLlm": "LLM",
+        "family": "Familia",
+        "category": "Categoría",
+        "priority": "Prioridad",
+        "local": "Local",
+        "llm": "LLM",
+        "agree": "coincide",
+        "disagree": "difiere",
+        "belowThreshold": "bajo el umbral → LLM"
+      }
     },
     "tooltip": {
       "adjustContext": "Ajustar el contexto",

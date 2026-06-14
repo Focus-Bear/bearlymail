@@ -1,9 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
+import { Repository } from "typeorm";
 
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
+  LocalModelDebugSnapshot,
   LocalModelPrediction,
   LocalModelThreadInput,
 } from "./local-model.types";
@@ -36,7 +40,11 @@ export class LocalModelInferenceService {
   private readonly functionName: string | undefined;
   private readonly shadowEnabled: boolean;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectRepository(EmailThread)
+    private readonly emailThreadRepository: Repository<EmailThread>,
+  ) {
     const region =
       this.configService.get<string>("AWS_REGION") || "ap-southeast-2";
     this.client = new LambdaClient({ region });
@@ -157,9 +165,62 @@ export class LocalModelInferenceService {
     if (!this.shadowEnabled) {
       return;
     }
-    await this.compareInShadowMode(userId, buildLocalModelInput(email), {
-      category: llmCategory,
-      priorityBand: priorityBand(priorityScore),
-    });
+    const llmPriorityBand = priorityBand(priorityScore);
+    const prediction = await this.compareInShadowMode(
+      userId,
+      buildLocalModelInput(email),
+      { category: llmCategory, priorityBand: llmPriorityBand },
+    );
+    if (prediction && email.emailThreadId) {
+      await this.persistDebugSnapshot(
+        email.emailThreadId,
+        prediction,
+        llmCategory,
+        llmPriorityBand,
+      );
+    }
+  }
+
+  /**
+   * Persists the local-vs-LLM comparison on the thread for the category debug
+   * UI. `decidedBy` is "llm" in shadow mode (the LLM remains authoritative);
+   * once live it will be "local" for confident predictions. Errors are
+   * swallowed — a debug write must never affect processing.
+   */
+  private async persistDebugSnapshot(
+    emailThreadId: string,
+    prediction: LocalModelPrediction,
+    llmCategory: string | null,
+    llmPriorityBand: string,
+  ): Promise<void> {
+    const snapshot: LocalModelDebugSnapshot = {
+      evaluatedAt: new Date().toISOString(),
+      decidedBy: "llm",
+      category: prediction.category,
+      family: prediction.family,
+      categoryConfidence: prediction.categoryConfidence,
+      categoryMargin: prediction.categoryMargin,
+      categoryFallback: prediction.categoryFallback,
+      familyConfidence: prediction.familyConfidence,
+      familyFallback: prediction.familyFallback,
+      priorityBand: prediction.priorityBand,
+      priorityConfidence: prediction.priorityConfidence,
+      priorityFallback: prediction.priorityFallback,
+      llmCategory,
+      llmPriorityBand,
+      categoryAgree: llmCategory != null && prediction.category === llmCategory,
+      priorityAgree: prediction.priorityBand === llmPriorityBand,
+    };
+    try {
+      await this.emailThreadRepository.update(
+        { id: emailThreadId },
+        { localModelDebug: snapshot },
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to persist local-model debug for thread ${emailThreadId}: ${message}`,
+      );
+    }
   }
 }

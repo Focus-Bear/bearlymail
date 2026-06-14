@@ -1,3 +1,24 @@
+/** What the local category/priority model predicted vs the LLM, and which
+ * decided. Mirrors the server's LocalModelDebugSnapshot. */
+export interface LocalModelDebugSnapshot {
+  evaluatedAt: string;
+  decidedBy: 'llm' | 'local';
+  category: string;
+  family: string;
+  categoryConfidence: number;
+  categoryMargin: number;
+  categoryFallback: boolean;
+  familyConfidence: number;
+  familyFallback: boolean;
+  priorityBand: string;
+  priorityConfidence: number;
+  priorityFallback: boolean;
+  llmCategory: string | null;
+  llmPriorityBand: string | null;
+  categoryAgree: boolean;
+  priorityAgree: boolean;
+}
+
 export interface CompositeRuleEvaluationDetailClient {
   senderMatch: boolean;
   subjectMatch: boolean;
@@ -98,6 +119,8 @@ export interface CategoryDebugData {
     shortlistedCategoryNames: string[] | null;
     /** What the deterministic-rule step saw when this thread's category was last set by priority analysis. Null for older threads or categories set by summarization. */
     categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
+    /** What the local model predicted vs the LLM and which decided. Null until the local model has scored this thread. */
+    localModelDebug?: LocalModelDebugSnapshot | null;
   };
   emailCategories: Array<{
     id: string;

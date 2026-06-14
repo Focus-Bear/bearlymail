@@ -18,6 +18,7 @@ import {
   cleanEmailContent,
 } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
+import type { LocalModelDebugSnapshot } from "../local-model/local-model.types";
 import { protoCategoryKey } from "../utils/category-key.util";
 import {
   parseCategoryValue,
@@ -40,6 +41,8 @@ export interface CategoryDebugData {
     shortlistedCategoryNames: string[] | null;
     /** What the deterministic-rule step saw when this thread's category was last set by priority analysis. Null for older threads or categories set by summarization. */
     categoryRuleTrace: CategoryRuleTraceSnapshot | null;
+    /** What the local model predicted vs the LLM, and which decided. Null until the local model has scored this thread. */
+    localModelDebug: LocalModelDebugSnapshot | null;
   };
   emailCategories: Array<{
     id: string;
@@ -207,6 +210,22 @@ export class EmailDebugCategoryService {
     };
   }
 
+  /** Assembles the thread-level section of the category debug payload. Extracted
+   * so getCategoryDebugData stays within the complexity budget. */
+  private buildThreadDebugSection(
+    thread: EmailThread | null,
+    categoryName: string | null,
+  ): CategoryDebugData["thread"] {
+    return {
+      category: categoryName,
+      categoryExplanation: thread?.categoryExplanation || null,
+      categorySource: thread?.categorySource || null,
+      shortlistedCategoryNames: thread?.shortlistedCategoryNames ?? null,
+      categoryRuleTrace: thread?.categoryRuleTrace ?? null,
+      localModelDebug: thread?.localModelDebug ?? null,
+    };
+  }
+
   async getCategoryDebugData(
     userId: string,
     emailId: string,
@@ -259,13 +278,7 @@ export class EmailDebugCategoryService {
         subject: email.subject || "",
         bodyPreview,
       },
-      thread: {
-        category: categoryName,
-        categoryExplanation: thread?.categoryExplanation || null,
-        categorySource: thread?.categorySource || null,
-        shortlistedCategoryNames: thread?.shortlistedCategoryNames ?? null,
-        categoryRuleTrace: thread?.categoryRuleTrace ?? null,
-      },
+      thread: this.buildThreadDebugSection(thread, categoryName),
       emailCategories,
       protoCategories,
       userContext,

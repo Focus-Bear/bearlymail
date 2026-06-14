@@ -219,6 +219,16 @@ export class BearlyMailStack extends cdk.Stack {
       ],
     }));
 
+    // Allow the worker to write the weekly training-data feed into the models
+    // bucket's training-data/ prefix (same deterministic-name rationale).
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:PutObject'],
+      resources: [
+        `arn:${this.partition}:s3:::bearlymail-local-models-${this.account}-${this.region}/training-data/*`,
+      ],
+    }));
+
     // ============================================
     // KMS Customer Managed Key — per-user envelope encryption (GAP-3)
     //
@@ -811,6 +821,11 @@ export class BearlyMailStack extends cdk.Stack {
           localModelShadowEnabled === true || localModelShadowEnabled === 'true'
             ? 'true'
             : 'false',
+        // Models bucket (BearlyMailLocalModelServingStack) — the worker writes
+        // the weekly training-data feed to its training-data/ prefix. Name is
+        // deterministic (account+region), so referenced by value to avoid a
+        // cross-stack dependency.
+        LOCAL_MODELS_BUCKET: `bearlymail-local-models-${this.account}-${this.region}`,
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),

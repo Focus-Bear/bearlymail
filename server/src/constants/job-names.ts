@@ -114,6 +114,12 @@ export const JOB_NAMES = {
   // DebugCleanupService). Must be registered here so the queue.module.ts boot
   // loop creates it before DebugCleanupService.onModuleInit tries to schedule.
   DEBUG_DATA_CLEANUP: "debug-data-cleanup",
+
+  // Local-model training data feed: a weekly cron that fans out per-user export
+  // jobs writing label-rich JSON to the models bucket's training-data/ prefix
+  // for the Fargate trainer to consume.
+  SCHEDULE_TRAINING_DATA_EXPORT: "schedule-training-data-export",
+  EXPORT_TRAINING_DATA: "export-training-data",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

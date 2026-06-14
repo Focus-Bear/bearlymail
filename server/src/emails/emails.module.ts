@@ -31,6 +31,8 @@ import { GitHubModule } from "../github/github.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { LLMModule } from "../llm/llm.module";
 import { LocalModelModule } from "../local-model/local-model.module";
+import { LocalModelTrainingDataProcessor } from "../local-model/local-model-training-data.processor";
+import { LocalModelTrainingDataService } from "../local-model/local-model-training-data.service";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { PriorityModule } from "../priority/priority.module";
 import { PriorityRulesModule } from "../priority-rules/priority-rules.module";
@@ -298,6 +300,8 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailExportStorageService,
     EmailExportJobService,
     EmailExportProcessor,
+    LocalModelTrainingDataService,
+    LocalModelTrainingDataProcessor,
     EmailDebugCategoryService,
     EmailDebugRawColumnsService,
     EmailDebugPhishingService,

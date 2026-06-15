@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { getJobPriority } from "../queue/job-priorities";
 import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
@@ -45,6 +46,27 @@ export class LocalModelTrainingDataProcessor implements OnModuleInit {
     );
     await this.registerSchedulerWorker();
     await this.registerExportWorker();
+    await this.bootstrapInitialExport();
+  }
+
+  /**
+   * Kick off an export run on startup so a fresh deploy populates
+   * `training-data/` without waiting for the weekly Saturday cron — otherwise the
+   * trainer has nothing to read until the next scheduled slot. The singleton
+   * window dedupes across the worker's cluster processes and frequent restarts,
+   * so this enqueues at most once per window rather than on every boot.
+   */
+  private async bootstrapInitialExport(): Promise<void> {
+    await this.boss.send(
+      JOB_NAMES.SCHEDULE_TRAINING_DATA_EXPORT,
+      {},
+      {
+        priority: getJobPriority(JOB_NAMES.SCHEDULE_TRAINING_DATA_EXPORT),
+        singletonKey: "schedule-training-data-export-bootstrap",
+        singletonSeconds: SECONDS.SIX_HOURS,
+      },
+    );
+    this.logger.log("Enqueued startup training-data export bootstrap");
   }
 
   /** Cron worker: enqueue a per-user export for every onboarded user. */

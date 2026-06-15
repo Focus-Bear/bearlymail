@@ -87,24 +87,21 @@ export function useCategoryFamilies() {
 
 /**
  * Derives the lookup the inbox needs to group categories by family:
- * `familyByCategoryId` maps a category's context id to its family name, and
- * `familyOrder` lists real families in display order (Other excluded). Both are
+ * `familyByCategoryId` maps a category's context id to its family name. It is
  * empty until families load, so the inbox can render its flat list meanwhile.
+ * Family *display order* is derived from thread priority at grouping time (see
+ * `orderCategoriesByFamily`), not from the configured family order.
  */
 export function useCategoryFamilyMap() {
   const { families, isLoading } = useCategoryFamilies();
 
   return useMemo(() => {
     const familyByCategoryId = new Map<string, string>();
-    const familyOrder: string[] = [];
     for (const family of families) {
-      if (family.id !== null) {
-familyOrder.push(family.name);
-}
       for (const category of family.categories) {
         familyByCategoryId.set(category.contextId, family.name);
       }
     }
-    return { familyByCategoryId, familyOrder, isLoading };
+    return { familyByCategoryId, isLoading };
   }, [families, isLoading]);
 }

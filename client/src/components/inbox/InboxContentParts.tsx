@@ -508,10 +508,10 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
   // Two-level accordion: group the category list under family headers. Until
   // families load (or for users with none) `grouping.isGrouped` is false and we
   // render the flat list exactly as before — no behavioural change.
-  const { familyByCategoryId, familyOrder } = useCategoryFamilyMap();
+  const { familyByCategoryId } = useCategoryFamilyMap();
   const grouping = useMemo(
-    () => orderCategoriesByFamily(displayCategories, familyByCategoryId, familyOrder),
-    [displayCategories, familyByCategoryId, familyOrder]
+    () => orderCategoriesByFamily(displayCategories, familyByCategoryId),
+    [displayCategories, familyByCategoryId]
   );
   const orderedCategories = grouping.ordered;
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set());

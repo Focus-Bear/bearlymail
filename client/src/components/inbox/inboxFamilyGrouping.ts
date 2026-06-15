@@ -17,7 +17,14 @@ export interface FamilyGrouping {
 /**
  * Groups the inbox's category summary by family for the two-level accordion,
  * preserving each category's original order *within* a family and ordering the
- * family blocks by `familyOrder` (with the synthetic "Other" family last).
+ * family blocks by the priority of their highest-priority category (with the
+ * synthetic "Other" family last).
+ *
+ * `displayCategories` arrives sorted by max thread priority (descending), so the
+ * first category we encounter for a family is that family's highest-priority
+ * category. Ranking families by that first-encounter position therefore sorts
+ * the family blocks by their highest-priority thread — a family whose top thread
+ * is "High Priority" outranks one whose top thread is "Low".
  *
  * Returns the categories unchanged (`isGrouped: false`) when no family mapping
  * is available, so the inbox renders exactly as before until families load.
@@ -25,7 +32,6 @@ export interface FamilyGrouping {
 export function orderCategoriesByFamily(
   displayCategories: CategorySummaryItem[],
   familyByCategoryId: Map<string, string>,
-  familyOrder: string[],
 ): FamilyGrouping {
   if (familyByCategoryId.size === 0) {
     return {
@@ -39,26 +45,27 @@ export function orderCategoriesByFamily(
   const familyOf = (category: CategorySummaryItem): string =>
     familyByCategoryId.get(category.id ?? '') ?? OTHER_FAMILY;
 
-  // Group preserving first-encounter order of both families and categories.
+  // Group preserving first-encounter order of both families and categories. A Map
+  // preserves insertion order, so `blocks.keys()` is already in first-encounter
+  // order — and because `displayCategories` arrives sorted by max thread priority
+  // (descending), that order is highest-priority-first.
   const blocks = new Map<string, CategorySummaryItem[]>();
   for (const category of displayCategories) {
     const family = familyOf(category);
     const block = blocks.get(family);
     if (block) {
-block.push(category);
-} else {
-blocks.set(family, [category]);
-}
+      block.push(category);
+    } else {
+      blocks.set(family, [category]);
+    }
   }
 
-  const rank = (family: string): number => {
-    if (family === OTHER_FAMILY) {
-return Number.MAX_SAFE_INTEGER;
-}
-    const index = familyOrder.indexOf(family);
-    return index === -1 ? Number.MAX_SAFE_INTEGER - 1 : index;
-  };
-  const families = [...blocks.keys()].sort((left, right) => rank(left) - rank(right));
+  // Keys are already priority-ordered; only the synthetic "Other" family needs to
+  // be pulled to the end.
+  const families = [...blocks.keys()].filter(family => family !== OTHER_FAMILY);
+  if (blocks.has(OTHER_FAMILY)) {
+    families.push(OTHER_FAMILY);
+  }
 
   const ordered: CategorySummaryItem[] = [];
   const familyByKey = new Map<string, string>();

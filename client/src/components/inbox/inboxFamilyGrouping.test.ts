@@ -7,14 +7,16 @@ const cat = (id: string | null, name: string): CategorySummaryItem => ({ id, nam
 describe('orderCategoriesByFamily', () => {
   it('returns the flat list unchanged when no family mapping is known', () => {
     const categories = [cat('a', 'Alpha'), cat('b', 'Beta')];
-    const result = orderCategoriesByFamily(categories, new Map(), []);
+    const result = orderCategoriesByFamily(categories, new Map());
     expect(result.isGrouped).toBe(false);
     expect(result.ordered).toBe(categories);
     expect(result.firstInFamily.size).toBe(0);
   });
 
-  it('groups same-family categories adjacently and orders families by familyOrder', () => {
-    // Input order deliberately interleaves families.
+  it('groups same-family categories adjacently and orders families by their highest-priority category', () => {
+    // Input arrives priority-sorted (highest first) and interleaves families.
+    // Newsletter A is the single highest-priority category, so the Newsletters
+    // family outranks GitHub.
     const categories = [
       cat('n1', 'Newsletter A'),
       cat('g1', 'GitHub A'),
@@ -27,16 +29,35 @@ describe('orderCategoriesByFamily', () => {
       ['g1', 'GitHub'],
       ['g2', 'GitHub'],
     ]);
-    // GitHub should come before Newsletters per familyOrder.
-    const result = orderCategoriesByFamily(categories, familyByCategoryId, ['GitHub', 'Newsletters']);
+    const result = orderCategoriesByFamily(categories, familyByCategoryId);
 
     expect(result.isGrouped).toBe(true);
-    expect(result.ordered.map((category) => category.id)).toEqual(['g1', 'g2', 'n1', 'n2']);
+    expect(result.ordered.map((category) => category.id)).toEqual(['n1', 'n2', 'g1', 'g2']);
     // first category of each family block is flagged
-    expect(result.firstInFamily.has('g1')).toBe(true);
     expect(result.firstInFamily.has('n1')).toBe(true);
-    expect(result.firstInFamily.has('g2')).toBe(false);
+    expect(result.firstInFamily.has('g1')).toBe(true);
+    expect(result.firstInFamily.has('n2')).toBe(false);
     expect(result.familyByKey.get('g1')).toBe('GitHub');
+  });
+
+  it('ranks a family by its single highest-priority category, not its category count', () => {
+    // Newsletters has fewer categories (1), but its category is highest priority
+    // (index 0), while GitHub has more categories at lower priorities. Priority
+    // must win, so the Newsletters family block comes first.
+    const categories = [
+      cat('n1', 'Newsletter A'),
+      cat('g1', 'GitHub A'),
+      cat('g2', 'GitHub B'),
+    ];
+    const familyByCategoryId = new Map([
+      ['g1', 'GitHub'],
+      ['g2', 'GitHub'],
+      ['n1', 'Newsletters'],
+    ]);
+    const result = orderCategoriesByFamily(categories, familyByCategoryId);
+
+    // Newsletter A is the top category, so Newsletters family leads.
+    expect(result.ordered.map((category) => category.id)).toEqual(['n1', 'g1', 'g2']);
   });
 
   it('preserves original order within a family', () => {
@@ -45,7 +66,7 @@ describe('orderCategoriesByFamily', () => {
       ['g1', 'GitHub'],
       ['g2', 'GitHub'],
     ]);
-    const result = orderCategoriesByFamily(categories, familyByCategoryId, ['GitHub']);
+    const result = orderCategoriesByFamily(categories, familyByCategoryId);
     expect(result.ordered.map((category) => category.id)).toEqual(['g2', 'g1']);
   });
 
@@ -55,7 +76,7 @@ describe('orderCategoriesByFamily', () => {
       ['g1', 'GitHub'],
       // the null-id "Other" category and 'x1' are not mapped → Other family
     ]);
-    const result = orderCategoriesByFamily(categories, familyByCategoryId, ['GitHub']);
+    const result = orderCategoriesByFamily(categories, familyByCategoryId);
     const lastFamily = result.familyByKey.get(
       result.ordered[result.ordered.length - 1].id ?? 'uncategorized',
     );

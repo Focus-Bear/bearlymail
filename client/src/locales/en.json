@@ -3415,7 +3415,8 @@
       "email": "Email",
       "reason": "Why do you want to use BearlyMail?",
       "submitting": "Submitting...",
-      "join": "Join Waitlist"
+      "join": "Join Waitlist",
+      "alreadyOnList": "You're already on the list — we'll be in touch!"
     },
     "v2": {
       "header": {
@@ -3925,6 +3926,7 @@
         "submit": "Reserve my spot →",
         "submitting": "Submitting…",
         "error": "Failed to submit. Please try again.",
+        "alreadyOnList": "You're already on the list — we'll be in touch!",
         "success": {
           "title": "You're on the list.",
           "body": "We'll be in touch when your spot opens. In the meantime, read the founder story, or close this and let your inbox stop interrupting you.",

@@ -10,6 +10,7 @@ import { LLMService } from "../llm/llm.service";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
+import { BookingNotificationService } from "./booking-notification.service";
 import { CalendarService } from "./calendar.service";
 import { CalendarAgendaService } from "./calendar-agenda.service";
 import {
@@ -42,6 +43,8 @@ describe("CalendarService", () => {
   let llmService: jest.Mocked<LLMService>;
   let emailsService: jest.Mocked<EmailsService>;
   let calendarIcsService: jest.Mocked<CalendarIcsService>;
+  let calendarAgendaService: jest.Mocked<CalendarAgendaService>;
+  let bookingNotificationService: jest.Mocked<BookingNotificationService>;
   let mockCalendarBookingRepository: Record<string, unknown>;
   let mockEmailThreadRepository: Record<string, unknown>;
   let mockOAuth2Client: Record<string, unknown>;
@@ -162,6 +165,12 @@ describe("CalendarService", () => {
             getIcsInfo: jest.fn(),
           },
         },
+        {
+          provide: BookingNotificationService,
+          useValue: {
+            sendBookingNotifications: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -170,6 +179,8 @@ describe("CalendarService", () => {
     llmService = module.get(LLMService);
     emailsService = module.get(EmailsService);
     calendarIcsService = module.get(CalendarIcsService);
+    calendarAgendaService = module.get(CalendarAgendaService);
+    bookingNotificationService = module.get(BookingNotificationService);
     jest.clearAllMocks();
     usersService.hasUser.mockImplementation((id: string) =>
       Promise.resolve(id === "user-1"),
@@ -551,6 +562,46 @@ describe("CalendarService", () => {
           .createRequest.requestId;
 
       expect(firstCallRequestId).not.toBe(secondCallRequestId);
+    });
+  });
+
+  describe("bookSlotWithAgenda", () => {
+    const bookOptions = {
+      userId: "user-1",
+      startTime: "2024-01-15T10:00:00Z",
+      durationMinutes: 30,
+      guestEmail: "guest@example.com",
+      guestName: "Guest Name",
+      additionalGuests: ["extra@example.com"],
+    };
+    const bookedEvent = {
+      id: "event-1",
+      summary: "Meeting with Guest Name",
+      meetLink: "https://meet.google.com/abc-defg-hij",
+    };
+
+    it("returns the created event and sends booking notification emails", async () => {
+      calendarAgendaService.bookSlotWithAgenda.mockResolvedValue(bookedEvent);
+
+      const result = await service.bookSlotWithAgenda(bookOptions);
+
+      expect(result).toEqual(bookedEvent);
+      expect(
+        bookingNotificationService.sendBookingNotifications,
+      ).toHaveBeenCalledWith(bookOptions, bookedEvent);
+    });
+
+    it("does not send notifications when event creation fails", async () => {
+      calendarAgendaService.bookSlotWithAgenda.mockRejectedValue(
+        new Error("Failed to create calendar event"),
+      );
+
+      await expect(service.bookSlotWithAgenda(bookOptions)).rejects.toThrow(
+        "Failed to create calendar event",
+      );
+      expect(
+        bookingNotificationService.sendBookingNotifications,
+      ).not.toHaveBeenCalled();
     });
   });
 

@@ -75,6 +75,7 @@ describe("WaitlistService", () => {
           provide: EmailService,
           useValue: {
             sendWaitlistApprovalEmail: jest.fn(),
+            sendWaitlistConfirmationEmail: jest.fn(),
           },
         },
         {
@@ -97,6 +98,11 @@ describe("WaitlistService", () => {
   });
 
   describe("create", () => {
+    beforeEach(() => {
+      // No existing waitlist entry for the email by default
+      repository.findOne.mockResolvedValue(null);
+    });
+
     it("should create a waitlist entry", async () => {
       repository.create.mockReturnValue(mockWaitlistEntry);
       repository.save.mockResolvedValue(mockWaitlistEntry);
@@ -120,7 +126,70 @@ describe("WaitlistService", () => {
         approved: false,
       });
       expect(repository.save).toHaveBeenCalled();
-      expect(result).toEqual(mockWaitlistEntry);
+      expect(result).toEqual({ status: "created", entry: mockWaitlistEntry });
+    });
+
+    it("should return already_on_waitlist without saving when the email is already registered", async () => {
+      repository.findOne.mockResolvedValue(mockWaitlistEntry);
+
+      const result = await service.create(
+        "test@example.com",
+        "Test",
+        "I want to test",
+      );
+
+      expect(result).toEqual({ status: "already_on_waitlist" });
+      expect(repository.save).not.toHaveBeenCalled();
+      expect(emailService.sendWaitlistConfirmationEmail).not.toHaveBeenCalled();
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+
+    it("should send a confirmation email to the registrant", async () => {
+      repository.create.mockReturnValue(mockWaitlistEntry);
+      repository.save.mockResolvedValue(mockWaitlistEntry);
+      configService.get.mockReturnValue(undefined);
+
+      await service.create("test@example.com", "Test", "I want to test");
+
+      expect(emailService.sendWaitlistConfirmationEmail).toHaveBeenCalledWith(
+        "test@example.com",
+        "Test",
+        "en",
+      );
+    });
+
+    it("should not fail the signup when the confirmation email fails", async () => {
+      repository.create.mockReturnValue(mockWaitlistEntry);
+      repository.save.mockResolvedValue(mockWaitlistEntry);
+      configService.get.mockReturnValue(undefined);
+      emailService.sendWaitlistConfirmationEmail.mockRejectedValue(
+        new Error("SES error"),
+      );
+
+      const result = await service.create(
+        "test@example.com",
+        "Test",
+        "I want to test",
+      );
+
+      expect(result).toEqual({ status: "created", entry: mockWaitlistEntry });
+    });
+
+    it("should not send a confirmation email for auto-approved signups", async () => {
+      const autoApprovedEntry = {
+        ...mockWaitlistEntry,
+        email: "jeremy@focusbear.io",
+        approved: true,
+      };
+      repository.create.mockReturnValue(autoApprovedEntry);
+      repository.save.mockResolvedValue(autoApprovedEntry);
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.create.mockResolvedValue(mockPartial({ id: "user-1" }));
+      configService.get.mockReturnValue(undefined);
+
+      await service.create("jeremy@focusbear.io", "Jeremy", "Testing");
+
+      expect(emailService.sendWaitlistConfirmationEmail).not.toHaveBeenCalled();
     });
 
     it("should auto-approve jeremy@focusbear.io", async () => {
@@ -141,7 +210,7 @@ describe("WaitlistService", () => {
         "Testing",
       );
 
-      expect(result.approved).toBe(true);
+      expect(result.entry.approved).toBe(true);
       expect(usersService.create).toHaveBeenCalledWith({
         email: "jeremy@focusbear.io",
         name: "Jeremy",

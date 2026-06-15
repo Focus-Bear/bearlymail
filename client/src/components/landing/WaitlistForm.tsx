@@ -11,13 +11,28 @@ import { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
+import {
+  PROVIDER_GMAIL,
+  PROVIDER_OTHER,
+  PROVIDER_OUTLOOK,
+  PROVIDER_ZOHO,
+  STRING_NONE,
+  WAITLIST_STATUS_ALREADY_ON_LIST,
+} from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 // Static style constants — outside component to avoid recreation on each render
 const errorDivStyle: React.CSSProperties = {
   backgroundColor: `${theme.colors.accent.error}20`,
   color: theme.colors.accent.error,
+  padding: theme.spacing.md,
+  borderRadius: theme.borderRadius.md,
+  marginBottom: theme.spacing.md,
+};
+
+const noticeDivStyle: React.CSSProperties = {
+  backgroundColor: `${theme.colors.accent.success}20`,
+  color: theme.colors.accent.success,
   padding: theme.spacing.md,
   borderRadius: theme.borderRadius.md,
   marginBottom: theme.spacing.md,
@@ -91,6 +106,35 @@ interface WaitlistFormProps {
   onSuccess: () => void;
 }
 
+interface WaitlistSignupPayload {
+  email: string;
+  firstName: string;
+  reason: string;
+  emailSystem: string;
+  emailSystemOther?: string;
+}
+
+/**
+ * Posts the signup and routes the outcome to the right callback:
+ * already-on-the-list notice, success, or error message.
+ */
+async function submitWaitlistSignup(
+  payload: WaitlistSignupPayload,
+  callbacks: { onAlreadyOnList: () => void; onSuccess: () => void; onError: (message: string) => void },
+): Promise<void> {
+  try {
+    const response = await axios.post(`${API_URL}/waitlist`, payload);
+    if (response.data?.status === WAITLIST_STATUS_ALREADY_ON_LIST) {
+      callbacks.onAlreadyOnList();
+      return;
+    }
+    captureEvent(ANALYTICS_EVENTS.WAIT_LIST_SUBMITTED);
+    callbacks.onSuccess();
+  } catch (err: unknown) {
+    callbacks.onError(getAxiosErrorMessage(err, 'Failed to submit. Please try again.'));
+  }
+}
+
 /**
  * Waitlist form component
  * Handles user signup for the waitlist
@@ -104,6 +148,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
   const [emailSystemOther, setEmailSystemOther] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const { isMobile } = useResponsiveBreakpoints();
 
   const emailSystemOptions = buildEmailSystemOptions(t);
@@ -118,23 +163,24 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
+    setNotice('');
     setSubmitting(true);
 
-    try {
-      await axios.post(`${API_URL}/waitlist`, {
+    await submitWaitlistSignup(
+      {
         email,
         firstName,
         reason,
         emailSystem,
         emailSystemOther: emailSystem === PROVIDER_OTHER ? emailSystemOther : undefined,
-      });
-      captureEvent(ANALYTICS_EVENTS.WAIT_LIST_SUBMITTED);
-      onSuccess();
-    } catch (err: unknown) {
-      setError(getAxiosErrorMessage(err, 'Failed to submit. Please try again.'));
-    } finally {
-      setSubmitting(false);
-    }
+      },
+      {
+        onAlreadyOnList: () => setNotice(t('landing.waitlist.alreadyOnList')),
+        onSuccess,
+        onError: setError,
+      },
+    );
+    setSubmitting(false);
   };
 
   return (
@@ -142,6 +188,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
       <WaitlistFormHeader />
 
       {error && <div style={errorDivStyle}>{error}</div>}
+      {notice && <div style={noticeDivStyle}>{notice}</div>}
 
       <form onSubmit={handleSubmit} style={formStyle}>
         <WaitlistFormField

@@ -210,6 +210,7 @@ export const LANDING_STYLES = `
 .bearlymail-landing .footer-brand-mark { width: 24px; height: 24px; }
 .bearlymail-landing .footer-brand-mark img { width: 24px; height: 24px; }
 .bearlymail-landing .modal-error { background: rgba(216,74,42,0.10); color: var(--red); padding: 10px 12px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; }
+.bearlymail-landing .modal-notice { background: var(--sun-pale); color: var(--sun-dark); padding: 10px 12px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; }
 .bearlymail-landing .modal-success-title { margin-bottom: 10px; }
 .bearlymail-landing .modal-success-sub { margin-bottom: 20px; }
 

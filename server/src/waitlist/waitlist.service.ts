@@ -12,6 +12,19 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { getErrorMessage, isError } from "../types/common";
 import { UsersService } from "../users/users.service";
 
+export const WAITLIST_SIGNUP_STATUS = {
+  CREATED: "created",
+  ALREADY_ON_WAITLIST: "already_on_waitlist",
+} as const;
+
+export type WaitlistSignupStatus =
+  (typeof WAITLIST_SIGNUP_STATUS)[keyof typeof WAITLIST_SIGNUP_STATUS];
+
+export interface WaitlistSignupResult {
+  status: WaitlistSignupStatus;
+  entry?: Waitlist;
+}
+
 @Injectable()
 export class WaitlistService {
   private readonly logger = new Logger(WaitlistService.name);
@@ -30,7 +43,15 @@ export class WaitlistService {
     reason: string,
     emailSystem?: string,
     emailSystemOther?: string,
-  ): Promise<Waitlist> {
+  ): Promise<WaitlistSignupResult> {
+    const existing = await this.findByEmail(email);
+    if (existing) {
+      this.logger.log(
+        `Waitlist signup skipped: ${email} is already on the waitlist`,
+      );
+      return { status: WAITLIST_SIGNUP_STATUS.ALREADY_ON_WAITLIST };
+    }
+
     // Auto-approve jeremy@focusbear.io
     const approved = email.toLowerCase() === "jeremy@focusbear.io";
 
@@ -77,7 +98,33 @@ export class WaitlistService {
       emailSystemOther,
     });
 
-    return saved;
+    // Auto-approved signups get an account immediately, so the "we'll email
+    // you when a spot opens" confirmation would be misleading for them.
+    if (!approved) {
+      await this.sendConfirmationEmail(email, firstName);
+    }
+
+    return { status: WAITLIST_SIGNUP_STATUS.CREATED, entry: saved };
+  }
+
+  /** Email failures must not fail the signup — log and continue. */
+  private async sendConfirmationEmail(
+    email: string,
+    firstName: string,
+  ): Promise<void> {
+    try {
+      await this.emailService.sendWaitlistConfirmationEmail(
+        email,
+        firstName,
+        "en",
+      );
+      this.logger.log(`Waitlist confirmation email sent to ${email}`);
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send waitlist confirmation email to ${email}: ${getErrorMessage(error)}`,
+        isError(error) ? error.stack : undefined,
+      );
+    }
   }
 
   private async sendCliqNotification(options: {

@@ -479,3 +479,6 @@ export const ENV_PRODUCTION = 'production' as const;
 
 // Role filter sentinel
 export const FILTER_ROLE_ALL = 'all' as const;
+
+// Waitlist signup response status (returned by POST /waitlist)
+export const WAITLIST_STATUS_ALREADY_ON_LIST = 'already_on_waitlist' as const;

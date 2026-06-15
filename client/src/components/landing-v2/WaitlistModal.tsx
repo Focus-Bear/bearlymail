@@ -6,6 +6,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { WAITLIST_STATUS_ALREADY_ON_LIST } from 'constants/strings';
 
 import { KEY_ESCAPE } from './constants';
 import { closeWaitlist, useWaitlistState } from './waitlistStore';
@@ -29,12 +30,14 @@ export const WaitlistModal: React.FC = () => {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (state.open) {
       setEmail(prev => state.prefillEmail || prev);
       setError('');
+      setNotice('');
       setSuccess(false);
     }
   }, [state.open, state.prefillEmail]);
@@ -56,8 +59,13 @@ export const WaitlistModal: React.FC = () => {
     event.preventDefault();
     setSubmitting(true);
     setError('');
+    setNotice('');
     try {
-      await axios.post(`${API_URL}/waitlist`, { email, firstName, reason, emailSystem });
+      const response = await axios.post(`${API_URL}/waitlist`, { email, firstName, reason, emailSystem });
+      if (response.data?.status === WAITLIST_STATUS_ALREADY_ON_LIST) {
+        setNotice(t('landing.v2.modal.alreadyOnList'));
+        return;
+      }
       captureEvent(ANALYTICS_EVENTS.WAIT_LIST_SUBMITTED);
       setSuccess(true);
     } catch (err) {
@@ -102,6 +110,7 @@ export const WaitlistModal: React.FC = () => {
             reason={reason}
             submitting={submitting}
             error={error}
+            notice={notice}
             onFirstName={setFirstName}
             onEmail={setEmail}
             onEmailSystem={setEmailSystem}
@@ -121,6 +130,7 @@ interface FormProps {
   reason: string;
   submitting: boolean;
   error: string;
+  notice: string;
   onFirstName: (value: string) => void;
   onEmail: (value: string) => void;
   onEmailSystem: (value: string) => void;
@@ -135,6 +145,7 @@ const WaitlistForm: React.FC<FormProps> = ({
   reason,
   submitting,
   error,
+  notice,
   onFirstName,
   onEmail,
   onEmailSystem,
@@ -151,6 +162,7 @@ const WaitlistForm: React.FC<FormProps> = ({
       </h3>
       <p className="modal-sub">{t('landing.v2.modal.sub')}</p>
       {error && <div className="modal-error">{error}</div>}
+      {notice && <div className="modal-notice">{notice}</div>}
       <form onSubmit={onSubmit}>
         <div className="field">
           <label htmlFor="wl-fn">{t('landing.v2.modal.firstName')}</label>

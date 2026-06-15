@@ -148,9 +148,7 @@ export class EmailsService {
         return provider ? type : null;
       }),
     );
-    return results.filter(
-      (type): type is EmailProviderType => type !== null,
-    );
+    return results.filter((type): type is EmailProviderType => type !== null);
   }
 
   // ── Inbox ──────────────────────────────────────────────────────────────────

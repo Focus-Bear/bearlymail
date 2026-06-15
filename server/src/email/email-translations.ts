@@ -13,6 +13,37 @@ export const emailTranslations = {
         "This link will expire in 7 days. If you didn't request this, please ignore this email.",
       footer: "© {{year}} BearlyMail. All rights reserved.",
     },
+    waitlistConfirmation: {
+      subject: "You're on the BearlyMail waitlist",
+      greeting: "Hi {{firstName}},",
+      message:
+        "Thanks for joining the BearlyMail waitlist — your spot is reserved! We're letting people in gradually so everyone gets a calm, focused experience.",
+      nextSteps:
+        "There's nothing else you need to do. We'll send you an email as soon as a spot opens up.",
+      footer: "© {{year}} BearlyMail. All rights reserved.",
+    },
+    bookingConfirmation: {
+      subject: "Booking confirmed: {{title}}",
+      greeting: "Hi {{name}},",
+      message:
+        "Your meeting with {{hostName}} is confirmed. Here are the details:",
+      footer: "© {{year}} BearlyMail. All rights reserved.",
+    },
+    bookingOwnerNotification: {
+      subject: "New booking: {{guestName}} booked {{when}}",
+      greeting: "Hi {{name}},",
+      message:
+        "{{guestName}} ({{guestEmail}}) just booked a meeting with you. Here are the details:",
+      footer: "© {{year}} BearlyMail. All rights reserved.",
+    },
+    bookingDetails: {
+      title: "Meeting",
+      when: "When",
+      duration: "Duration",
+      durationMinutes: "{{minutes}} minutes",
+      additionalGuests: "Additional guests",
+      meetLink: "Video call link",
+    },
     passwordReset: {
       subject: "Reset Your BearlyMail Password",
       greeting: "Hi {{firstName}},",
@@ -38,6 +69,37 @@ export const emailTranslations = {
       expiry:
         "Este enlace expirará en 7 días. Si no solicitaste esto, por favor ignora este correo electrónico.",
       footer: "© {{year}} BearlyMail. Todos los derechos reservados.",
+    },
+    waitlistConfirmation: {
+      subject: "Estás en la lista de espera de BearlyMail",
+      greeting: "Hola {{firstName}},",
+      message:
+        "¡Gracias por unirte a la lista de espera de BearlyMail — tu lugar está reservado! Estamos dando acceso gradualmente para que todos tengan una experiencia tranquila y enfocada.",
+      nextSteps:
+        "No necesitas hacer nada más. Te enviaremos un correo en cuanto se abra un lugar.",
+      footer: "© {{year}} BearlyMail. Todos los derechos reservados.",
+    },
+    bookingConfirmation: {
+      subject: "Reserva confirmada: {{title}}",
+      greeting: "Hola {{name}},",
+      message:
+        "Tu reunión con {{hostName}} está confirmada. Aquí están los detalles:",
+      footer: "© {{year}} BearlyMail. Todos los derechos reservados.",
+    },
+    bookingOwnerNotification: {
+      subject: "Nueva reserva: {{guestName}} reservó {{when}}",
+      greeting: "Hola {{name}},",
+      message:
+        "{{guestName}} ({{guestEmail}}) acaba de reservar una reunión contigo. Aquí están los detalles:",
+      footer: "© {{year}} BearlyMail. Todos los derechos reservados.",
+    },
+    bookingDetails: {
+      title: "Reunión",
+      when: "Cuándo",
+      duration: "Duración",
+      durationMinutes: "{{minutes}} minutos",
+      additionalGuests: "Invitados adicionales",
+      meetLink: "Enlace de videollamada",
     },
     passwordReset: {
       subject: "Restablecer tu contraseña de BearlyMail",

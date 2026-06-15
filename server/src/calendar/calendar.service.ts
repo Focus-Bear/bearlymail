@@ -23,6 +23,7 @@ import {
 } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
+import { BookingNotificationService } from "./booking-notification.service";
 import {
   BookSlotOptions,
   CalendarAgendaService,
@@ -71,6 +72,7 @@ export class CalendarService {
     public emailThreadRepository: Repository<EmailThread>,
     public calendarAgendaService: CalendarAgendaService,
     public calendarIcsService: CalendarIcsService,
+    public bookingNotificationService: BookingNotificationService,
   ) {}
 
   /**
@@ -355,10 +357,18 @@ Manage this booking:
   async bookSlotWithAgenda(
     options: BookSlotOptions,
   ): Promise<calendar_v3.Schema$Event & { meetLink: string | null }> {
-    return this.calendarAgendaService.bookSlotWithAgenda(
+    const event = await this.calendarAgendaService.bookSlotWithAgenda(
       options,
       (opts: CreateEventOptions) => this.createEvent(opts),
     );
+
+    // Never throws — a failed notification email must not fail the booking
+    await this.bookingNotificationService.sendBookingNotifications(
+      options,
+      event,
+    );
+
+    return event;
   }
 
   private generateBookingToken(): string {

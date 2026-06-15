@@ -8,6 +8,33 @@ import * as path from "path";
 import { isError } from "../types/common";
 import { translateEmail } from "./email-translations";
 
+/** The one notification-template variable that may carry pre-escaped HTML. */
+const PREESCAPED_TEMPLATE_VAR = "details";
+
+/** MJML templates keyed by path, read from disk once per process. */
+const templateCache = new Map<string, string>();
+
+function loadTemplate(templatePath: string): string {
+  let template = templateCache.get(templatePath);
+  if (template === undefined) {
+    template = fs.readFileSync(templatePath, "utf-8");
+    templateCache.set(templatePath, template);
+  }
+  return template;
+}
+
+export interface BookingEmailDetails {
+  hostName: string;
+  hostEmail: string;
+  guestName?: string;
+  guestEmail: string;
+  title: string;
+  whenFormatted: string;
+  durationMinutes: number;
+  additionalGuests: string[];
+  meetLink: string | null;
+}
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -45,7 +72,7 @@ export class EmailService {
       "templates",
       "waitlist-approval.mjml",
     );
-    let mjmlTemplate = fs.readFileSync(templatePath, "utf-8");
+    let mjmlTemplate = loadTemplate(templatePath);
 
     // Replace template variables
     mjmlTemplate = mjmlTemplate
@@ -86,6 +113,180 @@ ${token("footer", { year })}
     await this.sendEmail(toEmail, subject, html, textBody);
   }
 
+  /**
+   * Sent when someone joins the waitlist, so signups get immediate feedback.
+   * Tells them their spot is reserved and that approval arrives by email later.
+   */
+  async sendWaitlistConfirmationEmail(
+    toEmail: string,
+    firstName: string,
+    language: string = "en",
+  ): Promise<void> {
+    const translate = (key: string, params: Record<string, string> = {}) =>
+      translateEmail(`waitlistConfirmation.${key}`, language, params);
+
+    const year = new Date().getFullYear().toString();
+    const greeting = translate("greeting", { firstName });
+    const message = translate("message");
+    const nextSteps = translate("nextSteps");
+    const footer = translate("footer", { year });
+
+    const html = this.renderNotificationHtml({
+      previewText: message,
+      greeting,
+      message,
+      details: this.escapeHtml(nextSteps),
+      footer,
+    });
+    const textBody = [greeting, message, nextSteps, footer].join("\n\n");
+
+    await this.sendEmail(toEmail, translate("subject"), html, textBody);
+  }
+
+  /** Sent to the guest after they book a slot via the public booking page. */
+  async sendBookingConfirmationEmail(
+    details: BookingEmailDetails,
+    language: string = "en",
+  ): Promise<void> {
+    const translate = (key: string, params: Record<string, string> = {}) =>
+      translateEmail(`bookingConfirmation.${key}`, language, params);
+
+    const subject = translate("subject", { title: details.title });
+    const greeting = translate("greeting", {
+      name: details.guestName || details.guestEmail,
+    });
+    const message = translate("message", { hostName: details.hostName });
+
+    await this.sendBookingEmail({
+      toEmail: details.guestEmail,
+      subject,
+      greeting,
+      message,
+      details,
+      language,
+    });
+  }
+
+  /** Sent to the BearlyMail account owner when someone books one of their slots. */
+  async sendBookingOwnerNotificationEmail(
+    details: BookingEmailDetails,
+    language: string = "en",
+  ): Promise<void> {
+    const translate = (key: string, params: Record<string, string> = {}) =>
+      translateEmail(`bookingOwnerNotification.${key}`, language, params);
+
+    const guestName = details.guestName || details.guestEmail;
+    const subject = translate("subject", {
+      guestName,
+      when: details.whenFormatted,
+    });
+    const greeting = translate("greeting", { name: details.hostName });
+    const message = translate("message", {
+      guestName,
+      guestEmail: details.guestEmail,
+    });
+
+    await this.sendBookingEmail({
+      toEmail: details.hostEmail,
+      subject,
+      greeting,
+      message,
+      details,
+      language,
+    });
+  }
+
+  private async sendBookingEmail(options: {
+    toEmail: string;
+    subject: string;
+    greeting: string;
+    message: string;
+    details: BookingEmailDetails;
+    language: string;
+  }): Promise<void> {
+    const { toEmail, subject, greeting, message, details, language } = options;
+    const year = new Date().getFullYear().toString();
+    const footer = translateEmail("bookingConfirmation.footer", language, {
+      year,
+    });
+    const lines = this.buildBookingDetailLines(details, language);
+
+    const html = this.renderNotificationHtml({
+      previewText: message,
+      greeting,
+      message,
+      details: lines.map((line) => this.escapeHtml(line)).join("<br />"),
+      footer,
+    });
+    const textBody = [greeting, message, lines.join("\n"), footer].join("\n\n");
+
+    await this.sendEmail(toEmail, subject, html, textBody);
+  }
+
+  private buildBookingDetailLines(
+    details: BookingEmailDetails,
+    language: string,
+  ): string[] {
+    const label = (key: string, params: Record<string, string> = {}) =>
+      translateEmail(`bookingDetails.${key}`, language, params);
+
+    const lines = [
+      `${label("title")}: ${details.title}`,
+      `${label("when")}: ${details.whenFormatted}`,
+      `${label("duration")}: ${label("durationMinutes", {
+        minutes: String(details.durationMinutes),
+      })}`,
+    ];
+    if (details.additionalGuests.length > 0) {
+      lines.push(
+        `${label("additionalGuests")}: ${details.additionalGuests.join(", ")}`,
+      );
+    }
+    if (details.meetLink) {
+      lines.push(`${label("meetLink")}: ${details.meetLink}`);
+    }
+    return lines;
+  }
+
+  /**
+   * Renders the shared notification template, HTML-escaping every variable
+   * except `details`, which may carry pre-escaped content with <br /> breaks.
+   */
+  private renderNotificationHtml(vars: {
+    previewText: string;
+    greeting: string;
+    message: string;
+    details: string;
+    footer: string;
+  }): string {
+    const templatePath = path.join(__dirname, "templates", "notification.mjml");
+    let mjmlTemplate = loadTemplate(templatePath);
+
+    for (const [key, value] of Object.entries(vars)) {
+      const safeValue =
+        key === PREESCAPED_TEMPLATE_VAR ? value : this.escapeHtml(value);
+      mjmlTemplate = mjmlTemplate.replace(
+        new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"),
+        () => safeValue,
+      );
+    }
+
+    const { html, errors } = mjml(mjmlTemplate, { validationLevel: "soft" });
+    if (errors && errors.length > 0) {
+      this.logger.warn("MJML conversion warnings:", errors);
+    }
+    return html;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   async sendPasswordResetEmail(
     toEmail: string,
     firstName: string,
@@ -109,7 +310,7 @@ ${token("footer", { year })}
       "templates",
       "password-reset.mjml",
     );
-    let mjmlTemplate = fs.readFileSync(templatePath, "utf-8");
+    let mjmlTemplate = loadTemplate(templatePath);
 
     // Replace template variables
     mjmlTemplate = mjmlTemplate

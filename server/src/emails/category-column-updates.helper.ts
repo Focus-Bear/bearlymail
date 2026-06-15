@@ -23,9 +23,7 @@ export function buildCategoryColumnUpdates(
   return {
     ...(categoryId !== undefined ? { categoryId } : {}),
     categorySource:
-      finalCategory && finalCategory !== "Other"
-        ? ("priority" as const)
-        : null,
+      finalCategory && finalCategory !== "Other" ? ("priority" as const) : null,
     ...(categoryRuleTrace !== undefined ? { categoryRuleTrace } : {}),
   };
 }

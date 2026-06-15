@@ -89,7 +89,7 @@
     "crypto-js": "^4.2.0",
     "file-type": "^22.0.1",
     "form-data": "^4.0.5",
-    "googleapis": "^172.0.0",
+    "googleapis": "^173.0.0",
     "i18next": "^26.3.1",
     "luxon": "^3.7.2",
     "mjml": "^5.3.0",

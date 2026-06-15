@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { CategoryRulesService } from "../category-rules/category-rules.service";
+import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import { PRIORITY_RULE_SKIP } from "../constants/priority-rule.constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -63,8 +64,11 @@ export class LLMDeterministicPriorityService {
         userId,
         emailMetadata,
       );
-      const categoryMatch = priorityMatch
-        ? await this.categoryRulesService.peekMatchingRule(
+      // Use the trace variant so we can persist what the rule step saw for the
+      // category-debug view. It does not increment the category rule's hit count
+      // (the skip path counts only the priority-rule hit), preserving behaviour.
+      const categoryTrace = priorityMatch
+        ? await this.categoryRulesService.peekMatchingRuleWithTrace(
             userId,
             emailMetadata,
           )
@@ -72,11 +76,11 @@ export class LLMDeterministicPriorityService {
       const skip = shouldSkipWithRule({
         skipEnabled: true,
         priorityMatch,
-        categoryMatch,
+        categoryMatch: categoryTrace?.match ?? null,
         sampleRoll: Math.random(),
         sampleRate: PRIORITY_RULE_SKIP.shadowSampleRate(),
       });
-      if (!skip || !priorityMatch || !categoryMatch) {
+      if (!skip || !priorityMatch || !categoryTrace?.match) {
         return false;
       }
       await this.applyDeterministicPriority({
@@ -84,9 +88,10 @@ export class LLMDeterministicPriorityService {
         thread,
         representativeScore: priorityMatch.representativeScore,
         categoryMatch: {
-          categoryName: categoryMatch.categoryName,
-          categoryId: categoryMatch.categoryId,
+          categoryName: categoryTrace.match.categoryName,
+          categoryId: categoryTrace.match.categoryId,
         },
+        categoryRuleTrace: categoryTrace.snapshot,
         userId,
         workerId,
       });
@@ -110,6 +115,7 @@ export class LLMDeterministicPriorityService {
     thread: EmailThread;
     representativeScore: number;
     categoryMatch: { categoryName: string; categoryId: string | null };
+    categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
     userId: string;
     workerId: string;
   }): Promise<void> {
@@ -118,6 +124,7 @@ export class LLMDeterministicPriorityService {
       thread,
       representativeScore,
       categoryMatch,
+      categoryRuleTrace,
       userId,
       workerId,
     } = args;
@@ -162,6 +169,7 @@ export class LLMDeterministicPriorityService {
           : {}),
         categoryExplanation: `Deterministic priority+category rule (category "${categoryMatch.categoryName}")`,
         categorySource: "priority" as const,
+        ...(categoryRuleTrace !== undefined ? { categoryRuleTrace } : {}),
         isProcessingPriority: false,
         aiProcessingDeferred: false,
       },

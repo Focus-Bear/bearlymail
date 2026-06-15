@@ -38,6 +38,7 @@ import { PriorityRulesService } from "../priority-rules/priority-rules.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { registerWorker } from "../queue/register-worker";
+import { applyCategoryRuleToResult } from "./category-rule-apply.helper";
 import { EmailsService } from "./emails.service";
 import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
@@ -347,19 +348,11 @@ export class LLMProcessor implements OnModuleInit {
       threadInfo: replyStatus,
       preComputedSentimentScore: email.sentimentScore ?? undefined,
     });
-    if (categoryRuleMatch) {
-      llmResult.category = categoryRuleMatch.categoryName;
-      const kindOrType =
-        categoryRuleMatch.ruleType ?? categoryRuleMatch.ruleKind;
-      // Issue #1789: include the rule ID as a structured marker so the UI can
-      // navigate to the SPECIFIC matched rule (multiple rules can share a
-      // category, so navigating by category name alone opens the wrong one).
-      llmResult.categoryExplanation = `Matched deterministic rule (${kindOrType}): category="${categoryRuleMatch.categoryName}" (rule:${categoryRuleMatch.ruleId})`;
-    }
-    // Persist what the rule step actually saw so the category-debug view can show
-    // the ORIGINAL outcome (rule matched / no rule matched / matched-but-disabled)
-    // instead of only a live re-run against the current rule set.
-    llmResult.categoryRuleTrace = ruleTraceSnapshot;
+    // Apply the rule match (overriding the LLM category) and attach the trace
+    // snapshot so the category-debug view can show the ORIGINAL outcome (rule
+    // matched / no rule matched / matched-but-disabled) instead of only a live
+    // re-run. Shared with the batch path so both behave identically.
+    applyCategoryRuleToResult(llmResult, categoryRuleMatch, ruleTraceSnapshot);
     tracker.endPhase("llmCall");
     tracker.startPhase("dbUpdate");
     const finalScore = await this.priorityResultService.applyPriorityResult(

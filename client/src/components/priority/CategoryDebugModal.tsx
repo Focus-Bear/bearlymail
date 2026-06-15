@@ -11,6 +11,7 @@ import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { API_URL } from 'config/api';
 import { OPACITY_DISABLED_ALT, OPACITY_FULL } from 'constants/numbers';
 
+import { CategoryDebugDraftRulePanel } from './CategoryDebugDraftRulePanel';
 import { CategoryDebugData, CategoryDebugModalProps } from './CategoryDebugModal.types';
 import { CategoriesList, CategorySection, EmailSection, UserContextSection } from './CategoryDebugPanels';
 import { CategoryDebugTracePanel } from './CategoryDebugTracePanel';
@@ -48,6 +49,7 @@ const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId, onClos
   const [mfaToken, setMfaToken] = useState('');
   const [mfaError, setMfaError] = useState<string | null>(null);
   const [mfaLoading, setMfaLoading] = useState(false);
+  const [showDraftRule, setShowDraftRule] = useState(false);
   const mfaInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(
@@ -288,7 +290,32 @@ const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId, onClos
               >
                 {copied ? t('priority.categoryDebug.copied') : t('priority.categoryDebug.copyForIssue')}
               </button>
+              <button
+                type="button"
+                onClick={() => setShowDraftRule(prev => !prev)}
+                aria-expanded={showDraftRule}
+                style={{
+                  background: showDraftRule
+                    ? theme.colors.primary?.main || '#1976d2'
+                    : theme.colors.background.subtle,
+                  border: `1px solid ${theme.colors.border?.default || '#e0e0e0'}`,
+                  borderRadius: theme.borderRadius.sm,
+                  cursor: 'pointer',
+                  padding: `4px ${theme.spacing.sm}`,
+                  fontSize: theme.typography.fontSize.xs,
+                  color: showDraftRule ? COLOR_WHITE : theme.colors.text.secondary,
+                }}
+              >
+                {t('priority.categoryDebug.draftRule.button')}
+              </button>
             </div>
+            {showDraftRule && (
+              <CategoryDebugDraftRulePanel
+                emailId={emailId}
+                categories={debugInfo.emailCategories}
+                onClose={() => setShowDraftRule(false)}
+              />
+            )}
             <div style={{ overflowY: 'auto', maxHeight: '70vh' }}>
               <EmailSection email={debugInfo.email} />
               <CategorySection thread={debugInfo.thread} />

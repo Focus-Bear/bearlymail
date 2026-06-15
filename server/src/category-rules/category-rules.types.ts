@@ -51,6 +51,28 @@ export interface CategoryRuleMatch {
 }
 
 /**
+ * A draft composite rule built from a single email for USER review before it is
+ * persisted (issue: draft-rule-from-email). Returned by
+ * `POST /category-rules/draft-from-email`. Field names mirror the
+ * `POST /category-rules` create payload so the review UI can submit it directly.
+ */
+export interface CompositeRuleDraft {
+  categoryName: string;
+  senderMatchesAny: string[];
+  subjectContainsAny: string[];
+  bodyContainsAny: string[];
+  subjectNotContainsAny: string[];
+  bodyNotContainsAny: string[];
+  /**
+   * False when the LLM exclusion-derivation step could not find disambiguating
+   * NOT-contains phrases (e.g. too few false-positive samples). The review UI
+   * must then prompt the user to add at least one exclusion before saving, since
+   * the create endpoint requires one.
+   */
+  exclusionsDerived: boolean;
+}
+
+/**
  * Compact, persisted record of what the deterministic-rule step actually did at
  * the moment an email's category was set during priority processing.
  *

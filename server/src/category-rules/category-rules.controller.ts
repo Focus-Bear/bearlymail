@@ -8,12 +8,14 @@ import {
   Patch,
   Post,
   Request,
+  UnprocessableEntityException,
   UseGuards,
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CategoryRulesService } from "./category-rules.service";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
+import { DraftRuleFromEmailDto } from "./dto/draft-rule-from-email.dto";
 import { PatchCategoryRuleDto } from "./dto/patch-category-rule.dto";
 import { SuggestCategoryRulesDto } from "./dto/suggest-category-rules.dto";
 
@@ -57,6 +59,29 @@ export class CategoryRulesController {
       req.user.userId,
       body,
     );
+  }
+
+  /**
+   * Draft a single composite rule from a specific email, for the category the
+   * user believes the thread should have had. Reuses the LLM authoring +
+   * exclusion-derivation pipeline but does NOT persist — the client shows the
+   * draft for review and saves it via POST /category-rules.
+   *
+   * POST /category-rules/draft-from-email
+   */
+  @Post("draft-from-email")
+  async draftFromEmail(@Request() req, @Body() body: DraftRuleFromEmailDto) {
+    const draft = await this.categoryRulesService.draftCompositeRuleFromEmailId(
+      req.user.userId,
+      body.emailId,
+      body.categoryName,
+    );
+    if (!draft) {
+      throw new UnprocessableEntityException(
+        "Could not draft a rule from this email",
+      );
+    }
+    return draft;
   }
 
   /**

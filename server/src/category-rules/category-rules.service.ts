@@ -1,8 +1,12 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CATEGORY_RULE_MATCH_MODES } from "../constants/domain-types";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 import {
@@ -17,22 +21,27 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { buildRuleEmailMetadata } from "../emails/rule-email-metadata.helper";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
-import { computeEmailHmac } from "../utils/hmac-email";
 import type {
   CategoryRuleDto,
   CategoryRuleEvaluationDebug,
   CategoryRuleMatch,
   CategoryRuleSuggestion,
   CategoryRuleTraceSnapshot,
+  CompositeRuleDraft,
   DeterministicRulesDebug,
   EmailMetadata,
 } from "./category-rules.types";
 import {
   compositeAutoSpecsMatch,
   EmailHashes,
+  specToV2,
 } from "./category-rules-auto-composite.helper";
-import { deriveExclusionsForCompositeRule } from "./category-rules-derive-exclusions.helper";
+import {
+  buildDraftCompositeSpec,
+  DraftCompositeSpecDeps,
+} from "./category-rules-draft.helper";
 import {
   buildEmailHashes,
   findFirstCompositeRuleMatch,
@@ -269,120 +278,107 @@ export class CategoryRulesService {
     email: EmailMetadata,
     categoryName: string,
   ): Promise<CategoryRule | null> {
-    const trimmedCategory = categoryName?.trim();
-    if (!trimmedCategory) {
-      return null;
-    }
-
-    const sender = this.normaliseSender(email.from);
-    if (!sender) {
-      return null;
-    }
-
-    // Issue #1714: only auto-generate rules for senders with enough thread history.
-    const threadCount = await this.countDistinctThreadsForSender(
+    const draft = await buildDraftCompositeSpec(
+      this.draftDeps(),
       userId,
-      sender,
+      email,
+      categoryName,
+      {
+        enforceThreadCountGate: true,
+        requireDerivedExclusions: true,
+      },
     );
-    if (threadCount < CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT) {
-      this.logger.debug(
-        `[CategoryRules] Skipping auto composite rule — sender "${sender}" has only ${threadCount} threads (< ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT}) for user ${userId}`,
-      );
+    if (!draft) {
       return null;
     }
-
-    // Fetch recent emails from this sender to give the LLM enough context for
-    // generic pattern extraction (issue #1714: no more verbatim phrases).
-    const senderHmac = computeEmailHmac(sender);
-    const sampleEmails = senderHmac
-      ? await this.emailRepository.find({
-          where: { userId, senderEmailHmac: senderHmac },
-          order: { receivedAt: "DESC" },
-          take: CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER,
-          select: {
-            subject: true,
-            body: true,
-          },
-        })
-      : [];
-
-    // Always include the current email so the LLM has at least one sample.
-    const samples: Array<{ subject: string; body: string }> = [
-      { subject: email.subject || "", body: email.bodyTextForMatch || "" },
-      ...sampleEmails.map((emailSample) => ({
-        subject: emailSample.subject || "",
-        body: emailSample.body || "",
-      })),
-    ];
-
-    // Pass the sender email to the LLM so it can decide on the best pattern
-    // (exact address or domain wildcard like *@github.com).
-    const llmResult =
-      await this.llmCategoriesService.suggestRulesFromEmailSamples(
-        trimmedCategory,
-        [sender],
-        samples,
-      );
-
-    if (
-      !llmResult ||
-      llmResult.subjectContainsAny.length === 0 ||
-      llmResult.bodyContainsAny.length === 0
-    ) {
-      this.logger.debug(
-        `[CategoryRules] Skipping auto composite rule — LLM returned no usable phrases for user ${userId}`,
-      );
-      return null;
-    }
-
-    const senderMatchesAny =
-      llmResult.fromMatchesAny.length > 0 ? llmResult.fromMatchesAny : [sender];
-
-    // Issue #1789 follow-up: the LLM no longer returns
-    // subjectNotContainsAny / bodyNotContainsAny — we derive them from real
-    // false positives below. Build the positive-only spec first.
-    let positiveSpec: CompositeCategoryRuleSpec;
-    try {
-      positiveSpec = this.normalizeCompositeSpecDto({
-        categoryName: trimmedCategory,
-        senderMatchesAny,
-        subjectContainsAny: llmResult.subjectContainsAny.slice(
-          0,
-          CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES,
-        ),
-        bodyContainsAny: llmResult.bodyContainsAny.slice(
-          0,
-          CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES,
-        ),
-      });
-    } catch {
-      return null;
-    }
-
-    const categoryId = await this.findCategoryId(userId, trimmedCategory);
-
-    const outcome = await deriveExclusionsForCompositeRule({
-      emailThreadRepository: this.emailThreadRepository,
-      llmCategoriesService: this.llmCategoriesService,
-      normaliseSender: (raw) => this.normaliseSender(raw),
-      userId,
-      positiveSpec,
-      categoryName: trimmedCategory,
-      categoryId,
-    });
-    if (!outcome.passes || !outcome.finalSpec) {
-      this.logger.debug(
-        `[CategoryRules] Skipping auto composite rule — validation failed after derive-exclusions (truePositives=${outcome.truePositives}, falsePositives=${outcome.falsePositives}) for user ${userId} category="${trimmedCategory}"`,
-      );
-      return null;
-    }
-
     return this.gateAndPersistCompositeRule(
       userId,
-      outcome.finalSpec,
-      trimmedCategory,
-      categoryId,
+      draft.spec,
+      draft.categoryName,
+      draft.categoryId,
     );
+  }
+
+  /**
+   * Builds a draft composite rule from a single email for USER review before it
+   * is persisted (issue: draft-rule-from-email). Reuses the same LLM authoring +
+   * exclusion-derivation as the auto path, but does NOT persist, does NOT require
+   * a minimum sender thread count (the user explicitly asked for a rule), and
+   * falls back to the positive-only spec when exclusions can't be auto-derived so
+   * the user can add one in the review UI. Returns null only when no usable rule
+   * could be drafted (no category, no sender, or no LLM phrases).
+   */
+  async draftCompositeRuleFromEmail(
+    userId: string,
+    email: EmailMetadata,
+    categoryName: string,
+  ): Promise<CompositeRuleDraft | null> {
+    const draft = await buildDraftCompositeSpec(
+      this.draftDeps(),
+      userId,
+      email,
+      categoryName,
+      {
+        enforceThreadCountGate: false,
+        requireDerivedExclusions: false,
+      },
+    );
+    if (!draft) {
+      return null;
+    }
+    const v2 = specToV2(draft.spec);
+    return {
+      categoryName: draft.categoryName,
+      senderMatchesAny: v2.senderMatchesAny,
+      subjectContainsAny: v2.subjectContainsAny,
+      bodyContainsAny: v2.bodyContainsAny,
+      subjectNotContainsAny: v2.subjectNotContainsAny ?? [],
+      bodyNotContainsAny: v2.bodyNotContainsAny ?? [],
+      exclusionsDerived: draft.exclusionsDerived,
+    };
+  }
+
+  /**
+   * Loads an email the user owns and drafts a composite rule from it for review.
+   * Thin wrapper used by `POST /category-rules/draft-from-email` so the controller
+   * stays HTTP-only.
+   */
+  async draftCompositeRuleFromEmailId(
+    userId: string,
+    emailId: string,
+    categoryName: string,
+  ): Promise<CompositeRuleDraft | null> {
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
+    if (!email) {
+      throw new NotFoundException(`Email ${emailId} not found`);
+    }
+    return this.draftCompositeRuleFromEmail(
+      userId,
+      buildRuleEmailMetadata(email),
+      categoryName,
+    );
+  }
+
+  /**
+   * Bundles the service-owned operations the draft builder needs so the
+   * extraction in `category-rules-draft.helper.ts` stays decoupled from the
+   * service internals.
+   */
+  private draftDeps(): DraftCompositeSpecDeps {
+    return {
+      emailRepository: this.emailRepository,
+      emailThreadRepository: this.emailThreadRepository,
+      llmCategoriesService: this.llmCategoriesService,
+      logger: this.logger,
+      normaliseSender: (raw) => this.normaliseSender(raw),
+      countDistinctThreadsForSender: (userId, sender) =>
+        this.countDistinctThreadsForSender(userId, sender),
+      normalizeCompositeSpecDto: (dto) => this.normalizeCompositeSpecDto(dto),
+      findCategoryId: (userId, categoryName) =>
+        this.findCategoryId(userId, categoryName),
+    };
   }
 
   /**
@@ -723,6 +719,40 @@ export class CategoryRulesService {
     match: CategoryRuleMatch | null;
     snapshot: CategoryRuleTraceSnapshot;
   }> {
+    const result = await this.evaluateRulesWithTrace(userId, email);
+    if (result.match) {
+      await this.incrementHitCount(result.match.ruleId);
+    }
+    return result;
+  }
+
+  /**
+   * Like `findMatchingRuleWithTrace` but WITHOUT incrementing the winning rule's
+   * hit count — used by the deterministic-skip path, which records the trace for
+   * the debug view but does not count a category-rule hit (it skips the LLM and
+   * counts only the priority-rule hit, preserving prior behaviour).
+   */
+  async peekMatchingRuleWithTrace(
+    userId: string,
+    email: EmailMetadata,
+  ): Promise<{
+    match: CategoryRuleMatch | null;
+    snapshot: CategoryRuleTraceSnapshot;
+  }> {
+    return this.evaluateRulesWithTrace(userId, email);
+  }
+
+  /**
+   * Computes the winning rule and a trace snapshot from a single fetch of all
+   * rules, with no side effects. Callers decide whether to increment hit counts.
+   */
+  private async evaluateRulesWithTrace(
+    userId: string,
+    email: EmailMetadata,
+  ): Promise<{
+    match: CategoryRuleMatch | null;
+    snapshot: CategoryRuleTraceSnapshot;
+  }> {
     const [rules, validCategoryIds] = await Promise.all([
       this.categoryRuleRepository.find({
         where: { userId },
@@ -750,10 +780,6 @@ export class CategoryRulesService {
       hashes,
       (raw) => this.normaliseSender(raw),
     ).filter((ruleId) => ruleId !== match?.ruleId);
-
-    if (match) {
-      await this.incrementHitCount(match.ruleId);
-    }
 
     return {
       match,

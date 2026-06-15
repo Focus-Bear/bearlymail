@@ -17,7 +17,10 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
   let emailThreadRepository: jest.Mocked<Repository<EmailThread>>;
   let githubOverride: { resolveOverrideCategoryId: jest.Mock };
   let priorityRules: { peekMatchingRule: jest.Mock; recordHit: jest.Mock };
-  let categoryRules: { peekMatchingRule: jest.Mock };
+  let categoryRules: {
+    peekMatchingRule: jest.Mock;
+    peekMatchingRuleWithTrace: jest.Mock;
+  };
 
   const email = { id: "email-1", emailThreadId: "thread-1" } as Email;
   const thread = {
@@ -38,7 +41,10 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
       peekMatchingRule: jest.fn(),
       recordHit: jest.fn(),
     };
-    categoryRules = { peekMatchingRule: jest.fn() };
+    categoryRules = {
+      peekMatchingRule: jest.fn(),
+      peekMatchingRuleWithTrace: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -123,6 +129,14 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
       ruleType: null,
       ruleKind: "composite",
     };
+    const categorySnapshot = {
+      evaluatedAt: "2026-06-15T00:00:00.000Z",
+      ruleStepRan: true,
+      rulesConsideredCount: 1,
+      winningRuleId: "r1",
+      winningRuleCategoryName: "Newsletters",
+      matchedButNotWinningRuleIds: [],
+    };
     let randomSpy: jest.SpyInstance;
     const envBefore = process.env.PRIORITY_RULE_SKIP_ENABLED;
 
@@ -140,11 +154,18 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
 
     it("skips + applies when both rules match and not sampled", async () => {
       priorityRules.peekMatchingRule.mockResolvedValue(priorityMatch);
-      categoryRules.peekMatchingRule.mockResolvedValue(categoryMatch);
+      categoryRules.peekMatchingRuleWithTrace.mockResolvedValue({
+        match: categoryMatch,
+        snapshot: categorySnapshot,
+      });
       expect(await run()).toBe(true);
       expect(emailThreadRepository.update).toHaveBeenCalledWith(
         { id: "thread-1" },
-        expect.objectContaining({ priorityScore: 35, prioritySource: "rule" }),
+        expect.objectContaining({
+          priorityScore: 35,
+          prioritySource: "rule",
+          categoryRuleTrace: categorySnapshot,
+        }),
       );
       expect(priorityRules.recordHit).toHaveBeenCalledWith("p1");
     });
@@ -152,13 +173,16 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
     it("does not skip when there is no priority rule", async () => {
       priorityRules.peekMatchingRule.mockResolvedValue(null);
       expect(await run()).toBe(false);
-      expect(categoryRules.peekMatchingRule).not.toHaveBeenCalled();
+      expect(categoryRules.peekMatchingRuleWithTrace).not.toHaveBeenCalled();
       expect(emailThreadRepository.update).not.toHaveBeenCalled();
     });
 
     it("does not skip when there is no category rule", async () => {
       priorityRules.peekMatchingRule.mockResolvedValue(priorityMatch);
-      categoryRules.peekMatchingRule.mockResolvedValue(null);
+      categoryRules.peekMatchingRuleWithTrace.mockResolvedValue({
+        match: null,
+        snapshot: { ...categorySnapshot, winningRuleId: null },
+      });
       expect(await run()).toBe(false);
       expect(emailThreadRepository.update).not.toHaveBeenCalled();
     });
@@ -167,7 +191,10 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
       // A 0.0 roll lands inside the shadow-sample fraction.
       randomSpy.mockReturnValue(0.0);
       priorityRules.peekMatchingRule.mockResolvedValue(priorityMatch);
-      categoryRules.peekMatchingRule.mockResolvedValue(categoryMatch);
+      categoryRules.peekMatchingRuleWithTrace.mockResolvedValue({
+        match: categoryMatch,
+        snapshot: categorySnapshot,
+      });
       expect(await run()).toBe(false);
       expect(emailThreadRepository.update).not.toHaveBeenCalled();
     });
@@ -175,7 +202,10 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
     it("does not skip when the kill switch is set", async () => {
       process.env.PRIORITY_RULE_SKIP_ENABLED = "false";
       priorityRules.peekMatchingRule.mockResolvedValue(priorityMatch);
-      categoryRules.peekMatchingRule.mockResolvedValue(categoryMatch);
+      categoryRules.peekMatchingRuleWithTrace.mockResolvedValue({
+        match: categoryMatch,
+        snapshot: categorySnapshot,
+      });
       expect(await run()).toBe(false);
       expect(priorityRules.peekMatchingRule).not.toHaveBeenCalled();
     });

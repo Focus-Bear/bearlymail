@@ -12,6 +12,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { CategoryRulesService } from "../category-rules/category-rules.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -169,6 +170,22 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
         {
           provide: PriorityRulesService,
           useValue: { shadowAndMine: jest.fn() },
+        },
+        {
+          provide: CategoryRulesService,
+          useValue: {
+            findMatchingRuleWithTrace: jest.fn().mockResolvedValue({
+              match: null,
+              snapshot: {
+                evaluatedAt: "2026-06-15T00:00:00.000Z",
+                ruleStepRan: true,
+                rulesConsideredCount: 0,
+                winningRuleId: null,
+                winningRuleCategoryName: null,
+                matchedButNotWinningRuleIds: [],
+              },
+            }),
+          },
         },
       ],
     }).compile();

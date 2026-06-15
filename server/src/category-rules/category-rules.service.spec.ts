@@ -589,6 +589,62 @@ describe("CategoryRulesService", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // draftCompositeRuleFromEmail — user-initiated draft (no persistence)
+  // ---------------------------------------------------------------------------
+
+  describe("draftCompositeRuleFromEmail", () => {
+    const email = {
+      from: "alerts@acmecorp.com",
+      subject: "Build failed",
+      bodyTextForMatch: "Pipeline step compile failed on branch main.",
+    };
+
+    it("returns a draft spec from the LLM phrases without persisting", async () => {
+      const draft = await service.draftCompositeRuleFromEmail(
+        "user-1",
+        email,
+        "CI",
+      );
+
+      expect(draft).not.toBeNull();
+      expect(draft?.categoryName).toBe("CI");
+      expect(draft?.senderMatchesAny).toEqual(["alerts@acmecorp.com"]);
+      expect(draft?.subjectContainsAny).toEqual(["Build failed"]);
+      expect(draft?.bodyContainsAny).toEqual(["Pipeline step compile failed"]);
+      // Draft must never persist — the user reviews/saves separately.
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it("drafts even when the sender is below the auto-generate thread threshold", async () => {
+      // Sender with only 1 thread — generateCompositeRuleFromEmail would bail,
+      // but a user-initiated draft skips that gate.
+      emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "1" }));
+
+      const draft = await service.draftCompositeRuleFromEmail(
+        "user-1",
+        email,
+        "CI",
+      );
+
+      expect(draft).not.toBeNull();
+      expect(draft?.senderMatchesAny).toEqual(["alerts@acmecorp.com"]);
+    });
+
+    it("returns null when the LLM produces no usable phrases", async () => {
+      llmCategoriesService.suggestRulesFromEmailSamples.mockResolvedValue(null);
+
+      const draft = await service.draftCompositeRuleFromEmail(
+        "user-1",
+        email,
+        "CI",
+      );
+
+      expect(draft).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // normalizeCompositeSpecDto — validation
   // ---------------------------------------------------------------------------
 

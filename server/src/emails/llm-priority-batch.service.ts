@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 
+import { CategoryRulesService } from "../category-rules/category-rules.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
@@ -30,12 +31,14 @@ import { getJobPriority } from "../queue/job-priorities";
 import { protoCategoryKey } from "../utils/category-key.util";
 import { parseCategoryValue } from "../utils/category-name.util";
 import { buildBatchEmailPayloads } from "./batch-email-payloads.helper";
+import { applyCategoryRuleToResult } from "./category-rule-apply.helper";
 import { EmailsService } from "./emails.service";
 import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
 import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
+import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 /** Delay in seconds before re-queuing a fallback email for retry. */
 const PRIORITY_RETRY_DELAY_SECONDS = 60;
@@ -75,6 +78,7 @@ export class LLMPriorityBatchService {
     private readonly priorityAnalysisFinalizerService: PriorityAnalysisFinalizerService,
     private readonly deterministicPriorityService: LLMDeterministicPriorityService,
     private readonly priorityRulesService: PriorityRulesService,
+    private readonly categoryRulesService: CategoryRulesService,
   ) {}
 
   private async checkHasNewEmails(
@@ -294,6 +298,21 @@ export class LLMPriorityBatchService {
         continue;
       }
       try {
+        // Apply deterministic category rules and capture the rule-trace snapshot
+        // here too — the single-email path does this in `resolveCategoryHint`,
+        // but the batch path (which handles most inbox emails) previously did
+        // neither, so category rules were silently ignored and `categoryRuleTrace`
+        // was never recorded for batched threads.
+        const { match: categoryRuleMatch, snapshot: ruleTraceSnapshot } =
+          await this.categoryRulesService.findMatchingRuleWithTrace(
+            userId,
+            buildRuleEmailMetadata(email),
+          );
+        applyCategoryRuleToResult(
+          llmResult,
+          categoryRuleMatch,
+          ruleTraceSnapshot,
+        );
         const finalScore = await this.priorityResultService.applyPriorityResult(
           email,
           llmResult as Parameters<

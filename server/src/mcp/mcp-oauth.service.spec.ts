@@ -167,7 +167,8 @@ describe("MCPOAuthService", () => {
       );
     });
 
-    it("fails when the server does not support dynamic client registration", async () => {
+    it("fails when the server has no DCR and no configured client", async () => {
+      delete process.env.MCP_OAUTH_CLIENTS;
       mockedAxios.get.mockImplementation((url: string) =>
         url.includes("oauth-authorization-server")
           ? Promise.resolve({
@@ -176,8 +177,31 @@ describe("MCPOAuthService", () => {
           : Promise.reject(new Error("404")),
       );
       await expect(service.beginAuthorization(baseConfig())).rejects.toThrow(
-        /dynamic client registration/i,
+        /pre-registered OAuth client/i,
       );
+    });
+
+    it("uses a pre-configured client when the server has no dynamic registration", async () => {
+      process.env.MCP_OAUTH_CLIENTS = JSON.stringify({
+        "auth.example.com": { clientId: "preconf-1", clientSecret: "shh" },
+      });
+      try {
+        mockedAxios.get.mockImplementation((url: string) =>
+          url.includes("oauth-authorization-server")
+            ? Promise.resolve({
+                data: { ...AS_METADATA, registration_endpoint: undefined },
+              })
+            : Promise.reject(new Error("404")),
+        );
+
+        const url = await service.beginAuthorization(baseConfig());
+
+        expect(new URL(url).searchParams.get("client_id")).toBe("preconf-1");
+        // No dynamic client registration call when a client is pre-configured.
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.MCP_OAUTH_CLIENTS;
+      }
     });
   });
 

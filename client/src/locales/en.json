@@ -1490,15 +1490,15 @@
       "preset": {
         "googleDrive": {
           "tagline": "Let the assistant search & read your Drive files",
-          "instructions": "Connect your Google Drive so Ask AI can search and read your files. You'll be redirected to Google to sign in and approve access — no token to paste. Enter your Google Drive MCP server's URL below to begin."
+          "instructions": "Connect Google Drive so Ask AI can search and read your files. You'll be redirected to Google to sign in and approve access — no URL or token to enter."
         },
         "zohoBigin": {
           "tagline": "Show CRM details about the email sender",
-          "instructions": "Connect your Zoho Bigin MCP server to surface contact and deal info when you open an email. Paste the server endpoint and a token with read access to your Bigin data."
+          "instructions": "Connect Zoho Bigin to show CRM details about the sender. Create a server in the Zoho MCP portal, then paste its generated URL (it includes your access key) below."
         },
         "hubspot": {
           "tagline": "Show CRM details about the email sender",
-          "instructions": "Connect your HubSpot MCP server to surface contact, company and deal info when you open an email. Paste the server endpoint and a private-app token with CRM read scopes."
+          "instructions": "Connect HubSpot to show CRM details about the email sender. You'll be redirected to HubSpot to approve access — no URL or token to enter."
         },
         "custom": {
           "tagline": "Connect any MCP server by URL",

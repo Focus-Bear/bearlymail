@@ -4060,15 +4060,15 @@
       "preset": {
         "googleDrive": {
           "tagline": "Permite que el asistente busque y lea tus archivos de Drive",
-          "instructions": "Conecta tu Google Drive para que Preguntar a la IA pueda buscar y leer tus archivos. Se te redirigirá a Google para iniciar sesión y aprobar el acceso, sin pegar ningún token. Introduce abajo la URL del servidor MCP de tu Google Drive para empezar."
+          "instructions": "Conecta Google Drive para que Preguntar a la IA pueda buscar y leer tus archivos. Se te redirigirá a Google para iniciar sesión y aprobar el acceso, sin URL ni token que introducir."
         },
         "zohoBigin": {
           "tagline": "Muestra detalles del CRM sobre el remitente del correo",
-          "instructions": "Conecta tu servidor MCP de Zoho Bigin para mostrar información de contactos y negocios al abrir un correo. Pega el endpoint del servidor y un token con acceso de lectura a tus datos de Bigin."
+          "instructions": "Conecta Zoho Bigin para mostrar detalles del CRM sobre el remitente. Crea un servidor en el portal MCP de Zoho y pega abajo la URL generada (incluye tu clave de acceso)."
         },
         "hubspot": {
           "tagline": "Muestra detalles del CRM sobre el remitente del correo",
-          "instructions": "Conecta tu servidor MCP de HubSpot para mostrar información de contactos, empresas y negocios al abrir un correo. Pega el endpoint del servidor y un token de aplicación privada con permisos de lectura del CRM."
+          "instructions": "Conecta HubSpot para mostrar detalles del CRM sobre el remitente. Se te redirigirá a HubSpot para aprobar el acceso, sin URL ni token que introducir."
         },
         "custom": {
           "tagline": "Conecta cualquier servidor MCP mediante URL",

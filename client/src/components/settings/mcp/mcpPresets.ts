@@ -54,7 +54,13 @@ export interface MCPProviderPreset {
    * (redirect to consent); "bearer" uses a pasted API key / token.
    */
   authType: MCPAuthType;
-  /** Placeholder for the Server URL field. */
+  /**
+   * Known hosted endpoint for this provider, pre-filled so the user never has
+   * to find/paste it. Omitted for providers whose URL is per-user (e.g. Zoho)
+   * or for the custom option.
+   */
+  defaultServerUrl?: string;
+  /** Placeholder for the Server URL field (used when there is no default). */
   urlPlaceholder: string;
   /** Guidance shown above the form fields once the preset is chosen. */
   instructions: string;
@@ -71,7 +77,9 @@ export const getMcpProviderPresets = (translate: TFunction): MCPProviderPreset[]
     tagline: translate('settings.mcp.preset.googleDrive.tagline'),
     purpose: 'ask_ai',
     authType: 'oauth',
-    urlPlaceholder: 'https://your-drive-mcp.example.com/mcp',
+    // Google's official hosted Drive MCP server.
+    defaultServerUrl: 'https://drivemcp.googleapis.com/mcp/v1',
+    urlPlaceholder: 'https://drivemcp.googleapis.com/mcp/v1',
     instructions: translate('settings.mcp.preset.googleDrive.instructions'),
   },
   {
@@ -82,7 +90,9 @@ export const getMcpProviderPresets = (translate: TFunction): MCPProviderPreset[]
     tagline: translate('settings.mcp.preset.zohoBigin.tagline'),
     purpose: 'sender_context',
     authType: 'bearer',
-    urlPlaceholder: 'https://your-bigin-mcp.example.com/mcp',
+    // Zoho generates a unique per-user MCP URL (with an embedded key), so it
+    // can't be pre-filled — the user pastes the one from the Zoho MCP portal.
+    urlPlaceholder: 'https://mcp.zoho.com/...',
     instructions: translate('settings.mcp.preset.zohoBigin.instructions'),
   },
   {
@@ -92,8 +102,10 @@ export const getMcpProviderPresets = (translate: TFunction): MCPProviderPreset[]
     brandColor: '#FF7A59',
     tagline: translate('settings.mcp.preset.hubspot.tagline'),
     purpose: 'sender_context',
-    authType: 'bearer',
-    urlPlaceholder: 'https://your-hubspot-mcp.example.com/mcp',
+    authType: 'oauth',
+    // HubSpot's official hosted MCP server.
+    defaultServerUrl: 'https://mcp.hubspot.com',
+    urlPlaceholder: 'https://mcp.hubspot.com',
     instructions: translate('settings.mcp.preset.hubspot.instructions'),
   },
   {

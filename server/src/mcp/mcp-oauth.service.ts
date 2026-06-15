@@ -83,12 +83,8 @@ export class MCPOAuthService {
       config.oauthScope ?? metadata.scopesSupported?.join(" ") ?? "";
 
     if (!clientId) {
-      const registered = await this.registerClient(
-        metadata,
-        redirectUri,
-        scope,
-      );
-      ({ clientId, clientSecret } = registered);
+      const resolved = await this.resolveClient(metadata, redirectUri, scope);
+      ({ clientId, clientSecret } = resolved);
     }
 
     const codeVerifier = base64url(randomBytes(VERIFIER_BYTES));
@@ -248,7 +244,10 @@ export class MCPOAuthService {
     // The browser will be redirected to authorizationEndpoint and we will
     // POST to tokenEndpoint server-side. Reject malformed URLs, non-HTTPS
     // schemes, and private/loopback hosts (SSRF / phishing guard).
-    assertSafeOutboundUrl(authorizationEndpoint, "OAuth authorization endpoint");
+    assertSafeOutboundUrl(
+      authorizationEndpoint,
+      "OAuth authorization endpoint",
+    );
     assertSafeOutboundUrl(tokenEndpoint, "OAuth token endpoint");
     const scopes = Array.isArray(doc?.scopes_supported)
       ? (doc.scopes_supported as unknown[]).filter(
@@ -262,6 +261,73 @@ export class MCPOAuthService {
       registrationEndpoint: readString(doc?.registration_endpoint),
       scopesSupported: scopes,
     };
+  }
+
+  /**
+   * Resolve an OAuth client for the server: dynamic client registration when
+   * the authorization server supports it (RFC 7591), otherwise a pre-configured
+   * client from `MCP_OAUTH_CLIENTS` (for hosted servers like Google Drive /
+   * HubSpot that require a manually-registered client).
+   */
+  private async resolveClient(
+    metadata: MCPOAuthMetadata,
+    redirectUri: string,
+    scope: string,
+  ): Promise<{ clientId: string; clientSecret: string | null }> {
+    if (metadata.registrationEndpoint) {
+      return this.registerClient(metadata, redirectUri, scope);
+    }
+    const configured = this.configuredClient(metadata);
+    if (configured) {
+      return configured;
+    }
+    throw new Error(
+      "This MCP server requires a pre-registered OAuth client. Configure " +
+        "MCP_OAUTH_CLIENTS for its authorization server, or use a server that " +
+        "supports dynamic client registration.",
+    );
+  }
+
+  /**
+   * Look up a pre-configured OAuth client for the server's authorization server
+   * from the `MCP_OAUTH_CLIENTS` env var — a JSON object keyed by the auth
+   * server's host, e.g. `{"accounts.google.com":{"clientId":"…","clientSecret":"…"}}`.
+   */
+  private configuredClient(
+    metadata: MCPOAuthMetadata,
+  ): { clientId: string; clientSecret: string | null } | null {
+    const raw = process.env.MCP_OAUTH_CLIENTS;
+    if (!raw) {
+      return null;
+    }
+    let map: Record<string, { clientId?: string; clientSecret?: string }>;
+    try {
+      map = JSON.parse(raw);
+      if (typeof map !== "object" || map === null || Array.isArray(map)) {
+        throw new Error("Not a JSON object");
+      }
+    } catch {
+      this.logger.warn("MCP_OAUTH_CLIENTS is set but is not a valid JSON object");
+      return null;
+    }
+    const hosts: string[] = [];
+    for (const value of [metadata.issuer, metadata.authorizationEndpoint]) {
+      try {
+        if (value) hosts.push(new URL(value).host);
+      } catch {
+        // ignore unparseable URLs
+      }
+    }
+    for (const host of hosts) {
+      const entry = map[host];
+      if (entry?.clientId) {
+        return {
+          clientId: entry.clientId,
+          clientSecret: entry.clientSecret ?? null,
+        };
+      }
+    }
+    return null;
   }
 
   private async registerClient(

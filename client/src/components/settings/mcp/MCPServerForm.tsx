@@ -38,8 +38,11 @@ const labelStyle: React.CSSProperties = {
 export const MCPServerForm: React.FC<MCPServerFormProps> = ({ preset, onConnect, onStartOAuth, onCancel }) => {
   const { t } = useTranslation();
   const isOAuth = preset.authType === MCP_AUTH_TYPES.OAUTH;
+  // Providers with a known hosted endpoint are pre-filled and the URL field is
+  // hidden, so connecting is a single click (no URL to find or paste).
+  const hasFixedUrl = Boolean(preset.defaultServerUrl);
   const [name, setName] = useState(preset.name);
-  const [serverUrl, setServerUrl] = useState('');
+  const [serverUrl, setServerUrl] = useState(preset.defaultServerUrl ?? '');
   const [apiKey, setApiKey] = useState('');
   const [purpose, setPurpose] = useState<MCPServerPurpose>(preset.purpose);
   const [saving, setSaving] = useState(false);
@@ -124,16 +127,18 @@ export const MCPServerForm: React.FC<MCPServerFormProps> = ({ preset, onConnect,
             style={inputStyle}
           />
         </div>
-        <div>
-          <label style={labelStyle}>{t('settings.mcp.form.serverUrl')}</label>
-          <input
-            type="url"
-            value={serverUrl}
-            onChange={evt => setServerUrl(evt.target.value)}
-            placeholder={preset.urlPlaceholder}
-            style={inputStyle}
-          />
-        </div>
+        {!hasFixedUrl && (
+          <div>
+            <label style={labelStyle}>{t('settings.mcp.form.serverUrl')}</label>
+            <input
+              type="url"
+              value={serverUrl}
+              onChange={evt => setServerUrl(evt.target.value)}
+              placeholder={preset.urlPlaceholder}
+              style={inputStyle}
+            />
+          </div>
+        )}
         {isOAuth ? (
           <div
             style={{

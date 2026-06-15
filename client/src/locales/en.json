@@ -162,7 +162,8 @@
       "error": "Failed to reset password. The link may have expired.",
       "invalidLink": "This reset link is invalid or missing a token.",
       "requestNewLink": "Request a new password reset link"
-    }
+    },
+    "accountMenu": "Account menu"
   },
   "stepUp": {
     "title": "Confirm Your Identity",
@@ -483,6 +484,11 @@
       "total_one": "{{count}} email to triage",
       "total_other": "{{count}} emails to triage",
       "band": "{{count}} {{label}}"
+    },
+    "scheduledTour": {
+      "title": "Email scheduled ✅",
+      "body": "Find it here anytime — tap ⋮ then Scheduled to view, reschedule, or cancel.",
+      "dismiss": "Got it"
     },
     "familyCategoryCount_one": "{{count}} category",
     "familyCategoryCount_other": "{{count}} categories"

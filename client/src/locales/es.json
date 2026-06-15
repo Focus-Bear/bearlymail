@@ -463,7 +463,8 @@
       "error": "No se pudo restablecer la contraseña. El enlace puede haber expirado.",
       "invalidLink": "Este enlace de restablecimiento no es válido o le falta un token.",
       "requestNewLink": "Solicitar un nuevo enlace de restablecimiento de contraseña"
-    }
+    },
+    "accountMenu": "Menú de cuenta"
   },
   "booking": {
     "availableTimes": "Horarios disponibles",
@@ -2002,6 +2003,11 @@
       "total_one": "{{count}} correo por clasificar",
       "total_other": "{{count}} correos por clasificar",
       "band": "{{count}} {{label}}"
+    },
+    "scheduledTour": {
+      "title": "Correo programado ✅",
+      "body": "Encuéntralo aquí cuando quieras: toca ⋮ y luego Programados para ver, reprogramar o cancelar.",
+      "dismiss": "Entendido"
     },
     "familyCategoryCount_one": "{{count}} categoría",
     "familyCategoryCount_other": "{{count}} categorías"

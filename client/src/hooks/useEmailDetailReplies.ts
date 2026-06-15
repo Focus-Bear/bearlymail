@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Email } from 'types/email';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
+import { markScheduledEmailSent } from 'utils/scheduledTour';
 
 import { API_URL } from 'config/api';
 import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
@@ -99,6 +100,10 @@ async function executeSendReply(params: SendReplyParams): Promise<void> {
     params.setShowBcc(false);
     params.setInitialAttachments([]);
     params.setScheduledSendAt(null);
+    if (params.isScheduled) {
+      // Point users at where scheduled emails live (inbox ⋮ menu).
+      markScheduledEmailSent();
+    }
     params.showSuccess(params.successMsg);
   } catch (error: unknown) {
     console.error('Error sending reply:', error);

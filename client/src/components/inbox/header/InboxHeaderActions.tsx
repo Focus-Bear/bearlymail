@@ -4,8 +4,10 @@ import { FiMoreVertical } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
+import { dismissScheduledTour, SCHEDULED_TOUR_UPDATED_EVENT, shouldShowScheduledTour } from 'utils/scheduledTour';
 
 import { HelpLink } from 'components/inbox/header/HelpLink';
+import { ScheduledCoachmark } from 'components/inbox/header/ScheduledCoachmark';
 import { EMOJI_BUG } from 'constants/emojis';
 import { ROUTE_SCHEDULED } from 'constants/strings';
 
@@ -52,7 +54,23 @@ const InboxOverflowMenu: React.FC<{
 }) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showCoachmark, setShowCoachmark] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateCoachmark = () => setShowCoachmark(shouldShowScheduledTour());
+    updateCoachmark();
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    window.addEventListener(SCHEDULED_TOUR_UPDATED_EVENT, updateCoachmark);
+    return () => window.removeEventListener(SCHEDULED_TOUR_UPDATED_EVENT, updateCoachmark);
+  }, []);
+
+  const handleDismissCoachmark = () => {
+    dismissScheduledTour();
+    setShowCoachmark(false);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -71,7 +89,12 @@ const InboxOverflowMenu: React.FC<{
   return (
     <div style={{ position: 'relative' }} ref={menuRef}>
       <button
-        onClick={() => setMenuOpen(prev => !prev)}
+        onClick={() => {
+          if (showCoachmark) {
+            handleDismissCoachmark();
+          }
+          setMenuOpen(prev => !prev);
+        }}
         title={moreActionsLabel}
         aria-label={moreActionsLabel}
         style={{
@@ -135,6 +158,7 @@ const InboxOverflowMenu: React.FC<{
           </button>
         </div>
       )}
+      {showCoachmark && !menuOpen && <ScheduledCoachmark onDismiss={handleDismissCoachmark} />}
     </div>
   );
 };

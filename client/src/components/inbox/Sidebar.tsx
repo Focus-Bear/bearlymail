@@ -17,9 +17,7 @@ import {
   ROUTE_CRM_CONTACT_GROUPS,
   ROUTE_CRM_CONTACTS,
   ROUTE_CRM_DEALS,
-  ROUTE_HELP,
   ROUTE_INBOX,
-  ROUTE_SCHEDULED,
   ROUTE_SEARCH,
   ROUTE_SETTINGS,
   ROUTE_STATS,
@@ -44,12 +42,10 @@ interface SidebarItemProps {
 const SIDEBAR_ROUTE_EVENTS: Record<string, string> = {
   [ROUTE_INBOX]: ANALYTICS_EVENTS.SIDEBAR_INBOX_CLICKED,
   [ROUTE_COMPOSE]: ANALYTICS_EVENTS.SIDEBAR_COMPOSE_CLICKED,
-  [ROUTE_SCHEDULED]: ANALYTICS_EVENTS.SIDEBAR_SCHEDULED_CLICKED,
   [ROUTE_SEARCH]: ANALYTICS_EVENTS.SIDEBAR_SEARCH_CLICKED,
   [ROUTE_CRM_CONTACTS]: ANALYTICS_EVENTS.SIDEBAR_CONTACTS_CLICKED,
   [ROUTE_CRM_DEALS]: ANALYTICS_EVENTS.SIDEBAR_DEALS_CLICKED,
   [ROUTE_STATS]: ANALYTICS_EVENTS.SIDEBAR_STATS_CLICKED,
-  [ROUTE_HELP]: ANALYTICS_EVENTS.SIDEBAR_HELP_CLICKED,
   [ROUTE_SETTINGS]: ANALYTICS_EVENTS.SIDEBAR_SETTINGS_CLICKED,
   [ROUTE_ADMIN]: ANALYTICS_EVENTS.SIDEBAR_ADMIN_CLICKED,
 };
@@ -315,14 +311,6 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       onNavigationClick={handleNavigationClick}
     />
     <SidebarItem
-      label={translate('scheduledEmails.sidebarLabel')}
-      path={ROUTE_SCHEDULED}
-      icon="🕐"
-      active={location.pathname === ROUTE_SCHEDULED}
-      isCollapsed={effectiveIsCollapsed}
-      onNavigationClick={handleNavigationClick}
-    />
-    <SidebarItem
       label={translate('common.search')}
       path={ROUTE_SEARCH}
       icon="🔍"
@@ -349,14 +337,6 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       path={ROUTE_STATS}
       icon="📊"
       active={location.pathname === ROUTE_STATS}
-      isCollapsed={effectiveIsCollapsed}
-      onNavigationClick={handleNavigationClick}
-    />
-    <SidebarItem
-      label={translate('help.title')}
-      path={ROUTE_HELP}
-      icon="❓"
-      active={location.pathname === ROUTE_HELP || location.pathname.startsWith(`${ROUTE_HELP}/`)}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
     />

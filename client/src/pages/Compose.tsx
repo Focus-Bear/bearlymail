@@ -6,6 +6,7 @@ import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { getNextMorning } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
+import { markScheduledEmailSent } from 'utils/scheduledTour';
 
 import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { ComposeActions } from 'components/compose/ComposeActions';
@@ -166,6 +167,10 @@ const Compose: React.FC = () => {
     try {
       await axios.post(`${API_URL}/emails/send`, payload);
       setSendSuccess(true);
+      if (scheduledSendAt) {
+        // Surface where scheduled emails live (inbox ⋮ menu) on next inbox view.
+        markScheduledEmailSent();
+      }
       navigationTimeoutRef.current = setTimeout(() => {
         navigate('/inbox');
       }, DELAY_1_5_SECONDS_MS);

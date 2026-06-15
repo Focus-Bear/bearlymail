@@ -811,16 +811,18 @@ export class BearlyMailStack extends cdk.Stack {
         EMAIL_EXPORTS_BUCKET: emailExportsBucket.bucketName,
         KMS_KEY_ID: dataEncryptionKey.keyArn,
         // Local category/priority model (BearlyMailLocalModelServingStack). The
-        // worker invokes this Lambda in shadow mode; flip the flag to 'true'
-        // (or deploy with -c localModelShadowEnabled=true) once a model bundle
-        // exists in S3. Off by default so it's a true no-op until then.
+        // worker invokes this Lambda in shadow mode (LLM stays authoritative; the
+        // comparison runs after the result is persisted, never throws, logs
+        // agreement + a debug snapshot). Per-user bundles now exist in S3, so
+        // shadow is ON by default; disable with -c localModelShadowEnabled=false.
         LOCAL_MODEL_INFERENCE_FUNCTION: 'bearlymail-local-model-inference',
-        // Accept either a boolean (cdk.json) or the string 'true'
-        // (-c localModelShadowEnabled=true); anything else (incl. undefined) is off.
+        // On unless explicitly disabled via a boolean (cdk.json) or the string
+        // 'false' (-c localModelShadowEnabled=false).
         LOCAL_MODEL_SHADOW_ENABLED:
-          localModelShadowEnabled === true || localModelShadowEnabled === 'true'
-            ? 'true'
-            : 'false',
+          localModelShadowEnabled === false ||
+          localModelShadowEnabled === 'false'
+            ? 'false'
+            : 'true',
         // Models bucket (BearlyMailLocalModelServingStack) — the worker writes
         // the weekly training-data feed to its training-data/ prefix. Name is
         // deterministic (account+region), so referenced by value to avoid a

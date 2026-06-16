@@ -6,6 +6,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AwsModule } from "../aws/aws.module";
 import { CategoryKeysModule } from "../category-keys/category-keys.module";
 import { CategoryFamily } from "../database/entities/category-family.entity";
+import { CategoryRule } from "../database/entities/category-rule.entity";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -15,6 +16,7 @@ import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
+import { CategoryConsolidationService } from "./category-consolidation.service";
 import { CategoryFamilyController } from "./category-family.controller";
 import { CategoryFamilyService } from "./category-family.service";
 import { ContextController } from "./context.controller";
@@ -49,6 +51,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
       EmailThread,
       ContextAnalysis,
       CategoryFamily,
+      CategoryRule,
       User,
     ]),
     LLMModule,
@@ -62,6 +65,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
   providers: [
     ContextService,
     CategoryFamilyService,
+    CategoryConsolidationService,
     ContextAnalysisHelpersService,
     ContextAnalysisQueryService,
     ContextAnalysisOrchestratorService,

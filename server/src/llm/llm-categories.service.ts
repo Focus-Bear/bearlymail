@@ -14,6 +14,10 @@ import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
 import {
+  type DuplicateCategoryGroup,
+  identifyDuplicateCategories as identifyDuplicateCategoriesImpl,
+} from "./llm-duplicate-categories";
+import {
   LLM_OP_ASSESS_CATEGORY_RULE_VALUE,
   LLM_OP_CONSOLIDATE_CATEGORIES,
   LLM_OP_DERIVE_RULE_EXCLUSIONS,
@@ -35,6 +39,7 @@ export type {
   DeriveExclusionsResult,
   ExclusionDerivationSample,
 } from "./derive-exclusions-parser";
+export type { DuplicateCategoryGroup } from "./llm-duplicate-categories";
 export type { SuggestRulesResult } from "./llm-rule-value";
 
 export interface DeriveExclusionPhrasesParams {
@@ -372,6 +377,27 @@ export class LLMCategoriesService {
       `[CATEGORY-CONSOLIDATION] === FALLBACK === Returning original categories without consolidation`,
     );
     return fallbackResult;
+  }
+
+  /**
+   * Family-scoped, conservative de-duplication for the manual "Consolidate
+   * Categories" button. Delegates to {@link identifyDuplicateCategoriesImpl}
+   * (kept separate for file-size). Never throws — returns `[]` on failure so
+   * the caller leaves the family untouched. Unlike
+   * {@link consolidateEmailCategories} (used during initial analysis), it does
+   * NOT collapse the list into broad buckets and imposes no count cap.
+   */
+  async identifyDuplicateCategories(
+    familyName: string,
+    categories: Array<{ name: string; description: string }>,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<DuplicateCategoryGroup[]> {
+    return identifyDuplicateCategoriesImpl(
+      (request) => this.llmCoreService.generateText(request, provider, userId),
+      this.logger,
+      { familyName, categories, userId },
+    );
   }
 
   private parseGeneratedCategoriesResponse(

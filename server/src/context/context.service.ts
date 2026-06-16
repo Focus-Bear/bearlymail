@@ -6,6 +6,11 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import {
+  type ConsolidationResult,
+  type PrunedCategory,
+  type PruneResult,
+} from "./category-consolidation.service";
 import { ContextAnalysisFinalizerService } from "./context-analysis-finalizer.service";
 import { ContextAnalysisHelpersService } from "./context-analysis-helpers.service";
 import { ContextAnalysisOrchestratorService } from "./context-analysis-orchestrator.service";
@@ -170,17 +175,18 @@ export class ContextService {
     return this.finalizerService.finalizeContextAnalysis(options);
   }
 
-  async consolidateExistingCategories(userId: string): Promise<{
-    originalCount: number;
-    consolidatedCount: number;
-    userAddedCount: number;
-    categories: Array<{
-      name: string;
-      description: string;
-      isUserAdded: boolean;
-    }>;
-  }> {
+  async consolidateExistingCategories(
+    userId: string,
+  ): Promise<ConsolidationResult> {
     return this.contextCompressionService.consolidateExistingCategories(userId);
+  }
+
+  async listUnusedCategories(userId: string): Promise<PrunedCategory[]> {
+    return this.contextCompressionService.listUnusedCategories(userId);
+  }
+
+  async pruneUnusedCategories(userId: string): Promise<PruneResult> {
+    return this.contextCompressionService.pruneUnusedCategories(userId);
   }
 
   async generateCategoriesFromOther(userId: string): Promise<{

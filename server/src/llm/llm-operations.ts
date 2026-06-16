@@ -80,6 +80,9 @@ export const LLM_OP_DISPUTE_TONE_CHECK = "dispute_tone_check";
 // Email category consolidation
 export const LLM_OP_CONSOLIDATE_CATEGORIES = "consolidate_categories";
 
+// Family-scoped de-duplication of existing categories (manual "Consolidate" button)
+export const LLM_OP_MERGE_DUPLICATE_CATEGORIES = "merge_duplicate_categories";
+
 // Generate new categories from "Other" emails
 export const LLM_OP_GENERATE_CATEGORIES_FROM_OTHER =
   "generate_categories_from_other";
@@ -179,6 +182,7 @@ export type LLMOperation =
   | typeof LLM_OP_VALIDATE_WRITING_EXAMPLE
   | typeof LLM_OP_DISPUTE_TONE_CHECK
   | typeof LLM_OP_CONSOLIDATE_CATEGORIES
+  | typeof LLM_OP_MERGE_DUPLICATE_CATEGORIES
   | typeof LLM_OP_GENERATE_CATEGORIES_FROM_OTHER
   | typeof LLM_OP_IDENTIFY_CUSTOM_LABELS
   | typeof LLM_OP_INCREMENTAL_PRIORITY_CHECK
@@ -231,6 +235,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_VALIDATE_WRITING_EXAMPLE]: "Validate Writing Example",
   [LLM_OP_DISPUTE_TONE_CHECK]: "Dispute Tone Check",
   [LLM_OP_CONSOLIDATE_CATEGORIES]: "Consolidate Categories",
+  [LLM_OP_MERGE_DUPLICATE_CATEGORIES]: "Merge Duplicate Categories",
   [LLM_OP_GENERATE_CATEGORIES_FROM_OTHER]: "Generate Categories from Other",
   [LLM_OP_IDENTIFY_CUSTOM_LABELS]: "Identify Custom Labels",
   [LLM_OP_INCREMENTAL_PRIORITY_CHECK]: "Incremental Priority Check",

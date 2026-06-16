@@ -101,16 +101,22 @@ const CONTEXT_SECTIONS: ContextSectionConfig[] = [
 interface CategoryActionsState {
   isRecategorizing: boolean;
   isConsolidating: boolean;
+  isPruning: boolean;
   isCompressing: boolean;
   compressComplete: boolean;
   showProtoCategoriesModal: boolean;
   showConsolidateConfirm: boolean;
+  showPruneConfirm: boolean;
+  unusedCategories: string[];
   recategorizeProgress: RecategorizeProgressState;
   dismissProgress: () => void;
   setShowProtoCategoriesModal: (show: boolean) => void;
   setShowConsolidateConfirm: (show: boolean) => void;
+  setShowPruneConfirm: (show: boolean) => void;
   handleRecategorize: () => Promise<void>;
   handleConsolidateConfirmed: () => Promise<void>;
+  handleOpenPruneModal: () => Promise<void>;
+  handlePruneConfirmed: () => Promise<void>;
   handleCompressContext: () => Promise<void>;
 }
 
@@ -123,6 +129,9 @@ function useCategoryActions(onRefreshContexts?: () => void): CategoryActionsStat
   const [compressComplete, setCompressComplete] = useState(false);
   const [showProtoCategoriesModal, setShowProtoCategoriesModal] = useState(false);
   const [showConsolidateConfirm, setShowConsolidateConfirm] = useState(false);
+  const [isPruning, setIsPruning] = useState(false);
+  const [showPruneConfirm, setShowPruneConfirm] = useState(false);
+  const [unusedCategories, setUnusedCategories] = useState<string[]>([]);
   const { progress: recategorizeProgress, startTracking, dismiss: dismissProgress } = useRecategorizeProgress();
 
   const handleRecategorize = async () => {
@@ -144,14 +153,67 @@ function useCategoryActions(onRefreshContexts?: () => void): CategoryActionsStat
     setShowConsolidateConfirm(false);
     setIsConsolidating(true);
     try {
-      await axios.post(`${API_URL}/context/consolidate-categories`);
-      showSuccess(t('settings.emailCategories.consolidateSuccess'));
+      const { data } = await axios.post(
+        `${API_URL}/context/consolidate-categories`,
+      );
+      const merged = (data?.mergedGroups ?? []).reduce(
+        (sum: number, group: { merged?: unknown[] }) =>
+          sum + (group.merged?.length ?? 0),
+        0,
+      );
+      const pruned = data?.prunedCategories?.length ?? 0;
+      if (merged === 0 && pruned === 0) {
+        showSuccess(t('settings.emailCategories.consolidateNoChanges'));
+      } else {
+        showSuccess(
+          t('settings.emailCategories.consolidateSuccess', { merged, pruned }),
+        );
+      }
       setTimeout(() => window.location.reload(), CONSOLIDATE_RELOAD_DELAY_MS);
     } catch (error) {
       console.error('Failed to consolidate categories:', error);
       showError(t('settings.emailCategories.consolidateError'));
     } finally {
       setIsConsolidating(false);
+    }
+  };
+
+  const handleOpenPruneModal = async () => {
+    setIsPruning(true);
+    try {
+      const { data } = await axios.get(`${API_URL}/context/unused-categories`);
+      const names = ((data ?? []) as Array<{ name: string }>).map(
+        category => category.name,
+      );
+      if (names.length === 0) {
+        showSuccess(t('settings.emailCategories.pruneNoneFound'));
+        return;
+      }
+      setUnusedCategories(names);
+      setShowPruneConfirm(true);
+    } catch (error) {
+      console.error('Failed to load unused categories:', error);
+      showError(t('settings.emailCategories.pruneError'));
+    } finally {
+      setIsPruning(false);
+    }
+  };
+
+  const handlePruneConfirmed = async () => {
+    setShowPruneConfirm(false);
+    setIsPruning(true);
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/context/prune-unused-categories`,
+      );
+      const count = data?.prunedCount ?? 0;
+      showSuccess(t('settings.emailCategories.pruneSuccess', { count }));
+      setTimeout(() => window.location.reload(), CONSOLIDATE_RELOAD_DELAY_MS);
+    } catch (error) {
+      console.error('Failed to prune unused categories:', error);
+      showError(t('settings.emailCategories.pruneError'));
+    } finally {
+      setIsPruning(false);
     }
   };
 
@@ -174,16 +236,22 @@ function useCategoryActions(onRefreshContexts?: () => void): CategoryActionsStat
   return {
     isRecategorizing,
     isConsolidating,
+    isPruning,
     isCompressing,
     compressComplete,
     showProtoCategoriesModal,
     showConsolidateConfirm,
+    showPruneConfirm,
+    unusedCategories,
     recategorizeProgress,
     dismissProgress,
     setShowProtoCategoriesModal,
     setShowConsolidateConfirm,
+    setShowPruneConfirm,
     handleRecategorize,
     handleConsolidateConfirmed,
+    handleOpenPruneModal,
+    handlePruneConfirmed,
     handleCompressContext,
   };
 }
@@ -263,12 +331,14 @@ const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }
   const menuRef = useRef<HTMLDivElement>(null);
   const {
     isConsolidating,
+    isPruning,
     isRecategorizing,
     recategorizeProgress,
     dismissProgress,
     showProtoCategoriesModal,
     setShowProtoCategoriesModal,
     handleConsolidateCategories,
+    handleOpenPruneModal,
     handleRecategorize,
   } = actions as CategoryActionsState & { handleConsolidateCategories: () => void };
 
@@ -362,6 +432,18 @@ const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }
                 : t('settings.emailCategories.consolidate')}
             </button>
             <button
+              style={isPruning ? menuItemDisabledStyle : menuItemStyle}
+              disabled={isPruning}
+              onClick={() => {
+                handleOpenPruneModal();
+                setMenuOpen(false);
+              }}
+            >
+              {isPruning
+                ? t('settings.emailCategories.pruning')
+                : t('settings.emailCategories.pruneUnused')}
+            </button>
+            <button
               style={isRecategorizing ? menuItemDisabledStyle : menuItemStyle}
               disabled={isRecategorizing}
               onClick={() => {
@@ -439,7 +521,15 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
 }) => {
   const { t } = useTranslation();
   const actions = useCategoryActions(onRefreshContexts);
-  const { showConsolidateConfirm, setShowConsolidateConfirm, handleConsolidateConfirmed } = actions;
+  const {
+    showConsolidateConfirm,
+    setShowConsolidateConfirm,
+    handleConsolidateConfirmed,
+    showPruneConfirm,
+    setShowPruneConfirm,
+    handlePruneConfirmed,
+    unusedCategories,
+  } = actions;
 
   const commonProps = {
     contexts,
@@ -474,6 +564,19 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
         icon="🔀"
         onConfirm={handleConsolidateConfirmed}
         onCancel={() => setShowConsolidateConfirm(false)}
+      />
+      <ConfirmModal
+        isOpen={showPruneConfirm}
+        title={t('settings.emailCategories.pruneUnused')}
+        message={t('settings.emailCategories.pruneConfirm', {
+          count: unusedCategories.length,
+          names: unusedCategories.join(', '),
+        })}
+        confirmLabel={t('settings.emailCategories.pruneConfirmButton')}
+        cancelLabel={t('common.cancel')}
+        icon="🗑️"
+        onConfirm={handlePruneConfirmed}
+        onCancel={() => setShowPruneConfirm(false)}
       />
       {shouldShowCompressBanner && <CompressContextBanner actions={actions} />}
       {CONTEXT_SECTIONS.map(config => {

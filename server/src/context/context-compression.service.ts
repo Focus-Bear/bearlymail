@@ -18,6 +18,11 @@ import { LLMService } from "../llm/llm.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { allocateUniqueCategoryKey } from "../utils/category-key.util";
 import { parseCategoryName } from "../utils/category-name.util";
+import {
+  type ConsolidationResult,
+  type PrunedCategory,
+  type PruneResult,
+} from "./category-consolidation.service";
 import { ContextCategoryService } from "./context-category.service";
 
 @Injectable()
@@ -37,17 +42,20 @@ export class ContextCompressionService {
    * Consolidate existing email categories in the database using LLM.
    * Delegates to ContextCategoryService.
    */
-  async consolidateExistingCategories(userId: string): Promise<{
-    originalCount: number;
-    consolidatedCount: number;
-    userAddedCount: number;
-    categories: Array<{
-      name: string;
-      description: string;
-      isUserAdded: boolean;
-    }>;
-  }> {
+  async consolidateExistingCategories(
+    userId: string,
+  ): Promise<ConsolidationResult> {
     return this.categoryService.consolidateExistingCategories(userId);
+  }
+
+  /** Delegates to ContextCategoryService. */
+  async listUnusedCategories(userId: string): Promise<PrunedCategory[]> {
+    return this.categoryService.listUnusedCategories(userId);
+  }
+
+  /** Delegates to ContextCategoryService. */
+  async pruneUnusedCategories(userId: string): Promise<PruneResult> {
+    return this.categoryService.pruneUnusedCategories(userId);
   }
 
   /**

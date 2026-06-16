@@ -585,6 +585,28 @@ export class ContextController {
     return result;
   }
 
+  @Get("unused-categories")
+  async getUnusedCategories(@Request() req: { user: { userId: string } }) {
+    const { userId } = req.user;
+    return this.contextService.listUnusedCategories(userId);
+  }
+
+  @Post("prune-unused-categories")
+  async pruneUnusedCategories(@Request() req: { user: { userId: string } }) {
+    const { userId } = req.user;
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] POST /context/prune-unused-categories received for user ${userId}`,
+    );
+
+    const result = await this.contextService.pruneUnusedCategories(userId);
+
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] Pruned ${result.prunedCount} unused categories for user ${userId} (${result.remainingCount} remain)`,
+    );
+
+    return result;
+  }
+
   @Post("generate-categories-from-other")
   async generateCategoriesFromOther(
     @Request() req: { user: { userId: string } },

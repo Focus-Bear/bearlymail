@@ -234,7 +234,10 @@ const EmailCard: React.FC<{
   const isOpen = demo.openIds.has(cardId);
   const isTriage = tab === TAB_TRIAGE;
   const animClass = demo.anim[cardId] ? ` ${demo.anim[cardId]}` : '';
-  const isPulseCard = isTriage && demo.pulseCardId === cardId && !demo.engaged;
+  // The guided pulse follows the top live Triage card through the whole queue
+  // (aria → sam → notion), so it keeps pointing at the next recommended action
+  // even after the user has started prioritising.
+  const isPulseCard = isTriage && demo.pulseCardId === cardId;
 
   const classNames = [
     'email-card',

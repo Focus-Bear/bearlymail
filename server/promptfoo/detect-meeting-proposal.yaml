@@ -177,6 +177,67 @@ tests:
           }
           return true;
 
+  - description: "Time-of-day window on a specific day ('afternoon or over lunch on Wednesday') resolves to the afternoon default window"
+    vars:
+      currentDatetime: "2026-06-15T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "scott.crowe@example.com"
+      fromName: "Scott Crowe"
+      subject: "Re: Catch up about the grant"
+      body: |
+        I can't do tomorrow morning, but I'm free in the afternoon or over lunch on Wednesday if that works for you?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true for 'Wednesday afternoon'. Got: ${text.substring(0, 300)}`);
+          }
+          // First option mentioned is "afternoon" -> default window 13:00-17:00 on Wed 2026-06-17.
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-06-17T13:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-06-17T13:00:00' (afternoon default on Wed). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (parsed.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne' (no tz stated). Got: ${parsed.proposedTimezone}`);
+          }
+          return true;
+
+  - description: "Time-of-day window ('Thursday morning') resolves to the morning default window"
+    vars:
+      currentDatetime: "2026-06-15T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "dana@example.com"
+      fromName: "Dana Wells"
+      subject: "Quick sync"
+      body: |
+        Are you free Thursday morning for a quick sync on the roadmap?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true for 'Thursday morning'. Got: ${text.substring(0, 300)}`);
+          }
+          // "morning" -> default window 09:00-12:00 on Thu 2026-06-18.
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-06-18T09:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-06-18T09:00:00' (morning default on Thu). Got: ${parsed.proposedLocalTime}`);
+          }
+          return true;
+
   - description: "Time with no date ('around 3pm') is NOT a concrete proposal"
     vars:
       currentDatetime: "2026-05-22T00:00:00Z"

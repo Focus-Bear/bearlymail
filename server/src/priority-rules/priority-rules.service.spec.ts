@@ -19,6 +19,7 @@ const makeRule = (overrides: Partial<PriorityRule> = {}): PriorityRule =>
     },
     band: "high",
     representativeScore: 80,
+    source: "mined",
     sampleCount: 30,
     dominantBandShare: 0.95,
     isEnabled: true,
@@ -76,8 +77,9 @@ describe("PriorityRulesService", () => {
             findOne: jest.fn(),
             increment: jest.fn(),
             create: jest.fn((x) => x),
-            save: jest.fn(),
+            save: jest.fn((x) => Promise.resolve(x)),
             update: jest.fn(),
+            delete: jest.fn(),
           },
         },
         {
@@ -296,6 +298,121 @@ describe("PriorityRulesService", () => {
         { id: "drift-1" },
         { isEnabled: false },
       );
+    });
+
+    it("does not auto-retire a user-managed rule for drift", async () => {
+      emailRepo.createQueryBuilder.mockReturnValue(makeQb([]) as never);
+      ruleRepo.find.mockResolvedValue([
+        makeRule({ id: "u1", band: "low", source: "user" }),
+      ]);
+      ruleRepo.findOne.mockResolvedValue(
+        makeRule({
+          id: "u1",
+          band: "low",
+          source: "user",
+          shadowSampleCount: 10,
+          shadowDivergenceCount: 9,
+        }),
+      );
+      await service.shadowAndMine("user-1", makeEmail(), 95, "w1");
+      expect(ruleRepo.update).not.toHaveBeenCalledWith(
+        { id: "u1" },
+        { isEnabled: false },
+      );
+    });
+  });
+
+  describe("create / update / delete", () => {
+    it("creates a user-managed rule with the band's representative score", async () => {
+      const dto = await service.createRule("user-1", {
+        senders: ["  boss@acme.com  ", ""],
+        band: "urgent",
+      });
+      expect(ruleRepo.save).toHaveBeenCalled();
+      expect(dto).toMatchObject({
+        source: "user",
+        band: "urgent",
+        representativeScore: 95,
+        senders: ["boss@acme.com"],
+      });
+    });
+
+    it("rejects creation with no senders", async () => {
+      await expect(
+        service.createRule("user-1", { senders: ["  "], band: "high" }),
+      ).rejects.toThrow();
+    });
+
+    it("rejects an invalid band", async () => {
+      await expect(
+        service.createRule("user-1", {
+          senders: ["a@b.co"],
+          band: "nope" as never,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("editing the band marks the rule source='user'", async () => {
+      ruleRepo.findOne.mockResolvedValue(makeRule({ id: "m1" }));
+      await service.updateRule("user-1", "m1", { band: "urgent" });
+      expect(ruleRepo.update).toHaveBeenCalledWith(
+        { id: "m1", userId: "user-1" },
+        expect.objectContaining({
+          band: "urgent",
+          representativeScore: 95,
+          source: "user",
+        }),
+      );
+    });
+
+    it("toggling isEnabled does NOT change the source", async () => {
+      ruleRepo.findOne.mockResolvedValue(makeRule({ id: "m1" }));
+      await service.updateRule("user-1", "m1", { isEnabled: false });
+      const patch = ruleRepo.update.mock.calls[0][1];
+      expect(patch).toEqual({ isEnabled: false });
+      expect(patch).not.toHaveProperty("source");
+    });
+
+    it("returns null when updating a non-existent rule", async () => {
+      ruleRepo.findOne.mockResolvedValue(null);
+      expect(
+        await service.updateRule("user-1", "missing", { band: "low" }),
+      ).toBeNull();
+    });
+
+    it("deletes a rule scoped to the user", async () => {
+      ruleRepo.delete.mockResolvedValue({ affected: 1, raw: [] });
+      expect(await service.deleteRule("user-1", "r1")).toBe(true);
+      expect(ruleRepo.delete).toHaveBeenCalledWith({
+        id: "r1",
+        userId: "user-1",
+      });
+    });
+  });
+
+  describe("miner protection", () => {
+    const rows30 = Array.from({ length: 30 }, (_, i) => ({
+      threadId: `t-${i}`,
+      score: 80,
+    }));
+
+    it("skips mining a sender that already has a user-managed rule (no duplicate)", async () => {
+      emailRepo.createQueryBuilder.mockReturnValue(makeQb(rows30) as never);
+      ruleRepo.find.mockResolvedValue([makeRule({ id: "u1", source: "user" })]);
+      const outcome = await service.mineAndUpsertRule(
+        "user-1",
+        makeEmail(),
+        meta,
+        "w1",
+      );
+      // The user rule is found → miner skips entirely: no overwrite, no parallel
+      // mined duplicate created.
+      expect(outcome.status).toBe("skipped");
+      expect(ruleRepo.update).not.toHaveBeenCalledWith(
+        { id: "u1" },
+        expect.anything(),
+      );
+      expect(ruleRepo.save).not.toHaveBeenCalled();
     });
   });
 });

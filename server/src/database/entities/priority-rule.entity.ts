@@ -10,6 +10,7 @@ import {
 } from "typeorm";
 
 import { PriorityBand } from "../../constants/priority-band";
+import { PriorityRuleSource } from "../../constants/priority-rule.constants";
 import { encryptedJsonTransformer } from "../../encryption/encryption.helper";
 import { CompositeCategoryRuleSpec } from "./category-rule.entity";
 import { User } from "./user.entity";
@@ -63,6 +64,14 @@ export class PriorityRule {
 
   @Column({ default: true })
   isEnabled: boolean;
+
+  /**
+   * 'mined' = auto-learned and managed by the miner (may be refreshed/retired
+   * automatically). 'user' = manually created or edited; the miner leaves it
+   * alone (never overwrites the band/spec, never auto-retires it).
+   */
+  @Column({ type: "varchar", default: "mined" })
+  source: PriorityRuleSource;
 
   @Column({ default: 0 })
   hitCount: number;

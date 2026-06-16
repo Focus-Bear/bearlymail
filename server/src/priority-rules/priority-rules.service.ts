@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
@@ -8,10 +8,14 @@ import { specToV2 } from "../category-rules/category-rules-auto-composite.helper
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import {
   bandToRepresentativeScore,
+  PRIORITY_BANDS,
   PriorityBand,
   scoreToBand,
 } from "../constants/priority-band";
-import { PRIORITY_RULE_GATES } from "../constants/priority-rule.constants";
+import {
+  PRIORITY_RULE_GATES,
+  PRIORITY_RULE_SOURCE,
+} from "../constants/priority-rule.constants";
 import type { CompositeCategoryRuleSpecV3 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { PriorityRule } from "../database/entities/priority-rule.entity";
@@ -19,6 +23,7 @@ import { buildRuleMatchText } from "../llm/email-content-cleaner";
 import type {
   PriorityRuleDto,
   PriorityRuleMatch,
+  UpsertPriorityRuleInput,
 } from "./priority-rules.types";
 import {
   computeBandConsistency,
@@ -118,7 +123,7 @@ export class PriorityRulesService {
     return rules.map((rule) => this.toDto(rule));
   }
 
-  /** Enables or disables a rule (manual override from the admin surface). */
+  /** Enables or disables a rule (manual override from the settings surface). */
   async setEnabled(
     userId: string,
     ruleId: string,
@@ -131,13 +136,131 @@ export class PriorityRulesService {
     return (result.affected ?? 0) > 0;
   }
 
+  /** Creates a user-managed priority rule (source='user'; the miner won't touch it). */
+  async createRule(
+    userId: string,
+    input: UpsertPriorityRuleInput,
+  ): Promise<PriorityRuleDto> {
+    const band = this.requireBand(input.band);
+    const spec = this.buildUserSpec(input);
+    if (spec.fromMatchesAny.length === 0) {
+      throw new BadRequestException("At least one sender is required.");
+    }
+    const created = this.priorityRuleRepository.create({
+      userId,
+      compositeSpec: spec,
+      band,
+      representativeScore: bandToRepresentativeScore(band),
+      source: PRIORITY_RULE_SOURCE.USER,
+      sampleCount: 0,
+      dominantBandShare: 0,
+      isEnabled: input.isEnabled ?? true,
+      hitCount: 0,
+      lastValidatedAt: null,
+    });
+    const saved = await this.priorityRuleRepository.save(created);
+    return this.toDto(saved);
+  }
+
+  /**
+   * Updates a rule. Editing the band or spec marks it source='user' so the miner
+   * stops managing it; toggling isEnabled alone keeps the existing source.
+   * Returns the updated DTO, or null when the rule doesn't exist for the user.
+   */
+  async updateRule(
+    userId: string,
+    ruleId: string,
+    input: UpsertPriorityRuleInput,
+  ): Promise<PriorityRuleDto | null> {
+    const rule = await this.priorityRuleRepository.findOne({
+      where: { id: ruleId, userId },
+    });
+    if (!rule) return null;
+
+    const patch: Partial<PriorityRule> = {};
+    const editsSpec =
+      input.senders !== undefined ||
+      input.subjectContainsAny !== undefined ||
+      input.bodyContainsAny !== undefined;
+
+    if (input.band !== undefined) {
+      const band = this.requireBand(input.band);
+      patch.band = band;
+      patch.representativeScore = bandToRepresentativeScore(band);
+    }
+    if (editsSpec) {
+      const existing = specToV2(rule.compositeSpec);
+      const spec = this.buildUserSpec({
+        senders: input.senders ?? existing.senderMatchesAny,
+        subjectContainsAny:
+          input.subjectContainsAny ?? existing.subjectContainsAny,
+        bodyContainsAny: input.bodyContainsAny ?? existing.bodyContainsAny,
+      });
+      if (spec.fromMatchesAny.length === 0) {
+        throw new BadRequestException("At least one sender is required.");
+      }
+      patch.compositeSpec = spec;
+    }
+    if (input.band !== undefined || editsSpec) {
+      patch.source = PRIORITY_RULE_SOURCE.USER;
+    }
+    if (input.isEnabled !== undefined) {
+      patch.isEnabled = input.isEnabled;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      await this.priorityRuleRepository.update({ id: ruleId, userId }, patch);
+    }
+    const updated = await this.priorityRuleRepository.findOne({
+      where: { id: ruleId, userId },
+    });
+    return updated ? this.toDto(updated) : null;
+  }
+
+  /** Deletes a rule. Returns false when it doesn't exist for the user. */
+  async deleteRule(userId: string, ruleId: string): Promise<boolean> {
+    const result = await this.priorityRuleRepository.delete({
+      id: ruleId,
+      userId,
+    });
+    return (result.affected ?? 0) > 0;
+  }
+
+  private requireBand(band: PriorityBand | undefined): PriorityBand {
+    if (!band || !PRIORITY_BANDS.includes(band)) {
+      throw new BadRequestException(`Invalid priority band: ${band}`);
+    }
+    return band;
+  }
+
+  private buildUserSpec(
+    input: Pick<
+      UpsertPriorityRuleInput,
+      "senders" | "subjectContainsAny" | "bodyContainsAny"
+    >,
+  ): CompositeCategoryRuleSpecV3 {
+    const clean = (values?: string[]): string[] =>
+      (values ?? []).map((value) => value.trim()).filter(Boolean);
+    return {
+      v: 3,
+      fromMatchesAny: clean(input.senders),
+      subjectContainsAny: clean(input.subjectContainsAny),
+      bodyContainsAny: clean(input.bodyContainsAny),
+    };
+  }
+
   private toDto(rule: PriorityRule): PriorityRuleDto {
-    const senders = specToV2(rule.compositeSpec).senderMatchesAny ?? [];
+    const spec = specToV2(rule.compositeSpec);
+    const senders = spec.senderMatchesAny ?? [];
     return {
       id: rule.id,
       sender: senders[0] ?? "",
+      senders,
+      subjectContainsAny: spec.subjectContainsAny ?? [],
+      bodyContainsAny: spec.bodyContainsAny ?? [],
       band: rule.band,
       representativeScore: rule.representativeScore,
+      source: rule.source,
       sampleCount: rule.sampleCount,
       dominantBandShare: rule.dominantBandShare,
       hitCount: rule.hitCount,
@@ -255,6 +378,7 @@ export class PriorityRulesService {
     if (
       !rule ||
       !rule.isEnabled ||
+      rule.source === PRIORITY_RULE_SOURCE.USER ||
       !shouldRetireForDrift(rule.shadowSampleCount, rule.shadowDivergenceCount)
     ) {
       return;
@@ -358,6 +482,11 @@ export class PriorityRulesService {
     const existing = await this.findRuleForSender(userId, sender);
     const now = new Date();
     if (existing) {
+      // A user-managed rule for this sender already exists: leave it alone (do
+      // NOT overwrite it, and do NOT create a parallel mined duplicate).
+      if (existing.source === PRIORITY_RULE_SOURCE.USER) {
+        return { status: "skipped", reason: "user-managed" };
+      }
       await this.priorityRuleRepository.update(
         { id: existing.id },
         {
@@ -396,6 +525,10 @@ export class PriorityRulesService {
    * Only matches generic sender-only rules — rules with subject/body constraints
    * or exclusions are left alone so mining cannot silently overwrite a more
    * specific rule with a sender-wildcard one.
+   *
+   * Returns user-managed rules too, so the miner can detect them and skip
+   * (rather than creating a parallel mined duplicate). Callers decide what to do
+   * based on `source`.
    */
   private async findRuleForSender(
     userId: string,
@@ -430,6 +563,8 @@ export class PriorityRulesService {
     if (!sender) return;
     const existing = await this.findRuleForSender(userId, sender);
     if (!existing || !existing.isEnabled) return;
+    // Never auto-disable a user-managed rule on drift — the user owns it.
+    if (existing.source === PRIORITY_RULE_SOURCE.USER) return;
     await this.priorityRuleRepository.update(
       { id: existing.id },
       { isEnabled: false },

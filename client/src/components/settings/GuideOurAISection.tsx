@@ -7,6 +7,7 @@ import { ContextAboutMeSection } from 'components/settings/guide-ai/ContextAbout
 import { GuideOurAISectionHeader } from 'components/settings/guide-ai/GuideOurAISectionHeader';
 import { SummarizationRulesSection } from 'components/settings/guide-ai/SummarizationRulesSection';
 import { ToneSettingsSection } from 'components/settings/guide-ai/ToneSettingsSection';
+import { PriorityRulesSection } from 'components/settings/priority-rules/PriorityRulesSection';
 import { CategoryRuleFromCategoryContext } from 'contexts/CategoryRuleFromCategoryContext';
 import { useDeterministicCategoryRulesSectionState } from 'hooks/settings/useDeterministicCategoryRulesSectionState';
 
@@ -199,6 +200,8 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         <DeterministicCategoryRulesSection controller={deterministicCategoryRulesController} />
 
         <CategoryFamiliesSection />
+
+        <PriorityRulesSection />
 
         <ToneSettingsSection
           toneRules={toneRules}

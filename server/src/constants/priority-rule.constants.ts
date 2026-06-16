@@ -26,6 +26,15 @@ export const PRIORITY_SCORE_SOURCE = {
 export type PriorityScoreSource =
   (typeof PRIORITY_SCORE_SOURCE)[keyof typeof PRIORITY_SCORE_SOURCE];
 
+/** Who owns a priority rule: the miner ('mined') or the user ('user'). */
+export const PRIORITY_RULE_SOURCE = {
+  MINED: "mined",
+  USER: "user",
+} as const;
+
+export type PriorityRuleSource =
+  (typeof PRIORITY_RULE_SOURCE)[keyof typeof PRIORITY_RULE_SOURCE];
+
 /** Default fraction of rule matches that still run the LLM (shadow-sampling). */
 const DEFAULT_SHADOW_SAMPLE_RATE = 0.1;
 

@@ -46,8 +46,19 @@ export const formatScheduledTime = (date: Date): string =>
  *   e.g. "4 weeks ago [Feb 14]". Defaults to false for backward compatibility.
  */
 export function humanizeTimestamp(date: Date | string, options: { showAbsoluteDate?: boolean } = {}): string {
+  // Guard against missing input first: `new Date(null)` is the epoch (1970),
+  // not Invalid Date, so a null/empty value would otherwise render "55 years ago".
+  if (!date) {
+    return '';
+  }
   const now = new Date();
   const timestamp = date instanceof Date ? date : new Date(date);
+
+  // Guard against unparseable input so callers never render
+  // "Invalid Date at Invalid Date" when a date field is malformed (#search).
+  if (Number.isNaN(timestamp.getTime())) {
+    return '';
+  }
 
   // Get timezone from browser
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;

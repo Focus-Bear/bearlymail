@@ -287,7 +287,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   {email.fromName || email.from}
                 </span>
                 <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
-                  {humanizeTimestamp(email.receivedAt)}
+                  {humanizeTimestamp(email.receivedAt ?? enriched.date)}
                 </span>
               </div>
               <div

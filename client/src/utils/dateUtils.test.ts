@@ -204,5 +204,15 @@ describe('dateUtils', () => {
       const result = humanizeTimestamp(timestamp);
       expect(result).not.toContain('[');
     });
+
+    // Regression: a missing/unparseable date must never render "Invalid Date"
+    // or a bogus "55 years ago" (null → epoch). All falsy/invalid inputs → ''.
+    it('should return an empty string for an undefined, null, empty, or unparseable date', () => {
+      expect(humanizeTimestamp(undefined as unknown as string)).toBe('');
+      expect(humanizeTimestamp(null as unknown as string)).toBe('');
+      expect(humanizeTimestamp('')).toBe('');
+      expect(humanizeTimestamp('not-a-date')).toBe('');
+      expect(humanizeTimestamp(new Date('nope'))).toBe('');
+    });
   });
 });

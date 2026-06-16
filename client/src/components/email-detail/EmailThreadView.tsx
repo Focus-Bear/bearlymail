@@ -18,6 +18,14 @@ function getEffectiveHtmlBody(body?: string, htmlBody?: string): string {
   return htmlBody || (looksLikeHtml(body || '') ? body || '' : '');
 }
 
+/** Renders a single "Label: value" recipient line in the expanded message header. */
+const AddressLine: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div style={{ display: 'flex', gap: theme.spacing.xs, wordBreak: 'break-word' }}>
+    <span style={{ fontWeight: theme.typography.fontWeight.semibold, flexShrink: 0 }}>{label}:</span>
+    <span>{value}</span>
+  </div>
+);
+
 interface EmailThreadViewProps {
   email: Email;
   threadEmails: Email[];
@@ -217,6 +225,20 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
                       fontWeight: theme.typography.fontWeight.normal,
                     }}
                   >
+                    <div
+                      style={{
+                        marginBottom: theme.spacing.md,
+                        paddingBottom: theme.spacing.md,
+                        borderBottom: `1px solid ${theme.colors.border.light}`,
+                        fontSize: theme.typography.fontSize.sm,
+                        color: theme.colors.text.secondary,
+                        lineHeight: '1.6',
+                      }}
+                    >
+                      <AddressLine label={t('emailDetail.from')} value={threadEmail.fromName ? `${threadEmail.fromName} <${threadEmail.from}>` : (threadEmail.from || '')} />
+                      {threadEmail.to && <AddressLine label={t('emailDetail.to')} value={threadEmail.to} />}
+                      {threadEmail.cc && <AddressLine label={t('emailDetail.cc')} value={threadEmail.cc} />}
+                    </div>
                     {rawHtmlBody ? (
                       <>
                         <ResolvedEmailBody

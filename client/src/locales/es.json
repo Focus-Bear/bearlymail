@@ -1207,6 +1207,7 @@
     },
     "toLabel": "Para:",
     "ccLabel": "CC:",
+    "from": "De",
     "to": "Para",
     "cc": "CC",
     "keepOriginal": "Mantener original",

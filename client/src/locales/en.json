@@ -680,6 +680,7 @@
     },
     "toLabel": "To:",
     "ccLabel": "CC:",
+    "from": "From",
     "to": "To",
     "cc": "CC",
     "saveAsPdf": "Save as PDF",

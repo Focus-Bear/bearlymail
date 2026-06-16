@@ -11,6 +11,8 @@ describe("LLMDeterministicPriorityService.applyDeterministicPriority", () => {
     matchedButNotWinningRuleIds: [],
   };
 
+  const maybeQueueBackgroundSummary = jest.fn().mockResolvedValue(undefined);
+
   function buildService(threadUpdate: jest.Mock) {
     const emailThreadRepository = { update: threadUpdate } as never;
     const githubCategoryOverrideService = {
@@ -22,6 +24,9 @@ describe("LLMDeterministicPriorityService.applyDeterministicPriority", () => {
     const priorityRulesService = {} as never;
     const categoryRulesService = {} as never;
     const cloudWatchService = {} as never;
+    const backgroundSummaryQueueService = {
+      maybeQueueBackgroundSummary,
+    } as never;
     return new LLMDeterministicPriorityService(
       emailThreadRepository,
       githubCategoryOverrideService,
@@ -29,8 +34,31 @@ describe("LLMDeterministicPriorityService.applyDeterministicPriority", () => {
       priorityRulesService,
       categoryRulesService,
       cloudWatchService,
+      backgroundSummaryQueueService,
     );
   }
+
+  beforeEach(() => maybeQueueBackgroundSummary.mockClear());
+
+  it("gates the background summary on the rule's representative score", async () => {
+    const service = buildService(jest.fn().mockResolvedValue({}));
+
+    await service.applyDeterministicPriority({
+      email: { id: "e1", emailThreadId: "t1" } as never,
+      thread: { starCount: 0, isBatched: true, githubMetadata: null } as never,
+      representativeScore: 10,
+      categoryMatch: { categoryName: "CI", categoryId: "cat-1" },
+      userId: "user-1",
+      workerId: "w1",
+    });
+
+    expect(maybeQueueBackgroundSummary).toHaveBeenCalledWith({
+      userId: "user-1",
+      emailId: "e1",
+      threadId: "t1",
+      priorityScore: 10,
+    });
+  });
 
   it("persists the categoryRuleTrace snapshot on the thread", async () => {
     const update = jest.fn().mockResolvedValue({});

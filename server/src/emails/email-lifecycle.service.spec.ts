@@ -401,7 +401,7 @@ describe("EmailLifecycleService", () => {
   });
 
   describe("queuePostSaveJobs", () => {
-    it("uses an email-specific singleton key so new messages in a thread can refresh the summary", async () => {
+    it("does not enqueue the background summary here — it is gated on priorityScore at priority-completion time", async () => {
       const savedEmail = mockPartial({
         id: "email-2",
         emailThreadId: "thread-row-1",
@@ -414,16 +414,10 @@ describe("EmailLifecycleService", () => {
 
       await service.queuePostSaveJobs("user-1", savedEmail, thread);
 
-      expect(boss.send).toHaveBeenCalledWith(
+      expect(boss.send).not.toHaveBeenCalledWith(
         JOB_NAMES.GENERATE_SUMMARY,
-        {
-          userId: "user-1",
-          emailId: "email-2",
-          threadId: "thread-row-1",
-        },
-        expect.objectContaining({
-          singletonKey: "generate-summary-email-email-2",
-        }),
+        expect.anything(),
+        expect.anything(),
       );
     });
   });
@@ -576,11 +570,16 @@ describe("EmailLifecycleService", () => {
       actionItemRepository.delete.mockResolvedValue({ affected: 0, raw: [] });
       contactRepository.findOne.mockResolvedValue(null);
 
-      await service.createEmail("user-1", {
-        subject: "Test active",
-        from: "sender@test.com",
-        threadId: "thread-1",
-      });
+      await service.createEmail(
+        "user-1",
+        {
+          subject: "Test active",
+          from: "sender@test.com",
+          threadId: "thread-1",
+        },
+        undefined,
+        async () => {},
+      );
 
       expect(thread.isProcessingPriority).toBe(true);
     });
@@ -674,6 +673,7 @@ describe("EmailLifecycleService", () => {
           threadId: "thread-1",
         },
         { countTowardVolume: true },
+        async () => {},
       );
 
       expect(thread.isProcessingPriority).toBe(true);
@@ -683,11 +683,16 @@ describe("EmailLifecycleService", () => {
       const thread = makeThread();
       arrangeActiveUser(thread, makeEmail());
 
-      await service.createEmail("user-1", {
-        subject: "Scan",
-        from: "sender@test.com",
-        threadId: "thread-1",
-      });
+      await service.createEmail(
+        "user-1",
+        {
+          subject: "Scan",
+          from: "sender@test.com",
+          threadId: "thread-1",
+        },
+        undefined,
+        async () => {},
+      );
 
       expect(subscriptionsService.trackEmailForUser).not.toHaveBeenCalled();
       expect(thread.isProcessingPriority).toBe(true);

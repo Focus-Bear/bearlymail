@@ -503,45 +503,25 @@ export class EmailLifecycleService {
             `Failed to queue priority refinement for email ${savedEmail.id}:`,
             err,
           );
-          if (thread) {
-            thread.isProcessingPriority = false;
-            await this.emailThreadRepository.save(thread);
-          }
+          // Priority refinement is what later decides (and clears) the summary
+          // state, so if it never queues we must clear both processing flags
+          // here to avoid a permanently pending UI.
+          await this.clearProcessingFlags(thread, savedEmail.id);
         },
       );
+    } else {
+      // Without a priority-refinement callback nothing will ever clear the
+      // processing flags (priority refinement is what later decides and clears
+      // the summary state), so clear both here to avoid a permanently pending UI.
+      await this.clearProcessingFlags(thread, savedEmail.id);
     }
 
-    const summaryJobId = await this.boss
-      .send(
-        JOB_NAMES.GENERATE_SUMMARY,
-        { userId, emailId: savedEmail.id, threadId: savedEmail.emailThreadId },
-        {
-          priority: getJobPriority(
-            JOB_NAMES.GENERATE_SUMMARY_BACKGROUND,
-            false,
-          ),
-          // Do not singleton by thread here: a follow-up arriving within the
-          // previous 5-minute window must still enqueue a fresh summary job.
-          singletonKey: `generate-summary-email-${savedEmail.id}`,
-          singletonSeconds: SECONDS.FIVE_MINUTES,
-        },
-      )
-      .catch((err) => {
-        this.logger.error(
-          `Failed to queue summary generation for email ${savedEmail.id}:`,
-          err,
-        );
-        this.emailRepository.update(
-          { id: savedEmail.id },
-          { isProcessingSummary: false },
-        );
-        return null;
-      });
-
-    if (summaryJobId)
-      this.logger.debug(
-        `Queued summary generation job ${summaryJobId} for email ${savedEmail.id}`,
-      );
+    // The background summary is deliberately NOT enqueued here. It is gated on
+    // the thread's priorityScore, which isn't known until priority refinement
+    // (queued above) completes. The priority-completion paths call
+    // BackgroundSummaryQueueService.maybeQueueBackgroundSummary, which either
+    // enqueues the summary (score above threshold) or clears isProcessingSummary
+    // so the email summarises on demand when opened.
 
     if (savedEmail.emailThreadId) this.queueThreadLevelJobs(userId, savedEmail);
 
@@ -555,6 +535,20 @@ export class EmailLifecycleService {
           ),
         );
     }
+  }
+
+  private async clearProcessingFlags(
+    thread: EmailThread | null | undefined,
+    emailId: string,
+  ): Promise<void> {
+    if (thread) {
+      thread.isProcessingPriority = false;
+      await this.emailThreadRepository.save(thread);
+    }
+    await this.emailRepository.update(
+      { id: emailId },
+      { isProcessingSummary: false },
+    );
   }
 
   private queueThreadLevelJobs(userId: string, savedEmail: Email): void {

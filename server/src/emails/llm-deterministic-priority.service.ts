@@ -12,6 +12,7 @@ import { GitHubCategoryOverrideService } from "../github/github-category-overrid
 import { PriorityRulesService } from "../priority-rules/priority-rules.service";
 import { shouldSkipWithRule } from "../priority-rules/priority-rules-skip.helper";
 import { UsersService } from "../users/users.service";
+import { BackgroundSummaryQueueService } from "./background-summary-queue.service";
 import { applyEmergencyDelivery } from "./emergency-delivery.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
@@ -40,6 +41,7 @@ export class LLMDeterministicPriorityService {
     private readonly priorityRulesService: PriorityRulesService,
     private readonly categoryRulesService: CategoryRulesService,
     private readonly cloudWatchService: CloudWatchService,
+    private readonly backgroundSummaryQueueService: BackgroundSummaryQueueService,
   ) {}
 
   /**
@@ -181,6 +183,16 @@ export class LLMDeterministicPriorityService {
       finalScore: representativeScore,
       starCount: thread.starCount ?? 0,
       isBatched: thread.isBatched ?? true,
+    });
+
+    // Priority was decided WITHOUT the LLM (deterministic rule), so no summary
+    // is needed to score the thread — gate the background summary on the score
+    // to skip summarising low-priority threads (they summarise on demand).
+    await this.backgroundSummaryQueueService.maybeQueueBackgroundSummary({
+      userId,
+      emailId: email.id,
+      threadId: emailThreadId,
+      priorityScore: representativeScore,
     });
 
     this.logger.log(

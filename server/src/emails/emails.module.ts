@@ -45,6 +45,7 @@ import { SummarizationModule } from "../summarization/summarization.module";
 import { UsersModule } from "../users/users.module";
 import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { ArchiveEmailProcessor } from "./archive-email.processor";
+import { BackgroundSummaryQueueService } from "./background-summary-queue.service";
 import { CategoryDedupService } from "./category-dedup.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailArchiveService } from "./email-archive.service";
@@ -288,6 +289,7 @@ import { SyncHistoryService } from "./sync-history.service";
     ZohoProvider,
     EmailSyncProcessor,
     LLMProcessor,
+    BackgroundSummaryQueueService,
     LLMPriorityResultService,
     LLMDeterministicPriorityService,
     PriorityRuleMiningCron,

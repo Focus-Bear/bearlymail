@@ -8,6 +8,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { GitHubCategoryOverrideService } from "../github/github-category-override.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { UsersService } from "../users/users.service";
+import { BackgroundSummaryQueueService } from "./background-summary-queue.service";
 import { buildHonestCategoryExplanation } from "./category-explanation.helper";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 
@@ -24,12 +25,20 @@ type ServiceWithPrivate = LLMPriorityResultService & {
 describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
   let service: ServiceWithPrivate;
   let emailThreadRepository: jest.Mocked<Repository<EmailThread>>;
+  let backgroundSummaryQueue: {
+    queueBackgroundSummary: jest.Mock;
+    maybeQueueBackgroundSummary: jest.Mock;
+  };
 
   beforeEach(async () => {
     emailThreadRepository = {
       update: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
       findOne: jest.fn(),
     } as unknown as jest.Mocked<Repository<EmailThread>>;
+    backgroundSummaryQueue = {
+      queueBackgroundSummary: jest.fn().mockResolvedValue(undefined),
+      maybeQueueBackgroundSummary: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -65,6 +74,10 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
             findOne: jest.fn().mockResolvedValue({ githubUsername: null }),
           },
         },
+        {
+          provide: BackgroundSummaryQueueService,
+          useValue: backgroundSummaryQueue,
+        },
       ],
     }).compile();
 
@@ -75,6 +88,40 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("background summary on the LLM path", () => {
+    it("always queues the summary (unconditional — not gated on score)", async () => {
+      emailThreadRepository.findOne.mockResolvedValue({
+        id: "thread-1",
+        starCount: 0,
+        isBatched: true,
+      } as EmailThread);
+
+      await service.applyPriorityResult(
+        { id: "email-1", emailThreadId: "thread-1" } as Email,
+        {
+          urgencyScore: 50,
+          urgencyExplanation: "",
+          goalAlignmentScore: 0,
+          goalAlignmentExplanation: "",
+        },
+        [],
+        "user-1",
+        "w1",
+      );
+
+      expect(
+        backgroundSummaryQueue.queueBackgroundSummary,
+      ).toHaveBeenCalledWith({
+        userId: "user-1",
+        emailId: "email-1",
+        threadId: "thread-1",
+      });
+      expect(
+        backgroundSummaryQueue.maybeQueueBackgroundSummary,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   describe("non-starred threads", () => {

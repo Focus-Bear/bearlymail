@@ -21,6 +21,7 @@ import { GitHubCategoryOverrideService } from "../github/github-category-overrid
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
+import { BackgroundSummaryQueueService } from "./background-summary-queue.service";
 import { buildCategoryColumnUpdates } from "./category-column-updates.helper";
 import { buildHonestCategoryExplanation } from "./category-explanation.helper";
 import { applyEmergencyDelivery } from "./emergency-delivery.helper";
@@ -72,10 +73,7 @@ const PRIORITY_RESULT_CONSTANTS = {
   SUBSTRING_PREVIEW_LENGTH: 8,
   SENTIMENT_MULTIPLIER: 30,
   URGENCY_NEUTRAL: 50,
-  URGENCY_MULTIPLIER: 0.5,
   GOAL_ALIGNMENT_WEIGHT: 0.4,
-  OTHER_FACTORS_WEIGHT: 0.3,
-  MAX_SCORE: 100,
 } as const;
 
 const CHECKS_STATE_FAILING = "failing";
@@ -102,6 +100,7 @@ export class LLMPriorityResultService {
     private readonly githubCategoryOverrideService: GitHubCategoryOverrideService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    private readonly backgroundSummaryQueueService: BackgroundSummaryQueueService,
   ) {}
 
   async applyPriorityResult(
@@ -158,6 +157,14 @@ export class LLMPriorityResultService {
         githubUsername,
         finalScore,
         priorityExplanation,
+      });
+      // LLM path: the downstream pipeline (category/sentiment/action items) and
+      // the prioritisation prompt depend on the summary, so always summarise —
+      // gating only applies where priority was decided WITHOUT the LLM.
+      await this.backgroundSummaryQueueService.queueBackgroundSummary({
+        userId,
+        emailId: email.id,
+        threadId: email.emailThreadId,
       });
     }
 

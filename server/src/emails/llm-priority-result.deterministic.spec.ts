@@ -10,6 +10,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { GitHubCategoryOverrideService } from "../github/github-category-override.service";
 import { PriorityRulesService } from "../priority-rules/priority-rules.service";
 import { UsersService } from "../users/users.service";
+import { BackgroundSummaryQueueService } from "./background-summary-queue.service";
 import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 
 describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
@@ -21,6 +22,7 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
     peekMatchingRule: jest.Mock;
     peekMatchingRuleWithTrace: jest.Mock;
   };
+  let backgroundSummaryQueue: { maybeQueueBackgroundSummary: jest.Mock };
 
   const email = { id: "email-1", emailThreadId: "thread-1" } as Email;
   const thread = {
@@ -45,6 +47,9 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
       peekMatchingRule: jest.fn(),
       peekMatchingRuleWithTrace: jest.fn(),
     };
+    backgroundSummaryQueue = {
+      maybeQueueBackgroundSummary: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -63,6 +68,10 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
         { provide: PriorityRulesService, useValue: priorityRules },
         { provide: CategoryRulesService, useValue: categoryRules },
         { provide: CloudWatchService, useValue: { putMetric: jest.fn() } },
+        {
+          provide: BackgroundSummaryQueueService,
+          useValue: backgroundSummaryQueue,
+        },
       ],
     }).compile();
     service = module.get(LLMDeterministicPriorityService);

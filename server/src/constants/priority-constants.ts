@@ -16,6 +16,15 @@ export const PRIORITY_SCORES = {
   VERY_HIGH: 95,
   HIGH: 80,
   NEUTRAL: 50,
+  /**
+   * When priority is decided WITHOUT the LLM (a deterministic rule, or in future
+   * an authoritative ML model), threads scoring at or below this are not
+   * summarised automatically in the background — that LLM cost is reserved for
+   * threads the user is likely to act on; lower-priority threads summarise
+   * lazily when the user opens them. The LLM priority path always summarises,
+   * since the pipeline and the prioritisation prompt depend on the summary.
+   */
+  BACKGROUND_SUMMARY_MIN: 30,
 } as const;
 
 export const STAR_COUNTS = {

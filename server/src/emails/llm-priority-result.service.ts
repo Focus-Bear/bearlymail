@@ -636,7 +636,16 @@ export class LLMPriorityResultService {
 
     let categoryId: string | null = lookupCategoryContextId(finalCategory);
 
+    // Only fall through to proto-category matching when the LLM's category does
+    // NOT resolve to an existing real category. The direct-proto-match path is
+    // meant to catch the case where the LLM returns a *proto*-category's name;
+    // its fuzzy fallback (embedding + strong-LLM dedup) must never re-route a
+    // category the LLM picked from the user's real categories. Without this
+    // guard, a clean "GitHub PR Updates" hit could be collapsed into a
+    // near-neighbour proto like "New GitHub issues (bot-created)" and then
+    // auto-promoted over it.
     if (
+      categoryId === null &&
       resolvedLlmResult.category &&
       resolvedLlmResult.category !== "Other" &&
       email.emailThreadId

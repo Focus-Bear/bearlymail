@@ -5,6 +5,10 @@ import { Repository } from "typeorm";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { GitHubCategoryOverrideService } from "../github/github-category-override.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { UsersService } from "../users/users.service";
@@ -284,5 +288,91 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
       });
       expect(result).toBe("Picked QA Passed.");
     });
+  });
+});
+
+describe("LLMPriorityResultService - resolveCategoryAndProtoCategory", () => {
+  let service: LLMPriorityResultService;
+  let protoCategoriesService: { findMatchingProtoCategory: jest.Mock };
+
+  const githubPrCategory = {
+    contextId: "ctx-gh-pr",
+    contextKey: ContextKey.EMAIL_CATEGORY,
+    contextValue: "GitHub PR Updates - PR status notifications",
+  } as unknown as UserContext;
+
+  beforeEach(async () => {
+    protoCategoriesService = {
+      findMatchingProtoCategory: jest.fn().mockResolvedValue(null),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LLMPriorityResultService,
+        {
+          provide: getRepositoryToken(Email),
+          useValue: { update: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: { update: jest.fn(), findOne: jest.fn() },
+        },
+        { provide: ProtoCategoriesService, useValue: protoCategoriesService },
+        {
+          provide: GitHubCategoryOverrideService,
+          useValue: { resolveOverrideCategoryId: jest.fn() },
+        },
+        { provide: UsersService, useValue: { findOne: jest.fn() } },
+        {
+          provide: BackgroundSummaryQueueService,
+          useValue: {
+            queueBackgroundSummary: jest.fn(),
+            maybeQueueBackgroundSummary: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get(LLMPriorityResultService);
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  it("keeps the LLM category and skips proto-matching when it resolves to a real category", async () => {
+    const result = await service.resolveCategoryAndProtoCategory({
+      email: { id: "email-1", emailThreadId: "thread-1" } as Email,
+      thread: { protoCategoryId: null } as EmailThread,
+      llmResult: { category: "GitHub PR Updates" } as never,
+      userId: "user-1",
+      workerId: "w1",
+      knownCategoryNames: [
+        "GitHub PR Updates",
+        "New GitHub issues (bot-created)",
+      ],
+      contexts: [githubPrCategory],
+    });
+
+    expect(
+      protoCategoriesService.findMatchingProtoCategory,
+    ).not.toHaveBeenCalled();
+    expect(result.finalCategory).toBe("GitHub PR Updates");
+    expect(result.categoryId).toBe("ctx-gh-pr");
+    expect(result.protoCategoryId).toBeNull();
+  });
+
+  it("attempts proto-matching when the LLM category is not a known real category", async () => {
+    await service.resolveCategoryAndProtoCategory({
+      email: { id: "email-1", emailThreadId: "thread-1" } as Email,
+      thread: { protoCategoryId: null } as EmailThread,
+      llmResult: { category: "Some Brand New Topic" } as never,
+      userId: "user-1",
+      workerId: "w1",
+      knownCategoryNames: [],
+      contexts: [githubPrCategory],
+    });
+
+    expect(
+      protoCategoriesService.findMatchingProtoCategory,
+    ).toHaveBeenCalledWith("user-1", "Some Brand New Topic");
   });
 });

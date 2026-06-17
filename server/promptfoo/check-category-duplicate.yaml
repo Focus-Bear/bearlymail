@@ -139,3 +139,31 @@ tests:
             throw new Error(`Expected isDuplicate=true for same concept different wording, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
           }
           return true;
+
+  - description: "Should NOT merge same-platform sub-categories that track different artifacts (PR updates vs new issues)"
+    vars:
+      categoryA: "GitHub PR Updates"
+      categoryB: "New GitHub issues (bot-created)"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== false) {
+            throw new Error(`Expected isDuplicate=false for PR-updates vs issues, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should NOT merge same-platform same-artifact sub-categories that differ on author kind (bot vs human PRs)"
+    vars:
+      categoryA: "GitHub Bot PR Updates"
+      categoryB: "GitHub PR Updates"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== false) {
+            throw new Error(`Expected isDuplicate=false for bot-vs-human PR updates, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;

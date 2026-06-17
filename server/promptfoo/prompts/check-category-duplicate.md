@@ -18,6 +18,10 @@ Mark them as duplicates if:
 Do NOT mark them as duplicates if:
 - They describe meaningfully different types of emails
 - Both categories are specific sub-types of the same platform with clearly distinct, non-overlapping purposes (e.g. "GitHub PR Reviews" vs "GitHub Issue Comments" — both specific, different purposes → NOT duplicates)
+- They share a platform but differ on the *kind of artifact* they track — pull requests and issues are different artifacts, so "GitHub PR Updates" vs "New GitHub issues (bot-created)" are NOT duplicates even though both mention GitHub
+- They share a platform and artifact but differ on *who created it* — bot/automation-created vs human-created are different audiences a user files separately (e.g. "GitHub Bot PR Updates" vs "GitHub PR Updates" → NOT duplicates)
 - One is a fully generic, platform-agnostic umbrella term (e.g. "Notifications", "Updates", "Emails", "Alerts") and the other is a distinct platform- or topic-specific sub-category (e.g. "GitHub Notifications", "Slack Alerts") — generic umbrellas that do not name any platform are too broad to be considered duplicates of specific categories
+
+When two specific sub-categories share a platform, only call them duplicates if they match on BOTH the artifact (PR / issue / discussion / release) AND the author kind (bot / human). If either differs, they are not duplicates.
 
 Return exactly: { "isDuplicate": true|false, "reasoning": "<max 20 words>" }

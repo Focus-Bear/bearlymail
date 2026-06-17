@@ -13,6 +13,7 @@ import {
 } from "../constants/priority-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { ConsideredDuplicateCandidate } from "../database/entities/proto-category.entity";
 import {
   ContextKey,
   UserContext,
@@ -20,7 +21,10 @@ import {
 import { GitHubCategoryOverrideService } from "../github/github-category-override.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { UsersService } from "../users/users.service";
-import { parseCategoryName } from "../utils/category-name.util";
+import {
+  canonicaliseCategoryName,
+  parseCategoryName,
+} from "../utils/category-name.util";
 import { BackgroundSummaryQueueService } from "./background-summary-queue.service";
 import { buildCategoryColumnUpdates } from "./category-column-updates.helper";
 import { buildHonestCategoryExplanation } from "./category-explanation.helper";
@@ -536,33 +540,6 @@ export class LLMPriorityResultService {
     };
   }
 
-  canonicaliseCategoryName(rawName: string, knownNames: string[]): string {
-    if (!rawName || rawName === "Other") return rawName;
-    const exact = knownNames.find(
-      (knownName) => knownName.toLowerCase() === rawName.toLowerCase(),
-    );
-    if (exact) return exact;
-    const withoutParens = rawName
-      .replace(/\s*\(.*\)\s*$/, "")
-      .trim()
-      .toLowerCase();
-    const parenMatch = knownNames.find(
-      (knownName) => knownName.toLowerCase() === withoutParens,
-    );
-    if (parenMatch) return parenMatch;
-    const prefixCandidates = knownNames.filter(
-      (knownName) =>
-        rawName.toLowerCase().startsWith(knownName.toLowerCase()) ||
-        knownName.toLowerCase().startsWith(rawName.toLowerCase()),
-    );
-    if (prefixCandidates.length > 0) {
-      return prefixCandidates.reduce((longest, candidate) =>
-        candidate.length > longest.length ? candidate : longest,
-      );
-    }
-    return rawName;
-  }
-
   private async applyDirectProtoMatch(options: {
     categoryName: string;
     emailThreadId: string;
@@ -643,7 +620,7 @@ export class LLMPriorityResultService {
       llmResult.category && llmResult.category !== "Other"
         ? {
             ...llmResult,
-            category: this.canonicaliseCategoryName(
+            category: canonicaliseCategoryName(
               llmResult.category,
               knownCategoryNames,
             ),
@@ -759,7 +736,7 @@ export class LLMPriorityResultService {
       llmResult.category &&
       llmResult.category !== "Other"
     ) {
-      const canonicalised = this.canonicaliseCategoryName(
+      const canonicalised = canonicaliseCategoryName(
         llmResult.category,
         knownCategoryNames,
       );
@@ -797,11 +774,15 @@ export class LLMPriorityResultService {
     categoryId: string | null;
   }> {
     const suggestionName = llmResult.protoCategorySuggestion!.name;
+    // Records the categories the dedup pass weighed (and the LLM's reasoning),
+    // so a newly created proto category can store what it considered duplicates.
+    const consideredCandidates: ConsideredDuplicateCandidate[] = [];
     try {
       const matchingFullCategory =
         await this.protoCategoriesService.findMatchingFullCategory(
           userId,
           suggestionName,
+          consideredCandidates,
         );
 
       if (matchingFullCategory) {
@@ -819,6 +800,7 @@ export class LLMPriorityResultService {
         await this.protoCategoriesService.findMatchingProtoCategory(
           userId,
           suggestionName,
+          consideredCandidates,
         );
 
       if (existingProtoCategory) {
@@ -854,6 +836,7 @@ export class LLMPriorityResultService {
           suggestionName,
           llmResult.protoCategorySuggestion!.description || null,
           email.emailThreadId,
+          consideredCandidates,
         );
 
       this.logger.log(

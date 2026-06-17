@@ -9,8 +9,23 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
-import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import {
+  encryptedColumnTransformer,
+  encryptedJsonTransformer,
+} from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
+
+/**
+ * A category name the dedup pass considered as a possible duplicate of this
+ * proto category, along with the LLM's verdict and reasoning. Recorded when
+ * the proto category is created and again when it is promoted, so the UI can
+ * explain why it was kept separate from existing categories.
+ */
+export interface ConsideredDuplicateCandidate {
+  name: string;
+  isDuplicate: boolean;
+  reasoning: string;
+}
 
 /**
  * ProtoCategory represents a proposed category that hasn't been promoted to a real category yet.
@@ -64,6 +79,30 @@ export class ProtoCategory {
       "ID of the UserContext created when this proto category was promoted",
   })
   promotedCategoryId: string | null;
+
+  @Column({
+    type: "timestamptz",
+    nullable: true,
+    comment: "When this proto category was promoted to a real category",
+  })
+  promotedAt: Date | null;
+
+  @Column("text", {
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment:
+      "Human-readable rationale for why this proto category was promoted",
+  })
+  promotionReasoning: string | null;
+
+  @Column("text", {
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment:
+      "Existing categories the dedup pass considered, with the LLM verdict and " +
+      "reasoning for why they were (not) treated as duplicates. Encrypted JSON.",
+  })
+  duplicateCandidates: ConsideredDuplicateCandidate[] | null;
 
   @CreateDateColumn()
   createdAt: Date;

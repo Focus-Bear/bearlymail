@@ -23,8 +23,9 @@ import {
   KEY_ESCAPE,
   STRING_NONE,
 } from 'constants/strings';
-import { useAuth } from 'contexts/AuthContext';
 import { useCategoryRuleFromCategory } from 'contexts/CategoryRuleFromCategoryContext';
+
+import { EmailCategoryContextDisplay } from './EmailCategoryContextDisplay';
 
 const TRUNCATE_LENGTH = 100; // Characters before truncation
 
@@ -644,13 +645,9 @@ interface ContextItemContentProps {
 
 const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const isEmailCategory = context.contextKey === CONTEXT_KEY_EMAIL_CATEGORY;
-  const categoryDescription = isEmailCategory
-    ? getEmailCategoryDescriptionFromContextValue(context.contextValue)
-    : null;
   const shouldTruncate = !isEmailCategory && context.contextValue.length > TRUNCATE_LENGTH;
   const displayValue =
     shouldTruncate && !isExpanded ? `${context.contextValue.substring(0, TRUNCATE_LENGTH)}...` : context.contextValue;
@@ -676,21 +673,7 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
               })()}
             </div>
           ) : isEmailCategory ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, width: '100%' }}>
-              <span style={{ color: theme.colors.text.primary, wordBreak: 'break-word' }}>
-                {getEmailCategoryDisplayNameFromContextValue(context.contextValue)}
-              </span>
-              {categoryDescription && (
-                <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, wordBreak: 'break-word' }}>
-                  {categoryDescription}
-                </span>
-              )}
-              {user?.isAdmin && (
-                <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs, fontFamily: 'monospace', userSelect: 'all' }}>
-                  {t('settings.emailCategories.categoryUuid', { uuid: context.contextId })}
-                </span>
-              )}
-            </div>
+            <EmailCategoryContextDisplay contextId={context.contextId} contextValue={context.contextValue} />
           ) : (
             <span style={{ color: theme.colors.text.primary, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
               {displayValue}

@@ -70,3 +70,39 @@ export function parseCategoryValue(contextValue: string): {
     description: parseCategoryDescription(contextValue),
   };
 }
+
+/**
+ * Maps a raw LLM-supplied category name onto the closest known category name,
+ * so paraphrases/parenthetical variants/prefixes resolve back to the canonical
+ * stored name. Returns `rawName` unchanged for `"Other"` or when nothing
+ * matches. Pure string logic — no entity access.
+ */
+export function canonicaliseCategoryName(
+  rawName: string,
+  knownNames: string[],
+): string {
+  if (!rawName || rawName === "Other") return rawName;
+  const exact = knownNames.find(
+    (knownName) => knownName.toLowerCase() === rawName.toLowerCase(),
+  );
+  if (exact) return exact;
+  const withoutParens = rawName
+    .replace(/\s*\(.*\)\s*$/, "")
+    .trim()
+    .toLowerCase();
+  const parenMatch = knownNames.find(
+    (knownName) => knownName.toLowerCase() === withoutParens,
+  );
+  if (parenMatch) return parenMatch;
+  const prefixCandidates = knownNames.filter(
+    (knownName) =>
+      rawName.toLowerCase().startsWith(knownName.toLowerCase()) ||
+      knownName.toLowerCase().startsWith(rawName.toLowerCase()),
+  );
+  if (prefixCandidates.length > 0) {
+    return prefixCandidates.reduce((longest, candidate) =>
+      candidate.length > longest.length ? candidate : longest,
+    );
+  }
+  return rawName;
+}

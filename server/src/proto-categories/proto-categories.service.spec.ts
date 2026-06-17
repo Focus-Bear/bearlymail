@@ -1,4 +1,5 @@
 import { NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getDataSourceToken, getRepositoryToken } from "@nestjs/typeorm";
 
@@ -119,6 +120,10 @@ describe("ProtoCategoriesService", () => {
         {
           provide: EmbeddingService,
           useFactory: mockEmbeddingService,
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(undefined) },
         },
       ],
     }).compile();
@@ -583,6 +588,97 @@ describe("ProtoCategoriesService", () => {
       await service.promoteToCategory(makeProto());
 
       expect(userContextRepo.save).toHaveBeenCalled();
+    });
+
+    it("records promotion timestamp, reasoning, and considered candidates", async () => {
+      userContextRepo.find.mockResolvedValue([]);
+      userContextRepo.create.mockImplementation((ctx: unknown) => ctx);
+      userContextRepo.save.mockResolvedValue({ contextId: "ctx-new" });
+      protoCategoryRepo.update.mockResolvedValue({});
+      protoCategoryRepo.findOne.mockResolvedValue(
+        makeProto({ isPromoted: true, promotedCategoryId: "ctx-new" }),
+      );
+
+      const creationCandidates = [
+        { name: "GitHub PRs", isDuplicate: false, reasoning: "Different" },
+      ];
+      await service.promoteToCategory(
+        makeProto({ duplicateCandidates: creationCandidates }),
+      );
+
+      const updateCall = protoCategoryRepo.update.mock.calls[0][1];
+      expect(updateCall.promotedCategoryId).toBe("ctx-new");
+      expect(updateCall.promotedAt).toBeInstanceOf(Date);
+      expect(updateCall.promotionReasoning).toContain("Auto-promoted");
+      expect(updateCall.duplicateCandidates).toEqual(creationCandidates);
+    });
+  });
+
+  describe("createAndAssignToThread", () => {
+    it("persists considered duplicate candidates on the new proto category", async () => {
+      protoCategoryRepo.find.mockResolvedValue([]);
+      protoCategoryRepo.create.mockImplementation(
+        (input: Partial<ProtoCategory>) => input,
+      );
+      protoCategoryRepo.save.mockImplementation(
+        async (input: Partial<ProtoCategory>) => ({ id: "proto-1", ...input }),
+      );
+      (service["emailThreadRepository"].update as jest.Mock).mockResolvedValue(
+        {},
+      );
+
+      const considered = [
+        {
+          name: "GitHub PRs",
+          isDuplicate: false,
+          reasoning: "Different scope",
+        },
+      ];
+
+      await service.createAndAssignToThread(
+        "user-1",
+        "GitHub Releases",
+        null,
+        "thread-1",
+        considered,
+      );
+
+      expect(protoCategoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ duplicateCandidates: considered }),
+      );
+    });
+  });
+
+  describe("findPromotedByUser", () => {
+    it("returns promotion metadata keyed by live category id", async () => {
+      const promotedAt = new Date("2026-06-17T00:00:00Z");
+      protoCategoryRepo.find.mockResolvedValue([
+        {
+          name: "GitHub Releases",
+          isPromoted: true,
+          promotedCategoryId: "ctx-1",
+          promotedAt,
+          promotionReasoning: "Auto-promoted",
+          duplicateCandidates: [
+            { name: "GitHub PRs", isDuplicate: false, reasoning: "Different" },
+          ],
+        },
+        { name: "Orphan", isPromoted: true, promotedCategoryId: null },
+      ]);
+
+      const result = await service.findPromotedByUser("user-1");
+
+      expect(result).toEqual([
+        {
+          promotedCategoryId: "ctx-1",
+          name: "GitHub Releases",
+          promotedAt,
+          promotionReasoning: "Auto-promoted",
+          duplicateCandidates: [
+            { name: "GitHub PRs", isDuplicate: false, reasoning: "Different" },
+          ],
+        },
+      ]);
     });
   });
 });

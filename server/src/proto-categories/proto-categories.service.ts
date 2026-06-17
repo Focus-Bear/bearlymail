@@ -5,18 +5,23 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 
 import { CategoryKeyAssignmentService } from "../category-keys/category-key-assignment.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { ProtoCategory } from "../database/entities/proto-category.entity";
+import {
+  ConsideredDuplicateCandidate,
+  ProtoCategory,
+} from "../database/entities/proto-category.entity";
 import {
   ContextKey,
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { cosineSimilarity, EmbeddingService } from "../llm/embedding.service";
+import { EmbeddingService } from "../llm/embedding.service";
+import { LLMProvider } from "../llm/llm.types";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_CHECK_CATEGORY_DUPLICATE } from "../llm/llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "../llm/prompts";
@@ -25,22 +30,25 @@ import {
   isSimilarCategoryName,
   levenshteinDistance,
 } from "../utils/levenshtein.util";
-
-// Cap on how many Levenshtein-flagged or shared-token candidates we hand off
-// to the LLM in one matching pass. Without this, a user with many similar
-// category names would trigger one sequential LLM call per candidate — slow
-// and expensive. Sorting by distance and keeping the closest two preserves
-// the best-match ordering.
-const MAX_LLM_DEDUP_CANDIDATES = 2;
+import {
+  embeddingSimilarNames,
+  matchExactOrAlternateName,
+  MAX_LLM_DEDUP_CANDIDATES,
+  mergeConsideredCandidates,
+} from "./category-dedup.util";
 
 // Significant tokens must be at least this long to be considered.
 const SIGNIFICANT_TOKEN_MIN_LENGTH = 3;
 
-// Minimum embedding cosine similarity between two category names for them to be
-// treated as semantic near-duplicates worth confirming with the LLM. Tuned so
-// paraphrases ("QA Passed" vs "Tests Green") clear the bar while unrelated
-// names ("Finance" vs "Recruitment") do not.
-const EMBEDDING_DUPLICATE_THRESHOLD = 0.82;
+// Stronger Gemini model used for duplicate decisions when creating/promoting a
+// proto category. Deduplication is a high-stakes, low-volume decision (it
+// determines whether a brand-new category is created), so we pay for the
+// non-lite model with thinking enabled rather than the cheap shortlisting model.
+const STRONG_DEDUP_MODEL = "gemini-3.1-flash";
+
+// Headroom for the strong dedup model's JSON verdict. Larger than the lite
+// path's 128 because thinking models emit a little more before the JSON.
+const DEDUP_MAX_TOKENS = 512;
 
 // Common words that appear in category names but carry no platform signal.
 const STOP_WORDS = new Set([
@@ -84,7 +92,19 @@ export class ProtoCategoriesService {
     private categoryKeyAssignmentService: CategoryKeyAssignmentService,
     private llmCoreService: LLMCoreService,
     private embeddingService: EmbeddingService,
+    private configService: ConfigService,
   ) {}
+
+  /**
+   * Resolve the strong Gemini model used for duplicate decisions. Overridable
+   * via the GEMINI_STRONG_MODEL env var for ops flexibility.
+   */
+  private get strongDedupModel(): string {
+    return (
+      this.configService.get<string>("GEMINI_STRONG_MODEL") ||
+      STRONG_DEDUP_MODEL
+    );
+  }
 
   /**
    * Find a proto category by name for a user
@@ -110,6 +130,37 @@ export class ProtoCategoriesService {
   }
 
   /**
+   * Find all promoted proto categories that produced a live category, returning
+   * the promotion metadata (timestamp, reasoning, considered candidates) keyed
+   * by the live category's contextId. Used by the categories UI to surface why
+   * and when each auto-generated category was created.
+   */
+  async findPromotedByUser(userId: string): Promise<
+    Array<{
+      promotedCategoryId: string;
+      name: string;
+      promotedAt: Date | null;
+      promotionReasoning: string | null;
+      duplicateCandidates: ConsideredDuplicateCandidate[];
+    }>
+  > {
+    const promoted = await this.protoCategoryRepository.find({
+      where: { userId, isPromoted: true },
+      order: { promotedAt: "DESC" },
+    });
+
+    return promoted
+      .filter((proto) => proto.promotedCategoryId)
+      .map((proto) => ({
+        promotedCategoryId: proto.promotedCategoryId as string,
+        name: proto.name,
+        promotedAt: proto.promotedAt,
+        promotionReasoning: proto.promotionReasoning,
+        duplicateCandidates: proto.duplicateCandidates ?? [],
+      }));
+  }
+
+  /**
    * Create a new proto category and assign it to the thread
    * Returns the created proto category
    */
@@ -118,6 +169,7 @@ export class ProtoCategoriesService {
     name: string,
     description: string | null,
     threadId: string,
+    consideredCandidates?: ConsideredDuplicateCandidate[],
   ): Promise<ProtoCategory> {
     let protoCategory = await this.findByName(userId, name);
 
@@ -131,6 +183,9 @@ export class ProtoCategoriesService {
       description,
       emailCount: 1,
       isPromoted: false,
+      duplicateCandidates: consideredCandidates?.length
+        ? consideredCandidates
+        : null,
     });
 
     protoCategory = await this.protoCategoryRepository.save(protoCategory);
@@ -204,21 +259,33 @@ export class ProtoCategoriesService {
       `Promoting proto category "${protoCategory.name}" to real category (count: ${protoCategory.emailCount})`,
     );
 
-    // Re-run the LLM dedup check against the *current* set of real categories.
-    // The check that ran when this proto was created compared against an older
-    // snapshot — a sibling proto may have promoted into a near-duplicate real
-    // category in the meantime (issue: duplicate auto-promoted categories).
-    // If we find a match, fold this proto into the existing category instead of
-    // minting a second one.
+    // Re-run the dedup check against the *current* set of real categories using
+    // the stronger model. The check that ran when this proto was created
+    // compared against an older snapshot — a sibling proto may have promoted
+    // into a near-duplicate real category in the meantime. Record what was
+    // considered so the UI can explain the promotion decision.
+    const considered: ConsideredDuplicateCandidate[] = [];
     const existingMatch = await this.findMatchingFullCategory(
       protoCategory.userId,
       protoCategory.name,
+      considered,
     );
+    const mergedCandidates = mergeConsideredCandidates(
+      protoCategory.duplicateCandidates,
+      considered,
+    );
+    const promotedAt = new Date();
+
     if (existingMatch) {
       this.logger.log(
         `Proto category "${protoCategory.name}" matches existing category "${existingMatch.name}" — folding in instead of creating a duplicate`,
       );
-      return this.foldProtoIntoCategory(protoCategory, existingMatch.contextId);
+      return this.foldProtoIntoCategory(
+        protoCategory,
+        existingMatch,
+        mergedCandidates,
+        promotedAt,
+      );
     }
 
     const categoryValue = protoCategory.description
@@ -231,13 +298,15 @@ export class ProtoCategoriesService {
         protoCategory.name,
       );
 
+    const promotionReasoning = `Auto-promoted after ${protoCategory.emailCount} emails were categorized similarly, and a stronger model confirmed it was not a duplicate of any existing category.`;
+
     const userContext = this.userContextRepository.create({
       userId: protoCategory.userId,
       contextKey: ContextKey.EMAIL_CATEGORY,
       contextValue: categoryValue,
       categoryKey,
       source: Source.AUTOGENERATED,
-      explanation: `Auto-promoted from proto category after ${protoCategory.emailCount} emails were categorized similarly`,
+      explanation: promotionReasoning,
     });
 
     const savedContext = await this.userContextRepository.save(userContext);
@@ -247,6 +316,9 @@ export class ProtoCategoriesService {
       {
         isPromoted: true,
         promotedCategoryId: savedContext.contextId,
+        promotedAt,
+        promotionReasoning,
+        duplicateCandidates: mergedCandidates.length ? mergedCandidates : null,
       },
     );
 
@@ -273,27 +345,35 @@ export class ProtoCategoriesService {
   /**
    * Marks a proto category as promoted into an *existing* real category instead
    * of creating a new one. Reassigns the proto's threads to the existing
-   * category and records it as the promotion target. Used when the promotion-time
-   * dedup check finds a near-duplicate real category that didn't exist (or wasn't
-   * yet a real category) when this proto was first created.
+   * category and records the promotion decision (timestamp, reasoning, and the
+   * candidates the dedup pass considered) so the UI can explain it.
    */
   private async foldProtoIntoCategory(
     protoCategory: ProtoCategory,
-    existingCategoryId: string,
+    existingMatch: { name: string; contextId: string },
+    consideredCandidates: ConsideredDuplicateCandidate[],
+    promotedAt: Date,
   ): Promise<ProtoCategory> {
+    const promotionReasoning = `Merged into existing category "${existingMatch.name}" — a stronger model judged this proto category to be a duplicate of it.`;
+
     await this.dataSource.transaction(async (manager) => {
       await manager.getRepository(ProtoCategory).update(
         { id: protoCategory.id },
         {
           isPromoted: true,
-          promotedCategoryId: existingCategoryId,
+          promotedCategoryId: existingMatch.contextId,
+          promotedAt,
+          promotionReasoning,
+          duplicateCandidates: consideredCandidates.length
+            ? consideredCandidates
+            : null,
         },
       );
 
       await manager.getRepository(EmailThread).update(
         { protoCategoryId: protoCategory.id },
         {
-          categoryId: existingCategoryId,
+          categoryId: existingMatch.contextId,
           categoryExplanation: `Folded into existing category on promotion (proto: ${protoCategory.name})`,
           protoCategoryId: null,
         },
@@ -326,51 +406,23 @@ export class ProtoCategoriesService {
   async findMatchingFullCategory(
     userId: string,
     suggestedName: string,
+    considered?: ConsideredDuplicateCandidate[],
   ): Promise<{ name: string; contextId: string } | null> {
     const categories = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
     });
 
-    const normalizedSuggestion = suggestedName.toLowerCase().trim();
-    const suggestionWithoutEmoji = normalizedSuggestion
+    const exactOrAlternate = matchExactOrAlternateName(
+      suggestedName,
+      categories,
+    );
+    if (exactOrAlternate) return exactOrAlternate;
+
+    const suggestionWithoutEmoji = suggestedName
+      .toLowerCase()
+      .trim()
       .replace(/[\p{Emoji}]/gu, "")
       .trim();
-    const suggestionWithoutParens = suggestionWithoutEmoji
-      .replace(/\s*\(.*\)\s*$/, "")
-      .trim();
-
-    for (const category of categories) {
-      const categoryName = parseCategoryName(category.contextValue);
-      const normalizedName = categoryName.toLowerCase().trim();
-      const nameWithoutEmoji = normalizedName
-        .replace(/[\p{Emoji}]/gu, "")
-        .trim();
-
-      if (
-        suggestionWithoutEmoji === nameWithoutEmoji ||
-        normalizedSuggestion === normalizedName ||
-        suggestionWithoutParens === nameWithoutEmoji
-      ) {
-        return { name: categoryName, contextId: category.contextId };
-      }
-
-      if (category.alternateNames?.length) {
-        const altMatch = category.alternateNames.some((alt) => {
-          const normAlt = alt.toLowerCase().trim();
-          const altWithoutEmoji = normAlt.replace(/[\p{Emoji}]/gu, "").trim();
-          return (
-            normAlt === normalizedSuggestion ||
-            altWithoutEmoji === suggestionWithoutEmoji
-          );
-        });
-        if (altMatch) {
-          this.logger.debug(
-            `Alternate-name match: "${suggestedName}" → "${categoryName}"`,
-          );
-          return { name: categoryName, contextId: category.contextId };
-        }
-      }
-    }
 
     const nearDuplicates = categories
       .map((category) => {
@@ -397,10 +449,11 @@ export class ProtoCategoriesService {
     for (const { category: candidate } of nearDuplicates) {
       const categoryName = parseCategoryName(candidate.contextValue);
       try {
-        const isDuplicate = await this.checkCategoryDuplicate(
+        const isDuplicate = await this.evaluateDuplicate(
           suggestedName,
           categoryName,
           userId,
+          considered,
         );
         if (isDuplicate) {
           await this.saveAlternateName(candidate, suggestedName);
@@ -416,16 +469,24 @@ export class ProtoCategoriesService {
       }
     }
 
-    const sharedTokenMatch = await this.findSharedTokenMatch(
+    const sharedTokenMatch = await this.findSharedTokenMatch({
       suggestedName,
       suggestionWithoutEmoji,
       categories,
-      new Set(nearDuplicates.map((nd) => nd.category.contextId)),
+      alreadyCheckedIds: new Set(
+        nearDuplicates.map((nd) => nd.category.contextId),
+      ),
       userId,
-    );
+      considered,
+    });
     if (sharedTokenMatch) return sharedTokenMatch;
 
-    return this.findEmbeddingFullMatch(suggestedName, categories, userId);
+    return this.findEmbeddingFullMatch(
+      suggestedName,
+      categories,
+      userId,
+      considered,
+    );
   }
 
   /**
@@ -439,27 +500,33 @@ export class ProtoCategoriesService {
     suggestedName: string,
     categories: UserContext[],
     userId: string,
+    considered?: ConsideredDuplicateCandidate[],
   ): Promise<{ name: string; contextId: string } | null> {
     const byName = new Map<string, UserContext>();
     for (const category of categories) {
       byName.set(parseCategoryName(category.contextValue), category);
     }
 
-    const embeddingNames = await this.findEmbeddingSimilarNames(
-      suggestedName,
-      [...byName.keys()],
-      new Set(),
-      userId,
+    const embeddingNames = await embeddingSimilarNames(
+      this.embeddingService,
+      this.logger,
+      {
+        suggestedName,
+        candidateNames: [...byName.keys()],
+        excludeNames: new Set(),
+        userId,
+      },
     );
 
     for (const candidateName of embeddingNames) {
       const candidate = byName.get(candidateName);
       if (!candidate) continue;
       try {
-        const isDuplicate = await this.checkCategoryDuplicate(
+        const isDuplicate = await this.evaluateDuplicate(
           suggestedName,
           candidateName,
           userId,
+          considered,
         );
         if (isDuplicate) {
           await this.saveAlternateName(candidate, suggestedName);
@@ -486,13 +553,22 @@ export class ProtoCategoriesService {
    * an existing category we ask the LLM — the updated check-category-duplicate
    * prompt marks broad catch-all platform categories as duplicates of specific ones.
    */
-  private async findSharedTokenMatch(
-    suggestedName: string,
-    suggestionWithoutEmoji: string,
-    categories: UserContext[],
-    alreadyCheckedIds: Set<string>,
-    userId: string,
-  ): Promise<{ name: string; contextId: string } | null> {
+  private async findSharedTokenMatch(options: {
+    suggestedName: string;
+    suggestionWithoutEmoji: string;
+    categories: UserContext[];
+    alreadyCheckedIds: Set<string>;
+    userId: string;
+    considered?: ConsideredDuplicateCandidate[];
+  }): Promise<{ name: string; contextId: string } | null> {
+    const {
+      suggestedName,
+      suggestionWithoutEmoji,
+      categories,
+      alreadyCheckedIds,
+      userId,
+      considered,
+    } = options;
     const significantTokens = this.extractSignificantTokens(
       suggestionWithoutEmoji,
     );
@@ -515,10 +591,11 @@ export class ProtoCategoriesService {
     for (const candidate of tokenCandidates) {
       const categoryName = parseCategoryName(candidate.contextValue);
       try {
-        const isDuplicate = await this.checkCategoryDuplicate(
+        const isDuplicate = await this.evaluateDuplicate(
           suggestedName,
           categoryName,
           userId,
+          considered,
         );
         if (isDuplicate) {
           await this.saveAlternateName(candidate, suggestedName);
@@ -548,6 +625,7 @@ export class ProtoCategoriesService {
   async findMatchingProtoCategory(
     userId: string,
     suggestedName: string,
+    considered?: ConsideredDuplicateCandidate[],
   ): Promise<ProtoCategory | null> {
     const exactMatch = await this.findByName(userId, suggestedName);
     if (exactMatch) {
@@ -606,6 +684,7 @@ export class ProtoCategoriesService {
       levenshteinCandidates,
       userId,
       "Levenshtein+LLM duplicate (proto)",
+      considered,
     );
     if (levenshteinMatch) return levenshteinMatch;
 
@@ -614,11 +693,15 @@ export class ProtoCategoriesService {
         category.name.toLowerCase().trim(),
       ),
     );
-    const embeddingNames = await this.findEmbeddingSimilarNames(
-      suggestedName,
-      activeCategories.map((category) => category.name),
-      checkedNames,
-      userId,
+    const embeddingNames = await embeddingSimilarNames(
+      this.embeddingService,
+      this.logger,
+      {
+        suggestedName,
+        candidateNames: activeCategories.map((category) => category.name),
+        excludeNames: checkedNames,
+        userId,
+      },
     );
     const embeddingCandidates = embeddingNames
       .map((name) =>
@@ -631,6 +714,7 @@ export class ProtoCategoriesService {
       embeddingCandidates,
       userId,
       "Embedding+LLM duplicate (proto)",
+      considered,
     );
   }
 
@@ -645,13 +729,15 @@ export class ProtoCategoriesService {
     candidates: ProtoCategory[],
     userId: string,
     logLabel: string,
+    considered?: ConsideredDuplicateCandidate[],
   ): Promise<ProtoCategory | null> {
     for (const category of candidates) {
       try {
-        const isDuplicate = await this.checkCategoryDuplicate(
+        const isDuplicate = await this.evaluateDuplicate(
           suggestedName,
           category.name,
           userId,
+          considered,
         );
         if (isDuplicate) {
           this.logger.log(
@@ -666,50 +752,6 @@ export class ProtoCategoriesService {
       }
     }
     return null;
-  }
-
-  /**
-   * Returns category names whose embedding cosine similarity to `suggestedName`
-   * is at least EMBEDDING_DUPLICATE_THRESHOLD, most-similar first, capped at
-   * MAX_LLM_DEDUP_CANDIDATES and excluding any name in `excludeNames`
-   * (lowercased). Catches semantic paraphrase-duplicates that Levenshtein and
-   * shared-token matching miss. Returns [] when embeddings are unavailable so
-   * callers fall back to their lexical checks only.
-   */
-  private async findEmbeddingSimilarNames(
-    suggestedName: string,
-    candidateNames: string[],
-    excludeNames: Set<string>,
-    userId?: string,
-  ): Promise<string[]> {
-    if (!this.embeddingService.isAvailable()) return [];
-    const pool = candidateNames.filter(
-      (name) => !excludeNames.has(name.toLowerCase().trim()),
-    );
-    if (pool.length === 0) return [];
-
-    try {
-      const [suggestionVectors, poolVectors] = await Promise.all([
-        this.embeddingService.embed([suggestedName], { cache: true, userId }),
-        this.embeddingService.embed(pool, { cache: true, userId }),
-      ]);
-      const suggestionVector = suggestionVectors[0];
-
-      return pool
-        .map((name, index) => ({
-          name,
-          score: cosineSimilarity(suggestionVector, poolVectors[index]),
-        }))
-        .filter((entry) => entry.score >= EMBEDDING_DUPLICATE_THRESHOLD)
-        .sort((left, right) => right.score - left.score)
-        .slice(0, MAX_LLM_DEDUP_CANDIDATES)
-        .map((entry) => entry.name);
-    } catch (err) {
-      this.logger.warn(
-        `Embedding similarity check failed for "${suggestedName}": ${err}`,
-      );
-      return [];
-    }
   }
 
   async updateProtoCategoryName(
@@ -837,24 +879,47 @@ export class ProtoCategoriesService {
   }
 
   /**
+   * Runs the duplicate check and, when a `considered` accumulator is provided,
+   * records the candidate name, verdict, and reasoning so callers can persist
+   * what was weighed during dedup (for later display in the UI).
+   */
+  private async evaluateDuplicate(
+    suggestedName: string,
+    candidateName: string,
+    userId: string,
+    considered?: ConsideredDuplicateCandidate[],
+  ): Promise<boolean> {
+    const { isDuplicate, reasoning } = await this.checkCategoryDuplicate(
+      suggestedName,
+      candidateName,
+      userId,
+    );
+    considered?.push({ name: candidateName, isDuplicate, reasoning });
+    return isDuplicate;
+  }
+
+  /**
    * Asks the LLM whether two category names refer to the same email category.
    * Called after Levenshtein distance flags them as near-duplicates to avoid
    * false positives from the fuzzy match alone.
    *
-   * Returns false on any LLM/parse error so the caller falls through to
-   * creating a new proto-category rather than misclassifying an email.
+   * Uses the stronger non-lite Gemini model with thinking enabled — deciding
+   * whether to spin up a whole new category is a high-stakes call worth the
+   * extra cost. Returns `isDuplicate: false` with the parse/error reasoning on
+   * any LLM/parse failure so the caller falls through to creating a new
+   * proto-category rather than misclassifying an email.
    */
   private async checkCategoryDuplicate(
     categoryA: string,
     categoryB: string,
     userId: string,
-  ): Promise<boolean> {
+  ): Promise<{ isDuplicate: boolean; reasoning: string }> {
     const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_CATEGORY_DUPLICATE);
     if (!promptConfig) {
       this.logger.error(
         "[CHECK-CATEGORY-DUPLICATE] check_category_duplicate prompt not found",
       );
-      return false;
+      return { isDuplicate: false, reasoning: "Duplicate check unavailable" };
     }
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
@@ -867,11 +932,13 @@ export class ProtoCategoriesService {
         prompt,
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: 0,
-        maxTokens: 128,
+        maxTokens: DEDUP_MAX_TOKENS,
         jsonMode: true,
         operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
+        model: this.strongDedupModel,
+        thinking: true,
       },
-      undefined,
+      LLMProvider.GEMINI,
       userId,
     );
 
@@ -886,7 +953,7 @@ export class ProtoCategoriesService {
       this.logger.warn(
         `[CHECK-CATEGORY-DUPLICATE] No JSON in response for "${categoryA}" vs "${categoryB}"`,
       );
-      return false;
+      return { isDuplicate: false, reasoning: "No verdict returned" };
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as {
@@ -895,10 +962,11 @@ export class ProtoCategoriesService {
     };
 
     const isDuplicate = parsed.isDuplicate === true;
+    const reasoning = parsed.reasoning ?? "";
     this.logger.log(
-      `[CHECK-CATEGORY-DUPLICATE] "${categoryA}" vs "${categoryB}": isDuplicate=${isDuplicate} reason="${parsed.reasoning ?? ""}"`,
+      `[CHECK-CATEGORY-DUPLICATE] "${categoryA}" vs "${categoryB}": isDuplicate=${isDuplicate} reason="${reasoning}"`,
     );
-    return isDuplicate;
+    return { isDuplicate, reasoning };
   }
 
   /**

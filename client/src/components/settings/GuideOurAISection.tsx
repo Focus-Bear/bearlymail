@@ -8,7 +8,9 @@ import { GuideOurAISectionHeader } from 'components/settings/guide-ai/GuideOurAI
 import { SummarizationRulesSection } from 'components/settings/guide-ai/SummarizationRulesSection';
 import { ToneSettingsSection } from 'components/settings/guide-ai/ToneSettingsSection';
 import { PriorityRulesSection } from 'components/settings/priority-rules/PriorityRulesSection';
+import { CategoryPromotionContext } from 'contexts/CategoryPromotionContext';
 import { CategoryRuleFromCategoryContext } from 'contexts/CategoryRuleFromCategoryContext';
+import { useCategoryPromotions } from 'hooks/settings/useCategoryPromotions';
 import { useDeterministicCategoryRulesSectionState } from 'hooks/settings/useDeterministicCategoryRulesSectionState';
 
 interface UserContext {
@@ -152,8 +154,10 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   onRefreshContexts,
 }) => {
   const deterministicCategoryRulesController = useDeterministicCategoryRulesSectionState();
+  const { getPromotion } = useCategoryPromotions();
 
   return (
+    <CategoryPromotionContext.Provider value={{ getPromotion }}>
     <CategoryRuleFromCategoryContext.Provider
       value={{
         openAddRuleForCategoryDisplayName: deterministicCategoryRulesController.openAddChoiceForCategoryDisplayName,
@@ -243,5 +247,6 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         />
       </div>
     </CategoryRuleFromCategoryContext.Provider>
+    </CategoryPromotionContext.Provider>
   );
 };

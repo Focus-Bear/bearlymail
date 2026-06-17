@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Anthropic from "@anthropic-ai/sdk";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GenerationConfig, GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 
 import { LLM_BLOCK_TYPES } from "../constants/domain-types";
@@ -253,9 +253,15 @@ export class LLMCoreService {
       return this.generateWithOpenAI({ ...request, model: undefined }, userId);
     }
 
+    // Callers can request a specific Gemini model (e.g. the stronger non-lite
+    // model for dedup decisions). Falls back to the configured default.
     const modelName =
-      this.configService.get<string>("GEMINI_MODEL") || "gemini-3.1-flash-lite";
-    this.logger.log(`Generating text using Gemini model: ${modelName}`);
+      request.model ||
+      this.configService.get<string>("GEMINI_MODEL") ||
+      "gemini-3.1-flash-lite";
+    this.logger.log(
+      `Generating text using Gemini model: ${modelName}${request.thinking ? " (thinking enabled)" : ""}`,
+    );
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
@@ -271,16 +277,21 @@ export class LLMCoreService {
           : {}),
       });
 
+      // `thinkingConfig` is supported by the Gemini REST API but not yet typed
+      // in this SDK version, so we build a widened config and cast. A budget of
+      // -1 lets the model decide how much to think (dynamic).
+      const generationConfig: Record<string, unknown> = {
+        temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+        maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+        ...(request.jsonMode && { responseMimeType: "application/json" }),
+        ...(request.thinking && { thinkingConfig: { thinkingBudget: -1 } }),
+      };
+
       let result: Awaited<ReturnType<typeof model.generateContent>>;
       try {
         result = await model.generateContent({
           contents: [{ role: "user", parts: [{ text: request.prompt }] }],
-          generationConfig: {
-            temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
-            maxOutputTokens:
-              request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-            ...(request.jsonMode && { responseMimeType: "application/json" }),
-          },
+          generationConfig: generationConfig as GenerationConfig,
         });
       } catch (error) {
         // Trip the circuit breaker the moment we see a billing 429 so any

@@ -17,6 +17,7 @@ import {
 import { parseCategoryName } from "./category-format.util";
 
 export {
+  canonicaliseCategoryName,
   parseCategoryDescription,
   parseCategoryName,
   parseCategoryValue,

@@ -39,6 +39,14 @@ export class ProtoCategoriesController {
     }));
   }
 
+  @Get("promoted")
+  async getPromotedProtoCategories(
+    @Request() req: { user: { userId: string } },
+  ) {
+    const { userId } = req.user;
+    return this.protoCategoriesService.findPromotedByUser(userId);
+  }
+
   @Post(":id/promote")
   async promoteProtoCategory(
     @Param("id") id: string,

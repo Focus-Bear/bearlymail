@@ -8,6 +8,7 @@ import { ContactTypeClassifierService } from "../crm/contact-type-classifier.ser
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { ConsideredDuplicateCandidate } from "../database/entities/proto-category.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
 import { extractPlainSummary } from "../llm/llm-summary-utils";
@@ -448,9 +449,14 @@ export class LLMSummaryProcessorService {
       };
     }
 
+    // Accumulates the categories the dedup pass weighed (and why), so the new
+    // proto category can record what was considered for duplicates.
+    const consideredCandidates: ConsideredDuplicateCandidate[] = [];
+
     const matched = await this.protoCategoriesService.findMatchingFullCategory(
       userId,
       category,
+      consideredCandidates,
     );
     if (matched) {
       return {
@@ -464,6 +470,7 @@ export class LLMSummaryProcessorService {
       await this.protoCategoriesService.findMatchingProtoCategory(
         userId,
         category,
+        consideredCandidates,
       );
     if (directProtoMatch) {
       const updated =
@@ -495,6 +502,7 @@ export class LLMSummaryProcessorService {
       category,
       null,
       emailThreadId,
+      consideredCandidates,
     );
     const unmatchedNote = `(Note: category "${category}" not found in your category list — email placed in Other)`;
     const explanation = categoryExplanation

@@ -16,9 +16,13 @@ describe('formatDate', () => {
   });
 
   it('includes the day portion of the date', () => {
-    // Use a date with an unambiguous day — 15 should appear
-    const result = formatDate('2024-03-15T14:30:00.000Z');
-    expect(result).toMatch(/15/);
+    // formatDate renders in local time, so derive the expected day-of-month
+    // from the same local conversion — otherwise this assertion is fragile in
+    // timezones where the UTC instant falls on a different calendar day.
+    const iso = '2024-03-15T14:30:00.000Z';
+    const result = formatDate(iso);
+    const localDay = String(new Date(iso).getDate());
+    expect(result).toContain(localDay);
   });
 
   it('includes time digits for hours and minutes', () => {

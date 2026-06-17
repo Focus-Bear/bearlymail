@@ -19,6 +19,12 @@ export interface LLMRequest {
   jsonMode?: boolean;
   /** Optional model override (e.g. for cheap triage calls). */
   model?: string;
+  /**
+   * When true, request extended "thinking"/reasoning from the provider for
+   * higher-quality answers on harder calls. For Gemini this enables a dynamic
+   * thinking budget; non-thinking models ignore it.
+   */
+  thinking?: boolean;
   metadata?: {
     /** Email IDs processed in this LLM call (for tracking duplicate summarisations). */
     emailIds?: string[];

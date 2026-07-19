@@ -1,0 +1,45 @@
+name: Security Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: 'Base branch to diff against (default: main)'
+        required: false
+        default: 'main'
+      full_scan:
+        description: 'Run full scan instead of diff'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci --legacy-peer-deps
+
+      - name: Run security audit
+        working-directory: server
+        env:
+          GITHUB_BASE_REF: ${{ github.event.inputs.base_ref || 'main' }}
+          SECURITY_AUDIT_OPENAI_API_KEY: ${{ secrets.SECURITY_AUDIT_OPENAI_API_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.full_scan }}" = "true" ]; then
+            npm run security:audit:llm
+          else
+            npm run security:audit:ci
+          fi

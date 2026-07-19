@@ -1,0 +1,366 @@
+description: "Tests for the meeting-proposal detection prompt (naive local + timezone extraction)"
+
+prompts:
+  - file://prompts/detect-meeting-proposal.md
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+tests:
+  - description: "Bare day-of-month + period time ('11.30am on 29th') extracts local time and recipient timezone"
+    vars:
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "emma-kate.cooper@jigsawaustralia.com.au"
+      fromName: "Emma-Kate Cooper"
+      subject: "Meeting with trainees"
+      body: |
+        Hi Jeremy,
+
+        An online meeting would work well for us at 11.30am on 29th.
+
+        It will be with trainees Harrison and Asher.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-05-29T11:30')) {
+            throw new Error(`Expected proposedLocalTime '2026-05-29T11:30:00' (no offset). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(parsed.proposedLocalTime)) {
+            throw new Error(`proposedLocalTime must NOT carry an offset/Z suffix. Got: ${parsed.proposedLocalTime}`);
+          }
+          if (parsed.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne' (no tz stated in email, fall back to userTimezone). Got: ${parsed.proposedTimezone}`);
+          }
+          return true;
+
+  - description: "Relative date + colon time ('next Tuesday at 9am') extracts local time and recipient timezone"
+    vars:
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "sarah@example.com"
+      fromName: "Sarah Chen"
+      subject: "Catch up"
+      body: |
+        Hi, could we meet next Tuesday at 9am to go over the roadmap?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-05-26T09:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-05-26T09:00:00' (next Tuesday after Fri 2026-05-22). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (parsed.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne'. Got: ${parsed.proposedTimezone}`);
+          }
+          return true;
+
+  - description: "Explicit timezone in email ('9am Eastern') extracts local time + stated tz as UTC offset"
+    vars:
+      currentDatetime: "2026-04-10T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "patricia@example.com"
+      fromName: "Patricia Lee"
+      subject: "Quarterly review"
+      body: |
+        Can we hop on a call at 9am Eastern on Wednesday April 15? Should take about 30 minutes.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-04-15T09:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-04-15T09:00:00'. Got: ${parsed.proposedLocalTime}`);
+          }
+          // "Eastern" on April 15 is EDT = UTC-4. Accept the offset form (prompt instructs offsets for stated zones)
+          // OR the IANA fallback the model may pick. Reject UTC and the recipient's Melbourne tz.
+          const tz = parsed.proposedTimezone;
+          const tzOk = tz === 'UTC-4' || tz === 'UTC-5' || tz === 'America/New_York';
+          if (!tzOk) {
+            throw new Error(`Expected proposedTimezone in {'UTC-4','UTC-5','America/New_York'} (email states Eastern, NOT recipient's tz). Got: ${tz}`);
+          }
+          if (parsed.durationMinutes !== 30) {
+            throw new Error(`Expected durationMinutes=30. Got: ${parsed.durationMinutes}`);
+          }
+          return true;
+
+  - description: "Vague proposal ('sometime next week') is NOT a concrete proposal"
+    vars:
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "mike@example.com"
+      fromName: "Mike Thompson"
+      subject: "Sync"
+      body: |
+        Let's find a time sometime next week to chat — what works for you?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== false) {
+            throw new Error(`Expected hasProposal=false for vague request. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+
+  - description: "Time window ('between 1 and 4') extracts start + end of the window, leaves durationMinutes null"
+    vars:
+      currentDatetime: "2026-06-02T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "events@adhdseminars.org"
+      fromName: "Seminar Team"
+      subject: "ADHD, Behaviour & Mental Health Seminar Series"
+      body: |
+        Hi Jeremy,
+
+        Would you be available on Wednesday 8th July between 1 and 4 to record the seminar?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-07-08T13:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-07-08T13:00:00' (start of window). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (!parsed.proposedLocalTimeEnd || !parsed.proposedLocalTimeEnd.startsWith('2026-07-08T16:00')) {
+            throw new Error(`Expected proposedLocalTimeEnd '2026-07-08T16:00:00' (end of window). Got: ${parsed.proposedLocalTimeEnd}`);
+          }
+          if (parsed.durationMinutes !== null && parsed.durationMinutes !== undefined) {
+            throw new Error(`Expected durationMinutes=null (window width is not the meeting length). Got: ${parsed.durationMinutes}`);
+          }
+          return true;
+
+  - description: "Time-of-day window on a specific day ('afternoon or over lunch on Wednesday') resolves to the afternoon default window"
+    vars:
+      currentDatetime: "2026-06-15T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "scott.crowe@example.com"
+      fromName: "Scott Crowe"
+      subject: "Re: Catch up about the grant"
+      body: |
+        I can't do tomorrow morning, but I'm free in the afternoon or over lunch on Wednesday if that works for you?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true for 'Wednesday afternoon'. Got: ${text.substring(0, 300)}`);
+          }
+          // First option mentioned is "afternoon" -> default window 13:00-17:00 on Wed 2026-06-17.
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-06-17T13:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-06-17T13:00:00' (afternoon default on Wed). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (parsed.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne' (no tz stated). Got: ${parsed.proposedTimezone}`);
+          }
+          return true;
+
+  - description: "Time-of-day window ('Thursday morning') resolves to the morning default window"
+    vars:
+      currentDatetime: "2026-06-15T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "dana@example.com"
+      fromName: "Dana Wells"
+      subject: "Quick sync"
+      body: |
+        Are you free Thursday morning for a quick sync on the roadmap?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true for 'Thursday morning'. Got: ${text.substring(0, 300)}`);
+          }
+          // "morning" -> default window 09:00-12:00 on Thu 2026-06-18.
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-06-18T09:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-06-18T09:00:00' (morning default on Thu). Got: ${parsed.proposedLocalTime}`);
+          }
+          return true;
+
+  - description: "Date with no time ('the 9th of July if that works') sets proposedLocalDate and leaves the time null"
+    vars:
+      currentDatetime: "2026-06-25T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "summer@kindship.com.au"
+      fromName: "Summer Petrosius"
+      subject: "Re: Buddies - Jeremy and Summer"
+      body: |
+        Hi Jeremy,
+
+        Great! Could we plan for the 9th of July if that works for you?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true for a bare date. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalDate || !parsed.proposedLocalDate.startsWith('2026-07-09')) {
+            throw new Error(`Expected proposedLocalDate '2026-07-09'. Got: ${parsed.proposedLocalDate}`);
+          }
+          if (parsed.proposedLocalTime !== null && parsed.proposedLocalTime !== undefined) {
+            throw new Error(`Expected proposedLocalTime=null (no time of day stated). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (parsed.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne' (no tz stated). Got: ${parsed.proposedTimezone}`);
+          }
+          return true;
+
+  - description: "Time with no date ('around 3pm') is NOT a concrete proposal"
+    vars:
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "alex@example.com"
+      fromName: "Alex Rivera"
+      subject: "Quick call"
+      body: |
+        Could we hop on a quick call around 3pm? Let me know which day suits.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== false) {
+            throw new Error(`Expected hasProposal=false when no date is given. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+
+  - description: "Confirmation reply ('lock in 2pm') inherits the day/date from the earlier thread proposal, not the quote-attribution header"
+    vars:
+      currentDatetime: "2026-06-18T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "sdpcrowe@gmail.com"
+      fromName: "Scott Crowe"
+      subject: "Re: Catch up"
+      threadContext: |
+        From: Jeremy Nagel
+        Could we do 1st July from 2-4pm? I'm free then.
+      body: |
+        Great, lets lock in 2pm thanks.
+
+        On Wed, Jun 17, 2026, 4:20 PM Jeremy Nagel <jeremy@focusbear.io> wrote:
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true for confirmation reply. Got: ${text.substring(0, 300)}`);
+          }
+          // Date comes from the earlier proposal (1 July), time from the confirmation (2pm).
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-07-01T14:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-07-01T14:00:00' (1 July, 2pm). Got: ${parsed.proposedLocalTime}`);
+          }
+          // Must NOT have grabbed the 17 June date from the "On ... wrote:" attribution line.
+          if (parsed.proposedLocalTime.startsWith('2026-06-17')) {
+            throw new Error(`Took the date from the quote-attribution header instead of the proposal. Got: ${parsed.proposedLocalTime}`);
+          }
+          return true;
+
+  - description: "Quote-attribution header date is ignored when there is no earlier proposal to inherit a day from"
+    vars:
+      currentDatetime: "2026-06-18T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "sdpcrowe@gmail.com"
+      fromName: "Scott Crowe"
+      subject: "Re: Catch up"
+      body: |
+        Great, lets lock in 2pm thanks.
+
+        On Wed, Jun 17, 2026, 4:20 PM Jeremy Nagel <jeremy@focusbear.io> wrote:
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          // No day available (the only date is the attribution header, which must be ignored).
+          if (parsed.hasProposal !== false) {
+            throw new Error(`Expected hasProposal=false — the attribution-header date must not become the proposal. Got: ${text.substring(0, 300)}`);
+          }
+          return true;

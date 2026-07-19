@@ -1,0 +1,76 @@
+description: "Priority feedback analysis prompts for BearlyMail"
+
+
+providers:
+ 
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+  
+prompts:
+  - file://prompts/analyze-priority-feedback.md
+
+tests:
+  - vars:
+      fromName: "Sarah Chen"
+      subject: "Weekly team update"
+      body: "Hi, here's the weekly update on our team's progress."
+      reasonType: "too_high"
+      reason: "This is a routine update, not urgent"
+      predictedPriority: 3
+      userPriority: 1
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!Array.isArray(parsed.suggestedRules)) {
+              throw new Error(`Expected suggestedRules array, got: ${typeof parsed.suggestedRules}`);
+            }
+            if (!Array.isArray(parsed.updatedContexts)) {
+              throw new Error(`Expected updatedContexts array, got: ${typeof parsed.updatedContexts}`);
+            }
+            // Should suggest rules or context updates
+            if (parsed.suggestedRules.length === 0 && parsed.updatedContexts.length === 0) {
+              throw new Error(`Expected at least one suggested rule or context update`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}. Output: ${text.substring(0, 200)}`);
+          }
+    description: "Should analyze feedback and suggest context updates"
+
+  - vars:
+      fromName: "CEO@company.com"
+      subject: "Important decision needed"
+      body: "We need to make a critical decision about the product direction."
+      reasonType: "too_low"
+      reason: "This is from the CEO, should be high priority"
+      predictedPriority: 1
+      userPriority: 3
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.suggestedRules || !parsed.updatedContexts) {
+              throw new Error(`Expected suggestedRules and updatedContexts`);
+            }
+            // Should suggest VIP_CONTACT for CEO
+            const hasVipSuggestion = parsed.updatedContexts.some(ctx => 
+              ctx.contextKey === 'VIP_CONTACT' || parsed.suggestedRules.some(rule => 
+                rule.toLowerCase().includes('ceo') || rule.toLowerCase().includes('vip')
+              )
+            );
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should suggest VIP contact for high-priority senders"
+

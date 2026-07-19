@@ -1,0 +1,169 @@
+description: "Tests for category duplicate detection prompt used by proto-category deduplication"
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/check-category-duplicate.md
+
+tests:
+  - description: "Should return valid JSON with isDuplicate and reasoning fields"
+    vars:
+      categoryA: "CI/CD Alerts"
+      categoryB: "CI/CD Notifications"
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (typeof parsed.isDuplicate !== 'boolean') {
+            throw new Error(`Expected isDuplicate boolean, got: ${typeof parsed.isDuplicate}`);
+          }
+          if (typeof parsed.reasoning !== 'string' || parsed.reasoning.trim() === '') {
+            throw new Error(`Expected non-empty reasoning string, got: ${typeof parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Reasoning should be no longer than 20 words"
+    vars:
+      categoryA: "Marketing Emails"
+      categoryB: "Promotional Newsletters"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const wordCount = parsed.reasoning.trim().split(/\s+/).length;
+          if (wordCount > 20) {
+            throw new Error(`Reasoning exceeded 20 words: got ${wordCount} words: "${parsed.reasoning}"`);
+          }
+          return true;
+
+  - description: "Should detect typo/minor spelling variant as duplicate"
+    vars:
+      categoryA: "CI/CD Alerts"
+      categoryB: "CICD Alerts"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== true) {
+            throw new Error(`Expected isDuplicate=true for typo variant, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should detect paraphrase as duplicate (CI/CD Alerts vs CI/CD Notifications)"
+    vars:
+      categoryA: "CI/CD Alerts"
+      categoryB: "CI/CD Notifications"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== true) {
+            throw new Error(`Expected isDuplicate=true for paraphrase, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should detect plural/singular variant as duplicate"
+    vars:
+      categoryA: "Invoice"
+      categoryB: "Invoices"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== true) {
+            throw new Error(`Expected isDuplicate=true for plural/singular variant, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should NOT mark meaningfully different categories as duplicate"
+    vars:
+      categoryA: "Newsletters"
+      categoryB: "Project Updates"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== false) {
+            throw new Error(`Expected isDuplicate=false for unrelated categories, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should NOT mark similar-sounding but distinct entity categories as duplicate (Project A vs Project B)"
+    vars:
+      categoryA: "Project Alpha"
+      categoryB: "Project Beta"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== false) {
+            throw new Error(`Expected isDuplicate=false for distinct project names, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should NOT mark broad umbrella vs distinct sub-topic as duplicate"
+    vars:
+      categoryA: "Notifications"
+      categoryB: "GitHub Notifications"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== false) {
+            throw new Error(`Expected isDuplicate=false when one is a broad umbrella, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should detect same concept with different wording as duplicate (Job Applications vs Career Opportunities)"
+    vars:
+      categoryA: "Job Applications"
+      categoryB: "Career Opportunities"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== true) {
+            throw new Error(`Expected isDuplicate=true for same concept different wording, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should NOT merge same-platform sub-categories that track different artifacts (PR updates vs new issues)"
+    vars:
+      categoryA: "GitHub PR Updates"
+      categoryB: "New GitHub issues (bot-created)"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== false) {
+            throw new Error(`Expected isDuplicate=false for PR-updates vs issues, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should NOT merge same-platform same-artifact sub-categories that differ on author kind (bot vs human PRs)"
+    vars:
+      categoryA: "GitHub Bot PR Updates"
+      categoryB: "GitHub PR Updates"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== false) {
+            throw new Error(`Expected isDuplicate=false for bot-vs-human PR updates, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;

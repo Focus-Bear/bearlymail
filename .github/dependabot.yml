@@ -1,0 +1,44 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # We pin @types/node to the major matching our runtime (Node 24).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # We pin @types/node to the major matching our runtime (Node 24).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # archiver v8 is ESM-only and removed the registerFormat() plugin API
+      # that archiver-zip-encrypted depends on for password-protected exports.
+      # Stay on archiver v7 until a v8-compatible encryption plugin exists.
+      - dependency-name: "archiver"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/archiver"
+        update-types: ["version-update:semver-major"]
+      # TypeORM 1.0.0 removed string-array form of `select` (must now be
+      # `{ field: true }`) and dropped the `Connection` export. The codebase
+      # uses both extensively across ~48 files. Pin to 0.3.x until we
+      # schedule a deliberate migration.
+      - dependency-name: "typeorm"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

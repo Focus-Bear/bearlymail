@@ -1,0 +1,159 @@
+description: "Tests for validate-writing-example prompt used by writing style learning"
+
+providers:
+     
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+ 
+prompts:
+  - file://prompts/validate-writing-example.md
+
+tests:
+  - description: "Should reject BearlyMail auto-responder email"
+    vars:
+      text: |
+        Hi! Thanks for your email—this one caught my attention. I'm BearlyMail, Jeremy Nagel's AI email assistant. I've flagged this for Jeremy to review personally. In the meantime, here's some helpful context about what Jeremy typically looks for in emails like yours.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.status === 'rejected';
+
+  - description: "Should reject calendar event notification"
+    vars:
+      text: |
+        This event has been updated The Meet video conference has changed Focus Bear VA checkin Weekly meeting with Focus Bear team
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.status === 'rejected';
+
+  - description: "Should reject calendar invitation with date/time"
+    vars:
+      text: |
+        Focus Bear Intern Briefing @ Monash Generator Friday 13 Feb 2026 · 10:15am – 11am Australian Eastern Daylight Time
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.status === 'rejected';
+
+  - description: "Should reject automated response email"
+    vars:
+      text: |
+        Hey there! Thanks for reaching out to Jeremy Nagel. This is an automated response from BearlyMail, his AI email assistant. Your message has been received and will be reviewed shortly.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.status === 'rejected';
+
+  - description: "Should accept and clean valid user-written email"
+    vars:
+      text: |
+        Hi Sarah,
+        
+        Thanks for sending over the proposal. I've reviewed it and have a few thoughts:
+        
+        1. The timeline looks reasonable
+        2. Budget needs some adjustment
+        3. Let's discuss the scope in our next meeting
+        
+        Can we schedule a call for Thursday?
+        
+        Best,
+        John
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.status === 'valid' && typeof parsed.cleanedText === 'string';
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          // Names should be redacted
+          return parsed.cleanedText.includes('[Name]');
+
+  - description: "Should strip email chain and accept valid content"
+    vars:
+      text: |
+        Hi Catherine,
+        
+        Great to hear back from you! I've sent you a calendar invite for 25th March at 2pm. Let me know if that time works or if you'd prefer a different slot.
+        
+        Also, I wanted to follow up on the budget discussion from last week. I think we should aim for the mid-range option since it gives us more flexibility without blowing the budget.
+        
+        Looking forward to catching up!
+        
+        On Wed, 4 Feb 2026 at 17:50, Catherine Lee wrote:
+        > Thanks for getting back to me! That date works perfectly.
+        > 
+        > Best,
+        > Catherine
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.status === 'valid' && typeof parsed.cleanedText === 'string';
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          // Should not contain the quoted chain
+          return !parsed.cleanedText.includes('Catherine Lee wrote');
+
+  - description: "Should reject out-of-office auto-reply"
+    vars:
+      text: |
+        I am currently out of the office with limited access to email. I will respond to your message when I return on Monday, February 17th. For urgent matters, please contact support@company.com.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.status === 'rejected';
+
+  - description: "Should reject newsletter/marketing email"
+    vars:
+      text: |
+        This week's top stories from TechNews:
+        
+        1. AI breakthrough announced
+        2. New smartphone released
+        3. Market update
+        
+        Unsubscribe | View in browser | Privacy Policy
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.status === 'rejected';

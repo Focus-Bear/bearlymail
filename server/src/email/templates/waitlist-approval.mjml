@@ -1,0 +1,85 @@
+<mjml>
+  <mj-head>
+    <mj-title>Welcome to BearlyMail</mj-title>
+    <mj-preview>{{ previewText }}</mj-preview>
+  </mj-head>
+  <mj-body>
+    <mj-section background-color="#f8f9fa">
+      <mj-column>
+        <mj-text
+          align="center"
+          padding="40px 20px 20px"
+          font-size="28px"
+          color="#2c3e50"
+          font-weight="bold"
+        >
+          {{ greeting }}
+        </mj-text>
+        <mj-text
+          align="left"
+          padding="20px 30px"
+          font-size="16px"
+          color="#333"
+          line-height="1.6"
+        >
+          {{ message }}
+        </mj-text>
+        <mj-text
+          align="left"
+          padding="0px 30px 30px"
+          font-size="16px"
+          color="#333"
+          line-height="1.6"
+        >
+          {{ cta }}
+        </mj-text>
+        <mj-button
+          href="{{setupUrl}}"
+          background-color="#4a90e2"
+          color="white"
+          border-radius="6px"
+          padding="12px 24px"
+          font-size="16px"
+          font-weight="600"
+        >
+          {{ button }}
+        </mj-button>
+        <mj-text
+          align="left"
+          padding="30px 30px 0px"
+          font-size="14px"
+          color="#666"
+          line-height="1.6"
+        >
+          {{ linkText }}<br />
+          <a
+            href="{{setupUrl}}"
+            style="color: #4a90e2; word-break: break-all"
+            >{{ setupUrl }}</a
+          >
+        </mj-text>
+        <mj-text
+          align="left"
+          padding="20px 30px 30px"
+          font-size="14px"
+          color="#666"
+          line-height="1.6"
+        >
+          {{ expiry }}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section>
+      <mj-column>
+        <mj-text
+          align="center"
+          padding="30px 20px"
+          font-size="12px"
+          color="#999"
+        >
+          {{ footer }}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

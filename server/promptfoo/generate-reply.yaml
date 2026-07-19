@@ -1,0 +1,78 @@
+description: "Professional email reply generation with formatting and logic checks"
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/generate-reply.md
+
+tests:
+  - description: "Content Check: Should address the request professionally"
+    vars:
+      fromName: "John Boss"
+      subject: "Status update needed"
+      body: "Can you provide a status update on the project?"
+      tone: "professional"
+      skipGreeting: false
+      signOff: "Best regards,"
+    assert:
+      - type: javascript
+        value: |
+          let text = typeof output === 'string' ? output : JSON.stringify(output);
+          text = text.replace(/^```[\w]*\s*/i, '').replace(/\s*```$/i, '').trim();
+          const hasStatus = text.toLowerCase().includes('status') || text.toLowerCase().includes('update') || text.toLowerCase().includes('project');
+          const hasLength = text.length > 30;
+          if (!hasStatus && !hasLength) {
+            throw new Error(`Expected reply to mention status/update/project and be at least 30 chars. Got: ${text.substring(0, 100)}`);
+          }
+          return true;
+
+  - description: "Formatting Check: Proper line breaks between paragraphs"
+    vars:
+      fromName: "Sarah Chen"
+      subject: "Quick question"
+      body: "Do you have time to review the document I sent?"
+      tone: "friendly"
+      skipGreeting: false
+      signOff: "Cheers,"
+    assert:
+      - type: javascript
+        value: |
+          let text = typeof output === 'string' ? output : JSON.stringify(output);
+          text = text.replace(/^```[\w]*\s*/i, '').replace(/\s*```$/i, '').trim();
+          const hasDoubleNewlines = text.includes('\n\n') || text.includes('\\n\\n');
+          if (!hasDoubleNewlines) {
+            throw new Error(`Expected proper paragraph separation with \\n\\n. Got: ${text.substring(0, 150)}`);
+          }
+          const lines = text.split(/\n\n|\\n\\n/).filter(l => l.trim().length > 0);
+          if (lines.length < 2) {
+            throw new Error(`Expected multiple paragraphs/lines, got single block: ${text.substring(0, 100)}`);
+          }
+          return true;
+
+  - description: "Logic Check: skipGreeting=true and empty signOff (The Fix)"
+    vars:
+      fromName: "Mike Johnson"
+      subject: "Meeting confirmation"
+      body: "Can we meet on Friday at 2pm?"
+      tone: "professional"
+      skipGreeting: true
+      signOff: ""
+    assert:
+      - type: javascript
+        value: |
+          let text = typeof output === 'string' ? output : JSON.stringify(output);
+          text = text.replace(/^```[\w]*\s*/i, '').replace(/\s*```$/i, '').trim();
+          // Verify NO greeting
+          if (text.toLowerCase().startsWith('hi') || text.toLowerCase().startsWith('hello') || text.toLowerCase().startsWith('dear')) {
+            throw new Error("Greeting found despite skipGreeting being true.");
+          }
+          // Verify NO sign-off (checking typical sign-off words)
+          const lastLine = text.split('\n').pop().toLowerCase();
+          const forbidden = ['best', 'regards', 'thanks', 'sincerely'];
+          if (forbidden.some(word => lastLine.includes(word))) {
+            throw new Error(`Sign-off found despite signOff being empty: ${lastLine}`);
+          }
+          return true;

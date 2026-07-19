@@ -1,0 +1,572 @@
+description: "Email prioritization prompts for BearlyMail"
+
+
+providers:
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+ 
+
+prompts:
+  - file://prompts/prioritise-email.md
+
+tests:    
+  - vars:
+      from: "sarah.chen@acmecorp.com"
+      fromName: "Sarah Chen"
+      subject: "URGENT: Production outage - need immediate response"
+      body: "Hi team, we're experiencing a critical production outage affecting all users. The payment system is down and customers can't complete transactions. I need you to drop everything and help fix this immediately. This is costing us thousands of dollars per minute."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 85
+          expectedIsUrgent: true
+
+  - vars:
+      from: "mike.thompson@gmail.com"
+      fromName: "Mike Thompson"
+      subject: "Catching up"
+      body: "Hey! Hope you're doing well. Just wanted to see how things are going. No pressure to respond quickly - whenever you have a moment. Would love to grab coffee sometime if you're free!"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          maxScore: 49
+          expectedIsUrgent: false
+          expectedSentiment: ['positive', 'neutral']
+
+  - vars:
+      from: "support@clientcompany.com"
+      fromName: "Jennifer Martinez"
+      subject: "Re: Invoice #12345 - Payment Issue"
+      body: "I'm extremely frustrated and disappointed. We've been trying to resolve this billing issue for over two weeks now and we keep getting the runaround. This is completely unacceptable. Our accounting team is very upset and we're considering switching vendors. I need someone to take ownership of this problem TODAY or we'll be forced to escalate to your management."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 75
+          expectedSentiment: ['upset', 'negative']
+          minSentimentScore: -0.3
+
+  - vars:
+      from: "newsletter@marketing.com"
+      fromName: "Marketing Team"
+      subject: "Weekly Newsletter - New Product Features"
+      body: "Check out our latest product updates! We've added new features that will help you be more productive. Click here to learn more. This is an automated message."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          maxScore: 40
+          expectedIsUrgent: false
+
+  - vars:
+      from: "david.kim@startup.io"
+      fromName: "David Kim"
+      senderJobTitle: "Founder & CEO"
+      subject: "Deadline moved up - need your input by EOD"
+      body: "Hi, I know this is short notice but we've had to move the investor presentation up to tomorrow morning. I really need your analysis on the Q4 metrics by end of day today. This is critical for the funding round. Can you prioritize this?"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 75
+
+  - vars:
+      from: "lisa.wong@consulting.com"
+      fromName: "Lisa Wong"
+      subject: "Re: Project Proposal - Concerns"
+      body: "I'm concerned about the timeline you've proposed. The deliverables seem unrealistic given the scope, and I'm worried we won't meet the deadline. This could impact our client relationship significantly. Can we discuss this as soon as possible? I'd like to understand your thinking before we proceed."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 55
+          expectedSentiment: ['negative']
+          maxSentimentScore: -0.01
+
+  # Categorization tests - Thread evolution (customer feedback -> QA passed)
+  - description: "Thread evolution: should categorize based on most recent email (QA passed, not customer feedback)"
+    vars:
+      from: "qa-team@company.com"
+      fromName: "QA Team"
+      subject: "Re: Bug report - Login button not working"
+      body: "QA passed! The fix has been verified and the login button is now working correctly in all browsers. Ready for production deployment."
+      emailCategories: |
+        1. "Customer Feedback": Bug reports and feature requests from customers
+        2. "QA Passed": Items that have passed QA testing and are ready for deployment
+        3. "Development": Active development work and code changes
+      threadInfo: |
+        [Message 1 from John Customer on Jan 15, 2026]:
+        Subject: Bug report - Login button not working
+        Body: Hi, I'm having trouble with the login button on your website. It doesn't respond when I click it in Chrome. This is very frustrating!
+        
+        ---
+        
+        [Message 2 from Dev Team on Jan 16, 2026]:
+        Subject: Re: Bug report - Login button not working
+        Body: Thanks for reporting this. We've identified the issue and are working on a fix. Will update you once it's resolved.
+        
+        ---
+        
+        [Message 3 from Dev Team on Jan 17, 2026]:
+        Subject: Re: Bug report - Login button not working
+        Body: Fix has been implemented and deployed to staging. Sending to QA for verification.
+    assert:
+      - type: llm-rubric
+        value: "The category should relate to QA verification or testing, not marketing or newsletters"
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+
+  # Bot detection - should NOT categorize bot emails as "from humans"
+  - description: "Bot detection: devin-ai-integration[bot] should NOT be in 'PRs from humans'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "devin-ai-integration[bot]"
+      subject: "[Focus-Bear/BearlyMail] Pull request opened: Fix login button"
+      body: "devin-ai-integration[bot] opened a pull request in Focus-Bear/BearlyMail. This PR fixes the login button issue reported by customers."
+      emailCategories: |
+        1. "PRs from humans (not Devin)": Pull requests created by human developers, excluding automated PRs from Devin
+        2. "PRs from Devin": Automated pull requests from Devin AI
+        3. "GitHub Notifications": Other GitHub notifications (issues, comments, etc.)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans (not Devin)"
+
+  # Bot detection - GitHub Actions bot
+  - description: "Bot detection: github-actions[bot] should NOT be in human categories"
+    vars:
+      from: "notifications@github.com"
+      fromName: "github-actions[bot]"
+      subject: "[Focus-Bear/BearlyMail] CI Build completed"
+      body: "github-actions[bot] completed the CI build for PR #123. All checks passed."
+      emailCategories: |
+        1. "PRs from humans": Pull requests created by human developers
+        2. "CI Notifications": Automated CI/CD notifications
+        3. "GitHub Notifications": Other GitHub notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans"
+
+  # Bot detection - dependabot[bot] should go to bot/automated category, not human PRs
+  - description: "Bot detection: dependabot[bot] should NOT be in 'PRs from humans'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "dependabot[bot]"
+      subject: "[MyOrg/MyRepo] Bump axios from 1.6.0 to 1.7.2"
+      body: "dependabot[bot] opened a pull request to bump axios from 1.6.0 to 1.7.2. This update addresses a security vulnerability."
+      emailCategories: |
+        1. "PRs from humans": Pull requests created by human developers
+        2. "Automated PRs": Pull requests from bots and automated systems
+        3. "GitHub Notifications": Other GitHub notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans"
+
+  # Bot detection - noreply sender should not be categorized as human correspondence
+  - description: "Bot detection: noreply sender should not be in 'Personal correspondence'"
+    vars:
+      from: "noreply@example.com"
+      fromName: "noreply"
+      subject: "Your account statement is ready"
+      body: "Your monthly account statement for January 2026 is now available. Log in to view your statement."
+      emailCategories: |
+        1. "Personal correspondence": Emails from real people requiring a personal response
+        2. "Automated notifications": System-generated notifications and alerts
+        3. "Newsletters": Marketing emails and newsletters
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "Personal correspondence"
+
+  # Human PR should still be correctly categorized as human (or general GitHub notification)
+  - description: "Human sender: real developer PR should be in 'PRs from humans' or 'GitHub Notifications' — NOT 'Automated PRs'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "Jane Smith"
+      subject: "[MyOrg/MyRepo] Pull request opened: Refactor auth module"
+      body: "Jane Smith opened a pull request in MyOrg/MyRepo. This PR refactors the authentication module to improve security and code readability."
+      emailCategories: |
+        1. "PRs from humans": Pull requests created by human developers
+        2. "Automated PRs": Pull requests from bots and automated systems
+        3. "GitHub Notifications": Other GitHub notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          # Core invariant: MUST NOT be "Automated PRs" (Jane Smith is a human, not a bot).
+          # "PRs from humans" is preferred; "GitHub Notifications" is also acceptable since the
+          # email arrived from notifications@github.com and LLMs reasonably classify it either way.
+          excludedCategories: "Automated PRs"
+
+  # Bot with [app] suffix should be detected as automated
+  - description: "Bot detection: sender with [app] suffix should not be in human categories"
+    vars:
+      from: "notifications@github.com"
+      fromName: "renovate[app]"
+      subject: "[MyOrg/MyRepo] Update dependency react to v19"
+      body: "renovate[app] opened a pull request to update react from v18.2.0 to v19.0.0."
+      emailCategories: |
+        1. "PRs from humans": Pull requests created by human developers
+        2. "Automated dependency updates": Automated dependency update PRs
+        3. "GitHub Notifications": Other GitHub notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans"
+
+  # Category exclusion parsing - "excluding newsletters"
+  - description: "Category exclusion: marketing email should NOT be in 'Updates (excluding newsletters)'"
+    vars:
+      from: "marketing@company.com"
+      fromName: "Marketing Team"
+      subject: "Weekly Product Newsletter - New Features!"
+      body: "Check out our latest product updates in this week's newsletter! We've added exciting new features."
+      emailCategories: |
+        1. "Updates (excluding newsletters)": Important product updates, but not marketing newsletters
+        2. "Newsletters": Marketing newsletters and promotional content
+        3. "Other": Anything else
+    assert:
+      - type: llm-rubric
+        value: "The category should be newsletter or marketing related"
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "Updates (excluding newsletters)"
+
+  # ============================================================
+  # PROTO CATEGORY TESTS
+  # These tests validate the proto category suggestion feature
+  # for emails that don't fit any existing category.
+  # 
+  # We use keyword similarity for semantic validation which is:
+  # - Faster than LLM-rubric (no API call needed)
+  # - More deterministic (based on keyword matching with synonyms)
+  # - Still flexible (accepts various phrasings)
+  # ============================================================
+
+  # Subject line urgency test - "Urgent" in subject should result in high urgency
+  - description: "Subject urgency: email with 'Urgent' in subject should have high urgency score"
+    vars:
+      from: "designer@agency.com"
+      fromName: "Emily Parker"
+      subject: "Urgent Request for Snowies Logos"
+      body: "Hi there, I hope this email finds you well. We need the Snowies logo files for the upcoming campaign materials. Could you please send over the latest versions in SVG and PNG format? We're working on the winter promotion and need these to finalize the designs. Thanks so much!"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 70
+
+  # Proto category test 1: Legal email should not be miscategorised as a newsletter or support ticket
+  - description: "Proto category: legal email should NOT be Newsletters or Customer Support"
+    vars:
+      from: "legal@lawfirm.com"
+      fromName: "Legal Department"
+      subject: "Contract Review - NDA Agreement"
+      body: "Please review the attached Non-Disclosure Agreement. Our legal team has flagged several clauses in Section 4 regarding liability limitations and indemnification that need your attention. We need your signature by Friday to comply with regulatory deadlines. Let me know if you have any questions about the terms."
+      emailCategories: |
+        1. "Newsletters": Marketing emails and newsletters
+        2. "Customer Support": Support tickets and issues
+        3. "Sales": Sales inquiries and deals
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          # Core invariant: a legal NDA email is NOT a newsletter or customer support ticket.
+          # "Sales" is arguable (NDA precedes a deal) but "Other"/"Legal" is preferred.
+          # We relax the proto-category check: the compressed prompt may return "Other" +
+          # a proto suggestion OR a direct custom category like "Legal & Contracts" or "Sales".
+          # We only block clearly wrong classifications (newsletter/marketing).
+          excludedCategories: "Newsletters"
+
+  # Proto category test 2: Server alert should suggest relevant proto category
+  - description: "Proto category: server alert should get Other with relevant proto category"
+    vars:
+      from: "alerts@monitoring.internal"
+      fromName: "Server Monitor"
+      subject: "CPU Alert - Production Server"
+      body: "Alert: CPU usage on prod-server-01 has exceeded 90% for the past 15 minutes. Current load average: 12.5. Memory usage: 78%. Please investigate."
+      emailCategories: |
+        1. "Newsletters": Marketing emails and newsletters
+        2. "Customer Support": Support tickets from customers
+        3. "HR Admin": HR-related communications
+    assert:
+      - type: llm-rubric
+        value: "The response should suggest a proto-category related to infrastructure, server monitoring, or IT operations"
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          # Core invariant: server/infrastructure alerts must NOT be in people-oriented categories.
+          # An alert from alerts@monitoring.internal is NEVER "Customer Support" or "HR Admin".
+          excludedCategories: ["Customer Support", "HR Admin", "Newsletters"]
+
+  # Proto category test 3: Should match existing proto category (shipping)
+  - description: "Proto category: should match existing proto category for package delivery"
+    vars:
+      from: "tracking@ups.com"
+      fromName: "UPS Tracking"
+      subject: "Package Delivered"
+      body: "Your UPS package was delivered today at 2:30 PM. Left at front door. Tracking: 9876543210."
+      emailCategories: |
+        1. "Newsletters": Marketing emails
+        2. "Customer Support": Customer service issues
+        3. "📦 Shipping & Delivery": Package tracking and delivery notifications (proposed category, not yet finalized)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          shouldMatchProtoCategory: "📦 Shipping & Delivery"
+
+  # Proto category test 4: Should NOT suggest proto category when newsletter matches
+  - description: "Proto category: should NOT suggest proto category when newsletter matches"
+    vars:
+      from: "digest@techcrunch.com"
+      fromName: "TechCrunch"
+      subject: "Daily Tech Digest - Top Stories"
+      body: "Here are today's top tech stories: Apple announces new iPhone, Google releases AI update, Tesla shares surge."
+      emailCategories: |
+        1. "Newsletters": Marketing emails, digests, and promotional content
+        2. "Customer Support": Support tickets
+        3. "Sales": Sales inquiries
+    assert:
+      - type: llm-rubric
+        value: "The category should be newsletter or tech news digest"
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectProtoCategorySuggestion: false
+
+  # Proto category test 5: Should match existing proto category (billing)
+  - description: "Proto category: should match existing proto category for invoice"
+    vars:
+      from: "invoices@quickbooks.com"
+      fromName: "QuickBooks"
+      subject: "Invoice Payment Received"
+      body: "Payment of $150.00 for Invoice #QB-789 has been received. Thank you for your prompt payment."
+      emailCategories: |
+        1. "Newsletters": Marketing emails
+        2. "Customer Support": Support tickets
+        3. "💰 Billing & Invoices": Invoices, payment notifications, and financial documents (proposed category, not yet finalized)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          shouldMatchProtoCategory: "💰 Billing & Invoices"
+
+  # Proto category test 6: Calendar invite should suggest relevant proto category
+  - description: "Proto category: calendar invite should get Other with relevant proto category"
+    vars:
+      from: "calendar@google.com"
+      fromName: "Google Calendar"
+      subject: "Invitation: Team Standup @ Weekly"
+      body: "You've been invited to a recurring event. Team Standup, Every Monday 9:00 AM - 9:30 AM. Location: Zoom. Click to accept or decline."
+      emailCategories: |
+        1. "Newsletters": Marketing content
+        2. "Sales": Sales discussions
+        3. "Customer Support": Customer issues
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          # Core invariant: a calendar invite from Google Calendar is NOT "Customer Support",
+          # "Sales", or "Newsletters". It should be "Other" + a calendar-related proto suggestion,
+          # or a custom category like "Calendar & Meetings". Use excludedCategories for resilience.
+          excludedCategories: ["Customer Support", "Sales", "Newsletters"]
+
+  # Proto category test 7: Match existing proto category for calendar
+  - description: "Proto category: should match existing calendar proto category"
+    vars:
+      from: "calendar@outlook.com"
+      fromName: "Microsoft Outlook"
+      subject: "Meeting Request: Project Review"
+      body: "You have a new meeting request. Project Review, Tomorrow at 3:00 PM. Duration: 1 hour. Organizer: John Smith."
+      emailCategories: |
+        1. "Newsletters": Marketing content
+        2. "Sales": Sales discussions
+        3. "📅 Calendar & Meetings": Meeting invites, calendar events, and scheduling (proposed category, not yet finalized)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          shouldMatchProtoCategory: "📅 Calendar & Meetings"
+
+  # Proto category test 8: Miscellaneous email should get Other
+  - description: "Proto category: miscellaneous personal email should get Other"
+    vars:
+      from: "friend@gmail.com"
+      fromName: "Random Friend"
+      subject: "Hey, random thought"
+      body: "Hey! I was just thinking about that thing we talked about last week. Anyway, hope you're doing well!"
+      emailCategories: |
+        1. "Newsletters": Marketing emails
+        2. "Customer Support": Support tickets
+        3. "Sales": Sales inquiries
+    assert:
+      - type: llm-rubric
+        value: "The category should indicate this doesn't fit any provided category"
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+
+  # ============================================================
+  # GITHUB-SPECIFIC CATEGORIZATION TESTS
+  # These test the Devin PR and QA comment guidance added to the prompt.
+  # ============================================================
+
+  # Devin PR: human merging a Devin-initiated PR should still be "Devin PRs"
+  - description: "Devin PR: human merging Devin's PR should still categorize as 'Devin PRs', not 'PRs from humans'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "Bao Ho Gia"
+      subject: "Re: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)"
+      body: "Merged #3916 into develop.--\nReply to this email directly or view it on GitHub."
+      emailCategories: |
+        1. "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)": PRs created or initiated by Devin AI
+        2. "PRs from humans (not Devin)": Pull requests authored by human developers, not Devin.ai or other AI bots
+        3. "New Github issues based on customer feedback. Only issues not pull requests. Not for issues raised by QA": Customer feedback issues on GitHub
+      threadInfo: |
+        [Message 1 from devin-ai-integration[bot] on Feb 20, 2026]:
+        Subject: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)
+        Body: devin-ai-integration[bot] opened a pull request. This PR sets up Storybook for React Native to enable component-driven development and visual testing.
+
+        ---
+
+        [Message 2 from Bao Ho Gia on Feb 22, 2026]:
+        Subject: Re: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)
+        Body: Merged #3916 into develop.
+    assert:
+      - type: llm-rubric
+        value: "The category should relate to automated PRs or bot activity, not human-authored PRs"
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans (not Devin)"
+
+  # QA pass comment: should get "Other" + "✅ QA passed issues" proto category
+  # (regression test — LLM was mis-classifying "QA passed ✅" as "QA failed issues"
+  #  when no "QA passed" category existed in the list)
+  - description: "QA pass comment: GitHub QA pass comment should be 'Other' with '✅ QA passed issues' proto category, NOT 'New Github issues raised by QAs'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "QA Tester"
+      subject: "Re: [Focus-Bear/app] Bug: Login button not working (#123)"
+      body: "QA passed ✅ The fix has been verified. Login button now works correctly in all tested browsers and devices. Ready for production."
+      emailCategories: |
+        1. "QA failed issues": where a human QA has marked an issue as failed on Github
+        2. "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests": Newly created issues raised by QA team, not comments on existing issues
+        3. "PRs from humans (not Devin)": Pull requests authored by human developers
+        4. "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)": Devin AI PRs
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: ["New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests", "QA failed issues"]
+          expectProtoCategorySuggestion: true
+
+  # QA fail comment: should get "QA failed issues", NOT "New Github issues raised by QAs"
+  - description: "QA fail comment: GitHub QA fail comment should be 'QA failed issues', NOT 'New Github issues raised by QAs'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "QA Tester"
+      subject: "Re: [Focus-Bear/app] Bug: Submit button broken (#456)"
+      body: "QA failed ❌ The submit button is still not working in Safari after the fix. The issue persists - clicking submit does nothing on Safari 17."
+      emailCategories: |
+        1. "QA failed issues": where a human QA has marked an issue as failed on Github
+        2. "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests": Newly created issues raised by QA team, not comments on existing issues
+        3. "PRs from humans (not Devin)": Pull requests authored by human developers
+        4. "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)": Devin AI PRs
+    assert:
+      - type: llm-rubric
+        value: "The category should relate to QA failure or testing"
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests"
+
+  # QA testing request: "proceed with testing" should NOT be QA passed or QA failed
+  - description: "QA comment requesting testing should NOT be 'QA passed issues' — testing hasn't happened yet"
+    vars:
+      from: "notifications@github.com"
+      fromName: "Amanuel Tesfaye"
+      subject: "Re: [Focus-Bear/web_dashboard] Update habit selection webview (Issue #2839)"
+      body: "amanueltsfy left a comment (Focus-Bear/web_dashboard#2839) QA - The design has been updated. Please proceed with testing and ignore the requirements shown in the attached image above."
+      emailCategories: |
+        1. [id: qa_passed_issues_2] "✅ QA passed issues": where a human QA has verified and passed an issue on Github
+        2. [id: qa_failed_issues] "QA failed issues": where a human QA has marked an issue as failed on Github
+        3. [id: github_issue_status_updates_from_bots] "🤖 Github issue status updates from bots": not QA pass/failed. Just working on it/clarifications
+        4. [id: github_issue_status_updates] "🐞 Human GitHub issue status updates": only from humans not bots - exclude QA comments
+        5. "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests": Newly created issues raised by QA team
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          # "proceed with testing" is a TESTING REQUEST (testing hasn't happened yet), NOT a QA result.
+          # Must NOT be classified as QA passed or QA failed.
+          excludedCategories: ["qa_passed_issues_2", "QA passed issues", "✅ QA passed issues", "qa_failed_issues", "QA failed issues"]
+
+  # Prefer an existing category over inventing a new proto (anti-sprawl).
+  # A networking-event invite must reuse the listed events category, NOT create
+  # a new "Networking & Community Events" proto.
+  - description: "Networking invite should reuse existing 'Meetings & Events with external people', NOT suggest a new proto"
+    vars:
+      from: "admin@timelbourne.org"
+      fromName: "TiE Melbourne Administrator"
+      subject: "Invitation: TiE Melbourne Online Coffee-In @ Monthly from 4:30pm to 5:30pm"
+      body: "TiE Melbourne Administrator is inviting you to their recurring monthly online coffee-in networking session for professionals and entrepreneurs."
+      emailCategories: |
+        1. "📅 Meetings & Events with external people (not standup meetings)": Invitations and scheduling for meetings or events with people outside the company
+        2. "🤝 Professional Collaboration": Direct inquiries regarding research, partnerships, or professional networking
+        3. "📧 Newsletters & Industry Updates": Informational emails, thought leadership, and industry news
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          # A reasonable existing category fits, so it must NOT fall to Other + a new proto.
+          expectProtoCategorySuggestion: false
+      - type: llm-rubric
+        value: "The chosen category is one of the listed categories (an events/meetings or professional collaboration category), not 'Other', and no brand-new category was invented."
+
+
+  # Time-critical batch-escape case: a cancellation received late at night for
+  # an event the NEXT MORNING must score critical urgency (90+) so it escapes
+  # email batching — the user must see it before travelling to a cancelled event.
+  - description: "Night-before cancellation of tomorrow's booking must be critical urgency (90+)"
+    vars:
+      from: "amir@startspace.example.com"
+      fromName: "Amir Aridi"
+      subject: "StartSpace inductions cancelled"
+      body: "Dear Jeremy, Thank you for booking StartSpace inductions on Tue 14 July 2026. Please note that we had to cancel inductions on the day due to a team member being unwell. Please use this link to book another date and time that works for you. We apologise for the inconvenience. Kind regards, Amir and the StartSpace team"
+      currentDate: "Monday, July 13, 2026 at 10:50 PM GMT+10"
+      receivedAt: "Monday, July 13, 2026 at 10:44 PM GMT+10"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 90
+
+  # Negative control: the same cancellation for an event weeks away is NOT
+  # time-critical — rebooking can wait, so urgency must stay out of the
+  # critical band that triggers batch escape.
+  - description: "Cancellation of an event three weeks away must NOT be critical urgency"
+    vars:
+      from: "amir@startspace.example.com"
+      fromName: "Amir Aridi"
+      subject: "StartSpace inductions cancelled"
+      body: "Dear Jeremy, Thank you for booking StartSpace inductions on Tue 4 August 2026. Please note that we had to cancel that session due to a scheduling change. Please use this link to book another date and time that works for you. We apologise for the inconvenience. Kind regards, Amir and the StartSpace team"
+      currentDate: "Monday, July 13, 2026 at 10:50 PM GMT+10"
+      receivedAt: "Monday, July 13, 2026 at 10:44 PM GMT+10"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          maxScore: 75

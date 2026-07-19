@@ -1,0 +1,489 @@
+# CI triggers
+# ===========
+# - `pull_request` → `main`: validates PRs (one run per sync when GitHub emits
+#   the event).
+# - `push` → `main` plus `claude/**` and `devin/**`: default-branch pushes, and
+#   bot branches where `pull_request` often does not run (PRs opened via
+#   `GITHUB_TOKEN` / App from another workflow).
+#
+# The same commit can trigger both `pull_request` and `push` on bot branches.
+# `concurrency` below uses the PR head commit (or push SHA) so only one run
+# finishes per commit; the other is cancelled (you may see one cancelled run in
+# the Actions UI).
+#
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+      - 'devin/**'
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.repository }}-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  server-coverage:
+    name: Server Test Coverage
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci --legacy-peer-deps
+
+      - name: Run tests with coverage
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          DB_NAME: test
+          JWT_SECRET: test-jwt-secret-at-least-32-characters
+          ENCRYPTION_KEY: test-encryption-key-32chars!!
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run test:cov -- --forceExit
+
+  client-tests:
+    name: Client Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: client
+        run: npm install
+
+      - name: Run tests
+        working-directory: client
+        run: npm test -- --passWithNoTests
+
+  server-lint:
+    name: Server Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci --legacy-peer-deps
+
+      - name: Run lint
+        working-directory: server
+        run: npm run lint
+
+  client-lint:
+    name: Client Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: client
+        run: npm install
+
+      - name: Run lint
+        working-directory: client
+        run: npm run lint
+
+  client-build:
+    name: Client Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: client
+        run: npm install
+
+      - name: Build client
+        working-directory: client
+        env:
+          COMMIT_HASH: ${{ github.sha }}
+        run: COMMIT_HASH=$(echo "$COMMIT_HASH" | cut -c1-7) npm run build
+
+  smoke-and-e2e:
+    name: Smoke Tests + E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: test
+      DB_PASSWORD: test
+      DB_NAME: test
+      JWT_SECRET: smoke-test-jwt-secret-at-least-32-chars
+      ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
+      PORT: 3001
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci --legacy-peer-deps
+
+      - name: Build server
+        working-directory: server
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run build
+
+      - name: Initialize PgBoss schema
+        working-directory: server
+        run: node --input-type=module -e "import { PgBoss } from 'pg-boss'; const boss = new PgBoss('postgres://test:test@localhost:5432/test'); try { await boss.start(); await boss.stop(); console.log('PgBoss schema initialized'); } catch (err) { console.error('Failed to initialize PgBoss:', err); process.exit(1); }"
+
+      - name: Run database migrations
+        working-directory: server
+        run: npx typeorm migration:run -d dist/data-source.js
+
+      - name: Check for schema drift
+        working-directory: server
+        run: |
+          chmod +x scripts/check-schema-drift.sh
+          scripts/check-schema-drift.sh
+
+      - name: Start server
+        working-directory: server
+        run: |
+          node dist/main.js &
+          echo $! > /tmp/server.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+              echo "Server is up after ${i}s"
+              break
+            fi
+            echo "Waiting for server... (${i}/30)"
+            sleep 1
+          done
+          curl -sf http://localhost:3001/health || (echo "Server failed to start" && exit 1)
+
+      - name: Run smoke tests
+        working-directory: server
+        run: |
+          chmod +x scripts/smoke-test.sh
+          scripts/smoke-test.sh
+
+      - name: Seed test user for e2e
+        working-directory: server
+        run: npm run seed:test-user
+
+      - name: Seed search data for e2e
+        working-directory: server
+        env:
+          CI_SEARCH_FALLBACK: 'true'
+        run: npm run seed:search-data
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build client
+        working-directory: client
+        env:
+          COMMIT_HASH: ${{ github.sha }}
+          VITE_API_URL: http://localhost:3001
+        run: COMMIT_HASH=$(echo "$COMMIT_HASH" | cut -c1-7) npm run build
+
+      - name: Serve client
+        working-directory: client
+        run: |
+          npx serve -s build -l 3000 &
+          echo $! > /tmp/client.pid
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Client is up after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://localhost:3000 || (echo "Client failed to start" && exit 1)
+
+      - name: Resolve Playwright version
+        id: playwright-version
+        working-directory: e2e
+        run: echo "version=$(node -p 'require("./package-lock.json").packages["node_modules/@playwright/test"].version')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright
+        working-directory: e2e
+        timeout-minutes: 8
+        run: |
+          npm ci
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install chromium --with-deps
+          fi
+
+      - name: Run E2E tests
+        working-directory: e2e
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          VITE_API_URL: http://localhost:3001
+          PLAYWRIGHT_API_URL: http://localhost:3001
+          TEST_EMAIL: test@example.com
+          TEST_PASSWORD: testpassword
+        run: |
+          npx playwright test tests/ \
+            --reporter=html,github
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 14
+
+      - name: Kill server before worker check
+        if: always()
+        run: |
+          [ -f /tmp/server.pid ] && kill $(cat /tmp/server.pid) 2>/dev/null || true
+          [ -f /tmp/client.pid ] && kill $(cat /tmp/client.pid) 2>/dev/null || true
+          sleep 2
+
+      - name: Verify worker starts successfully
+        working-directory: server
+        env:
+          WORKER_PROCESSES: 1
+        run: |
+          echo "Starting worker process..."
+          node dist/worker.js > worker.log 2>&1 &
+          WORKER_PID=$!
+
+          TIMEOUT=30
+          STARTED=false
+          for i in $(seq 1 $TIMEOUT); do
+            if grep -i "Nest can't resolve dependencies\|Module not found\|Cannot find module\|Error: No provider" worker.log 2>/dev/null; then
+              echo "=========================================="
+              echo "FATAL: NestJS structural error detected!"
+              echo "=========================================="
+              cat worker.log
+              echo "=========================================="
+              kill $WORKER_PID 2>/dev/null || true
+              exit 1
+            fi
+            if ! kill -0 $WORKER_PID 2>/dev/null; then
+              echo "FATAL: Worker process exited prematurely"
+              echo "=========================================="
+              cat worker.log
+              echo "=========================================="
+              wait $WORKER_PID
+              EXIT_CODE=$?
+              echo "Worker exit code: $EXIT_CODE"
+              exit 1
+            fi
+
+            if [ $i -ge 15 ]; then
+              STARTED=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$STARTED" = true ]; then
+            echo "Worker process is running successfully after 15 seconds"
+          else
+            echo "=========================================="
+            echo "FATAL: Worker did not stabilize within ${TIMEOUT} seconds"
+            echo "=========================================="
+            cat worker.log
+            echo "=========================================="
+            kill $WORKER_PID 2>/dev/null || true
+            exit 1
+          fi
+
+          kill $WORKER_PID 2>/dev/null || true
+
+          for _ in $(seq 1 10); do
+            if ! kill -0 $WORKER_PID 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if kill -0 $WORKER_PID 2>/dev/null; then
+            echo "Worker did not stop after SIGTERM, sending SIGKILL"
+            kill -9 $WORKER_PID 2>/dev/null || true
+          fi
+
+          wait $WORKER_PID 2>/dev/null || true
+          echo "Worker startup check passed!"
+
+  security-audit:
+    name: Security Audit (changed controllers only)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check for changed controllers
+        id: check-controllers
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD -- 'server/src/**/*controller*' 'server/src/**/*Controller*' | head -20)
+          if [ -z "$CHANGED" ]; then
+            echo "No controller files changed — skipping security audit"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Changed controllers:"
+            echo "$CHANGED"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.check-controllers.outputs.skip != 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        if: steps.check-controllers.outputs.skip != 'true'
+        working-directory: server
+        run: npm ci --legacy-peer-deps
+
+      - name: Run security audit (diff mode)
+        if: steps.check-controllers.outputs.skip != 'true'
+        working-directory: server
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SECURITY_AUDIT_OPENAI_API_KEY: ${{ secrets.SECURITY_AUDIT_OPENAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npm run security:audit:ci
+
+  promptfoo-tests:
+    name: Promptfoo Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci --legacy-peer-deps
+
+      - name: Run promptfoo tests
+        working-directory: server
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PROMPTFOO_REQUEST_BACKOFF_MS: 1000
+          OPENAI_MAX_RETRIES: 3
+          PROMPTFOO_CHANGED_ONLY: 'true'
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: npm run promptfoo:test

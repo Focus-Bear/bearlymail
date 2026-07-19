@@ -1,0 +1,126 @@
+description: "Tests for the suggest-category-rules prompt: distinctive positive phrases + best-effort exclusion suggestions for drafting composite category rules."
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/suggest-category-rules.md
+
+tests:
+  - description: "Returns valid JSON with the five expected arrays"
+    vars:
+      categoryName: "GitHub QA passed issues"
+      senderEmails: "notifications@github.com"
+      emailSamples: |
+        [Email 1]
+        Subject: [repo] Issue #482: Checkout flow — QA Passed
+        Body preview: The QA team marked this issue as QA Passed. View it on GitHub.
+
+        [Email 2]
+        Subject: [repo] Issue #491: Login bug — QA Passed
+        Body preview: QA Passed for this issue. A reviewer left a comment. View it on GitHub.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          for (const key of ['fromMatchesAny', 'subjectContainsAny', 'bodyContainsAny', 'subjectNotContainsAny', 'bodyNotContainsAny']) {
+            if (!Array.isArray(parsed[key])) {
+              throw new Error(`Expected ${key} to be an array, got: ${JSON.stringify(parsed[key])}`);
+            }
+          }
+          if (parsed.subjectContainsAny.length === 0 && parsed.bodyContainsAny.length === 0) {
+            throw new Error('Expected at least one positive subject or body phrase');
+          }
+          return true;
+
+  - description: "Picks DISTINCTIVE positive phrases (the QA signal), not generic GitHub boilerplate"
+    vars:
+      categoryName: "GitHub QA passed issues"
+      senderEmails: "notifications@github.com"
+      emailSamples: |
+        [Email 1]
+        Subject: [repo] Issue #482: Checkout flow — QA Passed
+        Body preview: The QA team marked this issue as QA Passed. View it on GitHub. You can reply to this email.
+
+        [Email 2]
+        Subject: [repo] Issue #491: Login bug — QA Passed
+        Body preview: QA Passed for this issue. Someone left a comment. View it on GitHub. Unsubscribe from these notifications.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const positives = [...parsed.subjectContainsAny, ...parsed.bodyContainsAny].map(p => p.toLowerCase());
+          // The distinctive signal for this category is "QA Passed" — it must appear.
+          if (!positives.some(p => p.includes('qa') || p.includes('passed'))) {
+            throw new Error(`Expected a distinctive QA-passed phrase, got: ${JSON.stringify(positives)}`);
+          }
+          // Generic sender boilerplate that appears on every GitHub email must NOT be used as a positive signal.
+          const boilerplate = ['view it on github', 'unsubscribe', 'reply to this email', 'left a comment'];
+          for (const p of positives) {
+            if (boilerplate.some(b => p.includes(b))) {
+              throw new Error(`Used generic boilerplate "${p}" as a positive phrase`);
+            }
+          }
+          // Phrases must be short (generic), not full sentences copied verbatim.
+          for (const p of positives) {
+            if (p.split(/\s+/).length > 6) {
+              throw new Error(`Positive phrase too long (not short/generic): "${p}"`);
+            }
+          }
+          return true;
+
+  - description: "Proposes an exclusion to keep an issues rule from matching the sender's pull-request emails"
+    vars:
+      categoryName: "GitHub issues (not pull requests)"
+      senderEmails: "notifications@github.com"
+      emailSamples: |
+        [Email 1]
+        Subject: [repo] Issue #482: Checkout flow is broken
+        Body preview: A new issue was opened. View it on GitHub.
+
+        [Email 2]
+        Subject: [repo] Issue #491: Login bug reported
+        Body preview: Someone opened an issue and left a comment. View it on GitHub.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const exclusions = [...parsed.subjectNotContainsAny, ...parsed.bodyNotContainsAny];
+          if (exclusions.length === 0) {
+            throw new Error('Expected at least one exclusion suggestion for an "issues, not pull requests" category');
+          }
+          return true;
+
+  - description: "Does not invent exclusions for a single-type sender with no obvious sibling to exclude"
+    vars:
+      categoryName: "Acme invoices"
+      senderEmails: "billing@acme.com"
+      emailSamples: |
+        [Email 1]
+        Subject: Invoice #1042 from Acme
+        Body preview: Your invoice is ready. Amount due: $120. Payment received once processed.
+
+        [Email 2]
+        Subject: Invoice #1051 from Acme
+        Body preview: Please find your invoice attached. Payment received confirmation will follow.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          // Positive invoice signal must be present...
+          const positives = [...parsed.subjectContainsAny, ...parsed.bodyContainsAny].map(p => p.toLowerCase());
+          if (!positives.some(p => p.includes('invoice') || p.includes('payment'))) {
+            throw new Error(`Expected an invoice/payment positive phrase, got: ${JSON.stringify(positives)}`);
+          }
+          // ...and exclusions must stay arrays (empty is fine — nothing obvious to exclude).
+          if (!Array.isArray(parsed.subjectNotContainsAny) || !Array.isArray(parsed.bodyNotContainsAny)) {
+            throw new Error('Exclusion fields must be arrays even when empty');
+          }
+          return true;

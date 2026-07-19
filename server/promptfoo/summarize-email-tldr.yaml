@@ -1,0 +1,283 @@
+description: "TL;DR email summarization prompts for BearlyMail"
+
+providers:
+  # Prod summarisation runs on AWS Bedrock (Amazon Nova Micro); CI has no AWS creds,
+  # so these suites validate the (provider-agnostic) prompts on Gemini. Nova verified locally.
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/summarize-email-tldr.md
+
+tests:
+  - vars:
+      isThread: false
+      subject: "Q4 Project Update"
+      contextNote: ""
+      body: "Hi team, I wanted to update you on our Q4 project progress. We've completed 80% of the milestones, encountered some delays with the API integration, but overall we're on track to meet our deadline. The team has been working hard and I'm confident we'll deliver on time."
+    assert:
+      - type: javascript
+        value: |
+          // Response should be valid JSON with the expanded shape
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          // summary field
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary string, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const lower = parsed.summary.toLowerCase();
+          const hasKeyInfo = lower.includes('q4') || lower.includes('project') || lower.includes('80') || lower.includes('progress');
+          if (!hasKeyInfo) {
+            throw new Error(`Summary missing key info. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          // sentiment field
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score number, got: ${JSON.stringify(parsed.sentiment)}`);
+          }
+          if (parsed.sentiment.score < -1 || parsed.sentiment.score > 1) {
+            throw new Error(`sentiment.score out of range [-1,1]: ${parsed.sentiment.score}`);
+          }
+          if (typeof parsed.sentiment.explanation !== 'string') {
+            throw new Error(`Expected sentiment.explanation string`);
+          }
+          return true;
+    description: "Should generate JSON with summary and sentiment for project update email"
+
+  - vars:
+      isThread: true
+      subject: "Meeting discussion"
+      contextNote: "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
+      body: "[Message 1 from Sarah on 12/10/2024]:\nLet's schedule a meeting.\n\n---\n\n[Message 2 from You on 12/11/2024]:\nHow about Friday?\n\n---\n\n[Message 3 from Sarah on 12/12/2024]:\nFriday works! See you then."
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const lower = parsed.summary.toLowerCase();
+          if (!lower.includes('meeting') && !lower.includes('friday') && !lower.includes('schedule')) {
+            throw new Error(`Summary missing meeting context. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score`);
+          }
+          return true;
+    description: "Should summarize email threads with sentiment"
+
+  - vars:
+      isThread: false
+      subject: "URGENT: Your account has been suspended!"
+      contextNote: ""
+      body: "Dear customer, your account has been suspended due to suspicious activity. Click here immediately to verify your account: http://not-real-bank.com/verify?user=12345. Failure to act within 24 hours will result in permanent suspension."
+      phishingSignals:
+        senderDomain: "suspicious-domain.net"
+        linkedDomains: ["not-real-bank.com"]
+        hasDomainMismatch: true
+        suspiciousKeywords: ["suspended", "verify", "immediately"]
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          // phishing field should flag this
+          if (!parsed.phishing || parsed.phishing.is_phishing !== true) {
+            throw new Error(`Expected phishing.is_phishing=true for obvious phishing email, got: ${JSON.stringify(parsed.phishing)}`);
+          }
+          if (!['low', 'medium', 'high'].includes(parsed.phishing.confidence)) {
+            throw new Error(`Expected phishing confidence level, got: ${parsed.phishing.confidence}`);
+          }
+          // sentiment should be negative
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score`);
+          }
+          if (parsed.sentiment.score > 0) {
+            throw new Error(`Expected negative sentiment for threatening email, got: ${parsed.sentiment.score}`);
+          }
+          return true;
+    description: "Should detect phishing and return negative sentiment for suspicious email"
+
+  - vars:
+      isThread: false
+      subject: "Meeting with trainees"
+      contextNote: ""
+      currentDatetime: "2026-05-22T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      body: "Hi Jeremy, an online meeting would work well for us at 11.30am on 29th. It will be with trainees Harrison and Asher."
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!parsed.meetingProposal || parsed.meetingProposal.hasProposal !== true) {
+            throw new Error(`Expected meetingProposal.hasProposal=true for "11.30am on 29th". Got: ${JSON.stringify(parsed.meetingProposal)}`);
+          }
+          const mp = parsed.meetingProposal;
+          if (!mp.proposedLocalTime || !mp.proposedLocalTime.startsWith('2026-05-29T11:30')) {
+            throw new Error(`Expected proposedLocalTime '2026-05-29T11:30:00' (no offset). Got: ${mp.proposedLocalTime}`);
+          }
+          if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(mp.proposedLocalTime)) {
+            throw new Error(`proposedLocalTime must NOT carry an offset/Z suffix. Got: ${mp.proposedLocalTime}`);
+          }
+          if (mp.proposedTimezone !== 'Australia/Melbourne') {
+            throw new Error(`Expected proposedTimezone='Australia/Melbourne' (no tz stated in email, fall back to userTimezone). Got: ${mp.proposedTimezone}`);
+          }
+          return true;
+    description: "Should detect '11.30am on 29th' as a meeting proposal with local time + recipient timezone (no UTC math)"
+
+  # Regression: the summary must not confuse who the account owner is. Given the
+  # owner (userName) sent the slides and someone else replied, the summary must
+  # never refer to the owner by name, and must never say "you sent an email to
+  # <the owner>" (the account owner emailing themselves).
+  - vars:
+      isThread: true
+      userName: "Beverly Dueñas"
+      subject: "Re: Review of Presentation Slides and Availability for Feedback"
+      contextNote: "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
+      body: |
+        [Original from You on 06/18/2026]:
+        """
+        Hi Kulvinder, please find the updated presentation slides attached. They now include new sections on gamification and intern highlights. Let me know your feedback and when you're available to discuss.
+        """
+
+        ---
+
+        [Message 2 from Kulvinder Kour on 06/18/2026]:
+        """
+        Thanks for sending these over, Beverly. I'll review the updated slides and get back to you with feedback. I'm available Thursday afternoon if you'd like to discuss.
+        """
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const lower = parsed.summary.toLowerCase();
+          // The account owner must NEVER be named — always "you".
+          if (lower.includes('beverly') || lower.includes('dueñas') || lower.includes('duenas')) {
+            throw new Error(`Summary referred to the account owner by name instead of "you". Got: ${parsed.summary}`);
+          }
+          // The real other participant should be named.
+          if (!lower.includes('kulvinder')) {
+            throw new Error(`Summary should name the other participant (Kulvinder). Got: ${parsed.summary}`);
+          }
+          // Must be about the slides/feedback, and must use "you" for the owner.
+          if (!lower.includes('slide') && !lower.includes('presentation') && !lower.includes('feedback')) {
+            throw new Error(`Summary missing the topic (slides/feedback). Got: ${parsed.summary}`);
+          }
+          return true;
+    description: "Thread: account owner (userName) is 'you', never named; the other participant is named — no self-email confusion"
+
+  # Received single email where the sender greets the owner by name: the summary
+  # must call the owner "you", not their name, and attribute the ask to the sender.
+  - vars:
+      isThread: false
+      userName: "Beverly Dueñas"
+      isUserSender: false
+      fromName: "Kulvinder Kour"
+      from: "kulvinder@example.com"
+      subject: "Feedback on your presentation slides"
+      contextNote: ""
+      body: "Hi Beverly, I reviewed the presentation slides you sent. Could you add a slide on the pilot results before Friday? Happy to discuss on a quick call."
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          const lower = (parsed.summary || '').toLowerCase();
+          if (lower.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          if (lower.includes('beverly') || lower.includes('dueñas') || lower.includes('duenas')) {
+            throw new Error(`Summary referred to the account owner by name instead of "you". Got: ${parsed.summary}`);
+          }
+          if (!lower.includes('kulvinder')) {
+            throw new Error(`Summary should name the sender (Kulvinder). Got: ${parsed.summary}`);
+          }
+          return true;
+    description: "Received email greeting owner by name: owner is 'you', sender is named"
+
+  # Regression: action items are anchored to the account owner's identity — an
+  # intro email ("Jeremy, meet Priya… you two should connect") must produce a
+  # task naming the OTHER person ("Connect with Priya…"), never one telling the
+  # owner to connect with themselves ("Connect and chat with Jeremy").
+  - vars:
+      isThread: false
+      userName: "Jeremy Nagel"
+      isUserSender: false
+      fromName: "Sam Connector"
+      from: "sam@connector.com"
+      subject: "Intro: Jeremy <> Priya"
+      contextNote: ""
+      body: |
+        Hi both,
+
+        Jeremy, meet Priya — she runs the ADHD support community I mentioned.
+        Priya, Jeremy is building an AI email client for people with ADHD.
+        You two should connect and chat about your respective projects.
+
+        I'll leave you to it!
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!Array.isArray(parsed.actionItems) || parsed.actionItems.length === 0) {
+            throw new Error(`Expected at least one action item. Got: ${JSON.stringify(parsed.actionItems)}`);
+          }
+          const descs = parsed.actionItems.map((a) => String(a.description || '').toLowerCase());
+          // The account owner must never appear inside an action item.
+          if (descs.some((d) => d.includes('jeremy'))) {
+            throw new Error(`Action item names the account owner (a task to meet themselves). Got: ${descs.join(' | ')}`);
+          }
+          // The item should name the OTHER person in the intro.
+          if (!descs.some((d) => d.includes('priya'))) {
+            throw new Error(`Action item should name the other person (Priya). Got: ${descs.join(' | ')}`);
+          }
+          return true;
+    description: "Action items never name the account owner — intro email produces 'connect with Priya', not 'connect with Jeremy'"

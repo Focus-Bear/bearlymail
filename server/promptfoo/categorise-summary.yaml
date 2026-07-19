@@ -1,0 +1,78 @@
+description: "Tests for the incremental summary-based re-categorisation prompt (categorise_summary): pick a numbered category for a thread from its up-to-date summary after a new message."
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/categorise-summary.md
+
+tests:
+  - description: "Returns valid JSON with a numeric categoryNumber, confidence and reasoning"
+    vars:
+      subject: "Re: [Focus-Bear/mobile-app] App crashes when adding a manual focus session (#4609)"
+      senderName: "bao ngoc"
+      summary: "QA verified issue #4609 (app crash on manual focus sessions). Latest comment: 'QA Done, version 1.21.0' — the crash no longer occurs and the issue is closed."
+      categories: |
+        1. ❌ Github QA failed issues — a QA team member reports a QA failure / QA Status: FAIL on a GitHub issue.
+        2. ✅ Github QA passed issues — a QA team member confirms an issue is verified / QA Done / no longer occurs.
+        3. 🧑 Human GitHub issue status updates — a human posts a general status update on a GitHub issue.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const r = parsed.result ?? parsed;
+          if (!Number.isInteger(r.categoryNumber)) {
+            throw new Error(`Expected integer categoryNumber, got: ${JSON.stringify(r.categoryNumber)}`);
+          }
+          if (!['HIGH','MEDIUM','LOW'].includes(r.categoryConfidence)) {
+            throw new Error(`Expected categoryConfidence enum, got: ${r.categoryConfidence}`);
+          }
+          if (typeof r.reasoning !== 'string' || r.reasoning.trim() === '') {
+            throw new Error(`Expected non-empty reasoning`);
+          }
+          if (/\bcategory\s+#?\d/i.test(r.reasoning)) {
+            throw new Error(`reasoning must use category NAMES, not list numbers: ${r.reasoning}`);
+          }
+          return true;
+
+  - description: "A QA-passed summary picks the QA-passed category, NOT the QA-failed one (status flip)"
+    vars:
+      subject: "Re: [Focus-Bear/mobile-app] App crashes when adding a manual focus session (#4609)"
+      senderName: "bao ngoc"
+      summary: "QA verified issue #4609. Latest comment from the QA team: 'QA Done, version 1.21.0' — verified that the issue no longer occurs."
+      categories: |
+        1. ❌ Github QA failed issues — a QA team member reports a QA failure / QA Status: FAIL on a GitHub issue.
+        2. ✅ Github QA passed issues — a QA team member confirms an issue is verified / QA Done / no longer occurs.
+        3. 🧑 Human GitHub issue status updates — a human posts a general status update on a GitHub issue.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const r = parsed.result ?? parsed;
+          if (r.categoryNumber === 1) {
+            throw new Error(`Picked the QA-FAILED category for a QA-passed summary`);
+          }
+          return true;
+
+  - description: "Returns 0 (Other) when no listed category fits"
+    vars:
+      subject: "Weekly team lunch on Friday"
+      summary: "Reminder that the weekly team lunch is on Friday at noon; please RSVP."
+      categories: |
+        1. ❌ Github QA failed issues — a QA team member reports a QA failure on a GitHub issue.
+        2. ✅ Github QA passed issues — a QA team member confirms an issue is verified.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const r = parsed.result ?? parsed;
+          if (r.categoryNumber !== 0) {
+            throw new Error(`Expected Other (0) for an unrelated email, got ${r.categoryNumber}`);
+          }
+          return true;

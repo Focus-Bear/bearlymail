@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+npm-debug.log
+# package-lock.json is NOT ignored - required for npm ci in Dockerfile
+
+# Build artifacts
+dist/
+coverage/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+
+# Test files
+# NOTE: promptfoo/ contains production prompt templates (required at runtime)
+# Only exclude test-related files within promptfoo
+promptfoo/*.test.yaml
+test/
+*.spec.ts
+*.test.ts
+
+# Development files
+.vscode/
+.idea/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Other
+.DS_Store
+*.swp
+*.swo
+*~
+

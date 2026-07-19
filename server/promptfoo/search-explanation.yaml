@@ -1,0 +1,76 @@
+
+providers:
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+
+prompts:
+  - file://prompts/search-relevance-explanation.md
+
+tests:
+  - vars:
+      query: "Is Jay coming to the meeting?"
+      from: "Jay Jackson"
+      subject: "Accepted: Jay Jeremy"
+      bodyPreview: "I've accepted the meeting invitation for tomorrow."
+      receivedAt: "2 days ago"
+      isRecent: " (recent)"
+    assert:
+      - type: javascript
+        value: |
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase();
+          // Should explain WHY it's relevant, not just state it
+          const hasJay = text.includes('jay');
+          const hasRelevantInfo = text.includes('accepted') || text.includes('meeting') || text.includes('invitation');
+          const hasWhy = hasJay && hasRelevantInfo;
+          const notGeneric = !text.includes('relevant to') || text.length > 50;
+          if (!hasWhy || !notGeneric) {
+            throw new Error(`Expected explanation with jay and accepted/meeting/invitation, and length > 50 or not generic. Got: ${text.substring(0, 150)}`);
+          }
+          return true;
+    description: "Explanation should explain WHY, not just state relevance"
+
+  - vars:
+      query: "Is Jay coming to the meeting?"
+      from: "Jay McPherson"
+      subject: "Re: EOI Multipurpose room bookings"
+      bodyPreview: "Hi Jeremy, I am just writing to confirm your booking dates for 2026."
+      receivedAt: "11 days ago"
+      isRecent: ""
+    assert:
+      - type: javascript
+        value: |
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase();
+          // Should mention it's from Jay but explain why it might be less relevant
+          if (!text.includes('jay') || text.length <= 30) {
+            throw new Error(`Expected explanation mentioning jay with length > 30. Got: ${text.substring(0, 150)}`);
+          }
+          return true;
+    description: "Explanation should mention sender name and context"
+
+  - vars:
+      query: "emails from John"
+      from: "John Smith"
+      subject: "Project update"
+      bodyPreview: "Here's the latest update on the project."
+      receivedAt: "today"
+      isRecent: " (recent)"
+    assert:
+      - type: javascript
+        value: |
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase();
+          // Should mention it's from John
+          if (!text.includes('john') || text.length <= 20) {
+            throw new Error(`Expected explanation mentioning john with length > 20. Got: ${text.substring(0, 150)}`);
+          }
+          return true;
+    description: "Explanation should mention the sender when query is about sender"
+
+
+
+
+
+
+

@@ -1,0 +1,168 @@
+providers:
+  # Prod summarisation runs on AWS Bedrock (Amazon Nova Micro); CI has no AWS creds,
+  # so these suites validate the (provider-agnostic) prompts on Gemini. Nova verified locally.
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/summarize-email-batch.md
+
+tests:
+  # Test 1: Basic batch summarization with default TL;DR format
+  - vars:
+      emails:
+        - index: 0
+          subject: "Q4 Project Update"
+          body: "Hi team, I wanted to update you on our Q4 project progress. We've completed 80% of the milestones, encountered some delays with the API integration, but overall we're on track to meet our deadline."
+          isThread: false
+          messageCount: 1
+        - index: 1
+          subject: "Meeting Tomorrow"
+          body: "Just a reminder that we have a team meeting tomorrow at 2pm in Conference Room B. Please bring your status updates."
+          isThread: false
+          messageCount: 1
+      customInstructions: null
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = (typeof output === 'string' ? output : JSON.stringify(output)).trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (!parsed['0'] || !parsed['1']) throw new Error('Missing summaries for one or more emails');
+          if (typeof parsed['0'] !== 'string' || parsed['0'].length < 10) throw new Error('Summary for email 0 is too short or invalid');
+          if (typeof parsed['1'] !== 'string' || parsed['1'].length < 10) throw new Error('Summary for email 1 is too short or invalid');
+          const lower0 = parsed['0'].toLowerCase();
+          const lower1 = parsed['1'].toLowerCase();
+          const hasQ4 = lower0.includes('q4') || lower0.includes('project') || lower0.includes('milestone') || lower0.includes('progress');
+          const hasMeeting = lower1.includes('meeting') || lower1.includes('tomorrow') || lower1.includes('2pm') || lower1.includes('2 pm');
+          if (!hasQ4) throw new Error('Email 0 summary should mention Q4 project info');
+          if (!hasMeeting) throw new Error('Email 1 summary should mention meeting details');
+          return true;
+        description: "Should return valid JSON with accurate summaries for all emails"
+
+  # Test 2: Batch summarization with thread emails
+  - vars:
+      emails:
+        - index: 0
+          subject: "Feature Request Discussion"
+          body: |
+            [Message 1 from Alice on 12/10/2024]:
+            I think we should add a dark mode feature.
+
+            ---
+
+            [Message 2 from Bob on 12/11/2024]:
+            Great idea! I can start working on it next sprint.
+
+            ---
+
+            [Message 3 from Alice on 12/12/2024]:
+            Perfect, let's discuss the design in our next meeting.
+          isThread: true
+          messageCount: 3
+        - index: 1
+          subject: "Bug Report #456"
+          body: "Users are reporting that the login button doesn't work on mobile Safari. This is a critical issue affecting iOS users."
+          isThread: false
+          messageCount: 1
+      customInstructions: null
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = (typeof output === 'string' ? output : JSON.stringify(output)).trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (!parsed['0'] || !parsed['1']) throw new Error('Missing summaries for one or more emails');
+          const lower0 = parsed['0'].toLowerCase();
+          const lower1 = parsed['1'].toLowerCase();
+          const hasDarkMode = lower0.includes('dark mode') || lower0.includes('feature') || lower0.includes('sprint') || lower0.includes('design');
+          const hasBug = lower1.includes('login') || lower1.includes('safari') || lower1.includes('ios') || lower1.includes('button');
+          if (!hasDarkMode) throw new Error('Thread summary should mention dark mode discussion');
+          if (!hasBug) throw new Error('Bug report summary should mention login/Safari issue');
+          return true;
+        description: "Should properly summarize both thread and single emails"
+
+  # Test 3: Batch summarization with custom instructions
+  - vars:
+      emails:
+        - index: 0
+          subject: "GitHub PR #123 - Add user authentication"
+          body: "This PR adds JWT-based authentication to the API. Changes include: new auth middleware, user model updates, and login/logout endpoints. Tests are passing."
+          isThread: false
+          messageCount: 1
+        - index: 1
+          subject: "GitHub Issue #456 - Performance regression"
+          body: "After the latest release, we've noticed a 30% slowdown in API response times. This appears to be related to the new database queries introduced in PR #400."
+          isThread: false
+          messageCount: 1
+      customInstructions: "Extract only the action items or technical changes. Format as bullet points. Focus on what needs to be done or what was changed."
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = (typeof output === 'string' ? output : JSON.stringify(output)).trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (!parsed['0'] || !parsed['1']) throw new Error('Missing summaries for one or more emails');
+          const lower0 = parsed['0'].toLowerCase();
+          const lower1 = parsed['1'].toLowerCase();
+          const hasAuth = lower0.includes('jwt') || lower0.includes('auth') || lower0.includes('middleware') || lower0.includes('login');
+          const hasPerf = lower1.includes('performance') || lower1.includes('slowdown') || lower1.includes('regression') || lower1.includes('30%');
+          if (!hasAuth) throw new Error('Email 0 should mention auth/JWT changes');
+          if (!hasPerf) throw new Error('Email 1 should mention performance issue');
+          return true;
+        description: "Should follow custom summarization instructions"
+
+  # Test 4: Large batch with varied email types
+  - vars:
+      emails:
+        - index: 0
+          subject: "Invoice #2024-001"
+          body: "Please find attached invoice #2024-001 for $5,000. Payment is due within 30 days."
+          isThread: false
+          messageCount: 1
+        - index: 1
+          subject: "Weekly Newsletter"
+          body: "This week's highlights: New product launch, Company picnic next Friday, Q3 earnings exceeded expectations by 15%."
+          isThread: false
+          messageCount: 1
+        - index: 2
+          subject: "Your order has shipped"
+          body: "Good news! Your order #12345 has shipped and is expected to arrive by Thursday. Track your package at: track.example.com/12345"
+          isThread: false
+          messageCount: 1
+        - index: 3
+          subject: "Urgent: Server Down"
+          body: "Production server is experiencing outages. Team is investigating. ETA for resolution: 2 hours."
+          isThread: false
+          messageCount: 1
+      customInstructions: null
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = (typeof output === 'string' ? output : JSON.stringify(output)).trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const keys = Object.keys(parsed);
+          if (keys.length !== 4) throw new Error('Expected 4 summaries, got ' + keys.length);
+          for (let i = 0; i < 4; i++) {
+            if (!parsed[String(i)] || parsed[String(i)].length < 10) throw new Error('Missing or too short summary for email ' + i);
+          }
+          return true;
+        description: "Should return valid JSON handling batch of 4 emails correctly"
+
+  # Test 5: Edge case - single email in batch
+  - vars:
+      emails:
+        - index: 0
+          subject: "Quick Question"
+          body: "Hey, do you have time for a quick call this afternoon to discuss the proposal?"
+          isThread: false
+          messageCount: 1
+      customInstructions: null
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = (typeof output === 'string' ? output : JSON.stringify(output)).trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (!parsed['0']) throw new Error('Missing summary for the single email');
+          const lower = parsed['0'].toLowerCase();
+          const hasCall = lower.includes('call') || lower.includes('meeting') || lower.includes('discussion') || lower.includes('proposal');
+          if (!hasCall) throw new Error('Summary should mention call/meeting/proposal');
+          return true;
+        description: "Should handle single email in batch format with accurate summary"

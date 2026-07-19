@@ -1,0 +1,159 @@
+providers:
+  # Prod summarisation runs on AWS Bedrock (Amazon Nova Micro); CI has no AWS creds,
+  # so these suites validate the (provider-agnostic) prompts on Gemini. Nova verified locally.
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/summarize-email-bullets.md
+
+tests:
+  - vars:
+      isThread: false
+      subject: "Project Update"
+      contextNote: ""
+      body: "Hi team, here's the update: 1) We completed the API integration 2) The UI redesign is in progress 3) We need to schedule user testing 4) The deadline is still on track"
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 20) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          // Should be bullet format
+          const hasBullets = parsed.summary.includes('-') || parsed.summary.includes('•') || parsed.summary.includes('*') || /^\d+\./m.test(parsed.summary);
+          const lower = parsed.summary.toLowerCase();
+          const hasKeyPoints = lower.includes('api') || lower.includes('ui') || lower.includes('testing') || lower.includes('deadline');
+          if (!hasBullets || !hasKeyPoints) {
+            throw new Error(`Expected bullet points with key information. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          // sentiment
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score number`);
+          }
+          return true;
+    description: "Should generate JSON with bullet-point summary and sentiment"
+
+  - vars:
+      isThread: false
+      subject: "Meeting Notes"
+      contextNote: ""
+      body: "Key decisions: Launch date confirmed for Q1. Team will work in sprints. Need budget approval by next week."
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const hasBullets = parsed.summary.includes('-') || parsed.summary.includes('•') || parsed.summary.includes('*') || /^\d+\./m.test(parsed.summary);
+          if (!hasBullets) {
+            throw new Error(`Expected bullet format. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score`);
+          }
+          return true;
+    description: "Should format summary as bullets with sentiment"
+
+  # Regression: bullet summary must not name the account owner (userName) — always "you".
+  - vars:
+      isThread: true
+      userName: "Beverly Dueñas"
+      subject: "Re: Presentation slides feedback"
+      contextNote: "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
+      body: |
+        [Original from You on 06/18/2026]:
+        """
+        Hi Kulvinder, attaching the updated presentation slides with the new gamification and intern sections. Keen for your feedback.
+        """
+
+        ---
+
+        [Message 2 from Kulvinder Kour on 06/18/2026]:
+        """
+        Thanks Beverly, I'll review and send feedback. Free Thursday afternoon to discuss.
+        """
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          const lower = (parsed.summary || '').toLowerCase();
+          if (lower.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          if (lower.includes('beverly') || lower.includes('dueñas') || lower.includes('duenas')) {
+            throw new Error(`Bullet summary named the account owner instead of "you". Got: ${parsed.summary}`);
+          }
+          if (!lower.includes('kulvinder')) {
+            throw new Error(`Summary should name the other participant (Kulvinder). Got: ${parsed.summary}`);
+          }
+          return true;
+    description: "Thread bullets: account owner is 'you', never named"
+
+  # Regression: action items are anchored to the account owner's identity — an
+  # intro email ("Jeremy, meet Priya… you two should connect") must produce a
+  # task naming the OTHER person ("Connect with Priya…"), never one telling the
+  # owner to connect with themselves ("Connect and chat with Jeremy").
+  - vars:
+      isThread: false
+      userName: "Jeremy Nagel"
+      isUserSender: false
+      fromName: "Sam Connector"
+      from: "sam@connector.com"
+      subject: "Intro: Jeremy <> Priya"
+      contextNote: ""
+      body: |
+        Hi both,
+
+        Jeremy, meet Priya — she runs the ADHD support community I mentioned.
+        Priya, Jeremy is building an AI email client for people with ADHD.
+        You two should connect and chat about your respective projects.
+
+        I'll leave you to it!
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!Array.isArray(parsed.actionItems) || parsed.actionItems.length === 0) {
+            throw new Error(`Expected at least one action item. Got: ${JSON.stringify(parsed.actionItems)}`);
+          }
+          const descs = parsed.actionItems.map((a) => String(a.description || '').toLowerCase());
+          // The account owner must never appear inside an action item.
+          if (descs.some((d) => d.includes('jeremy'))) {
+            throw new Error(`Action item names the account owner (a task to meet themselves). Got: ${descs.join(' | ')}`);
+          }
+          // The item should name the OTHER person in the intro.
+          if (!descs.some((d) => d.includes('priya'))) {
+            throw new Error(`Action item should name the other person (Priya). Got: ${descs.join(' | ')}`);
+          }
+          return true;
+    description: "Action items never name the account owner — intro email produces 'connect with Priya', not 'connect with Jeremy'"

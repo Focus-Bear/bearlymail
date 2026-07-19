@@ -1,0 +1,84 @@
+# Full self-hosting stack: Postgres + API server + background worker + web client.
+#
+#   1. cp .env.selfhost.example .env   and fill in the required secrets
+#   2. docker compose -f docker-compose.selfhost.yml up -d --build
+#   3. open http://localhost:8080
+#
+# See SELF-HOSTING.md for the full guide (OAuth setup, HTTPS, backups).
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-adhd_email_client}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: run database migrations, then exit. Server/worker wait for this.
+  migrate:
+    build:
+      context: ./server
+    image: bearlymail/server:local
+    command: ["npx", "typeorm", "migration:run", "-d", "dist/data-source.js"]
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  server:
+    image: bearlymail/server:local
+    restart: unless-stopped
+    command: ["node", "dist/main.js"]
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  # Background jobs (email sync, priority scoring, summaries). Same image as server.
+  worker:
+    image: bearlymail/server:local
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  client:
+    build:
+      context: ./client
+      args:
+        # Baked into the JS bundle at build time. For a real deployment set this
+        # to your public API URL and rebuild (e.g. https://api.your-domain.com).
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+    driver: local

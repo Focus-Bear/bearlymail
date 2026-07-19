@@ -1,0 +1,247 @@
+description: "Tone and style checking prompts for BearlyMail"
+
+providers:
+ 
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+
+prompts:
+  - file://prompts/check-tone-style.md
+
+tests:
+  - vars:
+      rules:
+        - "Be concise"
+        - "Use professional language"
+      text: "Hey there! This email is way too long and verbose, and I think you should really consider all the different aspects of what I'm saying here because there are many important points to discuss."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Handle markdown code blocks if present
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean, got: ${typeof parsed.isOk}`);
+            }
+            if (!Array.isArray(parsed.suggestions)) {
+              throw new Error(`Expected suggestions array, got: ${typeof parsed.suggestions}`);
+            }
+            // Text violates "be concise" rule, so isOk should likely be false
+            // But we'll just check the structure is correct
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}. Output: ${text.substring(0, 200)}`);
+          }
+    description: "Should return JSON with isOk, suggestions, and optional revisedText"
+
+  - vars:
+      rules:
+        - "Be polite"
+        - "Use clear language"
+      text: "Thank you for your email. I appreciate your message and will respond soon."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should validate JSON structure for compliant text"
+
+  - vars:
+      rules:
+        - "Be concise"
+        - "Avoid jargon"
+      text: "<p>Hi there,</p><p>I wanted to follow up on our conversation.</p><p>Thanks,<br>John</p>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean`);
+            }
+            // HTML tags should be ignored, not flagged as issues
+            if (!parsed.isOk && parsed.suggestions) {
+              const hasHtmlComplaint = parsed.suggestions.some(s =>
+                s.toLowerCase().includes('<p>') ||
+                s.toLowerCase().includes('<br>') ||
+                s.toLowerCase().includes('html') ||
+                s.toLowerCase().includes('tag')
+              );
+              if (hasHtmlComplaint) {
+                throw new Error(`Should not flag HTML tags as issues. Suggestions: ${JSON.stringify(parsed.suggestions)}`);
+              }
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should ignore HTML formatting tags and not flag them as tone/style issues"
+
+  - vars:
+      rules:
+        - "Always use formal greetings"
+      text: "<div><strong>Hello Mr. Smith,</strong></div><div>I am writing to inform you about the meeting.</div><div><em>Best regards</em></div>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean`);
+            }
+            // Should analyze text content (formal greeting is present), not complain about HTML
+            if (!parsed.isOk && parsed.suggestions) {
+              const hasHtmlComplaint = parsed.suggestions.some(s =>
+                s.toLowerCase().includes('<div>') ||
+                s.toLowerCase().includes('<strong>') ||
+                s.toLowerCase().includes('<em>') ||
+                s.toLowerCase().includes('html')
+              );
+              if (hasHtmlComplaint) {
+                throw new Error(`Should analyze content, not HTML structure. Suggestions: ${JSON.stringify(parsed.suggestions)}`);
+              }
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should analyze text content within HTML, ignoring the HTML tags themselves"
+
+
+
+
+  - vars:
+      rules:
+        - "Be respectful and considerate"
+      text: "<p>Hi Ana,</p><p>Just wanted to give you an update.</p><p><strong>Info about future plans</strong></p><p>We are working on it.</p><p><strong>Timing</strong></p><p>We need to fix this ASAP or else.</p>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean`);
+            }
+            // "fix this ASAP or else" violates the respectful tone rule — isOk must be false
+            if (parsed.isOk !== false) {
+              throw new Error(
+                `Expected isOk to be false for disrespectful text ("fix this ASAP or else"), got: ${parsed.isOk}`
+              );
+            }
+            // revisedText must be provided and must preserve the bold HTML tags
+            if (!parsed.revisedText) {
+              throw new Error(
+                `Expected revisedText to be populated when isOk is false`
+              );
+            }
+            if (!parsed.revisedText.includes('<strong>')) {
+              throw new Error(
+                `revisedText must preserve HTML <strong> tags from original. Got: ${parsed.revisedText.substring(0, 300)}`
+              );
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should preserve HTML formatting (bold tags) in revisedText"
+
+  - vars:
+      rules:
+        - "Be professional"
+      text: "Hey, just checking in on the project status. Can you send me an update?"
+      scheduledSendAt: "2026-03-14T20:00:00+00:00 (Saturday)"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error('Expected isOk boolean');
+            }
+
+            // inappropriateTiming must be a string or null — never undefined (unless absent)
+            if ('inappropriateTiming' in parsed && parsed.inappropriateTiming !== null && typeof parsed.inappropriateTiming !== 'string') {
+              throw new Error(`inappropriateTiming must be string or null, got: ${typeof parsed.inappropriateTiming}`);
+            }
+
+            // Scheduled at 20:00 Saturday — timing is inappropriate, so inappropriateTiming must be non-null
+            if (!parsed.inappropriateTiming) {
+              throw new Error(
+                'Expected inappropriateTiming to be populated for a Saturday evening scheduled send, got: ' + JSON.stringify(parsed.inappropriateTiming)
+              );
+            }
+
+            // Timing advice must NOT bleed into revisedText
+            if (parsed.revisedText) {
+              const SCHEDULING_PATTERN = /\(if not urgent|\(consider scheduling|\(schedule this/i;
+              if (SCHEDULING_PATTERN.test(parsed.revisedText)) {
+                throw new Error(
+                  `Scheduling advice must not appear in revisedText. Found in: ${parsed.revisedText.substring(0, 200)}`
+                );
+              }
+            }
+
+            // Timing advice must NOT appear in the suggestions array (it belongs in inappropriateTiming)
+            const hasSchedulingInSuggestions = parsed.suggestions && parsed.suggestions.some(s =>
+              /schedul|monday|08:00|business day/i.test(s)
+            );
+            if (hasSchedulingInSuggestions) {
+              throw new Error(
+                'Scheduling advice must be in inappropriateTiming field, not in suggestions array. Suggestions: ' + JSON.stringify(parsed.suggestions)
+              );
+            }
+
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Scheduling advice must appear in inappropriateTiming field only — never in revisedText or suggestions"
+
+  - vars:
+      rules:
+        - "Be professional"
+      text: "Hey, just checking in on the project status. Can you send me an update?"
+      scheduledSendAt: null
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error('Expected isOk boolean');
+            }
+            // No scheduledSendAt provided — inappropriateTiming must be null/absent
+            if (parsed.inappropriateTiming != null) {
+              throw new Error(
+                `inappropriateTiming must be null when no scheduled time is provided, got: ${JSON.stringify(parsed.inappropriateTiming)}`
+              );
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "inappropriateTiming must be null when no scheduledSendAt is provided"

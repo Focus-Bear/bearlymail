@@ -1,0 +1,33 @@
+{
+  "name": "bearlymail-batch-analyzer-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function for parallel context batch analysis via SQS",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "rm -rf dist && tsc && cp -r prompts dist/prompts && cp package.json package-lock.json dist/ && cd dist && npm ci --omit=dev && rm -f package.json package-lock.json",
+    "package": "npm run build && cd dist && zip -r ../function.zip .",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "@aws-sdk/client-cloudwatch": "^3.0.0",
+    "@aws-sdk/client-kms": "^3.0.0",
+    "@anthropic-ai/sdk": "^0.36.0",
+    "openai": "^4.0.0",
+    "@google/generative-ai": "^0.21.0",
+    "pg": "^8.11.0",
+    "typeorm": "^0.3.29"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.0",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.0.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

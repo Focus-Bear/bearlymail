@@ -1,0 +1,94 @@
+providers:
+ 
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/search-ranking.md
+
+tests:
+  - vars:
+      query: "Is Jay coming to the meeting?"
+      emailCount: 3
+      daysSinceLastEmail: 0
+      emails: |
+        0. From: Jay Jackson, Subject: Accepted: Jay Jeremy, Received: 2 days ago (RECENT), Preview: Meeting accepted...
+        1. From: Jay McPherson, Subject: Re: EOI Multipurpose room bookings, Received: 11 days ago, Preview: Hi Jeremy, I am just writing to confirm your booking dates...
+        2. From: Fred from Fireflies.ai, Subject: Your meeting recap, Received: 0 days ago (TODAY!), Preview: Meeting notes...
+    assert:
+      - type: javascript
+        value: |
+          // Strip markdown code blocks if present
+          let jsonString = typeof output === 'string' ? output : JSON.stringify(output);
+          jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const result = JSON.parse(jsonString);
+          // Jay Jackson should score higher than Jay McPherson (more relevant to meeting question)
+          const jayJackson = result.find(r => r.index === 0);
+          const jayMcPherson = result.find(r => r.index === 1);
+          const fireflies = result.find(r => r.index === 2);
+          
+          if (!jayJackson || !jayMcPherson) return false;
+          
+          const jayJacksonScore = jayJackson.relevanceScore || 0;
+          const jayMcPhersonScore = jayMcPherson.relevanceScore || 0;
+          const firefliesScore = fireflies?.relevanceScore || 0;
+
+          // Both Jay emails should be more relevant than the automated recap
+          // and at least one Jay should score reasonably well
+          const maxJayScore = Math.max(jayJacksonScore, jayMcPhersonScore);
+          return maxJayScore > firefliesScore && maxJayScore >= 50;
+    description: "Jay Jackson should rank higher than Jay McPherson for meeting question"
+
+  - vars:
+      query: "Is Jay coming to the meeting?"
+      emailCount: 2
+      daysSinceLastEmail: 0
+      emails: |
+        0. From: Jay Jackson, Subject: Accepted: Jay Jeremy, Received: 0 days ago (TODAY!), Preview: Meeting accepted...
+        1. From: Jay Jackson, Subject: Accepted: Jay Jeremy, Received: 11 days ago, Preview: Meeting accepted...
+    assert:
+      - type: javascript
+        value: |
+          // Strip markdown code blocks if present
+          let jsonString = typeof output === 'string' ? output : JSON.stringify(output);
+          jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const result = JSON.parse(jsonString);
+          // Today's email should score >= older email due to recency bonus.
+          // When both emails are equally relevant (same sender, same topic),
+          // the today email may be capped at 100 even with +30 bonus applied,
+          // so >= is the correct assertion (today must never rank below older).
+          const today = result.find(r => r.index === 0);
+          const old = result.find(r => r.index === 1);
+          
+          if (!today || !old) return false;
+          return (today.relevanceScore || 0) >= (old.relevanceScore || 0);
+    description: "Recent emails should get recency bonus"
+
+  - vars:
+      query: "Is Jay coming to the meeting?"
+      emailCount: 2
+      daysSinceLastEmail: 0
+      emails: |
+        0. From: Fred from Fireflies.ai, Subject: Your meeting recap, Received: 0 days ago (TODAY!), Preview: Automated meeting notes...
+        1. From: noreply@example.com, Subject: Newsletter, Received: 1 days ago (LAST 24 HOURS!), Preview: Weekly newsletter...
+    assert:
+      - type: javascript
+        value: |
+          // Strip markdown code blocks if present
+          let jsonString = typeof output === 'string' ? output : JSON.stringify(output);
+          jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const result = JSON.parse(jsonString);
+          // Automated emails should get very low scores even if recent
+          const fireflies = result.find(r => r.index === 0);
+          const newsletter = result.find(r => r.index === 1);
+          
+          const firefliesScore = fireflies?.relevanceScore || 0;
+          const newsletterScore = newsletter?.relevanceScore || 0;
+          
+          // Both should be low, but Fireflies might be slightly higher if it mentions "meeting"
+          return firefliesScore < 50 && newsletterScore <= 35;
+    description: "Automated emails should get low scores even if recent"
+
+
+

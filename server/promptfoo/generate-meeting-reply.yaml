@@ -1,0 +1,82 @@
+description: "Meeting reply generation prompts for BearlyMail"
+
+providers:
+
+      
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/generate-meeting-reply.md
+
+tests:
+  - vars:
+      schedulingLinkUrl: "https://app.bearlymail.com/schedule/sarah-jones"
+      fromName: "Sarah Chen"
+      subject: "Meeting request"
+      body: "Hi, I'd like to schedule a meeting to discuss the project. When are you available?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // Must include the scheduling link
+          const hasSchedulingLink = text.includes('https://app.bearlymail.com/schedule/sarah-jones');
+          // Must NOT claim no availability
+          const hallucinatesNoSlots = lower.includes('no available slots') || lower.includes('no availability') || lower.includes("don't have any available") || lower.includes("i checked my calendar");
+          if (!hasSchedulingLink) {
+            throw new Error(`Expected reply to include scheduling link. Got: ${text.substring(0, 300)}`);
+          }
+          if (hallucinatesNoSlots) {
+            throw new Error(`Reply must not claim no available slots. Got: ${text.substring(0, 300)}`);
+          }
+          if (text.length < 50) {
+            throw new Error(`Reply too short. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Should include scheduling link and NOT hallucinate no available slots"
+
+  - vars:
+      schedulingLinkUrl: "https://calendly.com/mike-t"
+      fromName: "Mike Thompson"
+      subject: "Coffee chat"
+      body: "Would love to grab coffee next week if you're free!"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // Must include the scheduling link
+          const hasSchedulingLink = text.includes('https://calendly.com/mike-t');
+          // Must NOT hallucinate no slots
+          const hallucinatesNoSlots = lower.includes('no available slots') || lower.includes('no availability') || lower.includes("don't have any available") || lower.includes("i checked my calendar");
+          if (!hasSchedulingLink) {
+            throw new Error(`Expected reply to include scheduling link. Got: ${text.substring(0, 300)}`);
+          }
+          if (hallucinatesNoSlots) {
+            throw new Error(`Reply must not claim no available slots. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Should use scheduling link even for informal requests — no slot hallucination"
+
+  - vars:
+      schedulingLinkUrl: ""
+      fromName: "Alex Rivera"
+      subject: "Quick sync?"
+      body: "Hi, could we find a time for a quick sync this week?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // With no scheduling link, should ask for availability instead of claiming no slots
+          const hallucinatesNoSlots = lower.includes('no available slots') || lower.includes("i checked my calendar and unfortunately");
+          if (hallucinatesNoSlots) {
+            throw new Error(`Reply must not claim no available slots when no scheduling link configured. Got: ${text.substring(0, 300)}`);
+          }
+          if (text.length < 30) {
+            throw new Error(`Reply too short. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Should ask for availability gracefully when no scheduling link is configured"

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Externalised so the CSP can omit `script-src 'unsafe-inline'`. Must run before
+      the React bundle (which is `type="module"` and therefore deferred) so the SPA
+      router sees the restored URL on first render. See client/public/spa-redirect.js.
+    -->
+    <script src="/spa-redirect.js"></script>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ECB559" />
+    <!-- BearlyMail is a light-only app. Pin the colour-scheme so native browser chrome
+         (form controls, <select> popups, scrollbars, autofill, date pickers) does not
+         render with dark OS styling when the user's OS is in dark mode. -->
+    <meta name="color-scheme" content="light" />
+    <meta
+      name="description"
+      content="BearlyMail - An ADHD-friendly email client with AI-powered prioritization and smart email management"
+    />
+    <link rel="manifest" href="/manifest.json" />
+    <title>BearlyMail</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

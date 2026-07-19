@@ -1,0 +1,79 @@
+/* email-thread-print.css
+ * Applied only when the browser print dialog is open.
+ * Hides all app chrome and reveals only the printable thread container.
+ *
+ * Why visibility instead of display:none on body > *:
+ *   display:none on #root would also hide all its descendants (including
+ *   #printable-email-thread nested inside), producing a blank page.
+ *   visibility:hidden is inherited but CAN be overridden by children with
+ *   visibility:visible, so the thread container breaks out cleanly.
+ *
+ * Why #root > * instead of body > *:
+ *   Targets only the React app's direct children (not <script> tags or
+ *   portal roots appended directly to <body> by other libraries).
+ */
+
+@media print {
+  /* Collapse all direct children of the React root (nav, modals, toasts…) */
+  #root > * {
+    visibility: hidden;
+  }
+
+  /* The printable container overrides its ancestors' visibility and sits at
+   * the top-left of the page so it fills the print viewport.
+   * position:fixed is viewport-relative, ensuring it starts at the top of
+   * the first printed page regardless of scroll position. */
+  #printable-email-thread {
+    visibility: visible;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    padding: 16px;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    color: #000;
+    background: #fff;
+  }
+
+  /* Reveal all content inside the thread container */
+  #printable-email-thread * {
+    visibility: visible;
+  }
+
+  /* Thread header */
+  #printable-email-thread .print-thread-subject {
+    font-size: 16pt;
+    font-weight: bold;
+    margin-bottom: 16px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 8px;
+  }
+
+  /* Individual message */
+  #printable-email-thread .print-message {
+    margin-bottom: 24px;
+    page-break-inside: avoid;
+  }
+
+  #printable-email-thread .print-message-header {
+    font-size: 10pt;
+    color: #555;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+  }
+
+  #printable-email-thread .print-message-body {
+    font-size: 11pt;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  /* Remove hyperlink decorations that add noise */
+  #printable-email-thread a::after {
+    content: '';
+  }
+}

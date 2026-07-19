@@ -1,0 +1,11 @@
+# Pinned so the training environment and the Lambda runtime match — a joblib
+# bundle pickled under one scikit-learn version can fail to load (or silently
+# mispredict) under another.
+scikit-learn==1.6.1
+numpy==2.2.2
+scipy==1.15.1
+joblib==1.5.3
+
+# Inference-from-S3 / Lambda only. boto3 is provided by the Lambda runtime; it's
+# listed for local testing of the S3 path.
+boto3>=1.34.0

@@ -1,0 +1,17 @@
+# Image for the scheduled batch training task (Fargate), separate from the
+# inference image because training uses a normal Python base (not the Lambda
+# runtime base) and runs train_job.py rather than a Lambda handler.
+#
+# Build context is the local-models/ directory (see the serving CDK stack).
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Same pinned deps as inference so a bundle trained here loads in the inference
+# Lambda (a joblib bundle is version-sensitive across scikit-learn).
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY *.py ./
+
+CMD ["python", "train_job.py"]

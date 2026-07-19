@@ -1,0 +1,92 @@
+description: "Common questions extraction prompts for BearlyMail"
+
+providers:
+ 
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/extract-common-questions.md
+
+tests:
+  - description: "Should extract Q&A pairs with frequency >= 2"
+    vars:
+      repliesText: |
+        Subject: Re: Meeting invitation
+        Body: Yes, I'll be there. Looking forward to it!
+        ---
+        Subject: Re: Meeting invitation
+        Body: Yes, I can attend. Thanks for the invite.
+        ---
+        Subject: Re: Meeting invitation
+        Body: Yes, I'll be there. See you then!
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            // Robust extraction for JSON Arrays
+            const start = text.indexOf('[');
+            const end = text.lastIndexOf(']');
+            if (start === -1 || end === -1) throw new Error("No JSON array found in output");
+
+            const parsed = JSON.parse(text.slice(start, end + 1));
+
+            if (!Array.isArray(parsed)) throw new Error("Output is not a JSON array");
+
+            parsed.forEach((item, idx) => {
+              if (!item.question || !item.answer || typeof item.frequency !== 'number') {
+                throw new Error(`Item ${idx} missing fields: ${JSON.stringify(item)}`);
+              }
+              if (item.frequency < 2) {
+                throw new Error(`Item ${idx} frequency too low: ${item.frequency}`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Test Failed: ${e.message}`);
+          }
+
+  - description: "Should surface a recurring Q&A pattern that appears exactly twice"
+    vars:
+      repliesText: |
+        Subject: Re: Status update
+        Body: I'll send you an update by Friday.
+        ---
+        Subject: Re: Project status
+        Body: I'll have the update ready by Friday.
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const start = text.indexOf('[');
+            const end = text.lastIndexOf(']');
+            if (start === -1 || end === -1) throw new Error("No JSON array found");
+
+            const parsed = JSON.parse(text.slice(start, end + 1));
+
+            if (!Array.isArray(parsed)) throw new Error("Expected array");
+            // The lowered threshold (2) must let a twice-recurring pattern through
+            // instead of discarding it as a one-off.
+            if (parsed.length === 0) {
+              throw new Error("Expected at least one Q&A pair for a pattern seen twice");
+            }
+
+            parsed.forEach((item) => {
+              if (!item.question || !item.answer || typeof item.frequency !== 'number') {
+                throw new Error(`Invalid structure: ${JSON.stringify(item)}`);
+              }
+              if (item.frequency < 2) {
+                throw new Error(`Frequency below threshold: ${item.frequency}`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Structure Test Failed: ${e.message}`);
+          }
+
+
+

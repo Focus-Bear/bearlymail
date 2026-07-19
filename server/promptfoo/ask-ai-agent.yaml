@@ -1,0 +1,58 @@
+description: "Ask AI agentic email assistant prompt for BearlyMail"
+
+# The agent prompt is also valid without tools: when the open email already
+# answers the question the model must respond directly and stay grounded.
+providers:
+  - id: openai:gpt-4o-mini
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/ask-ai-agent.md
+
+tests:
+  - vars:
+      subject: "Q3 budget review"
+      from: "sarah.chen@acme.com"
+      fromName: "Sarah Chen"
+      isThread: false
+      body: "Hi, can you send over the Q3 budget proposal by Friday? The board meeting is on Monday and I need time to review it over the weekend. Thanks, Sarah"
+      hasHistory: false
+      history: []
+      question: "What is the deadline?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          if (!text.toLowerCase().includes('friday')) {
+            throw new Error(`Expected the answer to mention the Friday deadline. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Answers a factual question grounded in the open email"
+
+  - vars:
+      subject: "Lunch next week?"
+      from: "mike@example.com"
+      fromName: "Mike"
+      isThread: false
+      body: "Hey, are you free for lunch sometime next week? Would be great to catch up. No rush. Mike"
+      hasHistory: false
+      history: []
+      question: "What is Mike's phone number?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // The phone number is NOT in the email — the model must not invent one.
+          if (/\d{3}[-.\s]?\d{3,4}/.test(text)) {
+            throw new Error(`Model fabricated a phone number not present in the email. Got: ${text.substring(0, 300)}`);
+          }
+          const lower = text.toLowerCase();
+          const admits = lower.includes("doesn't") || lower.includes('does not') || lower.includes('not mention') ||
+                         lower.includes('not include') || lower.includes('not provide') || lower.includes("don't") ||
+                         lower.includes('no phone');
+          if (!admits) {
+            throw new Error(`Expected the model to say the info is not in the email. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Refuses to fabricate facts that are not in the email"

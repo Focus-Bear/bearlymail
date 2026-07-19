@@ -1,0 +1,42 @@
+/* Light-only app: pin the colour-scheme so native form controls, scrollbars, and the
+   default canvas render in light regardless of the user's OS dark-mode preference. */
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background-color: #fffcf6; /* theme background.default — avoids a dark canvas in overscroll */
+  color-scheme: light;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
+    'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+@keyframes toast-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Fix #1526 bug 5: skeleton loading pulse animation for VisualCategoryFilter placeholder pills */
+@keyframes bearlymail-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}

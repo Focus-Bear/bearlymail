@@ -1,0 +1,184 @@
+description: "Incremental priority check prompts for BearlyMail - determines if full recalculation is needed"
+
+prompts:
+  - file://prompts/incremental-priority-check.md
+
+providers:
+  - id: openai:chat:gpt-5.4-mini
+    config:
+      temperature: 0.3
+      response_format: { type: "json_object" }
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+tests:
+  - description: "Simple thank you message should NOT need full recalculation"
+    vars:
+      existingPriorityScore: 45
+      existingUrgencyScore: 30
+      existingCategory: "Customer Support"
+      existingSummary: "Customer asking about pricing options for enterprise plan."
+      newEmailFrom: "customer@example.com"
+      newEmailFromName: "John Smith"
+      newEmailSubject: "Re: Pricing Options"
+      newEmailBody: "Thanks for the information! That answers my question."
+      newEmailReceivedAt: "2026-02-26T10:00:00Z"
+      threadContext: ""
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const first = text.indexOf('{');
+            const last = text.lastIndexOf('}');
+            const parsed = JSON.parse(text.slice(first, last + 1));
+            const data = parsed.result || parsed;
+            
+            if (typeof data.suggestedUrgencyDelta !== 'number') throw new Error("suggestedUrgencyDelta is not a number");
+            if (data.suggestedUrgencyDelta > 10) throw new Error(`Urgency delta too high for thank you: ${data.suggestedUrgencyDelta}`);
+            return true;
+          } catch (e) { throw new Error(`Logic Fail: ${e.message}`); }
+
+  - description: "Simple follow-up message should NOT need full recalculation"
+    vars:
+      existingPriorityScore: 35
+      existingUrgencyScore: 25
+      existingCategory: "Partnerships"
+      existingSummary: "Ongoing partnership discussion about potential collaboration."
+      newEmailFrom: "partner@company.com"
+      newEmailFromName: "Alice Johnson"
+      newEmailSubject: "Re: Partnership Discussion"
+      newEmailBody: "Just following up - any updates on your end?"
+      newEmailReceivedAt: "2026-02-26T11:00:00Z"
+      threadContext: "[Alice Johnson on 02/25/2026]: Let's discuss the partnership details next week."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.needsFullRecalc === true) throw new Error(`False Positive: Follow-up triggered recalc. Reason: ${data.reason}`);
+            return true;
+          } catch (e) { throw new Error(e.message); }
+
+  - description: "Emergency escalation SHOULD need full recalculation"
+    vars:
+      existingPriorityScore: 30
+      existingUrgencyScore: 20
+      existingCategory: "Sales"
+      existingSummary: "Routine sales inquiry about product features."
+      newEmailFrom: "customer@enterprise.com"
+      newEmailFromName: "CEO Bob"
+      newEmailSubject: "URGENT: Production is down!"
+      newEmailBody: "Our production environment just crashed! We need immediate support."
+      newEmailReceivedAt: "2026-02-26T14:00:00Z"
+      threadContext: ""
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.needsFullRecalc !== true) throw new Error("Failed to trigger recalc for emergency");
+            if (data.suggestedUrgencyDelta <= 0) throw new Error("Urgency delta should be positive");
+            if (data.categoryMightChange !== true) throw new Error("Category should flag change from Sales to Support");
+            return true;
+          } catch (e) { throw new Error(e.message); }
+
+  - description: "Resolution of critical issue SHOULD need full recalculation"
+    vars:
+      existingPriorityScore: 75
+      existingUrgencyScore: 80
+      existingCategory: "Customer Support"
+      existingSummary: "Critical bug causing data loss for enterprise customer. Urgent fix needed."
+      newEmailFrom: "support@example.com"
+      newEmailFromName: "Support Team"
+      newEmailSubject: "Re: Critical Bug - Data Loss"
+      newEmailBody: "Great news! The bug has been fixed and deployed. No further action needed."
+      newEmailReceivedAt: "2026-02-26T16:00:00Z"
+      threadContext: "[Customer on 02/25/2026]: We're losing data!"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.needsFullRecalc !== true) throw new Error("Resolution should trigger recalc to lower priority");
+            if (data.suggestedUrgencyDelta >= 0) throw new Error("Expected negative urgency delta for resolution");
+            return true;
+          } catch (e) { throw new Error(e.message); }
+
+  - description: "Routine paperwork update should NOT need full recalculation"
+    vars:
+      existingPriorityScore: 40
+      existingUrgencyScore: 35
+      existingCategory: "HR Admin"
+      existingSummary: "Routine HR paperwork for new employee onboarding."
+      newEmailFrom: "hr@company.com"
+      newEmailFromName: "HR Team"
+      newEmailSubject: "Re: Onboarding Documents"
+      newEmailBody: "Here are the updated forms. Please review and sign by Friday."
+      newEmailReceivedAt: "2026-02-26T09:00:00Z"
+      threadContext: ""
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.suggestedUrgencyDelta > 20) throw new Error("Urgency delta too high for routine HR");
+            return true;
+          } catch (e) { throw new Error(e.message); }
+
+  - description: "Newsletter content should NOT need full recalculation"
+    vars:
+      existingPriorityScore: 50
+      existingUrgencyScore: 45
+      existingCategory: "Newsletters"
+      existingSummary: "Weekly tech newsletter with industry updates."
+      newEmailFrom: "newsletter@techsite.com"
+      newEmailFromName: "Tech Newsletter"
+      newEmailSubject: "Re: Weekly Tech Digest"
+      newEmailBody: "This week's highlights: New AI breakthroughs..."
+      newEmailReceivedAt: "2026-02-26T08:00:00Z"
+      threadContext: ""
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.needsFullRecalc === true) throw new Error("Newsletter should not trigger recalc");
+            if (data.categoryMightChange === true) throw new Error("Newsletter category should not change");
+            return true;
+          } catch (e) { throw new Error(e.message); }
+
+  - description: "Angry escalation with threats SHOULD need full recalculation"
+    vars:
+      existingPriorityScore: 55
+      existingUrgencyScore: 40
+      existingCategory: "Partnerships"
+      existingSummary: "Discussion about potential marketing partnership."
+      newEmailFrom: "angry.partner@company.com"
+      newEmailFromName: "Angry Partner"
+      newEmailSubject: "Re: Partnership Discussion"
+      newEmailBody: "I'm extremely disappointed! Termination considered resolved TODAY."
+      newEmailReceivedAt: "2026-02-26T15:00:00Z"
+      threadContext: "[Partner on 02/24/2026]: Looking forward to our collaboration!"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            const data = parsed.result || parsed;
+            if (data.needsFullRecalc !== true) throw new Error("Failed to trigger recalc for angry partner");
+            if (data.suggestedUrgencyDelta <= 0) throw new Error("Expected positive urgency delta for angry escalation");
+            return true;
+          } catch (e) { throw new Error(e.message); }

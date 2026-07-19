@@ -1,0 +1,120 @@
+description: "Email category consolidation prompts for BearlyMail"
+
+
+providers:
+
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/consolidate-email-categories.md
+
+tests:
+  # Test 1: Merge semantically similar categories
+  - vars:
+      categories: |
+        - Job Applications: Emails about job applications and career opportunities
+        - Internship Coordination: Emails about internship programs and coordination
+        - Partnership Requests: Emails about partnership opportunities
+        - Cold Outreach: Unsolicited sales and marketing emails
+        - Sales Emails: Promotional emails from vendors
+      userCategories: "None"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-consolidation-response.js
+        config:
+          maxCount: 10
+
+  # Test 2: Preserve user-added categories
+  - vars:
+      categories: |
+        - Newsletter: Weekly newsletter emails
+        - Marketing: Marketing and promotional content
+        - Notifications: System notifications
+      userCategories: |
+        - My Important Project: Emails about my specific project (USER-ADDED - PRESERVE)
+        - VIP Clients: Emails from my most important clients (USER-ADDED - PRESERVE)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-consolidation-response.js
+        config:
+          shouldPreserveUserCategories: ["My Important Project", "VIP Clients"]
+          minCount: 2
+
+  # Test 3: Consolidate development-related categories
+  - vars:
+      categories: |
+        - GitHub PR Reviews: Pull request review notifications
+        - GitLab Merge Requests: Merge request notifications
+        - Code Review Requests: Requests to review code
+        - Build Failures: CI/CD build failure notifications
+        - QA Notifications: Quality assurance test results
+        - Deployment Alerts: Deployment status notifications
+      userCategories: "None"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-consolidation-response.js
+        config:
+          maxCount: 10
+
+  # Test 4: Avoid overly specific categories
+  - vars:
+      categories: |
+        - Zoom Meeting Invites: Zoom meeting invitations
+        - Google Meet Links: Google Meet meeting links
+        - Calendar Invites: Calendar event invitations
+        - Slack Notifications: Slack channel notifications
+        - Teams Messages: Microsoft Teams messages
+        - Discord Alerts: Discord server notifications
+      userCategories: "None"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-consolidation-response.js
+        config:
+          maxCount: 10
+
+  # Test 5: Limit to max 10 categories
+  - vars:
+      categories: |
+        - Category 1: Description 1
+        - Category 2: Description 2
+        - Category 3: Description 3
+        - Category 4: Description 4
+        - Category 5: Description 5
+        - Category 6: Description 6
+        - Category 7: Description 7
+        - Category 8: Description 8
+        - Category 9: Description 9
+        - Category 10: Description 10
+        - Category 11: Description 11
+        - Category 12: Description 12
+        - Category 13: Description 13
+        - Category 14: Description 14
+        - Category 15: Description 15
+        - Category 16: Description 16
+        - Category 17: Description 17
+        - Category 18: Description 18
+      userCategories: "None"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-consolidation-response.js
+        config:
+          maxCount: 10
+
+  # Test 6: Mixed user and auto-generated categories
+  - vars:
+      categories: |
+        - Support Tickets: Customer support requests
+        - Help Requests: User help inquiries
+        - Bug Reports: Software bug reports
+        - Feature Requests: New feature suggestions
+      userCategories: |
+        - Urgent Issues: Time-sensitive problems that need immediate attention (USER-ADDED - PRESERVE)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-consolidation-response.js
+        config:
+          shouldPreserveUserCategories: ["Urgent Issues"]
+          maxCount: 10

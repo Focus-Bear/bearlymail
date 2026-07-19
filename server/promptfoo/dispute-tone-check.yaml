@@ -1,0 +1,101 @@
+description: "Tone check dispute prompts for BearlyMail"
+
+providers:
+
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/dispute-tone-check.md
+
+tests:
+  - vars:
+      rules:
+        - "Be formal"
+        - "Avoid contractions"
+      suggestions:
+        - "The email uses informal language"
+        - "Contains contractions like 'don't' and 'won't'"
+      emailText: "Hey! Just wanted to check in - don't forget about the meeting tomorrow. Won't be able to make it if you're late!"
+      userArgument: "I intentionally use casual language with this colleague because we've worked together for years and have an informal relationship. This is our normal communication style."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.accepted !== 'boolean') {
+              throw new Error(`Expected accepted boolean, got: ${typeof parsed.accepted}`);
+            }
+            if (!Array.isArray(parsed.rulesToRemove)) {
+              throw new Error(`Expected rulesToRemove array, got: ${typeof parsed.rulesToRemove}`);
+            }
+            if (typeof parsed.explanation !== 'string') {
+              throw new Error(`Expected explanation string, got: ${typeof parsed.explanation}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}. Output: ${text.substring(0, 200)}`);
+          }
+    description: "Should return JSON with accepted, rulesToRemove, and explanation for valid casual language argument"
+
+  - vars:
+      rules:
+        - "Be professional"
+        - "Avoid offensive language"
+      suggestions:
+        - "The email contains unprofessional language"
+      emailText: "This is absolutely ridiculous and whoever made this decision is an idiot!"
+      userArgument: "I was just expressing my frustration"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.accepted !== 'boolean') {
+              throw new Error(`Expected accepted boolean`);
+            }
+            if (!Array.isArray(parsed.rulesToRemove)) {
+              throw new Error(`Expected rulesToRemove array`);
+            }
+            // This argument should likely be rejected as the email is genuinely problematic
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should validate JSON structure for weak argument with offensive language"
+
+  - vars:
+      rules:
+        - "Use complete sentences"
+        - "Be concise"
+      suggestions:
+        - "Email uses incomplete sentences"
+      emailText: "Quick update: Project done. Meeting at 3. Bring notes."
+      userArgument: "I use short, direct messages for quick updates to save time. My team prefers this style for internal communications."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.accepted !== 'boolean') {
+              throw new Error(`Expected accepted boolean`);
+            }
+            if (!Array.isArray(parsed.rulesToRemove)) {
+              throw new Error(`Expected rulesToRemove array`);
+            }
+            if (typeof parsed.explanation !== 'string') {
+              throw new Error(`Expected explanation string`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should validate JSON structure for concise communication style argument"

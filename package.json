@@ -1,0 +1,38 @@
+{
+  "name": "adhd-email-client",
+  "version": "1.1.0",
+  "description": "ADHD-Friendly Email Client - Non-distracting and highly efficient email management",
+  "main": "server/dist/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "local": "node scripts/run-local.mjs",
+    "server": "cd server && npm run start:dev",
+    "client": "cd client && npm start",
+    "build": "cd server && npm run build && cd ../client && npm run build",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "start:prod": "cd server && npm run start:prod",
+    "db:up": "docker-compose up -d postgres",
+    "db:down": "docker-compose down",
+    "db:logs": "docker-compose logs -f postgres",
+    "db:reset": "docker-compose down -v && docker-compose up -d postgres",
+    "db:psql": "docker-compose exec postgres psql -U postgres -d adhd_email_client"
+  },
+  "keywords": [
+    "email",
+    "adhd",
+    "productivity"
+  ],
+  "author": "",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "engines": {
+    "node": ">=22.x",
+    "npm": ">=9.x"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "embedded-postgres": "^17.10.0-beta.17"
+  },
+  "dependencies": {
+    "@aws-sdk/client-kms": "^3.1085.0"
+  }
+}

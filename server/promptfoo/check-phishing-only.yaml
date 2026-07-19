@@ -1,0 +1,236 @@
+description: "Phishing-only check used when a custom summarisation prompt is active"
+
+providers:
+  # Prod summarisation runs on AWS Bedrock (Amazon Nova Micro); CI has no AWS creds,
+  # so these suites validate the (provider-agnostic) prompts on Gemini. Nova verified locally.
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/check-phishing-only.md
+
+tests:
+  # ─── Custom prompt + phishing email — MUST detect ──────────────────────────
+
+  - description: "Custom prompt path: credential phishing must still be detected"
+    vars:
+      subject: "URGENT: Your account has been suspended"
+      contextNote: ""
+      body: |
+        Dear Customer,
+
+        We have detected suspicious activity on your Commonwealth Bank account.
+        Your account has been temporarily suspended.
+
+        To restore access, you must verify your identity immediately:
+        https://commbank-secure-verify.xyz/login
+
+        Failure to verify within 24 hours will result in permanent account closure.
+
+        Commonwealth Bank Security Team
+      phishingSignals:
+        # In production, a lookalike domain linking to itself yields NO mismatch —
+        # the phishing signal is the lookalike sender domain, and the LLM must
+        # flag it WITHOUT a mismatch hint (see PR #2638 review).
+        hasDomainMismatch: false
+        senderDomain: "commbank-secure-verify.xyz"
+        linkedDomains:
+          - "commbank-secure-verify.xyz"
+        suspiciousKeywords:
+          - "account suspended/locked"
+          - "verify account/identity"
+          - "urgency language"
+        rawScore: 8
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+            
+            const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            
+            if (!parsed.phishing) throw new Error('Expected phishing field in response');
+            if (!parsed.phishing.is_phishing) throw new Error(`Expected is_phishing=true. Got: ${JSON.stringify(parsed.phishing)}`);
+            if (!['medium', 'high'].includes(parsed.phishing.confidence)) {
+              throw new Error(`Expected medium/high confidence, got: ${parsed.phishing.confidence}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Assertion Failed: ${e.message}`);
+          }
+
+  - description: "Custom prompt path: PayPal phishing must still be detected"
+    vars:
+      subject: "Your PayPal transaction #8847291 requires confirmation"
+      contextNote: ""
+      body: |
+        Hi there,
+
+        A payment of $847.00 was initiated from your PayPal account.
+
+        If you did not authorise this transaction, click here immediately to cancel:
+        https://paypal-support-center.ru/cancel?token=abc123
+
+        Your account will be locked if you don't respond within 2 hours.
+
+        PayPal Fraud Prevention
+      phishingSignals:
+        # In production, a lookalike domain linking to itself yields NO mismatch —
+        # the phishing signal is the lookalike sender domain, and the LLM must
+        # flag it WITHOUT a mismatch hint (see PR #2638 review).
+        hasDomainMismatch: false
+        senderDomain: "paypal-support-center.ru"
+        linkedDomains:
+          - "paypal-support-center.ru"
+        suspiciousKeywords:
+          - "urgency language"
+          - "account suspended/locked"
+          - "click to verify/update"
+        rawScore: 9
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+            
+            const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            
+            if (!parsed.phishing) throw new Error('Expected phishing field');
+            if (!parsed.phishing.is_phishing) throw new Error('Expected is_phishing=true');
+            return true;
+          } catch (e) {
+            throw new Error(`Assertion Failed: ${e.message}`);
+          }
+
+  # ─── Custom prompt + legitimate email — must NOT flag ──────────────────────
+
+  - description: "Custom prompt path: legitimate internal email must not be flagged"
+    vars:
+      subject: "Q4 report due tomorrow"
+      contextNote: ""
+      body: |
+        Hi Sarah,
+
+        Just a reminder that the Q4 financial report is due tomorrow at 5pm.
+        Please make sure to submit your section by end of day.
+
+        Thanks,
+        Michael
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "company.com"
+        linkedDomains: []
+        suspiciousKeywords: []
+        rawScore: 0
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+            
+            const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            
+            if (parsed.phishing && parsed.phishing.is_phishing) {
+              throw new Error(`False positive: legitimate email flagged. Reason: ${parsed.phishing.reason}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Assertion Failed: ${e.message}`);
+          }
+
+  - description: "Custom prompt path: Mailchimp newsletter (ESP domain mismatch) must not be flagged"
+    vars:
+      subject: "Focus Bear monthly product update — March 2024"
+      contextNote: ""
+      body: |
+        Focus Bear Product Update
+
+        Hi Jeremy,
+
+        Here's what's new in Focus Bear this month:
+        • Improved habit streak tracking
+        • New daily review templates
+        • Bug fixes for calendar sync
+
+        Read the full update: https://focusbear.io/blog/march-2024
+
+        Unsubscribe: https://focusbear.us1.list-manage.com/unsubscribe?u=abc&id=xyz
+
+        Focus Bear | hello@focusbear.io
+      phishingSignals:
+        hasDomainMismatch: true
+        senderDomain: "mcsv.net"
+        linkedDomains:
+          - "focusbear.io"
+          - "focusbear.us1.list-manage.com"
+        suspiciousKeywords: []
+        rawScore: 3
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+            
+            const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            
+            if (parsed.phishing && parsed.phishing.is_phishing) {
+              throw new Error(`False positive: Mailchimp newsletter flagged. Reason: ${parsed.phishing.reason}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Assertion Failed: ${e.message}`);
+          }
+
+  - description: "Legitimate card-payment-declined alert from the brand's own domain — urgency is not phishing"
+    vars:
+      isThread: false
+      subject: "Card payment declined – Insufficient balance ⚠️"
+      contextNote: ""
+      body: |
+        Hi Jeremy M,
+
+        Your card payment was recently declined for the following reason:
+
+        Insufficient balance. Top up the account to avoid further declined payments.
+
+        Find out more:
+        https://business.revolut.com/transactions
+
+        Revolut Business
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "revolut.com"
+        linkedDomains:
+          - "business.revolut.com"
+        suspiciousKeywords:
+          - "urgency language"
+        rawScore: 1
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          // Medium+ confidence shows the phishing banner in the UI — a matching-domain
+          // transactional alert must never reach it (reported false positive).
+          if (parsed.phishing && parsed.phishing.is_phishing && ['medium', 'high'].includes(parsed.phishing.confidence)) {
+            throw new Error(`Over-flagged: legit transactional alert flagged ${parsed.phishing.confidence}. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;

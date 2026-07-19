@@ -1,0 +1,80 @@
+description: "Generate concise meeting titles from booking agenda text"
+
+
+
+providers:
+
+
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/generate-booking-title.md
+
+tests:
+  - vars:
+      maxTitleLength: 60
+      agenda: "We need to discuss the Q3 roadmap priorities, including the new onboarding flow redesign and the API performance improvements we planned last month."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output.trim() : JSON.stringify(output).trim();
+          if (text.length === 0) {
+            throw new Error('Expected a non-empty title');
+          }
+          if (text.length > 60) {
+            throw new Error(`Expected title to be max 60 chars, got ${text.length}: "${text}"`);
+          }
+          // Should be a single line (no newlines)
+          if (text.includes('\n')) {
+            throw new Error(`Expected single-line title, got: "${text}"`);
+          }
+          // Should relate to the agenda topic (roadmap, onboarding, API, or Q3)
+          const relevant = ['roadmap', 'onboarding', 'api', 'q3', 'performance', 'priorities'].some(
+            kw => text.toLowerCase().includes(kw)
+          );
+          if (!relevant) {
+            throw new Error(`Expected title to reference agenda topic (roadmap/onboarding/api/Q3). Got: "${text}"`);
+          }
+          return true;
+    description: "Should generate a short, relevant title from a detailed agenda"
+
+  - vars:
+      maxTitleLength: 60
+      agenda: "Quick 1:1 check-in"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output.trim() : JSON.stringify(output).trim();
+          if (text.length === 0) {
+            throw new Error('Expected a non-empty title');
+          }
+          if (text.length > 60) {
+            throw new Error(`Expected title to be max 60 chars, got ${text.length}: "${text}"`);
+          }
+          return true;
+    description: "Should handle short agenda input and produce a valid title"
+
+  - vars:
+      maxTitleLength: 60
+      agenda: "Review the security audit findings from last week and assign remediation owners for each CVE listed in the report. Also discuss timeline for patching the production servers before the compliance deadline at end of month."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output.trim() : JSON.stringify(output).trim();
+          if (text.length === 0) {
+            throw new Error('Expected a non-empty title');
+          }
+          if (text.length > 60) {
+            throw new Error(`Expected title to be max 60 chars, got ${text.length}: "${text}"`);
+          }
+          // Should focus on security / audit topic
+          const relevant = ['security', 'audit', 'cve', 'patch', 'compliance', 'remediation'].some(
+            kw => text.toLowerCase().includes(kw)
+          );
+          if (!relevant) {
+            throw new Error(`Expected title to reference security/audit topic. Got: "${text}"`);
+          }
+          return true;
+    description: "Should condense a long agenda about security into a concise title"

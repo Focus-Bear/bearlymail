@@ -1,0 +1,164 @@
+description: "Tests for the composite-rule value-add assessment prompt (does a draft rule add value over existing same-category rules?)"
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/assess-category-rule-value.md
+
+tests:
+  - description: "Returns valid JSON with makesSense + addsValue booleans, reasoning string, and exclusion arrays"
+    vars:
+      categoryName: "GitHub PRs"
+      candidateRule: |
+        Senders: *@github.com
+        Subject contains: PR #
+        Body contains: pull request
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      existingRules: |
+        [Rule 1]
+        Senders: *@github.com
+        Subject contains: Issue #
+        Body contains: opened an issue
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      maxSubjectNotPhrases: "10"
+      maxBodyNotPhrases: "20"
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (typeof parsed.makesSense !== 'boolean') {
+            throw new Error(`Expected makesSense boolean, got: ${typeof parsed.makesSense}`);
+          }
+          if (typeof parsed.addsValue !== 'boolean') {
+            throw new Error(`Expected addsValue boolean, got: ${typeof parsed.addsValue}`);
+          }
+          if (typeof parsed.reasoning !== 'string' || parsed.reasoning.trim() === '') {
+            throw new Error(`Expected non-empty reasoning string`);
+          }
+          if (!Array.isArray(parsed.subjectNotContainsAny) || !Array.isArray(parsed.bodyNotContainsAny)) {
+            throw new Error(`Expected subjectNotContainsAny and bodyNotContainsAny arrays`);
+          }
+          return true;
+
+  - description: "Flags a bot-category rule that excludes bot names as not making sense"
+    vars:
+      categoryName: "GitHub Bot PR Updates"
+      candidateRule: |
+        Senders: *@github.com
+        Subject contains: PR #
+        Body contains: view this pull request
+        Subject NOT contains: (none)
+        Body NOT contains: dependabot, claude, devin
+      existingRules: |
+        [Rule 1]
+        Senders: *@github.com
+        Subject contains: PR #
+        Body contains: requested your review
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      maxSubjectNotPhrases: "10"
+      maxBodyNotPhrases: "20"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.makesSense !== false) {
+            throw new Error(`Expected makesSense=false for a bot category that excludes bot names, got ${parsed.makesSense}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Does not re-propose a bot name as an exclusion for a bot category"
+    vars:
+      categoryName: "GitHub Bot PR Updates"
+      candidateRule: |
+        Senders: *@github.com
+        Subject contains: PR #
+        Body contains: view this pull request
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      existingRules: |
+        [Rule 1]
+        Senders: *@github.com
+        Subject contains: Issue #
+        Body contains: opened an issue
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      maxSubjectNotPhrases: "10"
+      maxBodyNotPhrases: "20"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const botNames = ['dependabot', 'claude', 'devin', 'gemini', 'codebeard', 'bot'];
+          const proposed = [...parsed.subjectNotContainsAny, ...parsed.bodyNotContainsAny].map(p => p.toLowerCase());
+          for (const phrase of proposed) {
+            if (botNames.some(name => phrase.includes(name))) {
+              throw new Error(`Proposed a bot-name exclusion "${phrase}" for a bot category`);
+            }
+          }
+          return true;
+
+  - description: "Distinct PR vs Issue rule adds value (different conditions)"
+    vars:
+      categoryName: "GitHub PRs"
+      candidateRule: |
+        Senders: *@github.com
+        Subject contains: PR #
+        Body contains: pull request
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      existingRules: |
+        [Rule 1]
+        Senders: *@github.com
+        Subject contains: Issue #
+        Body contains: opened an issue
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      maxSubjectNotPhrases: "10"
+      maxBodyNotPhrases: "20"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.addsValue !== true) {
+            throw new Error(`Expected addsValue=true for a distinct rule, got ${parsed.addsValue}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "A rule identical to an existing one is redundant (addsValue=false)"
+    vars:
+      categoryName: "GitHub PRs"
+      candidateRule: |
+        Senders: *@github.com
+        Subject contains: PR #
+        Body contains: pull request
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      existingRules: |
+        [Rule 1]
+        Senders: *@github.com
+        Subject contains: PR #
+        Body contains: pull request
+        Subject NOT contains: (none)
+        Body NOT contains: (none)
+      maxSubjectNotPhrases: "10"
+      maxBodyNotPhrases: "20"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.addsValue !== false) {
+            throw new Error(`Expected addsValue=false for an identical rule, got ${parsed.addsValue}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;

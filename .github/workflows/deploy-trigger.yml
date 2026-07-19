@@ -1,0 +1,29 @@
+# Production deploy for BearlyMail lives in the PRIVATE infra repo
+# (Focus-Bear/bearlymail-infra), which holds the AWS CDK, account identifiers,
+# and OIDC-privileged credentials. This workflow just hands that repo the commit
+# to deploy — no AWS access lives in this public repo.
+#
+# Requires a repo secret INFRA_DEPLOY_TOKEN: a fine-grained PAT (or GitHub App
+# token) scoped to Focus-Bear/bearlymail-infra with "Contents: read & write"
+# (enough to send a repository_dispatch).
+name: Trigger Production Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    name: Notify infra repo to deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send repository_dispatch to bearlymail-infra
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_DEPLOY_TOKEN }}
+        run: |
+          gh api repos/Focus-Bear/bearlymail-infra/dispatches \
+            -f event_type=app-deploy \
+            -F "client_payload[sha]=${GITHUB_SHA}" \
+            -F "client_payload[actor]=${GITHUB_ACTOR}"
+          echo "Dispatched app-deploy for ${GITHUB_SHA} to Focus-Bear/bearlymail-infra"

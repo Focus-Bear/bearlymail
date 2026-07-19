@@ -1,0 +1,513 @@
+description: "Phishing detection accuracy tests for BearlyMail LLM analysis"
+
+providers:
+  # Prod summarisation runs on AWS Bedrock (Amazon Nova Micro); CI has no AWS creds,
+  # so these suites validate the (provider-agnostic) prompts on Gemini. Nova verified locally.
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/check-phishing-only.md
+
+tests:
+  # ─── Known phishing emails — MUST detect ───────────────────────────────────
+
+  - description: "Classic credential phishing — bank account suspended"
+    vars:
+      isThread: false
+      subject: "URGENT: Your account has been suspended"
+      contextNote: ""
+      body: |
+        Dear Customer,
+
+        We have detected suspicious activity on your Commonwealth Bank account.
+        Your account has been temporarily suspended.
+
+        To restore access, you must verify your identity immediately:
+        https://commbank-secure-verify.xyz/login
+
+        Failure to verify within 24 hours will result in permanent account closure.
+
+        Commonwealth Bank Security Team
+      phishingSignals:
+        # In production, a lookalike domain linking to itself yields NO mismatch —
+        # the phishing signal is the lookalike sender domain, and the LLM must
+        # flag it WITHOUT a mismatch hint (see PR #2638 review).
+        hasDomainMismatch: false
+        senderDomain: "commbank-secure-verify.xyz"
+        linkedDomains:
+          - "commbank-secure-verify.xyz"
+        suspiciousKeywords:
+          - "account suspended/locked"
+          - "verify account/identity"
+          - "urgency language"
+        rawScore: 8
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!parsed.phishing) throw new Error('Expected phishing field in response');
+          if (!parsed.phishing.is_phishing) throw new Error(`Expected is_phishing=true for credential phishing email. Got: ${JSON.stringify(parsed.phishing)}`);
+          if (!['medium', 'high'].includes(parsed.phishing.confidence)) throw new Error(`Expected medium/high confidence, got: ${parsed.phishing.confidence}`);
+          return true;
+
+  - description: "PayPal phishing — fake payment confirmation with credential link"
+    vars:
+      isThread: false
+      subject: "Your PayPal transaction #8847291 requires confirmation"
+      contextNote: ""
+      body: |
+        Hi there,
+
+        A payment of $847.00 was initiated from your PayPal account.
+
+        If you did not authorise this transaction, click here immediately to cancel:
+        https://paypal-support-center.ru/cancel?token=abc123
+
+        Your account will be locked if you don't respond within 2 hours.
+
+        PayPal Fraud Prevention
+      phishingSignals:
+        # In production, a lookalike domain linking to itself yields NO mismatch —
+        # the phishing signal is the lookalike sender domain, and the LLM must
+        # flag it WITHOUT a mismatch hint (see PR #2638 review).
+        hasDomainMismatch: false
+        senderDomain: "paypal-support-center.ru"
+        linkedDomains:
+          - "paypal-support-center.ru"
+        suspiciousKeywords:
+          - "urgency language"
+          - "account suspended/locked"
+          - "click to verify/update"
+        rawScore: 9
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!parsed.phishing) throw new Error('Expected phishing field');
+          if (!parsed.phishing.is_phishing) throw new Error(`Expected is_phishing=true. Got: ${JSON.stringify(parsed.phishing)}`);
+          return true;
+
+  # ─── Legitimate emails with urgency language — must NOT flag ───────────────
+
+  - description: "Legitimate project deadline reminder — urgency language but not phishing"
+    vars:
+      isThread: false
+      subject: "URGENT: Q4 report due tomorrow"
+      contextNote: ""
+      body: |
+        Hi Sarah,
+
+        Just a reminder that the Q4 financial report is due tomorrow at 5pm.
+        Please make sure to submit your section by end of day.
+
+        If you have any questions, reply to this email or ping me on Slack.
+
+        Thanks,
+        Michael
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "company.com"
+        linkedDomains: []
+        suspiciousKeywords:
+          - "urgency language"
+        rawScore: 1
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: legitimate deadline email flagged as phishing. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  - description: "Legitimate password reset — real service, user-initiated"
+    vars:
+      isThread: false
+      subject: "Reset your Focus Bear password"
+      contextNote: ""
+      body: |
+        Hi Jeremy,
+
+        We received a request to reset your Focus Bear password.
+        Click the link below to set a new password:
+
+        https://app.focusbear.io/reset-password?token=eyJh...
+
+        This link expires in 1 hour. If you didn't request this, you can ignore this email.
+
+        The Focus Bear Team
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "focusbear.io"
+        linkedDomains:
+          - "app.focusbear.io"
+        suspiciousKeywords:
+          - "urgency language"
+        rawScore: 1
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: legitimate password reset flagged. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  # ─── Legitimate noreply@ emails — must NOT flag ────────────────────────────
+
+  - description: "Legitimate GitHub notification from noreply@"
+    vars:
+      isThread: false
+      subject: "Re: [Focus-Bear/BearlyMail] Fix email parsing bug (PR #752)"
+      contextNote: ""
+      body: |
+        @jeznag approved this pull request.
+
+        https://github.com/Focus-Bear/BearlyMail/pull/752
+
+        --
+        You are receiving this because you authored the thread.
+        Reply to this email directly or view it on GitHub:
+        https://github.com/Focus-Bear/BearlyMail/pull/752#pullrequestreview-123456
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "github.com"
+        linkedDomains:
+          - "github.com"
+        suspiciousKeywords: []
+        rawScore: 0
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: GitHub notification flagged. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  - description: "Legitimate noreply order confirmation"
+    vars:
+      isThread: false
+      subject: "Your order #ORD-20240315-4821 has shipped"
+      contextNote: ""
+      body: |
+        Hi Jeremy,
+
+        Great news! Your order has shipped.
+
+        Order: #ORD-20240315-4821
+        Items: Standing desk mat x1
+        Tracking: https://auspost.com.au/track?id=XP123456789AU
+
+        Expected delivery: 2-3 business days.
+
+        noreply@shopstore.com.au
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "shopstore.com.au"
+        linkedDomains:
+          - "auspost.com.au"
+        suspiciousKeywords: []
+        rawScore: 0
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: legitimate order confirmation flagged. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  # ─── Domain mismatches that are legitimate (Mailchimp/SendGrid) ────────────
+
+  - description: "Mailchimp newsletter — domain mismatch is expected, not phishing"
+    vars:
+      isThread: false
+      subject: "Focus Bear monthly product update — March 2024"
+      contextNote: ""
+      body: |
+        Focus Bear Product Update
+
+        Hi Jeremy,
+
+        Here's what's new in Focus Bear this month:
+        • Improved habit streak tracking
+        • New daily review templates
+        • Bug fixes for calendar sync
+
+        Read the full update: https://focusbear.io/blog/march-2024
+
+        Unsubscribe: https://focusbear.us1.list-manage.com/unsubscribe?u=abc&id=xyz
+
+        Focus Bear | hello@focusbear.io
+      phishingSignals:
+        hasDomainMismatch: true
+        senderDomain: "mcsv.net"
+        linkedDomains:
+          - "focusbear.io"
+          - "focusbear.us1.list-manage.com"
+        suspiciousKeywords: []
+        rawScore: 3
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: Mailchimp newsletter flagged as phishing. Domain mismatch is expected for ESP-sent emails. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  - description: "SendGrid transactional email — domain mismatch but legitimate"
+    vars:
+      isThread: false
+      subject: "Your Focus Bear subscription receipt"
+      contextNote: ""
+      body: |
+        Hi Jeremy,
+
+        Thanks for your Focus Bear subscription!
+
+        Plan: Pro Annual
+        Amount: $79.99 AUD
+        Date: 15 March 2024
+
+        View your account: https://app.focusbear.io/account
+
+        Focus Bear | https://focusbear.io
+      phishingSignals:
+        hasDomainMismatch: true
+        senderDomain: "sendgrid.net"
+        linkedDomains:
+          - "app.focusbear.io"
+          - "focusbear.io"
+        suspiciousKeywords: []
+        rawScore: 3
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: SendGrid receipt flagged. Known ESP domain mismatch. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  # ─── Edge cases ─────────────────────────────────────────────────────────────
+
+  - description: "Edge case: phishing email with NO urgency keywords — relies on domain mismatch"
+    vars:
+      isThread: false
+      subject: "Your account"
+      contextNote: ""
+      body: |
+        Hello,
+
+        Please log in to your account to complete setup.
+
+        Click here: https://netflix-accounts-portal.ru/login
+
+        Thank you,
+        The Team
+      phishingSignals:
+        # In production, a lookalike domain linking to itself yields NO mismatch —
+        # the phishing signal is the lookalike sender domain, and the LLM must
+        # flag it WITHOUT a mismatch hint (see PR #2638 review).
+        hasDomainMismatch: false
+        senderDomain: "netflix-accounts-portal.ru"
+        linkedDomains:
+          - "netflix-accounts-portal.ru"
+        suspiciousKeywords: []
+        rawScore: 3
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!parsed.phishing || !parsed.phishing.is_phishing) {
+            throw new Error(`Expected phishing detection for .ru domain impersonating Netflix. Got: ${JSON.stringify(parsed.phishing)}`);
+          }
+          return true;
+
+  - description: "Edge case: casual internal email — all signals clear, should be safe"
+    vars:
+      isThread: false
+      subject: "Team lunch on Friday?"
+      contextNote: ""
+      body: |
+        Hey everyone,
+
+        Anyone keen for team lunch this Friday? Thinking Thai food around 12:30.
+
+        Let me know!
+        Priya
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "company.com"
+        linkedDomains: []
+        suspiciousKeywords: []
+        rawScore: 0
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: casual internal email flagged. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  - description: "Edge case: legit billing email from matching domain — should not be high confidence"
+    vars:
+      isThread: false
+      subject: "Action required: update your billing details"
+      contextNote: ""
+      body: |
+        Hi Jeremy,
+
+        Your Focus Bear subscription credit card ending in 4242 has expired.
+
+        Please update your payment details to avoid service interruption:
+        https://app.focusbear.io/billing
+
+        The Focus Bear Team
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "focusbear.io"
+        linkedDomains:
+          - "app.focusbear.io"
+        suspiciousKeywords:
+          - "update payment/billing"
+          - "urgency language"
+        rawScore: 2
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          // Should NOT flag at banner-showing confidence (medium/high) — matching domain + legit link
+          if (parsed.phishing && parsed.phishing.is_phishing && ['medium', 'high'].includes(parsed.phishing.confidence)) {
+            throw new Error(`Over-flagged: legit billing email from matching domain flagged ${parsed.phishing.confidence} confidence. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+
+  - description: "Legitimate card-payment-declined alert from the brand's own domain — urgency is not phishing"
+    vars:
+      isThread: false
+      subject: "Card payment declined – Insufficient balance ⚠️"
+      contextNote: ""
+      body: |
+        Hi Jeremy M,
+
+        Your card payment was recently declined for the following reason:
+
+        Insufficient balance. Top up the account to avoid further declined payments.
+
+        Find out more:
+        https://business.revolut.com/transactions
+
+        Revolut Business
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "revolut.com"
+        linkedDomains:
+          - "business.revolut.com"
+        suspiciousKeywords:
+          - "urgency language"
+        rawScore: 1
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          // Medium+ confidence shows the phishing banner in the UI — a matching-domain
+          // transactional alert must never reach it (reported false positive).
+          if (parsed.phishing && parsed.phishing.is_phishing && ['medium', 'high'].includes(parsed.phishing.confidence)) {
+            throw new Error(`Over-flagged: legit transactional alert flagged ${parsed.phishing.confidence}. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  # ─── Custom prompt path — phishing must still be detected ──────────────────
+  # This test uses the check-phishing-only prompt to verify that phishing detection
+  # works even when the user has a custom summarisation prompt.
+

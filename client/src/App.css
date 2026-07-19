@@ -1,0 +1,392 @@
+/* Focus Bear Brand Fonts */
+/* Inter - Logo font (Medium weight) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Ferwick - Graphic pieces font (Bold, Regular, Light, Bold Italic) */
+/* Note: If Ferwick font files are available, add @font-face declarations here */
+/* For now, using Inter as fallback for Ferwick */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'Roboto',
+    'Oxygen',
+    'Ubuntu',
+    'Cantarell',
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #fffcf6; /* White Lace - Focus Bear brand background */
+  color: #0b0b0b; /* Rich Black - Focus Bear brand text */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+.App {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Focus styles for accessibility - Using Sunray brand color */
+*:focus-visible {
+  outline: 2px solid #e9902c; /* Sunray - Focus Bear brand accent */
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+button,
+a,
+input,
+select,
+textarea {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar styling - Using Focus Bear brand greyscale */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cccccc; /* 400 - Focus Bear greyscale */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999999; /* 500 - Focus Bear greyscale */
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  width: 100%;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Fun Animations */
+@keyframes flyOutRight {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  20% {
+    transform: translateX(-20px) scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100vw) scale(0.5) rotate(10deg);
+    opacity: 0;
+  }
+}
+
+@keyframes flyOutUp {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  20% {
+    transform: translateY(20px) scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) scale(0.5) rotate(-10deg);
+    opacity: 0;
+  }
+}
+
+@keyframes poof {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-fly-out-right {
+  animation: flyOutRight 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-fly-out-up {
+  animation: flyOutUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-poof {
+  animation: poof 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Priority out: email slides right toward the Action tab */
+@keyframes priorityOut {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  15% {
+    transform: translateX(-12px) scale(0.97);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(80vw) translateY(-20px) scale(0.6);
+    opacity: 0;
+  }
+}
+
+.animate-priority-out {
+  animation: priorityOut 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+/* 🏗️ emoji floats upward and toward the Action tab when priority is set */
+@keyframes emojiFloat {
+  0% {
+    transform: scale(1) translate(0, 0);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.5) translate(10px, -20px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2) translate(60px, -80px);
+    opacity: 0;
+  }
+}
+
+.priority-emoji-float {
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  pointer-events: none;
+  animation: emojiFloat 0.8s cubic-bezier(0.2, 0, 0.8, 1) forwards;
+  z-index: 100;
+}
+
+.priority-emoji-float::before {
+  content: '🏗️';
+}
+
+/* Destination label that fades in and out during priority-out animation */
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(4px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(8px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
+.priority-destination-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: fadeInOut 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  z-index: 100;
+}
+
+/* label text is rendered dynamically in JSX (starCount === 2 → Follow-Up, else → Action) */
+
+/* Confetti overlay */
+.confetti-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #f00;
+  animation: fall linear forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(100vh) rotate(720deg);
+  }
+}
+
+/* Dynamic viewport height utility — fixes inbox cutoff on mobile browsers
+   where 100vh includes the browser chrome (toolbar). 100dvh accounts for it.
+   The -webkit-fill-available fallback covers older iOS Safari (<15.4). */
+.h-dvh {
+  height: -webkit-fill-available;
+  height: 100dvh;
+}
+
+/* Tab pulse animation — signals that an email moved to the Action tab (mobile + desktop) */
+@keyframes tabPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.7);
+    transform: scale(1);
+  }
+  40% {
+    box-shadow: 0 0 0 10px rgba(255, 165, 0, 0.3);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 165, 0, 0);
+    transform: scale(1);
+  }
+}
+
+.animate-tab-pulse {
+  animation: tabPulse 700ms ease-out forwards;
+  transform-origin: center;
+}
+
+/* Subtle pulsing affordance around the AI-recommended action (star count or
+ * archive). Apply the .animate-recommended-pulse class to every email's
+ * recommended button; CSS picks one to actually animate at any given time:
+ *  - by default, the first email in the list (data-email-index="0")
+ *  - if the user is hovering a different email in the same list, that one
+ *  - cursor directly on the button: pause so the user can read it. */
+@keyframes recommendedPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(233, 144, 44, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(233, 144, 44, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(233, 144, 44, 0);
+  }
+}
+
+.animate-recommended-pulse {
+  border-radius: 8px;
+}
+
+[data-email-index='0'] .animate-recommended-pulse {
+  animation: recommendedPulse 1.9s ease-out infinite;
+}
+
+[data-email-index]:hover .animate-recommended-pulse {
+  animation: recommendedPulse 1.9s ease-out infinite;
+}
+
+[data-email-index='0']:has(~ [data-email-index]:hover) .animate-recommended-pulse {
+  animation: none;
+}
+
+.animate-recommended-pulse:hover {
+  animation-play-state: paused;
+}
+
+/* Inbox email-card actions row (EmailActionsRow): keep Snooze/Archive/⋮ on the
+ * same line as the PRIORITY pills at every card width. The row is a size
+ * container; when it's too narrow for the labelled buttons, hide the button
+ * text (.email-action-label) so the actions collapse to icons instead of
+ * wrapping below the pills box. The buttons' title attributes keep the labels
+ * available as tooltips.
+ *
+ * Measured fits (Chrome): pills box ~385-412px, labelled actions ~200-213px,
+ * so the labelled row needs ~630px; icon-only needs ~560px; the compact tier
+ * (no PRIORITY heading, tighter gaps) needs ~435px, which covers split-view
+ * cards (~446px row). Gaps live here (not inline styles) so the compact tier
+ * can tighten them. */
+.email-actions-container {
+  container-type: inline-size;
+  container-name: email-actions;
+}
+
+.email-actions-row {
+  gap: 16px;
+}
+
+.email-actions-group {
+  gap: 16px;
+}
+
+@container email-actions (max-width: 640px) {
+  .email-action-label {
+    display: none;
+  }
+}
+
+/* Compact tier: even icon-only actions don't fit beside the full pills box, so
+ * drop the PRIORITY heading (the pills speak for themselves) and tighten gaps. */
+@container email-actions (max-width: 560px) {
+  .email-priority-heading {
+    display: none;
+  }
+
+  .email-actions-row,
+  .email-actions-group {
+    gap: 8px;
+  }
+}

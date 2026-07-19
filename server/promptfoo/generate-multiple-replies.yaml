@@ -1,0 +1,179 @@
+description: "Multiple reply options generation prompts for BearlyMail"
+
+providers:
+
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/generate-multiple-replies.md
+
+tests:
+  - vars:
+      tone: "professional"
+      fromName: "Sarah Chen"
+      subject: "Meeting request for next week"
+      body: "Hi, I'd like to schedule a meeting to discuss the project roadmap. Are you available next week?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Handle markdown code blocks if present
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.options || !Array.isArray(parsed.options)) {
+              throw new Error(`Expected options array, got: ${JSON.stringify(parsed)}`);
+            }
+            if (parsed.options.length !== 2) {
+              throw new Error(`Expected 2 options, got ${parsed.options.length}`);
+            }
+            parsed.options.forEach((opt, idx) => {
+              if (!opt.label || !opt.text) {
+                throw new Error(`Option ${idx} missing label or text: ${JSON.stringify(opt)}`);
+              }
+              if (opt.text.length < 20) {
+                throw new Error(`Option ${idx} text too short: ${opt.text}`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON or validate structure: ${e.message}. Output: ${text.substring(0, 200)}`);
+          }
+    description: "Should generate 2 distinct reply options in JSON format"
+
+  - vars:
+      tone: "casual"
+      fromName: "Mike"
+      subject: "Can you help with this?"
+      body: "Hey, wondering if you could help me debug an issue I'm having with the API?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.options || parsed.options.length !== 2) {
+              throw new Error(`Expected 2 options, got ${parsed.options?.length || 0}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should handle casual tone and generate 2 options"
+
+  - vars:
+      userName: "John Smith"
+      userJobTitle: "Product Manager"
+      tone: "professional"
+      fromName: "Client Team"
+      subject: "Project timeline"
+      body: "Can you commit to delivering this by end of quarter?"
+      emailExamples:
+        - "Hi team,\n\nThanks for the update.\n\nLet me know if you need anything else.\n\ncheers,\nJohn"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.options || parsed.options.length !== 2) {
+              throw new Error(`Expected 2 options, got ${parsed.options?.length || 0}`);
+            }
+            // Check that both options have proper line break formatting
+            parsed.options.forEach((opt, idx) => {
+              const hasDoubleNewlines = opt.text.includes('\\n\\n') || opt.text.includes('\n\n');
+              if (!hasDoubleNewlines) {
+                throw new Error(`Option ${idx} missing proper paragraph breaks (\\n\\n). Got: ${opt.text.substring(0, 100)}`);
+              }
+              // Should have multiple lines/paragraphs, not a single block
+              const lines = opt.text.split(/\\n|\\n\\n|\n|\n\n/).filter(l => l.trim().length > 0);
+              if (lines.length < 2) {
+                throw new Error(`Option ${idx} is a single paragraph, expected proper formatting. Got: ${opt.text.substring(0, 100)}`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should format both reply options with proper line breaks and paragraph separation"
+
+  - vars:
+      userName: "Alex Rodriguez"
+      tone: "friendly"
+      fromName: "Team Lead"
+      subject: "Code review request"
+      body: "When can you review my PR? It's blocking the deployment."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.options || parsed.options.length !== 2) {
+              throw new Error(`Expected 2 options, got ${parsed.options?.length || 0}`);
+            }
+            // Should have one positive (will review soon) and one negative/defer option
+            const labels = parsed.options.map(o => o.label.toLowerCase());
+            const positiveWords = ['yes', 'happy', 'sure', 'accept', 'review', 'will', 'on it', 'can do', 'look', 'check', 'right away', 'soon', 'got it', 'of course'];
+            const negativeWords = ['no', 'later', 'defer', 'delay', 'busy', 'can\'t', 'cannot', 'unable', 'swamped', 'tied up', 'tomorrow', 'next', 'after', 'decline', 'reschedule', 'not now'];
+            const hasPositive = labels.some(l => positiveWords.some(w => l.includes(w)));
+            const hasNegative = labels.some(l => negativeWords.some(w => l.includes(w)));
+            if (!hasPositive && !hasNegative) {
+              throw new Error(`Expected at least one positive or negative option, got labels: ${JSON.stringify(labels)}`);
+            }
+            if (labels[0] === labels[1]) {
+              throw new Error(`Expected distinct options, got identical labels: ${JSON.stringify(labels)}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should generate contrasting reply options (positive and negative/defer)"
+
+  # Test: thread context is included in the prompt and influences reply generation (#885)
+  - vars:
+      userName: "Alex Rodriguez"
+      tone: "professional"
+      fromName: "Sarah Chen"
+      subject: "Project notes"
+      body: "Have you pushed the notes yet?"
+      hasThreadContext: true
+      threadContext: |
+        [Message 1 from Sarah Chen on 1/10/2026]:
+        Can you share your notes from the last sprint?
+
+        ---
+
+        [Message 2 from You on 1/11/2026]:
+        Sure, I'll push everything by end of week.
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.options || parsed.options.length !== 2) {
+              throw new Error(`Expected 2 options, got ${parsed.options?.length || 0}`);
+            }
+            // At least one reply option should acknowledge the prior commitment
+            const allText = parsed.options.map(o => o.text.toLowerCase()).join(' ');
+            const contextWords = ['push', 'notes', 'sent', 'share', 'end of week', 'already', 'committed', 'following up'];
+            const hasContextAwareness = contextWords.some(w => allText.includes(w));
+            if (!hasContextAwareness) {
+              throw new Error(`Replies do not appear to reference the prior thread context. Got: ${allText.substring(0, 300)}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should generate context-aware replies when thread history is provided (#885)"
+
+
+
+

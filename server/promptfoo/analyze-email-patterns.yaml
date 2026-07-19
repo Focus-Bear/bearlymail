@@ -1,0 +1,188 @@
+description: "Email pattern analysis prompts for BearlyMail"
+
+providers:
+
+  - id: google:gemini-1.5-flash
+    config:
+      temperature: 0
+  
+
+
+prompts:
+  - file://prompts/analyze-email-patterns.md
+
+tests:
+  # Test 1: Identify VIP contact from quick replies ONLY
+  - vars:
+      receivedEmails: |
+        From: Sarah Chen, Subject: Project update, Read: Read, InInbox, Starred(2), Behavior: ReadButKept, ReplyTime: 5m (QUICK)
+        From: Sarah Chen, Subject: Meeting request, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 8m (QUICK)
+        From: Sarah Chen, Subject: Budget approval, Read: Read, InInbox, Starred(1), Behavior: ReadButKept, ReplyTime: 12m (QUICK)
+        From: Kashyap Mavadhiya, Subject: Question, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: NoReply
+        From: Newsletter Team, Subject: Weekly digest, Read: Unread, Archived, NotStarred, Behavior: ArchivedWithoutReading, ReplyTime: NoReply
+      sentEmails: |
+        To: sarah.chen@company.com, Subject: Re: Project update
+        Full Email Body:
+        Thanks for the update. I'll review and get back to you.
+        ---
+        To: team@company.com, Subject: Status report
+        Full Email Body:
+        Here's the weekly status update.
+        ---
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-email-patterns-response.js
+        config:
+          shouldHaveContextKey: "VIP_CONTACT"
+          shouldContainValue: "Sarah Chen"
+          shouldNotContainValue: "Kashyap"
+          shouldNotContainInKey: "VIP_CONTACT"
+          shouldHaveWritingStyle: true
+
+  # Test 2: Identify NOT_IMPORTANT from archived without reading
+  - vars:
+      receivedEmails: |
+        From: Newsletter Team, Subject: Weekly digest, Read: Unread, Archived, NotStarred, Behavior: ArchivedWithoutReading, ReplyTime: NoReply
+        From: Newsletter Team, Subject: Monthly newsletter, Read: Unread, Archived, NotStarred, Behavior: ArchivedWithoutReading, ReplyTime: NoReply
+        From: Marketing Team, Subject: Product launch, Read: Unread, Archived, NotStarred, Behavior: ArchivedWithoutReading, ReplyTime: NoReply
+      sentEmails: |
+        To: team@company.com, Subject: Status report
+        Full Email Body:
+        Here's the weekly status update.
+        ---
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-email-patterns-response.js
+        config:
+          shouldHaveContextKey: "NOT_IMPORTANT"
+          shouldContainValue: "Newsletter"
+
+  # Test 3: Extract writing style from sent emails (full body)
+  - vars:
+      receivedEmails: |
+        From: Colleague, Subject: Quick question, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 30m
+      sentEmails: |
+        To: colleague@company.com, Subject: Re: Quick question
+        Full Email Body:
+        Hi there! Thanks for reaching out. I'd be happy to help with that. Let me know if you need anything else. Best regards!
+        ---
+        To: team@company.com, Subject: Update
+        Full Email Body:
+        Hi team! Just wanted to share a quick update. Thanks for all your hard work. Best regards!
+        ---
+        To: client@company.com, Subject: Proposal
+        Full Email Body:
+        Hi! I hope this email finds you well. I'd like to discuss the proposal. Best regards!
+        ---
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-email-patterns-response.js
+        config:
+          shouldHaveWritingStyle: true
+          shouldHaveCommonPhrases: true
+          minCommonPhrases: 1
+          shouldHaveEmailExamples: false  # LLM may or may not include examples - they're optional
+
+  # Test 4: Identify URGENT from quick replies (< 30 minutes) - requires specific pattern
+  - vars:
+      receivedEmails: |
+        From: System Alerts, Subject: Server down, Read: Read, InInbox, Starred(3), Behavior: ReadButKept, ReplyTime: 3m (QUICK)
+        From: System Alerts, Subject: Database error, Read: Read, InInbox, Starred(2), Behavior: ReadButKept, ReplyTime: 5m (QUICK)
+        From: System Alerts, Subject: API timeout, Read: Read, InInbox, Starred(1), Behavior: ReadButKept, ReplyTime: 8m (QUICK)
+        From: System Alerts, Subject: Critical bug, Read: Read, InInbox, Starred(2), Behavior: ReadButKept, ReplyTime: 4m (QUICK)
+      sentEmails: |
+        To: team@company.com, Subject: Re: Server down
+        Full Email Body:
+        Investigating now.
+        ---
+        To: team@company.com, Subject: Re: Database error
+        Full Email Body:
+        On it.
+        ---
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-email-patterns-response.js
+        config:
+          shouldHaveContextKey: "URGENT"
+          shouldContainValue: "System"  # Should mention system alert pattern
+
+  # Test 5: Extract USER_INFO from email content
+  - vars:
+      receivedEmails: |
+        From: Colleague, Subject: Meeting, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 60m
+      sentEmails: |
+        To: colleague@company.com, Subject: Re: Meeting
+        Full Email Body:
+        Hi! I'm a Product Manager at TechCorp. I'd be happy to meet. Best, John
+        ---
+        To: team@company.com, Subject: Update
+        Full Email Body:
+        As the Product Manager, I wanted to share an update. Best, John
+        ---
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-email-patterns-response.js
+        config:
+          shouldHaveContextKey: "USER_INFO"
+          shouldContainValue: "Product Manager"
+
+  # Test 6: Extract WORKING_ON or CURRENT_TOPIC from emails user actually engages with (not automated tools)
+  - vars:
+      receivedEmails: |
+        From: Team Lead, Subject: Sprint planning, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 120m
+        From: Team Lead, Subject: Sprint retrospective, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 90m
+        From: Developer, Subject: Code review, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 180m
+        From: Developer, Subject: PR feedback needed, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 150m
+        From: Designer, Subject: UI mockups, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 200m
+        From: Designer, Subject: Design review, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 160m
+        From: Fireflies.ai, Subject: Meeting summary, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: NoReply
+      sentEmails: |
+        To: team@company.com, Subject: Sprint update
+        Full Email Body:
+        Here's the sprint update.
+        ---
+        To: developer@company.com, Subject: Re: Code review
+        Full Email Body:
+        Thanks for the review, I'll address the feedback.
+        ---
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-email-patterns-response.js
+        config:
+          shouldHaveContextKey: ["WORKING_ON", "CURRENT_TOPIC"]
+          shouldNotContainValue: "Fireflies"
+          shouldNotContainInKey: "VIP_CONTACT"
+          minContextItems: 1
+
+  # Test 7: User themselves should NOT be identified as VIP (even if they send themselves emails)
+  - vars:
+      userEmail: "jeremy@company.com"
+      currentContext: "No existing context."
+      receivedEmails: |
+        From: Jeremy Nagel, Subject: Reminder, Read: Read, InInbox, Starred(1), Behavior: ReadButKept, ReplyTime: 2m (QUICK)
+        From: Jeremy Nagel, Subject: Note to self, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 1m (QUICK)
+        From: Sarah Chen, Subject: Project update, Read: Read, InInbox, Starred(2), Behavior: ReadButKept, ReplyTime: 5m (QUICK)
+        From: Sarah Chen, Subject: Design review, Read: Read, InInbox, Starred(1), Behavior: ReadButKept, ReplyTime: 8m (QUICK)
+        From: Sarah Chen, Subject: Budget approval, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 12m (QUICK)
+      sentEmails: |
+        To: jeremy@company.com, Subject: Re: Reminder
+        Full Email Body:
+        Thanks for the reminder!
+        ---
+        To: sarah.chen@company.com, Subject: Re: Project update
+        Full Email Body:
+        Thanks for the update.
+        ---
+        To: sarah.chen@company.com, Subject: Re: Design review
+        Full Email Body:
+        Looks great, thanks!
+        ---
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-email-patterns-response.js
+        config:
+          shouldHaveContextKey: "VIP_CONTACT"
+          shouldContainValue: "Sarah Chen"
+          shouldNotContainValue: ["Jeremy", "Nagel"]  # User themselves should NOT be VIP
+          shouldNotContainInKey: "VIP_CONTACT"  # Only check VIP_CONTACT, not USER_INFO
+

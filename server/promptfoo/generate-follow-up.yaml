@@ -1,0 +1,139 @@
+description: "Follow-up email generation prompts for BearlyMail"
+
+providers:
+
+      
+
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/generate-follow-up.md
+
+tests:
+  - vars:
+      tone: "professional"
+      commonPhrases: ""
+      subject: "Project update"
+      threadMessageCount: 2
+      threadContext: "[Message 1 from You on 12/10/2024]:\nHi Sarah, I'll send you an update by Friday.\n\n---\n\n[Message 2 from Sarah Chen on 12/12/2024]:\nThanks, looking forward to it!"
+      recipientName: "Sarah"
+      businessDaysWaiting: 3
+      daysLabel: "days"
+      skipGreeting: false
+      hasOtherPartyMessage: true
+      lastOtherPartyMessage: "Thanks, looking forward to it!"
+      hasUserLastMessage: true
+      userLastMessage: "Hi Sarah, I'll send you an update by Friday."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should be concise (2-3 sentences)
+          const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+          if (sentences.length > 5) {
+            throw new Error(`Expected 2-3 sentences, got ${sentences.length}. Text: ${text.substring(0, 200)}`);
+          }
+          // Should mention the subject or be relevant
+          const isRelevant = text.toLowerCase().includes('update') || text.toLowerCase().includes('project') || text.toLowerCase().includes('sarah');
+          if (!isRelevant || text.length < 30) {
+            throw new Error(`Expected relevant follow-up content. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should generate concise follow-up email"
+
+  - vars:
+      tone: "casual"
+      commonPhrases: "Let me know, Thanks"
+      subject: "Question about API"
+      threadMessageCount: 1
+      threadContext: "[Message 1 from You on 12/10/2024]:\nHi Mike, can you check the API docs?"
+      recipientName: "Mike"
+      businessDaysWaiting: 1
+      daysLabel: "day"
+      skipGreeting: true
+      hasOtherPartyMessage: false
+      lastOtherPartyMessage: ""
+      hasUserLastMessage: true
+      userLastMessage: "Hi Mike, can you check the API docs?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should not start with greeting if skipGreeting is true
+          const lowerStart = text.toLowerCase().trim().substring(0, 10);
+          const hasGreeting = lowerStart.includes('hi ') || lowerStart.includes('hey ') || lowerStart.includes('hello');
+          if (hasGreeting) {
+            throw new Error(`Expected no greeting when skipGreeting=true, but got: ${text.substring(0, 50)}`);
+          }
+          // Should be concise
+          if (text.length > 300) {
+            throw new Error(`Expected concise message, got ${text.length} chars`);
+          }
+          return true;
+    description: "Should skip greeting when requested and use casual tone"
+
+  - vars:
+      tone: "professional"
+      commonPhrases: ""
+      subject: "Budget approval for Q3"
+      threadMessageCount: 3
+      threadContext: "[Message 1 from Sarah on 1/5/2026]:\nCan you send me the Q3 budget proposal?\n\n---\n\n[Message 2 from You on 1/6/2026]:\nSure, attaching it now.\n\n---\n\n[Message 3 from You on 1/10/2026]:\nJust checking in — did you get a chance to review?"
+      recipientName: "Sarah"
+      businessDaysWaiting: 5
+      daysLabel: "days"
+      skipGreeting: false
+      hasOtherPartyMessage: true
+      lastOtherPartyMessage: "Can you send me the Q3 budget proposal?"
+      hasUserLastMessage: true
+      userLastMessage: "Just checking in — did you get a chance to review?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should reference the context (budget/proposal/review) rather than generic nudge
+          const lower = text.toLowerCase();
+          const isContextual = lower.includes('budget') || lower.includes('proposal') || lower.includes('review') || lower.includes('q3');
+          if (!isContextual) {
+            throw new Error(`Expected contextual follow-up referencing budget/proposal, got: ${text.substring(0, 300)}`);
+          }
+          // Should greet Sarah
+          if (!lower.includes('sarah')) {
+            throw new Error(`Expected follow-up to address Sarah, got: ${text.substring(0, 100)}`);
+          }
+          return true;
+    description: "Should generate contextual follow-up referencing other party's last message"
+
+  - vars:
+      tone: "professional"
+      commonPhrases: ""
+      subject: "Intro call scheduling"
+      threadMessageCount: 5
+      threadContext: "[Message 1 from Jordan on 12/20/2025]:\nHappy to connect! When works for you?\n\n---\n\n[Message 2 from You on 12/21/2025]:\nGreat! How about next Tuesday at 2pm?\n\n---\n\n[Message 3 from You on 12/27/2025]:\nJust following up on this.\n\n---\n\n[Message 4 from You on 1/3/2026]:\nHappy New Year — still keen to connect!\n\n---\n\n[Message 5 from You on 1/8/2026]:\nOne more nudge — let me know if timing has changed."
+      recipientName: "Jordan"
+      businessDaysWaiting: 15
+      daysLabel: "days"
+      skipGreeting: false
+      hasOtherPartyMessage: true
+      lastOtherPartyMessage: "Happy to connect! When works for you?"
+      hasUserLastMessage: true
+      userLastMessage: "One more nudge — let me know if timing has changed."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should still be concise even in a long thread
+          if (text.length > 400) {
+            throw new Error(`Expected concise message in long thread, got ${text.length} chars`);
+          }
+          // Should not be repetitive / generic
+          const lower = text.toLowerCase();
+          const hasContent = lower.includes('jordan') || lower.includes('connect') || lower.includes('call') || lower.includes('schedule');
+          if (!hasContent) {
+            throw new Error(`Expected follow-up to reference the call/meeting context. Got: ${text.substring(0, 300)}`);
+          }
+          return true;
+    description: "Should handle long thread where user sent multiple follow-ups and identify correct other party context"
+
+
+

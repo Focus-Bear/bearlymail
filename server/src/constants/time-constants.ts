@@ -1,0 +1,114 @@
+/**
+ * Time-related constants
+ * Use these instead of magic numbers for time calculations
+ */
+
+// Base time units - exported for individual use
+export const SECONDS_PER_MINUTE = 60;
+export const MINUTES_PER_HOUR = 60;
+export const HOURS_PER_DAY = 24;
+export const DAYS_PER_WEEK = 7;
+export const MS_PER_SECOND = 1000;
+const THIRTY = 30;
+const FIFTEEN = 15;
+const SIX = 6;
+
+// Milliseconds
+export const MILLISECONDS = {
+  SECOND: MS_PER_SECOND,
+  MINUTE: SECONDS_PER_MINUTE * MS_PER_SECOND,
+  HOUR: MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND,
+  DAY: HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND,
+  WEEK:
+    DAYS_PER_WEEK *
+    HOURS_PER_DAY *
+    MINUTES_PER_HOUR *
+    SECONDS_PER_MINUTE *
+    MS_PER_SECOND,
+  THIRTY_SECONDS: THIRTY * MS_PER_SECOND,
+  THREE_SECONDS: 3 * MS_PER_SECOND,
+} as const;
+
+// Seconds
+export const SECONDS = {
+  MINUTE: SECONDS_PER_MINUTE,
+  TWO_MINUTES: 2 * SECONDS_PER_MINUTE,
+  FIVE_MINUTES: 5 * SECONDS_PER_MINUTE,
+  FIFTEEN_MINUTES: FIFTEEN * SECONDS_PER_MINUTE,
+  THIRTY_MINUTES: THIRTY * SECONDS_PER_MINUTE,
+  HOUR: MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+  TWO_HOURS: 2 * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+  SIX_HOURS: SIX * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+  DAY: HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+  WEEK: DAYS_PER_WEEK * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+} as const;
+
+// Minutes
+export const MINUTES = {
+  HOUR: MINUTES_PER_HOUR,
+  DAY: HOURS_PER_DAY * MINUTES_PER_HOUR,
+  WEEK: DAYS_PER_WEEK * HOURS_PER_DAY * MINUTES_PER_HOUR,
+  THIRTY: 30,
+  FIVE: 5,
+} as const;
+
+// Hours
+export const HOURS = {
+  DAY: HOURS_PER_DAY,
+  TWO_DAYS: HOURS_PER_DAY * 2,
+  WEEK: DAYS_PER_WEEK * HOURS_PER_DAY,
+  EIGHT: 8,
+  NINE: 9,
+  SIX: 6,
+  TWELVE: 12,
+  FIFTEEN: 15,
+  SEVENTEEN: 17,
+} as const;
+
+// Days
+export const DAYS = {
+  WEEK: DAYS_PER_WEEK,
+  MONTH: 30,
+  YEAR: 365,
+  SIX: 6,
+  TWELVE: 12,
+  NINETY: 90,
+  SUNDAY: 0,
+  MONDAY: 1,
+  SATURDAY: 6,
+} as const;
+
+// Calendar months (0-indexed as used by JavaScript Date)
+export const MONTHS = {
+  JANUARY: 0,
+  FEBRUARY: 1,
+  MARCH: 2,
+  APRIL: 3,
+  MAY: 4,
+  JUNE: 5,
+  JULY: 6,
+  AUGUST: 7,
+  SEPTEMBER: 8,
+  OCTOBER: 9,
+  NOVEMBER: 10,
+  DECEMBER: 11,
+} as const;
+
+// Easter algorithm constants (Computus - Anonymous Gregorian algorithm)
+// These are mathematical constants from the algorithm, not arbitrary values
+export const EASTER_ALGORITHM = {
+  METONIC_CYCLE: 19,
+  CENTURY_DIVISOR: 100,
+  LUNAR_CORRECTION_DIVISOR: 25,
+  LUNAR_CORRECTION_OFFSET: 8,
+  SOLAR_CORRECTION_DIVISOR: 3,
+  PASCHAL_FULL_MOON_OFFSET: 15,
+  PASCHAL_FULL_MOON_MOD: 30,
+  DOMINICAL_OFFSET: 32,
+  DOMINICAL_MOD: 7,
+  EPACT_MULTIPLIER_A: 11,
+  EPACT_MULTIPLIER_L: 22,
+  EPACT_DIVISOR: 451,
+  MONTH_CALCULATION_OFFSET: 114,
+  MONTH_DIVISOR: 31,
+} as const;

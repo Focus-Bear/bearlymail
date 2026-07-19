@@ -1,0 +1,1 @@
+export const MAX_ADDITIONAL_GUESTS = 10;

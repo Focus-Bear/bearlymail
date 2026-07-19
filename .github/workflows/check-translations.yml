@@ -1,0 +1,32 @@
+name: Check Translations
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/locales/**'
+      - 'client/src/**/*.ts'
+      - 'client/src/**/*.tsx'
+
+jobs:
+  check-translations:
+    name: Check for Missing Translations
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Check for missing translations in locale files and code
+        working-directory: client
+        run: npm run check-translations

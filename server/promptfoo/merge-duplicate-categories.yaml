@@ -1,0 +1,117 @@
+description: "Family-scoped duplicate-category merge prompt for BearlyMail"
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/merge-duplicate-categories.md
+
+tests:
+  # True synonyms within the GitHub family MUST merge.
+  - vars:
+      familyName: "GitHub / Pull Requests"
+      categories: |
+        - 🔧 GitHub PR Updates: Updates on pull requests
+        - Pull Request Updates: Notifications about PR activity
+        - 🐛 Human-reported Bug Issues: Bugs filed by humans
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-duplicate-groups-response.js
+        config:
+          inputNames:
+            ["🔧 GitHub PR Updates", "Pull Request Updates", "🐛 Human-reported Bug Issues"]
+          mustMergePairs:
+            - ["🔧 GitHub PR Updates", "Pull Request Updates"]
+          mustNotMerge:
+            - ["🔧 GitHub PR Updates", "🐛 Human-reported Bug Issues"]
+          maxGroups: 1
+
+  # Distinct sub-types in the same family MUST NOT merge (bot vs human, pass vs fail).
+  - vars:
+      familyName: "GitHub / Issues"
+      categories: |
+        - 🤖 GitHub Bot PR Updates: PRs touched only by bots
+        - 🔧 Human PR Updates: PRs from human developers
+        - ✅ Github QA passed issues: Issues that passed QA
+        - Github QA failed issues: Issues that failed QA
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-duplicate-groups-response.js
+        config:
+          inputNames:
+            [
+              "🤖 GitHub Bot PR Updates",
+              "🔧 Human PR Updates",
+              "✅ Github QA passed issues",
+              "Github QA failed issues",
+            ]
+          mustNotMerge:
+            - ["🤖 GitHub Bot PR Updates", "🔧 Human PR Updates"]
+            - ["✅ Github QA passed issues", "Github QA failed issues"]
+
+  # No duplicates at all → empty groups, nothing merged.
+  - vars:
+      familyName: "Meetings & Calendar"
+      categories: |
+        - 📅 Meeting Acceptance Notifications: People accepting meeting invites
+        - 📅 Meeting Reschedule Requests: Requests to move a meeting
+        - 📝 Meeting Recaps & Summaries: Notes and summaries after a meeting
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-duplicate-groups-response.js
+        config:
+          inputNames:
+            [
+              "📅 Meeting Acceptance Notifications",
+              "📅 Meeting Reschedule Requests",
+              "📝 Meeting Recaps & Summaries",
+            ]
+          maxGroups: 0
+
+  # Trivial reword + emoji variation MUST merge into one group.
+  - vars:
+      familyName: "Alerts & Monitoring"
+      categories: |
+        - 🔔 CI/CD Alerts: Continuous integration alerts
+        - CI/CD Notifications: Notifications from CI/CD pipelines
+        - 🤖 Dependency Update Alerts: Automated dependency bumps
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-duplicate-groups-response.js
+        config:
+          inputNames:
+            ["🔔 CI/CD Alerts", "CI/CD Notifications", "🤖 Dependency Update Alerts"]
+          mustMergePairs:
+            - ["🔔 CI/CD Alerts", "CI/CD Notifications"]
+          mustNotMerge:
+            - ["🔔 CI/CD Alerts", "🤖 Dependency Update Alerts"]
+          maxGroups: 1
+
+  # Cross-family pass: a list spanning families. True synonyms still merge,
+  # but categories from clearly different families stay separate.
+  - vars:
+      crossFamily: true
+      categories: |
+        - 🔧 GitHub PR Updates: Updates on pull requests
+        - Pull Request Updates: Notifications about PR activity
+        - 💳 Financial Alerts: Declined payments and billing alerts
+        - 📅 Meeting Recaps & Summaries: Notes after a meeting
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-duplicate-groups-response.js
+        config:
+          inputNames:
+            [
+              "🔧 GitHub PR Updates",
+              "Pull Request Updates",
+              "💳 Financial Alerts",
+              "📅 Meeting Recaps & Summaries",
+            ]
+          mustMergePairs:
+            - ["🔧 GitHub PR Updates", "Pull Request Updates"]
+          mustNotMerge:
+            - ["🔧 GitHub PR Updates", "💳 Financial Alerts"]
+            - ["💳 Financial Alerts", "📅 Meeting Recaps & Summaries"]
+          maxGroups: 1

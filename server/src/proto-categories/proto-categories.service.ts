@@ -157,7 +157,10 @@ export class ProtoCategoriesService {
     name: string,
     description: string | null,
     threadId: string,
-    consideredCandidates?: ConsideredDuplicateCandidate[],
+    options: {
+      consideredCandidates?: ConsideredDuplicateCandidate[];
+      creationReasoning?: string | null;
+    } = {},
   ): Promise<ProtoCategory> {
     let protoCategory = await this.findByName(userId, name);
 
@@ -171,9 +174,10 @@ export class ProtoCategoriesService {
       description,
       emailCount: 1,
       isPromoted: false,
-      duplicateCandidates: consideredCandidates?.length
-        ? consideredCandidates
+      duplicateCandidates: options.consideredCandidates?.length
+        ? options.consideredCandidates
         : null,
+      creationReasoning: options.creationReasoning || null,
     });
 
     protoCategory = await this.protoCategoryRepository.save(protoCategory);

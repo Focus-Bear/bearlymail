@@ -85,6 +85,35 @@ export function resolveResponseCategory(
 }
 
 /**
+ * Builds the `protoCategorySuggestion` for a parsed priority response. Present
+ * only when the email resolved to "Other" and the model proposed a new
+ * category. The `reasoning` (why a new category over existing ones, naming the
+ * closest rejects) has its positional "category N" refs rewritten to real names
+ * since the reviewer never sees the numbered list.
+ */
+export function buildProtoSuggestionFromResponse(
+  analysisResult: {
+    protoCategorySuggestion?: {
+      name?: string;
+      description?: string;
+      reasoning?: string;
+    };
+  },
+  category: string,
+  orderedNames: string[],
+): { name: string; description: string; reasoning?: string } | undefined {
+  const suggestion = analysisResult.protoCategorySuggestion;
+  if (category !== "Other" || !suggestion) return undefined;
+  return {
+    name: suggestion.name || "",
+    description: suggestion.description || "",
+    reasoning: suggestion.reasoning
+      ? rewriteCategoryNumberReferences(suggestion.reasoning, orderedNames)
+      : undefined,
+  };
+}
+
+/**
  * Matches positional category references in LLM free text, e.g. "category 2",
  * "Category #15". Because the prompt presents categories as a numbered list,
  * models tend to write explanations like "Chose category 2 because … Considered

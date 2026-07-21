@@ -108,6 +108,19 @@ export class ProtoCategory {
   })
   duplicateCandidates: ConsideredDuplicateCandidate[] | null;
 
+  @Column("text", {
+    nullable: true,
+    transformer: makeEncryptedColumnTransformer(
+      "proto_categories.creationReasoning",
+    ),
+    comment:
+      "The categoriser's justification for creating this NEW category instead " +
+      "of using an existing one — names the closest existing categories it " +
+      "considered and why each was not a fit. Reviewed to tune the prompt so " +
+      "it stops inventing categories when an existing one fits. Encrypted.",
+  })
+  creationReasoning: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

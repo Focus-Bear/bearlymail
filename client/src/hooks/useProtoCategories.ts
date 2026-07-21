@@ -11,6 +11,10 @@ export interface ProtoCategory {
   description: string | null;
   emailCount: number;
   createdAt: string;
+  /** The categoriser's justification for inventing this instead of using an
+   * existing category (closest rejects + why). Shown for review so the prompt
+   * can be tuned to stop creating categories when an existing one fits. */
+  creationReasoning: string | null;
 }
 
 /** Removes a single id key from draftNames immutably. */

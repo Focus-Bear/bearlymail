@@ -1078,6 +1078,7 @@
       "description": "These categories were suggested by AI based on your emails. Promote ones you want to keep, or delete ones that aren't relevant.",
       "empty": "No AI suggested categories yet. As you receive emails that don't fit existing categories, AI will suggest new ones here.",
       "progress": "{{count}}/{{threshold}} emails",
+      "whyNew": "Why suggested:",
       "nameLabel": "Category name",
       "saveName": "Save",
       "savingName": "Saving...",

@@ -20,9 +20,13 @@ interface DistractionFrictionModalProps {
 }
 
 /**
- * The "distraction tax" friction modal. Explains — warmly and playfully — why
+ * The "distraction tax" friction exercise. Explains — warmly and playfully — why
  * peeking at new low-priority emails is gated while work is waiting, then offers
  * two ways to unlock: a spoken confession or a 30-tap tax.
+ *
+ * Rendered INLINE in place of the Triage email list (not as a modal overlay), so
+ * the tab bar and filters above stay visible and interactive — the user can bail
+ * to Action/Follow-Up at any point — and the gated list never peeks through.
  */
 export const DistractionFrictionModal: React.FC<DistractionFrictionModalProps> = ({
   existingWorkCount,
@@ -34,17 +38,17 @@ export const DistractionFrictionModal: React.FC<DistractionFrictionModalProps> =
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
+      role="region"
       aria-label={t('inbox.distractionTax.title')}
+      data-testid="distraction-friction"
       style={{
-        position: 'fixed',
-        inset: 0,
-        background: theme.colors.overlay.dark,
+        flex: 1,
+        minHeight: 0,
+        overflow: 'auto',
+        background: theme.colors.background.default,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
         padding: theme.spacing.md,
       }}
     >

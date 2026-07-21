@@ -12,9 +12,12 @@ interface TriageEntryGateProps {
 }
 
 /**
- * Full-screen "are you sure?" gate shown BEFORE the friction modal when the user
- * opens Triage with unfinished work. Offers a gentle off-ramp (search for a
- * specific email instead) or a deliberate opt-in to peek at the new inbox.
+ * "Are you sure?" gate shown BEFORE the friction exercise when the user opens
+ * Triage with unfinished work. Rendered INLINE in place of the Triage email list
+ * (not as a modal overlay), so the tab bar and filters above stay visible and the
+ * user can switch to Action/Follow-Up without the list peeking through behind it.
+ * Offers a gentle off-ramp (search for a specific email instead) or a deliberate
+ * opt-in to peek at the new inbox.
  */
 export const TriageEntryGate: React.FC<TriageEntryGateProps> = ({
   existingWorkCount,
@@ -25,18 +28,17 @@ export const TriageEntryGate: React.FC<TriageEntryGateProps> = ({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
+      role="region"
       aria-label={t('inbox.distractionTax.preScreen.title')}
       data-testid="triage-entry-gate"
       style={{
-        position: 'fixed',
-        inset: 0,
-        background: theme.colors.overlay.dark,
+        flex: 1,
+        minHeight: 0,
+        overflow: 'auto',
+        background: theme.colors.background.default,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
         padding: theme.spacing.md,
       }}
     >

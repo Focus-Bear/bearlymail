@@ -117,7 +117,7 @@ In `categoryExplanation` and `reasoning`, always refer to categories by their ex
 
 Analyze the email below. Return format:
 ```json
-{ "result": { "urgencyScore": 0, "urgencyExplanation": "...", "goalAlignmentScore": 0, "goalAlignmentExplanation": "...", "categoryNumber": 0, "categoryExplanation": "...", "categoryConfidence": "HIGH", "reasoning": "..." } }
+{ "result": { "urgencyScore": 0, "urgencyExplanation": "...", "goalAlignmentScore": 0, "goalAlignmentExplanation": "...", "categoryNumber": 7, "categoryExplanation": "...", "categoryConfidence": "HIGH", "reasoning": "..." } }
 ```
 Include `protoCategorySuggestion` ONLY when `categoryNumber` is `0` ("Other").
 

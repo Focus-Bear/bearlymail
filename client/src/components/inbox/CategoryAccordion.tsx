@@ -51,6 +51,10 @@ interface CategoryAccordionProps {
   onAfterCollapse?: () => void;
   /** True when the category fetch has fired a slow-fetch warning (approaching or over budget). */
   isNearBudget?: boolean;
+  /** Family name shown as a small label above the category name (flat modes that
+   * sort by category instead of nesting under a family header). Omitted for the
+   * synthetic "Other" family and when unknown. */
+  family?: string;
 }
 
 
@@ -151,6 +155,7 @@ const NewsletterBlockTip: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) =
 
 interface CategoryAccordionHeaderProps {
   category: string;
+  family?: string;
   emailCount: number;
   isExpanded: boolean;
   isOtherCategory: boolean;
@@ -164,6 +169,7 @@ interface CategoryAccordionHeaderProps {
 
 interface CategoryHeaderLeftProps {
   category: string;
+  family?: string;
   emailCount: number;
   isExpanded: boolean;
   isOtherCategory: boolean;
@@ -172,6 +178,7 @@ interface CategoryHeaderLeftProps {
 
 const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
   category,
+  family,
   emailCount,
   isExpanded,
   isOtherCategory,
@@ -179,6 +186,19 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
 }) => {
   const [isCogHovered, setIsCogHovered] = useState(false);
   const displayName = isDefaultCategory(category) ? t(getCategoryTranslationKey(category) as string) : category;
+  // Small uppercase family label sitting above the category name (replaces the
+  // old nested family header). Truncates so a long family can't break the row.
+  const familyLabelStyle: React.CSSProperties = {
+    fontSize: '0.6875rem',
+    fontWeight: theme.typography.fontWeight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: '0.4px',
+    lineHeight: 1.2,
+    color: theme.colors.text.tertiary,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  };
   // Truncate the name with an ellipsis so a long name can't push the Archive-All action off-screen
   // (was cut off on mobile).
   const nameStyle: React.CSSProperties = {
@@ -204,7 +224,10 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
         ▶
       </span>
       <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{getCategoryIcon(category)}</span>
-      <span style={nameStyle}>{displayName}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {family && <span style={familyLabelStyle}>{family}</span>}
+        <span style={nameStyle}>{displayName}</span>
+      </div>
       <span
         style={{
           backgroundColor: theme.colors.greyscale[300],
@@ -255,6 +278,7 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
 
 const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
   category,
+  family,
   emailCount,
   isExpanded,
   isOtherCategory,
@@ -289,6 +313,7 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
     >
       <CategoryHeaderLeft
         category={category}
+        family={family}
         emailCount={emailCount}
         isExpanded={isExpanded}
         isOtherCategory={isOtherCategory}
@@ -400,6 +425,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   isReanalysingOther,
   onAfterCollapse,
   isNearBudget,
+  family,
 }) => {
   const { t } = useTranslation();
   const { showSuccess, showError } = useNotifications();
@@ -522,6 +548,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
     >
       <CategoryAccordionHeader
         category={category}
+        family={family}
         emailCount={emailCount}
         isExpanded={isExpanded}
         isOtherCategory={isOtherCategory}

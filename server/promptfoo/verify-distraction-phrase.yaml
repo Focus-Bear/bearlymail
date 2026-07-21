@@ -1,0 +1,108 @@
+description: "Tests for the distraction-tax confession phrase verifier prompt"
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/verify-distraction-phrase.md
+
+# The canonical target phrase (kept in sync with DISTRACTION_CONFESSION_PHRASE
+# in server/src/triage/triage.constants.ts).
+defaultTest:
+  vars:
+    targetPhrase: "Please distract me with new emails even though I have existing emails to deal with."
+
+tests:
+  - description: "Returns valid JSON with a boolean verified field"
+    vars:
+      transcript: "Please distract me with new emails even though I have existing emails to deal with."
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (typeof parsed.verified !== 'boolean') {
+            throw new Error(`Expected verified boolean, got: ${typeof parsed.verified}`);
+          }
+          return true;
+
+  - description: "Exact phrase is verified"
+    vars:
+      transcript: "Please distract me with new emails even though I have existing emails to deal with."
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verified !== true) {
+            throw new Error(`Expected verified=true for exact phrase, got: ${parsed.verified}`);
+          }
+          return true;
+
+  - description: "ASR-mangled but semantically correct transcript is verified"
+    vars:
+      transcript: "please distract me with knew male even though i have existing emails to deal with"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verified !== true) {
+            throw new Error(`Expected verified=true for ASR-mangled phrase, got: ${parsed.verified}`);
+          }
+          return true;
+
+  - description: "Reasonable paraphrase is verified"
+    vars:
+      transcript: "go ahead and distract me with new email even though i still have old emails to handle"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verified !== true) {
+            throw new Error(`Expected verified=true for paraphrase, got: ${parsed.verified}`);
+          }
+          return true;
+
+  - description: "Empty transcript is not verified"
+    vars:
+      transcript: ""
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verified !== false) {
+            throw new Error(`Expected verified=false for empty transcript, got: ${parsed.verified}`);
+          }
+          return true;
+
+  - description: "Unrelated sentence is not verified"
+    vars:
+      transcript: "what time is my dentist appointment tomorrow afternoon"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verified !== false) {
+            throw new Error(`Expected verified=false for unrelated sentence, got: ${parsed.verified}`);
+          }
+          return true;
+
+  - description: "Partial phrase missing the existing-emails idea is not verified"
+    vars:
+      transcript: "show me the new emails"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verified !== false) {
+            throw new Error(`Expected verified=false for partial phrase, got: ${parsed.verified}`);
+          }
+          return true;

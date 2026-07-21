@@ -242,8 +242,8 @@ tests:
     vars:
       currentDatetime: "2026-06-25T00:00:00Z"
       userTimezone: "Australia/Melbourne"
-      from: "summer@kindship.com.au"
-      fromName: "Summer Petrosius"
+      from: "jordan@example.com"
+      fromName: "Jordan Lee"
       subject: "Re: Buddies - Jeremy and Summer"
       body: |
         Hi Jeremy,

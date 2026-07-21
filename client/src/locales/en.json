@@ -487,6 +487,49 @@
       "allCaughtUp": "You're all caught up! 🏆",
       "allCaughtUpSub": "You've cleared every priority tier. Enjoy your focus time."
     },
+    "distractionTax": {
+      "title": "Sure you want the shiny new stuff?",
+      "explanation": "📬 You've already got {{count}} conversations waiting in your Action and Follow-Up lists — future-you says clear those first. Peeking at lower-priority new emails right now is basically snacking before dinner. Prove you really mean it and we'll unlock them.",
+      "preScreen": {
+        "title": "Are you sure you want to look at your triage inbox?",
+        "explanation_one": "You still have {{count}} email to process in Action and Follow Up. If someone sent you an email and you want to find it, use search instead.",
+        "explanation_other": "You still have {{count}} emails to process in Action and Follow Up. If someone sent you an email and you want to find it, use search instead.",
+        "searchCta": "Search",
+        "proceedCta": "Gimme inbox please!"
+      },
+      "chooseMethod": "Choose how to unlock",
+      "method": {
+        "voice": "🎙️ Say it out loud",
+        "tap": "👆 Pay the tap tax"
+      },
+      "dismiss": "Never mind, I'll deal with my real work",
+      "voice": {
+        "instructions": "Tap record and say this out loud (we won't tell anyone):",
+        "heard": "We heard: “{{transcript}}”",
+        "record": "🎙️ Record",
+        "stop": "⏹ Stop",
+        "retry": "Try again",
+        "verify": "Unlock with this",
+        "verifying": "Checking your confession…",
+        "rejected": "Hmm, that didn't quite match. Say the whole phrase and try again.",
+        "error": "Something went wrong verifying that. Try again or use the tap tax.",
+        "micError": "Your microphone didn't cooperate.",
+        "useTapInstead": "Pay the tap tax instead",
+        "unsupported": "Your browser can't do voice here — no worries, switch to the tap tax instead."
+      },
+      "tap": {
+        "instructions": "Tap the button {{count}} times in a row. Yes, really. Consider it a tiny toll for the distraction.",
+        "button": "Tap me! {{count}} to go",
+        "counter": "{{taps}} / {{total}} taps"
+      },
+      "tapMilestone": {
+        "start": "Off we go…",
+        "warmingUp": "Warming up those thumbs 👍",
+        "halfway": "Halfway there — no turning back now!",
+        "almost": "So close you can smell the distractions 🔥",
+        "oneMore": "One more! Make it count 🎉"
+      }
+    },
     "prioritisationGate": {
       "title": "Setting up your smart inbox",
       "subtitle": "We're analysing your emails to prioritise what matters most.",
@@ -2350,6 +2393,7 @@
   },
   "github": {
     "status": "GitHub Status",
+    "loadingStatus": "Loading GitHub status...",
     "refresh": "Refresh",
     "refreshing": "Refreshing...",
     "assignedTo": "Assigned to",
@@ -3146,6 +3190,7 @@
       "showCategoryExplanation": "Show why this category was chosen",
       "editCategoryRule": "Edit the rule that matched this category",
       "suggestedCategory": "Suggested Category",
+      "loading": "Loading priority explanation...",
       "loadError": "Failed to load priority explanation.",
       "noData": "No priority breakdown is available yet.",
       "retry": "Retry"
@@ -3425,6 +3470,7 @@
     "title": "Quick Actions",
     "calendar": {
       "untitledEvent": "Untitled Event",
+      "loadingEvents": "Loading events...",
       "openInGoogleCalendar": "Open in Google Calendar",
       "noEventsFound": "No events found for {{email}}",
       "foundEvents": "Found {{count}} event",

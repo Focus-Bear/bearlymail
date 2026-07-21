@@ -17,13 +17,15 @@ import { LoginPage } from '../pages/LoginPage';
 const QA_EMAIL    = process.env.TEST_EMAIL    || 'internaltest+openclaw_qa@focusbear.io';
 const QA_PASSWORD = process.env.TEST_PASSWORD || 'TestFocusBear2024!';
 
-// ─── Auth helper ─────────────────────────────────────────────────────────────
+// ─── Auth helpers ────────────────────────────────────────────────────────────
 
 async function loginAsQA(page: Page): Promise<void> {
   const loginPage = new LoginPage(page);
   await loginPage.goto('/login');
+  // LoginPage.login() lands on /inbox AND clears the Triage "distraction tax"
+  // gate (the shared dismissDistractionGate chokepoint), so inbox interactions
+  // are not blocked afterwards.
   await loginPage.login(QA_EMAIL, QA_PASSWORD);
-  // LoginPage.login already waits for /inbox navigation
 }
 
 // ─── 1: Smoke tests ──────────────────────────────────────────────────────────

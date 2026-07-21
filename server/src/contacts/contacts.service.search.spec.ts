@@ -10,7 +10,7 @@ import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 
 /**
  * Regression tests for the #2030 contact-search ranking bug: a zero-frequency
- * exact match (e.g. "Kyriakos Gold") was buried below hundreds of incidental
+ * exact match (e.g. "Casey Gold") was buried below hundreds of incidental
  * single-trigram matches by `ORDER BY contactFrequency` and then dropped
  * entirely by truncating to the small caller `limit` *before* the visible-field
  * filter ran. The fix ranks candidates by token-match relevance and fetches a
@@ -75,14 +75,14 @@ describe("ContactsService.searchContacts ranking (#2030)", () => {
     // it through the visible-field filter and final slice.
     const exact = makeContact({
       id: "kyriakos",
-      email: "kyriakos@justgold.net",
-      name: "Kyriakos Gold",
-      firstName: "Kyriakos",
+      email: "casey@example.com",
+      name: "Casey Gold",
+      firstName: "Casey",
       lastName: "Gold",
       contactFrequency: 0,
     });
-    // Incidental contacts share only a trigram (e.g. "kos"/"k"), never the
-    // full "kyriakos" — none of their visible fields contain the query.
+    // Incidental contacts share only a trigram (e.g. "cas"/"c"), never the
+    // full "casey" — none of their visible fields contain the query.
     const incidental = Array.from({ length: 50 }, (_, i) =>
       makeContact({
         id: `incidental-${i}`,
@@ -93,17 +93,17 @@ describe("ContactsService.searchContacts ranking (#2030)", () => {
     );
     qb.getMany.mockResolvedValue([exact, ...incidental]);
 
-    const results = await service.searchContacts("user-1", "kyriakos", 8);
+    const results = await service.searchContacts("user-1", "casey", 8);
 
     expect(results.map((result) => result.email)).toContain(
-      "kyriakos@justgold.net",
+      "casey@example.com",
     );
   });
 
   it("fetches the relevance-ranked candidate pool, not just the caller's limit", async () => {
     qb.getMany.mockResolvedValue([]);
 
-    await service.searchContacts("user-1", "kyriakos", 8);
+    await service.searchContacts("user-1", "casey", 8);
 
     // Truncating to `limit` (8) before filtering was the bug; we must fetch the
     // larger pool so genuine matches below the cut still survive.
@@ -116,7 +116,7 @@ describe("ContactsService.searchContacts ranking (#2030)", () => {
   it("orders by token-match relevance before contactFrequency", async () => {
     qb.getMany.mockResolvedValue([]);
 
-    await service.searchContacts("user-1", "kyriakos", 8);
+    await service.searchContacts("user-1", "casey", 8);
 
     // Primary sort must be the relevance score (a CASE-sum expression), so an
     // exact match outranks a high-frequency one-trigram coincidence.
@@ -141,7 +141,7 @@ describe("ContactsService.searchContacts ranking (#2030)", () => {
     });
     qb.getMany.mockResolvedValue([tokenOnly]);
 
-    const results = await service.searchContacts("user-1", "kyriakos", 8);
+    const results = await service.searchContacts("user-1", "casey", 8);
 
     expect(results).toHaveLength(0);
   });

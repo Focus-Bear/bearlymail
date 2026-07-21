@@ -244,11 +244,12 @@ export class LocalModelPromotionService {
     };
   }
 
-  /** Short label for the unresolved-category log line. */
+  /** Short label for the unresolved-category log line. Both cases defer to the
+   * cheap summary re-categorisation rather than parking in "Other". */
   private unresolvedCategoryLabel(categoryFallback: boolean): string {
     return categoryFallback
       ? "Other (pending summary re-categorisation)"
-      : "Other (no user match)";
+      : "Other (no user match, pending summary re-categorisation)";
   }
 
   /** Category explanation when the model applied priority but no real category. */
@@ -259,7 +260,7 @@ export class LocalModelPromotionService {
   }): string {
     return prediction.categoryFallback
       ? `Local model applied priority "${prediction.priorityBand}" (confident); category uncertain — awaiting re-categorisation from the thread summary.`
-      : `Local model applied priority "${prediction.priorityBand}" (confident); category "${prediction.category}" matched no user category — thread stays in "Other".`;
+      : `Local model applied priority "${prediction.priorityBand}" (confident); category "${prediction.category}" matched no user category — awaiting re-categorisation from the thread summary.`;
   }
 
   private async applyPrediction(args: {

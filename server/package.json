@@ -60,8 +60,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1045.0",
-    "@aws-sdk/client-cloudwatch": "^3.1079.0",
-    "@aws-sdk/client-ecs": "^3.1075.0",
+    "@aws-sdk/client-cloudwatch": "^3.1090.0",
+    "@aws-sdk/client-ecs": "^3.1090.0",
     "@aws-sdk/client-kms": "^3.1075.0",
     "@aws-sdk/client-lambda": "^3.1079.0",
     "@aws-sdk/client-s3": "^3.1057.0",
@@ -75,7 +75,7 @@
     "@nestjs/core": "^11.1.26",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.24",
+    "@nestjs/platform-express": "^11.1.28",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.1",
     "@octokit/rest": "^22.0.1",
@@ -109,7 +109,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "typeorm": "^1.0.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.23",
@@ -140,15 +140,15 @@
     "eslint-plugin-prettier": "^5.5.6",
     "eslint-plugin-simple-import-sort": "^13.0.0",
     "jest": "^30.3.0",
-    "js-yaml": "^4.2.0",
+    "js-yaml": "^5.2.1",
     "jscodeshift": "^17.3.0",
     "nodemon": "^3.1.14",
     "prettier": "^3.8.3",
-    "promptfoo": "^0.121.15",
+    "promptfoo": "^0.121.19",
     "source-map-support": "^0.5.21",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.11",
-    "ts-loader": "^9.6.0",
+    "ts-loader": "^9.6.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.3"

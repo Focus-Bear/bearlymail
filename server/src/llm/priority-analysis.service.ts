@@ -53,6 +53,13 @@ const DEFAULT_CATEGORY_NAMES = [
   "HR Admin",
 ];
 
+// Sent in place of the real category list when a deterministic rule already
+// pinned the category, so the prompt renders one clarifying line instead of
+// falling back to the 5 default categories. The LLM's category is discarded.
+const CATEGORY_PRE_ASSIGNED_PLACEHOLDER: CategoryItem = {
+  name: "(category already assigned by a rule — score urgency & goal alignment only)",
+};
+
 export type CategoryConfidence = "HIGH" | "MEDIUM" | "LOW";
 
 /** Category-resolution instrumentation captured per email and attached to the result. */
@@ -153,6 +160,7 @@ export class PriorityAnalysisService {
     email: { from: string; fromName?: string; subject: string },
     userContext: UserContextInput | undefined,
     cleanedBody: string,
+    categoryPreAssigned?: boolean,
   ): Promise<{
     effectiveCategories: CategoryItem[];
     instrumentation: CategoryInstrumentation;
@@ -164,6 +172,23 @@ export class PriorityAnalysisService {
       totalCategoryCount: allCategories.length,
       protoCategoryCount: protoCategories.length,
     };
+    // A deterministic rule already pinned the category (its pick overrides the
+    // LLM downstream), so don't send the category list or run the embedding
+    // shortlist — the model only scores urgency + goal for these emails. Use a
+    // single placeholder item (not []): an empty list makes the prompt's
+    // `{% if emailCategories %}` falsy and renders the 5 default categories via
+    // the {% else %} fallback, which we don't want. One placeholder line renders
+    // instead, and signals the model that no category selection is needed.
+    if (categoryPreAssigned) {
+      return {
+        effectiveCategories: [CATEGORY_PRE_ASSIGNED_PLACEHOLDER],
+        instrumentation: {
+          shortlistedCategoryNames: null,
+          shortlistCandidates: null,
+          ...counts,
+        },
+      };
+    }
     if (
       !this.categoryShortlistService.isShortlistEnabled(allCategories.length)
     ) {
@@ -197,6 +222,35 @@ export class PriorityAnalysisService {
   }
 
   /**
+   * Structured per-call analytics for the analyze_priority prompt shape. Category
+   * shortlisting only runs above SHORTLIST_THRESHOLD (12) categories, so for most
+   * users the FULL list is sent every call — the dominant prompt-token driver.
+   * Logs whether the shortlist fired, how many categories were actually sent, and
+   * a char-count proxy for prompt size, so shortlist coverage is queryable.
+   */
+  private logPromptShape(args: {
+    userId?: string;
+    categoryPreAssigned: boolean;
+    instrumentation: CategoryInstrumentation;
+    effectiveCategoryCount: number;
+    promptChars: number;
+  }): void {
+    this.logger.log(
+      JSON.stringify({
+        event: "analyze_priority_prompt_shape",
+        userId: args.userId,
+        categoryPreAssigned: args.categoryPreAssigned,
+        shortlistApplied:
+          args.instrumentation.shortlistedCategoryNames !== null,
+        effectiveCategoryCount: args.effectiveCategoryCount,
+        totalCategoryCount: args.instrumentation.totalCategoryCount,
+        protoCategoryCount: args.instrumentation.protoCategoryCount,
+        promptChars: args.promptChars,
+      }),
+    );
+  }
+
+  /**
    * Build the priority prompt for a single email.
    * Loads the prompt template, formats user context and thread info, and renders the prompt string.
    * When the category shortlist feature is enabled and category count exceeds the threshold,
@@ -220,6 +274,10 @@ export class PriorityAnalysisService {
     };
     userId?: string;
     userTimezone?: string;
+    /** True when a deterministic rule already assigned the category, so the LLM's
+     * category output is discarded downstream. Lets us skip sending the category
+     * list (and the embedding shortlist call) — a big prompt-token saving. */
+    categoryPreAssigned?: boolean;
   }): Promise<{
     prompt: string;
     systemPrompt: string;
@@ -233,6 +291,7 @@ export class PriorityAnalysisService {
       threadInfo,
       userId,
       userTimezone,
+      categoryPreAssigned,
     } = options;
     const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
     if (!promptConfig) {
@@ -262,7 +321,12 @@ export class PriorityAnalysisService {
       : "";
 
     const { effectiveCategories, instrumentation } =
-      await this.resolveEffectiveCategories(email, userContext, cleanedBody);
+      await this.resolveEffectiveCategories(
+        email,
+        userContext,
+        cleanedBody,
+        categoryPreAssigned,
+      );
 
     // The exact order the categories are numbered in the prompt — used to map
     // the LLM's categoryNumber back to a category. Falls back to the prompt's
@@ -477,6 +541,9 @@ export class PriorityAnalysisService {
     preComputedSentimentScore?: number;
     /** IANA timezone used to render current/received times in the prompt. Falls back to UTC. */
     userTimezone?: string;
+    /** True when a deterministic rule already assigned the category — skips the
+     * category list + shortlist in the prompt (the LLM's category is discarded). */
+    categoryPreAssigned?: boolean;
   }): Promise<PriorityResult> {
     const {
       email,
@@ -487,6 +554,7 @@ export class PriorityAnalysisService {
       threadInfo,
       preComputedSentimentScore,
       userTimezone,
+      categoryPreAssigned,
     } = options;
     const { prompt, systemPrompt, orderedCategoryNames, instrumentation } =
       await this.buildPriorityPrompt({
@@ -496,7 +564,16 @@ export class PriorityAnalysisService {
         threadInfo,
         userId,
         userTimezone,
+        categoryPreAssigned,
       });
+
+    this.logPromptShape({
+      userId,
+      categoryPreAssigned: categoryPreAssigned === true,
+      instrumentation,
+      effectiveCategoryCount: orderedCategoryNames.length,
+      promptChars: prompt.length + systemPrompt.length,
+    });
 
     const response = await this.llmCoreService.generateText(
       {
@@ -724,8 +801,9 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
         : LLMProvider.BEDROCK;
       // claude-cli resolves its own model, so leave it unset there (a Nova model
       // id would be meaningless to it); the Bedrock path uses Nova Micro.
-      const configuredTriageModel =
-        this.configService.get<string>("CATEGORY_TRIAGE_MODEL");
+      const configuredTriageModel = this.configService.get<string>(
+        "CATEGORY_TRIAGE_MODEL",
+      );
       const triageModel = useClaudeCli
         ? configuredTriageModel
         : (configuredTriageModel ?? DEFAULT_TRIAGE_MODEL);

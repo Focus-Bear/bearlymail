@@ -94,6 +94,7 @@ export const UTILITY_PROMPT_IDS = {
   ASSESS_CATEGORY_RULE_VALUE: "assess_category_rule_value",
   CHECK_CATEGORY_DUPLICATE: "check_category_duplicate",
   DERIVE_MCP_SENDER_TOOL: "derive_mcp_sender_tool",
+  VERIFY_DISTRACTION_PHRASE: "verify_distraction_phrase",
 } as const;
 
 /**
@@ -256,6 +257,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "ask-ai-agent.md",
     key: ASSISTANT_PROMPT_IDS.ASK_AI_AGENT,
+  },
+  {
+    file: "verify-distraction-phrase.md",
+    key: UTILITY_PROMPT_IDS.VERIFY_DISTRACTION_PHRASE,
   },
 ];
 

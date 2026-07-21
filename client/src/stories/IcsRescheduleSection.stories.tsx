@@ -33,8 +33,8 @@ const baseInfo: IcsInfoResponse = {
     allDay: false,
     attendees: [
       {
-        email: 'casey@example.com',
-        name: 'Summer Petrosius',
+        email: 'jordan@example.com',
+        name: 'Jordan Lee',
         comment: "Sorry! I've woken up with a bad head cold and no voice",
       },
     ],

@@ -1,5 +1,6 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './BasePage';
+import { dismissDistractionGate } from '../utils/distractionGate';
 
 export class LoginPage extends BasePage {
   readonly emailInput: Locator;
@@ -20,6 +21,7 @@ export class LoginPage extends BasePage {
     const currentUrl = this.page.url();
     if (currentUrl.includes('/inbox')) {
       console.log('Already on inbox page, skipping login');
+      await dismissDistractionGate(this.page);
       return;
     }
 
@@ -99,20 +101,24 @@ export class LoginPage extends BasePage {
     
     // If successful, wait for navigation to inbox (should be fast)
     try {
-      await this.page.waitForURL('**/inbox', { timeout: 5000 });
+      await this.page.waitForURL('**/inbox**', { timeout: 5000 });
     } catch (error: any) {
       // Check if we're already on inbox
       const currentUrl = this.page.url();
-      if (currentUrl.includes('/inbox')) {
-        return;
+      if (!currentUrl.includes('/inbox')) {
+        throw new Error(`Login succeeded but did not navigate to inbox. Current URL: ${currentUrl}`);
       }
-      throw new Error(`Login succeeded but did not navigate to inbox. Current URL: ${currentUrl}`);
     }
+
+    // Landed on /inbox — clear the Triage "distraction tax" gate so callers can
+    // interact with the inbox. Single chokepoint: every login that lands on the
+    // inbox gets past the gate here. No-op when the gate isn't present.
+    await dismissDistractionGate(this.page);
   }
 
   async isLoggedIn(): Promise<boolean> {
     try {
-      await this.page.waitForURL('**/inbox', { timeout: 2000 });
+      await this.page.waitForURL('**/inbox**', { timeout: 2000 });
       return true;
     } catch {
       return false;
@@ -234,7 +240,7 @@ export class LoginPage extends BasePage {
     
     // If successful, wait for navigation to inbox (should be fast)
     try {
-      await this.page.waitForURL('**/inbox', { timeout: 5000 });
+      await this.page.waitForURL('**/inbox**', { timeout: 5000 });
     } catch (error: any) {
       // Check if we're already on inbox
       const currentUrl = this.page.url();

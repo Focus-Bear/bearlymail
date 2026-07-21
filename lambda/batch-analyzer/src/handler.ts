@@ -27,6 +27,7 @@ import {
   SentPayload,
   ContextItem,
 } from "./llm";
+import { sanitizeLogInput } from "./sanitize-log";
 import { getDbSecrets, getLlmSecrets, resolveLlmProvider } from "./secrets";
 import type { ContextBatchPayload } from "./types";
 
@@ -188,8 +189,12 @@ async function processBatch(
       break; // Success
     } catch (err) {
       lastError = err;
+      // Log only the error message, not the full error object: LLM SDK errors
+      // can carry a response body echoing the prompt (email content) — CWE-312.
       console.warn(
-        `[LAMBDA][Worker ${workerId}] LLM attempt ${attempt + 1} failed: ${err}`,
+        `[LAMBDA][Worker ${workerId}] LLM attempt ${attempt + 1} failed: ${sanitizeLogInput(
+          err instanceof Error ? err.message : err,
+        )}`,
       );
     }
   }
@@ -293,7 +298,9 @@ export const handler = async (
         });
       } catch (saveErr) {
         console.error(
-          `[LAMBDA][Worker ${workerId}] Failed to record batch failure in DB: ${saveErr}`,
+          `[LAMBDA][Worker ${workerId}] Failed to record batch failure in DB: ${
+            saveErr instanceof Error ? saveErr.message : String(saveErr)
+          }`,
         );
       }
 

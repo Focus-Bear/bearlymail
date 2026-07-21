@@ -1,7 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 export const GitHubStatusLoading: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <div style={{ textAlign: 'center', padding: theme.spacing.lg, color: theme.colors.text.secondary }}>
       <span
@@ -16,7 +19,7 @@ export const GitHubStatusLoading: React.FC = () => {
           marginRight: theme.spacing.sm,
         }}
       />
-      Loading GitHub status...
+      {t('github.loadingStatus')}
     </div>
   );
 };

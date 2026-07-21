@@ -35,7 +35,7 @@ DTEND:20260716T003000Z
 DTSTAMP:20260708T232943Z
 ORGANIZER;CN=jeremy@focusbear.io:mailto:jeremy@focusbear.io
 UID:f3a7pmefdvh0bpftdscvssu6jg@google.com
-ATTENDEE;CN=Summer Petrosius;PARTSTAT=ACCEPTED:mailto:summer@kindship.com.au
+ATTENDEE;CN=Jordan Lee;PARTSTAT=ACCEPTED:mailto:jordan@example.com
 SUMMARY:Fundraising tips and Snowie Fellowship
 END:VEVENT
 END:VCALENDAR`;
@@ -48,7 +48,7 @@ BEGIN:VEVENT
 DTSTART:20260716T100000Z
 DTEND:20260716T103000Z
 UID:plain-request@google.com
-ATTENDEE;CN=Summer Petrosius:mailto:summer@kindship.com.au
+ATTENDEE;CN=Jordan Lee:mailto:jordan@example.com
 SUMMARY:Regular invite
 END:VEVENT
 END:VCALENDAR`;
@@ -65,7 +65,7 @@ DTEND;TZID=Australia/Sydney:20260716T103000
 DTSTAMP:20260708T232943Z
 ORGANIZER;CN=jeremy@focusbear.io:mailto:jeremy@focusbear.io
 UID:f3a7pmefdvh0bpftdscvssu6jg@google.com
-ATTENDEE;CN=Summer Petrosius;PARTSTAT=ACCEPTED:mailto:summer@kindship.com.au
+ATTENDEE;CN=Jordan Lee;PARTSTAT=ACCEPTED:mailto:jordan@example.com
 SUMMARY:Fundraising tips and Snowie Fellowship
 END:VEVENT
 END:VCALENDAR`;
@@ -115,7 +115,7 @@ describe("CalendarIcsService — reschedule requests (METHOD:COUNTER)", () => {
         get: jest.fn().mockResolvedValue({
           data: {
             attendees: [
-              { email: "summer@kindship.com.au", responseStatus: "declined" },
+              { email: "jordan@example.com", responseStatus: "declined" },
               { email: "jeremy@focusbear.io", responseStatus: "accepted" },
             ],
           },
@@ -187,7 +187,7 @@ describe("CalendarIcsService — reschedule requests (METHOD:COUNTER)", () => {
       const patchedAttendees =
         mockCalendar.events.patch.mock.calls[0][0].requestBody.attendees;
       expect(patchedAttendees).toEqual([
-        { email: "summer@kindship.com.au", responseStatus: "accepted" },
+        { email: "jordan@example.com", responseStatus: "accepted" },
         { email: "jeremy@focusbear.io", responseStatus: "accepted" },
       ]);
     });
@@ -237,8 +237,8 @@ describe("CalendarIcsService — reschedule requests (METHOD:COUNTER)", () => {
       expect(patchedAttendees).toEqual([
         { email: "jeremy@focusbear.io", responseStatus: "accepted" },
         {
-          email: "summer@kindship.com.au",
-          displayName: "Summer Petrosius",
+          email: "jordan@example.com",
+          displayName: "Jordan Lee",
           responseStatus: "accepted",
         },
       ]);
@@ -258,7 +258,7 @@ describe("CalendarIcsService — reschedule requests (METHOD:COUNTER)", () => {
         "user-1",
         expect.objectContaining({
           threadId: "thread-1",
-          to: "summer@kindship.com.au",
+          to: "jordan@example.com",
           subject: "Re: Fundraising tips and Snowie Fellowship",
         }),
       );

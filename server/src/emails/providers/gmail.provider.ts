@@ -59,10 +59,11 @@ import { parseRecipientsFromString } from "../../utils/email-address.utils";
 function stripHtmlTags(html: string): string {
   return (
     html
-      // End tags must tolerate whitespace/attributes (e.g. `</script foo>`), or a
-      // crafted closing tag leaves executable-looking script text behind (CWE-116).
-      .replace(/<script[\s\S]*?<\/script[^>]*>/gi, "")
-      .replace(/<style[\s\S]*?<\/style[^>]*>/gi, "")
+      // `\b` word boundary avoids mis-matching tags like `<scripture>`/`<styles>`;
+      // end tags tolerate whitespace/attributes (e.g. `</script foo>`), or a crafted
+      // closing tag leaves executable-looking script text behind (CWE-116).
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, "")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, "")
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/p>/gi, "\n\n")
       .replace(/<[^>]+>/g, "")

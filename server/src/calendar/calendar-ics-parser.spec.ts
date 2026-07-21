@@ -114,9 +114,9 @@ DTEND:20260716T003000Z
 DTSTAMP:20260708T232943Z
 ORGANIZER;CN=jeremy@focusbear.io:mailto:jeremy@focusbear.io
 UID:f3a7pmefdvh0bpftdscvssu6jg@google.com
-ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;CN=Summer
-  Petrosius;X-NUM-GUESTS=0;X-RESPONSE-COMMENT="Sorry! I&rsquo\\;ve woken up w
- ith a bad head cold and no voice":mailto:summer@kindship.com.au
+ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;CN=Jordan
+  Lee;X-NUM-GUESTS=0;X-RESPONSE-COMMENT="Sorry! I&rsquo\\;ve woken up w
+ ith a bad head cold and no voice":mailto:jordan@example.com
 SEQUENCE:1
 STATUS:CONFIRMED
 SUMMARY:Fundraising tips and Snowie Fellowship
@@ -282,8 +282,8 @@ describe("parseIcsStringSafe", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.event.attendees).toHaveLength(1);
-      expect(result.event.attendees[0].email).toBe("summer@kindship.com.au");
-      expect(result.event.attendees[0].name).toBe("Summer Petrosius");
+      expect(result.event.attendees[0].email).toBe("jordan@example.com");
+      expect(result.event.attendees[0].name).toBe("Jordan Lee");
       // Regression: node-ical's own attendee.params["X-RESPONSE-COMMENT"]
       // truncates to `"Sorry! I&rsquo\` at the escaped semicolon — the raw-ICS
       // regex extractor must recover the full, correctly decoded text.

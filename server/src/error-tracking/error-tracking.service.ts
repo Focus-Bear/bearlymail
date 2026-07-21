@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PostHog } from "posthog-node";
 
+import { sanitizeLogInput } from "../utils/sanitize-log";
+
 /**
  * Service for tracking errors and events to PostHog
  * See: https://posthog.com/docs/libraries/node
@@ -67,7 +69,7 @@ export class ErrorTrackingService {
         `PostHog captureException called but tracking is disabled (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog})`,
       );
       console.error(
-        `POSTHOG: captureException called but PostHog is not initialized (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog}). Error not tracked: ${error.name}: ${error.message}`,
+        `POSTHOG: captureException called but PostHog is not initialized (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog}). Error not tracked: ${sanitizeLogInput(error.name)}: ${sanitizeLogInput(error.message)}`,
       );
       return;
     }
@@ -90,12 +92,14 @@ export class ErrorTrackingService {
       );
     } catch (captureError) {
       this.logger.error("Failed to capture exception to PostHog", captureError);
-      // nosemgrep
+      // Keep the user-influenced error text out of the format-string position so a
+      // '%s' in error.message can't be interpreted as a substitution (CWE-134).
       console.error(
-        `POSTHOG: Failed to capture exception "${error.name}: ${error.message}":`,
+        "POSTHOG: Failed to capture exception %s:",
+        `${sanitizeLogInput(error.name)}: ${sanitizeLogInput(error.message)}`,
         captureError instanceof Error
-          ? captureError.message
-          : String(captureError),
+          ? sanitizeLogInput(captureError.message)
+          : sanitizeLogInput(captureError),
       );
     }
   }

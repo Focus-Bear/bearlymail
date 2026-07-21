@@ -98,10 +98,10 @@ tests:
   - description: "Regression: reschedule reply must state the date proposed in the BODY, not the date the email was received (real-world bug — Google Calendar decline+counter-propose email)"
     vars:
       existingSummary: "Calendar invite for Fundraising tips and Snowie Fellowship, Thu 16 Jul 2026 10am-10:30am."
-      newEmailFrom: "summer@kindship.com.au"
-      newEmailFromName: "Summer Petrosius"
+      newEmailFrom: "jordan@example.com"
+      newEmailFromName: "Jordan Lee"
       newEmailSubject: "Re: Fundraising tips and Snowie Fellowship"
-      newEmailBody: "Summer Petrosius has declined this invitation and proposed a new time: Thu 16 Jul 2026 10am – 10:30am. \"Sorry! I've woken up with a bad head cold and no voice\""
+      newEmailBody: "Jordan Lee has declined this invitation and proposed a new time: Thu 16 Jul 2026 10am – 10:30am. \"Sorry! I've woken up with a bad head cold and no voice\""
       newEmailReceivedAt: "2026-07-09T04:00:00Z"
       isResolution: false
     assert:

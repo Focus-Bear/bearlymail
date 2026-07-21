@@ -13,6 +13,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import * as fs from "fs";
 import * as path from "path";
+import { sanitizeLogInput } from "./sanitize-log";
 import { getLlmSecrets, resolveLlmProvider } from "./secrets";
 import type {
   PriorityEmailPayload,
@@ -375,7 +376,11 @@ async function runTriage(
   try {
     response = await callLlm(prompt, "", MAX_TOKENS_TRIAGE, TEMPERATURE_TRIAGE, DEFAULT_TRIAGE_MODEL, true);
   } catch (err) {
-    console.warn("[LLM] Triage call failed — will analyse all emails:", err);
+    // Log only the message: LLM SDK errors can echo the prompt (email content) — CWE-312.
+    console.warn(
+      "[LLM] Triage call failed — will analyse all emails:",
+      sanitizeLogInput(err instanceof Error ? err.message : err),
+    );
     return new Set(emails.map((e) => e.emailKey));
   }
 
@@ -444,7 +449,11 @@ async function runIndividualAnalysis(
   try {
     response = await callLlm(prompt, "", MAX_TOKENS_SMART, TEMPERATURE_SMART, undefined, true);
   } catch (err) {
-    console.error(`[LLM] Individual analysis failed for ${email.emailKey}:`, err); // nosemgrep
+    // Log only the message: LLM SDK errors can echo the prompt (email content) — CWE-312.
+    console.error(
+      `[LLM] Individual analysis failed for ${email.emailKey}:`,
+      sanitizeLogInput(err instanceof Error ? err.message : err),
+    ); // nosemgrep
     return buildFallbackResult(email);
   }
 

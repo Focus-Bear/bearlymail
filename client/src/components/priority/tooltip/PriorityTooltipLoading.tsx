@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { TOOLTIP_MAX_WIDTH_MEDIUM, TOOLTIP_MIN_WIDTH_MEDIUM, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
@@ -9,6 +10,8 @@ interface PriorityTooltipLoadingProps {
 }
 
 export const PriorityTooltipLoading: React.FC<PriorityTooltipLoadingProps> = ({ emailId }) => {
+  const { t } = useTranslation();
+
   const loadingContent = (
     <div
       data-priority-tooltip={emailId}
@@ -35,7 +38,7 @@ export const PriorityTooltipLoading: React.FC<PriorityTooltipLoadingProps> = ({ 
         event.preventDefault();
       }}
     >
-      <div style={{ textAlign: 'center', padding: theme.spacing.md }}>Loading priority explanation...</div>
+      <div style={{ textAlign: 'center', padding: theme.spacing.md }}>{t('priority.tooltip.loading')}</div>
     </div>
   );
 

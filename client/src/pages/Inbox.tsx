@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { CategoryArchiveSuggestion } from 'utils/categoryArchiveWorkflow';
@@ -8,6 +9,7 @@ import { AnalysingPriorityCategory } from 'components/inbox/AnalysingPriorityCat
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
 import { DebugPanel } from 'components/inbox/DebugPanel';
+import { DistractionFrictionModal } from 'components/inbox/DistractionFrictionModal';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
 import { navigateAfterSplitViewAction } from 'components/inbox/inboxCategoryHelpers';
 import { InboxContent } from 'components/inbox/InboxContent';
@@ -21,12 +23,14 @@ import { Sidebar } from 'components/inbox/Sidebar';
 import { PrioritisationInterstitial } from 'components/inbox/states';
 import { SuggestArchiveWorkflowModal } from 'components/inbox/SuggestArchiveWorkflowModal';
 import { SyncWindowBanner } from 'components/inbox/SyncWindowBanner';
+import { TriageEntryGate } from 'components/inbox/TriageEntryGate';
 import { API_URL } from 'config/api';
 import { BUCKET_LABEL_ALL, PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
-import { ERROR_CODE_GMAIL_REQUIRED, MODE_TRIAGE } from 'constants/strings';
+import { ERROR_CODE_GMAIL_REQUIRED, MODE_TRIAGE, ROUTE_SEARCH } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
+import { useDistractionFriction } from 'hooks/useDistractionFriction';
 import { HIGH_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 import { GATE_FILTER_SWITCHED_KEY, usePrioritisationGate } from 'hooks/usePrioritisationGate';
 import { usePriorityCounts } from 'hooks/usePriorityCounts';
@@ -127,9 +131,21 @@ const InboxView: React.FC = () => {
     closeMobileMenu: handleCloseMobileMenu,
   } = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
 
+  const navigate = useNavigate();
   const { isDebugModeEnabled } = useDebugMode();
   // Pass current inbox mode so bucket counts match the tab total (fix #1452 bug 3).
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts(mode);
+  // "Distraction tax": when the user has unfinished work, gate lower-priority
+  // Triage emails behind a deliberate unlock exercise (session-scoped).
+  const distraction = useDistractionFriction({ mode, tabCounts });
+
+  // Apply a progressive-tier unlock: move the priority floor down and refetch.
+  // Shared by the normal unlock path and the friction-modal completion path.
+  const applyPriorityUnlock = (minPriority: number, maxPriority: number | null) => {
+    setPriorityFilter(minPriority, maxPriority);
+    fetchEmails({ minPriority, maxPriority });
+    fetchPriorityCounts();
+  };
   // Fix #1466: track summary refetch so category pills can show a loading skeleton.
   const isSummaryLoading = useSelector(selectSummaryLoading);
   const {
@@ -188,29 +204,57 @@ const InboxView: React.FC = () => {
     if (mode !== MODE_TRIAGE || !priorityCounts || hasAutoAdvancedTierRef.current) {
       return;
     }
-    hasAutoAdvancedTierRef.current = true;
 
     const min = filters.minPriority;
     const max = filters.maxPriority;
     const isDefaultOrUnfiltered =
       (min === VERY_HIGH_PRIORITY_THRESHOLD && max === null) || (min === null && max === null);
     if (!isDefaultOrUnfiltered) {
+      // User has a manual filter — respect it and don't auto-advance again.
+      hasAutoAdvancedTierRef.current = true;
       return;
     }
 
+    // Only mark auto-advance as done once we've actually acted on real counts.
+    // Bailing here while counts are still all-zero (pre-sync) lets the effect
+    // retry when the true counts arrive, instead of latching "done" prematurely.
     if (priorityCounts.veryHigh > 0) {
+      hasAutoAdvancedTierRef.current = true;
       if (min !== VERY_HIGH_PRIORITY_THRESHOLD) {
         setPriorityFilter(VERY_HIGH_PRIORITY_THRESHOLD, null);
         fetchEmails({ minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null });
       }
     } else if (priorityCounts.high > 0) {
+      hasAutoAdvancedTierRef.current = true;
       setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
       fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
-    } else if (priorityCounts.medium > 0) {
+    } else if (priorityCounts.medium > 0 && !distraction.isGateActive) {
+      hasAutoAdvancedTierRef.current = true;
       setPriorityFilter(MEDIUM_PRIORITY_THRESHOLD, null);
       fetchEmails({ minPriority: MEDIUM_PRIORITY_THRESHOLD, maxPriority: null });
+    } else if (priorityCounts.medium > 0 && distraction.isGateActive) {
+      // Gated: hold the floor at High even though no High emails exist, so the
+      // friction unlock is required before medium emails become visible.
+      hasAutoAdvancedTierRef.current = true;
+      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
+      fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
     }
-  }, [priorityCounts, mode, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails]);
+  }, [priorityCounts, mode, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails, distraction.isGateActive]);
+
+  // Enforce the distraction-tax floor for returning users whose stored filter is
+  // already below High (Medium/Low/All): while gated, raise it to High so lower
+  // tiers stay hidden until the unlock exercise is completed. Idempotent — once
+  // the floor sits at High this no longer fires; unlocking disables the gate.
+  useEffect(() => {
+    if (!distraction.isGateActive) {
+      return;
+    }
+    const min = filters.minPriority;
+    if (min === null || min < HIGH_PRIORITY_THRESHOLD) {
+      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
+      fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
+    }
+  }, [distraction.isGateActive, filters.minPriority, setPriorityFilter, fetchEmails]);
 
   if (loading) {
     return <InboxLoadingState />;
@@ -454,10 +498,11 @@ const InboxView: React.FC = () => {
               maxPriority={filters.maxPriority}
               priorityCounts={priorityCounts}
               onUnlockPriorityTier={(minPriority: number, maxPriority: number | null) => {
-                const newFilters = { minPriority, maxPriority };
-                setPriorityFilter(minPriority, maxPriority);
-                fetchEmails(newFilters);
-                fetchPriorityCounts();
+                // Gated peek below High → open the friction modal instead of unlocking.
+                if (distraction.requestUnlock(minPriority, maxPriority)) {
+                  return;
+                }
+                applyPriorityUnlock(minPriority, maxPriority);
               }}
               onDismissUnlockPrompt={() => {
                 // Keep current priority tier — do not change minPriority
@@ -498,6 +543,30 @@ const InboxView: React.FC = () => {
         <SuggestArchiveWorkflowModal
           suggestion={archiveSuggestion}
           onClose={() => setArchiveSuggestion(null)}
+        />
+      )}
+      {distraction.isPreScreenOpen && (
+        <TriageEntryGate
+          existingWorkCount={(tabCounts?.action ?? 0) + (tabCounts?.followUp ?? 0)}
+          onSearch={() => navigate(ROUTE_SEARCH)}
+          onProceed={distraction.proceedFromPreScreen}
+        />
+      )}
+      {distraction.isModalOpen && (
+        <DistractionFrictionModal
+          existingWorkCount={(tabCounts?.action ?? 0) + (tabCounts?.followUp ?? 0)}
+          onUnlock={() => {
+            const target = distraction.completeUnlock();
+            if (target) {
+              applyPriorityUnlock(target.minPriority, target.maxPriority);
+            } else {
+              // Pre-screen path: no deferred tier, so reveal the whole inbox.
+              clearFilters();
+              fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
+              fetchPriorityCounts();
+            }
+          }}
+          onDismiss={distraction.dismissModal}
         />
       )}
     </div>

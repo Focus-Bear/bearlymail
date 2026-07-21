@@ -1522,6 +1522,7 @@
     "repositoryOwnerPlaceholder": "ej., facebook",
     "saveToken": "Guardar token",
     "status": "Estado de GitHub",
+    "loadingStatus": "Cargando estado de GitHub...",
     "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
     "linksCount": "{{count}} enlace",
     "linksCount_plural": "{{count}} enlaces",
@@ -2081,6 +2082,49 @@
       "later": "Quizás más tarde",
       "allCaughtUp": "¡Todo al día! 🏆",
       "allCaughtUpSub": "Has limpiado todos los niveles de prioridad. Disfruta de tu tiempo de concentración."
+    },
+    "distractionTax": {
+      "title": "¿Seguro que quieres lo nuevo y brillante?",
+      "explanation": "📬 Ya tienes {{count}} conversaciones esperando en tus listas de Acción y Seguimiento — el tú del futuro dice que primero las despejes. Echar un vistazo ahora a correos nuevos de menor prioridad es como picar antes de la cena. Demuestra que va en serio y los desbloqueamos.",
+      "preScreen": {
+        "title": "¿Seguro que quieres mirar tu bandeja de triaje?",
+        "explanation_one": "Todavía tienes {{count}} correo por procesar en Acción y Seguimiento. Si alguien te envió un correo y quieres encontrarlo, usa la búsqueda en su lugar.",
+        "explanation_other": "Todavía tienes {{count}} correos por procesar en Acción y Seguimiento. Si alguien te envió un correo y quieres encontrarlo, usa la búsqueda en su lugar.",
+        "searchCta": "Buscar",
+        "proceedCta": "¡Dame la bandeja, por favor!"
+      },
+      "chooseMethod": "Elige cómo desbloquear",
+      "method": {
+        "voice": "🎙️ Dilo en voz alta",
+        "tap": "👆 Paga el peaje de toques"
+      },
+      "dismiss": "Déjalo, me ocupo de mi trabajo de verdad",
+      "voice": {
+        "instructions": "Toca grabar y di esto en voz alta (no se lo diremos a nadie):",
+        "heard": "Escuchamos: «{{transcript}}»",
+        "record": "🎙️ Grabar",
+        "stop": "⏹ Detener",
+        "retry": "Intentar de nuevo",
+        "verify": "Desbloquear con esto",
+        "verifying": "Verificando tu confesión…",
+        "rejected": "Mmm, eso no coincidió del todo. Di la frase completa e inténtalo de nuevo.",
+        "error": "Algo salió mal al verificar eso. Inténtalo de nuevo o usa el peaje de toques.",
+        "micError": "Tu micrófono no cooperó.",
+        "useTapInstead": "Paga el peaje de toques en su lugar",
+        "unsupported": "Tu navegador no puede usar la voz aquí — sin problema, usa el peaje de toques."
+      },
+      "tap": {
+        "instructions": "Toca el botón {{count}} veces seguidas. Sí, en serio. Considéralo un pequeño peaje por la distracción.",
+        "button": "¡Tócame! Faltan {{count}}",
+        "counter": "{{taps}} / {{total}} toques"
+      },
+      "tapMilestone": {
+        "start": "¡Allá vamos…",
+        "warmingUp": "Calentando esos pulgares 👍",
+        "halfway": "¡A mitad de camino, ya no hay vuelta atrás!",
+        "almost": "Tan cerca que ya hueles las distracciones 🔥",
+        "oneMore": "¡Uno más! Que valga la pena 🎉"
+      }
     },
     "prioritisationGate": {
       "title": "Configurando tu bandeja inteligente",
@@ -3414,6 +3458,7 @@
       "showCategoryExplanation": "Mostrar por qué se eligió esta categoría",
       "editCategoryRule": "Editar la regla que coincidió con esta categoría",
       "suggestedCategory": "Categoría sugerida",
+      "loading": "Cargando explicación de prioridad...",
       "loadError": "No se pudo cargar la explicación de prioridad.",
       "noData": "Aún no hay un desglose de prioridad disponible.",
       "retry": "Reintentar"
@@ -3427,6 +3472,7 @@
       "foundEvents": "Se encontró el evento {{count}}",
       "foundEvents_plural": "Se encontraron {{count}} eventos",
       "noEventsFound": "No se encontraron eventos para {{email}}",
+      "loadingEvents": "Cargando eventos...",
       "openInGoogleCalendar": "Abrir en Google Calendar",
       "untitledEvent": "Evento sin título"
     },

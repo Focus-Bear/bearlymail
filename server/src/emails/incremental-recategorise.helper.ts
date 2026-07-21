@@ -22,23 +22,23 @@ import { LOCAL_CATEGORY_SOURCE } from "./category-precedence.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 /**
- * True when a thread is one the local model deliberately left in "Other"
- * because its category head was UNCONFIDENT (`localModelDebug.categoryFallback`)
- * — i.e. priority was applied locally but the category still needs the cheap
- * summary-based classification. A confident "Other", a resolved category, or a
- * user/rule-pinned category all return false (the categorySource is no longer
- * "local", or the flag is unset), so a fresh summary never re-runs the LLM on a
- * settled thread.
+ * True when the local model applied priority but left the thread without a real
+ * category (`categorySource === "local"` and `categoryId == null`) — whether the
+ * category head was UNCONFIDENT (`categoryFallback`) or CONFIDENT but resolved to
+ * no user category. Both cases defer to the cheap summary-based classification
+ * rather than parking in "Other"; a confident local "Other" no longer dead-ends
+ * there. A resolved category or a user/rule/LLM-pinned category returns false
+ * (categoryId is set, or the source is no longer "local"), so a fresh summary
+ * never re-runs the LLM on a settled thread.
  */
-export function threadNeedsLocalModelRecategorisation(thread: {
-  categorySource: string | null;
-  categoryId: string | null;
-  localModelDebug?: { categoryFallback?: boolean } | null;
-}): boolean {
+export function threadNeedsLocalModelRecategorisation(
+  thread?: {
+    categorySource: string | null;
+    categoryId: string | null;
+  } | null,
+): boolean {
   return (
-    thread.categorySource === LOCAL_CATEGORY_SOURCE &&
-    thread.categoryId == null &&
-    !!thread.localModelDebug?.categoryFallback
+    thread?.categorySource === LOCAL_CATEGORY_SOURCE && thread?.categoryId == null
   );
 }
 

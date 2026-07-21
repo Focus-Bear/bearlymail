@@ -111,7 +111,7 @@ const Settings: React.FC = () => {
   }, [settingsData.loading]);
 
   if (settingsData.loading) {
-    return <div>Loading...</div>;
+    return <div>{t('common.loading')}</div>;
   }
 
   return (

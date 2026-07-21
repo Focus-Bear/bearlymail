@@ -32,6 +32,12 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
   const [nextDelivery, setNextDelivery] = useState<Date | null>(null);
   const [lastUrgentCheck, setLastUrgentCheck] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Dedupes concurrent batch-status fetches. The localStorage cache below is
+  // only written AFTER the response resolves, so callers that race on initial
+  // load (init effect + mode/priority-filter re-fetch) would each miss the cache
+  // and fire their own request. Sharing the in-flight promise collapses them
+  // into a single network call.
+  const inFlightRef = useRef<Promise<void> | null>(null);
 
   // Load lastUrgentCheck from localStorage on mount
   useEffect(() => {
@@ -98,22 +104,37 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
       // Ignore cache errors
     }
 
-    try {
-      const response = await axios.get(`${API_URL}/emails/batch-status`, { signal });
-      const nextDeliveryDate = response.data.nextDelivery ? new Date(response.data.nextDelivery) : null;
-      setNextDelivery(nextDeliveryDate);
+    // A request is already in flight for this window — reuse it instead of
+    // firing a duplicate network call.
+    if (inFlightRef.current) {
+      return inFlightRef.current;
+    }
 
-      // Cache the result
-      const cacheEntry: CacheEntry = {
-        nextDelivery: response.data.nextDelivery,
-        timestamp: Date.now(),
-      };
-      localStorage.setItem(BATCH_STATUS_CACHE_KEY, JSON.stringify(cacheEntry));
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        return;
+    const request = (async () => {
+      try {
+        const response = await axios.get(`${API_URL}/emails/batch-status`, { signal });
+        const nextDeliveryDate = response.data.nextDelivery ? new Date(response.data.nextDelivery) : null;
+        setNextDelivery(nextDeliveryDate);
+
+        // Cache the result
+        const cacheEntry: CacheEntry = {
+          nextDelivery: response.data.nextDelivery,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(BATCH_STATUS_CACHE_KEY, JSON.stringify(cacheEntry));
+      } catch (error) {
+        if (axios.isCancel(error)) {
+          return;
+        }
+        console.error('Error fetching batch status:', error);
       }
-      console.error('Error fetching batch status:', error);
+    })();
+
+    inFlightRef.current = request;
+    try {
+      await request;
+    } finally {
+      inFlightRef.current = null;
     }
   }, []);
 

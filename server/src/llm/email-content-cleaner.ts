@@ -38,10 +38,11 @@ const SIGNATURE_PATTERNS = [
 // HTML tag patterns
 // Tempered greedy tokens ((?!close)[\s\S])* keep block-stripping linear (no
 // nested-quantifier backtracking, CWE-1333) while the `[^>]*` closing tag stays
-// robust against `</style foo>` / `</script >`.
+// robust against `</style foo>` / `</script >`. The `\b` word boundary avoids
+// mis-matching tags like `<styles>` / `<scripture>`.
 const HTML_PATTERNS = {
-  style: /<style[^>]*>(?:(?!<\/style)[\s\S])*<\/style[^>]*>/gi,
-  script: /<script[^>]*>(?:(?!<\/script)[\s\S])*<\/script[^>]*>/gi,
+  style: /<style\b[^>]*>(?:(?!<\/style)[\s\S])*<\/style\b[^>]*>/gi,
+  script: /<script\b[^>]*>(?:(?!<\/script)[\s\S])*<\/script\b[^>]*>/gi,
   tags: /<[^>]+>/g,
   entities: /&(nbsp|amp|lt|gt|quot|#\d+);/gi,
 };

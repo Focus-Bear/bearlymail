@@ -28,7 +28,7 @@ import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE, PARAM_CATEGORY_IDS } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
-import { useCategoryFamilyMap } from 'hooks/useCategoryFamilies';
+import { OTHER_FAMILY, useCategoryFamilyMap } from 'hooks/useCategoryFamilies';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 import { getCategoryKey } from 'hooks/useEmailFetching';
@@ -224,6 +224,8 @@ export interface InboxCategoryItemProps {
   convertingProtoCategoryId: string | null | undefined;
   deletingProtoCategoryId: string | null | undefined;
   mode: InboxMode;
+  /** Family name for the small card label (flat modes only); omitted when nesting. */
+  family?: string;
   onToggleCategory: (categoryKey: string) => void;
   onBulkArchive?: (emailIds: string[]) => Promise<void>;
   onConvertProtoCategory: (protoCategoryId: string, name: string) => Promise<void>;
@@ -248,6 +250,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   convertingProtoCategoryId,
   deletingProtoCategoryId,
   mode,
+  family,
   onToggleCategory,
   onBulkArchive,
   onConvertProtoCategory,
@@ -404,6 +407,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
         category={categoryName}
         categoryId={categoryItem.id}
         categoryKey={categoryKey}
+        family={family}
         emails={categoryEmails}
         count={isLoaded ? categoryEmails.length : categoryItem.count}
         isLoadingContent={isExpanded && !isLoaded}
@@ -592,6 +596,14 @@ next.add(family);
 
         // Two-level accordion bits. `family` is undefined when not grouping.
         const family = grouping.isGrouped ? grouping.familyByKey.get(categoryKey) : undefined;
+        // Flat modes (Triage/Action/Follow Up) show the family as a small label on
+        // the category card instead of a nested header. Sourced from the
+        // mode-independent family map; the synthetic "Other" family is suppressed.
+        const cardFamilyRaw = grouping.isGrouped
+          ? undefined
+          : familyByCategoryId.get(categoryItem.id ?? '');
+        const cardFamily =
+          cardFamilyRaw && cardFamilyRaw !== OTHER_FAMILY ? cardFamilyRaw : undefined;
         const isFamilyCollapsed = family !== undefined && collapsedFamilies.has(family);
         const familyHeader =
           family !== undefined && grouping.firstInFamily.has(categoryKey) ? (
@@ -652,6 +664,7 @@ next.add(family);
               convertingProtoCategoryId={convertingProtoCategoryId}
               deletingProtoCategoryId={deletingProtoCategoryId}
               mode={mode}
+              family={cardFamily}
               onToggleCategory={onToggleCategory}
               onBulkArchive={onBulkArchive}
               onConvertProtoCategory={onConvertProtoCategory}

@@ -152,6 +152,9 @@ export const LLM_OP_ASK_AI_EMAIL = "ask_ai_email";
 // call connected MCP tools (e.g. Google Drive) to answer a question
 export const LLM_OP_ASK_AI_AGENT = "ask_ai_agent";
 
+// Triage distraction tax: verify the spoken confession phrase to unlock lower-priority emails
+export const LLM_OP_VERIFY_DISTRACTION_PHRASE = "verify_distraction_phrase";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -208,6 +211,7 @@ export type LLMOperation =
   | typeof LLM_OP_DERIVE_MCP_SENDER_TOOL
   | typeof LLM_OP_ASK_AI_EMAIL
   | typeof LLM_OP_ASK_AI_AGENT
+  | typeof LLM_OP_VERIFY_DISTRACTION_PHRASE
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -263,5 +267,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_DERIVE_MCP_SENDER_TOOL]: "Derive MCP Sender Tool",
   [LLM_OP_ASK_AI_EMAIL]: "Ask AI (Email Assistant)",
   [LLM_OP_ASK_AI_AGENT]: "Ask AI (Agentic Assistant)",
+  [LLM_OP_VERIFY_DISTRACTION_PHRASE]: "Verify Distraction Phrase",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 
 import { NODE_ENV_VALUES } from "../constants/domain-types";
 import { captureGlobalError } from "../error-tracking/error-tracking-setup";
+import { sanitizeLogInput } from "./sanitize-log";
 
 /**
  * Enhanced logging utility that combines console logging with PostHog error tracking.
@@ -19,13 +20,21 @@ export function logError(
   error?: Error | unknown,
   context?: Record<string, unknown>,
 ): void {
-  // Always log to console
+  // Always log to console. Sanitize the message (may hold user-controlled
+  // data) to neutralise CR/LF log-injection (CWE-117); the Error object is
+  // rendered by console as a structured value, not a raw log line.
+  const safeMessage = sanitizeLogInput(message);
   if (error instanceof Error) {
-    console.error(message, error);
+    console.error(safeMessage, error);
   } else if (error) {
-    console.error(message, error);
+    // A non-Error extra value may be a raw string carrying user-controlled
+    // data; sanitize strings so appended CR/LF can't forge log lines (CWE-117).
+    console.error(
+      safeMessage,
+      typeof error === "string" ? sanitizeLogInput(error) : error,
+    );
   } else {
-    console.error(message);
+    console.error(safeMessage);
   }
 
   // Capture to PostHog if we have an Error object
@@ -64,11 +73,18 @@ export function logWarn(
   extraInfo?: unknown,
   context?: Record<string, unknown>,
 ): void {
-  // Always log to console
+  // Always log to console. Sanitize the message to neutralise CR/LF
+  // log-injection (CWE-117) since it may hold user-controlled data.
+  const safeMessage = sanitizeLogInput(message);
   if (extraInfo) {
-    console.warn(message, extraInfo);
+    // A string extraInfo may carry user-controlled data; sanitize it so
+    // appended CR/LF can't forge additional log lines (CWE-117).
+    console.warn(
+      safeMessage,
+      typeof extraInfo === "string" ? sanitizeLogInput(extraInfo) : extraInfo,
+    );
   } else {
-    console.warn(message);
+    console.warn(safeMessage);
   }
 
   // Capture warnings to PostHog as custom events (not exceptions)
@@ -116,7 +132,7 @@ export function createLogger(contextName: string) {
       context?: Record<string, unknown>,
     ) => {
       nestLogger.error(
-        message,
+        sanitizeLogInput(message),
         error instanceof Error ? error.stack : undefined,
       );
 
@@ -144,7 +160,7 @@ export function createLogger(contextName: string) {
       extraInfo?: unknown,
       context?: Record<string, unknown>,
     ) => {
-      nestLogger.warn(message);
+      nestLogger.warn(sanitizeLogInput(message));
 
       if (process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION) {
         const syntheticError = new Error(message);

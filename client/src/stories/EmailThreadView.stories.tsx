@@ -37,9 +37,9 @@ interface ThreadMsg {
 const MESSAGES: ThreadMsg[] = [
   {
     id: '1',
-    fromName: 'Niki Welz',
-    from: 'sam@example.com',
-    to: 'Hannah Badenhop, Wenn Lawson, jeremy@focusbear.io, Alicia Quinn',
+    fromName: 'Alex Morgan',
+    from: 'alex@example.com',
+    to: 'Jamie Chen, Sam Rivers, jeremy@focusbear.io, Taylor Brooks',
     timeAgo: '21 hours ago',
     body: 'Hello all,\n\nThank you for accepting our invitation to join the APAC 2027 Lived Experience Advisory Group. I know that this is all happening fast, and please engage only how you are comfortable doing so.',
     isCurrent: false,
@@ -47,9 +47,9 @@ const MESSAGES: ThreadMsg[] = [
   },
   {
     id: '2',
-    fromName: 'Wenn Lawson',
-    from: 'jordan@example.com',
-    to: 'Niki Welz, Hannah Badenhop, jeremy@focusbear.io, Alicia Quinn',
+    fromName: 'Sam Rivers',
+    from: 'sam@example.com',
+    to: 'Alex Morgan, Jamie Chen, jeremy@focusbear.io, Taylor Brooks',
     timeAgo: '14 hours ago',
     body: 'Wonderful to be included — count me in. Happy to contribute ideas over email if I can’t make a meeting.',
     isCurrent: false,
@@ -57,9 +57,9 @@ const MESSAGES: ThreadMsg[] = [
   },
   {
     id: '3',
-    fromName: 'Alicia Quinn (DPC)',
-    from: 'alicia.quinn@sa.gov.au',
-    to: 'Niki Welz, Hannah Badenhop, Wenn Lawson, jeremy@focusbear.io',
+    fromName: 'Taylor Brooks (DPC)',
+    from: 'taylor@example.com',
+    to: 'Alex Morgan, Jamie Chen, Sam Rivers, jeremy@focusbear.io',
     timeAgo: '2 hours ago',
     body: 'Thanks Niki. Looking forward to it.',
     isCurrent: true,

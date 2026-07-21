@@ -2,6 +2,7 @@ import './i18n'; // Initialize i18n
 import './App.css';
 
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import axios from 'axios';
@@ -52,19 +53,23 @@ interface OnboardingStatus {
   needsPrivacyAcceptance: boolean;
 }
 
-const PrivateRouteLoading: React.FC = () => (
-  <div
-    style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: theme.colors.background.default,
-    }}
-  >
-    Loading...
-  </div>
-);
+const PrivateRouteLoading: React.FC = () => {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: theme.colors.background.default,
+      }}
+    >
+      {t('common.loading')}
+    </div>
+  );
+};
 
 interface PrivateRouteContentProps {
   children: React.ReactNode;

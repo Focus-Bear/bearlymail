@@ -43,8 +43,10 @@ if (!QA_EMAIL || !QA_PASSWORD) {
 async function loginAsQA(page: Page): Promise<void> {
   const loginPage = new LoginPage(page);
   await loginPage.goto('/login');
+  // LoginPage.login() lands on /inbox AND clears the Triage "distraction tax"
+  // gate (the shared dismissDistractionGate chokepoint), so the gate cannot
+  // overlay the post-login /inbox before we navigate to /settings.
   await loginPage.login(QA_EMAIL, QA_PASSWORD);
-  // LoginPage.login already waits for /inbox navigation
 }
 
 /**

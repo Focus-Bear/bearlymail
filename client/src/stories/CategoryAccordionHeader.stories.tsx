@@ -30,16 +30,18 @@ const Wrap: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </I18nextProvider>
 );
 
-const StatefulAccordion: React.FC<{ category: string; count: number; other?: boolean }> = ({
-  category,
-  count,
-  other,
-}) => {
+const StatefulAccordion: React.FC<{
+  category: string;
+  count: number;
+  other?: boolean;
+  family?: string;
+}> = ({ category, count, other, family }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   return (
     <CategoryAccordion
       category={category}
       categoryId={other ? null : 'story-category-id'}
+      family={family}
       emails={[] as Email[]}
       count={count}
       isExpanded={isExpanded}
@@ -57,6 +59,15 @@ export const RealCategoryWithCog = {
   render: () => (
     <Wrap>
       <StatefulAccordion category="GitHub Notifications" count={12} />
+    </Wrap>
+  ),
+};
+
+export const WithFamilyLabel = {
+  name: 'Flat mode — family shown as a small label on the card',
+  render: () => (
+    <Wrap>
+      <StatefulAccordion category="New Human-Created GitHub Issues" count={32} family="GitHub / Issues" />
     </Wrap>
   ),
 };

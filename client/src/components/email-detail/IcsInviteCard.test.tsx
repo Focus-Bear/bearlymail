@@ -302,7 +302,7 @@ describe('IcsInviteCard — error handling (#1116)', () => {
         startAt: '2026-07-16T00:00:00.000Z',
         endAt: '2026-07-16T00:30:00.000Z',
         allDay: false,
-        attendees: [{ email: 'casey@example.com', name: 'Summer Petrosius' }],
+        attendees: [{ email: 'jordan@example.com', name: 'Jordan Lee' }],
         isRecurring: false,
         method: 'COUNTER',
       },

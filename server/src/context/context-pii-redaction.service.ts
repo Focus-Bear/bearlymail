@@ -26,9 +26,11 @@ export class ContextPiiRedactionService {
 
     // Replace identified names with [Name] placeholder
     for (const name of namesToRedact) {
-      // Use word boundaries to avoid partial matches
-      // nosemgrep
-      const nameRegex = new RegExp(`\\b${name}\\b`, "g");
+      // Use word boundaries to avoid partial matches. Escape the name first: it is
+      // derived from email content, so unescaped regex metacharacters would be a
+      // regex-injection / ReDoS vector (CWE-1333).
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const nameRegex = new RegExp(`\\b${escapedName}\\b`, "g");
       redacted = redacted.replace(nameRegex, "[Name]");
     }
 

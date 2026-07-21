@@ -63,7 +63,7 @@ describe("localModelDecisionTrace", () => {
     expect(trace.finalCategoryId).toBeNull();
     expect(trace.steps[0].category).toBeNull();
     expect(trace.steps[0].detail).toContain(
-      "re-categorised from the thread summary",
+      "awaiting re-categorisation from the thread summary",
     );
     expect(trace.steps[0].detail).not.toContain("matched no user category");
   });

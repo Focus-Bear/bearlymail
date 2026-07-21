@@ -310,7 +310,10 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
           style={{
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.md,
-            border: `1px solid ${theme.colors.border.light}`,
+            // Use the medium (not light) border token so the action row reads as
+            // distinct app UI even when the email above renders on a tinted
+            // background (e.g. GitHub notification emails on a cream/peach bg).
+            border: `1px solid ${theme.colors.border.medium}`,
             padding: theme.spacing.md,
             display: 'flex',
             flexDirection: 'column',

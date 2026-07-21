@@ -92,7 +92,7 @@ export const ContactSearchDebugSection: React.FC = () => {
             type="email"
             value={targetEmail}
             onChange={event => setTargetEmail(event.target.value)}
-            placeholder="e.g. alex@example.com"
+            placeholder="e.g. casey@example.com"
             style={inputStyle}
             autoComplete="off"
           />

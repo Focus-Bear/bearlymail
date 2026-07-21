@@ -52,6 +52,7 @@ import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { getJobPriority } from "../queue/job-priorities";
+import { sanitizeLogInput } from "../utils/sanitize-log";
 import { EmailAdminService } from "./email-admin.service";
 import {
   BatchStatusPerformanceTracker,
@@ -635,7 +636,7 @@ export class EmailsController {
       !Array.isArray(email.attachments)
     ) {
       console.warn(
-        `[getEmail] email ${id} has non-array attachments (type=${typeof email.attachments}). Normalising to null.`,
+        `[getEmail] email ${sanitizeLogInput(id)} has non-array attachments (type=${typeof email.attachments}). Normalising to null.`,
       );
       (email as unknown as Record<string, unknown>).attachments = null;
     }

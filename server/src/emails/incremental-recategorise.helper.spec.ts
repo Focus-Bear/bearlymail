@@ -302,22 +302,16 @@ describe("threadNeedsLocalModelRecategorisation", () => {
   const base = {
     categorySource: "local" as string | null,
     categoryId: null as string | null,
-    localModelDebug: { categoryFallback: true } as {
-      categoryFallback?: boolean;
-    } | null,
   };
 
   it("is true for a local 'Other' thread whose category head was unconfident", () => {
     expect(threadNeedsLocalModelRecategorisation(base)).toBe(true);
   });
 
-  it("is false when the category head was confident (genuine Other)", () => {
-    expect(
-      threadNeedsLocalModelRecategorisation({
-        ...base,
-        localModelDebug: { categoryFallback: false },
-      }),
-    ).toBe(false);
+  it("is true when the category head was confident but matched no user category", () => {
+    // A confident local 'Other' now defers to the summary LLM instead of
+    // parking permanently.
+    expect(threadNeedsLocalModelRecategorisation(base)).toBe(true);
   });
 
   it("is false once a real category has been resolved", () => {
@@ -335,9 +329,8 @@ describe("threadNeedsLocalModelRecategorisation", () => {
     ).toBe(false);
   });
 
-  it("is false when there is no local-model debug snapshot", () => {
-    expect(
-      threadNeedsLocalModelRecategorisation({ ...base, localModelDebug: null }),
-    ).toBe(false);
+  it("is false (not throwing) for a null or undefined thread", () => {
+    expect(threadNeedsLocalModelRecategorisation(null)).toBe(false);
+    expect(threadNeedsLocalModelRecategorisation(undefined)).toBe(false);
   });
 });

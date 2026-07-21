@@ -360,6 +360,9 @@ export class LLMProcessor implements OnModuleInit {
       threadInfo: replyStatus,
       preComputedSentimentScore: email.sentimentScore ?? undefined,
       userTimezone,
+      // A rule match pins the category (applied below, overriding the LLM), so the
+      // prompt can skip the category list + shortlist entirely for these emails.
+      categoryPreAssigned: !!categoryRuleMatch,
     });
     // Apply the rule match (overriding the LLM category) and attach the trace
     // snapshot so the category-debug view can show the ORIGINAL outcome (rule

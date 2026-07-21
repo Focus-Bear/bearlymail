@@ -88,8 +88,8 @@ describe('orderCategoriesByFamily', () => {
 });
 
 describe('familyGroupingAppliesTo', () => {
-  it('keeps family grouping in triage', () => {
-    expect(familyGroupingAppliesTo(MODE_TRIAGE)).toBe(true);
+  it('disables nested family grouping in Triage (now a flat, category-sorted list)', () => {
+    expect(familyGroupingAppliesTo(MODE_TRIAGE)).toBe(false);
   });
 
   it('disables family grouping in the strict-score working tabs', () => {

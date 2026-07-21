@@ -1,6 +1,8 @@
 import { Logger } from "@nestjs/common";
 import { PostHog } from "posthog-node";
 
+import { sanitizeLogInput } from "../utils/sanitize-log";
+
 let posthogClient: PostHog | null = null;
 const logger = new Logger("ErrorTrackingSetup");
 
@@ -73,12 +75,14 @@ export function captureGlobalError(
     // was a high-volume source of CloudWatch noise. Failures are still logged below.
   } catch (captureError) {
     logger.error("Failed to capture global error to PostHog", captureError);
-    // nosemgrep
+    // Keep the user-influenced error text out of the format-string position so a
+    // '%s' in error.message can't be interpreted as a substitution (CWE-134).
     console.error(
-      `POSTHOG: Failed to capture global error "${error.name}: ${error.message}":`,
+      "POSTHOG: Failed to capture global error %s:",
+      `${sanitizeLogInput(error.name)}: ${sanitizeLogInput(error.message)}`,
       captureError instanceof Error
-        ? captureError.message
-        : String(captureError),
+        ? sanitizeLogInput(captureError.message)
+        : sanitizeLogInput(captureError),
     );
   }
 }

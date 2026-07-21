@@ -1,6 +1,6 @@
 import { InboxMode } from 'types/email';
 
-import { MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
+import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { OTHER_FAMILY } from 'hooks/useCategoryFamilies';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
@@ -89,11 +89,14 @@ firstInFamily.add(key);
 }
 
 /**
- * Family grouping applies only to the browsing tab (Triage). Action and Follow Up
- * are working queues that promise strict top-score-descending order — a family
- * block would drag its lower-priority categories above other families' higher
- * ones (the block sits at its highest category's position).
+ * Triage, Action and Follow Up all present a flat, strict top-score-descending
+ * list of categories — the family is shown as a small label on each category card
+ * instead of a nested two-level accordion. (Nested family blocks would drag a
+ * family's lower-priority categories above other families' higher ones, since the
+ * block sits at its highest category's position.)
  */
 export function familyGroupingAppliesTo(mode: InboxMode): boolean {
-  return mode !== MODE_ACTION && mode !== MODE_FOLLOW_UP;
+  return (
+    mode !== MODE_ACTION && mode !== MODE_FOLLOW_UP && mode !== MODE_TRIAGE
+  );
 }

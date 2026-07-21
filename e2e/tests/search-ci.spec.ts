@@ -33,7 +33,7 @@ test.describe('Search CI — seeded data', () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto('/login');
     await loginPage.login(TEST_EMAIL, TEST_PASSWORD);
-    await page.waitForURL('**/inbox', { timeout: 15000 });
+    await page.waitForURL('**/inbox**', { timeout: 15000 });
 
     searchPage = new SearchPage(page);
     await searchPage.goto();

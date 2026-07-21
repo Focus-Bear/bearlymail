@@ -58,9 +58,10 @@ interface LocalModelStepPrediction {
   priorityBand: string;
 }
 
-/** The `detail` line for the local-model step, covering the resolved category,
- * the confident-"Other" dead end, and the unconfident-awaiting-re-categorisation
- * cases (split out to keep {@link localModelDecisionTrace} free of nesting). */
+/** The `detail` line for the local-model step, covering the resolved category
+ * and the two unresolved-category cases (confident-no-match and unconfident),
+ * both of which now await summary re-categorisation rather than dead-ending in
+ * "Other" (split out to keep {@link localModelDecisionTrace} free of nesting). */
 function localModelStepDetail(
   prediction: LocalModelStepPrediction,
   categoryResolved: boolean,
@@ -71,20 +72,19 @@ function localModelStepDetail(
     )}%), family "${prediction.family}", priority band "${prediction.priorityBand}".`;
   }
   if (prediction.categoryFallback) {
-    return `Local model applied priority band "${prediction.priorityBand}" (confident); category uncertain — thread stays in "Other" until re-categorised from the thread summary.`;
+    return `Local model applied priority band "${prediction.priorityBand}" (confident); category uncertain — awaiting re-categorisation from the thread summary.`;
   }
-  return `Local model applied priority band "${prediction.priorityBand}" (confident); category "${prediction.category}" (family "${prediction.family}") matched no user category — thread stays in "Other".`;
+  return `Local model applied priority band "${prediction.priorityBand}" (confident); category "${prediction.category}" (family "${prediction.family}") matched no user category — awaiting re-categorisation from the thread summary.`;
 }
 
 /** Trace for the confident local-model promotion path: model pick wins.
  *
- * `finalCategoryId` may be null in two cases, distinguished by
- * `prediction.categoryFallback`:
- * - confident category that maps to no real user category (a genuine "Other"):
- *   priority lands and the thread stays in "Other" permanently.
- * - UNconfident category (`categoryFallback=true`): priority lands and the
- *   thread sits in "Other" only until the background summary triggers the cheap
- *   `categorise_summary` re-categorisation. */
+ * `finalCategoryId` may be null in two cases (both distinguished for the trace
+ * by `prediction.categoryFallback`, but treated the same downstream):
+ * - confident category that maps to no real user category, or
+ * - UNconfident category (`categoryFallback=true`).
+ * In both, priority lands and the thread sits in "Other" only until the
+ * background summary triggers the cheap `categorise_summary` re-categorisation. */
 export function localModelDecisionTrace(args: {
   decidedAt: string;
   prediction: {

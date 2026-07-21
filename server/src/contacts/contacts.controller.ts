@@ -34,12 +34,17 @@ export class ContactsController {
     @Query("q") query: string,
     @Query("limit") limit?: string,
   ): Promise<ContactSearchResult[]> {
+    // A repeated query param (?q=a&q=b) arrives as an array; coerce to a single
+    // string so downstream length checks and the blind-index hash can't be fed
+    // an array (type confusion, CWE-843).
+    const rawQuery = Array.isArray(query) ? query[0] : query;
+    const searchQuery = typeof rawQuery === "string" ? rawQuery : "";
     const maxLimit = limit
       ? Math.min(parseInt(limit, 10), QUERY_LIMITS.CONTACTS_SEARCH_LIMIT)
       : QUERY_LIMITS.CONTACTS_PAGE_SIZE;
     return this.contactsService.searchContacts(
       req.user.userId,
-      query || "",
+      searchQuery,
       maxLimit,
     );
   }

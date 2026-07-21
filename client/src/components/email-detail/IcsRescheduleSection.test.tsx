@@ -39,8 +39,8 @@ function makeInfo(overrides: Partial<IcsInfoResponse> = {}): IcsInfoResponse {
       allDay: false,
       attendees: [
         {
-          email: 'casey@example.com',
-          name: 'Summer Petrosius',
+          email: 'jordan@example.com',
+          name: 'Jordan Lee',
           comment: "Sorry! I've woken up with a bad head cold and no voice",
         },
       ],
@@ -68,7 +68,7 @@ describe('IcsRescheduleSection', () => {
       <IcsRescheduleSection emailId="email-1" attachmentId="att-1" info={makeInfo()} onResolved={vi.fn()} />
     );
 
-    expect(screen.getByText('emailDetail.icsInvite.reschedule.proposedBy:Summer Petrosius')).toBeInTheDocument();
+    expect(screen.getByText('emailDetail.icsInvite.reschedule.proposedBy:Jordan Lee')).toBeInTheDocument();
     expect(
       screen.getByText("“Sorry! I've woken up with a bad head cold and no voice”")
     ).toBeInTheDocument();

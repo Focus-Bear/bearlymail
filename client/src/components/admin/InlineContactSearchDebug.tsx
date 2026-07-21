@@ -109,7 +109,7 @@ export const InlineContactSearchDebug: React.FC<InlineContactSearchDebugProps> =
                 type="email"
                 value={targetEmail}
                 onChange={event => setTargetEmail(event.target.value)}
-                placeholder="e.g. alex@example.com"
+                placeholder="e.g. casey@example.com"
                 style={{
                   width: '100%',
                   padding: theme.spacing.sm,

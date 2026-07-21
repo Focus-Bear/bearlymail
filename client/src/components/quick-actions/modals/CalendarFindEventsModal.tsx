@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { getAxiosErrorMessage } from 'utils/errors';
@@ -25,6 +26,7 @@ interface CalendarFindEventsModalProps {
 }
 
 export const CalendarFindEventsModal: React.FC<CalendarFindEventsModalProps> = ({ attendeeEmail, onClose }) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -76,7 +78,7 @@ export const CalendarFindEventsModal: React.FC<CalendarFindEventsModalProps> = (
                 marginRight: theme.spacing.sm,
               }}
             />
-            Loading events...
+            {t('quickActions.calendar.loadingEvents')}
           </div>
         )}
         {error && (

@@ -55,6 +55,7 @@ import { SnoozeModule } from "./snooze/snooze.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
 import { SuggestedActionsModule } from "./suggested-actions/suggested-actions.module";
 import { SummarizationModule } from "./summarization/summarization.module";
+import { TriageModule } from "./triage/triage.module";
 import { UsersModule } from "./users/users.module";
 import { WaitlistModule } from "./waitlist/waitlist.module";
 import { WorkflowsModule } from "./workflows/workflows.module";
@@ -171,6 +172,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     ProtoCategoriesModule,
     WorkflowsModule,
     CategoryWorkflowsModule,
+    TriageModule,
     MCPModule,
     AskAiModule,
     SeedTestDataModule,

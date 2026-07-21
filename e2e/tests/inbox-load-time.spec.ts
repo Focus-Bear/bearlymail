@@ -1,8 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Response } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import { InboxPage } from '../pages/InboxPage';
 import { PriorityTooltip } from '../pages/PriorityTooltip';
 import { NetworkTracker } from '../utils/NetworkTracker';
+import { dismissDistractionGate } from '../utils/distractionGate';
 import { API_BASE, TEST_EMAIL, TEST_PASSWORD } from '../utils/config';
 
 // API_URL removed — use shared API_BASE from config (was :3005, correct port is :3001)
@@ -10,8 +11,10 @@ const TEST_NAME = process.env.TEST_NAME || 'Test User';
 
 test.describe('Inbox Load Performance', () => {
   test('inbox should load in under 2 seconds and track network requests', async ({ page }) => {
-    test.setTimeout(15000); // 15 second timeout for the full login → inbox API flow
-    
+    // Bumped from 15s: login dismisses the distraction gate, then we reload and
+    // dismiss it a second time (two 30-tap taxes) before the measured window.
+    test.setTimeout(45000);
+
     // Setup network tracking BEFORE navigation
     const networkTracker = new NetworkTracker(page, [
       API_BASE,
@@ -30,41 +33,84 @@ test.describe('Inbox Load Performance', () => {
       throw new Error(`Failed to navigate to login page. Make sure the app is running on ${process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'}. Error: ${error}`);
     }
 
-    // Register response listeners BEFORE login so we don't miss fast responses.
-    // The inbox API calls fire immediately on redirect — setting these up after
-    // waitForURL('**/inbox') means the responses have already arrived and are missed.
-    //
-    // NOTE: In CI the test user has no Gmail account connected, so /emails/inbox
-    // returns a 401 (GmailRequiredGuard). We capture ANY response from these
-    // endpoints (regardless of status) so the promise resolves and we can inspect
-    // the status before deciding whether to measure performance or skip.
-    const inboxResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/emails/inbox') && !response.url().includes('/emails/inbox-summary'),
-      { timeout: 20000 }
-    );
-    const inboxSummaryResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/emails/inbox-summary'),
-      { timeout: 20000 }
-    ).catch(() => null); // inbox-summary may not fire if Gmail guard blocks first
-    const batchStatusResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/emails/batch-status'),
-      { timeout: 20000 }
-    ).catch(() => null); // batch-status may not fire if Gmail guard blocks first
-
-    // Login — triggers redirect to /inbox which fires the API calls we're watching
+    // Login — LoginPage.login() authenticates, lands on /inbox, and dismisses the
+    // Triage distraction gate (its shared chokepoint). We deliberately do NOT
+    // measure this first, auth-redirect-laden load; we reload below for a clean,
+    // representative steady-state inbox render.
     try {
       await loginPage.login(TEST_EMAIL, TEST_PASSWORD);
     } catch (error: any) {
       throw new Error(`Login failed. Make sure the test user exists and is approved. Run 'cd server && npm run seed:test-user' to create the test user. Error: ${error.message}`);
     }
+    await page.waitForURL('**/inbox**', { timeout: 10000 });
 
-    // Navigate to inbox and measure load time
     const inboxPage = new InboxPage(page);
-    
-    // Wait for URL to be /inbox - fail fast
-    await page.waitForURL('**/inbox', { timeout: 10000 });
-    
-    // Wait for the inbox API call to complete (any status)
+
+    // ── Clean steady-state measurement ───────────────────────────────────────
+    //
+    // The distraction gate is part of every fresh inbox render for the seed user
+    // (it has Action/Follow-Up work) and RE-LOCKS on reload. A gated inbox load
+    // fires /emails/inbox TWICE by design: once at the High-priority floor while
+    // gated, then again for all tiers when the tax is paid (Inbox.tsx
+    // completeUnlock → fetchEmails + fetchPriorityCounts). So the "≤1 call" guards
+    // can no longer be asserted over the whole load without weakening them.
+    //
+    // To keep the guards meaningful we reload for a fresh render, then:
+    //   • capture the gated-phase batch-status / consent-status counts (the gate
+    //     does NOT add these — they must still fire ≤1), and
+    //   • reset the tracker + start the timer right before the final unlock tap,
+    //     so /emails/inbox and the <2s load time are measured only for the real
+    //     post-unlock steady-state load (the gate is excluded from the window).
+    networkTracker.reset();
+    await page.reload();
+
+    // Filled in by the onBeforeFinalTap hook, which fires between the last taxing
+    // tap and the unlock tap that triggers the post-unlock inbox fetch. Held in an
+    // object so the hook's assignments are observed by the outer scope (a closure-
+    // assigned `let` would keep its initializer type here).
+    const measurement: {
+      inboxResponsePromise: Promise<Response> | null;
+      startTime: number;
+      gatedBatchStatusCount: number;
+      gatedConsentStatusCount: number;
+      gatedUserMeCount: number;
+    } = {
+      inboxResponsePromise: null,
+      startTime: 0,
+      gatedBatchStatusCount: 0,
+      gatedConsentStatusCount: 0,
+      gatedUserMeCount: 0,
+    };
+
+    await dismissDistractionGate(page, {
+      onBeforeFinalTap: () => {
+        // Gated-phase requests fired while the gate was up — capture BEFORE the
+        // reset so their ≤1 guards remain meaningful.
+        measurement.gatedBatchStatusCount = networkTracker.getRequestsByPattern('batch-status').length;
+        measurement.gatedConsentStatusCount = networkTracker.getRequestsByPattern('consent-status').length;
+        measurement.gatedUserMeCount = networkTracker.getRequestsByPattern('/users/me').concat(
+          networkTracker.getRequestsByPattern('/me'),
+        ).length;
+        // Listen for the POST-UNLOCK inbox fetch (all tiers → returns the full
+        // seeded inbox incl. canaries, regardless of the gated priority floor).
+        measurement.inboxResponsePromise = page.waitForResponse(
+          (response) => response.url().includes('/emails/inbox') && !response.url().includes('/emails/inbox-summary'),
+          { timeout: 20000 },
+        );
+        // Reset so the measured window contains ONLY the post-unlock load.
+        networkTracker.reset();
+        measurement.startTime = Date.now();
+      },
+    });
+
+    // The final tap fired the post-unlock inbox fetch — await + validate it.
+    const inboxResponsePromise = measurement.inboxResponsePromise;
+    if (!inboxResponsePromise) {
+      throw new Error(
+        'Distraction gate never appeared on reload — the seed user must have Action/Follow-Up work so the gate (and its post-unlock inbox fetch) render. ' +
+          'Ensure `npm run seed:test-user` seeded the action + follow-up canaries.',
+      );
+    }
     const inboxResponse = await inboxResponsePromise;
 
     if (inboxResponse.status() !== 200) {
@@ -84,37 +130,26 @@ test.describe('Inbox Load Performance', () => {
       throw new Error('/emails/inbox returned 0 emails — test user seed is missing email data. Run \'npm run seed:test-user\' to seed emails.');
     }
 
-    // Wait for ALL data-fetching API calls (inbox, inbox-summary, batch-status)
-    // BEFORE starting the timer so their full network time is excluded from the
-    // render-time measurement. The 2000ms threshold measures only client-side
-    // render latency after all API data has arrived.
-    // The single /emails/inbox call (inboxResponse) has already resolved above.
-    // We only wait for inbox-summary and batch-status to complete.
-    await Promise.all([
-      batchStatusResponsePromise,
-      inboxSummaryResponsePromise,
-    ]);
-
-    // Start the performance timer HERE - after inbox, inbox-summary, AND batch-status
-    // responses have all been received. Only client-side render time is measured.
-    const startTime = Date.now();
-    
-    // Wait for inbox content to render (this should be fast after API calls complete)
+    // Wait for inbox content to render after the post-unlock fetch (fast once the
+    // gate is gone and the all-tiers data has arrived).
     await inboxPage.waitForInboxToLoad(5000);
-    
-    const loadTime = Date.now() - startTime;
+    const loadTime = Date.now() - measurement.startTime;
 
-    // Get network requests BEFORE assertion so we can see them even if test fails
+    // Get network requests BEFORE assertion so we can see them even if test fails.
+    // This window covers ONLY the post-unlock steady-state load (tracker was reset
+    // just before the final unlock tap).
     const networkRequests = networkTracker.getRequests();
-    // 2000ms threshold — single-page bypass (fetchAllEmailsInOnePage) eliminates
-    // per-category accordion fetches so render completes well under this budget.
+    // 2000ms threshold — measured from the final unlock tap (gate dismissed) to
+    // the inbox rendering the post-unlock (all-tiers) result. The gate friction
+    // itself is NOT part of this window; this is the inbox's real steady-state
+    // render latency.
     const loadThreshold = 2000;
 
     // Log the results (do this before assertion so we see it even on failure)
     console.log(`\n📊 Inbox Load Performance Results:`);
     console.log(`⏱️  Load Time: ${loadTime}ms (${(loadTime / 1000).toFixed(2)}s)`);
     console.log(`✅ Load time is ${loadTime < loadThreshold ? 'UNDER' : 'OVER'} ${loadThreshold}ms threshold`);
-    console.log(`\n🌐 Network Requests (${networkRequests.length} total):\n`);
+    console.log(`\n🌐 Network Requests (${networkRequests.length} total in post-unlock window):\n`);
 
     // Display all requests
     networkRequests.forEach((req, index) => {
@@ -128,38 +163,42 @@ test.describe('Inbox Load Performance', () => {
     // Log summary
     networkTracker.logSummary();
 
-    // Check for specific problematic endpoints
-    const consentStatusCalls = networkTracker.getRequestsByPattern('consent-status');
+    // consent-status / batch-status / users-me are gate-independent and fire in
+    // the gated phase, so they are counted from BEFORE the reset (captured in the
+    // hook). /emails/inbox is measured over the post-unlock window and must fire
+    // exactly once for the steady-state load.
+    const consentStatusCalls = measurement.gatedConsentStatusCount;
     // Use '/emails/inbox?' to match only the inbox page endpoint, not inbox-summary
-    const inboxCalls = networkTracker.getRequestsByPattern('/emails/inbox?');
-    const batchStatusCalls = networkTracker.getRequestsByPattern('batch-status');
-    const userMeCalls = networkTracker.getRequestsByPattern('/users/me').concat(
-      networkTracker.getRequestsByPattern('/me')
-    );
+    const inboxCalls = networkTracker.getRequestsByPattern('/emails/inbox?').length;
+    const batchStatusCalls = measurement.gatedBatchStatusCount;
+    const userMeCalls = measurement.gatedUserMeCount;
 
-    if (consentStatusCalls.length > 1) {
-      console.log(`\n⚠️  consent-status called ${consentStatusCalls.length} times (should be 1)`);
+    if (consentStatusCalls > 1) {
+      console.log(`\n⚠️  consent-status called ${consentStatusCalls} times (should be 1)`);
     }
-    if (inboxCalls.length > 1) {
-      console.log(`\n⚠️  inbox endpoint called ${inboxCalls.length} times (should be 1)`);
+    if (inboxCalls > 1) {
+      console.log(`\n⚠️  inbox endpoint called ${inboxCalls} times in the post-unlock window (should be 1)`);
     }
-    if (batchStatusCalls.length > 1) {
-      console.log(`\n⚠️  batch-status called ${batchStatusCalls.length} times (should be 1)`);
+    if (batchStatusCalls > 1) {
+      console.log(`\n⚠️  batch-status called ${batchStatusCalls} times (should be 1)`);
     }
-    if (userMeCalls.length > 1) {
-      console.log(`\n⚠️  /users/me called ${userMeCalls.length} times (should be 1)`);
+    if (userMeCalls > 1) {
+      console.log(`\n⚠️  /users/me called ${userMeCalls} times (should be 1)`);
     }
 
     expect(loadTime).toBeLessThan(loadThreshold);
 
     // Assert no duplicates for critical endpoints
-    expect(consentStatusCalls.length).toBeLessThanOrEqual(1);
-    expect(inboxCalls.length).toBeLessThanOrEqual(1);
-    expect(batchStatusCalls.length).toBeLessThanOrEqual(1);
+    expect(consentStatusCalls).toBeLessThanOrEqual(1);
+    expect(inboxCalls).toBeLessThanOrEqual(1);
+    expect(batchStatusCalls).toBeLessThanOrEqual(1);
   });
 
   test('priority popup should load quickly and display correct breakdown', async ({ page }) => {
-    test.setTimeout(10000); // 10 second timeout - should fail fast if things aren't working
+    // Bumped from 10s: LoginPage.login() now also pays the 30-tap distraction-gate
+    // tax before the inbox is interactive, so the badge click is no longer
+    // intercepted by the gate overlay.
+    test.setTimeout(30000);
 
     // Setup network tracking for priority explanation BEFORE navigation
     const networkTracker = new NetworkTracker(page, ['priority-explanation']);

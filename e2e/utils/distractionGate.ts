@@ -23,12 +23,13 @@ export interface DismissDistractionGateOptions {
 /**
  * Dismiss the Triage "distraction tax" gate when it is present.
  *
- * This branch adds a full-screen entry gate (data-testid `triage-entry-gate`)
- * plus a friction modal that overlays the inbox whenever the account has
- * unfinished Action/Follow-Up work; its overlay intercepts all pointer events,
- * so any inbox interaction is blocked until it is dismissed. It also RE-LOCKS
- * whenever the user leaves Triage and returns — so call this after every
- * (re)entry to the inbox before interacting with the list.
+ * This branch adds an entry gate (data-testid `triage-entry-gate`) plus a
+ * friction exercise (data-testid `distraction-friction`) that render INLINE in
+ * place of the Triage email list whenever the account has unfinished
+ * Action/Follow-Up work; the list is not rendered until the gate is paid, so it
+ * must be dismissed before interacting with the list. It also RE-LOCKS whenever
+ * the user leaves Triage and returns — so call this after every (re)entry to the
+ * inbox before interacting with the list.
  *
  * No-op when the gate never appears (accounts with no pending work never see it).
  */

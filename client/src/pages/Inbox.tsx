@@ -138,6 +138,8 @@ const InboxView: React.FC = () => {
   // "Distraction tax": when the user has unfinished work, gate lower-priority
   // Triage emails behind a deliberate unlock exercise (session-scoped).
   const distraction = useDistractionFriction({ mode, tabCounts });
+  // Conversations already waiting in Action + Follow-Up, shown in the gate copy.
+  const existingWorkCount = (tabCounts?.action ?? 0) + (tabCounts?.followUp ?? 0);
 
   // Apply a progressive-tier unlock: move the priority floor down and refetch.
   // Shared by the normal unlock path and the friction-modal completion path.
@@ -426,6 +428,31 @@ const InboxView: React.FC = () => {
             totalCount={gateTotalCount}
             onDismiss={dismissGate}
           />
+        ) : distraction.isPreScreenOpen ? (
+          // Distraction-tax pre-screen, rendered INLINE in place of the Triage
+          // list so the tabs/filters above stay switchable and the list can't peek.
+          <TriageEntryGate
+            existingWorkCount={existingWorkCount}
+            onSearch={() => navigate(ROUTE_SEARCH)}
+            onProceed={distraction.proceedFromPreScreen}
+          />
+        ) : distraction.isModalOpen ? (
+          // Distraction-tax unlock exercise, also rendered inline in place of the list.
+          <DistractionFrictionModal
+            existingWorkCount={existingWorkCount}
+            onUnlock={() => {
+              const target = distraction.completeUnlock();
+              if (target) {
+                applyPriorityUnlock(target.minPriority, target.maxPriority);
+              } else {
+                // Pre-screen path: no deferred tier, so reveal the whole inbox.
+                clearFilters();
+                fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
+                fetchPriorityCounts();
+              }
+            }}
+            onDismiss={distraction.dismissModal}
+          />
         ) : (
           <>
             {user && <SyncWindowBanner userId={user.id} syncWindowLimited={user.syncWindowLimited} />}
@@ -543,30 +570,6 @@ const InboxView: React.FC = () => {
         <SuggestArchiveWorkflowModal
           suggestion={archiveSuggestion}
           onClose={() => setArchiveSuggestion(null)}
-        />
-      )}
-      {distraction.isPreScreenOpen && (
-        <TriageEntryGate
-          existingWorkCount={(tabCounts?.action ?? 0) + (tabCounts?.followUp ?? 0)}
-          onSearch={() => navigate(ROUTE_SEARCH)}
-          onProceed={distraction.proceedFromPreScreen}
-        />
-      )}
-      {distraction.isModalOpen && (
-        <DistractionFrictionModal
-          existingWorkCount={(tabCounts?.action ?? 0) + (tabCounts?.followUp ?? 0)}
-          onUnlock={() => {
-            const target = distraction.completeUnlock();
-            if (target) {
-              applyPriorityUnlock(target.minPriority, target.maxPriority);
-            } else {
-              // Pre-screen path: no deferred tier, so reveal the whole inbox.
-              clearFilters();
-              fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
-              fetchPriorityCounts();
-            }
-          }}
-          onDismiss={distraction.dismissModal}
         />
       )}
     </div>

@@ -30,16 +30,16 @@ export interface UseDistractionFrictionResult {
   floor: number;
   /** True once the user has paid the tax this Triage session. */
   isUnlocked: boolean;
-  /** Whether the friction modal is currently shown. */
+  /** Whether the friction unlock exercise is currently shown (inline, in place of the list). */
   isModalOpen: boolean;
   /**
-   * Whether the full-screen entry gate (pre-screen) should be shown. It appears
-   * before the friction modal whenever the gate is active and the user has not
-   * yet chosen to proceed from it this session.
+   * Whether the entry gate (pre-screen) should be shown. It appears before the
+   * friction exercise whenever the gate is active and the user has not yet chosen
+   * to proceed from it this session. Both render inline in place of the Triage list.
    */
   isPreScreenOpen: boolean;
   /**
-   * Advance from the pre-screen to the friction modal. Opens the modal with NO
+   * Advance from the pre-screen to the friction exercise. Opens it with NO
    * deferred tier target, so completing the exercise reveals the whole inbox
    * rather than a single tier.
    */

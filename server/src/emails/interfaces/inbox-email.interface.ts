@@ -1,4 +1,5 @@
 import { Email } from "../../database/entities/email.entity";
+import { CategorizationSourceKind } from "../category-source.helper";
 
 /**
  * Represents an email row returned by runInboxQuery — a joined projection
@@ -19,6 +20,8 @@ export interface InboxEmail extends Email {
   category: string | null;
   categoryExplanation: string | null;
   categoryId: string | null;
+  /** Which process assigned the category, for the everyday "Categorised by" line. */
+  categorizationSource: CategorizationSourceKind | null;
   protoCategoryName: string | null;
   protoCategoryDescription: string | null;
   // Correspondent fields from lateral join

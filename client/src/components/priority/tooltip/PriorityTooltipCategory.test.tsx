@@ -142,6 +142,16 @@ describe('PriorityTooltipCategory', () => {
     );
   });
 
+  it('renders the "Categorised by" line when a categorisationSource is provided', () => {
+    renderWithRouter(<PriorityTooltipCategory {...defaultProps} categorizationSource="ai" />);
+    expect(screen.getByText('priority.tooltip.categorisedBy.label')).toBeInTheDocument();
+  });
+
+  it('does not render the "Categorised by" line when categorisationSource is absent', () => {
+    renderWithRouter(<PriorityTooltipCategory {...defaultProps} />);
+    expect(screen.queryByText('priority.tooltip.categorisedBy.label')).not.toBeInTheDocument();
+  });
+
   it('edit rule button has correct accessible title and aria-label', () => {
     renderWithRouter(
       <PriorityTooltipCategory

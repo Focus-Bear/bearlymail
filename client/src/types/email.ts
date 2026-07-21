@@ -147,6 +147,13 @@ export interface GitHubLink {
   fetchedAt?: string;
 }
 
+/**
+ * Which process assigned a thread's category. Mirrors the server-derived
+ * `categorizationSource` bucket (see server `category-source.helper.ts`); the
+ * popover maps each kind to a translated "Categorised by" label.
+ */
+export type CategorizationSource = 'user' | 'rule' | 'local' | 'proto' | 'ai';
+
 export interface Email {
   id: string;
   threadId: string;
@@ -217,6 +224,8 @@ export interface Email {
   category_id?: string | null;
   // Explanation of why this category was chosen (especially useful for "Other")
   categoryExplanation?: string | null;
+  // Which process assigned the category (surfaced as a "Categorised by" line in the popover)
+  categorizationSource?: CategorizationSource | null;
   // Proto category name for emails in "Other" category
   protoCategoryName?: string | null;
   // Proto category description for emails in "Other" category

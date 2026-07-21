@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FiRefreshCw } from 'react-icons/fi';
 import { useHref } from 'react-router-dom';
 import { theme } from 'theme/theme';
+import { CategorizationSource } from 'types/email';
 
 import { CategoryDebugModal } from 'components/priority/CategoryDebugModal';
 import { CategoryOverrideModal } from 'components/priority/CategoryOverrideModal';
@@ -26,9 +27,20 @@ function extractMatchedRuleId(explanation: string | null | undefined): string | 
   return match ? match[1] : null;
 }
 
+/** i18n key (under `priority.tooltip.categorisedBy`) for each provenance kind. */
+const CATEGORISATION_SOURCE_LABEL_KEYS: Record<CategorizationSource, string> = {
+  ai: 'priority.tooltip.categorisedBy.ai',
+  rule: 'priority.tooltip.categorisedBy.rule',
+  local: 'priority.tooltip.categorisedBy.local',
+  proto: 'priority.tooltip.categorisedBy.proto',
+  user: 'priority.tooltip.categorisedBy.user',
+};
+
 interface PriorityTooltipCategoryProps {
   category: string;
   categoryExplanation?: string | null;
+  /** Which process assigned this category — rendered as a "Categorised by" line. */
+  categorizationSource?: CategorizationSource | null;
   protoCategoryName?: string | null;
   protoCategoryDescription?: string | null;
   emailId: string;
@@ -126,6 +138,23 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
   );
 };
 
+const CategorisationSourceLine: React.FC<{ source: CategorizationSource }> = ({ source }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        marginTop: theme.spacing.xs,
+        fontSize: theme.typography.fontSize.xs,
+        color: theme.colors.text.tertiary,
+      }}
+    >
+      {t('priority.tooltip.categorisedBy.label', {
+        source: t(CATEGORISATION_SOURCE_LABEL_KEYS[source]),
+      })}
+    </div>
+  );
+};
+
 interface ProtoCategorySectionProps {
   protoCategoryName: string;
   protoCategoryDescription?: string | null;
@@ -164,6 +193,7 @@ const ProtoCategorySection: React.FC<ProtoCategorySectionProps> = ({ protoCatego
 export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = ({
   category,
   categoryExplanation,
+  categorizationSource,
   protoCategoryName,
   protoCategoryDescription,
   emailId,
@@ -219,6 +249,7 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
           isAdmin={isAdmin}
         />
       </div>
+      {categorizationSource && <CategorisationSourceLine source={categorizationSource} />}
       {showExplanation && categoryExplanation && (
         <div
           style={{

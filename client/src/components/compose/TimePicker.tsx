@@ -1,14 +1,23 @@
 /* eslint-disable max-lines-per-function */
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { humanizeDuration, parseDurationToDate, PreviewKeys } from 'utils/parseDuration';
 
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
-import { STRING_NONE } from 'constants/strings';
+import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 import { TimeSuggestion } from 'hooks/useScheduledEmails';
 
 const OPACITY_DISABLED = 0.5;
 const WARNING_ICON = '⚠️';
+
+// "Sends …" wording for the live preview of the typed custom time; mirrors the
+// snooze input's natural-language preview so both features feel the same.
+const SCHEDULE_PREVIEW_KEYS: PreviewKeys = {
+  today: 'compose.schedulePreviewToday',
+  tomorrow: 'compose.schedulePreviewTomorrow',
+  date: 'compose.schedulePreviewDate',
+};
 
 interface TimePickerProps {
   selectedTime: Date | null;
@@ -82,31 +91,58 @@ const WarningBanner: React.FC<WarningBannerProps> = ({ warning, suggestedTime, o
 );
 
 interface CustomTimeFormProps {
-  customDate: string;
-  customTime: string;
-  onDateChange: (v: string) => void;
-  onTimeChange: (v: string) => void;
-  onSubmit: () => void;
-  t: (key: string) => string;
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: (date: Date) => void;
 }
 
-const CustomTimeForm: React.FC<CustomTimeFormProps> = ({
-  customDate,
-  customTime,
-  onDateChange,
-  onTimeChange,
-  onSubmit,
-  t,
-}) => (
-  <div style={{ marginBottom: theme.spacing.md }}>
-    <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
+/**
+ * Natural-language time input for scheduling — mirrors the snooze input: type a
+ * human string ("tomorrow 9am", "in 2 hours"), see a live preview of the
+ * resolved time, press Enter to submit, and "Set Time" stays disabled until the
+ * text parses to a valid future date.
+ */
+const CustomTimeForm: React.FC<CustomTimeFormProps> = ({ value, onChange, onSubmit }) => {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
+  const parsedDate = useMemo(() => parseDurationToDate(value, new Date(), locale), [value, locale]);
+  const isFuture = parsedDate !== null && parsedDate.getTime() > Date.now();
+  const canSubmit = parsedDate !== null && isFuture;
+  const preview = useMemo(
+    () => humanizeDuration(value, locale, new Date(), SCHEDULE_PREVIEW_KEYS),
+    [value, locale]
+  );
+  const humanizedPreview = preview ? t(preview.i18nKey, preview.values) : null;
+  const hasText = value.trim().length > 0;
+
+  const submit = () => {
+    if (canSubmit && parsedDate) {
+      onSubmit(parsedDate);
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === KEY_ENTER) {
+      event.preventDefault();
+      submit();
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: theme.spacing.md }}>
       <input
-        type="date"
-        value={customDate}
-        onChange={event => onDateChange(event.target.value)}
+        type="text"
+        autoFocus
+        placeholder={t('compose.customTimePlaceholder')}
+        title={t('compose.customTimeTooltip')}
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        onKeyDown={handleKeyDown}
         style={{
-          flex: 1,
+          width: '100%',
+          boxSizing: 'border-box',
           padding: theme.spacing.sm,
+          marginBottom: theme.spacing.sm,
           border: `1px solid ${theme.colors.border.medium}`,
           borderRadius: theme.borderRadius.md,
           backgroundColor: theme.colors.background.subtle,
@@ -114,44 +150,53 @@ const CustomTimeForm: React.FC<CustomTimeFormProps> = ({
           fontSize: theme.typography.fontSize.sm,
         }}
       />
-      <input
-        type="time"
-        value={customTime}
-        onChange={event => onTimeChange(event.target.value)}
+      {humanizedPreview && (
+        <div
+          data-testid="schedule-humanized-preview"
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.tertiary,
+            marginBottom: theme.spacing.sm,
+          }}
+        >
+          {humanizedPreview}
+        </div>
+      )}
+      {hasText && !canSubmit && (
+        <div
+          data-testid="schedule-invalid-hint"
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.sm,
+          }}
+        >
+          {parsedDate && !isFuture ? t('compose.customTimePast') : t('compose.customTimeInvalid')}
+        </div>
+      )}
+      <button
+        onClick={submit}
+        disabled={!canSubmit}
         style={{
-          flex: 1,
-          padding: theme.spacing.sm,
-          border: `1px solid ${theme.colors.border.medium}`,
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          backgroundColor: theme.colors.primary.main,
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
-          backgroundColor: theme.colors.background.subtle,
-          color: theme.colors.text.primary,
+          cursor: canSubmit ? 'pointer' : 'not-allowed',
+          opacity: canSubmit ? 1 : OPACITY_DISABLED,
+          width: '100%',
           fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.medium,
         }}
-      />
+      >
+        {t('compose.setCustomTime')}
+      </button>
     </div>
-    <button
-      onClick={onSubmit}
-      disabled={!customDate || !customTime}
-      style={{
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        backgroundColor: theme.colors.primary.main,
-        color: COLOR_NAMED_WHITE,
-        border: STRING_NONE,
-        borderRadius: theme.borderRadius.md,
-        cursor: customDate && customTime ? 'pointer' : 'not-allowed',
-        opacity: customDate && customTime ? 1 : OPACITY_DISABLED,
-        width: '100%',
-        fontSize: theme.typography.fontSize.sm,
-        fontWeight: theme.typography.fontWeight.medium,
-      }}
-    >
-      {t('compose.setCustomTime')}
-    </button>
-  </div>
-);
+  );
+};
 
 export const TimePicker: React.FC<TimePickerProps> = ({
-  selectedTime,
   suggestions,
   onTimeSelect,
   onCancel,
@@ -161,25 +206,11 @@ export const TimePicker: React.FC<TimePickerProps> = ({
   lastSelectedTime,
 }) => {
   const { t } = useTranslation();
-  const [customDate, setCustomDate] = useState('');
-  const [customTime, setCustomTime] = useState('');
+  const [customTimeInput, setCustomTimeInput] = useState('');
   const [showCustom, setShowCustom] = useState(false);
-
-  useEffect(() => {
-    if (selectedTime) {
-      const date = new Date(selectedTime);
-      setCustomDate(date.toISOString().split('T')[0]);
-      setCustomTime(date.toTimeString().slice(0, 5));
-    }
-  }, [selectedTime]);
 
   const handleSuggestionClick = (suggestion: TimeSuggestion) => {
     onTimeSelect(new Date(suggestion.value));
-  };
-  const handleCustomTimeSubmit = () => {
-    if (customDate && customTime) {
-      onTimeSelect(new Date(`${customDate}T${customTime}`));
-    }
   };
   const handleUseSuggestion = () => {
     if (suggestedTime) {
@@ -292,14 +323,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
           </button>
         </div>
         {showCustom && (
-          <CustomTimeForm
-            customDate={customDate}
-            customTime={customTime}
-            onDateChange={setCustomDate}
-            onTimeChange={setCustomTime}
-            onSubmit={handleCustomTimeSubmit}
-            t={t}
-          />
+          <CustomTimeForm value={customTimeInput} onChange={setCustomTimeInput} onSubmit={onTimeSelect} />
         )}
         <div style={{ display: 'flex', gap: theme.spacing.sm }}>
           <button

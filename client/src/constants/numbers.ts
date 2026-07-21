@@ -9,6 +9,12 @@ export const MS_PER_MINUTE = SECONDS_PER_MINUTE * MS_PER_SECOND;
 export const MS_PER_HOUR = MINUTES_PER_HOUR * MS_PER_MINUTE;
 export const MS_PER_DAY = HOURS_PER_DAY * MS_PER_HOUR;
 
+// Early-morning schedule quick option ("Today 8:30am"). Offered only while the
+// user's local time is before this cutoff, so scheduling for later this morning
+// still makes sense.
+export const EARLY_MORNING_SCHEDULE_HOUR = 8;
+export const EARLY_MORNING_SCHEDULE_MINUTE = 30;
+
 // Opacity values
 export const OPACITY_DISABLED = 0.6;
 export const OPACITY_DISABLED_ALT = 0.7;

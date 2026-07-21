@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { buildEarlyMorningScheduleSuggestion } from 'utils/earlyMorningSuggestion';
 
 import { API_URL } from 'config/api';
 
@@ -30,6 +32,7 @@ export interface TimeCheckResult {
 }
 
 export function useScheduledEmails() {
+  const { t, i18n } = useTranslation();
   const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([]);
   const [loading, setLoading] = useState(false);
   const [timeSuggestions, setTimeSuggestions] = useState<TimeSuggestion[]>([]);
@@ -46,17 +49,24 @@ export function useScheduledEmails() {
     }
   }, []);
 
-  const fetchTimeSuggestions = useCallback(async (userTimezone?: string) => {
-    try {
-      const params = userTimezone ? { timezone: userTimezone } : {};
-      const response = await axios.get<TimeSuggestion[]>(`${API_URL}/scheduled-emails/suggestions`, { params });
-      setTimeSuggestions(response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch time suggestions:', error);
-      return [];
-    }
-  }, []);
+  const fetchTimeSuggestions = useCallback(
+    async (userTimezone?: string) => {
+      const earlyMorning = buildEarlyMorningScheduleSuggestion(new Date(), t, i18n.language);
+      try {
+        const params = userTimezone ? { timezone: userTimezone } : {};
+        const response = await axios.get<TimeSuggestion[]>(`${API_URL}/scheduled-emails/suggestions`, { params });
+        const merged = earlyMorning ? [earlyMorning, ...response.data] : response.data;
+        setTimeSuggestions(merged);
+        return merged;
+      } catch (error) {
+        console.error('Failed to fetch time suggestions:', error);
+        const fallback = earlyMorning ? [earlyMorning] : [];
+        setTimeSuggestions(fallback);
+        return fallback;
+      }
+    },
+    [t, i18n.language]
+  );
 
   /**
    * Checks whether a scheduled send time is appropriate for the user.

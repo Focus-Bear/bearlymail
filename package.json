@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "concurrently": "^10.0.3",
-    "embedded-postgres": "^17.10.0-beta.17"
+    "embedded-postgres": "^18.0.0-beta.15"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1091.0"

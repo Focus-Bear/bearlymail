@@ -9,11 +9,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
  * allowed to replace what a previous writer decided.
  */
 export type CategoryWriterSource =
-  | "user"
-  | "rule"
-  | "local"
-  | "priority"
-  | "proto";
+  "user" | "rule" | "local" | "priority" | "proto";
 
 /**
  * The authoritative, user-set category source. It is top-ranked in the
@@ -25,6 +21,15 @@ export const USER_CATEGORY_SOURCE = "user";
 
 /** `categorySource` written by the local model (priority applied without an LLM). */
 export const LOCAL_CATEGORY_SOURCE = "local";
+
+/** `categorySource` written when a deterministic category rule supplied the category. */
+export const RULE_CATEGORY_SOURCE = "rule";
+
+/** `categorySource` written by the LLM priority pipeline. */
+export const PRIORITY_CATEGORY_SOURCE = "priority";
+
+/** Legacy `categorySource` from the removed summary categoriser (#2549); still AI-decided. */
+export const SUMMARY_CATEGORY_SOURCE = "summary";
 
 /**
  * Precedence of `categorySource` values. A writer may only overwrite a stored

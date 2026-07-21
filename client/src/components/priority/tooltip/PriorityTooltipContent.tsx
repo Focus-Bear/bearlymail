@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { CategorizationSource } from 'types/email';
 
 import { PriorityTooltipActions } from 'components/priority/tooltip/PriorityTooltipActions';
 import { PriorityTooltipBreakdown } from 'components/priority/tooltip/PriorityTooltipBreakdown';
@@ -17,6 +18,7 @@ interface PriorityTooltipContentProps {
   priorityExplanation: PriorityExplanation | null;
   category?: string | null;
   categoryExplanation?: string | null;
+  categorizationSource?: CategorizationSource | null;
   protoCategoryName?: string | null;
   protoCategoryDescription?: string | null;
   emailId: string;
@@ -33,6 +35,7 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
   priorityExplanation,
   category,
   categoryExplanation,
+  categorizationSource,
   protoCategoryName,
   protoCategoryDescription,
   emailId,
@@ -61,6 +64,7 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
           <PriorityTooltipCategory
             category={category}
             categoryExplanation={categoryExplanation}
+            categorizationSource={categorizationSource}
             protoCategoryName={protoCategoryName}
             protoCategoryDescription={protoCategoryDescription}
             emailId={emailId}

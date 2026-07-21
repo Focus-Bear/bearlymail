@@ -109,6 +109,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
           urgencyExplanation={email.urgencyExplanation}
           category={email.category || (!email.category_id ? CATEGORY_OTHER : null)}
           categoryExplanation={email.categoryExplanation}
+          categorizationSource={email.categorizationSource}
           protoCategoryName={email.protoCategoryName}
           protoCategoryDescription={email.protoCategoryDescription}
           currentCategoryId={email.category_id ?? null}

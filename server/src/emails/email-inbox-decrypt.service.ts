@@ -6,6 +6,7 @@ import { Email } from "../database/entities/email.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { buildDeterministicSummary } from "../llm/email-content-cleaner";
 import { parseCategoryName } from "../utils/category-name.util";
+import { deriveCategorizationSource } from "./category-source.helper";
 import { RawEmailRow, SYSTEM_LABELS } from "./email-inbox.types";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
@@ -103,6 +104,13 @@ export class EmailInboxDecryptService {
       categoryExplanation: row.categoryExplanation
         ? EncryptionHelper.tryDecrypt(row.categoryExplanation)
         : null,
+      // Which process assigned the category (surfaced in the everyday popover).
+      // Null out when the category UUID was orphaned so we don't attribute a
+      // stale "Other" bucket to a process that no longer applies.
+      categorizationSource: deriveCategorizationSource({
+        categorySource: row.categorySource,
+        protoCategoryId: row.protoCategoryId,
+      }),
       protoCategoryName: row.protoCategoryName
         ? EncryptionHelper.tryDecrypt(row.protoCategoryName)
         : null,

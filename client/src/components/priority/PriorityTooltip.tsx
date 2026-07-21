@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { PriorityExplanation } from 'types/email';
+import { CategorizationSource, PriorityExplanation } from 'types/email';
 
 import { PriorityTooltipContainer } from 'components/priority/tooltip/PriorityTooltipContainer';
 import { PriorityTooltipContent } from 'components/priority/tooltip/PriorityTooltipContent';
@@ -17,6 +17,8 @@ interface PriorityTooltipProps {
   urgencyExplanation?: string | null;
   category?: string | null;
   categoryExplanation?: string | null;
+  /** Which process assigned the category — rendered as a "Categorised by" line. */
+  categorizationSource?: CategorizationSource | null;
   protoCategoryName?: string | null;
   protoCategoryDescription?: string | null;
   /** UUID of the email's current category — threaded through to CategoryOverrideModal. */
@@ -39,6 +41,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   urgencyExplanation,
   category,
   categoryExplanation,
+  categorizationSource,
   protoCategoryName,
   protoCategoryDescription,
   currentCategoryId,
@@ -123,6 +126,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
         priorityExplanation={priorityExplanation}
         category={category}
         categoryExplanation={categoryExplanation}
+        categorizationSource={categorizationSource}
         protoCategoryName={protoCategoryName}
         protoCategoryDescription={protoCategoryDescription}
         emailId={emailId}

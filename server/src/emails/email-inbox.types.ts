@@ -59,6 +59,9 @@ export interface RawEmailRow {
   categoryName: string | null;
   categoryExplanation: string | null;
   categoryId: string | null;
+  /** Stored provenance bucket for the thread's category (user/rule/local/priority/summary). */
+  categorySource: string | null;
+  protoCategoryId: string | null;
   protoCategoryName: string | null;
   protoCategoryDescription: string | null;
   correspondentEmail: string | null;

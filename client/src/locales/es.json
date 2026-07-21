@@ -3458,6 +3458,14 @@
       "showCategoryExplanation": "Mostrar por qué se eligió esta categoría",
       "editCategoryRule": "Editar la regla que coincidió con esta categoría",
       "suggestedCategory": "Categoría sugerida",
+      "categorisedBy": {
+        "label": "Clasificado por: {{source}}",
+        "ai": "Modelo de prioridad de IA",
+        "rule": "Regla determinista",
+        "local": "Modelo local",
+        "proto": "Categoría sugerida (pendiente de promoción)",
+        "user": "Tu elección manual"
+      },
       "loading": "Cargando explicación de prioridad...",
       "loadError": "No se pudo cargar la explicación de prioridad.",
       "noData": "Aún no hay un desglose de prioridad disponible.",

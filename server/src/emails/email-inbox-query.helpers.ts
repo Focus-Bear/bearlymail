@@ -84,7 +84,7 @@ export async function runInboxQuery(
           thread."starCount", thread."isArchived", thread."urgencyScore",
           thread."priorityExplanation", thread."priorityScore", thread."isProcessingPriority",
           thread."githubMetadata", thread."categoryExplanation",
-          thread."protoCategoryId", thread."categoryId",
+          thread."protoCategoryId", thread."categoryId", thread."categorySource",
           uc."contextValue" AS "categoryName",
           thread."updatedAt" as "threadUpdatedAt",
           thread."isBatched", thread."batchReleaseAt", thread."wasDeliveredEarly",

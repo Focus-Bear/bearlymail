@@ -33,6 +33,6 @@
     "embedded-postgres": "^17.10.0-beta.17"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.1090.0"
+    "@aws-sdk/client-kms": "^3.1091.0"
   }
 }

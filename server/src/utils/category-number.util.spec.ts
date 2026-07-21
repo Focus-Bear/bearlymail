@@ -1,6 +1,7 @@
 import {
   hasCategoryNumber,
   resolveCategoryNumber,
+  resolveResponseCategory,
   rewriteCategoryNumberReferences,
 } from "./category-number.util";
 
@@ -38,6 +39,64 @@ describe("resolveCategoryNumber", () => {
     expect(resolveCategoryNumber(null, ordered)).toBe("Other");
     expect(resolveCategoryNumber(undefined, ordered)).toBe("Other");
     expect(resolveCategoryNumber(1, [])).toBe("Other");
+  });
+});
+
+describe("resolveResponseCategory", () => {
+  const ordered = [
+    "🔧 GitHub PR Updates",
+    "❌ CI/CD & QA Pipeline Failures",
+    "New Github issues raised by QAs",
+  ];
+
+  it("prefers a valid categoryNumber (exact index)", () => {
+    expect(resolveResponseCategory({ categoryNumber: 2 }, ordered)).toBe(
+      "❌ CI/CD & QA Pipeline Failures",
+    );
+    expect(
+      resolveResponseCategory(
+        { categoryNumber: "3", category: "ignored" },
+        ordered,
+      ),
+    ).toBe("New Github issues raised by QAs");
+  });
+
+  it("returns Other for categoryNumber 0 even if a name is present", () => {
+    expect(
+      resolveResponseCategory(
+        { categoryNumber: 0, category: "New Github issues raised by QAs" },
+        ordered,
+      ),
+    ).toBe("Other");
+  });
+
+  it("recovers a name-only pick ONLY by exact (emoji/case-insensitive) match", () => {
+    expect(
+      resolveResponseCategory(
+        { category: "new github issues raised by qas" },
+        ordered,
+      ),
+    ).toBe("New Github issues raised by QAs");
+    expect(
+      resolveResponseCategory({ category: "GitHub PR Updates" }, ordered),
+    ).toBe("🔧 GitHub PR Updates");
+  });
+
+  it("resolves a fabricated near-name to Other, never fuzzy-matching it", () => {
+    // The screenshot bug: the model invented "New GitHub Bug Reports" (a
+    // near-name of a real category). Exact match fails → honest Other, not a
+    // fuzzy re-route into "New Github issues raised by QAs".
+    expect(
+      resolveResponseCategory({ category: "New GitHub Bug Reports" }, ordered),
+    ).toBe("Other");
+  });
+
+  it("resolves missing/empty/Other name answers to Other", () => {
+    expect(resolveResponseCategory({}, ordered)).toBe("Other");
+    expect(resolveResponseCategory({ category: "" }, ordered)).toBe("Other");
+    expect(resolveResponseCategory({ category: "Other" }, ordered)).toBe(
+      "Other",
+    );
   });
 });
 

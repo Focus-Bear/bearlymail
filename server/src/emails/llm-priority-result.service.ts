@@ -47,7 +47,13 @@ type PriorityLlmResult = {
   category?: string;
   /** @deprecated Category explanation now comes from the summary LLM call. May be absent. */
   categoryExplanation?: string;
-  protoCategorySuggestion?: { name: string; description: string };
+  protoCategorySuggestion?: {
+    name: string;
+    description: string;
+    /** Justification for a new category over an existing one (closest rejects +
+     * why). Persisted on the proto category for prompt-tuning review. */
+    reasoning?: string;
+  };
   /** Category names passed to the smart model after shortlisting. Null when shortlisting was skipped. */
   shortlistedCategoryNames?: string[] | null;
   // ── Instrumentation (optional; populated by the single/numbered analyse path) ──
@@ -772,8 +778,9 @@ export class LLMPriorityResultService {
     categoryId: string | null;
   }> {
     const suggestionName = llmResult.protoCategorySuggestion!.name;
-    // Records the categories the dedup pass weighed (and the LLM's reasoning),
-    // so a newly created proto category can store what it considered duplicates.
+    const creationReasoning =
+      llmResult.protoCategorySuggestion!.reasoning || null;
+    // Categories the dedup pass weighed (+ reasoning), stored on a new proto.
     const consideredCandidates: ConsideredDuplicateCandidate[] = [];
     try {
       const matchingFullCategory =
@@ -828,23 +835,17 @@ export class LLMPriorityResultService {
         };
       }
 
-      const newProtoCategory =
-        await this.protoCategoriesService.createAndAssignToThread(
-          userId,
-          suggestionName,
-          llmResult.protoCategorySuggestion!.description || null,
-          email.emailThreadId,
-          consideredCandidates,
-        );
-
-      this.logger.log(
-        `[Worker ${workerId}] Created new proto category "${newProtoCategory.name}"`,
-      );
-      return {
+      return await this.createProtoCategoryForSuggestion({
+        userId,
+        suggestionName,
+        description: llmResult.protoCategorySuggestion!.description || null,
+        emailThreadId: email.emailThreadId,
+        consideredCandidates,
+        creationReasoning,
+        workerId,
         finalCategory,
-        protoCategoryId: newProtoCategory.id,
-        categoryId: lookupCategoryContextId(finalCategory),
-      };
+        lookupCategoryContextId,
+      });
     } catch (protoCategoryError) {
       this.logger.warn(
         `[Worker ${workerId}] Failed to process proto category for email ${email.id}:`,
@@ -856,6 +857,44 @@ export class LLMPriorityResultService {
         categoryId: lookupCategoryContextId(finalCategory),
       };
     }
+  }
+
+  /** Creates a fresh proto category for an LLM suggestion (no existing full or
+   * proto match) and returns the resolved category triple. */
+  private async createProtoCategoryForSuggestion(args: {
+    userId: string;
+    suggestionName: string;
+    description: string | null;
+    emailThreadId: string;
+    consideredCandidates: ConsideredDuplicateCandidate[];
+    creationReasoning: string | null;
+    workerId: string;
+    finalCategory: string | null;
+    lookupCategoryContextId: (name: string | null) => string | null;
+  }): Promise<{
+    finalCategory: string | null;
+    protoCategoryId: string | null;
+    categoryId: string | null;
+  }> {
+    const newProtoCategory =
+      await this.protoCategoriesService.createAndAssignToThread(
+        args.userId,
+        args.suggestionName,
+        args.description,
+        args.emailThreadId,
+        {
+          consideredCandidates: args.consideredCandidates,
+          creationReasoning: args.creationReasoning,
+        },
+      );
+    this.logger.log(
+      `[Worker ${args.workerId}] Created new proto category "${newProtoCategory.name}"`,
+    );
+    return {
+      finalCategory: args.finalCategory,
+      protoCategoryId: newProtoCategory.id,
+      categoryId: args.lookupCategoryContextId(args.finalCategory),
+    };
   }
 
   getSentimentType(score: number): string {

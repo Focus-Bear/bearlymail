@@ -757,11 +757,39 @@ describe("ProtoCategoriesService", () => {
         "GitHub Releases",
         null,
         "thread-1",
-        considered,
+        { consideredCandidates: considered },
       );
 
       expect(protoCategoryRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({ duplicateCandidates: considered }),
+      );
+    });
+
+    it("persists the categoriser's creation reasoning (closest rejects + why)", async () => {
+      protoCategoryRepo.find.mockResolvedValue([]);
+      protoCategoryRepo.create.mockImplementation(
+        (input: Partial<ProtoCategory>) => input,
+      );
+      protoCategoryRepo.save.mockImplementation(
+        async (input: Partial<ProtoCategory>) => ({ id: "proto-1", ...input }),
+      );
+      (service["emailThreadRepository"].update as jest.Mock).mockResolvedValue(
+        {},
+      );
+
+      const reasoning =
+        "'GitHub PRs' was closest but this is a release note, not a PR.";
+
+      await service.createAndAssignToThread(
+        "user-1",
+        "GitHub Releases",
+        null,
+        "thread-1",
+        { creationReasoning: reasoning },
+      );
+
+      expect(protoCategoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ creationReasoning: reasoning }),
       );
     });
   });

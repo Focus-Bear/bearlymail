@@ -15,6 +15,7 @@ import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
 import { resolveLlmCategoryToDisplayName } from "../utils/category-key.util";
 import {
+  buildProtoSuggestionFromResponse,
   hasCategoryNumber,
   resolveResponseCategory,
   rewriteCategoryNumberReferences,
@@ -83,7 +84,14 @@ type PriorityResult = {
   /** Raw 1-based categoryNumber the LLM returned (0 = Other), before index resolution. Null when the model returned a name instead. Instrumentation only. */
   categoryNumber?: number | null;
   reasoning: string;
-  protoCategorySuggestion?: { name: string; description: string };
+  protoCategorySuggestion?: {
+    name: string;
+    description: string;
+    /** The model's justification for a NEW category over an existing one:
+     * names the closest existing categories it considered and why each was not
+     * a fit. Persisted so false "Other"s can be reviewed to tune the prompt. */
+    reasoning?: string;
+  };
   /** Category names that were shortlisted and passed to the smart model. Null when shortlisting was skipped (category count below threshold). */
   shortlistedCategoryNames: string[] | null;
   /** Per-candidate shortlist provenance (embedding score + platform-pinned flag), for instrumentation. Null when shortlisting was skipped. */
@@ -477,14 +485,11 @@ export class PriorityAnalysisService {
         analysisResult.reasoning || "No reasoning provided",
         orderedCategoryNames,
       ),
-      protoCategorySuggestion:
-        category === "Other" && analysisResult.protoCategorySuggestion
-          ? {
-              name: analysisResult.protoCategorySuggestion.name || "",
-              description:
-                analysisResult.protoCategorySuggestion.description || "",
-            }
-          : undefined,
+      protoCategorySuggestion: buildProtoSuggestionFromResponse(
+        analysisResult,
+        category,
+        orderedCategoryNames,
+      ),
       // Placeholder — overridden by analyzePriority after buildPriorityPrompt runs the shortlist
       shortlistedCategoryNames: null,
     };

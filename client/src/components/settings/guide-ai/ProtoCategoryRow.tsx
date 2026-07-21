@@ -150,7 +150,9 @@ export const ProtoCategoryRow: React.FC<ProtoCategoryRowProps> = ({
   onSaveName,
   onPromote,
   onDelete,
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <div
     style={{
       border: `1px solid ${theme.colors.border.light}`,
@@ -191,6 +193,18 @@ export const ProtoCategoryRow: React.FC<ProtoCategoryRowProps> = ({
             {category.description}
           </div>
         )}
+        {category.creationReasoning && (
+          <div
+            style={{
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+              fontStyle: 'italic',
+              marginBottom: theme.spacing.xs,
+            }}
+          >
+            {t('settings.protoCategories.whyNew')} {category.creationReasoning}
+          </div>
+        )}
         <ProtoCategoryProgressBar emailCount={category.emailCount} progress={progress} />
       </div>
       <ProtoCategoryActionButtons
@@ -206,4 +220,5 @@ export const ProtoCategoryRow: React.FC<ProtoCategoryRowProps> = ({
       />
     </div>
   </div>
-);
+  );
+};

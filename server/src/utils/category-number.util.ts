@@ -39,14 +39,78 @@ export function hasCategoryNumber(value: unknown): boolean {
   return typeof value === "string" && /^\d+$/.test(value.trim());
 }
 
-/** Resolve an LLM response's category: prefer `categoryNumber` (exact index), else the returned `category` name (defensive; e.g. an older response shape). */
+/**
+ * Normalises a category name for an EXACT (not fuzzy) comparison: lower-cased,
+ * emoji/symbol-stripped, whitespace-collapsed. Used only to recover a number
+ * when the model reports its pick as a name — never for near-match/prefix/
+ * Levenshtein/embedding matching, which is exactly the mis-routing the numbered
+ * list exists to eliminate.
+ */
+function normaliseForExactMatch(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Resolve an LLM response's category.
+ *
+ * Primary path: prefer `categoryNumber` — an exact 1-based index into the
+ * numbered list (0 / out-of-range → "Other").
+ *
+ * Defensive path: when the model disobeys and reports a NAME instead of a
+ * number, recover the pick ONLY by an exact (normalised) match back into the
+ * numbered list. A name that isn't in the list resolves to "Other" — we never
+ * fall back to fuzzy/prefix name matching, which re-routes fabricated near-names
+ * (e.g. "New GitHub Bug Reports" ≈ "New Github issues raised by QAs") into the
+ * wrong category or a bogus proto. "Other" is the honest outcome for a pick the
+ * model invented rather than selecting from the list.
+ */
 export function resolveResponseCategory(
   analysisResult: { categoryNumber?: unknown; category?: string },
   orderedNames: string[],
 ): string {
-  return hasCategoryNumber(analysisResult.categoryNumber)
-    ? resolveCategoryNumber(analysisResult.categoryNumber, orderedNames)
-    : analysisResult.category || "Other";
+  if (hasCategoryNumber(analysisResult.categoryNumber)) {
+    return resolveCategoryNumber(analysisResult.categoryNumber, orderedNames);
+  }
+  const name = analysisResult.category?.trim();
+  if (!name || name === "Other") return "Other";
+  const target = normaliseForExactMatch(name);
+  const exact = orderedNames.find(
+    (listed) => normaliseForExactMatch(listed) === target,
+  );
+  return exact ?? "Other";
+}
+
+/**
+ * Builds the `protoCategorySuggestion` for a parsed priority response. Present
+ * only when the email resolved to "Other" and the model proposed a new
+ * category. The `reasoning` (why a new category over existing ones, naming the
+ * closest rejects) has its positional "category N" refs rewritten to real names
+ * since the reviewer never sees the numbered list.
+ */
+export function buildProtoSuggestionFromResponse(
+  analysisResult: {
+    protoCategorySuggestion?: {
+      name?: string;
+      description?: string;
+      reasoning?: string;
+    };
+  },
+  category: string,
+  orderedNames: string[],
+): { name: string; description: string; reasoning?: string } | undefined {
+  const suggestion = analysisResult.protoCategorySuggestion;
+  if (category !== "Other" || !suggestion) return undefined;
+  return {
+    name: suggestion.name || "",
+    description: suggestion.description || "",
+    reasoning: suggestion.reasoning
+      ? rewriteCategoryNumberReferences(suggestion.reasoning, orderedNames)
+      : undefined,
+  };
 }
 
 /**

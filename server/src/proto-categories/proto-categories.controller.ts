@@ -36,6 +36,10 @@ export class ProtoCategoriesController {
       description: item.description,
       emailCount: item.emailCount,
       createdAt: item.createdAt,
+      // Why the categoriser invented this instead of using an existing category
+      // (closest rejects + why). Surfaced so false "Other"s can be reviewed to
+      // tune the prompt.
+      creationReasoning: item.creationReasoning,
     }));
   }
 

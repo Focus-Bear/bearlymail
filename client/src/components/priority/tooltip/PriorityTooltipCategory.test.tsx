@@ -12,6 +12,14 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
+  // Render the i18nKey (so it stays findable) plus any injected component such
+  // as the "Deterministic rule" link, so its href/testid can be asserted.
+  Trans: ({ i18nKey, components }: { i18nKey: string; components?: Record<string, React.ReactElement> }) => (
+    <span>
+      {i18nKey}
+      {components?.source}
+    </span>
+  ),
 }));
 
 vi.mock('contexts/AuthContext', () => ({
@@ -25,6 +33,7 @@ vi.mock('theme/theme', () => ({
       background: { subtle: '#f5f5f5', paper: '#fff' },
       text: { primary: '#111', secondary: '#666', tertiary: '#999' },
       border: { light: '#e0e0e0' },
+      primary: { main: '#E9902C' },
     },
     borderRadius: { sm: '4px' },
     typography: {
@@ -151,6 +160,76 @@ describe('PriorityTooltipCategory', () => {
     renderWithRouter(<PriorityTooltipCategory {...defaultProps} />);
     expect(screen.queryByText('priority.tooltip.categorisedBy.label')).not.toBeInTheDocument();
   });
+
+  it('links "Deterministic rule" to the specific matched rule by ID when the source is a rule', () => {
+    renderWithRouter(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        category="GitHub PR Updates"
+        categorizationSource="rule"
+        categoryExplanation='Matched deterministic rule (composite): category="GitHub PR Updates" (rule:abc123-def-456)'
+      />
+    );
+
+    const link = screen.getByTestId('categorised-by-rule-link');
+    expect(link).toHaveAttribute('href', '/settings?openEditRuleId=abc123-def-456#guide-our-ai');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('links "Deterministic rule" by category name when there is no rule-ID marker', () => {
+    renderWithRouter(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        category="Human GitHub issue status updates"
+        categorizationSource="rule"
+        categoryExplanation='Matched deterministic rule (composite): category="Human GitHub issue status updates"'
+      />
+    );
+
+    const link = screen.getByTestId('categorised-by-rule-link');
+    expect(link).toHaveAttribute(
+      'href',
+      '/settings?openEditRule=Human%20GitHub%20issue%20status%20updates#guide-our-ai'
+    );
+  });
+
+  it('opens the matched rule in a new tab when the "Deterministic rule" link is clicked', () => {
+    renderWithRouter(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        category="GitHub PR Updates"
+        categorizationSource="rule"
+        categoryExplanation='Matched deterministic rule (composite): category="GitHub PR Updates" (rule:abc123-def-456)'
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('categorised-by-rule-link'));
+
+    expect(mockWindowOpen).toHaveBeenCalledWith(
+      '/settings?openEditRuleId=abc123-def-456#guide-our-ai',
+      '_blank',
+      'noopener,noreferrer'
+    );
+  });
+
+  it('renders "Deterministic rule" as plain text (no link) when the rule cannot be resolved (Other)', () => {
+    renderWithRouter(<PriorityTooltipCategory {...defaultProps} category="Other" categorizationSource="rule" />);
+
+    expect(screen.getByText('priority.tooltip.categorisedBy.label')).toBeInTheDocument();
+    expect(screen.queryByTestId('categorised-by-rule-link')).not.toBeInTheDocument();
+  });
+
+  it.each(['ai', 'local', 'proto', 'user'] as const)(
+    'does not link the categorisation source for non-rule source "%s"',
+    source => {
+      renderWithRouter(
+        <PriorityTooltipCategory {...defaultProps} category="GitHub PR Updates" categorizationSource={source} />
+      );
+
+      expect(screen.getByText('priority.tooltip.categorisedBy.label')).toBeInTheDocument();
+      expect(screen.queryByTestId('categorised-by-rule-link')).not.toBeInTheDocument();
+    }
+  );
 
   it('edit rule button has correct accessible title and aria-label', () => {
     renderWithRouter(

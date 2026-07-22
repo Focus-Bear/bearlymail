@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useCategoryContextQuery } from 'queries/useCategoryContextQuery';
 import type { CategoryRuleDto, CategoryRuleSuggestion } from 'types/category-rules.types';
 
-import { COMPOSITE_RULE_FORM_MODE_ADD, COMPOSITE_RULE_FORM_MODE_EDIT } from 'constants/category-rules';
+import {
+  COMPOSITE_RULE_FORM_MODE_ADD,
+  COMPOSITE_RULE_FORM_MODE_EDIT,
+  EDIT_RULE_CATEGORY_PARAM,
+  EDIT_RULE_ID_PARAM,
+} from 'constants/category-rules';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useCategoryRuleCompositeFormSubmit } from 'hooks/settings/useCategoryRuleCompositeFormSubmit';
 import { useCategoryRules } from 'hooks/settings/useCategoryRules';
@@ -155,8 +160,8 @@ export function useDeterministicCategoryRulesSectionState() {
     // Issue #1789: prefer rule ID — opens the SPECIFIC rule that fired, even
     // when multiple rules share a category. Fall back to category name for
     // older deep links.
-    const openEditRuleIdParam = params.get('openEditRuleId');
-    const openEditRuleParam = params.get('openEditRule');
+    const openEditRuleIdParam = params.get(EDIT_RULE_ID_PARAM);
+    const openEditRuleParam = params.get(EDIT_RULE_CATEGORY_PARAM);
     if (!openEditRuleIdParam && !openEditRuleParam) {
       return;
     }
@@ -170,8 +175,8 @@ export function useDeterministicCategoryRulesSectionState() {
       openEdit(matchingRule);
     }
 
-    params.delete('openEditRule');
-    params.delete('openEditRuleId');
+    params.delete(EDIT_RULE_CATEGORY_PARAM);
+    params.delete(EDIT_RULE_ID_PARAM);
     const newSearch = params.toString();
     const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`;
     window.history.replaceState({}, '', newUrl);

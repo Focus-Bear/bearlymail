@@ -75,9 +75,13 @@ export interface InboxContentProps {
     veryLow: number;
     unprioritised: number;
   } | null;
-  /** Called when user accepts progressive unlock to a lower priority tier */
-  onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
-  /** Called when user dismisses the progressive unlock prompt */
+  /** Action conversations waiting at the start of this Triage session (for the peek prompt copy) */
+  existingActionCount?: number;
+  /** Follow-Up conversations waiting at the start of this Triage session (for the peek prompt copy) */
+  existingFollowUpCount?: number;
+  /** Called when user asks to peek at lower-priority emails (min=null, max=High floor) */
+  onUnlockPriorityTier?: (minPriority: number | null, maxPriority: number | null) => void;
+  /** Called when user dismisses the guided peek prompt */
   onDismissUnlockPrompt?: () => void;
   /** Called when user clicks "Show all emails" to clear the priority filter */
   onClearFilters?: () => void;
@@ -128,6 +132,8 @@ export const InboxContent: React.FC<InboxContentProps> = props => {
     minPriority,
     maxPriority,
     priorityCounts,
+    existingActionCount,
+    existingFollowUpCount,
     onUnlockPriorityTier,
     onDismissUnlockPrompt,
     onClearFilters,
@@ -230,6 +236,8 @@ export const InboxContent: React.FC<InboxContentProps> = props => {
     minPriority,
     maxPriority,
     priorityCounts,
+    existingActionCount,
+    existingFollowUpCount,
     onUnlockPriorityTier,
     onDismissUnlockPrompt,
     onClearFilters,

@@ -474,29 +474,22 @@
     },
     "scheduled": "Scheduled",
     "progressiveUnlock": {
-      "veryHighDone": "🔥 Outstanding — you've cleared all the very high priority emails!",
-      "highDone": "Nice work — you've cleared all the high priority emails!",
-      "mediumDone": "⭐ Amazing — medium priority done too!",
-      "veryHighLabel": "very high priority",
-      "highLabel": "high priority",
-      "mediumLabel": "medium priority",
-      "lowLabel": "low priority",
-      "nextTierQuestion": "There are {{count}} {{tier}} emails waiting. Want to tackle them next?",
-      "showTier": "Show {{tier}} emails",
-      "later": "Maybe later",
       "allCaughtUp": "You're all caught up! 🏆",
       "allCaughtUpSub": "You've cleared every priority tier. Enjoy your focus time."
+    },
+    "guidedPeek": {
+      "title": "Well done — you've triaged all the high priority emails! 🎉",
+      "actionCount_one": "{{count}} email to action",
+      "actionCount_other": "{{count}} emails to action",
+      "followUpCount_one": "{{count}} email to follow up with",
+      "followUpCount_other": "{{count}} emails to follow up with",
+      "workSummary": "You've got {{action}} and {{followUp}} now.",
+      "peekCta": "Oh but I want to see the other new unread emails even though they're low priority!",
+      "later": "Maybe later"
     },
     "distractionTax": {
       "title": "Sure you want the shiny new stuff?",
       "explanation": "📬 You've already got {{count}} conversations waiting in your Action and Follow-Up lists — future-you says clear those first. Peeking at lower-priority new emails right now is basically snacking before dinner. Prove you really mean it and we'll unlock them.",
-      "preScreen": {
-        "title": "Are you sure you want to look at your triage inbox?",
-        "explanation_one": "You still have {{count}} email to process in Action and Follow Up. If someone sent you an email and you want to find it, use search instead.",
-        "explanation_other": "You still have {{count}} emails to process in Action and Follow Up. If someone sent you an email and you want to find it, use search instead.",
-        "searchCta": "Search",
-        "proceedCta": "Gimme inbox please!"
-      },
       "chooseMethod": "Choose how to unlock",
       "method": {
         "voice": "🎙️ Say it out loud",

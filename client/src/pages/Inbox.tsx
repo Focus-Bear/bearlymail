@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { CategoryArchiveSuggestion } from 'utils/categoryArchiveWorkflow';
@@ -24,15 +23,14 @@ import { LoadingState, PrioritisationInterstitial } from 'components/inbox/state
 import { SuggestArchiveWorkflowModal } from 'components/inbox/SuggestArchiveWorkflowModal';
 import { SyncWindowBanner } from 'components/inbox/SyncWindowBanner';
 import { selectTriageContentRegion, TriageContentRegion } from 'components/inbox/triageContentRegion';
-import { TriageEntryGate } from 'components/inbox/TriageEntryGate';
 import { API_URL } from 'config/api';
 import { BUCKET_LABEL_ALL, PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
-import { ERROR_CODE_GMAIL_REQUIRED, MODE_TRIAGE, ROUTE_SEARCH } from 'constants/strings';
+import { ERROR_CODE_GMAIL_REQUIRED, MODE_TRIAGE } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { useDistractionFriction } from 'hooks/useDistractionFriction';
-import { HIGH_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+import { HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 import { GATE_FILTER_SWITCHED_KEY, usePrioritisationGate } from 'hooks/usePrioritisationGate';
 import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
@@ -132,19 +130,20 @@ const InboxView: React.FC = () => {
     closeMobileMenu: handleCloseMobileMenu,
   } = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
 
-  const navigate = useNavigate();
   const { isDebugModeEnabled } = useDebugMode();
   // Pass current inbox mode so bucket counts match the tab total (fix #1452 bug 3).
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts(mode);
   // "Distraction tax": when the user has unfinished work, gate lower-priority
   // Triage emails behind a deliberate unlock exercise (session-scoped).
   const distraction = useDistractionFriction({ mode, tabCounts });
-  // Conversations already waiting in Action + Follow-Up, shown in the gate copy.
-  const existingWorkCount = (tabCounts?.action ?? 0) + (tabCounts?.followUp ?? 0);
+  // Conversations already waiting in Action + Follow-Up when this Triage session
+  // began (snapshot, NOT live counts), shown in the friction copy. Emails moved to
+  // Action/Follow-Up mid-session must not inflate this and re-trigger the gate.
+  const existingWorkCount = distraction.existingActionCount + distraction.existingFollowUpCount;
 
-  // Apply a progressive-tier unlock: move the priority floor down and refetch.
-  // Shared by the normal unlock path and the friction-modal completion path.
-  const applyPriorityUnlock = (minPriority: number, maxPriority: number | null) => {
+  // Apply a priority-filter change (peek below High) and refetch. Shared by the
+  // frictionless peek path and the friction-modal completion path.
+  const applyPriorityUnlock = (minPriority: number | null, maxPriority: number | null) => {
     setPriorityFilter(minPriority, maxPriority);
     fetchEmails({ minPriority, maxPriority });
     fetchPriorityCounts();
@@ -182,8 +181,9 @@ const InboxView: React.FC = () => {
         }, 0)
     : undefined;
 
-  // When the prioritisation gate lifts for the first time, auto-switch to VH filter
-  // so new users get the focused experience after initial analysis completes.
+  // When the prioritisation gate lifts for the first time, auto-switch to the
+  // guided High-and-above filter so new users get the focused experience after
+  // initial analysis completes.
   useEffect(() => {
     if (justUngated) {
       const hasAlreadySwitched = (() => {
@@ -194,14 +194,17 @@ const InboxView: React.FC = () => {
         }
       })();
       if (!hasAlreadySwitched && filters.minPriority === null && filters.maxPriority === null) {
-        setPriorityFilter(VERY_HIGH_PRIORITY_THRESHOLD, null);
-        fetchEmails({ minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null });
+        setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
+        fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
       }
       clearJustUngated();
     }
   }, [justUngated, clearJustUngated, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails]);
 
  
+  // Guided default: on entering Triage without a manual filter, show High-and-above
+  // (High + Very High together). No progressive stepping — the user simply sees
+  // their high-priority emails; peeking lower is an explicit, gated opt-in.
   const hasAutoAdvancedTierRef = useRef(false);
   useEffect(() => {
     if (mode !== MODE_TRIAGE || !priorityCounts || hasAutoAdvancedTierRef.current) {
@@ -210,52 +213,36 @@ const InboxView: React.FC = () => {
 
     const min = filters.minPriority;
     const max = filters.maxPriority;
-    const isDefaultOrUnfiltered =
-      (min === VERY_HIGH_PRIORITY_THRESHOLD && max === null) || (min === null && max === null);
-    if (!isDefaultOrUnfiltered) {
-      // User has a manual filter — respect it and don't auto-advance again.
+    // Treat the old Very-High default, the new High default, and "All" as guided
+    // defaults to normalise; any other (bounded) filter is a manual choice we keep.
+    const isGuidedDefault =
+      (min === VERY_HIGH_PRIORITY_THRESHOLD && max === null) ||
+      (min === HIGH_PRIORITY_THRESHOLD && max === null) ||
+      (min === null && max === null);
+    if (!isGuidedDefault) {
+      // User has a manual filter — respect it and don't normalise again.
       hasAutoAdvancedTierRef.current = true;
       return;
     }
 
-    // Only mark auto-advance as done once we've actually acted on real counts.
-    // Bailing here while counts are still all-zero (pre-sync) lets the effect
-    // retry when the true counts arrive, instead of latching "done" prematurely.
-    if (priorityCounts.veryHigh > 0) {
-      hasAutoAdvancedTierRef.current = true;
-      if (min !== VERY_HIGH_PRIORITY_THRESHOLD) {
-        setPriorityFilter(VERY_HIGH_PRIORITY_THRESHOLD, null);
-        fetchEmails({ minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null });
-      }
-    } else if (priorityCounts.high > 0) {
-      hasAutoAdvancedTierRef.current = true;
-      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
-      fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
-    } else if (priorityCounts.medium > 0 && distraction.isGateResolved && !distraction.isGateActive) {
-      hasAutoAdvancedTierRef.current = true;
-      setPriorityFilter(MEDIUM_PRIORITY_THRESHOLD, null);
-      fetchEmails({ minPriority: MEDIUM_PRIORITY_THRESHOLD, maxPriority: null });
-    } else if (priorityCounts.medium > 0 && distraction.isGateActive) {
-      // Gated: hold the floor at High even though no High emails exist, so the
-      // friction unlock is required before medium emails become visible.
-      hasAutoAdvancedTierRef.current = true;
+    // Wait for real counts before latching: bailing while every tier is still zero
+    // (pre-sync) lets the effect retry once the true counts arrive.
+    const hasAnyPrioritised =
+      priorityCounts.veryHigh > 0 ||
+      priorityCounts.high > 0 ||
+      priorityCounts.medium > 0 ||
+      priorityCounts.low > 0 ||
+      priorityCounts.veryLow > 0;
+    if (!hasAnyPrioritised) {
+      return;
+    }
+
+    hasAutoAdvancedTierRef.current = true;
+    if (min !== HIGH_PRIORITY_THRESHOLD || max !== null) {
       setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
       fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
     }
-    // When medium emails exist but the gate is not yet resolved (tab counts still
-    // loading), fall through WITHOUT latching: the effect re-runs once
-    // isGateResolved/isGateActive settle, so we never advance to Medium only to be
-    // gated back to High a frame later (the flip-flop).
-  }, [
-    priorityCounts,
-    mode,
-    filters.minPriority,
-    filters.maxPriority,
-    setPriorityFilter,
-    fetchEmails,
-    distraction.isGateActive,
-    distraction.isGateResolved,
-  ]);
+  }, [priorityCounts, mode, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails]);
 
   // Enforce the distraction-tax floor for returning users whose stored filter is
   // already below High (Medium/Low/All): while gated, raise it to High so lower
@@ -272,13 +259,12 @@ const InboxView: React.FC = () => {
     }
   }, [distraction.isGateActive, filters.minPriority, setPriorityFilter, fetchEmails]);
 
-  // Single source of precedence for the Triage content region. The distraction
-  // gate (and its "pending" holding state while existing-work counts load) always
-  // wins over the normal content, so the gate and the medium-priority
-  // interstitial can never overlap or flip-flop. See triageContentRegion.ts.
+  // Single source of precedence for the Triage content region. The friction modal
+  // (and the "pending" holding state while the existing-work snapshot is captured)
+  // wins over the normal content, so they can never overlap or flip-flop. See
+  // triageContentRegion.ts.
   const triageContentRegion = selectTriageContentRegion({
     isOnboardingGated: isGated,
-    isPreScreenOpen: distraction.isPreScreenOpen,
     isFrictionModalOpen: distraction.isModalOpen,
     isGatePending: !distraction.isGateResolved,
   });
@@ -453,24 +439,18 @@ const InboxView: React.FC = () => {
             totalCount={gateTotalCount}
             onDismiss={dismissGate}
           />
-        ) : triageContentRegion === TriageContentRegion.EntryGate ? (
-          // Distraction-tax pre-screen, rendered INLINE in place of the Triage
-          // list so the tabs/filters above stay switchable and the list can't peek.
-          <TriageEntryGate
-            existingWorkCount={existingWorkCount}
-            onSearch={() => navigate(ROUTE_SEARCH)}
-            onProceed={distraction.proceedFromPreScreen}
-          />
         ) : triageContentRegion === TriageContentRegion.FrictionModal ? (
-          // Distraction-tax unlock exercise, also rendered inline in place of the list.
+          // Distraction-tax unlock exercise (reached via the peek CTA), rendered
+          // inline in place of the list so the tabs/filters above stay switchable.
           <DistractionFrictionModal
             existingWorkCount={existingWorkCount}
             onUnlock={() => {
               const target = distraction.completeUnlock();
+              // The peek always defers a target (min=null, max=High floor); fall
+              // back to the whole inbox only if somehow none was captured.
               if (target) {
                 applyPriorityUnlock(target.minPriority, target.maxPriority);
               } else {
-                // Pre-screen path: no deferred tier, so reveal the whole inbox.
                 clearFilters();
                 fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
                 fetchPriorityCounts();
@@ -479,9 +459,8 @@ const InboxView: React.FC = () => {
             onDismiss={distraction.dismissModal}
           />
         ) : triageContentRegion === TriageContentRegion.GatePending ? (
-          // Existing-work counts still loading in Triage: hold on a loading state
-          // rather than flashing the medium-priority interstitial, which would then
-          // be replaced by the gate once the counts arrive (the flip-flop bug).
+          // Existing-work snapshot still being captured in Triage: hold on a loading
+          // state rather than flashing the post-clear prompt with stale/zero counts.
           <LoadingState decrypting={decrypting} loadingModeSwitch={loadingModeSwitch} mode={mode} />
         ) : (
           <>
@@ -554,7 +533,9 @@ const InboxView: React.FC = () => {
               minPriority={filters.minPriority}
               maxPriority={filters.maxPriority}
               priorityCounts={priorityCounts}
-              onUnlockPriorityTier={(minPriority: number, maxPriority: number | null) => {
+              existingActionCount={distraction.existingActionCount}
+              existingFollowUpCount={distraction.existingFollowUpCount}
+              onUnlockPriorityTier={(minPriority: number | null, maxPriority: number | null) => {
                 // Gated peek below High → open the friction modal instead of unlocking.
                 if (distraction.requestUnlock(minPriority, maxPriority)) {
                   return;

@@ -5,25 +5,35 @@ import { theme } from 'theme/theme';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface ProgressiveUnlockPromptProps {
-  message: string;
-  nextTierLabel: string;
-  nextTierCount: number;
-  onYes: () => void;
+  /** Action conversations waiting at the start of this Triage session. */
+  actionCount: number;
+  /** Follow-Up conversations waiting at the start of this Triage session. */
+  followUpCount: number;
+  /** Called when the user asks to peek at the lower-priority new emails. */
+  onPeek: () => void;
+  /** Called when the user dismisses the prompt for this session. */
   onLater: () => void;
 }
 
 /**
- * Shown when the inbox reaches zero threads at the current priority tier.
- * Invites the user to unlock the next lower priority tier or dismiss for now.
+ * Shown once the guided High-and-above Triage view is cleared but lower-priority
+ * unread emails still exist. Congratulates the user, points them at their Action /
+ * Follow-Up work, and offers a deliberate opt-in to peek at the low-priority
+ * emails (which then triggers the friction exercise when work is still waiting).
  */
 export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = ({
-  message,
-  nextTierLabel,
-  nextTierCount,
-  onYes,
+  actionCount,
+  followUpCount,
+  onPeek,
   onLater,
 }) => {
   const { t } = useTranslation();
+
+  const hasWork = actionCount > 0 || followUpCount > 0;
+  const workSummary = t('inbox.guidedPeek.workSummary', {
+    action: t('inbox.guidedPeek.actionCount', { count: actionCount }),
+    followUp: t('inbox.guidedPeek.followUpCount', { count: followUpCount }),
+  });
 
   return (
     <div
@@ -44,17 +54,15 @@ export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = (
           fontWeight: theme.typography.fontWeight.semibold,
         }}
       >
-        {message}
+        {t('inbox.guidedPeek.title')}
       </h3>
-      <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
-        {t('inbox.progressiveUnlock.nextTierQuestion', {
-          count: nextTierCount,
-          tier: nextTierLabel,
-        })}
-      </p>
-      <div style={{ display: 'flex', gap: theme.spacing.sm, justifyContent: 'center' }}>
+      {hasWork && (
+        <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>{workSummary}</p>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm, alignItems: 'center' }}>
         <button
-          onClick={onYes}
+          onClick={onPeek}
+          data-testid="guided-peek-cta"
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
             backgroundColor: theme.colors.accent.success,
@@ -64,12 +72,14 @@ export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = (
             cursor: 'pointer',
             fontWeight: theme.typography.fontWeight.semibold,
             fontSize: theme.typography.fontSize.sm,
+            maxWidth: 420,
           }}
         >
-          {t('inbox.progressiveUnlock.showTier', { tier: nextTierLabel })}
+          {t('inbox.guidedPeek.peekCta')}
         </button>
         <button
           onClick={onLater}
+          data-testid="guided-peek-later"
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
             backgroundColor: COLOR_TRANSPARENT,
@@ -80,7 +90,7 @@ export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = (
             fontSize: theme.typography.fontSize.sm,
           }}
         >
-          {t('inbox.progressiveUnlock.later')}
+          {t('inbox.guidedPeek.later')}
         </button>
       </div>
     </div>

@@ -85,8 +85,12 @@ function sanitizeStoredFilters(filters: InboxFilter): InboxFilter {
   }
 
   const isValidRange = PRIORITY_RANGES.some(range => range.min === minPriority && range.max === maxPriority);
+  // The guided default "High-and-above" (High floor, no upper cap) is not one of
+  // the discrete slider buckets (High is bounded 30–50), but it is a valid stored
+  // filter — allow it so the guided default persists across reloads.
+  const isGuidedHighAndAbove = minPriority === HIGH_PRIORITY_THRESHOLD && maxPriority === null;
 
-  if (!isValidRange) {
+  if (!isValidRange && !isGuidedHighAndAbove) {
     return { ...filters, minPriority: null, maxPriority: null };
   }
 
@@ -104,19 +108,21 @@ function loadInitialFilters(): InboxFilter {
       const parsed = sanitizeStoredFilters(JSON.parse(stored));
 
       // One-time migration: users who got the broken null/null default from PR #1121
-      // (fix #1119) should be reset to VERY_HIGH_PRIORITY_THRESHOLD. The #1119 workaround
-      // is no longer needed because PR #1159 (fix #1155) properly fixed priorityModeActive.
-      // Only resets users whose filters are still all-default (never manually changed).
+      // (fix #1119) should be reset to the guided High-and-above default. The #1119
+      // workaround is no longer needed because PR #1159 (fix #1155) properly fixed
+      // priorityModeActive. Only resets users whose filters are still all-default
+      // (never manually changed).
       //
       // Trade-off: this condition cannot distinguish between:
       //   a) a user who got the broken null/null default and never touched their filters
       //      (the intended migration target), and
       //   b) a user who *deliberately* cleared all filters to see their full inbox.
-      // Both groups are treated identically — their filters are reset to VERY_HIGH_PRIORITY_THRESHOLD
-      // on next visit. This is an intentional one-time disruption: group (b) will see fewer
-      // emails until they manually clear the filter again. The PRIORITY_DEFAULT_FIX_KEY flag
-      // prevents this from ever recurring. Future devs: do not change this condition without
-      // considering group (b) — a more granular migration would require per-user server-side
+      // Both groups are treated identically — their filters are reset to the guided
+      // High-and-above default on next visit. This is an intentional one-time
+      // disruption: group (b) will see fewer emails until they manually clear the
+      // filter again. The PRIORITY_DEFAULT_FIX_KEY flag prevents this from ever
+      // recurring. Future devs: do not change this condition without considering
+      // group (b) — a more granular migration would require per-user server-side
       // state that we don't have.
       if (!localStorage.getItem(PRIORITY_DEFAULT_FIX_KEY)) {
         localStorage.setItem(PRIORITY_DEFAULT_FIX_KEY, '1');
@@ -126,14 +132,14 @@ function loadInitialFilters(): InboxFilter {
           parsed.accountIds.length === 0 &&
           parsed.categories.length === 0
         ) {
-          return { ...parsed, minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+          return { ...parsed, minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
         }
       }
 
       // v3 migration: PR #1417 stored visual bucket values (e.g. minPriority: 80 for "Very High")
       // which don't match actual server score ranges. sanitizeStoredFilters above already reset
-      // these invalid pairs to null/null; this migration converts null/null back to VH (50/null).
-      // The migration key ensures this only fires once per user.
+      // these invalid pairs to null/null; this migration converts null/null back to the guided
+      // High-and-above default. The migration key ensures this only fires once per user.
       if (!localStorage.getItem(PRIORITY_SCORE_RANGE_FIX_KEY)) {
         localStorage.setItem(PRIORITY_SCORE_RANGE_FIX_KEY, '1');
         if (
@@ -142,7 +148,7 @@ function loadInitialFilters(): InboxFilter {
           parsed.accountIds.length === 0 &&
           parsed.categories.length === 0
         ) {
-          return { ...parsed, minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+          return { ...parsed, minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
         }
       }
 
@@ -151,15 +157,14 @@ function loadInitialFilters(): InboxFilter {
   } catch (error) {
     console.error('Failed to load filters from localStorage:', error);
   }
-  // First visit (no stored filters) — default to Very High for new users.
+  // First visit (no stored filters) — default to the guided High-and-above view.
   // Fix #1452 (bug 2): revert the PR #1435 change that defaulted new users to null/null ("All").
   // The inbox prioritisation gate (usePrioritisationGate) handles the initial analysis phase
   // separately — while analysis is running and fewer than 20 emails are prioritised, the gate
-  // interstitial is shown regardless of the filter value. Once the gate lifts, the guided
-  // progressive unlock flow starts from Very High as intended. Starting on null/null ("All")
-  // broke the progressive unlock sequence entirely.
+  // interstitial is shown regardless of the filter value. Once the gate lifts, the guided flow
+  // shows High + Very High together. Starting on null/null ("All") would swamp the user.
   localStorage.setItem(FIRST_LOAD_KEY, '1');
-  return { accountIds: [], categories: [], minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+  return { accountIds: [], categories: [], minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
 }
 
 export function useInboxFilters() {

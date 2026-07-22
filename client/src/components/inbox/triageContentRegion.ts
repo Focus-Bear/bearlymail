@@ -3,61 +3,51 @@
  * shows. Several interstitials compete for the same region and must never fight:
  *
  *  - the onboarding prioritisation interstitial (initial analysis progress),
- *  - the distraction-gate pre-screen ("Are you sure you want to look at Triage?"),
- *  - the distraction-gate friction/unlock exercise,
- *  - the normal Triage content (list + progressive-unlock / medium-priority prompt).
+ *  - the distraction-gate friction/unlock exercise (reached via the peek CTA),
+ *  - the normal Triage content (list + the post-clear "well done" peek prompt).
  *
- * The distraction gate is the OUTER decision of whether the user may look at
- * Triage at all while unfinished Action/Follow-Up work remains, so it takes
- * precedence over the normal content (which includes the medium-priority
- * "you've cleared all the high priority emails" interstitial). Because the gate's
- * active state derives from asynchronously-loaded tab counts, we treat "gate not
- * yet resolved" as a distinct holding state — otherwise the medium interstitial
- * flashes for a frame and is then replaced by the gate (the flip-flop bug).
+ * Entering Triage to see High-and-above emails is free. The friction exercise only
+ * appears once the user actively asks to peek at lower-priority emails, so it takes
+ * precedence over the normal content while it is open. Because the gate's
+ * existing-work snapshot is captured from asynchronously-loaded tab counts, we
+ * treat "snapshot not captured yet" as a distinct holding state — otherwise the
+ * post-clear prompt could flash with stale/zero counts for a frame (the flip-flop).
  */
 export enum TriageContentRegion {
   /** Onboarding gate: initial prioritisation still running. */
   OnboardingInterstitial = 'onboarding-interstitial',
-  /** Distraction-gate pre-screen ("Gimme inbox please!" / Search off-ramp). */
-  EntryGate = 'entry-gate',
-  /** Distraction-gate friction/unlock exercise. */
+  /** Distraction-gate friction/unlock exercise (reached via the peek CTA). */
   FrictionModal = 'friction-modal',
-  /** Existing-work status unknown yet (tab counts loading) — hold, don't flash content. */
+  /** Existing-work snapshot not captured yet (tab counts loading) — hold, don't flash content. */
   GatePending = 'gate-pending',
-  /** Normal Triage content (list + progressive-unlock / medium-priority prompt). */
+  /** Normal Triage content (list + the post-clear "well done" peek prompt). */
   Content = 'content',
 }
 
 export interface TriageContentRegionInput {
   /** usePrioritisationGate.isGated — onboarding analysis gate. */
   isOnboardingGated: boolean;
-  /** Distraction-gate pre-screen is showing. */
-  isPreScreenOpen: boolean;
   /** Distraction-gate friction/unlock exercise is showing. */
   isFrictionModalOpen: boolean;
   /**
-   * The distraction gate cannot be decided yet because existing-work counts
-   * (Action + Follow-Up) have not loaded. Only meaningful in Triage.
+   * The gate cannot be decided yet because the existing-work snapshot (Action +
+   * Follow-Up counts) has not been captured. Only meaningful in Triage.
    */
   isGatePending: boolean;
 }
 
 /**
- * Resolve the single screen the Triage content region should render. The order
- * of checks IS the precedence: the gate (and its pending/holding state) always
- * wins over the normal content so the two never overlap or flip-flop.
+ * Resolve the single screen the Triage content region should render. The order of
+ * checks IS the precedence: the friction modal (and the pending/holding state) win
+ * over the normal content so the two never overlap or flip-flop.
  */
 export function selectTriageContentRegion({
   isOnboardingGated,
-  isPreScreenOpen,
   isFrictionModalOpen,
   isGatePending,
 }: TriageContentRegionInput): TriageContentRegion {
   if (isOnboardingGated) {
     return TriageContentRegion.OnboardingInterstitial;
-  }
-  if (isPreScreenOpen) {
-    return TriageContentRegion.EntryGate;
   }
   if (isFrictionModalOpen) {
     return TriageContentRegion.FrictionModal;

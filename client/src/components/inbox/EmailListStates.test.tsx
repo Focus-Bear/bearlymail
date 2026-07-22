@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import {
   HIGH_PRIORITY_THRESHOLD,
-  LOW_PRIORITY_THRESHOLD,
   MEDIUM_PRIORITY_THRESHOLD,
   VERY_HIGH_PRIORITY_THRESHOLD,
 } from 'hooks/useInboxFilters';
@@ -64,21 +63,24 @@ vi.mock('components/inbox/states', () => ({
   ),
   LoadingState: () => <div data-testid="loading-state">Loading</div>,
   ProgressiveUnlockPrompt: ({
-    message,
-    onYes,
-    onLater,
+    actionCount,
+    followUpCount,
+    onTakeAction,
+    onPeek,
   }: {
-    message: string;
-    onYes: () => void;
-    onLater: () => void;
+    actionCount: number;
+    followUpCount: number;
+    onTakeAction: () => void;
+    onPeek: () => void;
   }) => (
-    <div data-testid="progressive-unlock-prompt">
-      <span>{message}</span>
-      <button data-testid="yes-btn" onClick={onYes}>
-        Yes
+    <div data-testid="guided-peek-prompt">
+      <span data-testid="peek-action-count">{actionCount}</span>
+      <span data-testid="peek-followup-count">{followUpCount}</span>
+      <button data-testid="take-action-btn" onClick={onTakeAction}>
+        Take action
       </button>
-      <button data-testid="later-btn" onClick={onLater}>
-        Later
+      <button data-testid="peek-btn" onClick={onPeek}>
+        Peek
       </button>
     </div>
   ),
@@ -124,195 +126,157 @@ describe('EmailListStates', () => {
     });
   });
 
-  describe('progressive unlock — very high to high', () => {
-    it('renders ProgressiveUnlockPrompt when very-high inbox empty and high count > 0', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
-    });
-
-    it('calls onUnlockPriorityTier(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD) on Yes', () => {
-      const onUnlockPriorityTier = vi.fn();
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      fireEvent.click(screen.getByTestId('yes-btn'));
-      expect(onUnlockPriorityTier).toHaveBeenCalledWith(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD);
-    });
-
-    it('hides ProgressiveUnlockPrompt and shows FilteredEmptyState after dismissal when lower emails exist', () => {
-      const onDismissUnlockPrompt = vi.fn();
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={onDismissUnlockPrompt}
-        />
-      );
-      fireEvent.click(screen.getByTestId('later-btn'));
-      expect(onDismissUnlockPrompt).toHaveBeenCalled();
-      expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
-      // FilteredEmptyState, NOT generic EmptyState — lower-priority emails still exist
-      expect(screen.getByTestId('filtered-empty-state')).toBeTruthy();
-      expect(screen.queryByTestId('empty-state')).toBeNull();
-    });
-
-    it('does NOT render ProgressiveUnlockPrompt when high count is 0', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
-    });
-  });
-
-  describe('progressive unlock — high to medium', () => {
-    it('renders ProgressiveUnlockPrompt when high-priority inbox empty and medium count > 0', () => {
+  describe('guided peek prompt — High-and-above cleared', () => {
+    it('renders the prompt with waiting-work counts when the guided High view is empty and lower emails exist', () => {
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
           minPriority={HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          existingActionCount={3}
+          existingFollowUpCount={1}
+          onTakeAction={vi.fn()}
+          onUnlockPriorityTier={vi.fn()}
+        />
+      );
+      expect(screen.getByTestId('guided-peek-prompt')).toBeTruthy();
+      expect(screen.getByTestId('peek-action-count').textContent).toBe('3');
+      expect(screen.getByTestId('peek-followup-count').textContent).toBe('1');
+    });
+
+    it('primary "Take action" calls onTakeAction (navigates to the Action tab)', () => {
+      const onTakeAction = vi.fn();
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          onTakeAction={onTakeAction}
+          onUnlockPriorityTier={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByTestId('take-action-btn'));
+      expect(onTakeAction).toHaveBeenCalledTimes(1);
+    });
+
+    it('secondary peek calls onUnlockPriorityTier(null, HIGH_PRIORITY_THRESHOLD)', () => {
+      const onUnlockPriorityTier = vi.fn();
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          onTakeAction={vi.fn()}
+          onUnlockPriorityTier={onUnlockPriorityTier}
+        />
+      );
+      fireEvent.click(screen.getByTestId('peek-btn'));
+      expect(onUnlockPriorityTier).toHaveBeenCalledWith(null, HIGH_PRIORITY_THRESHOLD);
+    });
+
+    it('does NOT render the prompt without an onTakeAction handler', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
           onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
         />
       );
-      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
+      expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
     });
 
-    it('calls onUnlockPriorityTier(MEDIUM_PRIORITY_THRESHOLD, HIGH_PRIORITY_THRESHOLD) when user clicks Yes on high-done prompt', () => {
-      const onUnlockPriorityTier = vi.fn();
+    it('shows AllCaughtUpState (not the prompt) when the High view is empty and no lower emails exist', () => {
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
           minPriority={HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      fireEvent.click(screen.getByTestId('yes-btn'));
-      expect(onUnlockPriorityTier).toHaveBeenCalledWith(MEDIUM_PRIORITY_THRESHOLD, HIGH_PRIORITY_THRESHOLD);
-    });
-
-    it('does NOT render ProgressiveUnlockPrompt when medium count is 0', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
+          onTakeAction={vi.fn()}
           onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
         />
       );
-      expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
-    });
-  });
-
-  describe('progressive unlock — medium to low', () => {
-    it('renders ProgressiveUnlockPrompt when medium inbox empty and low count > 0', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={MEDIUM_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 5, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
-    });
-
-    it('calls onUnlockPriorityTier(LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD) when user clicks Yes on medium-done prompt', () => {
-      const onUnlockPriorityTier = vi.fn();
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={MEDIUM_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 5, veryLow: 0 }}
-          onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      fireEvent.click(screen.getByTestId('yes-btn'));
-      expect(onUnlockPriorityTier).toHaveBeenCalledWith(LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD);
-    });
-  });
-
-  describe('all caught up — final state', () => {
-    it('renders AllCaughtUpState when at low tier with all counts at zero', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={0}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
+      expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
       expect(screen.getByTestId('all-caught-up-state')).toBeTruthy();
     });
+  });
 
-    it('does NOT render AllCaughtUpState when low count > 0 — shows FilteredEmptyState instead', () => {
+  describe('manual bounded buckets do NOT get the peek prompt', () => {
+    it('shows FilteredEmptyState for a manual Medium bucket with lower emails', () => {
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
-          minPriority={0}
+          minPriority={MEDIUM_PRIORITY_THRESHOLD}
+          maxPriority={HIGH_PRIORITY_THRESHOLD}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
+          onTakeAction={vi.fn()}
           onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
         />
       );
-      expect(screen.queryByTestId('all-caught-up-state')).toBeNull();
+      expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
+      expect(screen.getByTestId('filtered-empty-state')).toBeTruthy();
+    });
+
+    it('does not show the prompt for a manual Very-High (bounded floor) view', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
+          priorityCounts={{ veryHigh: 0, high: 5, medium: 2, low: 0, veryLow: 0 }}
+          onTakeAction={vi.fn()}
+          onUnlockPriorityTier={vi.fn()}
+        />
+      );
+      // min=50 is not the guided High floor (30) → FilteredEmptyState, no prompt.
+      expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
       expect(screen.getByTestId('filtered-empty-state')).toBeTruthy();
     });
   });
 
-  describe('no filter (all-priorities mode)', () => {
-    it('renders EmptyState when minPriority is null (all-priorities mode)', () => {
+  describe('no filter / loading', () => {
+    it('renders EmptyState when no priority filter is active', () => {
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
           minPriority={null}
+          maxPriority={null}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 2, veryLow: 0 }}
+          onTakeAction={vi.fn()}
           onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
         />
       );
-      expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
       expect(screen.getByTestId('empty-state')).toBeTruthy();
+      expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
+    });
+
+    it('renders EmptyState when priorityCounts is still loading (null)', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
+          priorityCounts={null}
+          onTakeAction={vi.fn()}
+          onUnlockPriorityTier={vi.fn()}
+        />
+      );
+      expect(screen.getByTestId('empty-state')).toBeTruthy();
+      expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
     });
   });
 
@@ -322,189 +286,43 @@ describe('EmailListStates', () => {
       expect(screen.queryByTestId('loading-state')).toBeNull();
       expect(screen.queryByTestId('error-state')).toBeNull();
       expect(screen.queryByTestId('empty-state')).toBeNull();
-      expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
+      expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
     });
   });
 
-  describe('dismiss → AllCaughtUpState when all tiers truly empty', () => {
-    it('shows AllCaughtUpState after dismiss when all lower tiers are zero', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      // No prompt to dismiss (all tiers empty), goes directly to AllCaughtUpState
-      expect(screen.getByTestId('all-caught-up-state')).toBeTruthy();
-      expect(screen.queryByTestId('filtered-empty-state')).toBeNull();
-    });
-  });
-
-  describe('progressive unlock — tier skipping', () => {
-    it('skips high tier (high=0) and prompts for medium when VH inbox empty', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      // Should show prompt — skips empty high tier, picks medium via highDone message
-      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
-      // doneMsgKey for the high→medium tier entry is used when skipping VH→high (high=0)
-      expect(screen.getByText('inbox.progressiveUnlock.highDone')).toBeTruthy();
-    });
-
-    it('skips high and medium (both 0) and prompts for low when VH inbox empty', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
-    });
-  });
-
-  describe('priorityCounts null/loading — edge case 2', () => {
-    it('shows generic EmptyState when priorityCounts is null (loading state)', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={null}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      // Falls through to generic EmptyState — acceptable during loading
-      expect(screen.getByTestId('empty-state')).toBeTruthy();
-      expect(screen.queryByTestId('filtered-empty-state')).toBeNull();
-    });
-  });
-
-  describe('FilteredEmptyState — onClearFilters wiring', () => {
-    it('calls onClearFilters when "Show all" is clicked after dismiss', () => {
+  describe('FilteredEmptyState — manual bucket', () => {
+    it('calls onClearFilters when "Show all" is clicked', () => {
       const onClearFilters = vi.fn();
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-          onClearFilters={onClearFilters}
-        />
-      );
-      // Dismiss to trigger FilteredEmptyState
-      fireEvent.click(screen.getByTestId('later-btn'));
-      expect(screen.getByTestId('show-all-btn')).toBeTruthy();
-      fireEvent.click(screen.getByTestId('show-all-btn'));
-      expect(onClearFilters).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('FilteredEmptyState — VH filter, dismiss, shows correct count', () => {
-    it('shows total lower-priority count of 7 after VH dismiss (high=5, medium=2)', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 5, medium: 2, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      fireEvent.click(screen.getByTestId('later-btn'));
-      const countEl = screen.getByTestId('filtered-lower-count');
-      expect(countEl.textContent).toBe('7');
-    });
-  });
-
-  describe('maxPriority prop — bounded range filter', () => {
-    it('treats maxPriority-only filter as active (hasActiveFilter=true)', () => {
-      // When only maxPriority is set (e.g. "Very Low" bucket: min=null, max=0),
-      // hasActiveFilter should be true so we get filter-aware empty states.
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={null}
-          maxPriority={0}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      // All tiers zero with maxPriority active → AllCaughtUpState (not generic EmptyState)
-      expect(screen.getByTestId('all-caught-up-state')).toBeTruthy();
-      expect(screen.queryByTestId('empty-state')).toBeNull();
-    });
-
-    it('treats both minPriority and maxPriority set as active filter (Medium bucket)', () => {
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
           minPriority={MEDIUM_PRIORITY_THRESHOLD}
           maxPriority={HIGH_PRIORITY_THRESHOLD}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 2, veryLow: 1 }}
+          onTakeAction={vi.fn()}
           onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
+          onClearFilters={onClearFilters}
         />
       );
-      // Filter active + lower emails exist → FilteredEmptyState (not generic EmptyState)
-      expect(screen.getByTestId('filtered-empty-state')).toBeTruthy();
-      expect(screen.queryByTestId('empty-state')).toBeNull();
+      expect(screen.getByTestId('show-all-btn')).toBeTruthy();
+      fireEvent.click(screen.getByTestId('show-all-btn'));
+      expect(onClearFilters).toHaveBeenCalledTimes(1);
     });
 
-    it('passes maxPriority prop without breaking existing progressive unlock behaviour', () => {
-      const onUnlockPriorityTier = vi.fn();
+    it('shows the total lower-priority count (low=2, veryLow=1 => 3)', () => {
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
-          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
-          maxPriority={null}
-          priorityCounts={{ veryHigh: 0, high: 5, medium: 0, low: 0, veryLow: 0 }}
-          onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={vi.fn()}
-        />
-      );
-      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
-      fireEvent.click(screen.getByTestId('yes-btn'));
-      expect(onUnlockPriorityTier).toHaveBeenCalledWith(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD);
-    });
-
-    it('renders generic EmptyState when both minPriority and maxPriority are null (no filter)', () => {
-      render(
-        <EmailListStates
-          {...baseProps}
-          emailsEmpty
-          minPriority={null}
-          maxPriority={null}
-          priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 2, veryLow: 0 }}
+          minPriority={MEDIUM_PRIORITY_THRESHOLD}
+          maxPriority={HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 2, veryLow: 1 }}
+          onTakeAction={vi.fn()}
           onUnlockPriorityTier={vi.fn()}
-          onDismissUnlockPrompt={vi.fn()}
         />
       );
-      expect(screen.getByTestId('empty-state')).toBeTruthy();
-      expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
-      expect(screen.queryByTestId('filtered-empty-state')).toBeNull();
+      expect(screen.getByTestId('filtered-lower-count').textContent).toBe('3');
     });
   });
 });

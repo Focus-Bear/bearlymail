@@ -22,9 +22,8 @@ const QA_PASSWORD = process.env.TEST_PASSWORD || 'TestFocusBear2024!';
 async function loginAsQA(page: Page): Promise<void> {
   const loginPage = new LoginPage(page);
   await loginPage.goto('/login');
-  // LoginPage.login() lands on /inbox AND clears the Triage "distraction tax"
-  // gate (the shared dismissDistractionGate chokepoint), so inbox interactions
-  // are not blocked afterwards.
+  // LoginPage.login() lands on /inbox. Entering Triage is free in the guided flow
+  // (no entry gate), so inbox interactions are not blocked afterwards.
   await loginPage.login(QA_EMAIL, QA_PASSWORD);
 }
 

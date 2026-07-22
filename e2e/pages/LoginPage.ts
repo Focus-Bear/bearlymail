@@ -1,6 +1,5 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './BasePage';
-import { dismissDistractionGate } from '../utils/distractionGate';
 
 export class LoginPage extends BasePage {
   readonly emailInput: Locator;
@@ -21,7 +20,6 @@ export class LoginPage extends BasePage {
     const currentUrl = this.page.url();
     if (currentUrl.includes('/inbox')) {
       console.log('Already on inbox page, skipping login');
-      await dismissDistractionGate(this.page);
       return;
     }
 
@@ -110,10 +108,9 @@ export class LoginPage extends BasePage {
       }
     }
 
-    // Landed on /inbox — clear the Triage "distraction tax" gate so callers can
-    // interact with the inbox. Single chokepoint: every login that lands on the
-    // inbox gets past the gate here. No-op when the gate isn't present.
-    await dismissDistractionGate(this.page);
+    // Entering Triage is free in the guided flow (High-and-above emails show
+    // directly) — the distraction friction now only fires when the user opts to
+    // peek at lower-priority emails, which these tests don't do. No gate to clear.
   }
 
   async isLoggedIn(): Promise<boolean> {

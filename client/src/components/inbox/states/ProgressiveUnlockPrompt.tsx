@@ -2,28 +2,37 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { COLOR_TRANSPARENT } from 'constants/colors';
-
 interface ProgressiveUnlockPromptProps {
-  message: string;
-  nextTierLabel: string;
-  nextTierCount: number;
-  onYes: () => void;
-  onLater: () => void;
+  /** Action conversations waiting at the start of this Triage session. */
+  actionCount: number;
+  /** Follow-Up conversations waiting at the start of this Triage session. */
+  followUpCount: number;
+  /** Primary (healthy default): go deal with the waiting Action work. */
+  onTakeAction: () => void;
+  /** Secondary (de-emphasised): peek at the lower-priority new emails. */
+  onPeek: () => void;
 }
 
 /**
- * Shown when the inbox reaches zero threads at the current priority tier.
- * Invites the user to unlock the next lower priority tier or dismiss for now.
+ * Shown once the guided High-and-above Triage view is cleared but lower-priority
+ * unread emails still exist. Congratulates the user, points them at their Action /
+ * Follow-Up work, and makes the healthy default ("Take action") the prominent
+ * choice — while still offering a de-emphasised opt-in to peek at the low-priority
+ * emails (which triggers the friction exercise when work is still waiting).
  */
 export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = ({
-  message,
-  nextTierLabel,
-  nextTierCount,
-  onYes,
-  onLater,
+  actionCount,
+  followUpCount,
+  onTakeAction,
+  onPeek,
 }) => {
   const { t } = useTranslation();
+
+  const hasWork = actionCount > 0 || followUpCount > 0;
+  const workSummary = t('inbox.guidedPeek.workSummary', {
+    action: t('inbox.guidedPeek.actionCount', { count: actionCount }),
+    followUp: t('inbox.guidedPeek.followUpCount', { count: followUpCount }),
+  });
 
   return (
     <div
@@ -44,43 +53,43 @@ export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = (
           fontWeight: theme.typography.fontWeight.semibold,
         }}
       >
-        {message}
+        {t('inbox.guidedPeek.title')}
       </h3>
-      <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
-        {t('inbox.progressiveUnlock.nextTierQuestion', {
-          count: nextTierCount,
-          tier: nextTierLabel,
-        })}
-      </p>
-      <div style={{ display: 'flex', gap: theme.spacing.sm, justifyContent: 'center' }}>
+      {hasWork && (
+        <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>{workSummary}</p>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, alignItems: 'center' }}>
         <button
-          onClick={onYes}
+          onClick={onTakeAction}
+          data-testid="guided-take-action"
           style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+            padding: `${theme.spacing.sm} ${theme.spacing.xl}`,
             backgroundColor: theme.colors.accent.success,
             color: theme.colors.common.white,
             border: 'none',
             borderRadius: theme.borderRadius.md,
             cursor: 'pointer',
             fontWeight: theme.typography.fontWeight.semibold,
-            fontSize: theme.typography.fontSize.sm,
+            fontSize: theme.typography.fontSize.base,
           }}
         >
-          {t('inbox.progressiveUnlock.showTier', { tier: nextTierLabel })}
+          {t('inbox.guidedPeek.takeActionCta')}
         </button>
         <button
-          onClick={onLater}
+          onClick={onPeek}
+          data-testid="guided-peek-cta"
           style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-            backgroundColor: COLOR_TRANSPARENT,
+            padding: theme.spacing.xs,
+            background: 'none',
+            border: 'none',
             color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.sm,
+            textDecoration: 'underline',
+            maxWidth: 420,
           }}
         >
-          {t('inbox.progressiveUnlock.later')}
+          {t('inbox.guidedPeek.peekCta')}
         </button>
       </div>
     </div>

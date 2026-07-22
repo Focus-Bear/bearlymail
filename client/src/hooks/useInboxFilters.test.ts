@@ -1,11 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import {
-  HIGH_PRIORITY_THRESHOLD,
-  PRIORITY_RANGES,
-  useInboxFilters,
-  VERY_HIGH_PRIORITY_THRESHOLD,
-} from './useInboxFilters';
+import { HIGH_PRIORITY_THRESHOLD, PRIORITY_RANGES, useInboxFilters } from './useInboxFilters';
 
 // useInboxFilters → useConnectedAccountsQuery (TanStack Query).
 // Tests don't wrap in QueryClientProvider, so mock the query hook directly.
@@ -137,12 +132,12 @@ describe('useInboxFilters', () => {
   });
 
   describe('initialization', () => {
-    it('defaults to Very High (50/null) when localStorage is empty — fix #1452 bug 2', () => {
-      // Fix #1452 bug 2: revert PR #1435 change. New users should start at VH so the
-      // progressive unlock flow works correctly. The gate handles the analysis phase.
+    it('defaults to the guided High-and-above view (30/null) when localStorage is empty', () => {
+      // Guided default: new users start at High-and-above (High + Very High). The
+      // onboarding gate handles the initial analysis phase separately.
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
       expect(result.current.filters.maxPriority).toBeNull();
       expect(result.current.filters.accountIds).toEqual([]);
       expect(result.current.filters.categories).toEqual([]);
@@ -167,14 +162,29 @@ describe('useInboxFilters', () => {
       expect(result.current.filters.maxPriority).toBe(50);
     });
 
-    it('falls back to Very High (50/null) when localStorage JSON is malformed', () => {
+    it('preserves the guided High-and-above filter (30/null) across reloads', () => {
+      // 30/null is not one of the discrete slider buckets (High is bounded 30–50),
+      // but it is the guided default and must survive sanitization on reload.
+      const storedFilters = { accountIds: [], categories: [], minPriority: 30, maxPriority: null };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedFilters));
+      localStorage.setItem(FIRST_LOAD_KEY, '1');
+      localStorage.setItem(PRIORITY_MIGRATION_V2_KEY, '1');
+      localStorage.setItem(PRIORITY_MIGRATION_V3_KEY, '1');
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.maxPriority).toBeNull();
+    });
+
+    it('falls back to the guided High-and-above view (30/null) when localStorage JSON is malformed', () => {
       localStorage.setItem(STORAGE_KEY, 'not-valid-json{{{');
       console.error = vi.fn();
 
       const { result } = renderHook(() => useInboxFilters());
 
-      // Falls through to the "no stored filters" branch → VH default (fix #1452 bug 2)
-      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
+      // Falls through to the "no stored filters" branch → guided High-and-above default
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
       expect(result.current.filters.maxPriority).toBeNull();
     });
   });
@@ -256,7 +266,7 @@ describe('useInboxFilters', () => {
   });
 
   describe('one-time migration guards', () => {
-    it('v2 migration: stale null/null returning user is migrated to VERY_HIGH_PRIORITY_THRESHOLD', () => {
+    it('v2 migration: stale null/null returning user is migrated to the guided High-and-above default', () => {
       // Simulates a returning user with all-default filters (broken PR #1121 default).
       // Neither migration key is set → both v2 and v3 migrations run.
       const stale = JSON.stringify({ accountIds: [], categories: [], minPriority: null, maxPriority: null });
@@ -264,17 +274,17 @@ describe('useInboxFilters', () => {
 
       const { result } = renderHook(() => useInboxFilters());
 
-      // v2 migration fires first (null/null, empty filters) → resets to VH
-      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
+      // v2 migration fires first (null/null, empty filters) → resets to High-and-above
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
       expect(result.current.filters.maxPriority).toBeNull();
       expect(localStorage.getItem(PRIORITY_MIGRATION_V2_KEY)).toBe('1');
     });
 
-    it('v3 migration: old visual bucket user (null/null after sanitize) is re-migrated to VH', () => {
+    it('v3 migration: old visual bucket user (null/null after sanitize) is re-migrated to High-and-above', () => {
       // Simulates a user who stored old visual VH bucket {80, null} from PR #1417.
       // sanitizeStoredFilters resets it to null/null (invalid range).
       // v2 migration key is already set (from prior session), but v3 is not.
-      // v3 migration then fires and resets to VH.
+      // v3 migration then fires and resets to the guided High-and-above default.
       const oldVisualVH = JSON.stringify({ accountIds: [], categories: [], minPriority: 80, maxPriority: null });
       localStorage.setItem(STORAGE_KEY, oldVisualVH);
       localStorage.setItem(PRIORITY_MIGRATION_V2_KEY, '1'); // v2 already ran
@@ -282,8 +292,8 @@ describe('useInboxFilters', () => {
 
       const { result } = renderHook(() => useInboxFilters());
 
-      // sanitize resets (80, null) → (null, null); v3 then fires → VH
-      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
+      // sanitize resets (80, null) → (null, null); v3 then fires → High-and-above
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
       expect(result.current.filters.maxPriority).toBeNull();
       expect(localStorage.getItem(PRIORITY_MIGRATION_V3_KEY)).toBe('1');
     });

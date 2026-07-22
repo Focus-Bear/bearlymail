@@ -2079,29 +2079,22 @@
     },
     "scheduled": "Programados",
     "progressiveUnlock": {
-      "veryHighDone": "🔥 ¡Sobresaliente — has limpiado todos los correos de prioridad muy alta!",
-      "highDone": "¡Buen trabajo — has limpiado todos los correos de alta prioridad!",
-      "mediumDone": "⭐ ¡Increíble — también terminaste la prioridad media!",
-      "veryHighLabel": "prioridad muy alta",
-      "highLabel": "prioridad alta",
-      "mediumLabel": "prioridad media",
-      "lowLabel": "prioridad baja",
-      "nextTierQuestion": "Hay {{count}} correos de {{tier}} esperando. ¿Quieres abordarlos ahora?",
-      "showTier": "Mostrar correos de {{tier}}",
-      "later": "Quizás más tarde",
       "allCaughtUp": "¡Todo al día! 🏆",
       "allCaughtUpSub": "Has limpiado todos los niveles de prioridad. Disfruta de tu tiempo de concentración."
+    },
+    "guidedPeek": {
+      "title": "¡Bien hecho — has clasificado todos los correos de alta prioridad! 🎉",
+      "actionCount_one": "{{count}} correo por accionar",
+      "actionCount_other": "{{count}} correos por accionar",
+      "followUpCount_one": "{{count}} correo por seguir",
+      "followUpCount_other": "{{count}} correos por seguir",
+      "workSummary": "Ahora tienes {{action}} y {{followUp}}.",
+      "takeActionCta": "Ponte en acción 🐎",
+      "peekCta": "¡Pero quiero ver los otros correos nuevos sin leer aunque sean de baja prioridad!"
     },
     "distractionTax": {
       "title": "¿Seguro que quieres lo nuevo y brillante?",
       "explanation": "📬 Ya tienes {{count}} conversaciones esperando en tus listas de Acción y Seguimiento — el tú del futuro dice que primero las despejes. Echar un vistazo ahora a correos nuevos de menor prioridad es como picar antes de la cena. Demuestra que va en serio y los desbloqueamos.",
-      "preScreen": {
-        "title": "¿Seguro que quieres mirar tu bandeja de triaje?",
-        "explanation_one": "Todavía tienes {{count}} correo por procesar en Acción y Seguimiento. Si alguien te envió un correo y quieres encontrarlo, usa la búsqueda en su lugar.",
-        "explanation_other": "Todavía tienes {{count}} correos por procesar en Acción y Seguimiento. Si alguien te envió un correo y quieres encontrarlo, usa la búsqueda en su lugar.",
-        "searchCta": "Buscar",
-        "proceedCta": "¡Dame la bandeja, por favor!"
-      },
       "chooseMethod": "Elige cómo desbloquear",
       "method": {
         "voice": "🎙️ Dilo en voz alta",

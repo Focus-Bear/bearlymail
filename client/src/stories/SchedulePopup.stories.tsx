@@ -24,9 +24,11 @@ const FrozenClock: React.FC<{ isoLocal: string; children: React.ReactNode }> = (
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const fixed = new RealDate(isoLocal).getTime();
+    // SchedulePopup only calls `new Date()` and `new Date(existingDate)`, so a
+    // single-value constructor override is sufficient to freeze "now".
     class MockDate extends RealDate {
-      constructor(...args: ConstructorParameters<typeof Date>) {
-        super(...(args.length ? args : [fixed]));
+      constructor(value?: number | string | Date) {
+        super(value === undefined ? fixed : value);
       }
       static now(): number {
         return fixed;

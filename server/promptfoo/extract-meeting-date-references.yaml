@@ -1,0 +1,122 @@
+description: "Extract meeting/call date references from an outbound draft and resolve them to absolute dates (pre-send calendar conflict check)"
+
+prompts:
+  - file://prompts/extract-meeting-date-references.md
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+tests:
+  # Motivating scenario (the user's exact example): "Looking forward to talking
+  # tomorrow" must extract a meeting-with-recipient reference resolved to the
+  # absolute next day, so the calendar check can catch a "said tomorrow but the
+  # event is a week later" mistake.
+  - description: "Motivating scenario: 'looking forward to talking tomorrow' → meeting reference resolved to the next day"
+    vars:
+      currentDate: "2026-07-22T09:00:00+10:00"
+      timezone: "Australia/Melbourne"
+      text: "Hi Sarah, great chatting today. Looking forward to talking tomorrow!"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          let parsed;
+          try {
+            const m = cleaned.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(m ? m[0] : cleaned);
+          } catch (e) {
+            throw new Error(`Expected JSON. Got: ${text.substring(0, 200)}`);
+          }
+          if (!Array.isArray(parsed.meetingReferences)) {
+            throw new Error(`Expected meetingReferences array. Got: ${text.substring(0, 200)}`);
+          }
+          const meeting = parsed.meetingReferences.find(r => r && r.isMeetingWithRecipient === true);
+          if (!meeting) {
+            throw new Error(`Expected a meeting-with-recipient reference. Got: ${JSON.stringify(parsed.meetingReferences)}`);
+          }
+          if (meeting.resolvedDate !== '2026-07-23') {
+            throw new Error(`Expected resolvedDate 2026-07-23 (tomorrow). Got: ${meeting.resolvedDate}`);
+          }
+          return true;
+
+  - description: "'see you Monday for our call' → meeting reference resolved to next Monday"
+    vars:
+      currentDate: "2026-07-22T09:00:00+10:00"
+      timezone: "Australia/Melbourne"
+      text: "Sounds good — see you Monday at 2pm for our call to go over the roadmap."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          let parsed;
+          try {
+            const m = cleaned.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(m ? m[0] : cleaned);
+          } catch (e) {
+            throw new Error(`Expected JSON. Got: ${text.substring(0, 200)}`);
+          }
+          const meeting = (parsed.meetingReferences || []).find(r => r && r.isMeetingWithRecipient === true);
+          if (!meeting) {
+            throw new Error(`Expected a meeting-with-recipient reference. Got: ${JSON.stringify(parsed.meetingReferences)}`);
+          }
+          // Wed 2026-07-22 -> next Monday is 2026-07-27.
+          if (meeting.resolvedDate !== '2026-07-27') {
+            throw new Error(`Expected resolvedDate 2026-07-27 (Monday). Got: ${meeting.resolvedDate}`);
+          }
+          return true;
+
+  - description: "A due date that is NOT a meeting with the recipient must not be flagged as a meeting"
+    vars:
+      currentDate: "2026-07-22T09:00:00+10:00"
+      timezone: "Australia/Melbourne"
+      text: "Thanks — just a reminder that the invoice is due next Friday. Let me know if you have questions."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          let parsed;
+          try {
+            const m = cleaned.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(m ? m[0] : cleaned);
+          } catch (e) {
+            throw new Error(`Expected JSON. Got: ${text.substring(0, 200)}`);
+          }
+          if (!Array.isArray(parsed.meetingReferences)) {
+            throw new Error(`Expected meetingReferences array. Got: ${text.substring(0, 200)}`);
+          }
+          const wrongMeeting = parsed.meetingReferences.find(r => r && r.isMeetingWithRecipient === true);
+          if (wrongMeeting) {
+            throw new Error(`A due date must NOT be a meeting with the recipient. Got: ${JSON.stringify(wrongMeeting)}`);
+          }
+          return true;
+
+  - description: "A draft with no dated meeting reference returns an empty meetingReferences array"
+    vars:
+      currentDate: "2026-07-22T09:00:00+10:00"
+      timezone: "Australia/Melbourne"
+      text: "Thanks for your help with this. I'll get back to you soon once I've reviewed the numbers."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          let parsed;
+          try {
+            const m = cleaned.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(m ? m[0] : cleaned);
+          } catch (e) {
+            throw new Error(`Expected JSON. Got: ${text.substring(0, 200)}`);
+          }
+          if (!Array.isArray(parsed.meetingReferences)) {
+            throw new Error(`Expected meetingReferences array. Got: ${text.substring(0, 200)}`);
+          }
+          const anyMeeting = parsed.meetingReferences.find(r => r && r.isMeetingWithRecipient === true);
+          if (anyMeeting) {
+            throw new Error(`Expected no meeting reference for a vague draft. Got: ${JSON.stringify(parsed.meetingReferences)}`);
+          }
+          return true;

@@ -344,7 +344,7 @@ interface SendReplyHandlerDeps {
   replyBcc: string;
   replyMode: string;
   scheduledSendAt: Date | null;
-  checkTone: (draft: string, scheduledSendAt?: string | null) => Promise<boolean>;
+  checkTone: (draft: string, scheduledSendAt?: string | null, recipients?: string) => Promise<boolean>;
   setDraft: (d: string | null) => void;
   setReplyCc: (v: string) => void;
   setReplyBcc: (v: string) => void;
@@ -419,7 +419,7 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
       if (
         draftOverride === undefined &&
         draftToSend.trim() &&
-        !(await checkTone(draftToSend, scheduleTime?.toISOString() ?? null))
+        !(await checkTone(draftToSend, scheduleTime?.toISOString() ?? null, replyRecipients))
       ) {
         return;
       }

@@ -21,6 +21,7 @@ class RsvpRequestDto {
   response!: "accepted" | "declined" | "tentative";
 }
 import { CalendarService } from "./calendar.service";
+import { CalendarMeetingConflictService } from "./calendar-meeting-conflict.service";
 
 /**
  * Safely extracts an error code from an unknown error value.
@@ -33,12 +34,29 @@ function getErrCode(err: unknown): string | number | undefined {
   return undefined;
 }
 
+/** Split a comma-separated recipient list, tolerating quoted display names. */
+function splitRecipients(recipients: string | string[] | undefined): string[] {
+  if (Array.isArray(recipients)) {
+    return recipients.map((address) => address.trim()).filter(Boolean);
+  }
+  if (typeof recipients !== "string") {
+    return [];
+  }
+  return recipients
+    .split(",")
+    .map((address) => address.trim())
+    .filter(Boolean);
+}
+
 @Controller("calendar")
 @UseGuards(JwtAuthGuard)
 export class CalendarController {
   private readonly logger = new Logger(CalendarController.name);
 
-  constructor(private readonly calendarService: CalendarService) {}
+  constructor(
+    private readonly calendarService: CalendarService,
+    private readonly calendarMeetingConflictService: CalendarMeetingConflictService,
+  ) {}
 
   @Get("slots")
   async getAvailableSlots(@Request() req) {
@@ -153,6 +171,37 @@ export class CalendarController {
         "An unexpected error occurred while creating the calendar event",
       );
     }
+  }
+
+  /**
+   * Pre-send advisory: does the outbound draft mention a day for a meeting/call
+   * with the recipient that does not line up with the user's calendar? Runs
+   * alongside the tone check. Never blocks — returns `{ calendarWarning: null }`
+   * when calendar isn't connected, no meeting date is mentioned, or on any error.
+   * POST /calendar/check-meeting-references
+   */
+  @Post("check-meeting-references")
+  async checkMeetingReferences(
+    @Request() req,
+    @Body()
+    body: {
+      text: string;
+      recipients?: string | string[];
+      currentDate?: string;
+      timezone?: string;
+    },
+  ): Promise<{ calendarWarning: string | null }> {
+    const recipients = splitRecipients(body.recipients);
+    if (!body.text?.trim() || recipients.length === 0) {
+      return { calendarWarning: null };
+    }
+    return this.calendarMeetingConflictService.checkOutboundMeetingReferences({
+      userId: req.user.userId,
+      text: body.text,
+      recipients,
+      currentDate: body.currentDate || new Date().toISOString(),
+      timezone: body.timezone || "UTC",
+    });
   }
 
   @Post("invitation/:emailId/respond")

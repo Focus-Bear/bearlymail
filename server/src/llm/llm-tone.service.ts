@@ -8,11 +8,30 @@ import { LLMCoreService } from "./llm-core.service";
 import {
   LLM_OP_CHECK_TONE,
   LLM_OP_DISPUTE_TONE_CHECK,
+  LLM_OP_EXTRACT_MEETING_REFERENCES,
   LLM_OP_REDACT_NAMES,
   LLM_OP_VALIDATE_WRITING_EXAMPLE,
   type LLMOperation,
 } from "./llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
+
+/**
+ * A meeting/call date reference extracted from an outbound draft, resolved to an
+ * absolute calendar date so it can be cross-checked against the user's calendar.
+ */
+export interface MeetingDateReference {
+  /** The exact wording from the draft, e.g. "talking tomorrow". */
+  phrase: string;
+  /** Absolute date the phrase resolves to, as YYYY-MM-DD. */
+  resolvedDate: string;
+  /** True when the phrase is about meeting/talking/calling with the recipient. */
+  isMeetingWithRecipient: boolean;
+}
+
+/** Cap on how many references we act on — a normal email has at most one or two. */
+const MAX_MEETING_REFERENCES = 5;
+/** ISO date guard: exactly YYYY-MM-DD. */
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Domain service for LLM-powered tone checking, dispute resolution, and writing validation.
@@ -99,6 +118,106 @@ export class LLMToneService {
     }
 
     return { isOk: true, suggestions: [] };
+  }
+
+  /**
+   * Extract references to a meeting/call date with the recipient from an outbound
+   * draft, resolving relative phrases ("tomorrow", "next Monday") to absolute dates.
+   * Best-effort: returns [] on any failure so the caller never blocks a send.
+   */
+  async extractMeetingDateReferences(
+    text: string,
+    currentDate: string,
+    timezone: string,
+    userId?: string,
+  ): Promise<MeetingDateReference[]> {
+    if (!text || text.trim().length === 0) {
+      return [];
+    }
+
+    const promptConfig = getPrompt(
+      UTILITY_PROMPT_IDS.EXTRACT_MEETING_DATE_REFERENCES,
+    );
+    if (!promptConfig) {
+      this.logger.warn(
+        "extract_meeting_date_references prompt not found - skipping calendar reference extraction",
+      );
+      return [];
+    }
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      text,
+      currentDate,
+      timezone,
+    });
+
+    try {
+      const response = await this.generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: 0,
+          maxTokens: 500,
+          jsonMode: true,
+          userId,
+        },
+        undefined,
+        userId,
+        LLM_OP_EXTRACT_MEETING_REFERENCES,
+      );
+
+      return this.parseMeetingReferences(response);
+    } catch (error) {
+      this.logger.warn(
+        "Failed to extract meeting date references",
+        error instanceof Error ? error.message : String(error),
+      );
+      return [];
+    }
+  }
+
+  private parseMeetingReferences(response: string): MeetingDateReference[] {
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return [];
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      this.logger.warn("Failed to parse meeting-date-reference JSON response");
+      return [];
+    }
+    const rawList = (parsed as { meetingReferences?: unknown })
+      ?.meetingReferences;
+    if (!Array.isArray(rawList)) {
+      return [];
+    }
+    const references: MeetingDateReference[] = [];
+    for (const raw of rawList) {
+      if (typeof raw !== "object" || raw === null) {
+        continue;
+      }
+      const { phrase, resolvedDate, isMeetingWithRecipient } = raw as Record<
+        string,
+        unknown
+      >;
+      if (
+        typeof phrase === "string" &&
+        typeof resolvedDate === "string" &&
+        ISO_DATE_PATTERN.test(resolvedDate)
+      ) {
+        references.push({
+          phrase,
+          resolvedDate,
+          isMeetingWithRecipient: isMeetingWithRecipient === true,
+        });
+      }
+      if (references.length >= MAX_MEETING_REFERENCES) {
+        break;
+      }
+    }
+    return references;
   }
 
   // eslint-disable-next-line better-max-params/better-max-params

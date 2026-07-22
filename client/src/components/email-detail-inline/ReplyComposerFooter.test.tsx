@@ -442,6 +442,24 @@ describe('ReplyComposerFooter', () => {
       expect(suggestions).toHaveLength(1);
       expect(suggestions[0].labelKey).toBe('tomorrowMorning');
     });
+
+    it('offers "Today 8:30" first when before the 08:30 cutoff', () => {
+      const earlyMonday = new Date('2026-03-09T06:15:00'); // Monday 06:15, before 08:30
+      const suggestions = getScheduleSuggestions(earlyMonday);
+      expect(suggestions[0].labelKey).toBe('todayEarly');
+      expect(suggestions[0].labelParams).toEqual({ time: expect.any(String) });
+      // Resolves to today at 08:30 local time.
+      expect(suggestions[0].date.getHours()).toBe(8);
+      expect(suggestions[0].date.getMinutes()).toBe(30);
+      // Still followed by the regular morning suggestions.
+      expect(suggestions.map(suggestion => suggestion.labelKey)).toContain('thisAfternoon');
+    });
+
+    it('omits "Today 8:30" once past the 08:30 cutoff', () => {
+      const laterMonday = new Date('2026-03-09T09:00:00'); // Monday 09:00, after 08:30
+      const suggestions = getScheduleSuggestions(laterMonday);
+      expect(suggestions.map(suggestion => suggestion.labelKey)).not.toContain('todayEarly');
+    });
   });
 
   describe('expected reply label', () => {

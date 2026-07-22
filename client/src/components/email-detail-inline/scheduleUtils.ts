@@ -1,3 +1,7 @@
+import { isBeforeEarlyMorningCutoff } from 'utils/earlyMorningSuggestion';
+
+import { EARLY_MORNING_SCHEDULE_HOUR, EARLY_MORNING_SCHEDULE_MINUTE } from 'constants/numbers';
+
 const HOUR_6PM = 18;
 const HOUR_NOON = 12;
 const HOUR_1PM = 13;
@@ -8,6 +12,8 @@ const DAY_MONDAY = 1;
 
 export interface ScheduleSuggestion {
   labelKey: string;
+  /** Interpolation params for the label i18n key (e.g. the resolved time). */
+  labelParams?: Record<string, unknown>;
   sublabel: string;
   date: Date;
 }
@@ -49,14 +55,30 @@ const thisAfternoon = (now: Date): Date => {
 };
 
 /**
- * Returns smart schedule suggestions based on the current time-of-day / day-of-week,
+ * The "Today 8:30am" quick option, offered only while the current local time is
+ * still before today's 08:30 cutoff — the window where sending later this
+ * morning is useful. Reuses the shared early-morning predicate and constants so
+ * this dropdown stays in sync with the TimePicker's early-morning suggestion.
+ */
+const earlyMorningToday = (now: Date): ScheduleSuggestion | null => {
+  if (!isBeforeEarlyMorningCutoff(now)) {
+    return null;
+  }
+  const date = new Date(now);
+  date.setHours(EARLY_MORNING_SCHEDULE_HOUR, EARLY_MORNING_SCHEDULE_MINUTE, 0, 0);
+  const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return { labelKey: 'todayEarly', labelParams: { time }, sublabel: formatSuggestionDate(date), date };
+};
+
+/**
+ * Time-of-day / day-of-week suggestions (excluding the early-morning option),
  * matching Gmail's approach:
  *   - Late evening (≥18:00)      → Tomorrow morning
  *   - Weekend                    → Monday morning
  *   - Weekday morning (<12:00)   → This afternoon + Tomorrow morning
  *   - Weekday afternoon          → Tomorrow morning
  */
-export const getScheduleSuggestions = (now: Date = new Date()): ScheduleSuggestion[] => {
+const baseSuggestions = (now: Date): ScheduleSuggestion[] => {
   const hour = now.getHours();
   const dow = now.getDay();
 
@@ -82,4 +104,14 @@ export const getScheduleSuggestions = (now: Date = new Date()): ScheduleSuggesti
   }
   const date = nextWeekdayMorning(now);
   return [{ labelKey: 'tomorrowMorning', sublabel: formatSuggestionDate(date), date }];
+};
+
+/**
+ * Returns smart schedule suggestions for the current time. When the local time
+ * is before today's 08:30 cutoff, the "Today 8:30am" option is offered first.
+ */
+export const getScheduleSuggestions = (now: Date = new Date()): ScheduleSuggestion[] => {
+  const earlyMorning = earlyMorningToday(now);
+  const base = baseSuggestions(now);
+  return earlyMorning ? [earlyMorning, ...base] : base;
 };

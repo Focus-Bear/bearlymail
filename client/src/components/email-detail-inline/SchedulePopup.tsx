@@ -101,7 +101,7 @@ export const SchedulePopup: React.FC<SchedulePopupProps> = ({ onSelectSuggestion
           onMouseLeave={evt => setHoverBg(evt, COLOR_TRANSPARENT_BG)}
         >
           <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
-            {t(`emailDetail.schedulePopup.${suggestion.labelKey}`)}
+            {t(`emailDetail.schedulePopup.${suggestion.labelKey}`, suggestion.labelParams)}
           </span>
           <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary }}>
             {suggestion.sublabel}

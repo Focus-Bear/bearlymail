@@ -1278,6 +1278,7 @@
     "keepInActionTooltip": "Útil si solo estás informando a la otra persona que recibiste su mensaje y aún necesitas tomar acción tú mismo.",
     "schedulePopup": {
       "title": "Programar envío",
+      "todayEarly": "Hoy {{time}}",
       "tomorrowMorning": "Mañana por la mañana",
       "mondayMorning": "El lunes por la mañana",
       "thisAfternoon": "Esta tarde",

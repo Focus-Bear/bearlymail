@@ -20,9 +20,10 @@ import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { Sidebar } from 'components/inbox/Sidebar';
-import { PrioritisationInterstitial } from 'components/inbox/states';
+import { LoadingState, PrioritisationInterstitial } from 'components/inbox/states';
 import { SuggestArchiveWorkflowModal } from 'components/inbox/SuggestArchiveWorkflowModal';
 import { SyncWindowBanner } from 'components/inbox/SyncWindowBanner';
+import { selectTriageContentRegion, TriageContentRegion } from 'components/inbox/triageContentRegion';
 import { TriageEntryGate } from 'components/inbox/TriageEntryGate';
 import { API_URL } from 'config/api';
 import { BUCKET_LABEL_ALL, PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
@@ -230,7 +231,7 @@ const InboxView: React.FC = () => {
       hasAutoAdvancedTierRef.current = true;
       setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
       fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
-    } else if (priorityCounts.medium > 0 && !distraction.isGateActive) {
+    } else if (priorityCounts.medium > 0 && distraction.isGateResolved && !distraction.isGateActive) {
       hasAutoAdvancedTierRef.current = true;
       setPriorityFilter(MEDIUM_PRIORITY_THRESHOLD, null);
       fetchEmails({ minPriority: MEDIUM_PRIORITY_THRESHOLD, maxPriority: null });
@@ -241,7 +242,20 @@ const InboxView: React.FC = () => {
       setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
       fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
     }
-  }, [priorityCounts, mode, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails, distraction.isGateActive]);
+    // When medium emails exist but the gate is not yet resolved (tab counts still
+    // loading), fall through WITHOUT latching: the effect re-runs once
+    // isGateResolved/isGateActive settle, so we never advance to Medium only to be
+    // gated back to High a frame later (the flip-flop).
+  }, [
+    priorityCounts,
+    mode,
+    filters.minPriority,
+    filters.maxPriority,
+    setPriorityFilter,
+    fetchEmails,
+    distraction.isGateActive,
+    distraction.isGateResolved,
+  ]);
 
   // Enforce the distraction-tax floor for returning users whose stored filter is
   // already below High (Medium/Low/All): while gated, raise it to High so lower
@@ -257,6 +271,17 @@ const InboxView: React.FC = () => {
       fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
     }
   }, [distraction.isGateActive, filters.minPriority, setPriorityFilter, fetchEmails]);
+
+  // Single source of precedence for the Triage content region. The distraction
+  // gate (and its "pending" holding state while existing-work counts load) always
+  // wins over the normal content, so the gate and the medium-priority
+  // interstitial can never overlap or flip-flop. See triageContentRegion.ts.
+  const triageContentRegion = selectTriageContentRegion({
+    isOnboardingGated: isGated,
+    isPreScreenOpen: distraction.isPreScreenOpen,
+    isFrictionModalOpen: distraction.isModalOpen,
+    isGatePending: !distraction.isGateResolved,
+  });
 
   if (loading) {
     return <InboxLoadingState />;
@@ -422,13 +447,13 @@ const InboxView: React.FC = () => {
           />
         )}
         {/* Onboarding gate: shown while initial prioritisation is running */}
-        {isGated ? (
+        {triageContentRegion === TriageContentRegion.OnboardingInterstitial ? (
           <PrioritisationInterstitial
             prioritisedCount={gatePrioritisedCount}
             totalCount={gateTotalCount}
             onDismiss={dismissGate}
           />
-        ) : distraction.isPreScreenOpen ? (
+        ) : triageContentRegion === TriageContentRegion.EntryGate ? (
           // Distraction-tax pre-screen, rendered INLINE in place of the Triage
           // list so the tabs/filters above stay switchable and the list can't peek.
           <TriageEntryGate
@@ -436,7 +461,7 @@ const InboxView: React.FC = () => {
             onSearch={() => navigate(ROUTE_SEARCH)}
             onProceed={distraction.proceedFromPreScreen}
           />
-        ) : distraction.isModalOpen ? (
+        ) : triageContentRegion === TriageContentRegion.FrictionModal ? (
           // Distraction-tax unlock exercise, also rendered inline in place of the list.
           <DistractionFrictionModal
             existingWorkCount={existingWorkCount}
@@ -453,6 +478,11 @@ const InboxView: React.FC = () => {
             }}
             onDismiss={distraction.dismissModal}
           />
+        ) : triageContentRegion === TriageContentRegion.GatePending ? (
+          // Existing-work counts still loading in Triage: hold on a loading state
+          // rather than flashing the medium-priority interstitial, which would then
+          // be replaced by the gate once the counts arrive (the flip-flop bug).
+          <LoadingState decrypting={decrypting} loadingModeSwitch={loadingModeSwitch} mode={mode} />
         ) : (
           <>
             {user && <SyncWindowBanner userId={user.id} syncWindowLimited={user.syncWindowLimited} />}

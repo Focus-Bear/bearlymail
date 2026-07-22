@@ -32,6 +32,24 @@ describe('useDistractionFriction', () => {
     expect(result.current.isGateActive).toBe(false);
   });
 
+  it('is unresolved in Triage until tabCounts load, then resolves', () => {
+    const { result, rerender } = renderHook(
+      ({ tabCounts }) => useDistractionFriction({ mode: 'triage', tabCounts }),
+      { initialProps: { tabCounts: null as typeof WORK | null } }
+    );
+    // Existing-work unknown while counts load — callers must hold, not show content.
+    expect(result.current.isGateResolved).toBe(false);
+
+    rerender({ tabCounts: WORK });
+    expect(result.current.isGateResolved).toBe(true);
+    expect(result.current.isGateActive).toBe(true);
+  });
+
+  it('is always resolved outside Triage (gate does not apply there)', () => {
+    const { result } = renderHook(() => useDistractionFriction({ mode: 'action', tabCounts: null }));
+    expect(result.current.isGateResolved).toBe(true);
+  });
+
   it('does NOT intercept unlocks to High-and-above', () => {
     const { result } = renderHook(() => useDistractionFriction({ mode: 'triage', tabCounts: WORK }));
     let intercepted = true;

@@ -26,6 +26,13 @@ export interface UseDistractionFrictionResult {
   hasExistingWork: boolean;
   /** True when peeking below the floor requires the unlock exercise. */
   isGateActive: boolean;
+  /**
+   * True once we know whether the gate applies — i.e. existing-work counts have
+   * loaded (or we are not in Triage). While this is false in Triage, callers must
+   * hold off rendering the Triage content so the medium-priority interstitial
+   * can't flash before the gate settles.
+   */
+  isGateResolved: boolean;
   /** Effective minimum priority to enforce while gated ("High and above"). */
   floor: number;
   /** True once the user has paid the tax this Triage session. */
@@ -81,6 +88,9 @@ export function useDistractionFriction({
   const hasExistingWork = tabCounts !== null && (tabCounts.action > 0 || tabCounts.followUp > 0);
   const isGateActive = isTriage && hasExistingWork && !isUnlocked;
   const isPreScreenOpen = isGateActive && !preScreenDone;
+  // Existing-work is unknown until tab counts load; outside Triage the gate never
+  // applies, so it is trivially resolved there.
+  const isGateResolved = !isTriage || tabCounts !== null;
 
   // Session-scoped: re-lock (and close any open modal) whenever the user leaves
   // Triage. Switching away and back therefore restores the friction (including
@@ -132,6 +142,7 @@ export function useDistractionFriction({
   return {
     hasExistingWork,
     isGateActive,
+    isGateResolved,
     floor: HIGH_PRIORITY_THRESHOLD,
     isUnlocked,
     isModalOpen,

@@ -17,7 +17,7 @@ vi.mock('react-i18next', () => ({
   Trans: ({ i18nKey, components }: { i18nKey: string; components?: Record<string, React.ReactElement> }) => (
     <span>
       {i18nKey}
-      {components?.source}
+      {components?.ruleLink}
     </span>
   ),
 }));

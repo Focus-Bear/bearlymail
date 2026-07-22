@@ -37,7 +37,7 @@ tooltipI18n.use(initReactI18next).init({
         'priority.tooltip.showCategoryExplanation': 'Show why this category was chosen',
         'priority.tooltip.editCategoryRule': 'Edit the rule that matched this category',
         'priority.tooltip.suggestedCategory': 'Suggested Category',
-        'priority.tooltip.categorisedBy.label': 'Categorised by: <source>{{sourceLabel}}</source>',
+        'priority.tooltip.categorisedBy.label': 'Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>',
         'priority.tooltip.categorisedBy.ai': 'AI priority model',
         'priority.tooltip.categorisedBy.rule': 'Deterministic rule',
         'priority.tooltip.categorisedBy.local': 'Local model',

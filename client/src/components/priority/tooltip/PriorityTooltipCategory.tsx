@@ -198,7 +198,9 @@ const CategorisationSourceLine: React.FC<CategorisationSourceLineProps> = ({ sou
       <Trans
         i18nKey="priority.tooltip.categorisedBy.label"
         values={{ sourceLabel }}
-        components={{ source: sourceNode }}
+        // `ruleLink` (not a real HTML element) — Trans self-closes HTML void
+        // tags like <source>, which would drop the wrapped label text.
+        components={{ ruleLink: sourceNode }}
       />
     </div>
   );

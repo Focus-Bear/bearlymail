@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
+import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ReplyComposerDebugPanel } from 'components/email-detail-inline/ReplyComposerDebugPanel';
 import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyComposerFooter';
@@ -12,6 +13,7 @@ import { ForwardedAttachmentsList } from 'components/email-detail-inline/ReplyFo
 import { ReplyOptionsSelector } from 'components/email-detail-inline/ReplyOptionsSelector';
 import { ReplyRecipientsInput } from 'components/email-detail-inline/ReplyRecipientsInput';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
+import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
 import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 import { ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
@@ -29,6 +31,7 @@ interface ToneCheckResultData {
   revisedText?: string;
   attachmentReminder?: string | null;
   inappropriateTiming?: string | null;
+  calendarWarning?: string | null;
 }
 interface DisputeResult {
   accepted: boolean;
@@ -472,7 +475,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
     <ReplyDraftTextarea
       draft={draft}
       loadingReplies={loadingReplies}
-      hasToneError={!!(toneCheckResult && !toneCheckResult.isOk)}
+      hasToneError={isToneCheckBlocking(toneCheckResult)}
       onDraftChange={onDraftChange}
       textareaRef={textareaRef}
       onPasteFiles={onPasteFiles}
@@ -481,6 +484,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
     <ReplyComposerAttachments files={files} onFilesChange={onFilesChange} />
     <ForwardedAttachmentsList attachments={forwardAttachments} onRemove={onRemoveForwardAttachment} />
     <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
+    <CalendarConflictBanner calendarWarning={toneCheckResult?.calendarWarning} />
     <ToneCheckResult
       toneCheckResult={toneCheckResult}
       onUseRevisedText={onUseRevisedText}
@@ -508,7 +512,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
       checkingTone={checkingTone}
       draft={draft}
       replyMode={replyMode}
-      toneCheckFailed={!!(toneCheckResult && !toneCheckResult.isOk)}
+      toneCheckFailed={isToneCheckBlocking(toneCheckResult)}
       scheduledSendAt={scheduledSendAt}
       onClose={onClose}
       onSend={onSend}

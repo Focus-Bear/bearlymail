@@ -17,8 +17,10 @@ import { RecipientFields } from 'components/compose/RecipientFields';
 import { TimePicker } from 'components/compose/TimePicker';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
+import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
+import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
 import { SidebarPageLayout } from 'components/layout/SidebarPageLayout';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -193,7 +195,8 @@ const Compose: React.FC = () => {
     if (options.bypassToneCheck) {
       setToneCheckResult(null);
     } else {
-      const toneOk = await checkTone(form.body.trim());
+      const recipientList = form.to.map(recipient => recipient.email).join(', ');
+      const toneOk = await checkTone(form.body.trim(), null, recipientList);
       if (!toneOk) {
         return;
       }
@@ -395,7 +398,7 @@ const Compose: React.FC = () => {
             onSubjectChange={form.setSubject}
             onBodyChange={text => {
               form.setBody(text);
-              if (toneCheckResult && !toneCheckResult.isOk) {
+              if (toneCheckResult && (!toneCheckResult.isOk || toneCheckResult.calendarWarning)) {
                 setToneCheckResult(null);
               }
             }}
@@ -411,6 +414,7 @@ const Compose: React.FC = () => {
           />
 
           <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
+          <CalendarConflictBanner calendarWarning={toneCheckResult?.calendarWarning} />
           <ToneCheckResult
             toneCheckResult={toneCheckResult}
             onUseRevisedText={text => {
@@ -440,7 +444,7 @@ const Compose: React.FC = () => {
           onSchedule={handleOpenTimePicker}
           scheduledSendAt={scheduledSendAt}
           onClearSchedule={() => setScheduledSendAt(null)}
-          toneCheckFailed={!!(toneCheckResult && !toneCheckResult.isOk)}
+          toneCheckFailed={isToneCheckBlocking(toneCheckResult)}
           onSendAnyway={() => {
             captureEvent(ANALYTICS_EVENTS.TONE_CHECK_SEND_ANYWAY);
             void handleSend({ bypassToneCheck: true });

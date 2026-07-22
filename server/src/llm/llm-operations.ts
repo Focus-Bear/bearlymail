@@ -19,6 +19,9 @@ export const LLM_OP_SUMMARIZE_EMAIL_BATCH = "summarize_email_batch";
 // Tone checking for replies
 export const LLM_OP_CHECK_TONE = "check_tone";
 
+// Extract meeting/call date references from an outbound draft (pre-send calendar check)
+export const LLM_OP_EXTRACT_MEETING_REFERENCES = "extract_meeting_references";
+
 // Action item extraction
 export const LLM_OP_EXTRACT_ACTION_ITEMS = "extract_action_items";
 
@@ -169,6 +172,7 @@ export type LLMOperation =
   | typeof LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING
   | typeof LLM_OP_SUMMARIZE_EMAIL_BATCH
   | typeof LLM_OP_CHECK_TONE
+  | typeof LLM_OP_EXTRACT_MEETING_REFERENCES
   | typeof LLM_OP_EXTRACT_ACTION_ITEMS
   | typeof LLM_OP_SUGGEST_ACTIONS
   | typeof LLM_OP_GENERATE_REPLY
@@ -225,6 +229,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]: "Summarize Email + Phishing Check",
   [LLM_OP_SUMMARIZE_EMAIL_BATCH]: "Summarize Email (Batch)",
   [LLM_OP_CHECK_TONE]: "Check Tone",
+  [LLM_OP_EXTRACT_MEETING_REFERENCES]: "Extract Meeting Date References",
   [LLM_OP_EXTRACT_ACTION_ITEMS]: "Extract Action Items",
   [LLM_OP_SUGGEST_ACTIONS]: "Suggest Actions",
   [LLM_OP_GENERATE_REPLY]: "Generate Reply",

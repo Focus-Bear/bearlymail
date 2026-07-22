@@ -12,6 +12,36 @@ interface ToneCheckResult {
   revisedText?: string;
   attachmentReminder?: string | null;
   inappropriateTiming?: string | null;
+  /** Advisory warning when the draft's meeting date doesn't match the calendar. */
+  calendarWarning?: string | null;
+}
+
+/**
+ * Best-effort pre-send calendar check: does the draft mention a meeting day with
+ * the recipient that doesn't line up with their calendar? Never throws — resolves
+ * to null on any failure (calendar not connected, network error, no recipient).
+ */
+async function fetchCalendarWarning(
+  draft: string,
+  recipients: string | undefined,
+  currentTime: string,
+  timezone: string | undefined,
+  signal: AbortSignal
+): Promise<string | null> {
+  if (!recipients || recipients.trim().length === 0) {
+    return null;
+  }
+  try {
+    const response = await axios.post(
+      `${API_URL}/calendar/check-meeting-references`,
+      { text: draft, recipients, currentDate: currentTime, timezone },
+      { signal }
+    );
+    return response.data?.calendarWarning ?? null;
+  } catch {
+    // Advisory only — a failed/aborted calendar check must never block the send.
+    return null;
+  }
 }
 
 interface DisputeResult {
@@ -54,7 +84,7 @@ export function useEmailDetailToneCheck() {
     setCheckingTone(false);
   }, []);
 
-  const checkTone = useCallback(async (draft: string, scheduledSendAt?: string | null): Promise<boolean> => {
+  const checkTone = useCallback(async (draft: string, scheduledSendAt?: string | null, recipients?: string): Promise<boolean> => {
     // Cancel any in-flight tone check before starting a new one
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -77,19 +107,26 @@ export function useEmailDetailToneCheck() {
     }
     try {
       const currentTime = getCurrentTimeInTimezone(timezoneRef.current);
-      const toneResponse = await axios.post(
-        `${API_URL}/llm/check-tone`,
-        {
-          text: draft,
-          currentTime,
-          scheduledSendAt: scheduledSendAt ?? null,
-        },
-        { signal: controller.signal }
-      );
+      // Run the tone check and the calendar date/meeting check in parallel. The
+      // calendar check is advisory and never rejects, so a single await is safe.
+      const [toneResponse, calendarWarning] = await Promise.all([
+        axios.post(
+          `${API_URL}/llm/check-tone`,
+          {
+            text: draft,
+            currentTime,
+            scheduledSendAt: scheduledSendAt ?? null,
+          },
+          { signal: controller.signal }
+        ),
+        fetchCalendarWarning(draft, recipients, currentTime, timezoneRef.current, controller.signal),
+      ]);
 
-      setToneCheckResult(toneResponse.data);
+      const mergedResult: ToneCheckResult = { ...toneResponse.data, calendarWarning };
+      setToneCheckResult(mergedResult);
 
-      if (!toneResponse.data.isOk) {
+      // Soft-block the send if tone failed OR a calendar mismatch was flagged.
+      if (!mergedResult.isOk || !!mergedResult.calendarWarning) {
         setCheckingTone(false);
         return false;
       }

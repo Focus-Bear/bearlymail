@@ -15,6 +15,7 @@ import { CalendarController } from "./calendar.controller";
 import { CalendarService } from "./calendar.service";
 import { CalendarAgendaService } from "./calendar-agenda.service";
 import { CalendarIcsService } from "./calendar-ics.service";
+import { CalendarMeetingConflictService } from "./calendar-meeting-conflict.service";
 import { PublicCalendarController } from "./public-calendar.controller";
 
 @Module({
@@ -33,6 +34,7 @@ import { PublicCalendarController } from "./public-calendar.controller";
     CalendarService,
     CalendarAgendaService,
     CalendarIcsService,
+    CalendarMeetingConflictService,
     BookingNotificationService,
   ],
   exports: [CalendarService, CalendarAgendaService, CalendarIcsService],

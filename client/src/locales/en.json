@@ -621,6 +621,7 @@
     "useRevision": "Use this revision",
     "toneCheckPassed": "Tone check passed!",
     "inappropriateTiming": "Timing note:",
+    "calendarConflictLabel": "Calendar check:",
     "checkTone": "Check Tone",
     "checking": "Checking...",
     "sendReply": "Send Reply",

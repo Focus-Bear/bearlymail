@@ -69,9 +69,16 @@ export interface EmailDetailState {
     suggestions: string[];
     revisedText?: string;
     inappropriateTiming?: string | null;
+    calendarWarning?: string | null;
   } | null;
   setToneCheckResult: (
-    result: { isOk: boolean; suggestions: string[]; revisedText?: string; inappropriateTiming?: string | null } | null
+    result: {
+      isOk: boolean;
+      suggestions: string[];
+      revisedText?: string;
+      inappropriateTiming?: string | null;
+      calendarWarning?: string | null;
+    } | null
   ) => void;
   checkingTone: boolean;
   setCheckingTone: (checking: boolean) => void;

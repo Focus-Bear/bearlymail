@@ -2,7 +2,7 @@
  * Unit tests for ToneCheckResult helpers
  * Issue #769 — backfill unit tests for frontend business logic helpers
  */
-import { hasSendTimingSuggestion } from './toneCheckResult.helpers';
+import { hasSendTimingSuggestion, isToneCheckBlocking } from './toneCheckResult.helpers';
 
 describe('hasSendTimingSuggestion', () => {
   it('returns false for empty suggestions and no inappropriateTiming', () => {
@@ -35,5 +35,25 @@ describe('hasSendTimingSuggestion', () => {
 
   it('returns false for undefined inappropriateTiming', () => {
     expect(hasSendTimingSuggestion(['No issues here'], undefined)).toBe(false);
+  });
+});
+
+describe('isToneCheckBlocking', () => {
+  it('returns false when the result is null or undefined', () => {
+    expect(isToneCheckBlocking(null)).toBe(false);
+    expect(isToneCheckBlocking(undefined)).toBe(false);
+  });
+
+  it('returns false when tone is OK and there is no calendar warning', () => {
+    expect(isToneCheckBlocking({ isOk: true })).toBe(false);
+    expect(isToneCheckBlocking({ isOk: true, calendarWarning: null })).toBe(false);
+  });
+
+  it('returns true when the tone check failed', () => {
+    expect(isToneCheckBlocking({ isOk: false })).toBe(true);
+  });
+
+  it('returns true when tone is OK but a calendar warning is present', () => {
+    expect(isToneCheckBlocking({ isOk: true, calendarWarning: 'Double-check the date' })).toBe(true);
   });
 });

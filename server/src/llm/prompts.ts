@@ -80,6 +80,7 @@ export const CALENDAR_PROMPT_IDS = {
 export const UTILITY_PROMPT_IDS = {
   SUGGEST_ACTIONS: "suggest_actions",
   CHECK_TONE_STYLE: "check_tone_style",
+  EXTRACT_MEETING_DATE_REFERENCES: "extract_meeting_date_references",
   SEARCH_RELEVANCE_EXPLANATION: "search_relevance_explanation",
   REDACT_NAMES: "redact_names",
   VALIDATE_WRITING_EXAMPLE: "validate_writing_example",
@@ -168,6 +169,10 @@ const PROMPT_FILE_MAP: Array<{
   { file: "summarize-email-bullets.md", key: SUMMARY_PROMPT_IDS.BULLETS },
   { file: "summarize-email-actions.md", key: SUMMARY_PROMPT_IDS.ACTIONS },
   { file: "check-tone-style.md", key: UTILITY_PROMPT_IDS.CHECK_TONE_STYLE },
+  {
+    file: "extract-meeting-date-references.md",
+    key: UTILITY_PROMPT_IDS.EXTRACT_MEETING_DATE_REFERENCES,
+  },
   { file: "suggest-actions.md", key: UTILITY_PROMPT_IDS.SUGGEST_ACTIONS },
   {
     file: "classify-email-type.md",

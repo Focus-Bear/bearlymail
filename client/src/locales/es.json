@@ -1237,6 +1237,7 @@
     "toneCheckIssues": "Verificación de tono: problemas encontrados",
     "toneCheckPassed": "¡Se pasó la verificación de tono!",
     "inappropriateTiming": "Nota de horario:",
+    "calendarConflictLabel": "Revisión del calendario:",
     "totalScore": "Puntuación total",
     "tweakRules": "Modificar las reglas de priorización",
     "useRevisedText": "Usar texto revisado",

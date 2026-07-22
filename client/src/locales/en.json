@@ -3201,7 +3201,7 @@
       "editCategoryRule": "Edit the rule that matched this category",
       "suggestedCategory": "Suggested Category",
       "categorisedBy": {
-        "label": "Categorised by: {{source}}",
+        "label": "Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>",
         "ai": "AI priority model",
         "rule": "Deterministic rule",
         "local": "Local model",

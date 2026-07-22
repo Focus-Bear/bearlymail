@@ -37,7 +37,7 @@ tooltipI18n.use(initReactI18next).init({
         'priority.tooltip.showCategoryExplanation': 'Show why this category was chosen',
         'priority.tooltip.editCategoryRule': 'Edit the rule that matched this category',
         'priority.tooltip.suggestedCategory': 'Suggested Category',
-        'priority.tooltip.categorisedBy.label': 'Categorised by: {{source}}',
+        'priority.tooltip.categorisedBy.label': 'Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>',
         'priority.tooltip.categorisedBy.ai': 'AI priority model',
         'priority.tooltip.categorisedBy.rule': 'Deterministic rule',
         'priority.tooltip.categorisedBy.local': 'Local model',
@@ -121,12 +121,14 @@ export const AiPriorityModel = {
 };
 
 export const DeterministicRule = {
-  name: 'Categorised by — Deterministic rule',
+  name: 'Categorised by — Deterministic rule (links to the matched rule)',
   render: () => (
     <Popover
-      category="Newsletters"
+      category="🔧 Human GitHub issue status updates"
       categorizationSource="rule"
-      categoryExplanation={'Matched deterministic rule (composite): category="Newsletters"'}
+      categoryExplanation={
+        'Matched deterministic rule (composite): category="🔧 Human GitHub issue status updates" (rule:9f1c2b7a-3d44-4e0a-9c11-a2f6e0d81234)'
+      }
     />
   ),
 };

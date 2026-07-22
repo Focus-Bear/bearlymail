@@ -17,12 +17,15 @@ const threadReplyButtonStyle: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: theme.spacing.xs,
-  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+  // Roomier padding so the buttons read as tappable targets rather than text links.
+  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
   fontSize: theme.typography.fontSize.sm,
-  fontWeight: theme.typography.fontWeight.medium,
+  fontWeight: theme.typography.fontWeight.semibold,
   color: theme.colors.primary.main,
-  backgroundColor: 'transparent',
-  border: `1px solid ${theme.colors.border.light}`,
+  // Subtle Sunray fill + a full-strength primary border so the buttons are obviously
+  // bordered against the email background (the faint border.light read as plain text).
+  backgroundColor: theme.colors.primary.subtle,
+  border: `1px solid ${theme.colors.primary.main}`,
   borderRadius: theme.borderRadius.md,
   cursor: 'pointer',
 };

@@ -12,6 +12,10 @@ import {
   EmailRecipient,
   ScheduledEmail,
 } from "../database/entities/scheduled-email.entity";
+import {
+  appendSignature,
+  looksLikeHtml,
+} from "../emails/email-controller.helpers";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
@@ -220,10 +224,20 @@ export class ScheduledEmailsService {
     const { userId } = scheduledEmail;
 
     const user = await this.usersService.findOne(userId);
-    const signature =
-      user?.emailSignature ||
-      "Sent from BearlyMail (anti inbox overwhelm system)";
-    const bodyWithSignature = `${scheduledEmail.body}\n\n${signature}`;
+    // HTML-aware: appends the signature with <br><br> for HTML bodies, \n\n for
+    // plain — reused from the immediate-send helpers so scheduled and immediate
+    // sends format identically.
+    const bodyWithSignature = appendSignature(
+      scheduledEmail.body,
+      user?.emailSignature,
+    );
+    // Replies are composed as HTML (`<p>…</p>`). Without an htmlBody the provider
+    // sends text/plain only, so the recipient sees raw tags (the reported bug:
+    // scheduled replies arrived unrendered). Send the HTML as htmlBody when the
+    // body is HTML — mirroring the immediate reply path. Plain bodies stay plain.
+    const htmlBodyWithSignature = looksLikeHtml(scheduledEmail.body)
+      ? bodyWithSignature
+      : undefined;
 
     const attachments = scheduledEmail.attachments?.map((att) => ({
       filename: att.filename,
@@ -237,6 +251,7 @@ export class ScheduledEmailsService {
         userId,
         bodyWithSignature,
         attachments,
+        htmlBodyWithSignature,
       );
     } else if (scheduledEmail.emailType === SCHEDULED_EMAIL_TYPES.FORWARD) {
       await this.sendScheduledForward(
@@ -280,6 +295,7 @@ export class ScheduledEmailsService {
     attachments:
       | Array<{ filename: string; mimeType: string; content: Buffer }>
       | undefined,
+    htmlBody: string | undefined,
   ): Promise<void> {
     if (!scheduledEmail.emailId || !scheduledEmail.threadId) {
       throw new Error(
@@ -346,6 +362,7 @@ export class ScheduledEmailsService {
       body: bodyWithSignature,
       options: {
         attachments: allAttachments.length > 0 ? allAttachments : undefined,
+        htmlBody,
       },
     });
 

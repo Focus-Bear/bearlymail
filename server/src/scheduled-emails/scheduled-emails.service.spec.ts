@@ -137,4 +137,63 @@ describe("ScheduledEmailsService", () => {
       );
     });
   });
+
+  describe("sendScheduledEmail (reply html rendering)", () => {
+    const wireSendMocks = (sendReply: jest.Mock) => {
+      (service as any).usersService = {
+        findOne: jest.fn().mockResolvedValue({ emailSignature: null }),
+      };
+      (service as any).emailProviderManager = {
+        getPrimaryProvider: jest.fn().mockResolvedValue({ sendReply }),
+      };
+      (service as any).emailsService = {
+        getEmailById: jest.fn().mockResolvedValue({ id: "email-1" }),
+      };
+      (service as any).contactsService = {
+        incrementContactFrequency: jest.fn().mockResolvedValue(undefined),
+      };
+      repo.save.mockResolvedValue({} as any);
+    };
+
+    const replyEntity = (body: string): ScheduledEmail =>
+      ({
+        id: "sched-1",
+        userId: "user-1",
+        emailType: "reply",
+        emailId: "email-1",
+        threadId: "19deabad8035dc29",
+        to: [{ email: "someone@example.com" }],
+        cc: [],
+        bcc: [],
+        subject: "Re: Test",
+        body,
+        attachments: null,
+        forwardAttachmentIds: null,
+      }) as unknown as ScheduledEmail;
+
+    it("sends an htmlBody so HTML replies render (regression: raw <p> tags)", async () => {
+      const sendReply = jest.fn().mockResolvedValue({});
+      wireSendMocks(sendReply);
+
+      await (service as any).sendScheduledEmail(
+        replyEntity("<p>Thanks Nicola.</p><p>cheers,</p>"),
+      );
+
+      const arg = sendReply.mock.calls[0][1];
+      expect(arg.options.htmlBody).toContain("<p>Thanks Nicola.</p>");
+      // HTML-aware signature is appended as <br><br>, not a literal \n\n.
+      expect(arg.options.htmlBody).toContain("<br><br>");
+    });
+
+    it("leaves htmlBody undefined for a plain-text reply", async () => {
+      const sendReply = jest.fn().mockResolvedValue({});
+      wireSendMocks(sendReply);
+
+      await (service as any).sendScheduledEmail(
+        replyEntity("Thanks Nicola, cheers"),
+      );
+
+      expect(sendReply.mock.calls[0][1].options.htmlBody).toBeUndefined();
+    });
+  });
 });

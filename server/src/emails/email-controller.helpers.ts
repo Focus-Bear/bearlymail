@@ -25,16 +25,22 @@ export const EMAIL_CONTROLLER_DEFAULTS = {
  * to preserve correct rendering in HTML email clients. Plain-text bodies use
  * `\n\n` as before.
  */
+/**
+ * True when a body appears to be HTML (contains an angle-bracket tag). The
+ * tag-body length is bounded (`[^>]{0,2048}`) so the test can't retry-and-
+ * backtrack polynomially on inputs like '<a<a<a' with no closing '>' (ReDoS,
+ * CWE-1333).
+ */
+export const looksLikeHtml = (body: string): boolean =>
+  /<[a-z][^>]{0,2048}>/i.test(body);
+
 export const appendSignature = (
   emailBody: string,
   userSignature?: string | null,
 ): string => {
   const signature =
     userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE;
-  // Detect HTML body by the presence of angle-bracket tags. The tag-body length
-  // is bounded (`[^>]{0,2048}`) so the test can't retry-and-backtrack polynomially
-  // on inputs like '<a<a<a' with no closing '>' (ReDoS, CWE-1333).
-  if (/<[a-z][^>]{0,2048}>/i.test(emailBody)) {
+  if (looksLikeHtml(emailBody)) {
     return `${emailBody}<br><br>${signature}`;
   }
   return `${emailBody}\n\n${signature}`;

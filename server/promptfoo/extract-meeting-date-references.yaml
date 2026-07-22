@@ -4,13 +4,16 @@ prompts:
   - file://prompts/extract-meeting-date-references.md
 
 providers:
-  - id: openai:gpt-4o-mini
+  - id: google:gemini-3.1-flash-lite
     config:
       temperature: 0
-      response_format: { type: "json_object" }
 
 tests:
-  - description: "'looking forward to talking tomorrow' → one meeting reference resolved to the next day"
+  # Motivating scenario (the user's exact example): "Looking forward to talking
+  # tomorrow" must extract a meeting-with-recipient reference resolved to the
+  # absolute next day, so the calendar check can catch a "said tomorrow but the
+  # event is a week later" mistake.
+  - description: "Motivating scenario: 'looking forward to talking tomorrow' → meeting reference resolved to the next day"
     vars:
       currentDate: "2026-07-22T09:00:00+10:00"
       timezone: "Australia/Melbourne"

@@ -10,7 +10,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import { InboxPage } from '../pages/InboxPage';
-import { dismissDistractionGate } from '../utils/distractionGate';
 import { API_BASE, TEST_EMAIL, TEST_PASSWORD } from '../utils/config';
 
 /**
@@ -64,9 +63,6 @@ test.describe.skip('Seeded inbox canaries', () => {
   test('triage inbox lists triage canary subject', async ({ page }) => {
     test.setTimeout(45_000); // login + navigation + inbox load + API call
     await page.goto('/inbox/triage');
-    // Re-entering Triage re-locks the distraction gate — clear it before the
-    // inbox load / UI interactions.
-    await dismissDistractionGate(page);
     const inboxPage = new InboxPage(page);
     await inboxPage.waitForInboxToLoad(20_000);
 
@@ -129,9 +125,6 @@ test.describe.skip('Seeded inbox canaries', () => {
   }) => {
     test.setTimeout(45_000); // login + navigation + inbox load + priority API call
     await page.goto('/inbox/triage');
-    // Re-entering Triage re-locks the distraction gate — clear it before the
-    // inbox load.
-    await dismissDistractionGate(page);
     const inboxPage = new InboxPage(page);
     await inboxPage.waitForInboxToLoad(20_000);
 

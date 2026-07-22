@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
 
@@ -98,26 +98,24 @@ interface EmailListStatesProps {
   existingActionCount?: number;
   /** Follow-Up conversations waiting at the start of this Triage session (for the peek prompt copy) */
   existingFollowUpCount?: number;
+  /** Primary CTA on the guided peek prompt: go deal with the waiting Action work. */
+  onTakeAction?: () => void;
   /** Called when user asks to peek at lower-priority emails (min=null, max=High floor) */
   onUnlockPriorityTier?: (minPriority: number | null, maxPriority: number | null) => void;
-  /** Called when user dismisses the guided peek prompt */
-  onDismissUnlockPrompt?: () => void;
   /** Called when user clicks "Show all emails" to clear the priority filter */
   onClearFilters?: () => void;
 }
 
 interface EmptyInboxProps {
   t: (key: string) => string;
-  isUnlockPromptDismissed: boolean;
   minPriority: number | null | undefined;
   maxPriority: number | null | undefined;
   priorityCounts: PriorityCounts | null | undefined;
   existingActionCount: number;
   existingFollowUpCount: number;
   mode: InboxMode;
+  onTakeAction?: () => void;
   onUnlockPriorityTier?: (minPriority: number | null, maxPriority: number | null) => void;
-  onDismissUnlockPrompt?: () => void;
-  handleDismissPrompt: () => void;
   onClearFilters?: () => void;
 }
 
@@ -126,23 +124,21 @@ interface EmptyInboxProps {
  * Extracted to reduce complexity of the parent component.
  *
  * Decision tree:
- * 1. Guided peek prompt — guided High-and-above view cleared, not dismissed, lower emails exist → ProgressiveUnlockPrompt
+ * 1. Guided peek prompt — guided High-and-above view cleared, lower emails exist → ProgressiveUnlockPrompt
  * 2. All caught up — filter active, priorityCounts loaded, ALL lower tiers empty → AllCaughtUpState
- * 3. Filtered but lower emails exist — filter active, priorityCounts loaded, lower > 0 (e.g. dismissed) → FilteredEmptyState
+ * 3. Filtered but lower emails exist — filter active, priorityCounts loaded, lower > 0 → FilteredEmptyState
  * 4. Genuine empty / loading — no filter, or priorityCounts still loading → EmptyState
  */
 function EmptyInboxContent({
   t,
-  isUnlockPromptDismissed,
   minPriority,
   maxPriority,
   priorityCounts,
   existingActionCount,
   existingFollowUpCount,
   mode,
+  onTakeAction,
   onUnlockPriorityTier,
-  onDismissUnlockPrompt,
-  handleDismissPrompt,
   onClearFilters,
 }: EmptyInboxProps): React.ReactElement {
   const hasActiveFilter =
@@ -150,21 +146,15 @@ function EmptyInboxContent({
 
   // 1. Guided peek prompt: only for the guided High-and-above view (not a manually
   //    chosen bounded bucket) once it's cleared and lower-priority emails remain.
-  if (
-    isGuidedHighAndAboveView(minPriority, maxPriority) &&
-    !isUnlockPromptDismissed &&
-    priorityCounts &&
-    onUnlockPriorityTier &&
-    onDismissUnlockPrompt
-  ) {
+  if (isGuidedHighAndAboveView(minPriority, maxPriority) && priorityCounts && onTakeAction && onUnlockPriorityTier) {
     const lowerCount = computeTotalLowerPriority(minPriority as number, priorityCounts);
     if (lowerCount > 0) {
       return (
         <ProgressiveUnlockPrompt
           actionCount={existingActionCount}
           followUpCount={existingFollowUpCount}
+          onTakeAction={onTakeAction}
           onPeek={() => onUnlockPriorityTier(null, HIGH_PRIORITY_THRESHOLD)}
-          onLater={handleDismissPrompt}
         />
       );
     }
@@ -225,21 +215,11 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
   priorityCounts,
   existingActionCount = 0,
   existingFollowUpCount = 0,
+  onTakeAction,
   onUnlockPriorityTier,
-  onDismissUnlockPrompt,
   onClearFilters,
 }) => {
   const { t } = useTranslation();
-  const [isUnlockPromptDismissed, setIsUnlockPromptDismissed] = useState(false);
-
-  /**
-   * Handles "Maybe Later" — hides the prompt for this session without
-   * changing the current priority tier (does NOT unlock lower-priority emails).
-   */
-  const handleDismissPrompt = () => {
-    setIsUnlockPromptDismissed(true);
-    onDismissUnlockPrompt?.();
-  };
 
   if (loading || !hasInitiallyLoaded || loadingModeSwitch) {
     return <LoadingState decrypting={decrypting} loadingModeSwitch={loadingModeSwitch} mode={mode} />;
@@ -264,16 +244,14 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
     return (
       <EmptyInboxContent
         t={t}
-        isUnlockPromptDismissed={isUnlockPromptDismissed}
         minPriority={minPriority}
         maxPriority={maxPriority}
         priorityCounts={priorityCounts}
         existingActionCount={existingActionCount}
         existingFollowUpCount={existingFollowUpCount}
         mode={mode}
+        onTakeAction={onTakeAction}
         onUnlockPriorityTier={onUnlockPriorityTier}
-        onDismissUnlockPrompt={onDismissUnlockPrompt}
-        handleDismissPrompt={handleDismissPrompt}
         onClearFilters={onClearFilters}
       />
     );

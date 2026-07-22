@@ -752,10 +752,10 @@ export interface InboxEmailListPanelProps {
   existingActionCount?: number;
   /** Follow-Up conversations waiting at the start of this Triage session (for the peek prompt copy) */
   existingFollowUpCount?: number;
+  /** Primary CTA on the guided peek prompt: go deal with the waiting Action work. */
+  onTakeAction?: () => void;
   /** Called when user asks to peek at lower-priority emails (min=null, max=High floor) */
   onUnlockPriorityTier?: (minPriority: number | null, maxPriority: number | null) => void;
-  /** Called when user dismisses the guided peek prompt */
-  onDismissUnlockPrompt?: () => void;
   /** Called when user clicks "Show all emails" to clear the priority filter */
   onClearFilters?: () => void;
   /** Count of threads not yet prioritised (priorityScore IS NULL) — used for the virtual "Analysing priority..." category */
@@ -814,8 +814,8 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
     priorityCounts,
     existingActionCount,
     existingFollowUpCount,
+    onTakeAction,
     onUnlockPriorityTier,
-    onDismissUnlockPrompt,
     onClearFilters,
     unprioritisedCount,
   } = props;
@@ -966,8 +966,8 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
           priorityCounts={priorityCounts}
           existingActionCount={existingActionCount}
           existingFollowUpCount={existingFollowUpCount}
+          onTakeAction={onTakeAction}
           onUnlockPriorityTier={onUnlockPriorityTier}
-          onDismissUnlockPrompt={onDismissUnlockPrompt}
           onClearFilters={onClearFilters}
         />
         {canRenderCategories &&

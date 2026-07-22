@@ -79,10 +79,10 @@ export interface InboxContentProps {
   existingActionCount?: number;
   /** Follow-Up conversations waiting at the start of this Triage session (for the peek prompt copy) */
   existingFollowUpCount?: number;
+  /** Primary CTA on the guided peek prompt: go deal with the waiting Action work. */
+  onTakeAction?: () => void;
   /** Called when user asks to peek at lower-priority emails (min=null, max=High floor) */
   onUnlockPriorityTier?: (minPriority: number | null, maxPriority: number | null) => void;
-  /** Called when user dismisses the guided peek prompt */
-  onDismissUnlockPrompt?: () => void;
   /** Called when user clicks "Show all emails" to clear the priority filter */
   onClearFilters?: () => void;
 }
@@ -134,8 +134,8 @@ export const InboxContent: React.FC<InboxContentProps> = props => {
     priorityCounts,
     existingActionCount,
     existingFollowUpCount,
+    onTakeAction,
     onUnlockPriorityTier,
-    onDismissUnlockPrompt,
     onClearFilters,
   } = props;
 
@@ -238,8 +238,8 @@ export const InboxContent: React.FC<InboxContentProps> = props => {
     priorityCounts,
     existingActionCount,
     existingFollowUpCount,
+    onTakeAction,
     onUnlockPriorityTier,
-    onDismissUnlockPrompt,
     onClearFilters,
     unprioritisedCount: priorityCounts?.unprioritised ?? 0,
   };

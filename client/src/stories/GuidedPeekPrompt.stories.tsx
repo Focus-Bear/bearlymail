@@ -1,9 +1,9 @@
 /**
- * Visual story for the guided "well done" peek prompt — shown once the user has
- * triaged every High-and-above email but lower-priority unread emails remain. It
- * congratulates them, points them at their Action / Follow-Up work, and offers a
- * deliberate opt-in to peek at the low-priority emails (which then triggers the
- * friction exercise when work is still waiting). Uses the real component + app
+ * Visual story for the guided "well done" prompt — shown once the user has triaged
+ * every High-and-above email but lower-priority unread emails remain. It
+ * congratulates them, makes "Take action" the prominent healthy default, and keeps
+ * a de-emphasised opt-in to peek at the low-priority emails (which then triggers
+ * the friction exercise when work is still waiting). Uses the real component + app
  * i18n so the screenshot reflects production styling and copy.
  */
 import '../i18n';
@@ -41,8 +41,8 @@ export const WithWaitingWork = {
       <ProgressiveUnlockPrompt
         actionCount={5}
         followUpCount={2}
+        onTakeAction={() => undefined}
         onPeek={() => undefined}
-        onLater={() => undefined}
       />
     </InboxColumn>
   ),
@@ -55,8 +55,8 @@ export const NoWaitingWork = {
       <ProgressiveUnlockPrompt
         actionCount={0}
         followUpCount={0}
+        onTakeAction={() => undefined}
         onPeek={() => undefined}
-        onLater={() => undefined}
       />
     </InboxColumn>
   ),

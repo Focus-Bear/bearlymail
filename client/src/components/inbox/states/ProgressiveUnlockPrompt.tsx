@@ -2,30 +2,29 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { COLOR_TRANSPARENT } from 'constants/colors';
-
 interface ProgressiveUnlockPromptProps {
   /** Action conversations waiting at the start of this Triage session. */
   actionCount: number;
   /** Follow-Up conversations waiting at the start of this Triage session. */
   followUpCount: number;
-  /** Called when the user asks to peek at the lower-priority new emails. */
+  /** Primary (healthy default): go deal with the waiting Action work. */
+  onTakeAction: () => void;
+  /** Secondary (de-emphasised): peek at the lower-priority new emails. */
   onPeek: () => void;
-  /** Called when the user dismisses the prompt for this session. */
-  onLater: () => void;
 }
 
 /**
  * Shown once the guided High-and-above Triage view is cleared but lower-priority
  * unread emails still exist. Congratulates the user, points them at their Action /
- * Follow-Up work, and offers a deliberate opt-in to peek at the low-priority
- * emails (which then triggers the friction exercise when work is still waiting).
+ * Follow-Up work, and makes the healthy default ("Take action") the prominent
+ * choice — while still offering a de-emphasised opt-in to peek at the low-priority
+ * emails (which triggers the friction exercise when work is still waiting).
  */
 export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = ({
   actionCount,
   followUpCount,
+  onTakeAction,
   onPeek,
-  onLater,
 }) => {
   const { t } = useTranslation();
 
@@ -59,38 +58,38 @@ export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = (
       {hasWork && (
         <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>{workSummary}</p>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm, alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, alignItems: 'center' }}>
         <button
-          onClick={onPeek}
-          data-testid="guided-peek-cta"
+          onClick={onTakeAction}
+          data-testid="guided-take-action"
           style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+            padding: `${theme.spacing.sm} ${theme.spacing.xl}`,
             backgroundColor: theme.colors.accent.success,
             color: theme.colors.common.white,
             border: 'none',
             borderRadius: theme.borderRadius.md,
             cursor: 'pointer',
             fontWeight: theme.typography.fontWeight.semibold,
+            fontSize: theme.typography.fontSize.base,
+          }}
+        >
+          {t('inbox.guidedPeek.takeActionCta')}
+        </button>
+        <button
+          onClick={onPeek}
+          data-testid="guided-peek-cta"
+          style={{
+            padding: theme.spacing.xs,
+            background: 'none',
+            border: 'none',
+            color: theme.colors.text.secondary,
+            cursor: 'pointer',
             fontSize: theme.typography.fontSize.sm,
+            textDecoration: 'underline',
             maxWidth: 420,
           }}
         >
           {t('inbox.guidedPeek.peekCta')}
-        </button>
-        <button
-          onClick={onLater}
-          data-testid="guided-peek-later"
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-            backgroundColor: COLOR_TRANSPARENT,
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          {t('inbox.guidedPeek.later')}
         </button>
       </div>
     </div>

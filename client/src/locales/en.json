@@ -484,8 +484,8 @@
       "followUpCount_one": "{{count}} email to follow up with",
       "followUpCount_other": "{{count}} emails to follow up with",
       "workSummary": "You've got {{action}} and {{followUp}} now.",
-      "peekCta": "Oh but I want to see the other new unread emails even though they're low priority!",
-      "later": "Maybe later"
+      "takeActionCta": "Take action 🐎",
+      "peekCta": "Oh but I want to see the other new unread emails even though they're low priority!"
     },
     "distractionTax": {
       "title": "Sure you want the shiny new stuff?",

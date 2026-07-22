@@ -535,15 +535,13 @@ const InboxView: React.FC = () => {
               priorityCounts={priorityCounts}
               existingActionCount={distraction.existingActionCount}
               existingFollowUpCount={distraction.existingFollowUpCount}
+              onTakeAction={() => setMode('action')}
               onUnlockPriorityTier={(minPriority: number | null, maxPriority: number | null) => {
                 // Gated peek below High → open the friction modal instead of unlocking.
                 if (distraction.requestUnlock(minPriority, maxPriority)) {
                   return;
                 }
                 applyPriorityUnlock(minPriority, maxPriority);
-              }}
-              onDismissUnlockPrompt={() => {
-                // Keep current priority tier — do not change minPriority
               }}
               onClearFilters={() => {
                 clearFilters();

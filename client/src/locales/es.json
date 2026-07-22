@@ -2089,8 +2089,8 @@
       "followUpCount_one": "{{count}} correo por seguir",
       "followUpCount_other": "{{count}} correos por seguir",
       "workSummary": "Ahora tienes {{action}} y {{followUp}}.",
-      "peekCta": "¡Pero quiero ver los otros correos nuevos sin leer aunque sean de baja prioridad!",
-      "later": "Quizás más tarde"
+      "takeActionCta": "Ponte en acción 🐎",
+      "peekCta": "¡Pero quiero ver los otros correos nuevos sin leer aunque sean de baja prioridad!"
     },
     "distractionTax": {
       "title": "¿Seguro que quieres lo nuevo y brillante?",

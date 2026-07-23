@@ -16,23 +16,21 @@ export function parseGmailMessage(
   if (!messageData.id || !messageData.threadId) return null;
 
   const headers = messageData.payload?.headers || [];
-  const rawSubject =
+  // RFC 5322 header names are case-insensitive, and forwarded / mailing-list
+  // messages routinely vary the case ("CC:", "cc:"). Match case-insensitively —
+  // a case-sensitive `=== "Cc"` silently dropped CC recipients on those
+  // messages (they synced with CC: N/A). Mirrors parseGmailMetadata/getPartHeader.
+  const getHeader = (name: string): string | undefined =>
     headers.find(
-      (header: { name?: string; value?: string }) => header.name === "Subject",
-    )?.value || "(No Subject)";
+      (header: { name?: string; value?: string }) =>
+        header.name?.toLowerCase() === name.toLowerCase(),
+    )?.value || undefined;
+
+  const rawSubject = getHeader("Subject") || "(No Subject)";
   const subject = decodeRfc2047HeaderValue(rawSubject);
-  const from =
-    headers.find(
-      (header: { name?: string; value?: string }) => header.name === "From",
-    )?.value || "";
-  const to =
-    headers.find(
-      (header: { name?: string; value?: string }) => header.name === "To",
-    )?.value || undefined;
-  const cc =
-    headers.find(
-      (header: { name?: string; value?: string }) => header.name === "Cc",
-    )?.value || undefined;
+  const from = getHeader("From") || "";
+  const to = getHeader("To");
+  const cc = getHeader("Cc");
   const labelIds = messageData.labelIds || [];
   const starCount = labelIds.includes("STARRED") ? 3 : 0;
 

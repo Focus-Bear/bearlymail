@@ -276,7 +276,9 @@ describe('useTabCounts', () => {
     });
 
     it('should use the last-used filters when polling', async () => {
-      const filters = { minPriority: 30 };
+      // Categories/accounts are legitimate cross-mode narrowings that DO apply to the
+      // badges (unlike the priority filter, which is stripped — see below).
+      const filters = { categories: ['work'] };
       const initialCounts = { triage: 2, action: 1, followUp: 0 };
       const updatedCounts = { triage: 5, action: 1, followUp: 0 };
       mockedAxios.get
@@ -292,7 +294,7 @@ describe('useTabCounts', () => {
 
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
       expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining('minPriority=30'),
+        expect.stringContaining('categories=work'),
         expect.anything()
       );
 
@@ -307,10 +309,30 @@ describe('useTabCounts', () => {
 
       // The poll should have used the same filters
       expect(mockedAxios.get).toHaveBeenLastCalledWith(
-        expect.stringContaining('minPriority=30'),
+        expect.stringContaining('categories=work'),
         expect.anything()
       );
       expect(result.current.tabCounts).toEqual(updatedCounts);
+    });
+
+    it('never sends the priority filter — tab counts include all-priority Action/Follow-Up work', async () => {
+      // Regression: the Triage guided High-and-above default must NOT filter the tab
+      // counts, or the distraction-tax "existing work" snapshot under-counts Medium/Low
+      // Action/Follow-Up threads and the inbox wrongly reads as "all cleared".
+      const counts = { triage: 2, action: 4, followUp: 3 };
+      mockedAxios.get.mockResolvedValue({ data: counts });
+
+      const { result } = renderHook(() => useTabCounts());
+
+      await act(async () => {
+        await result.current.fetchTabCounts(true, { minPriority: 30, maxPriority: null });
+      });
+
+      const calledUrl = mockedAxios.get.mock.calls[0][0] as string;
+      expect(calledUrl).not.toContain('minPriority');
+      expect(calledUrl).not.toContain('maxPriority');
+      // Counts reflect every Action/Follow-Up thread regardless of priority.
+      expect(result.current.tabCounts).toEqual(counts);
     });
 
     it('should poll repeatedly on each interval tick', async () => {
@@ -372,8 +394,8 @@ describe('useTabCounts', () => {
     });
 
     it('should discard stale poll results when filters have changed', async () => {
-      const filterA = { minPriority: 10 };
-      const filterB = { minPriority: 50 };
+      const filterA = { categories: ['a'] };
+      const filterB = { categories: ['b'] };
       const countsForA = { triage: 20, action: 10, followUp: 5 };
       const countsForB = { triage: 3, action: 1, followUp: 0 };
 

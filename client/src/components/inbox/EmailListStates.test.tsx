@@ -155,6 +155,7 @@ describe('EmailListStates', () => {
           minPriority={HIGH_PRIORITY_THRESHOLD}
           maxPriority={null}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          existingActionCount={3}
           onTakeAction={onTakeAction}
           onUnlockPriorityTier={vi.fn()}
         />
@@ -172,6 +173,7 @@ describe('EmailListStates', () => {
           minPriority={HIGH_PRIORITY_THRESHOLD}
           maxPriority={null}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          existingActionCount={3}
           onTakeAction={vi.fn()}
           onUnlockPriorityTier={onUnlockPriorityTier}
         />
@@ -188,6 +190,7 @@ describe('EmailListStates', () => {
           minPriority={HIGH_PRIORITY_THRESHOLD}
           maxPriority={null}
           priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          existingActionCount={3}
           onUnlockPriorityTier={vi.fn()}
         />
       );
@@ -208,6 +211,70 @@ describe('EmailListStates', () => {
       );
       expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
       expect(screen.getByTestId('all-caught-up-state')).toBeTruthy();
+    });
+  });
+
+  describe('guided peek prompt is Triage-only (never Action / Follow-Up)', () => {
+    it.each(['action', 'follow-up'] as const)(
+      'never renders the prompt in %s mode even with the guided High view cleared and lower emails',
+      mode => {
+        render(
+          <EmailListStates
+            {...baseProps}
+            mode={mode}
+            emailsEmpty
+            minPriority={HIGH_PRIORITY_THRESHOLD}
+            maxPriority={null}
+            priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+            existingActionCount={3}
+            existingFollowUpCount={1}
+            onTakeAction={vi.fn()}
+            onUnlockPriorityTier={vi.fn()}
+          />
+        );
+        // The prompt is a Triage-guided-flow element — an empty Action/Follow-Up tab
+        // must show its own (filtered/normal) empty state, not the well-done prompt.
+        expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
+      }
+    );
+  });
+
+  describe('no pre-existing Action/Follow-Up work → no gating prompt', () => {
+    it('does NOT render the prompt when there is zero existing work (reveal is handled in Inbox)', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          existingActionCount={0}
+          existingFollowUpCount={0}
+          onTakeAction={vi.fn()}
+          onUnlockPriorityTier={vi.fn()}
+        />
+      );
+      // Premise ("go do your other work") doesn't hold with nothing waiting, so the
+      // prompt is suppressed; the filtered-empty fallback shows the lower emails cue.
+      expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
+      expect(screen.getByTestId('filtered-empty-state')).toBeTruthy();
+    });
+
+    it('renders the prompt when Follow-Up work exists even though Action is empty', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          existingActionCount={0}
+          existingFollowUpCount={2}
+          onTakeAction={vi.fn()}
+          onUnlockPriorityTier={vi.fn()}
+        />
+      );
+      expect(screen.getByTestId('guided-peek-prompt')).toBeTruthy();
     });
   });
 

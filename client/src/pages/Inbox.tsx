@@ -18,6 +18,7 @@ import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
+import { shouldRevealLowerPriorityTriage } from 'components/inbox/revealLowerPriorityTriage';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { LoadingState, PrioritisationInterstitial } from 'components/inbox/states';
 import { SuggestArchiveWorkflowModal } from 'components/inbox/SuggestArchiveWorkflowModal';
@@ -258,6 +259,45 @@ const InboxView: React.FC = () => {
       fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
     }
   }, [distraction.isGateActive, filters.minPriority, setPriorityFilter, fetchEmails]);
+
+  // When there is NO pre-existing Action/Follow-Up work to point the user at, the
+  // "well done — go do your other work" prompt has no premise. So once the guided
+  // High-and-above Triage list is cleared but lower-priority Triage threads remain,
+  // reveal those threads directly instead of gating behind the prompt. Only fires
+  // when the existing-work snapshot has resolved to zero. Session-scoped: the latch
+  // resets whenever the user leaves Triage.
+  const hasRevealedLowerRef = useRef(false);
+  useEffect(() => {
+    if (mode !== MODE_TRIAGE) {
+      hasRevealedLowerRef.current = false;
+      return;
+    }
+    const shouldReveal = shouldRevealLowerPriorityTriage({
+      isTriage: mode === MODE_TRIAGE,
+      isGateResolved: distraction.isGateResolved,
+      hasExistingWork: distraction.hasExistingWork,
+      minPriority: filters.minPriority,
+      maxPriority: filters.maxPriority,
+      priorityCounts,
+      alreadyRevealed: hasRevealedLowerRef.current,
+    });
+    if (shouldReveal) {
+      hasRevealedLowerRef.current = true;
+      setPriorityFilter(null, null);
+      fetchEmails({ minPriority: null, maxPriority: null });
+      fetchPriorityCounts();
+    }
+  }, [
+    mode,
+    distraction.isGateResolved,
+    distraction.hasExistingWork,
+    filters.minPriority,
+    filters.maxPriority,
+    priorityCounts,
+    setPriorityFilter,
+    fetchEmails,
+    fetchPriorityCounts,
+  ]);
 
   // Single source of precedence for the Triage content region. The friction modal
   // (and the "pending" holding state while the existing-work snapshot is captured)

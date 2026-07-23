@@ -11,6 +11,7 @@ import {
   ProgressiveUnlockPrompt,
   SyncingState,
 } from 'components/inbox/states';
+import { MODE_TRIAGE } from 'constants/strings';
 import {
   HIGH_PRIORITY_THRESHOLD,
   LOW_PRIORITY_THRESHOLD,
@@ -124,10 +125,17 @@ interface EmptyInboxProps {
  * Extracted to reduce complexity of the parent component.
  *
  * Decision tree:
- * 1. Guided peek prompt — guided High-and-above view cleared, lower emails exist → ProgressiveUnlockPrompt
+ * 1. Guided peek prompt — Triage only, guided High-and-above view cleared, pre-existing
+ *    Action/Follow-Up work waiting, lower emails exist → ProgressiveUnlockPrompt
  * 2. All caught up — filter active, priorityCounts loaded, ALL lower tiers empty → AllCaughtUpState
  * 3. Filtered but lower emails exist — filter active, priorityCounts loaded, lower > 0 → FilteredEmptyState
  * 4. Genuine empty / loading — no filter, or priorityCounts still loading → EmptyState
+ *
+ * The guided peek prompt is a Triage-guided-flow element: it must NEVER render in the
+ * Action or Follow-Up tabs (those show their own empty state). It also only makes sense
+ * when there IS pre-existing Action/Follow-Up work to point the user at — with none, the
+ * "go do your other work" premise doesn't hold, so the Triage list simply reveals the
+ * remaining lower-priority threads (handled in Inbox.tsx) instead of gating here.
  */
 function EmptyInboxContent({
   t,
@@ -143,10 +151,21 @@ function EmptyInboxContent({
 }: EmptyInboxProps): React.ReactElement {
   const hasActiveFilter =
     (minPriority !== null && minPriority !== undefined) || (maxPriority !== null && maxPriority !== undefined);
+  // The gate/prompt is only meaningful when the user has pre-existing Action or
+  // Follow-Up work to be pointed at (a snapshot taken at Triage session start).
+  const hasExistingWork = existingActionCount > 0 || existingFollowUpCount > 0;
 
-  // 1. Guided peek prompt: only for the guided High-and-above view (not a manually
-  //    chosen bounded bucket) once it's cleared and lower-priority emails remain.
-  if (isGuidedHighAndAboveView(minPriority, maxPriority) && priorityCounts && onTakeAction && onUnlockPriorityTier) {
+  // 1. Guided peek prompt: Triage only (never the Action/Follow-Up tabs), for the
+  //    guided High-and-above view (not a manually chosen bounded bucket), once it's
+  //    cleared, lower-priority emails remain, AND there is pre-existing work waiting.
+  if (
+    mode === MODE_TRIAGE &&
+    hasExistingWork &&
+    isGuidedHighAndAboveView(minPriority, maxPriority) &&
+    priorityCounts &&
+    onTakeAction &&
+    onUnlockPriorityTier
+  ) {
     const lowerCount = computeTotalLowerPriority(minPriority as number, priorityCounts);
     if (lowerCount > 0) {
       return (

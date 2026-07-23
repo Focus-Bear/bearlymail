@@ -58,9 +58,7 @@ describe('EmailDetailHeader', () => {
     email: mockEmail,
     threadEmails: [] as Email[],
     priorityExplanation: null,
-    showPriorityExplanation: false,
     onFetchPriorityExplanation: vi.fn(),
-    onClosePriorityExplanation: vi.fn(),
   };
 
   beforeEach(() => {
@@ -151,6 +149,52 @@ describe('EmailDetailHeader', () => {
         expect(consoleSpy).toHaveBeenCalled();
       });
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('priority debug panel', () => {
+    it('should always render the priority panel without a click', () => {
+      render(<EmailDetailHeader {...defaultProps} />);
+      expect(screen.getByTestId('email-detail-priority-panel')).toBeInTheDocument();
+    });
+
+    it('should show the resolved score + breakdown without interaction', () => {
+      const scoredEmail: Email = { ...mockEmail, priorityScore: 45 };
+      const priorityExplanation = {
+        score: 45,
+        breakdown: [
+          { factor: 'Urgency', value: 15, description: 'Deadline mentioned' },
+          { factor: 'Goal Alignment', value: 20, description: 'Matches your goals' },
+        ],
+      };
+      render(
+        <EmailDetailHeader {...defaultProps} email={scoredEmail} priorityExplanation={priorityExplanation} />
+      );
+      // Score is shown (t mock echoes key + params)
+      expect(screen.getByText(/emailDetail\.priorityScore/)).toBeInTheDocument();
+      // Breakdown factors are visible without opening any popover
+      expect(screen.getByText('Urgency')).toBeInTheDocument();
+      expect(screen.getByText('Goal Alignment')).toBeInTheDocument();
+    });
+
+    it('should show "not yet calculated" instead of a misleading 0 when unresolved', () => {
+      // mockEmail has no priorityScore and is not processing → unresolved
+      render(<EmailDetailHeader {...defaultProps} />);
+      expect(screen.getByText('emailDetail.priorityPanel.notCalculated')).toBeInTheDocument();
+      expect(screen.queryByText(/priorityScore.*"score":"0"/)).not.toBeInTheDocument();
+    });
+
+    it('should retry calculation when the unresolved label is clicked', () => {
+      const onFetch = vi.fn();
+      render(<EmailDetailHeader {...defaultProps} onFetchPriorityExplanation={onFetch} />);
+      fireEvent.click(screen.getByText('emailDetail.priorityPanel.notCalculated'));
+      expect(onFetch).toHaveBeenCalled();
+    });
+
+    it('should show a calculating state while priority is processing', () => {
+      const processingEmail: Email = { ...mockEmail, isProcessingPriority: true };
+      render(<EmailDetailHeader {...defaultProps} email={processingEmail} />);
+      expect(screen.getByText('emailDetail.priorityPanel.calculating')).toBeInTheDocument();
     });
   });
 });

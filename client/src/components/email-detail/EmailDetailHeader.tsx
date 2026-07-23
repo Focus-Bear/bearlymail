@@ -15,9 +15,7 @@ interface EmailDetailHeaderProps {
   email: Email;
   threadEmails?: Email[];
   priorityExplanation: PriorityExplanation | null;
-  showPriorityExplanation: boolean;
   onFetchPriorityExplanation: () => void;
-  onClosePriorityExplanation: () => void;
 }
 
 /**
@@ -31,9 +29,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
   email,
   threadEmails = [],
   priorityExplanation,
-  showPriorityExplanation,
   onFetchPriorityExplanation,
-  onClosePriorityExplanation,
 }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -67,10 +63,8 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
       email={email}
       correspondent={correspondent}
       priorityExplanation={priorityExplanation}
-      showPriorityExplanation={showPriorityExplanation}
       emailCopied={emailCopied}
       onFetchPriorityExplanation={onFetchPriorityExplanation}
-      onClosePriorityExplanation={onClosePriorityExplanation}
       onNavigateToContact={(event, contactEmail, senderContactId) =>
         navigateToContact(event, contactEmail, senderContactId, { newTab: true })
       }

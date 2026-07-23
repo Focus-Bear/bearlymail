@@ -1,7 +1,7 @@
 /**
  * EmailDetailHeaderDemo — stateful wrapper and sample data for EmailDetailHeader stories.
- * Manages copied/explanation state. EmailDetailHeaderView takes `t` as a prop so no
- * I18nextProvider is needed here — the translate function is inlined instead.
+ * Manages copied state. EmailDetailHeaderView takes `t` as a prop so no I18nextProvider
+ * is needed here — the translate function is inlined instead.
  */
 import React, { useState } from 'react';
 import { Email } from 'types/email';
@@ -25,7 +25,8 @@ export const SAMPLE_EMAIL: Email = {
   isRead: false,
   priorityScore: 45,
   starCount: 0,
-  category: 'Action',
+  category: 'Sales',
+  categorizationSource: 'ai',
   senderContactId: 'contact-001',
 } as unknown as Email;
 
@@ -53,31 +54,40 @@ export const SAMPLE_PRIORITY_EXPLANATION: PriorityExplanation = {
 // ---------------------------------------------------------------------------
 
 export const translate = (key: string, options?: Record<string, unknown>): string => {
+  if (key === 'emailDetail.priorityScore' && options?.score !== undefined) {
+    return `Priority Score: ${options.score}`;
+  }
+  if (key === 'emailDetail.priorityPanel.category' && options?.category !== undefined) {
+    return `Category: ${options.category}`;
+  }
+  if (key === 'emailDetail.priorityPanel.categorisedBy' && options?.source !== undefined) {
+    return `Categorised by ${options.source}`;
+  }
   const translations: Record<string, string> = {
     'emailDetail.viewContact': 'View contact',
     'emailDetail.emailCopied': 'Email copied!',
     'emailDetail.clickToCopyEmail': 'Click to copy email address',
-    'emailDetail.priorityScore': `Priority score: ${options?.score ?? ''}`,
-    'emailDetail.clickToSeeScore': 'Click to see score breakdown',
     'emailDetail.scoreBreakdown': 'Score Breakdown',
-    'emailDetail.goalAlignment': 'Goal Alignment',
-    'emailDetail.totalScore': 'Total Score',
-    'emailDetail.priorityBecause': 'priority because',
     'emailDetail.tweakRules': 'Tweak rules',
     'emailDetail.toLabel': 'To:',
     'emailDetail.ccLabel': 'Cc:',
-    'emailDetail.sentiment.positive': 'Positive',
-    'emailDetail.sentiment.negative': 'Negative',
-    'emailDetail.sentiment.neutral': 'Neutral',
-    'emailDetail.sentiment.label': 'Sentiment',
+    'emailDetail.priorityPanel.calculating': 'Priority: calculating…',
+    'emailDetail.priorityPanel.notCalculated': 'Priority: not yet calculated',
+    'emailDetail.priorityPanel.notCalculatedHint': 'This email was never scored — click to recalculate.',
+    'emailDetail.priorityPanel.uncategorised': 'Uncategorised',
+    'emailDetail.priorityPanel.breakdownLoading': 'Loading score breakdown…',
+    'emailDetail.priorityPanel.noBreakdown': 'No score breakdown available',
+    'priority.tooltip.categorisedBy.ai': 'AI priority model',
+    'priority.tooltip.categorisedBy.rule': 'Deterministic rule',
+    'priority.tooltip.categorisedBy.local': 'Local model',
+    'priority.tooltip.categorisedBy.proto': 'Suggested category (pending promotion)',
+    'priority.tooltip.categorisedBy.user': 'Your manual choice',
+    'priority.veryHigh': 'Very High',
     'priority.high': 'High',
     'priority.medium': 'Medium',
     'priority.low': 'Low',
     'priority.veryLow': 'Very Low',
   };
-  if (key === 'emailDetail.priorityScore' && options?.score !== undefined) {
-    return `Priority score: ${options.score}`;
-  }
   return translations[key] ?? key;
 };
 
@@ -86,30 +96,29 @@ export const translate = (key: string, options?: Record<string, unknown>): strin
 // ---------------------------------------------------------------------------
 
 export interface HeaderDemoProps {
-  showPriorityExplanation?: boolean;
   hasPriorityData?: boolean;
   emailCopied?: boolean;
+  /** Overrides the sample email — used for the unresolved / calculating variants. */
+  emailOverrides?: Partial<Email>;
 }
 
 export const HeaderDemo: React.FC<HeaderDemoProps> = ({
-  showPriorityExplanation = false,
-  hasPriorityData = false,
+  hasPriorityData = true,
   emailCopied: initialCopied = false,
+  emailOverrides,
 }) => {
   const [copied, setCopied] = useState(initialCopied);
-  const [showExplanation, setShowExplanation] = useState(showPriorityExplanation);
+  const email = emailOverrides ? ({ ...SAMPLE_EMAIL, ...emailOverrides } as Email) : SAMPLE_EMAIL;
 
   return (
     <div style={{ maxWidth: 700, fontFamily: 'system-ui, sans-serif' }}>
       <EmailDetailHeaderView
-        email={SAMPLE_EMAIL}
+        email={email}
         correspondent={SAMPLE_CORRESPONDENT}
         priorityExplanation={hasPriorityData ? SAMPLE_PRIORITY_EXPLANATION : null}
-        showPriorityExplanation={showExplanation}
         emailCopied={copied}
-        onFetchPriorityExplanation={() => setShowExplanation(true)}
-        onClosePriorityExplanation={() => setShowExplanation(false)}
-        onNavigateToContact={(_event, email) => console.log('Navigate to contact:', email)}
+        onFetchPriorityExplanation={() => console.log('Recalculate priority')}
+        onNavigateToContact={(_event, contactEmail) => console.log('Navigate to contact:', contactEmail)}
         onCopyEmail={() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);

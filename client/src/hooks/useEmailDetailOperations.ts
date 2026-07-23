@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Email, GitHubLink } from 'types/email';
+import { Email, GitHubLink, PriorityExplanation } from 'types/email';
 import {
   extractCleanBody,
   extractCleanBodyWithMeta,
@@ -584,22 +584,26 @@ export function useEmailDetailOperations(
     [setExpandedThreadItems]
   );
 
-  const handleFetchPriorityExplanation = useCallback(async () => {
-    if (!id) {
-      return;
-    }
-    if (priorityExplanation) {
-      setShowPriorityExplanation(true);
+  // Fetches the priority breakdown into state WITHOUT opening any popover. The
+  // full-page detail view auto-loads this on mount so the priority debug panel
+  // renders the score + breakdown without requiring a click. Guarded so it never
+  // refetches once the explanation is present.
+  const loadPriorityExplanation = useCallback(async () => {
+    if (!id || priorityExplanation) {
       return;
     }
     try {
-      const response = await axios.get(`${API_URL}/emails/${id}/priority-explanation`);
+      const response = await axios.get<PriorityExplanation>(`${API_URL}/emails/${id}/priority-explanation`);
       setPriorityExplanation(response.data);
-      setShowPriorityExplanation(true);
     } catch (error) {
       console.error('Error fetching priority explanation:', error);
     }
-  }, [id, priorityExplanation, setPriorityExplanation, setShowPriorityExplanation]);
+  }, [id, priorityExplanation, setPriorityExplanation]);
+
+  const handleFetchPriorityExplanation = useCallback(async () => {
+    await loadPriorityExplanation();
+    setShowPriorityExplanation(true);
+  }, [loadPriorityExplanation, setShowPriorityExplanation]);
 
   const handleSaveNote = useCallback(async () => {
     if (!email) {
@@ -1017,6 +1021,7 @@ export function useEmailDetailOperations(
     handleActionSelected,
     handleActionSuccess,
     toggleThreadItem,
+    loadPriorityExplanation,
     handleFetchPriorityExplanation,
     handleExtractActions,
     handleAddActionItem,

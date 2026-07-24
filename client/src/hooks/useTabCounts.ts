@@ -37,15 +37,31 @@ interface CacheEntry {
 }
 
 /**
- * Build a stable cache key from the full filter object.
- * All three dimensions (minPriority, categories, accountIds) contribute so that
- * different filter combinations are cached independently.
+ * Tab-count badges reflect ALL work in each mode, independent of the Triage guided
+ * priority default. That default (High-and-above) is a Triage *list* filter and must
+ * NOT leak into how Action/Follow-Up work is counted — otherwise the distraction-tax
+ * "existing work" snapshot under-counts Medium/Low threads and the inbox wrongly reads
+ * as "all cleared" while lower-priority Action/Follow-Up work still remains. Strip the
+ * priority dimension before building any tab-counts request; category/account filters
+ * (which are legitimate cross-mode narrowings) still apply.
+ */
+function stripPriorityFilter(
+  filters?: Partial<InboxFilter> | null
+): Partial<InboxFilter> | null | undefined {
+  if (!filters) {
+    return filters;
+  }
+  const { minPriority: _minPriority, maxPriority: _maxPriority, ...rest } = filters;
+  return rest;
+}
+
+/**
+ * Build a stable cache key from the (priority-stripped) filter object.
+ * The remaining dimensions (categories, accountIds) contribute so that different
+ * filter combinations are cached independently.
  */
 function buildCacheKey(filters?: Partial<InboxFilter> | null): string {
   const parts: string[] = [TAB_COUNTS_CACHE_KEY];
-  if (filters?.minPriority !== undefined && filters.minPriority !== null) {
-    parts.push(`p${filters.minPriority}`);
-  }
   if (filters?.categories && filters.categories.length > 0) {
     parts.push(`c${[...filters.categories].sort().join('-')}`);
   }
@@ -56,13 +72,11 @@ function buildCacheKey(filters?: Partial<InboxFilter> | null): string {
 }
 
 /**
- * Build the query-string portion of the tab-counts URL.
+ * Build the query-string portion of the tab-counts URL from the (priority-stripped)
+ * filter object. Priority is intentionally never sent — see stripPriorityFilter.
  */
 function buildQueryParams(filters?: Partial<InboxFilter> | null): string {
   const params = new URLSearchParams();
-  if (filters?.minPriority !== undefined && filters.minPriority !== null) {
-    params.set('minPriority', String(filters.minPriority));
-  }
   if (filters?.categories && filters.categories.length > 0) {
     params.set('categories', filters.categories.join(','));
   }
@@ -89,8 +103,10 @@ export function useTabCounts(): UseTabCountsReturn {
   const fetchTabCounts = useCallback(
 // eslint-disable-next-line max-statements -- pre-existing: complex async function with many conditional branches
     async (force = false, filters?: Partial<InboxFilter> | null, signal?: AbortSignal, silent = false) => {
-      lastFiltersRef.current = filters;
-      const cacheKey = buildCacheKey(filters);
+      // Never let the Triage guided priority default filter the tab counts.
+      const countFilters = stripPriorityFilter(filters);
+      lastFiltersRef.current = countFilters;
+      const cacheKey = buildCacheKey(countFilters);
       currentCacheKeyRef.current = cacheKey;
 
       if (!force) {
@@ -114,7 +130,7 @@ export function useTabCounts(): UseTabCountsReturn {
         setLoading(true);
       }
       try {
-        const qs = buildQueryParams(filters);
+        const qs = buildQueryParams(countFilters);
         const response = await axios.get(`${API_URL}/emails/tab-counts${qs}`, { signal });
         const counts: TabCounts = {
           triage: response.data.triage || 0,

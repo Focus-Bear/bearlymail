@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { Contact } from "../database/entities/contact.entity";
 import { LLMService } from "../llm/llm.service";
+import { LLMProvider } from "../llm/llm.types";
 import { LLM_OP_CLASSIFY_CONTACT_TYPE } from "../llm/llm-operations";
 import {
   CLASSIFICATION_PROMPT_IDS,
@@ -64,6 +65,10 @@ export class ContactTypeClassifierService {
     });
 
     try {
+      // High-volume, simple classification runs on the cheapest model — AWS
+      // Bedrock (Amazon Nova Micro), promptfoo-verified. Bedrock failures fall
+      // back to Gemini inside the core service, so a Bedrock outage won't break
+      // contact classification.
       const response = await this.llmService.generateText(
         {
           prompt: rendered,
@@ -74,7 +79,7 @@ export class ContactTypeClassifierService {
           operation: LLM_OP_CLASSIFY_CONTACT_TYPE,
           jsonMode: true,
         },
-        undefined,
+        LLMProvider.BEDROCK,
         userId,
         LLM_OP_CLASSIFY_CONTACT_TYPE,
       );

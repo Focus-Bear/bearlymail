@@ -746,6 +746,7 @@
     "keepInActionTooltip": "Helpful if you are just letting the other person know you got their message and still need to take action yourself.",
     "schedulePopup": {
       "title": "Schedule send",
+      "todayEarly": "Today {{time}}",
       "tomorrowMorning": "Tomorrow morning",
       "mondayMorning": "Monday morning",
       "thisAfternoon": "This afternoon",

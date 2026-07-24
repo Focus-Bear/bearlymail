@@ -1,6 +1,6 @@
 import { MutableRefObject, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Email, SummaryDebugInfo } from 'types/email';
+import { Email, PriorityExplanation, SummaryDebugInfo } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { SUMMARY_SOURCE_DETERMINISTIC, SUMMARY_TYPE_TLDR } from 'constants/strings';
@@ -45,6 +45,8 @@ interface UseEmailDetailInitializationProps {
   fetchSuggestedActions: () => Promise<void>;
   fetchNote: () => Promise<void>;
   fetchThreadEmails: () => Promise<void>;
+  /** Auto-loads the priority breakdown so the chip's click-popup shows it instantly (no spinner). */
+  loadPriorityExplanation: () => Promise<void>;
   handleUseCustomRule: (rule: SummarizationRule) => Promise<void>;
   handleSummarize: (type: string) => Promise<void>;
   setSummary: (summary: string | null) => void;
@@ -54,6 +56,7 @@ interface UseEmailDetailInitializationProps {
   setActionItems: (items: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>) => void;
   setExpandedThreadItems: (items: Set<string>) => void;
   setThreadEmails: (emails: Email[]) => void;
+  setPriorityExplanation: (explanation: PriorityExplanation | null) => void;
   setLoading: (loading: boolean) => void;
   setEmail: (email: Email | null) => void;
   threadEmails: Email[];
@@ -125,6 +128,7 @@ export const useEmailDetailInitialization = ({
   fetchSuggestedActions,
   fetchNote,
   fetchThreadEmails,
+  loadPriorityExplanation,
   handleUseCustomRule,
   handleSummarize,
   setSummary,
@@ -134,6 +138,7 @@ export const useEmailDetailInitialization = ({
   setActionItems,
   setExpandedThreadItems,
   setThreadEmails,
+  setPriorityExplanation,
   setLoading,
   setEmail,
   threadEmails,
@@ -160,6 +165,7 @@ export const useEmailDetailInitialization = ({
       setThreadEmails([]); // Clear thread emails to prevent showing stale content
       setExpandedThreadItems(new Set()); // Clear expanded state
       setActionItems([]); // Clear action items
+      setPriorityExplanation(null); // Clear stale priority breakdown so the chip popup reloads
       // Reset initialization and fetch tracking for the new email
       initializedEmailIdRef.current = null;
       fetchedEmailIdRef.current = null;
@@ -167,7 +173,7 @@ export const useEmailDetailInitialization = ({
       autoExtractedRef.current = null;
       previousEmailIdRef.current = id;
     }
-  }, [id, setSummary, setSummaryType, setSummaryDebug, setThreadEmails, setExpandedThreadItems, setActionItems, setLoading, setEmail]);
+  }, [id, setSummary, setSummaryType, setSummaryDebug, setThreadEmails, setExpandedThreadItems, setActionItems, setPriorityExplanation, setLoading, setEmail]);
 
   // Track manual summaryType changes
   useEffect(() => {
@@ -201,6 +207,9 @@ export const useEmailDetailInitialization = ({
     }
     fetchGithubInfo();
     fetchSuggestedActions();
+    // Auto-load the priority breakdown so the chip's click-popup opens with the
+    // score + dimensions ready (no spinner); guarded inside the callback.
+    void loadPriorityExplanation();
   };
 
   useEffect(() => {

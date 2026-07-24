@@ -1,12 +1,73 @@
 /**
- * EmailDetailHeaderDemo — stateful wrapper and sample data for EmailDetailHeader stories.
- * Manages copied/explanation state. EmailDetailHeaderView takes `t` as a prop so no
- * I18nextProvider is needed here — the translate function is inlined instead.
+ * EmailDetailHeaderDemo — sample data and wrapper for EmailDetailHeader stories.
+ *
+ * EmailDetailHeaderView takes `t` as a prop (no I18nextProvider needed for its own
+ * strings). The priority chip is the SAME shared inbox-list PriorityBadge that the
+ * container injects; here it is wrapped in a scoped i18n instance + MemoryRouter +
+ * mocked AuthContext so its click-popup renders exactly like production.
  */
 import React, { useState } from 'react';
-import { Email } from 'types/email';
+import { I18nextProvider, initReactI18next } from 'react-i18next';
+import { MemoryRouter } from 'react-router-dom';
+import i18n from 'i18next';
+import { Email, PriorityExplanation } from 'types/email';
 
-import { EmailDetailHeaderView, PriorityExplanation } from 'components/email-detail/EmailDetailHeaderView';
+import { EmailDetailHeaderView } from 'components/email-detail/EmailDetailHeaderView';
+import { PriorityBadge } from 'components/inbox/header/PriorityBadge';
+import { AuthContext } from 'contexts/AuthContext';
+
+// ---------------------------------------------------------------------------
+// Scoped i18n for the shared PriorityBadge + its click-popup
+// ---------------------------------------------------------------------------
+
+const badgeI18n = i18n.createInstance();
+badgeI18n.use(initReactI18next).init({
+  lng: 'en',
+  fallbackLng: 'en',
+  interpolation: { escapeValue: false },
+  resources: {
+    en: {
+      translation: {
+        'common.close': 'Close',
+        'common.loading': 'Loading…',
+        'email.calculating': 'Calculating…',
+        'email.priorityCalculated': 'Priority calculated',
+        'email.priorityUnavailable': 'Not prioritised',
+        'email.priorityUnavailableHint': "Priority hasn't been calculated yet. Click to retry.",
+        'priority.veryHigh': 'Very High',
+        'priority.high': 'High',
+        'priority.medium': 'Medium',
+        'priority.low': 'Low',
+        'priority.veryLow': 'Very Low',
+        'emailDetail.priorityScore': 'Priority Score: {{score}}',
+        'emailDetail.scoreBreakdown': 'Score Breakdown',
+        'emailDetail.totalScore': 'Total Score',
+        'priority.tooltip.correctPrioritization': 'Correct this prioritisation',
+        'priority.tooltip.category': 'Category',
+        'priority.tooltip.showCategoryExplanation': 'Show why this category was chosen',
+        'priority.tooltip.editCategoryRule': 'Edit the rule that matched this category',
+        'priority.tooltip.suggestedCategory': 'Suggested Category',
+        'priority.tooltip.categorisedBy.label': 'Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>',
+        'priority.tooltip.categorisedBy.ai': 'AI priority model',
+        'priority.tooltip.categorisedBy.rule': 'Deterministic rule',
+        'priority.tooltip.categorisedBy.local': 'Local model',
+        'priority.tooltip.categorisedBy.proto': 'Suggested category (pending promotion)',
+        'priority.tooltip.categorisedBy.user': 'Your manual choice',
+        'priority.categoryOverride.buttonTitle': 'Change category',
+        'priority.categoryDebug.buttonTitle': 'Category debug',
+      },
+    },
+  },
+});
+
+const mockAuthValue = {
+  user: null,
+  loading: false,
+  login: async () => {},
+  register: async () => {},
+  logout: async () => {},
+  refreshUser: async () => {},
+};
 
 // ---------------------------------------------------------------------------
 // Sample data
@@ -25,7 +86,8 @@ export const SAMPLE_EMAIL: Email = {
   isRead: false,
   priorityScore: 45,
   starCount: 0,
-  category: 'Action',
+  category: 'Sales',
+  categorizationSource: 'ai',
   senderContactId: 'contact-001',
 } as unknown as Email;
 
@@ -42,43 +104,59 @@ export const SAMPLE_PRIORITY_EXPLANATION: PriorityExplanation = {
     { factor: 'Urgency', value: 15, description: 'Deadline mentioned in email' },
     { factor: 'VIP Contact', value: 10, description: 'Frequent correspondent' },
   ],
-  dimensions: {
-    goalAlignment: { score: 80, reasons: ['Related to event planning'] },
-    urgency: { score: 60, reasons: ['Has deadline'] },
-  },
-};
+} as unknown as PriorityExplanation;
 
 // ---------------------------------------------------------------------------
-// Minimal i18n translation function (avoids I18nextProvider for prop-based `t`)
+// Minimal i18n translation function for the VIEW's own strings (subject, To/Cc…)
 // ---------------------------------------------------------------------------
 
-export const translate = (key: string, options?: Record<string, unknown>): string => {
+export const translate = (key: string): string => {
   const translations: Record<string, string> = {
     'emailDetail.viewContact': 'View contact',
     'emailDetail.emailCopied': 'Email copied!',
     'emailDetail.clickToCopyEmail': 'Click to copy email address',
-    'emailDetail.priorityScore': `Priority score: ${options?.score ?? ''}`,
-    'emailDetail.clickToSeeScore': 'Click to see score breakdown',
-    'emailDetail.scoreBreakdown': 'Score Breakdown',
-    'emailDetail.goalAlignment': 'Goal Alignment',
-    'emailDetail.totalScore': 'Total Score',
-    'emailDetail.priorityBecause': 'priority because',
-    'emailDetail.tweakRules': 'Tweak rules',
     'emailDetail.toLabel': 'To:',
     'emailDetail.ccLabel': 'Cc:',
-    'emailDetail.sentiment.positive': 'Positive',
-    'emailDetail.sentiment.negative': 'Negative',
-    'emailDetail.sentiment.neutral': 'Neutral',
-    'emailDetail.sentiment.label': 'Sentiment',
-    'priority.high': 'High',
-    'priority.medium': 'Medium',
-    'priority.low': 'Low',
-    'priority.veryLow': 'Very Low',
   };
-  if (key === 'emailDetail.priorityScore' && options?.score !== undefined) {
-    return `Priority score: ${options.score}`;
-  }
   return translations[key] ?? key;
+};
+
+// ---------------------------------------------------------------------------
+// Story priority-tooltip adapter (stateful open/close; data pre-seeded)
+// ---------------------------------------------------------------------------
+
+const noop = async () => {};
+
+const useStoryPriorityTooltip = (email: Email, explanation: PriorityExplanation | null, initialOpen: boolean) => {
+  const [open, setOpen] = useState(initialOpen);
+  return {
+    hoveredPriorityEmailId: open ? email.id : null,
+    priorityExplanation: explanation,
+    loadingPriorityExplanation: false,
+    priorityExplanationError: false,
+    togglePriorityTooltip: () => setOpen(prev => !prev),
+    hidePriorityTooltip: () => setOpen(false),
+    expeditePriorityCalculation: noop,
+    retryPriorityExplanation: noop,
+  };
+};
+
+const StoryPriorityBadge: React.FC<{ email: Email; explanation: PriorityExplanation | null; open: boolean }> = ({
+  email,
+  explanation,
+  open,
+}) => {
+  const priorityTooltip = useStoryPriorityTooltip(email, explanation, open);
+  return (
+    <I18nextProvider i18n={badgeI18n}>
+      {/* @ts-expect-error — partial auth mock is sufficient for isolation */}
+      <AuthContext.Provider value={mockAuthValue}>
+        <MemoryRouter>
+          <PriorityBadge email={email} priorityTooltip={priorityTooltip} />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    </I18nextProvider>
+  );
 };
 
 // ---------------------------------------------------------------------------
@@ -86,36 +164,35 @@ export const translate = (key: string, options?: Record<string, unknown>): strin
 // ---------------------------------------------------------------------------
 
 export interface HeaderDemoProps {
-  showPriorityExplanation?: boolean;
   hasPriorityData?: boolean;
-  emailCopied?: boolean;
+  /** Opens the priority chip's click-popup on first render (for the popup screenshot). */
+  popupOpen?: boolean;
+  /** Overrides the sample email — used for the unresolved / calculating chip variants. */
+  emailOverrides?: Partial<Email>;
 }
 
 export const HeaderDemo: React.FC<HeaderDemoProps> = ({
-  showPriorityExplanation = false,
-  hasPriorityData = false,
-  emailCopied: initialCopied = false,
+  hasPriorityData = true,
+  popupOpen = false,
+  emailOverrides,
 }) => {
-  const [copied, setCopied] = useState(initialCopied);
-  const [showExplanation, setShowExplanation] = useState(showPriorityExplanation);
+  const [copied, setCopied] = useState(false);
+  const email = emailOverrides ? ({ ...SAMPLE_EMAIL, ...emailOverrides } as Email) : SAMPLE_EMAIL;
+  const explanation = hasPriorityData ? SAMPLE_PRIORITY_EXPLANATION : null;
 
   return (
-    <div style={{ maxWidth: 700, fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: 760, fontFamily: 'system-ui, sans-serif' }}>
       <EmailDetailHeaderView
-        email={SAMPLE_EMAIL}
+        email={email}
         correspondent={SAMPLE_CORRESPONDENT}
-        priorityExplanation={hasPriorityData ? SAMPLE_PRIORITY_EXPLANATION : null}
-        showPriorityExplanation={showExplanation}
+        priorityBadge={<StoryPriorityBadge email={email} explanation={explanation} open={popupOpen} />}
         emailCopied={copied}
-        onFetchPriorityExplanation={() => setShowExplanation(true)}
-        onClosePriorityExplanation={() => setShowExplanation(false)}
-        onNavigateToContact={(_event, email) => console.log('Navigate to contact:', email)}
+        onNavigateToContact={(_event, contactEmail) => console.log('Navigate to contact:', contactEmail)}
         onCopyEmail={() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
           console.log('Email copied');
         }}
-        onNavigateToSettings={() => console.log('Navigate to /settings')}
         t={translate}
       />
     </div>

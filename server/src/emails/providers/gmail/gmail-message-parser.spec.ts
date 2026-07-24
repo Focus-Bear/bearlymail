@@ -3,7 +3,57 @@ import { gmail_v1 } from "googleapis";
 import {
   extractAttachmentsFromPayload,
   filenameFromContentDisposition,
+  parseGmailMessage,
 } from "./gmail-message-parser";
+
+describe("gmail-message-parser — header extraction", () => {
+  const buildMessage = (
+    headers: Array<{ name: string; value: string }>,
+  ): gmail_v1.Schema$Message => ({
+    id: "msg-1",
+    threadId: "thread-1",
+    internalDate: "1700000000000",
+    labelIds: ["INBOX"],
+    snippet: "hello",
+    payload: { mimeType: "text/plain", headers, body: { data: "" } },
+  });
+
+  it("extracts To and Cc from canonically-cased headers", () => {
+    const parsed = parseGmailMessage(
+      buildMessage([
+        { name: "From", value: "Nicola <nicola@example.com>" },
+        { name: "To", value: "jeremy@focusbear.io" },
+        { name: "Cc", value: "kyle@example.com, susannah@example.com" },
+      ]),
+    );
+    expect(parsed?.cc).toBe("kyle@example.com, susannah@example.com");
+    expect(parsed?.to).toBe("jeremy@focusbear.io");
+  });
+
+  it("extracts Cc/To/From/Subject case-insensitively (regression: CC dropped)", () => {
+    // Forwarded / mailing-list messages vary header case; a case-sensitive
+    // `=== "Cc"` synced these with CC: N/A.
+    const parsed = parseGmailMessage(
+      buildMessage([
+        { name: "FROM", value: "Nicola <nicola@example.com>" },
+        { name: "to", value: "jeremy@focusbear.io" },
+        { name: "CC", value: "kyle@example.com, susannah@example.com" },
+        { name: "subject", value: "Hi Jeremy" },
+      ]),
+    );
+    expect(parsed?.cc).toBe("kyle@example.com, susannah@example.com");
+    expect(parsed?.to).toBe("jeremy@focusbear.io");
+    expect(parsed?.from).toBe("nicola@example.com");
+    expect(parsed?.subject).toBe("Hi Jeremy");
+  });
+
+  it("leaves cc undefined when there is no Cc header", () => {
+    const parsed = parseGmailMessage(
+      buildMessage([{ name: "To", value: "jeremy@focusbear.io" }]),
+    );
+    expect(parsed?.cc).toBeUndefined();
+  });
+});
 
 describe("gmail-message-parser — attachments", () => {
   describe("filenameFromContentDisposition", () => {

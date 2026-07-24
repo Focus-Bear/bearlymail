@@ -370,6 +370,10 @@ export class PriorityAnalysisService {
       dontCareContext: contextTexts.dontCareContextText,
       emailCategories: contextTexts.emailCategoriesText,
       threadInfo: buildThreadInfoText(threadInfo),
+      // Gates the category-selection rules out of the template when a
+      // deterministic rule already pinned the category (the LLM's category is
+      // discarded downstream), cutting ~12K chars of prompt on those calls.
+      categoryPreAssigned: !!categoryPreAssigned,
     });
 
     return {

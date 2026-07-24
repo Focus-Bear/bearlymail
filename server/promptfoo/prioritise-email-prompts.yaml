@@ -554,6 +554,45 @@ tests:
         config:
           minScore: 90
 
+  # Pre-assigned category (cost optimisation): when a deterministic rule has
+  # already assigned the category, the prompt omits the category-selection rules
+  # and the model only scores urgency + goal alignment. It must still return a
+  # valid response (urgency/goal/reasoning/confidence) on the slimmed prompt, and
+  # a HIGH-urgency email must still score high.
+  - description: "Pre-assigned category: slimmed prompt still returns valid urgent scores"
+    vars:
+      from: "sarah.chen@acmecorp.com"
+      fromName: "Sarah Chen"
+      subject: "URGENT: Production outage - need immediate response"
+      body: "Hi team, we're experiencing a critical production outage affecting all users. The payment system is down and customers can't complete transactions. Please drop everything and help fix this immediately."
+      categoryPreAssigned: true
+      emailCategories: |
+        1. "(category already assigned by a rule — score urgency & goal alignment only)"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 85
+          expectedIsUrgent: true
+
+  # Pre-assigned category on a low-urgency email: must still return valid,
+  # low-urgency scores despite the category machinery being stripped out.
+  - description: "Pre-assigned category: slimmed prompt returns valid low-urgency scores"
+    vars:
+      from: "mike.thompson@gmail.com"
+      fromName: "Mike Thompson"
+      subject: "Catching up"
+      body: "Hey! Hope you're doing well. Just wanted to see how things are going. No pressure to respond quickly - whenever you have a moment."
+      categoryPreAssigned: true
+      emailCategories: |
+        1. "(category already assigned by a rule — score urgency & goal alignment only)"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          maxScore: 49
+          expectedIsUrgent: false
+
   # Negative control: the same cancellation for an event weeks away is NOT
   # time-critical — rebooking can wait, so urgency must stay out of the
   # critical band that triggers batch escape.

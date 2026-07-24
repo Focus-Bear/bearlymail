@@ -5,6 +5,7 @@ import {
   extractCleanBody,
   extractCleanHtmlBody,
   looksLikeHtml,
+  normalizeSchemelessExternalHref,
   removeSignature,
   sanitizeAndProcessHtml,
   stripHtmlTags,
@@ -227,9 +228,58 @@ describe('emailBodyUtils', () => {
     });
   });
 
+  describe('normalizeSchemelessExternalHref', () => {
+    it('prepends https:// to a schemeless host with a path (the Google Maps bug)', () => {
+      expect(
+        normalizeSchemelessExternalHref('google.com/maps?daddr=25+Collins+St'),
+      ).toBe('https://google.com/maps?daddr=25+Collins+St');
+    });
+
+    it('prepends https:// to a www. host', () => {
+      expect(normalizeSchemelessExternalHref('www.example.com')).toBe('https://www.example.com');
+    });
+
+    it('handles a host with a port or fragment', () => {
+      expect(normalizeSchemelessExternalHref('example.com:8080/x')).toBe('https://example.com:8080/x');
+      expect(normalizeSchemelessExternalHref('example.com/x#frag')).toBe('https://example.com/x#frag');
+    });
+
+    it('leaves already-absolute and non-web schemes untouched', () => {
+      expect(normalizeSchemelessExternalHref('https://example.com')).toBeNull();
+      expect(normalizeSchemelessExternalHref('http://example.com')).toBeNull();
+      expect(normalizeSchemelessExternalHref('mailto:foo@bar.com')).toBeNull();
+      expect(normalizeSchemelessExternalHref('tel:+61400000000')).toBeNull();
+      expect(normalizeSchemelessExternalHref('cid:abc')).toBeNull();
+    });
+
+    it('leaves anchors, root-relative, and protocol-relative paths untouched', () => {
+      expect(normalizeSchemelessExternalHref('#section')).toBeNull();
+      expect(normalizeSchemelessExternalHref('/inbox/triage')).toBeNull();
+      expect(normalizeSchemelessExternalHref('//cdn.example.com/x')).toBeNull();
+    });
+
+    it('does not treat a bare relative filename as a host', () => {
+      expect(normalizeSchemelessExternalHref('report.html')).toBeNull();
+    });
+  });
+
   describe('sanitizeAndProcessHtml', () => {
     it('should return empty string for empty input', () => {
       expect(sanitizeAndProcessHtml('')).toBe('');
+    });
+
+    it('rewrites a schemeless external link to absolute https:// with target/rel', () => {
+      const html = '<a href="google.com/maps?x=1">25 Collins Street</a>';
+      const result = sanitizeAndProcessHtml(html);
+      expect(result).toContain('href="https://google.com/maps?x=1"');
+      expect(result).toContain('target="_blank"');
+      expect(result).toContain('rel="noopener noreferrer"');
+    });
+
+    it('does not rewrite a mailto link', () => {
+      const html = '<a href="mailto:foo@bar.com">Email</a>';
+      const result = sanitizeAndProcessHtml(html);
+      expect(result).toContain('href="mailto:foo@bar.com"');
     });
 
     it('should sanitize HTML using DOMPurify', () => {

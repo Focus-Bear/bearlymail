@@ -31,7 +31,12 @@ import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'c
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { useDistractionFriction } from 'hooks/useDistractionFriction';
-import { HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+import {
+  HIGH_PRIORITY_THRESHOLD,
+  isPriorityFilterActiveForMode,
+  PRIORITY_FILTER_SOURCE,
+  VERY_HIGH_PRIORITY_THRESHOLD,
+} from 'hooks/useInboxFilters';
 import { GATE_FILTER_SWITCHED_KEY, usePrioritisationGate } from 'hooks/usePrioritisationGate';
 import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
@@ -145,7 +150,8 @@ const InboxView: React.FC = () => {
   // Apply a priority-filter change (peek below High) and refetch. Shared by the
   // frictionless peek path and the friction-modal completion path.
   const applyPriorityUnlock = (minPriority: number | null, maxPriority: number | null) => {
-    setPriorityFilter(minPriority, maxPriority);
+    // Peek/unlock is a Triage-scoped guided action.
+    setPriorityFilter(minPriority, maxPriority, PRIORITY_FILTER_SOURCE.GUIDED);
     fetchEmails({ minPriority, maxPriority });
     fetchPriorityCounts();
   };
@@ -160,10 +166,15 @@ const InboxView: React.FC = () => {
     dismissGate,
   } = usePrioritisationGate();
 
+  // A guided (auto-applied) priority filter is not actually applied outside Triage, so it must
+  // not inflate the active-filter count on Action / Follow-Up. isPriorityFilterActiveForMode
+  // returns false for a guided filter in a non-Triage mode.
   const activeFilterCount =
     (filters.accountIds.length > 0 ? 1 : 0) +
     (filters.categories.length > 0 ? 1 : 0) +
-    (filters.minPriority !== null ? 1 : 0);
+    (isPriorityFilterActiveForMode(mode, filters) ? 1 : 0);
+  // Keep the filter-button highlight / clear-button visibility in sync with the count above.
+  const hasEffectiveActiveFilters = activeFilterCount > 0;
 
   // Fix #1571 Item 3: extract priorityTotalCount so it can be passed to the debug panel.
   // PRIORITY_LABEL_TO_KEY is now imported from constants/priorityBuckets (single source of truth).
@@ -195,7 +206,7 @@ const InboxView: React.FC = () => {
         }
       })();
       if (!hasAlreadySwitched && filters.minPriority === null && filters.maxPriority === null) {
-        setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
+        setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null, PRIORITY_FILTER_SOURCE.GUIDED);
         fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
       }
       clearJustUngated();
@@ -240,10 +251,23 @@ const InboxView: React.FC = () => {
 
     hasAutoAdvancedTierRef.current = true;
     if (min !== HIGH_PRIORITY_THRESHOLD || max !== null) {
-      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
+      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null, PRIORITY_FILTER_SOURCE.GUIDED);
       fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
+    } else if (filters.priorityFilterSource !== PRIORITY_FILTER_SOURCE.GUIDED) {
+      // Values already sit at the guided High-and-above default but the provenance is stale
+      // (e.g. a legacy stored filter loaded as `manual`). Re-tag it as guided — no refetch is
+      // needed in Triage (guided is applied here anyway); the tag only governs other modes.
+      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null, PRIORITY_FILTER_SOURCE.GUIDED);
     }
-  }, [priorityCounts, mode, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails]);
+  }, [
+    priorityCounts,
+    mode,
+    filters.minPriority,
+    filters.maxPriority,
+    filters.priorityFilterSource,
+    setPriorityFilter,
+    fetchEmails,
+  ]);
 
   // Enforce the distraction-tax floor for returning users whose stored filter is
   // already below High (Medium/Low/All): while gated, raise it to High so lower
@@ -255,7 +279,7 @@ const InboxView: React.FC = () => {
     }
     const min = filters.minPriority;
     if (min === null || min < HIGH_PRIORITY_THRESHOLD) {
-      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null);
+      setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null, PRIORITY_FILTER_SOURCE.GUIDED);
       fetchEmails({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null });
     }
   }, [distraction.isGateActive, filters.minPriority, setPriorityFilter, fetchEmails]);
@@ -379,7 +403,7 @@ const InboxView: React.FC = () => {
           onActionTabPulseEnd={() => setActionTabPulsing(false)}
           onToggleMobileMenu={openMobileMenu}
           isFilterBarVisible={isFilterBarVisible}
-          hasActiveFilters={hasActiveFilters}
+          hasActiveFilters={hasEffectiveActiveFilters}
           activeFilterCount={activeFilterCount}
           onToggleFilterBar={toggleFilterBar}
           onClearFilters={() => {

@@ -1,6 +1,15 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { HIGH_PRIORITY_THRESHOLD, PRIORITY_RANGES, useInboxFilters } from './useInboxFilters';
+import type { InboxFilter } from './useInboxFilters';
+import {
+  HIGH_PRIORITY_THRESHOLD,
+  isGuidedPriorityFilterSuppressed,
+  isPriorityFilterActiveForMode,
+  PRIORITY_FILTER_SOURCE,
+  PRIORITY_RANGES,
+  resolveEffectiveFilters,
+  useInboxFilters,
+} from './useInboxFilters';
 
 // useInboxFilters → useConnectedAccountsQuery (TanStack Query).
 // Tests don't wrap in QueryClientProvider, so mock the query hook directly.
@@ -215,6 +224,64 @@ describe('useInboxFilters', () => {
     });
   });
 
+  describe('priorityFilterSource tracking', () => {
+    it('setPriorityFilter defaults to manual source', () => {
+      const { result } = renderHook(() => useInboxFilters());
+      act(() => {
+        result.current.setPriorityFilter(20, null);
+      });
+      expect(result.current.filters.priorityFilterSource).toBe(PRIORITY_FILTER_SOURCE.MANUAL);
+    });
+
+    it('setPriorityFilter records a guided source when passed explicitly', () => {
+      const { result } = renderHook(() => useInboxFilters());
+      act(() => {
+        result.current.setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null, PRIORITY_FILTER_SOURCE.GUIDED);
+      });
+      expect(result.current.filters.priorityFilterSource).toBe(PRIORITY_FILTER_SOURCE.GUIDED);
+    });
+
+    it('clearing the priority filter resets the source to null', () => {
+      const { result } = renderHook(() => useInboxFilters());
+      act(() => {
+        result.current.setPriorityFilter(HIGH_PRIORITY_THRESHOLD, null, PRIORITY_FILTER_SOURCE.GUIDED);
+      });
+      act(() => {
+        result.current.setPriorityFilter(null, null);
+      });
+      expect(result.current.filters.priorityFilterSource).toBeNull();
+    });
+
+    it('resetToHighPriority marks the filter as guided', () => {
+      localStorage.setItem(PRIORITY_MIGRATION_V2_KEY, '1');
+      localStorage.setItem(PRIORITY_MIGRATION_V3_KEY, '1');
+      const { result } = renderHook(() => useInboxFilters());
+      act(() => {
+        result.current.resetToHighPriority();
+      });
+      expect(result.current.filters.priorityFilterSource).toBe(PRIORITY_FILTER_SOURCE.GUIDED);
+    });
+
+    it('a legacy stored priority filter (no source) loads as manual', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ accountIds: [], categories: [], minPriority: 15, maxPriority: 30 })
+      );
+      localStorage.setItem(FIRST_LOAD_KEY, '1');
+      localStorage.setItem(PRIORITY_MIGRATION_V2_KEY, '1');
+      localStorage.setItem(PRIORITY_MIGRATION_V3_KEY, '1');
+      const { result } = renderHook(() => useInboxFilters());
+      expect(result.current.filters.minPriority).toBe(15);
+      expect(result.current.filters.priorityFilterSource).toBe(PRIORITY_FILTER_SOURCE.MANUAL);
+    });
+
+    it('first-visit guided default loads with a guided source', () => {
+      const { result } = renderHook(() => useInboxFilters());
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.priorityFilterSource).toBe(PRIORITY_FILTER_SOURCE.GUIDED);
+    });
+  });
+
   describe('clearFilters', () => {
     it('sets minPriority to null and clears all filters', () => {
       const { result } = renderHook(() => useInboxFilters());
@@ -226,6 +293,7 @@ describe('useInboxFilters', () => {
       expect(result.current.filters.minPriority).toBeNull();
       expect(result.current.filters.accountIds).toEqual([]);
       expect(result.current.filters.categories).toEqual([]);
+      expect(result.current.filters.priorityFilterSource).toBeNull();
     });
   });
 
@@ -359,6 +427,71 @@ describe('useInboxFilters', () => {
       });
 
       expect(result.current.hasActiveFilters).toBe(false);
+    });
+  });
+});
+
+describe('per-mode priority filter helpers', () => {
+  const guided: InboxFilter = {
+    accountIds: [],
+    categories: [],
+    minPriority: HIGH_PRIORITY_THRESHOLD,
+    maxPriority: null,
+    priorityFilterSource: PRIORITY_FILTER_SOURCE.GUIDED,
+  };
+  const manual: InboxFilter = {
+    accountIds: [],
+    categories: [],
+    minPriority: 15,
+    maxPriority: 30,
+    priorityFilterSource: PRIORITY_FILTER_SOURCE.MANUAL,
+  };
+
+  describe('isGuidedPriorityFilterSuppressed', () => {
+    it('is false for a guided filter in triage', () => {
+      expect(isGuidedPriorityFilterSuppressed('triage', guided)).toBe(false);
+    });
+    it('is true for a guided filter in action and follow-up', () => {
+      expect(isGuidedPriorityFilterSuppressed('action', guided)).toBe(true);
+      expect(isGuidedPriorityFilterSuppressed('follow-up', guided)).toBe(true);
+    });
+    it('is false for a manual filter in any mode', () => {
+      expect(isGuidedPriorityFilterSuppressed('action', manual)).toBe(false);
+      expect(isGuidedPriorityFilterSuppressed('follow-up', manual)).toBe(false);
+    });
+  });
+
+  describe('resolveEffectiveFilters', () => {
+    it('drops the guided priority bounds for action but keeps them for triage', () => {
+      expect(resolveEffectiveFilters('triage', guided)?.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      const action = resolveEffectiveFilters('action', guided);
+      expect(action?.minPriority).toBeNull();
+      expect(action?.maxPriority).toBeNull();
+    });
+    it('preserves a manual filter for every mode', () => {
+      for (const mode of ['triage', 'action', 'follow-up'] as const) {
+        expect(resolveEffectiveFilters(mode, manual)?.minPriority).toBe(15);
+      }
+    });
+    it('keeps non-priority filters (accounts) intact when dropping a guided priority', () => {
+      const withAccount: InboxFilter = { ...guided, accountIds: ['a1'] };
+      expect(resolveEffectiveFilters('action', withAccount)?.accountIds).toEqual(['a1']);
+    });
+  });
+
+  describe('isPriorityFilterActiveForMode (active-filter indicator)', () => {
+    it('counts a guided filter only in triage', () => {
+      expect(isPriorityFilterActiveForMode('triage', guided)).toBe(true);
+      expect(isPriorityFilterActiveForMode('action', guided)).toBe(false);
+      expect(isPriorityFilterActiveForMode('follow-up', guided)).toBe(false);
+    });
+    it('counts a manual filter in every mode', () => {
+      expect(isPriorityFilterActiveForMode('action', manual)).toBe(true);
+      expect(isPriorityFilterActiveForMode('follow-up', manual)).toBe(true);
+    });
+    it('does not count when no priority bound is set', () => {
+      const none: InboxFilter = { accountIds: [], categories: [], minPriority: null, maxPriority: null };
+      expect(isPriorityFilterActiveForMode('triage', none)).toBe(false);
     });
   });
 });

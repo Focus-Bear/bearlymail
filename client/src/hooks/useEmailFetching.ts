@@ -33,7 +33,7 @@ import {
   MODE_SCHEDULED,
   PARAM_CATEGORY_IDS,
 } from 'constants/strings';
-import { InboxFilter } from 'hooks/useInboxFilters';
+import { InboxFilter, resolveEffectiveFilters } from 'hooks/useInboxFilters';
 import { BackoffContext, usePollingWithBackoff } from 'hooks/usePollingWithBackoff';
 import {
   selectCategorySummary,
@@ -723,11 +723,13 @@ export function appendFilterParams(params: URLSearchParams, filters: InboxFilter
   }
 }
 
-function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): URLSearchParams {
+export function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): URLSearchParams {
   const params = new URLSearchParams();
   params.append('mode', mode);
   params.append('includeThreadIds', 'true');
-  appendFilterParams(params, filters);
+  // Drop a guided (auto-applied) priority filter for non-Triage modes so Action/Follow-Up
+  // list fetches show all their threads. Manual/absent filters are unchanged.
+  appendFilterParams(params, resolveEffectiveFilters(mode, filters));
   return params;
 }
 
@@ -735,7 +737,7 @@ function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): URLSear
  * Build query params for a category email fetch.
  * Always uses `categoryIds=` (UUID). A missing UUID is a server-side data bug.
  */
-function buildCategoryParamsImpl(
+export function buildCategoryParamsImpl(
   mode: InboxMode,
   filters: InboxFilter | undefined,
   categoryKey: string
@@ -745,15 +747,17 @@ function buildCategoryParamsImpl(
   params.append(PARAM_CATEGORY_IDS, categoryKey);
   params.append('limit', INBOX_FETCH_LIMIT.toString());
   params.append('offset', '0');
-  if (filters) {
-    if (filters.accountIds?.length) {
-      params.append('accounts', filters.accountIds.join(','));
+  // Guided priority filter is Triage-only; drop its bounds for other modes (keep account filter).
+  const effectiveFilters = resolveEffectiveFilters(mode, filters);
+  if (effectiveFilters) {
+    if (effectiveFilters.accountIds?.length) {
+      params.append('accounts', effectiveFilters.accountIds.join(','));
     }
-    if (filters.minPriority !== null && filters.minPriority !== undefined) {
-      params.append('minPriority', filters.minPriority.toString());
+    if (effectiveFilters.minPriority !== null && effectiveFilters.minPriority !== undefined) {
+      params.append('minPriority', effectiveFilters.minPriority.toString());
     }
-    if (filters.maxPriority !== null && filters.maxPriority !== undefined) {
-      params.append('maxPriority', filters.maxPriority.toString());
+    if (effectiveFilters.maxPriority !== null && effectiveFilters.maxPriority !== undefined) {
+      params.append('maxPriority', effectiveFilters.maxPriority.toString());
     }
   }
   return params;
@@ -763,7 +767,8 @@ function buildAutoRespondedParamsImpl(filters?: InboxFilter): URLSearchParams {
   const params = new URLSearchParams();
   params.append('offset', '0');
   params.append('limit', INBOX_FETCH_LIMIT.toString());
-  appendFilterParams(params, filters);
+  // Auto-responded is not Triage, so a guided priority filter is dropped here too.
+  appendFilterParams(params, resolveEffectiveFilters(MODE_AUTORESPONDED, filters));
   return params;
 }
 

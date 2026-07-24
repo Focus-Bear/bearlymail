@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import type { ConnectedAccount, InboxFilter } from 'hooks/useInboxFilters';
+import type { ConnectedAccount, InboxFilter, PriorityFilterSource } from 'hooks/useInboxFilters';
+import { PRIORITY_FILTER_SOURCE } from 'hooks/useInboxFilters';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { getMultiSelectDisplayText } from './inboxFilters.helpers';
@@ -21,7 +22,7 @@ interface InboxFiltersProps {
   hasActiveFilters: boolean;
   setAccountFilter: (accountIds: string[]) => void;
   setCategoryFilter: (categories: string[]) => void;
-  setPriorityFilter: (minPriority: number | null, maxPriority?: number | null) => void;
+  setPriorityFilter: (minPriority: number | null, maxPriority?: number | null, source?: PriorityFilterSource) => void;
   /** Optional per-category email counts, keyed by category id. */
   categoryCounts?: Record<string, number>;
   /** Optional per-bucket email counts for display under priority labels. */
@@ -338,8 +339,11 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
   // previous render's filters (stale closure) and send the old minPriority to the API.
   // Fixes: #1165 (selecting "High (30-50)" sends minPriority=0 from stale "Low" selection).
   const handlePriorityChange = (min: number | null, max: number | null) => {
-    setPriorityFilter(min, max);
-    onFilterChange?.({ minPriority: min, maxPriority: max });
+    // A slider change is an explicit user choice — mark it `manual` so it applies to every mode
+    // (Triage, Action, Follow-Up), unlike the guided default. The source must also travel in the
+    // override so the immediate fetch treats it as manual even if the previous filter was guided.
+    setPriorityFilter(min, max, PRIORITY_FILTER_SOURCE.MANUAL);
+    onFilterChange?.({ minPriority: min, maxPriority: max, priorityFilterSource: PRIORITY_FILTER_SOURCE.MANUAL });
   };
 
   const accountOptions = connectedAccounts.map(account => ({

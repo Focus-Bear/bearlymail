@@ -45,7 +45,7 @@ interface UseEmailDetailInitializationProps {
   fetchSuggestedActions: () => Promise<void>;
   fetchNote: () => Promise<void>;
   fetchThreadEmails: () => Promise<void>;
-  /** Auto-loads the priority breakdown so the detail view's debug panel renders it without a click. */
+  /** Auto-loads the priority breakdown so the chip's click-popup shows it instantly (no spinner). */
   loadPriorityExplanation: () => Promise<void>;
   handleUseCustomRule: (rule: SummarizationRule) => Promise<void>;
   handleSummarize: (type: string) => Promise<void>;
@@ -165,7 +165,7 @@ export const useEmailDetailInitialization = ({
       setThreadEmails([]); // Clear thread emails to prevent showing stale content
       setExpandedThreadItems(new Set()); // Clear expanded state
       setActionItems([]); // Clear action items
-      setPriorityExplanation(null); // Clear stale priority breakdown so the debug panel reloads
+      setPriorityExplanation(null); // Clear stale priority breakdown so the chip popup reloads
       // Reset initialization and fetch tracking for the new email
       initializedEmailIdRef.current = null;
       fetchedEmailIdRef.current = null;
@@ -207,8 +207,8 @@ export const useEmailDetailInitialization = ({
     }
     fetchGithubInfo();
     fetchSuggestedActions();
-    // Auto-load the priority breakdown so the detail view's debug panel shows the
-    // score + dimensions without requiring a click (guarded inside the callback).
+    // Auto-load the priority breakdown so the chip's click-popup opens with the
+    // score + dimensions ready (no spinner); guarded inside the callback.
     void loadPriorityExplanation();
   };
 

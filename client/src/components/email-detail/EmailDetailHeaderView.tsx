@@ -4,7 +4,9 @@
  * All data and callbacks are passed as props; no hooks, no side-effects, no router/auth deps.
  * Directly importable in Storybook without any provider setup.
  *
- * The container `EmailDetailHeader` wraps this component and injects the hook-derived values.
+ * The container `EmailDetailHeader` wraps this component and injects the hook-derived values,
+ * including the ready-built priority badge node (the same chip + click-popup used in the
+ * inbox list) rendered top-right of the header.
  */
 import React from 'react';
 import { theme } from 'theme/theme';
@@ -12,8 +14,6 @@ import { Email } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
 
 import { EMOJI_EMAIL, EMOJI_USER } from 'constants/emojis';
-
-import { EmailDetailPriorityPanel } from './EmailDetailPriorityPanel';
 
 export interface PriorityExplanation {
   score: number;
@@ -38,13 +38,15 @@ const KEY_SPACE = ' ';
 export interface EmailDetailHeaderViewProps {
   email: Email;
   correspondent: Correspondent;
-  priorityExplanation: PriorityExplanation | null;
+  /**
+   * The priority chip + its click-popup (the shared inbox-list PriorityBadge),
+   * built by the container. Rendered top-right of the header. Optional so the
+   * pure view still renders without it (e.g. in isolation tests).
+   */
+  priorityBadge?: React.ReactNode;
   emailCopied: boolean;
-  /** Fetches/recalculates the priority explanation — used as a retry when priority is unresolved. */
-  onFetchPriorityExplanation: () => void;
   onNavigateToContact: (event: React.SyntheticEvent, contactEmail: string, senderContactId?: string | null) => void;
   onCopyEmail: () => void;
-  onNavigateToSettings?: () => void;
   // i18n strings (passed as plain strings so the view has zero i18n dep)
   t: (key: string, options?: Record<string, unknown>) => string;
 }
@@ -52,12 +54,10 @@ export interface EmailDetailHeaderViewProps {
 export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
   email,
   correspondent,
-  priorityExplanation,
+  priorityBadge,
   emailCopied,
-  onFetchPriorityExplanation,
   onNavigateToContact,
   onCopyEmail,
-  onNavigateToSettings,
   t,
 }) => {
   return (
@@ -74,14 +74,6 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
       >
         {EMOJI_EMAIL} {email.subject}
       </h1>
-
-      <EmailDetailPriorityPanel
-        email={email}
-        priorityExplanation={priorityExplanation}
-        onRecalculate={onFetchPriorityExplanation}
-        onNavigateToSettings={onNavigateToSettings}
-        t={t}
-      />
 
       <div
         style={{
@@ -228,6 +220,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
             )}
           </div>
         </div>
+        {priorityBadge}
       </div>
     </div>
   );

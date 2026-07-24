@@ -1,9 +1,10 @@
 /**
- * EmailDetailHeader stories — uses EmailDetailHeaderView (presentational).
- * No auth, router, or notification context needed (issue #1219).
+ * EmailDetailHeader stories — uses EmailDetailHeaderView (presentational) with the
+ * SAME shared inbox-list PriorityBadge injected as the priority chip.
  *
- * The always-visible priority debug panel (score + breakdown + category) is the
- * focus of these stories, plus the unresolved / calculating debug states.
+ * Covers the chip label states (score / unresolved / calculating) and the chip's
+ * click-popup opened (the shared PriorityTooltipContent: score, category,
+ * "Categorised by", score breakdown, total, "Correct prioritisation").
  */
 import type { Meta, StoryObj } from '@storybook/react';
 
@@ -18,26 +19,21 @@ export default meta;
 type Story = StoryObj<typeof HeaderDemo>;
 
 export const Default: Story = {
-  name: 'Priority panel (score + breakdown)',
+  name: 'Priority chip (score)',
   args: { hasPriorityData: true },
 };
 
-export const BreakdownLoading: Story = {
-  name: 'Score resolved, breakdown still loading',
-  args: { hasPriorityData: false },
+export const PopupOpen: Story = {
+  name: 'Chip clicked — shared priority popup open',
+  args: { hasPriorityData: true, popupOpen: true },
 };
 
-export const NotYetCalculated: Story = {
-  name: 'Priority not yet calculated (unresolved)',
+export const NotPrioritised: Story = {
+  name: 'Chip — not prioritised (unresolved)',
   args: { hasPriorityData: false, emailOverrides: { priorityScore: null, isProcessingPriority: false } },
 };
 
 export const Calculating: Story = {
-  name: 'Priority calculating',
+  name: 'Chip — calculating',
   args: { hasPriorityData: false, emailOverrides: { priorityScore: null, isProcessingPriority: true } },
-};
-
-export const EmailCopied: Story = {
-  name: 'Email address copied state',
-  args: { hasPriorityData: true, emailCopied: true },
 };

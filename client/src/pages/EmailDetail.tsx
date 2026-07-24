@@ -731,7 +731,6 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 email={st.email}
                 threadEmails={st.threadEmails as Email[]}
                 priorityExplanation={st.priorityExplanation}
-                onFetchPriorityExplanation={ops.handleFetchPriorityExplanation}
               />
             )}
           </div>

@@ -585,16 +585,6 @@
     "scoreBreakdown": "Score Breakdown",
     "totalScore": "Total Score",
     "tweakRules": "Tweak Prioritization Rules",
-    "priorityPanel": {
-      "calculating": "Priority: calculating…",
-      "notCalculated": "Priority: not yet calculated",
-      "notCalculatedHint": "This email was never scored — click to recalculate.",
-      "category": "Category: {{category}}",
-      "categorisedBy": "Categorised by {{source}}",
-      "uncategorised": "Uncategorised",
-      "breakdownLoading": "Loading score breakdown…",
-      "noBreakdown": "No score breakdown available"
-    },
     "reply": "Reply",
     "replyAll": "Reply All",
     "replyAllSoon": "Reply All functionality coming soon",

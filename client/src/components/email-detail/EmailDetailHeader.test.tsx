@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Email } from 'types/email';
+import { Email, PriorityExplanation } from 'types/email';
 
 import { EmailDetailHeader } from './EmailDetailHeader';
 
@@ -13,14 +13,19 @@ vi.mock('react-i18next', () => ({
       return key;
     },
   }),
+  // PriorityTooltipCategory renders a <Trans> for the "Categorised by" line.
+  Trans: ({ i18nKey, children }: { i18nKey?: string; children?: React.ReactNode }) => <>{children ?? i18nKey}</>,
 }));
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
+  // PriorityTooltipCategory uses useHref to build the "edit rule" deep-link.
+  useHref: (to: string) => (typeof to === 'string' ? to : '#'),
 }));
 
 vi.mock('contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { email: 'me@example.com' } }),
+  useAuth: () => ({ user: { email: 'me@example.com', isAdmin: false } }),
+  AuthContext: React.createContext(null),
 }));
 
 vi.mock('utils/emailUtils', () => ({
@@ -36,6 +41,16 @@ vi.mock('contexts/NotificationContext', () => ({
     showSuccess: vi.fn(),
   }),
 }));
+
+// usePriorityTooltip fetches the explanation via axios when the popup opens.
+const { mockAxiosGet, mockAxiosPost } = vi.hoisted(() => ({
+  mockAxiosGet: vi.fn(),
+  mockAxiosPost: vi.fn(),
+}));
+vi.mock('axios', () => ({
+  default: { get: mockAxiosGet, post: mockAxiosPost },
+}));
+
 const mockWriteText = vi.fn().mockResolvedValue(undefined);
 Object.assign(navigator, {
   clipboard: { writeText: mockWriteText },
@@ -58,11 +73,12 @@ describe('EmailDetailHeader', () => {
     email: mockEmail,
     threadEmails: [] as Email[],
     priorityExplanation: null,
-    onFetchPriorityExplanation: vi.fn(),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAxiosGet.mockResolvedValue({ data: { score: 45, breakdown: [] } });
+    mockAxiosPost.mockResolvedValue({ data: {} });
     vi.useFakeTimers();
   });
 
@@ -152,49 +168,49 @@ describe('EmailDetailHeader', () => {
     });
   });
 
-  describe('priority debug panel', () => {
-    it('should always render the priority panel without a click', () => {
-      render(<EmailDetailHeader {...defaultProps} />);
-      expect(screen.getByTestId('email-detail-priority-panel')).toBeInTheDocument();
+  describe('priority chip (shared inbox-list badge)', () => {
+    const scoredEmail: Email = { ...mockEmail, priorityScore: 45, category: 'Sales' };
+    const explanation: PriorityExplanation = {
+      score: 45,
+      breakdown: [
+        { factor: 'Urgency', value: 15, description: 'Deadline mentioned' },
+        { factor: 'Goal Alignment', value: 20, description: 'Matches your goals' },
+      ],
+    };
+
+    it('should render the priority chip with the resolved score', () => {
+      render(<EmailDetailHeader {...defaultProps} email={scoredEmail} priorityExplanation={explanation} />);
+      // getPriorityBadge label key + numeric score (t mock echoes the key)
+      expect(screen.getByText(/priority\.\w+ \(45\)/)).toBeInTheDocument();
     });
 
-    it('should show the resolved score + breakdown without interaction', () => {
-      const scoredEmail: Email = { ...mockEmail, priorityScore: 45 };
-      const priorityExplanation = {
-        score: 45,
-        breakdown: [
-          { factor: 'Urgency', value: 15, description: 'Deadline mentioned' },
-          { factor: 'Goal Alignment', value: 20, description: 'Matches your goals' },
-        ],
-      };
-      render(
-        <EmailDetailHeader {...defaultProps} email={scoredEmail} priorityExplanation={priorityExplanation} />
-      );
-      // Score is shown (t mock echoes key + params)
-      expect(screen.getByText(/emailDetail\.priorityScore/)).toBeInTheDocument();
-      // Breakdown factors are visible without opening any popover
-      expect(screen.getByText('Urgency')).toBeInTheDocument();
-      expect(screen.getByText('Goal Alignment')).toBeInTheDocument();
-    });
-
-    it('should show "not yet calculated" instead of a misleading 0 when unresolved', () => {
+    it('should show "not prioritised" instead of a 0 when the score is unresolved', () => {
       // mockEmail has no priorityScore and is not processing → unresolved
       render(<EmailDetailHeader {...defaultProps} />);
-      expect(screen.getByText('emailDetail.priorityPanel.notCalculated')).toBeInTheDocument();
-      expect(screen.queryByText(/priorityScore.*"score":"0"/)).not.toBeInTheDocument();
-    });
-
-    it('should retry calculation when the unresolved label is clicked', () => {
-      const onFetch = vi.fn();
-      render(<EmailDetailHeader {...defaultProps} onFetchPriorityExplanation={onFetch} />);
-      fireEvent.click(screen.getByText('emailDetail.priorityPanel.notCalculated'));
-      expect(onFetch).toHaveBeenCalled();
+      expect(screen.getByText('email.priorityUnavailable')).toBeInTheDocument();
+      expect(screen.queryByText(/\(0\)/)).not.toBeInTheDocument();
     });
 
     it('should show a calculating state while priority is processing', () => {
       const processingEmail: Email = { ...mockEmail, isProcessingPriority: true };
       render(<EmailDetailHeader {...defaultProps} email={processingEmail} />);
-      expect(screen.getByText('emailDetail.priorityPanel.calculating')).toBeInTheDocument();
+      expect(screen.getByText(/email\.calculating/)).toBeInTheDocument();
+    });
+
+    it('should open the shared priority popup (with breakdown) when the chip is clicked', async () => {
+      render(<EmailDetailHeader {...defaultProps} email={scoredEmail} priorityExplanation={explanation} />);
+      const chip = document.querySelector(`[data-priority-badge="${scoredEmail.id}"]`) as HTMLElement;
+      expect(chip).toBeTruthy();
+
+      fireEvent.click(chip);
+
+      // The shared PriorityTooltip renders into a portal on document.body.
+      await waitFor(() => {
+        expect(document.querySelector(`[data-priority-tooltip="${scoredEmail.id}"]`)).toBeTruthy();
+      });
+      // Auto-loaded explanation means the breakdown shows immediately (no spinner).
+      expect(screen.getByText('Urgency')).toBeInTheDocument();
+      expect(screen.getByText('Goal Alignment')).toBeInTheDocument();
     });
   });
 });

@@ -1240,16 +1240,6 @@
     "calendarConflictLabel": "Revisión del calendario:",
     "totalScore": "Puntuación total",
     "tweakRules": "Modificar las reglas de priorización",
-    "priorityPanel": {
-      "calculating": "Prioridad: calculando…",
-      "notCalculated": "Prioridad: aún no calculada",
-      "notCalculatedHint": "Este correo nunca se puntuó — haz clic para recalcular.",
-      "category": "Categoría: {{category}}",
-      "categorisedBy": "Categorizado por {{source}}",
-      "uncategorised": "Sin categoría",
-      "breakdownLoading": "Cargando el desglose de puntuación…",
-      "noBreakdown": "No hay desglose de puntuación disponible"
-    },
     "useRevisedText": "Usar texto revisado",
     "disputeToneCheck": "No estoy de acuerdo",
     "disputeExplanation": "Explica por qué tu correo es aceptable:",

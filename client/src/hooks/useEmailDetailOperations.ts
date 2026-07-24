@@ -107,7 +107,6 @@ export function useEmailDetailOperations(
     setShowSnoozeInput,
     priorityExplanation,
     setPriorityExplanation,
-    setShowPriorityExplanation,
     setGithubLinks,
     setLoadingGithub,
     setHasGithubToken,
@@ -585,9 +584,9 @@ export function useEmailDetailOperations(
   );
 
   // Fetches the priority breakdown into state WITHOUT opening any popover. The
-  // full-page detail view auto-loads this on mount so the priority debug panel
-  // renders the score + breakdown without requiring a click. Guarded so it never
-  // refetches once the explanation is present.
+  // full-page detail view auto-loads this on mount so the priority chip's
+  // click-popup shows the score + breakdown instantly (no spinner). Guarded so it
+  // never refetches once the explanation is present.
   const loadPriorityExplanation = useCallback(async () => {
     if (!id || priorityExplanation) {
       return;
@@ -599,11 +598,6 @@ export function useEmailDetailOperations(
       console.error('Error fetching priority explanation:', error);
     }
   }, [id, priorityExplanation, setPriorityExplanation]);
-
-  const handleFetchPriorityExplanation = useCallback(async () => {
-    await loadPriorityExplanation();
-    setShowPriorityExplanation(true);
-  }, [loadPriorityExplanation, setShowPriorityExplanation]);
 
   const handleSaveNote = useCallback(async () => {
     if (!email) {
@@ -1022,7 +1016,6 @@ export function useEmailDetailOperations(
     handleActionSuccess,
     toggleThreadItem,
     loadPriorityExplanation,
-    handleFetchPriorityExplanation,
     handleExtractActions,
     handleAddActionItem,
     handleToggleActionItem,

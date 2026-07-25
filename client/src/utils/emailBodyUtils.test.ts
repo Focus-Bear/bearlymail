@@ -261,6 +261,23 @@ describe('emailBodyUtils', () => {
     it('does not treat a bare relative filename as a host', () => {
       expect(normalizeSchemelessExternalHref('report.html')).toBeNull();
     });
+
+    it('never prepends https:// to a dangerous scheme (XSS guard)', () => {
+      // The scheme guard must catch these so we never turn a script/data URL
+      // into a normalized link.
+      expect(normalizeSchemelessExternalHref('javascript:alert(1)')).toBeNull();
+      expect(
+        normalizeSchemelessExternalHref('data:text/html,<script>alert(1)</script>'),
+      ).toBeNull();
+      expect(normalizeSchemelessExternalHref('vbscript:msgbox(1)')).toBeNull();
+      expect(normalizeSchemelessExternalHref('file:///etc/passwd')).toBeNull();
+    });
+
+    it('trims surrounding whitespace before normalizing', () => {
+      expect(normalizeSchemelessExternalHref('  google.com/maps?x=1  ')).toBe(
+        'https://google.com/maps?x=1',
+      );
+    });
   });
 
   describe('sanitizeAndProcessHtml', () => {

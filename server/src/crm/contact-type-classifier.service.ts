@@ -89,11 +89,14 @@ export class ContactTypeClassifierService {
       // slice) rather than a first-`}` regex, which truncates when a string value
       // contains a `}`. Matters more now that this runs on Nova, whose JSON is
       // less strictly formatted than Gemini's.
-      const parsed = tryParseJsonObjectFromLlmResponse(
-        response,
-      ) as ClassificationResult | null;
+      const parsed = tryParseJsonObjectFromLlmResponse(response);
       if (!parsed) return null;
 
+      // Narrow the untyped object with runtime type checks (Nova can return a
+      // stringified confidence or an off-shape object — reject rather than
+      // coerce-pass).
+      const { contactType } = parsed;
+      const { confidence } = parsed;
       const validTypes = [
         "lead",
         "customer",
@@ -104,10 +107,21 @@ export class ContactTypeClassifierService {
         "partner",
         "spammer",
       ];
-      if (!validTypes.includes(parsed.contactType)) return null;
-      if (parsed.confidence < MIN_CONFIDENCE) return null;
+      if (
+        typeof contactType !== "string" ||
+        !validTypes.includes(contactType)
+      ) {
+        return null;
+      }
+      if (typeof confidence !== "number" || confidence < MIN_CONFIDENCE) {
+        return null;
+      }
 
-      return parsed;
+      return {
+        contactType,
+        confidence,
+        reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "",
+      };
     } catch (error) {
       logError(
         "Failed to classify contact type",

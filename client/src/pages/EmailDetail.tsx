@@ -208,6 +208,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       fetchSuggestedActions: ops.fetchSuggestedActions,
       fetchNote: ops.fetchNote,
       fetchThreadEmails: ops.fetchThreadEmails,
+      loadPriorityExplanation: ops.loadPriorityExplanation,
       handleUseCustomRule: ops.handleUseCustomRule,
       handleSummarize: ops.handleSummarize,
       setSummary: state.setSummary,
@@ -217,6 +218,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       setActionItems: state.setActionItems,
       setExpandedThreadItems: state.setExpandedThreadItems,
       setThreadEmails: state.setThreadEmails,
+      setPriorityExplanation: state.setPriorityExplanation,
       setLoading: state.setLoading,
       setEmail: state.setEmail,
       threadEmails: state.threadEmails,
@@ -729,9 +731,6 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 email={st.email}
                 threadEmails={st.threadEmails as Email[]}
                 priorityExplanation={st.priorityExplanation}
-                showPriorityExplanation={st.showPriorityExplanation}
-                onFetchPriorityExplanation={ops.handleFetchPriorityExplanation}
-                onClosePriorityExplanation={() => st.setShowPriorityExplanation(false)}
               />
             )}
           </div>

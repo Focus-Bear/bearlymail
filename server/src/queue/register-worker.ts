@@ -53,8 +53,18 @@ export function registerWorker<ReqData = object>(
   }
 
   return boss.work<ReqData>(name, options, async (jobs) => {
+    // `batchSize` is pinned to 1, so this loop runs exactly once. We MUST return
+    // the handler's result: pg-boss persists a single-job batch handler's return
+    // value as the job `output` (`complete(name, ids, ids.length === 1 ? result :
+    // undefined)`), and a handler that returns nothing lands as SQL NULL. Several
+    // admin features (data re-encryption fan-out/dry-run, health scan, contact &
+    // category-rule backfills) poll `getJobById().output` and treat a null output
+    // on a `completed` job as a hard error ("…ended in state 'completed' without a
+    // result"). Swallowing the return here silently broke all of them.
+    let result: unknown;
     for (const job of jobs) {
-      await handler(job);
+      result = await handler(job);
     }
+    return result;
   });
 }

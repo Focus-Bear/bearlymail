@@ -41,7 +41,7 @@ Do NOT include sentimentScore — it is pre-computed.
 
 {% if categoryPreAssigned %}
 ## Category — assigned by a rule
-A deterministic rule has already assigned this email's category, so category selection is SKIPPED. Return `categoryNumber` as `1`, a one-line `categoryExplanation` (e.g. "Assigned by a deterministic rule"), and `categoryConfidence` `"HIGH"`. Do NOT return a `protoCategorySuggestion`. Spend all your effort on scoring **urgencyScore** and **goalAlignmentScore** using the rules above.
+A deterministic rule has already assigned this email's category, so category selection is SKIPPED. Return `categoryNumber` as `1`, a one-line `categoryExplanation` (e.g. "Assigned by a deterministic rule"), and `categoryConfidence` `"HIGH"`. Do NOT return a `protoCategorySuggestion`. Do NOT reference the category number (e.g. "category 1") in `categoryExplanation` or `reasoning` — the reader never sees the number. Spend all your effort on scoring **urgencyScore** and **goalAlignmentScore** using the rules above.
 {% else %}
 ## Category selection — follow IN ORDER
 

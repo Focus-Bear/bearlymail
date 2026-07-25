@@ -7,6 +7,7 @@ import { Contact } from "../database/entities/contact.entity";
 import { LLMService } from "../llm/llm.service";
 import { LLMProvider } from "../llm/llm.types";
 import { LLM_OP_CLASSIFY_CONTACT_TYPE } from "../llm/llm-operations";
+import { tryParseJsonObjectFromLlmResponse } from "../llm/llm-summary-utils";
 import {
   CLASSIFICATION_PROMPT_IDS,
   getPrompt,
@@ -84,10 +85,14 @@ export class ContactTypeClassifierService {
         LLM_OP_CLASSIFY_CONTACT_TYPE,
       );
 
-      const jsonMatch = response.match(/\{[\s\S]*?\}/);
-      if (!jsonMatch) return null;
-
-      const parsed = JSON.parse(jsonMatch[0]) as ClassificationResult;
+      // Use the shared robust extractor (direct parse → fence-strip → balanced
+      // slice) rather than a first-`}` regex, which truncates when a string value
+      // contains a `}`. Matters more now that this runs on Nova, whose JSON is
+      // less strictly formatted than Gemini's.
+      const parsed = tryParseJsonObjectFromLlmResponse(
+        response,
+      ) as ClassificationResult | null;
+      if (!parsed) return null;
 
       const validTypes = [
         "lead",

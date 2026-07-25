@@ -447,6 +447,7 @@ const InboxView: React.FC = () => {
           }
           priorityTotalCount={priorityTotalCount}
           isSummaryLoading={isSummaryLoading}
+          isPriorityFilterActive={isPriorityFilterActiveForMode(mode, filters)}
         />
         {(user?.isAdmin || isDebugModeEnabled) && debugPanel.debugViewOpen && (
           <DebugPanel

@@ -35,6 +35,13 @@ interface InboxFiltersProps {
    * instead of stale values during cross-filter transitions. Fix #1466 (P2).
    */
   isSummaryLoading?: boolean;
+  /**
+   * Whether the priority filter actually applies in the current mode. A GUIDED
+   * (auto) priority filter is suppressed outside Triage, so the slider must render
+   * unselected there — otherwise it highlights a "High" bucket that isn't filtering
+   * and can't be cleared. Defaults to true when unspecified.
+   */
+  isPriorityFilterActive?: boolean;
 }
 
 // ── Multi-select dropdown (for Account filter) ────────────────────────────────
@@ -319,6 +326,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
   bucketCounts,
   priorityTotalCount,
   isSummaryLoading,
+  isPriorityFilterActive = true,
 }) => {
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
@@ -417,8 +425,8 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
             the wrapper so it matches the Category card height (fix #1735). */}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column' }}>
           <PriorityRangeSelector
-            selectedMin={filters.minPriority}
-            selectedMax={filters.maxPriority}
+            selectedMin={isPriorityFilterActive ? filters.minPriority : null}
+            selectedMax={isPriorityFilterActive ? filters.maxPriority : null}
             onChange={handlePriorityChange}
             bucketCounts={bucketCounts}
             totalCount={priorityTotalCount}

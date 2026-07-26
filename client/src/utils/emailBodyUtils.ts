@@ -435,6 +435,41 @@ export interface InlineAttachmentRef {
 }
 
 /**
+ * A schemeless external URL: a `www.`-prefixed host, or a dotted host followed
+ * by a path/query/fragment/port (e.g. `google.com/maps?...`). These are NOT
+ * relative paths — an email author meant an external site but omitted the
+ * scheme. Left as-is, the browser resolves them against the current page
+ * (`app.bearlymail.com/email/…`), breaking the link (issue: Google Maps link
+ * became `app.bearlymail.com/email/google.com/maps?...`).
+ *
+ * Deliberately does NOT match: `mailto:`/`tel:`/`#anchor`/`/root-relative`
+ * (no leading dotted host), or a bare dotted token with no path such as
+ * `report.html` (avoids treating a relative filename as a host).
+ */
+const SCHEMELESS_EXTERNAL_HREF = /^(?:www\.|[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:[/?#]|:\d))/i;
+
+/**
+ * Prepend `https://` to a schemeless external href so it resolves absolutely.
+ * Returns null when the href already has a scheme, is an anchor/mailto/tel, is
+ * protocol-relative (`//host`), or is a genuine relative path — leave those be.
+ */
+export function normalizeSchemelessExternalHref(href: string): string | null {
+  const trimmed = href.trim();
+  if (
+    // Already has a URL scheme (http:, mailto:, tel:, cid:, data:…). Scheme
+    // chars exclude '.', so a `host.tld:port` (which has a dot before the colon)
+    // is NOT mistaken for a scheme and still gets normalized below.
+    /^[a-z][a-z0-9+-]*:/i.test(trimmed) ||
+    trimmed.startsWith('//') || // protocol-relative
+    trimmed.startsWith('#') ||
+    trimmed.startsWith('/')
+  ) {
+    return null;
+  }
+  return SCHEMELESS_EXTERNAL_HREF.test(trimmed) ? `https://${trimmed}` : null;
+}
+
+/**
  * Helper function to sanitize and process HTML for safe rendering
  * This function sanitizes first (for XSS protection), then adds target="_blank" to links.
  *
@@ -496,11 +531,21 @@ export function sanitizeAndProcessHtml(html: string, attachments?: InlineAttachm
   // Step 3: Auto-linkify plain URLs in text nodes that aren't already inside <a> tags
   linkifyTextNodes(tempDiv);
 
-  // Step 4: Process links to add target="_blank" and rel="noopener noreferrer"
+  // Step 4: Normalize schemeless external links to absolute https:// (so they
+  // don't resolve against app.bearlymail.com), then add target/rel to links
+  // that open externally.
   const links = tempDiv.querySelectorAll('a[href]');
   links.forEach(link => {
-    const href = link.getAttribute('href');
-    if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+    let href = link.getAttribute('href');
+    if (!href) {
+      return;
+    }
+    const normalized = normalizeSchemelessExternalHref(href);
+    if (normalized) {
+      link.setAttribute('href', normalized);
+      href = normalized;
+    }
+    if (href.startsWith('http://') || href.startsWith('https://')) {
       link.setAttribute('target', '_blank');
       link.setAttribute('rel', 'noopener noreferrer');
     }

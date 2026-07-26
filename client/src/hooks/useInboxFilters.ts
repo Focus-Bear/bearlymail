@@ -10,16 +10,73 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
+import { InboxMode } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { PRIORITY_BUCKET_DEFS } from 'constants/priorityBuckets';
+import { MODE_TRIAGE } from 'constants/strings';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
+
+/**
+ * How the current priority filter came to be set. This governs whether the filter
+ * is applied to every inbox mode or to Triage only:
+ *  - `guided`: auto-applied by the guided-triage flow (auto-advance, gate floor,
+ *    peek/unlock). It is Triage-scoped — dropped from the Action / Follow-Up email
+ *    list fetch so those tabs show all their threads.
+ *  - `manual`: explicitly chosen by the user via the priority slider. Applies to
+ *    every mode, exactly as before.
+ * A `null`/absent source means no priority filter is active (or a legacy stored
+ * filter that predates source tracking — treated as `manual`, see loadInitialFilters).
+ */
+export const PRIORITY_FILTER_SOURCE = {
+  GUIDED: 'guided',
+  MANUAL: 'manual',
+} as const;
+
+export type PriorityFilterSource = (typeof PRIORITY_FILTER_SOURCE)[keyof typeof PRIORITY_FILTER_SOURCE];
 
 export interface InboxFilter {
   accountIds: string[];
   categories: string[];
   minPriority: number | null;
   maxPriority: number | null;
+  /** Provenance of the priority filter — see PRIORITY_FILTER_SOURCE. Absent = legacy/manual. */
+  priorityFilterSource?: PriorityFilterSource | null;
+}
+
+/**
+ * A guided (auto-applied) priority filter is Triage-only. In any non-Triage mode it must not
+ * constrain the email list, so its min/max priority bounds are dropped there. A manually set
+ * priority filter (or no filter / legacy filter) always applies as-is.
+ */
+export function isGuidedPriorityFilterSuppressed(
+  mode: InboxMode,
+  filters?: Pick<InboxFilter, 'priorityFilterSource'> | null
+): boolean {
+  return (
+    !!filters && filters.priorityFilterSource === PRIORITY_FILTER_SOURCE.GUIDED && mode !== MODE_TRIAGE
+  );
+}
+
+/**
+ * Returns the filters that should actually drive the email-list fetch for `mode`:
+ * identical to the input, except a guided priority filter has its bounds dropped for
+ * non-Triage modes (see isGuidedPriorityFilterSuppressed).
+ */
+export function resolveEffectiveFilters(mode: InboxMode, filters?: InboxFilter): InboxFilter | undefined {
+  if (filters && isGuidedPriorityFilterSuppressed(mode, filters)) {
+    return { ...filters, minPriority: null, maxPriority: null };
+  }
+  return filters;
+}
+
+/**
+ * Whether a priority filter is actually applied for `mode` — i.e. a bound is set AND it is not
+ * a guided filter being suppressed outside Triage. Used to keep the active-filter indicator honest.
+ */
+export function isPriorityFilterActiveForMode(mode: InboxMode, filters: InboxFilter): boolean {
+  const hasBound = filters.minPriority !== null || filters.maxPriority !== null;
+  return hasBound && !isGuidedPriorityFilterSuppressed(mode, filters);
 }
 
 export interface ConnectedAccount {
@@ -81,7 +138,7 @@ function sanitizeStoredFilters(filters: InboxFilter): InboxFilter {
   const maxPriority = filters.maxPriority ?? null;
 
   if (minPriority === null && maxPriority === null) {
-    return { ...filters, minPriority: null, maxPriority: null };
+    return { ...filters, minPriority: null, maxPriority: null, priorityFilterSource: null };
   }
 
   const isValidRange = PRIORITY_RANGES.some(range => range.min === minPriority && range.max === maxPriority);
@@ -91,10 +148,20 @@ function sanitizeStoredFilters(filters: InboxFilter): InboxFilter {
   const isGuidedHighAndAbove = minPriority === HIGH_PRIORITY_THRESHOLD && maxPriority === null;
 
   if (!isValidRange && !isGuidedHighAndAbove) {
-    return { ...filters, minPriority: null, maxPriority: null };
+    return { ...filters, minPriority: null, maxPriority: null, priorityFilterSource: null };
   }
 
-  return { ...filters, minPriority, maxPriority };
+  // Preserve an explicitly stored source; otherwise a stored priority filter predates
+  // source tracking. Treat it as `manual` so existing users keep their explicit choice
+  // applied across all modes — the guided-triage flow re-tags it to `guided` on the next
+  // Triage entry if it is really the guided default.
+  const priorityFilterSource =
+    filters.priorityFilterSource === PRIORITY_FILTER_SOURCE.GUIDED ||
+    filters.priorityFilterSource === PRIORITY_FILTER_SOURCE.MANUAL
+      ? filters.priorityFilterSource
+      : PRIORITY_FILTER_SOURCE.MANUAL;
+
+  return { ...filters, minPriority, maxPriority, priorityFilterSource };
 }
 
 function loadInitialFilters(): InboxFilter {
@@ -132,7 +199,12 @@ function loadInitialFilters(): InboxFilter {
           parsed.accountIds.length === 0 &&
           parsed.categories.length === 0
         ) {
-          return { ...parsed, minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+          return {
+            ...parsed,
+            minPriority: HIGH_PRIORITY_THRESHOLD,
+            maxPriority: null,
+            priorityFilterSource: PRIORITY_FILTER_SOURCE.GUIDED,
+          };
         }
       }
 
@@ -148,7 +220,12 @@ function loadInitialFilters(): InboxFilter {
           parsed.accountIds.length === 0 &&
           parsed.categories.length === 0
         ) {
-          return { ...parsed, minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+          return {
+            ...parsed,
+            minPriority: HIGH_PRIORITY_THRESHOLD,
+            maxPriority: null,
+            priorityFilterSource: PRIORITY_FILTER_SOURCE.GUIDED,
+          };
         }
       }
 
@@ -164,7 +241,13 @@ function loadInitialFilters(): InboxFilter {
   // interstitial is shown regardless of the filter value. Once the gate lifts, the guided flow
   // shows High + Very High together. Starting on null/null ("All") would swamp the user.
   localStorage.setItem(FIRST_LOAD_KEY, '1');
-  return { accountIds: [], categories: [], minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+  return {
+    accountIds: [],
+    categories: [],
+    minPriority: HIGH_PRIORITY_THRESHOLD,
+    maxPriority: null,
+    priorityFilterSource: PRIORITY_FILTER_SOURCE.GUIDED,
+  };
 }
 
 export function useInboxFilters() {
@@ -228,16 +311,30 @@ export function useInboxFilters() {
     setFilters(prev => ({ ...prev, categories }));
   }, []);
 
-  const setPriorityFilter = useCallback((minPriority: number | null, maxPriority: number | null = null) => {
-    setFilters(prev => ({ ...prev, minPriority, maxPriority }));
-  }, []);
+  const setPriorityFilter = useCallback(
+    (
+      minPriority: number | null,
+      maxPriority: number | null = null,
+      source: PriorityFilterSource = PRIORITY_FILTER_SOURCE.MANUAL
+    ) => {
+      // Clearing the priority filter clears its provenance too.
+      const priorityFilterSource = minPriority === null && maxPriority === null ? null : source;
+      setFilters(prev => ({ ...prev, minPriority, maxPriority, priorityFilterSource }));
+    },
+    []
+  );
 
   const clearFilters = useCallback(() => {
-    setFilters({ accountIds: [], categories: [], minPriority: null, maxPriority: null });
+    setFilters({ accountIds: [], categories: [], minPriority: null, maxPriority: null, priorityFilterSource: null });
   }, []);
 
   const resetToHighPriority = useCallback(() => {
-    setFilters(prev => ({ ...prev, minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null }));
+    setFilters(prev => ({
+      ...prev,
+      minPriority: HIGH_PRIORITY_THRESHOLD,
+      maxPriority: null,
+      priorityFilterSource: PRIORITY_FILTER_SOURCE.GUIDED,
+    }));
   }, []);
 
   const hasActiveFilters =

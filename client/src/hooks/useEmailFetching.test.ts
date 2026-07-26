@@ -7,11 +7,18 @@ import { Email } from 'types/email';
 import * as emailCache from 'utils/emailCache';
 
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { ERROR_GMAIL, ERROR_GMAIL_REQUIRED } from 'constants/strings';
+import { ERROR_GMAIL, ERROR_GMAIL_REQUIRED, MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { HIGH_PRIORITY_THRESHOLD, InboxFilter, PRIORITY_FILTER_SOURCE } from 'hooks/useInboxFilters';
 import inboxDataReducer from 'store/slices/inboxDataSlice';
 import inboxUIReducer from 'store/slices/inboxUISlice';
 
-import { appendFilterParams, getCategoryKey, useEmailFetching } from './useEmailFetching';
+import {
+  appendFilterParams,
+  buildCategoryParamsImpl,
+  buildSummaryParamsImpl,
+  getCategoryKey,
+  useEmailFetching,
+} from './useEmailFetching';
 
 vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -660,6 +667,67 @@ describe('appendFilterParams', () => {
   it('Medium filter (min: 15, max: 30) sends both minPriority and maxPriority', () => {
     const params = new URLSearchParams();
     appendFilterParams(params, { accountIds: [], categories: [], minPriority: 15, maxPriority: 30 });
+    expect(params.get('minPriority')).toBe('15');
+    expect(params.get('maxPriority')).toBe('30');
+  });
+});
+
+// ─── Guided vs manual priority filter: per-mode scoping (Triage-only guided) ──────
+
+describe('guided priority filter is Triage-only in param builders', () => {
+  const guidedHighFilter: InboxFilter = {
+    accountIds: [],
+    categories: [],
+    minPriority: HIGH_PRIORITY_THRESHOLD,
+    maxPriority: null,
+    priorityFilterSource: PRIORITY_FILTER_SOURCE.GUIDED,
+  };
+  const manualMediumFilter: InboxFilter = {
+    accountIds: [],
+    categories: [],
+    minPriority: 15,
+    maxPriority: 30,
+    priorityFilterSource: PRIORITY_FILTER_SOURCE.MANUAL,
+  };
+
+  it('summary: guided filter IS sent for triage', () => {
+    const params = buildSummaryParamsImpl(MODE_TRIAGE, guidedHighFilter);
+    expect(params.get('minPriority')).toBe(String(HIGH_PRIORITY_THRESHOLD));
+  });
+
+  it('summary: guided filter is NOT sent for action', () => {
+    const params = buildSummaryParamsImpl(MODE_ACTION, guidedHighFilter);
+    expect(params.has('minPriority')).toBe(false);
+    expect(params.has('maxPriority')).toBe(false);
+  });
+
+  it('summary: guided filter is NOT sent for follow-up', () => {
+    const params = buildSummaryParamsImpl(MODE_FOLLOW_UP, guidedHighFilter);
+    expect(params.has('minPriority')).toBe(false);
+  });
+
+  it('summary: manual filter IS sent for all three modes', () => {
+    for (const mode of [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP] as const) {
+      const params = buildSummaryParamsImpl(mode, manualMediumFilter);
+      expect(params.get('minPriority')).toBe('15');
+      expect(params.get('maxPriority')).toBe('30');
+    }
+  });
+
+  it('category: guided filter dropped for action but account filter kept', () => {
+    const guidedWithAccount: InboxFilter = { ...guidedHighFilter, accountIds: ['acct-1'] };
+    const params = buildCategoryParamsImpl(MODE_ACTION, guidedWithAccount, 'cat-key');
+    expect(params.has('minPriority')).toBe(false);
+    expect(params.get('accounts')).toBe('acct-1');
+  });
+
+  it('category: guided filter kept for triage', () => {
+    const params = buildCategoryParamsImpl(MODE_TRIAGE, guidedHighFilter, 'cat-key');
+    expect(params.get('minPriority')).toBe(String(HIGH_PRIORITY_THRESHOLD));
+  });
+
+  it('category: manual filter sent for follow-up', () => {
+    const params = buildCategoryParamsImpl(MODE_FOLLOW_UP, manualMediumFilter, 'cat-key');
     expect(params.get('minPriority')).toBe('15');
     expect(params.get('maxPriority')).toBe('30');
   });

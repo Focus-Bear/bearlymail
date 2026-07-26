@@ -5,7 +5,9 @@ import { Repository } from "typeorm";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { Contact } from "../database/entities/contact.entity";
 import { LLMService } from "../llm/llm.service";
+import { LLMProvider } from "../llm/llm.types";
 import { LLM_OP_CLASSIFY_CONTACT_TYPE } from "../llm/llm-operations";
+import { tryParseJsonObjectFromLlmResponse } from "../llm/llm-summary-utils";
 import {
   CLASSIFICATION_PROMPT_IDS,
   getPrompt,
@@ -64,6 +66,10 @@ export class ContactTypeClassifierService {
     });
 
     try {
+      // High-volume, simple classification runs on the cheapest model — AWS
+      // Bedrock (Amazon Nova Micro), promptfoo-verified. Bedrock failures fall
+      // back to Gemini inside the core service, so a Bedrock outage won't break
+      // contact classification.
       const response = await this.llmService.generateText(
         {
           prompt: rendered,
@@ -74,16 +80,23 @@ export class ContactTypeClassifierService {
           operation: LLM_OP_CLASSIFY_CONTACT_TYPE,
           jsonMode: true,
         },
-        undefined,
+        LLMProvider.BEDROCK,
         userId,
         LLM_OP_CLASSIFY_CONTACT_TYPE,
       );
 
-      const jsonMatch = response.match(/\{[\s\S]*?\}/);
-      if (!jsonMatch) return null;
+      // Use the shared robust extractor (direct parse → fence-strip → balanced
+      // slice) rather than a first-`}` regex, which truncates when a string value
+      // contains a `}`. Matters more now that this runs on Nova, whose JSON is
+      // less strictly formatted than Gemini's.
+      const parsed = tryParseJsonObjectFromLlmResponse(response);
+      if (!parsed) return null;
 
-      const parsed = JSON.parse(jsonMatch[0]) as ClassificationResult;
-
+      // Narrow the untyped object with runtime type checks (Nova can return a
+      // stringified confidence or an off-shape object — reject rather than
+      // coerce-pass).
+      const { contactType } = parsed;
+      const { confidence } = parsed;
       const validTypes = [
         "lead",
         "customer",
@@ -94,10 +107,21 @@ export class ContactTypeClassifierService {
         "partner",
         "spammer",
       ];
-      if (!validTypes.includes(parsed.contactType)) return null;
-      if (parsed.confidence < MIN_CONFIDENCE) return null;
+      if (
+        typeof contactType !== "string" ||
+        !validTypes.includes(contactType)
+      ) {
+        return null;
+      }
+      if (typeof confidence !== "number" || confidence < MIN_CONFIDENCE) {
+        return null;
+      }
 
-      return parsed;
+      return {
+        contactType,
+        confidence,
+        reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "",
+      };
     } catch (error) {
       logError(
         "Failed to classify contact type",

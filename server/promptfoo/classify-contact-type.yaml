@@ -1,0 +1,107 @@
+description: "Tests for the CRM contact-type classification prompt"
+
+providers:
+  # Prod runs classify_contact_type on AWS Bedrock (Amazon Nova Micro); CI has no
+  # AWS creds, so this suite validates the (provider-agnostic) prompt on Gemini.
+  # Nova verified locally. Bedrock failures fall back to Gemini in the core service.
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/classify-contact-type.md
+
+defaultTest:
+  vars:
+    additionalContext: ""
+
+tests:
+  - description: "Automated no-reply notification is a bot"
+    vars:
+      from: "no-reply@notifications.example.com"
+      fromName: "Example Notifications"
+      subject: "Your invoice is ready"
+      bodyPreview: |
+        This is an automated message. Your monthly invoice #4821 is now available.
+        Please do not reply to this email. Visit your dashboard for details.
+    assert:
+      - type: javascript
+        value: |
+          const VALID = ["lead","customer","team_member","advisor","stranger","bot","partner","spammer"];
+          const raw = typeof output === 'string' ? output : JSON.stringify(output);
+          const m = raw.match(/\{[\s\S]*\}/);
+          if (!m) throw new Error(`No JSON object in output: ${raw.substring(0,200)}`);
+          const parsed = JSON.parse(m[0]);
+          if (!VALID.includes(parsed.contactType)) throw new Error(`Invalid contactType: ${parsed.contactType}`);
+          if (typeof parsed.confidence !== 'number') throw new Error(`confidence not a number: ${parsed.confidence}`);
+          if (typeof parsed.reasoning !== 'string') throw new Error(`reasoning not a string`);
+          if (parsed.contactType !== 'bot') throw new Error(`Expected bot, got ${parsed.contactType}`);
+          return true;
+
+  - description: "Cold product/pricing inquiry is a lead"
+    vars:
+      from: "priya@acmeretail.com"
+      fromName: "Priya Sharma"
+      subject: "Interested in a demo of your product"
+      bodyPreview: |
+        Hi, I came across your product and I'm evaluating options for my team.
+        Could you share pricing and set up a demo this week? We're looking to buy soon.
+    assert:
+      - type: javascript
+        value: |
+          const VALID = ["lead","customer","team_member","advisor","stranger","bot","partner","spammer"];
+          const raw = typeof output === 'string' ? output : JSON.stringify(output);
+          const m = raw.match(/\{[\s\S]*\}/);
+          if (!m) throw new Error(`No JSON object in output: ${raw.substring(0,200)}`);
+          const parsed = JSON.parse(m[0]);
+          if (!VALID.includes(parsed.contactType)) throw new Error(`Invalid contactType: ${parsed.contactType}`);
+          if (typeof parsed.confidence !== 'number') throw new Error(`confidence not a number: ${parsed.confidence}`);
+          if (parsed.contactType !== 'lead') throw new Error(`Expected lead, got ${parsed.contactType}`);
+          return true;
+
+  - description: "Obvious scam is a spammer"
+    vars:
+      from: "prince.transfer@freemail.example"
+      fromName: "Prince Adamu"
+      subject: "URGENT CONFIDENTIAL BUSINESS PROPOSAL"
+      bodyPreview: |
+        DEAR FRIEND, I am a prince with US$25,000,000 to transfer. I need your bank
+        details and a small upfront fee to release the funds. This is 100% risk free.
+        Reply urgently with your account number.
+    assert:
+      - type: javascript
+        value: |
+          const VALID = ["lead","customer","team_member","advisor","stranger","bot","partner","spammer"];
+          const raw = typeof output === 'string' ? output : JSON.stringify(output);
+          const m = raw.match(/\{[\s\S]*\}/);
+          if (!m) throw new Error(`No JSON object in output: ${raw.substring(0,200)}`);
+          const parsed = JSON.parse(m[0]);
+          if (!VALID.includes(parsed.contactType)) throw new Error(`Invalid contactType: ${parsed.contactType}`);
+          if (typeof parsed.confidence !== 'number') throw new Error(`confidence not a number: ${parsed.confidence}`);
+          if (parsed.contactType !== 'spammer') throw new Error(`Expected spammer, got ${parsed.contactType}`);
+          return true;
+
+  - description: "Contract holds for an ambiguous sender (valid enum + shape)"
+    vars:
+      from: "alex.morgan@somewhere.io"
+      fromName: "Alex Morgan"
+      subject: "Quick hello"
+      bodyPreview: |
+        Hi there, we met briefly at the conference last month. Just wanted to say hello
+        and see if there's anything worth catching up on. No agenda.
+    assert:
+      - type: javascript
+        value: |
+          const VALID = ["lead","customer","team_member","advisor","stranger","bot","partner","spammer"];
+          const raw = typeof output === 'string' ? output : JSON.stringify(output);
+          const m = raw.match(/\{[\s\S]*\}/);
+          if (!m) throw new Error(`No JSON object in output: ${raw.substring(0,200)}`);
+          const parsed = JSON.parse(m[0]);
+          if (!VALID.includes(parsed.contactType)) throw new Error(`Invalid contactType: ${parsed.contactType}`);
+          if (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1) {
+            throw new Error(`confidence out of range: ${parsed.confidence}`);
+          }
+          if (typeof parsed.reasoning !== 'string' || parsed.reasoning.length < 3) {
+            throw new Error(`reasoning missing/too short`);
+          }
+          return true;

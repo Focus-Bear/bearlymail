@@ -70,9 +70,13 @@ export type CategoryItem = {
 
 /**
  * One category the smart model was shown, with how it got there — for
- * instrumentation. `score` is the email↔category cosine similarity for
- * embedding-ranked entries, or null for platform-pinned entries (added
- * regardless of score). `pinned` flags platform-keyword pins. Lets us see, per
+ * instrumentation. `score` is the email↔category cosine similarity; both
+ * embedding-ranked AND platform-pinned entries now carry their real score, and
+ * the whole list is sorted by score (a pin is scored and placed by likelihood,
+ * not dumped at the bottom). `score` is only null in the rare case a category
+ * was not in the score map. `pinned` flags categories the sender's platform
+ * guaranteed into the shortlist (e.g. GitHub categories for a github.com
+ * sender), whether or not they also made the embedding top-N. Lets us see, per
  * email, whether the *right* category was even a candidate or got crowded out.
  */
 export type ShortlistCandidate = {
@@ -153,33 +157,57 @@ export class CategoryShortlistService {
     return [];
   }
 
+  /** Dedupe key for a category: its stable key, else its (lower-cased) name. */
+  private dedupeKey(cat: CategoryItem): string {
+    return (cat.categoryKey ?? cat.name).toLowerCase();
+  }
+
   /**
-   * Appends any platform-specific categories that the LLM shortlist omitted.
-   * Called after parsing the LLM response so that GitHub/Jira/etc. categories
-   * are always visible to the smart model when the email is from that platform.
+   * Dedupe keys of every category the sender's platform guarantees into the
+   * shortlist (e.g. all "github" categories for a github.com sender), excluding
+   * "Other". Empty for non-platform senders. These are the categories flagged
+   * `pinned` in the provenance — guaranteed present regardless of embedding rank.
+   */
+  private getPlatformCategoryKeys(
+    allCategories: CategoryItem[],
+    fromEmail: string,
+  ): Set<string> {
+    const keywords = this.getPlatformKeywordsForSender(fromEmail);
+    if (keywords.length === 0) return new Set();
+    const keys = new Set<string>();
+    for (const cat of allCategories) {
+      if (cat.name.toLowerCase() === CATEGORY_RESERVED_NAMES.OTHER) continue;
+      const nameWithoutEmoji = cat.name
+        .toLowerCase()
+        .replace(/\p{Emoji}/gu, "")
+        .trim();
+      if (keywords.some((kw) => nameWithoutEmoji.includes(kw))) {
+        keys.add(this.dedupeKey(cat));
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * Appends any platform-specific categories that the embedding shortlist
+   * omitted, so GitHub/Jira/etc. categories are always visible to the smart
+   * model when the email is from that platform. The caller re-ranks the full
+   * list by score afterwards, so these are not permanently stuck at the end.
    */
   pinPlatformCategories(
     shortlisted: CategoryItem[],
     allCategories: CategoryItem[],
     fromEmail: string,
   ): CategoryItem[] {
-    const keywords = this.getPlatformKeywordsForSender(fromEmail);
-    if (keywords.length === 0) return shortlisted;
+    const platformKeys = this.getPlatformCategoryKeys(allCategories, fromEmail);
+    if (platformKeys.size === 0) return shortlisted;
 
     const shortlistedKeys = new Set(
-      shortlisted.map((cat) => (cat.categoryKey ?? cat.name).toLowerCase()),
+      shortlisted.map((cat) => this.dedupeKey(cat)),
     );
-
     const missing = allCategories.filter((cat) => {
-      if (cat.name.toLowerCase() === CATEGORY_RESERVED_NAMES.OTHER)
-        return false;
-      const dedupeKey = (cat.categoryKey ?? cat.name).toLowerCase();
-      if (shortlistedKeys.has(dedupeKey)) return false;
-      const nameWithoutEmoji = cat.name
-        .toLowerCase()
-        .replace(/\p{Emoji}/gu, "")
-        .trim();
-      return keywords.some((kw) => nameWithoutEmoji.includes(kw));
+      const key = this.dedupeKey(cat);
+      return platformKeys.has(key) && !shortlistedKeys.has(key);
     });
 
     if (missing.length === 0) return shortlisted;
@@ -261,37 +289,51 @@ export class CategoryShortlistService {
       ]);
       const emailVector = emailVectors[0];
 
-      const rankedEntries = shortlistableCategories
-        .map((cat, i) => ({
-          cat,
-          score: cosineSimilarity(emailVector, categoryVectors[i]),
-        }))
-        .sort((left, right) => right.score - left.score)
+      // Score EVERY shortlistable category once (not just the top-N) so that
+      // platform-pinned categories — which may rank outside the top-N — still
+      // carry a real cosine score for the final ranking below.
+      const scoreByKey = new Map(
+        shortlistableCategories.map((cat, i) => [
+          this.dedupeKey(cat),
+          cosineSimilarity(emailVector, categoryVectors[i]),
+        ]),
+      );
+      const scoreFor = (cat: CategoryItem): number | null =>
+        scoreByKey.get(this.dedupeKey(cat)) ?? null;
+      const byScoreDesc = (left: CategoryItem, right: CategoryItem): number =>
+        (scoreFor(right) ?? Number.NEGATIVE_INFINITY) -
+        (scoreFor(left) ?? Number.NEGATIVE_INFINITY);
+
+      const ranked = [...shortlistableCategories]
+        .sort(byScoreDesc)
         .slice(0, topN);
-      const ranked = rankedEntries.map((entry) => entry.cat);
 
       if (ranked.length === 0) {
         return { effective: allCategories, candidates: [] };
       }
 
+      // Guarantee platform categories are present (GitHub for GitHub senders,
+      // etc.), then rank the FULL effective list — embedding hits AND platform
+      // pins — by cosine similarity descending. Pins are placed by likelihood
+      // (a high-relevance pin outranks a low-relevance hit), not appended last.
       const effective = this.pinPlatformCategories(
         ranked,
         allCategories,
         email.from,
+      ).sort(byScoreDesc);
+
+      // `pinned` = the sender's platform guaranteed this category into the list
+      // (whether or not it also made the embedding top-N). Both pins and hits
+      // now carry their real cosine score.
+      const platformKeys = this.getPlatformCategoryKeys(
+        allCategories,
+        email.from,
       );
-      // Map the final effective list back to its provenance: embedding-ranked
-      // entries carry their score; platform-pinned additions get score=null.
-      const scoreByKey = new Map(
-        rankedEntries.map((entry) => [
-          (entry.cat.categoryKey ?? entry.cat.name).toLowerCase(),
-          entry.score,
-        ]),
-      );
-      const candidates: ShortlistCandidate[] = effective.map((cat) => {
-        const key = (cat.categoryKey ?? cat.name).toLowerCase();
-        const score = scoreByKey.get(key);
-        return { name: cat.name, score: score ?? null, pinned: score == null };
-      });
+      const candidates: ShortlistCandidate[] = effective.map((cat) => ({
+        name: cat.name,
+        score: scoreFor(cat),
+        pinned: platformKeys.has(this.dedupeKey(cat)),
+      }));
 
       return { effective, candidates };
     } catch (error) {

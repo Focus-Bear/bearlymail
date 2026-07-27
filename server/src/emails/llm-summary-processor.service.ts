@@ -707,6 +707,93 @@ export class LLMSummaryProcessorService {
     );
   }
 
+  /**
+   * Regenerate the thread's FULL summary so it reflects the latest message,
+   * BEFORE any priority/category LLM step reads it. This is the fix for
+   * categorisation running off a stale (or lossily-appended) summary: a new
+   * message that changes the thread's nature (e.g. a "QA Status: Pass" landing
+   * on a thread previously about a bug) must be captured in the summary the
+   * categoriser and shortlist consume. General — no message-type special-casing.
+   *
+   * No-op when the stored summary already covers this email (its receivedAt is
+   * at or before the thread's lastSummarizedAt). Otherwise it runs the full
+   * (not incremental/lossy) summariser, persists the result across the thread,
+   * advances lastSummarizedAt (so the later background-summary job skips as
+   * already-fresh — no double cost), and updates `email.summary` in memory so
+   * the immediate caller reads the fresh text. Best-effort: a failure leaves the
+   * existing summary in place and never fails priority processing.
+   *
+   * Must run inside the caller's `withUserKey` scope (both the single refine and
+   * batch refine jobs establish it) so encrypted reads/writes use the user key.
+   */
+  async ensureThreadSummaryFresh(
+    email: Email,
+    userId: string,
+    workerId: string,
+  ): Promise<void> {
+    if (!email.emailThreadId) return;
+    try {
+      const thread = await this.emailThreadRepository.findOne({
+        where: { id: email.emailThreadId },
+        select: { id: true, lastSummarizedAt: true },
+      });
+      const lastSummarizedAt = thread?.lastSummarizedAt ?? null;
+      const alreadyFresh =
+        !!email.summary?.trim() &&
+        lastSummarizedAt != null &&
+        email.receivedAt != null &&
+        email.receivedAt <= lastSummarizedAt;
+      if (alreadyFresh) return;
+
+      const result = await this.summarizationService.summarizeEmailWithAutoRule(
+        userId,
+        email.id,
+        email,
+      );
+      const freshSummary = result?.summary?.trim()
+        ? extractPlainSummary(result.summary)
+        : null;
+      if (!freshSummary) return;
+
+      const threadEmails = await this.emailsService.getThreadEmails(
+        userId,
+        email.threadId,
+      );
+      const threadEmailIds = threadEmails.map((entry) => entry.id);
+      await this.emailRepository.update(
+        { id: In(threadEmailIds) },
+        {
+          summary: freshSummary,
+          summarySource: "llm" as const,
+          isProcessingSummary: false,
+          ...(result.sentimentScore !== null &&
+          result.sentimentScore !== undefined
+            ? { sentimentScore: result.sentimentScore }
+            : {}),
+        },
+      );
+      const latestReceivedAt = threadEmails.reduce<Date>((latest, entry) => {
+        const receivedAt = new Date(entry.receivedAt);
+        return receivedAt > latest ? receivedAt : latest;
+      }, new Date(0));
+      await this.emailThreadRepository.update(
+        { id: email.emailThreadId },
+        { lastSummarizedAt: latestReceivedAt },
+      );
+      // Reflect in memory so the immediate caller (priority/category) reads it.
+      email.summary = freshSummary;
+      this.logger.log(
+        `[Worker ${workerId}] Refreshed full thread summary before priority/category for thread ${email.emailThreadId}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `[Worker ${workerId}] ensureThreadSummaryFresh failed for thread ${email.emailThreadId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
   async tryIncrementalAnalysis({
     thread,
     email,
@@ -793,13 +880,13 @@ export class LLMSummaryProcessorService {
       workerId,
     );
 
-    await this.incrementalSummaryHelper.updateSummaryIncrementally(
-      email,
-      existingSummary,
-      userId,
-    );
+    // Regenerate the FULL thread summary so it reflects the latest message
+    // BEFORE re-categorising — replacing the previous lossy incremental append,
+    // which could drop a status/verdict flip (e.g. QA fail → QA pass) and leave
+    // the categoriser reading stale content. General; no message-type check.
+    await this.ensureThreadSummaryFresh(email, userId, workerId);
 
-    // Re-categorise from the freshly-updated summary (deterministic rules →
+    // Re-categorise from the freshly-regenerated summary (deterministic rules →
     // summary-based LLM) INSTEAD of bailing to the full priority flow. This is
     // what catches a within-thread status flip (e.g. QA fail → QA pass): the
     // cheap `categoryMightChange` signal only reacts to a topic change, so we

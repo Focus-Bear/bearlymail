@@ -128,6 +128,7 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
 
     const mockSummaryProcessor = {
       tryIncrementalAnalysis: jest.fn().mockResolvedValue({ handled: false }),
+      ensureThreadSummaryFresh: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<LLMSummaryProcessorService>;
 
     const mockPriorityCache = {

@@ -2,25 +2,21 @@ import type { Logger } from "@nestjs/common";
 import type { Repository } from "typeorm";
 
 import type { CategoryRulesService } from "../category-rules/category-rules.service";
-import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import type { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { categoriseFromSummary } from "../llm/llm-categorise-summary";
 import type { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_CATEGORISE_SUMMARY } from "../llm/llm-operations";
 import { parseCategoryName } from "../utils/category-name.util";
-import { shouldBypassSummaryForPriority } from "./batch-email-payloads.helper";
 import { persistLlmCategoryWithPrecedence } from "./category-column-updates.helper";
 import {
   analyzedEmailFromEmail,
   buildCategoryDecisionTrace,
 } from "./category-decision-trace.helper";
-import type { CategoryDecisionAnalyzedEmail } from "./category-decision-trace.types";
 import { makeCategoryContextIdLookup } from "./category-lookup.helper";
 import { LOCAL_CATEGORY_SOURCE } from "./category-precedence.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
@@ -132,6 +128,11 @@ async function recategoriseViaSummaryLlm(
   decidedAt: string,
 ): Promise<void> {
   const { thread, email, userId, workerId, userContexts } = args;
+  // The summary is refreshed to include the latest message BEFORE this runs (see
+  // LLMSummaryProcessorService.ensureThreadSummaryFresh in the priority
+  // pipeline), so categorising off it reflects the newest message — including a
+  // status/verdict flip that would change the category — without any
+  // message-type special-casing.
   const summary = await deps.getThreadSummary(emailThreadId);
   if (!summary) return;
   const categories = userContexts
@@ -139,29 +140,6 @@ async function recategoriseViaSummaryLlm(
     .map((ctx) => ({ name: parseCategoryName(ctx.contextValue) }))
     .filter((cat) => cat.name);
   if (categories.length === 0) return;
-
-  // QA verdicts / status flips and time-critical dates are exactly what the
-  // thread summary strips (see shouldBypassSummaryForPriority — #1453 Bug 1),
-  // yet they are the signal that should flip the category (e.g. a "QA Status:
-  // Pass ✅" landing on a thread previously about a bug). For those messages
-  // categorise on the raw LATEST-message body so the correct category can
-  // surface; otherwise the stored thread summary is sufficient. Mirrors the
-  // full priority path, which already bypasses the summary for these emails.
-  const bypassSummary = shouldBypassSummaryForPriority(
-    email.subject,
-    email.body,
-  );
-  const rawBody = bypassSummary
-    ? cleanEmailContent(
-        email.body,
-        email.htmlBody,
-        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-      )
-    : "";
-  const usedRawBody = bypassSummary && rawBody.trim().length > 0;
-  const categorisationContent = usedRawBody ? rawBody : summary;
-  const contentSource: CategoryDecisionAnalyzedEmail["contentSource"] =
-    usedRawBody ? "cleaned-body" : "thread-summary";
 
   const result = await categoriseFromSummary(
     (request) =>
@@ -174,7 +152,7 @@ async function recategoriseViaSummaryLlm(
     {
       subject: email.subject || "",
       senderName: email.fromName,
-      summary: categorisationContent,
+      summary,
       categories,
       userId,
     },
@@ -205,7 +183,7 @@ async function recategoriseViaSummaryLlm(
         source: "priority",
         writtenBy: "incremental",
         trigger: "new-email",
-        analyzedEmail: analyzedEmailFromEmail(email, contentSource),
+        analyzedEmail: analyzedEmailFromEmail(email, "thread-summary"),
         finalCategory: result.categoryName,
         finalCategoryId: categoryId,
         steps: [

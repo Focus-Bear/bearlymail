@@ -618,6 +618,17 @@ export class LLMPriorityBatchService {
     },
   ): Promise<void> {
     const { contexts, protoCategories, tracker } = opts;
+    // Refresh each thread's FULL summary to include the latest message BEFORE
+    // building the batch payloads (which embed the summary for the shortlist +
+    // categoriser), so categorisation reflects the newest message. No-op when
+    // already fresh; the later background-summary job then skips.
+    for (const email of emailsNeedingFullAnalysis) {
+      await this.summaryProcessorService.ensureThreadSummaryFresh(
+        email,
+        userId,
+        workerId,
+      );
+    }
     const threadMapForPayload = await this.loadThreadMapForEmails(
       emailsNeedingFullAnalysis,
     );

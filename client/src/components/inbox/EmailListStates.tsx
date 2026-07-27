@@ -200,11 +200,23 @@ function EmptyInboxContent({
         ? totalLower
         : priorityCounts.high + priorityCounts.medium + priorityCounts.low + priorityCounts.veryLow;
 
+    // "Show all emails" reveals the lower-priority Triage threads — the same act the
+    // guided peek CTA performs. When the user had pre-existing Action/Follow-Up work
+    // at session start, that reveal must pass through the friction gate rather than
+    // clearing the filter outright (otherwise it bypasses the distraction tax). Route
+    // it through onUnlockPriorityTier — the gate hook decides whether to intercept, so
+    // an already-unlocked session reveals directly without re-prompting. With no
+    // existing work, keep the plain clear-filters reveal (no friction is warranted).
+    const onShowAll =
+      hasExistingWork && onUnlockPriorityTier
+        ? () => onUnlockPriorityTier(null, null)
+        : onClearFilters;
+
     return (
       <FilteredEmptyState
         currentTierLabel={getCurrentTierLabel(minPriority as number, t)}
         lowerPriorityCount={displayCount}
-        onShowAll={onClearFilters}
+        onShowAll={onShowAll}
       />
     );
   }

@@ -339,6 +339,108 @@ describe("recategoriseFromSummary", () => {
     await recategoriseFromSummary(deps(), argsWithMatchingCategory);
     expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
   });
+
+  // The reported bug: a thread the local model parked in provisional "Other"
+  // (categorySource 'local', categoryId null) must not stay "awaiting
+  // re-categorisation" forever. The summary pass either resolves a real
+  // category OR settles it as a definitive AI-decided "Other".
+  describe("local-model provisional Other (categorySource 'local', categoryId null)", () => {
+    const localOtherThread = {
+      id: "thread-1",
+      categoryId: null,
+      categorySource: "local",
+    } as unknown as EmailThread;
+
+    const localOtherArgs = () => ({ ...args(), thread: localOtherThread });
+
+    beforeEach(() => {
+      mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
+        match: null,
+        snapshot: undefined,
+      });
+      getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
+    });
+
+    it("settles as a definitive 'Other' when the summary LLM returns Other", async () => {
+      (categoriseFromSummary as jest.Mock).mockResolvedValue({
+        categoryNumber: 0,
+        categoryName: "Other",
+        categoryConfidence: "LOW",
+        reasoning: null,
+      });
+
+      await recategoriseFromSummary(deps(), localOtherArgs());
+
+      expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
+      const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
+        .calls[0];
+      // categoryId null + finalCategory "Other" makes the precedence helper
+      // clear categorySource, so threadNeedsLocalModelRecategorisation becomes
+      // false and the "awaiting" state ends.
+      expect(payload.categoryId).toBeNull();
+      expect(payload.finalCategory).toBe("Other");
+      expect(payload.decisionTrace.finalCategoryId).toBeNull();
+    });
+
+    it("settles as 'Other' when the LLM category name resolves to no user category", async () => {
+      (categoriseFromSummary as jest.Mock).mockResolvedValue({
+        categoryNumber: 3,
+        categoryName: "Some category the user does not have",
+        categoryConfidence: "MEDIUM",
+        reasoning: null,
+      });
+
+      await recategoriseFromSummary(deps(), localOtherArgs());
+
+      expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
+      const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
+        .calls[0];
+      expect(payload.categoryId).toBeNull();
+      expect(payload.finalCategory).toBe("Other");
+    });
+
+    it("settles as 'Other' even when the user has no categories defined", async () => {
+      const noCategoryArgs = {
+        ...localOtherArgs(),
+        userContexts: [] as UserContext[],
+      };
+
+      await recategoriseFromSummary(deps(), noCategoryArgs);
+
+      expect(categoriseFromSummary).not.toHaveBeenCalled();
+      expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
+      const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
+        .calls[0];
+      expect(payload.categoryId).toBeNull();
+      expect(payload.finalCategory).toBe("Other");
+    });
+
+    it("applies a real category when the summary LLM resolves one (rescue path)", async () => {
+      (categoriseFromSummary as jest.Mock).mockResolvedValue({
+        categoryNumber: 1,
+        categoryName: "QA failed",
+        categoryConfidence: "HIGH",
+        reasoning: "Summary describes a QA failure",
+      });
+
+      await recategoriseFromSummary(deps(), localOtherArgs());
+
+      expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
+      const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
+        .calls[0];
+      expect(payload.categoryId).toBe("cat-1");
+      expect(payload.finalCategory).toBe("QA failed");
+    });
+
+    it("leaves the thread untouched when there is no summary yet (retries later)", async () => {
+      getThreadSummary.mockResolvedValue(null);
+
+      await recategoriseFromSummary(deps(), localOtherArgs());
+
+      expect(categoriseFromSummary).not.toHaveBeenCalled();
+      expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("threadNeedsLocalModelRecategorisation", () => {

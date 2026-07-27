@@ -21,6 +21,9 @@ import { makeCategoryContextIdLookup } from "./category-lookup.helper";
 import { LOCAL_CATEGORY_SOURCE } from "./category-precedence.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
+/** The "Other" sentinel the summary categoriser returns for category number 0. */
+const OTHER_CATEGORY_NAME = "Other";
+
 /**
  * True when the local model applied priority but left the thread without a real
  * category (`categorySource === "local"` and `categoryId == null`) — whether the
@@ -38,7 +41,8 @@ export function threadNeedsLocalModelRecategorisation(
   } | null,
 ): boolean {
   return (
-    thread?.categorySource === LOCAL_CATEGORY_SOURCE && thread?.categoryId == null
+    thread?.categorySource === LOCAL_CATEGORY_SOURCE &&
+    thread?.categoryId == null
   );
 }
 
@@ -63,8 +67,11 @@ export interface RecategoriseFromSummaryArgs {
  * try the deterministic category rules on the new email first (no LLM), else
  * ask the LLM to pick a category from the updated thread summary. Writes through
  * the precedence guard with a decision trace tagged `writtenBy: "incremental"`.
- * Best-effort: any failure leaves the existing category untouched (never
- * clobbers a real category with "Other").
+ * Best-effort: any failure leaves the existing category untouched. A thread that
+ * already carries a real category is never demoted to "Other"; but a thread the
+ * local model parked in provisional "Other" IS settled as a definitive
+ * AI-decided "Other" when no real category resolves, so it never stays stuck
+ * "awaiting re-categorisation" (see {@link settleLocalModelOther}).
  */
 export async function recategoriseFromSummary(
   deps: RecategoriseFromSummaryDeps,
@@ -126,14 +133,29 @@ async function recategoriseViaSummaryLlm(
   emailThreadId: string,
   decidedAt: string,
 ): Promise<void> {
-  const { thread, email, userId, workerId, userContexts } = args;
+  const { thread, email, userId, userContexts } = args;
+  // A thread the local model parked in provisional "Other" (categorySource
+  // 'local', categoryId null) must be SETTLED by this LLM pass rather than left
+  // "awaiting re-categorisation" forever — even when the pass can't resolve a
+  // real category. A thread that already has a real category (the incremental
+  // path) is only ever moved to a DIFFERENT real category; an "Other"/unresolved
+  // verdict leaves it untouched (never demote a real category to "Other").
+  const isLocalModelProvisionalOther =
+    threadNeedsLocalModelRecategorisation(thread);
   const summary = await deps.getThreadSummary(emailThreadId);
   if (!summary) return;
   const categories = userContexts
     .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
     .map((ctx) => ({ name: parseCategoryName(ctx.contextValue) }))
     .filter((cat) => cat.name);
-  if (categories.length === 0) return;
+  // No user categories at all: the thread can only be "Other". Still settle a
+  // local-model provisional Other so it leaves the "awaiting" limbo.
+  if (categories.length === 0) {
+    if (isLocalModelProvisionalOther) {
+      await settleLocalModelOther(deps, args, emailThreadId, decidedAt, null);
+    }
+    return;
+  }
 
   const result = await categoriseFromSummary(
     (request) =>
@@ -151,13 +173,50 @@ async function recategoriseViaSummaryLlm(
       userId,
     },
   );
-  // Don't clobber a real category with "Other" or an unresolved name.
-  if (!result || result.categoryName === "Other") return;
-  const categoryId = makeCategoryContextIdLookup(userContexts)(
-    result.categoryName,
-  );
-  if (!categoryId || categoryId === thread.categoryId) return;
 
+  const resolvedCategoryId =
+    result && result.categoryName !== OTHER_CATEGORY_NAME
+      ? makeCategoryContextIdLookup(userContexts)(result.categoryName)
+      : null;
+
+  // A real category resolved (and it's a change): apply it. Rescue path shared
+  // by both callers.
+  if (resolvedCategoryId && resolvedCategoryId !== thread.categoryId) {
+    await applyRealSummaryCategory(deps, args, emailThreadId, decidedAt, {
+      categoryId: resolvedCategoryId,
+      categoryName: result!.categoryName,
+      reasoning: result!.reasoning,
+    });
+    return;
+  }
+
+  // No real category. Never demote a thread that already carries one; but settle
+  // a local-model provisional "Other" as a definitive AI-decided "Other" so it
+  // stops advertising "awaiting re-categorisation" and matches the non-local LLM
+  // flow (categorySource cleared, thread freely re-categorisable / proto-eligible).
+  if (isLocalModelProvisionalOther) {
+    await settleLocalModelOther(
+      deps,
+      args,
+      emailThreadId,
+      decidedAt,
+      result?.reasoning ?? null,
+    );
+  }
+}
+
+async function applyRealSummaryCategory(
+  deps: RecategoriseFromSummaryDeps,
+  args: RecategoriseFromSummaryArgs,
+  emailThreadId: string,
+  decidedAt: string,
+  resolved: {
+    categoryId: string;
+    categoryName: string;
+    reasoning: string | null;
+  },
+): Promise<void> {
+  const { email, workerId } = args;
   await persistLlmCategoryWithPrecedence(
     deps.emailThreadRepository,
     deps.logger,
@@ -166,11 +225,11 @@ async function recategoriseViaSummaryLlm(
       workerId,
       ruleCategoryId: null,
       categoryRuleTrace: undefined,
-      categoryId,
-      finalCategory: result.categoryName,
+      categoryId: resolved.categoryId,
+      finalCategory: resolved.categoryName,
       protoCategoryId: null,
       resolvedCategoryExplanation:
-        result.reasoning ??
+        resolved.reasoning ??
         "Incremental re-categorisation from the updated thread summary.",
       decisionTrace: buildCategoryDecisionTrace({
         decidedAt,
@@ -178,16 +237,16 @@ async function recategoriseViaSummaryLlm(
         writtenBy: "incremental",
         trigger: "new-email",
         analyzedEmail: analyzedEmailFromEmail(email, "thread-summary"),
-        finalCategory: result.categoryName,
-        finalCategoryId: categoryId,
+        finalCategory: resolved.categoryName,
+        finalCategoryId: resolved.categoryId,
         steps: [
           {
             step: "llm",
             outcome: "applied",
-            category: result.categoryName,
-            categoryId,
+            category: resolved.categoryName,
+            categoryId: resolved.categoryId,
             detail:
-              result.reasoning ??
+              resolved.reasoning ??
               "Re-categorised from the updated thread summary (incremental).",
           },
         ],
@@ -195,6 +254,64 @@ async function recategoriseViaSummaryLlm(
     },
   );
   deps.logger.log(
-    `[Worker ${workerId}] Incremental re-categorisation: thread ${emailThreadId} → "${result.categoryName}" (from summary)`,
+    `[Worker ${workerId}] Incremental re-categorisation: thread ${emailThreadId} → "${resolved.categoryName}" (from summary)`,
+  );
+}
+
+/**
+ * Settle a local-model provisional "Other" thread as a definitive AI-decided
+ * "Other". Writes categoryId null + finalCategory "Other" through the precedence
+ * guard, which clears `categorySource` (the non-local LLM "Other" convention):
+ * afterwards {@link threadNeedsLocalModelRecategorisation} is false, so the
+ * thread no longer loops back into deferred re-categorisation and no longer
+ * shows "awaiting re-categorisation from the thread summary". The thread stays
+ * `categoryId IS NULL`, so proto-category generation and a future full LLM
+ * refine can still move it out of "Other".
+ */
+async function settleLocalModelOther(
+  deps: RecategoriseFromSummaryDeps,
+  args: RecategoriseFromSummaryArgs,
+  emailThreadId: string,
+  decidedAt: string,
+  reasoning: string | null,
+): Promise<void> {
+  const { email, workerId } = args;
+  const explanation =
+    reasoning ??
+    'Re-categorised from the thread summary: no matching user category — settled as "Other".';
+  await persistLlmCategoryWithPrecedence(
+    deps.emailThreadRepository,
+    deps.logger,
+    {
+      emailThreadId,
+      workerId,
+      ruleCategoryId: null,
+      categoryRuleTrace: undefined,
+      categoryId: null,
+      finalCategory: OTHER_CATEGORY_NAME,
+      protoCategoryId: null,
+      resolvedCategoryExplanation: explanation,
+      decisionTrace: buildCategoryDecisionTrace({
+        decidedAt,
+        source: "priority",
+        writtenBy: "incremental",
+        trigger: "new-email",
+        analyzedEmail: analyzedEmailFromEmail(email, "thread-summary"),
+        finalCategory: OTHER_CATEGORY_NAME,
+        finalCategoryId: null,
+        steps: [
+          {
+            step: "llm",
+            outcome: "applied",
+            category: OTHER_CATEGORY_NAME,
+            categoryId: null,
+            detail: explanation,
+          },
+        ],
+      }),
+    },
+  );
+  deps.logger.log(
+    `[Worker ${workerId}] Local-model "Other" settled via summary re-categorisation: thread ${emailThreadId} (no user category matched)`,
   );
 }

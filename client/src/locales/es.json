@@ -2144,7 +2144,8 @@
     "filteredEmpty": {
       "hasLowerPriority": "No hay correos de alta prioridad ahora mismo. Hay {{count}} correos de menor prioridad.",
       "showAll": "Mostrar todos los correos",
-      "noTierEmails": "Sin correos de prioridad {{tier}}"
+      "noTierEmails": "Sin correos de prioridad {{tier}}",
+      "distractInstead": "Prefiero distraerme con correos de menor prioridad 😅"
     },
     "priority": {
       "veryHigh": "Prioridad muy alta",

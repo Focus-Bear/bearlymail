@@ -216,6 +216,8 @@ function EmptyInboxContent({
       <FilteredEmptyState
         currentTierLabel={getCurrentTierLabel(minPriority as number, t)}
         lowerPriorityCount={displayCount}
+        hasExistingWork={hasExistingWork}
+        onTakeAction={onTakeAction}
         onShowAll={onShowAll}
       />
     );

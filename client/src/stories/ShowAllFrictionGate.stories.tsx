@@ -41,14 +41,39 @@ const InboxColumn: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 /**
- * The state whose "Show all emails" button used to bypass the gate. With existing
- * Action/Follow-Up work, clicking it now opens the friction exercise below.
+ * Work waiting: the healthy default ("Take action 🐎") is the prominent primary,
+ * and revealing lower-priority emails is a de-emphasised link that opens the
+ * friction exercise below.
  */
 export const FilteredEmptyWithWorkWaiting = {
-  name: 'Filtered empty — "Show all emails" (work waiting → now gated)',
+  name: 'Filtered empty — work waiting (Take action primary, distract = gated link)',
   render: () => (
     <InboxColumn>
-      <FilteredEmptyState currentTierLabel="High priority" lowerPriorityCount={9} onShowAll={() => undefined} />
+      <FilteredEmptyState
+        currentTierLabel="High priority"
+        lowerPriorityCount={9}
+        hasExistingWork
+        onTakeAction={() => undefined}
+        onShowAll={() => undefined}
+      />
+    </InboxColumn>
+  ),
+};
+
+/**
+ * No work waiting: a single plain "Show all emails" button reveals directly, with
+ * no "take action" primary (there is nothing to point the user at) and no friction.
+ */
+export const FilteredEmptyNoWork = {
+  name: 'Filtered empty — no work (single "Show all emails", direct reveal)',
+  render: () => (
+    <InboxColumn>
+      <FilteredEmptyState
+        currentTierLabel="High priority"
+        lowerPriorityCount={9}
+        hasExistingWork={false}
+        onShowAll={() => undefined}
+      />
     </InboxColumn>
   ),
 };

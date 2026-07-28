@@ -377,6 +377,51 @@ describe('EmailListStates', () => {
       expect(onClearFilters).toHaveBeenCalledTimes(1);
     });
 
+    it('routes "Show all" through the friction gate (onUnlockPriorityTier) when pre-existing work exists', () => {
+      const onClearFilters = vi.fn();
+      const onUnlockPriorityTier = vi.fn();
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={MEDIUM_PRIORITY_THRESHOLD}
+          maxPriority={HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 2, veryLow: 1 }}
+          existingActionCount={3}
+          existingFollowUpCount={7}
+          onTakeAction={vi.fn()}
+          onUnlockPriorityTier={onUnlockPriorityTier}
+          onClearFilters={onClearFilters}
+        />
+      );
+      fireEvent.click(screen.getByTestId('show-all-btn'));
+      // Must go through the same gate the peek CTA uses, NOT clear the filter directly.
+      expect(onUnlockPriorityTier).toHaveBeenCalledWith(null, null);
+      expect(onClearFilters).not.toHaveBeenCalled();
+    });
+
+    it('reveals directly (onClearFilters) when there is no pre-existing work', () => {
+      const onClearFilters = vi.fn();
+      const onUnlockPriorityTier = vi.fn();
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={MEDIUM_PRIORITY_THRESHOLD}
+          maxPriority={HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 2, veryLow: 1 }}
+          existingActionCount={0}
+          existingFollowUpCount={0}
+          onTakeAction={vi.fn()}
+          onUnlockPriorityTier={onUnlockPriorityTier}
+          onClearFilters={onClearFilters}
+        />
+      );
+      fireEvent.click(screen.getByTestId('show-all-btn'));
+      expect(onClearFilters).toHaveBeenCalledTimes(1);
+      expect(onUnlockPriorityTier).not.toHaveBeenCalled();
+    });
+
     it('shows the total lower-priority count (low=2, veryLow=1 => 3)', () => {
       render(
         <EmailListStates

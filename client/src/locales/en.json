@@ -537,7 +537,8 @@
     "filteredEmpty": {
       "noTierEmails": "No {{tier}} emails",
       "hasLowerPriority": "You have {{count}} lower priority email(s) waiting to be triaged.",
-      "showAll": "Show all emails"
+      "showAll": "Show all emails",
+      "distractInstead": "I'd rather distract myself with lower priority emails 😅"
     },
     "priority": {
       "veryHigh": "Very High priority",

@@ -22,6 +22,7 @@ import {
 } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
 import { getCategoryKey } from 'hooks/useEmailFetching';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import {
   getCategoryIcon,
@@ -290,6 +291,48 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
+  // On mobile the name, count, Archive All and overflow menu can't all fit on
+  // one row without the category name being truncated to nothing. Stack the
+  // actions onto a line BELOW the name; keep the single row on tablet/desktop.
+  const { isMobile } = useResponsiveBreakpoints();
+  const showArchiveAll = hasArchiveAll && emailCount > 0;
+  const hasActions = showArchiveAll || overflowItems.length > 0;
+  const actions = (
+    <>
+      {showArchiveAll && (
+        <button
+          onClick={onArchiveAllClick}
+          onMouseEnter={() => setIsArchiveAllHovered(true)}
+          onMouseLeave={() => setIsArchiveAllHovered(false)}
+          style={{
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+            // Roomier tap target on mobile now that the row is dedicated to actions.
+            padding: isMobile ? `${theme.spacing.sm} ${theme.spacing.md}` : `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.sm,
+            border: STRING_NONE,
+            backgroundColor: isArchiveAllHovered ? theme.colors.interactive.hover : 'transparent',
+            color: theme.colors.text.tertiary,
+            fontSize: theme.typography.fontSize.lg,
+            cursor: 'pointer',
+            transition: theme.transitions.fast,
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+          }}
+          title={t('inbox.category.archiveAllTooltip')}
+        >
+          <FiArchive size={15} />
+          {t('inbox.category.archiveAll')}
+        </button>
+      )}
+      {overflowItems.length > 0 && (
+        <div onClick={event => event.stopPropagation()} style={{ flexShrink: 0, display: 'flex' }}>
+          <OverflowMenu items={overflowItems} aria-label={t('inbox.category.moreActions')} />
+        </div>
+      )}
+    </>
+  );
   return (
     <div
       onClick={onToggle}
@@ -297,7 +340,8 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
         justifyContent: 'space-between',
         gap: theme.spacing.sm,
         padding: `${theme.spacing.md} ${theme.spacing.lg}`,
@@ -319,35 +363,18 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
         isOtherCategory={isOtherCategory}
         t={t}
       />
-      {hasArchiveAll && emailCount > 0 && (
-        <button
-          onClick={onArchiveAllClick}
-          onMouseEnter={() => setIsArchiveAllHovered(true)}
-          onMouseLeave={() => setIsArchiveAllHovered(false)}
+      {hasActions && (
+        <div
           style={{
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.sm,
-            border: STRING_NONE,
-            backgroundColor: isArchiveAllHovered ? theme.colors.interactive.hover : 'transparent',
-            color: theme.colors.text.tertiary,
-            fontSize: theme.typography.fontSize.lg,
-            cursor: 'pointer',
-            transition: theme.transitions.fast,
             display: 'flex',
             alignItems: 'center',
-            gap: theme.spacing.xs,
+            gap: theme.spacing.sm,
+            flexShrink: 0,
+            // Right-align the action row beneath the name on mobile; inline on desktop.
+            justifyContent: isMobile ? 'flex-end' : undefined,
           }}
-          title={t('inbox.category.archiveAllTooltip')}
         >
-          <FiArchive size={15} />
-          {t('inbox.category.archiveAll')}
-        </button>
-      )}
-      {overflowItems.length > 0 && (
-        <div onClick={event => event.stopPropagation()} style={{ flexShrink: 0, display: 'flex' }}>
-          <OverflowMenu items={overflowItems} aria-label={t('inbox.category.moreActions')} />
+          {actions}
         </div>
       )}
     </div>

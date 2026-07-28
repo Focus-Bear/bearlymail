@@ -80,3 +80,20 @@ export const OtherCategory = {
     </Wrap>
   ),
 };
+
+/**
+ * Mobile layout: on a narrow viewport (<640px) the header stacks the category
+ * name (+ count) on its own line with the Archive All / overflow ⋮ actions on a
+ * line below, so a long name is no longer crowded out by the buttons. Capture
+ * this at a ~390px window (useResponsiveBreakpoints keys on window.innerWidth).
+ */
+export const MobileStackedHeader = {
+  name: 'Mobile — name on its own line, actions below',
+  render: () => (
+    <div style={{ maxWidth: 390 }}>
+      <Wrap>
+        <StatefulAccordion category="Meetup & Event Invitations" count={18} />
+      </Wrap>
+    </div>
+  ),
+};

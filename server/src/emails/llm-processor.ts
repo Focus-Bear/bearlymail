@@ -433,6 +433,16 @@ export class LLMProcessor implements OnModuleInit {
       );
     }
 
+    // Refresh the FULL thread summary to include the latest message BEFORE the
+    // priority/category LLM reads it, so the shortlist and categoriser always
+    // work off content that reflects the newest message (no-op when already
+    // fresh; the later background-summary job then skips).
+    await this.summaryProcessorService.ensureThreadSummaryFresh(
+      email,
+      userId,
+      workerId,
+    );
+
     const { contexts, avgTimeToReply, threadEmails, protoCategories } =
       await this.fetchPriorityData(userId, email);
     tracker.endPhase("dataFetch");

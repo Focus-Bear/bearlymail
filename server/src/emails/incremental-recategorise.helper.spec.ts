@@ -202,6 +202,49 @@ describe("recategoriseFromSummary", () => {
     );
   });
 
+  it("categorises off whatever fresh summary getThreadSummary returns (no message-type special-casing)", async () => {
+    // The summary is refreshed to reflect the latest message BEFORE this runs,
+    // so a status flip (e.g. QA fail → pass) is captured in the summary and the
+    // categoriser picks the right category without any body/subject bypass.
+    const qaPassEmail = {
+      emailThreadId: "thread-1",
+      subject: "Re: Habit editing bug",
+      fromName: "Bao Ngoc",
+      body: "6/6 Scenarios Passed\n🔍 QA Status: Pass ✅",
+      htmlBody: null,
+    } as unknown as Email;
+    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
+      match: null,
+      snapshot: undefined,
+    });
+    // Fresh summary now reflects the QA pass (regenerated upstream).
+    getThreadSummary.mockResolvedValue(
+      "Thread was a habit-editing bug; latest message reports QA Status: Pass.",
+    );
+    (categoriseFromSummary as jest.Mock).mockResolvedValue({
+      categoryNumber: 2,
+      categoryName: "QA passed",
+      categoryConfidence: "HIGH",
+      reasoning: "The QA verdict is Pass",
+    });
+
+    await recategoriseFromSummary(deps(), { ...args(), email: qaPassEmail });
+
+    // Categorises off the (fresh) thread summary — not the raw body.
+    const call = (categoriseFromSummary as jest.Mock).mock.calls[0][2];
+    expect(call.summary).toBe(
+      "Thread was a habit-editing bug; latest message reports QA Status: Pass.",
+    );
+    expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledWith(
+      mockEmailThreadRepository,
+      logger,
+      expect.objectContaining({
+        categoryId: "cat-2",
+        finalCategory: "QA passed",
+      }),
+    );
+  });
+
   it("does not update anything if getThreadSummary returns null", async () => {
     mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
       match: null,

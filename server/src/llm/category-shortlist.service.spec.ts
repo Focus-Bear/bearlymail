@@ -84,6 +84,26 @@ describe("CategoryShortlistService", () => {
     );
   }
 
+  /**
+   * Configure embeddings from a weights map and return the full shortlist meta
+   * (effective list + per-candidate provenance) for ranking assertions.
+   */
+  async function getMeta(
+    email: {
+      from: string;
+      fromName?: string;
+      subject: string;
+      summary: string;
+    },
+    categories: CategoryItem[],
+    weightsByIndex: Record<number, number>,
+    topN?: number,
+  ) {
+    setupEmbeddings(emailVectorFavouring(weightsByIndex));
+    const meta = await service.getShortlistWithMeta(email, categories, topN);
+    return { meta };
+  }
+
   beforeEach(async () => {
     mockEmbeddingService = {
       isAvailable: jest.fn().mockReturnValue(true),
@@ -309,6 +329,106 @@ describe("CategoryShortlistService", () => {
       expect(result.map((cat) => cat.name)).toContain(
         "🔔 GitHub Notifications",
       );
+    });
+
+    it("ranks the FULL shortlist (embedding hits + pins) by score, so a high-relevance pin outranks a low-relevance hit", async () => {
+      const githubEmail = {
+        from: "notifications@github.com",
+        fromName: "GitHub",
+        subject: "CI passed",
+        summary: "All checks passed",
+      };
+      // Shortlistable index 12 (after "Other" at 12 is filtered out) is the
+      // appended GitHub category.
+      const githubCategories: CategoryItem[] = [
+        ...allCategories,
+        {
+          name: "🐙 GitHub CI",
+          description: "CI results",
+          categoryKey: "github_ci",
+        },
+      ];
+
+      // GitHub CI is a strong match (score 5); Data is a weak match (0.5). Both
+      // land inside the top-N. The GitHub pin must sort ABOVE the weak Data hit
+      // rather than being appended after it.
+      // 🐙 GitHub CI (index 12) is a high-relevance platform category; Data
+      // (index 10) is a low-relevance embedding hit. Both land inside the top-N.
+      const { meta } = await getMeta(githubEmail, githubCategories, {
+        0: 10,
+        1: 9,
+        2: 8,
+        3: 7,
+        4: 6,
+        5: 5.5,
+        12: 5,
+        10: 0.5,
+      });
+
+      const names = meta.effective.map((cat) => cat.name);
+      expect(names).toContain("🐙 GitHub CI");
+      expect(names).toContain("Data");
+      // The high-relevance pin outranks the low-relevance hit.
+      expect(names.indexOf("🐙 GitHub CI")).toBeLessThan(names.indexOf("Data"));
+
+      // The whole effective list is sorted by score descending.
+      const scores = meta.candidates.map(
+        (candidate) => candidate.score ?? Number.NEGATIVE_INFINITY,
+      );
+      expect(scores).toEqual([...scores].sort((left, right) => right - left));
+
+      // The GitHub category is flagged pinned and carries its real score.
+      const pin = meta.candidates.find(
+        (candidate) => candidate.name === "🐙 GitHub CI",
+      );
+      expect(pin?.pinned).toBe(true);
+      expect(typeof pin?.score).toBe("number");
+      // A non-platform hit is not flagged pinned.
+      const dataHit = meta.candidates.find(
+        (candidate) => candidate.name === "Data",
+      );
+      expect(dataHit?.pinned).toBe(false);
+    });
+
+    it("gives an outside-top-N platform pin a real score (not null) and still includes it", async () => {
+      const githubEmail = {
+        from: "notifications@github.com",
+        fromName: "GitHub",
+        subject: "Dependabot opened a PR",
+        summary: "A pull request was opened",
+      };
+      const githubCategories: CategoryItem[] = [
+        ...allCategories,
+        {
+          name: "🐙 GitHub PRs",
+          description: "Pull request activity",
+          categoryKey: "github_prs",
+        },
+      ];
+      // Favour the first 10 non-github categories so github (index 12) ranks
+      // outside the top-N, then give the github pin a small non-zero score.
+      const { meta } = await getMeta(githubEmail, githubCategories, {
+        0: 10,
+        1: 9,
+        2: 8,
+        3: 7,
+        4: 6,
+        5: 5,
+        6: 4,
+        7: 3,
+        8: 2,
+        9: 1,
+        12: 0.05,
+      });
+
+      const pin = meta.candidates.find(
+        (candidate) => candidate.name === "🐙 GitHub PRs",
+      );
+      expect(pin).toBeDefined();
+      expect(pin?.pinned).toBe(true);
+      // Real cosine score, not null (the old behaviour appended pins as null).
+      expect(typeof pin?.score).toBe("number");
+      expect(pin?.score).toBeGreaterThan(0);
     });
 
     it("does not pin platform categories for non-platform email", async () => {

@@ -133,13 +133,19 @@ async function recategoriseViaSummaryLlm(
   emailThreadId: string,
   decidedAt: string,
 ): Promise<void> {
-  const { thread, email, userId, userContexts } = args;
+  // The summary is refreshed to include the latest message BEFORE this runs (see
+  // LLMSummaryProcessorService.ensureThreadSummaryFresh in the priority
+  // pipeline), so categorising off it reflects the newest message — including a
+  // status/verdict flip that would change the category — without any
+  // message-type special-casing.
+  //
   // A thread the local model parked in provisional "Other" (categorySource
   // 'local', categoryId null) must be SETTLED by this LLM pass rather than left
   // "awaiting re-categorisation" forever — even when the pass can't resolve a
   // real category. A thread that already has a real category (the incremental
   // path) is only ever moved to a DIFFERENT real category; an "Other"/unresolved
   // verdict leaves it untouched (never demote a real category to "Other").
+  const { thread, email, userId, userContexts } = args;
   const isLocalModelProvisionalOther =
     threadNeedsLocalModelRecategorisation(thread);
   const summary = await deps.getThreadSummary(emailThreadId);

@@ -19,6 +19,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { theme } from 'theme/theme';
 import { clipboardHtmlHasTable } from 'utils/clipboardUtils';
 
+import { decideContentSync } from 'components/rich-text/richTextEditorSync';
 import { RichTextToolbar } from 'components/rich-text/RichTextToolbar';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { TAG_EMPTY_PARAGRAPH } from 'constants/strings';
@@ -207,6 +208,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Track blob URLs created for pasted images so we can revoke them on unmount.
   const blobUrlsRef = useRef<string[]>([]);
 
+  // The last HTML the editor emitted upward (via onUpdate → onChange). The
+  // controlled `content` prop echoes this value straight back on the next
+  // render; recognising the echo lets us skip the setContent reconcile that
+  // would otherwise reset the caret to the end of the document on every
+  // keystroke (see decideContentSync + the mobile caret-jump fix).
+  const lastEmittedRef = useRef(content || '');
+
   // Use refs for paste handler callbacks to avoid stale closures.
   // The paste handler is created once at editor init; refs let it always call
   // the latest prop values without being recreated.
@@ -304,34 +312,40 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     editable: !disabled,
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML();
-      onChange(html === TAG_EMPTY_PARAGRAPH ? '' : html);
+      const emitted = html === TAG_EMPTY_PARAGRAPH ? '' : html;
+      // Record before emitting so the echoed `content` prop is recognised and
+      // the reconcile below skips it (no caret reset on the user's own typing).
+      lastEmittedRef.current = emitted;
+      onChange(emitted);
     },
     editorProps: { handlePaste: stablePasteHandler },
   });
 
-  // Reconcile the editor against the controlled `content` prop — but never while
-  // an IME or the macOS native emoji picker (Cmd+Ctrl+Space) composition is in
-  // progress. Those insert via composition events, and replacing the focused
-  // text node mid-composition makes ProseMirror abort the composition, so the
-  // emoji is silently dropped. Guarding on `view.composing` lets the composition
-  // commit; we re-sync afterwards on `compositionend`.
+  // Reconcile the editor against the controlled `content` prop, but skip the
+  // echo of the editor's own output (which would reset the caret to the end on
+  // every keystroke) and never write mid-composition (IME / macOS emoji picker),
+  // where replacing the focused text node aborts the composition and drops the
+  // character. Composition re-syncs afterwards on `compositionend`. See
+  // decideContentSync for the full decision + rationale.
   const syncContentToEditor = useCallback(() => {
-    if (!editor || editor.isDestroyed || editor.view?.composing) {
+    if (!editor || editor.isDestroyed) {
       return;
     }
-    const currentContent = editor.getHTML();
-    const newContent = content || '';
-    const editorIsEmpty = currentContent === TAG_EMPTY_PARAGRAPH || currentContent === '';
-    const contentIsEmpty = !newContent || newContent === TAG_EMPTY_PARAGRAPH;
-
-    if (editorIsEmpty && contentIsEmpty) {
+    const decision = decideContentSync({
+      incomingContent: content,
+      lastEmitted: lastEmittedRef.current,
+      composing: Boolean(editor.view?.composing),
+      getCurrentContent: () => editor.getHTML(),
+    });
+    if (!decision.shouldSync) {
       return;
     }
-    if (currentContent !== newContent) {
-      // emitUpdate: false — a programmatic sync must not re-fire onUpdate, which
-      // would loop back through onChange and re-enter this reconciliation.
-      editor.commands.setContent(newContent, { emitUpdate: false });
-    }
+    // Record what we're about to apply so the resulting re-render — which echoes
+    // `content` straight back — is recognised as our own output and skipped.
+    lastEmittedRef.current = decision.value;
+    // emitUpdate: false — a programmatic sync must not re-fire onUpdate, which
+    // would loop back through onChange and re-enter this reconciliation.
+    editor.commands.setContent(decision.value, { emitUpdate: false });
   }, [content, editor]);
 
   useEffect(() => {

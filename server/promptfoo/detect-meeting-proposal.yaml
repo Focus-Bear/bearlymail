@@ -364,3 +364,116 @@ tests:
             throw new Error(`Expected hasProposal=false — the attribution-header date must not become the proposal. Got: ${text.substring(0, 300)}`);
           }
           return true;
+
+  - description: "Booking green-light after declining the recipient's own proposed time surfaces the Create-Invite flow (bookingInvited=true, earlier time as editable default)"
+    vars:
+      currentDatetime: "2026-08-01T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "harry@acme.com"
+      fromName: "Harry Wells"
+      subject: "Re: Intro chat"
+      threadContext: |
+        From: Jeremy Nagel
+        Could we look at talking on 17th August at 6.30pm eastern time?
+      body: |
+        Hi Jeremy,
+
+        Unfortunately I would be unavailable to meet you then. But I can connect
+        you with the founder Brenda Luo instead! Please feel free to send a meeting
+        invite, or I can connect you both / create a meeting link.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          // A booking green-light + a concrete time earlier in the thread (the recipient's own
+          // proposal) must surface the Create-Invite flow.
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true for a booking green-light with a prior time. Got: ${text.substring(0, 300)}`);
+          }
+          if (parsed.bookingInvited !== true) {
+            throw new Error(`Expected bookingInvited=true (green-lit but the sender declined the time). Got: ${text.substring(0, 300)}`);
+          }
+          // Pre-fill the earlier proposed time (17 Aug 6:30pm) as an editable default even though the
+          // sender is unavailable then.
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-08-17T18:30')) {
+            throw new Error(`Expected proposedLocalTime '2026-08-17T18:30:00' (the earlier proposal). Got: ${parsed.proposedLocalTime}`);
+          }
+          // Email states Eastern; August => EDT = UTC-4. Accept the offset forms / IANA fallback, reject Melbourne/UTC.
+          const tz = parsed.proposedTimezone;
+          if (!(tz === 'UTC-4' || tz === 'UTC-5' || tz === 'America/New_York')) {
+            throw new Error(`Expected Eastern timezone (UTC-4/UTC-5/America/New_York). Got: ${tz}`);
+          }
+          return true;
+
+  - description: "Genuine acceptance with a green-light ('2pm works, send an invite') pre-fills the accepted time and is NOT flagged bookingInvited"
+    vars:
+      currentDatetime: "2026-06-18T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "dana@example.com"
+      fromName: "Dana Wells"
+      subject: "Re: Catch up"
+      threadContext: |
+        From: Jeremy Nagel
+        Could we do 1st July from 2-4pm? I'm free then.
+      body: |
+        2pm works for me — go ahead and send an invite.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true for an acceptance. Got: ${text.substring(0, 300)}`);
+          }
+          // The sender ACCEPTED the specific time, so this is a normal confirmed proposal, not a
+          // green-light-only invite — the accepted slot is pre-filled as usual.
+          if (parsed.bookingInvited === true) {
+            throw new Error(`Expected bookingInvited=false — the sender accepted the specific time. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-07-01T14:00')) {
+            throw new Error(`Expected proposedLocalTime '2026-07-01T14:00:00' (1 July, 2pm accepted). Got: ${parsed.proposedLocalTime}`);
+          }
+          return true;
+
+  - description: "Booking green-light with NO concrete day anywhere ('feel free to send an invite once we pick a week') does NOT trigger Create-Invite"
+    vars:
+      currentDatetime: "2026-06-18T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "sam@example.com"
+      fromName: "Sam Rivera"
+      subject: "Re: Catch up"
+      body: |
+        Sounds good — feel free to send a meeting invite once we settle on a week that suits us both.
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          // A green-light with no specific day on the table anywhere: nothing to invite around, so the
+          // generic share-availability flow should handle it.
+          if (parsed.hasProposal !== false) {
+            throw new Error(`Expected hasProposal=false — no concrete day exists to book. Got: ${text.substring(0, 300)}`);
+          }
+          if (parsed.bookingInvited === true) {
+            throw new Error(`Expected bookingInvited=false when no time is on the table. Got: ${text.substring(0, 300)}`);
+          }
+          return true;

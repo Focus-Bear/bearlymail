@@ -717,6 +717,7 @@
       "noSlots": "No available slots found in the next 7 days.",
       "proposedTime": {
         "description": "The sender has proposed a specific meeting time. Review the details below before creating the calendar invite.",
+        "bookingInvitedDescription": "They invited you to send a calendar invite. Confirm or adjust the time below, then send it.",
         "label": "Proposed time",
         "available": "✓ You're free at this time",
         "freeAt": "✓ You're free at {{time}} within this window",

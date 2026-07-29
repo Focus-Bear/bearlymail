@@ -1135,6 +1135,7 @@
       "noSlots": "No se encontraron horarios disponibles en los próximos 7 días.",
       "proposedTime": {
         "description": "El remitente ha propuesto un horario específico. Revise los detalles antes de crear la invitación.",
+        "bookingInvitedDescription": "Le invitaron a enviar una invitación de calendario. Confirme o ajuste la hora a continuación y envíela.",
         "label": "Hora propuesta",
         "available": "✓ Estás libre en este horario",
         "freeAt": "✓ Estás libre a las {{time}} dentro de este intervalo",

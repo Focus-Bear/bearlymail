@@ -249,6 +249,44 @@ describe('SchedulingRequestCard — review-first flow (#1788 fix #3)', () => {
   });
 });
 
+describe('SchedulingRequestCard — booking green-light (editable Create-Invite)', () => {
+  /** Reply green-lit an invite (declined the proposed time); the earlier time is an editable default. */
+  const bookingInvitedResponse = {
+    ...withProposalResponse,
+    bookingInvited: true,
+    isAvailable: null,
+    suggestedTime: null,
+  };
+
+  it('shows the Create-Invite edit form with honest "pick a time" copy, not the confirmed-slot copy', async () => {
+    mockedAxios.post.mockResolvedValueOnce({ data: bookingInvitedResponse });
+
+    render(<SchedulingRequestCard email={makeEmail()} />);
+
+    // Goes straight into the editable Create-Invite flow (form + Confirm button).
+    await waitFor(() => {
+      expect(
+        screen.getByText('emailDetail.schedulingRequest.proposedTime.editTitle')
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('emailDetail.schedulingRequest.proposedTime.confirm')
+    ).toBeInTheDocument();
+
+    // Uses the honest booking-invited description, not the "sender proposed a specific time" copy.
+    expect(
+      screen.getByText('emailDetail.schedulingRequest.proposedTime.bookingInvitedDescription')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('emailDetail.schedulingRequest.proposedTime.description')
+    ).not.toBeInTheDocument();
+    // Not the generic share-availability card.
+    expect(
+      screen.queryByText('emailDetail.schedulingRequest.copyLink')
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe('SchedulingRequestCard — proposed time windows', () => {
   it('surfaces the free slot found inside a proposed window', async () => {
     mockedAxios.post.mockResolvedValueOnce({ data: windowWithFreeSlotResponse });

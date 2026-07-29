@@ -401,6 +401,13 @@ export { ConflictingEvent } from "./calendar-conflicting-events.helper";
 
 export interface MeetingProposalResult {
   hasProposal: boolean;
+  /**
+   * True when the latest message green-lit sending a calendar invite (e.g. "feel free to send an
+   * invite") without accepting a specific time — so `proposedTime` is an editable default taken
+   * from an earlier proposal in the thread (possibly one the sender just declined), not a slot
+   * they confirmed. The UI surfaces the Create-Invite flow with honest "pick a time" copy.
+   */
+  bookingInvited: boolean;
   proposedTime: string | null;
   /** End of the proposed window when the sender gave a range (e.g. "between 1 and 4"); null for a fixed time. */
   windowEnd: string | null;

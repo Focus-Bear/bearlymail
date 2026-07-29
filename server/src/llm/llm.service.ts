@@ -757,6 +757,7 @@ export class LLMService {
     userTimezone?: string,
   ): Promise<{
     hasProposal: boolean;
+    bookingInvited: boolean;
     proposedTime: string | null;
     windowEnd: string | null;
     proposedDate: string | null;

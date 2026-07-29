@@ -1828,6 +1828,30 @@ describe("CalendarService", () => {
       expect(result.calendarConnected).toBe(true);
     });
 
+    it("passes through bookingInvited so the UI can offer the editable Create-Invite flow", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      // Green-light reply: the sender declined the proposed time but invited an invite, so the
+      // detector returns the earlier time as an editable default flagged bookingInvited.
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        hasProposal: true,
+        bookingInvited: true,
+        proposedTime: "2026-04-15T09:00:00Z",
+        proposedTimeText: "Tuesday 15 April at 9am",
+        topic: "Meeting Request",
+        durationMinutes: 30,
+      });
+      usersService.findOne.mockResolvedValue(mockUser);
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: { calendars: { primary: { busy: [] } } },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.hasProposal).toBe(true);
+      expect(result.bookingInvited).toBe(true);
+      expect(result.proposedTime).toBe("2026-04-15T09:00:00Z");
+    });
+
     it("reports alreadyScheduled (not a conflict) when the user already booked this slot", async () => {
       emailsService.getEmailById.mockResolvedValue(mockEmail);
       llmService.detectMeetingProposal = jest.fn().mockResolvedValue({

@@ -32,6 +32,13 @@ interface SchedulingRequestCardProps {
 
 export interface MeetingProposal {
   hasProposal: boolean;
+  /**
+   * True when the latest reply green-lit sending a calendar invite (e.g. "feel free to send an
+   * invite") without accepting a specific time. proposedTime is then an editable default taken
+   * from an earlier proposal in the thread (possibly one the sender just declined), so the card
+   * asks the user to confirm/pick a time rather than implying the slot was accepted.
+   */
+  bookingInvited?: boolean;
   proposedTime: string | null;
   /** End of the proposed window when the sender gave a range; null for a fixed time. */
   windowEnd: string | null;
@@ -842,6 +849,17 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
 
   const showProposedTimeCard = !proposalLoading && proposal?.hasProposal === true && Boolean(proposal.proposedTime);
 
+  // A booking green-light (sender invited an invite without accepting the time) gets honest
+  // "confirm or pick a time" copy, distinct from the confirmed-slot copy.
+  const resolveDescriptionKey = (): string => {
+    if (!showProposedTimeCard) {
+      return 'emailDetail.schedulingRequest.description';
+    }
+    return proposal?.bookingInvited
+      ? 'emailDetail.schedulingRequest.proposedTime.bookingInvitedDescription'
+      : 'emailDetail.schedulingRequest.proposedTime.description';
+  };
+
   return (
     <div
       style={{
@@ -891,9 +909,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
               lineHeight: theme.typography.lineHeight.normal,
             }}
           >
-            {showProposedTimeCard
-              ? t('emailDetail.schedulingRequest.proposedTime.description')
-              : t('emailDetail.schedulingRequest.description')}
+            {t(resolveDescriptionKey())}
           </div>
 
           {showProposedTimeCard ? (

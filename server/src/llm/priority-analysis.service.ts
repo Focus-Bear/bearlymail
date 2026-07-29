@@ -24,6 +24,7 @@ import { formatDateTimeForPrompt } from "../utils/timezone.utils";
 import {
   CategoryItem,
   CategoryShortlistService,
+  isGithubSenderEmail,
   ShortlistCandidate,
 } from "./category-shortlist.service";
 import { cleanEmailContent } from "./email-content-cleaner";
@@ -374,6 +375,11 @@ export class PriorityAnalysisService {
       // deterministic rule already pinned the category (the LLM's category is
       // discarded downstream), cutting ~12K chars of prompt on those calls.
       categoryPreAssigned: !!categoryPreAssigned,
+      // Gates the large GitHub-specific categorisation rules (~4K chars) in only
+      // for GitHub senders that still choose a category (not pre-assigned),
+      // saving ~1K prompt tokens on the majority of non-GitHub emails. Combined
+      // into one flag because the custom renderer cannot nest `{% if %}` blocks.
+      showGithubRules: !categoryPreAssigned && isGithubSenderEmail(email.from),
     });
 
     return {

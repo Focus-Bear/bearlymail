@@ -1,91 +1,25 @@
 import { Injectable, Logger } from "@nestjs/common";
 
 import { CATEGORY_RESERVED_NAMES } from "../constants/domain-types";
+import {
+  domainMatchesAny,
+  PLATFORM_PINNING,
+} from "../constants/platform-pinning.constants";
 import { cosineSimilarity, EmbeddingService } from "./embedding.service";
+
+// Re-exported from the shared registry so existing importers keep working while
+// the single source of truth lives in `constants/platform-pinning.constants.ts`.
+export {
+  GITHUB_SENDER_DOMAINS,
+  isGithubSenderEmail,
+  PLATFORM_PINNING,
+} from "../constants/platform-pinning.constants";
 
 /** Default number of categories to shortlist. */
 const DEFAULT_TOP_N = 10;
 
 /** Minimum category count before shortlisting is worth running. */
 const SHORTLIST_THRESHOLD = 12;
-
-/**
- * Platform keyword pinning: when the sender's email domain matches a known
- * platform, all categories containing that platform's keyword are pinned into
- * the shortlist regardless of what the cheap shortlist model selected.
- *
- * This prevents GitHub emails from being labelled "Other" (and triggering a
- * redundant "Github and Code" proto-category) simply because the shortlist
- * model failed to surface the user's existing GitHub-specific categories.
- */
-export const PLATFORM_PINNING: Array<{
-  domainPatterns: string[];
-  categoryKeywords: string[];
-}> = [
-  { domainPatterns: ["github.com", "github.io"], categoryKeywords: ["github"] },
-  {
-    domainPatterns: ["gitlab.com", "gitlab.io"],
-    categoryKeywords: ["gitlab"],
-  },
-  {
-    domainPatterns: ["atlassian.net", "atlassian.com"],
-    categoryKeywords: ["jira", "atlassian", "confluence"],
-  },
-  {
-    domainPatterns: ["linear.app"],
-    categoryKeywords: ["linear"],
-  },
-  {
-    domainPatterns: ["slack.com"],
-    categoryKeywords: ["slack"],
-  },
-  {
-    domainPatterns: ["notion.so", "notion.com"],
-    categoryKeywords: ["notion"],
-  },
-  {
-    domainPatterns: ["figma.com"],
-    categoryKeywords: ["figma"],
-  },
-  {
-    domainPatterns: ["sentry.io"],
-    categoryKeywords: ["sentry"],
-  },
-  {
-    domainPatterns: ["pagerduty.com"],
-    categoryKeywords: ["pagerduty"],
-  },
-  {
-    domainPatterns: ["datadog.com"],
-    categoryKeywords: ["datadog"],
-  },
-];
-
-/** True when `domain` equals a pattern or is a sub-domain of it. */
-function domainMatchesAny(domain: string, patterns: string[]): boolean {
-  return patterns.some(
-    (pattern) => domain === pattern || domain.endsWith(`.${pattern}`),
-  );
-}
-
-/**
- * Domain patterns that mark a sender as GitHub (e.g. `notifications@github.com`),
- * sourced from `PLATFORM_PINNING` so there is a single registry of GitHub domains.
- */
-export const GITHUB_SENDER_DOMAINS: string[] = PLATFORM_PINNING.find((entry) =>
-  entry.categoryKeywords.includes("github"),
-)?.domainPatterns ?? ["github.com", "github.io"];
-
-/**
- * True when the sender's email address is on a GitHub domain. Used to gate the
- * large GitHub-specific categorisation rules out of the priority prompt for the
- * majority of (non-GitHub) emails.
- */
-export function isGithubSenderEmail(fromEmail: string | undefined): boolean {
-  const domain = fromEmail?.toLowerCase().split("@")[1];
-  if (!domain) return false;
-  return domainMatchesAny(domain, GITHUB_SENDER_DOMAINS);
-}
 
 export type CategoryItem = {
   name: string;

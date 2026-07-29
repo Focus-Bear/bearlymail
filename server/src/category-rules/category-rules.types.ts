@@ -10,6 +10,15 @@ export interface EmailMetadata {
   subject: string;
   /** Plain cleaned body slice for composite rule matching (optional). */
   bodyTextForMatch?: string;
+  /**
+   * Notification sub-stream key (e.g. `github:pr`) resolved from the RAW email
+   * when this metadata was built. Carried here — rather than re-derived from
+   * `bodyTextForMatch` — because the cleaned body has `href` attributes
+   * stripped, which is where platforms like GitHub hide the canonical URL.
+   * Undefined when no sub-stream applies. Consumed by composite rules whose spec
+   * carries a `notificationSubtype` condition.
+   */
+  notificationSubtype?: string;
 }
 
 /**
@@ -144,6 +153,12 @@ export interface CompositeRuleEvaluationDetail {
   subjectExcludedMatch: string | null;
   /** Issue #1789: body exclusion phrase that disqualified the rule. */
   bodyExcludedMatch: string | null;
+  /**
+   * True when the spec's optional notification-subtype condition is satisfied
+   * (or absent). Always true for rules without a `notificationSubtype`
+   * constraint.
+   */
+  notificationSubtypeMatch?: boolean;
 }
 
 export interface CategoryRuleEvaluationDebug {

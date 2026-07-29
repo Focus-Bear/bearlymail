@@ -68,6 +68,24 @@ export const CATEGORY_RULE_COMPOSITE = {
    */
   DERIVE_EXCLUSIONS_MAX_SAMPLES: 8,
   /**
+   * Exclusion quality bar (junk-exclusion fix). The LLM that derives
+   * `subjectNotContainsAny` / `bodyNotContainsAny` phrases from false-positive
+   * samples tends to grasp at brittle fragments ("Type: Feature Request",
+   * "unimported entities") that happen to appear in one FP subject/body but carry
+   * no real category signal. Before an exclusion is applied it must clear ALL of:
+   *   - length >= DERIVE_EXCLUSION_MIN_PHRASE_LENGTH (short fragments are noise);
+   *   - it appears in ZERO true-positive samples (else it would wrongly exclude
+   *     genuine category mail — a false negative);
+   *   - it eliminates at least DERIVE_EXCLUSION_MIN_FP_HITS false positives that
+   *     are not already covered by a stronger exclusion (greedy set-cover, so
+   *     redundant phrases are dropped rather than piled on).
+   * When no phrase clears the bar the rule is discarded — a brittle rule with
+   * junk conditions is worse than no rule.
+   */
+  DERIVE_EXCLUSION_MIN_PHRASE_LENGTH: 4,
+  /** Minimum previously-uncovered false positives a kept exclusion must remove. */
+  DERIVE_EXCLUSION_MIN_FP_HITS: 1,
+  /**
    * Number of most-recent mailbox emails scanned (regardless of category) to
    * confirm a draft rule actually matches real mail before it is persisted.
    * Unlike AUTO_VALIDATE_THREAD_COUNT this is not limited to categorised

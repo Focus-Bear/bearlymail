@@ -98,4 +98,14 @@ export class CreateCompositeCategoryRuleDto {
   @IsOptional()
   @IsString()
   emailRead?: string;
+
+  /**
+   * Structural notification sub-stream condition (e.g. `github:pr`). Auto-set
+   * for uniform-notification senders; accepted here so edited rules round-trip
+   * it.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_CONTAINS_LENGTH)
+  notificationSubtype?: string;
 }

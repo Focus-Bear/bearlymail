@@ -19,6 +19,7 @@ import {
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { buildRuleMatchText } from "../llm/email-content-cleaner";
 import { parseCategoryName } from "../utils/category-name.util";
+import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import { evaluateComposite } from "./category-rules-auto-composite.helper";
 
 export interface ValidateCompositeRuleResult {
@@ -322,6 +323,13 @@ export function partitionMatchesByCategory(
         from: row.from,
         subject: row.subject,
         bodyTextForMatch: buildRuleMatchText(row.body, row.htmlBody),
+        notificationSubtype:
+          resolveNotificationSubtype({
+            from: row.from,
+            subject: row.subject,
+            body: row.body,
+            htmlBody: row.htmlBody,
+          }) ?? undefined,
       },
       normaliseSender,
     );

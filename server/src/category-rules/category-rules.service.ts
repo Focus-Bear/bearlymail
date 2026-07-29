@@ -50,6 +50,7 @@ import {
 import {
   dropContradictoryExclusions,
   specHasExclusion,
+  specHasStructuralConstraint,
 } from "./category-rules-match-gate.helper";
 import { evaluateRulePersistGate } from "./category-rules-persist-gate.helper";
 import { retroApplyRuleIfEligible } from "./category-rules-retro-apply.helper";
@@ -431,7 +432,7 @@ export class CategoryRulesService {
         `[CategoryRules] Composite rule stored with unresolved categoryId for name "${categoryName}" (user ${userId}) — the editor should send a categoryId; matching threads fall to Other until it resolves.`,
       );
     }
-    if (!specHasExclusion(spec)) {
+    if (!specHasExclusion(spec) && !specHasStructuralConstraint(spec)) {
       throw new BadRequestException(
         "A composite rule must include at least one subject or body NOT-contains phrase so it cannot match too broadly. A NOT-contains phrase that duplicates a contains phrase is removed because it would never match.",
       );
@@ -518,9 +519,10 @@ export class CategoryRulesService {
           emailAttachment: dto.compositeSpec.emailAttachment,
           emailReceived: dto.compositeSpec.emailReceived,
           emailRead: dto.compositeSpec.emailRead,
+          notificationSubtype: dto.compositeSpec.notificationSubtype,
         }),
       );
-      if (!specHasExclusion(spec)) {
+      if (!specHasExclusion(spec) && !specHasStructuralConstraint(spec)) {
         throw new BadRequestException(
           "A composite rule must include at least one subject or body NOT-contains phrase so it cannot match too broadly.",
         );

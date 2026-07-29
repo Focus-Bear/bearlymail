@@ -9,7 +9,11 @@ import { EmailThread } from "../database/entities/email-thread.entity";
  * allowed to replace what a previous writer decided.
  */
 export type CategoryWriterSource =
-  "user" | "rule" | "local" | "priority" | "proto";
+  | "user"
+  | "rule"
+  | "local"
+  | "priority"
+  | "proto";
 
 /**
  * The authoritative, user-set category source. It is top-ranked in the

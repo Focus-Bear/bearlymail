@@ -22,7 +22,11 @@ import {
 } from "./category-precedence.helper";
 
 export type CategorizationSourceKind =
-  "user" | "rule" | "local" | "proto" | "ai";
+  | "user"
+  | "rule"
+  | "local"
+  | "proto"
+  | "ai";
 
 /**
  * Derives the categorisation-source bucket from the thread's stored provenance.

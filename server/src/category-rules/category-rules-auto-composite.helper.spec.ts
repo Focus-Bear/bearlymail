@@ -1,6 +1,7 @@
 import {
   CompositeCategoryRuleSpecV1,
   CompositeCategoryRuleSpecV2,
+  CompositeCategoryRuleSpecV3,
 } from "../database/entities/category-rule.entity";
 import {
   compositeAutoSpecsMatch,
@@ -106,6 +107,74 @@ describe("evaluateComposite", () => {
     expect(result.matches).toBe(true);
     expect(result.detail.subjectExcludedMatch).toBeNull();
     expect(result.detail.bodyExcludedMatch).toBeNull();
+  });
+
+  describe("notificationSubtype structured condition", () => {
+    const ciSpec: CompositeCategoryRuleSpecV3 = {
+      v: 3,
+      fromMatchesAny: ["*@github.com"],
+      subjectContainsAny: ["["],
+      bodyContainsAny: ["github"],
+      notificationSubtype: "github:ci:run_failed",
+    };
+
+    it("matches when the email's subtype equals the rule's notificationSubtype", () => {
+      const result = evaluateComposite(
+        ciSpec,
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] Run failed: CI",
+          bodyTextForMatch: "view it on github",
+          notificationSubtype: "github:ci:run_failed",
+        },
+        normalise,
+      );
+      expect(result.matches).toBe(true);
+      expect(result.detail.notificationSubtypeMatch).toBe(true);
+    });
+
+    it("rejects a different sub-stream even though sender/subject/body match", () => {
+      const result = evaluateComposite(
+        ciSpec,
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] A bug report (#7)",
+          bodyTextForMatch: "view it on github",
+          notificationSubtype: "github:issue",
+        },
+        normalise,
+      );
+      expect(result.matches).toBe(false);
+      expect(result.detail.notificationSubtypeMatch).toBe(false);
+    });
+
+    it("rejects when the email's subtype is unresolved (undefined)", () => {
+      const result = evaluateComposite(
+        ciSpec,
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] Ambiguous (#9)",
+          bodyTextForMatch: "view it on github",
+          notificationSubtype: undefined,
+        },
+        normalise,
+      );
+      expect(result.matches).toBe(false);
+    });
+
+    it("ignores the email's subtype when the spec has no notificationSubtype condition", () => {
+      const result = evaluateComposite(
+        { ...ciSpec, notificationSubtype: undefined },
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] Anything (#1)",
+          bodyTextForMatch: "view it on github",
+          notificationSubtype: "github:issue",
+        },
+        normalise,
+      );
+      expect(result.matches).toBe(true);
+    });
   });
 
   it("supports v1 specs (no exclusions; treated as plain v2)", () => {

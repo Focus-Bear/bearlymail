@@ -10,6 +10,7 @@ import {
   CompositeCategoryRuleSpec,
   CompositeCategoryRuleSpecV1,
   CompositeCategoryRuleSpecV2,
+  CompositeCategoryRuleSpecV3,
 } from "../database/entities/category-rule.entity";
 import type {
   CompositeRuleEvaluationDetail,
@@ -85,6 +86,34 @@ export function pickAutoCompositeBodyPhrase(
     return null;
   }
   return candidate.slice(0, CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASE_LENGTH);
+}
+
+/**
+ * Returns the optional v3-only fields carried by `spec` (read status,
+ * attachment, received/read time, and the GitHub link-type constraint), or an
+ * empty object for v1/v2 specs. Centralised so every place that rebuilds a v3
+ * spec (exclusion merges, sibling merges) preserves these fields identically —
+ * dropping one silently regresses the rule.
+ */
+export function copyV3ExtraFields(
+  spec: CompositeCategoryRuleSpec,
+): Partial<CompositeCategoryRuleSpecV3> {
+  if (spec.v !== 3) {
+    return {};
+  }
+  return {
+    ...(spec.emailIsRead !== undefined && { emailIsRead: spec.emailIsRead }),
+    ...(spec.emailAttachment !== undefined && {
+      emailAttachment: spec.emailAttachment,
+    }),
+    ...(spec.emailReceived !== undefined && {
+      emailReceived: spec.emailReceived,
+    }),
+    ...(spec.emailRead !== undefined && { emailRead: spec.emailRead }),
+    ...(spec.notificationSubtype !== undefined && {
+      notificationSubtype: spec.notificationSubtype,
+    }),
+  };
 }
 
 /** Normalise a v1/v2/v3 spec into the v2 array shape for unified evaluation. */
@@ -267,7 +296,6 @@ export function mergeBodyPhrasesIntoSibling(
   const mergedSubjectNot =
     subjectNot.merged.length > 0 ? subjectNot.merged : undefined;
   const mergedBodyNot = bodyNot.merged.length > 0 ? bodyNot.merged : undefined;
-  const v3Extras = existing.v === 3 ? existing : null;
   return {
     v: 3,
     fromMatchesAny: existingV2.senderMatchesAny,
@@ -275,14 +303,7 @@ export function mergeBodyPhrasesIntoSibling(
     bodyContainsAny: body.merged,
     ...(mergedSubjectNot && { subjectNotContainsAny: mergedSubjectNot }),
     ...(mergedBodyNot && { bodyNotContainsAny: mergedBodyNot }),
-    ...(v3Extras?.emailIsRead !== undefined && {
-      emailIsRead: v3Extras.emailIsRead,
-    }),
-    ...(v3Extras?.emailAttachment && {
-      emailAttachment: v3Extras.emailAttachment,
-    }),
-    ...(v3Extras?.emailReceived && { emailReceived: v3Extras.emailReceived }),
-    ...(v3Extras?.emailRead && { emailRead: v3Extras.emailRead }),
+    ...copyV3ExtraFields(existing),
   };
 }
 
@@ -330,6 +351,7 @@ interface ResolvedSpecFields {
   bodyPhrases: string[];
   subjectNotPhrases: string[] | undefined;
   bodyNotPhrases: string[] | undefined;
+  notificationSubtype: string | undefined;
 }
 
 function resolveSpecFields(
@@ -342,6 +364,7 @@ function resolveSpecFields(
       bodyPhrases: spec.bodyContainsAny,
       subjectNotPhrases: spec.subjectNotContainsAny,
       bodyNotPhrases: spec.bodyNotContainsAny,
+      notificationSubtype: spec.notificationSubtype,
     };
   }
   if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V2) {
@@ -351,6 +374,7 @@ function resolveSpecFields(
       bodyPhrases: spec.bodyContainsAny,
       subjectNotPhrases: spec.subjectNotContainsAny,
       bodyNotPhrases: spec.bodyNotContainsAny,
+      notificationSubtype: undefined,
     };
   }
   return {
@@ -359,6 +383,7 @@ function resolveSpecFields(
     bodyPhrases: spec.bodyContainsAny,
     subjectNotPhrases: undefined,
     bodyNotPhrases: undefined,
+    notificationSubtype: undefined,
   };
 }
 
@@ -382,6 +407,7 @@ export function evaluateComposite(
     bodyPhrases,
     subjectNotPhrases,
     bodyNotPhrases,
+    notificationSubtype,
   } = resolveSpecFields(spec);
 
   const normFrom = normaliseSender(email.from);
@@ -427,8 +453,17 @@ export function evaluateComposite(
   const exclusionOk =
     subjectExcludedMatch === null && bodyExcludedMatch === null;
 
+  // Structured sub-stream condition: when the rule targets a specific
+  // notification sub-stream (e.g. GitHub PR vs issue), the email's resolved
+  // subtype must match. Undefined on the spec means "no constraint"; undefined
+  // on the email (no sub-stream resolved) can never satisfy a constrained rule.
+  const notificationSubtypeOk =
+    notificationSubtype === undefined ||
+    email.notificationSubtype === notificationSubtype;
+
   return {
-    matches: senderOk && subjectOk && bodyOk && exclusionOk,
+    matches:
+      senderOk && subjectOk && bodyOk && exclusionOk && notificationSubtypeOk,
     detail: {
       senderMatch: senderOk,
       subjectMatch: subjectOk,
@@ -438,6 +473,7 @@ export function evaluateComposite(
       subjectMatchedValue,
       subjectExcludedMatch,
       bodyExcludedMatch,
+      notificationSubtypeMatch: notificationSubtypeOk,
     },
   };
 }

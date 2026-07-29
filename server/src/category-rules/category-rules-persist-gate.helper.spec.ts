@@ -184,6 +184,47 @@ describe("evaluateRulePersistGate", () => {
     expect(outcome.reason).toBe("ok");
   });
 
+  it("persists a GitHub CI rule with no exclusion because notificationSubtype bounds it (structural constraint)", async () => {
+    const ciSpec: CompositeCategoryRuleSpec = {
+      v: 3,
+      fromMatchesAny: ["*@github.com"],
+      subjectContainsAny: ["["],
+      bodyContainsAny: ["github"],
+      notificationSubtype: "github:ci:run_failed",
+    };
+    const ciEmail = {
+      from: "notifications@github.com",
+      subject: "[owner/repo] Run failed: CI",
+      body: "View it on GitHub: https://github.com/owner/repo/actions/runs/1",
+    };
+    // A PR notification from the SAME sender that shares the sender/subject/body
+    // positive phrases — it must NOT count as a match, proving the sub-stream
+    // separation.
+    const prEmail = {
+      from: "notifications@github.com",
+      subject: "[owner/repo] Add feature (#42)",
+      body: "View it on GitHub: https://github.com/owner/repo/pull/42",
+    };
+    const mocks = makeMocks({
+      emails: [ciEmail, prEmail],
+      siblings: [],
+    });
+    const outcome = await evaluateRulePersistGate({
+      ...baseParams(mocks),
+      candidateSpec: ciSpec,
+    });
+    expect(outcome.shouldPersist).toBe(true);
+    expect(outcome.reason).toBe("ok");
+    // No speculative exclusion was invented to satisfy the gate.
+    const v3 = outcome.finalSpec as Extract<
+      CompositeCategoryRuleSpec,
+      { v: 3 }
+    >;
+    expect(v3.subjectNotContainsAny).toBeUndefined();
+    expect(v3.bodyNotContainsAny).toBeUndefined();
+    expect(v3.notificationSubtype).toBe("github:ci:run_failed");
+  });
+
   it("skips value-add when skipValueAdd is set (manual creation path)", async () => {
     const mocks = makeMocks({
       emails: [matchingEmail],

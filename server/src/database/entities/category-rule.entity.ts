@@ -64,6 +64,17 @@ export type CompositeCategoryRuleSpecV3 = {
   emailAttachment?: Record<string, string>;
   emailReceived?: string;
   emailRead?: string;
+  /**
+   * Structural condition for uniform-notification platforms: require the email
+   * to belong to a specific notification sub-stream (e.g. `github:pr`,
+   * `atlassian:tag:proj-#`). Resolved generically by the notification-subtype
+   * util from the shared `PLATFORM_PINNING` registry (GitHub PR/issue is the
+   * first concrete case). Set automatically when a rule is auto-generated for a
+   * sender whose sub-stream can be resolved, so overlapping sub-categories from
+   * one sender are separated by the sub-stream rather than brittle phrase
+   * exclusions. Undefined = no constraint.
+   */
+  notificationSubtype?: string;
 };
 
 /** Union of all supported composite rule spec versions. */

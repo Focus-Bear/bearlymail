@@ -171,31 +171,49 @@ describe("applyDerivedExclusionsAndCheck", () => {
     expect(outcome.finalSpec).toBeNull();
   });
 
-  it("caps applied exclusions at MAX_SUBJECT_NOT_PHRASES / MAX_BODY_NOT_PHRASES", () => {
-    const subjectExclusions = Array.from({ length: 30 }, (_, i) => `s${i}`);
-    const bodyExclusions = Array.from({ length: 30 }, (_, i) => `b${i}`);
-    // Also include "digest" so the FP is actually excluded and the rule passes.
+  it("drops non-discriminative exclusion phrases, keeping only ones that remove a false positive", () => {
+    // Junk-exclusion quality bar: the LLM returned "digest" (which appears in
+    // the FP subject) plus 60 fragments that appear in NEITHER the TPs nor the
+    // FP. The filter keeps only the discriminative "digest" and drops the rest,
+    // rather than piling meaningless NOT-contains conditions onto the rule.
+    const subjectJunk = Array.from({ length: 30 }, (_, i) => `s${i}`);
+    const bodyJunk = Array.from({ length: 30 }, (_, i) => `b${i}`);
     const outcome = applyDerivedExclusionsAndCheck({
       positiveSpec,
       truePositiveRows: tpRows(10),
       falsePositiveRows: [buildFpRow("Build digest", "the pipeline ran ok")],
       derived: {
-        subjectNotContainsAny: ["digest", ...subjectExclusions],
-        bodyNotContainsAny: bodyExclusions,
+        subjectNotContainsAny: ["digest", ...subjectJunk],
+        bodyNotContainsAny: bodyJunk,
       },
       normaliseSender: normalise,
       targetCategoryId: TARGET_CATEGORY_ID,
     });
     expect(outcome.passes).toBe(true);
-    expect(
-      outcome.finalSpec?.subjectNotContainsAny?.length,
-    ).toBeLessThanOrEqual(10);
-    expect(outcome.finalSpec?.bodyNotContainsAny?.length).toBeLessThanOrEqual(
-      20,
-    );
-    // The "digest" phrase that actually distinguishes the FP must be retained
-    // (it's the first element in the cap-by-slice).
-    expect(outcome.finalSpec?.subjectNotContainsAny).toContain("digest");
+    expect(outcome.finalSpec?.subjectNotContainsAny).toEqual(["digest"]);
+    expect(outcome.finalSpec?.bodyNotContainsAny).toBeUndefined();
+  });
+
+  it("discards the rule when every derived exclusion is junk (short fragments or TP-overlapping)", () => {
+    // None of these clear the bar: "an" is too short; "pipeline" appears in the
+    // TP bodies (would drop real category mail); "xyz" hits no false positive.
+    // With nothing discriminative left, the rule must be discarded, not saved
+    // with brittle conditions.
+    const outcome = applyDerivedExclusionsAndCheck({
+      positiveSpec,
+      truePositiveRows: tpRows(10),
+      falsePositiveRows: [
+        buildFpRow("Build digest", "an update on the pipeline"),
+      ],
+      derived: {
+        subjectNotContainsAny: ["an", "xyz"],
+        bodyNotContainsAny: ["pipeline"],
+      },
+      normaliseSender: normalise,
+      targetCategoryId: TARGET_CATEGORY_ID,
+    });
+    expect(outcome.passes).toBe(false);
+    expect(outcome.finalSpec).toBeNull();
   });
 });
 

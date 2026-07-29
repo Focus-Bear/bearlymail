@@ -237,6 +237,27 @@ describe('EmailListStates', () => {
         expect(screen.queryByTestId('guided-peek-prompt')).toBeNull();
       }
     );
+
+    it.each(['action', 'follow-up'] as const)(
+      'never renders the "No High priority emails" FilteredEmptyState in %s mode (guided filter is Triage-only)',
+      mode => {
+        render(
+          <EmailListStates
+            {...baseProps}
+            mode={mode}
+            emailsEmpty
+            // The guided ≥High filter is set globally but only applies in Triage;
+            // in Action/Follow-Up it must NOT surface the filtered-empty card.
+            minPriority={HIGH_PRIORITY_THRESHOLD}
+            maxPriority={null}
+            priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          />
+        );
+        expect(screen.queryByTestId('filtered-empty-state')).toBeNull();
+        // Falls through to the generic, mode-appropriate empty state.
+        expect(screen.getByTestId('empty-state').textContent).toBe(mode);
+      }
+    );
   });
 
   describe('no pre-existing Action/Follow-Up work → no gating prompt', () => {

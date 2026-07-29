@@ -179,8 +179,15 @@ function EmptyInboxContent({
     }
   }
 
-  // 2 & 3 require priorityCounts to be loaded — guard here.
-  if (hasActiveFilter && priorityCounts) {
+  // 2 & 3 are guided-priority empty states (their copy says "waiting to be
+  // triaged" and "Show all emails" reveals lower-priority TRIAGE threads), so
+  // they are Triage-only. The guided ≥High filter is set globally on the client
+  // filter state but only APPLIES in Triage (see resolveEffectiveFilters), so
+  // without this mode guard the raw minPriority=30 made hasActiveFilter true in
+  // Action/Follow-Up and leaked the "No High priority emails" card into those
+  // tabs. In non-Triage modes fall through to the generic mode-appropriate
+  // EmptyState. (The ProgressiveUnlockPrompt above is already Triage-guarded.)
+  if (mode === MODE_TRIAGE && hasActiveFilter && priorityCounts) {
     // 2. True "all caught up" — every lower tier (across all bands) is genuinely empty.
     const allLowerTiersEmpty =
       priorityCounts.high === 0 &&

@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import {
   type CategoryItem,
   CategoryShortlistService,
+  isGithubSenderEmail,
 } from "./category-shortlist.service";
 import { EmbeddingService } from "./embedding.service";
 
@@ -230,6 +231,28 @@ describe("CategoryShortlistService", () => {
       expect(
         service.getPlatformKeywordsForSender("Notifications@GITHUB.COM"),
       ).toEqual(["github"]);
+    });
+  });
+
+  describe("isGithubSenderEmail", () => {
+    it("detects github.com senders", () => {
+      expect(isGithubSenderEmail("notifications@github.com")).toBe(true);
+    });
+
+    it("detects github sub-domains and github.io", () => {
+      expect(isGithubSenderEmail("noreply@mail.github.com")).toBe(true);
+      expect(isGithubSenderEmail("hi@pages.github.io")).toBe(true);
+    });
+
+    it("is case-insensitive", () => {
+      expect(isGithubSenderEmail("Notifications@GITHUB.COM")).toBe(true);
+    });
+
+    it("returns false for non-github and malformed senders", () => {
+      expect(isGithubSenderEmail("user@example.com")).toBe(false);
+      expect(isGithubSenderEmail("notgithub.com")).toBe(false);
+      expect(isGithubSenderEmail(undefined)).toBe(false);
+      expect(isGithubSenderEmail("")).toBe(false);
     });
   });
 

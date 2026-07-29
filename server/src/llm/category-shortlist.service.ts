@@ -61,6 +61,32 @@ export const PLATFORM_PINNING: Array<{
   },
 ];
 
+/** True when `domain` equals a pattern or is a sub-domain of it. */
+function domainMatchesAny(domain: string, patterns: string[]): boolean {
+  return patterns.some(
+    (pattern) => domain === pattern || domain.endsWith(`.${pattern}`),
+  );
+}
+
+/**
+ * Domain patterns that mark a sender as GitHub (e.g. `notifications@github.com`),
+ * sourced from `PLATFORM_PINNING` so there is a single registry of GitHub domains.
+ */
+export const GITHUB_SENDER_DOMAINS: string[] = PLATFORM_PINNING.find((entry) =>
+  entry.categoryKeywords.includes("github"),
+)?.domainPatterns ?? ["github.com", "github.io"];
+
+/**
+ * True when the sender's email address is on a GitHub domain. Used to gate the
+ * large GitHub-specific categorisation rules out of the priority prompt for the
+ * majority of (non-GitHub) emails.
+ */
+export function isGithubSenderEmail(fromEmail: string | undefined): boolean {
+  const domain = fromEmail?.toLowerCase().split("@")[1];
+  if (!domain) return false;
+  return domainMatchesAny(domain, GITHUB_SENDER_DOMAINS);
+}
+
 export type CategoryItem = {
   name: string;
   description?: string;
@@ -146,11 +172,7 @@ export class CategoryShortlistService {
     if (!domain) return [];
 
     for (const entry of PLATFORM_PINNING) {
-      if (
-        entry.domainPatterns.some(
-          (pattern) => domain === pattern || domain.endsWith(`.${pattern}`),
-        )
-      ) {
+      if (domainMatchesAny(domain, entry.domainPatterns)) {
         return entry.categoryKeywords;
       }
     }

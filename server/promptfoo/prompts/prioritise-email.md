@@ -76,7 +76,9 @@ A deterministic rule has already assigned this email's category, so category sel
 - **Valid Categories**: Treat any category provided in the "Available Categories" list as a valid, selectable option, even if it contains notes like "(proposed category)" or "(not yet finalized)". Report your choice as `categoryNumber` (the integer shown before the category; `0` for "Other").
 - **Sanity check before finalising:** If you selected a people/business category (e.g., "Customer Support", "Sales", "HR Admin") for (a) an automated system alert, or (b) a calendar invite / meeting request, STOP and reconsider. Use "Other" + protoCategorySuggestion instead. 
 - **CRITICAL EXCEPTION**: This "Sanity check" rule does NOT apply if a specific, dedicated category for these items (e.g., "📦 Shipping & Delivery" or "📅 Calendar & Meetings") is already present in the "Available Categories" list. If a matching category is listed, USE IT instead of "Other".
+{% endif %}
 
+{% if showGithubRules %}
 **GitHub-specific rules:**
 - **AI/bot-created PRs (e.g. Devin):** READ THE FULL THREAD before categorising. If ANY message (including early messages) shows the PR was created or initiated by an AI assistant (e.g., `devin-ai-integration[bot]` opened it), look for the category in the provided list designated for AI-originated or bot-created PRs (any category whose name/description indicates it covers PRs from AI assistants, Devin, or automated sources). Use that category regardless of who merged or commented last. A human merging an AI-created PR does NOT change the category. If no AI-PR-specific category exists, use the most appropriate bot/automated activity category or "Other" + protoCategorySuggestion.
 

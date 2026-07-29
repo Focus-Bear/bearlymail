@@ -125,6 +125,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "devin-ai-integration[bot]"
+      showGithubRules: true
       subject: "[Focus-Bear/BearlyMail] Pull request opened: Fix login button"
       body: "devin-ai-integration[bot] opened a pull request in Focus-Bear/BearlyMail. This PR fixes the login button issue reported by customers."
       emailCategories: |
@@ -142,6 +143,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "github-actions[bot]"
+      showGithubRules: true
       subject: "[Focus-Bear/BearlyMail] CI Build completed"
       body: "github-actions[bot] completed the CI build for PR #123. All checks passed."
       emailCategories: |
@@ -159,6 +161,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "dependabot[bot]"
+      showGithubRules: true
       subject: "[MyOrg/MyRepo] Bump axios from 1.6.0 to 1.7.2"
       body: "dependabot[bot] opened a pull request to bump axios from 1.6.0 to 1.7.2. This update addresses a security vulnerability."
       emailCategories: |
@@ -193,6 +196,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "Jane Smith"
+      showGithubRules: true
       subject: "[MyOrg/MyRepo] Pull request opened: Refactor auth module"
       body: "Jane Smith opened a pull request in MyOrg/MyRepo. This PR refactors the authentication module to improve security and code readability."
       emailCategories: |
@@ -213,6 +217,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "renovate[app]"
+      showGithubRules: true
       subject: "[MyOrg/MyRepo] Update dependency react to v19"
       body: "renovate[app] opened a pull request to update react from v18.2.0 to v19.0.0."
       emailCategories: |
@@ -428,6 +433,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "Bao Ho Gia"
+      showGithubRules: true
       subject: "Re: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)"
       body: "Merged #3916 into develop.--\nReply to this email directly or view it on GitHub."
       emailCategories: |
@@ -459,6 +465,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "QA Tester"
+      showGithubRules: true
       subject: "Re: [Focus-Bear/app] Bug: Login button not working (#123)"
       body: "QA passed ✅ The fix has been verified. Login button now works correctly in all tested browsers and devices. Ready for production."
       emailCategories: |
@@ -478,6 +485,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "QA Tester"
+      showGithubRules: true
       subject: "Re: [Focus-Bear/app] Bug: Submit button broken (#456)"
       body: "QA failed ❌ The submit button is still not working in Safari after the fix. The issue persists - clicking submit does nothing on Safari 17."
       emailCategories: |
@@ -498,6 +506,7 @@ tests:
     vars:
       from: "notifications@github.com"
       fromName: "Amanuel Tesfaye"
+      showGithubRules: true
       subject: "Re: [Focus-Bear/web_dashboard] Update habit selection webview (Issue #2839)"
       body: "amanueltsfy left a comment (Focus-Bear/web_dashboard#2839) QA - The design has been updated. Please proceed with testing and ignore the requirements shown in the attached image above."
       emailCategories: |

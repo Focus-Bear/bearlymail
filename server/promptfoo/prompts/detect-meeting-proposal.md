@@ -13,6 +13,8 @@ Vague proposals that do NOT pin a specific day — e.g. "sometime next week", "l
 
 EXCEPTION — confirmation replies: the latest message may confirm, accept, or narrow a time that was proposed EARLIER in the thread (e.g. the latest message just says "great, let's lock in 2pm" while an earlier message said "could we do 1st July from 2-4pm?"). When the latest message settles on a time but omits the day/date, take the missing day/date from the most recent specific proposal in the earlier messages below, and combine it with the time the latest message confirms. This still counts as a proposal.
 
+EXCEPTION — booking green-lights: the latest message may explicitly invite or authorise you to SCHEDULE the meeting or SEND a calendar invite, without itself settling on a specific time — e.g. "please feel free to send a meeting invite", "go ahead and book it in", "send me an invite", "put a time in my calendar", "happy to meet, just send an invite", "let's lock it in". Treat this as a booking green-light. When the latest message is a booking green-light AND a specific day (with or without a time) was proposed EARLIER in the thread below — the proposal may be the RECIPIENT's own earlier suggestion, not only the sender's — resolve that earlier proposal's day/time and set `hasProposal: true` with `bookingInvited: true`. Surface the earlier proposed time as an editable starting point: this holds EVEN IF the sender says they are unavailable at that earlier time (e.g. "I can't make the 17th, but feel free to send an invite"), because the recipient will confirm or adjust the exact time before the invite goes out. A booking green-light with NO specific day anywhere in the thread does NOT count (set `hasProposal: false`, `bookingInvited: false`) — there is no time on the table to invite around, so the generic share-availability flow should handle it.
+
 {% if threadContext %}
 Earlier messages in this thread, oldest first (CONTEXT ONLY — use these to fill in a day/date the latest message leaves implicit; do not treat them as the proposal unless the latest message confirms or narrows a time):
 -----
@@ -30,6 +32,7 @@ Respond with a JSON object using exactly this schema (no extra keys, no markdown
 
 {
   "hasProposal": true | false,
+  "bookingInvited": true | false,
   "proposedLocalTime": "<naive ISO 8601 wall-clock datetime in the proposedTimezone, with NO trailing Z and NO offset suffix, e.g. 2026-04-15T09:00:00> | null",
   "proposedLocalTimeEnd": "<naive ISO 8601 wall-clock datetime in the proposedTimezone marking the END of the proposed window, when the sender offers a RANGE of times (e.g. 'between 1 and 4', '1-3pm', 'any time 2-5'); same format/timezone as proposedLocalTime; null when the sender gives a single fixed start time> | null",
   "proposedLocalDate": "<naive ISO date (YYYY-MM-DD) when the sender names a specific DAY but gives NO time of day at all (e.g. 'the 9th of July'); null when any time or time-of-day window is given> | null",
@@ -41,6 +44,7 @@ Respond with a JSON object using exactly this schema (no extra keys, no markdown
 
 Rules:
 - Only set hasProposal=true when a specific day/date can be resolved — either with a time (or time window) via `proposedLocalTime`/`proposedLocalTimeEnd`, or as a bare day with no time via `proposedLocalDate`.
+- `bookingInvited`: set true ONLY when the latest message green-lights booking/sending an invite (see the booking-green-lights exception above) but has NOT itself confirmed or accepted the specific time — it declined that time, or simply invited an invite without picking a slot. Set it false for an ordinary proposal and for a genuine confirmation reply that accepts a specific time ("2pm works, send an invite") — those pre-fill the accepted time as normal. Default to false whenever hasProposal is false.
 - Date-only proposals: when the sender names a specific day but states NO time of day, set `proposedLocalDate` to the resolved date (YYYY-MM-DD), leave `proposedLocalTime` and `proposedLocalTimeEnd` null, and set `proposedTimezone` to the recipient's timezone "{{userTimezone}}" (no time was stated, so the recipient's working hours apply). Put the day as written into `proposedTimeText` (e.g. "9 July"). When ANY time or time-of-day window is given, leave `proposedLocalDate` null and use `proposedLocalTime` as before.
 - When the sender offers a RANGE of times they're available on a specific day (e.g. "between 1 and 4", "anytime 2-5pm", "1pm-3pm"), set `proposedLocalTime` to the START of the window and `proposedLocalTimeEnd` to the END of the window. For a single fixed time, set `proposedLocalTimeEnd` to null.
 - `durationMinutes` is the LENGTH of the meeting itself, never the span of an availability window. If the sender gives a window (e.g. "between 1 and 4") but does not say how long the meeting runs, leave `durationMinutes` null — do NOT set it to the width of the window.
@@ -55,7 +59,7 @@ Rules:
   - "late afternoon" / "end of day" → 16:00, `proposedLocalTimeEnd` null
   - "evening" → 17:00–19:00
   Always preserve the sender's original wording in `proposedTimeText` (e.g. "Wednesday afternoon") — the recipient reviews and adjusts the exact time before the invite is sent.
-- Ignore any times or dates the sender explicitly states they are NOT available for or cannot do (e.g. "I can't do tomorrow morning"). Only resolve times/dates offered as available options.
+- Ignore any times or dates the sender explicitly states they are NOT available for or cannot do (e.g. "I can't do tomorrow morning"). Only resolve times/dates offered as available options. EXCEPTION: under the booking-green-lights rule above, an earlier proposed time the sender has now declined MAY still be surfaced — but only as an editable default with `bookingInvited: true`, NEVER as an accepted slot (`bookingInvited: false`).
 - If the sender offers more than one available option (e.g. "the afternoon or over lunch on Wednesday", "Tuesday or Wednesday morning"), pick the FIRST available option mentioned and resolve that one.
 - Quote-attribution lines such as "On Wed, Jun 17, 2026, 4:20 PM Jane Doe <jane@x.com> wrote:" are email-client headers that mark where quoted text begins. NEVER treat the date or time inside an attribution line as a proposed meeting time — it is only the timestamp of a previous message.
 

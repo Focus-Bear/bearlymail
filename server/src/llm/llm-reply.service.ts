@@ -29,6 +29,7 @@ const ISO_DATE_LENGTH = 10;
 
 const EMPTY_MEETING_PROPOSAL = {
   hasProposal: false,
+  bookingInvited: false,
   proposedTime: null,
   windowEnd: null,
   proposedDate: null,
@@ -479,6 +480,13 @@ export class LLMReplyService {
     userTimezone?: string,
   ): Promise<{
     hasProposal: boolean;
+    /**
+     * True when the latest message green-lights booking / sending a calendar invite (e.g. "feel
+     * free to send an invite") but has NOT itself accepted the specific time — so the resolved
+     * `proposedTime` is an editable starting point drawn from an earlier proposal in the thread
+     * (possibly one the sender just declined), NOT a slot they confirmed.
+     */
+    bookingInvited: boolean;
     proposedTime: string | null;
     windowEnd: string | null;
     /**
@@ -563,6 +571,7 @@ export class LLMReplyService {
     effectiveTimezone: string,
   ): {
     hasProposal: boolean;
+    bookingInvited: boolean;
     proposedTime: string | null;
     windowEnd: string | null;
     proposedDate: string | null;
@@ -575,6 +584,7 @@ export class LLMReplyService {
 
     const parsed = JSON.parse(jsonMatch[0]) as {
       hasProposal?: boolean;
+      bookingInvited?: boolean;
       proposedLocalTime?: string | null;
       proposedLocalTimeEnd?: string | null;
       proposedLocalDate?: string | null;
@@ -612,8 +622,13 @@ export class LLMReplyService {
       parsed.hasProposal === true &&
       (proposedTime !== null || proposedDate !== null);
 
+    // Only a real proposal can be a booking green-light; guard against the model setting the flag
+    // while nothing concrete resolved.
+    const bookingInvited = hasProposal && parsed.bookingInvited === true;
+
     return {
       hasProposal,
+      bookingInvited,
       proposedTime,
       windowEnd,
       proposedDate,

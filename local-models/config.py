@@ -27,6 +27,29 @@ PRIORITY_BANDS = ("low", "med", "high")
 # Label used for a thread the LLM left uncategorised (export `category` is null).
 OTHER_CATEGORY = "Other"
 
+# Recency (time-decay) weighting of training labels. Historical labels include
+# stale, bad ones (from now-removed over-broad rules), so we want the model to
+# lean on recent, cleaner labels without a hard recent-only window — a hard
+# window collapses rare categories that only have a handful of (older) examples.
+# Instead each thread's sample weight is multiplied by an exponential decay of
+# its age, measured against the export's newest thread (not wall-clock, so the
+# run stays deterministic/reproducible like the time-based split).
+#
+# Half-life: a thread ~one half-life old counts half as much as a brand-new one.
+# 90 days is a deliberately gentle default — over a multi-month export the most
+# recent quarter carries the most weight while older data still contributes, and
+# over a short (few-week) export the spread is small (nothing drops below ~0.85),
+# so decay can never starve rare categories the way a 2-week cutoff would.
+# Empirically (A/B on a real 3-week mailbox) 90 days was the point where the
+# hierarchical category path improved on every metric with no coverage regression,
+# while shorter half-lives (30-60d) traded a little more coverage for accuracy;
+# see the PR description for the full sweep.
+RECENCY_HALF_LIFE_DAYS = 90.0
+
+# Floor so ancient data still contributes a little (never 0): even threads many
+# half-lives old keep this minimum weight, preserving rare-category signal.
+RECENCY_MIN_WEIGHT = 0.1
+
 
 @dataclass(frozen=True)
 class Thresholds:
@@ -90,6 +113,16 @@ class TrainConfig:
     # text + domain features already carry most of the signal), so it's off by
     # default. Kept behind a flag to revisit with smoothed probabilities.
     use_sender_history: bool = False
+
+    # Recency (time-decay) weighting of category training labels. When on, each
+    # thread's sample weight is scaled by an exponential decay of its age so
+    # recent, cleaner labels count more than stale ones (see the module-level
+    # constants above). Togglable so the effect can be A/B'd against the flat
+    # (all-1.0) weighting. Composes with the user-correction multiplier: the
+    # final weight is base(1.0) x recency_decay x correction(3.0 if corrected).
+    recency_decay_enabled: bool = True
+    recency_half_life_days: float = RECENCY_HALF_LIFE_DAYS
+    recency_min_weight: float = RECENCY_MIN_WEIGHT
 
     thresholds: Thresholds = field(default_factory=lambda: DEFAULT_THRESHOLDS)
 

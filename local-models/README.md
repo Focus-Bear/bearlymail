@@ -169,6 +169,28 @@ Categories with fewer than `min_category_support` (default 5) training threads
 are collapsed to `Other` so the model isn't graded on classes it can't learn;
 they keep falling back to the LLM until they accumulate enough examples.
 
+### Recency (time-decay) weighting
+
+Historical labels include stale, bad ones (from now-removed over-broad rules), so
+each thread's training weight is scaled by an **exponential decay of its age** —
+recent, cleaner labels count more. The decay is measured against the export's
+newest thread (not wall-clock, so a run is deterministic like the time-based
+split), with a configurable half-life (`recency_half_life_days`, default **90**)
+and a floor (`recency_min_weight`, default **0.1**) so ancient data still
+contributes a little and rare categories are never starved — this is the softer
+alternative to a hard "only train on the last N weeks" window, which would
+collapse rare categories that only have older examples. The factor **composes**
+with the existing user-correction multiplier: final weight = base(1.0) ×
+recency_decay × correction(3.0 if `categoryIsUserCorrected`), so a recent
+correction is the strongest signal. Toggle with `recency_decay_enabled`
+(`--no-recency-decay` on `train.py`) for A/B.
+
+On the 3-week mailbox above the effect is deliberately gentle (nothing decays
+below ~0.85), and A/B'ing decay vs flat weights showed **no coverage regression**
+on the hierarchical (production) path — family coverage +0.2pt, full-category
+coverage neutral — while accuracy-on-covered rose (flat head +1.8pt). Its full
+value shows on longer histories as re-categorisation cleans the stale labels.
+
 ## Usage
 
 ```bash

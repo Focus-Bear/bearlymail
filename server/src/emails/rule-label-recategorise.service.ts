@@ -169,6 +169,9 @@ export class RuleLabelReCategoriseService {
     cap: number,
   ): Promise<EmailThread[]> {
     // Never-processed (NULL) or processed before the look-back cutoff.
+    // Select only plaintext columns the pipeline needs (id, categoryId,
+    // categorySource) — selection runs OUTSIDE withUserKey, so hydrating the
+    // thread's encrypted columns here would decrypt without the user key.
     return this.emailThreadRepository.find({
       where: [
         {
@@ -182,6 +185,7 @@ export class RuleLabelReCategoriseService {
           lastRecategorisedAt: LessThan(cutoff),
         },
       ],
+      select: { id: true, categoryId: true, categorySource: true },
       order: { updatedAt: "DESC", id: "ASC" },
       take: cap,
     });

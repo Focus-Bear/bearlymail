@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from dataclasses import replace
 from typing import Any
 
 import joblib
@@ -33,7 +34,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error
 
 from config import DEFAULT_TRAIN_CONFIG, OTHER_CATEGORY, TrainConfig
-from dataset import Thread, load_threads, time_split
+from dataset import Thread, apply_recency_decay, load_threads, time_split
 from features import FeatureBuilder
 from model import (
     ModelBundle,
@@ -81,7 +82,7 @@ def _fit_hierarchical(
     categories; single-category families are recorded as singletons. User
     corrections are up-weighted via each thread's sample weight."""
     families = [assign_family(t.category) for t in threads]
-    weights = [t.weight for t in threads]
+    weights = [t.sample_weight for t in threads]
     family_model = _fit_head(features, families, config, sample_weight=weights)
 
     rows_by_family: dict[str, list[int]] = defaultdict(list)
@@ -97,7 +98,7 @@ def _fit_hierarchical(
                 features[rows],
                 categories,
                 config,
-                sample_weight=[threads[i].weight for i in rows],
+                sample_weight=[threads[i].sample_weight for i in rows],
             )
         else:
             family_singletons[fam] = categories[0]
@@ -175,6 +176,10 @@ def train(
     export_path: str, config: TrainConfig = DEFAULT_TRAIN_CONFIG
 ) -> tuple[ModelBundle, dict[str, Any]]:
     threads = load_threads(export_path)
+    # Recency decay is computed over the whole export (its newest thread is the
+    # reference "now") before the split, so every thread's age is measured on the
+    # same timeline regardless of which side of the split it lands on.
+    apply_recency_decay(threads, config)
     train_threads, test_threads = time_split(threads, config.train_fraction)
     train_threads, kept_categories = collapse_rare_categories(
         train_threads, config.min_category_support
@@ -204,7 +209,7 @@ def train(
         features,
         [t.category for t in train_threads],
         config,
-        sample_weight=[t.weight for t in train_threads],
+        sample_weight=[t.sample_weight for t in train_threads],
     )
     family_model, sibling_models, family_singletons = _fit_hierarchical(
         features, train_threads, config
@@ -229,6 +234,9 @@ def train(
         "config": {
             "train_fraction": config.train_fraction,
             "min_category_support": config.min_category_support,
+            "recency_decay_enabled": config.recency_decay_enabled,
+            "recency_half_life_days": config.recency_half_life_days,
+            "recency_min_weight": config.recency_min_weight,
         },
     }
 
@@ -273,9 +281,18 @@ def main() -> None:
     parser.add_argument("--export", required=True, help="Path to decrypted emails.json")
     parser.add_argument("--out", default="model.joblib", help="Where to save the model bundle")
     parser.add_argument("--report-only", action="store_true", help="Train and report, don't save")
+    parser.add_argument(
+        "--no-recency-decay",
+        action="store_true",
+        help="Disable time-decay label weighting (flat weights) for A/B comparison",
+    )
     args = parser.parse_args()
 
-    bundle, report = train(args.export)
+    config = DEFAULT_TRAIN_CONFIG
+    if args.no_recency_decay:
+        config = replace(config, recency_decay_enabled=False)
+
+    bundle, report = train(args.export, config)
     print(json.dumps(report, indent=2))
 
     if not args.report_only:

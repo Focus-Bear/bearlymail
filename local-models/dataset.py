@@ -11,12 +11,13 @@ threads.
 
 from __future__ import annotations
 
+import datetime
 import json
 from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Iterable
 
-from config import OTHER_CATEGORY, PRIORITY_BAND_EDGES, PRIORITY_BANDS
+from config import OTHER_CATEGORY, PRIORITY_BAND_EDGES, PRIORITY_BANDS, TrainConfig
 
 
 @dataclass
@@ -40,9 +41,25 @@ class Thread:
     category_is_user_corrected: bool
     priority_score: float | None
 
-    # Training sample weight — user-corrected labels are a stronger signal, so
-    # the export marks them heavier and the category heads fit with these weights.
+    # Base training weight — user-corrected labels are a stronger signal, so the
+    # export marks them heavier (3.0) and the category heads fit with these
+    # weights. This is the correction multiplier; recency decay (below) is a
+    # separate factor so the two compose cleanly.
     weight: float = 1.0
+
+    # Recency multiplier in [recency_min_weight, 1.0], set by apply_recency_decay
+    # from the thread's age relative to the export's newest thread. Defaults to
+    # 1.0 (no decay) so a Thread built without decay behaves exactly as before.
+    recency_decay: float = 1.0
+
+    @property
+    def sample_weight(self) -> float:
+        """Final training weight fed to the category heads: the correction
+        multiplier scaled by the recency decay. Keeping the composition here (one
+        place) makes it explicit that a recent correction is the strongest signal
+        (3.0 x ~1.0) while a stale correction still outweighs a stale plain label
+        (both decayed, but the correction keeps its 3x)."""
+        return self.weight * self.recency_decay
 
     @property
     def priority_band(self) -> str | None:
@@ -133,6 +150,63 @@ def load_threads(export_path: str) -> list[Thread]:
     with open(export_path, encoding="utf-8") as f:
         records = json.load(f)
     return threads_from_records(records)
+
+
+def _parse_iso(ts: str) -> datetime.datetime | None:
+    """Parse an ISO-8601 timestamp (export uses a trailing `Z`). Returns None for
+    empty/unparseable values so callers can fall back gracefully."""
+    if not ts:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def recency_decay_factor(
+    received_at: str,
+    reference_now: str,
+    half_life_days: float,
+    min_weight: float,
+) -> float:
+    """Exponential time-decay multiplier for a thread's training weight.
+
+    A thread received at `reference_now` (the export's newest thread) weighs 1.0;
+    one half-life older weighs 0.5; the value decays toward `min_weight` (never 0,
+    so ancient rare-category examples still contribute a little). `reference_now`
+    is the export max — not wall-clock — so the run is deterministic and
+    reproducible, matching the time-based split. Unparseable or future-dated
+    threads get the full 1.0 (we never *penalise* a thread we can't place).
+    """
+    ref = _parse_iso(reference_now)
+    ts = _parse_iso(received_at)
+    if ref is None or ts is None:
+        return 1.0
+    age_days = (ref - ts).total_seconds() / 86400.0
+    if age_days <= 0:
+        return 1.0
+    factor = 0.5 ** (age_days / half_life_days)
+    return max(min_weight, min(1.0, factor))
+
+
+def apply_recency_decay(threads: list[Thread], config: TrainConfig) -> list[Thread]:
+    """Set each thread's `recency_decay` from its age relative to the newest
+    thread in `threads` (the export's max received_at as "now"). No-op that
+    resets to 1.0 when disabled, so the flag gives a clean A/B against flat
+    weighting. Mutates and returns the same list."""
+    if not config.recency_decay_enabled:
+        for t in threads:
+            t.recency_decay = 1.0
+        return threads
+    reference_now = max((t.received_at for t in threads if t.received_at), default="")
+    for t in threads:
+        t.recency_decay = recency_decay_factor(
+            t.received_at,
+            reference_now,
+            config.recency_half_life_days,
+            config.recency_min_weight,
+        )
+    return threads
 
 
 def time_split(threads: list[Thread], train_fraction: float) -> tuple[list[Thread], list[Thread]]:

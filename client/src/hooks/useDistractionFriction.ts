@@ -28,14 +28,21 @@ interface ExistingWorkSnapshot {
 export interface UseDistractionFrictionParams {
   mode: InboxMode;
   tabCounts: TabCounts | null;
+  /**
+   * Monotonic count of user-initiated moves of work INTO Action/Follow-Up (from
+   * useTabCounts). Lets the snapshot tell a genuine mid-session user action apart from a
+   * stale-count correction — the two look identical in tabCounts alone. Defaults to 0 so
+   * callers that don't wire it fall back to always absorbing count changes.
+   */
+  workAdditionCount?: number;
 }
 
 export interface UseDistractionFrictionResult {
-  /** True when the user had unfinished work (Action or Follow-Up) at session start. */
+  /** True when the user had unfinished work (Action or Follow-Up) before acting this session. */
   hasExistingWork: boolean;
-  /** Action conversations already waiting when this Triage session began. */
+  /** Action conversations already waiting before the user first moved work in this session. */
   existingActionCount: number;
-  /** Follow-Up conversations already waiting when this Triage session began. */
+  /** Follow-Up conversations already waiting before the user first moved work in this session. */
   existingFollowUpCount: number;
   /** True when peeking below High requires the unlock exercise (existing work + not unlocked). */
   isGateActive: boolean;
@@ -77,30 +84,52 @@ function isBelowHighFloor(minPriority: number | null): boolean {
  * The guided default shows High-and-above emails for free. Peeking at the
  * lower-priority (Medium and below) Triage emails is gated behind a deliberate
  * unlock exercise, but ONLY when the user still had unfinished work when the
- * session began. "Existing work" is a snapshot of the Action + Follow-Up counts
- * captured at session start — so moving emails to Action/Follow-Up while triaging
- * does NOT retroactively trigger the gate. The gate is session-scoped: it re-locks
- * (and re-snapshots) whenever the user leaves Triage. State is never persisted.
+ * session began. "Existing work" is a snapshot of the Action + Follow-Up counts:
+ * it tracks the counts while they are still loading/correcting, then freezes the
+ * moment the user first moves an email into Action/Follow-Up (via workAdditionCount).
+ * So a stale/loading zero that later resolves to real work DOES surface as existing
+ * work, but moving emails to Action/Follow-Up while triaging does NOT retroactively
+ * trigger the gate. The gate is session-scoped: it re-locks (and re-snapshots)
+ * whenever the user leaves Triage. State is never persisted.
  */
 export function useDistractionFriction({
   mode,
   tabCounts,
+  workAdditionCount = 0,
 }: UseDistractionFrictionParams): UseDistractionFrictionResult {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<ExistingWorkSnapshot | null>(null);
   const pendingTargetRef = useRef<PendingUnlockTarget | null>(null);
+  // workAdditionCount value at the moment this Triage session's snapshot first settled.
+  // The user has moved work in this session once the live counter exceeds this baseline.
+  const sessionBaselineWorkAdditionsRef = useRef<number | null>(null);
 
   const isTriage = mode === MODE_TRIAGE;
 
-  // Capture the existing-work snapshot once per Triage session, as soon as tab
-  // counts are available. Later changes to the live counts (e.g. the user stars an
-  // email into Action mid-session) do NOT update the snapshot.
+  // Keep the existing-work snapshot in sync with the latest tab counts until the user
+  // first moves an email INTO Action/Follow-Up this session — then freeze it.
+  //
+  // Every count change BEFORE that first user move is a load/refresh correction (a stale
+  // or still-loading zero resolving to the real counts), never the user's own action, so
+  // absorbing it is correct — this is what stops the snapshot freezing on a stale-zero and
+  // hiding the "existing work" nudge/gate. AFTER the user moves work in, we freeze so their
+  // mid-session moves don't inflate "existing work" and re-trigger the gate (design intent
+  // from the original snapshot feature). workAdditionCount bumps in the SAME batch as the
+  // optimistic count change, so the freeze lands atomically with the move — never one
+  // render late (which would capture the post-move count).
   useEffect(() => {
-    if (isTriage && snapshot === null && tabCounts !== null) {
+    if (!isTriage || tabCounts === null) {
+      return;
+    }
+    if (sessionBaselineWorkAdditionsRef.current === null) {
+      sessionBaselineWorkAdditionsRef.current = workAdditionCount;
+    }
+    const userHasMovedWorkIn = workAdditionCount > sessionBaselineWorkAdditionsRef.current;
+    if (!userHasMovedWorkIn) {
       setSnapshot({ action: tabCounts.action, followUp: tabCounts.followUp });
     }
-  }, [isTriage, snapshot, tabCounts]);
+  }, [isTriage, tabCounts, workAdditionCount]);
 
   // Session-scoped: re-lock (close any open modal) and drop the snapshot whenever
   // the user leaves Triage. Switching away and back restores the friction and
@@ -110,6 +139,7 @@ export function useDistractionFriction({
       setIsUnlocked(false);
       setIsModalOpen(false);
       setSnapshot(null);
+      sessionBaselineWorkAdditionsRef.current = null;
       pendingTargetRef.current = null;
     }
   }, [isTriage]);

@@ -86,7 +86,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     useTriageSuggestions();
 
   // Tab counts hook - must be before useEmailManagement since it's passed to it
-  const { tabCounts, fetchTabCounts, updateTabCountsOptimistically } = useTabCounts();
+  const { tabCounts, fetchTabCounts, updateTabCountsOptimistically, workAdditionCount } = useTabCounts();
 
   // Inbox filters hook — always call to satisfy rules-of-hooks, but use the
   // caller-supplied instance when provided so the filter UI and fetchEmails
@@ -491,6 +491,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     updateLastUrgentCheck,
     tabCounts,
     fetchTabCounts,
+    workAdditionCount,
     // Refs
     triageTabRef,
     actionTabRef,

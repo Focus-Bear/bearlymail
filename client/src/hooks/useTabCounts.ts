@@ -23,6 +23,16 @@ interface UseTabCountsReturn {
   loading: boolean;
   fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null, signal?: AbortSignal, silent?: boolean) => Promise<void>;
   updateTabCountsOptimistically: (changes: TabCountChanges) => void;
+  /**
+   * Monotonic counter of user-initiated moves of work INTO Action/Follow-Up (i.e.
+   * optimistic count changes with a positive action/followUp delta). It increments in
+   * the SAME state batch as the optimistic count bump, so a consumer can atomically tell
+   * "the user just moved an email in" apart from "a fetch corrected a stale count" — the
+   * two are indistinguishable from tabCounts alone. Used by the distraction-friction
+   * snapshot to freeze existing-work at the moment the user first acts, without freezing
+   * on a stale/loading zero. Never decrements; it is a signal, not a live count.
+   */
+  workAdditionCount: number;
 }
 
 const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3'; // Bumped to invalidate old cache shape
@@ -90,6 +100,10 @@ function buildQueryParams(filters?: Partial<InboxFilter> | null): string {
 export function useTabCounts(): UseTabCountsReturn {
   const [tabCounts, setTabCounts] = useState<TabCounts | null>(null);
   const [loading, setLoading] = useState(false);
+  // See UseTabCountsReturn.workAdditionCount. Incremented only for optimistic moves that
+  // add work to Action/Follow-Up, so the friction snapshot can distinguish a user action
+  // from a stale-count correction.
+  const [workAdditionCount, setWorkAdditionCount] = useState(0);
   // Tracks the cache key for the most recently loaded tab counts so that
   // updateTabCountsOptimistically writes to the correct filtered entry instead
   // of always falling back to the base key.
@@ -193,6 +207,12 @@ export function useTabCounts(): UseTabCountsReturn {
   // processes the action asynchronously (via job queue) and the counts
   // would be stale if fetched immediately
   const updateTabCountsOptimistically = useCallback((changes: TabCountChanges) => {
+    // A positive action/followUp delta means the user just moved an email INTO one of the
+    // existing-work queues (e.g. starred a Triage email into Action). Signal it in the same
+    // batch as the count change so the friction snapshot can freeze at the pre-move value.
+    if ((changes.action ?? 0) > 0 || (changes.followUp ?? 0) > 0) {
+      setWorkAdditionCount(count => count + 1);
+    }
     setTabCounts(prev => {
       if (!prev) {
         return prev;
@@ -264,5 +284,6 @@ export function useTabCounts(): UseTabCountsReturn {
     loading,
     fetchTabCounts,
     updateTabCountsOptimistically,
+    workAdditionCount,
   };
 }

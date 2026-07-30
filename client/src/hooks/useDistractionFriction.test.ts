@@ -22,18 +22,20 @@ describe('useDistractionFriction', () => {
     expect(result.current.isGateActive).toBe(false);
   });
 
+  // Scenario B (#23): a genuine mid-session move must NOT inflate existing work.
   it('does NOT re-trigger the gate when the user moves an email to Action mid-session', () => {
     // Session starts with no pre-existing work…
     const { result, rerender } = renderHook(
-      ({ tabCounts }) => useDistractionFriction({ mode: 'triage', tabCounts }),
-      { initialProps: { tabCounts: NO_WORK } }
+      ({ tabCounts, workAdditionCount }) => useDistractionFriction({ mode: 'triage', tabCounts, workAdditionCount }),
+      { initialProps: { tabCounts: NO_WORK, workAdditionCount: 0 } }
     );
     expect(result.current.isGateActive).toBe(false);
 
-    // …the user stars an email into Action, so live counts now show work.
-    rerender({ tabCounts: { triage: 4, action: 1, followUp: 0 } });
+    // …the user stars an email into Action. The optimistic count bump and the
+    // workAdditionCount increment land together (same batch in the real app).
+    rerender({ tabCounts: { triage: 4, action: 1, followUp: 0 }, workAdditionCount: 1 });
 
-    // The snapshot is frozen at session start — the gate must NOT activate, and a
+    // The snapshot froze at the pre-move counts — the gate must NOT activate, and a
     // peek stays frictionless so they can keep triaging.
     expect(result.current.existingActionCount).toBe(0);
     expect(result.current.existingFollowUpCount).toBe(0);
@@ -47,17 +49,50 @@ describe('useDistractionFriction', () => {
     expect(result.current.isModalOpen).toBe(false);
   });
 
-  it('keeps the session-start snapshot even as live counts change', () => {
+  it('freezes the snapshot once the user moves work in, even as live counts keep climbing', () => {
     const { result, rerender } = renderHook(
-      ({ tabCounts }) => useDistractionFriction({ mode: 'triage', tabCounts }),
-      { initialProps: { tabCounts: WORK } }
+      ({ tabCounts, workAdditionCount }) => useDistractionFriction({ mode: 'triage', tabCounts, workAdditionCount }),
+      { initialProps: { tabCounts: WORK, workAdditionCount: 0 } }
     );
     expect(result.current.existingActionCount).toBe(2);
 
-    rerender({ tabCounts: { triage: 5, action: 9, followUp: 4 } });
-    // Snapshot unchanged despite the live counts climbing.
+    // User moves an email in (workAdditionCount bumps) → freeze at the pre-move counts.
+    rerender({ tabCounts: { triage: 5, action: 3, followUp: 1 }, workAdditionCount: 1 });
+    // A further optimistic move climbs the live counts again — snapshot stays frozen.
+    rerender({ tabCounts: { triage: 5, action: 9, followUp: 4 }, workAdditionCount: 2 });
     expect(result.current.existingActionCount).toBe(2);
     expect(result.current.existingFollowUpCount).toBe(1);
+  });
+
+  // Scenario A (the bug): a stale/loading zero that resolves to real work — with NO user
+  // action — must surface as existing work so the nudge/gate appears.
+  it('re-snapshots when a stale-zero tab count corrects to real work before any user action', () => {
+    const { result, rerender } = renderHook(
+      ({ tabCounts, workAdditionCount }) => useDistractionFriction({ mode: 'triage', tabCounts, workAdditionCount }),
+      // First non-null counts are a stale/loading zero (served from cache).
+      { initialProps: { tabCounts: NO_WORK, workAdditionCount: 0 } }
+    );
+    expect(result.current.hasExistingWork).toBe(false);
+    expect(result.current.isGateActive).toBe(false);
+
+    // The real server counts arrive: 15 Action threads. workAdditionCount is unchanged
+    // because the user did nothing — this is a load correction, not a mid-session move.
+    rerender({ tabCounts: { triage: 5, action: 15, followUp: 0 }, workAdditionCount: 0 });
+
+    expect(result.current.existingActionCount).toBe(15);
+    expect(result.current.hasExistingWork).toBe(true);
+    expect(result.current.isGateActive).toBe(true);
+  });
+
+  it('stays empty for a genuinely-empty user whose real server counts are zero', () => {
+    const { result, rerender } = renderHook(
+      ({ tabCounts, workAdditionCount }) => useDistractionFriction({ mode: 'triage', tabCounts, workAdditionCount }),
+      { initialProps: { tabCounts: null as typeof WORK | null, workAdditionCount: 0 } }
+    );
+    // Real fetch resolves to genuine zeros — no work, no gate.
+    rerender({ tabCounts: NO_WORK, workAdditionCount: 0 });
+    expect(result.current.hasExistingWork).toBe(false);
+    expect(result.current.isGateActive).toBe(false);
   });
 
   it('is inactive outside Triage even with existing work', () => {
@@ -139,8 +174,8 @@ describe('useDistractionFriction', () => {
 
   it('re-locks and re-snapshots when leaving Triage and returning', () => {
     const { result, rerender } = renderHook(
-      ({ mode, tabCounts }) => useDistractionFriction({ mode, tabCounts }),
-      { initialProps: { mode: 'triage' as InboxMode, tabCounts: WORK } }
+      ({ mode, tabCounts, workAdditionCount }) => useDistractionFriction({ mode, tabCounts, workAdditionCount }),
+      { initialProps: { mode: 'triage' as InboxMode, tabCounts: WORK, workAdditionCount: 0 } }
     );
     act(() => {
       result.current.completeUnlock();
@@ -148,13 +183,36 @@ describe('useDistractionFriction', () => {
     expect(result.current.isUnlocked).toBe(true);
 
     // Switch away to Action…
-    rerender({ mode: 'action' as const, tabCounts: WORK });
+    rerender({ mode: 'action' as const, tabCounts: WORK, workAdditionCount: 0 });
     // …and back to Triage — the gate should be active again with a fresh snapshot.
-    rerender({ mode: 'triage' as const, tabCounts: WORK });
+    rerender({ mode: 'triage' as const, tabCounts: WORK, workAdditionCount: 0 });
 
     expect(result.current.isUnlocked).toBe(false);
     expect(result.current.isGateActive).toBe(true);
     expect(result.current.existingActionCount).toBe(2);
+  });
+
+  // The move counter is monotonic across sessions, so the per-session freeze baseline
+  // must reset on leaving Triage — otherwise a returning session would think the user
+  // had already acted and freeze on a stale-zero again.
+  it('re-baselines the freeze signal per session so post-return corrections still apply', () => {
+    const { result, rerender } = renderHook(
+      ({ mode, tabCounts, workAdditionCount }) => useDistractionFriction({ mode, tabCounts, workAdditionCount }),
+      { initialProps: { mode: 'triage' as InboxMode, tabCounts: NO_WORK, workAdditionCount: 0 } }
+    );
+    // User moves a Triage email into Action (counter → 1) and then leaves Triage.
+    rerender({ mode: 'triage' as const, tabCounts: { triage: 4, action: 1, followUp: 0 }, workAdditionCount: 1 });
+    expect(result.current.hasExistingWork).toBe(false);
+    rerender({ mode: 'action' as const, tabCounts: { triage: 4, action: 1, followUp: 0 }, workAdditionCount: 1 });
+
+    // Returns to Triage; counts are a stale zero, counter still 1 (no NEW move this session).
+    rerender({ mode: 'triage' as const, tabCounts: NO_WORK, workAdditionCount: 1 });
+    expect(result.current.hasExistingWork).toBe(false);
+    // A correction to real work (still no new move) must surface as existing work.
+    rerender({ mode: 'triage' as const, tabCounts: { triage: 5, action: 15, followUp: 0 }, workAdditionCount: 1 });
+    expect(result.current.existingActionCount).toBe(15);
+    expect(result.current.hasExistingWork).toBe(true);
+    expect(result.current.isGateActive).toBe(true);
   });
 
   it('dismissModal closes the modal without unlocking', () => {

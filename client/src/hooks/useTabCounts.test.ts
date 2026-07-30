@@ -233,6 +233,46 @@ describe('useTabCounts', () => {
     });
   });
 
+  describe('workAdditionCount signal', () => {
+    it('starts at zero', () => {
+      const { result } = renderHook(() => useTabCounts());
+      expect(result.current.workAdditionCount).toBe(0);
+    });
+
+    it('increments only when work moves INTO Action or Follow-Up', async () => {
+      mockedAxios.get.mockResolvedValue({ data: { triage: 10, action: 5, followUp: 2 } });
+      const { result } = renderHook(() => useTabCounts());
+      await act(async () => {
+        await result.current.fetchTabCounts();
+      });
+      expect(result.current.workAdditionCount).toBe(0);
+
+      // Archive in Triage (triage -1): NOT a move into an existing-work queue.
+      act(() => {
+        result.current.updateTabCountsOptimistically({ triage: -1 });
+      });
+      expect(result.current.workAdditionCount).toBe(0);
+
+      // Star a Triage email into Action (action +1): a genuine work addition.
+      act(() => {
+        result.current.updateTabCountsOptimistically({ triage: -1, action: 1 });
+      });
+      expect(result.current.workAdditionCount).toBe(1);
+
+      // Un-star out of Action (action -1): a removal, not an addition.
+      act(() => {
+        result.current.updateTabCountsOptimistically({ action: -1, triage: 1 });
+      });
+      expect(result.current.workAdditionCount).toBe(1);
+
+      // A Follow-Up addition also counts.
+      act(() => {
+        result.current.updateTabCountsOptimistically({ followUp: 1 });
+      });
+      expect(result.current.workAdditionCount).toBe(2);
+    });
+  });
+
   describe('background polling', () => {
     it('should not poll before the first fetch has occurred', async () => {
       renderHook(() => useTabCounts());

@@ -25,6 +25,10 @@ import {
   threadNeedsLocalModelRecategorisation,
 } from "./incremental-recategorise.helper";
 import { IncrementalSummaryHelperService } from "./incremental-summary-helper.service";
+import {
+  recategoriseRuleThread,
+  RuleThreadRecategoriseOutcome,
+} from "./rule-label-recategorise.helper";
 
 type SummaryJobEntry = {
   job: Job<unknown>;
@@ -561,6 +565,37 @@ export class LLMSummaryProcessorService {
         `[Worker ${workerId}] Deferred local-model re-categorisation failed for thread ${emailThreadId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  /**
+   * Re-categorise ONE rule-labelled thread through the live category-only
+   * pipeline. Thin wrapper over {@link recategoriseRuleThread} that supplies
+   * this service's wired dependencies (including `ensureThreadSummaryFresh`), so
+   * the admin cleanup job reuses the exact live categorisation path. See the
+   * helper for the demote/rules-first/restore-on-error semantics. Must run
+   * inside the caller's `withUserKey` scope.
+   */
+  async recategoriseRuleLabelledThread(args: {
+    thread: EmailThread;
+    email: Email;
+    userId: string;
+    workerId: string;
+  }): Promise<RuleThreadRecategoriseOutcome> {
+    return recategoriseRuleThread(
+      {
+        emailThreadRepository: this.emailThreadRepository,
+        categoryRulesService: this.categoryRulesService,
+        llmCoreService: this.llmCoreService,
+        getThreadSummary: (id) =>
+          this.incrementalSummaryHelper.getThreadSummary(id),
+        getUserContexts: (userId) =>
+          this.priorityCacheService.getUserContexts(userId),
+        ensureThreadSummaryFresh: (email, userId, workerId) =>
+          this.ensureThreadSummaryFresh(email, userId, workerId),
+        logger: this.logger,
+      },
+      args,
+    );
   }
 
   private async saveSummaryResults(

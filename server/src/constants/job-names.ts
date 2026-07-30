@@ -85,6 +85,15 @@ export const JOB_NAMES = {
   // KMS key, since renaming a category used to silently break name-keyed rules.
   BACKFILL_CATEGORY_RULE_IDS: "backfill-category-rule-ids",
 
+  // Admin-triggered, bounded, idempotent re-categorisation of a user's threads
+  // whose category came from a now-removed over-broad deterministic rule
+  // (categorySource 'rule'). Re-runs the live category-only pipeline (rules-first
+  // else summary LLM) to replace stale rule labels, cleaning the training labels
+  // the daily-retrained local model learns from. Very low priority so a bulk
+  // cleanup never starves live refine/summary processing. See
+  // RuleLabelReCategoriseService.
+  RECATEGORISE_RULE_LABELLED_THREADS: "recategorise-rule-labelled-threads",
+
   // GitHub metadata
   FETCH_GITHUB_METADATA: "fetch-github-metadata",
 

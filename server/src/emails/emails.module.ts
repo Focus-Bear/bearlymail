@@ -111,6 +111,9 @@ import { GmailProvider } from "./providers/gmail.provider";
 import { GmailSyncService } from "./providers/gmail-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
+import { RuleLabelReCategoriseController } from "./rule-label-recategorise.controller";
+import { RuleLabelReCategoriseProcessor } from "./rule-label-recategorise.processor";
+import { RuleLabelReCategoriseService } from "./rule-label-recategorise.service";
 import { ScanEmailService } from "./scan-email.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
 import { StuckPriorityDetectionService } from "./stuck-priority-detection.service";
@@ -165,6 +168,7 @@ import { SyncHistoryService } from "./sync-history.service";
   // EmailsController must be LAST: it defines @Get(":id"), which otherwise steals
   // paths like recategorize-progress, backlog-progress, etc. from sibling controllers.
   controllers: [
+    RuleLabelReCategoriseController,
     EmailDebugAdminController,
     EmailSearchOpsController,
     EmailBacklogController,
@@ -320,6 +324,8 @@ import { SyncHistoryService } from "./sync-history.service";
     StuckPriorityDetectionService,
     PrioritySqsDispatchService,
     PriorityAnalysisFinalizerService,
+    RuleLabelReCategoriseService,
+    RuleLabelReCategoriseProcessor,
   ],
   exports: [
     EmailsService,

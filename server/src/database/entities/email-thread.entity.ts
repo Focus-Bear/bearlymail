@@ -331,6 +331,17 @@ export class EmailThread {
   })
   lastSummarizedAt: Date | null;
 
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    comment:
+      "Last time the admin rule-label re-categorisation job (RuleLabelReCategoriseService) " +
+      "processed this thread. Used purely for that job's idempotency: threads processed " +
+      "within its look-back window are skipped on a re-run so a bulk cleanup never " +
+      "re-hits the LLM for the same thread. Null = never processed by that job.",
+  })
+  lastRecategorisedAt: Date | null;
+
   @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;

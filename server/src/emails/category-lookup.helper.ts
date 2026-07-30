@@ -101,3 +101,19 @@ export function makeCategoryContextIdLookup(
   const emailCategories = filterEmailCategories(contexts);
   return (name) => findCategoryContextId(emailCategories, name);
 }
+
+/**
+ * Builds a `categoryId -> display name` map over a user's email categories, for
+ * turning a stored `categoryId` back into a human-readable category name in
+ * audit logs / job summaries. A null or unknown id (i.e. "Other") is absent from
+ * the map, so callers resolve it to "Other" themselves.
+ */
+export function makeCategoryNameByIdLookup(
+  contexts: UserContext[],
+): Map<string, string> {
+  const nameById = new Map<string, string>();
+  for (const context of filterEmailCategories(contexts)) {
+    nameById.set(context.contextId, parseCategoryName(context.contextValue));
+  }
+  return nameById;
+}

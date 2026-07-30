@@ -114,11 +114,12 @@ function buildPositiveSpec(
     bodyContainsAny: string[];
   },
   sender: string,
+  notificationSubtype: string | undefined,
 ): CompositeCategoryRuleSpec | null {
   const senderMatchesAny =
     llmResult.fromMatchesAny.length > 0 ? llmResult.fromMatchesAny : [sender];
   try {
-    return normalizeCompositeSpecDto({
+    const spec = normalizeCompositeSpecDto({
       categoryName,
       senderMatchesAny,
       subjectContainsAny: llmResult.subjectContainsAny.slice(
@@ -130,6 +131,11 @@ function buildPositiveSpec(
         CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES,
       ),
     } as CreateCompositeCategoryRuleDto);
+    // Structured sub-stream signal: pin the rule to this email's notification
+    // sub-stream (e.g. github:pr, github:ci:run_failed) so sibling sub-categories
+    // that share the same sender and similar wording don't become false
+    // positives. Undefined for senders with no resolvable sub-stream.
+    return notificationSubtype ? { ...spec, notificationSubtype } : spec;
   } catch {
     return null;
   }
@@ -318,6 +324,7 @@ export async function buildDraftCompositeSpec(
     trimmedCategory,
     llmResult,
     sender,
+    email.notificationSubtype,
   );
   if (!positiveSpec) {
     return null;

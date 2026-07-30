@@ -28,6 +28,7 @@ import {
   fetchRecentEmailsForMatching,
   mergeExclusionsIntoSpec,
   specHasExclusion,
+  specHasStructuralConstraint,
 } from "./category-rules-match-gate.helper";
 
 export interface RulePersistGateParams {
@@ -178,8 +179,16 @@ export async function evaluateRulePersistGate(
     }
   }
 
-  // 3. Every rule must carry at least one exclusion (when required).
-  if (requireExclusions && !specHasExclusion(finalSpec)) {
+  // 3. Every rule must be bounded so it cannot match too broadly — either by a
+  // NOT-contains exclusion or by a structural condition (the notification-subtype
+  // constraint) that is itself a hard separator. A rule keyed on
+  // `notificationSubtype: "github:ci:run_failed"` therefore no longer needs a
+  // speculative exclusion just to satisfy this gate.
+  if (
+    requireExclusions &&
+    !specHasExclusion(finalSpec) &&
+    !specHasStructuralConstraint(finalSpec)
+  ) {
     return { shouldPersist: false, finalSpec: null, reason: "no_exclusions" };
   }
 

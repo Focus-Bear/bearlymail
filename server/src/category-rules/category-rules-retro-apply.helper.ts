@@ -22,6 +22,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { buildCategoryDecisionTrace } from "../emails/category-decision-trace.helper";
 import { updateThreadCategoryWithPrecedence } from "../emails/category-precedence.helper";
 import { buildRuleMatchText } from "../llm/email-content-cleaner";
+import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import { evaluateComposite } from "./category-rules-auto-composite.helper";
 import {
   decryptValidationRow,
@@ -101,6 +102,13 @@ export function selectRetroApplyThreadIds(
           decrypted.body,
           decrypted.htmlBody,
         ),
+        notificationSubtype:
+          resolveNotificationSubtype({
+            from: decrypted.from,
+            subject: decrypted.subject,
+            body: decrypted.body,
+            htmlBody: decrypted.htmlBody,
+          }) ?? undefined,
       },
       normaliseSender,
     );

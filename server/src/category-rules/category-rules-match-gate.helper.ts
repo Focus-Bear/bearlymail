@@ -17,7 +17,9 @@ import {
 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { buildRuleMatchText } from "../llm/email-content-cleaner";
+import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import {
+  copyV3ExtraFields,
   evaluateComposite,
   specToV2,
 } from "./category-rules-auto-composite.helper";
@@ -82,6 +84,13 @@ export function countMatchesInRows(
         from: row.from || "",
         subject: row.subject || "",
         bodyTextForMatch: getCleanedBodyForMatch(row),
+        notificationSubtype:
+          resolveNotificationSubtype({
+            from: row.from || "",
+            subject: row.subject || "",
+            body: row.body,
+            htmlBody: row.htmlBody,
+          }) ?? undefined,
       },
       normaliseSender,
     );
@@ -127,6 +136,20 @@ export function specHasExclusion(spec: CompositeCategoryRuleSpec): boolean {
   );
 }
 
+/**
+ * True when the spec carries a structural condition that already prevents it
+ * from matching too broadly WITHOUT relying on NOT-contains phrases. Currently
+ * this is the notification-subtype constraint: a rule pinned to `github:pr` (or
+ * any resolved sub-stream) only fires on that sub-stream, which is a hard,
+ * deterministic separator — so the "must have an exclusion" requirement (whose
+ * sole purpose is to stop over-broad matching) can be satisfied by it instead.
+ */
+export function specHasStructuralConstraint(
+  spec: CompositeCategoryRuleSpec,
+): boolean {
+  return spec.v === 3 && spec.notificationSubtype !== undefined;
+}
+
 /** Lower-cased, trimmed set of phrases for case-insensitive overlap checks. */
 function phraseKeySet(phrases: string[]): Set<string> {
   return new Set(phrases.map((phrase) => phrase.trim().toLowerCase()));
@@ -170,18 +193,7 @@ export function dropContradictoryExclusions(
     bodyContainsAny: v2.bodyContainsAny,
     ...(subjectNot.length > 0 && { subjectNotContainsAny: subjectNot }),
     ...(bodyNot.length > 0 && { bodyNotContainsAny: bodyNot }),
-    ...(spec.v === 3 &&
-      spec.emailIsRead !== undefined && { emailIsRead: spec.emailIsRead }),
-    ...(spec.v === 3 &&
-      spec.emailAttachment !== undefined && {
-        emailAttachment: spec.emailAttachment,
-      }),
-    ...(spec.v === 3 &&
-      spec.emailReceived !== undefined && {
-        emailReceived: spec.emailReceived,
-      }),
-    ...(spec.v === 3 &&
-      spec.emailRead !== undefined && { emailRead: spec.emailRead }),
+    ...copyV3ExtraFields(spec),
   };
 }
 
@@ -230,17 +242,6 @@ export function mergeExclusionsIntoSpec(
       subjectNotContainsAny: mergedSubjectNot,
     }),
     ...(mergedBodyNot.length > 0 && { bodyNotContainsAny: mergedBodyNot }),
-    ...(spec.v === 3 &&
-      spec.emailIsRead !== undefined && { emailIsRead: spec.emailIsRead }),
-    ...(spec.v === 3 &&
-      spec.emailAttachment !== undefined && {
-        emailAttachment: spec.emailAttachment,
-      }),
-    ...(spec.v === 3 &&
-      spec.emailReceived !== undefined && {
-        emailReceived: spec.emailReceived,
-      }),
-    ...(spec.v === 3 &&
-      spec.emailRead !== undefined && { emailRead: spec.emailRead }),
+    ...copyV3ExtraFields(spec),
   };
 }

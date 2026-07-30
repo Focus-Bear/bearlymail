@@ -96,5 +96,8 @@ export function normalizeCompositeSpec(
     ...(dto.emailAttachment && { emailAttachment: dto.emailAttachment }),
     ...(dto.emailReceived && { emailReceived: dto.emailReceived }),
     ...(dto.emailRead && { emailRead: dto.emailRead }),
+    ...(dto.notificationSubtype && {
+      notificationSubtype: dto.notificationSubtype,
+    }),
   };
 }

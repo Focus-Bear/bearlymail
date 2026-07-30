@@ -21,6 +21,7 @@ import { Repository } from "typeorm";
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CompositeCategoryRuleSpec } from "../database/entities/category-rule.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { buildRuleMatchText } from "../llm/email-content-cleaner";
 import {
   ExclusionDerivationSample,
   LLMCategoriesService,
@@ -116,6 +117,133 @@ export interface ApplyDerivedExclusionsParams {
   targetCategoryId: string | null;
 }
 
+/** The lowercased subject + cleaned body text an exclusion phrase is tested against. */
+interface RowFieldText {
+  subject: string;
+  body: string;
+}
+
+function rowFieldText(row: DecryptedValidationRow): RowFieldText {
+  return {
+    subject: (row.subject || "").toLowerCase(),
+    body: buildRuleMatchText(row.body, row.htmlBody).toLowerCase(),
+  };
+}
+
+/** The two email fields an exclusion phrase can be tested against. */
+const EXCLUSION_FIELD = {
+  SUBJECT: "subject",
+  BODY: "body",
+} as const;
+type ExclusionField = (typeof EXCLUSION_FIELD)[keyof typeof EXCLUSION_FIELD];
+
+/**
+ * A candidate exclusion phrase that has already cleared the quality bar and the
+ * set of false-positive row indices it would disqualify (in the field it
+ * applies to).
+ */
+interface ExclusionCandidate {
+  phrase: string;
+  field: ExclusionField;
+  fpHitIndices: Set<number>;
+}
+
+/**
+ * Builds a quality-checked candidate for a single derived phrase, or null when
+ * the phrase fails the bar. A phrase is only viable when it is long enough to be
+ * meaningful, appears in NO true positive (excluding it would drop genuine
+ * category mail), and appears in at least DERIVE_EXCLUSION_MIN_FP_HITS false
+ * positives (it actually reduces false positives rather than being noise).
+ */
+function buildExclusionCandidate(
+  phrase: string,
+  field: ExclusionField,
+  tpTexts: RowFieldText[],
+  fpTexts: RowFieldText[],
+): ExclusionCandidate | null {
+  const needle = phrase.trim().toLowerCase();
+  if (
+    needle.length < CATEGORY_RULE_COMPOSITE.DERIVE_EXCLUSION_MIN_PHRASE_LENGTH
+  ) {
+    return null;
+  }
+  if (tpTexts.some((text) => text[field].includes(needle))) {
+    return null;
+  }
+  const fpHitIndices = new Set<number>();
+  fpTexts.forEach((text, index) => {
+    if (text[field].includes(needle)) {
+      fpHitIndices.add(index);
+    }
+  });
+  if (
+    fpHitIndices.size < CATEGORY_RULE_COMPOSITE.DERIVE_EXCLUSION_MIN_FP_HITS
+  ) {
+    return null;
+  }
+  return { phrase, field, fpHitIndices };
+}
+
+/**
+ * Filters the LLM's raw derived exclusions down to a minimal, genuinely
+ * discriminative set (junk-exclusion fix).
+ *
+ * The LLM tends to return brittle fragments that happen to sit in one FP sample
+ * but separate no category. We keep only phrases that (a) never appear in a true
+ * positive and (b) each remove at least one FALSE positive not already covered
+ * by a stronger phrase (greedy set-cover). Everything else — short fragments,
+ * TP-overlapping phrases, redundant duplicates — is dropped. When nothing clears
+ * the bar both lists come back empty and the caller discards the rule.
+ */
+export function selectDiscriminativeExclusions(
+  derived: { subjectNotContainsAny: string[]; bodyNotContainsAny: string[] },
+  truePositiveRows: DecryptedValidationRow[],
+  falsePositiveRows: DecryptedValidationRow[],
+): { subjectNotContainsAny: string[]; bodyNotContainsAny: string[] } {
+  const tpTexts = truePositiveRows.map(rowFieldText);
+  const fpTexts = falsePositiveRows.map(rowFieldText);
+
+  const candidates = [
+    ...derived.subjectNotContainsAny.map((phrase) =>
+      buildExclusionCandidate(
+        phrase,
+        EXCLUSION_FIELD.SUBJECT,
+        tpTexts,
+        fpTexts,
+      ),
+    ),
+    ...derived.bodyNotContainsAny.map((phrase) =>
+      buildExclusionCandidate(phrase, EXCLUSION_FIELD.BODY, tpTexts, fpTexts),
+    ),
+  ].filter((candidate): candidate is ExclusionCandidate => candidate !== null);
+
+  // Strongest (most FPs removed) first, so the greedy pass keeps the smallest
+  // discriminative set and drops phrases that add no new coverage.
+  candidates.sort(
+    (left, right) => right.fpHitIndices.size - left.fpHitIndices.size,
+  );
+
+  const coveredFpIndices = new Set<number>();
+  const subjectNotContainsAny: string[] = [];
+  const bodyNotContainsAny: string[] = [];
+  for (const candidate of candidates) {
+    let newlyCovered = 0;
+    for (const index of candidate.fpHitIndices) {
+      if (!coveredFpIndices.has(index)) newlyCovered += 1;
+    }
+    if (newlyCovered < CATEGORY_RULE_COMPOSITE.DERIVE_EXCLUSION_MIN_FP_HITS) {
+      continue;
+    }
+    for (const index of candidate.fpHitIndices) coveredFpIndices.add(index);
+    if (candidate.field === EXCLUSION_FIELD.SUBJECT) {
+      subjectNotContainsAny.push(candidate.phrase);
+    } else {
+      bodyNotContainsAny.push(candidate.phrase);
+    }
+  }
+  return { subjectNotContainsAny, bodyNotContainsAny };
+}
+
 /**
  * Pure-function variant exposed for unit tests: given decrypted validation
  * rows, the positive-only spec, and a TP/FP partition, decide whether the
@@ -135,9 +263,18 @@ export function applyDerivedExclusionsAndCheck(
     normaliseSender,
     targetCategoryId,
   } = params;
+
+  // Quality bar: keep only genuinely discriminative exclusions and drop junk
+  // fragments. If nothing survives, emit no rule — a brittle rule with garbage
+  // NOT-contains conditions is worse than none.
+  const selected = selectDiscriminativeExclusions(
+    derived,
+    truePositiveRows,
+    falsePositiveRows,
+  );
   if (
-    derived.subjectNotContainsAny.length === 0 &&
-    derived.bodyNotContainsAny.length === 0
+    selected.subjectNotContainsAny.length === 0 &&
+    selected.bodyNotContainsAny.length === 0
   ) {
     return {
       passes: false,
@@ -149,8 +286,8 @@ export function applyDerivedExclusionsAndCheck(
 
   const finalSpec = applyExclusionsToSpec(
     positiveSpec,
-    derived.subjectNotContainsAny,
-    derived.bodyNotContainsAny,
+    selected.subjectNotContainsAny,
+    selected.bodyNotContainsAny,
   );
   const allRows = [...truePositiveRows, ...falsePositiveRows];
   const rePartition = partitionMatchesByCategory(

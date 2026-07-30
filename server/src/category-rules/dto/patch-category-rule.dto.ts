@@ -86,6 +86,12 @@ export class PatchCompositeSpecDto {
   @IsOptional()
   @IsString()
   emailRead?: string;
+
+  /** Structural notification sub-stream condition (e.g. `github:pr`); round-trips edits. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_CONTAINS_LENGTH)
+  notificationSubtype?: string;
 }
 
 export class PatchCategoryRuleDto {

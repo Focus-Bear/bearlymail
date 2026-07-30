@@ -24,6 +24,7 @@ import {
   parseCategoryValue,
   resolveCategoryName,
 } from "../utils/category-name.util";
+import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import type { CategoryDecisionTrace } from "./category-decision-trace.types";
 
 /** Cap on the thread-timeline list in the debug payload — threads longer than this keep only the newest entries (the recent tail is what staleness questions are about). */
@@ -354,6 +355,13 @@ export class EmailDebugCategoryService {
       from: email.from || "",
       subject: email.subject || "",
       bodyTextForMatch: bodyForRuleMatch,
+      notificationSubtype:
+        resolveNotificationSubtype({
+          from: email.from || "",
+          subject: email.subject || "",
+          body: email.body,
+          htmlBody: email.htmlBody,
+        }) ?? undefined,
     };
     const deterministicRules =
       await this.categoryRulesService.getDeterministicRulesDebug(userId, meta);

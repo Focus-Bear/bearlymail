@@ -39,6 +39,7 @@ export interface InboxDataValue {
   isGeneratingDrafts: InboxStateReturn['isGeneratingDrafts'];
   followUpsError: InboxStateReturn['followUpsError'];
   tabCounts: InboxStateReturn['tabCounts'];
+  workAdditionCount: InboxStateReturn['workAdditionCount'];
   nextDelivery: InboxStateReturn['nextDelivery'];
   lastUrgentCheck: InboxStateReturn['lastUrgentCheck'];
   selectedEmailIndex: InboxStateReturn['selectedEmailIndex'];

@@ -60,6 +60,7 @@ const InboxView: React.FC = () => {
     isGeneratingDrafts,
     followUpsError,
     tabCounts,
+    workAdditionCount,
     nextDelivery,
     lastUrgentCheck,
     selectedEmailIndex,
@@ -141,7 +142,7 @@ const InboxView: React.FC = () => {
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts(mode);
   // "Distraction tax": when the user has unfinished work, gate lower-priority
   // Triage emails behind a deliberate unlock exercise (session-scoped).
-  const distraction = useDistractionFriction({ mode, tabCounts });
+  const distraction = useDistractionFriction({ mode, tabCounts, workAdditionCount });
   // Conversations already waiting in Action + Follow-Up when this Triage session
   // began (snapshot, NOT live counts), shown in the friction copy. Emails moved to
   // Action/Follow-Up mid-session must not inflate this and re-trigger the gate.

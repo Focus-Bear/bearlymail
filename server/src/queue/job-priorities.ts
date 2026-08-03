@@ -44,6 +44,9 @@ export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
   [JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS]: JobPriority.LOW,
   [JOB_NAMES.CONSOLIDATE_CATEGORIES]: JobPriority.MEDIUM,
   [JOB_NAMES.LEARN_FROM_STAR]: JobPriority.VERY_LOW,
+  // Background rule authoring off the batch path — must sit well below live
+  // refine/summary so a burst of new-mail candidates never starves them.
+  [JOB_NAMES.GENERATE_CATEGORY_RULE]: JobPriority.VERY_LOW,
   [JOB_NAMES.LEARN_QA_FROM_SENT]: JobPriority.VERY_LOW,
   [JOB_NAMES.SYNC_GMAIL]: JobPriority.MEDIUM,
   [JOB_NAMES.AUTO_RESPONDER]: JobPriority.LOW,

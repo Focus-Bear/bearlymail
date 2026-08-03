@@ -44,7 +44,7 @@ async function bootstrapWorker(workerId: number) {
 
   logger.log(`[Worker ${workerId}] Worker process started successfully`);
   logger.log(
-    `[Worker ${workerId}] Listening for jobs: schedule-email-fetch-jobs, fetch-user-emails, fetch-user-emails-extended, refine-priority, refine-priority-batch, generate-summary, learn-from-star, scan-history, scan-history-email, analyze-scan-results, analyze-context, analyze-context-batch, finalize-context-analysis, check-writing-style-learning, auto-responder, archive-email, archive-email-provider-sync, generate-follow-up-draft, bulk-send-follow-ups, audit-log-archive`,
+    `[Worker ${workerId}] Listening for jobs: schedule-email-fetch-jobs, fetch-user-emails, fetch-user-emails-extended, refine-priority, refine-priority-batch, generate-category-rule, generate-summary, learn-from-star, scan-history, scan-history-email, analyze-scan-results, analyze-context, analyze-context-batch, finalize-context-analysis, check-writing-style-learning, auto-responder, archive-email, archive-email-provider-sync, generate-follow-up-draft, bulk-send-follow-ups, audit-log-archive`,
   );
 
   // Handle graceful shutdown

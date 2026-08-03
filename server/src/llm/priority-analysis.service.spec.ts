@@ -446,6 +446,33 @@ describe("PriorityAnalysisService", () => {
       expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(2);
     });
 
+    it("carries categoryConfidence through to individually-analysed batch results", async () => {
+      // The batch path's rule-generation gate reads categoryConfidence off each
+      // result; if analyzePriorityBatch dropped it, the gate would never fire.
+      const highConfidenceResponse = JSON.stringify({
+        result: {
+          urgencyScore: 50,
+          urgencyExplanation: "Moderate urgency",
+          sentimentScore: 0,
+          goalAlignmentScore: 40,
+          goalAlignmentExplanation: "Somewhat aligned",
+          category: "Customer Support",
+          categoryExplanation: "Support request",
+          categoryConfidence: "HIGH",
+          reasoning: "Standard support email",
+        },
+      });
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(validTriageResponse)
+        .mockResolvedValueOnce(highConfidenceResponse);
+
+      const results = await service.analyzePriorityBatch(batchEmails);
+
+      expect(results.get("email-1")?.categoryConfidence).toBe("HIGH");
+      expect(results.get("email-1")?.isFallback).toBe(false);
+      expect(results.get("email-1")?.triagePreserved).toBeFalsy();
+    });
+
     it("should run individual analysis for all emails when triage flags all", async () => {
       const allFlaggedTriage = JSON.stringify({
         results: [

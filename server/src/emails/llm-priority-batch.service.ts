@@ -5,6 +5,7 @@ import type { PgBoss } from "pg-boss";
 import { In, Repository } from "typeorm";
 
 import { CategoryRulesService } from "../category-rules/category-rules.service";
+import { CategoryRuleMatch } from "../category-rules/category-rules.types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
@@ -269,12 +270,62 @@ export class LLMPriorityBatchService {
           llmResult.category ?? null,
           finalScore,
         );
+        // Bring the (dominant) batch path to parity with the single-email path:
+        // when the LLM was HIGH-confident and no deterministic rule already
+        // matched, enqueue a low-priority job to author a composite category
+        // rule so future emails skip the LLM category step. Rule generation is
+        // deliberately NOT run inline here — it stays off the batch hot path.
+        await this.enqueueCategoryRuleGeneration(
+          workerId,
+          userId,
+          email,
+          llmResult,
+          categoryRuleMatch,
+        );
       } catch (updateError) {
         this.logger.error(
           `[Worker ${workerId}] Failed to update priority for email ${email.id}:`,
           updateError,
         );
       }
+    }
+  }
+
+  /**
+   * Mirror the single-email path's rule-generation gate for a batch-scored
+   * email: when no deterministic rule matched but the LLM was HIGH-confident
+   * about its category, enqueue a low-priority `generate-category-rule` job so
+   * a composite rule is authored off the batch hot path. Logs one line per
+   * email — either the enqueue, or (when no rule matched and confidence wasn't
+   * HIGH) why generation was skipped — so "why no new rules" is answerable from
+   * batch logs too. A rule match is the quiet, expected case and is not logged.
+   */
+  private async enqueueCategoryRuleGeneration(
+    workerId: string,
+    userId: string,
+    email: Email,
+    llmResult: BatchPriorityResult,
+    categoryRuleMatch: CategoryRuleMatch | null,
+  ): Promise<void> {
+    if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") {
+      await this.boss.send(
+        JOB_NAMES.GENERATE_CATEGORY_RULE,
+        { userId, emailId: email.id, categoryName: llmResult.category },
+        {
+          priority: getJobPriority(JOB_NAMES.GENERATE_CATEGORY_RULE, false),
+          singletonKey: `generate-category-rule-${email.id}`,
+        },
+      );
+      this.logger.log(
+        `[Worker ${workerId}] Enqueued generate-category-rule for email ${email.id} (category="${llmResult.category}", confidence=HIGH)`,
+      );
+      return;
+    }
+    if (!categoryRuleMatch) {
+      this.logger.log(
+        `[Worker ${workerId}] Not attempting category-rule generation for email ${email.id} — ` +
+          `LLM category confidence=${llmResult.categoryConfidence ?? "n/a"} (need HIGH), category="${llmResult.category}"`,
+      );
     }
   }
 

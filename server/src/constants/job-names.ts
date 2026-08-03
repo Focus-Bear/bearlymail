@@ -27,6 +27,14 @@ export const JOB_NAMES = {
   REFINE_PRIORITY_BATCH: "refine-priority-batch",
   REFINE_PRIORITY_BACKGROUND: "refine-priority-background",
 
+  // Deterministic category-rule authoring. Enqueued (per candidate email) by the
+  // batch priority path after a HIGH-confidence LLM categorisation with no
+  // existing rule match, so future emails skip the LLM category step. Very low
+  // priority — must never starve live refine/summary processing. The single-email
+  // path generates rules inline; this job brings the (dominant) batch path to
+  // parity. Idempotent: generateCompositeRuleFromEmail dedups/gates internally.
+  GENERATE_CATEGORY_RULE: "generate-category-rule",
+
   // Summary generation
   GENERATE_SUMMARY: "generate-summary",
   GENERATE_SUMMARY_BACKGROUND: "generate-summary-background",

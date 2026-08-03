@@ -168,6 +168,14 @@ export class LLMProcessor implements OnModuleInit {
       { teamSize: Math.max(2, Math.floor(this.priorityConcurrency / 2)) },
       async (job) => this.handleRefinePriorityBatchJob(job as Job),
     );
+
+    this.logger.log("Starting category-rule generation worker");
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.GENERATE_CATEGORY_RULE,
+      { teamSize: Math.max(2, Math.floor(this.priorityConcurrency / 4)) },
+      async (job) => this.handleGenerateCategoryRuleJob(job as Job),
+    );
   }
 
   private async fetchEmailForPriority(
@@ -256,6 +264,71 @@ export class LLMProcessor implements OnModuleInit {
         ruleError,
       );
     }
+  }
+
+  /**
+   * Worker for the `generate-category-rule` job enqueued per candidate by the
+   * batch priority path (see LLMPriorityBatchService.applyBatchResults). Loads
+   * the email and attempts to author a deterministic composite rule for the
+   * LLM-chosen category. Errors are swallowed (logged) — rule generation must
+   * never crash the worker or block other jobs.
+   */
+  private async handleGenerateCategoryRuleJob(job: Job): Promise<void> {
+    const { userId, emailId, categoryName } = job.data as {
+      userId: string;
+      emailId: string;
+      categoryName: string;
+    };
+    const workerId = job.id || "unknown";
+    await this.userEncryptionService.withUserKey(userId, async () => {
+      const email = await this.emailsService.getEmailById(userId, emailId);
+      if (!email) {
+        this.logger.warn(
+          `[Worker ${workerId}] generate-category-rule: email ${emailId} not found — skipping`,
+        );
+        return;
+      }
+      await this.tryGenerateCategoryRule(
+        userId,
+        emailId,
+        email,
+        categoryName,
+        workerId,
+      );
+    });
+  }
+
+  /**
+   * Single-email rule-generation gate: author a composite rule when the LLM was
+   * HIGH-confident and no deterministic rule already matched; otherwise log why
+   * generation was skipped so "why no new rules" is answerable from the logs
+   * (the skip used to be silent).
+   */
+  private async maybeGenerateCategoryRule(
+    userId: string,
+    email: Email,
+    workerId: string,
+    categoryRuleMatch: CategoryRuleMatch | null,
+    llmResult: { category: string; categoryConfidence?: string },
+  ): Promise<void> {
+    if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") {
+      // Issue #1671: generate proper 3-condition composite rules (sender + subject + body) instead of legacy single-signal rules.
+      await this.tryGenerateCategoryRule(
+        userId,
+        email.id,
+        email,
+        llmResult.category,
+        workerId,
+      );
+      return;
+    }
+    this.logger.log(
+      `[Worker ${workerId}] Not attempting category-rule generation for email ${email.id} — ${
+        categoryRuleMatch
+          ? `existing rule ${categoryRuleMatch.ruleId} already matched (category="${categoryRuleMatch.categoryName}")`
+          : `LLM category confidence=${llmResult.categoryConfidence ?? "n/a"} (need HIGH), category="${llmResult.category}"`
+      }`,
+    );
   }
 
   /** Fetch all data needed for priority refinement in parallel. */
@@ -390,16 +463,13 @@ export class LLMProcessor implements OnModuleInit {
       workerId,
     );
     tracker.endPhase("dbUpdate");
-    if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") {
-      // Issue #1671: generate proper 3-condition composite rules (sender + subject + body) instead of legacy single-signal rules.
-      await this.tryGenerateCategoryRule(
-        userId,
-        emailId,
-        email,
-        llmResult.category,
-        workerId,
-      );
-    }
+    await this.maybeGenerateCategoryRule(
+      userId,
+      email,
+      workerId,
+      categoryRuleMatch,
+      llmResult,
+    );
     this.logger.log(
       `[Worker ${workerId}] Refined priority for email ${emailId} (thread: ${email.threadId?.substring(0, ORCHESTRATOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}...)`,
     );

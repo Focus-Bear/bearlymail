@@ -537,6 +537,7 @@ export class PriorityAnalysisService {
    */
   private buildBatchTriagePrompt(
     emails: BatchEmailInput[],
+    userContext: UserContextInput | undefined,
     userId: string | undefined,
   ): { prompt: string; systemPrompt: string } {
     const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.BATCH_PRIORITY_TRIAGE);
@@ -571,7 +572,24 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
       })
       .join("\n\n");
 
-    const prompt = renderPrompt(promptConfig.prompt, { emailList });
+    const availableCategories = [
+      ...(userContext?.emailCategories ?? []),
+      ...(userContext?.protoCategories ?? []),
+    ];
+    const categoryList =
+      availableCategories.length > 0
+        ? availableCategories
+            .map((category) =>
+              category.description
+                ? `- ${category.name}: ${category.description}`
+                : `- ${category.name}`,
+            )
+            .join("\n")
+        : "- No user-defined categories are available";
+    const prompt = renderPrompt(promptConfig.prompt, {
+      emailList,
+      categoryList,
+    });
     return { prompt, systemPrompt: promptConfig.systemPrompt || "" };
   }
 
@@ -682,6 +700,7 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
     emailsNeedingTriage: BatchEmailInput[],
     emailsWithoutAnalysis: BatchEmailInput[],
     results: Map<string, BatchPriorityResult>,
+    userContext: UserContextInput | undefined,
     userId: string | undefined,
   ): Promise<BatchEmailInput[]> {
     if (emailsNeedingTriage.length === 0) {
@@ -692,7 +711,7 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
     }
     try {
       const { prompt: triagePrompt, systemPrompt: triageSystemPrompt } =
-        this.buildBatchTriagePrompt(emailsNeedingTriage, userId);
+        this.buildBatchTriagePrompt(emailsNeedingTriage, userContext, userId);
       const triageResponse = await this.llmCoreService.generateText(
         {
           prompt: triagePrompt,
@@ -836,6 +855,7 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
       emailsNeedingTriage,
       emailsWithoutAnalysis,
       results,
+      userContext,
       userId,
     );
 

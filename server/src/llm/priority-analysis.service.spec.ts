@@ -388,7 +388,8 @@ describe("PriorityAnalysisService", () => {
         if (id === "batch_priority_triage") {
           return {
             id: "batch_priority_triage",
-            prompt: "Triage: {{emailList}}",
+            prompt:
+              "Available categories:\n{{categoryList}}\nTriage: {{emailList}}",
             systemPrompt: "You are a triage assistant.",
           };
         }
@@ -435,6 +436,41 @@ describe("PriorityAnalysisService", () => {
       expect(results.get("email-2")?.isFallback).toBe(false);
       expect(results.get("email-2")?.triagePreserved).toBe(true);
       expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(2);
+    });
+
+    it("should give triage the full category taxonomy for generic mismatch detection", async () => {
+      (prompts.renderPrompt as jest.Mock).mockImplementation(
+        (template: string, values: Record<string, string>) =>
+          Object.entries(values).reduce(
+            (rendered, [key, value]) => rendered.replace(`{{${key}}}`, value),
+            template,
+          ),
+      );
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(validTriageResponse)
+        .mockResolvedValueOnce(validPriorityResponse);
+
+      await service.analyzePriorityBatch(batchEmails, {
+        emailCategories: [
+          {
+            name: "Completed work",
+            description: "Items whose work is finished and verified",
+          },
+          {
+            name: "Needs review",
+            description: "Items awaiting a review decision",
+          },
+        ],
+      });
+
+      const triageRequest = (mockLLMCoreService.generateText as jest.Mock).mock
+        .calls[0][0];
+      expect(triageRequest.prompt).toContain(
+        "Completed work: Items whose work is finished and verified",
+      );
+      expect(triageRequest.prompt).toContain(
+        "Needs review: Items awaiting a review decision",
+      );
     });
 
     it("should run individual analysis for all emails when triage flags all", async () => {

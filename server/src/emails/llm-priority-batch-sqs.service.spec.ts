@@ -59,6 +59,8 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
   let mockEmailRepository: jest.Mocked<Repository<Email>>;
   let mockThreadRepository: jest.Mocked<Repository<EmailThread>>;
   let mockTracker: jest.Mocked<JobPerformanceTracker>;
+  let mockCategoryRules: jest.Mocked<CategoryRulesService>;
+  let mockPriorityResult: jest.Mocked<LLMPriorityResultService>;
 
   const USER_ID = "user-uuid-1";
   const EMAIL_THREAD_ID_1 = "eth-1";
@@ -138,9 +140,23 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       findActiveByUser: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<ProtoCategoriesService>;
 
-    const mockPriorityResult = {
+    mockPriorityResult = {
       applyPriorityResult: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<LLMPriorityResultService>;
+
+    mockCategoryRules = {
+      findMatchingRuleWithTrace: jest.fn().mockResolvedValue({
+        match: null,
+        snapshot: {
+          evaluatedAt: "2026-06-15T00:00:00.000Z",
+          ruleStepRan: true,
+          rulesConsideredCount: 0,
+          winningRuleId: null,
+          winningRuleCategoryName: null,
+          matchedButNotWinningRuleIds: [],
+        },
+      }),
+    } as unknown as jest.Mocked<CategoryRulesService>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -173,19 +189,7 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
         },
         {
           provide: CategoryRulesService,
-          useValue: {
-            findMatchingRuleWithTrace: jest.fn().mockResolvedValue({
-              match: null,
-              snapshot: {
-                evaluatedAt: "2026-06-15T00:00:00.000Z",
-                ruleStepRan: true,
-                rulesConsideredCount: 0,
-                winningRuleId: null,
-                winningRuleCategoryName: null,
-                matchedButNotWinningRuleIds: [],
-              },
-            }),
-          },
+          useValue: mockCategoryRules,
         },
       ],
     }).compile();
@@ -196,6 +200,56 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
   afterEach(() => {
     delete process.env.USE_LAMBDA_PRIORITISATION;
     jest.restoreAllMocks();
+  });
+
+  it("refreshes category rules without replacing priority when batch triage preserves it", async () => {
+    const snapshot = {
+      evaluatedAt: "2026-07-29T00:00:00.000Z",
+      ruleStepRan: true,
+      rulesConsideredCount: 1,
+      winningRuleId: "rule-1",
+      winningRuleCategoryName: "Newsletters",
+      matchedButNotWinningRuleIds: [],
+    };
+    mockCategoryRules.findMatchingRuleWithTrace.mockResolvedValue({
+      match: {
+        ruleId: "rule-1",
+        ruleKind: "composite",
+        categoryName: "Newsletters",
+        categoryId: "category-1",
+      },
+      snapshot,
+    });
+
+    await service.applyBatchResults(
+      "worker-1",
+      USER_ID,
+      [EMAIL_1],
+      new Map([
+        [
+          EMAIL_1.id,
+          {
+            triagePreserved: true,
+            category: "Other",
+          } as BatchPriorityResult,
+        ],
+      ]),
+      [],
+    );
+
+    expect(mockCategoryRules.findMatchingRuleWithTrace).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ subject: EMAIL_1.subject }),
+    );
+    expect(mockThreadRepository.update).toHaveBeenCalledWith(
+      { id: EMAIL_THREAD_ID_1 },
+      expect.objectContaining({
+        categoryId: "category-1",
+        categorySource: "priority",
+        categoryRuleTrace: snapshot,
+      }),
+    );
+    expect(mockPriorityResult.applyPriorityResult).not.toHaveBeenCalled();
   });
 
   describe("runBatchRefinement with USE_LAMBDA_PRIORITISATION=true", () => {

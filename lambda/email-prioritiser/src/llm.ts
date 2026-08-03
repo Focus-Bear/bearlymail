@@ -194,7 +194,9 @@ function cleanEmailBody(body: string, maxChars: number): string {
   if (!body) return "";
   // Strip excessive whitespace
   const cleaned = body.replace(/\s+/g, " ").trim();
-  return cleaned.length > maxChars ? cleaned.substring(0, maxChars) + "…" : cleaned;
+  return cleaned.length > maxChars
+    ? cleaned.substring(0, maxChars) + "…"
+    : cleaned;
 }
 
 async function callLlm(
@@ -210,7 +212,7 @@ async function callLlm(
   const effectiveModel =
     model ||
     (provider === "gemini"
-      ? (secrets.GEMINI_MODEL || "gemini-2.0-flash")
+      ? secrets.GEMINI_MODEL || "gemini-2.0-flash"
       : provider === "openai"
         ? "gpt-4o"
         : "gpt-4o-mini");
@@ -220,12 +222,16 @@ async function callLlm(
     const chatParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
       model: effectiveModel,
       messages: [
-        ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
+        ...(systemPrompt
+          ? [{ role: "system" as const, content: systemPrompt }]
+          : []),
         { role: "user" as const, content: prompt },
       ],
       temperature,
       max_tokens: maxTokens,
-      ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
+      ...(jsonMode
+        ? { response_format: { type: "json_object" as const } }
+        : {}),
     };
     const response = await client.chat.completions.create(chatParams);
     return response.choices[0]?.message?.content || "{}";
@@ -237,7 +243,12 @@ async function callLlm(
     model: "claude-3-5-sonnet-20241022",
     max_tokens: maxTokens,
     temperature,
-    messages: [{ role: "user", content: (systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt) }],
+    messages: [
+      {
+        role: "user",
+        content: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt,
+      },
+    ],
   });
   const block = response.content[0];
   return block.type === "text" ? block.text : "{}";
@@ -290,7 +301,10 @@ function parsePriorityResponse(
     const parsed = JSON.parse(jsonMatch[0]);
     const r = parsed["result"] || parsed;
 
-    const urgencyScore = Math.max(0, Math.min(100, Number(r["urgencyScore"]) || 0));
+    const urgencyScore = Math.max(
+      0,
+      Math.min(100, Number(r["urgencyScore"]) || 0),
+    );
     const goalAlignmentScore = Math.max(
       0,
       Math.min(100, Number(r["goalAlignmentScore"]) || 0),
@@ -304,7 +318,8 @@ function parsePriorityResponse(
       goalAlignmentExplanation:
         r["goalAlignmentExplanation"] || "No explanation provided",
       category: r["category"] || "Other",
-      categoryExplanation: r["categoryExplanation"] || "No explanation provided",
+      categoryExplanation:
+        r["categoryExplanation"] || "No explanation provided",
       categoryConfidence:
         r["categoryConfidence"] === "HIGH" ||
         r["categoryConfidence"] === "MEDIUM" ||
@@ -343,14 +358,36 @@ function buildFallbackResult(email: PriorityEmailPayload): BatchPriorityResult {
  */
 async function runTriage(
   emails: PriorityEmailPayload[],
+  userContext?: UserContext,
 ): Promise<Set<string>> {
   const template = getTriagePrompt();
   const emailList = buildEmailListForTriage(emails);
-  const prompt = renderTemplate(template, { emailList });
+  const availableCategories = [
+    ...(userContext?.emailCategories ?? []),
+    ...(userContext?.protoCategories ?? []),
+  ];
+  const categoryList =
+    availableCategories.length > 0
+      ? availableCategories
+          .map((category) =>
+            category.description
+              ? `- ${category.name}: ${category.description}`
+              : `- ${category.name}`,
+          )
+          .join("\n")
+      : "- No user-defined categories are available";
+  const prompt = renderTemplate(template, { emailList, categoryList });
 
   let response: string;
   try {
-    response = await callLlm(prompt, "", MAX_TOKENS_TRIAGE, TEMPERATURE_TRIAGE, DEFAULT_TRIAGE_MODEL, true);
+    response = await callLlm(
+      prompt,
+      "",
+      MAX_TOKENS_TRIAGE,
+      TEMPERATURE_TRIAGE,
+      DEFAULT_TRIAGE_MODEL,
+      true,
+    );
   } catch (err) {
     console.warn("[LLM] Triage call failed — will analyse all emails:", err);
     return new Set(emails.map((e) => e.emailKey));
@@ -362,7 +399,9 @@ async function runTriage(
     return new Set(emails.map((e) => e.emailKey));
   }
 
-  console.log(`[LLM] Triage: ${flagged.size}/${emails.length} emails flagged for reanalysis`);
+  console.log(
+    `[LLM] Triage: ${flagged.size}/${emails.length} emails flagged for reanalysis`,
+  );
   return flagged;
 }
 
@@ -419,9 +458,19 @@ async function runIndividualAnalysis(
 
   let response: string;
   try {
-    response = await callLlm(prompt, "", MAX_TOKENS_SMART, TEMPERATURE_SMART, undefined, true);
+    response = await callLlm(
+      prompt,
+      "",
+      MAX_TOKENS_SMART,
+      TEMPERATURE_SMART,
+      undefined,
+      true,
+    );
   } catch (err) {
-    console.error(`[LLM] Individual analysis failed for ${email.emailKey}:`, err); // nosemgrep
+    console.error(
+      `[LLM] Individual analysis failed for ${email.emailKey}:`,
+      err,
+    ); // nosemgrep
     return buildFallbackResult(email);
   }
 
@@ -458,7 +507,7 @@ export async function analyzePriorityBatch(
   // Phase 1: Triage on emails that already have scores
   const triageFlagged =
     emailsNeedingTriage.length > 0
-      ? await runTriage(emailsNeedingTriage)
+      ? await runTriage(emailsNeedingTriage, userContext)
       : new Set<string>();
 
   // Phase 2: Individual analysis for flagged emails + all new emails

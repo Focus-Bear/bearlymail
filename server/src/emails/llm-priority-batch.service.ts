@@ -291,9 +291,9 @@ export class LLMPriorityBatchService {
         );
         continue;
       }
-      if (llmResult.isFallback || llmResult.triagePreserved) {
+      if (llmResult.isFallback) {
         this.logger.warn(
-          `[Worker ${workerId}] Skipping ${llmResult.triagePreserved ? "triage-preserved" : "fallback"} result for email ${email.id} — preserving existing priority score`,
+          `[Worker ${workerId}] Skipping fallback result for email ${email.id} — preserving existing priority score`,
         );
         continue;
       }
@@ -308,6 +308,17 @@ export class LLMPriorityBatchService {
             userId,
             buildRuleEmailMetadata(email),
           );
+        if (llmResult.triagePreserved) {
+          await this.applyCategoryRuleToPreservedThread(
+            email,
+            categoryRuleMatch,
+            ruleTraceSnapshot,
+          );
+          this.logger.log(
+            `[Worker ${workerId}] Preserved priority but refreshed category rules for email ${email.id}`,
+          );
+          continue;
+        }
         applyCategoryRuleToResult(
           llmResult,
           categoryRuleMatch,
@@ -337,6 +348,37 @@ export class LLMPriorityBatchService {
         );
       }
     }
+  }
+
+  /**
+   * Triage may preserve an existing priority score when a new thread message
+   * does not materially change urgency. Category rules still need to run
+   * because the new message can match a rule that the earlier message did not.
+   */
+  private async applyCategoryRuleToPreservedThread(
+    email: Email,
+    match: Awaited<
+      ReturnType<CategoryRulesService["findMatchingRuleWithTrace"]>
+    >["match"],
+    snapshot: Awaited<
+      ReturnType<CategoryRulesService["findMatchingRuleWithTrace"]>
+    >["snapshot"],
+  ): Promise<void> {
+    if (!email.emailThreadId) return;
+
+    await this.emailThreadRepository.update(
+      { id: email.emailThreadId },
+      {
+        categoryRuleTrace: snapshot,
+        ...(match?.categoryId
+          ? {
+              categoryId: match.categoryId,
+              categorySource: "priority" as const,
+              categoryExplanation: `Matched deterministic rule (${match.ruleType ?? match.ruleKind}): category="${match.categoryName}" (rule:${match.ruleId})`,
+            }
+          : {}),
+      },
+    );
   }
 
   /** Load a thread map for the given emails so callers can access existing urgency scores. */

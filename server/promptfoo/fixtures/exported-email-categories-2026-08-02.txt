@@ -1,0 +1,98 @@
+- 📦 Order Fulfillment - Notifications regarding new customer orders for physical products that require shipping or fulfillment.
+- Content monitoring for Focus Bear - alerts for Focus Bear not competitors
+- 🎓 University Student Opportunities - General outreach, volunteer requests, and student-body communications from university departments.
+- ⚖️ Regulatory & Compliance Updates - Official notifications from government bodies or regulatory agencies regarding law changes, compliance requirements, or mandatory updates.
+- 💬 Project Updates - General status updates and meeting follow-ups from team members
+- 📧 Personal Outreach - Direct communications from individuals regarding app ideas or personal networking.
+- 🖥️ System & Error Alerts - Automated notifications from monitoring tools like Sentry regarding application errors and exceptions.
+- 🆕 New Human-Created GitHub Issues - New issues created by team members on GitHub that are not related to QA or customer feedback.
+- ✅ PR Merged Notifications - Notifications confirming that a pull request has been successfully merged into the main branch.
+- 🚀 App Store Notifications - Automated status updates and review notifications from Apple App Store Connect.
+- 🤖 BearlyMail Automated Bot Comments - Automated code review comments and analysis from bots on the BearlyMail repository.
+- 📧 Email Delivery Failures - System notifications regarding failed email delivery or bounce-backs.
+- 💼 Upwork Platform Notifications - Automated status updates and notifications from the Upwork platform regarding job postings or account status.
+- 🔔 Keyword Monitoring Alerts - Automated notifications from monitoring services like F5Bot regarding keyword mentions.
+- 🎓 Academic & Project Milestones - Invitations or updates regarding final presentations, project defenses, or academic milestones.
+- 📅 Meeting Acceptance Notifications - Automated system notifications confirming that an attendee has accepted a calendar invitation.
+- 🐛 Human-reported Bug Issues - New GitHub issues raised by human developers or users reporting technical bugs or performance issues.
+- 🤖 Automated Meeting Records - Automated notifications from video conferencing platforms regarding recording availability or file uploads.
+- ⚙️ Google Apps Script Alerts - Automated notifications regarding errors or failures in Google Apps Script projects.
+- 🤖 Automated Dependency Updates - Automated pull requests from bots like Dependabot for dependency version bumps.
+- 📝 Document Comments - Notifications regarding comments or edits made to shared documents in Google Docs, Notion, or similar platforms.
+- 🎨 Design & UX Notifications - Notifications and comments from design platforms like Figma or Adobe XD.
+- 🎓 Internship Offboarding - Coordination of internship completion, paperwork, and asset handovers.
+- 🎤 Professional Events & Panels - Invitations to professional panels, showcases, or industry-specific events.
+- 💳 Financial Alerts & Declined Payments - Notifications regarding failed transactions, card declines, or spending limit alerts.
+- 📝 Project Consent & Approvals - Requests for formal consent, sign-offs, or approvals on project-related documents or agreements.
+- 🛠️ Product Updates - Feature announcements and release notes from software tools and platforms.
+- 📢 Industry Events - General invitations to industry-related events, webinars, or networking sessions.
+- ❌ CI/CD & QA Pipeline Failures - Automated notifications regarding failed GitHub Actions, CI pipelines, or automated QA checks.
+- 🛍️ Shopping Promotions & Cart Reminders - Promotional ecommerce emails reminding users about saved carts, discounts, or product availability.
+- 🧾 Reference Requests - Emails asking whether you can act as a reference, provide a recommendation, or confirm endorsement for someone's job or application.
+- 🔐 Account Security Notifications - Automated alerts about password changes, account access changes, or other security-sensitive account updates that may require user review.
+- 🏆 Competition Invitations - Invitations or nominations to enter competitions, awards, or contests.
+- 📦 Shipping & Delivery - Notifications about package dispatch, tracking updates, carrier handoff, delivery progress, and arrival status.
+- 🗳️ Feedback Survey Requests - Automated requests to complete a feedback survey or review a recent experience.
+- 🎓 Conference & Event Logistics - Emails about conference participation, exhibitor details, venue logistics, schedules, and other event coordination for academic or professional conferences.
+- 📄 Document Access Requests - Requests to grant or review access to internal documents, notes, or files in Google Docs or similar tools.
+- 📈 Product Strategy & Positioning - Emails about market focus, positioning, go-to-market strategy, and broader product/business direction that are not direct sales leads or feature requests.
+- 🤝 Internship comms from interns
+- 📝 Form Response Notifications - Automated emails notifying that a web form, survey, or intake form has received a new response.
+- 📨 Follow-up & Chasing Replies - Human emails asking for a response, checking in after no reply, or following up on missed meetings or unanswered project correspondence.
+- 🔒 Security & Compliance: Security alerts, compliance notifications, certificate renewals, ethics reviews, governance communications, and administrative alerts
+- 🎧 Media & Communications: Podcast and media invitations, community updates, social group communications, greetings, formal communications, and cultural community emails
+- 🎓 University project coordination - Check-ins and status updates related to university student project teams, coursework collaborations, and academic coordination that do not fit internship admin or event categories.
+- ⚖️ IP Ownership & Legal Boundaries - Emails discussing intellectual property ownership, project boundary questions, or separating company IP from research or personal project work.
+- 🕒 Work Hours & Holiday Adjustments - Notifications about temporary changes to employee work hours, holiday make-up schedules, or recorded attendance adjustments due to public holidays.
+- 🛠️ Support Ticket Follow-ups - Human support emails asking the recipient to respond to an open support case before it is closed.
+- 🐛 Human GitHub issue status updates - only from humans not bots - exclude QA comments. Just I'm working on it/clarifications. Exclude rembo and ngoc
+- 🔧 GitHub PR Updates - Human-forwarded or human-sent notifications about pull requests, commits, and repository changes that are not automated bot alerts. Not for BearlyMail
+- 🤖 Automated System Alerts: Automated notifications about system updates and changes.
+- 🧾 Subscription & Billing Updates - Product or account notices about subscription plan changes, usage limits, credits, and billing-related policy updates.
+- 📘 Documentation Review Requests - Emails asking for clarification, edits, or decisions about internal process documents, SOPs, or written guidance.
+- 📅 Meeting Reschedule Requests - Requests to move an existing meeting to a different time or date.
+- Cold outreach: from others to me
+- Newsletters
+- 🤖 Content Monitoring Alerts for competitors not Focus Bear - Automated notifications from bots that scan forums, social media, or the web for keywords or mentions (informational monitoring alerts). - excludes Focus Bear
+- 🔀 PRs from humans - (not monk or claude or codebeard)
+- Declines to internal meetings (standup, OKR, planning)
+- Acceptances to Internal Meetings (standup, OKR, planning)
+- AADPA mailing list
+- 📂 GitHub Project & Access Requests - Human requests to grant repository/org permissions (Projects/Boards, Project permissions, repo access) and related requests for project charters or onboarding documents needed to set up scrum/kanban boards.
+- 🔑 Access/Credential requests - Human requests for access to systems
+- 🔔 Social & LinkedIn Notifications - Automated notifications from social/professional networks (LinkedIn, Twitter/X, Facebook) about new messages, connection requests, or mentions that are informational and only occasionally require a reply or follow-up.
+- 🔐 Login / 2FA Codes - Time-sensitive one-time passcodes, authentication codes, and multi-factor login messages from services (Canva, Google, GitHub, etc.). These are transactional, short-lived, and require immediate attention only if the user is currently signing in.
+- Build/deployment errors other repos (not BearlyMail)
+- Fundraising: investors/grants
+- 🤖 Automated GitHub comments from bots - Automated code-review comments and analysis from bots (e.g., Claude, Codex, CI-review bots) on GitHub pull requests. Includes suggestions, minor issues, and automated review summaries that may require developer follow-up.
+- 🏫 Auto responses from other people - Automated acknowledgements and 'thanks for contacting' messages from university programs, entrepreneurship hubs, incubators, and similar institutional team inboxes — informational only, typically contain links to resources and sign-up pages and do not require immediate action.
+- 🧪 Dev/Test GitHub Issues - New GitHub issues raised by developers about test infrastructure, CI flakiness, fixtures, and automated test teardown that impact developer workflow and CI reliability.
+- 📅 Travel Approval - Emails related to approved travel arrangements for team members.
+- 🧑‍💻 Upwork / Contractor Messages - Messages from contractors or freelancers (via Upwork, Fiverr, etc.) about project updates, questions, delivery confirmations, or requests for next steps that may require quick acknowledgement or task assignment.
+- 🤖 GitHub Bot PR Updates - Not for BearlyMail. Automated GitHub notifications from bots (e.g., claude[bot], dependabot) about PR status, comments, merge conflict resolutions, commits, and CI job runs. Includes informational updates that typically do not require immediate human action unless explicitly marked or failing CI/QA.
+- ✅ Github QA passed issues - Notifications where QA or testers confirm an existing GitHub issue/bug has been tested and marked as fixed (pass). Use for QA verification comments that require no immediate developer action.
+- 🤖 Automated System Alerts - Automated notifications about system updates and changes.
+- 📅 Meetings & Events with external people (not standup meetings or RMIT students)
+- 🎧 Media & Communications - Podcast and media invitations, community updates, social group communications, greetings, formal communications, and cultural community emails
+- 💰 Payments & Financials - Invoices, billing, payroll, payment receipts, transaction confirmations, expense reports, and financial summaries
+- 🔒 Security & Compliance - Security alerts, compliance notifications, certificate renewals, ethics reviews, governance communications, and administrative alerts
+- 🎨 UX - Design communications, UX/UI feedback, creative project planning, design jams, external collaboration, and shared data access
+- 📚 PhD research
+- Github QA failed issues - where a human QA has marked an issue as failed on Github
+- AI generated PRs (PRs that have only been touched by AI and not any of the human devs. Include PRs authored by jeznag - probably AI)
+- PRs from humans (not AI/bots or ones from me - Jeremy Nagel/jeznag). AI = Captain Codebeard, Monk of modularity
+- 🤖 Automated System Alerts from Sentry etc. (not github) - Automated notifications about script failures, system errors, and app-generated status updates
+- 🎓 Internship admin
+- 📝 Meeting Recaps & Summaries - Automated meeting notes, recaps, and summaries from transcription and meeting assistant tools
+- 📄 Document Completion Notifications - Alerts about completed documents, signatures, and related document workflow updates
+- Sales pipeline - people who are interested in buying Focus Bear
+- 📑 Internship admin (with universities not interns) - Emails related to internship listings, applications, and university internship communications
+- 🚶 Meetup related
+- 🤝 Internship comms from interns (not from universities)
+- Customer feedback (github issues or feedback forms). Not pull requests. Not for issues raised by QA (rembo or ngoc)
+- New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests
+- Feature requests (these are emails from end users asking for features. Not pull requests implementing them)
+- Partnerships (e.g. with ADHD coaches, OTs)
+- Compliance/insurance
+- HR related: new team members starting/people quitting/people on leave
+- Bearly mail Build/deployment errors - only for Bearly Mail repo

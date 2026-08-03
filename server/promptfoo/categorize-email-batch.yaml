@@ -11,6 +11,111 @@ prompts:
   - file://prompts/prioritise-email.md
 
 tests:
+  # Production-shaped coverage: one call must distinguish many obvious categories
+  # without collapsing onto sender/platform or confusing neighbouring outcomes.
+  - description: "Large mixed batch — classify 12 emails against the exported 98-category taxonomy"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "order") ---
+        From: Focus Bear Store <orders@focusbear.io>
+        Subject: New physical product order #4821
+        Summary: A customer ordered two Focus Bear buttons. Pack and ship the order to the supplied address.
+
+        --- EMAIL 2 (key: "monitoring") ---
+        From: F5Bot <alerts@f5bot.com>
+        Subject: New web mention for Focus Bear
+        Summary: Focus Bear was mentioned in a Reddit discussion about productivity apps.
+
+        --- EMAIL 3 (key: "regulatory") ---
+        From: Australian regulator <updates@regulator.gov.au>
+        Subject: Mandatory privacy reporting requirements changed
+        Summary: Official notice of new compliance obligations taking effect next quarter.
+
+        --- EMAIL 4 (key: "project-update") ---
+        From: Alex <alex@focusbear.io>
+        Subject: Accessibility project weekly update
+        Summary: The team completed the settings screen and will start usability testing tomorrow.
+
+        --- EMAIL 5 (key: "personal-outreach") ---
+        From: Sam <sam@example.com>
+        Subject: Idea for an ADHD-friendly app feature
+        Summary: I enjoyed meeting you and wanted to share a personal idea for improving the app.
+
+        --- EMAIL 6 (key: "sentry") ---
+        From: Sentry <alerts@sentry.io>
+        Subject: TypeError rate increased in production
+        Summary: Automated alert: 84 new occurrences of an unhandled TypeError in the web application.
+
+        --- EMAIL 7 (key: "new-human-issue") ---
+        From: Jamie via GitHub <notifications@github.com>
+        Subject: New issue #812: keyboard shortcut opens wrong view
+        Summary: Jamie, a human team member, opened a new GitHub issue describing a reproducible UI bug. It is not QA or customer feedback.
+
+        --- EMAIL 8 (key: "merged") ---
+        From: GitHub <notifications@github.com>
+        Subject: Pull request #923 was merged
+        Summary: The pull request was successfully merged into main and the branch was deleted.
+
+        --- EMAIL 9 (key: "app-store") ---
+        From: App Store Connect <no_reply@email.apple.com>
+        Subject: Focus Bear version 4.2 is ready for sale
+        Summary: Automated App Store Connect notification confirming review completion and release status.
+
+        --- EMAIL 10 (key: "bearly-bot") ---
+        From: codex[bot] via GitHub <notifications@github.com>
+        Subject: Re: BearlyMail PR #1012 automated review
+        Summary: Automated code review found two potential null-handling issues in the BearlyMail repository.
+
+        --- EMAIL 11 (key: "bounce") ---
+        From: Mail Delivery Subsystem <mailer-daemon@example.com>
+        Subject: Delivery Status Notification (Failure)
+        Summary: Your message could not be delivered because the recipient address does not exist.
+
+        --- EMAIL 12 (key: "upwork") ---
+        From: Upwork <notifications@upwork.com>
+        Subject: Your job post is now live
+        Summary: Automated platform notification confirming the contractor job posting is visible to freelancers.
+      emailCategories: file://fixtures/exported-email-categories-2026-08-02.txt
+      urgentContext: "Active production outages and security compromises"
+      notUrgentContext: "Newsletters and routine delivery notices"
+      goalsContext: "Keep production reliable and respond quickly to customers"
+      workingOnContext: "Enterprise sales and platform reliability"
+      dontCareContext: "Promotional roundups"
+      currentDate: "Monday, August 3, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const results = parsed?.prioritised_emails;
+          if (!Array.isArray(results) || results.length !== 12) {
+            throw new Error(`Expected 12 categorised emails, got ${results?.length ?? 0}: ${JSON.stringify(parsed)}`);
+          }
+          const expected = {
+            order: '📦 Order Fulfillment',
+            monitoring: '🔔 Keyword Monitoring Alerts',
+            regulatory: '⚖️ Regulatory & Compliance Updates',
+            'project-update': '💬 Project Updates',
+            'personal-outreach': '📧 Personal Outreach',
+            sentry: '🖥️ System & Error Alerts',
+            'new-human-issue': '🆕 New Human-Created GitHub Issues',
+            merged: '✅ PR Merged Notifications',
+            'app-store': '🚀 App Store Notifications',
+            'bearly-bot': '🤖 BearlyMail Automated Bot Comments',
+            bounce: '📧 Email Delivery Failures',
+            upwork: '💼 Upwork Platform Notifications'
+          };
+          for (const [key, category] of Object.entries(expected)) {
+            const item = results.find(result => result.key === key);
+            if (!item) throw new Error(`Missing result for ${key}`);
+            if (item.category !== category) {
+              throw new Error(`${key} was classified as "${item.category}"; expected "${category}". ${item.categoryExplanation ?? ''}`);
+            }
+          }
+          return true;
+
   # Test 1: GitHub bot PR must NOT land in a "from humans" category
   - description: "GitHub bot PR — must go to a GitHub bot/automation category, not human category"
     vars:

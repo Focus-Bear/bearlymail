@@ -535,6 +535,57 @@ describe("ProtoCategoriesService", () => {
       expect(result).toBe(proto);
     });
 
+    it("folds a source-specific newsletter sibling into a generic proto via shared-token + LLM", async () => {
+      // The key anti-proliferation case: "AI Weekly Newsletter" is a large edit
+      // distance from "📰 Newsletters" (Levenshtein misses it), but they share the
+      // "newsletter" token, so the shared-token phase asks the LLM — which folds
+      // the source-specific variant into the existing generic bucket instead of
+      // spawning yet another newsletter proto. This phase did not run on the proto
+      // path before the pipeline was unified with the real-category path.
+      const proto = Object.assign(new ProtoCategory(), {
+        id: "proto-news",
+        userId: "user-1",
+        name: "📰 Newsletters",
+        isPromoted: false,
+        emailCount: 3,
+      });
+      protoCategoryRepo.find.mockResolvedValue([proto]);
+      protoCategoryRepo.findOne.mockResolvedValue(null);
+      llmCoreService.generateText.mockResolvedValue(
+        '{"isDuplicate": true, "reasoning": "Both are newsletters"}',
+      );
+
+      const result = await service.findMatchingProtoCategory(
+        "user-1",
+        "AI Weekly Newsletter",
+      );
+      expect(result).toBe(proto);
+      expect(llmCoreService.generateText).toHaveBeenCalled();
+    });
+
+    it("excludes the thread's own proto from matching (self-guard)", async () => {
+      // Re-analysing a thread must not let its suggestion match — and double-count
+      // into — the very proto it already belongs to.
+      const proto = Object.assign(new ProtoCategory(), {
+        id: "proto-1",
+        userId: "user-1",
+        name: "Newsletters",
+        isPromoted: false,
+        emailCount: 2,
+      });
+      protoCategoryRepo.find.mockResolvedValue([proto]);
+      protoCategoryRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.findMatchingProtoCategory(
+        "user-1",
+        "Newsletters",
+        undefined,
+        "proto-1",
+      );
+      expect(result).toBeNull();
+      expect(llmCoreService.generateText).not.toHaveBeenCalled();
+    });
+
     it("returns null when embedding flags a candidate but LLM rejects it", async () => {
       const proto = Object.assign(new ProtoCategory(), {
         id: "proto-1",

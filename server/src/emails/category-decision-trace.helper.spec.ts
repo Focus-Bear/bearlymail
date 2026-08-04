@@ -49,7 +49,7 @@ describe("localModelDecisionTrace", () => {
     expect(trace.steps[0].detail).not.toContain("re-categorised");
   });
 
-  it("records an UNCONFIDENT null category as awaiting summary re-categorisation", () => {
+  it("records an UNCONFIDENT null category as escalated to LLM categorisation", () => {
     const trace = localModelDecisionTrace({
       decidedAt: "2026-06-28T00:00:00.000Z",
       prediction: {
@@ -62,9 +62,7 @@ describe("localModelDecisionTrace", () => {
     });
     expect(trace.finalCategoryId).toBeNull();
     expect(trace.steps[0].category).toBeNull();
-    expect(trace.steps[0].detail).toContain(
-      "awaiting re-categorisation from the thread summary",
-    );
+    expect(trace.steps[0].detail).toContain("escalated to LLM categorisation");
     expect(trace.steps[0].detail).not.toContain("matched no user category");
   });
 });

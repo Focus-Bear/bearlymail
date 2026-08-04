@@ -62,6 +62,67 @@ export interface RecategoriseFromSummaryArgs {
   userContexts: UserContext[];
 }
 
+export interface EscalateLocalModelCategoryDeps extends RecategoriseFromSummaryDeps {
+  getEmail: (userId: string, emailId: string) => Promise<Email | null>;
+  getUserContexts: (userId: string) => Promise<UserContext[]>;
+  ensureThreadSummaryFresh: (
+    email: Email,
+    userId: string,
+    workerId: string,
+  ) => Promise<void>;
+}
+
+/**
+ * Immediate LLM category escalation for a thread the local model applied
+ * priority to but ABSTAINED on category (categorySource 'local', categoryId
+ * null). Unlike the deferred summary-completion trigger, this ENSURES a thread
+ * summary exists (generating one if missing) before running the cheap
+ * category-only {@link recategoriseFromSummary} — so a thread never sits in
+ * "Other" waiting for a summary job that may never run.
+ *
+ * Idempotent + anti-loop: a no-op once the thread carries a settled category
+ * (`!threadNeedsLocalModelRecategorisation` — a rule/user/LLM already decided,
+ * or `recategoriseFromSummary`/`settleLocalModelOther` already cleared the
+ * 'local'+null state). It never re-enqueues itself, so a still-unresolved
+ * thread is simply left settled. Must run inside the caller's `withUserKey`
+ * scope (reads/writes encrypted email + summary columns).
+ */
+export async function escalateLocalModelCategory(
+  deps: EscalateLocalModelCategoryDeps,
+  args: {
+    userId: string;
+    emailThreadId: string;
+    emailId: string;
+    workerId: string;
+  },
+): Promise<void> {
+  const { userId, emailThreadId, emailId, workerId } = args;
+  const thread = await deps.emailThreadRepository.findOne({
+    where: { id: emailThreadId },
+  });
+  if (!thread || !threadNeedsLocalModelRecategorisation(thread)) {
+    return;
+  }
+  const email = await deps.getEmail(userId, emailId);
+  if (!email) {
+    deps.logger.warn(
+      `[Worker ${workerId}] escalate-category: email ${emailId} not found for thread ${emailThreadId} — skipping`,
+    );
+    return;
+  }
+  // The deferred path bails when no summary exists; generate one now so the
+  // category-only LLM has thread content to classify.
+  await deps.ensureThreadSummaryFresh(email, userId, workerId);
+  const userContexts = await deps.getUserContexts(userId);
+  await recategoriseFromSummary(deps, {
+    thread,
+    email,
+    userId,
+    workerId,
+    userContexts,
+  });
+}
+
 /**
  * Incremental, category-ONLY re-categorisation after a new email is summarised:
  * try the deterministic category rules on the new email first (no LLM), else

@@ -176,6 +176,46 @@ export class LLMProcessor implements OnModuleInit {
       { teamSize: Math.max(2, Math.floor(this.priorityConcurrency / 4)) },
       async (job) => this.handleGenerateCategoryRuleJob(job as Job),
     );
+
+    this.logger.log("Starting local-model category escalation worker");
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.ESCALATE_CATEGORY,
+      { teamSize: Math.max(2, Math.floor(this.priorityConcurrency / 4)) },
+      async (job) => this.handleEscalateCategoryJob(job as Job),
+    );
+  }
+
+  /**
+   * Worker for the `escalate-category` job enqueued by the local-model
+   * promotion path when it applied priority but abstained on category. Ensures a
+   * summary exists then runs the cheap category-only LLM classification via the
+   * summary processor. Idempotent (a settled thread is a no-op) and best-effort:
+   * errors are swallowed (logged) so a categorisation failure never crashes the
+   * worker. Runs inside `withUserKey` so encrypted email/summary columns decrypt.
+   */
+  private async handleEscalateCategoryJob(job: Job): Promise<void> {
+    const { userId, emailThreadId, emailId } = job.data as {
+      userId: string;
+      emailThreadId: string;
+      emailId: string;
+    };
+    const workerId = job.id || "unknown";
+    try {
+      await this.userEncryptionService.withUserKey(userId, () =>
+        this.summaryProcessorService.escalateLocalModelCategory({
+          userId,
+          emailThreadId,
+          emailId,
+          workerId,
+        }),
+      );
+    } catch (error) {
+      this.logger.error(
+        `[Worker ${workerId}] escalate-category failed for thread ${emailThreadId}`,
+        error,
+      );
+    }
   }
 
   private async fetchEmailForPriority(

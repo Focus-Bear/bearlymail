@@ -20,8 +20,11 @@ import { SummarizationService } from "../summarization/summarization.service";
 import { parseCategoryName } from "../utils/category-name.util";
 import { extractEmailAddress } from "../utils/email-address.utils";
 import { EmailsService } from "./emails.service";
+import { canUseIncrementalAnalysis } from "./incremental-analysis-eligibility.helper";
 import {
+  escalateLocalModelCategory,
   recategoriseFromSummary,
+  type RecategoriseFromSummaryDeps,
   threadNeedsLocalModelRecategorisation,
 } from "./incremental-recategorise.helper";
 import { IncrementalSummaryHelperService } from "./incremental-summary-helper.service";
@@ -549,22 +552,57 @@ export class LLMSummaryProcessorService {
       }
       const userContexts =
         await this.priorityCacheService.getUserContexts(userId);
-      await recategoriseFromSummary(
-        {
-          categoryRulesService: this.categoryRulesService,
-          emailThreadRepository: this.emailThreadRepository,
-          getThreadSummary: (id) =>
-            this.incrementalSummaryHelper.getThreadSummary(id),
-          llmCoreService: this.llmCoreService,
-          logger: this.logger,
-        },
-        { thread, email, userId, workerId, userContexts },
-      );
+      await recategoriseFromSummary(this.buildRecategoriseDeps(), {
+        thread,
+        email,
+        userId,
+        workerId,
+        userContexts,
+      });
     } catch (error) {
       this.logger.warn(
         `[Worker ${workerId}] Deferred local-model re-categorisation failed for thread ${emailThreadId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  /** Wired deps for the category-only re-categorisation helper, shared by the
+   * deferred summary trigger, the immediate escalation, and the in-thread flip. */
+  private buildRecategoriseDeps(): RecategoriseFromSummaryDeps {
+    return {
+      categoryRulesService: this.categoryRulesService,
+      emailThreadRepository: this.emailThreadRepository,
+      getThreadSummary: (id) =>
+        this.incrementalSummaryHelper.getThreadSummary(id),
+      llmCoreService: this.llmCoreService,
+      logger: this.logger,
+    };
+  }
+
+  /**
+   * Immediate LLM category escalation for a local-model category abstain. Thin
+   * wrapper over {@link escalateLocalModelCategory} supplying this service's
+   * wired deps (summary generation + category-only LLM). Idempotent / anti-loop
+   * semantics live in the helper. Must run inside the caller's `withUserKey`.
+   */
+  async escalateLocalModelCategory(args: {
+    userId: string;
+    emailThreadId: string;
+    emailId: string;
+    workerId: string;
+  }): Promise<void> {
+    return escalateLocalModelCategory(
+      {
+        ...this.buildRecategoriseDeps(),
+        getEmail: (userId, emailId) =>
+          this.emailsService.getEmailById(userId, emailId),
+        getUserContexts: (userId) =>
+          this.priorityCacheService.getUserContexts(userId),
+        ensureThreadSummaryFresh: (email, userId, workerId) =>
+          this.ensureThreadSummaryFresh(email, userId, workerId),
+      },
+      args,
+    );
   }
 
   /**
@@ -691,35 +729,6 @@ export class LLMSummaryProcessorService {
 
   // ─── Incremental Analysis ────────────────────────────────────────────────
 
-  canUseIncrementalAnalysis(thread: EmailThread): boolean {
-    const threadPriorityExplanation = thread.priorityExplanation;
-    const existingBreakdown = threadPriorityExplanation?.breakdown || [];
-    const hasValidBreakdown =
-      existingBreakdown.length > 0 &&
-      existingBreakdown.some(
-        (item) => item.value !== 0 && item.value !== undefined,
-      );
-    const hasOldStructure =
-      threadPriorityExplanation?.breakdown?.some(
-        (item) =>
-          item.factor === "Base Score" ||
-          item.factor === "🤖 AI Analysis" ||
-          item.factor === "AI Analysis",
-      ) ?? false;
-    const hasCalculatingItems = existingBreakdown.some(
-      (item) =>
-        item.description === "Calculating..." ||
-        item.description?.includes("Calculating..."),
-    );
-    return (
-      hasValidBreakdown &&
-      !hasOldStructure &&
-      !hasCalculatingItems &&
-      thread.categoryId !== null &&
-      threadPriorityExplanation?.score !== undefined
-    );
-  }
-
   async buildIncrementalThreadContext(
     email: Email,
     userId: string,
@@ -844,11 +853,7 @@ export class LLMSummaryProcessorService {
     workerId: string;
     tracker: JobPerformanceTracker;
   }): Promise<{ handled: boolean }> {
-    if (
-      !thread ||
-      forceRecalculate ||
-      !this.canUseIncrementalAnalysis(thread)
-    ) {
+    if (!thread || forceRecalculate || !canUseIncrementalAnalysis(thread)) {
       return { handled: false };
     }
 
@@ -926,17 +931,13 @@ export class LLMSummaryProcessorService {
     // what catches a within-thread status flip (e.g. QA fail → QA pass): the
     // cheap `categoryMightChange` signal only reacts to a topic change, so we
     // no longer trust it to gate re-categorisation.
-    await recategoriseFromSummary(
-      {
-        categoryRulesService: this.categoryRulesService,
-        emailThreadRepository: this.emailThreadRepository,
-        getThreadSummary: (id) =>
-          this.incrementalSummaryHelper.getThreadSummary(id),
-        llmCoreService: this.llmCoreService,
-        logger: this.logger,
-      },
-      { thread, email, userId, workerId, userContexts },
-    );
+    await recategoriseFromSummary(this.buildRecategoriseDeps(), {
+      thread,
+      email,
+      userId,
+      workerId,
+      userContexts,
+    });
 
     tracker.finish();
     return { handled: true };

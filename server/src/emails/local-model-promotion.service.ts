@@ -1,10 +1,13 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { createHash } from "crypto";
+import type { PgBoss } from "pg-boss";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { findCategoryContextIdByName } from "../category-rules/category-rules-validate.helper";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
@@ -16,6 +19,7 @@ import { LocalModelDebugSnapshot } from "../local-model/local-model.types";
 import { LocalModelInferenceService } from "../local-model/local-model-inference.service";
 import { buildLocalModelInput } from "../local-model/local-model-input";
 import { bandMidpointScore } from "../local-model/priority-band";
+import { getJobPriority } from "../queue/job-priorities";
 import { parseCategoryName } from "../utils/category-name.util";
 import { BackgroundSummaryQueueService } from "./background-summary-queue.service";
 import {
@@ -40,13 +44,16 @@ const HOLDOUT_BUCKETS = 100;
  * single-category family), OR when the category head is confidently "Other"
  * (no real category, but the model is sure).
  *
- * When the category head is UNconfident (`categoryFallback=true`) and resolves
- * to nothing, the thread lands in "Other" for now but is NOT sent to the
- * (expensive) `analyze_priority` LLM just to categorise it: the background
- * summary is always queued, and once it lands the summary-completion path
- * re-categorises the thread with the cheap category-only `categorise_summary`
- * call (see `recategoriseFromSummary`). The confident local priority is kept —
- * only the category is resolved by an LLM, and by the cheapest one.
+ * When the category head resolves to no real user category (whether the head
+ * was UNconfident, `categoryFallback=true`, or confidently "Other"), the thread
+ * is NOT sent to the (expensive) `analyze_priority` LLM just to categorise it.
+ * Instead an `escalate-category` job is enqueued immediately: it ensures a
+ * thread summary exists then runs the cheap category-only `categorise_summary`
+ * call (see `recategoriseFromSummary`) to give the thread a real category
+ * without waiting for a summary job that may never run. The confident local
+ * priority is kept — only the category is resolved by an LLM, and by the
+ * cheapest one. The background-summary path re-categorisation stays as a
+ * best-effort backstop; both are idempotent and converge.
  *
  * An unconfident priority head, a cold-start user with no model, or any error
  * returns false so the caller runs the LLM. That remainder is the holdout: it
@@ -66,6 +73,7 @@ export class LocalModelPromotionService {
     private readonly inferenceService: LocalModelInferenceService,
     private readonly cloudWatchService: CloudWatchService,
     private readonly backgroundSummaryQueueService: BackgroundSummaryQueueService,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   /**
@@ -244,12 +252,12 @@ export class LocalModelPromotionService {
     };
   }
 
-  /** Short label for the unresolved-category log line. Both cases defer to the
-   * cheap summary re-categorisation rather than parking in "Other". */
+  /** Short label for the unresolved-category log line. Both cases escalate to
+   * the cheap LLM categorisation rather than parking in "Other". */
   private unresolvedCategoryLabel(categoryFallback: boolean): string {
     return categoryFallback
-      ? "Other (pending summary re-categorisation)"
-      : "Other (no user match, pending summary re-categorisation)";
+      ? "Other (escalating to LLM categorisation)"
+      : "Other (no user match, escalating to LLM categorisation)";
   }
 
   /** Category explanation when the model applied priority but no real category. */
@@ -259,8 +267,8 @@ export class LocalModelPromotionService {
     categoryFallback: boolean;
   }): string {
     return prediction.categoryFallback
-      ? `Local model applied priority "${prediction.priorityBand}" (confident); category uncertain — awaiting re-categorisation from the thread summary.`
-      : `Local model applied priority "${prediction.priorityBand}" (confident); category "${prediction.category}" matched no user category — awaiting re-categorisation from the thread summary.`;
+      ? `Local model applied priority "${prediction.priorityBand}" (confident); category uncertain — escalated to LLM categorisation.`
+      : `Local model applied priority "${prediction.priorityBand}" (confident); category "${prediction.category}" matched no user category — escalated to LLM categorisation.`;
   }
 
   private async applyPrediction(args: {
@@ -340,6 +348,16 @@ export class LocalModelPromotionService {
       this.logger.log(
         `[Worker ${workerId}] Local-model category write blocked by precedence for thread ${emailThreadId} (user/rule pinned) — priority updated, category kept`,
       );
+    } else if (finalCategoryId == null) {
+      // The local model applied priority but abstained on category (the thread
+      // now sits in categorySource 'local', categoryId null). Escalate to the
+      // LLM immediately rather than waiting for a summary job that may never run.
+      await this.enqueueCategoryEscalation(
+        userId,
+        email.id,
+        emailThreadId,
+        workerId,
+      );
     }
 
     await applyEmergencyDelivery(this.emailThreadRepository, {
@@ -360,5 +378,39 @@ export class LocalModelPromotionService {
     this.logger.log(
       `[Worker ${workerId}] Local-model priority+category applied to thread ${emailThreadId.substring(0, THREAD_ID_PREVIEW_LENGTH)}... score=${score} category="${prediction.category}" (LLM skipped)`,
     );
+  }
+
+  /**
+   * Enqueue an immediate LLM category escalation for a thread the local model
+   * left without a real category. `singletonKey` collapses duplicate enqueues
+   * for the same thread (e.g. two refines in flight) to a single job. Best-
+   * effort: a queue failure is logged but never fails the promotion — the
+   * background-summary re-categorisation remains as the backstop.
+   */
+  private async enqueueCategoryEscalation(
+    userId: string,
+    emailId: string,
+    emailThreadId: string,
+    workerId: string,
+  ): Promise<void> {
+    try {
+      await this.boss.send(
+        JOB_NAMES.ESCALATE_CATEGORY,
+        { userId, emailThreadId, emailId },
+        {
+          priority: getJobPriority(JOB_NAMES.ESCALATE_CATEGORY, false),
+          singletonKey: `escalate-category-${emailThreadId}`,
+        },
+      );
+      this.logger.log(
+        `[Worker ${workerId}] Escalating category to LLM for thread ${emailThreadId.substring(0, THREAD_ID_PREVIEW_LENGTH)}... (local model abstained on category)`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `[Worker ${workerId}] Failed to enqueue category escalation for thread ${emailThreadId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 }

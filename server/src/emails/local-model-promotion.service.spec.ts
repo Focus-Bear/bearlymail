@@ -60,6 +60,9 @@ function makeService(opts: {
   const putMetric = jest.fn().mockResolvedValue(undefined);
   const maybeQueueBackgroundSummary = jest.fn().mockResolvedValue(undefined);
 
+  const send = jest.fn().mockResolvedValue("job-1");
+  const boss = { send } as never;
+
   const queryBuilder = makeUpdateQueryBuilderMock();
   const emailThreadRepository = {
     update: threadUpdate,
@@ -90,8 +93,9 @@ function makeService(opts: {
     inferenceService,
     cloudWatchService,
     backgroundSummaryQueueService,
+    boss,
   );
-  return { service, threadUpdate, queryBuilder, predict, putMetric };
+  return { service, threadUpdate, queryBuilder, predict, putMetric, send };
 }
 
 describe("LocalModelPromotionService.tryHandle", () => {
@@ -143,12 +147,15 @@ describe("LocalModelPromotionService.tryHandle", () => {
   });
 
   it("applies the prediction and skips the LLM when confident and resolvable", async () => {
-    const { service, threadUpdate, queryBuilder, putMetric } = makeService({
-      prediction: CONFIDENT,
-      categoryId: "cat-1",
-    });
+    const { service, threadUpdate, queryBuilder, putMetric, send } =
+      makeService({
+        prediction: CONFIDENT,
+        categoryId: "cat-1",
+      });
     expect(await service.tryHandle("u1", EMAIL, THREAD, "w1")).toBe(true);
     expect(threadUpdate).toHaveBeenCalledTimes(1);
+    // A real category resolved: no escalation job is enqueued.
+    expect(send).not.toHaveBeenCalled();
     const [where, update] = threadUpdate.mock.calls[0];
     expect(where).toEqual({ id: "thread-1" });
     expect(update).toMatchObject({
@@ -197,15 +204,16 @@ describe("LocalModelPromotionService — family two-stage + holdout", () => {
     familyFallback: false,
   };
 
-  it("applies local priority and leaves category null (Other) when the category head is unsure — NOT analyze_priority", async () => {
-    const { service, threadUpdate, queryBuilder, putMetric } = makeService({
-      prediction: PRIORITY_CONFIDENT_CATEGORY_UNSURE,
-      // No category resolves and the head is unconfident: priority still lands
-      // locally and the thread sits in "Other" — the deferred summary-based
-      // re-categorisation (cheap categorise_summary) classifies it later. We do
-      // NOT bail to the expensive analyze_priority just to categorise.
-      contexts: [],
-    });
+  it("applies local priority, leaves category null (Other), and escalates to the LLM when the category head is unsure — NOT analyze_priority", async () => {
+    const { service, threadUpdate, queryBuilder, putMetric, send } =
+      makeService({
+        prediction: PRIORITY_CONFIDENT_CATEGORY_UNSURE,
+        // No category resolves and the head is unconfident: priority still lands
+        // locally, the thread sits in "Other" for now, and an escalate-category
+        // job runs the cheap categorise_summary LLM immediately. We do NOT bail
+        // to the expensive analyze_priority just to categorise.
+        contexts: [],
+      });
     expect(await service.tryHandle("u1", EMAIL, THREAD, "w1")).toBe(true);
     const [, update] = threadUpdate.mock.calls[0];
     expect(update).toMatchObject({
@@ -218,9 +226,21 @@ describe("LocalModelPromotionService — family two-stage + holdout", () => {
       categoryId: null,
     });
     expect(setPayload.categoryDecisionTrace.finalCategoryId).toBeNull();
-    // The explanation must flag it as awaiting re-categorisation, not a dead end.
-    expect(setPayload.categoryExplanation).toContain("awaiting");
+    // The explanation must flag the escalation, not a passive "awaiting".
+    expect(setPayload.categoryExplanation).toContain(
+      "escalated to LLM categorisation",
+    );
     expect(putMetric).toHaveBeenCalledWith("LocalModelSkip", 1);
+    // The abstain path enqueues an escalate-category job, singleton per thread.
+    expect(send).toHaveBeenCalledTimes(1);
+    const [jobName, payload, options] = send.mock.calls[0];
+    expect(jobName).toBe("escalate-category");
+    expect(payload).toEqual({
+      userId: "u1",
+      emailThreadId: "thread-1",
+      emailId: "email-1",
+    });
+    expect(options.singletonKey).toBe("escalate-category-thread-1");
   });
 
   it("applies local priority with category null when the category head is CONFIDENT but maps to no user category (genuine Other)", async () => {

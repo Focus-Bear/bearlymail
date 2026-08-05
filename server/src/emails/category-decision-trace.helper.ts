@@ -60,7 +60,7 @@ interface LocalModelStepPrediction {
 
 /** The `detail` line for the local-model step, covering the resolved category
  * and the two unresolved-category cases (confident-no-match and unconfident),
- * both of which now await summary re-categorisation rather than dead-ending in
+ * both of which now escalate to LLM categorisation rather than dead-ending in
  * "Other" (split out to keep {@link localModelDecisionTrace} free of nesting). */
 function localModelStepDetail(
   prediction: LocalModelStepPrediction,
@@ -72,9 +72,9 @@ function localModelStepDetail(
     )}%), family "${prediction.family}", priority band "${prediction.priorityBand}".`;
   }
   if (prediction.categoryFallback) {
-    return `Local model applied priority band "${prediction.priorityBand}" (confident); category uncertain — awaiting re-categorisation from the thread summary.`;
+    return `Local model applied priority band "${prediction.priorityBand}" (confident); category uncertain — escalated to LLM categorisation.`;
   }
-  return `Local model applied priority band "${prediction.priorityBand}" (confident); category "${prediction.category}" (family "${prediction.family}") matched no user category — awaiting re-categorisation from the thread summary.`;
+  return `Local model applied priority band "${prediction.priorityBand}" (confident); category "${prediction.category}" (family "${prediction.family}") matched no user category — escalated to LLM categorisation.`;
 }
 
 /** Trace for the confident local-model promotion path: model pick wins.
@@ -83,8 +83,9 @@ function localModelStepDetail(
  * by `prediction.categoryFallback`, but treated the same downstream):
  * - confident category that maps to no real user category, or
  * - UNconfident category (`categoryFallback=true`).
- * In both, priority lands and the thread sits in "Other" only until the
- * background summary triggers the cheap `categorise_summary` re-categorisation. */
+ * In both, priority lands and an `escalate-category` job is enqueued to run the
+ * cheap `categorise_summary` LLM immediately (the background-summary path is a
+ * best-effort backstop), so the thread does not sit in "Other" waiting. */
 export function localModelDecisionTrace(args: {
   decidedAt: string;
   prediction: {

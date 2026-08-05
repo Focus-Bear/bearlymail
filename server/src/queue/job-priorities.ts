@@ -47,6 +47,10 @@ export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
   // Background rule authoring off the batch path — must sit well below live
   // refine/summary so a burst of new-mail candidates never starves them.
   [JOB_NAMES.GENERATE_CATEGORY_RULE]: JobPriority.VERY_LOW,
+  // Immediate category escalation for a local-model abstain — a background
+  // categorisation job like the rule authoring above, so it sits well below
+  // live refine/summary and never starves them.
+  [JOB_NAMES.ESCALATE_CATEGORY]: JobPriority.VERY_LOW,
   [JOB_NAMES.LEARN_QA_FROM_SENT]: JobPriority.VERY_LOW,
   [JOB_NAMES.SYNC_GMAIL]: JobPriority.MEDIUM,
   [JOB_NAMES.AUTO_RESPONDER]: JobPriority.LOW,

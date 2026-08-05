@@ -35,6 +35,17 @@ export const JOB_NAMES = {
   // parity. Idempotent: generateCompositeRuleFromEmail dedups/gates internally.
   GENERATE_CATEGORY_RULE: "generate-category-rule",
 
+  // Immediate LLM category escalation. Enqueued by the local-model promotion
+  // path when it applied a confident priority but ABSTAINED on category
+  // (categorySource 'local', categoryId null). Instead of passively waiting for
+  // a summary job that may never run, this job ensures a thread summary exists
+  // (generating one if missing) then runs the cheap category-only
+  // `categorise_summary` LLM to give the thread a real category. Idempotent /
+  // anti-loop: a no-op once the thread carries a settled category, and it never
+  // re-enqueues itself. Very low priority so it never starves live
+  // refine/summary processing.
+  ESCALATE_CATEGORY: "escalate-category",
+
   // Summary generation
   GENERATE_SUMMARY: "generate-summary",
   GENERATE_SUMMARY_BACKGROUND: "generate-summary-background",

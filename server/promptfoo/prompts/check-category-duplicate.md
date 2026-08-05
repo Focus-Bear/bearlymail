@@ -14,6 +14,7 @@ Mark them as duplicates if:
 - They are paraphrases of the same concept (e.g. "CI/CD Alerts" vs "CI/CD Notifications", "Job Applications" vs "Career Opportunities", "Marketing Emails" vs "Promotional Newsletters") — i.e. a reasonable user would expect both names to collect the same emails
 - One is slightly more specific but entirely contained within the other AND both name the same domain/platform/topic
 - One category names a specific platform and is a broad/generic catch-all about that platform (e.g. "Github and Code", "Jira Tasks", "Slack Messages") while the other is a specific sub-type of that same platform — the broad platform catch-all is redundant when specific platform sub-categories already exist (mark as duplicate so the broad one is blocked)
+- Both are instances of the same GENERIC consumer-content type (newsletter, digest, promotion/marketing, receipt/invoice) that differ ONLY by source/sender/topic — e.g. "TechCrunch Newsletter" vs "AI Weekly" (both newsletters), "Amazon receipt" vs "Uber receipt" (both receipts) — these collapse into one generic bucket. This is the DELIBERATE OPPOSITE of the software-platform rule below: many senders emit the same kind of consumer content, so source-specific variants merge; a software platform's distinct artifacts/authors do NOT.
 
 Do NOT mark them as duplicates if:
 - They describe meaningfully different types of emails

@@ -806,6 +806,8 @@ export class LLMPriorityResultService {
           userId,
           suggestionName,
           consideredCandidates,
+          // Never let a re-analysed thread match (and double-count) its own proto.
+          protoCategoryId ?? undefined,
         );
 
       if (existingProtoCategory) {

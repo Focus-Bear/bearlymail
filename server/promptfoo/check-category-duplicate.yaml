@@ -167,3 +167,45 @@ tests:
             throw new Error(`Expected isDuplicate=false for bot-vs-human PR updates, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
           }
           return true;
+
+  - description: "Should NOT merge same-platform sub-categories that track different artifacts (PR reviews vs issue comments)"
+    vars:
+      categoryA: "GitHub PR Reviews"
+      categoryB: "GitHub Issue Comments"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== false) {
+            throw new Error(`Expected isDuplicate=false for PR-reviews vs issue-comments, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should collapse source-specific newsletters into the generic bucket (TechCrunch Newsletter vs AI Weekly)"
+    vars:
+      categoryA: "TechCrunch Newsletter"
+      categoryB: "AI Weekly"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== true) {
+            throw new Error(`Expected isDuplicate=true for two source-specific newsletters, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;
+
+  - description: "Should collapse source-specific receipts into the generic bucket (Amazon receipt vs Uber receipt)"
+    vars:
+      categoryA: "Amazon receipt"
+      categoryB: "Uber receipt"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== true) {
+            throw new Error(`Expected isDuplicate=true for two source-specific receipts, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;

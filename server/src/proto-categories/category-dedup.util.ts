@@ -1,9 +1,20 @@
 import { Logger } from "@nestjs/common";
 
 import { ConsideredDuplicateCandidate } from "../database/entities/proto-category.entity";
-import { UserContext } from "../database/entities/user-context.entity";
 import { cosineSimilarity, EmbeddingService } from "../llm/embedding.service";
-import { parseCategoryName } from "../utils/category-format.util";
+
+/**
+ * A normalized dedup candidate: a stable id (a real category's `contextId` or a
+ * proto category's `id`), its display name (may include a leading emoji), and
+ * any previously-confirmed alternate names. Normalizing real categories and
+ * proto categories to this shape lets a single matching pipeline run over
+ * either set instead of two divergent copies.
+ */
+export interface DedupCandidate {
+  id: string;
+  name: string;
+  alternateNames?: string[] | null;
+}
 
 // Cap on how many Levenshtein-flagged, shared-token, or embedding candidates we
 // hand off to the LLM in one matching pass. Without this, a user with many
@@ -32,13 +43,13 @@ export function mergeConsideredCandidates(
 
 /**
  * Cheapest dedup phase: exact / emoji-stripped / parenthetical-suffix match,
- * plus a lookup against each category's previously-confirmed alternate names.
- * Returns the matching `{ name, contextId }` or null.
+ * plus a lookup against each candidate's previously-confirmed alternate names.
+ * Returns the matching candidate or null.
  */
-export function matchExactOrAlternateName(
+export function matchExactOrAlternateCandidate(
   suggestedName: string,
-  categories: UserContext[],
-): { name: string; contextId: string } | null {
+  candidates: DedupCandidate[],
+): DedupCandidate | null {
   const normalizedSuggestion = suggestedName.toLowerCase().trim();
   const suggestionWithoutEmoji = normalizedSuggestion
     .replace(/[\p{Emoji}]/gu, "")
@@ -47,9 +58,8 @@ export function matchExactOrAlternateName(
     .replace(/\s*\(.*\)\s*$/, "")
     .trim();
 
-  for (const category of categories) {
-    const categoryName = parseCategoryName(category.contextValue);
-    const normalizedName = categoryName.toLowerCase().trim();
+  for (const candidate of candidates) {
+    const normalizedName = candidate.name.toLowerCase().trim();
     const nameWithoutEmoji = normalizedName.replace(/[\p{Emoji}]/gu, "").trim();
 
     if (
@@ -57,11 +67,11 @@ export function matchExactOrAlternateName(
       normalizedSuggestion === normalizedName ||
       suggestionWithoutParens === nameWithoutEmoji
     ) {
-      return { name: categoryName, contextId: category.contextId };
+      return candidate;
     }
 
-    if (category.alternateNames?.length) {
-      const altMatch = category.alternateNames.some((alt) => {
+    if (candidate.alternateNames?.length) {
+      const altMatch = candidate.alternateNames.some((alt) => {
         const normAlt = alt.toLowerCase().trim();
         const altWithoutEmoji = normAlt.replace(/[\p{Emoji}]/gu, "").trim();
         return (
@@ -70,7 +80,7 @@ export function matchExactOrAlternateName(
         );
       });
       if (altMatch) {
-        return { name: categoryName, contextId: category.contextId };
+        return candidate;
       }
     }
   }

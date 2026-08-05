@@ -333,6 +333,28 @@ tests:
         config:
           shouldMatchProtoCategory: "📦 Shipping & Delivery"
 
+  # Proto category test 3b: a newsletter with NO listed newsletter category must
+  # suggest a GENERIC "Newsletters"-style proto, never a source-specific variant
+  # ("TechCrunch Newsletter") — this is what stops per-sender proto proliferation.
+  - description: "Proto category: newsletter should suggest a GENERIC bucket, not a source-specific variant"
+    vars:
+      from: "newsletter@techcrunch.com"
+      fromName: "TechCrunch"
+      subject: "This Week in Tech — your TechCrunch digest"
+      body: "Here are this week's top stories from TechCrunch: funding rounds, product launches, and startup news. Manage your subscription or unsubscribe at any time."
+      emailCategories: |
+        1. "Sales": Sales inquiries and deals
+        2. "Customer Support": Support tickets
+        3. "HR Admin": HR-related communications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          # If a proto category is proposed it must be a generic bucket, NOT tied to
+          # the sending brand. Asserting exact wording is brittle, so we only block
+          # source-specific names.
+          protoCategoryNameExcludes: ["TechCrunch", "AI Weekly", "The Verge"]
+
   # Proto category test 4: Should NOT suggest proto category when newsletter matches
   - description: "Proto category: should NOT suggest proto category when newsletter matches"
     vars:

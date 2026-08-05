@@ -577,3 +577,141 @@ describe("LLMPriorityResultService - resolveCategoryAndProtoCategory", () => {
     ).toHaveBeenCalledWith("user-1", "Deleted Category");
   });
 });
+
+describe("LLMPriorityResultService - applyProtoSuggestion", () => {
+  let service: LLMPriorityResultService;
+  let protoCategoriesService: {
+    findMatchingFullCategory: jest.Mock;
+    findMatchingProtoCategory: jest.Mock;
+    assignThreadToProtoCategory: jest.Mock;
+    createAndAssignToThread: jest.Mock;
+  };
+
+  const email = { id: "email-1", emailThreadId: "thread-1" } as Email;
+  const newsletterSuggestion = {
+    category: "Other",
+    protoCategorySuggestion: {
+      name: "📰 Newsletters",
+      description: "Newsletters and digests",
+      reasoning: "No listed category fit",
+    },
+  } as never;
+
+  beforeEach(async () => {
+    protoCategoriesService = {
+      findMatchingFullCategory: jest.fn().mockResolvedValue(null),
+      findMatchingProtoCategory: jest.fn().mockResolvedValue(null),
+      assignThreadToProtoCategory: jest.fn(),
+      createAndAssignToThread: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LLMPriorityResultService,
+        { provide: getRepositoryToken(Email), useValue: { update: jest.fn() } },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: { update: jest.fn(), findOne: jest.fn() },
+        },
+        { provide: ProtoCategoriesService, useValue: protoCategoriesService },
+        {
+          provide: GitHubCategoryOverrideService,
+          useValue: { resolveOverride: jest.fn() },
+        },
+        { provide: UsersService, useValue: { findOne: jest.fn() } },
+        {
+          provide: BackgroundSummaryQueueService,
+          useValue: {
+            queueBackgroundSummary: jest.fn(),
+            maybeQueueBackgroundSummary: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get(LLMPriorityResultService);
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  it("assigns to an existing active proto (increments it) instead of creating a new one", async () => {
+    protoCategoriesService.findMatchingProtoCategory.mockResolvedValue({
+      id: "proto-news",
+      name: "📰 Newsletters",
+      isPromoted: false,
+      emailCount: 3,
+    });
+    protoCategoriesService.assignThreadToProtoCategory.mockResolvedValue({
+      id: "proto-news",
+      name: "📰 Newsletters",
+      isPromoted: false,
+      emailCount: 4,
+    });
+
+    const result = await service.applyProtoSuggestion({
+      email,
+      llmResult: newsletterSuggestion,
+      userId: "user-1",
+      workerId: "w1",
+      finalCategory: "Other",
+      protoCategoryId: null,
+    });
+
+    expect(
+      protoCategoriesService.assignThreadToProtoCategory,
+    ).toHaveBeenCalledWith("proto-news", "thread-1");
+    expect(
+      protoCategoriesService.createAndAssignToThread,
+    ).not.toHaveBeenCalled();
+    expect(result.protoCategoryId).toBe("proto-news");
+  });
+
+  it("creates a new proto when the suggestion is genuinely novel", async () => {
+    protoCategoriesService.createAndAssignToThread.mockResolvedValue({
+      id: "proto-new",
+      name: "📰 Newsletters",
+      isPromoted: false,
+    });
+
+    const result = await service.applyProtoSuggestion({
+      email,
+      llmResult: newsletterSuggestion,
+      userId: "user-1",
+      workerId: "w1",
+      finalCategory: "Other",
+      protoCategoryId: null,
+    });
+
+    expect(protoCategoriesService.createAndAssignToThread).toHaveBeenCalled();
+    expect(
+      protoCategoriesService.assignThreadToProtoCategory,
+    ).not.toHaveBeenCalled();
+    expect(result.protoCategoryId).toBe("proto-new");
+  });
+
+  it("prefers a matching real category over any proto match (real wins)", async () => {
+    protoCategoriesService.findMatchingFullCategory.mockResolvedValue({
+      name: "Newsletters",
+      contextId: "ctx-news",
+    });
+
+    const result = await service.applyProtoSuggestion({
+      email,
+      llmResult: newsletterSuggestion,
+      userId: "user-1",
+      workerId: "w1",
+      finalCategory: "Other",
+      protoCategoryId: null,
+    });
+
+    expect(
+      protoCategoriesService.findMatchingProtoCategory,
+    ).not.toHaveBeenCalled();
+    expect(
+      protoCategoriesService.createAndAssignToThread,
+    ).not.toHaveBeenCalled();
+    expect(result.finalCategory).toBe("Newsletters");
+    expect(result.categoryId).toBe("ctx-news");
+    expect(result.protoCategoryId).toBeNull();
+  });
+});

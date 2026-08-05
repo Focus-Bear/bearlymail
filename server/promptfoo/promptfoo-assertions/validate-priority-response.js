@@ -337,6 +337,23 @@ module.exports = (output, context) => {
       }
     }
     
+    // Assert the proto suggestion (or directly-assigned category) is NOT a
+    // source-/sender-specific variant of a generic content type. Recurring
+    // content (newsletters, receipts, digests, promotions) must land in one
+    // generic bucket, never per-brand proliferations like "TechCrunch Newsletter".
+    if (context.config.protoCategoryNameExcludes !== undefined) {
+      const excluded = Array.isArray(context.config.protoCategoryNameExcludes)
+        ? context.config.protoCategoryNameExcludes
+        : [context.config.protoCategoryNameExcludes];
+      const nameToCheck = (parsed.protoCategorySuggestion && parsed.protoCategorySuggestion.name)
+        ? parsed.protoCategorySuggestion.name
+        : (parsed.category || '');
+      const hit = excluded.find(substring => nameToCheck.toLowerCase().includes(substring.toLowerCase()));
+      if (hit) {
+        return { pass: false, score: 0, reason: `Category/proto name "${nameToCheck}" must not contain source-specific brand "${hit}" — expected a generic bucket (e.g. "Newsletters")` };
+      }
+    }
+
     // Validate that existing proto categories are matched when provided
     if (context.config.shouldMatchProtoCategory !== undefined) {
       const expectedProtoCategory = context.config.shouldMatchProtoCategory;

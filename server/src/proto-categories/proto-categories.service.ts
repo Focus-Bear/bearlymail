@@ -62,12 +62,14 @@ function stripCategoryName(name: string): string {
 // proto category. Deduplication is a high-stakes, low-volume decision (it
 // determines whether a brand-new category is created), so we pay for the
 // non-lite model with thinking enabled rather than the cheap shortlisting model.
-// NB: there is no bare "gemini-3.1-flash" model — the 3.1 generation only ships
-// -lite / -image variants — so that string 404s on every API version. We use
-// gemini-3.5-flash: a genuine non-lite model, priced in llm-pricing.constants,
-// and verified live to resolve + support JSON mode on the @google/genai SDK's
-// v1beta endpoint (see LLMCoreService).
-const STRONG_DEDUP_MODEL = "gemini-3.5-flash";
+// Stronger, non-lite model for the dedup verdict. NB: "gemini-3.1-flash" does
+// NOT exist (the 3.1 gen only ships -lite/-image), and gemini-3.5-flash leaks
+// its chain-of-thought into the JSON body ~1-in-4 calls even with responseMimeType
+// set — which the greedy JSON extraction below can't parse, so the verdict fails
+// open and lets a duplicate through. gemini-2.5-flash was verified live to return
+// clean JSON 4/4 with this exact config (json + thinking + temp 0) on the
+// @google/genai v1beta endpoint, and is already prod's primary GEMINI_MODEL.
+const STRONG_DEDUP_MODEL = "gemini-2.5-flash";
 
 // Headroom for the strong dedup model's JSON verdict. Larger than the lite
 // path's 128 because thinking models emit a little more before the JSON.

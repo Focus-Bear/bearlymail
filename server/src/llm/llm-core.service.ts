@@ -90,12 +90,17 @@ export interface ToolChatParams {
 const GEMINI_BILLING_CIRCUIT_MS = 5 * MILLISECONDS.MINUTE;
 
 /**
- * Gemini API version to target. The SDK defaults to `v1beta`, on which the
- * current models (e.g. the strong dedup model gemini-3.1-flash) 404 with
- * "not found for API version v1beta". Pinning `v1` resolves them; `v1`
- * supports systemInstruction, responseMimeType, and thinkingConfig.
+ * Gemini API version to target. We use `v1beta` (also the SDK default): it
+ * supports systemInstruction, responseMimeType (JSON mode), and thinkingConfig
+ * for every model we run — critically including gemini-2.5-flash (the prod
+ * GEMINI_MODEL), whose JSON mode is REJECTED on `v1` ("JSON mode is not enabled
+ * for api version v1. Use api version v1beta"). `v1` was briefly considered to
+ * resolve "gemini-3.1-flash", but no such model exists (the 3.1 generation ships
+ * only -lite / -image), so `v1` offered no upside and would have 400'd every
+ * JSON-mode call in production. Verified live against the prod key: 2.5-flash,
+ * 3.1-flash-lite, and 3.5-flash all resolve + do JSON on v1beta.
  */
-const GEMINI_API_VERSION = "v1";
+const GEMINI_API_VERSION = "v1beta";
 
 /**
  * Bedrock defaults. The org SCP denies bedrock:InvokeModel in us-east-1, and

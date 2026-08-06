@@ -65,8 +65,8 @@ function stripCategoryName(name: string): string {
 // NB: there is no bare "gemini-3.1-flash" model — the 3.1 generation only ships
 // -lite / -image variants — so that string 404s on every API version. We use
 // gemini-3.5-flash: a genuine non-lite model, priced in llm-pricing.constants,
-// and verified to resolve + support JSON mode on the @google/genai SDK's v1
-// endpoint (see LLMCoreService).
+// and verified live to resolve + support JSON mode on the @google/genai SDK's
+// v1beta endpoint (see LLMCoreService).
 const STRONG_DEDUP_MODEL = "gemini-3.5-flash";
 
 // Headroom for the strong dedup model's JSON verdict. Larger than the lite

@@ -62,14 +62,13 @@ function stripCategoryName(name: string): string {
 // proto category. Deduplication is a high-stakes, low-volume decision (it
 // determines whether a brand-new category is created), so we pay for the
 // non-lite model with thinking enabled rather than the cheap shortlisting model.
-// Stronger, non-lite model for the dedup verdict. NB: "gemini-3.1-flash" does
-// NOT exist (the 3.1 gen only ships -lite/-image), and gemini-3.5-flash leaks
-// its chain-of-thought into the JSON body ~1-in-4 calls even with responseMimeType
-// set — which the greedy JSON extraction below can't parse, so the verdict fails
-// open and lets a duplicate through. gemini-2.5-flash was verified live to return
-// clean JSON 4/4 with this exact config (json + thinking + temp 0) on the
-// @google/genai v1beta endpoint, and is already prod's primary GEMINI_MODEL.
-const STRONG_DEDUP_MODEL = "gemini-2.5-flash";
+// Strong, current-generation non-lite model for the dedup verdict. Live-tested
+// the exact dedup config (jsonMode + thinking + temp 0) on the @google/genai
+// v1beta endpoint, 5 calls each: gemini-3.6-flash returned clean parseable JSON
+// 5/5. Rejected alternatives: "gemini-3.1-flash" does not exist (3.1 ships only
+// -lite/-image); gemini-3.5-flash leaks chain-of-thought into the JSON body and
+// parsed only 2/5 (fails open → duplicate proto created).
+const STRONG_DEDUP_MODEL = "gemini-3.6-flash";
 
 // Headroom for the strong dedup model's JSON verdict. Larger than the lite
 // path's 128 because thinking models emit a little more before the JSON.

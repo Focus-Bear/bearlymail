@@ -12,11 +12,7 @@ import {
   BedrockRuntimeClient,
   ConverseCommand,
 } from "@aws-sdk/client-bedrock-runtime";
-import {
-  GenerateContentConfig,
-  GenerateContentResponse,
-  GoogleGenAI,
-} from "@google/genai";
+import { GenerateContentResponse, GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 
 import { LLM_BLOCK_TYPES } from "../constants/domain-types";
@@ -30,6 +26,7 @@ import {
   toAnthropicTools,
 } from "./anthropic-tool-translation";
 import { ClaudeCliClient } from "./claude-cli.helper";
+import { buildGeminiGenerationConfig } from "./gemini-request.helper";
 import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
 import { supportsReasoningEffort } from "./llm-utils";
@@ -354,21 +351,7 @@ export class LLMCoreService {
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
-      // Pass the static system prompt as Gemini's systemInstruction (a stable,
-      // identical-per-call prefix) rather than concatenating it into the user
-      // message. This lets Gemini's implicit context caching reuse the prefix
-      // across calls (large discount on the cached input tokens) — the OpenAI
-      // path already separates system/user the same way. A thinkingBudget of
-      // -1 lets the model decide how much to think (dynamic).
-      const config: GenerateContentConfig = {
-        temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
-        maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-        ...(request.systemPrompt
-          ? { systemInstruction: request.systemPrompt }
-          : {}),
-        ...(request.jsonMode && { responseMimeType: "application/json" }),
-        ...(request.thinking && { thinkingConfig: { thinkingBudget: -1 } }),
-      };
+      const config = buildGeminiGenerationConfig(request);
 
       let response: GenerateContentResponse;
       try {

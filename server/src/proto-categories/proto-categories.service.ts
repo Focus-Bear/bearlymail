@@ -62,6 +62,8 @@ function stripCategoryName(name: string): string {
 // proto category. Deduplication is a high-stakes, low-volume decision (it
 // determines whether a brand-new category is created), so we pay for the
 // non-lite model with thinking enabled rather than the cheap shortlisting model.
+// Requires the @google/genai SDK pinned to apiVersion v1 (see LLMCoreService);
+// on the legacy SDK's v1beta endpoint this model 404s.
 const STRONG_DEDUP_MODEL = "gemini-3.1-flash";
 
 // Headroom for the strong dedup model's JSON verdict. Larger than the lite

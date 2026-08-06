@@ -11,9 +11,6 @@ import { TokenUsageService } from "./token-usage.service";
 // Names are prefixed `mock*` so they survive jest.mock hoisting.
 
 const mockGeminiGenerateContent = jest.fn();
-const mockGeminiGetGenerativeModel = jest.fn(() => ({
-  generateContent: mockGeminiGenerateContent,
-}));
 
 const mockOpenAIChatCreate = jest.fn();
 const mockOpenAIResponsesCreate = jest.fn();
@@ -45,9 +42,9 @@ const bedrockConverseCommand = (
   }
 ).ConverseCommand;
 
-jest.mock("@google/generative-ai", () => ({
-  GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
-    getGenerativeModel: mockGeminiGetGenerativeModel,
+jest.mock("@google/genai", () => ({
+  GoogleGenAI: jest.fn().mockImplementation(() => ({
+    models: { generateContent: mockGeminiGenerateContent },
   })),
 }));
 
@@ -167,13 +164,11 @@ describe("LLMCoreService", () => {
   describe("Gemini provider", () => {
     it("maps Gemini usageMetadata to token-usage tracking fields", async () => {
       mockGeminiGenerateContent.mockResolvedValue({
-        response: {
-          text: () => "gemini-result",
-          usageMetadata: {
-            promptTokenCount: 30,
-            candidatesTokenCount: 7,
-            totalTokenCount: 37,
-          },
+        text: "gemini-result",
+        usageMetadata: {
+          promptTokenCount: 30,
+          candidatesTokenCount: 7,
+          totalTokenCount: 37,
         },
       });
       const { service, tokenUsageService } = makeService();
@@ -193,7 +188,8 @@ describe("LLMCoreService", () => {
 
     it("requests JSON output by setting responseMimeType when jsonMode is true", async () => {
       mockGeminiGenerateContent.mockResolvedValue({
-        response: { text: () => "{}", usageMetadata: undefined },
+        text: "{}",
+        usageMetadata: undefined,
       });
       const { service } = makeService();
 
@@ -204,7 +200,7 @@ describe("LLMCoreService", () => {
 
       expect(mockGeminiGenerateContent).toHaveBeenCalledWith(
         expect.objectContaining({
-          generationConfig: expect.objectContaining({
+          config: expect.objectContaining({
             responseMimeType: "application/json",
           }),
         }),
@@ -212,9 +208,9 @@ describe("LLMCoreService", () => {
     });
 
     it("passes systemPrompt as systemInstruction and keeps it out of the user message", async () => {
-      mockGeminiGetGenerativeModel.mockClear();
       mockGeminiGenerateContent.mockResolvedValue({
-        response: { text: () => "ok", usageMetadata: undefined },
+        text: "ok",
+        usageMetadata: undefined,
       });
       const { service } = makeService();
 
@@ -223,35 +219,31 @@ describe("LLMCoreService", () => {
         LLMProvider.GEMINI,
       );
 
-      // Static block becomes a cacheable systemInstruction...
-      expect(mockGeminiGetGenerativeModel).toHaveBeenCalledWith(
-        expect.objectContaining({ systemInstruction: "STATIC RULES" }),
-      );
-      // ...and the user message is ONLY the dynamic body (no concatenation).
+      // Static block becomes a cacheable systemInstruction in the config...
       expect(mockGeminiGenerateContent).toHaveBeenCalledWith(
         expect.objectContaining({
+          model: expect.any(String),
+          config: expect.objectContaining({
+            systemInstruction: "STATIC RULES",
+          }),
+          // ...and the user message is ONLY the dynamic body (no concatenation).
           contents: [{ role: "user", parts: [{ text: "BODY" }] }],
         }),
       );
     });
 
     it("omits systemInstruction when there is no system prompt", async () => {
-      mockGeminiGetGenerativeModel.mockClear();
       mockGeminiGenerateContent.mockResolvedValue({
-        response: { text: () => "ok", usageMetadata: undefined },
+        text: "ok",
+        usageMetadata: undefined,
       });
       const { service } = makeService();
 
       await service.generateText({ prompt: "p" }, LLMProvider.GEMINI);
 
-      expect(mockGeminiGetGenerativeModel.mock.calls[0][0]).not.toHaveProperty(
-        "systemInstruction",
-      );
-      expect(mockGeminiGenerateContent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          contents: [{ role: "user", parts: [{ text: "p" }] }],
-        }),
-      );
+      const call = mockGeminiGenerateContent.mock.calls[0][0];
+      expect(call.config).not.toHaveProperty("systemInstruction");
+      expect(call.contents).toEqual([{ role: "user", parts: [{ text: "p" }] }]);
     });
   });
 
@@ -297,7 +289,8 @@ describe("LLMCoreService", () => {
     it("falls back to Gemini when Bedrock fails", async () => {
       mockBedrockSend.mockRejectedValue(new Error("bedrock unavailable"));
       mockGeminiGenerateContent.mockResolvedValue({
-        response: { text: () => "gemini-fallback", usageMetadata: undefined },
+        text: "gemini-fallback",
+        usageMetadata: undefined,
       });
       const { service } = makeService();
 
@@ -504,7 +497,8 @@ describe("LLMCoreService", () => {
     it("falls back from OpenAI to Gemini when OpenAI fails", async () => {
       mockOpenAIChatCreate.mockRejectedValue(new Error("openai-down"));
       mockGeminiGenerateContent.mockResolvedValue({
-        response: { text: () => "from-gemini", usageMetadata: undefined },
+        text: "from-gemini",
+        usageMetadata: undefined,
       });
       const { service } = makeService({
         ...allKeysConfig,
@@ -520,10 +514,12 @@ describe("LLMCoreService", () => {
   });
 
   describe("Gemini billing 429 handling", () => {
+    // Mirrors @google/genai's ApiError: numeric `status` plus a message that
+    // embeds the API error body (the billing text is inside the JSON payload).
     function billingError() {
       return Object.assign(
         new Error(
-          "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent: [429 Too Many Requests] Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing.",
+          'got status: RESOURCE_EXHAUSTED. {"error":{"code":429,"message":"Your prepayment credits are depleted. Please go to AI Studio to manage your project and billing.","status":"RESOURCE_EXHAUSTED"}}',
         ),
         { status: 429 },
       );
@@ -604,10 +600,8 @@ describe("LLMCoreService", () => {
       mockGeminiGenerateContent
         .mockRejectedValueOnce(billingError())
         .mockResolvedValueOnce({
-          response: {
-            text: () => "from-gemini-again",
-            usageMetadata: undefined,
-          },
+          text: "from-gemini-again",
+          usageMetadata: undefined,
         });
       mockOpenAIChatCreate.mockResolvedValue({
         choices: [{ message: { content: "from-openai" } }],

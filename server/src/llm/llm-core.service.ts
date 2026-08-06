@@ -12,7 +12,11 @@ import {
   BedrockRuntimeClient,
   ConverseCommand,
 } from "@aws-sdk/client-bedrock-runtime";
-import { GenerationConfig, GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  GenerateContentConfig,
+  GenerateContentResponse,
+  GoogleGenAI,
+} from "@google/genai";
 import OpenAI from "openai";
 
 import { LLM_BLOCK_TYPES } from "../constants/domain-types";
@@ -86,6 +90,14 @@ export interface ToolChatParams {
 const GEMINI_BILLING_CIRCUIT_MS = 5 * MILLISECONDS.MINUTE;
 
 /**
+ * Gemini API version to target. The SDK defaults to `v1beta`, on which the
+ * current models (e.g. the strong dedup model gemini-3.1-flash) 404 with
+ * "not found for API version v1beta". Pinning `v1` resolves them; `v1`
+ * supports systemInstruction, responseMimeType, and thinkingConfig.
+ */
+const GEMINI_API_VERSION = "v1";
+
+/**
  * Bedrock defaults. The org SCP denies bedrock:InvokeModel in us-east-1, and
  * Nova is enabled in the account's home region, so we pin ap-southeast-2.
  * Amazon Nova Micro is the cheapest text model — used for summarisation.
@@ -98,7 +110,7 @@ const BEDROCK_MAX_OUTPUT_TOKENS = 5000;
 @Injectable()
 export class LLMCoreService {
   private readonly logger = new Logger(LLMCoreService.name);
-  private geminiClient: GoogleGenerativeAI | null = null;
+  private geminiClient: GoogleGenAI | null = null;
   private openaiClient: OpenAI | null = null;
   private anthropicClient: Anthropic | null = null;
   private bedrockClient: BedrockRuntimeClient | null = null;
@@ -141,7 +153,10 @@ export class LLMCoreService {
     const geminiApiKey = this.configService.get<string>("GEMINI_API_KEY");
     if (geminiApiKey) {
       try {
-        this.geminiClient = new GoogleGenerativeAI(geminiApiKey);
+        this.geminiClient = new GoogleGenAI({
+          apiKey: geminiApiKey,
+          apiVersion: GEMINI_API_VERSION,
+        });
         this.logger.log("Gemini client initialized");
       } catch (error) {
         this.logger.error("Failed to initialize Gemini client", error);
@@ -338,29 +353,24 @@ export class LLMCoreService {
       // identical-per-call prefix) rather than concatenating it into the user
       // message. This lets Gemini's implicit context caching reuse the prefix
       // across calls (large discount on the cached input tokens) — the OpenAI
-      // path already separates system/user the same way.
-      const model = this.geminiClient!.getGenerativeModel({
-        model: modelName,
+      // path already separates system/user the same way. A thinkingBudget of
+      // -1 lets the model decide how much to think (dynamic).
+      const config: GenerateContentConfig = {
+        temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+        maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
         ...(request.systemPrompt
           ? { systemInstruction: request.systemPrompt }
           : {}),
-      });
-
-      // `thinkingConfig` is supported by the Gemini REST API but not yet typed
-      // in this SDK version, so we build a widened config and cast. A budget of
-      // -1 lets the model decide how much to think (dynamic).
-      const generationConfig: Record<string, unknown> = {
-        temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
-        maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
         ...(request.jsonMode && { responseMimeType: "application/json" }),
         ...(request.thinking && { thinkingConfig: { thinkingBudget: -1 } }),
       };
 
-      let result: Awaited<ReturnType<typeof model.generateContent>>;
+      let response: GenerateContentResponse;
       try {
-        result = await model.generateContent({
+        response = await this.geminiClient!.models.generateContent({
+          model: modelName,
           contents: [{ role: "user", parts: [{ text: request.prompt }] }],
-          generationConfig: generationConfig as GenerationConfig,
+          config,
         });
       } catch (error) {
         // Trip the circuit breaker the moment we see a billing 429 so any
@@ -372,18 +382,7 @@ export class LLMCoreService {
       }
 
       const durationMs = Date.now() - startTime;
-      const { response } = result;
-
-      // Log token usage from Gemini response
-      // usageMetadata may not be fully typed in older SDK versions
-      const { usageMetadata } = response as {
-        usageMetadata?: {
-          promptTokenCount?: number;
-          candidatesTokenCount?: number;
-          totalTokenCount?: number;
-          cachedContentTokenCount?: number;
-        };
-      };
+      const { usageMetadata } = response;
       if (usageMetadata) {
         const cachedTokens = usageMetadata.cachedContentTokenCount || 0;
         if (cachedTokens > 0) {
@@ -407,7 +406,13 @@ export class LLMCoreService {
         });
       }
 
-      return response.text();
+      // `text` is a getter in @google/genai (not a method) and is undefined
+      // when the model returns no text part (e.g. safety block, thought-only).
+      const { text } = response;
+      if (text === undefined) {
+        throw new Error("Gemini returned no text content");
+      }
+      return text;
     });
   }
 

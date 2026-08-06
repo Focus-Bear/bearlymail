@@ -55,6 +55,9 @@ interface EmailDetailActionsProps {
   /** When true, the scheduling/calendar cards are suppressed here because they are
    *  rendered in the split-view action sidebar instead (compact mode). */
   hideSchedulingCards?: boolean;
+  /** When true, the ICS invite card is skipped in the scheduling cards because it is
+   *  hoisted above the email in the main column instead (avoids duplicate cards). */
+  excludeIcsCard?: boolean;
 }
 
 // ── Shared button-style helper ─────────────────────────────────────────────
@@ -142,6 +145,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   onDraftReply,
   hideActionButtons = false,
   hideSchedulingCards = false,
+  excludeIcsCard = false,
   // eslint-disable-next-line complexity -- pre-existing: complex render with many conditional branches
 }) => {
   const { t } = useTranslation();
@@ -288,6 +292,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
           email={email}
           schedulingActions={schedulingActions}
           loadingSchedulingActions={loadingSchedulingActions}
+          excludeIcsCard={excludeIcsCard}
           onDraftReply={onDraftReply}
           onRespondToInvitation={onRespondToInvitation}
         />

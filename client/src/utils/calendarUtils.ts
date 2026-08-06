@@ -1,5 +1,19 @@
 import { Email } from 'types/email';
 
+import { ICS_MIME_TYPE } from 'constants/strings';
+
+/**
+ * Detect whether an email carries an `.ics` calendar attachment.
+ * Matches on the standard calendar MIME type or a `.ics` filename
+ * (case-insensitive), mirroring the lookup inside IcsInviteCard.
+ */
+export function hasIcsAttachment(email: Email): boolean {
+  return (
+    Array.isArray(email.attachments) &&
+    email.attachments.some(att => att.mimeType === ICS_MIME_TYPE || att.filename?.toLowerCase()?.endsWith('.ics'))
+  );
+}
+
 /**
  * Detect if an email is a calendar invitation
  * Uses strict criteria to avoid false positives

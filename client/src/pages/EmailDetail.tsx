@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+import { hasIcsAttachment } from 'utils/calendarUtils';
 import { extractEmailAddress, getCorrespondent } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
 
@@ -19,6 +20,7 @@ import { EmailPhishingWarning } from 'components/email-detail/EmailPhishingWarni
 import { shouldShowPhishingAlert } from 'components/email-detail/emailPhishingWarning.helpers';
 import { EmailSchedulingCards } from 'components/email-detail/EmailSchedulingCards';
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
+import { IcsInviteCard } from 'components/email-detail/IcsInviteCard';
 import { SenderContextSection } from 'components/email-detail/SenderContextSection';
 import { SummarySection } from 'components/email-detail/SummarySection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
@@ -660,6 +662,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
       email={st.email}
       schedulingActions={schedulingActions}
       loadingSchedulingActions={st.loadingSuggestedActions}
+      excludeIcsCard={hasIcsAttachment(st.email)}
       onDraftReply={(replyDraft: string) => {
         st.setDraft(replyDraft);
         st.setShowReplyComposer(true);
@@ -723,6 +726,13 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         assistantInSidebar={isCompact}
       />
       <div style={getEmailContentCardStyle(isCompactOrInline, isMobile)}>
+        {/* Calendar invite always sits above the email whenever an .ics is attached — in
+            every view mode. Rendered once here; the actions/sidebar cards exclude it. */}
+        {st.email && hasIcsAttachment(st.email) && (
+          <div style={{ marginBottom: theme.spacing.xl }}>
+            <IcsInviteCard email={st.email} />
+          </div>
+        )}
         {/* Header is hidden for inline variant — no router/priority context needed in panel mode */}
         {!isInline && (
           <div style={{ marginBottom: theme.spacing.xl }}>
@@ -762,6 +772,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             }}
             hideActionButtons={isCompactOrInline && !isInline}
             hideSchedulingCards={isCompact}
+            excludeIcsCard={hasIcsAttachment(st.email)}
           />
         )}
         {st.showReplyComposer && (

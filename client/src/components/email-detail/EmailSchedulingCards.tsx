@@ -13,17 +13,13 @@
  */
 import React, { useMemo } from 'react';
 import { Email } from 'types/email';
-import { isCalendarInvitation } from 'utils/calendarUtils';
+import { hasIcsAttachment, isCalendarInvitation } from 'utils/calendarUtils';
 
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
 import { IcsInviteCard } from 'components/email-detail/IcsInviteCard';
 import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
-import {
-  ACTION_TYPE_CALENDAR_CREATE_INVITE,
-  ACTION_TYPE_SCHEDULING_REQUEST,
-  ICS_MIME_TYPE,
-} from 'constants/strings';
+import { ACTION_TYPE_CALENDAR_CREATE_INVITE, ACTION_TYPE_SCHEDULING_REQUEST } from 'constants/strings';
 
 interface EmailSchedulingCardsProps {
   email: Email;
@@ -32,6 +28,9 @@ interface EmailSchedulingCardsProps {
   /** True while suggested actions are being fetched — suppresses CalendarInviteActions
    *  until we know whether a scheduling card should replace it (#1788). */
   loadingSchedulingActions?: boolean;
+  /** When true, the ICS IcsInviteCard branch is skipped because the invite card is
+   *  hoisted above the email in the main column instead (avoids duplicate cards). */
+  excludeIcsCard?: boolean;
   onDraftReply?: (draft: string) => void;
   onRespondToInvitation?: (emailId: string, response: 'accepted' | 'declined' | 'tentative') => Promise<void>;
 }
@@ -40,6 +39,7 @@ export const EmailSchedulingCards: React.FC<EmailSchedulingCardsProps> = ({
   email,
   schedulingActions = [],
   loadingSchedulingActions = false,
+  excludeIcsCard = false,
   onDraftReply,
   onRespondToInvitation,
 }) => {
@@ -47,12 +47,7 @@ export const EmailSchedulingCards: React.FC<EmailSchedulingCardsProps> = ({
 
   // Deterministic ICS attachment detection — checked via MIME type and filename,
   // not via LLM. Takes priority over the generic SchedulingRequestCard.
-  const hasIcsAttachment = useMemo(
-    () =>
-      Array.isArray(email.attachments) &&
-      email.attachments.some(att => att.mimeType === ICS_MIME_TYPE || att.filename?.toLowerCase()?.endsWith('.ics')),
-    [email.attachments]
-  );
+  const hasIcs = useMemo(() => hasIcsAttachment(email), [email]);
 
   // Derive hasSchedulingRequest from the pre-partitioned schedulingActions list.
   // Treat both scheduling_request and calendar_create_invite as scheduling triggers.
@@ -64,7 +59,7 @@ export const EmailSchedulingCards: React.FC<EmailSchedulingCardsProps> = ({
     [schedulingActions]
   );
 
-  if (hasIcsAttachment) {
+  if (hasIcs && !excludeIcsCard) {
     return <IcsInviteCard email={email} />;
   }
 

@@ -4,7 +4,7 @@
  */
 import { Email } from 'types/email';
 
-import { isCalendarInvitation } from './calendarUtils';
+import { hasIcsAttachment, isCalendarInvitation } from './calendarUtils';
 
 function makeEmail(overrides: Partial<Email> = {}): Email {
   return {
@@ -92,5 +92,40 @@ describe('isCalendarInvitation', () => {
   it('handles missing fields gracefully (null/undefined)', () => {
     const email = makeEmail({ subject: undefined, body: undefined, htmlBody: undefined });
     expect(isCalendarInvitation(email)).toBe(false);
+  });
+});
+
+describe('hasIcsAttachment', () => {
+  it('returns true when an attachment has the text/calendar MIME type', () => {
+    const email = makeEmail({
+      attachments: [{ attachmentId: 'a1', filename: 'meeting', mimeType: 'text/calendar', size: 512 }],
+    });
+    expect(hasIcsAttachment(email)).toBe(true);
+  });
+
+  it('returns true when an attachment filename ends in .ics', () => {
+    const email = makeEmail({
+      attachments: [{ attachmentId: 'a1', filename: 'invite.ics', mimeType: 'application/octet-stream', size: 512 }],
+    });
+    expect(hasIcsAttachment(email)).toBe(true);
+  });
+
+  it('matches .ics filenames case-insensitively', () => {
+    const email = makeEmail({
+      attachments: [{ attachmentId: 'a1', filename: 'INVITE.ICS', mimeType: 'application/octet-stream', size: 512 }],
+    });
+    expect(hasIcsAttachment(email)).toBe(true);
+  });
+
+  it('returns false when there are no attachments', () => {
+    expect(hasIcsAttachment(makeEmail({ attachments: [] }))).toBe(false);
+    expect(hasIcsAttachment(makeEmail({ attachments: undefined }))).toBe(false);
+  });
+
+  it('returns false for a non-ics attachment', () => {
+    const email = makeEmail({
+      attachments: [{ attachmentId: 'a1', filename: 'report.pdf', mimeType: 'application/pdf', size: 512 }],
+    });
+    expect(hasIcsAttachment(email)).toBe(false);
   });
 });

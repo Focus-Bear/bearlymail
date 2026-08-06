@@ -37,6 +37,7 @@ vi.mock('utils/posthog', () => ({
 
 vi.mock('utils/calendarUtils', () => ({
   isCalendarInvitation: vi.fn(() => false),
+  hasIcsAttachment: vi.fn(() => false),
 }));
 
 vi.mock('utils/unsubscribeUtils', () => ({

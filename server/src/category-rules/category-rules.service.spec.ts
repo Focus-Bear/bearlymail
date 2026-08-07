@@ -1432,8 +1432,19 @@ describe("CategoryRulesService", () => {
     });
 
     it("excludes the winner and lists other matching rules as not-applied", async () => {
+      // "winner" is the more specific rule (it carries an extra exclusion), so
+      // specificity precedence must pick it over the broader "loser" sibling.
       repo.find.mockResolvedValue([
-        compositeQaRule({ id: "winner" }),
+        compositeQaRule({
+          id: "winner",
+          compositeSpec: {
+            v: 3,
+            fromMatchesAny: ["notifications@github.com"],
+            subjectContainsAny: ["issue"],
+            bodyContainsAny: ["QA Passed"],
+            bodyNotContainsAny: ["unsubscribe"],
+          },
+        }),
         compositeQaRule({ id: "loser", categoryName: "QA Duplicate" }),
       ]);
       repo.increment.mockResolvedValue({});

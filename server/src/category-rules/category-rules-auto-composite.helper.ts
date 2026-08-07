@@ -307,6 +307,163 @@ export function mergeBodyPhrasesIntoSibling(
   };
 }
 
+function notificationSubtypeOf(
+  spec: CompositeCategoryRuleSpec,
+): string | undefined {
+  return spec.v === 3 ? spec.notificationSubtype : undefined;
+}
+
+function toCiSet(values: string[] | undefined): Set<string> {
+  const set = new Set<string>();
+  for (const value of values ?? []) {
+    const key = value.trim().toLowerCase();
+    if (key) set.add(key);
+  }
+  return set;
+}
+
+function setsEqual(first: Set<string>, second: Set<string>): boolean {
+  if (first.size !== second.size) return false;
+  for (const value of first) {
+    if (!second.has(value)) return false;
+  }
+  return true;
+}
+
+/** True when every element of `subset` is present in `superset`. */
+function isSubsetOf(subset: Set<string>, superset: Set<string>): boolean {
+  for (const value of subset) {
+    if (!superset.has(value)) return false;
+  }
+  return true;
+}
+
+/**
+ * True when two composite specs are close enough that keeping them as separate
+ * rules for the same category is redundant and they should be reconciled into
+ * one (see {@link reconcileCompositeSpecs}). This is a broader predicate than
+ * {@link senderAndSubjectMatch}: it also folds together rules whose positive
+ * conditions are a subset of one another, which is how divergent-exclusion
+ * siblings (same `*@github.com`, different Pass/Fail exclusion lists) accrue.
+ *
+ * Rules pinned to DIFFERENT `notificationSubtype`s are hard structural
+ * separators (e.g. GitHub PR vs issue) and never reconcile — both sides must
+ * share the same subtype (or both have none). Overlap is then either:
+ *   - the same sender set (the classic divergent-exclusion sibling case), OR
+ *   - one rule's positive conditions (senders AND subjects AND bodies) are a
+ *     subset of the other's (the broader rule already covers the narrower one).
+ */
+export function compositeRulesShouldReconcile(
+  existing: CompositeCategoryRuleSpec,
+  candidate: CompositeCategoryRuleSpec,
+): boolean {
+  if (notificationSubtypeOf(existing) !== notificationSubtypeOf(candidate)) {
+    return false;
+  }
+  const existingV2 = specToV2(existing);
+  const candidateV2 = specToV2(candidate);
+
+  const existingSenders = toCiSet(existingV2.senderMatchesAny);
+  const candidateSenders = toCiSet(candidateV2.senderMatchesAny);
+  if (setsEqual(existingSenders, candidateSenders)) {
+    return true;
+  }
+
+  const existingSubjects = toCiSet(existingV2.subjectContainsAny);
+  const candidateSubjects = toCiSet(candidateV2.subjectContainsAny);
+  const existingBodies = toCiSet(existingV2.bodyContainsAny);
+  const candidateBodies = toCiSet(candidateV2.bodyContainsAny);
+
+  const existingSubsetOfCandidate =
+    isSubsetOf(existingSenders, candidateSenders) &&
+    isSubsetOf(existingSubjects, candidateSubjects) &&
+    isSubsetOf(existingBodies, candidateBodies);
+  const candidateSubsetOfExisting =
+    isSubsetOf(candidateSenders, existingSenders) &&
+    isSubsetOf(candidateSubjects, existingSubjects) &&
+    isSubsetOf(candidateBodies, existingBodies);
+
+  return existingSubsetOfCandidate || candidateSubsetOfExisting;
+}
+
+/**
+ * Reconciles two overlapping same-category specs into ONE v3 spec that carries
+ * the case-insensitive UNION of every positive condition (senders, subjects,
+ * bodies — the broader positive set) AND the UNION of both sides' exclusions
+ * (`subjectNotContainsAny` / `bodyNotContainsAny`). Unioning exclusions is the
+ * whole point: it is how a broad sibling that was MISSING a newer sibling's
+ * exclusion (e.g. the QA-comment exclusion) inherits it, so the merged rule
+ * stops mis-filing the excluded mail.
+ *
+ * The `existing` rule's v3 extras (read status, attachment, subtype, …) are
+ * preserved — callers reconcile INTO the existing row so its id/hit-count and
+ * structural constraints survive. Returns the `existing` spec reference
+ * unchanged when `candidate` adds nothing new (callers can skip the save), or
+ * `null` when the union would exceed a phrase cap (caller should fall back to
+ * keeping the rules separate rather than silently dropping phrases).
+ */
+export function reconcileCompositeSpecs(
+  existing: CompositeCategoryRuleSpec,
+  candidate: CompositeCategoryRuleSpec,
+): CompositeCategoryRuleSpec | null {
+  const existingV2 = specToV2(existing);
+  const candidateV2 = specToV2(candidate);
+
+  const senders = unionPhrasesCi(
+    existingV2.senderMatchesAny,
+    candidateV2.senderMatchesAny,
+  );
+  const subjects = unionPhrasesCi(
+    existingV2.subjectContainsAny,
+    candidateV2.subjectContainsAny,
+  );
+  const bodies = unionPhrasesCi(
+    existingV2.bodyContainsAny,
+    candidateV2.bodyContainsAny,
+  );
+  const subjectNot = unionPhrasesCi(
+    existingV2.subjectNotContainsAny,
+    candidateV2.subjectNotContainsAny,
+  );
+  const bodyNot = unionPhrasesCi(
+    existingV2.bodyNotContainsAny,
+    candidateV2.bodyNotContainsAny,
+  );
+
+  if (
+    !senders.addedAny &&
+    !subjects.addedAny &&
+    !bodies.addedAny &&
+    !subjectNot.addedAny &&
+    !bodyNot.addedAny
+  ) {
+    return existing;
+  }
+  if (
+    senders.merged.length > CATEGORY_RULE_COMPOSITE.MAX_SENDERS ||
+    subjects.merged.length > CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES ||
+    bodies.merged.length > CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES ||
+    subjectNot.merged.length >
+      CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES ||
+    bodyNot.merged.length > CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES
+  ) {
+    return null;
+  }
+
+  const mergedSubjectNot =
+    subjectNot.merged.length > 0 ? subjectNot.merged : undefined;
+  const mergedBodyNot = bodyNot.merged.length > 0 ? bodyNot.merged : undefined;
+  return {
+    v: 3,
+    fromMatchesAny: senders.merged,
+    subjectContainsAny: subjects.merged,
+    bodyContainsAny: bodies.merged,
+    ...(mergedSubjectNot && { subjectNotContainsAny: mergedSubjectNot }),
+    ...(mergedBodyNot && { bodyNotContainsAny: mergedBodyNot }),
+    ...copyV3ExtraFields(existing),
+  };
+}
+
 /**
  * Returns true when `normFrom` matches the sender `normPattern`.
  * Supports domain wildcards of the form `*@domain.com`, which match any

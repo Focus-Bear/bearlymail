@@ -88,14 +88,14 @@ const GEMINI_BILLING_CIRCUIT_MS = 5 * MILLISECONDS.MINUTE;
 
 /**
  * Gemini API version to target. We use `v1beta` (also the SDK default): it
- * supports systemInstruction, responseMimeType (JSON mode), and thinkingConfig
- * for every model we run — critically including gemini-2.5-flash (the prod
- * GEMINI_MODEL), whose JSON mode is REJECTED on `v1` ("JSON mode is not enabled
- * for api version v1. Use api version v1beta"). `v1` was briefly considered to
- * resolve "gemini-3.1-flash", but no such model exists (the 3.1 generation ships
- * only -lite / -image), so `v1` offered no upside and would have 400'd every
- * JSON-mode call in production. Verified live against the prod key: 2.5-flash,
- * 3.1-flash-lite, and 3.5-flash all resolve + do JSON on v1beta.
+ * supports systemInstruction, responseMimeType (JSON mode), responseSchema
+ * (structured output), and thinkingConfig for every model we run — the
+ * gemini-3.1-flash-lite primary (the code default when GEMINI_MODEL is unset,
+ * which prod is) and the gemini-3.6-flash dedup model. `v1` was briefly
+ * considered to resolve "gemini-3.1-flash", but no such model exists (the 3.1
+ * generation ships only -lite / -image), and `v1` also rejects JSON mode for the
+ * older 2.x flash models — so `v1` offered no upside. All models above were
+ * verified live against the prod key to resolve + do JSON on v1beta.
  */
 const GEMINI_API_VERSION = "v1beta";
 

@@ -423,11 +423,16 @@ export function evaluateComposite(
   }
 
   const subj = (email.subject || "").toLowerCase();
-  let subjectOk = false;
+  // An empty phrase list is "no subject constraint" (satisfied), so a structural
+  // rule that pins only sender + notificationSubtype still matches. Phrase-bearing
+  // rules are unaffected — they carry at least one phrase and behave as before.
+  const trimmedSubjectPhrases = subjectPhrases
+    .map((phrase) => phrase.trim())
+    .filter(Boolean);
+  let subjectOk = trimmedSubjectPhrases.length === 0;
   let subjectMatchedValue: string | null = null;
-  for (const phrase of subjectPhrases) {
-    const needle = phrase.trim().toLowerCase();
-    if (needle.length > 0 && subj.includes(needle)) {
+  for (const phrase of trimmedSubjectPhrases) {
+    if (subj.includes(phrase.toLowerCase())) {
       subjectOk = true;
       subjectMatchedValue = phrase;
       break;
@@ -437,14 +442,18 @@ export function evaluateComposite(
   const body = (email.bodyTextForMatch || "").toLowerCase();
   const phrases = bodyPhrases.map((phrase) => phrase.trim()).filter(Boolean);
   let bodyMatchedPhrase: string | null = null;
-  const bodyOk = phrases.some((phrase) => {
-    const lowerPhrase = phrase.toLowerCase();
-    if (lowerPhrase && body.includes(lowerPhrase)) {
-      bodyMatchedPhrase = phrase;
-      return true;
-    }
-    return false;
-  });
+  // Empty phrase list is "no body constraint" (satisfied) — same rationale as
+  // the subject list above.
+  const bodyOk =
+    phrases.length === 0 ||
+    phrases.some((phrase) => {
+      const lowerPhrase = phrase.toLowerCase();
+      if (lowerPhrase && body.includes(lowerPhrase)) {
+        bodyMatchedPhrase = phrase;
+        return true;
+      }
+      return false;
+    });
 
   // Issue #1789: NOT-contains exclusions disqualify the rule even when the
   // positive conditions match.

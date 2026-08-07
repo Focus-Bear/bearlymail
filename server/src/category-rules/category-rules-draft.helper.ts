@@ -11,7 +11,10 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { computeEmailHmac } from "../utils/hmac-email";
 import type { EmailMetadata } from "./category-rules.types";
-import { deriveExclusionsForCompositeRule } from "./category-rules-derive-exclusions.helper";
+import {
+  augmentExclusionsForQaTemplates,
+  deriveExclusionsForCompositeRule,
+} from "./category-rules-derive-exclusions.helper";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
 
 /** Service-owned operations the draft builder needs, injected to avoid coupling. */
@@ -119,7 +122,14 @@ function buildPositiveSpec(
   const senderMatchesAny =
     llmResult.fromMatchesAny.length > 0 ? llmResult.fromMatchesAny : [sender];
   try {
-    const spec = normalizeCompositeSpecDto({
+    // Structured sub-stream signal: pin the rule to this email's notification
+    // sub-stream (e.g. github:pr, github:ci:run_failed) so sibling sub-categories
+    // that share the same sender and similar wording don't become false
+    // positives. Passed INTO the normaliser (not spread on afterwards) so it can
+    // relax the subject/body-phrase requirement for structural rules — a subtype
+    // makes phrases optional refinements. Undefined for senders with no
+    // resolvable sub-stream, in which case phrases stay mandatory.
+    return normalizeCompositeSpecDto({
       categoryName,
       senderMatchesAny,
       subjectContainsAny: llmResult.subjectContainsAny.slice(
@@ -130,12 +140,8 @@ function buildPositiveSpec(
         0,
         CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES,
       ),
+      ...(notificationSubtype && { notificationSubtype }),
     } as CreateCompositeCategoryRuleDto);
-    // Structured sub-stream signal: pin the rule to this email's notification
-    // sub-stream (e.g. github:pr, github:ci:run_failed) so sibling sub-categories
-    // that share the same sender and similar wording don't become false
-    // positives. Undefined for senders with no resolvable sub-stream.
-    return notificationSubtype ? { ...spec, notificationSubtype } : spec;
   } catch {
     return null;
   }
@@ -308,11 +314,17 @@ export async function buildDraftCompositeSpec(
       [sender],
       samples,
     );
-  if (
+  // Structural rules (a resolved notification sub-stream, e.g. github:pr) can
+  // persist on sender + subtype alone, so phrases are optional for them. For
+  // non-structural senders phrases remain mandatory: without them the rule would
+  // be just "sender → category", which is too broad. The subtype's own precision
+  // is what lets a single rule cover an entire github:pr / github:issue stream.
+  const hasStructuralSubtype = Boolean(email.notificationSubtype);
+  const phrasesMissing =
     !llmResult ||
     llmResult.subjectContainsAny.length === 0 ||
-    llmResult.bodyContainsAny.length === 0
-  ) {
+    llmResult.bodyContainsAny.length === 0;
+  if (!llmResult || (phrasesMissing && !hasStructuralSubtype)) {
     deps.logger.log(
       `[CategoryRules] No usable LLM phrases when drafting composite rule for user ${userId}`,
     );
@@ -330,20 +342,29 @@ export async function buildDraftCompositeSpec(
     return null;
   }
 
+  // Exclude structured QA test comments from non-QA GitHub categories up front,
+  // so the TP/FP validation below already treats QA artefacts as non-matches and
+  // the persisted rule never re-files them. No-op for non-GitHub rules and QA
+  // categories.
+  const guardedSpec = augmentExclusionsForQaTemplates(
+    positiveSpec,
+    trimmedCategory,
+  );
+
   const categoryId = await deps.findCategoryId(userId, trimmedCategory);
   const outcome = await deriveExclusionsForCompositeRule({
     emailThreadRepository: deps.emailThreadRepository,
     llmCategoriesService: deps.llmCategoriesService,
     normaliseSender: deps.normaliseSender,
     userId,
-    positiveSpec,
+    positiveSpec: guardedSpec,
     categoryName: trimmedCategory,
     categoryId,
     logger: deps.logger,
   });
   return resolveDraftOutcome(deps, userId, {
     outcome,
-    positiveSpec,
+    positiveSpec: guardedSpec,
     llmResult,
     categoryName: trimmedCategory,
     categoryId,

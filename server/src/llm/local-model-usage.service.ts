@@ -75,19 +75,26 @@ export class LocalModelUsageService {
     };
   }
 
-  /** Count threads updated in the window, grouped by the given source column. */
+  /** Count threads that ARRIVED in the window, grouped by the given source column. */
   private async countBySource(
     column: SourceColumn,
     startDate: Date,
     endDate: Date,
   ): Promise<Map<string | null, number>> {
+    // Scope by the immutable `createdAt` (when the thread was first synced),
+    // NOT `updatedAt`. `updatedAt` is bumped by unrelated writes (provider sync,
+    // star/archive, the isProcessingPriority lock), so filtering on it dragged
+    // OLD, never-processed backlog threads into a "Last 24 Hours" view and
+    // inflated the "unprocessed" bucket with emails that never arrived in the
+    // window. `createdAt` reflects actual arrival, so the routing mix reflects
+    // only genuinely-recent emails.
     // `column` is a fixed union (not user input), so interpolating it is safe.
     const rows = await this.threadRepository
       .createQueryBuilder("thread")
       .select(`thread."${column}"`, "source")
       .addSelect("COUNT(*)", "count")
       .where('thread."userId" IS NOT NULL')
-      .andWhere('thread."updatedAt" BETWEEN :startDate AND :endDate', {
+      .andWhere('thread."createdAt" BETWEEN :startDate AND :endDate', {
         startDate,
         endDate,
       })

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 
 const DEFAULT_WINDOW_DAYS = 7;
@@ -75,7 +76,21 @@ export class LocalModelUsageService {
     };
   }
 
-  /** Count threads updated in the window, grouped by the given source column. */
+  /**
+   * Count threads that RECEIVED an email in the window, grouped by the source
+   * column. Scope by the thread's own emails' `receivedAt`, NOT the thread's
+   * `updatedAt` or `createdAt`:
+   * - `updatedAt` is bumped by unrelated writes (provider sync, star/archive,
+   *   the isProcessingPriority lock), so it dragged old, never-processed backlog
+   *   threads into a "Last 24 Hours" view and inflated "unprocessed".
+   * - `createdAt` (first sync) misses threads that were created earlier but
+   *   received a NEW email inside the window — those are genuinely recent
+   *   activity that should be counted.
+   * A thread counts when it has any email with `receivedAt` in [start, end].
+   * Since the dashboard's windows always end at "now", that is equivalent to
+   * "the thread's latest email arrived in the window", and the EXISTS
+   * short-circuits on the first in-window email (index-backed).
+   */
   private async countBySource(
     column: SourceColumn,
     startDate: Date,
@@ -87,10 +102,17 @@ export class LocalModelUsageService {
       .select(`thread."${column}"`, "source")
       .addSelect("COUNT(*)", "count")
       .where('thread."userId" IS NOT NULL')
-      .andWhere('thread."updatedAt" BETWEEN :startDate AND :endDate', {
-        startDate,
-        endDate,
-      })
+      .andWhere(
+        (qb) =>
+          `EXISTS ${qb
+            .subQuery()
+            .select("1")
+            .from(Email, "email")
+            .where('email."emailThreadId" = thread.id')
+            .andWhere('email."receivedAt" BETWEEN :startDate AND :endDate')
+            .getQuery()}`,
+        { startDate, endDate },
+      )
       .groupBy(`thread."${column}"`)
       .getRawMany<{ source: string | null; count: string }>();
 

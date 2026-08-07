@@ -17,9 +17,12 @@ import {
   CompositeCategoryRuleSpec,
 } from "../database/entities/category-rule.entity";
 import {
+  compositeRulesShouldReconcile,
   mergeBodyPhrasesIntoSibling,
+  reconcileCompositeSpecs,
   senderAndSubjectMatch,
 } from "./category-rules-auto-composite.helper";
+import { pickMostSpecificCandidate } from "./category-rules-specificity.helper";
 
 /** Discriminant: candidate was merged into an existing sibling (or no-op). */
 export const MERGE_OUTCOME_MERGED = "merged";
@@ -88,4 +91,87 @@ export async function mergeIntoSiblingRuleIfPossible(
     return { outcome: MERGE_OUTCOME_MERGED, rule: sibling };
   }
   return null;
+}
+
+export interface ReconcileCandidateParams {
+  /** All of the user's composite rules (any category, any enabled state). */
+  compositeRules: CategoryRule[];
+  candidateSpec: CompositeCategoryRuleSpec;
+  /** FK of the candidate's category — merges are confined to this category. */
+  categoryId: string | null;
+  repository: Repository<CategoryRule>;
+  /** Fired when an existing rule is actually mutated by the reconciliation. */
+  onReconciled?: (rule: CategoryRule) => void;
+}
+
+/**
+ * Persist-time dedup: instead of adding a divergent sibling for a category that
+ * already has an overlapping enabled rule, fold the candidate into that rule so
+ * ONE rule carries the union of everyone's exclusions (see
+ * {@link reconcileCompositeSpecs}). This is how the four "*@github.com" siblings
+ * with different Pass/Fail exclusion lists stop accruing — and how a broad rule
+ * that was missing a QA exclusion inherits it.
+ *
+ * Only ever merges rules that point at the SAME `categoryId`; it never merges
+ * across categories. Returns the reconciled (updated, or already-covering)
+ * existing rule, or `null` when there is no overlapping sibling to merge into
+ * (caller then persists a fresh rule).
+ */
+export async function reconcileCandidateIntoSameCategoryRule(
+  params: ReconcileCandidateParams,
+): Promise<CategoryRule | null> {
+  const {
+    compositeRules,
+    candidateSpec,
+    categoryId,
+    repository,
+    onReconciled,
+  } = params;
+  if (!categoryId) {
+    return null;
+  }
+
+  const overlapping = compositeRules.filter(
+    (rule) =>
+      rule.isEnabled &&
+      rule.categoryId === categoryId &&
+      rule.compositeSpec != null &&
+      compositeRulesShouldReconcile(rule.compositeSpec, candidateSpec),
+  );
+  if (overlapping.length === 0) {
+    return null;
+  }
+
+  // Merge into the most specific existing sibling so the surviving rule keeps
+  // the tightest scope; the comparator gives a deterministic, total order.
+  const target = pickMostSpecificCandidate(
+    overlapping.map((rule) => ({
+      spec: rule.compositeSpec as CompositeCategoryRuleSpec,
+      createdAt: rule.createdAt,
+      id: rule.id,
+      rule,
+    })),
+  );
+  if (!target) {
+    return null;
+  }
+
+  const merged = reconcileCompositeSpecs(
+    target.rule.compositeSpec as CompositeCategoryRuleSpec,
+    candidateSpec,
+  );
+  if (merged === null) {
+    // Union would exceed a phrase cap — keep the rules separate rather than
+    // silently dropping phrases. The specificity precedence still picks the
+    // most-excluded sibling at match time.
+    return null;
+  }
+  if (merged === target.rule.compositeSpec) {
+    // Existing rule already covers the candidate — nothing to persist.
+    return target.rule;
+  }
+  target.rule.compositeSpec = merged;
+  await repository.save(target.rule);
+  onReconciled?.(target.rule);
+  return target.rule;
 }

@@ -14,6 +14,10 @@ import {
   EmailHashes,
   evaluateComposite,
 } from "./category-rules-auto-composite.helper";
+import {
+  compareCompositeRuleSpecificity,
+  SpecificityCandidate,
+} from "./category-rules-specificity.helper";
 import { compositeSpecIsSupported } from "./category-rules-trace.helper";
 
 type NormaliseSender = (raw: string) => string;
@@ -40,11 +44,21 @@ export function buildEmailHashes(
   return { senderHash, domainPattern, domainHash, subjectPrefix, prefixHash };
 }
 
-export function findFirstCompositeRuleMatch(
+/**
+ * Returns the MOST SPECIFIC composite rule that matches the email, not the
+ * first/oldest one. Among all matching composite rules the winner is chosen by
+ * {@link compareCompositeRuleSpecificity} (subtype > more exclusions > more
+ * positive conditions > older createdAt > id), so a corrected, better-scoped
+ * sibling can no longer be permanently shadowed by the oldest broad rule.
+ */
+export function findMostSpecificCompositeRuleMatch(
   rules: CategoryRule[],
   email: EmailMetadata,
   normaliseSender: NormaliseSender,
 ): CategoryRuleMatch | null {
+  let winner: CategoryRule | null = null;
+  let winnerCandidate: SpecificityCandidate | null = null;
+
   for (const rule of rules) {
     if (rule.ruleKind !== CATEGORY_RULE_MATCH_MODES.COMPOSITE) {
       continue;
@@ -57,17 +71,33 @@ export function findFirstCompositeRuleMatch(
       email,
       normaliseSender,
     );
-    if (matches) {
-      return {
-        categoryName: rule.categoryName,
-        categoryId: rule.categoryId,
-        ruleId: rule.id,
-        ruleType: null,
-        ruleKind: "composite",
-      };
+    if (!matches) {
+      continue;
+    }
+    const candidate: SpecificityCandidate = {
+      spec: rule.compositeSpec,
+      createdAt: rule.createdAt,
+      id: rule.id,
+    };
+    if (
+      winnerCandidate === null ||
+      compareCompositeRuleSpecificity(candidate, winnerCandidate) < 0
+    ) {
+      winner = rule;
+      winnerCandidate = candidate;
     }
   }
-  return null;
+
+  if (!winner) {
+    return null;
+  }
+  return {
+    categoryName: winner.categoryName,
+    categoryId: winner.categoryId,
+    ruleId: winner.id,
+    ruleType: null,
+    ruleKind: "composite",
+  };
 }
 
 export function findLegacyRuleMatch(

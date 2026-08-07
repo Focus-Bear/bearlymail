@@ -1,8 +1,14 @@
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
-import { CompositeCategoryRuleSpecV2 } from "../database/entities/category-rule.entity";
+import {
+  CompositeCategoryRuleSpecV2,
+  CompositeCategoryRuleSpecV3,
+} from "../database/entities/category-rule.entity";
 import {
   applyDerivedExclusionsAndCheck,
+  augmentExclusionsForQaTemplates,
   deriveExclusionsForCompositeRule,
+  isQaCategory,
+  passesValidationMatchGate,
 } from "./category-rules-derive-exclusions.helper";
 import { DecryptedValidationRow } from "./category-rules-validate.helper";
 
@@ -342,5 +348,114 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
     });
     expect(outcome.passes).toBe(false);
     expect(outcome.finalSpec).toBeNull();
+  });
+
+  it("counts true positives from the category window, not the broad FP window", async () => {
+    // The broad FP window holds NO target-category threads (they aged out of the
+    // widened window), so measuring TP there would give 0 and fail the rule. The
+    // dense per-category window supplies the true positives — proving the split.
+    const min = CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
+    const categoryRows = Array.from({ length: min }, () =>
+      buildTargetRow("Build failed", "the pipeline broke"),
+    );
+    const broadRows = [buildFpRow("Newsletter", "unrelated content")];
+
+    const emailThreadRepository = {
+      manager: {
+        query: jest
+          .fn()
+          .mockImplementation((sql: string) =>
+            Promise.resolve(
+              sql.includes('"categoryId" = $2') ? categoryRows : broadRows,
+            ),
+          ),
+      },
+    };
+    const llmCategoriesService = {
+      deriveExclusionPhrasesFromFalsePositives: jest.fn(),
+    };
+
+    const outcome = await deriveExclusionsForCompositeRule({
+      emailThreadRepository,
+      llmCategoriesService,
+      normaliseSender: normalise,
+      userId,
+      positiveSpec,
+      categoryName,
+      categoryId: TARGET_CATEGORY_ID,
+      logger: { log: jest.fn() },
+    });
+
+    expect(outcome.truePositives).toBe(min);
+    expect(outcome.falsePositives).toBe(0);
+    expect(outcome.passes).toBe(true);
+    expect(
+      llmCategoriesService.deriveExclusionPhrasesFromFalsePositives,
+    ).not.toHaveBeenCalled();
+  });
+});
+
+describe("passesValidationMatchGate", () => {
+  const structuralSpec: CompositeCategoryRuleSpecV3 = {
+    v: 3,
+    fromMatchesAny: ["*@github.com"],
+    subjectContainsAny: [],
+    bodyContainsAny: [],
+    notificationSubtype: "github:pr",
+  };
+
+  it("keeps a zero-FP structural rule with a single true positive (min-match waived)", () => {
+    expect(passesValidationMatchGate(structuralSpec, 1, 0)).toBe(true);
+  });
+
+  it("still rejects a structural rule that produced any false positive", () => {
+    expect(passesValidationMatchGate(structuralSpec, 5, 1)).toBe(false);
+  });
+
+  it("rejects a phrase-only rule below AUTO_VALIDATE_MIN_MATCHES true positives", () => {
+    const min = CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
+    expect(passesValidationMatchGate(positiveSpec, min - 1, 0)).toBe(false);
+    expect(passesValidationMatchGate(positiveSpec, min, 0)).toBe(true);
+  });
+});
+
+describe("isQaCategory / augmentExclusionsForQaTemplates", () => {
+  const githubSpec: CompositeCategoryRuleSpecV3 = {
+    v: 3,
+    fromMatchesAny: ["*@github.com"],
+    subjectContainsAny: ["["],
+    bodyContainsAny: ["github"],
+    notificationSubtype: "github:pr",
+  };
+
+  it("recognises QA category names", () => {
+    expect(isQaCategory("QA")).toBe(true);
+    expect(isQaCategory("Quality Assurance")).toBe(true);
+    expect(isQaCategory("Test Reports")).toBe(true);
+    expect(isQaCategory("GitHub PRs")).toBe(false);
+  });
+
+  it("adds QA template markers as body NOT-contains for a non-QA GitHub category", () => {
+    const result = augmentExclusionsForQaTemplates(
+      githubSpec,
+      "GitHub PRs",
+    ) as CompositeCategoryRuleSpecV3;
+    expect(result.v).toBe(3);
+    expect(result.bodyNotContainsAny).toEqual(
+      expect.arrayContaining([...CATEGORY_RULE_COMPOSITE.QA_TEMPLATE_MARKERS]),
+    );
+    expect(result.notificationSubtype).toBe("github:pr");
+  });
+
+  it("does NOT add QA markers to a QA category (it should keep matching QA artefacts)", () => {
+    expect(augmentExclusionsForQaTemplates(githubSpec, "QA & Testing")).toBe(
+      githubSpec,
+    );
+  });
+
+  it("does NOT add QA markers to a non-GitHub rule", () => {
+    expect(augmentExclusionsForQaTemplates(positiveSpec, "Newsletters")).toBe(
+      positiveSpec,
+    );
   });
 });

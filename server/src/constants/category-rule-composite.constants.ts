@@ -21,6 +21,16 @@ export const CATEGORY_RULE_COMPOSITE = {
   SPEC_VERSION_V1: 1 as const,
   /** Composite rules require sender, subject, and body conditions. */
   MIN_DISTINCT_CONDITION_TYPES: 3,
+  /**
+   * Distinct-condition minimum for STRUCTURAL rules, i.e. rules pinned to a
+   * resolved `notificationSubtype` (e.g. `github:pr`). A notification sub-stream
+   * is a precise, deterministic structural signal — sender + subtype already
+   * separates one sub-stream from every other, which is exactly what the 3-type
+   * (sender + subject + body) requirement exists to guarantee. So a structural
+   * rule needs only sender + subtype (2 conditions); subject/body phrases become
+   * optional refinements. Non-structural (phrase-only) rules still need all 3.
+   */
+  MIN_DISTINCT_CONDITION_TYPES_STRUCTURAL: 2,
   /** Minimum length for one auto-generated body line in a composite rule. */
   AUTO_COMPOSITE_RULE_MIN_BODY_PHRASE_CHARS: 6,
   /**
@@ -39,13 +49,29 @@ export const CATEGORY_RULE_COMPOSITE = {
   /** Maximum number of rule suggestions returned by the suggest endpoint. */
   SUGGEST_MAX_RESULTS: 10,
   /** Number of recent emails per sender sampled when building suggestions. */
-  SUGGEST_SAMPLE_EMAILS_PER_SENDER: 5,
+  SUGGEST_SAMPLE_EMAILS_PER_SENDER: 8,
   /**
-   * Number of recent threads to evaluate a draft auto-rule against before
-   * persisting it. The rule is rejected if it produces any false positives
-   * (i.e. matches a thread the LLM categorised differently); see issue #1789.
+   * Breadth of the recent-thread window scanned to measure a draft rule's FALSE
+   * positives (matches against threads categorised differently); see issue #1789.
+   *
+   * Widened 200 → 800: at this user's volume 200 categorised threads is only
+   * ~3–4 hours of mail, far too narrow to trust a "zero false positives" reading.
+   * 800 covers a meaningfully longer window so an over-broad rule is far more
+   * likely to reveal a false positive before it is persisted. TRUE positives are
+   * measured separately, against the candidate category's OWN recent threads
+   * (see VALIDATE_CATEGORY_THREAD_COUNT), so widening this window does not dilute
+   * the per-category true-positive density.
    */
-  AUTO_VALIDATE_THREAD_COUNT: 200,
+  AUTO_VALIDATE_THREAD_COUNT: 800,
+  /**
+   * Number of the candidate category's OWN most-recent threads scanned to count
+   * TRUE positives. Kept separate from (and denser than) the broad FP window so a
+   * rare category can still reach the min-match bar: its true positives are
+   * sought among its own mail rather than diluted across the whole mailbox, while
+   * false positives are still judged against the broad AUTO_VALIDATE_THREAD_COUNT
+   * sample of non-category mail.
+   */
+  VALIDATE_CATEGORY_THREAD_COUNT: 300,
   /**
    * Minimum number of true-positive matches a draft auto-rule must produce
    * across the validation window for it to be persisted (issue #1789).
@@ -60,6 +86,32 @@ export const CATEGORY_RULE_COMPOSITE = {
    * 3 recurring examples is enough to prove a real pattern.
    */
   AUTO_VALIDATE_MIN_MATCHES: 3,
+  /**
+   * Minimum true positives a STRUCTURAL rule (one pinned to a resolved
+   * `notificationSubtype`) needs when it produced ZERO false positives. A
+   * zero-FP structural rule is a hard, deterministic separator (it can only fire
+   * on its own sub-stream), so a single confirmed true positive is enough to
+   * prove the sub-stream is real — no need for the AUTO_VALIDATE_MIN_MATCHES bar
+   * that exists to guard the looser phrase-only rules. Phrase-only rules keep the
+   * higher bar.
+   */
+  AUTO_VALIDATE_STRUCTURAL_MIN_MATCHES: 1,
+  /**
+   * Structured QA test-plan/report template markers. QA comments on GitHub PRs
+   * follow this template (a heading block) but a QA test PLAN has no Pass/Fail
+   * result word, so the brittle Pass/Fail heuristic misses them and they leak
+   * into non-QA GitHub categories. Any of these markers in the body is a strong,
+   * wording-independent signal that a message is a QA test artefact, so they are
+   * auto-added as body NOT-contains exclusions on rules for non-QA GitHub
+   * categories (never on QA categories, which SHOULD match them).
+   */
+  QA_TEMPLATE_MARKERS: ["Test Environment", "Test Objective", "Preconditions"],
+  /**
+   * Case-insensitive substrings that mark a category as a QA category, which
+   * therefore SHOULD keep matching QA test artefacts and must NOT receive the
+   * QA_TEMPLATE_MARKERS exclusions.
+   */
+  QA_CATEGORY_KEYWORDS: ["qa", "quality assurance", "test"],
   /**
    * Maximum number of TP and FP email samples passed to the LLM when
    * deriving `subjectNotContainsAny` / `bodyNotContainsAny` exclusions

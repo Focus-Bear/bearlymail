@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import crypto from "crypto";
 
+import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -443,6 +444,70 @@ describe("CategoryRulesService", () => {
 
       expect(repo.create).not.toHaveBeenCalled();
       expect(result).toBeNull();
+    });
+
+    it("creates a STRUCTURAL rule (sender + notificationSubtype) with no subject/body phrases", async () => {
+      // Templated GitHub PR sender whose per-item phrases vary, so the LLM
+      // returns none. The resolved github:pr subtype lets one broad rule cover
+      // the whole PR stream without a phrase requirement. A non-QA GitHub
+      // category also gets the QA template markers as body exclusions.
+      llmCategoriesService.suggestRulesFromEmailSamples.mockResolvedValue({
+        fromMatchesAny: ["notifications@github.com"],
+        subjectContainsAny: [],
+        bodyContainsAny: [],
+        subjectNotContainsAny: [],
+        bodyNotContainsAny: [],
+      });
+      const githubPrEmail = {
+        from: "notifications@github.com",
+        subject: "[owner/repo] Add feature (#42)",
+        body: "A user commented on the pull request",
+        htmlBody:
+          '<a href="https://github.com/owner/repo/pull/42">View it on GitHub</a>',
+      };
+      emailRepo.find.mockResolvedValue([githubPrEmail]);
+      repo.find.mockResolvedValue([]);
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextId: "cat-gh",
+          contextValue: "GitHub PRs",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+      const created = {
+        id: "comp-structural",
+        ruleKind: "composite",
+        categoryName: "GitHub PRs",
+      };
+      repo.create.mockReturnValue(created);
+      repo.save.mockResolvedValue(created);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] Add feature (#42)",
+          bodyTextForMatch: "A user commented on the pull request",
+          notificationSubtype: "github:pr",
+        },
+        "GitHub PRs",
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          compositeSpec: expect.objectContaining({
+            v: 3,
+            fromMatchesAny: ["notifications@github.com"],
+            subjectContainsAny: [],
+            bodyContainsAny: [],
+            notificationSubtype: "github:pr",
+            bodyNotContainsAny: expect.arrayContaining([
+              ...CATEGORY_RULE_COMPOSITE.QA_TEMPLATE_MARKERS,
+            ]),
+          }),
+        }),
+      );
+      expect(result).toEqual(created);
     });
   });
 

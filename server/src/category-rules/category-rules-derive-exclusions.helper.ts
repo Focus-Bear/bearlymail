@@ -27,9 +27,14 @@ import {
   LLMCategoriesService,
 } from "../llm/llm-categories.service";
 import {
+  mergeExclusionsIntoSpec,
+  specHasStructuralConstraint,
+} from "./category-rules-match-gate.helper";
+import {
   DecryptedValidationRow,
   decryptValidationRow,
   fetchRecentCategorisedEmailRows,
+  fetchRecentThreadsForCategoryRows,
   partitionMatchesByCategory,
 } from "./category-rules-validate.helper";
 
@@ -60,6 +65,73 @@ export interface DeriveExclusionsParams {
    * why exclusion rules never persist — see the branch summaries below.
    */
   logger: { log: (message: string) => void };
+}
+
+/**
+ * Whether a draft rule clears the validation match gate. A zero-false-positive
+ * STRUCTURAL rule (one pinned to a resolved notification sub-stream) is a hard
+ * deterministic separator, so a single true positive is enough to keep it —
+ * AUTO_VALIDATE_MIN_MATCHES is waived. Phrase-only rules still need the full
+ * min-match count. Any false positive fails the gate regardless.
+ */
+export function passesValidationMatchGate(
+  spec: CompositeCategoryRuleSpec,
+  truePositives: number,
+  falsePositives: number,
+): boolean {
+  if (falsePositives !== 0) {
+    return false;
+  }
+  if (
+    specHasStructuralConstraint(spec) &&
+    truePositives >=
+      CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_STRUCTURAL_MIN_MATCHES
+  ) {
+    return true;
+  }
+  return truePositives >= CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
+}
+
+/**
+ * True when the category name marks it as a QA category. QA categories SHOULD
+ * match QA test artefacts, so they must NOT receive the QA-template exclusions.
+ */
+export function isQaCategory(categoryName: string): boolean {
+  const normalized = categoryName.trim().toLowerCase();
+  return CATEGORY_RULE_COMPOSITE.QA_CATEGORY_KEYWORDS.some((keyword) =>
+    normalized.includes(keyword),
+  );
+}
+
+/** True when a v3 spec is pinned to a GitHub notification sub-stream. */
+function isGithubStructuralSpec(spec: CompositeCategoryRuleSpec): boolean {
+  return (
+    spec.v === 3 && (spec.notificationSubtype?.startsWith("github:") ?? false)
+  );
+}
+
+/**
+ * For a non-QA GitHub category, adds the QA template markers (`Test Environment`,
+ * `Test Objective`, `Preconditions`) as body NOT-contains exclusions. Structured
+ * QA test comments arrive as GitHub notifications and follow this heading
+ * template, but a QA test PLAN carries no Pass/Fail result word, so the brittle
+ * Pass/Fail heuristic misses them and they leak into non-QA GitHub categories.
+ * These markers exclude them regardless of Pass/Fail wording. Returns the spec
+ * unchanged for non-GitHub rules and for QA categories (which should keep
+ * matching QA artefacts).
+ */
+export function augmentExclusionsForQaTemplates(
+  spec: CompositeCategoryRuleSpec,
+  categoryName: string,
+): CompositeCategoryRuleSpec {
+  if (!isGithubStructuralSpec(spec) || isQaCategory(categoryName)) {
+    return spec;
+  }
+  return mergeExclusionsIntoSpec(
+    spec,
+    [],
+    [...CATEGORY_RULE_COMPOSITE.QA_TEMPLATE_MARKERS],
+  );
 }
 
 function rowToSample(row: DecryptedValidationRow): ExclusionDerivationSample {
@@ -298,9 +370,11 @@ export function applyDerivedExclusionsAndCheck(
   );
   const truePositives = rePartition.truePositiveRows.length;
   const falsePositives = rePartition.falsePositiveRows.length;
-  const passes =
-    falsePositives === 0 &&
-    truePositives >= CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
+  const passes = passesValidationMatchGate(
+    finalSpec,
+    truePositives,
+    falsePositives,
+  );
   return {
     passes,
     truePositives,
@@ -314,6 +388,60 @@ function describeFpDeriveOutcome(result: DeriveExclusionsOutcome): string {
   if (result.passes) return "ok";
   if (result.falsePositives > 0) return "fp-not-cleared";
   return `tp-below-min(${result.truePositives})`;
+}
+
+interface ValidationPartition {
+  truePositiveRows: DecryptedValidationRow[];
+  falsePositiveRows: DecryptedValidationRow[];
+  /** Size of the broad FP window — 0 means no categorised history to validate against. */
+  broadRowCount: number;
+}
+
+/**
+ * Fetches the two validation windows and partitions them: true positives from
+ * the candidate category's OWN recent threads (dense), false positives from a
+ * BROAD recent sample of all categorised mail. Splitting the windows lets a
+ * structural rule cover a whole sub-stream without its true positives being
+ * diluted across the mailbox, while an over-broad rule is still caught against
+ * non-category threads.
+ */
+async function fetchValidationPartition(
+  emailThreadRepository: Repository<EmailThread>,
+  userId: string,
+  positiveSpec: CompositeCategoryRuleSpec,
+  normaliseSender: (raw: string) => string,
+  targetCategoryId: string | null,
+): Promise<ValidationPartition> {
+  const broadRows = (
+    await fetchRecentCategorisedEmailRows(emailThreadRepository, userId)
+  ).map(decryptValidationRow);
+  const categoryRows = targetCategoryId
+    ? (
+        await fetchRecentThreadsForCategoryRows(
+          emailThreadRepository,
+          userId,
+          targetCategoryId,
+        )
+      ).map(decryptValidationRow)
+    : [];
+
+  const { truePositiveRows } = partitionMatchesByCategory(
+    categoryRows,
+    positiveSpec,
+    normaliseSender,
+    targetCategoryId,
+  );
+  const { falsePositiveRows } = partitionMatchesByCategory(
+    broadRows,
+    positiveSpec,
+    normaliseSender,
+    targetCategoryId,
+  );
+  return {
+    truePositiveRows,
+    falsePositiveRows,
+    broadRowCount: broadRows.length,
+  };
 }
 
 /**
@@ -341,26 +469,22 @@ export async function deriveExclusionsForCompositeRule(
       `[CategoryRules][derive] category="${categoryName}" minRequired=${minMatches} ${fields} user=${userId}`,
     );
 
-  const rawRows = await fetchRecentCategorisedEmailRows(
-    emailThreadRepository,
-    userId,
-  );
-  const decryptedRows = rawRows.map(decryptValidationRow);
-
-  const { truePositiveRows, falsePositiveRows } = partitionMatchesByCategory(
-    decryptedRows,
-    positiveSpec,
-    normaliseSender,
-    targetCategoryId,
-  );
+  const { truePositiveRows, falsePositiveRows, broadRowCount } =
+    await fetchValidationPartition(
+      emailThreadRepository,
+      userId,
+      positiveSpec,
+      normaliseSender,
+      targetCategoryId,
+    );
   const truePositives = truePositiveRows.length;
   const falsePositives = falsePositiveRows.length;
 
-  if (decryptedRows.length === 0 || !targetCategoryId) {
+  if (broadRowCount === 0 || !targetCategoryId) {
     // Same fallback as `validateCompositeRuleAgainstHistory` — no history to
     // validate against, so we accept the positive-only spec.
     logLine(
-      `branch=no-history rows=${decryptedRows.length} hasCategoryId=${!!targetCategoryId} passes=true`,
+      `branch=no-history broadRows=${broadRowCount} hasCategoryId=${!!targetCategoryId} passes=true`,
     );
     return {
       passes: true,
@@ -371,7 +495,11 @@ export async function deriveExclusionsForCompositeRule(
   }
 
   if (falsePositives === 0) {
-    const passes = truePositives >= minMatches;
+    const passes = passesValidationMatchGate(
+      positiveSpec,
+      truePositives,
+      falsePositives,
+    );
     // Clean, zero-FP candidate. When this fails it is because the sender+phrase
     // spec matched fewer than `minRequired` threads in the target category —
     // i.e. the TP-count gate, NOT exclusions.

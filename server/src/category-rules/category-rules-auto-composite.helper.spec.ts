@@ -162,6 +162,51 @@ describe("evaluateComposite", () => {
       expect(result.matches).toBe(false);
     });
 
+    it("matches a structural rule with NO subject/body phrases when the subtype matches (empty phrase list = no constraint)", () => {
+      const structuralSpec: CompositeCategoryRuleSpecV3 = {
+        v: 3,
+        fromMatchesAny: ["*@github.com"],
+        subjectContainsAny: [],
+        bodyContainsAny: [],
+        notificationSubtype: "github:pr",
+      };
+      const result = evaluateComposite(
+        structuralSpec,
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] Add feature (#42)",
+          bodyTextForMatch: "anything at all",
+          notificationSubtype: "github:pr",
+        },
+        normalise,
+      );
+      expect(result.matches).toBe(true);
+      expect(result.detail.subjectMatch).toBe(true);
+      expect(result.detail.bodyMatch).toBe(true);
+    });
+
+    it("does NOT match a structural rule when the email's subtype differs, even with empty phrases", () => {
+      const structuralSpec: CompositeCategoryRuleSpecV3 = {
+        v: 3,
+        fromMatchesAny: ["*@github.com"],
+        subjectContainsAny: [],
+        bodyContainsAny: [],
+        notificationSubtype: "github:pr",
+      };
+      const result = evaluateComposite(
+        structuralSpec,
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] A bug (#7)",
+          bodyTextForMatch: "anything at all",
+          notificationSubtype: "github:issue",
+        },
+        normalise,
+      );
+      expect(result.matches).toBe(false);
+      expect(result.detail.notificationSubtypeMatch).toBe(false);
+    });
+
     it("ignores the email's subtype when the spec has no notificationSubtype condition", () => {
       const result = evaluateComposite(
         { ...ciSpec, notificationSubtype: undefined },

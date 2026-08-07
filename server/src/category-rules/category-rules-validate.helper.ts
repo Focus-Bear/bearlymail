@@ -274,6 +274,50 @@ export async function fetchRecentCategorisedEmailRows(
   );
 }
 
+/**
+ * Returns one representative email from each of the candidate category's OWN
+ * VALIDATE_CATEGORY_THREAD_COUNT most recently-updated threads. Used to count a
+ * draft rule's TRUE positives against a dense sample of the target category, so
+ * a rare category can still reach the min-match bar — its true positives are not
+ * diluted across the whole mailbox the way the broad FP window would.
+ *
+ * Same one-email-per-thread shape and PostgreSQL-only implementation as
+ * {@link fetchRecentCategorisedEmailRows}; the only difference is the WHERE
+ * clause pins a single categoryId.
+ */
+export async function fetchRecentThreadsForCategoryRows(
+  emailThreadRepository: Repository<EmailThread>,
+  userId: string,
+  categoryId: string,
+): Promise<ValidationRow[]> {
+  return emailThreadRepository.manager.query(
+    `
+    WITH recent_threads AS (
+      SELECT id, "categoryId"
+      FROM email_threads
+      WHERE "userId" = $1 AND "categoryId" = $2
+      ORDER BY "updatedAt" DESC
+      LIMIT $3
+    )
+    SELECT DISTINCT ON (e."emailThreadId")
+      e."from"        AS "from",
+      e.subject       AS subject,
+      e.body          AS body,
+      e."htmlBody"    AS "htmlBody",
+      rt."categoryId" AS "categoryId"
+    FROM recent_threads rt
+    INNER JOIN emails e ON e."emailThreadId" = rt.id
+    WHERE e."userId" = $1
+    ORDER BY e."emailThreadId", e."receivedAt" DESC
+    `,
+    [
+      userId,
+      categoryId,
+      CATEGORY_RULE_COMPOSITE.VALIDATE_CATEGORY_THREAD_COUNT,
+    ],
+  );
+}
+
 export interface ValidateCompositeRuleParams {
   emailThreadRepository: Repository<EmailThread>;
   userContextRepository: Repository<UserContext>;

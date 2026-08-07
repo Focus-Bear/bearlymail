@@ -69,7 +69,7 @@
     "@aws-sdk/client-sqs": "^3.1075.0",
     "@aws-sdk/lib-storage": "^3.1101.0",
     "@aws-sdk/s3-request-presigner": "^3.1085.0",
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^2.15.0",
     "@nestjs/common": "^11.1.21",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.26",

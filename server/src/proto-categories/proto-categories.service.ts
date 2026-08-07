@@ -58,11 +58,27 @@ function stripCategoryName(name: string): string {
     .trim();
 }
 
-// Stronger Gemini model used for duplicate decisions when creating/promoting a
-// proto category. Deduplication is a high-stakes, low-volume decision (it
-// determines whether a brand-new category is created), so we pay for the
-// non-lite model with thinking enabled rather than the cheap shortlisting model.
-const STRONG_DEDUP_MODEL = "gemini-3.1-flash";
+// Strong, current-generation non-lite model for duplicate decisions (a
+// high-stakes, low-volume call that decides whether a brand-new category is
+// created), with thinking enabled rather than the cheap shortlisting model.
+// NB: "gemini-3.1-flash" does NOT exist (the 3.1 gen ships only -lite/-image);
+// gemini-3.6-flash is the newest full flash. JSON reliability is guaranteed by
+// DEDUP_RESPONSE_SCHEMA (structured output) below, not by the model — so a
+// thinking model can't leak chain-of-thought into the verdict.
+const STRONG_DEDUP_MODEL = "gemini-3.6-flash";
+
+// Structured-output schema for the duplicate verdict. Constrained decoding
+// forces exactly this shape, so `checkCategoryDuplicate`'s JSON parse can never
+// fail open on stray prose from a thinking model.
+const DEDUP_RESPONSE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    isDuplicate: { type: "boolean" },
+    reasoning: { type: "string" },
+  },
+  required: ["isDuplicate", "reasoning"],
+  propertyOrdering: ["isDuplicate", "reasoning"],
+};
 
 // Headroom for the strong dedup model's JSON verdict. Larger than the lite
 // path's 128 because thinking models emit a little more before the JSON.
@@ -842,6 +858,10 @@ export class ProtoCategoriesService {
         temperature: 0,
         maxTokens: DEDUP_MAX_TOKENS,
         jsonMode: true,
+        // Structured output guarantees a parseable {isDuplicate, reasoning}
+        // even with a thinking model, so the verdict never fails open on a
+        // chain-of-thought leak (see LLMRequest.responseSchema).
+        responseSchema: DEDUP_RESPONSE_SCHEMA,
         operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
         model: this.strongDedupModel,
         thinking: true,

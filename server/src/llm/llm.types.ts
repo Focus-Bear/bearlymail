@@ -21,6 +21,14 @@ export interface LLMRequest {
   operation?: LLMOperation;
   /** When true, instructs the provider to return valid JSON (prevents non-JSON responses). */
   jsonMode?: boolean;
+  /**
+   * Optional JSON schema for structured output (Gemini `responseSchema` /
+   * constrained decoding). Far stronger than `jsonMode` alone: the model is
+   * forced to emit output matching the schema, so thinking models can't leak
+   * chain-of-thought prose into the JSON body. Currently applied on the Gemini
+   * path; other providers fall back to `jsonMode`. Requires `jsonMode: true`.
+   */
+  responseSchema?: Record<string, unknown>;
   /** Optional model override (e.g. for cheap triage calls). */
   model?: string;
   /**

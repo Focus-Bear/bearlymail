@@ -177,8 +177,9 @@ export class User {
   isAdmin: boolean;
 
   @Column({
-    default: false,
-    comment: "Approved from waitlist",
+    default: true,
+    comment:
+      "Whether the account is active. Direct sign-up approves on creation; kept for legacy/admin use (no longer a waitlist gate).",
   })
   isApproved: boolean;
 

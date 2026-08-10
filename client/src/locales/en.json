@@ -3804,8 +3804,11 @@
         "signIn": "Sign in",
         "joinWaitlist": "Join waitlist"
       },
+      "cta": {
+        "getStarted": "Get started free"
+      },
       "hero": {
-        "eyebrow": "Private beta · Now accepting waitlist",
+        "eyebrow": "Now in open beta · Free to start",
         "titlePre": "Email that",
         "titleEm": "respects",
         "titlePostEm": " your",
@@ -4259,13 +4262,11 @@
       "ctaFinal": {
         "titlePre": "Take back your ",
         "titleEm": "focus.",
-        "body": "BearlyMail is in private beta. Join the waitlist to get early access — and help shape the future of email for people who need to think.",
+        "body": "Sign up in seconds, connect your inbox, and let BearlyMail start batching the noise today — for people who need to think.",
         "emailLabel": "Email address",
         "emailPlaceholder": "you@work.com",
         "submit": "Reserve my spot →",
-        "metaPre": "No spam, no commitment · ",
-        "metaBold": "8",
-        "metaRest": " on the waitlist · lifetime discount for early members"
+        "meta": "Free to start · connect Gmail, Outlook, or Zoho · cancel anytime"
       },
       "footer": {
         "copyright": "© 2026 BearlyMail",
@@ -4350,7 +4351,7 @@
     },
     "em": {
       "hero": {
-        "eyebrow": "For engineering managers · Now accepting waitlist",
+        "eyebrow": "For engineering managers · Now in open beta",
         "titlePre": "Spot the prod incident,",
         "titleEm": "not the standup",
         "titlePostEm": "",
@@ -4433,7 +4434,7 @@
     },
     "pm": {
       "hero": {
-        "eyebrow": "For product managers · Now accepting waitlist",
+        "eyebrow": "For product managers · Now in open beta",
         "titlePre": "Find the customer escalation,",
         "titleEm": "not the standup",
         "titlePostEm": "",

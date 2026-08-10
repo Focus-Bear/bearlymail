@@ -8,4 +8,3 @@ export { HowItWorks } from './HowItWorks';
 export { ProblemSection } from './ProblemSection';
 export { SiteFooter } from './SiteFooter';
 export { SiteHeader } from './SiteHeader';
-export { WaitlistModal } from './WaitlistModal';

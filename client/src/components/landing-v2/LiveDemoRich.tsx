@@ -18,12 +18,12 @@ import {
   type RichDemoCard,
   ROW_ACTION_ARCHIVE,
   type RowAction,
+  SIGNUP_PATH,
   TAB_ACTION,
   TAB_FOLLOWUP,
   TAB_TRIAGE,
 } from './constants';
 import { type RichDemoState, useRichDemo } from './useRichDemo';
-import { openWaitlist } from './waitlistStore';
 
 const DEMO_PREFIX = 'landing.v2.demo';
 
@@ -56,7 +56,9 @@ export const LiveDemoRich: React.FC = () => {
   const localT: LocalT = (suffix, options) =>
     options ? t(`${DEMO_PREFIX}.${suffix}`, options) : t(`${DEMO_PREFIX}.${suffix}`);
 
-  const demo = useRichDemo(() => openWaitlist());
+  const demo = useRichDemo(() => {
+    window.location.assign(SIGNUP_PATH);
+  });
 
   return (
     <div className="demo-wrap demo-rich">

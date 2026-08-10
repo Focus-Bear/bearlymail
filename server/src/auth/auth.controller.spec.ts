@@ -41,6 +41,7 @@ describe("AuthController", () => {
 
   const mockAuthService = {
     login: jest.fn(),
+    register: jest.fn(),
     setupPassword: jest.fn(),
     forgotPassword: jest.fn(),
     resetPassword: jest.fn(),
@@ -102,13 +103,39 @@ describe("AuthController", () => {
   });
 
   describe("register", () => {
-    it("should always reject with BadRequestException (registration disabled)", async () => {
+    it("should create an account, set the JWT cookie, and return login data", async () => {
+      const loginData = {
+        access_token: "jwt-token",
+        user: { id: "new-user", email: "new@example.com" },
+      };
+      mockAuthService.register.mockResolvedValue(loginData);
+      const res = createMockResponse();
+
+      const result = await controller.register(
+        { email: "new@example.com", password: "a-strong-password" },
+        asResponse(res),
+      );
+
+      expect(result).toEqual(loginData);
+      expect(mockAuthService.register).toHaveBeenCalledWith(
+        "new@example.com",
+        "a-strong-password",
+        undefined,
+      );
+      expect(res.cookie).toHaveBeenCalledWith(
+        AUTH_CONSTANTS.COOKIE_NAME,
+        "jwt-token",
+        expectedCookieOptions,
+      );
+    });
+
+    it("should reject with BadRequestException when email or password is missing", async () => {
+      const res = createMockResponse();
+
       await expect(
-        controller.register({ email: "new@example.com", password: "pw" }),
+        controller.register({ email: "", password: "" }, asResponse(res)),
       ).rejects.toThrow(BadRequestException);
-      await expect(
-        controller.register({ email: "new@example.com", password: "pw" }),
-      ).rejects.toThrow(/waitlist/i);
+      expect(res.cookie).not.toHaveBeenCalled();
     });
   });
 

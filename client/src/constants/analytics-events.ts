@@ -102,6 +102,7 @@ export const ANALYTICS_EVENTS = {
   USER_LOGGED_IN: 'user_logged_in',
   USER_LOGGED_OUT: 'user_logged_out',
   USER_REGISTERED: 'user_registered',
+  LANDING_SIGN_UP_CLICKED: 'landing-sign-up-clicked',
   WAIT_LIST_BUTTON_CLICKED: 'wait-list-button-clicked',
   WAIT_LIST_EMAIL_ENTERED: 'wait-list-email-entered',
   WAIT_LIST_EMAIL_PLATFORM_SELECTED: 'wait-list-email-platform-selected',

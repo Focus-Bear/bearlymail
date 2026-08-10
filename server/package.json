@@ -66,7 +66,7 @@
     "@aws-sdk/client-lambda": "^3.1079.0",
     "@aws-sdk/client-s3": "^3.1057.0",
     "@aws-sdk/client-ses": "^3.1096.0",
-    "@aws-sdk/client-sqs": "^3.1075.0",
+    "@aws-sdk/client-sqs": "^3.1106.0",
     "@aws-sdk/lib-storage": "^3.1101.0",
     "@aws-sdk/s3-request-presigner": "^3.1085.0",
     "@google/genai": "^2.15.0",

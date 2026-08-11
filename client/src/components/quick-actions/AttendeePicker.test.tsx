@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { Attendee } from 'utils/attendeeUtils';
 
 import { AttendeePicker } from 'components/quick-actions/AttendeePicker';
-import { Attendee } from 'utils/attendeeUtils';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),

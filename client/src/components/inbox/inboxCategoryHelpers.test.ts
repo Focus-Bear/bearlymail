@@ -12,6 +12,7 @@ import {
   getDisplayOrderedEmails,
   navigateAfterSplitViewAction,
   pickNextEmailAfterRemoval,
+  shouldFetchProtoCategories,
 } from './inboxCategoryHelpers';
 
 vi.mock('components/inbox/CategoryAccordion', () => ({
@@ -281,6 +282,36 @@ describe('buildDisplayCategories', () => {
     const result = buildDisplayCategories(summary, [], [], MODE);
     expect(result).toHaveLength(1);
     expect(result[0].count).toBe(5);
+  });
+});
+
+// Regression for the "Convert to category" no-op bug: proto categories were only
+// fetched when expandedCategories contained the literal "Other" string, but the
+// "Other" accordion is keyed by getCategoryKey → "uncategorized". So the fetch
+// never ran, protoCategories stayed empty, and the convert handler received an
+// empty id and silently returned. shouldFetchProtoCategories must match by the
+// resolved category key, not the raw name.
+describe('shouldFetchProtoCategories', () => {
+  const OTHER_CATEGORY = { id: null, name: CATEGORY_OTHER };
+  const OTHER_KEY = CATEGORY_KEY_UNCATEGORIZED;
+
+  it('returns true when the Other accordion is expanded (keyed by "uncategorized")', () => {
+    expect(shouldFetchProtoCategories([OTHER_CATEGORY], new Set([OTHER_KEY]))).toBe(true);
+  });
+
+  it('returns false when checking the raw "Other" name would have (regression guard)', () => {
+    // The old buggy code did expandedCategories.has('Other'); the accordion is
+    // never stored under that key, so it must NOT drive the fetch decision.
+    expect(shouldFetchProtoCategories([OTHER_CATEGORY], new Set([CATEGORY_OTHER]))).toBe(false);
+  });
+
+  it('returns false when the Other accordion is collapsed', () => {
+    expect(shouldFetchProtoCategories([OTHER_CATEGORY], new Set(['some-other-uuid']))).toBe(false);
+  });
+
+  it('returns false when there is no Other category', () => {
+    const categories = [{ id: 'uuid-a', name: 'Alpha' }];
+    expect(shouldFetchProtoCategories(categories, new Set([OTHER_KEY]))).toBe(false);
   });
 });
 

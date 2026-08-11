@@ -2,13 +2,18 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { Email, InboxMode } from 'types/email';
 
-import { CATEGORY_OTHER, MODE_BLOCKED } from 'constants/strings';
+import { MODE_BLOCKED } from 'constants/strings';
 import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { selectSummaryLoading } from 'store/selectors/emailSelectors';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
-import { buildDisplayCategories, buildEmailCategoryMap, buildOtherProtoGroups } from './inboxCategoryHelpers';
+import {
+  buildDisplayCategories,
+  buildEmailCategoryMap,
+  buildOtherProtoGroups,
+  shouldFetchProtoCategories,
+} from './inboxCategoryHelpers';
 import { useInboxCategorySync } from './useInboxCategorySync';
 import { useInboxSplitViewHandlers } from './useInboxSplitViewHandlers';
 
@@ -25,6 +30,8 @@ interface UseInboxContentStateParams {
   updateDraft?: (followUpId: string, draft: string) => Promise<void>;
   bulkSend?: (followUpIds: string[]) => Promise<void>;
   fetchThreadsWithDrafts: () => void;
+  /** Refetches the inbox so promoted proto-category emails move out of "Other". */
+  onRefreshInbox?: () => void;
 }
 
 export function useInboxContentState({
@@ -40,6 +47,7 @@ export function useInboxContentState({
   updateDraft,
   bulkSend,
   fetchThreadsWithDrafts,
+  onRefreshInbox,
 }: UseInboxContentStateParams) {
   const { isMobile } = useResponsiveBreakpoints();
   const summaryLoading = useSelector(selectSummaryLoading);
@@ -57,7 +65,7 @@ export function useInboxContentState({
     handleDeleteProtoCategoryFromInbox,
     recategorizeProgress,
     dismissRecategorizeProgress,
-  } = useProtoCategoryManagement();
+  } = useProtoCategoryManagement({ onPromoted: onRefreshInbox });
 
   const splitViewHandlers = useInboxSplitViewHandlers({
     mode,
@@ -91,8 +99,7 @@ export function useInboxContentState({
   );
 
   useEffect(() => {
-    const hasOther = displayCategories.some(cat => cat.name === CATEGORY_OTHER);
-    if (hasOther && expandedCategories.has(CATEGORY_OTHER)) {
+    if (shouldFetchProtoCategories(displayCategories, expandedCategories)) {
       fetchProtoCategories();
     }
   }, [expandedCategories, displayCategories, fetchProtoCategories]);

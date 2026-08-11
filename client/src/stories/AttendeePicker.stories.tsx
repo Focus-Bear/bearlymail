@@ -9,9 +9,9 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import type { Meta, StoryObj } from '@storybook/react';
 import i18n from 'i18next';
 import { theme } from 'theme/theme';
+import { Attendee } from 'utils/attendeeUtils';
 
 import { AttendeePicker } from 'components/quick-actions/AttendeePicker';
-import { Attendee } from 'utils/attendeeUtils';
 
 const pickerI18n = i18n.createInstance();
 pickerI18n.use(initReactI18next).init({

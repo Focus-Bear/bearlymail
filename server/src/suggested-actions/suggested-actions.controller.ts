@@ -8,6 +8,13 @@ import {
   Request,
   UseGuards,
 } from "@nestjs/common";
+import {
+  IsArray,
+  IsEmail,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from "class-validator";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CalendarService } from "../calendar/calendar.service";
@@ -19,6 +26,37 @@ import { GitHubProjectStatusService } from "../github/github-project-status.serv
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
 import { UsersService } from "../users/users.service";
 import { SuggestedActionsService } from "./suggested-actions.service";
+
+class CreateCalendarInviteDto {
+  @IsString()
+  startTime!: string;
+
+  @IsPositive()
+  durationMinutes!: number;
+
+  /** Everyone to invite (sender + To + CC by default). Each must be a valid email. */
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  attendees?: string[];
+
+  /** Legacy single-guest field, kept for backward compatibility. */
+  @IsOptional()
+  @IsEmail()
+  guestEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  guestName?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
 
 @Controller("suggested-actions")
 @UseGuards(JwtAuthGuard, AiCapacityGuard)
@@ -181,25 +219,25 @@ export class SuggestedActionsController {
   @Post("calendar/create-invite")
   async createCalendarInvite(
     @Request() req,
-    @Body()
-    body: {
-      startTime: string;
-      durationMinutes: number;
-      guestEmail: string;
-      guestName?: string;
-      title?: string;
-      description?: string;
-    },
+    @Body() body: CreateCalendarInviteDto,
   ) {
     const { userId } = req.user;
+    // Prefer the full attendee list; fall back to the legacy single guest field.
+    const legacyGuest = body.guestEmail ? [body.guestEmail] : [];
+    const guestList = body.attendees?.length ? body.attendees : legacyGuest;
+    if (guestList.length === 0) {
+      throw new BadRequestException("At least one attendee is required");
+    }
+    const [primaryGuest, ...additionalGuests] = guestList;
     const event = await this.calendarService.createEvent({
       userId,
       startTime: body.startTime,
       durationMinutes: body.durationMinutes,
-      guestEmail: body.guestEmail,
-      guestName: body.guestName,
+      guestEmail: primaryGuest,
+      guestName: primaryGuest === body.guestEmail ? body.guestName : undefined,
       title: body.title,
       description: body.description,
+      additionalGuests,
     });
     return event;
   }

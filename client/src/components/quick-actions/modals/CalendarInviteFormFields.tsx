@@ -3,14 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface CalendarInviteFormFieldsProps {
-  guestEmail: string;
-  guestName: string;
   title: string;
   description: string;
   startTime: string;
   durationMinutes: number;
-  onGuestEmailChange: (value: string) => void;
-  onGuestNameChange: (value: string) => void;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onStartTimeChange: (value: string) => void;
@@ -33,14 +29,10 @@ const labelStyle = {
 };
 
 export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> = ({
-  guestEmail,
-  guestName,
   title,
   description,
   startTime,
   durationMinutes,
-  onGuestEmailChange,
-  onGuestNameChange,
   onTitleChange,
   onDescriptionChange,
   onStartTimeChange,
@@ -50,25 +42,6 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
 
   return (
     <>
-      <div style={{ marginBottom: theme.spacing.md }}>
-        <label style={labelStyle}>{t('calendar.attendeeEmail')} *</label>
-        <input
-          type="email"
-          value={guestEmail}
-          onChange={event => onGuestEmailChange(event.target.value)}
-          required
-          style={inputStyle}
-        />
-      </div>
-      <div style={{ marginBottom: theme.spacing.md }}>
-        <label style={labelStyle}>{t('calendar.attendeeName')}</label>
-        <input
-          type="text"
-          value={guestName}
-          onChange={event => onGuestNameChange(event.target.value)}
-          style={inputStyle}
-        />
-      </div>
       <div style={{ marginBottom: theme.spacing.md }}>
         <label style={labelStyle}>{t('calendar.eventTitle')} *</label>
         <input

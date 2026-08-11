@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+import { Attendee, deriveThreadAttendees } from 'utils/attendeeUtils';
 import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
 
+import { AttendeePicker } from 'components/quick-actions/AttendeePicker';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -323,7 +325,9 @@ interface EditMeetingFormProps {
   initialAvailabilityColor: string;
   /** Events behind the original conflict verdict, shown until the user edits the time. */
   initialConflictingEvents: ConflictingEvent[];
-  onConfirm: (time: string, duration: number, topic: string) => void;
+  /** Candidate attendees (sender + To + CC), pre-selected so the invite defaults to everyone. */
+  attendeeCandidates: Attendee[];
+  onConfirm: (time: string, duration: number, topic: string, attendees: string[]) => void;
   onCancel: () => void;
 }
 
@@ -334,6 +338,7 @@ const EditMeetingForm: React.FC<EditMeetingFormProps> = ({
   initialAvailabilityText,
   initialAvailabilityColor,
   initialConflictingEvents,
+  attendeeCandidates,
   onConfirm,
   onCancel,
 }) => {
@@ -341,6 +346,9 @@ const EditMeetingForm: React.FC<EditMeetingFormProps> = ({
   const [time, setTime] = useState(isoToDatetimeLocal(initialTime));
   const [duration, setDuration] = useState(initialDuration);
   const [topic, setTopic] = useState(initialTopic);
+  const [selectedAttendees, setSelectedAttendees] = useState<string[]>(() =>
+    attendeeCandidates.map((attendee) => attendee.email),
+  );
   const availability = useSlotAvailabilityRecheck(time, duration, {
     text: initialAvailabilityText,
     color: initialAvailabilityColor,
@@ -352,7 +360,7 @@ const EditMeetingForm: React.FC<EditMeetingFormProps> = ({
     if (!isoTime) {
       return;
     }
-    onConfirm(isoTime, duration, topic);
+    onConfirm(isoTime, duration, topic, selectedAttendees);
   };
 
   return (
@@ -434,6 +442,12 @@ const EditMeetingForm: React.FC<EditMeetingFormProps> = ({
         />
       </label>
 
+      <AttendeePicker
+        candidates={attendeeCandidates}
+        selectedEmails={selectedAttendees}
+        onChange={setSelectedAttendees}
+      />
+
       {availability.text && (
         <div style={{ fontSize: theme.typography.fontSize.sm, color: availability.color }}>
           {availability.text}
@@ -486,7 +500,9 @@ interface ProposedTimeCardProps {
   eventLink: string | null;
   meetLink: string | null;
   emailSubject: string;
-  onCreateInvite: (time: string, duration: number, topic: string) => void;
+  /** Candidate attendees (sender + To + CC), pre-selected in the review form. */
+  attendeeCandidates: Attendee[];
+  onCreateInvite: (time: string, duration: number, topic: string, attendees: string[]) => void;
 }
 
 const DEFAULT_DURATION = 30;
@@ -498,6 +514,7 @@ export const ProposedTimeCard: React.FC<ProposedTimeCardProps> = ({
   eventLink,
   meetLink,
   emailSubject,
+  attendeeCandidates,
   onCreateInvite,
 }) => {
   const { t, i18n } = useTranslation();
@@ -517,9 +534,9 @@ export const ProposedTimeCard: React.FC<ProposedTimeCardProps> = ({
   // Pre-fill the invite with the suggested free slot when available, else the proposed start.
   const initialInviteTime = proposal.suggestedTime ?? proposal.proposedTime;
 
-  const handleConfirmEdit = (time: string, duration: number, topic: string) => {
+  const handleConfirmEdit = (time: string, duration: number, topic: string, attendees: string[]) => {
     setIsEditing(false);
-    onCreateInvite(time, duration, topic);
+    onCreateInvite(time, duration, topic, attendees);
   };
 
   const conflictingEvents =
@@ -534,6 +551,7 @@ export const ProposedTimeCard: React.FC<ProposedTimeCardProps> = ({
         initialAvailabilityText={availabilityText}
         initialAvailabilityColor={availabilityColor}
         initialConflictingEvents={conflictingEvents}
+        attendeeCandidates={attendeeCandidates}
         onConfirm={handleConfirmEdit}
         onCancel={() => setIsEditing(false)}
       />
@@ -819,10 +837,20 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
     }
   }, [email.id, onDraftReply]);
 
+  const attendeeCandidates = useMemo(
+    () =>
+      deriveThreadAttendees(
+        { from: email.from, fromName: email.fromName, to: email.to, cc: email.cc },
+        user?.email,
+      ),
+    [email.from, email.fromName, email.to, email.cc, user?.email],
+  );
+
   const handleCreateInvite = useCallback(async (
     proposedTime: string,
     durationMinutes: number,
     topic: string,
+    attendees: string[],
   ) => {
     setCreating(true);
     captureEvent(ANALYTICS_EVENTS.SCHEDULING_DRAFT_REPLY_CLICKED, { email_id: email.id, action: 'create_invite' });
@@ -834,6 +862,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
           proposedTime,
           topic,
           durationMinutes,
+          attendees,
         },
       );
       setCreated(true);
@@ -920,6 +949,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
               eventLink={eventLink}
               meetLink={meetLink}
               emailSubject={email.subject ?? ''}
+              attendeeCandidates={attendeeCandidates}
               onCreateInvite={handleCreateInvite}
             />
           ) : (

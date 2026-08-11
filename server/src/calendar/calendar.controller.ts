@@ -11,7 +11,15 @@ import {
   Request,
   UseGuards,
 } from "@nestjs/common";
-import { IsIn } from "class-validator";
+import {
+  IsArray,
+  IsEmail,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from "class-validator";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { DAYS } from "../constants/time-constants";
@@ -19,6 +27,33 @@ import { DAYS } from "../constants/time-constants";
 class RsvpRequestDto {
   @IsIn(["accepted", "declined", "tentative"])
   response!: "accepted" | "declined" | "tentative";
+}
+
+export class CreateFromEmailProposalDto {
+  @IsString()
+  @IsNotEmpty()
+  emailId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  proposedTime!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  topic!: string;
+
+  @IsOptional()
+  @IsPositive()
+  durationMinutes?: number;
+
+  /**
+   * Everyone to invite (sender + To + CC by default). Each must be a valid email.
+   * Omitted/empty falls back to the email sender for backward compatibility.
+   */
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  attendees?: string[];
 }
 import { CalendarService } from "./calendar.service";
 import { CalendarMeetingConflictService } from "./calendar-meeting-conflict.service";
@@ -141,28 +176,18 @@ export class CalendarController {
   @Post("create-from-email-proposal")
   async createFromEmailProposal(
     @Request() req,
-    @Body()
-    body: {
-      emailId: string;
-      proposedTime: string;
-      topic: string;
-      durationMinutes?: number;
-    },
+    @Body() body: CreateFromEmailProposalDto,
   ) {
     const DEFAULT_DURATION = 30;
-    if (!body.emailId || !body.proposedTime || !body.topic) {
-      throw new BadRequestException(
-        "emailId, proposedTime and topic are required",
-      );
-    }
     try {
-      return await this.calendarService.createEventFromEmailProposal(
-        req.user.userId,
-        body.emailId,
-        body.proposedTime,
-        body.topic,
-        body.durationMinutes ?? DEFAULT_DURATION,
-      );
+      return await this.calendarService.createEventFromEmailProposal({
+        userId: req.user.userId,
+        emailId: body.emailId,
+        proposedTime: body.proposedTime,
+        topic: body.topic,
+        durationMinutes: body.durationMinutes ?? DEFAULT_DURATION,
+        attendees: body.attendees,
+      });
     } catch (err) {
       if (err instanceof HttpException) throw err;
       const message = err instanceof Error ? err.message : String(err);

@@ -3627,6 +3627,13 @@
     "duration120": "120 minutes",
     "description": "Description"
   },
+  "attendeePicker": {
+    "label": "Who to invite",
+    "empty": "No recipients found on this email",
+    "addPlaceholder": "Add another email",
+    "add": "Add",
+    "invalidEmail": "Enter a valid email address"
+  },
   "landing": {
     "bearlyMailIcon": "BearlyMail Icon",
     "hero": {

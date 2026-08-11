@@ -586,6 +586,13 @@
     "eventTitle": "Título del evento",
     "startTime": "Hora de inicio"
   },
+  "attendeePicker": {
+    "label": "A quién invitar",
+    "empty": "No se encontraron destinatarios en este correo",
+    "addPlaceholder": "Agregar otro correo",
+    "add": "Agregar",
+    "invalidEmail": "Ingresa una dirección de correo válida"
+  },
   "common": {
     "add": "Agregar",
     "appName": "BearlyMail",

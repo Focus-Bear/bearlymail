@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { deriveThreadAttendees } from 'utils/attendeeUtils';
 import { getAxiosErrorMessage } from 'utils/errors';
 
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
+import { AttendeePicker } from 'components/quick-actions/AttendeePicker';
 import { CalendarInviteActions } from 'components/quick-actions/modals/CalendarInviteActions';
 import { CalendarInviteForm } from 'components/quick-actions/modals/CalendarInviteForm';
 import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarModalHeader';
@@ -16,6 +18,7 @@ import {
   MODAL_WIDTH_MEDIUM,
   VIEWPORT_HEIGHT_90,
 } from 'constants/numbers';
+import { useAuth } from 'contexts/AuthContext';
 
 interface CalendarCreateInviteModalProps {
   email: {
@@ -23,6 +26,8 @@ interface CalendarCreateInviteModalProps {
     body: string;
     from: string;
     fromName?: string;
+    to?: string;
+    cc?: string;
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -36,8 +41,12 @@ const getDefaultStartTime = (): string => {
 };
 
 export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps> = ({ email, onClose, onSuccess }) => {
-  const [guestEmail, setGuestEmail] = useState(email.from);
-  const [guestName, setGuestName] = useState(email.fromName || '');
+  const { user } = useAuth();
+  const attendeeCandidates = useMemo(
+    () => deriveThreadAttendees({ from: email.from, fromName: email.fromName, to: email.to, cc: email.cc }, user?.email),
+    [email.from, email.fromName, email.to, email.cc, user?.email],
+  );
+  const [attendees, setAttendees] = useState<string[]>(() => attendeeCandidates.map((attendee) => attendee.email));
   const [title, setTitle] = useState(email.subject || '');
   const [description, setDescription] = useState(email.body?.substring(0, MAX_DESCRIPTION_LENGTH) || '');
   const [startTime, setStartTime] = useState(getDefaultStartTime());
@@ -47,8 +56,8 @@ export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps>
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!guestEmail || !startTime) {
-      setError('Guest email and start time are required');
+    if (attendees.length === 0 || !startTime) {
+      setError('At least one attendee and a start time are required');
       return;
     }
 
@@ -59,8 +68,7 @@ export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps>
       const startTimeISO = new Date(startTime).toISOString();
 
       await axios.post(`${API_URL}/suggested-actions/calendar/create-invite`, {
-        guestEmail,
-        guestName,
+        attendees,
         title,
         description,
         startTime: startTimeISO,
@@ -80,15 +88,14 @@ export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps>
       <ModalContent maxWidth={`${MODAL_WIDTH_MEDIUM}px`} maxHeight={VIEWPORT_HEIGHT_90}>
         <CalendarModalHeader title="📅 Create Calendar Invite" onClose={onClose} />
         <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: theme.spacing.md }}>
+            <AttendeePicker candidates={attendeeCandidates} selectedEmails={attendees} onChange={setAttendees} />
+          </div>
           <CalendarInviteForm
-            guestEmail={guestEmail}
-            guestName={guestName}
             title={title}
             description={description}
             startTime={startTime}
             durationMinutes={durationMinutes}
-            onGuestEmailChange={setGuestEmail}
-            onGuestNameChange={setGuestName}
             onTitleChange={setTitle}
             onDescriptionChange={setDescription}
             onStartTimeChange={setStartTime}
@@ -109,7 +116,11 @@ export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps>
               {error}
             </div>
           )}
-          <CalendarInviteActions loading={loading} hasRequiredFields={!!guestEmail && !!startTime} onCancel={onClose} />
+          <CalendarInviteActions
+            loading={loading}
+            hasRequiredFields={attendees.length > 0 && !!startTime}
+            onCancel={onClose}
+          />
         </form>
       </ModalContent>
     </ModalBackdrop>

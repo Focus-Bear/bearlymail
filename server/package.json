@@ -79,7 +79,7 @@
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.3",
     "@octokit/rest": "^22.0.1",
-    "@pg-boss/dashboard": "^1.6.2",
+    "@pg-boss/dashboard": "^1.6.5",
     "@types/mjml": "^5.0.0",
     "archiver": "^7.0.1",
     "archiver-zip-encrypted": "^2.0.0",

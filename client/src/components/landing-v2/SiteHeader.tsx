@@ -4,7 +4,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 
-import { openWaitlist } from './waitlistStore';
+import { SIGNUP_PATH } from './constants';
 
 export const SiteHeader: React.FC = () => {
   const { t } = useTranslation();
@@ -24,19 +24,16 @@ export const SiteHeader: React.FC = () => {
           <a href="#faq">{t('landing.v2.header.nav.faq')}</a>
         </nav>
         <div className="nav-cta">
-          <a className="btn btn-ghost" href="/login">
+          <a className="btn btn-ghost" href={SIGNUP_PATH}>
             {t('landing.v2.header.signIn')}
           </a>
-          <button
-            type="button"
+          <a
             className="btn btn-outline"
-            onClick={() => {
-              captureEvent(ANALYTICS_EVENTS.WAIT_LIST_BUTTON_CLICKED);
-              openWaitlist();
-            }}
+            href={SIGNUP_PATH}
+            onClick={() => captureEvent(ANALYTICS_EVENTS.LANDING_SIGN_UP_CLICKED)}
           >
-            {t('landing.v2.header.joinWaitlist')}
-          </button>
+            {t('landing.v2.cta.getStarted')}
+          </a>
         </div>
       </div>
     </header>

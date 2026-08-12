@@ -11,7 +11,6 @@ import {
   ProblemSection,
   SiteFooter,
   SiteHeader,
-  WaitlistModal,
 } from 'components/landing-v2';
 
 import { LANDING_STYLES } from './Landing.styles';
@@ -40,7 +39,6 @@ const ProductManagerLanding: React.FC = () => {
       <GithubIntegrationSection />
       <FinalCta />
       <SiteFooter />
-      <WaitlistModal />
     </div>
   );
 };

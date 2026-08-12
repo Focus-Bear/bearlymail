@@ -1,4 +1,3 @@
-import { UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";
 import * as bcrypt from "bcrypt";
@@ -9,11 +8,9 @@ import {
   DeletionReason,
 } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
-import { Waitlist } from "../database/entities/waitlist.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
-import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthService } from "./auth.service";
 import { TotpService } from "./totp.service";
 
@@ -30,7 +27,6 @@ describe("AuthService", () => {
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
   let boss: jest.Mocked<PgBoss>;
-  let waitlistService: jest.Mocked<WaitlistService>;
   let emailBacklogService: jest.Mocked<EmailBacklogService>;
   let totpService: jest.Mocked<TotpService>;
 
@@ -78,10 +74,6 @@ describe("AuthService", () => {
       send: jest.fn().mockResolvedValue(undefined),
     };
 
-    const mockWaitlistService = {
-      findByEmail: jest.fn().mockResolvedValue(null),
-    };
-
     const mockEmailBacklogService = {
       queueBacklogProcessing: jest.fn().mockResolvedValue({ threadCount: 0 }),
     };
@@ -114,10 +106,6 @@ describe("AuthService", () => {
           useValue: mockBoss,
         },
         {
-          provide: WaitlistService,
-          useValue: mockWaitlistService,
-        },
-        {
           provide: EmailBacklogService,
           useValue: mockEmailBacklogService,
         },
@@ -136,7 +124,6 @@ describe("AuthService", () => {
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
     boss = module.get("PG_BOSS");
-    waitlistService = module.get(WaitlistService);
     emailBacklogService = module.get(EmailBacklogService);
     totpService = module.get(TotpService);
 
@@ -266,14 +253,15 @@ describe("AuthService", () => {
       expect(result).toBeNull();
     });
 
-    it("should throw error when user is not approved", async () => {
+    it("should admit an unapproved user now that the waitlist gate is removed", async () => {
       const unapprovedUser = { ...mockUser, isApproved: false };
       usersService.findByEmail.mockResolvedValue(unapprovedUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
-      await expect(
-        service.validateUser("test@example.com", "password"),
-      ).rejects.toThrow("Your account is pending approval");
+      const result = await service.validateUser("test@example.com", "password");
+
+      expect(result).toBeDefined();
+      expect(result).not.toHaveProperty("password");
     });
 
     it("should throw OAuthOnlyAccountException when user has null password", async () => {
@@ -325,7 +313,7 @@ describe("AuthService", () => {
           googleId: "google-id-123",
           googleCalendarAccessToken: "access-token",
           googleCalendarRefreshToken: "refresh-token",
-          isApproved: false,
+          isApproved: true,
           isAdmin: false,
         }),
       );
@@ -430,24 +418,26 @@ describe("AuthService", () => {
       );
     });
 
-    it("should throw error when user is not approved (unless jeremy)", async () => {
+    it("should auto-approve a legacy unapproved user on login (no waitlist gate)", async () => {
       const unapprovedUser = { ...mockUser, isApproved: false };
+      const approvedUser = { ...mockUser, isApproved: true };
       usersService.findByEmail.mockResolvedValue(unapprovedUser);
-      usersService.update.mockResolvedValue(unapprovedUser);
-      usersService.findOne.mockResolvedValue(unapprovedUser);
-      // User is on waitlist but not approved
-      waitlistService.findByEmail.mockResolvedValue({
-        email: "test@example.com",
-        approved: false,
-      } as Waitlist);
+      usersService.update.mockResolvedValue(approvedUser);
+      // ensureApproved re-fetches the freshly-approved user
+      usersService.findOne
+        .mockResolvedValueOnce(unapprovedUser)
+        .mockResolvedValue(approvedUser);
 
-      await expect(
-        service.validateGoogleUser(
-          mockProfile,
-          "access-token",
-          "refresh-token",
-        ),
-      ).rejects.toThrow("Your account is pending approval");
+      const result = await service.validateGoogleUser(
+        mockProfile,
+        "access-token",
+        "refresh-token",
+      );
+
+      expect(usersService.update).toHaveBeenCalledWith(unapprovedUser.id, {
+        isApproved: true,
+      });
+      expect(result).toBeDefined();
     });
 
     it("should trigger email sync job after successful login", async () => {
@@ -495,33 +485,15 @@ describe("AuthService", () => {
       });
     });
 
-    it("should throw UnauthorizedException when user is not approved in production", async () => {
+    it("should log in an unapproved user in production now that the gate is removed", async () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = "production";
+      jwtService.sign.mockReturnValue("jwt-token");
       const unapprovedUser = { ...mockUser, isApproved: false };
 
-      await expect(service.login(unapprovedUser)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      const result = await service.login(unapprovedUser);
 
-      process.env.NODE_ENV = originalEnv;
-    });
-
-    it("should auto-approve user in development mode", async () => {
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
-      const unapprovedUser = { ...mockUser, isApproved: false };
-      usersService.update.mockResolvedValue({
-        ...unapprovedUser,
-        isApproved: true,
-      });
-
-      await service.login(unapprovedUser);
-
-      expect(usersService.update).toHaveBeenCalledWith(unapprovedUser.id, {
-        isApproved: true,
-      });
-
+      expect(result.access_token).toBe("jwt-token");
       process.env.NODE_ENV = originalEnv;
     });
 
@@ -580,10 +552,44 @@ describe("AuthService", () => {
   });
 
   describe("register", () => {
-    it("should throw error indicating registration is closed", async () => {
+    it("should create an immediately-active account and return a session", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      const createdUser = { ...mockUser, id: "new-user", isApproved: true };
+      usersService.create.mockResolvedValue(createdUser);
+      usersService.findOne.mockResolvedValue(createdUser);
+      jwtService.sign.mockReturnValue("jwt-token");
+
+      const result = await service.register(
+        "new@example.com",
+        "a-strong-password",
+        "New User",
+      );
+
+      expect(usersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: "new@example.com",
+          isApproved: true,
+          isAdmin: false,
+        }),
+      );
+      expect(result.access_token).toBe("jwt-token");
+      expect(result.user.id).toBe("new-user");
+    });
+
+    it("should reject a password shorter than the minimum length", async () => {
       await expect(
-        service.register("test@example.com", "password", "Name"),
-      ).rejects.toThrow("Registration is currently closed");
+        service.register("new@example.com", "short", "New User"),
+      ).rejects.toThrow("at least");
+      expect(usersService.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject registration when the email already exists", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+
+      await expect(
+        service.register("test@example.com", "a-strong-password"),
+      ).rejects.toThrow("already exists");
+      expect(usersService.create).not.toHaveBeenCalled();
     });
   });
 

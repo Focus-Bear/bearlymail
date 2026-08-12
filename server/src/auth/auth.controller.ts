@@ -67,14 +67,33 @@ export class AuthController {
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
+  /**
+   * Direct sign-up. Creates an immediately-active account, sets the HttpOnly JWT
+   * cookie, and returns the login payload so the client can proceed straight to
+   * the app — there is no waitlist/approval gate.
+   * Rate-limited to 5 requests per minute per IP to curb automated abuse.
+   */
   @Post("register")
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   async register(
-    @Body() _body: { email: string; password: string; name?: string },
+    @Body() body: { email: string; password: string; name?: string },
+    @Res({ passthrough: true }) res: Response,
   ) {
-    // Registration is disabled - users must join waitlist first
-    throw new BadRequestException(
-      "Registration is currently closed. Please join our waitlist first.",
+    if (!body.email || !body.password) {
+      throw new BadRequestException("Email and password are required");
+    }
+    const loginData = await this.authService.register(
+      body.email,
+      body.password,
+      body.name,
     );
+    const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    res.cookie(
+      AUTH_CONSTANTS.COOKIE_NAME,
+      loginData.access_token,
+      jwtCookieOptions(isProduction),
+    );
+    return loginData;
   }
 
   /**

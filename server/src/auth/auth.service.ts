@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   forwardRef,
   Inject,
   Injectable,
@@ -16,7 +18,6 @@ import {
   TOKEN_BYTES,
   TOKEN_EXPIRY_MS,
 } from "../constants/auth-constants";
-import { NODE_ENV_VALUES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -27,7 +28,6 @@ import { OrganizationsService } from "../organizations/organizations.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
-import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthLogger, writeDebugLog } from "./auth-logger";
 import { DeletedAccountException } from "./exceptions/deleted-account.exception";
 import { OAuthOnlyAccountException } from "./exceptions/oauth-only-account.exception";
@@ -71,8 +71,6 @@ export class AuthService {
     private jwtService: JwtService,
     private totpService: TotpService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
-    @Inject(forwardRef(() => WaitlistService))
-    private waitlistService: WaitlistService,
     @Inject(forwardRef(() => EmailBacklogService))
     private emailBacklogService: EmailBacklogService,
     @Inject(forwardRef(() => OrganizationsService))
@@ -131,13 +129,6 @@ export class AuthService {
       return null;
     }
 
-    // Check if user is approved
-    if (!user.isApproved) {
-      throw new Error(
-        "Your account is pending approval. Please wait for admin approval.",
-      );
-    }
-
     const { password: _password, ...result } = user;
     return result;
   }
@@ -179,7 +170,7 @@ export class AuthService {
       );
     }
 
-    user = await this.checkWaitlistApproval(user, email, isJeremy);
+    user = await this.ensureApproved(user);
     await this.provisionPersonalOrg(user.id);
     this.logLoginSuccess(user, isNewUser);
     this.scheduleSyncJobs(user.id);
@@ -274,7 +265,7 @@ export class AuthService {
       googleId: profile.id,
       googleCalendarAccessToken: accessToken,
       googleCalendarRefreshToken: refreshToken,
-      isApproved: isJeremy,
+      isApproved: true,
       isAdmin: isJeremy,
       needsRelogin: false,
     });
@@ -317,42 +308,20 @@ export class AuthService {
     return refreshedUser;
   }
 
-  private async checkWaitlistApproval(
-    user: User,
-    email: string,
-    isJeremy: boolean,
-  ): Promise<User> {
-    if (user.isApproved || isJeremy) return user;
+  /**
+   * Ensures a user is active (approved). Direct sign-up means every account is
+   * approved on creation, but legacy accounts predating that change — and any
+   * created before the backfill migration ran — may still be flagged
+   * unapproved. This lazily approves them on login so no one is stranded.
+   * Idempotent: a no-op for users already approved.
+   */
+  private async ensureApproved(user: User): Promise<User> {
+    if (user.isApproved) return user;
     this.logger.log(
-      `[LOGIN] User ${user.id} (${email}) is not approved, checking waitlist...`,
+      `[LOGIN] Approving legacy unapproved user ${user.id} on login`,
     );
-    const waitlistEntry = await this.waitlistService.findByEmail(email);
-    this.logger.log(
-      `[LOGIN] Waitlist lookup result for ${email}: ${waitlistEntry ? `found (approved: ${waitlistEntry.approved})` : "not found"}`,
-    );
-    if (waitlistEntry?.approved) {
-      this.logger.log(
-        `[LOGIN] Auto-approving user ${user.id} - approved on waitlist`,
-      );
-      await this.usersService.update(user.id, { isApproved: true });
-      const approvedUser = await this.usersService.findOne(user.id);
-      this.logger.log(
-        `[LOGIN] User ${approvedUser.id} auto-approved successfully, isApproved: ${approvedUser.isApproved}`,
-      );
-      return approvedUser;
-    }
-    if (waitlistEntry) {
-      this.logger.warn(
-        `[LOGIN] User ${email} is on waitlist but not approved yet`,
-      );
-      throw new Error(
-        "Your account is pending approval. Please wait for admin approval.",
-      );
-    }
-    this.logger.warn(`[LOGIN] User ${email} is not on the waitlist`);
-    throw new Error(
-      "You need to join the waitlist first. Please sign up at our website.",
-    );
+    await this.usersService.update(user.id, { isApproved: true });
+    return this.usersService.findOne(user.id);
   }
 
   private logLoginSuccess(user: User, isNewUser: boolean): void {
@@ -448,7 +417,7 @@ export class AuthService {
         displayName: guessedName,
         password: "",
         // Don't store tokens on user - they go in Office365Account entity
-        isApproved: isJeremy,
+        isApproved: true,
         isAdmin: isJeremy,
         needsRelogin: false,
       });
@@ -465,29 +434,7 @@ export class AuthService {
       }
     }
 
-    if (!user.isApproved && !isJeremy) {
-      // Check if user is on the waitlist and approved there
-      const waitlistEntry = await this.waitlistService.findByEmail(email);
-      if (waitlistEntry?.approved) {
-        // User is approved on waitlist - auto-approve them for OAuth login
-        this.logger.log(
-          `[LOGIN] Auto-approving user ${user.id} - approved on waitlist`,
-        );
-        await this.usersService.update(user.id, { isApproved: true });
-        user = await this.usersService.findOne(user.id);
-      } else if (waitlistEntry) {
-        // User is on waitlist but not yet approved
-        throw new Error(
-          "Your account is pending approval. Please wait for admin approval.",
-        );
-      } else {
-        // User is not on the waitlist
-        throw new Error(
-          "You need to join the waitlist first. Please sign up at our website.",
-        );
-      }
-    }
-
+    user = await this.ensureApproved(user);
     await this.provisionPersonalOrg(user.id);
 
     const { password: _password, ...result } = user;
@@ -522,7 +469,7 @@ export class AuthService {
         displayName: guessedName,
         password: "",
         // Don't store tokens on user - they go in ZohoAccount entity
-        isApproved: isJeremy,
+        isApproved: true,
         isAdmin: isJeremy,
         needsRelogin: false,
       });
@@ -539,29 +486,7 @@ export class AuthService {
       }
     }
 
-    if (!user.isApproved && !isJeremy) {
-      // Check if user is on the waitlist and approved there
-      const waitlistEntry = await this.waitlistService.findByEmail(email);
-      if (waitlistEntry?.approved) {
-        // User is approved on waitlist - auto-approve them for OAuth login
-        this.logger.log(
-          `[LOGIN] Auto-approving user ${user.id} - approved on waitlist`,
-        );
-        await this.usersService.update(user.id, { isApproved: true });
-        user = await this.usersService.findOne(user.id);
-      } else if (waitlistEntry) {
-        // User is on waitlist but not yet approved
-        throw new Error(
-          "Your account is pending approval. Please wait for admin approval.",
-        );
-      } else {
-        // User is not on the waitlist
-        throw new Error(
-          "You need to join the waitlist first. Please sign up at our website.",
-        );
-      }
-    }
-
+    user = await this.ensureApproved(user);
     await this.provisionPersonalOrg(user.id);
 
     const { password: _password, ...result } = user;
@@ -612,22 +537,6 @@ export class AuthService {
   }
 
   async login(user: UserWithoutPassword) {
-    // Check if user is approved before allowing login
-    // In development mode, auto-approve if not already approved
-    const isDev = process.env.NODE_ENV !== NODE_ENV_VALUES.PRODUCTION;
-    if (!user.isApproved) {
-      if (isDev) {
-        // Auto-approve in dev mode
-        this.logger.log(`Auto-approving user ${user.id} in development mode`);
-        await this.usersService.update(user.id, { isApproved: true });
-        user.isApproved = true;
-      } else {
-        throw new UnauthorizedException(
-          "Your account is pending approval. Please wait for admin approval.",
-        );
-      }
-    }
-
     const wasInactive = await this.usersService.wasUserInactive(user.id);
     await this.usersService.updateLastActivity(user.id);
 
@@ -701,11 +610,52 @@ export class AuthService {
     return this.login(user);
   }
 
-  async register(_email: string, _password: string, _name?: string) {
-    // Registration is disabled - users must join waitlist first
-    throw new Error(
-      "Registration is currently closed. Please join our waitlist first.",
+  /**
+   * Direct sign-up: creates an immediately-active account and logs the user in.
+   * There is no waitlist/approval gate — new accounts are approved on creation.
+   */
+  async register(email: string, password: string, name?: string) {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      throw new BadRequestException("Email is required");
+    }
+    if (password.length < AUTH_CONSTANTS.MIN_PASSWORD_LENGTH) {
+      throw new BadRequestException(
+        `Password must be at least ${AUTH_CONSTANTS.MIN_PASSWORD_LENGTH} characters`,
+      );
+    }
+
+    const existing = await this.usersService.findByEmail(normalizedEmail);
+    if (existing) {
+      throw new ConflictException(
+        "An account with this email already exists. Please sign in instead.",
+      );
+    }
+
+    const isJeremy = normalizedEmail.toLowerCase() === "jeremy@focusbear.io";
+    const hashedPassword = await bcrypt.hash(
+      password,
+      AUTH_CONSTANTS.BCRYPT_SALT_ROUNDS,
     );
+    const guessedName = name?.trim() || guessNameFromEmail(normalizedEmail);
+
+    const created = await this.usersService.create({
+      email: normalizedEmail,
+      name: guessedName,
+      displayName: guessedName,
+      password: hashedPassword,
+      isApproved: true,
+      isAdmin: isJeremy,
+      needsRelogin: false,
+    });
+
+    const user = await this.usersService.findOne(created.id);
+    if (!user) {
+      throw new Error("Failed to create account");
+    }
+
+    this.logger.log(`[REGISTER] Created active account for user ${user.id}`);
+    return this.login(user);
   }
 
   async setupPassword(token: string, password: string) {

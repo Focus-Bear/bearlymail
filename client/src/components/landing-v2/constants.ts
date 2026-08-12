@@ -2,6 +2,11 @@ export const KEY_ENTER = 'Enter';
 export const KEY_SPACE = ' ';
 export const KEY_ESCAPE = 'Escape';
 
+/** Where every landing "Get started / Sign up" CTA sends the visitor. The login
+ * page hosts the Google/Microsoft/Zoho sign-in that creates and activates a new
+ * account directly — there is no waitlist gate. */
+export const SIGNUP_PATH = '/login';
+
 export type DemoTab = 'triage' | 'action' | 'followup';
 export type PrioChoice = 'can-wait' | 'get-on-it' | 'oh-shit';
 

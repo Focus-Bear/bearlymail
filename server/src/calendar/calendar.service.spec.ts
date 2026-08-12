@@ -2523,13 +2523,13 @@ describe("CalendarService", () => {
         },
       });
 
-      const result = await service.createEventFromEmailProposal(
-        "user-1",
-        "email-1",
-        "2026-04-15T09:00:00Z",
-        "Meeting Request",
-        30,
-      );
+      const result = await service.createEventFromEmailProposal({
+        userId: "user-1",
+        emailId: "email-1",
+        proposedTime: "2026-04-15T09:00:00Z",
+        topic: "Meeting Request",
+        durationMinutes: 30,
+      });
 
       expect(mockCalendar.events.insert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2545,17 +2545,49 @@ describe("CalendarService", () => {
       expect(result.eventId).toBe("gcal-event-new");
     });
 
+    it("invites all provided attendees, not just the sender", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      usersService.findOne.mockResolvedValue(mockUser);
+      mockCalendarBookingRepository.save.mockResolvedValue({});
+      mockCalendar.events.insert.mockResolvedValue({
+        data: { id: "gcal-event-multi" },
+      });
+
+      await service.createEventFromEmailProposal({
+        userId: "user-1",
+        emailId: "email-1",
+        proposedTime: "2026-04-15T09:00:00Z",
+        topic: "Team sync",
+        durationMinutes: 30,
+        attendees: [
+          "sender@example.com",
+          "colleague@example.com",
+          "cc-person@example.com",
+        ],
+      });
+
+      const insertArg = mockCalendar.events.insert.mock.calls[0][0];
+      const attendeeEmails = insertArg.requestBody.attendees.map(
+        (attendee: { email: string }) => attendee.email,
+      );
+      expect(attendeeEmails).toEqual([
+        "sender@example.com",
+        "colleague@example.com",
+        "cc-person@example.com",
+      ]);
+    });
+
     it("throws when email not found", async () => {
       emailsService.getEmailById.mockResolvedValue(null);
 
       await expect(
-        service.createEventFromEmailProposal(
-          "user-1",
-          "nonexistent",
-          "2026-04-15T09:00:00Z",
-          "Meeting",
-          30,
-        ),
+        service.createEventFromEmailProposal({
+          userId: "user-1",
+          emailId: "nonexistent",
+          proposedTime: "2026-04-15T09:00:00Z",
+          topic: "Meeting",
+          durationMinutes: 30,
+        }),
       ).rejects.toThrow("Email not found");
     });
   });

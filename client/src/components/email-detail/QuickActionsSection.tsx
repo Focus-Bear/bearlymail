@@ -13,6 +13,8 @@ interface Email {
   body?: string;
   from: string;
   fromName?: string;
+  to?: string;
+  cc?: string;
 }
 
 interface QuickActionsSectionProps {
@@ -72,6 +74,8 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                 body: email.body,
                 from: email.from,
                 fromName: email.fromName,
+                to: email.to,
+                cc: email.cc,
               }}
               onClose={onCloseAction}
               onSuccess={onActionSuccess}

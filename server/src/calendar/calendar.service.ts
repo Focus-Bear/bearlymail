@@ -678,29 +678,40 @@ Manage this booking:
    * Create a calendar event using the sender of an email as the guest.
    * Used when a sender proposes a specific time and the user confirms it.
    */
-  async createEventFromEmailProposal(
-    userId: string,
-    emailId: string,
-    proposedTime: string,
-    topic: string,
-    durationMinutes: number,
-  ): Promise<{
+  async createEventFromEmailProposal(options: {
+    userId: string;
+    emailId: string;
+    proposedTime: string;
+    topic: string;
+    durationMinutes: number;
+    /** Everyone to invite (sender + To + CC by default). Omitted falls back to the sender. */
+    attendees?: string[];
+  }): Promise<{
     meetLink: string | null;
     eventId: string | null;
     htmlLink: string | null;
   }> {
+    const { userId, emailId, proposedTime, topic, durationMinutes, attendees } =
+      options;
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
       throw new Error("Email not found");
     }
 
+    // Invite everyone the caller selected (sender + To + CC by default). Fall back
+    // to the sender alone for backward compatibility when no list is provided.
+    const guestList = attendees?.length ? attendees : [email.from];
+    const [primaryGuest, ...additionalGuests] = guestList;
+
     const event = await this.createEvent({
       userId,
       startTime: proposedTime,
       durationMinutes,
-      guestEmail: email.from,
-      guestName: email.fromName || undefined,
+      guestEmail: primaryGuest,
+      guestName:
+        primaryGuest === email.from ? email.fromName || undefined : undefined,
       title: topic,
+      additionalGuests,
     });
 
     return {

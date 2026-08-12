@@ -92,6 +92,7 @@ const GreenlightCard: React.FC = () => (
         eventLink={null}
         meetLink={null}
         emailSubject="Re: Intro chat"
+        attendeeCandidates={[{ name: 'Sender', email: 'sender@example.com' }]}
         onCreateInvite={() => undefined}
       />
     </div>

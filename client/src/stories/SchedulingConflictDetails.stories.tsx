@@ -77,6 +77,7 @@ export const ConflictWithNamedEvents = {
         eventLink={null}
         meetLink={null}
         emailSubject="Catch up regarding ADHD and hobby project"
+        attendeeCandidates={[{ name: 'Sender', email: 'sender@example.com' }]}
         onCreateInvite={() => undefined}
       />
     </Wrap>
@@ -94,6 +95,7 @@ export const FreeSlot = {
         eventLink={null}
         meetLink={null}
         emailSubject="Catch up regarding ADHD and hobby project"
+        attendeeCandidates={[{ name: 'Sender', email: 'sender@example.com' }]}
         onCreateInvite={() => undefined}
       />
     </Wrap>

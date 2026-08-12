@@ -17,6 +17,7 @@ import {
 import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { getJobPriority } from "../queue/job-priorities";
 import { parseCategoryName } from "../utils/category-name.util";
+import { RULE_CATEGORY_SOURCE } from "./category-precedence.helper";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailReadService } from "./email-read.service";
@@ -411,6 +412,67 @@ export class EmailArchiveService {
     this.logger.log(
       `Category override for thread ${thread.id}: categoryId ${originalCategoryId} -> ${newCategoryId} (name: ${newCategory})`,
     );
+
+    // A manual correction is high-value ground truth: immediately try to build
+    // (or refine) a deterministic rule for the chosen category so a high-volume
+    // sender is caught right away instead of waiting for the next LLM-screened
+    // occurrence. When the thread was previously mis-filed by a composite RULE,
+    // hand the worker the old categoryId so it can also add an exclusion to the
+    // offending rule. Best-effort — never blocks or fails the override.
+    this.enqueueRuleBuildForOverride(userId, emailId, newCategory, {
+      demoteCategoryId:
+        thread.categorySource === RULE_CATEGORY_SOURCE
+          ? originalCategoryId
+          : null,
+    });
+
     return { success: true, category: newCategory };
+  }
+
+  /**
+   * Fire-and-forget: enqueue a `generate-category-rule` job for a manual
+   * category correction. Skipped for "Other"/empty (a rule that files mail as
+   * uncategorised is meaningless). Swallows enqueue failures — rule building is
+   * an optimisation and must never surface an error on the override path.
+   */
+  private enqueueRuleBuildForOverride(
+    userId: string,
+    emailId: string,
+    newCategory: string,
+    options: { demoteCategoryId: string | null },
+  ): void {
+    const trimmed = newCategory?.trim();
+    if (!trimmed || trimmed === "Other") {
+      return;
+    }
+    this.boss
+      .send(
+        JOB_NAMES.GENERATE_CATEGORY_RULE,
+        {
+          userId,
+          emailId,
+          categoryName: trimmed,
+          ...(options.demoteCategoryId && {
+            demoteCategoryId: options.demoteCategoryId,
+          }),
+        },
+        {
+          priority: getJobPriority(JOB_NAMES.GENERATE_CATEGORY_RULE, true),
+          singletonKey: `generate-category-rule-${emailId}`,
+        },
+      )
+      .then((jobId) => {
+        if (jobId) {
+          this.logger.log(
+            `[CategoryOverride] Enqueued generate-category-rule ${jobId} for email ${emailId} (category="${trimmed}", demoteCategoryId=${options.demoteCategoryId ?? "none"})`,
+          );
+        }
+      })
+      .catch((err) =>
+        this.logger.error(
+          `[CategoryOverride] Failed to enqueue generate-category-rule for email ${emailId}`,
+          err,
+        ),
+      );
   }
 }

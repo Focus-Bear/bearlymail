@@ -74,6 +74,43 @@ tests:
           }
           return true;
 
+  - description: "GitHub PR updates: distinctive PR phrases (not shared boilerplate) + sibling issue/CI exclusions"
+    vars:
+      categoryName: "GitHub PR updates"
+      senderEmails: "notifications@github.com"
+      emailSamples: |
+        [Email 1]
+        Subject: [repo] Re: Add retry logic (PR #482)
+        Body preview: @reviewer requested your review on this pull request. Someone left a comment. View it on GitHub.
+
+        [Email 2]
+        Subject: [repo] Re: Fix login redirect (PR #491)
+        Body preview: A new pull request is ready for review. A reviewer left a comment. View it on GitHub. Unsubscribe from these notifications.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const positives = [...parsed.subjectContainsAny, ...parsed.bodyContainsAny].map(p => p.toLowerCase());
+          // The distinctive PR signal must appear (pull request / PR # / requested your review).
+          if (!positives.some(p => p.includes('pull request') || p.includes('pr #') || p.includes('requested your review'))) {
+            throw new Error(`Expected a distinctive pull-request phrase, got: ${JSON.stringify(positives)}`);
+          }
+          // Boilerplate GitHub also puts on issue/CI emails must NOT be a positive signal.
+          const boilerplate = ['view it on github', 'unsubscribe', 'left a comment', 'reply to this email'];
+          for (const p of positives) {
+            if (boilerplate.some(b => p.includes(b))) {
+              throw new Error(`Used shared GitHub boilerplate "${p}" as a positive phrase`);
+            }
+          }
+          // A PR rule should propose sibling-stream exclusions (issues / CI) to avoid false matches.
+          const exclusions = [...parsed.subjectNotContainsAny, ...parsed.bodyNotContainsAny].map(p => p.toLowerCase());
+          if (exclusions.length === 0) {
+            throw new Error('Expected at least one sibling exclusion (e.g. "Issue #", "created an issue", CI markers)');
+          }
+          return true;
+
   - description: "Proposes an exclusion to keep an issues rule from matching the sender's pull-request emails"
     vars:
       categoryName: "GitHub issues (not pull requests)"

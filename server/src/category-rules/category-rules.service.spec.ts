@@ -1736,4 +1736,135 @@ describe("CategoryRulesService", () => {
       expect(repo.update).not.toHaveBeenCalled();
     });
   });
+
+  describe("addExclusionToMismatchedRule", () => {
+    const userId = "user-1";
+    const WRONG_CATEGORY_ID = "cat-wrong";
+    const OTHER_CATEGORY_ID = "cat-other";
+
+    // A composite rule (for the WRONG category) that currently matches the
+    // corrected email — the offending rule we want to narrow. Built fresh per
+    // test because a successful run MUTATES its compositeSpec (adds the derived
+    // exclusion), which would otherwise leak into later cases.
+    const makeOffendingRule = (categoryId: string = WRONG_CATEGORY_ID) => ({
+      id: "rule-wrong",
+      ruleKind: "composite",
+      ruleType: null,
+      pattern: null,
+      patternHash: null,
+      categoryName: "GitHub Issues",
+      categoryId,
+      subjectPrefix: null,
+      isEnabled: true,
+      compositeSpec: {
+        v: 1 as const,
+        sender: "notifications@github.com",
+        subjectContains: "issue",
+        bodyContainsAny: ["qa passed"],
+      },
+      createdAt: new Date("2024-01-01"),
+    });
+
+    const correctedEmail = {
+      from: "notifications@github.com",
+      subject: "Re: issue 123 opened",
+      bodyTextForMatch: "someone created an issue. qa passed on main.",
+    };
+
+    beforeEach(() => {
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextId: WRONG_CATEGORY_ID,
+          contextValue: "GitHub Issues",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+    });
+
+    it("adds a discriminative exclusion to the rule that mis-filed the email", async () => {
+      const rule = makeOffendingRule();
+      repo.find.mockResolvedValue([rule]);
+      repo.findOne.mockResolvedValue(rule);
+      repo.increment.mockResolvedValue({});
+      repo.save.mockResolvedValue(rule);
+      // No genuine category history to fetch (empty window) — the exclusion is
+      // derived from the corrected email alone.
+      llmCategoriesService.deriveExclusionPhrasesFromFalsePositives.mockResolvedValue(
+        { subjectNotContainsAny: [], bodyNotContainsAny: ["created an issue"] },
+      );
+
+      const result = await service.addExclusionToMismatchedRule(
+        userId,
+        correctedEmail,
+        WRONG_CATEGORY_ID,
+      );
+
+      expect(result.applied).toBe(true);
+      expect(result.ruleId).toBe("rule-wrong");
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "rule-wrong",
+          compositeSpec: expect.objectContaining({
+            bodyNotContainsAny: expect.arrayContaining(["created an issue"]),
+          }),
+        }),
+      );
+    });
+
+    it("skips (no save) when the matching rule points at a different category", async () => {
+      repo.find.mockResolvedValue([makeOffendingRule(OTHER_CATEGORY_ID)]);
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextId: OTHER_CATEGORY_ID,
+          contextValue: "GitHub Issues",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+
+      const result = await service.addExclusionToMismatchedRule(
+        userId,
+        correctedEmail,
+        WRONG_CATEGORY_ID,
+      );
+
+      expect(result.applied).toBe(false);
+      expect(result.reason).toBe("matched-rule-not-old-category");
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it("skips when no rule matches the corrected email", async () => {
+      repo.find.mockResolvedValue([]);
+
+      const result = await service.addExclusionToMismatchedRule(
+        userId,
+        correctedEmail,
+        WRONG_CATEGORY_ID,
+      );
+
+      expect(result.applied).toBe(false);
+      expect(result.reason).toBe("no-rule-matched");
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it("skips when the LLM finds no discriminative exclusion", async () => {
+      const rule = makeOffendingRule();
+      repo.find.mockResolvedValue([rule]);
+      repo.findOne.mockResolvedValue(rule);
+      repo.increment.mockResolvedValue({});
+      llmCategoriesService.deriveExclusionPhrasesFromFalsePositives.mockResolvedValue(
+        { subjectNotContainsAny: [], bodyNotContainsAny: [] },
+      );
+
+      const result = await service.addExclusionToMismatchedRule(
+        userId,
+        correctedEmail,
+        WRONG_CATEGORY_ID,
+      );
+
+      expect(result.applied).toBe(false);
+      expect(result.reason).toBe("no-discriminative-exclusion");
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+  });
 });

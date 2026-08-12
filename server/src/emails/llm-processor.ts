@@ -314,10 +314,12 @@ export class LLMProcessor implements OnModuleInit {
    * never crash the worker or block other jobs.
    */
   private async handleGenerateCategoryRuleJob(job: Job): Promise<void> {
-    const { userId, emailId, categoryName } = job.data as {
+    const { userId, emailId, categoryName, demoteCategoryId } = job.data as {
       userId: string;
       emailId: string;
       categoryName: string;
+      /** Set by the manual-override path: the wrong category a composite rule assigned. */
+      demoteCategoryId?: string;
     };
     const workerId = job.id || "unknown";
     await this.userEncryptionService.withUserKey(userId, async () => {
@@ -335,7 +337,50 @@ export class LLMProcessor implements OnModuleInit {
         categoryName,
         workerId,
       );
+      // A manual correction can also mean an EXISTING rule mis-filed this email
+      // under the old category. Add an exclusion to that specific offending rule
+      // so it stops matching. Best-effort — the correct-category rule build above
+      // is the primary goal and must not be undone by a failure here.
+      if (demoteCategoryId) {
+        await this.tryDemoteMismatchedCategoryRule(
+          userId,
+          email,
+          demoteCategoryId,
+          workerId,
+        );
+      }
     });
+  }
+
+  /**
+   * Adds an exclusion to the composite rule that mis-filed this email under the
+   * user-corrected-away category (`demoteCategoryId`), so it stops matching this
+   * email and others like it. Errors are swallowed (logged) — never crashes the
+   * worker or undoes the correct-category rule build.
+   */
+  private async tryDemoteMismatchedCategoryRule(
+    userId: string,
+    email: Email,
+    demoteCategoryId: string,
+    workerId: string,
+  ): Promise<void> {
+    const emailMetadata = buildRuleEmailMetadata(email);
+    try {
+      const result =
+        await this.categoryRulesService.addExclusionToMismatchedRule(
+          userId,
+          emailMetadata,
+          demoteCategoryId,
+        );
+      this.logger.log(
+        `[Worker ${workerId}] Demote mis-matched rule for email ${email.id} (wrongCategoryId=${demoteCategoryId}): ${result.applied ? `added exclusion to rule ${result.ruleId}` : `skipped (${result.reason})`}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[Worker ${workerId}] Failed to demote mis-matched category rule for email ${email.id}`,
+        error,
+      );
+    }
   }
 
   /**

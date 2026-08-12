@@ -393,6 +393,143 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
       llmCategoriesService.deriveExclusionPhrasesFromFalsePositives,
     ).not.toHaveBeenCalled();
   });
+
+  /**
+   * Builds deps whose derive-exclusions LLM returns a DIFFERENT result on each
+   * call, so the iterative refine loop can be exercised round by round. Both
+   * validation windows read from the same `rows` (mirrors buildDeps).
+   */
+  function buildSequencedDeps(opts: {
+    rows: DecryptedValidationRow[];
+    targetCategoryId: string | null;
+    sequence: Array<{
+      subjectNotContainsAny: string[];
+      bodyNotContainsAny: string[];
+    }>;
+  }) {
+    const deriveMock = jest.fn();
+    for (const step of opts.sequence) {
+      deriveMock.mockResolvedValueOnce(step);
+    }
+    deriveMock.mockResolvedValue({
+      subjectNotContainsAny: [],
+      bodyNotContainsAny: [],
+    });
+    return {
+      emailThreadRepository: {
+        manager: { query: jest.fn().mockResolvedValue(opts.rows) },
+      },
+      llmCategoriesService: {
+        deriveExclusionPhrasesFromFalsePositives: deriveMock,
+      },
+      categoryId: opts.targetCategoryId,
+      logger: { log: jest.fn() },
+    };
+  }
+
+  it("converges across multiple refine rounds, accumulating exclusions until FP hits 0", async () => {
+    // Two false positives, each removable by a DIFFERENT marker. One derive pass
+    // cannot clear both — the loop must iterate on the residual FP set and
+    // accumulate the second exclusion.
+    const rows = [
+      ...tpRows(10),
+      buildFpRow("Build issue report", "the pipeline issue opened"),
+      buildFpRow("Build ci digest", "the pipeline ci summary"),
+    ];
+    const deps = buildSequencedDeps({
+      rows,
+      targetCategoryId: TARGET_CATEGORY_ID,
+      sequence: [
+        { subjectNotContainsAny: ["issue"], bodyNotContainsAny: [] },
+        { subjectNotContainsAny: ["digest"], bodyNotContainsAny: [] },
+      ],
+    });
+
+    const outcome = await deriveExclusionsForCompositeRule({
+      ...deps,
+      normaliseSender: normalise,
+      userId,
+      positiveSpec,
+      categoryName,
+    });
+
+    expect(
+      deps.llmCategoriesService.deriveExclusionPhrasesFromFalsePositives,
+    ).toHaveBeenCalledTimes(2);
+    expect(outcome.passes).toBe(true);
+    expect(outcome.falsePositives).toBe(0);
+    expect(outcome.truePositives).toBe(10);
+    expect(outcome.finalSpec?.subjectNotContainsAny).toEqual(
+      expect.arrayContaining(["issue", "digest"]),
+    );
+  });
+
+  it("rejects a candidate that still has FPs after MAX_RULE_REFINE_ROUNDS", async () => {
+    // Four false positives each needing their own exclusion; the loop makes
+    // progress every round but the cap (3) runs out before FP reaches 0.
+    const rows = [
+      ...tpRows(10),
+      buildFpRow("Build m1 alpha", "the pipeline m1"),
+      buildFpRow("Build m2 beta", "the pipeline m2"),
+      buildFpRow("Build m3 gamma", "the pipeline m3"),
+      buildFpRow("Build m4 delta", "the pipeline m4"),
+    ];
+    const deps = buildSequencedDeps({
+      rows,
+      targetCategoryId: TARGET_CATEGORY_ID,
+      sequence: [
+        { subjectNotContainsAny: ["m1 alpha"], bodyNotContainsAny: [] },
+        { subjectNotContainsAny: ["m2 beta"], bodyNotContainsAny: [] },
+        { subjectNotContainsAny: ["m3 gamma"], bodyNotContainsAny: [] },
+        { subjectNotContainsAny: ["m4 delta"], bodyNotContainsAny: [] },
+      ],
+    });
+
+    const outcome = await deriveExclusionsForCompositeRule({
+      ...deps,
+      normaliseSender: normalise,
+      userId,
+      positiveSpec,
+      categoryName,
+    });
+
+    expect(
+      deps.llmCategoriesService.deriveExclusionPhrasesFromFalsePositives,
+    ).toHaveBeenCalledTimes(CATEGORY_RULE_COMPOSITE.MAX_RULE_REFINE_ROUNDS);
+    expect(outcome.passes).toBe(false);
+    expect(outcome.finalSpec).toBeNull();
+    expect(outcome.falsePositives).toBeGreaterThan(0);
+  });
+
+  it("stops the loop when a round yields no new discriminative exclusion", async () => {
+    // The LLM keeps proposing a phrase that also occurs in the TPs, so the
+    // discriminative filter rejects it every time. The loop must detect "no new
+    // exclusions" and stop after a single derive call rather than spinning.
+    const rows = [
+      ...tpRows(10),
+      buildFpRow("Build digest", "the pipeline ran"),
+    ];
+    const deps = buildDeps({
+      rows,
+      targetCategoryId: TARGET_CATEGORY_ID,
+      // "pipeline" appears in every TP body → never discriminative.
+      derived: { subjectNotContainsAny: [], bodyNotContainsAny: ["pipeline"] },
+    });
+
+    const outcome = await deriveExclusionsForCompositeRule({
+      ...deps,
+      normaliseSender: normalise,
+      userId,
+      positiveSpec,
+      categoryName,
+    });
+
+    expect(
+      deps.llmCategoriesService.deriveExclusionPhrasesFromFalsePositives,
+    ).toHaveBeenCalledTimes(1);
+    expect(outcome.passes).toBe(false);
+    expect(outcome.finalSpec).toBeNull();
+  });
 });
 
 describe("passesValidationMatchGate", () => {

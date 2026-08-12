@@ -28,6 +28,7 @@ import {
 } from "../llm/llm-categories.service";
 import {
   mergeExclusionsIntoSpec,
+  specHasExclusion,
   specHasStructuralConstraint,
 } from "./category-rules-match-gate.helper";
 import {
@@ -383,35 +384,27 @@ export function applyDerivedExclusionsAndCheck(
   };
 }
 
-/** Human-readable reason a derived-exclusion candidate passed or failed, for the diagnostic log. */
-function describeFpDeriveOutcome(result: DeriveExclusionsOutcome): string {
-  if (result.passes) return "ok";
-  if (result.falsePositives > 0) return "fp-not-cleared";
-  return `tp-below-min(${result.truePositives})`;
-}
-
-interface ValidationPartition {
-  truePositiveRows: DecryptedValidationRow[];
-  falsePositiveRows: DecryptedValidationRow[];
-  /** Size of the broad FP window — 0 means no categorised history to validate against. */
-  broadRowCount: number;
+interface ValidationWindows {
+  /** The candidate category's OWN recent threads — the dense true-positive window. */
+  categoryRows: DecryptedValidationRow[];
+  /** A BROAD recent sample of all categorised mail — the false-positive window. */
+  broadRows: DecryptedValidationRow[];
 }
 
 /**
- * Fetches the two validation windows and partitions them: true positives from
- * the candidate category's OWN recent threads (dense), false positives from a
- * BROAD recent sample of all categorised mail. Splitting the windows lets a
- * structural rule cover a whole sub-stream without its true positives being
- * diluted across the mailbox, while an over-broad rule is still caught against
- * non-category threads.
+ * Fetches the two validation windows (undecrypted rows -> decrypted): true
+ * positives are sought in the candidate category's OWN recent threads (dense),
+ * false positives in a BROAD recent sample of all categorised mail. Splitting
+ * the windows lets a structural rule cover a whole sub-stream without its true
+ * positives being diluted across the mailbox, while an over-broad rule is still
+ * caught against non-category threads. Returned unpartitioned so the refine loop
+ * can re-partition against an evolving spec each round.
  */
-async function fetchValidationPartition(
+async function fetchValidationWindows(
   emailThreadRepository: Repository<EmailThread>,
   userId: string,
-  positiveSpec: CompositeCategoryRuleSpec,
-  normaliseSender: (raw: string) => string,
   targetCategoryId: string | null,
-): Promise<ValidationPartition> {
+): Promise<ValidationWindows> {
   const broadRows = (
     await fetchRecentCategorisedEmailRows(emailThreadRepository, userId)
   ).map(decryptValidationRow);
@@ -424,30 +417,253 @@ async function fetchValidationPartition(
         )
       ).map(decryptValidationRow)
     : [];
+  return { categoryRows, broadRows };
+}
 
-  const { truePositiveRows } = partitionMatchesByCategory(
+/** Residual true positives of `spec` against the dense category window. */
+function truePositivesOf(
+  categoryRows: DecryptedValidationRow[],
+  spec: CompositeCategoryRuleSpec,
+  normaliseSender: (raw: string) => string,
+  targetCategoryId: string | null,
+): DecryptedValidationRow[] {
+  return partitionMatchesByCategory(
     categoryRows,
-    positiveSpec,
+    spec,
     normaliseSender,
     targetCategoryId,
-  );
-  const { falsePositiveRows } = partitionMatchesByCategory(
+  ).truePositiveRows;
+}
+
+/** Residual false positives of `spec` against the broad window. */
+function falsePositivesOf(
+  broadRows: DecryptedValidationRow[],
+  spec: CompositeCategoryRuleSpec,
+  normaliseSender: (raw: string) => string,
+  targetCategoryId: string | null,
+): DecryptedValidationRow[] {
+  return partitionMatchesByCategory(
     broadRows,
-    positiveSpec,
+    spec,
     normaliseSender,
     targetCategoryId,
+  ).falsePositiveRows;
+}
+
+/** Derives one round of FP-distinguishing exclusion phrases from the residual FP set. */
+async function deriveExclusionsForResidualFps(
+  llmCategoriesService: LLMCategoriesService,
+  categoryName: string,
+  userId: string,
+  truePositiveRows: DecryptedValidationRow[],
+  falsePositiveRows: DecryptedValidationRow[],
+): Promise<{ subjectNotContainsAny: string[]; bodyNotContainsAny: string[] }> {
+  const tpSamples = truePositiveRows
+    .slice(0, CATEGORY_RULE_COMPOSITE.DERIVE_EXCLUSIONS_MAX_SAMPLES)
+    .map(rowToSample);
+  const fpSamples = falsePositiveRows
+    .slice(0, CATEGORY_RULE_COMPOSITE.DERIVE_EXCLUSIONS_MAX_SAMPLES)
+    .map(rowToSample);
+  return llmCategoriesService.deriveExclusionPhrasesFromFalsePositives({
+    categoryName,
+    truePositives: tpSamples,
+    falsePositives: fpSamples,
+    maxSubjectNotPhrases: CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES,
+    maxBodyNotPhrases: CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
+    userId,
+  });
+}
+
+/** Whether two specs carry the same exclusion phrase sets (a no-op merge). */
+function sameExclusions(
+  before: CompositeCategoryRuleSpec,
+  after: CompositeCategoryRuleSpec,
+): boolean {
+  const key = (spec: CompositeCategoryRuleSpec): string => {
+    if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V1) return "";
+    const subject = [...(spec.subjectNotContainsAny ?? [])].sort().join("|");
+    const body = [...(spec.bodyNotContainsAny ?? [])].sort().join("|");
+    return `${subject}##${body}`;
+  };
+  return key(before) === key(after);
+}
+
+interface RefineLoopParams {
+  llmCategoriesService: LLMCategoriesService;
+  normaliseSender: (raw: string) => string;
+  userId: string;
+  categoryName: string;
+  targetCategoryId: string | null;
+  positiveSpec: CompositeCategoryRuleSpec;
+  categoryRows: DecryptedValidationRow[];
+  broadRows: DecryptedValidationRow[];
+  logLine: (fields: string) => void;
+}
+
+/**
+ * Iteratively refines a candidate rule that still produces false positives.
+ * Each round: partition the windows against the CURRENT spec, derive further
+ * exclusions from the residual false positives, keep only the discriminative
+ * ones (never dropping true positives), accumulate them, and re-evaluate. The
+ * loop persists as soon as it converges (false positives at or below the
+ * acceptable threshold and the match gate passes) and gives up after
+ * MAX_RULE_REFINE_ROUNDS. It also stops early — and rejects — when a round adds
+ * no new exclusion or fails to reduce the false-positive count, so it is always
+ * bounded and never spins.
+ */
+async function refineExclusionsIteratively(
+  params: RefineLoopParams,
+): Promise<DeriveExclusionsOutcome> {
+  const {
+    llmCategoriesService,
+    normaliseSender,
+    userId,
+    categoryName,
+    targetCategoryId,
+    positiveSpec,
+    categoryRows,
+    broadRows,
+    logLine,
+  } = params;
+
+  let currentSpec = positiveSpec;
+  let stopReason = "rounds-exhausted";
+
+  for (
+    let round = 1;
+    round <= CATEGORY_RULE_COMPOSITE.MAX_RULE_REFINE_ROUNDS;
+  ) {
+    const tpRows = truePositivesOf(
+      categoryRows,
+      currentSpec,
+      normaliseSender,
+      targetCategoryId,
+    );
+    const fpRows = falsePositivesOf(
+      broadRows,
+      currentSpec,
+      normaliseSender,
+      targetCategoryId,
+    );
+
+    const derived = await deriveExclusionsForResidualFps(
+      llmCategoriesService,
+      categoryName,
+      userId,
+      tpRows,
+      fpRows,
+    );
+    const selected = selectDiscriminativeExclusions(derived, tpRows, fpRows);
+    if (
+      selected.subjectNotContainsAny.length === 0 &&
+      selected.bodyNotContainsAny.length === 0
+    ) {
+      stopReason = "no-new-exclusions";
+      break;
+    }
+
+    const nextSpec = mergeExclusionsIntoSpec(
+      currentSpec,
+      selected.subjectNotContainsAny,
+      selected.bodyNotContainsAny,
+    );
+    if (sameExclusions(currentSpec, nextSpec)) {
+      stopReason = "no-new-exclusions";
+      break;
+    }
+
+    const nextFpCount = falsePositivesOf(
+      broadRows,
+      nextSpec,
+      normaliseSender,
+      targetCategoryId,
+    ).length;
+    // Exclusions can only ever remove matches, so a round that does not strictly
+    // reduce the false-positive count cannot help — stop rather than spin.
+    if (nextFpCount >= fpRows.length) {
+      stopReason = "no-fp-improvement";
+      break;
+    }
+
+    logLine(
+      `branch=refine round=${round} preFP=${fpRows.length} postFP=${nextFpCount} ` +
+        `addedSubjectNot=${selected.subjectNotContainsAny.length} ` +
+        `addedBodyNot=${selected.bodyNotContainsAny.length}`,
+    );
+    currentSpec = nextSpec;
+    round += 1;
+
+    if (nextFpCount <= CATEGORY_RULE_COMPOSITE.RULE_MAX_ACCEPTABLE_FP) {
+      stopReason = "converged";
+      break;
+    }
+  }
+
+  return buildRefineOutcome({
+    currentSpec,
+    categoryRows,
+    broadRows,
+    normaliseSender,
+    targetCategoryId,
+    stopReason,
+    logLine,
+  });
+}
+
+/**
+ * Final evaluation of the refined spec once the loop stops: re-measure TP/FP,
+ * require at least one exclusion (a bare positive-only spec never survives the
+ * refine path), and apply the standard match gate. Emits the summary log line.
+ */
+function buildRefineOutcome(params: {
+  currentSpec: CompositeCategoryRuleSpec;
+  categoryRows: DecryptedValidationRow[];
+  broadRows: DecryptedValidationRow[];
+  normaliseSender: (raw: string) => string;
+  targetCategoryId: string | null;
+  stopReason: string;
+  logLine: (fields: string) => void;
+}): DeriveExclusionsOutcome {
+  const {
+    currentSpec,
+    categoryRows,
+    broadRows,
+    normaliseSender,
+    targetCategoryId,
+    stopReason,
+    logLine,
+  } = params;
+  const finalTp = truePositivesOf(
+    categoryRows,
+    currentSpec,
+    normaliseSender,
+    targetCategoryId,
+  ).length;
+  const finalFp = falsePositivesOf(
+    broadRows,
+    currentSpec,
+    normaliseSender,
+    targetCategoryId,
+  ).length;
+  const passes =
+    specHasExclusion(currentSpec) &&
+    passesValidationMatchGate(currentSpec, finalTp, finalFp);
+  logLine(
+    `branch=refine-done stopReason=${stopReason} finalTP=${finalTp} finalFP=${finalFp} passes=${passes}`,
   );
   return {
-    truePositiveRows,
-    falsePositiveRows,
-    broadRowCount: broadRows.length,
+    passes,
+    truePositives: finalTp,
+    falsePositives: finalFp,
+    finalSpec: passes ? currentSpec : null,
   };
 }
 
 /**
- * Top-level orchestrator. Fetches the validation window, evaluates the
- * positive-only spec, derives FP-distinguishing exclusions via the LLM
- * when needed, applies them, and re-validates.
+ * Top-level orchestrator. Fetches the validation windows, evaluates the
+ * positive-only spec, and — when it still produces false positives — runs the
+ * iterative refine loop that derives, accumulates, and re-validates exclusions
+ * until the rule converges or the round budget is exhausted.
  */
 export async function deriveExclusionsForCompositeRule(
   params: DeriveExclusionsParams,
@@ -469,22 +685,32 @@ export async function deriveExclusionsForCompositeRule(
       `[CategoryRules][derive] category="${categoryName}" minRequired=${minMatches} ${fields} user=${userId}`,
     );
 
-  const { truePositiveRows, falsePositiveRows, broadRowCount } =
-    await fetchValidationPartition(
-      emailThreadRepository,
-      userId,
-      positiveSpec,
-      normaliseSender,
-      targetCategoryId,
-    );
+  const { categoryRows, broadRows } = await fetchValidationWindows(
+    emailThreadRepository,
+    userId,
+    targetCategoryId,
+  );
+
+  const truePositiveRows = truePositivesOf(
+    categoryRows,
+    positiveSpec,
+    normaliseSender,
+    targetCategoryId,
+  );
+  const falsePositiveRows = falsePositivesOf(
+    broadRows,
+    positiveSpec,
+    normaliseSender,
+    targetCategoryId,
+  );
   const truePositives = truePositiveRows.length;
   const falsePositives = falsePositiveRows.length;
 
-  if (broadRowCount === 0 || !targetCategoryId) {
+  if (broadRows.length === 0 || !targetCategoryId) {
     // Same fallback as `validateCompositeRuleAgainstHistory` — no history to
     // validate against, so we accept the positive-only spec.
     logLine(
-      `branch=no-history broadRows=${broadRowCount} hasCategoryId=${!!targetCategoryId} passes=true`,
+      `branch=no-history broadRows=${broadRows.length} hasCategoryId=${!!targetCategoryId} passes=true`,
     );
     return {
       passes: true,
@@ -494,7 +720,7 @@ export async function deriveExclusionsForCompositeRule(
     };
   }
 
-  if (falsePositives === 0) {
+  if (falsePositives <= CATEGORY_RULE_COMPOSITE.RULE_MAX_ACCEPTABLE_FP) {
     const passes = passesValidationMatchGate(
       positiveSpec,
       truePositives,
@@ -504,7 +730,7 @@ export async function deriveExclusionsForCompositeRule(
     // spec matched fewer than `minRequired` threads in the target category —
     // i.e. the TP-count gate, NOT exclusions.
     logLine(
-      `branch=clean-zero-fp preTP=${truePositives} preFP=0 passes=${passes}`,
+      `branch=clean-zero-fp preTP=${truePositives} preFP=${falsePositives} passes=${passes}`,
     );
     return {
       passes,
@@ -514,43 +740,15 @@ export async function deriveExclusionsForCompositeRule(
     };
   }
 
-  const tpSamples = truePositiveRows
-    .slice(0, CATEGORY_RULE_COMPOSITE.DERIVE_EXCLUSIONS_MAX_SAMPLES)
-    .map(rowToSample);
-  const fpSamples = falsePositiveRows
-    .slice(0, CATEGORY_RULE_COMPOSITE.DERIVE_EXCLUSIONS_MAX_SAMPLES)
-    .map(rowToSample);
-
-  const derived =
-    await llmCategoriesService.deriveExclusionPhrasesFromFalsePositives({
-      categoryName,
-      truePositives: tpSamples,
-      falsePositives: fpSamples,
-      maxSubjectNotPhrases: CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES,
-      maxBodyNotPhrases: CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
-      userId,
-    });
-
-  const result = applyDerivedExclusionsAndCheck({
-    positiveSpec,
-    truePositiveRows,
-    falsePositiveRows,
-    derived,
+  return refineExclusionsIteratively({
+    llmCategoriesService,
     normaliseSender,
+    userId,
+    categoryName,
     targetCategoryId,
+    positiveSpec,
+    categoryRows,
+    broadRows,
+    logLine,
   });
-
-  // The decisive line: whether a rule WITH exclusions survives. `postFP>0`
-  // means the LLM's phrases did not eliminate every false positive; `postTP`
-  // below `minRequired` means the exclusions (or the base spec) match too few
-  // target-category threads. `derived*=0` means the LLM found no separator.
-  logLine(
-    `branch=fp-derive preTP=${truePositives} preFP=${falsePositives} ` +
-      `derivedSubjectNot=${derived.subjectNotContainsAny.length} ` +
-      `derivedBodyNot=${derived.bodyNotContainsAny.length} ` +
-      `postTP=${result.truePositives} postFP=${result.falsePositives} ` +
-      `passes=${result.passes} reason=${describeFpDeriveOutcome(result)}`,
-  );
-
-  return result;
 }

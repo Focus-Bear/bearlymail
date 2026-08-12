@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { CategoryOverride } from "../database/entities/category-override.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -265,6 +266,60 @@ describe("EmailArchiveService", () => {
           originalCategory: null,
         }),
       );
+    });
+
+    it("enqueues a generate-category-rule job for the chosen category (build-rule-on-correction)", async () => {
+      await service.overrideCategory(userId, emailId, newCategory);
+
+      const ruleJobCall = mockBoss.send.mock.calls.find(
+        (call) => call[0] === JOB_NAMES.GENERATE_CATEGORY_RULE,
+      );
+      expect(ruleJobCall).toBeDefined();
+      expect(ruleJobCall?.[1]).toMatchObject({
+        userId,
+        emailId,
+        categoryName: newCategory,
+      });
+      // No prior rule mis-filed it (categorySource unset) — no demotion target.
+      expect(ruleJobCall?.[1]).not.toHaveProperty("demoteCategoryId");
+    });
+
+    it("passes demoteCategoryId when the thread was previously categorised by a rule", async () => {
+      mockEmailThreadRepository.findOne.mockResolvedValue({
+        ...mockThread,
+        categorySource: "rule",
+      });
+
+      await service.overrideCategory(userId, emailId, newCategory);
+
+      const ruleJobCall = mockBoss.send.mock.calls.find(
+        (call) => call[0] === JOB_NAMES.GENERATE_CATEGORY_RULE,
+      );
+      expect(ruleJobCall?.[1]).toMatchObject({
+        categoryName: newCategory,
+        demoteCategoryId: oldContextId,
+      });
+    });
+
+    it("does NOT enqueue a rule-build job when correcting to Other (uncategorised)", async () => {
+      await service.overrideCategory(userId, emailId, "Other");
+
+      const ruleJobCall = mockBoss.send.mock.calls.find(
+        (call) => call[0] === JOB_NAMES.GENERATE_CATEGORY_RULE,
+      );
+      expect(ruleJobCall).toBeUndefined();
+    });
+
+    it("does not fail the override when the rule-build enqueue rejects", async () => {
+      mockBoss.send.mockRejectedValueOnce(new Error("boss down"));
+
+      const result = await service.overrideCategory(
+        userId,
+        emailId,
+        newCategory,
+      );
+
+      expect(result).toEqual({ success: true, category: newCategory });
     });
 
     it("throws when email is not found", async () => {

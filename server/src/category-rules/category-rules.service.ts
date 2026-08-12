@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CATEGORY_RULE_MATCH_MODES } from "../constants/domain-types";
 import {
   CategoryRule,
@@ -34,6 +35,7 @@ import {
   EmailHashes,
   specToV2,
 } from "./category-rules-auto-composite.helper";
+import { selectDiscriminativeExclusions } from "./category-rules-derive-exclusions.helper";
 import {
   buildDraftCompositeSpec,
   DraftCompositeSpecDeps,
@@ -49,6 +51,7 @@ import {
 } from "./category-rules-match.helper";
 import {
   dropContradictoryExclusions,
+  mergeExclusionsIntoSpec,
   specHasExclusion,
   specHasStructuralConstraint,
 } from "./category-rules-match-gate.helper";
@@ -67,6 +70,9 @@ import {
   resolveRuleCategoryId,
 } from "./category-rules-trace.helper";
 import {
+  DecryptedValidationRow,
+  decryptValidationRow,
+  fetchRecentThreadsForCategoryRows,
   findCategoryContextIdByName,
   healBrokenCategoryLinks,
   resolveCategoryLink,
@@ -176,6 +182,90 @@ export class CategoryRulesService {
       draft.categoryName,
       draft.categoryId,
     );
+  }
+
+  /**
+   * After a manual category correction, add an exclusion to the composite rule
+   * that mis-filed this email under the corrected-away category
+   * (`wrongCategoryId`), so it stops matching this email and others like it.
+   *
+   * Scoped and safe: touches ONLY the single rule that currently wins for this
+   * email AND points at the wrong category. The exclusion is derived from what
+   * distinguishes this email from genuine members of that category (the same
+   * FP-vs-TP derivation the auto path uses), and the discriminative filter drops
+   * any phrase that also appears in true-category mail — so a real member of the
+   * category is never excluded. Adding a NOT-contains phrase can only ever narrow
+   * a rule, never broaden it. Best-effort: returns a structured result the caller
+   * logs; never throws for a "nothing to do" case.
+   */
+  async addExclusionToMismatchedRule(
+    userId: string,
+    email: EmailMetadata,
+    wrongCategoryId: string,
+  ): Promise<{ applied: boolean; ruleId?: string; reason?: string }> {
+    const match = await this.peekMatchingRule(userId, email);
+    if (!match) {
+      return { applied: false, reason: "no-rule-matched" };
+    }
+    if (match.ruleKind !== CATEGORY_RULE_MATCH_MODES.COMPOSITE) {
+      return { applied: false, reason: "matched-rule-not-composite" };
+    }
+    if (match.categoryId !== wrongCategoryId) {
+      return { applied: false, reason: "matched-rule-not-old-category" };
+    }
+    const rule = await this.categoryRuleRepository.findOne({
+      where: { id: match.ruleId, userId },
+    });
+    if (!rule?.compositeSpec) {
+      return { applied: false, reason: "rule-missing-spec" };
+    }
+
+    // This email is a FALSE positive relative to the rule's category; genuine
+    // members of that category are the true positives we must not exclude.
+    const fpRow: DecryptedValidationRow = {
+      from: email.from,
+      subject: email.subject,
+      body: email.bodyTextForMatch ?? "",
+      htmlBody: null,
+      categoryId: null,
+    };
+    const tpRows = (
+      await fetchRecentThreadsForCategoryRows(
+        this.emailThreadRepository,
+        userId,
+        wrongCategoryId,
+      )
+    ).map(decryptValidationRow);
+
+    const derived =
+      await this.llmCategoriesService.deriveExclusionPhrasesFromFalsePositives({
+        categoryName: rule.categoryName,
+        truePositives: tpRows
+          .slice(0, CATEGORY_RULE_COMPOSITE.DERIVE_EXCLUSIONS_MAX_SAMPLES)
+          .map((row) => ({ subject: row.subject, body: row.body })),
+        falsePositives: [{ subject: fpRow.subject, body: fpRow.body }],
+        maxSubjectNotPhrases: CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES,
+        maxBodyNotPhrases: CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
+        userId,
+      });
+    const selected = selectDiscriminativeExclusions(derived, tpRows, [fpRow]);
+    if (
+      selected.subjectNotContainsAny.length === 0 &&
+      selected.bodyNotContainsAny.length === 0
+    ) {
+      return { applied: false, reason: "no-discriminative-exclusion" };
+    }
+
+    rule.compositeSpec = mergeExclusionsIntoSpec(
+      rule.compositeSpec,
+      selected.subjectNotContainsAny,
+      selected.bodyNotContainsAny,
+    );
+    await this.categoryRuleRepository.save(rule);
+    this.logger.log(
+      `[CategoryRules] Added exclusion to mis-matching rule ${rule.id} (category="${rule.categoryName}") after manual correction for user ${userId} — subjectNot=${JSON.stringify(selected.subjectNotContainsAny)} bodyNot=${JSON.stringify(selected.bodyNotContainsAny)}`,
+    );
+    return { applied: true, ruleId: rule.id };
   }
 
   /**

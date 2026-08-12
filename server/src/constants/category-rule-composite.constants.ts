@@ -120,6 +120,26 @@ export const CATEGORY_RULE_COMPOSITE = {
    */
   DERIVE_EXCLUSIONS_MAX_SAMPLES: 8,
   /**
+   * Maximum number of exclusion-refinement rounds when a candidate rule still
+   * produces false positives. High-volume templated senders (e.g. GitHub PR
+   * notifications) can share boilerplate with adjacent sub-streams (issues, CI),
+   * so a single derive-exclusions pass rarely eliminates every false positive. A
+   * genuinely-valuable candidate (175 true positives, 70 false positives from
+   * issue/CI notifications) is worth iterating on: each round derives further
+   * exclusions from the RESIDUAL false positives and accumulates them, rather
+   * than discarding the rule outright after one pass. Bounded so the loop always
+   * terminates; the loop also stops early when a round adds no new exclusion or
+   * fails to reduce the false-positive count.
+   */
+  MAX_RULE_REFINE_ROUNDS: 3,
+  /**
+   * The most false positives a refined rule may still carry and be persisted.
+   * Zero: precision is the whole point of a deterministic rule, and the
+   * validation match gate already requires zero false positives, so the refine
+   * loop converges only when it has eliminated every false positive.
+   */
+  RULE_MAX_ACCEPTABLE_FP: 0,
+  /**
    * Exclusion quality bar (junk-exclusion fix). The LLM that derives
    * `subjectNotContainsAny` / `bodyNotContainsAny` phrases from false-positive
    * samples tends to grasp at brittle fragments ("Type: Feature Request",

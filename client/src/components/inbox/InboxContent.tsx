@@ -172,6 +172,7 @@ export const InboxContent: React.FC<InboxContentProps> = props => {
     updateDraft,
     bulkSend,
     fetchThreadsWithDrafts,
+    onRefreshInbox: onRetry,
   });
 
   const selectedEmailForPanel = useMemo(

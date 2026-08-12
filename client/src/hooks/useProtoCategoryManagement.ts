@@ -20,7 +20,16 @@ interface UseProtoCategoryManagementResult {
   dismissRecategorizeProgress: () => void;
 }
 
-export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult => {
+interface UseProtoCategoryManagementOptions {
+  /** Called after a proto category is successfully promoted, so the caller can
+   * refresh the inbox and move the promoted emails out of "Other". */
+  onPromoted?: () => void;
+}
+
+export const useProtoCategoryManagement = (
+  options: UseProtoCategoryManagementOptions = {}
+): UseProtoCategoryManagementResult => {
+  const { onPromoted } = options;
   const { t } = useTranslation();
   const { showNotification } = useNotifications();
   const {
@@ -75,6 +84,9 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
         await axios.post(`${API_URL}/proto-categories/${protoCategoryId}/promote`);
         setProtoCategories(prev => prev.filter(pc => pc.id !== protoCategoryId));
         showNotification(t('inbox.protoCategory.convertSuccess', { name }), 'success');
+        // Refresh the inbox so the promoted emails re-categorise out of "Other"
+        // (the server reassigns the threads synchronously during promotion).
+        onPromoted?.();
       } catch (error) {
         console.error('Error converting proto category:', error);
         showNotification(t('inbox.protoCategory.convertError'), 'error');
@@ -82,7 +94,7 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
         setConvertingProtoCategoryId(null);
       }
     },
-    [showNotification, t]
+    [showNotification, t, onPromoted]
   );
 
   const handleDeleteProtoCategoryFromInbox = useCallback(

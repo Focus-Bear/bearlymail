@@ -6,6 +6,7 @@
 import { Email, InboxMode } from 'types/email';
 
 import { CategoryGroup, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
+import { CATEGORY_OTHER } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
@@ -144,6 +145,29 @@ export function buildOtherProtoGroups(
     }
   });
   return Array.from(groups.entries()).map(([name, groupEmails]) => ({ name, emails: groupEmails }));
+}
+
+/**
+ * Whether the "Other" accordion is currently expanded, in which case the inbox
+ * should fetch the user's proto categories (needed to wire the per-group
+ * "Convert to category" / delete actions to a real proto-category id).
+ *
+ * The "Other" category is keyed by `getCategoryKey`, which collapses the
+ * name-"Other" sentinel to `CATEGORY_KEY_UNCATEGORIZED` ("uncategorized"), NOT
+ * the literal "Other" string. `expandedCategories` holds those keys, so we must
+ * look it up by the resolved key — checking for the raw "Other" name never
+ * matches, which previously left proto categories unfetched and made the
+ * "Convert to category" button a silent no-op (id resolved to '').
+ */
+export function shouldFetchProtoCategories(
+  displayCategories: Array<{ id: string | null; name: string }>,
+  expandedCategories: Set<string>
+): boolean {
+  const otherCategory = displayCategories.find(category => category.name === CATEGORY_OTHER);
+  if (!otherCategory) {
+    return false;
+  }
+  return expandedCategories.has(getCategoryKey(otherCategory.id, otherCategory.name));
 }
 
 export function buildDisplayCategories(

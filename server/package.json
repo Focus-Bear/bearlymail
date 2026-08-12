@@ -139,7 +139,7 @@
     "eslint-plugin-better-max-params": "^1.0.0",
     "eslint-plugin-prettier": "^5.5.6",
     "eslint-plugin-simple-import-sort": "^14.0.0",
-    "jest": "^30.3.0",
+    "jest": "^30.4.2",
     "js-yaml": "^5.2.2",
     "jscodeshift": "^17.3.0",
     "nodemon": "^3.1.14",

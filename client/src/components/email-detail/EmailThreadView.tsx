@@ -327,7 +327,11 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
                       </>
                     )}
                     {Array.isArray(threadEmail.attachments) && threadEmail.attachments.length > 0 && (
-                      <EmailAttachments emailId={threadEmail.id} attachments={threadEmail.attachments} />
+                      <EmailAttachments
+                        emailId={threadEmail.id}
+                        attachments={threadEmail.attachments}
+                        htmlBody={rawHtmlBody}
+                      />
                     )}
                     {onReplyToMessage && (
                       <ThreadMessageReplyActions emailId={threadEmail.id} onReplyToMessage={onReplyToMessage} />
@@ -395,7 +399,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
           </>
         )}
         {Array.isArray(email.attachments) && email.attachments.length > 0 && (
-          <EmailAttachments emailId={email.id} attachments={email.attachments} />
+          <EmailAttachments emailId={email.id} attachments={email.attachments} htmlBody={singleEmailHtmlBody} />
         )}
       </div>
     );

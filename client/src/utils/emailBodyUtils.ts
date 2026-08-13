@@ -114,6 +114,29 @@ function removeCidImagesFromString(html: string): string {
 }
 
 /**
+ * Extract the set of Content-ID values that are actually referenced by inline
+ * `<img src="cid:XXX">` tags in an HTML email body.
+ *
+ * Used to tell genuinely-embedded inline images (which the body renders, so they
+ * should be hidden from the attachment list) apart from real image attachments
+ * that merely carry a Content-ID header but are never referenced in the body —
+ * e.g. a screenshot the sender's mail client tagged with a Content-ID. The latter
+ * must still be shown in the attachment list.
+ */
+export function getReferencedCidSet(html?: string): Set<string> {
+  const referencedCids = new Set<string>();
+  if (!html) {
+    return referencedCids;
+  }
+  const cidImageRegex = /<img[^>]*?src=["']cid:([^"']+)["'][^>]*?>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = cidImageRegex.exec(html)) !== null) {
+    referencedCids.add(match[1]);
+  }
+  return referencedCids;
+}
+
+/**
  * Result of extracting a clean HTML body, including whether content was truncated.
  */
 export interface CleanHtmlResult {

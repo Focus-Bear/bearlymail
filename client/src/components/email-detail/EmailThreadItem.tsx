@@ -62,7 +62,11 @@ export const EmailThreadItem: React.FC<EmailThreadItemProps> = ({
           <ThreadItemBody body={threadEmail.body} htmlBody={threadEmail.htmlBody} attachments={threadEmail.attachments} />
           {Array.isArray(threadEmail.attachments) && threadEmail.attachments.length > 0 && (
             <div style={{ padding: `0 ${theme.spacing.md} ${theme.spacing.md}` }}>
-              <EmailAttachments emailId={threadEmail.id} attachments={threadEmail.attachments} />
+              <EmailAttachments
+                emailId={threadEmail.id}
+                attachments={threadEmail.attachments}
+                htmlBody={threadEmail.htmlBody || threadEmail.body}
+              />
             </div>
           )}
         </>

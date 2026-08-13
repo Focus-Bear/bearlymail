@@ -4,6 +4,7 @@ import {
   decodeHtmlEntities,
   extractCleanBody,
   extractCleanHtmlBody,
+  getReferencedCidSet,
   looksLikeHtml,
   normalizeSchemelessExternalHref,
   removeSignature,
@@ -724,6 +725,42 @@ describe('emailBodyUtils', () => {
 
     it('returns false for text with only angle brackets that are not tags', () => {
       expect(looksLikeHtml('value < 10 and value > 5')).toBe(false);
+    });
+  });
+
+  describe('getReferencedCidSet', () => {
+    it('returns an empty set for undefined or empty input', () => {
+      expect(getReferencedCidSet(undefined).size).toBe(0);
+      expect(getReferencedCidSet('').size).toBe(0);
+    });
+
+    it('returns an empty set when the body has no cid: images', () => {
+      expect(getReferencedCidSet('<p>Hello</p><img src="https://x.test/a.png" />').size).toBe(0);
+    });
+
+    it('extracts a single referenced cid', () => {
+      const set = getReferencedCidSet('<p>Hi</p><img src="cid:img001@local" />');
+      expect(set.has('img001@local')).toBe(true);
+      expect(set.size).toBe(1);
+    });
+
+    it('extracts multiple referenced cids and ignores non-cid images', () => {
+      const html =
+        '<img src="cid:logo@sig" /><img src="https://x.test/a.png" /><img src="cid:banner@sig" />';
+      const set = getReferencedCidSet(html);
+      expect(set.has('logo@sig')).toBe(true);
+      expect(set.has('banner@sig')).toBe(true);
+      expect(set.size).toBe(2);
+    });
+
+    it('matches cid images regardless of quote style and tag casing', () => {
+      const set = getReferencedCidSet("<IMG SRC='cid:img@x'>");
+      expect(set.has('img@x')).toBe(true);
+    });
+
+    it('does NOT include a cid that only appears in text, not an img src', () => {
+      const set = getReferencedCidSet('<p>reference cid:notanimage@x here</p>');
+      expect(set.size).toBe(0);
     });
   });
 });

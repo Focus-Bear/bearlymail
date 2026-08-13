@@ -323,6 +323,56 @@ describe("OnboardingService", () => {
       expect(result.prioritizedCount).toBe(100);
       expect(result.isReady).toBe(true);
     });
+
+    // Regression: the context analysis reads emails straight from the provider and
+    // finishes before the separate email sync has persisted any EmailThread rows.
+    // Previously `isReady` flipped true on a completed analysis alone, so the client
+    // stopped polling and the onboarding step froze at "(0 so far)" with the bar at
+    // 100%. Readiness must wait for at least one synced email.
+    it("should NOT be ready when analysis completed but no emails synced yet (count 0)", async () => {
+      emailThreadRepository.count.mockResolvedValue(0);
+      contextAnalysisRepository.findOne.mockResolvedValue({
+        status: "completed",
+        createdAt: new Date(),
+      });
+
+      const result = await service.getEmailImportProgress("user-1");
+
+      expect(result.prioritizedCount).toBe(0);
+      expect(result.isReady).toBe(false);
+    });
+
+    it("should expose a non-zero, increasing count and only become ready once emails start syncing", async () => {
+      contextAnalysisRepository.findOne.mockResolvedValue({
+        status: "completed",
+        createdAt: new Date(),
+      });
+
+      // Mid-scan: no threads persisted yet — keep the client polling.
+      emailThreadRepository.count.mockResolvedValueOnce(0);
+      const before = await service.getEmailImportProgress("user-1");
+      expect(before.prioritizedCount).toBe(0);
+      expect(before.isReady).toBe(false);
+
+      // Sync has started persisting threads — count reflects real progress and readies.
+      emailThreadRepository.count.mockResolvedValueOnce(12);
+      const after = await service.getEmailImportProgress("user-1");
+      expect(after.prioritizedCount).toBe(12);
+      expect(after.isReady).toBe(true);
+    });
+
+    it("should still unblock on analysis failure even when no emails synced (not the user's fault)", async () => {
+      emailThreadRepository.count.mockResolvedValue(0);
+      contextAnalysisRepository.findOne.mockResolvedValue({
+        status: "failed",
+        createdAt: new Date(),
+      });
+
+      const result = await service.getEmailImportProgress("user-1");
+
+      expect(result.prioritizedCount).toBe(0);
+      expect(result.isReady).toBe(true);
+    });
   });
 
   describe("completeOnboarding", () => {

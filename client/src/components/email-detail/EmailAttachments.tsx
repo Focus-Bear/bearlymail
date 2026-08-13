@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { getReferencedCidSet } from 'utils/emailBodyUtils';
 
 import { API_URL } from 'config/api';
 import { EMOJI_DOWNLOAD } from 'constants/emojis';
@@ -20,6 +21,13 @@ interface EmailAttachment {
 interface EmailAttachmentsProps {
   emailId: string;
   attachments: EmailAttachment[];
+  /**
+   * The email's HTML body. Used to determine which image attachments are actually
+   * embedded inline (via `<img src="cid:...">`) and should therefore be hidden from
+   * this list. Image attachments carrying a Content-ID that the body does NOT
+   * reference are real attachments and are still shown.
+   */
+  htmlBody?: string;
 }
 
 /**
@@ -216,14 +224,23 @@ const AttachmentItem: React.FC<AttachmentItemProps> = ({ emailId, attachment, on
  * Displays list of attachments. Images and PDFs can be previewed in a modal;
  * other types trigger a direct download.
  */
-export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, attachments }) => {
+export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, attachments, htmlBody }) => {
   const { t } = useTranslation();
   const [previewAttachment, setPreviewAttachment] = useState<EmailAttachment | null>(null);
 
-  // Inline images (image MIME type with a contentId) are rendered directly in the email body — exclude
-  // them here. Non-image files (PDFs, documents, etc.) may also have a contentId if the sender's email
-  // client added a Content-ID header, but they are never embedded inline and must still be shown.
-  const visibleAttachments = attachments?.filter(att => !(att.contentId && att.mimeType?.toLowerCase().startsWith('image/'))) ?? [];
+  const referencedCids = useMemo(() => getReferencedCidSet(htmlBody), [htmlBody]);
+
+  // Hide an image attachment ONLY when it is actually embedded inline — i.e. its Content-ID is
+  // referenced by an `<img src="cid:...">` in the body. Image attachments carrying a Content-ID
+  // header that the body never references (e.g. a screenshot the sender's client tagged) are real
+  // attachments and must still be shown. Non-image files and attachments without a Content-ID are
+  // never inline and are always shown.
+  const visibleAttachments =
+    attachments?.filter(att => {
+      const isImage = att.mimeType?.toLowerCase().startsWith('image/') ?? false;
+      const isInlineReferenced = isImage && !!att.contentId && referencedCids.has(att.contentId);
+      return !isInlineReferenced;
+    }) ?? [];
 
   if (visibleAttachments.length === 0) {
     return null;

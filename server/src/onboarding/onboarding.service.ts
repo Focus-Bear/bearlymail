@@ -124,15 +124,24 @@ export class OnboardingService {
       order: { createdAt: "DESC" },
     });
 
-    const analysisFinished =
-      latestAnalysis != null &&
-      (latestAnalysis.status === CONTEXT_ANALYSIS_STATUS.COMPLETED ||
-        latestAnalysis.status === CONTEXT_ANALYSIS_STATUS.FAILED);
+    const analysisCompleted =
+      latestAnalysis?.status === CONTEXT_ANALYSIS_STATUS.COMPLETED;
+    const analysisFailed =
+      latestAnalysis?.status === CONTEXT_ANALYSIS_STATUS.FAILED;
+    const hasSyncedEmails = count > 0;
 
-    // isReady when:
-    // 1. The analysis job has finished (completed or failed), OR
-    // 2. There are >= 100 emails imported (large accounts — don't wait for full analysis)
-    const isReady = analysisFinished || count >= 100;
+    // Context analysis reads emails straight from the provider and never writes
+    // EmailThread rows; those come from the separate FETCH_USER_EMAILS/scanHistory
+    // sync, which typically lags the (much faster) analysis. So the analysis can
+    // report "completed" while `count` is still 0, i.e. before any email has been
+    // synced. Gating readiness on the completed analysis alone froze the onboarding
+    // "Reading your recent emails" step at "(0 so far)" with the bar at 100%, because
+    // the client stops polling once isReady flips true. Require at least one synced
+    // email alongside a completed analysis so the count keeps climbing while the sync
+    // runs. Failure still unblocks unconditionally (not the user's fault), and large
+    // mailboxes short-circuit once enough has landed.
+    const isReady =
+      analysisFailed || (analysisCompleted && hasSyncedEmails) || count >= 100;
 
     return {
       prioritizedCount: count,

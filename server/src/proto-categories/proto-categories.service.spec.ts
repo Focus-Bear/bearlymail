@@ -13,6 +13,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { EmbeddingService } from "../llm/embedding.service";
 import { LLMCoreService } from "../llm/llm-core.service";
+import { MAX_BOOTSTRAP_CATEGORIES } from "./proto-categories.constants";
 import { ProtoCategoriesService } from "./proto-categories.service";
 
 const mockProtoCategoryRepo = () => ({
@@ -57,6 +58,9 @@ const mockUserContextRepo = () => ({
   create: jest.fn(),
   save: jest.fn(),
   update: jest.fn(),
+  // Default to the bootstrap cap so existing tests treat the user as an
+  // established (non-bootstrapping) user; bootstrap tests override this.
+  count: jest.fn().mockResolvedValue(MAX_BOOTSTRAP_CATEGORIES),
 });
 
 const mockDataSource = () => ({
@@ -842,6 +846,121 @@ describe("ProtoCategoriesService", () => {
       expect(protoCategoryRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({ creationReasoning: reasoning }),
       );
+    });
+  });
+
+  describe("createAndAssignToThread — bootstrap auto-promotion", () => {
+    // Wire up the mocks a fresh (deduped) proto walks through when it is
+    // created and then immediately promoted during bootstrap.
+    const setupNewProtoCreation = () => {
+      protoCategoryRepo.find.mockResolvedValue([]);
+      protoCategoryRepo.create.mockImplementation(
+        (input: Partial<ProtoCategory>) => input,
+      );
+      protoCategoryRepo.save.mockImplementation(
+        async (input: Partial<ProtoCategory>) => ({ id: "proto-1", ...input }),
+      );
+      (service["emailThreadRepository"].update as jest.Mock).mockResolvedValue(
+        {},
+      );
+    };
+
+    it("immediately promotes a new deduped suggestion when the user has 0 real categories", async () => {
+      userContextRepo.count.mockResolvedValue(0);
+      setupNewProtoCreation();
+      // No existing real categories → dedup finds no match, a real category is minted.
+      userContextRepo.find.mockResolvedValue([]);
+      userContextRepo.create.mockImplementation((ctx: unknown) => ctx);
+      userContextRepo.save.mockResolvedValue({ contextId: "ctx-new" });
+      protoCategoryRepo.update.mockResolvedValue({});
+      protoCategoryRepo.findOne.mockResolvedValue({
+        id: "proto-1",
+        name: "Customer Support",
+        isPromoted: true,
+        promotedCategoryId: "ctx-new",
+      } as ProtoCategory);
+
+      const result = await service.createAndAssignToThread(
+        "user-1",
+        "Customer Support",
+        null,
+        "thread-1",
+      );
+
+      // A real category was minted immediately — no 5-email wait.
+      expect(userContextRepo.save).toHaveBeenCalled();
+      expect(result.isPromoted).toBe(true);
+    });
+
+    it("folds a new suggestion into an existing category (no duplicate) even in bootstrap mode", async () => {
+      userContextRepo.count.mockResolvedValue(3);
+      setupNewProtoCreation();
+      // An existing real category the strong-model dedup will match against.
+      userContextRepo.find.mockResolvedValue([
+        makeUserContext("ctx-existing", "Customer Support - support tickets"),
+      ]);
+      llmCoreService.generateText.mockResolvedValue(
+        '{"isDuplicate": true, "reasoning": "Same category"}',
+      );
+      const txQueryBuilder = makeUpdateQueryBuilderMock();
+      const txRepo = {
+        findOne: jest
+          .fn()
+          .mockResolvedValue(makeUserContext("ctx-existing", "x")),
+        update: jest.fn().mockResolvedValue({}),
+        createQueryBuilder: jest.fn().mockReturnValue(txQueryBuilder),
+      };
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: unknown) => Promise<unknown>) =>
+          cb({ getRepository: () => txRepo }),
+      );
+      protoCategoryRepo.update.mockResolvedValue({});
+      protoCategoryRepo.findOne.mockResolvedValue({
+        id: "proto-1",
+        name: "Support",
+        isPromoted: true,
+        promotedCategoryId: "ctx-existing",
+      } as ProtoCategory);
+
+      await service.createAndAssignToThread("user-1", "Support", null, "t-1");
+
+      // No new category minted — folded into the existing one.
+      expect(userContextRepo.save).not.toHaveBeenCalled();
+      expect(txRepo.update).toHaveBeenCalledWith(
+        { id: "proto-1" },
+        expect.objectContaining({ promotedCategoryId: "ctx-existing" }),
+      );
+    });
+
+    it("does NOT auto-promote once the user is at the cap (falls back to the 5-email threshold)", async () => {
+      userContextRepo.count.mockResolvedValue(MAX_BOOTSTRAP_CATEGORIES);
+      setupNewProtoCreation();
+
+      const result = await service.createAndAssignToThread(
+        "user-1",
+        "Yet Another Category",
+        null,
+        "thread-1",
+      );
+
+      expect(protoCategoryRepo.save).toHaveBeenCalled();
+      expect(userContextRepo.save).not.toHaveBeenCalled();
+      expect(result.isPromoted).toBe(false);
+    });
+
+    it("does NOT auto-promote for an established user above the cap", async () => {
+      userContextRepo.count.mockResolvedValue(MAX_BOOTSTRAP_CATEGORIES + 5);
+      setupNewProtoCreation();
+
+      const result = await service.createAndAssignToThread(
+        "user-1",
+        "New Category",
+        null,
+        "thread-1",
+      );
+
+      expect(userContextRepo.save).not.toHaveBeenCalled();
+      expect(result.isPromoted).toBe(false);
     });
   });
 

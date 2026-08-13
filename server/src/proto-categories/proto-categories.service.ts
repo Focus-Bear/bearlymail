@@ -37,6 +37,7 @@ import {
   MAX_LLM_DEDUP_CANDIDATES,
   mergeConsideredCandidates,
 } from "./category-dedup.util";
+import { MAX_BOOTSTRAP_CATEGORIES } from "./proto-categories.constants";
 import {
   buildPromotedCategoryInfos,
   PromotedCategoryInfo,
@@ -220,7 +221,40 @@ export class ProtoCategoriesService {
       `Created proto category "${name}" for user ${userId}, assigned to thread ${threadId}`,
     );
 
+    // Bootstrap mode: a user whose real-category taxonomy is still under the cap
+    // (e.g. a brand-new signup whose onboarding produced few/0 categories) would
+    // otherwise wait PROMOTION_THRESHOLD emails per category — far too slow, so
+    // every email lands in "Other" for a long time. While under the cap, promote
+    // a genuinely-new (already deduped by the caller) suggestion immediately so
+    // the very next matching email is categorised into a real category.
+    if (await this.isBootstrappingCategories(userId)) {
+      this.logger.log(
+        `Bootstrap mode: immediately promoting new proto category "${name}" for user ${userId} (real categories under cap of ${MAX_BOOTSTRAP_CATEGORIES})`,
+      );
+      return this.promoteToCategory(protoCategory);
+    }
+
     return protoCategory;
+  }
+
+  /**
+   * Cheap COUNT of a user's real (EMAIL_CATEGORY) categories. Used to decide
+   * bootstrap mode without loading full context rows.
+   */
+  async countRealCategories(userId: string): Promise<number> {
+    return this.userContextRepository.count({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+    });
+  }
+
+  /**
+   * True while the user should bootstrap their category taxonomy — i.e. they
+   * have fewer than {@link MAX_BOOTSTRAP_CATEGORIES} real categories. Re-checked
+   * immediately before each auto-promotion so concurrent promotions can never
+   * push the user past the cap.
+   */
+  private async isBootstrappingCategories(userId: string): Promise<boolean> {
+    return (await this.countRealCategories(userId)) < MAX_BOOTSTRAP_CATEGORIES;
   }
 
   /**

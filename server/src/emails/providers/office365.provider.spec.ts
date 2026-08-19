@@ -253,4 +253,54 @@ describe("Office365Provider", () => {
       ).rejects.toThrow("Office 365 account not connected");
     });
   });
+
+  describe("syncStarStatusToGmail (star ↔ Outlook importance)", () => {
+    // Sync derives starCount from Outlook's `importance` flag on every run.
+    // Unless a manual star is pushed back to the provider, the next sync reads
+    // "normal" and reverts the star — dropping the thread from Action to Triage.
+    // Starring must therefore set every message in the conversation to high
+    // importance (and unstarring back to normal) so the star survives resync.
+    function mockGraphClientCapturingPatches() {
+      const patch = jest.fn().mockResolvedValue({ data: {} });
+      const get = jest
+        .fn()
+        .mockResolvedValue({ data: { value: [{ id: "m1" }, { id: "m2" }] } });
+      return { graphClient: { get, patch }, patch, get };
+    }
+
+    it("sets every message in the thread to high importance when starred", async () => {
+      office365AccountsService.findPrimary.mockResolvedValue(
+        mockAccount as never,
+      );
+      const { graphClient, patch } = mockGraphClientCapturingPatches();
+      jest
+        .spyOn(provider.client, "createGraphClient")
+        .mockReturnValue(graphClient as never);
+
+      await provider.syncStarStatusToGmail("user-123", "thread-123", 3);
+
+      expect(patch).toHaveBeenCalledWith("/me/messages/m1", {
+        importance: "high",
+      });
+      expect(patch).toHaveBeenCalledWith("/me/messages/m2", {
+        importance: "high",
+      });
+    });
+
+    it("sets importance back to normal when unstarred", async () => {
+      office365AccountsService.findPrimary.mockResolvedValue(
+        mockAccount as never,
+      );
+      const { graphClient, patch } = mockGraphClientCapturingPatches();
+      jest
+        .spyOn(provider.client, "createGraphClient")
+        .mockReturnValue(graphClient as never);
+
+      await provider.syncStarStatusToGmail("user-123", "thread-123", 0);
+
+      expect(patch).toHaveBeenCalledWith("/me/messages/m1", {
+        importance: "normal",
+      });
+    });
+  });
 });

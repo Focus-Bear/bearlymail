@@ -14,6 +14,7 @@ import {
   searchEmailsViaOffice365,
   sendEmailViaOffice365,
   sendReplyViaOffice365,
+  setThreadImportanceInOffice365,
   unarchiveThreadInOffice365,
 } from "./office365-operations";
 
@@ -173,6 +174,44 @@ export async function archiveThread(
       return;
     }
     throw new Error("Failed to archive thread");
+  }
+}
+
+/**
+ * Push a thread's star state to Outlook as message importance (star → "high",
+ * unstar → "normal"), so the star survives the next sync (which re-derives
+ * starCount from importance). Mirrors {@link archiveThread}: resolve the primary
+ * account, build a Graph client, retry once on an auth error after refreshing.
+ */
+export async function syncStarStatus(
+  provider: Office365Provider,
+  userId: string,
+  threadId: string,
+  starCount: number,
+): Promise<void> {
+  const primaryAccount =
+    await provider.office365AccountsService.findPrimary(userId);
+  if (!primaryAccount) throw new Error("Office 365 account not connected");
+
+  const importance = starCount > 0 ? "high" : "normal";
+  const graphClient = provider.client.createGraphClient(
+    primaryAccount.accessToken,
+  );
+
+  try {
+    await setThreadImportanceInOffice365(
+      userId,
+      threadId,
+      importance,
+      graphClient,
+    );
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      await provider.client.refreshTokenIfNeeded(userId, primaryAccount.id);
+      await syncStarStatus(provider, userId, threadId, starCount);
+      return;
+    }
+    throw error;
   }
 }
 

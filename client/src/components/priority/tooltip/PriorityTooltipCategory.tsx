@@ -33,13 +33,17 @@ function extractMatchedRuleId(explanation: string | null | undefined): string | 
 
 /**
  * Builds the Settings deep-link query that opens the matched deterministic rule.
- * Prefers the rule ID (opens the SPECIFIC rule that fired) and falls back to
- * the category name for older `categoryExplanation` values without the marker.
+ * Prefers the rule ID (opens the SPECIFIC rule that fired) but always carries
+ * the category name too, so Settings can fall back to it when the stored ID is
+ * stale — sibling merges / rule regeneration delete the original rule while
+ * leaving its ID in the thread's `categoryExplanation`, so an ID-only link
+ * would silently open nothing.
  */
 function buildEditRuleQuery(category: string, matchedRuleId: string | null): string {
+  const categoryQuery = `${EDIT_RULE_CATEGORY_PARAM}=${encodeURIComponent(category)}`;
   return matchedRuleId
-    ? `${EDIT_RULE_ID_PARAM}=${matchedRuleId}`
-    : `${EDIT_RULE_CATEGORY_PARAM}=${encodeURIComponent(category)}`;
+    ? `${EDIT_RULE_ID_PARAM}=${matchedRuleId}&${categoryQuery}`
+    : categoryQuery;
 }
 
 /** i18n key (under `priority.tooltip.categorisedBy`) for each provenance kind. */

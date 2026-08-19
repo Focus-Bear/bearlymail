@@ -15,7 +15,7 @@ import { useCategoryRules } from 'hooks/settings/useCategoryRules';
 
 export function useDeterministicCategoryRulesSectionState() {
   const { t } = useTranslation();
-  const { showSuccess, showError } = useNotifications();
+  const { showSuccess, showError, showInfo, showWarning } = useNotifications();
   const { rules, loading, createCompositeRule, patchRule, deleteRule, suggestRules } = useCategoryRules();
   const { data: categoryOptions = [] } = useCategoryContextQuery();
 
@@ -168,11 +168,27 @@ export function useDeterministicCategoryRulesSectionState() {
 
     hasHandledOpenEditRule.current = true;
 
-    const matchingRule = openEditRuleIdParam
+    // Prefer the exact rule ID (the specific rule that fired), then fall back to
+    // the category name. The ID goes stale when sibling merges / regeneration
+    // delete the original rule but leave its ID in the thread's stored
+    // `categoryExplanation`, so an ID lookup alone would silently find nothing.
+    const ruleById = openEditRuleIdParam
       ? rules.find(rule => rule.id === openEditRuleIdParam)
-      : rules.find(rule => rule.categoryName === openEditRuleParam);
+      : undefined;
+    const ruleByName = openEditRuleParam
+      ? rules.find(rule => rule.categoryName === openEditRuleParam)
+      : undefined;
+    const matchingRule = ruleById ?? ruleByName;
+
     if (matchingRule) {
       openEdit(matchingRule);
+      // The requested rule was gone but its category still has a rule — let the
+      // user know we opened that instead of a rule that no longer exists.
+      if (openEditRuleIdParam && !ruleById) {
+        showInfo(t('settings.deterministicCategoryRules.deepLink.ruleUpdated'));
+      }
+    } else {
+      showWarning(t('settings.deterministicCategoryRules.deepLink.ruleNotFound'));
     }
 
     params.delete(EDIT_RULE_CATEGORY_PARAM);
@@ -180,7 +196,7 @@ export function useDeterministicCategoryRulesSectionState() {
     const newSearch = params.toString();
     const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`;
     window.history.replaceState({}, '', newUrl);
-  }, [loading, rules, openEdit]);
+  }, [loading, rules, openEdit, showInfo, showWarning, t]);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);

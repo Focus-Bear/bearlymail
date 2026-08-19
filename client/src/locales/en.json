@@ -1007,6 +1007,10 @@
       "updateError": "Could not update the rule",
       "deleteSuccess": "Rule deleted",
       "deleteError": "Could not delete the rule",
+      "deepLink": {
+        "ruleUpdated": "That rule was updated, so we opened the current rule for this category.",
+        "ruleNotFound": "We couldn't find that rule — it may have been removed or merged into another."
+      },
       "legacyWeakWarning": "This rule matches on limited criteria and may produce false positives. Consider creating a composite rule.",
       "upgradeToComposite": "Upgrade to composite rule",
       "allFieldsRequired": "All three fields (sender, subject, body) are required to reduce false positives.",

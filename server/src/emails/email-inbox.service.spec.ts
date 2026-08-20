@@ -261,3 +261,72 @@ describe("getInboxSummary SQL — fix #1554", () => {
     expect(sql).not.toMatch(/LEFT JOIN LATERAL[\s\S]*?latest_email/i);
   });
 });
+
+// ─── fix(#2062): account filter must match the inbox's representative-email scope ─
+//
+// Root cause of the ghost accordion: getInboxSummary's account filter used
+// EXISTS over ALL of a thread's emails, while runInboxQuery filters on the
+// thread's REPRESENTATIVE (latest) email only. A thread whose latest email is
+// on account B but which also has an older email on the filtered account A was
+// COUNTED by the summary yet EXCLUDED by the inbox list → count > 0, 0 emails.
+// The summary must scope the account filter to latest_email so its count equals
+// exactly what the inbox returns.
+
+describe("getInboxSummary SQL — fix #2062 account scope", () => {
+  async function runSummaryWithAccounts(): Promise<string> {
+    const { emailThreadRepository } = buildServiceDeps();
+    const blockedSendersService = {
+      getBlockedEmailHashes: jest.fn().mockResolvedValue(undefined),
+      isSenderBlocked: jest.fn().mockResolvedValue(false),
+    };
+    const emailInboxCategoryService = {
+      resolveUserEmailLower: jest.fn().mockResolvedValue(null),
+      countRowsByCategory: jest.fn().mockResolvedValue({
+        categoryOrder: [],
+        categoryCounts: {},
+        categoryThreadIds: {},
+        categoryUuidByName: new Map(),
+      }),
+      filterVisibleCategoriesByIds: jest.fn().mockReturnValue([]),
+    };
+    const userContextRepository = { find: jest.fn().mockResolvedValue([]) };
+    const { EmailInboxService } = await import("./email-inbox.service");
+    const service = new EmailInboxService(
+      {} as never,
+      emailThreadRepository as never,
+      userContextRepository as never,
+      blockedSendersService as never,
+      {} as never,
+      emailInboxCategoryService as never,
+      {} as never,
+      undefined,
+    );
+    await service.getInboxSummary("user-123", "action", {
+      accountIds: ["acct-a", "acct-b"],
+    });
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+    return sql;
+  }
+
+  it("scopes the account filter to the representative (latest) email, not any email in the thread", async () => {
+    const sql = await runSummaryWithAccounts();
+    // New form: filter references latest_email account columns (matches runInboxQuery's `e`).
+    expect(sql).toMatch(/latest_email\."googleAccountId"\s+IN/i);
+    expect(sql).toMatch(/latest_email\."office365AccountId"\s+IN/i);
+    expect(sql).toMatch(/latest_email\."zohoAccountId"\s+IN/i);
+    // Old (ghost-producing) thread-wide EXISTS form must be gone.
+    expect(sql).not.toMatch(/acctFilter/i);
+  });
+
+  it("exposes the account columns on the latest_email lateral so the filter can reference them", async () => {
+    const sql = await runSummaryWithAccounts();
+    const lateralMatch = sql.match(
+      /CROSS JOIN LATERAL \(([\s\S]*?)\) latest_email/i,
+    );
+    expect(lateralMatch).not.toBeNull();
+    const lateralBody = lateralMatch![1];
+    expect(lateralBody).toMatch(/"googleAccountId"/);
+    expect(lateralBody).toMatch(/"office365AccountId"/);
+    expect(lateralBody).toMatch(/"zohoAccountId"/);
+  });
+});

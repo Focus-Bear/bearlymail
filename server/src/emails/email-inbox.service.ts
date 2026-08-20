@@ -194,7 +194,9 @@ export class EmailInboxService {
        LEFT JOIN user_contexts uc
          ON uc."contextId" = thread."categoryId"
        CROSS JOIN LATERAL (
-         SELECT em."from" AS "latestFrom" FROM emails em
+         SELECT em."from" AS "latestFrom",
+                em."googleAccountId", em."office365AccountId", em."zohoAccountId"
+         FROM emails em
          WHERE em."emailThreadId" = thread.id AND em."userId" = $1
          ORDER BY em."receivedAt" DESC, em.id DESC LIMIT 1
        ) latest_email

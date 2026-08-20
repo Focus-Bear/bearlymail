@@ -13,6 +13,7 @@ import {
   LocalModelThreadInput,
 } from "./local-model.types";
 import { buildLocalModelInput } from "./local-model-input";
+import { LocalModelSupervisionService } from "./local-model-supervision.service";
 import { priorityBand } from "./priority-band";
 
 /** Value of LOCAL_MODEL_SHADOW_ENABLED that turns shadow mode on. */
@@ -21,8 +22,6 @@ const SHADOW_ENABLED_FLAG = "true";
 const LIVE_ENABLED_FLAG = "true";
 /** Lambda envelope statusCode at or above which we treat the call as failed. */
 const HTTP_BAD_REQUEST = 400;
-const HOLDOUT_RATE_MIN = 0;
-const HOLDOUT_RATE_MAX = 100;
 
 /**
  * Calls the local category/priority model served by the inference Lambda
@@ -45,12 +44,12 @@ export class LocalModelInferenceService {
   private readonly functionName: string | undefined;
   private readonly shadowEnabled: boolean;
   private readonly liveEnabled: boolean;
-  private readonly holdoutRate: number;
 
   constructor(
     private readonly configService: ConfigService,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
+    private readonly supervisionService: LocalModelSupervisionService,
   ) {
     const region =
       this.configService.get<string>("AWS_REGION") || "ap-southeast-2";
@@ -64,13 +63,6 @@ export class LocalModelInferenceService {
     this.liveEnabled =
       this.configService.get<string>("LOCAL_MODEL_LIVE_ENABLED") ===
       LIVE_ENABLED_FLAG;
-    const rawRate = parseInt(
-      this.configService.get<string>("LOCAL_MODEL_HOLDOUT_SAMPLE_RATE") ?? "",
-      10,
-    );
-    this.holdoutRate = Number.isFinite(rawRate)
-      ? Math.min(HOLDOUT_RATE_MAX, Math.max(HOLDOUT_RATE_MIN, rawRate))
-      : HOLDOUT_RATE_MIN;
   }
 
   /** True when a function name is configured — otherwise the service is a no-op. */
@@ -90,15 +82,6 @@ export class LocalModelInferenceService {
    */
   get isLiveEnabled(): boolean {
     return this.liveEnabled && !!this.functionName;
-  }
-
-  /**
-   * Percentage (0–100) of would-be-applied confident threads to divert to the
-   * LLM as a measurement holdout, so applied accuracy can be scored against the
-   * LLM. Default 0 (disabled).
-   */
-  get holdoutSampleRate(): number {
-    return this.holdoutRate;
   }
 
   /**
@@ -186,6 +169,21 @@ export class LocalModelInferenceService {
         priorityFallback: prediction.priorityFallback,
       }),
     );
+
+    // Feed the adaptive supervisor. A confident prediction (neither category nor
+    // priority fell back) only reaches the LLM because it was diverted as a
+    // supervision sample — so score its category agreement toward this
+    // category's window. Skip when the LLM couldn't determine a category.
+    const isConfidentSample =
+      !prediction.categoryFallback && !prediction.priorityFallback;
+    if (isConfidentSample && llm.category != null) {
+      await this.supervisionService.recordSample(
+        userId,
+        prediction.category,
+        prediction.category === llm.category,
+      );
+    }
+
     return prediction;
   }
 

@@ -3,7 +3,9 @@ import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { LocalModelSupervision } from "../database/entities/local-model-supervision.entity";
 import { LocalModelInferenceService } from "./local-model-inference.service";
+import { LocalModelSupervisionService } from "./local-model-supervision.service";
 
 /**
  * Local category/priority model serving — invokes the inference Lambda
@@ -13,8 +15,11 @@ import { LocalModelInferenceService } from "./local-model-inference.service";
  * (localModelDebug) the category debug UI reads.
  */
 @Module({
-  imports: [ConfigModule, TypeOrmModule.forFeature([EmailThread])],
-  providers: [LocalModelInferenceService],
-  exports: [LocalModelInferenceService],
+  imports: [
+    ConfigModule,
+    TypeOrmModule.forFeature([EmailThread, LocalModelSupervision]),
+  ],
+  providers: [LocalModelInferenceService, LocalModelSupervisionService],
+  exports: [LocalModelInferenceService, LocalModelSupervisionService],
 })
 export class LocalModelModule {}

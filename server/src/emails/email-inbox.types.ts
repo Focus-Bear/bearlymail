@@ -178,10 +178,14 @@ export function buildSummaryFiltersAndParams(
       .map(() => `$${paramIndex++}`)
       .join(", ");
     const phZoho = filters.accountIds.map(() => `$${paramIndex++}`).join(", ");
-    additionalFilters += ` AND EXISTS (
-      SELECT 1 FROM emails acctFilter WHERE acctFilter."emailThreadId" = thread.id
-        AND (acctFilter."googleAccountId" IN (${phGoogle}) OR acctFilter."office365AccountId" IN (${phOffice}) OR acctFilter."zohoAccountId" IN (${phZoho}))
-    )`;
+    // fix(#2062): scope the account filter to the thread's REPRESENTATIVE (latest)
+    // email — the same row runInboxQuery filters on (`e."googleAccountId" IN ...`) —
+    // NOT to "any email in the thread" (the old EXISTS form). With the EXISTS form a
+    // thread whose latest email lives on account B but which also has an older email
+    // on the filtered account A was COUNTED by the summary yet EXCLUDED by the inbox
+    // list, producing a ghost accordion (count > 0, zero emails loaded). Referencing
+    // latest_email keeps the summary count exactly equal to what the inbox returns.
+    additionalFilters += ` AND (latest_email."googleAccountId" IN (${phGoogle}) OR latest_email."office365AccountId" IN (${phOffice}) OR latest_email."zohoAccountId" IN (${phZoho}))`;
     queryParams.push(
       ...filters.accountIds,
       ...filters.accountIds,

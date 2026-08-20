@@ -330,7 +330,11 @@ export class EmailArchiveService {
     newCategory: string,
     reasonText?: string,
     categoryId?: string,
-  ): Promise<{ success: boolean; category: string }> {
+  ): Promise<{
+    success: boolean;
+    category: string;
+    categoryId: string | null;
+  }> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
     });
@@ -426,7 +430,10 @@ export class EmailArchiveService {
           : null,
     });
 
-    return { success: true, category: newCategory };
+    // Surface the resolved categoryId so the client can optimistically place the
+    // email under the new category without a page refresh (including brand-new
+    // categories, whose UUID the client doesn't have until this response).
+    return { success: true, category: newCategory, categoryId: newCategoryId };
   }
 
   /**

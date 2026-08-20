@@ -11,7 +11,7 @@ import { theme } from 'theme/theme';
 import { ModalBackdrop, ModalContent, ModalFooter, ModalHeader } from 'components/modal';
 import { API_URL } from 'config/api';
 import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
-import { decrementCategorySummaryCount, removeEmail } from 'store/slices/emailSlice';
+import { decrementCategorySummaryCount, updateEmail, upsertCategorySummaryCount } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
 const CATEGORY_LISTBOX_ID = 'category-override-listbox';
@@ -354,7 +354,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
 
     setSubmitting(true);
     try {
-      await axios.post(`${API_URL}/emails/${emailId}/category-override`, {
+      const response = await axios.post(`${API_URL}/emails/${emailId}/category-override`, {
         // Send categoryId (UUID) when available — backend uses this directly without name→UUID lookup
         // Falls back to categoryName for new custom categories that don't have a UUID yet
         categoryId: resolvedCategoryId ?? undefined,
@@ -364,14 +364,25 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
         reason: reasonText.trim() || undefined,
       });
 
-      // Optimistic UI update: remove the email from its current category accordion
-      // so the user sees immediate feedback without a full page reload.
+      // Optimistic UI update: MOVE the email into the newly chosen category so it
+      // appears there immediately, no page refresh. The inbox list is Redux-driven
+      // and grouped by category_id — removing the email (the previous behaviour)
+      // made it vanish from the old category but never re-appear under the new one,
+      // because the react-query invalidation below does not feed the Redux list.
+      //
+      // For an existing category the client already has the UUID; for a brand-new
+      // category the server resolves and returns it. `updateEmail` re-groups the
+      // email in place, and `upsertCategorySummaryCount` ensures the target
+      // category has a summary entry so its accordion section renders (a plain
+      // increment would no-op for an empty/new category).
+      const newCategoryId: string | null = resolvedCategoryId ?? response.data?.categoryId ?? null;
       const oldCategoryKey = currentCategoryId ?? CATEGORY_KEY_UNCATEGORIZED;
-      dispatch(removeEmail(emailId));
+      dispatch(updateEmail({ id: emailId, updates: { category_id: newCategoryId, category: resolvedCategoryName } }));
       dispatch(decrementCategorySummaryCount({ categoryKey: oldCategoryKey, count: 1 }));
+      dispatch(upsertCategorySummaryCount({ id: newCategoryId, name: resolvedCategoryName, count: 1 }));
 
-      // Invalidate the inbox summary cache so category counts and email lists
-      // are refetched from the server (the email will appear in the new category).
+      // Invalidate the inbox summary cache so category counts and the category
+      // dropdown reconcile with the server on the next background refresh/fetch.
       void queryClient.invalidateQueries({ queryKey: emailKeys.all });
 
       if (onSubmitted) {

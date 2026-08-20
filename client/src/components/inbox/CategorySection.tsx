@@ -11,6 +11,7 @@ import {
   InboxPriorityTooltip,
   InboxSnoozeInput,
 } from 'components/inbox/inbox.types';
+import { OtherProtoGroup } from 'components/inbox/inboxCategoryHelpers';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
@@ -42,7 +43,7 @@ interface CategorySectionProps {
   handleSendFollowUp: (followUpId: string, draft: string, recipientName?: string) => Promise<void>;
   onBulkArchive: (emailIds: string[]) => Promise<void>;
   onToggleCategory: (category: string) => void;
-  otherProtoGroups: Array<{ name: string; emails: Email[] }>;
+  otherProtoGroups: OtherProtoGroup[];
   protoCategories: ProtoCategory[];
   isReanalysingOther: boolean;
   convertingProtoCategoryId: string | null;
@@ -185,7 +186,13 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
                 {otherProtoGroups.map(grp => {
                   const groupStart = offset;
                   offset += grp.emails.length;
-                  const protoCategory = protoCategories.find(pc => pc.name === grp.name);
+                  // Resolve the proto by ID (carried on the email) so promote /
+                  // delete work even when the display name has drifted; the name
+                  // match is only a fallback for the description.
+                  const protoCategory =
+                    protoCategories.find(pc => pc.id === grp.id) ??
+                    protoCategories.find(pc => pc.name === grp.name);
+                  const protoCategoryId = grp.id ?? protoCategory?.id ?? null;
                   return (
                     <ProtoCategorySubAccordion
                       key={grp.name}
@@ -193,19 +200,19 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
                       description={protoCategory?.description}
                       emailCount={grp.emails.length}
                       onConvertToCategory={async () => {
-                          handleConvertProtoCategory(protoCategory?.id ?? '', grp.name);
+                          handleConvertProtoCategory(protoCategoryId ?? '', grp.name);
                         }}
-                        isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+                        isConverting={convertingProtoCategoryId === protoCategoryId && protoCategoryId !== null}
                         onArchiveAll={onBulkArchive}
                         emailIds={grp.emails.map(email => email.id)}
                         onDelete={
-                          protoCategory
+                          protoCategoryId
                             ? async () => {
-                                handleDeleteProtoCategoryFromInbox(protoCategory.id);
+                                handleDeleteProtoCategoryFromInbox(protoCategoryId);
                               }
                             : undefined
                         }
-                        isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+                        isDeleting={deletingProtoCategoryId === protoCategoryId && protoCategoryId !== null}
                       >
                         {grp.emails.map((email, idx) => renderEmailItem(email, globalIndex + groupStart + idx))}
                       </ProtoCategorySubAccordion>

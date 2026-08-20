@@ -22,6 +22,8 @@ export interface InboxEmail extends Email {
   categoryId: string | null;
   /** Which process assigned the category, for the everyday "Categorised by" line. */
   categorizationSource: CategorizationSourceKind | null;
+  /** Proto-category the thread was bucketed under, so the client can promote it by ID. */
+  protoCategoryId: string | null;
   protoCategoryName: string | null;
   protoCategoryDescription: string | null;
   // Correspondent fields from lateral join

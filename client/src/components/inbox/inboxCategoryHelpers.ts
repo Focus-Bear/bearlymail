@@ -127,9 +127,19 @@ export function buildEmailCategoryMap(
   return emailCategoryMap;
 }
 
-export function buildOtherProtoGroups(
-  emailCategoryMap: Map<string, CategoryGroup>
-): Array<{ name: string; emails: Email[] }> {
+/**
+ * A "Other"-bucket proto-category group: the emails plus the proto's display
+ * name and its ID. Carrying `id` lets the inbox promote / delete the proto by
+ * ID directly, instead of re-deriving it from the (drift-prone) display name.
+ */
+export interface OtherProtoGroup {
+  /** Proto-category ID, taken from the grouped emails. Null if none carry one. */
+  id: string | null;
+  name: string;
+  emails: Email[];
+}
+
+export function buildOtherProtoGroups(emailCategoryMap: Map<string, CategoryGroup>): OtherProtoGroup[] {
   // After fix #1294: groupEmailsByCategory() now uses getCategoryKey(), so
   // emails with no category_id are keyed as CATEGORY_KEY_UNCATEGORIZED ("uncategorized")
   // instead of CATEGORY_OTHER ("Other"). Use the constant to keep keys in sync.
@@ -144,7 +154,12 @@ export function buildOtherProtoGroups(
       groups.get(protoName)!.push(email);
     }
   });
-  return Array.from(groups.entries()).map(([name, groupEmails]) => ({ name, emails: groupEmails }));
+  return Array.from(groups.entries()).map(([name, groupEmails]) => ({
+    // Every email in the group shares the same proto; take the first non-empty ID.
+    id: groupEmails.find(email => email.protoCategoryId)?.protoCategoryId ?? null,
+    name,
+    emails: groupEmails,
+  }));
 }
 
 /**

@@ -71,4 +71,14 @@ describe("EmailInboxDecryptService — inbox summary derivation", () => {
     const row = makeRow({ summary: null, body: null, htmlBody: null });
     expect(service.decryptRawEmailRow(row).summary).toBeFalsy();
   });
+
+  it("exposes the proto-category ID so the client can promote it by ID", () => {
+    const row = makeRow({ protoCategoryId: "proto-123" });
+    expect(service.decryptRawEmailRow(row).protoCategoryId).toBe("proto-123");
+  });
+
+  it("returns a null proto-category ID when the thread has none", () => {
+    const row = makeRow({ protoCategoryId: null });
+    expect(service.decryptRawEmailRow(row).protoCategoryId).toBeNull();
+  });
 });

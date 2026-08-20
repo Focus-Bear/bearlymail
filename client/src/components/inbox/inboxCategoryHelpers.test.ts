@@ -158,6 +158,38 @@ describe('buildOtherProtoGroups', () => {
     expect(result).toHaveLength(1);
     expect(result[0].emails).toHaveLength(1);
   });
+
+  it('exposes the proto-category ID so the inbox can promote by ID', () => {
+    const emailA = makeEmail({ id: 'a', protoCategoryName: PROTO_NEWSLETTERS, protoCategoryId: 'proto-1' });
+    const emailB = makeEmail({ id: 'b', protoCategoryName: PROTO_NEWSLETTERS, protoCategoryId: 'proto-1' });
+    const map = new Map<string, CategoryGroup>([
+      [CATEGORY_KEY_UNCATEGORIZED, makeGroup(CATEGORY_OTHER, [emailA, emailB])],
+    ]);
+
+    const result = buildOtherProtoGroups(map);
+    expect(result[0].id).toBe('proto-1');
+  });
+
+  it('falls back to the first email that carries a proto ID', () => {
+    const emailA = makeEmail({ id: 'a', protoCategoryName: PROTO_NEWSLETTERS, protoCategoryId: null });
+    const emailB = makeEmail({ id: 'b', protoCategoryName: PROTO_NEWSLETTERS, protoCategoryId: 'proto-2' });
+    const map = new Map<string, CategoryGroup>([
+      [CATEGORY_KEY_UNCATEGORIZED, makeGroup(CATEGORY_OTHER, [emailA, emailB])],
+    ]);
+
+    const result = buildOtherProtoGroups(map);
+    expect(result[0].id).toBe('proto-2');
+  });
+
+  it('sets id to null when no email carries a proto ID', () => {
+    const emailA = makeEmail({ id: 'a', protoCategoryName: PROTO_NEWSLETTERS, protoCategoryId: null });
+    const map = new Map<string, CategoryGroup>([
+      [CATEGORY_KEY_UNCATEGORIZED, makeGroup(CATEGORY_OTHER, [emailA])],
+    ]);
+
+    const result = buildOtherProtoGroups(map);
+    expect(result[0].id).toBeNull();
+  });
 });
 
 describe('buildDisplayCategories', () => {

@@ -226,6 +226,9 @@ export interface Email {
   categoryExplanation?: string | null;
   // Which process assigned the category (surfaced as a "Categorised by" line in the popover)
   categorizationSource?: CategorizationSource | null;
+  // Proto category ID for emails in "Other" category — lets the inbox promote /
+  // delete the proto by ID rather than matching the drift-prone display name.
+  protoCategoryId?: string | null;
   // Proto category name for emails in "Other" category
   protoCategoryName?: string | null;
   // Proto category description for emails in "Other" category

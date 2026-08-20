@@ -111,6 +111,9 @@ export class EmailInboxDecryptService {
         categorySource: row.categorySource,
         protoCategoryId: row.protoCategoryId,
       }),
+      // Plain UUID (unencrypted) — lets the client promote/delete the proto by
+      // ID instead of matching the (drift-prone) display name.
+      protoCategoryId: row.protoCategoryId ?? null,
       protoCategoryName: row.protoCategoryName
         ? EncryptionHelper.tryDecrypt(row.protoCategoryName)
         : null,

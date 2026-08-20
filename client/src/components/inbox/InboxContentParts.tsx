@@ -18,6 +18,7 @@ import { DebugView } from 'components/inbox/DebugView';
 import { EmailListItem } from 'components/inbox/EmailListItem';
 import { EmailListStates } from 'components/inbox/EmailListStates';
 import { FollowUpActions } from 'components/inbox/FollowUpActions';
+import { OtherProtoGroup } from 'components/inbox/inboxCategoryHelpers';
 import { familyGroupingAppliesTo, orderCategoriesByFamily } from 'components/inbox/inboxFamilyGrouping';
 import { InboxFamilyHeader } from 'components/inbox/InboxFamilyHeader';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
@@ -152,7 +153,7 @@ export const InboxEmailItem: React.FC<InboxEmailItemProps> = ({
 // ---------------------------------------------------------------------------
 
 export interface InboxOtherCategoryContentProps {
-  otherProtoGroups: Array<{ name: string; emails: Email[] }>;
+  otherProtoGroups: OtherProtoGroup[];
   protoCategories: ProtoCategory[];
   uncategorizedOtherEmails: Email[];
   globalIndex: number;
@@ -182,19 +183,26 @@ export const InboxOtherCategoryContent: React.FC<InboxOtherCategoryContentProps>
       {otherProtoGroups.map(group => {
         const groupStart = offset;
         offset += group.emails.length;
-        const protoCategory = protoCategories.find(pc => pc.name === group.name);
+        // Resolve the proto by ID (carried on the email), falling back to the
+        // display name only for the description. The ID is the source of truth
+        // for promote / delete — matching by name alone broke when the name
+        // drifted (dedup / merge / rename), silently no-op'ing the button.
+        const protoCategory =
+          protoCategories.find(pc => pc.id === group.id) ??
+          protoCategories.find(pc => pc.name === group.name);
+        const protoCategoryId = group.id ?? protoCategory?.id ?? null;
         return (
           <ProtoCategorySubAccordion
             key={group.name}
             name={group.name}
             description={protoCategory?.description}
             emailCount={group.emails.length}
-            onConvertToCategory={() => onConvertProtoCategory(protoCategory?.id ?? '', group.name)}
-            isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+            onConvertToCategory={() => onConvertProtoCategory(protoCategoryId ?? '', group.name)}
+            isConverting={convertingProtoCategoryId === protoCategoryId && protoCategoryId !== null}
             onArchiveAll={onBulkArchive}
             emailIds={group.emails.map(email => email.id)}
-            onDelete={protoCategory ? () => onDeleteProtoCategoryFromInbox(protoCategory.id) : undefined}
-            isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+            onDelete={protoCategoryId ? () => onDeleteProtoCategoryFromInbox(protoCategoryId) : undefined}
+            isDeleting={deletingProtoCategoryId === protoCategoryId && protoCategoryId !== null}
           >
             {group.emails.map((email, i) => renderItem(email, globalIndex + groupStart + i))}
           </ProtoCategorySubAccordion>
@@ -218,7 +226,7 @@ export interface InboxCategoryItemProps {
   isLoaded: boolean;
   group: CategoryGroup | undefined;
   globalIndex: number;
-  otherProtoGroups: Array<{ name: string; emails: Email[] }>;
+  otherProtoGroups: OtherProtoGroup[];
   protoCategories: ProtoCategory[];
   isReanalysingOther: boolean;
   convertingProtoCategoryId: string | null | undefined;
@@ -458,7 +466,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
 interface InboxCategoryListProps {
   displayCategories: Array<{ id: string | null; name: string; count: number }>;
   emailCategoryMap: Map<string, CategoryGroup>;
-  otherProtoGroups: Array<{ name: string; emails: Email[] }>;
+  otherProtoGroups: OtherProtoGroup[];
   protoCategories: ProtoCategory[];
   isReanalysingOther: boolean;
   convertingProtoCategoryId: string | null | undefined;
@@ -708,7 +716,7 @@ export interface InboxEmailListPanelProps {
   categorySummary?: CategorySummaryItem[] | null;
   displayCategories: Array<{ id: string | null; name: string; count: number }>;
   emailCategoryMap: Map<string, CategoryGroup>;
-  otherProtoGroups: Array<{ name: string; emails: Email[] }>;
+  otherProtoGroups: OtherProtoGroup[];
   protoCategories: ProtoCategory[];
   isReanalysingOther: boolean;
   convertingProtoCategoryId: string | null | undefined;

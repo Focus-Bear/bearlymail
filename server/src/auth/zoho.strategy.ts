@@ -30,6 +30,24 @@ interface UserWithZohoData extends Omit<User, "password"> {
 const DEFAULT_ACCOUNTS_SERVER = "https://accounts.zoho.com";
 
 /**
+ * Zoho's /oauth/user/info returns ZUID as a JSON *number* (`"ZUID": 123456`),
+ * not the string the type above claims — the profile arrives as an unvalidated
+ * cast. `zoho_accounts.zohoId` is a varchar, so it reads back as a string, and
+ * the account de-duplication in AuthController compares the two with `===`.
+ * `"123456" === 123456` is false, so every re-login missed the existing row and
+ * created a duplicate connected account.
+ *
+ * Normalise at this single boundary — where Zoho's untyped JSON enters the app —
+ * so every downstream consumer sees the string the types already promise. A
+ * missing ZUID is left untouched so the callers' required-field checks still
+ * reject it (`String(undefined)` would smuggle through the literal "undefined").
+ */
+function normaliseZohoProfile(raw: ZohoProfile): ZohoProfile {
+  const { ZUID } = raw;
+  return ZUID == null ? raw : { ...raw, ZUID: String(ZUID) };
+}
+
+/**
  * Strict allowlist of Zoho's published accounts-server URLs. We POST the
  * client_secret to whichever one we accept here, so anything not on this
  * list must be rejected — a regex like `^https://accounts\.zoho\.` would
@@ -273,7 +291,7 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
       try {
         const response = await axios.get(url, { headers });
         this.logger.debug(`[ZohoStrategy] Profile fetch succeeded at ${url}`);
-        return response.data as ZohoProfile;
+        return normaliseZohoProfile(response.data as ZohoProfile);
       } catch (error) {
         const status = axios.isAxiosError(error)
           ? error.response?.status
@@ -312,11 +330,11 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
             this.logger.debug(
               `[ZohoStrategy] Mail API fallback succeeded at ${url}`,
             );
-            return {
+            return normaliseZohoProfile({
               ZUID: account.accountId,
               Email: email,
               Display_Name: account.displayName,
-            };
+            });
           }
         }
       } catch (error) {

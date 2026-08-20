@@ -284,6 +284,27 @@ const inboxDataSlice = createSlice({
       }
     },
     /**
+     * Add `count` to a category's summary tally, CREATING the summary item if it
+     * doesn't exist yet. Unlike incrementCategorySummaryCount (which only bumps
+     * existing entries), this is used when moving an email into a category that
+     * currently has no inbox emails — e.g. a manual category override to an empty
+     * or brand-new category. The accordion renders one section per categorySummary
+     * item, so the entry must exist for the moved email to become visible.
+     * No-op when categorySummary is null (the inbox hasn't loaded a summary yet).
+     */
+    upsertCategorySummaryCount: (state, action: PayloadAction<{ id: string | null; name: string; count: number }>) => {
+      const { id, name, count } = action.payload;
+      if (!state.categorySummary) {
+        return;
+      }
+      const existing = state.categorySummary.find(cat => cat.id === id);
+      if (existing) {
+        existing.count += count;
+      } else {
+        state.categorySummary.push({ id, name, count });
+      }
+    },
+    /**
      * Explicitly set a category's summary count to 0 (and remove the entry if no remaining
      * emails reference it). Use this when the server has confirmed the category is empty,
      * rather than subtracting the cached count via decrementCategorySummaryCount — subtraction
@@ -342,6 +363,7 @@ export const {
   clearCategorySummaryCount,
   decrementCategorySummaryCount,
   incrementCategorySummaryCount,
+  upsertCategorySummaryCount,
   setLastFetchedAt,
   invalidateInboxCache,
 } = inboxDataSlice.actions;

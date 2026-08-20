@@ -195,7 +195,11 @@ describe("EmailArchiveService", () => {
         "User requested",
       );
 
-      expect(result).toEqual({ success: true, category: newCategory });
+      expect(result).toEqual({
+        success: true,
+        category: newCategory,
+        categoryId: contextId,
+      });
 
       expect(mockUserContextRepository.find).toHaveBeenCalledWith({
         where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
@@ -219,7 +223,11 @@ describe("EmailArchiveService", () => {
         newCategory,
       );
 
-      expect(result).toEqual({ success: true, category: newCategory });
+      expect(result).toEqual({
+        success: true,
+        category: newCategory,
+        categoryId: null,
+      });
 
       const updateCall = mockEmailThreadRepository.update.mock.calls[0];
       const updatePayload = updateCall[1];
@@ -319,7 +327,11 @@ describe("EmailArchiveService", () => {
         newCategory,
       );
 
-      expect(result).toEqual({ success: true, category: newCategory });
+      expect(result).toEqual({
+        success: true,
+        category: newCategory,
+        categoryId: contextId,
+      });
     });
 
     it("throws when email is not found", async () => {

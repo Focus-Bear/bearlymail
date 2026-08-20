@@ -8,7 +8,12 @@ import { Email } from 'types/email';
 import { selectAnimatingOut, selectVisibleEmails } from 'store/selectors/emailSelectors';
 import { RootState } from 'store/store';
 
-import inboxDataReducer, { InboxDataState, removeEmail, updateCategoryEmails } from './inboxDataSlice';
+import inboxDataReducer, {
+  InboxDataState,
+  removeEmail,
+  updateCategoryEmails,
+  upsertCategorySummaryCount,
+} from './inboxDataSlice';
 import inboxUIReducer, {
   addAnimatingOut,
   addOptimisticArchive,
@@ -102,6 +107,44 @@ describe('inboxUISlice – animation reducers', () => {
       state = inboxUIReducer(state, removeAnimatingOut('1'));
       expect(state.animatingOut).toEqual([{ id: '2', type: 'priority' }]);
     });
+  });
+});
+
+describe('inboxDataSlice – upsertCategorySummaryCount', () => {
+  // Powers the instant category-change UX: moving an email into a category that
+  // has no summary entry yet must CREATE that entry, otherwise the accordion
+  // (which renders one section per categorySummary item) has nothing to show.
+  it('bumps the count of an existing summary item', () => {
+    const state = inboxDataReducer(
+      { ...baseDataState, categorySummary: [{ id: 'cat-a', name: 'Work', count: 2 }] },
+      upsertCategorySummaryCount({ id: 'cat-a', name: 'Work', count: 1 })
+    );
+    expect(state.categorySummary).toEqual([{ id: 'cat-a', name: 'Work', count: 3 }]);
+  });
+
+  it('creates a new summary item when the category is absent', () => {
+    const state = inboxDataReducer(
+      { ...baseDataState, categorySummary: [{ id: 'cat-a', name: 'Work', count: 2 }] },
+      upsertCategorySummaryCount({ id: 'cat-b', name: 'Personal', count: 1 })
+    );
+    expect(state.categorySummary).toContainEqual({ id: 'cat-a', name: 'Work', count: 2 });
+    expect(state.categorySummary).toContainEqual({ id: 'cat-b', name: 'Personal', count: 1 });
+  });
+
+  it('targets the id === null (uncategorized) bucket', () => {
+    const state = inboxDataReducer(
+      { ...baseDataState, categorySummary: [{ id: null, name: 'Other', count: 4 }] },
+      upsertCategorySummaryCount({ id: null, name: 'Other', count: 1 })
+    );
+    expect(state.categorySummary).toEqual([{ id: null, name: 'Other', count: 5 }]);
+  });
+
+  it('is a no-op when categorySummary is null (inbox not summary-loaded)', () => {
+    const state = inboxDataReducer(
+      { ...baseDataState, categorySummary: null },
+      upsertCategorySummaryCount({ id: 'cat-a', name: 'Work', count: 1 })
+    );
+    expect(state.categorySummary).toBeNull();
   });
 });
 

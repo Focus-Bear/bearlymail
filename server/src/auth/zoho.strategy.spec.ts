@@ -46,7 +46,11 @@ describe("ZohoStrategy", () => {
     jest.clearAllMocks();
   });
 
-  type SuccessUser = { accountsServer?: string; zohoId?: string };
+  type SuccessUser = {
+    accountsServer?: string;
+    zohoId?: string;
+    zohoProfile?: { ZUID?: unknown };
+  };
 
   /**
    * Drive strategy.authenticate() with a fake request and collect whichever
@@ -224,5 +228,61 @@ describe("ZohoStrategy", () => {
 
     expect(result.kind).toBe("fail");
     expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Zoho's /oauth/user/info returns ZUID as a JSON *number* (e.g. `"ZUID": 123456`),
+   * but `zoho_accounts.zohoId` is a varchar, so it reads back as a string. The
+   * account de-duplication in AuthController compares the two with `===`, which
+   * is false for `"123456" === 123456` — so every re-login created a duplicate
+   * account row. Normalising at this boundary keeps the rest of the app on
+   * strings.
+   */
+  describe("numeric ZUID normalisation", () => {
+    beforeEach(() => {
+      mockedAxios.post.mockResolvedValueOnce({
+        data: { access_token: "at", refresh_token: "rt" },
+      });
+      mockAuthService.validateZohoUser.mockResolvedValue({ id: "user-1" });
+    });
+
+    it("coerces a numeric ZUID to a string on the user", async () => {
+      mockedAxios.get.mockResolvedValueOnce({
+        data: { ZUID: 123456, Email: "u@example.com", Display_Name: "U" },
+      });
+
+      const result = await runAuthenticate({ query: { code: "abc" } });
+
+      expect(result.kind).toBe("success");
+      if (result.kind === "success") {
+        expect(result.user.zohoId).toBe("123456");
+      }
+    });
+
+    it("coerces the ZUID on the profile the controller falls back to", async () => {
+      mockedAxios.get.mockResolvedValueOnce({
+        data: { ZUID: 123456, Email: "u@example.com", Display_Name: "U" },
+      });
+
+      const result = await runAuthenticate({ query: { code: "abc" } });
+
+      expect(result.kind).toBe("success");
+      if (result.kind === "success") {
+        expect(result.user.zohoProfile?.ZUID).toBe("123456");
+      }
+    });
+
+    it("leaves an already-string ZUID untouched", async () => {
+      mockedAxios.get.mockResolvedValueOnce({
+        data: { ZUID: "ZUID-123", Email: "u@example.com" },
+      });
+
+      const result = await runAuthenticate({ query: { code: "abc" } });
+
+      expect(result.kind).toBe("success");
+      if (result.kind === "success") {
+        expect(result.user.zohoId).toBe("ZUID-123");
+      }
+    });
   });
 });

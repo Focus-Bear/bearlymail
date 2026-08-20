@@ -44,6 +44,7 @@ export {
   setTotalCount,
   updateCategoryEmails,
   updateEmail,
+  upsertCategorySummaryCount,
 } from './inboxDataSlice';
 
 // Re-export inboxUISlice actions (alphabetical)

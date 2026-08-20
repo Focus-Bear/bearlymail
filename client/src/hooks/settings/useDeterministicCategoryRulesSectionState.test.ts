@@ -37,8 +37,16 @@ vi.mock('queries/useCategoryContextQuery', () => ({
   useCategoryContextQuery: () => ({ data: [] }),
 }));
 
+const mockShowInfo = vi.fn();
+const mockShowWarning = vi.fn();
+
 vi.mock('contexts/NotificationContext', () => ({
-  useNotifications: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
+  useNotifications: () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showInfo: mockShowInfo,
+    showWarning: mockShowWarning,
+  }),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -111,5 +119,57 @@ describe('useDeterministicCategoryRulesSectionState — openEditRule URL param',
 
     expect(result.current.modalOpen).toBe(false);
     expect(result.current.editingRule).toBeNull();
+    expect(mockShowWarning).toHaveBeenCalled();
+  });
+
+  it('opens the matching rule by ID when openEditRuleId is present', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}?openEditRuleId=rule-abc&openEditRule=Human%20GitHub%20issue%20status%20updates#guide-our-ai`
+    );
+
+    const { result } = renderHook(() => useDeterministicCategoryRulesSectionState());
+
+    await waitFor(() => {
+      expect(result.current.modalOpen).toBe(true);
+      expect(result.current.editingRule).toEqual(mockRule);
+    });
+    // ID matched exactly — no "rule was updated" notice.
+    expect(mockShowInfo).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the category name and notifies when the rule ID is stale', async () => {
+    // Stale ID (e.g. the original rule was merged into a sibling) but the
+    // category name still resolves to a live rule.
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}?openEditRuleId=deleted-rule-id&openEditRule=Human%20GitHub%20issue%20status%20updates#guide-our-ai`
+    );
+
+    const { result } = renderHook(() => useDeterministicCategoryRulesSectionState());
+
+    await waitFor(() => {
+      expect(result.current.modalOpen).toBe(true);
+      expect(result.current.editingRule).toEqual(mockRule);
+    });
+    expect(mockShowInfo).toHaveBeenCalled();
+    expect(mockShowWarning).not.toHaveBeenCalled();
+  });
+
+  it('warns when neither the rule ID nor the category name resolves', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}?openEditRuleId=deleted-rule-id&openEditRule=Deleted%20Category#guide-our-ai`
+    );
+
+    const { result } = renderHook(() => useDeterministicCategoryRulesSectionState());
+
+    await act(async () => {});
+
+    expect(result.current.modalOpen).toBe(false);
+    expect(mockShowWarning).toHaveBeenCalled();
   });
 });

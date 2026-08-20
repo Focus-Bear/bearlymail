@@ -142,10 +142,11 @@ describe('PriorityTooltipCategory', () => {
 
     fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
 
-    // Should open by ruleId, not category name — even when the displayed
-    // category has multiple rules, this opens the SPECIFIC matching rule.
+    // Opens by ruleId (the SPECIFIC matching rule even when the category has
+    // several rules) but also carries the category name so settings can fall
+    // back to it when the stored rule ID is stale (post-merge / regeneration).
     expect(mockWindowOpen).toHaveBeenCalledWith(
-      '/settings?openEditRuleId=abc123-def-456#guide-our-ai',
+      '/settings?openEditRuleId=abc123-def-456&openEditRule=GitHub%20PR%20Updates#guide-our-ai',
       '_blank',
       'noopener,noreferrer'
     );
@@ -172,7 +173,10 @@ describe('PriorityTooltipCategory', () => {
     );
 
     const link = screen.getByTestId('categorised-by-rule-link');
-    expect(link).toHaveAttribute('href', '/settings?openEditRuleId=abc123-def-456#guide-our-ai');
+    expect(link).toHaveAttribute(
+      'href',
+      '/settings?openEditRuleId=abc123-def-456&openEditRule=GitHub%20PR%20Updates#guide-our-ai'
+    );
     expect(link).toHaveAttribute('target', '_blank');
   });
 
@@ -206,7 +210,7 @@ describe('PriorityTooltipCategory', () => {
     fireEvent.click(screen.getByTestId('categorised-by-rule-link'));
 
     expect(mockWindowOpen).toHaveBeenCalledWith(
-      '/settings?openEditRuleId=abc123-def-456#guide-our-ai',
+      '/settings?openEditRuleId=abc123-def-456&openEditRule=GitHub%20PR%20Updates#guide-our-ai',
       '_blank',
       'noopener,noreferrer'
     );

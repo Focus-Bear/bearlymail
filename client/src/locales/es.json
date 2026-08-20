@@ -3826,6 +3826,10 @@
       "updateError": "No se pudo actualizar la regla",
       "deleteSuccess": "Regla eliminada",
       "deleteError": "No se pudo eliminar la regla",
+      "deepLink": {
+        "ruleUpdated": "Esa regla se actualizó, así que abrimos la regla actual de esta categoría.",
+        "ruleNotFound": "No pudimos encontrar esa regla; es posible que se haya eliminado o fusionado con otra."
+      },
       "legacyWeakWarning": "Esta regla coincide con criterios limitados y puede producir falsos positivos. Considera crear una regla compuesta.",
       "upgradeToComposite": "Actualizar a regla compuesta",
       "allFieldsRequired": "Los tres campos (remitente, asunto, cuerpo) son necesarios para reducir los falsos positivos.",

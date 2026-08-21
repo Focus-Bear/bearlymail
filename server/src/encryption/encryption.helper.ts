@@ -488,6 +488,19 @@ class EncryptionHelper {
       .update(email.toLowerCase().trim())
       .digest("hex");
   }
+
+  /**
+   * Deterministic SHA-256 of a category name, for keying per-category state
+   * (e.g. adaptive supervision) without storing the plaintext name in a
+   * queryable/unique column. Case- and whitespace-insensitive.
+   */
+  static hashCategory(category: string): string {
+    if (!category) return "";
+    return crypto
+      .createHash("sha256")
+      .update(category.toLowerCase().trim())
+      .digest("hex");
+  }
 }
 
 /**

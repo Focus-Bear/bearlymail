@@ -49,7 +49,8 @@ function makeUpdateQueryBuilderMock() {
 
 function makeService(opts: {
   isLiveEnabled?: boolean;
-  holdoutSampleRate?: number;
+  /** Adaptive supervision rate (%) returned for this category; 0 = no holdout. */
+  sampleRatePercent?: number;
   prediction?: LocalModelPrediction | null;
   categoryId?: string | null;
   /** Override the user's EMAIL_CATEGORY contexts (for family two-stage tests). */
@@ -79,9 +80,13 @@ function makeService(opts: {
   } as never;
   const inferenceService = {
     isLiveEnabled: opts.isLiveEnabled ?? true,
-    holdoutSampleRate: opts.holdoutSampleRate ?? 0,
     predict,
   } as never;
+  const getSampleRatePercent = jest
+    .fn()
+    .mockResolvedValue(opts.sampleRatePercent ?? 0);
+  const recordSample = jest.fn().mockResolvedValue(undefined);
+  const supervisionService = { getSampleRatePercent, recordSample } as never;
   const cloudWatchService = { putMetric } as never;
   const backgroundSummaryQueueService = {
     maybeQueueBackgroundSummary,
@@ -91,11 +96,20 @@ function makeService(opts: {
     emailThreadRepository,
     userContextRepository,
     inferenceService,
+    supervisionService,
     cloudWatchService,
     backgroundSummaryQueueService,
     boss,
   );
-  return { service, threadUpdate, queryBuilder, predict, putMetric, send };
+  return {
+    service,
+    threadUpdate,
+    queryBuilder,
+    predict,
+    putMetric,
+    send,
+    getSampleRatePercent,
+  };
 }
 
 describe("LocalModelPromotionService.tryHandle", () => {
@@ -292,21 +306,28 @@ describe("LocalModelPromotionService — family two-stage + holdout", () => {
     expect(threadUpdate).not.toHaveBeenCalled();
   });
 
-  it("holdout eval: a would-apply thread is diverted to the LLM (no write) at rate 100", async () => {
-    const { service, threadUpdate, queryBuilder, putMetric } = makeService({
-      holdoutSampleRate: 100,
+  it("supervision holdout: a would-apply thread is diverted to the LLM (no write) at rate 100", async () => {
+    const {
+      service,
+      threadUpdate,
+      queryBuilder,
+      putMetric,
+      getSampleRatePercent,
+    } = makeService({
+      sampleRatePercent: 100,
       prediction: CONFIDENT,
       categoryId: "cat-1",
     });
     expect(await service.tryHandle("u1", EMAIL, THREAD, "w1")).toBe(false);
+    expect(getSampleRatePercent).toHaveBeenCalledWith("u1", CONFIDENT.category);
     expect(threadUpdate).not.toHaveBeenCalled();
     expect(queryBuilder.execute).not.toHaveBeenCalled();
     expect(putMetric).not.toHaveBeenCalled();
   });
 
-  it("holdout eval: rate 0 applies as normal", async () => {
+  it("supervision holdout: rate 0 applies as normal", async () => {
     const { service, threadUpdate, queryBuilder } = makeService({
-      holdoutSampleRate: 0,
+      sampleRatePercent: 0,
       prediction: CONFIDENT,
       categoryId: "cat-1",
     });

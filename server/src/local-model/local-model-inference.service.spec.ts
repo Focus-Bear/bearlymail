@@ -6,6 +6,7 @@ import { LambdaClient } from "@aws-sdk/client-lambda";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { LocalModelThreadInput } from "./local-model.types";
 import { LocalModelInferenceService } from "./local-model-inference.service";
+import { LocalModelSupervisionService } from "./local-model-supervision.service";
 
 const THREAD: LocalModelThreadInput = {
   threadId: "t1",
@@ -42,6 +43,7 @@ function lambdaPayload(body: unknown, statusCode = 200) {
 }
 
 const threadUpdate = jest.fn();
+const recordSample = jest.fn();
 
 async function makeService(
   env: Record<string, string>,
@@ -56,6 +58,10 @@ async function makeService(
         provide: getRepositoryToken(EmailThread),
         useValue: { update: threadUpdate },
       },
+      {
+        provide: LocalModelSupervisionService,
+        useValue: { recordSample, getSampleRatePercent: jest.fn() },
+      },
     ],
   }).compile();
   return module.get(LocalModelInferenceService);
@@ -65,6 +71,7 @@ describe("LocalModelInferenceService", () => {
   afterEach(() => {
     jest.restoreAllMocks();
     threadUpdate.mockReset();
+    recordSample.mockReset();
   });
 
   it("returns null when no function is configured (no-op)", async () => {
@@ -146,6 +153,74 @@ describe("LocalModelInferenceService", () => {
       });
       expect(result?.family).toBe("GitHub / Pull Requests");
       expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it("records a supervision sample (agreed) for a confident prediction", async () => {
+      const send = jest.fn().mockResolvedValue(lambdaPayload(PREDICTION));
+      const service = await makeService(
+        {
+          LOCAL_MODEL_INFERENCE_FUNCTION: "fn",
+          LOCAL_MODEL_SHADOW_ENABLED: "true",
+        },
+        send,
+      );
+      await service.compareInShadowMode("u1", THREAD, {
+        category: "GitHub PR Updates",
+      });
+      expect(recordSample).toHaveBeenCalledWith(
+        "u1",
+        "GitHub PR Updates",
+        true,
+      );
+    });
+
+    it("records disagreement when the LLM chose a different category", async () => {
+      const send = jest.fn().mockResolvedValue(lambdaPayload(PREDICTION));
+      const service = await makeService(
+        {
+          LOCAL_MODEL_INFERENCE_FUNCTION: "fn",
+          LOCAL_MODEL_SHADOW_ENABLED: "true",
+        },
+        send,
+      );
+      await service.compareInShadowMode("u1", THREAD, { category: "Receipts" });
+      expect(recordSample).toHaveBeenCalledWith(
+        "u1",
+        "GitHub PR Updates",
+        false,
+      );
+    });
+
+    it("does not record a sample when the local prediction fell back (not applied)", async () => {
+      const send = jest
+        .fn()
+        .mockResolvedValue(
+          lambdaPayload({ ...PREDICTION, categoryFallback: true }),
+        );
+      const service = await makeService(
+        {
+          LOCAL_MODEL_INFERENCE_FUNCTION: "fn",
+          LOCAL_MODEL_SHADOW_ENABLED: "true",
+        },
+        send,
+      );
+      await service.compareInShadowMode("u1", THREAD, {
+        category: "GitHub PR Updates",
+      });
+      expect(recordSample).not.toHaveBeenCalled();
+    });
+
+    it("does not record a sample when the LLM had no category", async () => {
+      const send = jest.fn().mockResolvedValue(lambdaPayload(PREDICTION));
+      const service = await makeService(
+        {
+          LOCAL_MODEL_INFERENCE_FUNCTION: "fn",
+          LOCAL_MODEL_SHADOW_ENABLED: "true",
+        },
+        send,
+      );
+      await service.compareInShadowMode("u1", THREAD, { category: null });
+      expect(recordSample).not.toHaveBeenCalled();
     });
   });
 

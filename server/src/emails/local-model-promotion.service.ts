@@ -18,6 +18,7 @@ import { assignFamily } from "../local-model/category-family";
 import { LocalModelDebugSnapshot } from "../local-model/local-model.types";
 import { LocalModelInferenceService } from "../local-model/local-model-inference.service";
 import { buildLocalModelInput } from "../local-model/local-model-input";
+import { LocalModelSupervisionService } from "../local-model/local-model-supervision.service";
 import { bandMidpointScore } from "../local-model/priority-band";
 import { getJobPriority } from "../queue/job-priorities";
 import { parseCategoryName } from "../utils/category-name.util";
@@ -71,6 +72,7 @@ export class LocalModelPromotionService {
     @InjectRepository(UserContext)
     private readonly userContextRepository: Repository<UserContext>,
     private readonly inferenceService: LocalModelInferenceService,
+    private readonly supervisionService: LocalModelSupervisionService,
     private readonly cloudWatchService: CloudWatchService,
     private readonly backgroundSummaryQueueService: BackgroundSummaryQueueService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
@@ -117,10 +119,15 @@ export class LocalModelPromotionService {
       // is the signal); we never spend `analyze_priority` just for the category.
       const categoryId = await this.resolveCategoryId(userId, prediction);
 
-      // #6 forced-holdout eval: divert a deterministic sample of would-be-applied
+      // Adaptive supervision: divert a per-category sample of would-be-applied
       // threads to the LLM so applied accuracy can be scored against it (the
-      // shadow comparison logs local-vs-LLM agreement for these confident cases).
-      const holdoutRate = this.inferenceService.holdoutSampleRate;
+      // shadow comparison logs local-vs-LLM agreement and feeds the sample back
+      // into the per-category rate). The rate starts high and adapts down as the
+      // category proves accurate — see LocalModelSupervisionService.
+      const holdoutRate = await this.supervisionService.getSampleRatePercent(
+        userId,
+        prediction.category,
+      );
       if (
         holdoutRate > 0 &&
         this.isHoldoutSample(email.emailThreadId, holdoutRate)

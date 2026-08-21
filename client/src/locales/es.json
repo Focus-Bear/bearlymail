@@ -4608,6 +4608,7 @@
     "submitting": "Enviando…",
     "submitSuccess": "¡Gracias! Tus comentarios han sido recibidos.",
     "submitError": "Error al enviar los comentarios. Por favor, inténtalo de nuevo.",
+    "discardConfirm": "¿Descartar tus comentarios? Tu mensaje aún no se ha enviado.",
     "sendFeedbackButton": "Enviar comentarios",
     "adminTitle": "Comentarios de usuarios",
     "adminEmpty": "Aún no se han enviado comentarios.",

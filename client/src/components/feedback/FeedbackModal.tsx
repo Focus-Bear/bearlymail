@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiX } from 'react-icons/fi';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
@@ -7,6 +8,36 @@ import { API_URL } from 'config/api';
 import { useNotifications } from 'contexts/NotificationContext';
 
 import { FeedbackForm } from './FeedbackForm';
+
+// Draft persistence: the typed message is mirrored to localStorage so an
+// accidental close, navigation, or page refresh never loses it — it's restored
+// when the modal reopens. The draft is cleared only on a successful send or when
+// the user explicitly confirms discarding it.
+const FEEDBACK_DRAFT_KEY = 'bearlymail.feedbackDraft';
+
+const readDraft = (): string => {
+  try {
+    return localStorage.getItem(FEEDBACK_DRAFT_KEY) ?? '';
+  } catch {
+    return '';
+  }
+};
+
+const writeDraft = (value: string): void => {
+  try {
+    localStorage.setItem(FEEDBACK_DRAFT_KEY, value);
+  } catch {
+    // localStorage unavailable (private mode / quota) — persistence is best-effort.
+  }
+};
+
+const clearDraft = (): void => {
+  try {
+    localStorage.removeItem(FEEDBACK_DRAFT_KEY);
+  } catch {
+    // no-op
+  }
+};
 
 // Note: on success we set `submitted = true` which shows the inline ✅ state
 // and auto-closes the modal after FEEDBACK_SUCCESS_CLOSE_MS. We intentionally
@@ -44,9 +75,14 @@ const modalStyle: React.CSSProperties = {
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const { showError } = useNotifications();
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(readDraft);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Mirror the draft to localStorage as the user types.
+  useEffect(() => {
+    writeDraft(message);
+  }, [message]);
 
   const handleSubmit = async (screenshotKey?: string) => {
     const trimmed = message.trim();
@@ -60,6 +96,8 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
         message: trimmed,
         ...(screenshotKey ? { screenshotS3Key: screenshotKey } : {}),
       });
+      // Sent successfully — the draft is no longer needed.
+      clearDraft();
       // Show inline ✅ success state only (no duplicate toast).
       setSubmitted(true);
       setTimeout(() => onClose(), FEEDBACK_SUCCESS_CLOSE_MS);
@@ -71,9 +109,24 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
     }
   };
 
+  // Guard against silently discarding typed feedback. Any user-initiated close
+  // (X button, overlay click, Cancel) goes through here; if there's unsent text
+  // we confirm first. The post-submit auto-close calls onClose() directly, so a
+  // successful submission never triggers the prompt.
+  const handleClose = () => {
+    if (message.trim() && !submitted && !window.confirm(t('contactFeedback.discardConfirm'))) {
+      return;
+    }
+    // Proceeding past the guard is an explicit discard (or nothing to keep), so
+    // drop the saved draft. Accidental closes that never reach here (navigation,
+    // refresh) leave the draft intact for restoration.
+    clearDraft();
+    onClose();
+  };
+
   const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
-      onClose();
+      handleClose();
     }
   };
 
@@ -93,19 +146,20 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
             {t('contactFeedback.title')}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             aria-label={t('common.close')}
             style={{
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xl,
               color: theme.colors.text.secondary,
               lineHeight: 1,
               padding: theme.spacing.xs,
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            {t('common.close')}
+            <FiX size={20} />
           </button>
         </div>
 
@@ -114,7 +168,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
           setMessage={setMessage}
           isSubmitting={isSubmitting}
           submitted={submitted}
-          onClose={onClose}
+          onClose={handleClose}
           handleSubmit={handleSubmit}
           t={t}
         />

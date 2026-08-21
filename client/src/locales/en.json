@@ -4605,6 +4605,7 @@
     "submitting": "Sending…",
     "submitSuccess": "Thanks! Your feedback has been received.",
     "submitError": "Failed to send feedback. Please try again.",
+    "discardConfirm": "Discard your feedback? Your message hasn't been sent yet.",
     "sendFeedbackButton": "Send Feedback",
     "adminTitle": "User Feedback",
     "adminEmpty": "No feedback submitted yet.",

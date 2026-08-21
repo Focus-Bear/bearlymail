@@ -447,22 +447,39 @@ export class DealsService {
     userId: string,
     email: string,
   ): Promise<DealResponse[]> {
-    // First find the contact by email hash
+    // Find the contact(s) by email hash. The contacts table is unique on
+    // (userId, provider, providerId), NOT on email, so the same address can map
+    // to several contact records (e.g. Google "contacts" + auto-created "other
+    // contacts"). A deal is linked to exactly one of them, so we must gather
+    // deals across ALL contacts sharing this email — using findOne here would
+    // miss the deal whenever it's attached to a different duplicate.
     const { SearchIndexHelper } =
       await import("../contacts/search-index.helper");
     const emailHash = SearchIndexHelper.hashExact(email);
 
-    const contact = await this.contactRepository.findOne({
+    const contacts = await this.contactRepository.find({
       where: { userId, emailHash },
       select: {
         id: true,
       },
     });
 
-    if (!contact) {
+    if (contacts.length === 0) {
       return [];
     }
 
-    return this.getDealsForContact(userId, contact.id);
+    // Aggregate deals across every matching contact, deduped by deal id.
+    const seen = new Set<string>();
+    const merged: DealResponse[] = [];
+    for (const contact of contacts) {
+      const contactDeals = await this.getDealsForContact(userId, contact.id);
+      for (const deal of contactDeals) {
+        if (!seen.has(deal.id)) {
+          seen.add(deal.id);
+          merged.push(deal);
+        }
+      }
+    }
+    return merged;
   }
 }

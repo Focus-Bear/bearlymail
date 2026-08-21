@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiBriefcase, FiDollarSign, FiPlus } from 'react-icons/fi';
+import { FiBriefcase, FiDollarSign } from 'react-icons/fi';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Deal } from 'types/deal';
@@ -168,28 +168,7 @@ const DealSectionContent: React.FC<DealSectionContentProps> = ({ loading, error,
   );
 };
 
-const DealSectionControls: React.FC<{ t: (key: string) => string }> = ({ t }) => (
-  <button
-    onClick={event => {
-      event.stopPropagation();
-    }}
-    style={{
-      background: 'transparent',
-      border: 'none',
-      color: theme.colors.text.secondary,
-      cursor: 'pointer',
-      fontSize: theme.typography.fontSize.sm,
-      padding: theme.spacing.xs,
-      display: 'flex',
-      alignItems: 'center',
-    }}
-    title={t('crm.createDeal')}
-  >
-    <FiPlus size={16} />
-  </button>
-);
-
-const useCRMDeals = (senderEmail: string | undefined, contactId: string | undefined) => {
+const useCRMDeals =(senderEmail: string | undefined, contactId: string | undefined) => {
   const { t } = useTranslation();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(false);
@@ -262,7 +241,6 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
       accentColor={CRM_ACCENT}
       backgroundColor={CRM_BG}
       preview={preview}
-      controls={<DealSectionControls t={t} />}
       onDismiss={onDismiss}
       dismissTitle={t('emailDetail.hideCard')}
     >

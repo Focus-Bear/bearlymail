@@ -203,6 +203,10 @@ const Deals: React.FC = () => {
   const handleUpdateDeal = async (dealId: string, dealUpdate: Partial<Deal>) => {
     try {
       await axios.put(`${API_URL}/deals/${dealId}`, dealUpdate);
+      // Close the modal on success (mirrors handleCreateDeal). Without this the
+      // modal stayed open AND editingDeal was cleared, flipping it to "create"
+      // mode — so a second Save created a duplicate deal instead of updating.
+      setShowDealForm(false);
       setEditingDeal(null);
       fetchKanban();
     } catch (err) {

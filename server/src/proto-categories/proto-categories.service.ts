@@ -663,15 +663,32 @@ export class ProtoCategoriesService {
     );
     if (significantTokens.length === 0) return [];
 
-    return candidates
-      .filter((candidate) => {
-        if (alreadyCheckedIds.has(candidate.id)) return false;
-        const nameWithoutEmoji = stripCategoryName(candidate.name);
-        return significantTokens.some((token) =>
-          nameWithoutEmoji.includes(token),
-        );
-      })
-      .slice(0, MAX_LLM_DEDUP_CANDIDATES);
+    return (
+      candidates
+        .filter((candidate) => !alreadyCheckedIds.has(candidate.id))
+        .map((candidate) => {
+          const nameWithoutEmoji = stripCategoryName(candidate.name);
+          const overlap = significantTokens.filter((token) =>
+            nameWithoutEmoji.includes(token),
+          ).length;
+          return { candidate, overlap, nameWithoutEmoji };
+        })
+        .filter((entry) => entry.overlap > 0)
+        // Rank most-shared-token first, breaking ties by lexical closeness, so the
+        // nearest real category always reaches the LLM confirmer instead of being
+        // crowded out of the cap by an arbitrarily-ordered candidate list.
+        .sort(
+          (left, right) =>
+            right.overlap - left.overlap ||
+            levenshteinDistance(suggestionWithoutEmoji, left.nameWithoutEmoji) -
+              levenshteinDistance(
+                suggestionWithoutEmoji,
+                right.nameWithoutEmoji,
+              ),
+        )
+        .slice(0, MAX_LLM_DEDUP_CANDIDATES)
+        .map((entry) => entry.candidate)
+    );
   }
 
   /**

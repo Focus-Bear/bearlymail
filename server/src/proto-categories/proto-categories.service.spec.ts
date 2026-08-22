@@ -392,6 +392,45 @@ describe("ProtoCategoriesService", () => {
       expect(llmCoreService.generateText).toHaveBeenCalled();
       expect(result).toBeNull();
     });
+
+    it("ranks the closest shared-token candidate ahead of lower-overlap decoys so it reaches the LLM (cold-outreach paraphrase)", async () => {
+      // The real category shares TWO tokens ("cold"+"outreach") with the
+      // suggestion; the decoys share only one. Before ranking, an unordered
+      // list capped at MAX_LLM_DEDUP_CANDIDATES could drop the real match.
+      const realMatch = makeUserContext(
+        "ctx-cold-outreach",
+        "📨 Cold outreach: from others to me",
+      );
+      const decoys = [
+        makeUserContext("ctx-cold-weather", "🥶 Cold weather alerts"),
+        makeUserContext("ctx-outreach-events", "📣 Outreach events"),
+        makeUserContext("ctx-sales-pipeline", "💰 Sales pipeline"),
+        makeUserContext("ctx-cold-calls", "☎️ Cold calls I make"),
+      ];
+      userContextRepo.find.mockResolvedValue([...decoys, realMatch]);
+      const txRepo = {
+        findOne: jest.fn().mockResolvedValue(realMatch),
+        update: jest.fn().mockResolvedValue({}),
+      };
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: unknown) => Promise<unknown>) =>
+          cb({ getRepository: () => txRepo }),
+      );
+      // Only the real cold-outreach category is a duplicate; the LLM rejects
+      // any decoy it is asked about.
+      llmCoreService.generateText.mockImplementation(
+        async (request: { prompt: string }) =>
+          request.prompt.includes("from others to me")
+            ? '{"isDuplicate": true, "reasoning": "Same cold-outreach concept"}'
+            : '{"isDuplicate": false, "reasoning": "Different topic"}',
+      );
+
+      const result = await service.findMatchingFullCategory(
+        "user-1",
+        "Cold Sales Outreach",
+      );
+      expect(result?.name).toBe("📨 Cold outreach: from others to me");
+    });
   });
 
   describe("findMatchingProtoCategory", () => {

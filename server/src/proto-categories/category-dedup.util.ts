@@ -19,7 +19,9 @@ export interface DedupCandidate {
 // Cap on how many Levenshtein-flagged, shared-token, or embedding candidates we
 // hand off to the LLM in one matching pass. Without this, a user with many
 // similar category names would trigger one sequential LLM call per candidate.
-export const MAX_LLM_DEDUP_CANDIDATES = 2;
+// Kept small to bound LLM cost, but wide enough that the correct real category
+// isn't crowded out of the (ranked) shortlist before it reaches the confirmer.
+export const MAX_LLM_DEDUP_CANDIDATES = 4;
 
 // Minimum embedding cosine similarity between two category names for them to be
 // treated as semantic near-duplicates worth confirming with the LLM.

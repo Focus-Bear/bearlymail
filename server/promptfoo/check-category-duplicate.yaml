@@ -209,3 +209,17 @@ tests:
             throw new Error(`Expected isDuplicate=true for two source-specific receipts, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
           }
           return true;
+
+  - description: "Should detect cold-outreach paraphrase as duplicate despite added qualifier and directional phrasing (Cold Sales Outreach vs Cold outreach: from others to me)"
+    vars:
+      categoryA: "Cold Sales Outreach"
+      categoryB: "Cold outreach: from others to me"
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isDuplicate !== true) {
+            throw new Error(`Expected isDuplicate=true for cold-outreach paraphrase, got: ${parsed.isDuplicate}. Reasoning: ${parsed.reasoning}`);
+          }
+          return true;

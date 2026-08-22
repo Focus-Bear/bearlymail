@@ -53,7 +53,7 @@ interface BreakdownRow {
   indent?: boolean;
 }
 
-const BreakdownTable: React.FC<{ title: string; rows: BreakdownRow[]; totalLabel: string; total: number }> = ({
+export const BreakdownTable: React.FC<{ title: string; rows: BreakdownRow[]; totalLabel: string; total: number }> = ({
   title,
   rows,
   totalLabel,
@@ -106,7 +106,7 @@ const BreakdownTable: React.FC<{ title: string; rows: BreakdownRow[]; totalLabel
 
 // The Unprocessed row is split into its Deferred (skipped by design) and
 // Awaiting-scoring (genuinely pending) parts, rendered as indented sub-rows.
-const buildPriorityRows = (priority: PriorityUsage, translate: TFunction): BreakdownRow[] => [
+export const buildPriorityRows = (priority: PriorityUsage, translate: TFunction): BreakdownRow[] => [
   { label: translate('admin.localModel.local'), count: priority.local, pct: priority.localPct },
   { label: translate('admin.localModel.llm'), count: priority.llm, pct: priority.llmPct },
   { label: translate('admin.localModel.rule'), count: priority.rule, pct: pctOf(priority.rule, priority.total) },
@@ -115,7 +115,7 @@ const buildPriorityRows = (priority: PriorityUsage, translate: TFunction): Break
   { label: translate('admin.localModel.pending'), count: priority.pending, pct: pctOf(priority.pending, priority.total), indent: true },
 ];
 
-const buildCategoryRows = (category: CategoryUsage, translate: TFunction): BreakdownRow[] => [
+export const buildCategoryRows = (category: CategoryUsage, translate: TFunction): BreakdownRow[] => [
   { label: translate('admin.localModel.local'), count: category.local, pct: category.localPct },
   { label: translate('admin.localModel.llm'), count: category.llm, pct: pctOf(category.llm, category.total) },
   { label: translate('admin.localModel.rule'), count: category.rule ?? 0, pct: pctOf(category.rule ?? 0, category.total) },

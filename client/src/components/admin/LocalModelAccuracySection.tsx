@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { CategoryAccuracy, useLocalModelAccuracyData } from './useLocalModelAccuracyData';
+import { CategoryAccuracy, CategoryAccuracyReport, useLocalModelAccuracyData } from './useLocalModelAccuracyData';
 
 // The supervision rate is the share of confident local calls we divert to the
 // LLM to double-check, so a LOWER rate means the category has earned MORE trust.
@@ -74,9 +74,14 @@ const AccuracyRow: React.FC<{ category: CategoryAccuracy }> = ({ category }) => 
   </tr>
 );
 
-export const LocalModelAccuracySection: React.FC = () => {
+interface LocalModelAccuracyViewProps {
+  report: CategoryAccuracyReport | null;
+  loading: boolean;
+  lastUpdated: Date | null;
+}
+
+export const LocalModelAccuracyView: React.FC<LocalModelAccuracyViewProps> = ({ report, loading }) => {
   const { t } = useTranslation();
-  const { report, loading } = useLocalModelAccuracyData();
 
   if (loading) {
     return null;
@@ -157,4 +162,9 @@ export const LocalModelAccuracySection: React.FC = () => {
       )}
     </div>
   );
+};
+
+export const LocalModelAccuracySection: React.FC = () => {
+  const { report, loading, lastUpdated } = useLocalModelAccuracyData();
+  return <LocalModelAccuracyView report={report} loading={loading} lastUpdated={lastUpdated} />;
 };

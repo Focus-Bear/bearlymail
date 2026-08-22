@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
+import { LocalModelAccuracySection } from './LocalModelAccuracySection';
 import { TokenDateFilter } from './TokenUsagePanels';
 import { CategoryUsage, PriorityUsage, useLocalModelUsageData } from './useLocalModelUsageData';
 
@@ -209,6 +210,8 @@ export const LocalModelUsageSection: React.FC = () => {
       <p style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
         {t('admin.localModel.caption')}
       </p>
+
+      <LocalModelAccuracySection />
     </div>
   );
 };

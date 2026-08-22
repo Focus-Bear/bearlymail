@@ -2023,7 +2023,22 @@
       "llm": "LLM",
       "rule": "Deterministic rule",
       "total": "Total",
-      "caption": "Local = handled by the fine-tuned model (LLM skipped). A higher local % means lower LLM cost. Unprocessed = Deferred + Awaiting scoring. Deferred threads were skipped by design (org volume cap / inactive user) and will never get a source; Awaiting scoring threads are genuinely still queued or failed."
+      "caption": "Local = handled by the fine-tuned model (LLM skipped). A higher local % means lower LLM cost. Unprocessed = Deferred + Awaiting scoring. Deferred threads were skipped by design (org volume cap / inactive user) and will never get a source; Awaiting scoring threads are genuinely still queued or failed.",
+      "accuracy": {
+        "title": "Local model accuracy (vs LLM)",
+        "overallLabel": "Overall agreement",
+        "caption": "Of the local model's confident calls the LLM double-checked, this share matched. A lower supervision rate means the category has earned more trust (fewer calls diverted for checking).",
+        "columns": {
+          "category": "Category",
+          "rate": "Supervision rate",
+          "agreement": "Agreement",
+          "samples": "Samples"
+        },
+        "trusted": "Trusted",
+        "monitoring": "Monitoring",
+        "watching": "Watching closely",
+        "empty": "No supervised samples yet — the LLM check runs as the local model makes confident calls."
+      }
     },
     "tokenUsage": {
       "title": "Token Usage Statistics",

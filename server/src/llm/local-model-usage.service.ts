@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { LocalModelSupervision } from "../database/entities/local-model-supervision.entity";
 
 const DEFAULT_WINDOW_DAYS = 7;
 const MS_PER_DAY = 86_400_000;
@@ -38,6 +39,38 @@ export interface LocalModelUsage {
   category: CategoryUsage;
 }
 
+export interface CategoryAccuracy {
+  category: string;
+  /** Rate of the dominant (highest-lifetimeSamples) row for this category. */
+  sampleRatePercent: number;
+  lifetimeSamples: number;
+  lifetimeAgreements: number;
+  /** 0..100; 0 when lifetimeSamples is 0. */
+  agreementPct: number;
+  windowSamples: number;
+  windowAgreements: number;
+}
+
+export interface CategoryAccuracyReport {
+  overall: { samples: number; agreements: number; agreementPct: number };
+  /** Sorted by lifetimeSamples DESC. */
+  categories: CategoryAccuracy[];
+}
+
+/**
+ * A category's counters aggregated across all users (same `categoryHash`), plus
+ * the display name and supervision rate of its dominant (most-sampled) row.
+ */
+interface CategoryAccumulator {
+  category: string;
+  sampleRatePercent: number;
+  dominantLifetimeSamples: number;
+  lifetimeSamples: number;
+  lifetimeAgreements: number;
+  windowSamples: number;
+  windowAgreements: number;
+}
+
 type SourceColumn = "prioritySource" | "categorySource";
 
 /**
@@ -65,6 +98,8 @@ export class LocalModelUsageService {
   constructor(
     @InjectRepository(EmailThread)
     private readonly threadRepository: Repository<EmailThread>,
+    @InjectRepository(LocalModelSupervision)
+    private readonly supervisionRepository: Repository<LocalModelSupervision>,
   ) {}
 
   async getUsage(options: {
@@ -200,6 +235,73 @@ export class LocalModelUsageService {
       pending,
       total,
       localPct: pct(local, total),
+    };
+  }
+
+  /**
+   * Admin view of how often the local category model agreed with the LLM on the
+   * supervised (diverted) samples. Aggregated across users by `categoryHash`
+   * (the hash is deterministic across users); the display name and supervision
+   * rate come from each category's dominant (most-sampled) row. Agreement % is
+   * based on the never-reset lifetime counters, not the noisy window ones.
+   */
+  async getCategoryAccuracy(): Promise<CategoryAccuracyReport> {
+    const rows = await this.supervisionRepository.find();
+
+    const byHash = new Map<string, CategoryAccumulator>();
+    let overallSamples = 0;
+    let overallAgreements = 0;
+
+    for (const row of rows) {
+      overallSamples += row.lifetimeSamples;
+      overallAgreements += row.lifetimeAgreements;
+
+      const existing = byHash.get(row.categoryHash);
+      if (!existing) {
+        byHash.set(row.categoryHash, {
+          category: row.category,
+          sampleRatePercent: row.sampleRatePercent,
+          dominantLifetimeSamples: row.lifetimeSamples,
+          lifetimeSamples: row.lifetimeSamples,
+          lifetimeAgreements: row.lifetimeAgreements,
+          windowSamples: row.windowSamples,
+          windowAgreements: row.windowAgreements,
+        });
+        continue;
+      }
+
+      existing.lifetimeSamples += row.lifetimeSamples;
+      existing.lifetimeAgreements += row.lifetimeAgreements;
+      existing.windowSamples += row.windowSamples;
+      existing.windowAgreements += row.windowAgreements;
+      // The dominant row (most lifetime samples) supplies the display name and
+      // the representative supervision rate.
+      if (row.lifetimeSamples > existing.dominantLifetimeSamples) {
+        existing.dominantLifetimeSamples = row.lifetimeSamples;
+        existing.category = row.category;
+        existing.sampleRatePercent = row.sampleRatePercent;
+      }
+    }
+
+    const categories: CategoryAccuracy[] = Array.from(byHash.values())
+      .map((acc) => ({
+        category: acc.category,
+        sampleRatePercent: acc.sampleRatePercent,
+        lifetimeSamples: acc.lifetimeSamples,
+        lifetimeAgreements: acc.lifetimeAgreements,
+        agreementPct: pct(acc.lifetimeAgreements, acc.lifetimeSamples),
+        windowSamples: acc.windowSamples,
+        windowAgreements: acc.windowAgreements,
+      }))
+      .sort((first, second) => second.lifetimeSamples - first.lifetimeSamples);
+
+    return {
+      overall: {
+        samples: overallSamples,
+        agreements: overallAgreements,
+        agreementPct: pct(overallAgreements, overallSamples),
+      },
+      categories,
     };
   }
 }

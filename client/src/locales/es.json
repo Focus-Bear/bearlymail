@@ -238,7 +238,22 @@
       "llm": "LLM",
       "rule": "Regla determinista",
       "total": "Total",
-      "caption": "Local = gestionado por el modelo ajustado (se omite el LLM). Un % local más alto significa menor coste de LLM. Sin procesar = Aplazado + Pendiente de puntuación. Los hilos aplazados se omitieron por diseño (límite de volumen de la organización / usuario inactivo) y nunca tendrán una fuente; los hilos pendientes de puntuación siguen realmente en cola o fallaron."
+      "caption": "Local = gestionado por el modelo ajustado (se omite el LLM). Un % local más alto significa menor coste de LLM. Sin procesar = Aplazado + Pendiente de puntuación. Los hilos aplazados se omitieron por diseño (límite de volumen de la organización / usuario inactivo) y nunca tendrán una fuente; los hilos pendientes de puntuación siguen realmente en cola o fallaron.",
+      "accuracy": {
+        "title": "Precisión del modelo local (vs LLM)",
+        "overallLabel": "Coincidencia general",
+        "caption": "De las decisiones seguras del modelo local que el LLM verificó, esta es la proporción que coincidió. Una tasa de supervisión más baja significa que la categoría se ha ganado más confianza (se derivan menos decisiones para su verificación).",
+        "columns": {
+          "category": "Categoría",
+          "rate": "Tasa de supervisión",
+          "agreement": "Coincidencia",
+          "samples": "Muestras"
+        },
+        "trusted": "De confianza",
+        "monitoring": "En seguimiento",
+        "watching": "Bajo vigilancia",
+        "empty": "Aún no hay muestras supervisadas: la verificación del LLM se ejecuta a medida que el modelo local toma decisiones seguras."
+      }
     },
     "tokenUsage": {
       "avgDuration": "Duración promedio",

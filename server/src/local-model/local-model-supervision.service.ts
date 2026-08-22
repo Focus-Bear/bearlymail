@@ -122,15 +122,26 @@ export class LocalModelSupervisionService {
             sampleRatePercent: SUPERVISION_DEFAULT_RATE,
             windowSamples: 1,
             windowAgreements: agreed ? 1 : 0,
+            lifetimeSamples: 1,
+            lifetimeAgreements: agreed ? 1 : 0,
           });
           return;
         }
 
         const windowSamples = existing.windowSamples + 1;
         const windowAgreements = existing.windowAgreements + (agreed ? 1 : 0);
+        // Lifetime counters never reset, so they accumulate across every window.
+        const lifetimeSamples = existing.lifetimeSamples + 1;
+        const lifetimeAgreements =
+          existing.lifetimeAgreements + (agreed ? 1 : 0);
 
         if (windowSamples < SUPERVISION_WINDOW_SIZE) {
-          await repo.update(existing.id, { windowSamples, windowAgreements });
+          await repo.update(existing.id, {
+            windowSamples,
+            windowAgreements,
+            lifetimeSamples,
+            lifetimeAgreements,
+          });
           return;
         }
 
@@ -144,6 +155,8 @@ export class LocalModelSupervisionService {
           sampleRatePercent: newRate,
           windowSamples: 0,
           windowAgreements: 0,
+          lifetimeSamples,
+          lifetimeAgreements,
         });
         this.logger.log(
           JSON.stringify({

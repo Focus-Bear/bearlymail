@@ -47,4 +47,16 @@ export class LocalModelUsageController {
     });
     return { ...usage, timestamp: new Date().toISOString() };
   }
+
+  /**
+   * Admin-wide accuracy of the local category model vs the LLM on the diverted
+   * supervision samples. Cumulative (lifetime counters), so it takes no window.
+   */
+  @Get("accuracy")
+  async getAccuracy() {
+    return {
+      ...(await this.localModelUsageService.getCategoryAccuracy()),
+      timestamp: new Date().toISOString(),
+    };
+  }
 }

@@ -82,3 +82,86 @@ describe("LocalModelSupervisionService", () => {
     expect(findOne).not.toHaveBeenCalled();
   });
 });
+
+describe("LocalModelSupervisionService.recordSample", () => {
+  type SupervisionRow = {
+    id: string;
+    sampleRatePercent: number;
+    windowSamples: number;
+    windowAgreements: number;
+    lifetimeSamples: number;
+    lifetimeAgreements: number;
+  };
+
+  function makeRecordService(existingRow: SupervisionRow | null) {
+    const insert = jest.fn().mockResolvedValue(undefined);
+    const update = jest.fn().mockResolvedValue(undefined);
+    const findOne = jest.fn().mockResolvedValue(existingRow);
+    const txRepo = { findOne, insert, update };
+    const transaction = jest.fn(
+      async (cb: (tx: { getRepository: () => typeof txRepo }) => unknown) =>
+        cb({ getRepository: () => txRepo }),
+    );
+    const supervisionRepository = {
+      manager: { transaction },
+    } as never;
+    const configService = { get: () => undefined } as never;
+    const service = new LocalModelSupervisionService(
+      supervisionRepository,
+      configService,
+    );
+    return { service, insert, update };
+  }
+
+  it("seeds lifetime counters on the insert branch", async () => {
+    const { service, insert } = makeRecordService(null);
+    await service.recordSample("u1", "Newsletters", true);
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        windowSamples: 1,
+        windowAgreements: 1,
+        lifetimeSamples: 1,
+        lifetimeAgreements: 1,
+      }),
+    );
+  });
+
+  it("increments both window and lifetime mid-window", async () => {
+    const { service, update } = makeRecordService({
+      id: "row-1",
+      sampleRatePercent: 50,
+      windowSamples: 10,
+      windowAgreements: 8,
+      lifetimeSamples: 40,
+      lifetimeAgreements: 33,
+    });
+    await service.recordSample("u1", "Newsletters", true);
+    expect(update).toHaveBeenCalledWith("row-1", {
+      windowSamples: 11,
+      windowAgreements: 9,
+      lifetimeSamples: 41,
+      lifetimeAgreements: 34,
+    });
+  });
+
+  it("resets window but keeps accumulating lifetime when the window completes", async () => {
+    const { service, update } = makeRecordService({
+      id: "row-1",
+      sampleRatePercent: 50,
+      windowSamples: 99,
+      windowAgreements: 95,
+      lifetimeSamples: 199,
+      lifetimeAgreements: 190,
+    });
+    await service.recordSample("u1", "Newsletters", true);
+    expect(update).toHaveBeenCalledWith(
+      "row-1",
+      expect.objectContaining({
+        windowSamples: 0,
+        windowAgreements: 0,
+        lifetimeSamples: 200,
+        lifetimeAgreements: 191,
+      }),
+    );
+  });
+});

@@ -139,6 +139,50 @@ export async function unarchiveThreadInOffice365(
 }
 
 /**
+ * Push a thread's star state to Outlook by setting each message's `importance`.
+ *
+ * BearlyMail's sync derives `starCount` from Outlook's `importance` flag on
+ * every run (`importance === "high"` → starred). A manual star that is not
+ * mirrored to the provider is therefore reverted by the next sync — the thread
+ * silently drops from Action back to Triage. Mapping starred → "high" and
+ * unstarred → "normal" across every message in the conversation makes the star
+ * survive resync, matching how Gmail persists a star to the provider.
+ *
+ * `importance` is a per-message property, so all messages in the conversation
+ * are patched (sync reads the latest message's importance). Per-message failures
+ * are logged and skipped rather than aborting the whole thread.
+ */
+export async function setThreadImportanceInOffice365(
+  userId: string,
+  threadId: string,
+  importance: "high" | "normal",
+  graphClient: AxiosInstance,
+): Promise<{ updatedCount: number; totalCount: number }> {
+  const response = await graphClient.get("/me/messages", {
+    params: {
+      $filter: `conversationId eq '${threadId}'`,
+      $select: "id",
+    },
+  });
+
+  const messages: Array<{ id: string }> = response.data.value || [];
+  let updatedCount = 0;
+  for (const msg of messages) {
+    try {
+      await graphClient.patch(`/me/messages/${msg.id}`, { importance });
+      updatedCount++;
+    } catch (error) {
+      logger.error(
+        `[Office365 Importance] Failed to set importance=${importance} on message ${msg.id} (userId=${userId}, threadId=${threadId}):`,
+        error,
+      );
+    }
+  }
+
+  return { updatedCount, totalCount: messages.length };
+}
+
+/**
  * Parse a comma-separated recipient string (supports "Name <email>" format)
  * into an array of Office365 emailAddress objects.
  */

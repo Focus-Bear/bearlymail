@@ -39,6 +39,7 @@ import {
   searchEmails,
   sendEmail,
   sendReply,
+  syncStarStatus,
   trashThread,
   unarchiveThread,
 } from "./office365/office365-actions.service";
@@ -801,13 +802,11 @@ export class Office365Provider implements EmailProvider {
   }
 
   async syncStarStatusToGmail(
-    _userId: string,
+    userId: string,
     threadId: string,
-    _starCount: number,
+    starCount: number,
   ): Promise<void> {
-    this.logger.debug(
-      `syncStarStatusToGmail called for Office365 (not implemented): ${threadId}`,
-    );
+    return syncStarStatus(this, userId, threadId, starCount);
   }
 
   async snoozeThread(

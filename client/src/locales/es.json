@@ -230,13 +230,15 @@
       "priorityLlm": "Prioridad vía LLM",
       "categoryLocal": "Categoría decidida localmente",
       "unprocessed": "Sin procesar",
+      "deferred": "Aplazado (límite de volumen / usuario inactivo)",
+      "pending": "Pendiente de puntuación",
       "priorityTitle": "Enrutamiento de prioridad",
       "categoryTitle": "Enrutamiento de categoría",
       "local": "Modelo local",
       "llm": "LLM",
       "rule": "Regla determinista",
       "total": "Total",
-      "caption": "Local = gestionado por el modelo ajustado (se omite el LLM). Un % local más alto significa menor coste de LLM. Sin procesar = hilos aún no puntuados en este período."
+      "caption": "Local = gestionado por el modelo ajustado (se omite el LLM). Un % local más alto significa menor coste de LLM. Sin procesar = Aplazado + Pendiente de puntuación. Los hilos aplazados se omitieron por diseño (límite de volumen de la organización / usuario inactivo) y nunca tendrán una fuente; los hilos pendientes de puntuación siguen realmente en cola o fallaron."
     },
     "tokenUsage": {
       "avgDuration": "Duración promedio",

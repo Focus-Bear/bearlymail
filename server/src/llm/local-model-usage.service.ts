@@ -14,6 +14,8 @@ export interface PriorityUsage {
   llm: number;
   rule: number;
   unprocessed: number;
+  deferred: number;
+  pending: number;
   total: number;
   localPct: number;
   llmPct: number;
@@ -24,6 +26,8 @@ export interface CategoryUsage {
   llm: number;
   rule: number;
   unprocessed: number;
+  deferred: number;
+  pending: number;
   total: number;
   localPct: number;
 }
@@ -35,6 +39,17 @@ export interface LocalModelUsage {
 }
 
 type SourceColumn = "prioritySource" | "categorySource";
+
+/**
+ * The per-source group counts plus, within the NULL-source group, how many rows
+ * were deferred by design (`aiProcessingDeferred = true`). Deferral (org
+ * volume-cap / inactive-user) skips the scoring job, so those threads keep a
+ * NULL source forever and must not be conflated with genuinely pending ones.
+ */
+interface SourceCounts {
+  counts: Map<string | null, number>;
+  deferred: number;
+}
 
 function pct(part: number, total: number): number {
   return total === 0 ? 0 : Math.round((part / total) * PERCENT);
@@ -95,12 +110,16 @@ export class LocalModelUsageService {
     column: SourceColumn,
     startDate: Date,
     endDate: Date,
-  ): Promise<Map<string | null, number>> {
+  ): Promise<SourceCounts> {
     // `column` is a fixed union (not user input), so interpolating it is safe.
     const rows = await this.threadRepository
       .createQueryBuilder("thread")
       .select(`thread."${column}"`, "source")
       .addSelect("COUNT(*)", "count")
+      .addSelect(
+        'COUNT(*) FILTER (WHERE thread."aiProcessingDeferred" = true)',
+        "deferred",
+      )
       .where('thread."userId" IS NOT NULL')
       .andWhere(
         (qb) =>
@@ -114,19 +133,29 @@ export class LocalModelUsageService {
         { startDate, endDate },
       )
       .groupBy(`thread."${column}"`)
-      .getRawMany<{ source: string | null; count: string }>();
+      .getRawMany<{ source: string | null; count: string; deferred: string }>();
 
     const counts = new Map<string | null, number>();
+    let deferred = 0;
     for (const row of rows) {
       counts.set(row.source, parseInt(row.count, 10));
+      // Deferred-by-design threads never get a source, so they live in the
+      // NULL group; only that group's deferred tally is meaningful.
+      if (row.source === null) {
+        deferred = parseInt(row.deferred ?? "0", 10);
+      }
     }
-    return counts;
+    return { counts, deferred };
   }
 
-  private buildPriority(counts: Map<string | null, number>): PriorityUsage {
+  private buildPriority(source: SourceCounts): PriorityUsage {
+    const { counts, deferred } = source;
     const local = counts.get("local") ?? 0;
     const rule = counts.get("rule") ?? 0;
     const unprocessed = counts.get(null) ?? 0;
+    // Split the NULL bucket: `deferred` was skipped by design (volume cap /
+    // inactive user), `pending` is genuinely awaiting or failed scoring.
+    const pending = unprocessed - deferred;
     let total = 0;
     for (const count of counts.values()) {
       total += count;
@@ -139,16 +168,22 @@ export class LocalModelUsageService {
       llm,
       rule,
       unprocessed,
+      deferred,
+      pending,
       total,
       localPct: pct(local, total),
       llmPct: pct(llm, total),
     };
   }
 
-  private buildCategory(counts: Map<string | null, number>): CategoryUsage {
+  private buildCategory(source: SourceCounts): CategoryUsage {
+    const { counts, deferred } = source;
     const local = counts.get("local") ?? 0;
     const rule = counts.get("rule") ?? 0;
     const unprocessed = counts.get(null) ?? 0;
+    // Split the NULL bucket: `deferred` was skipped by design (volume cap /
+    // inactive user), `pending` is genuinely awaiting or failed scoring.
+    const pending = unprocessed - deferred;
     let total = 0;
     for (const count of counts.values()) {
       total += count;
@@ -161,6 +196,8 @@ export class LocalModelUsageService {
       llm,
       rule,
       unprocessed,
+      deferred,
+      pending,
       total,
       localPct: pct(local, total),
     };

@@ -2015,13 +2015,15 @@
       "priorityLlm": "Priority via LLM",
       "categoryLocal": "Category decided locally",
       "unprocessed": "Unprocessed",
+      "deferred": "Deferred (volume cap / inactive user)",
+      "pending": "Awaiting scoring",
       "priorityTitle": "Priority routing",
       "categoryTitle": "Category routing",
       "local": "Local model",
       "llm": "LLM",
       "rule": "Deterministic rule",
       "total": "Total",
-      "caption": "Local = handled by the fine-tuned model (LLM skipped). A higher local % means lower LLM cost. Unprocessed = threads not yet scored in this window."
+      "caption": "Local = handled by the fine-tuned model (LLM skipped). A higher local % means lower LLM cost. Unprocessed = Deferred + Awaiting scoring. Deferred threads were skipped by design (org volume cap / inactive user) and will never get a source; Awaiting scoring threads are genuinely still queued or failed."
     },
     "tokenUsage": {
       "title": "Token Usage Statistics",

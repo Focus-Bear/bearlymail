@@ -8,7 +8,7 @@ import { LocalModelUsageService } from "./local-model-usage.service";
  * The query builder is called twice (prioritySource, then categorySource); each
  * `getRawMany` returns the next queued result set.
  */
-type SourceRow = { source: string | null; count: string };
+type SourceRow = { source: string | null; count: string; deferred?: string };
 
 function makeRepo(resultSets: SourceRow[][]) {
   let call = 0;
@@ -53,6 +53,8 @@ describe("LocalModelUsageService", () => {
       llm: 20,
       rule: 5,
       unprocessed: 5,
+      deferred: 0,
+      pending: 5,
       total: 100,
       localPct: 70,
       llmPct: 20,
@@ -102,9 +104,53 @@ describe("LocalModelUsageService", () => {
       llm: 40,
       rule: 10,
       unprocessed: 10,
+      deferred: 0,
+      pending: 10,
       total: 100,
       localPct: 40,
     });
+  });
+
+  it("splits the NULL bucket into deferred (by design) and pending (awaiting scoring)", async () => {
+    const service = await build([
+      [
+        { source: "local", count: "60" },
+        { source: "rule", count: "10" },
+        // 30 unprocessed threads: 18 deferred by design, 12 genuinely pending.
+        { source: null, count: "30", deferred: "18" },
+      ],
+      [],
+    ]);
+
+    const { priority } = await service.getUsage({});
+
+    // Deferred threads are excluded from pending; the two sum to unprocessed.
+    expect(priority.deferred).toBe(18);
+    expect(priority.pending).toBe(12);
+    expect(priority.deferred + priority.pending).toBe(priority.unprocessed);
+    // The existing bucket math is unchanged by the split.
+    expect(priority.unprocessed).toBe(30);
+    expect(priority.total).toBe(100);
+    expect(priority.local).toBe(60);
+    expect(priority.rule).toBe(10);
+    expect(priority.llm).toBe(0);
+  });
+
+  it("treats a non-deferred NULL-source thread as pending, not deferred", async () => {
+    const service = await build([
+      [
+        { source: "local", count: "80" },
+        // No deferred rows in the NULL group.
+        { source: null, count: "20", deferred: "0" },
+      ],
+      [],
+    ]);
+
+    const { priority } = await service.getUsage({});
+
+    expect(priority.deferred).toBe(0);
+    expect(priority.pending).toBe(20);
+    expect(priority.deferred + priority.pending).toBe(priority.unprocessed);
   });
 
   it("returns zeroed percentages when there is no data", async () => {

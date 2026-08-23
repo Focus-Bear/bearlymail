@@ -11,7 +11,6 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { EmbeddingService } from "../llm/embedding.service";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { MAX_BOOTSTRAP_CATEGORIES } from "./proto-categories.constants";
 import { ProtoCategoriesService } from "./proto-categories.service";
@@ -75,10 +74,28 @@ const mockLLMCoreService = () => ({
   generateText: jest.fn(),
 });
 
-const mockEmbeddingService = () => ({
-  isAvailable: jest.fn().mockReturnValue(false),
-  embed: jest.fn(),
-});
+/**
+ * Builds a `generateText` mock that mimics the strong dedup model over the
+ * list-based prompt: it scans the numbered `categoryList` embedded in the
+ * rendered prompt for the line whose category name contains `needle` and
+ * returns that line's number as `duplicateNumber` (0 when none match). Because
+ * it reads the ACTUAL numbered list the service built (Levenshtein-sorted), the
+ * returned index is correct regardless of where the match sits in the raw repo
+ * order — proving nothing is pre-filtered.
+ */
+const respondWithMatch =
+  (needle: string) =>
+  async (request: { prompt: string }): Promise<string> => {
+    for (const line of request.prompt.split("\n")) {
+      const parsed = line.trim().match(/^(\d+)\.\s+(.*)$/);
+      if (parsed && parsed[2].includes(needle)) {
+        return `{"duplicateNumber": ${parsed[1]}, "reasoning": "match"}`;
+      }
+    }
+    return '{"duplicateNumber": 0, "reasoning": "no match"}';
+  };
+
+const NO_MATCH_RESPONSE = '{"duplicateNumber": 0, "reasoning": "no match"}';
 
 function makeUserContext(
   contextId: string,
@@ -97,7 +114,8 @@ function makeUserContext(
 
 jest.mock("../llm/prompts", () => ({
   getPrompt: jest.fn().mockReturnValue({
-    prompt: "Are '{{categoryA}}' and '{{categoryB}}' duplicates?",
+    prompt:
+      'New category: "{{newCategory}}"\nExisting categories:\n{{categoryList}}',
     systemPrompt: "You are a dedup assistant.",
   }),
   renderPrompt: jest
@@ -118,7 +136,6 @@ describe("ProtoCategoriesService", () => {
   let userContextRepo: ReturnType<typeof mockUserContextRepo>;
   let dataSource: ReturnType<typeof mockDataSource>;
   let llmCoreService: ReturnType<typeof mockLLMCoreService>;
-  let embeddingService: ReturnType<typeof mockEmbeddingService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -146,10 +163,6 @@ describe("ProtoCategoriesService", () => {
           useFactory: mockLLMCoreService,
         },
         {
-          provide: EmbeddingService,
-          useFactory: mockEmbeddingService,
-        },
-        {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue(undefined) },
         },
@@ -162,7 +175,6 @@ describe("ProtoCategoriesService", () => {
     userContextRepo = module.get(getRepositoryToken(UserContext));
     dataSource = module.get(getDataSourceToken());
     llmCoreService = module.get(LLMCoreService);
-    embeddingService = module.get(EmbeddingService);
   });
 
   describe("findMatchingFullCategory", () => {
@@ -212,7 +224,7 @@ describe("ProtoCategoriesService", () => {
       expect(llmCoreService.generateText).not.toHaveBeenCalled();
     });
 
-    it("calls LLM for near-duplicate and returns match when confirmed", async () => {
+    it("calls the LLM with the full list and returns the match when the model picks its number", async () => {
       const stored = makeUserContext(
         "ctx-1",
         "CI/CD Alerts - Pipeline notifications",
@@ -226,15 +238,15 @@ describe("ProtoCategoriesService", () => {
         async (cb: (manager: unknown) => Promise<unknown>) =>
           cb({ getRepository: () => txRepo }),
       );
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": true, "reasoning": "Same category"}',
+      llmCoreService.generateText.mockImplementation(
+        respondWithMatch("CI/CD Alerts"),
       );
 
       const result = await service.findMatchingFullCategory(
         "user-1",
         "CI/CD Alert",
       );
-      expect(llmCoreService.generateText).toHaveBeenCalled();
+      expect(llmCoreService.generateText).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ name: "CI/CD Alerts", contextId: "ctx-1" });
       expect(txRepo.update).toHaveBeenCalledWith(
         { contextId: "ctx-1" },
@@ -244,23 +256,22 @@ describe("ProtoCategoriesService", () => {
       );
     });
 
-    it("returns null when LLM says near-duplicate is not the same", async () => {
+    it("returns null when the model returns 0 (no duplicate)", async () => {
       userContextRepo.find.mockResolvedValue([
         makeUserContext("ctx-1", "CI/CD Alerts - Pipeline notifications"),
       ]);
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": false, "reasoning": "Different"}',
-      );
+      llmCoreService.generateText.mockResolvedValue(NO_MATCH_RESPONSE);
 
       const result = await service.findMatchingFullCategory(
         "user-1",
-        "CI/CD Alert",
+        "Recruitment",
       );
+      expect(llmCoreService.generateText).toHaveBeenCalledTimes(1);
       expect(result).toBeNull();
       expect(dataSource.transaction).not.toHaveBeenCalled();
     });
 
-    it("returns null and does not throw when LLM call fails", async () => {
+    it("returns null and does not throw when the LLM call fails", async () => {
       userContextRepo.find.mockResolvedValue([
         makeUserContext("ctx-1", "CI/CD Alerts"),
       ]);
@@ -273,130 +284,41 @@ describe("ProtoCategoriesService", () => {
       expect(result).toBeNull();
     });
 
-    it("does not call LLM for clearly different category names", async () => {
-      userContextRepo.find.mockResolvedValue([
-        makeUserContext("ctx-1", "Finance Reports - Invoices and billing"),
-      ]);
-
-      const result = await service.findMatchingFullCategory(
-        "user-1",
-        "Recruitment",
-      );
-      expect(llmCoreService.generateText).not.toHaveBeenCalled();
-      expect(result).toBeNull();
-    });
-
-    it("catches semantic paraphrase via embedding similarity + LLM (full)", async () => {
-      const stored = makeUserContext("ctx-1", "QA Passed - Test results");
-      userContextRepo.find.mockResolvedValue([stored]);
-      const txRepo = {
-        findOne: jest.fn().mockResolvedValue(stored),
-        update: jest.fn().mockResolvedValue({}),
-      };
-      dataSource.transaction.mockImplementation(
-        async (cb: (manager: unknown) => Promise<unknown>) =>
-          cb({ getRepository: () => txRepo }),
-      );
-      embeddingService.isAvailable.mockReturnValue(true);
-      embeddingService.embed.mockImplementation((texts: string[]) =>
-        Promise.resolve(
-          texts.map((text) =>
-            text === "QA Passed" || text === "Tests Green" ? [1, 0] : [0, 1],
-          ),
-        ),
-      );
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": true, "reasoning": "Same outcome"}',
-      );
-
-      const result = await service.findMatchingFullCategory(
-        "user-1",
-        "Tests Green",
-      );
-      expect(embeddingService.embed).toHaveBeenCalled();
-      expect(result).toEqual({ name: "QA Passed", contextId: "ctx-1" });
-      expect(txRepo.update).toHaveBeenCalledWith(
-        { contextId: "ctx-1" },
-        expect.objectContaining({
-          alternateNames: expect.arrayContaining(["Tests Green"]),
-        }),
-      );
-    });
-
-    it("does not embed-match when similarity is below threshold", async () => {
-      userContextRepo.find.mockResolvedValue([
-        makeUserContext("ctx-1", "Finance Reports"),
-      ]);
-      embeddingService.isAvailable.mockReturnValue(true);
-      embeddingService.embed.mockImplementation((texts: string[]) =>
-        Promise.resolve(
-          texts.map((text) => (text === "Tests Green" ? [1, 0] : [0, 1])),
-        ),
-      );
-
-      const result = await service.findMatchingFullCategory(
-        "user-1",
-        "Tests Green",
-      );
-      expect(result).toBeNull();
-      expect(llmCoreService.generateText).not.toHaveBeenCalled();
-    });
-
-    it("blocks broad platform catch-all via Phase 4 shared-token check (issue #2065 follow-up)", async () => {
-      const stored = makeUserContext(
+    it("picks the correct candidate by number from a decoy-heavy full list (nothing pre-filtered)", async () => {
+      // The real match sits LAST in the raw repo order behind four decoys.
+      // Because the whole list reaches the model, it still resolves correctly.
+      const realMatch = makeUserContext(
         "ctx-github-prs",
         "🐙 GitHub PRs - Pull request notifications",
       );
-      const stored2 = makeUserContext(
-        "ctx-github-notif",
-        "🔔 GitHub Notifications - General GitHub alerts",
-      );
-      userContextRepo.find.mockResolvedValue([stored, stored2]);
+      const decoys = [
+        makeUserContext("ctx-invoices", "Invoices"),
+        makeUserContext("ctx-newsletters", "📰 Newsletters"),
+        makeUserContext("ctx-meetings", "Meeting scheduling"),
+        makeUserContext("ctx-notif", "🔔 Notifications"),
+      ];
+      userContextRepo.find.mockResolvedValue([...decoys, realMatch]);
       const txRepo = {
-        findOne: jest.fn().mockResolvedValue(stored),
+        findOne: jest.fn().mockResolvedValue(realMatch),
         update: jest.fn().mockResolvedValue({}),
       };
       dataSource.transaction.mockImplementation(
         async (cb: (manager: unknown) => Promise<unknown>) =>
           cb({ getRepository: () => txRepo }),
       );
-      // LLM says the broad "Github and Code" is a duplicate of the specific "🐙 GitHub PRs"
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": true, "reasoning": "Broad catch-all for GitHub emails"}',
+      llmCoreService.generateText.mockImplementation(
+        respondWithMatch("GitHub PRs"),
       );
 
       const result = await service.findMatchingFullCategory(
         "user-1",
         "Github and Code",
       );
-      expect(llmCoreService.generateText).toHaveBeenCalled();
-      expect(result).not.toBeNull();
+      expect(llmCoreService.generateText).toHaveBeenCalledTimes(1);
       expect(result?.name).toBe("🐙 GitHub PRs");
     });
 
-    it("allows specific platform sub-category when LLM says not a duplicate", async () => {
-      const stored = makeUserContext(
-        "ctx-github-prs",
-        "🐙 GitHub PRs - Pull request notifications",
-      );
-      userContextRepo.find.mockResolvedValue([stored]);
-      // LLM says "GitHub Releases" is NOT a duplicate of "GitHub PRs"
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": false, "reasoning": "Different GitHub sub-categories"}',
-      );
-
-      const result = await service.findMatchingFullCategory(
-        "user-1",
-        "GitHub Releases",
-      );
-      expect(llmCoreService.generateText).toHaveBeenCalled();
-      expect(result).toBeNull();
-    });
-
-    it("ranks the closest shared-token candidate ahead of lower-overlap decoys so it reaches the LLM (cold-outreach paraphrase)", async () => {
-      // The real category shares TWO tokens ("cold"+"outreach") with the
-      // suggestion; the decoys share only one. Before ranking, an unordered
-      // list capped at MAX_LLM_DEDUP_CANDIDATES could drop the real match.
+    it("resolves the cold-outreach paraphrase from a decoy-heavy full list", async () => {
       const realMatch = makeUserContext(
         "ctx-cold-outreach",
         "📨 Cold outreach: from others to me",
@@ -416,13 +338,8 @@ describe("ProtoCategoriesService", () => {
         async (cb: (manager: unknown) => Promise<unknown>) =>
           cb({ getRepository: () => txRepo }),
       );
-      // Only the real cold-outreach category is a duplicate; the LLM rejects
-      // any decoy it is asked about.
       llmCoreService.generateText.mockImplementation(
-        async (request: { prompt: string }) =>
-          request.prompt.includes("from others to me")
-            ? '{"isDuplicate": true, "reasoning": "Same cold-outreach concept"}'
-            : '{"isDuplicate": false, "reasoning": "Different topic"}',
+        respondWithMatch("from others to me"),
       );
 
       const result = await service.findMatchingFullCategory(
@@ -440,11 +357,11 @@ describe("ProtoCategoriesService", () => {
       expect(result).toBeNull();
     });
 
-    it("does not swallow a sibling proto by substring without LLM confirmation", async () => {
-      // "New GitHub issues" is a prefix of this proto. The old substring `includes()`
-      // check returned it immediately (no confirmation), collapsing distinct GitHub
-      // categories into the "(bot-created)" bucket. It must now fall through to the
-      // LLM-confirmed fuzzy passes, which here reject the match.
+    it("does not swallow a sibling proto by substring — asks the LLM, which returns 0", async () => {
+      // "New GitHub issues" is a prefix of this proto. There is no exact match,
+      // so the full-list LLM call runs; here the model rejects it (returns 0),
+      // so distinct GitHub categories are NOT collapsed into the "(bot-created)"
+      // bucket.
       const proto = Object.assign(new ProtoCategory(), {
         id: "proto-1",
         userId: "user-1",
@@ -454,18 +371,17 @@ describe("ProtoCategoriesService", () => {
       });
       protoCategoryRepo.find.mockResolvedValue([proto]);
       protoCategoryRepo.findOne.mockResolvedValue(null);
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": false, "reasoning": "Distinct GitHub categories"}',
-      );
+      llmCoreService.generateText.mockResolvedValue(NO_MATCH_RESPONSE);
 
       const result = await service.findMatchingProtoCategory(
         "user-1",
         "New GitHub issues",
       );
+      expect(llmCoreService.generateText).toHaveBeenCalledTimes(1);
       expect(result).toBeNull();
     });
 
-    it("still matches an exact name after emoji stripping", async () => {
+    it("still matches an exact name after emoji stripping (no LLM call)", async () => {
       const proto = Object.assign(new ProtoCategory(), {
         id: "proto-1",
         userId: "user-1",
@@ -484,8 +400,7 @@ describe("ProtoCategoriesService", () => {
       expect(llmCoreService.generateText).not.toHaveBeenCalled();
     });
 
-    it("matches by Levenshtein similarity when LLM confirms duplicate", async () => {
-      // Use names that pass Levenshtein but fail containment so the LLM path runs.
+    it("calls the LLM with the full list and returns the proto when the model picks its number", async () => {
       const proto = Object.assign(new ProtoCategory(), {
         id: "proto-1",
         userId: "user-1",
@@ -495,8 +410,8 @@ describe("ProtoCategoriesService", () => {
       });
       protoCategoryRepo.find.mockResolvedValue([proto]);
       protoCategoryRepo.findOne.mockResolvedValue(null);
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": true, "reasoning": "Same category"}',
+      llmCoreService.generateText.mockImplementation(
+        respondWithMatch("Newsletters"),
       );
 
       const result = await service.findMatchingProtoCategory(
@@ -504,10 +419,10 @@ describe("ProtoCategoriesService", () => {
         "Newslters",
       );
       expect(result).toBe(proto);
-      expect(llmCoreService.generateText).toHaveBeenCalled();
+      expect(llmCoreService.generateText).toHaveBeenCalledTimes(1);
     });
 
-    it("returns null when Levenshtein matches but LLM rejects the duplicate", async () => {
+    it("returns null when the model returns 0", async () => {
       const proto = Object.assign(new ProtoCategory(), {
         id: "proto-1",
         userId: "user-1",
@@ -517,19 +432,17 @@ describe("ProtoCategoriesService", () => {
       });
       protoCategoryRepo.find.mockResolvedValue([proto]);
       protoCategoryRepo.findOne.mockResolvedValue(null);
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": false, "reasoning": "Distinct projects"}',
-      );
+      llmCoreService.generateText.mockResolvedValue(NO_MATCH_RESPONSE);
 
       const result = await service.findMatchingProtoCategory(
         "user-1",
         "Project B",
       );
       expect(result).toBeNull();
-      expect(llmCoreService.generateText).toHaveBeenCalled();
+      expect(llmCoreService.generateText).toHaveBeenCalledTimes(1);
     });
 
-    it("returns null for clearly different names without calling LLM", async () => {
+    it("returns null and does not throw when the LLM call fails", async () => {
       const proto = Object.assign(new ProtoCategory(), {
         id: "proto-1",
         userId: "user-1",
@@ -539,52 +452,20 @@ describe("ProtoCategoriesService", () => {
       });
       protoCategoryRepo.find.mockResolvedValue([proto]);
       protoCategoryRepo.findOne.mockResolvedValue(null);
+      llmCoreService.generateText.mockRejectedValue(new Error("LLM timeout"));
 
       const result = await service.findMatchingProtoCategory(
         "user-1",
         "Recruitment",
       );
       expect(result).toBeNull();
-      expect(llmCoreService.generateText).not.toHaveBeenCalled();
     });
 
-    it("catches semantic paraphrase via embedding similarity + LLM (proto)", async () => {
-      const proto = Object.assign(new ProtoCategory(), {
-        id: "proto-1",
-        userId: "user-1",
-        name: "QA Passed",
-        isPromoted: false,
-        emailCount: 2,
-      });
-      protoCategoryRepo.find.mockResolvedValue([proto]);
-      protoCategoryRepo.findOne.mockResolvedValue(null);
-      embeddingService.isAvailable.mockReturnValue(true);
-      embeddingService.embed.mockImplementation((texts: string[]) =>
-        Promise.resolve(
-          texts.map((text) =>
-            text === "QA Passed" || text === "Tests Green" ? [1, 0] : [0, 1],
-          ),
-        ),
-      );
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": true, "reasoning": "Same outcome"}',
-      );
-
-      const result = await service.findMatchingProtoCategory(
-        "user-1",
-        "Tests Green",
-      );
-      expect(embeddingService.embed).toHaveBeenCalled();
-      expect(result).toBe(proto);
-    });
-
-    it("folds a source-specific newsletter sibling into a generic proto via shared-token + LLM", async () => {
+    it("folds a source-specific newsletter sibling into a generic proto via the full-list LLM call", async () => {
       // The key anti-proliferation case: "AI Weekly Newsletter" is a large edit
-      // distance from "📰 Newsletters" (Levenshtein misses it), but they share the
-      // "newsletter" token, so the shared-token phase asks the LLM — which folds
-      // the source-specific variant into the existing generic bucket instead of
-      // spawning yet another newsletter proto. This phase did not run on the proto
-      // path before the pipeline was unified with the real-category path.
+      // distance from "📰 Newsletters", but the whole list reaches the model,
+      // which folds the source-specific variant into the existing generic bucket
+      // instead of spawning yet another newsletter proto.
       const proto = Object.assign(new ProtoCategory(), {
         id: "proto-news",
         userId: "user-1",
@@ -594,8 +475,8 @@ describe("ProtoCategoriesService", () => {
       });
       protoCategoryRepo.find.mockResolvedValue([proto]);
       protoCategoryRepo.findOne.mockResolvedValue(null);
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": true, "reasoning": "Both are newsletters"}',
+      llmCoreService.generateText.mockImplementation(
+        respondWithMatch("Newsletters"),
       );
 
       const result = await service.findMatchingProtoCategory(
@@ -603,7 +484,43 @@ describe("ProtoCategoriesService", () => {
         "AI Weekly Newsletter",
       );
       expect(result).toBe(proto);
-      expect(llmCoreService.generateText).toHaveBeenCalled();
+      expect(llmCoreService.generateText).toHaveBeenCalledTimes(1);
+    });
+
+    it("picks the correct proto by number from a decoy-heavy full list (nothing pre-filtered)", async () => {
+      const realMatch = Object.assign(new ProtoCategory(), {
+        id: "proto-news",
+        userId: "user-1",
+        name: "📰 Newsletters",
+        isPromoted: false,
+        emailCount: 3,
+      });
+      const decoys = [
+        "Invoices",
+        "Meeting scheduling",
+        "GitHub PRs",
+        "Receipts",
+      ].map((name, i) =>
+        Object.assign(new ProtoCategory(), {
+          id: `decoy-${i}`,
+          userId: "user-1",
+          name,
+          isPromoted: false,
+          emailCount: 1,
+        }),
+      );
+      protoCategoryRepo.find.mockResolvedValue([...decoys, realMatch]);
+      protoCategoryRepo.findOne.mockResolvedValue(null);
+      llmCoreService.generateText.mockImplementation(
+        respondWithMatch("Newsletters"),
+      );
+
+      const result = await service.findMatchingProtoCategory(
+        "user-1",
+        "AI Weekly Newsletter",
+      );
+      expect(result).toBe(realMatch);
+      expect(llmCoreService.generateText).toHaveBeenCalledTimes(1);
     });
 
     it("excludes the thread's own proto from matching (self-guard)", async () => {
@@ -627,36 +544,6 @@ describe("ProtoCategoriesService", () => {
       );
       expect(result).toBeNull();
       expect(llmCoreService.generateText).not.toHaveBeenCalled();
-    });
-
-    it("returns null when embedding flags a candidate but LLM rejects it", async () => {
-      const proto = Object.assign(new ProtoCategory(), {
-        id: "proto-1",
-        userId: "user-1",
-        name: "QA Passed",
-        isPromoted: false,
-        emailCount: 2,
-      });
-      protoCategoryRepo.find.mockResolvedValue([proto]);
-      protoCategoryRepo.findOne.mockResolvedValue(null);
-      embeddingService.isAvailable.mockReturnValue(true);
-      embeddingService.embed.mockImplementation((texts: string[]) =>
-        Promise.resolve(
-          texts.map((text) =>
-            text === "QA Passed" || text === "Tests Green" ? [1, 0] : [0, 1],
-          ),
-        ),
-      );
-      llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": false, "reasoning": "Different"}',
-      );
-
-      const result = await service.findMatchingProtoCategory(
-        "user-1",
-        "Tests Green",
-      );
-      expect(result).toBeNull();
-      expect(llmCoreService.generateText).toHaveBeenCalled();
     });
   });
 
@@ -703,7 +590,7 @@ describe("ProtoCategoriesService", () => {
         ),
       ]);
       llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": true, "reasoning": "Both are meeting acceptance notifications"}',
+        '{"duplicateNumber": 1, "reasoning": "Both are meeting acceptance notifications"}',
       );
       const txQueryBuilder = makeUpdateQueryBuilderMock();
       const txRepo = {
@@ -939,7 +826,7 @@ describe("ProtoCategoriesService", () => {
         makeUserContext("ctx-existing", "Customer Support - support tickets"),
       ]);
       llmCoreService.generateText.mockResolvedValue(
-        '{"isDuplicate": true, "reasoning": "Same category"}',
+        '{"duplicateNumber": 1, "reasoning": "Same category"}',
       );
       const txQueryBuilder = makeUpdateQueryBuilderMock();
       const txRepo = {

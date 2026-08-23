@@ -20,21 +20,15 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { EmbeddingService } from "../llm/embedding.service";
 import { LLMProvider } from "../llm/llm.types";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_CHECK_CATEGORY_DUPLICATE } from "../llm/llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "../llm/prompts";
 import { parseCategoryName } from "../utils/category-format.util";
-import {
-  isSimilarCategoryName,
-  levenshteinDistance,
-} from "../utils/levenshtein.util";
+import { levenshteinDistance } from "../utils/levenshtein.util";
 import {
   DedupCandidate,
-  embeddingSimilarNames,
   matchExactOrAlternateCandidate,
-  MAX_LLM_DEDUP_CANDIDATES,
   mergeConsideredCandidates,
 } from "./category-dedup.util";
 import { MAX_BOOTSTRAP_CATEGORIES } from "./proto-categories.constants";
@@ -44,12 +38,9 @@ import {
 } from "./proto-promotion-date.helper";
 import { reassignPromotedProtoThreads } from "./proto-promotion-reassign.helper";
 
-// Significant tokens must be at least this long to be considered.
-const SIGNIFICANT_TOKEN_MIN_LENGTH = 3;
-
 /**
- * Lowercases, trims, and strips leading/embedded emoji from a category name so
- * lexical comparisons ignore decorative emoji and casing.
+ * Lowercases, trims, and strips decorative emoji from a category name so the
+ * Levenshtein ordering of the candidate list ignores emoji and casing.
  */
 function stripCategoryName(name: string): string {
   return name
@@ -69,47 +60,22 @@ function stripCategoryName(name: string): string {
 const STRONG_DEDUP_MODEL = "gemini-3.6-flash";
 
 // Structured-output schema for the duplicate verdict. Constrained decoding
-// forces exactly this shape, so `checkCategoryDuplicate`'s JSON parse can never
-// fail open on stray prose from a thinking model.
+// forces exactly this shape, so `matchAgainstFullList`'s JSON parse can never
+// fail open on stray prose from a thinking model. `duplicateNumber` is the
+// 1-based index of the matching existing category, or 0 for "no duplicate".
 const DEDUP_RESPONSE_SCHEMA: Record<string, unknown> = {
   type: "object",
   properties: {
-    isDuplicate: { type: "boolean" },
+    duplicateNumber: { type: "integer" },
     reasoning: { type: "string" },
   },
-  required: ["isDuplicate", "reasoning"],
-  propertyOrdering: ["isDuplicate", "reasoning"],
+  required: ["duplicateNumber", "reasoning"],
+  propertyOrdering: ["duplicateNumber", "reasoning"],
 };
 
 // Headroom for the strong dedup model's JSON verdict. Larger than the lite
 // path's 128 because thinking models emit a little more before the JSON.
 const DEDUP_MAX_TOKENS = 512;
-
-// Common words that appear in category names but carry no platform signal.
-const STOP_WORDS = new Set([
-  "and",
-  "or",
-  "the",
-  "a",
-  "an",
-  "of",
-  "for",
-  "to",
-  "in",
-  "on",
-  "at",
-  "by",
-  "from",
-  "with",
-  "its",
-  "this",
-  "that",
-  "via",
-  "per",
-  "vs",
-  "email",
-  "emails",
-]);
 
 @Injectable()
 export class ProtoCategoriesService {
@@ -126,7 +92,6 @@ export class ProtoCategoriesService {
     private dataSource: DataSource,
     private categoryKeyAssignmentService: CategoryKeyAssignmentService,
     private llmCoreService: LLMCoreService,
-    private embeddingService: EmbeddingService,
     private configService: ConfigService,
   ) {}
 
@@ -445,10 +410,11 @@ export class ProtoCategoriesService {
   /**
    * Check if a suggested proto-category name matches an existing full category.
    *
-   * Matching is done in three phases (cheapest first):
-   *  1. Exact / emoji-stripped / parenthetical-suffix match
-   *  2. Alternate-names lookup (previously confirmed near-duplicates)
-   *  3. Levenshtein fuzzy match → LLM confirmation (issue #2065)
+   * Matching is done in two phases (cheapest first):
+   *  1. Exact / emoji-stripped / parenthetical-suffix / alternate-name match
+   *  2. A single LLM call that sees the ENTIRE candidate list and picks the one
+   *     duplicate (or none) — no lexical/embedding pre-filter to crowd out the
+   *     correct match before the model sees it.
    *
    * When a near-duplicate is confirmed by the LLM, the suggested name is
    * persisted as an alternate name on the matching category so future calls
@@ -494,22 +460,21 @@ export class ProtoCategoriesService {
   }
 
   /**
-   * Runs the full duplicate-detection pipeline for `suggestedName` against a
-   * normalized `candidates` set and returns the first candidate confirmed as a
-   * duplicate, or null. Phases run cheapest-first:
+   * Runs the duplicate-detection pipeline for `suggestedName` against a
+   * normalized `candidates` set and returns the matching candidate, or null.
+   * Two phases run cheapest-first:
    *  1. Exact / emoji-stripped / parenthetical-suffix / alternate-name match
-   *  2. Levenshtein near-duplicate → strong-model LLM confirmation
-   *  3. Shared significant-token (e.g. "github", "newsletter") → LLM confirmation
-   *     — catches large-edit-distance relatives ("TechCrunch Newsletter" vs
-   *     "The Verge Newsletter", "Github and Code" vs "GitHub Notifications")
-   *  4. Embedding cosine-similarity → LLM confirmation (semantic paraphrases)
+   *  2. A single LLM call ({@link matchAgainstFullList}) that sees the WHOLE
+   *     candidate list and picks the one duplicate (or none). There is no
+   *     lexical/embedding pre-filter that could crowd out the correct match
+   *     before the model sees it.
    *
    * Both the real-category and proto-category matchers feed this one
    * implementation so they never drift apart. `onConfirmed` (optional) persists
    * a confirmed match — real categories store an alternate name; protos don't.
    * `excludeId` drops a candidate from matching so a thread's own proto can't
-   * match itself. Individual LLM/embedding failures are caught and skipped so a
-   * single failure never aborts the pass.
+   * match itself. An LLM failure returns null so the caller falls through to
+   * creating a proto rather than aborting.
    */
   private async matchSuggestionAgainstCandidates(params: {
     suggestedName: string;
@@ -532,152 +497,134 @@ export class ProtoCategoriesService {
     );
     if (exactOrAlternate) return exactOrAlternate;
 
-    const suggestionWithoutEmoji = stripCategoryName(suggestedName);
-
-    const levenshteinCandidates = candidates
-      .map((candidate) => ({
-        candidate,
-        distance: levenshteinDistance(
-          suggestionWithoutEmoji,
-          stripCategoryName(candidate.name),
-        ),
-      }))
-      .filter(({ candidate }) =>
-        isSimilarCategoryName(
-          suggestionWithoutEmoji,
-          stripCategoryName(candidate.name),
-        ),
-      )
-      .sort((left, right) => left.distance - right.distance)
-      .slice(0, MAX_LLM_DEDUP_CANDIDATES)
-      .map(({ candidate }) => candidate);
-
-    const levenshteinMatch = await this.confirmDuplicateCandidate({
+    const match = await this.matchAgainstFullList(
       suggestedName,
-      candidates: levenshteinCandidates,
-      userId,
-      logLabel: "Levenshtein+LLM duplicate",
-      considered,
-      onConfirmed,
-    });
-    if (levenshteinMatch) return levenshteinMatch;
-
-    const checkedIds = new Set(
-      levenshteinCandidates.map((candidate) => candidate.id),
-    );
-
-    const tokenCandidates = this.sharedTokenCandidates(
-      suggestionWithoutEmoji,
       candidates,
-      checkedIds,
-    );
-    const sharedTokenMatch = await this.confirmDuplicateCandidate({
-      suggestedName,
-      candidates: tokenCandidates,
       userId,
-      logLabel: "SharedToken+LLM duplicate",
       considered,
-      onConfirmed,
-    });
-    if (sharedTokenMatch) return sharedTokenMatch;
-    for (const candidate of tokenCandidates) checkedIds.add(candidate.id);
-
-    const embeddingNames = await embeddingSimilarNames(
-      this.embeddingService,
-      this.logger,
-      {
-        suggestedName,
-        candidateNames: candidates.map((candidate) => candidate.name),
-        excludeNames: new Set(
-          candidates
-            .filter((candidate) => checkedIds.has(candidate.id))
-            .map((candidate) => candidate.name.toLowerCase().trim()),
-        ),
-        userId,
-      },
     );
-    const embeddingCandidates = embeddingNames
-      .map((name) => candidates.find((candidate) => candidate.name === name))
-      .filter((candidate): candidate is DedupCandidate => candidate != null);
-
-    return this.confirmDuplicateCandidate({
-      suggestedName,
-      candidates: embeddingCandidates,
-      userId,
-      logLabel: "Embedding+LLM duplicate",
-      considered,
-      onConfirmed,
-    });
+    if (match && onConfirmed) await onConfirmed(match);
+    return match;
   }
 
   /**
-   * Runs the LLM duplicate check over `candidates` in order and returns the
-   * first one the LLM confirms as a duplicate of `suggestedName`, or null.
-   * Errors are logged and skipped so a single LLM failure never aborts the pass.
+   * Sends the ENTIRE candidate list to the strong dedup model in one call and
+   * returns the single candidate it flags as a duplicate of `suggestedName`, or
+   * null. The list is ordered by Levenshtein distance (closest first) before it
+   * is numbered so the nearest lexical matches head the list and the model's
+   * chosen number resolves against that same ordering. No candidate is dropped.
+   *
+   * Any LLM/parse failure logs a warning and returns null so the caller falls
+   * through to creating a proto rather than throwing.
    */
-  private async confirmDuplicateCandidate(params: {
-    suggestedName: string;
-    candidates: DedupCandidate[];
-    userId: string;
-    logLabel: string;
-    considered?: ConsideredDuplicateCandidate[];
-    onConfirmed?: (candidate: DedupCandidate) => Promise<void>;
-  }): Promise<DedupCandidate | null> {
-    const { suggestedName, candidates, userId, logLabel, considered } = params;
-    for (const candidate of candidates) {
-      try {
-        const isDuplicate = await this.evaluateDuplicate(
-          suggestedName,
-          candidate.name,
-          userId,
-          considered,
-        );
-        if (isDuplicate) {
-          if (params.onConfirmed) await params.onConfirmed(candidate);
-          this.logger.log(
-            `${logLabel}: "${suggestedName}" → "${candidate.name}"`,
-          );
-          return candidate;
-        }
-      } catch (err) {
-        this.logger.warn(
-          `${logLabel} check failed for "${suggestedName}" vs "${candidate.name}": ${err}`,
-        );
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Candidates that share a significant keyword ("github", "newsletter", …) with
-   * the suggestion but were not already flagged by Levenshtein. Catches
-   * large-edit-distance relatives that the fuzzy pass misses.
-   */
-  private sharedTokenCandidates(
-    suggestionWithoutEmoji: string,
+  private async matchAgainstFullList(
+    suggestedName: string,
     candidates: DedupCandidate[],
-    alreadyCheckedIds: Set<string>,
-  ): DedupCandidate[] {
-    const significantTokens = this.extractSignificantTokens(
-      suggestionWithoutEmoji,
-    );
-    if (significantTokens.length === 0) return [];
+    userId: string,
+    considered?: ConsideredDuplicateCandidate[],
+  ): Promise<DedupCandidate | null> {
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_CATEGORY_DUPLICATE);
+    if (!promptConfig) {
+      this.logger.error(
+        "[CHECK-CATEGORY-DUPLICATE] check_category_duplicate prompt not found",
+      );
+      return null;
+    }
 
-    return candidates
-      .filter((candidate) => {
-        if (alreadyCheckedIds.has(candidate.id)) return false;
-        const nameWithoutEmoji = stripCategoryName(candidate.name);
-        return significantTokens.some((token) =>
-          nameWithoutEmoji.includes(token),
-        );
-      })
-      .slice(0, MAX_LLM_DEDUP_CANDIDATES);
+    const suggestionWithoutEmoji = stripCategoryName(suggestedName);
+    const orderedCandidates = [...candidates].sort(
+      (left, right) =>
+        levenshteinDistance(
+          suggestionWithoutEmoji,
+          stripCategoryName(left.name),
+        ) -
+        levenshteinDistance(
+          suggestionWithoutEmoji,
+          stripCategoryName(right.name),
+        ),
+    );
+
+    const categoryList = orderedCandidates
+      .map((candidate, index) => `${index + 1}. ${candidate.name}`)
+      .join("\n");
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      newCategory: suggestedName,
+      categoryList,
+    });
+
+    let response: string;
+    try {
+      response = await this.llmCoreService.generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: 0,
+          maxTokens: DEDUP_MAX_TOKENS,
+          jsonMode: true,
+          // Structured output guarantees a parseable {duplicateNumber, reasoning}
+          // even with a thinking model, so the verdict never fails open on a
+          // chain-of-thought leak (see LLMRequest.responseSchema).
+          responseSchema: DEDUP_RESPONSE_SCHEMA,
+          operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
+          model: this.strongDedupModel,
+          thinking: true,
+        },
+        LLMProvider.GEMINI,
+        userId,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[CHECK-CATEGORY-DUPLICATE] LLM call failed for "${suggestedName}": ${err}`,
+      );
+      return null;
+    }
+
+    const jsonMatch = response
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim()
+      .match(/\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
+      this.logger.warn(
+        `[CHECK-CATEGORY-DUPLICATE] No JSON in response for "${suggestedName}"`,
+      );
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      duplicateNumber?: number;
+      reasoning?: string;
+    };
+
+    const duplicateNumber = parsed.duplicateNumber ?? 0;
+    const reasoning = parsed.reasoning ?? "";
+    const matched =
+      duplicateNumber >= 1 && duplicateNumber <= orderedCandidates.length
+        ? orderedCandidates[duplicateNumber - 1]
+        : null;
+
+    considered?.push({
+      name: matched?.name ?? "(none)",
+      isDuplicate: matched != null,
+      reasoning,
+    });
+
+    this.logger.log(
+      `[CHECK-CATEGORY-DUPLICATE] "${suggestedName}" → ${
+        matched ? `"${matched.name}"` : "no duplicate"
+      } (n=${duplicateNumber} reason="${reasoning}")`,
+    );
+
+    return matched;
   }
 
   /**
    * Find the best matching *active proto* category for an LLM suggestion, using
    * the same pipeline as {@link findMatchingFullCategory} (exact/alternate →
-   * Levenshtein+LLM → shared-token+LLM → embedding+LLM). This is what stops
+   * one full-list LLM call). This is what stops
    * sibling proto suggestions from proliferating: e.g. a new "AI Weekly"
    * newsletter suggestion is folded into an existing "Newsletters" proto instead
    * of spawning yet another near-variant. Substring-ish candidates are NOT
@@ -834,117 +781,6 @@ export class ProtoCategoriesService {
         isPromoted: item.isPromoted,
       })),
     };
-  }
-
-  /**
-   * Runs the duplicate check and, when a `considered` accumulator is provided,
-   * records the candidate name, verdict, and reasoning so callers can persist
-   * what was weighed during dedup (for later display in the UI).
-   */
-  private async evaluateDuplicate(
-    suggestedName: string,
-    candidateName: string,
-    userId: string,
-    considered?: ConsideredDuplicateCandidate[],
-  ): Promise<boolean> {
-    const { isDuplicate, reasoning } = await this.checkCategoryDuplicate(
-      suggestedName,
-      candidateName,
-      userId,
-    );
-    considered?.push({ name: candidateName, isDuplicate, reasoning });
-    return isDuplicate;
-  }
-
-  /**
-   * Asks the LLM whether two category names refer to the same email category.
-   * Called after Levenshtein distance flags them as near-duplicates to avoid
-   * false positives from the fuzzy match alone.
-   *
-   * Uses the stronger non-lite Gemini model with thinking enabled — deciding
-   * whether to spin up a whole new category is a high-stakes call worth the
-   * extra cost. Returns `isDuplicate: false` with the parse/error reasoning on
-   * any LLM/parse failure so the caller falls through to creating a new
-   * proto-category rather than misclassifying an email.
-   */
-  private async checkCategoryDuplicate(
-    categoryA: string,
-    categoryB: string,
-    userId: string,
-  ): Promise<{ isDuplicate: boolean; reasoning: string }> {
-    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_CATEGORY_DUPLICATE);
-    if (!promptConfig) {
-      this.logger.error(
-        "[CHECK-CATEGORY-DUPLICATE] check_category_duplicate prompt not found",
-      );
-      return { isDuplicate: false, reasoning: "Duplicate check unavailable" };
-    }
-
-    const prompt = renderPrompt(promptConfig.prompt || "", {
-      categoryA,
-      categoryB,
-    });
-
-    const response = await this.llmCoreService.generateText(
-      {
-        prompt,
-        systemPrompt: promptConfig.systemPrompt || "",
-        temperature: 0,
-        maxTokens: DEDUP_MAX_TOKENS,
-        jsonMode: true,
-        // Structured output guarantees a parseable {isDuplicate, reasoning}
-        // even with a thinking model, so the verdict never fails open on a
-        // chain-of-thought leak (see LLMRequest.responseSchema).
-        responseSchema: DEDUP_RESPONSE_SCHEMA,
-        operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
-        model: this.strongDedupModel,
-        thinking: true,
-      },
-      LLMProvider.GEMINI,
-      userId,
-    );
-
-    const jsonMatch = response
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim()
-      .match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      this.logger.warn(
-        `[CHECK-CATEGORY-DUPLICATE] No JSON in response for "${categoryA}" vs "${categoryB}"`,
-      );
-      return { isDuplicate: false, reasoning: "No verdict returned" };
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
-      isDuplicate?: boolean;
-      reasoning?: string;
-    };
-
-    const isDuplicate = parsed.isDuplicate === true;
-    const reasoning = parsed.reasoning ?? "";
-    this.logger.log(
-      `[CHECK-CATEGORY-DUPLICATE] "${categoryA}" vs "${categoryB}": isDuplicate=${isDuplicate} reason="${reasoning}"`,
-    );
-    return { isDuplicate, reasoning };
-  }
-
-  /**
-   * Extracts significant (non-stop, length >= SIGNIFICANT_TOKEN_MIN_LENGTH)
-   * words from a lowercased, emoji-stripped category name. Used by Phase 4 of
-   * `findMatchingFullCategory` to detect shared platform keywords like "github".
-   */
-  private extractSignificantTokens(text: string): string[] {
-    return text
-      .toLowerCase()
-      .replace(/[^\w\s/]/g, " ")
-      .split(/\s+/)
-      .filter(
-        (word) =>
-          word.length >= SIGNIFICANT_TOKEN_MIN_LENGTH && !STOP_WORDS.has(word),
-      );
   }
 
   /**

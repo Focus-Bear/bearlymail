@@ -91,3 +91,41 @@ export const Expired: Story = {
     }),
   },
 };
+
+/**
+ * How the expired warning appears in the Inbox (issue 2): rendered in
+ * `expiredOnly` mode below the inbox header/tabs and above the "No new emails"
+ * empty state, so it never disturbs that layout for non-expired users.
+ */
+const InboxContextDemo: React.FC<{ volumeUsage: VolumeUsage }> = ({ volumeUsage }) => (
+  <I18nextProvider i18n={bannerI18n}>
+    <div style={{ width: 760, backgroundColor: '#f7f8fa', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ display: 'flex', gap: 24, padding: '14px 16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
+        <span style={{ fontWeight: 700, color: '#4f46e5' }}>Triage</span>
+        <span style={{ color: '#6b7280' }}>Action</span>
+        <span style={{ color: '#6b7280' }}>Follow-Up</span>
+      </div>
+      <div style={{ padding: '8px 16px 0' }}>
+        <PlanStatusBanner volumeUsage={volumeUsage} expiredOnly onUpgradeClick={() => undefined} />
+      </div>
+      <div style={{ padding: '64px 16px', textAlign: 'center', color: '#6b7280' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>No new emails</div>
+        <div style={{ fontSize: 14, marginTop: 4 }}>You&apos;re all caught up.</div>
+      </div>
+    </div>
+  </I18nextProvider>
+);
+
+export const InboxExpired: StoryObj<typeof InboxContextDemo> = {
+  name: 'Inbox — expired warning above empty state',
+  render: args => <InboxContextDemo {...args} />,
+  args: {
+    volumeUsage: buildVolumeUsage({
+      planStatus: 'expired',
+      emailLimit: 100,
+      emailsUsed: 100,
+      percentUsed: 100,
+    }),
+  },
+};

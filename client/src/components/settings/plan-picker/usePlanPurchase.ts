@@ -4,6 +4,7 @@ import { ErrorCode, type Offerings, type Package, Purchases, PurchasesError } fr
 import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { VolumeUsage } from 'queries/useOrgUsage';
+import { captureEvent } from 'utils/posthog';
 
 import {
   ACTIVATION_POLL_INTERVAL_MS,
@@ -11,6 +12,7 @@ import {
 } from 'components/settings/plan-picker/planPicker.constants';
 import { API_URL } from 'config/api';
 import { getRevenueCatApiKey } from 'config/revenuecat';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
 
@@ -46,6 +48,33 @@ export function findPackageForTier(offerings: Offerings, tierId: string): Packag
 
 function isUserCancelled(error: unknown): boolean {
   return error instanceof PurchasesError && error.errorCode === ErrorCode.UserCancelledError;
+}
+
+interface PurchaseFailureDetails {
+  errorCode: string;
+  message: string;
+}
+
+/**
+ * Extracts the RevenueCat error code and message so a failed purchase is
+ * diagnosable. RevenueCat surfaces dashboard/config gaps (e.g. Web Billing or
+ * Stripe not connected, a product missing from the offering) as a
+ * PurchasesError with a specific `errorCode` — without logging it the generic
+ * "try again" toast hides the real cause. The underlying message is included
+ * for debugging but only the code is sent to analytics (the message can echo
+ * back user-entered data).
+ */
+function describePurchaseFailure(error: unknown): PurchaseFailureDetails {
+  if (error instanceof PurchasesError) {
+    return {
+      errorCode: ErrorCode[error.errorCode] ?? String(error.errorCode),
+      message: error.underlyingErrorMessage ?? error.message,
+    };
+  }
+  if (error instanceof Error) {
+    return { errorCode: error.name, message: error.message };
+  }
+  return { errorCode: 'UnknownError', message: String(error) };
 }
 
 async function getConfiguredPurchases(apiKey: string, appUserId: string): Promise<Purchases> {
@@ -153,6 +182,12 @@ export function usePlanPurchase() {
         }
       } catch (error: unknown) {
         if (!isUserCancelled(error)) {
+          const failure = describePurchaseFailure(error);
+          // Surface the real RevenueCat error: the generic toast otherwise
+          // masks dashboard/config gaps (Web Billing/Stripe not connected,
+          // product missing from the offering) that look like "try again".
+          console.error(`[PlanPurchase] purchase failed (${failure.errorCode}): ${failure.message}`, error);
+          captureEvent(ANALYTICS_EVENTS.PLAN_PURCHASE_FAILED, { tierId, errorCode: failure.errorCode });
           showError(t('team.settings.planPicker.purchaseError'));
         }
         safeSetPhase(PHASE_IDLE);

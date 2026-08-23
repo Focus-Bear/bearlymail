@@ -17,6 +17,7 @@ import { InboxHeader } from 'components/inbox/InboxHeader';
 import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxOverlays } from 'components/inbox/InboxOverlays';
+import { InboxPlanStatusBanner } from 'components/inbox/InboxPlanStatusBanner';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { shouldRevealLowerPriorityTriage } from 'components/inbox/revealLowerPriorityTriage';
 import { Sidebar } from 'components/inbox/Sidebar';
@@ -450,6 +451,7 @@ const InboxView: React.FC = () => {
           isSummaryLoading={isSummaryLoading}
           isPriorityFilterActive={isPriorityFilterActiveForMode(mode, filters)}
         />
+        <InboxPlanStatusBanner />
         {(user?.isAdmin || isDebugModeEnabled) && debugPanel.debugViewOpen && (
           <DebugPanel
             mode={mode}

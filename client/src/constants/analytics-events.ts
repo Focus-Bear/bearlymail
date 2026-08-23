@@ -64,6 +64,7 @@ export const ANALYTICS_EVENTS = {
   ANTHROPIC_API_KEY_REMOVED: 'anthropic_api_key_removed',
   OPENAI_API_KEY_SAVED: 'openai_api_key_saved',
   PASSWORD_SETUP_COMPLETED: 'password_setup_completed',
+  PLAN_PURCHASE_FAILED: 'plan_purchase_failed',
   PRIVATE_NOTE_AUTO_SAVED: 'private_note_auto_saved',
   PRIVATE_NOTES_TOGGLED: 'private_notes_toggled',
   REPLY_BUTTON_CLICKED: 'reply_button_clicked',

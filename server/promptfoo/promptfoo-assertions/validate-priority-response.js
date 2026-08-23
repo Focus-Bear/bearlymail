@@ -347,7 +347,7 @@ module.exports = (output, context) => {
         : [context.config.protoCategoryNameExcludes];
       const nameToCheck = (parsed.protoCategorySuggestion && parsed.protoCategorySuggestion.name)
         ? parsed.protoCategorySuggestion.name
-        : (parsed.category || '');
+        : (resolvedCategory || '');
       const hit = excluded.find(substring => nameToCheck.toLowerCase().includes(substring.toLowerCase()));
       if (hit) {
         return { pass: false, score: 0, reason: `Category/proto name "${nameToCheck}" must not contain source-specific brand "${hit}" — expected a generic bucket (e.g. "Newsletters")` };
@@ -363,15 +363,17 @@ module.exports = (output, context) => {
       // We normalize by removing emojis and comparing case-insensitively
       const normalizeCategory = (cat) => cat.replace(/[\p{Emoji}]/gu, '').trim().toLowerCase();
       const normalizedExpected = normalizeCategory(expectedProtoCategory);
-      const normalizedActual = normalizeCategory(parsed.category || '');
-      
+      // Single mode returns `categoryNumber`, not a `category` name, so compare
+      // against the resolved category (falling back to a legacy `category` name).
+      const normalizedActual = normalizeCategory(resolvedCategory || '');
+
       // Check for match (either exact or partial overlap of main words)
       const expectedWords = normalizedExpected.split(/\s+/).filter(w => w.length > 2);
       const actualWords = normalizedActual.split(/\s+/).filter(w => w.length > 2);
       const hasWordOverlap = expectedWords.some(word => actualWords.includes(word));
-      
+
       if (normalizedActual !== normalizedExpected && !hasWordOverlap) {
-        return { pass: false, score: 0, reason: `Expected to match existing proto category "${expectedProtoCategory}", got category "${parsed.category}". Neither exact match nor word overlap found.` };
+        return { pass: false, score: 0, reason: `Expected to match existing proto category "${expectedProtoCategory}", got category "${resolvedCategory}". Neither exact match nor word overlap found.` };
       }
     }
     

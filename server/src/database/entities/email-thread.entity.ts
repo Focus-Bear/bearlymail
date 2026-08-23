@@ -141,6 +141,16 @@ export class EmailThread {
   })
   priorityRetryCount: number;
 
+  @Column({
+    default: false,
+    comment:
+      "True when the user chose 'I still need to take action' on their last reply. " +
+      "Pins the thread to Action mode so the Action↔Follow-Up split (derived from " +
+      "who sent last) does not drop it into Follow-Up. Cleared when a later reply " +
+      "schedules a follow-up or archives the thread (see replies.service #2125).",
+  })
+  keepInAction: boolean;
+
   // GitHub issue/PR metadata
   @Column("text", {
     nullable: true,

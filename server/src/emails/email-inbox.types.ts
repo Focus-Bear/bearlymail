@@ -49,6 +49,7 @@ export interface RawEmailRow {
   batchDecisionReason: string | null;
   isRead: boolean;
   isProcessingPriority: boolean;
+  keepInAction: boolean;
   isProcessingSummary: boolean;
   receivedAt: Date;
   starCount: number;

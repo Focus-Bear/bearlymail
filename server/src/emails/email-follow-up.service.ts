@@ -88,7 +88,10 @@ export class EmailFollowUpService {
           const result = emails.filter(
             (emailItem) =>
               (emailItem.from?.toLowerCase() || "") !== userEmail ||
-              emailItem.sentByAutoResponder === true,
+              emailItem.sentByAutoResponder === true ||
+              // "I still need to take action" pins the thread to Action mode
+              // even though the user sent the last email (fixes #2125 follow-up).
+              emailItem.keepInAction === true,
           );
           if (result.length < before)
             this.logger.debug(
@@ -138,6 +141,9 @@ export class EmailFollowUpService {
 
     const result: InboxEmail[] = [];
     for (const email of unsnoozed) {
+      // Threads pinned to Action mode ("I still need to take action") must not
+      // re-emerge here via the implicit "starred + sent-last" rule (#2125).
+      if (email.keepInAction === true) continue;
       const matched = await this.evaluateFollowUpCandidate(userId, email, {
         userEmail,
         dueAt: pendingDueAt.get(email.threadId),

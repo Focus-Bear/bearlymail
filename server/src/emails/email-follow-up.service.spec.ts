@@ -201,6 +201,22 @@ describe("EmailFollowUpService", () => {
       );
       expect(result).toContain(email);
     });
+
+    it("keeps emails where user sent last but keepInAction=true", async () => {
+      // "I still need to take action" pins the thread to Action mode even
+      // though the user sent the last email (fixes the reply→Follow-Up drop).
+      const email = makeInboxEmail({
+        from: USER_EMAIL,
+        sentByAutoResponder: false,
+        keepInAction: true,
+      });
+      const result = await service.filterActionModeEmails(
+        USER_ID,
+        [email],
+        mockPerf,
+      );
+      expect(result).toContain(email);
+    });
   });
 
   describe("filterFollowUpModeEmails", () => {
@@ -295,6 +311,28 @@ describe("EmailFollowUpService", () => {
         mockPerf,
       );
       expect(result).toContain(email);
+    });
+
+    it("excludes thread when keepInAction=true even though user sent last", async () => {
+      // A thread pinned to Action mode must not also re-emerge in Follow-Up
+      // via the implicit "starred + sent-last" rule.
+      mockQbForFollowUps([]);
+      mockEmailThreadService.getThreadEmails.mockResolvedValue([
+        makeEmail({ from: OTHER_EMAIL }) as never,
+        makeEmail({ from: USER_EMAIL }) as never,
+      ]);
+
+      const email = makeInboxEmail({
+        from: USER_EMAIL,
+        threadId: THREAD_ID,
+        keepInAction: true,
+      });
+      const result = await service.filterFollowUpModeEmails(
+        USER_ID,
+        [email],
+        mockPerf,
+      );
+      expect(result).not.toContain(email);
     });
 
     it("does not populate followUpDueAt when no follow-up record exists", async () => {

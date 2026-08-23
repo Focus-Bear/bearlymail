@@ -98,6 +98,7 @@ describe("RepliesService", () => {
           provide: getRepositoryToken(EmailThread),
           useValue: {
             findOne: jest.fn(),
+            update: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -706,6 +707,38 @@ describe("RepliesService", () => {
         expect(emailsService.archiveEmail).not.toHaveBeenCalled();
       });
 
+      it("pins the thread (keepInAction=true) when keepInAction is requested", async () => {
+        const mockProvider = {
+          sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+        };
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+        await service.sendReply(userId, emailId, "Reply body", {
+          keepInAction: true,
+        });
+
+        expect(emailThreadRepository.update).toHaveBeenCalledWith(
+          { userId, threadId: email.threadId },
+          { keepInAction: true },
+        );
+      });
+
+      it("unpins the thread (keepInAction=false) when archiving with no follow-up", async () => {
+        const mockProvider = {
+          sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+        };
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+        await service.sendReply(userId, emailId, "Reply body", {
+          expectedReplyHours: 0,
+        });
+
+        expect(emailThreadRepository.update).toHaveBeenCalledWith(
+          { userId, threadId: email.threadId },
+          { keepInAction: false },
+        );
+      });
+
       it("does NOT archive when expectedReplyHours > 0 (follow-up scheduled)", async () => {
         const mockProvider = {
           sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
@@ -728,6 +761,10 @@ describe("RepliesService", () => {
         });
 
         expect(emailsService.archiveEmail).not.toHaveBeenCalled();
+        expect(emailThreadRepository.update).toHaveBeenCalledWith(
+          { userId, threadId: email.threadId },
+          { keepInAction: false },
+        );
       });
     });
   });

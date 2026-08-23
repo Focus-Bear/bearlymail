@@ -15,6 +15,12 @@ export interface InboxEmail extends Email {
   priorityScore: number | null;
   priorityExplanation: Record<string, unknown> | null;
   isProcessingPriority: boolean;
+  /**
+   * True when the user chose "I still need to take action" on their last reply,
+   * pinning the thread to Action mode even though they sent the last message.
+   * Keeps the Action↔Follow-Up split from dropping the thread into Follow-Up.
+   */
+  keepInAction: boolean;
   githubMetadata: unknown;
   threadUpdatedAt: Date;
   category: string | null;

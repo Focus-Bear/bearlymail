@@ -86,6 +86,7 @@ export class EmailInboxDecryptService {
       isRead: row.isRead,
       summary: this.deriveInboxSummary(row),
       isProcessingPriority: row.isProcessingPriority,
+      keepInAction: row.keepInAction ?? false,
       isProcessingSummary: row.isProcessingSummary,
       receivedAt: row.receivedAt,
       labels: labels || [],

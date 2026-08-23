@@ -10,6 +10,18 @@ import { MS_PER_DAY } from 'constants/numbers';
 const PLAN_TRIAL: OrgPlanStatus = 'trial';
 const PLAN_ACTIVE: OrgPlanStatus = 'active';
 
+/**
+ * True when the expired/over-free-limit warning should show: a real (non
+ * self-hosted) org whose plan is neither trialling nor active. Callers use it
+ * to decide whether to render surrounding layout around the banner.
+ */
+export function isPlanExpiredWarningVisible(volumeUsage?: VolumeUsage): boolean {
+  if (!volumeUsage?.planStatus || volumeUsage.selfHosted) {
+    return false;
+  }
+  return volumeUsage.planStatus !== PLAN_TRIAL && volumeUsage.planStatus !== PLAN_ACTIVE;
+}
+
 const trialBadgeStyle: React.CSSProperties = {
   display: 'inline-block',
   backgroundColor: theme.colors.primary.main,
@@ -54,6 +66,13 @@ interface PlanStatusBannerProps {
    * falls back to the contact-us mailto link.
    */
   onUpgradeClick?: () => void;
+  /**
+   * When true, render only the expired/over-limit warning and nothing for the
+   * trial or active states. Used to surface the upgrade nudge in the Inbox
+   * (where a "trial days left" badge or plan name would be noise) while
+   * reusing the exact same warning UI as Team settings.
+   */
+  expiredOnly?: boolean;
 }
 
 /**
@@ -62,7 +81,7 @@ interface PlanStatusBannerProps {
  * active, and a prominent free-tier warning with an Upgrade CTA once the
  * trial has expired (unpaid orgs are treated the same as expired ones).
  */
-export const PlanStatusBanner: React.FC<PlanStatusBannerProps> = ({ volumeUsage, onUpgradeClick }) => {
+export const PlanStatusBanner: React.FC<PlanStatusBannerProps> = ({ volumeUsage, onUpgradeClick, expiredOnly }) => {
   const { t } = useTranslation();
 
   // Self-hosted deployments have no plans, trials, or limits — show nothing.
@@ -74,6 +93,9 @@ export const PlanStatusBanner: React.FC<PlanStatusBannerProps> = ({ volumeUsage,
   const { planStatus, trialEndsAt, tier, emailLimit } = volumeUsage;
 
   if (planStatus === PLAN_TRIAL) {
+    if (expiredOnly) {
+      return null;
+    }
     const daysLeft = trialEndsAt
       ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / MS_PER_DAY))
       : 0;
@@ -81,6 +103,9 @@ export const PlanStatusBanner: React.FC<PlanStatusBannerProps> = ({ volumeUsage,
   }
 
   if (planStatus === PLAN_ACTIVE) {
+    if (expiredOnly) {
+      return null;
+    }
     return <div style={activePlanStyle}>{t('team.settings.planActive', { tier: TIER_NAME_KEYS[tier] ? t(TIER_NAME_KEYS[tier]) : tier })}</div>;
   }
 

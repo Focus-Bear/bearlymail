@@ -95,7 +95,7 @@
     "i18next": "^26.3.6",
     "luxon": "^3.7.2",
     "mjml": "^5.4.0",
-    "natural": "^6.10.3",
+    "natural": "^8.1.1",
     "node-ical": "^0.27.1",
     "openai": "^7.0.0",
     "passport": "^0.7.0",
@@ -188,7 +188,7 @@
     },
     "testEnvironment": "node",
     "transformIgnorePatterns": [
-      "node_modules/(?!(@octokit|universal-user-agent|before-after-hook)/)"
+      "node_modules/(?!(@octokit|universal-user-agent|before-after-hook|natural|afinn-165|uuid)/)"
     ],
     "moduleNameMapper": {
       "^app-root-path$": "<rootDir>/__mocks__/app-root-path.ts",

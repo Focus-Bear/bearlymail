@@ -5,6 +5,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "../auth/auth.module";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { LocalModelSupervision } from "../database/entities/local-model-supervision.entity";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { User } from "../database/entities/user.entity";
@@ -41,6 +42,7 @@ import { TokenUsageService } from "./token-usage.service";
       PromptExampleEntity,
       Email,
       EmailThread,
+      LocalModelSupervision,
       User,
     ]),
     forwardRef(() => UsersModule),

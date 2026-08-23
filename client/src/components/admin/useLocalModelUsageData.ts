@@ -19,6 +19,8 @@ export interface PriorityUsage {
   llm: number;
   rule: number;
   unprocessed: number;
+  deferred: number;
+  pending: number;
   total: number;
   localPct: number;
   llmPct: number;
@@ -29,6 +31,8 @@ export interface CategoryUsage {
   llm: number;
   rule: number;
   unprocessed: number;
+  deferred: number;
+  pending: number;
   total: number;
   localPct: number;
 }

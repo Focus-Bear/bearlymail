@@ -2,13 +2,14 @@ import { Test } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { LocalModelSupervision } from "../database/entities/local-model-supervision.entity";
 import { LocalModelUsageService } from "./local-model-usage.service";
 
 /**
  * The query builder is called twice (prioritySource, then categorySource); each
  * `getRawMany` returns the next queued result set.
  */
-type SourceRow = { source: string | null; count: string };
+type SourceRow = { source: string | null; count: string; deferred?: string };
 
 function makeRepo(resultSets: SourceRow[][]) {
   let call = 0;
@@ -23,15 +24,42 @@ function makeRepo(resultSets: SourceRow[][]) {
   return { createQueryBuilder: jest.fn(() => qb) };
 }
 
-async function build(resultSets: SourceRow[][]) {
+/** Minimal shape of a supervision row the accuracy aggregation reads. */
+type SupervisionRow = {
+  categoryHash: string;
+  category: string;
+  sampleRatePercent: number;
+  lifetimeSamples: number;
+  lifetimeAgreements: number;
+  windowSamples: number;
+  windowAgreements: number;
+};
+
+function makeSupervisionRepo(rows: SupervisionRow[]) {
+  return { find: jest.fn(() => Promise.resolve(rows)) };
+}
+
+async function buildWith(
+  resultSets: SourceRow[][],
+  supervisionRows: SupervisionRow[] = [],
+) {
   const repo = makeRepo(resultSets);
+  const supervisionRepo = makeSupervisionRepo(supervisionRows);
   const moduleRef = await Test.createTestingModule({
     providers: [
       LocalModelUsageService,
       { provide: getRepositoryToken(EmailThread), useValue: repo },
+      {
+        provide: getRepositoryToken(LocalModelSupervision),
+        useValue: supervisionRepo,
+      },
     ],
   }).compile();
   return moduleRef.get(LocalModelUsageService);
+}
+
+async function build(resultSets: SourceRow[][]) {
+  return buildWith(resultSets);
 }
 
 describe("LocalModelUsageService", () => {
@@ -53,6 +81,8 @@ describe("LocalModelUsageService", () => {
       llm: 20,
       rule: 5,
       unprocessed: 5,
+      deferred: 0,
+      pending: 5,
       total: 100,
       localPct: 70,
       llmPct: 20,
@@ -102,9 +132,53 @@ describe("LocalModelUsageService", () => {
       llm: 40,
       rule: 10,
       unprocessed: 10,
+      deferred: 0,
+      pending: 10,
       total: 100,
       localPct: 40,
     });
+  });
+
+  it("splits the NULL bucket into deferred (by design) and pending (awaiting scoring)", async () => {
+    const service = await build([
+      [
+        { source: "local", count: "60" },
+        { source: "rule", count: "10" },
+        // 30 unprocessed threads: 18 deferred by design, 12 genuinely pending.
+        { source: null, count: "30", deferred: "18" },
+      ],
+      [],
+    ]);
+
+    const { priority } = await service.getUsage({});
+
+    // Deferred threads are excluded from pending; the two sum to unprocessed.
+    expect(priority.deferred).toBe(18);
+    expect(priority.pending).toBe(12);
+    expect(priority.deferred + priority.pending).toBe(priority.unprocessed);
+    // The existing bucket math is unchanged by the split.
+    expect(priority.unprocessed).toBe(30);
+    expect(priority.total).toBe(100);
+    expect(priority.local).toBe(60);
+    expect(priority.rule).toBe(10);
+    expect(priority.llm).toBe(0);
+  });
+
+  it("treats a non-deferred NULL-source thread as pending, not deferred", async () => {
+    const service = await build([
+      [
+        { source: "local", count: "80" },
+        // No deferred rows in the NULL group.
+        { source: null, count: "20", deferred: "0" },
+      ],
+      [],
+    ]);
+
+    const { priority } = await service.getUsage({});
+
+    expect(priority.deferred).toBe(0);
+    expect(priority.pending).toBe(20);
+    expect(priority.deferred + priority.pending).toBe(priority.unprocessed);
   });
 
   it("returns zeroed percentages when there is no data", async () => {
@@ -116,5 +190,119 @@ describe("LocalModelUsageService", () => {
     expect(usage.priority.localPct).toBe(0);
     expect(usage.category.localPct).toBe(0);
     expect(usage.window.startDate).toBeDefined();
+  });
+});
+
+describe("LocalModelUsageService.getCategoryAccuracy", () => {
+  it("aggregates rows of the same category across users and picks the dominant row", async () => {
+    const service = await buildWith(
+      [],
+      [
+        {
+          categoryHash: "hash-news",
+          category: "newsletters",
+          sampleRatePercent: 25,
+          lifetimeSamples: 40,
+          lifetimeAgreements: 30,
+          windowSamples: 5,
+          windowAgreements: 4,
+        },
+        {
+          // Dominant row for the same hash (more lifetime samples) — its name
+          // and rate win.
+          categoryHash: "hash-news",
+          category: "Newsletters",
+          sampleRatePercent: 10,
+          lifetimeSamples: 60,
+          lifetimeAgreements: 57,
+          windowSamples: 10,
+          windowAgreements: 9,
+        },
+      ],
+    );
+
+    const report = await service.getCategoryAccuracy();
+
+    expect(report.categories).toHaveLength(1);
+    const [news] = report.categories;
+    expect(news.category).toBe("Newsletters");
+    expect(news.sampleRatePercent).toBe(10);
+    expect(news.lifetimeSamples).toBe(100);
+    expect(news.lifetimeAgreements).toBe(87);
+    expect(news.agreementPct).toBe(87);
+    expect(news.windowSamples).toBe(15);
+    expect(news.windowAgreements).toBe(13);
+  });
+
+  it("sorts categories by lifetime samples desc and totals overall", async () => {
+    const service = await buildWith(
+      [],
+      [
+        {
+          categoryHash: "hash-a",
+          category: "Small",
+          sampleRatePercent: 50,
+          lifetimeSamples: 20,
+          lifetimeAgreements: 10,
+          windowSamples: 0,
+          windowAgreements: 0,
+        },
+        {
+          categoryHash: "hash-b",
+          category: "Big",
+          sampleRatePercent: 10,
+          lifetimeSamples: 80,
+          lifetimeAgreements: 72,
+          windowSamples: 0,
+          windowAgreements: 0,
+        },
+      ],
+    );
+
+    const report = await service.getCategoryAccuracy();
+
+    expect(report.categories.map((row) => row.category)).toEqual([
+      "Big",
+      "Small",
+    ]);
+    expect(report.overall).toEqual({
+      samples: 100,
+      agreements: 82,
+      agreementPct: 82,
+    });
+  });
+
+  it("returns 0 agreement for a category with no lifetime samples", async () => {
+    const service = await buildWith(
+      [],
+      [
+        {
+          categoryHash: "hash-x",
+          category: "Empty",
+          sampleRatePercent: 50,
+          lifetimeSamples: 0,
+          lifetimeAgreements: 0,
+          windowSamples: 0,
+          windowAgreements: 0,
+        },
+      ],
+    );
+
+    const report = await service.getCategoryAccuracy();
+
+    expect(report.categories[0].agreementPct).toBe(0);
+  });
+
+  it("returns empty categories and zeroed overall for an empty table", async () => {
+    const service = await buildWith([], []);
+
+    const report = await service.getCategoryAccuracy();
+
+    expect(report.categories).toEqual([]);
+    expect(report.overall).toEqual({
+      samples: 0,
+      agreements: 0,
+      agreementPct: 0,
+    });
   });
 });

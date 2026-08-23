@@ -49,6 +49,14 @@ export class LocalModelSupervision {
   @Column({ type: "int", default: 0 })
   windowAgreements: number;
 
+  /** Lifetime supervised decisions (never reset) — powers the admin accuracy view. */
+  @Column({ type: "int", default: 0 })
+  lifetimeSamples: number;
+
+  /** Of the lifetime samples, how many the local category matched the LLM's. */
+  @Column({ type: "int", default: 0 })
+  lifetimeAgreements: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

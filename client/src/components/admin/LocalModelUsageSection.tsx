@@ -1,9 +1,16 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
+import { LocalModelAccuracySection } from './LocalModelAccuracySection';
 import { TokenDateFilter } from './TokenUsagePanels';
 import { CategoryUsage, PriorityUsage, useLocalModelUsageData } from './useLocalModelUsageData';
+
+const PERCENT_MULTIPLIER = 100;
+
+const pctOf = (part: number, total: number): number =>
+  total ? Math.round((part / total) * PERCENT_MULTIPLIER) : 0;
 
 interface StatCardProps {
   label: string;
@@ -41,9 +48,12 @@ interface BreakdownRow {
   label: string;
   count: number;
   pct: number;
+  // Sub-rows (e.g. the Deferred / Awaiting-scoring split of Unprocessed) render
+  // indented and muted so they read as a breakdown of the row above them.
+  indent?: boolean;
 }
 
-const BreakdownTable: React.FC<{ title: string; rows: BreakdownRow[]; totalLabel: string; total: number }> = ({
+export const BreakdownTable: React.FC<{ title: string; rows: BreakdownRow[]; totalLabel: string; total: number }> = ({
   title,
   rows,
   totalLabel,
@@ -57,7 +67,16 @@ const BreakdownTable: React.FC<{ title: string; rows: BreakdownRow[]; totalLabel
       <tbody>
         {rows.map(row => (
           <tr key={row.label} style={{ borderBottom: `1px solid ${theme.colors.border.light}` }}>
-            <td style={{ padding: theme.spacing.sm, color: theme.colors.text.primary }}>{row.label}</td>
+            <td
+              style={{
+                padding: theme.spacing.sm,
+                paddingLeft: row.indent ? theme.spacing.xl : theme.spacing.sm,
+                color: row.indent ? theme.colors.text.secondary : theme.colors.text.primary,
+                fontSize: row.indent ? theme.typography.fontSize.sm : undefined,
+              }}
+            >
+              {row.label}
+            </td>
             <td style={{ padding: theme.spacing.sm, textAlign: 'right', color: theme.colors.text.secondary }}>
               {row.count.toLocaleString()}
             </td>
@@ -85,6 +104,26 @@ const BreakdownTable: React.FC<{ title: string; rows: BreakdownRow[]; totalLabel
   </div>
 );
 
+// The Unprocessed row is split into its Deferred (skipped by design) and
+// Awaiting-scoring (genuinely pending) parts, rendered as indented sub-rows.
+export const buildPriorityRows = (priority: PriorityUsage, translate: TFunction): BreakdownRow[] => [
+  { label: translate('admin.localModel.local'), count: priority.local, pct: priority.localPct },
+  { label: translate('admin.localModel.llm'), count: priority.llm, pct: priority.llmPct },
+  { label: translate('admin.localModel.rule'), count: priority.rule, pct: pctOf(priority.rule, priority.total) },
+  { label: translate('admin.localModel.unprocessed'), count: priority.unprocessed, pct: pctOf(priority.unprocessed, priority.total) },
+  { label: translate('admin.localModel.deferred'), count: priority.deferred, pct: pctOf(priority.deferred, priority.total), indent: true },
+  { label: translate('admin.localModel.pending'), count: priority.pending, pct: pctOf(priority.pending, priority.total), indent: true },
+];
+
+export const buildCategoryRows = (category: CategoryUsage, translate: TFunction): BreakdownRow[] => [
+  { label: translate('admin.localModel.local'), count: category.local, pct: category.localPct },
+  { label: translate('admin.localModel.llm'), count: category.llm, pct: pctOf(category.llm, category.total) },
+  { label: translate('admin.localModel.rule'), count: category.rule ?? 0, pct: pctOf(category.rule ?? 0, category.total) },
+  { label: translate('admin.localModel.unprocessed'), count: category.unprocessed, pct: pctOf(category.unprocessed, category.total) },
+  { label: translate('admin.localModel.deferred'), count: category.deferred, pct: pctOf(category.deferred, category.total), indent: true },
+  { label: translate('admin.localModel.pending'), count: category.pending, pct: pctOf(category.pending, category.total), indent: true },
+];
+
 export const LocalModelUsageSection: React.FC = () => {
   const { t } = useTranslation();
   const { usage, loading, lastUpdated, dateRange, setDateRange } = useLocalModelUsageData();
@@ -98,6 +137,8 @@ export const LocalModelUsageSection: React.FC = () => {
     llm: 0,
     rule: 0,
     unprocessed: 0,
+    deferred: 0,
+    pending: 0,
     total: 0,
     localPct: 0,
     llmPct: 0,
@@ -107,6 +148,8 @@ export const LocalModelUsageSection: React.FC = () => {
     llm: 0,
     rule: 0,
     unprocessed: 0,
+    deferred: 0,
+    pending: 0,
     total: 0,
     localPct: 0,
   };
@@ -154,49 +197,21 @@ export const LocalModelUsageSection: React.FC = () => {
         title={t('admin.localModel.priorityTitle')}
         totalLabel={t('admin.localModel.total')}
         total={priority.total}
-        rows={[
-          { label: t('admin.localModel.local'), count: priority.local, pct: priority.localPct },
-          { label: t('admin.localModel.llm'), count: priority.llm, pct: priority.llmPct },
-          {
-            label: t('admin.localModel.rule'),
-            count: priority.rule,
-            pct: priority.total ? Math.round((priority.rule / priority.total) * 100) : 0,
-          },
-          {
-            label: t('admin.localModel.unprocessed'),
-            count: priority.unprocessed,
-            pct: priority.total ? Math.round((priority.unprocessed / priority.total) * 100) : 0,
-          },
-        ]}
+        rows={buildPriorityRows(priority, t)}
       />
 
       <BreakdownTable
         title={t('admin.localModel.categoryTitle')}
         totalLabel={t('admin.localModel.total')}
         total={category.total}
-        rows={[
-          { label: t('admin.localModel.local'), count: category.local, pct: category.localPct },
-          {
-            label: t('admin.localModel.llm'),
-            count: category.llm,
-            pct: category.total ? Math.round((category.llm / category.total) * 100) : 0,
-          },
-          {
-            label: t('admin.localModel.rule'),
-            count: category.rule ?? 0,
-            pct: category.total ? Math.round(((category.rule ?? 0) / category.total) * 100) : 0,
-          },
-          {
-            label: t('admin.localModel.unprocessed'),
-            count: category.unprocessed,
-            pct: category.total ? Math.round((category.unprocessed / category.total) * 100) : 0,
-          },
-        ]}
+        rows={buildCategoryRows(category, t)}
       />
 
       <p style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
         {t('admin.localModel.caption')}
       </p>
+
+      <LocalModelAccuracySection />
     </div>
   );
 };

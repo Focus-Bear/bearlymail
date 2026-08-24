@@ -930,17 +930,9 @@ ${closing}`;
     threadId: string,
     keepInAction: boolean,
   ): Promise<void> {
-    try {
-      await this.emailThreadRepository.update(
-        { userId, threadId },
-        { keepInAction },
-      );
-    } catch (updateError) {
-      this.logger.warn(
-        `Failed to set keepInAction=${keepInAction} for thread ${threadId}:`,
-        updateError,
-      );
-    }
+    await this.emailThreadRepository
+      .update({ userId, threadId }, { keepInAction })
+      .catch(() => this.logger.warn(`keepInAction write failed: ${threadId}`));
   }
 
   private async cancelExistingFollowUp(

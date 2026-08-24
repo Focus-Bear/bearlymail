@@ -1,4 +1,4 @@
-description: "Tests for the incremental summary-based re-categorisation prompt (categorise_summary): pick a numbered category for a thread from its up-to-date summary after a new message."
+description: "Category-ONLY prod prompt (categorise_summary) tested on the same 18 hard cases as the experiment. Shared category-selection ruleset injected via file:// var. CI runs flash-lite (the escalation fallback that must always be correct); Nova Micro is validated separately in categorise-email-experiment.yaml."
 
 providers:
   - id: google:gemini-3.1-flash-lite
@@ -8,7 +8,578 @@ providers:
 prompts:
   - file://prompts/categorise-summary.md
 
+defaultTest:
+  vars:
+    categorySelectionRules: file://prompts/_shared/category-selection-rules.md
+
 tests:
+  # Test 1: GitHub bot PR must NOT land in a "from humans" category
+  - description: "GitHub bot PR — must go to a GitHub bot/automation category, not human category"
+    vars:
+      senderName: "github-actions[bot]"
+      subject: "PR opened: Add new feature"
+      summary: "Automated PR opened by github-actions[bot] to add a new feature to the codebase."
+      categories: |
+           1. "Code reviews by human developers": Pull requests opened or reviewed by human developers — NOT bots
+           2. "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+           3. "Devin PRs": Pull requests created by Devin AI
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 1) {
+            throw new Error(`Bot PR misassigned to human-only category (categoryNumber 1). categoryExplanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 2: Devin PR must be categorised as "Devin PRs" even when latest message is from a human
+  - description: "Devin PR thread — category determined by PR initiator, not latest message author"
+    vars:
+      senderName: "Jeremy (via GitHub)"
+      subject: "Re: PR merged — Add new feature (Devin)"
+      summary: "PR created by Devin AI was merged by Jeremy. Thread started with Devin opening the PR."
+      categories: |
+           1. "Code reviews by human developers": PRs opened or reviewed by humans
+           2. "Devin PRs": Pull requests created by Devin AI
+           3. "GitHub bot notifications": Automated GitHub system notifications
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 2) {
+            throw new Error(`Devin PR thread miscategorised as categoryNumber ${result.categoryNumber}. Expected 2 ("Devin PRs"). Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 3: QA bot pass email → ✅ QA passed issues (content-based role override)
+  - description: "QA bot pass result — content-based role override routes to QA passed category"
+    vars:
+      senderName: "professor-reproducible[bot]"
+      subject: "Re: Bug #456 — Login button broken"
+      summary: "QA bot tested the fix for Bug #456. Test PASSED — the login button now works correctly. Issue verified as fixed."
+      categories: |
+           1. "✅ QA passed issues": Issues where QA has verified the fix works
+           2. "QA failed issues": Issues where QA testing found the fix doesn't work
+           3. "🐛 New GitHub issues (bot-created)": Issues automatically created by bots
+           4. "Code reviews by human developers": PRs opened or reviewed by humans — NOT bots
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 1) {
+            throw new Error(`QA bot pass misclassified as categoryNumber ${result.categoryNumber}. Expected 1 ("✅ QA passed issues"). Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 4: QA bot fail email → QA failed issues (uses DIFFERENT bot name to prove generality)
+  - description: "QA bot fail result — content-based role override routes to QA failed category (proves generality with different bot name)"
+    vars:
+      senderName: "some-future-qa-bot[bot]"
+      subject: "Re: Bug #789 — Crash on settings page"
+      summary: "Automated QA testing of Bug #789 fix. Test FAILED — the crash still occurs when opening settings on iOS 18."
+      categories: |
+           1. "✅ QA passed issues": Issues where QA has verified the fix works
+           2. "QA failed issues": Issues where QA testing found the fix doesn't work
+           3. "🐛 New GitHub issues (bot-created)": Issues automatically created by bots
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 2) {
+            throw new Error(`QA bot fail misclassified as categoryNumber ${result.categoryNumber}. Expected 2 ("QA failed issues"). Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 5: CI bot notification → NOT a QA category (regression guard)
+  - description: "CI bot notification — still routes to bot/notification category, not QA (regression guard)"
+    vars:
+      senderName: "github-actions[bot]"
+      subject: "CI run completed — Build #1234"
+      summary: "CI pipeline completed. All checks passed. Build artifacts uploaded."
+      categories: |
+           1. "✅ QA passed issues": Issues where QA has verified the fix works
+           2. "QA failed issues": Issues where QA testing found the fix doesn't work
+           3. "🐛 New GitHub issues (bot-created)": Issues automatically created by bots
+           4. "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 1 || result.categoryNumber === 2) {
+            throw new Error(`CI bot notification misclassified as QA category (categoryNumber ${result.categoryNumber}). CI notifications should route to a bot/notification category, not QA. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 6: Spanish email with "datos" → NOT "Build/deployment errors" (#1287)
+  - description: "Spanish email with 'datos' — must NOT be miscategorised as Build/deployment errors"
+    vars:
+      senderName: "Andrea López"
+      subject: "Pregunta sobre exportación de datos"
+      summary: "Hola equipo, tengo una pregunta sobre la exportación de datos de usuario. ¿Es posible descargar los datos en formato CSV? Necesito los datos de actividad de los últimos 3 meses para un informe. También quiero saber si la conexión con la API permite extraer datos automáticamente. Gracias."
+      categories: |
+           1. "Customer Support": Support requests, customer issues, help requests
+           2. "Build/deployment errors": Build failures, deployment issues, CI/CD errors
+           3. "Security & Compliance": Security alerts, compliance issues, privacy concerns
+           4. "Newsletters": Marketing emails, digests, promotional content
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 2) {
+            throw new Error(`Spanish email with "datos" misclassified as "Build/deployment errors". "datos" is Spanish for "data", not a build error. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 7: Email with GDPR footer → NOT "Security & Compliance" (#1288)
+  - description: "Product question with GDPR footer — must NOT be miscategorised as Security & Compliance"
+    vars:
+      senderName: "Andrea López"
+      subject: "Question about Focus Bear pricing plans"
+      summary: |
+        Hi team, I wanted to ask about upgrading our team plan from 5 to 15 seats. Can you send me the pricing details? We're also interested in the annual billing option. Thanks! Andrea
+
+        ---
+        This email and any attachments are confidential. If you received this in error, please delete it. We process personal data in accordance with our Privacy Policy (https://example.com/privacy). To unsubscribe from these communications, click here: https://example.com/unsubscribe. For information about how we handle your data under GDPR, visit https://example.com/gdpr.
+      categories: |
+           1. "Customer Support": Support requests, customer issues, help requests
+           2. "Sales": Sales discussions, pricing requests, demos
+           3. "Security & Compliance": Security alerts, compliance issues, privacy concerns
+           4. "Newsletters": Marketing emails, digests, promotional content
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 3) {
+            throw new Error(`Email with GDPR footer misclassified as "Security & Compliance". The GDPR footer is boilerplate — the actual email is a pricing question. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 8: Actual security email with footer → SHOULD be "Security & Compliance" (regression guard)
+  - description: "Genuine security email with GDPR footer — must still be categorised as Security & Compliance"
+    vars:
+      senderName: "Security Team"
+      subject: "URGENT: Potential data breach detected in production"
+      summary: |
+        We detected unauthorized access to the production database at 03:42 UTC today. Approximately 2,300 user records may have been exposed including email addresses and hashed passwords. We have rotated all credentials and blocked the source IP. Please review the incident report and confirm whether we need to notify affected users under GDPR Article 33 obligations. Immediate action required.
+
+        ---
+        This email and any attachments are confidential. If you received this in error, please delete it. We process personal data in accordance with our Privacy Policy (https://example.com/privacy). To unsubscribe from these communications, click here: https://example.com/unsubscribe. For information about how we handle your data under GDPR, visit https://example.com/gdpr.
+      categories: |
+           1. "Customer Support": Support requests, customer issues, help requests
+           2. "Sales": Sales discussions, pricing requests, demos
+           3. "Security & Compliance": Security alerts, compliance issues, privacy concerns
+           4. "Newsletters": Marketing emails, digests, promotional content
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 3) {
+            throw new Error(`Genuine security email misclassified as categoryNumber ${result.categoryNumber}. A real data breach report should be 3 ("Security & Compliance") even with a GDPR footer. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 9: Jira notification about a bug → Jira category, NOT "Customer feedback" (cross-platform signal-extraction)
+  - description: "Jira bug notification — platform identity (Jira) takes priority over content topic (bug)"
+    vars:
+      senderName: "Jira"
+      subject: "[BEAR-123] Login button does not work on iOS 17"
+      summary: "A new issue was created in Jira by a customer: 'Login button does not work on iOS 17'. Severity: High. Reporter: user@example.com. View on Jira: https://focusbear.atlassian.net/browse/BEAR-123"
+      categories: |
+           1. "Customer feedback": Feature requests and feedback submitted directly by customers via email
+           2. "Jira tickets": Issues and notifications from Jira / Atlassian
+           3. "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+           4. "Customer Support": Direct support requests from customers via email
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Monday, March 23, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          // Hard failure: a Jira notification must NOT be treated as direct customer feedback
+          // (it came via Jira, not directly from the customer by email)
+          if (result.categoryNumber === 1) {
+            throw new Error(`Jira bug notification misclassified as "Customer feedback". Platform identity (Jira) must take priority over content topic. Explanation: ${result.categoryExplanation}`);
+          }
+          // Accept 2 "Jira tickets" (preferred) OR 4 "Customer Support" (defensible)
+          return true;
+
+  # Test 10: Slack digest notification → Slack category, NOT "HR Admin" (cross-platform: Slack)
+  - description: "Slack digest — platform identity (Slack) takes priority over content topic (team/HR-adjacent)"
+    vars:
+      senderName: "Slack"
+      subject: "Your Slack digest: 3 unread messages in #team-general"
+      summary: "You have 3 unread messages in #team-general on the Focus Bear Slack workspace. Topics include upcoming team offsite planning, public holiday policy reminder, and a new hire announcement. View in Slack: https://focusbear.slack.com"
+      categories: |
+           1. "HR Admin": HR communications, admin tasks, internal company matters, policies
+           2. "Slack messages": Notifications and digests from Slack
+           3. "Newsletters": Marketing emails, digests, promotional content
+           4. "Customer Support": Support requests, customer issues
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Monday, March 23, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          // Hard failure: Slack digest must NOT be treated as HR Admin content
+          if (result.categoryNumber === 1) {
+            throw new Error(`Slack digest misclassified as "HR Admin". Platform identity (Slack) must take priority. Explanation: ${result.categoryExplanation}`);
+          }
+          // Accept 2 "Slack messages" (preferred) OR 3 "Newsletters" (defensible digest)
+          return true;
+
+  # Test 11: GitHub issue about a feature request → GitHub category, NOT "Customer feedback" (platform > topic)
+  - description: "GitHub issue notification about feature request — platform (GitHub) beats topic (customer feedback)"
+    vars:
+      senderName: "notifications@github.com"
+      subject: "[Focus-Bear/BearlyMail] Feature request: Dark mode support (#999)"
+      summary: "A new GitHub issue was opened by user@example.com requesting dark mode support for BearlyMail. The user describes wanting a dark theme for use at night. View on GitHub: https://github.com/Focus-Bear/BearlyMail/issues/999"
+      categories: |
+           1. "Customer feedback": Feature requests and feedback submitted directly by customers via email or feedback forms — NOT via GitHub issues
+           2. "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+           3. "New GitHub issues (human-created)": New issues opened on GitHub by humans
+           4. "Customer Support": Direct support requests from customers
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Monday, March 23, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          // Hard failure: the category explicitly states "NOT via GitHub issues"
+          if (result.categoryNumber === 1) {
+            throw new Error(`GitHub feature request misclassified as "Customer feedback". The category says "NOT via GitHub issues" — platform identity must take precedence. Explanation: ${result.categoryExplanation}`);
+          }
+          // Accept 3 (preferred), 2, or 4. Only exclude the explicitly wrong category.
+          return true;
+
+  # Test 12: Dependabot PR (GitHub) → "GitHub bot notifications", NOT "Code reviews by human developers"
+  - description: "Dependabot dependency update PR — automated bot, not a human code review"
+    vars:
+      senderName: "notifications@github.com"
+      subject: "[Focus-Bear/BearlyMail] Bump lodash from 4.17.20 to 4.17.21 (#1001)"
+      summary: "Dependabot opened a pull request to bump lodash from 4.17.20 to 4.17.21 to fix a known prototype pollution vulnerability. Automated security update. View on GitHub: https://github.com/Focus-Bear/BearlyMail/pull/1001"
+      categories: |
+           1. "Code reviews by human developers": Pull requests opened or reviewed by human developers — NOT bots
+           2. "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+           3. "Devin PRs": Pull requests created by Devin AI
+           4. "Security & Compliance": Security alerts, compliance issues
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Monday, March 23, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          // Hard failure: Dependabot is a bot — can NEVER be in a "code reviews by humans" category
+          if (result.categoryNumber === 1) {
+            throw new Error(`Dependabot PR misclassified as "Code reviews by human developers". Dependabot is a bot — not eligible for human developer category. Explanation: ${result.categoryExplanation}`);
+          }
+          // Accept 2 (preferred), 4 (security fix — reasonable), or 3 (marginal).
+          return true;
+
+  # Test 13: Cold outreach from a stranger — MUST reuse the existing cold-outreach
+  # category, NOT invent a new proto (the real "Cold Sales Outreach" prod bug).
+  - description: "Cold outreach from stranger — reuse existing cold-outreach category, do NOT invent a new proto"
+    vars:
+      senderName: "Marcus Webb"
+      subject: "Quick question about growing your user base"
+      summary: "Hi, I run an agency that helps SaaS companies grow. Not a customer — reaching out cold to explore whether we could help. Would love 15 minutes."
+      categories: |
+           1. "Newsletters": Marketing emails, digests, promotional content
+           2. "Cold outreach: from others to me": Unsolicited cold sales / business-development outreach from people you do not know
+           3. "Customer Support": Support requests and issues from existing customers
+           4. "Partnerships": Established partnership and collaboration discussions
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 0) {
+            throw new Error(`Invented a new proto instead of reusing existing "Cold outreach" (categoryNumber 2). proto: ${JSON.stringify(result.protoCategorySuggestion)}`);
+          }
+          if (result.categoryNumber !== 2) {
+            throw new Error(`Cold outreach miscategorised as categoryNumber ${result.categoryNumber}. Expected 2. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 14: Newsletter → newsletter category
+  - description: "Newsletter/digest — routes to the Newsletters category"
+    vars:
+      senderName: "TechCrunch Daily"
+      subject: "Your Tuesday briefing: this week in AI funding"
+      summary: "Here are today's top stories in tech: funding rounds, product launches, and more. Unsubscribe any time."
+      categories: |
+           1. "Newsletters": Marketing emails, digests, promotional content, automated updates
+           2. "Sales": Sales discussions, pricing requests, demos
+           3. "Customer Support": Support requests from existing customers
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 1) {
+            throw new Error(`Newsletter miscategorised as categoryNumber ${result.categoryNumber}. Expected 1. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 15: Calendar invite WITH a dedicated calendar category → use it (sanity-check EXCEPTION)
+  - description: "Calendar invite with dedicated Calendar category present — use it, not Other"
+    vars:
+      senderName: "Google Calendar"
+      subject: "Invitation: Design sync @ Thu Mar 19, 2pm"
+      summary: "You have been invited to the event 'Design sync'. Thursday 2:00pm. RSVP: yes / no / maybe."
+      categories: |
+           1. "Customer Support": Support requests from existing customers
+           2. "📅 Calendar & Meetings": Meeting invitations, calendar events, scheduling
+           3. "Sales": Sales discussions and demos
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 2) {
+            throw new Error(`Calendar invite miscategorised as categoryNumber ${result.categoryNumber}. Expected 2 (dedicated Calendar category present). Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 16: Automated system alert with NO fitting category → Other, NOT a people category
+  - description: "Automated monitoring alert — must be Other + proto, never a people category (sanity check)"
+    vars:
+      senderName: "Datadog Alerts"
+      subject: "[ALERT] High error rate on api-prod"
+      summary: "Automated monitoring alert: HTTP 5xx error rate exceeded the threshold on service api-prod for the last 5 minutes."
+      categories: |
+           1. "Customer Support": Help requests and issues from existing customers
+           2. "Sales": Sales discussions, pricing, demos
+           3. "HR Admin": HR communications and internal admin
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 1) {
+            throw new Error(`Automated alert wrongly placed in "Customer Support" people category. Explanation: ${result.categoryExplanation}`);
+          }
+          if (result.categoryNumber !== 0) {
+            throw new Error(`Expected Other (0) for automated alert with no fitting category, got ${result.categoryNumber}. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 17: A broad existing category fits → pick it, don't invent a narrower one
+  - description: "External meetup — pick the broad existing events category, do not invent a narrower proto"
+    vars:
+      senderName: "React Sydney"
+      subject: "You're invited: React Sydney August meetup"
+      summary: "Join us for an evening of talks and networking with the Sydney React community. Free entry, external event."
+      categories: |
+           1. "Newsletters": Marketing emails and digests
+           2. "Meetings & Events with external people": Any events, meetups, conferences or gatherings involving external people
+           3. "Customer Support": Support requests from existing customers
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 0) {
+            throw new Error(`Invented a proto instead of using broad existing "Meetings & Events with external people" (2). proto: ${JSON.stringify(result.protoCategorySuggestion)}`);
+          }
+          if (result.categoryNumber !== 2) {
+            throw new Error(`Meetup miscategorised as ${result.categoryNumber}. Expected 2. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 18: Genuinely novel type with no fit → Other + proto with reasoning naming closest
+  - description: "Personal rent-increase notice — genuine Other with proto reasoning naming closest categories"
+    vars:
+      senderName: "Sarah (property manager)"
+      subject: "Notice: rent increase for your apartment"
+      summary: "This is formal notice that your monthly rent will increase by 4% effective next quarter. Please sign the attached acknowledgement."
+      categories: |
+           1. "Newsletters": Marketing emails and digests
+           2. "Sales": Sales discussions and demos
+           3. "Customer Support": Support requests from existing customers
+           4. "GitHub bot notifications": Automated GitHub notifications
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 0) {
+            throw new Error(`Expected Other (0) for personal housing notice, got ${result.categoryNumber}. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # --- original structural + status-flip cases (preserved from the pre-existing suite) ---
   - description: "Returns valid JSON with a numeric categoryNumber, confidence and reasoning"
     vars:
       subject: "Re: [Focus-Bear/mobile-app] App crashes when adding a manual focus session (#4609)"

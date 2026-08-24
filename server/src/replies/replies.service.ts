@@ -893,8 +893,13 @@ ${closing}`;
     const { keepInAction, expectedReplyHours } = opts;
     if (keepInAction) {
       await this.cancelExistingFollowUp(userId, email.threadId);
+      // Persist the pin so the Action filter keeps this thread and the Follow-Up
+      // filter excludes it, instead of the thread re-emerging in Follow-Up via
+      // the implicit "starred + sent-last" rule (#2125).
+      await this.setThreadKeepInAction(userId, email.threadId, true);
       return;
     }
+    await this.setThreadKeepInAction(userId, email.threadId, false);
     if (expectedReplyHours && expectedReplyHours > 0) {
       try {
         await this.createFollowUpAfterReply(
@@ -918,6 +923,16 @@ ${closing}`;
         archiveError,
       );
     }
+  }
+
+  private async setThreadKeepInAction(
+    userId: string,
+    threadId: string,
+    keepInAction: boolean,
+  ): Promise<void> {
+    await this.emailThreadRepository
+      .update({ userId, threadId }, { keepInAction })
+      .catch(() => this.logger.warn(`keepInAction write failed: ${threadId}`));
   }
 
   private async cancelExistingFollowUp(

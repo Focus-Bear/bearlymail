@@ -78,17 +78,28 @@ export async function categoriseFromSummary(
     )
     .join("\n");
 
-  const prompt = renderPrompt(promptConfig.prompt || "", {
+  const renderVars = {
     subject: subject || "",
     senderName: senderName || "",
     summary,
     categories: numberedCategories,
-  });
+    // Category-only classification always wants the GitHub ruleset (QA
+    // pass/fail, bot-vs-human etc.); unlike the priority prompt it does not
+    // gate it on sender, so the shared {% if showGithubRules %} always resolves
+    // true here. The systemPrompt (which carries the injected shared rules) is
+    // rendered too so that conditional is evaluated rather than sent literally.
+    showGithubRules: true,
+  };
+  const prompt = renderPrompt(promptConfig.prompt || "", renderVars);
+  const systemPrompt = renderPrompt(
+    promptConfig.systemPrompt || "",
+    renderVars,
+  );
 
   try {
     const response = await generateText({
       prompt,
-      systemPrompt: promptConfig.systemPrompt || "",
+      systemPrompt,
       temperature: RATIOS.THIRTY_PERCENT,
       maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
       jsonMode: true,

@@ -11,6 +11,8 @@ prompts:
 defaultTest:
   vars:
     categorySelectionRules: file://prompts/_shared/category-selection-rules.md
+    categoryGithubRules: file://prompts/_shared/category-github-rules.md
+    showGithubRules: true
 
 tests:
   # Test 1: GitHub bot PR must NOT land in a "from humans" category

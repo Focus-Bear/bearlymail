@@ -279,6 +279,12 @@ const PROMPT_FILE_MAP: Array<{
  */
 const SHARED_PARTIAL_FILES: Record<string, string> = {
   categorySelectionRules: "_shared/category-selection-rules.md",
+  // GitHub-specific rules are a SEPARATE partial so the consuming prompt can
+  // gate them with its own `{% if showGithubRules %}` sibling conditional
+  // (analyze_priority only sends them for GitHub senders, to save tokens).
+  // Keeping them a sibling — not nested inside another `{% if %}` — matters
+  // because the app's regex prompt renderer does not support nested conditionals.
+  categoryGithubRules: "_shared/category-github-rules.md",
 };
 
 const sharedPartialCache = new Map<string, string>();

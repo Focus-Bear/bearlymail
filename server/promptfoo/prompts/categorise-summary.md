@@ -13,6 +13,9 @@ Set `HIGH` only when the summary clearly and unambiguously matches one category 
 One sentence. Refer to categories by their exact quoted NAME (e.g. `matches "✅ QA passed issues"`), NEVER by their list number — the numbers exist only for the `categoryNumber` field and are never shown to the user.
 
 {{categorySelectionRules}}
+{% if showGithubRules %}
+{{categoryGithubRules}}
+{% endif %}
 ---SYSTEM---
 
 ### Thread

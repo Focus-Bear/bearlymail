@@ -41,7 +41,10 @@ export const appendSignature = (
   const signature =
     userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE;
   if (looksLikeHtml(emailBody)) {
-    return `${emailBody}<br><br>${signature}`;
+    // The signature is stored as plain text (a settings <textarea>), so its
+    // newlines must become <br> or they collapse to a single line in HTML mail.
+    const htmlSignature = signature.replace(/\r?\n/g, "<br>");
+    return `${emailBody}<br><br>${htmlSignature}`;
   }
   return `${emailBody}\n\n${signature}`;
 };

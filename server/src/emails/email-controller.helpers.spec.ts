@@ -26,6 +26,18 @@ describe("appendSignature", () => {
     expect(result).toBe("Hi there\n\nRegards,\nEkaterine");
   });
 
+  it("forces HTML formatting when forceHtml=true even for a non-HTML body", () => {
+    const result = appendSignature("Hi there", multilineSignature, true);
+
+    expect(result).toBe("Hi there<br><br>Regards,<br>Ekaterine");
+  });
+
+  it("forces plain formatting when forceHtml=false even for an HTML body", () => {
+    const result = appendSignature("<p>Hi</p>", multilineSignature, false);
+
+    expect(result).toBe("<p>Hi</p>\n\nRegards,\nEkaterine");
+  });
+
   it("falls back to the default signature when none is provided", () => {
     expect(appendSignature("Hi there", null)).toBe(
       `Hi there\n\n${EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE}`,

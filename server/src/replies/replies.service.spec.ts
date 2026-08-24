@@ -524,7 +524,7 @@ describe("RepliesService", () => {
 
       const dateStr = email.receivedAt.toUTCString();
       const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
-      const expectedHtmlBody = `Reply body<br><blockquote style="margin:0 0 0 0.8ex;border-left:1px solid #cccccc;padding-left:1ex"><div>On ${dateStr}, ${email.from} wrote:</div>Test body</blockquote>\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+      const expectedHtmlBody = `Reply body<br><blockquote style="margin:0 0 0 0.8ex;border-left:1px solid #cccccc;padding-left:1ex"><div>On ${dateStr}, ${email.from} wrote:</div>Test body</blockquote><br><br>Sent from BearlyMail (anti inbox overwhelm system)`;
 
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
@@ -538,6 +538,32 @@ describe("RepliesService", () => {
           htmlBody: expectedHtmlBody,
         },
       });
+    });
+
+    it("preserves multiline signature line breaks (as <br> in HTML, \\n in plain)", async () => {
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          id: userId,
+          email: "encrypted_user@example.com",
+          name: "Test User",
+          emailSignature: "Regards,\nEkaterine",
+        }),
+      );
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+      await service.sendReply(userId, emailId, "Reply body");
+
+      const call = mockProvider.sendReply.mock.calls[0][1];
+      expect(call.options.htmlBody as string).toContain(
+        "<br><br>Regards,<br>Ekaterine",
+      );
+      expect(call.options.htmlBody as string).not.toContain(
+        "Regards,\nEkaterine",
+      );
+      expect(call.body as string).toContain("\n\nRegards,\nEkaterine");
     });
 
     it("should not add Re: prefix if already present", async () => {

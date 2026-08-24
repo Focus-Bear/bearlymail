@@ -85,7 +85,7 @@
     "archiver-zip-encrypted": "^2.0.0",
     "axios": "^1.15.2",
     "bcrypt": "^6.0.0",
-    "chrono-node": "^2.9.1",
+    "chrono-node": "^2.10.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "crypto-js": "^4.2.0",

@@ -409,3 +409,177 @@ tests:
           }
           // Accept 2 (preferred), 4 (security fix — reasonable), or 3 (marginal).
           return true;
+
+  # Test 13: Cold outreach from a stranger — MUST reuse the existing cold-outreach
+  # category, NOT invent a new proto (the real "Cold Sales Outreach" prod bug).
+  - description: "Cold outreach from stranger — reuse existing cold-outreach category, do NOT invent a new proto"
+    vars:
+      fromName: "Marcus Webb"
+      subject: "Quick question about growing your user base"
+      body: "Hi, I run an agency that helps SaaS companies grow. Not a customer — reaching out cold to explore whether we could help. Would love 15 minutes."
+      emailCategories: |
+           1. "Newsletters": Marketing emails, digests, promotional content
+           2. "Cold outreach: from others to me": Unsolicited cold sales / business-development outreach from people you do not know
+           3. "Customer Support": Support requests and issues from existing customers
+           4. "Partnerships": Established partnership and collaboration discussions
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 0) {
+            throw new Error(`Invented a new proto instead of reusing existing "Cold outreach" (categoryNumber 2). proto: ${JSON.stringify(result.protoCategorySuggestion)}`);
+          }
+          if (result.categoryNumber !== 2) {
+            throw new Error(`Cold outreach miscategorised as categoryNumber ${result.categoryNumber}. Expected 2. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 14: Newsletter → newsletter category
+  - description: "Newsletter/digest — routes to the Newsletters category"
+    vars:
+      fromName: "TechCrunch Daily"
+      subject: "Your Tuesday briefing: this week in AI funding"
+      body: "Here are today's top stories in tech: funding rounds, product launches, and more. Unsubscribe any time."
+      emailCategories: |
+           1. "Newsletters": Marketing emails, digests, promotional content, automated updates
+           2. "Sales": Sales discussions, pricing requests, demos
+           3. "Customer Support": Support requests from existing customers
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 1) {
+            throw new Error(`Newsletter miscategorised as categoryNumber ${result.categoryNumber}. Expected 1. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 15: Calendar invite WITH a dedicated calendar category → use it (sanity-check EXCEPTION)
+  - description: "Calendar invite with dedicated Calendar category present — use it, not Other"
+    vars:
+      fromName: "Google Calendar"
+      subject: "Invitation: Design sync @ Thu Mar 19, 2pm"
+      body: "You have been invited to the event 'Design sync'. Thursday 2:00pm. RSVP: yes / no / maybe."
+      emailCategories: |
+           1. "Customer Support": Support requests from existing customers
+           2. "📅 Calendar & Meetings": Meeting invitations, calendar events, scheduling
+           3. "Sales": Sales discussions and demos
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 2) {
+            throw new Error(`Calendar invite miscategorised as categoryNumber ${result.categoryNumber}. Expected 2 (dedicated Calendar category present). Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 16: Automated system alert with NO fitting category → Other, NOT a people category
+  - description: "Automated monitoring alert — must be Other + proto, never a people category (sanity check)"
+    vars:
+      fromName: "Datadog Alerts"
+      subject: "[ALERT] High error rate on api-prod"
+      body: "Automated monitoring alert: HTTP 5xx error rate exceeded the threshold on service api-prod for the last 5 minutes."
+      emailCategories: |
+           1. "Customer Support": Help requests and issues from existing customers
+           2. "Sales": Sales discussions, pricing, demos
+           3. "HR Admin": HR communications and internal admin
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 1) {
+            throw new Error(`Automated alert wrongly placed in "Customer Support" people category. Explanation: ${result.categoryExplanation}`);
+          }
+          if (result.categoryNumber !== 0) {
+            throw new Error(`Expected Other (0) for automated alert with no fitting category, got ${result.categoryNumber}. Explanation: ${result.categoryExplanation}`);
+          }
+          if (!result.protoCategorySuggestion || !result.protoCategorySuggestion.reasoning) {
+            throw new Error("Other returned without a protoCategorySuggestion.reasoning");
+          }
+          return true;
+
+  # Test 17: A broad existing category fits → pick it, don't invent a narrower one
+  - description: "External meetup — pick the broad existing events category, do not invent a narrower proto"
+    vars:
+      fromName: "React Sydney"
+      subject: "You're invited: React Sydney August meetup"
+      body: "Join us for an evening of talks and networking with the Sydney React community. Free entry, external event."
+      emailCategories: |
+           1. "Newsletters": Marketing emails and digests
+           2. "Meetings & Events with external people": Any events, meetups, conferences or gatherings involving external people
+           3. "Customer Support": Support requests from existing customers
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber === 0) {
+            throw new Error(`Invented a proto instead of using broad existing "Meetings & Events with external people" (2). proto: ${JSON.stringify(result.protoCategorySuggestion)}`);
+          }
+          if (result.categoryNumber !== 2) {
+            throw new Error(`Meetup miscategorised as ${result.categoryNumber}. Expected 2. Explanation: ${result.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 18: Genuinely novel type with no fit → Other + proto with reasoning naming closest
+  - description: "Personal rent-increase notice — genuine Other with proto reasoning naming closest categories"
+    vars:
+      fromName: "Sarah (property manager)"
+      subject: "Notice: rent increase for your apartment"
+      body: "This is formal notice that your monthly rent will increase by 4% effective next quarter. Please sign the attached acknowledgement."
+      emailCategories: |
+           1. "Newsletters": Marketing emails and digests
+           2. "Sales": Sales discussions and demos
+           3. "Customer Support": Support requests from existing customers
+           4. "GitHub bot notifications": Automated GitHub notifications
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || typeof result.categoryNumber !== 'number') {
+            throw new Error("Expected result.categoryNumber, got: " + JSON.stringify(parsed));
+          }
+          if (result.categoryNumber !== 0) {
+            throw new Error(`Expected Other (0) for personal housing notice, got ${result.categoryNumber}. Explanation: ${result.categoryExplanation}`);
+          }
+          if (!result.protoCategorySuggestion || !result.protoCategorySuggestion.reasoning) {
+            throw new Error("Other returned without protoCategorySuggestion.reasoning");
+          }
+          return true;

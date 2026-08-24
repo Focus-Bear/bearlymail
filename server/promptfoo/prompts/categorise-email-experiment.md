@@ -47,7 +47,7 @@ Return `"categoryConfidence": "HIGH" | "MEDIUM" | "LOW"` for every response:
 
 - **Choosing the CLOSEST existing category is STRONGLY preferred over inventing a new one.** Use "Other" (categoryNumber 0) ONLY when NO listed category is a reasonable home for this email — not merely when none is a *perfect* or maximally-specific match. A broader, less-specific, or imperfectly-named existing category still counts as a fit and MUST be chosen over a new suggestion. Before falling to "Other", re-scan the ENTIRE list one more time and ask: "is there any listed category this could reasonably belong to?" If yes, pick it. Inventing a new category when an existing one fits is the single most common mistake here — do not make it. (Still honour the Step 2/2b sender-type and exclusion constraints — a category that is *excluded* for this email does not count as a fit.)
 - **Valid Categories**: Treat any category provided in the "Available Categories" list as a valid, selectable option, even if it contains notes like "(proposed category)" or "(not yet finalized)". Report your choice as `categoryNumber` (the integer shown before the category; `0` for "Other").
-- **Sanity check before finalising:** If you selected a people/business category (e.g., "Customer Support", "Sales", "HR Admin") for (a) an automated system alert, or (b) a calendar invite / meeting request, STOP and reconsider. Use "Other" + protoCategorySuggestion instead.
+- **Sanity check before finalising:** If you selected a people/business category (e.g., "Customer Support", "Sales", "HR Admin") for (a) an automated system alert, (b) a calendar invite / meeting request, or (c) a formal/administrative/personal notice unrelated to your product (e.g. a landlord's rent notice, a bank letter, a government form), STOP and reconsider. "Customer Support" means help requests from **your product's** customers — NOT any message that happens to sound administrative. Use "Other" + protoCategorySuggestion instead.
 - **CRITICAL EXCEPTION**: This "Sanity check" rule does NOT apply if a specific, dedicated category for these items (e.g., "📦 Shipping & Delivery" or "📅 Calendar & Meetings") is already present in the "Available Categories" list. If a matching category is listed, USE IT instead of "Other".
 
 {% if showGithubRules %}
@@ -99,11 +99,19 @@ In `categoryExplanation`, always refer to categories by their exact quoted NAME 
 **Suggest a new category SPARINGLY — reusing an existing category is almost always better than inventing a new one.** Only include a protoCategorySuggestion when **no** category in the "Available Categories" list reasonably covers this email. Before suggesting one, re-scan the list: if any listed category is a reasonable home — even if it is broader, or slightly less specific than a name you could invent — pick that listed category instead (return its `categoryNumber`) and do NOT suggest a new one. Do NOT invent a new category just because you could name it more precisely than an existing one (e.g. don't create "Networking & Community Events" when "Meetings & Events with external people" already fits, or "Business Financing Outreach" when a cold-outreach/sales category exists). New suggestions are only for genuinely novel, repeatable types with no existing home.
 ---SYSTEM---
 
-Categorise the email below. Return format:
+Categorise the email below.
+
+When you pick a listed category (`categoryNumber` 1..N):
 ```json
 { "result": { "categoryNumber": 7, "categoryExplanation": "...", "categoryConfidence": "HIGH" } }
 ```
-Include `protoCategorySuggestion` ONLY when `categoryNumber` is `0` ("Other").
+
+When NOTHING listed fits and you return `categoryNumber` 0 ("Other"), you **MUST** also include `protoCategorySuggestion` — a `0` without it is an invalid response:
+```json
+{ "result": { "categoryNumber": 0, "categoryExplanation": "...", "categoryConfidence": "LOW",
+  "protoCategorySuggestion": { "name": "🖥️ Infrastructure Alerts", "description": "Automated system/monitoring alerts", "reasoning": "'Customer Support' and 'HR Admin' were the closest but this is an automated system alert, not a human request, so neither fits." } } }
+```
+The `categoryNumber` you return MUST match the category you named in `categoryExplanation` — count down the numbered list carefully so the integer and the name agree.
 ---
 DYNAMIC CONTEXT:
 ---

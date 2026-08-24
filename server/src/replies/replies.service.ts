@@ -24,6 +24,7 @@ import { WritingStyleLearningService } from "../context/writing-style-learning.s
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ContextKey } from "../database/entities/user-context.entity";
+import { appendSignature } from "../emails/email-controller.helpers";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailThreadService } from "../emails/email-thread.service";
 import { EmailsService } from "../emails/emails.service";
@@ -333,17 +334,6 @@ ${closing}`;
     return this.createReplyRule(userId, rule);
   }
 
-  /**
-   * Appends email signature to the body if user has one configured
-   */
-  private appendSignature(body: string, signature: string | null): string {
-    const effectiveSignature =
-      signature ?? "Sent from BearlyMail (anti inbox overwhelm system)";
-
-    // Append signature with proper spacing (two line breaks before signature)
-    return `${body}\n\n${effectiveSignature}`;
-  }
-
   private async fetchForwardAttachments(
     provider: Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>,
     userId: string,
@@ -626,13 +616,15 @@ ${closing}`;
       ? this.buildForwardBody(body, email)
       : this.buildReplyQuotedHtmlBody(body, email);
 
-    const bodyWithSignature = this.appendSignature(
+    const bodyWithSignature = appendSignature(
       bodyForSending,
       user.emailSignature,
+      false,
     );
-    const htmlBodyWithSignature = this.appendSignature(
+    const htmlBodyWithSignature = appendSignature(
       htmlBodyForSending,
       user.emailSignature,
+      true,
     );
 
     const replySubject =

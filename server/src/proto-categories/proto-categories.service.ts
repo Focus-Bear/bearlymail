@@ -73,9 +73,12 @@ const DEDUP_RESPONSE_SCHEMA: Record<string, unknown> = {
   propertyOrdering: ["duplicateNumber", "reasoning"],
 };
 
-// Headroom for the strong dedup model's JSON verdict. Larger than the lite
-// path's 128 because thinking models emit a little more before the JSON.
-const DEDUP_MAX_TOKENS = 512;
+// Headroom for the strong dedup model's response. Generous because the thinking
+// pass reasons over the FULL category list before emitting the JSON verdict;
+// 512 was too small (thinking exhausted it before the JSON, so ~40% of calls
+// returned no parseable verdict and failed open). The no-thinking retry needs
+// far less, but shares this budget.
+const DEDUP_MAX_TOKENS = 4096;
 
 @Injectable()
 export class ProtoCategoriesService {
@@ -553,48 +556,65 @@ export class ProtoCategoriesService {
       categoryList,
     });
 
-    let response: string;
-    try {
-      response = await this.llmCoreService.generateText(
-        {
-          prompt,
-          systemPrompt: promptConfig.systemPrompt || "",
-          temperature: 0,
-          maxTokens: DEDUP_MAX_TOKENS,
-          jsonMode: true,
-          // Structured output guarantees a parseable {duplicateNumber, reasoning}
-          // even with a thinking model, so the verdict never fails open on a
-          // chain-of-thought leak (see LLMRequest.responseSchema).
-          responseSchema: DEDUP_RESPONSE_SCHEMA,
-          operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
-          model: this.strongDedupModel,
-          thinking: true,
-        },
-        LLMProvider.GEMINI,
-        userId,
-      );
-    } catch (err) {
+    const runDedup = async (useThinking: boolean): Promise<string | null> => {
+      try {
+        return await this.llmCoreService.generateText(
+          {
+            prompt,
+            systemPrompt: promptConfig.systemPrompt || "",
+            temperature: 0,
+            maxTokens: DEDUP_MAX_TOKENS,
+            jsonMode: true,
+            // Structured output should yield a parseable {duplicateNumber,
+            // reasoning} (see LLMRequest.responseSchema).
+            responseSchema: DEDUP_RESPONSE_SCHEMA,
+            operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
+            model: this.strongDedupModel,
+            thinking: useThinking,
+          },
+          LLMProvider.GEMINI,
+          userId,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[CHECK-CATEGORY-DUPLICATE] LLM call failed for "${suggestedName}"${
+            useThinking ? "" : " (no-thinking retry)"
+          }: ${err}`,
+        );
+        return null;
+      }
+    };
+
+    const extractJson = (text: string | null): string | null =>
+      text
+        ?.replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim()
+        .match(/\{[\s\S]*\}/)?.[0] ?? null;
+
+    // Primary pass uses the thinking model for the best judgement on paraphrase
+    // duplicates. But thinking can exhaust the token budget on the full category
+    // list before emitting the JSON body — which previously failed OPEN (no JSON
+    // → treated as "not a duplicate" → a near-duplicate proto created anyway,
+    // ~40% of dedup calls). Retry ONCE without thinking, which emits a compact,
+    // reliably-parseable verdict, so a token-budget overrun no longer silently
+    // spawns a duplicate proto.
+    let jsonText = extractJson(await runDedup(true));
+    if (!jsonText) {
       this.logger.warn(
-        `[CHECK-CATEGORY-DUPLICATE] LLM call failed for "${suggestedName}": ${err}`,
+        `[CHECK-CATEGORY-DUPLICATE] No JSON from thinking model for "${suggestedName}" — retrying without thinking`,
+      );
+      jsonText = extractJson(await runDedup(false));
+    }
+    if (!jsonText) {
+      this.logger.error(
+        `[CHECK-CATEGORY-DUPLICATE] No parseable verdict for "${suggestedName}" even after a no-thinking retry — treating as no match`,
       );
       return null;
     }
 
-    const jsonMatch = response
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim()
-      .match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      this.logger.warn(
-        `[CHECK-CATEGORY-DUPLICATE] No JSON in response for "${suggestedName}"`,
-      );
-      return null;
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = JSON.parse(jsonText) as {
       duplicateNumber?: number;
       reasoning?: string;
     };

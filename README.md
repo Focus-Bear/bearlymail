@@ -32,31 +32,37 @@ A non-distracting, highly efficient email client designed specifically for users
 
 ## Getting Started
 
+There are two ways to run BearlyMail:
+
+- **Quickest (no PostgreSQL or API keys needed):** run `npm run local`. It bundles its own database, creates a login for you, and starts everything — great for trying the app out. See [Running fully locally](#running-fully-locally-on-a-mac-apple-mail--claude-code).
+- **Full setup (your own database and email/LLM providers):** follow the step-by-step guide below.
+
 ### Prerequisites
 
-- Node.js 18+ and npm 9+
-- PostgreSQL 12+
-- Google Cloud Platform account (for Calendar API)
-- Google AI API key (for Gemini) or OpenAI API key (for GPT)
+- **Node.js 22+** and **npm 9+**
+- **PostgreSQL 12+** (or skip this and use the one-command local mode above)
+- Credentials for at least one email provider — **Google (Gmail)**, Microsoft, or Zoho (set up in Step 3). macOS users can use Apple Mail instead.
+- An **LLM API key** — Google Gemini or OpenAI — for the AI features (optional if you use the local Claude Code CLI mode)
 
-### Installation
-
-1. Clone the repository:
+### Step 1 — Clone the repo and install dependencies
 
 ```bash
 git clone <repository-url>
-cd email-client
-```
-
-2. Install dependencies:
-
-```bash
+cd bearlymail
 npm run install-all
 ```
 
-3. Set up environment variables:
+### Step 2 — Create the database
 
-**Backend** (`server/.env`):
+```bash
+createdb adhd_email_client
+```
+
+Or, if you use Docker, run `npm run db:up` to start PostgreSQL for you.
+
+### Step 3 — Configure the backend (`server/.env`)
+
+Create a file at `server/.env` and paste the following, replacing the placeholder values:
 
 ```env
 PORT=3001
@@ -102,7 +108,27 @@ ZOHO_CLIQ_API_KEY=your-cliq-api-key
 ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL=your-cliq-channel-name
 ```
 
-**Frontend** (`client/.env`):
+You must generate two secrets yourself:
+
+- **`ENCRYPTION_KEY`** — a random 32+ character string. Generate one with:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
+- **`JWT_SECRET`** — any long, random string of your choosing.
+
+> **Setting up Google (Gmail) sign-in.** Provide your own Google OAuth
+> credentials: in the [Google Cloud Console](https://console.cloud.google.com/)
+> create a project and an **OAuth 2.0 Client ID** (type: Web application), add an
+> authorized redirect URI for your deployment (locally
+> `http://localhost:3001/auth/google/callback`), and enable the **Gmail API**
+> (plus the **Google Calendar API** for meeting-scheduling replies). Then set
+> `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` in
+> `server/.env`. The same approach applies to Microsoft and Zoho if you connect
+> those providers. See **[SELF-HOSTING.md](SELF-HOSTING.md)** for the full walkthrough.
+
+### Step 4 — Configure the frontend (`client/.env`)
+
+Create a file at `client/.env`:
 
 ```env
 REACT_APP_API_URL=http://localhost:3001
@@ -115,22 +141,43 @@ REACT_APP_POSTHOG_API_HOST=https://us.i.posthog.com
 REACT_APP_REVENUECAT_API_KEY=your-revenuecat-public-api-key
 ```
 
-4. Set up PostgreSQL database:
+### Step 5 — Run the database migrations
+
+This creates all the database tables. Run it once before starting the app (and again whenever you pull changes that add new migrations):
 
 ```bash
-createdb adhd_email_client
+cd server && npm run migration:run
 ```
 
-5. Start the development servers:
+### Step 6 — Create your login account
+
+New sign-ups are waitlist-gated, so create your first account directly:
+
+```bash
+cd server && LOCAL_USER_PASSWORD=<choose-a-password> npm run seed:local-user
+```
+
+This creates a user you can log in with (email: `local@bearlymail.local`, password: the one you chose above).
+
+### Step 7 — Start the app
 
 ```bash
 npm run dev
 ```
 
-This will start:
+This starts the backend API on `http://localhost:3001` and the frontend on `http://localhost:3000`.
 
-- Backend API on `http://localhost:3001`
-- Frontend on `http://localhost:3000`
+Email sync, priority scoring, summaries, and reply drafting run in a background worker, which `npm run dev` does **not** start. Open a **second terminal** and run:
+
+```bash
+cd server && npm run worker
+```
+
+### Step 8 — Log in and connect your email
+
+1. Open `http://localhost:3000` and log in with the account from Step 6.
+2. Go to **Settings → Email accounts → Connect** and choose your provider (Gmail, Microsoft, or Zoho), then complete the sign-in. On macOS you can connect **Apple Mail** instead.
+3. Your inbox starts syncing within a few minutes.
 
 ## Running fully locally on a Mac (Apple Mail + Claude Code)
 
@@ -239,7 +286,7 @@ platform that provides those.
 ## Project Structure
 
 ```
-email-client/
+bearlymail/
 ├── server/                 # NestJS backend
 │   ├── src/
 │   │   ├── auth/          # Authentication module

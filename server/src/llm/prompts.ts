@@ -269,6 +269,53 @@ const PROMPT_FILE_MAP: Array<{
   },
 ];
 
+/**
+ * Reusable prompt fragments kept in ONE canonical file and inlined into every
+ * prompt that references `{{token}}`, so shared rules (e.g. the category
+ * selection ruleset used by both `analyze_priority` and `categorise_summary`)
+ * live in a single place. Inlining happens at load time for the app; promptfoo
+ * resolves the same token by passing the file via a `file://` var (neither the
+ * app's regex renderer nor promptfoo's Nunjucks supports `{% include %}`).
+ */
+const SHARED_PARTIAL_FILES: Record<string, string> = {
+  categorySelectionRules: "_shared/category-selection-rules.md",
+  // GitHub-specific rules are a SEPARATE partial so the consuming prompt can
+  // gate them with its own `{% if showGithubRules %}` sibling conditional
+  // (analyze_priority only sends them for GitHub senders, to save tokens).
+  // Keeping them a sibling — not nested inside another `{% if %}` — matters
+  // because the app's regex prompt renderer does not support nested conditionals.
+  categoryGithubRules: "_shared/category-github-rules.md",
+};
+
+const sharedPartialCache = new Map<string, string>();
+
+function loadSharedPartial(promptsDir: string, file: string): string {
+  const cached = sharedPartialCache.get(file);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const partialPath = path.join(promptsDir, file);
+  const text = fs.existsSync(partialPath)
+    ? fs.readFileSync(partialPath, "utf-8").trim()
+    : "";
+  if (!text) {
+    logWarn(`Shared prompt partial not found or empty: ${partialPath}`);
+  }
+  sharedPartialCache.set(file, text);
+  return text;
+}
+
+function injectSharedPartials(promptsDir: string, content: string): string {
+  let result = content;
+  for (const [token, file] of Object.entries(SHARED_PARTIAL_FILES)) {
+    const marker = `{{${token}}}`;
+    if (result.includes(marker)) {
+      result = result.split(marker).join(loadSharedPartial(promptsDir, file));
+    }
+  }
+  return result;
+}
+
 function loadPromptFile(
   promptsDir: string,
   file: string,
@@ -278,7 +325,10 @@ function loadPromptFile(
 ): void {
   const filePath = path.join(promptsDir, file);
   if (fs.existsSync(filePath)) {
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = injectSharedPartials(
+      promptsDir,
+      fs.readFileSync(filePath, "utf-8"),
+    );
     // Support optional ---SYSTEM--- delimiter to split static system instructions
     // from the dynamic user prompt (enables provider-side prompt caching).
     const SYSTEM_DELIMITER = "---SYSTEM---";

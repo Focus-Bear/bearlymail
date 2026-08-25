@@ -11,6 +11,11 @@ providers:
 prompts:
   - file://prompts/prioritise-email.md
 
+defaultTest:
+  vars:
+    categorySelectionRules: file://prompts/_shared/category-selection-rules.md
+    categoryGithubRules: file://prompts/_shared/category-github-rules.md
+
 tests:    
   - vars:
       from: "sarah.chen@acmecorp.com"

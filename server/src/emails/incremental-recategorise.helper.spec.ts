@@ -8,6 +8,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { LLMProvider } from "../llm/llm.types";
 import { categoriseFromSummary } from "../llm/llm-categorise-summary";
 import type { LLMCoreService } from "../llm/llm-core.service";
 import { persistLlmCategoryWithPrecedence } from "./category-column-updates.helper";
@@ -186,7 +187,7 @@ describe("recategoriseFromSummary", () => {
         maxTokens: 100,
         operation: "categorise_summary",
       },
-      undefined,
+      LLMProvider.BEDROCK,
       "user-1",
     );
 
@@ -198,6 +199,70 @@ describe("recategoriseFromSummary", () => {
         categoryId: "cat-2",
         finalCategory: "QA passed",
         resolvedCategoryExplanation: "Summary says it is verified",
+      }),
+    );
+  });
+
+  it("categorises with Nova (Bedrock) first, then escalates to flash-lite (Gemini) on a LOW/Other verdict", async () => {
+    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
+      match: null,
+      snapshot: undefined,
+    });
+    getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
+    (categoriseFromSummary as jest.Mock)
+      .mockResolvedValueOnce({
+        categoryNumber: 0,
+        categoryName: "Other",
+        categoryConfidence: "LOW",
+        reasoning: "Nova was unsure",
+      })
+      .mockResolvedValueOnce({
+        categoryNumber: 2,
+        categoryName: "QA passed",
+        categoryConfidence: "HIGH",
+        reasoning: "flash-lite verified",
+      });
+
+    await recategoriseFromSummary(deps(), args());
+
+    // Two passes: Nova primary, flash-lite escalation on the hard call.
+    expect(categoriseFromSummary).toHaveBeenCalledTimes(2);
+    const primaryCb = (categoriseFromSummary as jest.Mock).mock.calls[0][0];
+    const escalationCb = (categoriseFromSummary as jest.Mock).mock.calls[1][0];
+    mockLlmCoreService.generateText.mockResolvedValue("mock-response");
+    await primaryCb({
+      prompt: "p",
+      systemPrompt: "s",
+      temperature: 0.3,
+      maxTokens: 100,
+    });
+    await escalationCb({
+      prompt: "p",
+      systemPrompt: "s",
+      temperature: 0.3,
+      maxTokens: 100,
+    });
+    expect(mockLlmCoreService.generateText).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ operation: "categorise_summary" }),
+      LLMProvider.BEDROCK,
+      "user-1",
+    );
+    expect(mockLlmCoreService.generateText).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ operation: "categorise_summary" }),
+      LLMProvider.GEMINI,
+      "user-1",
+    );
+
+    // The escalated flash-lite verdict wins.
+    expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledWith(
+      mockEmailThreadRepository,
+      logger,
+      expect.objectContaining({
+        categoryId: "cat-2",
+        finalCategory: "QA passed",
+        resolvedCategoryExplanation: "flash-lite verified",
       }),
     );
   });

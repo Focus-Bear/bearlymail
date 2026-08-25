@@ -8,7 +8,12 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { categoriseFromSummary } from "../llm/llm-categorise-summary";
+import { LLMProvider } from "../llm/llm.types";
+import {
+  categoriseFromSummary,
+  type CategoriseFromSummaryParams,
+  type CategoriseFromSummaryResult,
+} from "../llm/llm-categorise-summary";
 import type { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_CATEGORISE_SUMMARY } from "../llm/llm-operations";
 import { parseCategoryName } from "../utils/category-name.util";
@@ -188,6 +193,53 @@ export async function recategoriseFromSummary(
   await recategoriseViaSummaryLlm(deps, args, emailThreadId, decidedAt);
 }
 
+/**
+ * Categorise off the thread summary with **Nova Micro (Bedrock)** as the primary
+ * model — ~14x cheaper than Gemini flash-lite and validated at parity on category
+ * SELECTION — then **escalate to flash-lite** only the calls Nova is weakest on:
+ * an "Other" verdict, LOW confidence, or an outright failure. Most threads match
+ * an existing category confidently and never escalate, so the common path stays
+ * cheap; the harder "does anything fit?" judgement gets the stronger model.
+ */
+async function categoriseSummaryWithEscalation(
+  deps: RecategoriseFromSummaryDeps,
+  params: CategoriseFromSummaryParams,
+): Promise<CategoriseFromSummaryResult | null> {
+  const runWith = (provider: LLMProvider) =>
+    categoriseFromSummary(
+      (request) =>
+        deps.llmCoreService.generateText(
+          { ...request, operation: LLM_OP_CATEGORISE_SUMMARY },
+          provider,
+          params.userId,
+        ),
+      deps.logger,
+      params,
+    );
+
+  const primary = await runWith(LLMProvider.BEDROCK);
+  const needsEscalation =
+    !primary ||
+    primary.categoryName === OTHER_CATEGORY_NAME ||
+    primary.categoryConfidence === "LOW";
+  if (!needsEscalation) {
+    return primary;
+  }
+
+  const escalated = await runWith(LLMProvider.GEMINI);
+  if (!escalated) {
+    return primary;
+  }
+  deps.logger.log(
+    `[categorise-summary] escalated to flash-lite (nova: ${
+      primary
+        ? `${primary.categoryName}/${primary.categoryConfidence}`
+        : "failed"
+    }) → "${escalated.categoryName}"`,
+  );
+  return escalated;
+}
+
 async function recategoriseViaSummaryLlm(
   deps: RecategoriseFromSummaryDeps,
   args: RecategoriseFromSummaryArgs,
@@ -224,22 +276,13 @@ async function recategoriseViaSummaryLlm(
     return;
   }
 
-  const result = await categoriseFromSummary(
-    (request) =>
-      deps.llmCoreService.generateText(
-        { ...request, operation: LLM_OP_CATEGORISE_SUMMARY },
-        undefined,
-        userId,
-      ),
-    deps.logger,
-    {
-      subject: email.subject || "",
-      senderName: email.fromName,
-      summary,
-      categories,
-      userId,
-    },
-  );
+  const result = await categoriseSummaryWithEscalation(deps, {
+    subject: email.subject || "",
+    senderName: email.fromName,
+    summary,
+    categories,
+    userId,
+  });
 
   const resolvedCategoryId =
     result && result.categoryName !== OTHER_CATEGORY_NAME

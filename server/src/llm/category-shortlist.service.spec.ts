@@ -490,7 +490,12 @@ describe("CategoryShortlistService", () => {
         categoriesWithGitHub,
       );
 
-      expect(result.map((cat) => cat.name)).not.toContain("🐙 GitHub PRs");
+      // All categories are now returned (ranked best-first), so "not pinned"
+      // means GitHub PRs stays at its natural low rank for this non-platform
+      // email rather than being boosted into the top of the list.
+      const names = result.map((cat) => cat.name);
+      expect(names).toContain("🐙 GitHub PRs");
+      expect(names.indexOf("🐙 GitHub PRs")).toBeGreaterThanOrEqual(10);
     });
   });
 });

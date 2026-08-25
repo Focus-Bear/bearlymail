@@ -15,10 +15,23 @@ export {
   PLATFORM_PINNING,
 } from "../constants/platform-pinning.constants";
 
-/** Default number of categories to shortlist. */
-const DEFAULT_TOP_N = 10;
+/**
+ * Default cap on how many categories to send to the model. Infinite by design:
+ * we send ALL categories, ranked by embedding similarity (best match first),
+ * rather than truncating to a top-N. Truncation caused recall misses — an email
+ * that embedded closer to unrelated categories (e.g. a security-scanner digest
+ * ranking below GitHub categories) never had its true category shown to the
+ * model, so it invented a proto instead of matching (e.g. "🔒 Security &
+ * Compliance"). Ranking still helps the model; recall is no longer sacrificed.
+ * `topN` remains a caller-supplied optional cap.
+ */
+const DEFAULT_TOP_N = Number.POSITIVE_INFINITY;
 
-/** Minimum category count before shortlisting is worth running. */
+/**
+ * Minimum category count before the embedding rerank is worth running. Below
+ * this the list is short enough to send as-is (no embedding cost); above it we
+ * embed + rank all categories best-first.
+ */
 const SHORTLIST_THRESHOLD = 12;
 
 export type CategoryItem = {
@@ -260,6 +273,10 @@ export class CategoryShortlistService {
         (scoreFor(right) ?? Number.NEGATIVE_INFINITY) -
         (scoreFor(left) ?? Number.NEGATIVE_INFINITY);
 
+      // Rank ALL categories best-first and send them all (topN defaults to
+      // Infinity — see DEFAULT_TOP_N). The slice only bites when a caller passes
+      // an explicit cap; by default nothing is dropped, so the correct category
+      // is always in the list the model sees.
       const ranked = [...shortlistableCategories]
         .sort(byScoreDesc)
         .slice(0, topN);

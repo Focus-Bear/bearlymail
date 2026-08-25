@@ -532,6 +532,17 @@ describe('emailBodyUtils', () => {
       expect(stripHtmlTags('Merged #2104 into main.&mdash; Reply')).toBe('Merged #2104 into main.— Reply');
     });
 
+    it('strips <style>/<script> contents so email CSS never leaks into the preview text', () => {
+      const html =
+        '<style>#outlook a { padding:0; } body { margin:0;padding:0; }</style>' +
+        '<script>trackOpen();</script>' +
+        '<p>Real message body</p>';
+      const result = stripHtmlTags(html);
+      expect(result).toBe('Real message body');
+      expect(result).not.toContain('#outlook');
+      expect(result).not.toContain('padding');
+    });
+
     it('should strip paragraph tags and return text content', () => {
       expect(stripHtmlTags('<p>Hi Zac,</p>')).toBe('Hi Zac,');
     });

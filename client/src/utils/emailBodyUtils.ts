@@ -15,6 +15,20 @@ import {
 import { NODE_NAME_ANCHOR } from 'constants/strings';
 
 /**
+ * Return the visible text of a parsed HTML document. Removes non-visible
+ * elements (`<style>`, `<script>`, `<head>`, `<title>`, `<noscript>`) FIRST so
+ * their contents never leak into plain text — otherwise `body.textContent`
+ * returns e.g. an email's boilerplate `<style>` CSS (`#outlook a { padding:0 }
+ * …`) verbatim, which then surfaces as the message preview snippet.
+ */
+function domVisibleText(doc: Document): string {
+  doc
+    .querySelectorAll('style, script, head, title, noscript')
+    .forEach((el) => el.remove());
+  return doc.body.textContent || doc.body.innerText || '';
+}
+
+/**
  * Find the cutoff index for an HTML signature by scanning HTML structure, then text representation.
  * Returns content.length if no signature is found.
  */
@@ -77,7 +91,7 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
     // Also refine using plain text representation for additional patterns
     const cleanedContent = removeCidImagesFromString(content);
     const doc = new DOMParser().parseFromString(cleanedContent, 'text/html');
-    const text = doc.body.textContent || doc.body.innerText || '';
+    const text = domVisibleText(doc);
     const textSignaturePatterns = [
       /\n\n--\s*$/m,
       /\n\n-{3,}\s*$/m,
@@ -166,7 +180,7 @@ export function extractCleanHtmlBodyWithMeta(htmlBody: string): CleanHtmlResult 
 
   // Parse safely to prevent triggering network requests (e.g., tracking pixels from <img> tags)
   const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
-  const textContent = doc.body.textContent || doc.body.innerText || '';
+  const textContent = domVisibleText(doc);
 
   // Simple patterns that catch most email boundaries
   const boundaryPatterns = [
@@ -618,7 +632,7 @@ export function stripHtmlTags(html: string): string {
 
   // Parse safely to prevent triggering network requests (e.g., tracking pixels from <img> tags)
   const doc = new DOMParser().parseFromString(processed, 'text/html');
-  const text = doc.body.textContent || doc.body.innerText || '';
+  const text = domVisibleText(doc);
 
   // Clean up excessive whitespace while preserving single newlines
   return text.replace(/\n{3,}/g, '\n\n').trim();
@@ -638,11 +652,11 @@ export function extractCleanBodyWithMeta(emailBody: string, htmlBody?: string): 
   if (content.includes('<')) {
     const cleanedContent = removeCidImagesFromString(content);
     const doc = new DOMParser().parseFromString(cleanedContent, 'text/html');
-    content = doc.body.textContent || doc.body.innerText || '';
+    content = domVisibleText(doc);
   } else if (htmlBody && !emailBody) {
     const cleanedHtml = removeCidImagesFromString(htmlBody);
     const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
-    content = doc.body.textContent || doc.body.innerText || '';
+    content = domVisibleText(doc);
   }
 
   const boundaryPatterns = [

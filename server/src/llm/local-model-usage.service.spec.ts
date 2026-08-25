@@ -3,6 +3,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { LocalModelSupervision } from "../database/entities/local-model-supervision.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { LocalModelUsageService } from "./local-model-usage.service";
 
 /**
@@ -26,6 +27,7 @@ function makeRepo(resultSets: SourceRow[][]) {
 
 /** Minimal shape of a supervision row the accuracy aggregation reads. */
 type SupervisionRow = {
+  userId: string;
   categoryHash: string;
   category: string;
   sampleRatePercent: number;
@@ -36,7 +38,26 @@ type SupervisionRow = {
 };
 
 function makeSupervisionRepo(rows: SupervisionRow[]) {
-  return { find: jest.fn(() => Promise.resolve(rows)) };
+  // First call (counters) has no `where.userId`; the name-resolution call passes
+  // `where: { userId, categoryHash: In(...) }` so it only sees that owner's rows
+  // — mirroring how prod decrypts each name under its owner key.
+  return {
+    find: jest.fn((opts?: { where?: { userId?: string } }) => {
+      const userId = opts?.where?.userId;
+      return Promise.resolve(
+        userId ? rows.filter((row) => row.userId === userId) : rows,
+      );
+    }),
+  };
+}
+
+/** withUserKey just runs the task (KMS-disabled no-op semantics). */
+function makeUserEncryption() {
+  return {
+    withUserKey: jest.fn(<T>(_userId: string, task: () => Promise<T>) =>
+      task(),
+    ),
+  };
 }
 
 async function buildWith(
@@ -53,6 +74,7 @@ async function buildWith(
         provide: getRepositoryToken(LocalModelSupervision),
         useValue: supervisionRepo,
       },
+      { provide: UserEncryptionService, useValue: makeUserEncryption() },
     ],
   }).compile();
   return moduleRef.get(LocalModelUsageService);
@@ -199,6 +221,7 @@ describe("LocalModelUsageService.getCategoryAccuracy", () => {
       [],
       [
         {
+          userId: "user-a",
           categoryHash: "hash-news",
           category: "newsletters",
           sampleRatePercent: 25,
@@ -210,6 +233,7 @@ describe("LocalModelUsageService.getCategoryAccuracy", () => {
         {
           // Dominant row for the same hash (more lifetime samples) — its name
           // and rate win.
+          userId: "user-b",
           categoryHash: "hash-news",
           category: "Newsletters",
           sampleRatePercent: 10,
@@ -239,6 +263,7 @@ describe("LocalModelUsageService.getCategoryAccuracy", () => {
       [],
       [
         {
+          userId: "user-a",
           categoryHash: "hash-a",
           category: "Small",
           sampleRatePercent: 50,
@@ -248,6 +273,7 @@ describe("LocalModelUsageService.getCategoryAccuracy", () => {
           windowAgreements: 0,
         },
         {
+          userId: "user-a",
           categoryHash: "hash-b",
           category: "Big",
           sampleRatePercent: 10,
@@ -277,6 +303,7 @@ describe("LocalModelUsageService.getCategoryAccuracy", () => {
       [],
       [
         {
+          userId: "user-a",
           categoryHash: "hash-x",
           category: "Empty",
           sampleRatePercent: 50,

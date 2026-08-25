@@ -75,6 +75,15 @@ describe('PriorityTooltipCategory', () => {
     expect(screen.queryByTestId('edit-category-rule-btn')).not.toBeInTheDocument();
   });
 
+  it('renders a labelled, actionable category edit button', () => {
+    renderWithRouter(<PriorityTooltipCategory {...defaultProps} />);
+    const editBtn = screen.getByTestId('edit-category-btn');
+    expect(editBtn).toBeInTheDocument();
+    // Visible "Edit" label (mocked t returns the key) makes it discoverable.
+    expect(editBtn).toHaveTextContent('priority.categoryOverride.editButton');
+    expect(editBtn).toHaveAttribute('aria-label', 'priority.categoryOverride.buttonTitle');
+  });
+
   it('does not show edit rule button when categoryExplanation does not indicate a deterministic rule', () => {
     renderWithRouter(
       <PriorityTooltipCategory

@@ -3269,6 +3269,7 @@
       "reason": "Razón (opcional)",
       "reasonPlaceholder": "¿Por qué debería este correo estar en una categoría diferente?",
       "buttonTitle": "Cambiar categoría",
+      "editButton": "Editar",
       "submitError": "No se pudo actualizar la categoría. Por favor inténtalo de nuevo.",
       "loadingCategories": "Cargando categorías…",
       "filterPlaceholder": "Escribe para filtrar categorías...",

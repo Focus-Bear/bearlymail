@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { LocalModelSupervision } from "../database/entities/local-model-supervision.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 
 const DEFAULT_WINDOW_DAYS = 7;
 const MS_PER_DAY = 86_400_000;
@@ -63,6 +64,9 @@ export interface CategoryAccuracyReport {
  */
 interface CategoryAccumulator {
   category: string;
+  /** userId of the dominant (most-sampled) row — used to decrypt the display
+   *  name under the correct owner's key, never the requesting admin's. */
+  dominantUserId: string;
   sampleRatePercent: number;
   dominantLifetimeSamples: number;
   lifetimeSamples: number;
@@ -100,6 +104,7 @@ export class LocalModelUsageService {
     private readonly threadRepository: Repository<EmailThread>,
     @InjectRepository(LocalModelSupervision)
     private readonly supervisionRepository: Repository<LocalModelSupervision>,
+    private readonly userEncryption: UserEncryptionService,
   ) {}
 
   async getUsage(options: {
@@ -246,7 +251,23 @@ export class LocalModelUsageService {
    * based on the never-reset lifetime counters, not the noisy window ones.
    */
   async getCategoryAccuracy(): Promise<CategoryAccuracyReport> {
-    const rows = await this.supervisionRepository.find();
+    // Load counters WITHOUT the encrypted `category` column. This aggregate
+    // spans ALL users, but the request runs in the requesting admin's per-user
+    // key context — so decrypting another user's `category` here fails and
+    // fires the DecryptFailures alarm. The plaintext counters + deterministic
+    // `categoryHash` are all the aggregation needs; display names are resolved
+    // afterwards under each dominant row's OWNER key (see resolveCategoryNames).
+    const rows = await this.supervisionRepository.find({
+      select: {
+        userId: true,
+        categoryHash: true,
+        sampleRatePercent: true,
+        lifetimeSamples: true,
+        lifetimeAgreements: true,
+        windowSamples: true,
+        windowAgreements: true,
+      },
+    });
 
     const byHash = new Map<string, CategoryAccumulator>();
     let overallSamples = 0;
@@ -259,7 +280,8 @@ export class LocalModelUsageService {
       const existing = byHash.get(row.categoryHash);
       if (!existing) {
         byHash.set(row.categoryHash, {
-          category: row.category,
+          category: "",
+          dominantUserId: row.userId,
           sampleRatePercent: row.sampleRatePercent,
           dominantLifetimeSamples: row.lifetimeSamples,
           lifetimeSamples: row.lifetimeSamples,
@@ -278,10 +300,12 @@ export class LocalModelUsageService {
       // the representative supervision rate.
       if (row.lifetimeSamples > existing.dominantLifetimeSamples) {
         existing.dominantLifetimeSamples = row.lifetimeSamples;
-        existing.category = row.category;
+        existing.dominantUserId = row.userId;
         existing.sampleRatePercent = row.sampleRatePercent;
       }
     }
+
+    await this.resolveCategoryNames(byHash);
 
     const categories: CategoryAccuracy[] = Array.from(byHash.values())
       .map((acc) => ({
@@ -303,5 +327,37 @@ export class LocalModelUsageService {
       },
       categories,
     };
+  }
+
+  /**
+   * Fill in each hash's display `category` name by decrypting the dominant row
+   * under its OWNER's key (batched per user — most rows belong to one user, so
+   * this is ~1 key switch). Never decrypts a row under the requesting admin's
+   * key, which is what previously tripped the DecryptFailures alarm.
+   */
+  private async resolveCategoryNames(
+    byHash: Map<string, CategoryAccumulator>,
+  ): Promise<void> {
+    const hashesByUser = new Map<string, string[]>();
+    for (const [hash, acc] of byHash) {
+      const list = hashesByUser.get(acc.dominantUserId) ?? [];
+      list.push(hash);
+      hashesByUser.set(acc.dominantUserId, list);
+    }
+
+    for (const [userId, hashes] of hashesByUser) {
+      await this.userEncryption.withUserKey(userId, async () => {
+        const owned = await this.supervisionRepository.find({
+          where: { userId, categoryHash: In(hashes) },
+          select: { categoryHash: true, category: true },
+        });
+        for (const row of owned) {
+          const acc = byHash.get(row.categoryHash);
+          if (acc) {
+            acc.category = row.category ?? "";
+          }
+        }
+      });
+    }
   }
 }

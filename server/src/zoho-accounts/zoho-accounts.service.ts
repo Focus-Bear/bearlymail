@@ -79,9 +79,25 @@ export class ZohoAccountsService {
     return accounts;
   }
 
+  /**
+   * Returns the account Zoho operations (sync, send, archive…) should act on.
+   *
+   * Prefers the explicitly-flagged primary, but falls back to the oldest active
+   * account when none is flagged. Without this fallback an active-but-not-primary
+   * account (e.g. after the primary was deactivated, or a reconnect edge case)
+   * makes hasConnectedZoho/isConnected report "connected" while sync silently
+   * skips with a misleading "not connected" log and no error — emails never sync.
+   */
   async findPrimary(userId: string): Promise<ZohoAccount | null> {
-    return this.zohoAccountRepository.findOne({
+    const primary = await this.zohoAccountRepository.findOne({
       where: { userId, isPrimary: true, isActive: true },
+    });
+    if (primary) {
+      return primary;
+    }
+    return this.zohoAccountRepository.findOne({
+      where: { userId, isActive: true },
+      order: { createdAt: "ASC" },
     });
   }
 

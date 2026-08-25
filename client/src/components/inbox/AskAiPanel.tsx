@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { MAX_TEXTAREA_HEIGHT_PX } from 'constants/numbers';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 import { ASK_AI_ROLE_USER, AskAiMessage, AskAiToolActivity, useAskAi } from 'hooks/useAskAi';
 
@@ -234,8 +235,26 @@ interface AskAiInputProps {
 const AskAiInput: React.FC<AskAiInputProps> = ({ value, onChange, onSubmit, disabled }) => {
   const { t } = useTranslation();
   const canSend = value.trim().length > 0 && !disabled;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  // Grow the textarea with its content up to MAX_TEXTAREA_HEIGHT_PX, then scroll,
+  // so long questions stay fully visible instead of being clipped to one line.
+  const resize = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    const next = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT_PX);
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight > MAX_TEXTAREA_HEIGHT_PX ? 'auto' : 'hidden';
+  };
+
+  // Snap back to a single line after the value is cleared (e.g. on send).
+  useEffect(() => {
+    if (textareaRef.current) {
+      resize(textareaRef.current);
+    }
+  }, [value]);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter sends; Shift+Enter inserts a newline (now works in a textarea).
     if (event.key === KEY_ENTER && !event.shiftKey) {
       event.preventDefault();
       if (canSend) {
@@ -249,7 +268,7 @@ const AskAiInput: React.FC<AskAiInputProps> = ({ value, onChange, onSubmit, disa
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-end',
           gap: theme.spacing.sm,
           padding: theme.spacing.sm,
           borderRadius: theme.borderRadius.md,
@@ -257,10 +276,14 @@ const AskAiInput: React.FC<AskAiInputProps> = ({ value, onChange, onSubmit, disa
           backgroundColor: theme.colors.background.paper,
         }}
       >
-        <input
-          type="text"
+        <textarea
+          ref={textareaRef}
           value={value}
-          onChange={event => onChange(event.target.value)}
+          rows={1}
+          onChange={event => {
+            onChange(event.target.value);
+            resize(event.target);
+          }}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={t('inbox.askAi.inputPlaceholder')}
@@ -273,6 +296,10 @@ const AskAiInput: React.FC<AskAiInputProps> = ({ value, onChange, onSubmit, disa
             fontSize: theme.typography.fontSize.sm,
             color: theme.colors.text.primary,
             outline: STRING_NONE,
+            resize: 'none',
+            overflowY: 'hidden',
+            fontFamily: 'inherit',
+            lineHeight: theme.typography.lineHeight.normal,
           }}
         />
         <button

@@ -29,7 +29,7 @@
     "npm": ">=9.x"
   },
   "devDependencies": {
-    "concurrently": "^10.0.4",
+    "concurrently": "^10.0.5",
     "embedded-postgres": "^17.10.0-beta.17"
   },
   "dependencies": {

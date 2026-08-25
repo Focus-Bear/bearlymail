@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiEdit2, FiRefreshCw } from 'react-icons/fi';
 import { useHref } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { CategorizationSource } from 'types/email';
@@ -98,6 +98,27 @@ const sourceLinkStyle: React.CSSProperties = {
 };
 
 /**
+ * Category edit control. Rendered as a labelled, bordered button pushed to the
+ * far right of the category row so it's clearly discoverable as an actionable
+ * control (issue: the bare pencil icon was too subtle to notice).
+ */
+const editButtonStyle: React.CSSProperties = {
+  marginLeft: 'auto',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  padding: '3px 10px',
+  border: `1px solid ${theme.colors.primary.main}`,
+  borderRadius: theme.borderRadius.sm,
+  background: theme.colors.background.paper,
+  color: theme.colors.primary.main,
+  fontSize: theme.typography.fontSize.xs,
+  fontWeight: theme.typography.fontWeight.medium,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
+/**
  * Opens the matched-rule deep-link in a new tab so the user keeps their place
  * in the inbox (issue #2057). Shared by the ⚙️ button and the "Categorised by"
  * link.
@@ -139,9 +160,6 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
           {'⚙️'}
         </button>
       )}
-      <button onClick={onOpenOverride} style={iconButtonStyle} title={t('priority.categoryOverride.buttonTitle')}>
-        {'✏️'}
-      </button>
       {isAdmin && (
         <button
           onClick={onOpenDebug}
@@ -153,6 +171,17 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
           <FiRefreshCw size={14} aria-hidden />
         </button>
       )}
+      <button
+        onClick={onOpenOverride}
+        style={editButtonStyle}
+        title={t('priority.categoryOverride.buttonTitle')}
+        aria-label={t('priority.categoryOverride.buttonTitle')}
+        data-testid="edit-category-btn"
+        type="button"
+      >
+        <FiEdit2 size={12} aria-hidden />
+        {t('priority.categoryOverride.editButton')}
+      </button>
     </>
   );
 };

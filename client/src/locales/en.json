@@ -4708,6 +4708,7 @@
         "title": "Choose your plan",
         "viewPlans": "View plans",
         "pricePerMonth": "${{price}}/month",
+        "pricePerMonthFormatted": "{{price}}/month",
         "emailsPerCycle_one": "{{count}} AI-processed email per month",
         "emailsPerCycle_other": "{{count}} AI-processed emails per month",
         "choosePlan": "Choose plan",

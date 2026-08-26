@@ -77,7 +77,7 @@ function describePurchaseFailure(error: unknown): PurchaseFailureDetails {
   return { errorCode: 'UnknownError', message: String(error) };
 }
 
-async function getConfiguredPurchases(apiKey: string, appUserId: string): Promise<Purchases> {
+export async function getConfiguredPurchases(apiKey: string, appUserId: string): Promise<Purchases> {
   if (Purchases.isConfigured()) {
     const instance = Purchases.getSharedInstance();
     if (instance.getAppUserId() !== appUserId) {

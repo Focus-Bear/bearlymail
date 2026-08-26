@@ -69,18 +69,27 @@ vi.mock('react-i18next', () => ({
 }));
 
 const TIERS = [
-  { id: 'bearlymail_starter', monthlyPriceUsd: 10, emailsPerCycle: 3000 },
-  { id: 'bearlymail_growth', monthlyPriceUsd: 20, emailsPerCycle: 10000 },
-  { id: 'bearlymail_enterprise', monthlyPriceUsd: 50, emailsPerCycle: 30000 },
+  { id: 'bearlymail_starter', monthlyPriceUsd: 15, emailsPerCycle: 3000 },
+  { id: 'bearlymail_growth', monthlyPriceUsd: 25, emailsPerCycle: 10000 },
+  { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000 },
 ];
 
 const OFFERINGS = {
   all: {
     default: {
       availablePackages: [
-        { identifier: '$rc_monthly', webBillingProduct: { identifier: 'bearlymail_starter' } },
-        { identifier: 'growth_pkg', webBillingProduct: { identifier: 'bearlymail_growth' } },
-        { identifier: 'enterprise_pkg', webBillingProduct: { identifier: 'bearlymail_enterprise' } },
+        {
+          identifier: '$rc_monthly',
+          webBillingProduct: { identifier: 'bearlymail_starter', price: { formattedPrice: '$15.00' } },
+        },
+        {
+          identifier: 'growth_pkg',
+          webBillingProduct: { identifier: 'bearlymail_growth', price: { formattedPrice: '$25.00' } },
+        },
+        {
+          identifier: 'enterprise_pkg',
+          webBillingProduct: { identifier: 'bearlymail_enterprise', price: { formattedPrice: '$40.00' } },
+        },
       ],
     },
   },
@@ -141,6 +150,32 @@ describe('PlanPickerModal', () => {
     expect(screen.getByTestId('plan-tier-card-bearlymail_growth')).toBeInTheDocument();
     expect(screen.getByTestId('plan-tier-card-bearlymail_enterprise')).toBeInTheDocument();
     expect(screen.getAllByText('team.settings.planPicker.choosePlan')).toHaveLength(3);
+  });
+
+  it('renders live RevenueCat prices when the offering exposes them', async () => {
+    renderModal();
+
+    const starterPrice = await screen.findByTestId('plan-tier-price-bearlymail_starter');
+    // pricePerMonthFormatted uses the RC formattedPrice verbatim (it already includes the currency symbol).
+    expect(starterPrice).toHaveTextContent('team.settings.planPicker.pricePerMonthFormatted:{"price":"$15.00"}');
+    expect(screen.getByTestId('plan-tier-price-bearlymail_growth')).toHaveTextContent('"price":"$25.00"');
+    expect(screen.getByTestId('plan-tier-price-bearlymail_enterprise')).toHaveTextContent('"price":"$40.00"');
+  });
+
+  it('falls back to the server tier price when the offering has no price', async () => {
+    rcMocks.instance.getOfferings.mockResolvedValue({
+      all: {
+        default: {
+          availablePackages: [
+            { identifier: '$rc_monthly', webBillingProduct: { identifier: 'bearlymail_starter' } },
+          ],
+        },
+      },
+    });
+    renderModal();
+
+    const starterPrice = await screen.findByTestId('plan-tier-price-bearlymail_starter');
+    expect(starterPrice).toHaveTextContent('team.settings.planPicker.pricePerMonth:{"price":15}');
   });
 
   it('highlights the current plan and disables its button', async () => {

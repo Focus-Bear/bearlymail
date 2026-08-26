@@ -4711,6 +4711,7 @@
         "title": "Elige tu plan",
         "viewPlans": "Ver planes",
         "pricePerMonth": "{{price}} US$/mes",
+        "pricePerMonthFormatted": "{{price}}/mes",
         "emailsPerCycle_one": "{{count}} correo procesado con IA al mes",
         "emailsPerCycle_other": "{{count}} correos procesados con IA al mes",
         "choosePlan": "Elegir plan",

@@ -129,11 +129,11 @@ describe("SubscriptionsController", () => {
   describe("getTiers", () => {
     it("should return the volume tier list", () => {
       const mockTiers = [
-        { id: "bearlymail_starter", monthlyPriceUsd: 10, emailsPerCycle: 3000 },
-        { id: "bearlymail_growth", monthlyPriceUsd: 20, emailsPerCycle: 10000 },
+        { id: "bearlymail_starter", monthlyPriceUsd: 15, emailsPerCycle: 3000 },
+        { id: "bearlymail_growth", monthlyPriceUsd: 25, emailsPerCycle: 10000 },
         {
           id: "bearlymail_enterprise",
-          monthlyPriceUsd: 50,
+          monthlyPriceUsd: 40,
           emailsPerCycle: 30000,
         },
       ];

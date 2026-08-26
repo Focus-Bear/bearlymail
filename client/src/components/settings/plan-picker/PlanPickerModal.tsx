@@ -6,6 +6,7 @@ import { theme } from 'theme/theme';
 
 import { UPGRADE_MAILTO_HREF } from 'components/settings/plan-picker/planPicker.constants';
 import { PlanTierCard } from 'components/settings/plan-picker/PlanTierCard';
+import { usePlanPrices } from 'components/settings/plan-picker/usePlanPrices';
 import {
   PHASE_ACTIVATING,
   PHASE_PURCHASING,
@@ -151,6 +152,7 @@ export const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { data: tiers, isLoading, isError } = usePlanTiers(isOpen);
+  const { data: prices } = usePlanPrices(isOpen);
   const { phase, purchasingTierId, startPurchase } = usePlanPurchase();
 
   if (!isOpen) {
@@ -213,7 +215,13 @@ export const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
             {tiers && (
               <div style={cardsRowStyle}>
                 {tiers.map(tier => (
-                  <PlanTierCard key={tier.id} tier={tier} isCurrent={tier.id === currentTierId} action={renderAction(tier)} />
+                  <PlanTierCard
+                    key={tier.id}
+                    tier={tier}
+                    isCurrent={tier.id === currentTierId}
+                    action={renderAction(tier)}
+                    formattedPrice={prices?.[tier.id]}
+                  />
                 ))}
               </div>
             )}

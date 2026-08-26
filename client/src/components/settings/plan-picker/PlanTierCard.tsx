@@ -55,6 +55,9 @@ interface PlanTierCardProps {
   isCurrent: boolean;
   /** The tier's action area (Choose button, mailto link, or nothing for members). */
   action: React.ReactNode;
+  /** Live formatted price from the RevenueCat offering (e.g. "$15.00"); falls
+   *  back to the server tier price (`tier.monthlyPriceUsd`) when unavailable. */
+  formattedPrice?: string;
 }
 
 /**
@@ -62,7 +65,7 @@ interface PlanTierCardProps {
  * allowance, and a caller-supplied action. The org's current tier gets a
  * highlighted border and a "Current plan" badge.
  */
-export const PlanTierCard: React.FC<PlanTierCardProps> = ({ tier, isCurrent, action }) => {
+export const PlanTierCard: React.FC<PlanTierCardProps> = ({ tier, isCurrent, action, formattedPrice }) => {
   const { t } = useTranslation();
   const tierName = TIER_NAME_KEYS[tier.id] ? t(TIER_NAME_KEYS[tier.id]) : tier.id;
 
@@ -70,7 +73,11 @@ export const PlanTierCard: React.FC<PlanTierCardProps> = ({ tier, isCurrent, act
     <div style={isCurrent ? currentCardStyle : cardStyle} data-testid={`plan-tier-card-${tier.id}`}>
       {isCurrent && <span style={currentBadgeStyle}>{t('team.settings.planPicker.currentPlan')}</span>}
       <div style={tierNameStyle}>{tierName}</div>
-      <div style={priceStyle}>{t('team.settings.planPicker.pricePerMonth', { price: tier.monthlyPriceUsd })}</div>
+      <div style={priceStyle} data-testid={`plan-tier-price-${tier.id}`}>
+        {formattedPrice
+          ? t('team.settings.planPicker.pricePerMonthFormatted', { price: formattedPrice })
+          : t('team.settings.planPicker.pricePerMonth', { price: tier.monthlyPriceUsd })}
+      </div>
       <div style={allowanceStyle}>
         {t('team.settings.planPicker.emailsPerCycle', { count: tier.emailsPerCycle })}
       </div>

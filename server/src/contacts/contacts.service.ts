@@ -14,6 +14,7 @@ import { logError } from "../utils/logger";
 import { ContactCrmService } from "./contact-crm.service";
 import { RawContact } from "./interfaces/contact-provider.interface";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
+import { Office365ContactsProvider } from "./providers/office365-contacts.provider";
 import { SearchIndexHelper } from "./search-index.helper";
 
 /** Which role the contact plays in a given thread. */
@@ -82,6 +83,7 @@ export class ContactsService {
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     private gmailContactsProvider: GmailContactsProvider,
+    private office365ContactsProvider: Office365ContactsProvider,
     private contactCrmService: ContactCrmService,
   ) {}
 
@@ -111,7 +113,25 @@ export class ContactsService {
       }
     }
 
-    // Add other providers here (Outlook, etc.)
+    // Sync from Office 365 (Outlook) if connected
+    if (await this.office365ContactsProvider.isConnected(userId)) {
+      try {
+        const rawContacts =
+          await this.office365ContactsProvider.fetchAllContacts(userId);
+        const synced = await this.upsertContacts(
+          userId,
+          "office365",
+          rawContacts,
+        );
+        results.push({ synced, provider: "office365" });
+      } catch (error) {
+        logError(
+          "Office 365 contact sync failed",
+          error instanceof Error ? error : new Error(String(error)),
+        );
+        results.push({ synced: 0, provider: "office365" });
+      }
+    }
 
     return results;
   }
@@ -302,6 +322,29 @@ export class ContactsService {
     for (const raw of filteredGmailResults) {
       const key = raw.email.toLowerCase();
       if (!results.has(key)) {
+        results.set(key, {
+          id: raw.providerId,
+          email: raw.email,
+          name: raw.name,
+          firstName: raw.firstName,
+          lastName: raw.lastName,
+          company: raw.company,
+          jobTitle: raw.jobTitle,
+          photoUrl: raw.photoUrl,
+          isFavorite: false,
+          contactFrequency: 0,
+          isLocal: false,
+        });
+      }
+    }
+
+    // Add Office 365 (Outlook) results that aren't already present. Their id is
+    // a Graph contact id (not a UUID), so mark them isLocal: false too.
+    const office365Results =
+      await this.office365ContactsProvider.searchContacts(userId, query, 10);
+    for (const raw of office365Results) {
+      const key = raw.email.toLowerCase();
+      if (!results.has(key) && this.contactMatchesQuery(raw, query)) {
         results.set(key, {
           id: raw.providerId,
           email: raw.email,

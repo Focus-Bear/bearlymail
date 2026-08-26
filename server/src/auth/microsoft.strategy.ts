@@ -55,6 +55,7 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, "microsoft") {
         "https://graph.microsoft.com/Mail.Read",
         "https://graph.microsoft.com/Mail.Send",
         "https://graph.microsoft.com/Mail.ReadWrite",
+        "https://graph.microsoft.com/Contacts.Read",
       ],
     });
 

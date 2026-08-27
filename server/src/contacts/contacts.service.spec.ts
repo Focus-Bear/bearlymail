@@ -7,6 +7,7 @@ import { Email } from "../database/entities/email.entity";
 import { ContactCrmService } from "./contact-crm.service";
 import { ContactsService } from "./contacts.service";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
+import { Office365ContactsProvider } from "./providers/office365-contacts.provider";
 import { SearchIndexHelper } from "./search-index.helper";
 
 describe("ContactsService", () => {
@@ -48,6 +49,12 @@ describe("ContactsService", () => {
     searchContacts: jest.fn(),
   };
 
+  const mockOffice365ContactsProvider = {
+    isConnected: jest.fn().mockResolvedValue(false),
+    fetchAllContacts: jest.fn().mockResolvedValue([]),
+    searchContacts: jest.fn().mockResolvedValue([]),
+  };
+
   const mockContactCrmService = {
     getContactNotes: jest.fn().mockResolvedValue([]),
     getContactCustomFields: jest.fn().mockResolvedValue([]),
@@ -81,6 +88,10 @@ describe("ContactsService", () => {
         {
           provide: GmailContactsProvider,
           useValue: mockGmailContactsProvider,
+        },
+        {
+          provide: Office365ContactsProvider,
+          useValue: mockOffice365ContactsProvider,
         },
         {
           provide: ContactCrmService,

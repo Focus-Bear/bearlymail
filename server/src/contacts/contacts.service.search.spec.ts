@@ -7,6 +7,7 @@ import { Email } from "../database/entities/email.entity";
 import { ContactCrmService } from "./contact-crm.service";
 import { ContactsService } from "./contacts.service";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
+import { Office365ContactsProvider } from "./providers/office365-contacts.provider";
 
 /**
  * Regression tests for the #2030 contact-search ranking bug: a zero-frequency
@@ -55,6 +56,9 @@ describe("ContactsService.searchContacts ranking (#2030)", () => {
       createQueryBuilder: jest.fn().mockReturnValue(qb),
     };
     gmailContactsProvider = { searchContacts: jest.fn().mockResolvedValue([]) };
+    const office365ContactsProvider = {
+      searchContacts: jest.fn().mockResolvedValue([]),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -62,6 +66,10 @@ describe("ContactsService.searchContacts ranking (#2030)", () => {
         { provide: getRepositoryToken(Contact), useValue: contactRepository },
         { provide: getRepositoryToken(Email), useValue: {} },
         { provide: GmailContactsProvider, useValue: gmailContactsProvider },
+        {
+          provide: Office365ContactsProvider,
+          useValue: office365ContactsProvider,
+        },
         { provide: ContactCrmService, useValue: {} },
       ],
     }).compile();

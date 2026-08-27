@@ -378,7 +378,7 @@ const PrivacyCard: React.FC<{ t: (key: string) => string }> = ({ t }) => (
       <h4 style={privacyTitleStyle}>{t('setupWizard.learning.privacyTitle')}</h4>
       <p style={privacyBodyStyle}>
         {t('setupWizard.learning.privacyBodyPart1')} <b>{t('setupWizard.learning.privacyOpenAi')}</b>{' '}
-        {t('setupWizard.learning.privacyAnd')} <b>{t('setupWizard.learning.privacyGemini')}</b>
+        {t('setupWizard.learning.privacyAnd')} <b>{t('setupWizard.learning.privacyGemini')}</b>{' '}
         {t('setupWizard.learning.privacyBodyPart2')}{' '}
         <a href="/settings" style={privacyLinkStyle}>
           {t('setupWizard.learning.privacyExport')}

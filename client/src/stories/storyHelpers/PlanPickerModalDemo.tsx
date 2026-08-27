@@ -3,8 +3,7 @@
  *
  * PlanPickerModal uses:
  *  - usePlanTiers (React Query — seeded via QueryClient cache)
- *  - usePlanPurchase → useAuth (AuthContext) + useNotifications (NotificationProvider)
- *  - getRevenueCatApiKey (Storybook mock reading a runtime global — toggled per scenario, see below)
+ *  - usePlanPurchase → useNotifications (NotificationProvider)
  *  - useTranslation (needs I18nextProvider)
  */
 import React from 'react';
@@ -57,9 +56,9 @@ const demoAuth = {
 };
 
 const DEMO_TIERS = [
-  { id: 'bearlymail_starter', monthlyPriceUsd: 10, emailsPerCycle: 3000 },
-  { id: 'bearlymail_growth', monthlyPriceUsd: 20, emailsPerCycle: 10000 },
-  { id: 'bearlymail_enterprise', monthlyPriceUsd: 50, emailsPerCycle: 30000 },
+  { id: 'bearlymail_starter', monthlyPriceUsd: 15, emailsPerCycle: 3000 },
+  { id: 'bearlymail_growth', monthlyPriceUsd: 25, emailsPerCycle: 10000 },
+  { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000 },
 ];
 
 export type PlanPickerScenario = 'default' | 'currentPlan' | 'member' | 'fallback';
@@ -91,14 +90,8 @@ export const PlanPickerModalDemo: React.FC<{ scenario: PlanPickerScenario }> = (
   });
   queryClient.setQueryData(['subscriptions', 'tiers'], DEMO_TIERS);
 
-  // In Storybook, config/revenuecat is aliased to revenuecat.storybook.ts
-  // (see .storybook/main.ts), which reads this runtime global — the real
-  // module's import.meta.env read is inlined at build time and can't be
-  // toggled per story. Clicking "Choose plan" will still fail fast in
-  // Storybook (no API backend) — that is expected.
-  (globalThis as Record<string, unknown>).__STORYBOOK_REVENUECAT_KEY__ =
-    scenario === 'fallback' ? undefined : 'rcb_storybook_demo_key';
-
+  // Clicking "Choose plan" calls the checkout API, which fails fast in
+  // Storybook (no backend) — that is expected; the stories showcase layout.
   return (
     <I18nextProvider i18n={pickerI18n}>
       <NotificationProvider>
@@ -108,7 +101,7 @@ export const PlanPickerModalDemo: React.FC<{ scenario: PlanPickerScenario }> = (
               isOpen
               onClose={() => {}}
               volumeUsage={buildVolumeUsage(scenario)}
-              canPurchase={scenario !== 'member'}
+              canPurchase={scenario === 'default' || scenario === 'currentPlan'}
               showMemberNote={scenario === 'member'}
             />
           </QueryClientProvider>

@@ -6,16 +6,10 @@ import { theme } from 'theme/theme';
 
 import { UPGRADE_MAILTO_HREF } from 'components/settings/plan-picker/planPicker.constants';
 import { PlanTierCard } from 'components/settings/plan-picker/PlanTierCard';
-import { usePlanPrices } from 'components/settings/plan-picker/usePlanPrices';
 import {
-  PHASE_ACTIVATING,
-  PHASE_PURCHASING,
-  PHASE_SUCCESS,
-  PHASE_TIMEOUT,
-  PurchasePhase,
+  PHASE_REDIRECTING,
   usePlanPurchase,
 } from 'components/settings/plan-picker/usePlanPurchase';
-import { getRevenueCatApiKey } from 'config/revenuecat';
 import { OPACITY_HALF, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 
 const PLAN_STATUS_ACTIVE = 'active';
@@ -101,32 +95,6 @@ const mailtoLinkStyle: React.CSSProperties = {
   textDecoration: 'none',
 };
 
-const statusTextStyle: React.CSSProperties = {
-  fontSize: '15px',
-  color: theme.colors.text.primary,
-  margin: '24px 0',
-  textAlign: 'center',
-};
-
-/** Full-body status shown instead of the tier cards after checkout completes. */
-const PurchaseStatus: React.FC<{ phase: PurchasePhase }> = ({ phase }) => {
-  const { t } = useTranslation();
-  const messageKeys: Partial<Record<PurchasePhase, string>> = {
-    activating: 'team.settings.planPicker.activating',
-    success: 'team.settings.planPicker.activated',
-    timeout: 'team.settings.planPicker.activationDelayed',
-  };
-  const key = messageKeys[phase];
-  if (!key) {
-    return null;
-  }
-  return (
-    <p style={statusTextStyle} data-testid={`plan-purchase-status-${phase}`}>
-      {t(key)}
-    </p>
-  );
-};
-
 interface PlanPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -138,10 +106,10 @@ interface PlanPickerModalProps {
 }
 
 /**
- * Modal listing the purchasable volume tiers. Owners/admins with a configured
- * RevenueCat Web Billing key get an in-app checkout; without a key (or without
- * an org to bill) the action falls back to a contact-us mailto; plain members
- * see the tiers read-only with an "ask your org owner" note.
+ * Modal listing the purchasable volume tiers. Owners/admins get a "Choose plan"
+ * button that opens Stripe Hosted Checkout; users without an org to bill fall
+ * back to a contact-us mailto; plain members see the tiers read-only with an
+ * "ask your org owner" note.
  */
 export const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
   isOpen,
@@ -152,16 +120,14 @@ export const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { data: tiers, isLoading, isError } = usePlanTiers(isOpen);
-  const { data: prices } = usePlanPrices(isOpen);
   const { phase, purchasingTierId, startPurchase } = usePlanPurchase();
 
   if (!isOpen) {
     return null;
   }
 
-  const inAppCheckout = canPurchase && getRevenueCatApiKey() !== null;
+  const inAppCheckout = canPurchase;
   const currentTierId = volumeUsage?.planStatus === PLAN_STATUS_ACTIVE ? volumeUsage.tier : undefined;
-  const showStatusOnly = phase === PHASE_ACTIVATING || phase === PHASE_SUCCESS || phase === PHASE_TIMEOUT;
 
   const renderAction = (tier: PlanTier): React.ReactNode => {
     if (showMemberNote) {
@@ -181,7 +147,7 @@ export const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
         </button>
       );
     }
-    const isBusy = phase === PHASE_PURCHASING;
+    const isBusy = phase === PHASE_REDIRECTING;
     return (
       <button
         style={{ ...actionButtonStyle, opacity: isBusy ? DISABLED_OPACITY : 1 }}
@@ -206,29 +172,22 @@ export const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
           </button>
         </div>
 
-        {showStatusOnly ? (
-          <PurchaseStatus phase={phase} />
-        ) : (
-          <>
-            {isLoading && <p style={noteStyle}>{t('common.loading')}</p>}
-            {isError && <p style={noteStyle}>{t('team.settings.planPicker.loadError')}</p>}
-            {tiers && (
-              <div style={cardsRowStyle}>
-                {tiers.map(tier => (
-                  <PlanTierCard
-                    key={tier.id}
-                    tier={tier}
-                    isCurrent={tier.id === currentTierId}
-                    action={renderAction(tier)}
-                    formattedPrice={prices?.[tier.id]}
-                  />
-                ))}
-              </div>
-            )}
-            {showMemberNote && <p style={noteStyle}>{t('team.settings.planPicker.memberNote')}</p>}
-            {!showMemberNote && !inAppCheckout && <p style={noteStyle}>{t('team.settings.planPicker.contactNote')}</p>}
-          </>
+        {isLoading && <p style={noteStyle}>{t('common.loading')}</p>}
+        {isError && <p style={noteStyle}>{t('team.settings.planPicker.loadError')}</p>}
+        {tiers && (
+          <div style={cardsRowStyle}>
+            {tiers.map(tier => (
+              <PlanTierCard
+                key={tier.id}
+                tier={tier}
+                isCurrent={tier.id === currentTierId}
+                action={renderAction(tier)}
+              />
+            ))}
+          </div>
         )}
+        {showMemberNote && <p style={noteStyle}>{t('team.settings.planPicker.memberNote')}</p>}
+        {!showMemberNote && !inAppCheckout && <p style={noteStyle}>{t('team.settings.planPicker.contactNote')}</p>}
       </div>
     </div>
   );

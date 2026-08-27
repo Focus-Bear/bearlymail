@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AuditService } from "../audit/audit.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
+import { StripeService } from "./stripe.service";
 import { SubscriptionsController } from "./subscriptions.controller";
 import { SubscriptionsService } from "./subscriptions.service";
 
@@ -22,6 +23,14 @@ describe("SubscriptionsController", () => {
     adminGrantPlan: jest.fn(),
     adminRevokePlan: jest.fn(),
     adminResetUsage: jest.fn(),
+    createOrgCheckout: jest.fn(),
+    createOrgBillingPortal: jest.fn(),
+    handleStripeWebhook: jest.fn(),
+  };
+
+  const mockStripeService = {
+    isConfigured: jest.fn().mockReturnValue(true),
+    constructWebhookEvent: jest.fn(),
   };
 
   const mockUsersService = {
@@ -51,6 +60,10 @@ describe("SubscriptionsController", () => {
         {
           provide: AuditService,
           useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: StripeService,
+          useValue: mockStripeService,
         },
       ],
     }).compile();

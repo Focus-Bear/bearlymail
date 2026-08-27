@@ -59,7 +59,13 @@ async function bootstrap() {
       return;
     }
 
-    const app = await NestFactory.create(AppModule, { logger: LOG_LEVELS });
+    // `rawBody: true` buffers the unparsed request body (alongside the parsed
+    // JSON) so the Stripe webhook route can verify the `Stripe-Signature` HMAC,
+    // which is computed over the exact raw bytes.
+    const app = await NestFactory.create(AppModule, {
+      logger: LOG_LEVELS,
+      rawBody: true,
+    });
 
     // Security headers middleware (CASA Tier 2/3 compliance)
     app.use(securityHeadersMiddleware);

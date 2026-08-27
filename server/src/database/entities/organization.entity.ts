@@ -45,9 +45,23 @@ export class Organization {
   @Column({
     type: "varchar",
     nullable: true,
-    comment: "RevenueCat subscription ID for the org-level billing",
+    comment: "RevenueCat subscription ID for the org-level billing (legacy)",
   })
   revenueCatOrgSubscriptionId: string | null;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment: "Stripe customer ID for direct Web Billing (cus_...)",
+  })
+  stripeCustomerId: string | null;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment: "Stripe subscription ID for the org's active plan (sub_...)",
+  })
+  stripeSubscriptionId: string | null;
 
   @Column({
     type: "varchar",

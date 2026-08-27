@@ -2,13 +2,16 @@ import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import axios from "axios";
+import type Stripe from "stripe";
 import { Repository } from "typeorm";
 
+import { ORG_PLAN_STATUS } from "../constants/domain-statuses";
 import { Organization } from "../database/entities/organization.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { mockPartial } from "../test/helpers/mock-utils";
+import { StripeService } from "./stripe.service";
 import {
   EMAIL_VOLUME_WARNING_THRESHOLD_PERCENT,
   SubscriptionsService,
@@ -73,6 +76,7 @@ describe("SubscriptionsService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SubscriptionsService,
+        { provide: StripeService, useValue: { isConfigured: () => false } },
         {
           provide: getRepositoryToken(User),
           useValue: {
@@ -167,6 +171,7 @@ describe("SubscriptionsService", () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           SubscriptionsService,
+          { provide: StripeService, useValue: { isConfigured: () => false } },
           {
             provide: getRepositoryToken(User),
             useValue: {
@@ -218,6 +223,7 @@ describe("SubscriptionsService", () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           SubscriptionsService,
+          { provide: StripeService, useValue: { isConfigured: () => false } },
           {
             provide: getRepositoryToken(User),
             useValue: {
@@ -269,6 +275,7 @@ describe("SubscriptionsService", () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           SubscriptionsService,
+          { provide: StripeService, useValue: { isConfigured: () => false } },
           {
             provide: getRepositoryToken(User),
             useValue: { findOne: jest.fn(), update: jest.fn() },
@@ -1024,6 +1031,7 @@ describe("SubscriptionsService", () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           SubscriptionsService,
+          { provide: StripeService, useValue: { isConfigured: () => false } },
           { provide: getRepositoryToken(User), useValue: userRepository },
           {
             provide: getRepositoryToken(Organization),
@@ -1151,6 +1159,7 @@ describe("SubscriptionsService", () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           SubscriptionsService,
+          { provide: StripeService, useValue: { isConfigured: () => false } },
           {
             provide: getRepositoryToken(User),
             useValue: {
@@ -1864,5 +1873,131 @@ describe("SubscriptionsService", () => {
         service.adminResetUsage("admin-1", "user-1"),
       ).rejects.toThrow(/no organisation/);
     });
+  });
+});
+
+describe("SubscriptionsService — Stripe webhooks", () => {
+  let service: SubscriptionsService;
+  let orgRepo: { findOne: jest.Mock; save: jest.Mock };
+  let memberRepo: { find: jest.Mock };
+
+  const makeOrg = () => ({
+    id: "org-1",
+    ownerId: "owner-1",
+    maxSeats: 0,
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
+    volumeTierProductId: null,
+    emailsUsedThisCycle: 5,
+    emailVolumeLimit: 3000,
+    billingCycleStart: null,
+    planStatus: ORG_PLAN_STATUS.UNPAID,
+    trialEndsAt: null,
+  });
+
+  const evt = (type: string, object: unknown): Stripe.Event =>
+    ({ type, data: { object } }) as unknown as Stripe.Event;
+
+  beforeEach(async () => {
+    orgRepo = { findOne: jest.fn(), save: jest.fn(async (org) => org) };
+    memberRepo = { find: jest.fn().mockResolvedValue([]) };
+    const stripeMock = {
+      isConfigured: () => true,
+      tierForPriceId: (id: string) =>
+        id === "price_growth" ? "bearlymail_growth" : null,
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SubscriptionsService,
+        { provide: getRepositoryToken(User), useValue: { findOne: jest.fn() } },
+        { provide: getRepositoryToken(Organization), useValue: orgRepo },
+        {
+          provide: getRepositoryToken(OrganizationMember),
+          useValue: memberRepo,
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: OrganizationsService, useValue: {} },
+        { provide: StripeService, useValue: stripeMock },
+      ],
+    }).compile();
+    service = module.get(SubscriptionsService);
+  });
+
+  it("activates an org on checkout.session.completed", async () => {
+    orgRepo.findOne.mockResolvedValue(makeOrg());
+    await service.handleStripeWebhook(
+      evt("checkout.session.completed", {
+        client_reference_id: "org-1",
+        metadata: { orgId: "org-1", tierId: "bearlymail_growth" },
+        customer: "cus_1",
+        subscription: "sub_1",
+      }),
+    );
+    const saved = orgRepo.save.mock.calls[0][0];
+    expect(saved.planStatus).toBe(ORG_PLAN_STATUS.ACTIVE);
+    expect(saved.volumeTierProductId).toBe("bearlymail_growth");
+    expect(saved.emailVolumeLimit).toBe(VOLUME_TIERS.bearlymail_growth.limit);
+    expect(saved.stripeCustomerId).toBe("cus_1");
+    expect(saved.stripeSubscriptionId).toBe("sub_1");
+    expect(saved.billingCycleStart).toBeInstanceOf(Date);
+  });
+
+  it("deactivates an org to the free tier on subscription deletion", async () => {
+    orgRepo.findOne.mockImplementation(async ({ where }) =>
+      where.stripeSubscriptionId === "sub_1"
+        ? {
+            ...makeOrg(),
+            planStatus: ORG_PLAN_STATUS.ACTIVE,
+            volumeTierProductId: "bearlymail_growth",
+            emailVolumeLimit: 10000,
+            stripeSubscriptionId: "sub_1",
+          }
+        : null,
+    );
+    await service.handleStripeWebhook(
+      evt("customer.subscription.deleted", { id: "sub_1", customer: "cus_1" }),
+    );
+    const saved = orgRepo.save.mock.calls[0][0];
+    expect(saved.planStatus).toBe(ORG_PLAN_STATUS.EXPIRED);
+    expect(saved.emailVolumeLimit).toBe(FREE_TIER_EMAIL_LIMIT);
+    expect(saved.volumeTierProductId).toBeNull();
+    expect(saved.stripeSubscriptionId).toBeNull();
+  });
+
+  it("resets the usage cycle on a recurring renewal invoice", async () => {
+    orgRepo.findOne.mockResolvedValue({
+      ...makeOrg(),
+      emailsUsedThisCycle: 42,
+    });
+    await service.handleStripeWebhook(
+      evt("invoice.paid", {
+        billing_reason: "subscription_cycle",
+        customer: "cus_1",
+      }),
+    );
+    const saved = orgRepo.save.mock.calls[0][0];
+    expect(saved.emailsUsedThisCycle).toBe(0);
+    expect(saved.billingCycleStart).toBeInstanceOf(Date);
+  });
+
+  it("ignores a non-renewal invoice.paid", async () => {
+    await service.handleStripeWebhook(
+      evt("invoice.paid", {
+        billing_reason: "subscription_create",
+        customer: "cus_1",
+      }),
+    );
+    expect(orgRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("no-ops when no org matches the event", async () => {
+    orgRepo.findOne.mockResolvedValue(null);
+    await service.handleStripeWebhook(
+      evt("checkout.session.completed", {
+        client_reference_id: "missing",
+        metadata: { tierId: "bearlymail_growth" },
+      }),
+    );
+    expect(orgRepo.save).not.toHaveBeenCalled();
   });
 });

@@ -325,7 +325,13 @@ interface LearningHeaderProps {
 
 const LearningHeader: React.FC<LearningHeaderProps> = ({ canFinish, headerTitle, headerDetail, displayProgress }) => (
   <div style={learnHeadStyle}>
-    <div style={spinnerStyle(canFinish)} />
+    {canFinish ? (
+      <div style={completeBadgeStyle} data-testid="learning-complete" aria-hidden>
+        {'✓'}
+      </div>
+    ) : (
+      <div style={spinnerStyle} data-testid="learning-spinner" />
+    )}
     <div style={headerTextWrapStyle}>
       <div style={learnHeadTitleStyle}>{headerTitle}</div>
       <div style={learnHeadSubStyle}>{headerDetail}</div>
@@ -436,16 +442,30 @@ const learnHeadStyle: React.CSSProperties = {
   flexWrap: 'wrap',
 };
 
-const spinnerStyle = (done: boolean): React.CSSProperties => ({
+const spinnerStyle: React.CSSProperties = {
   width: '28px',
   height: '28px',
   borderRadius: '50%',
   border: `2.5px solid ${TOK.cream3}`,
-  borderTopColor: done ? TOK.green : TOK.sun,
+  borderTopColor: TOK.sun,
   animation: 'onboardingSpin 0.9s linear infinite',
   flexShrink: 0,
-  animationDuration: done ? '2.4s' : '0.9s',
-});
+};
+
+// Static "done" indicator shown once learning completes — no animation, so the
+// screen no longer looks like it is still processing.
+const completeBadgeStyle: React.CSSProperties = {
+  width: '28px',
+  height: '28px',
+  borderRadius: '50%',
+  background: TOK.green,
+  color: '#fff',
+  display: 'grid',
+  placeItems: 'center',
+  fontSize: '15px',
+  fontWeight: ACTIVE_WEIGHT,
+  flexShrink: 0,
+};
 
 const learnHeadTitleStyle: React.CSSProperties = {
   fontSize: '14px',

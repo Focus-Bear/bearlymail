@@ -378,15 +378,11 @@ const PrivacyCard: React.FC<{ t: (key: string) => string }> = ({ t }) => (
       <h4 style={privacyTitleStyle}>{t('setupWizard.learning.privacyTitle')}</h4>
       <p style={privacyBodyStyle}>
         {t('setupWizard.learning.privacyBodyPart1')} <b>{t('setupWizard.learning.privacyOpenAi')}</b>{' '}
-        {t('setupWizard.learning.privacyAnd')} <b>{t('setupWizard.learning.privacyGemini')}</b>
+        {t('setupWizard.learning.privacyAnd')} <b>{t('setupWizard.learning.privacyGemini')}</b>{' '}
         {t('setupWizard.learning.privacyBodyPart2')}{' '}
-        <a href="/settings" style={privacyLinkStyle}>
-          {t('setupWizard.learning.privacyExport')}
-        </a>{' '}
+        <b>{t('setupWizard.learning.privacyExport')}</b>{' '}
         {t('setupWizard.learning.privacyOr')}{' '}
-        <a href="/settings" style={privacyLinkStyle}>
-          {t('setupWizard.learning.privacyDelete')}
-        </a>{' '}
+        <b>{t('setupWizard.learning.privacyDelete')}</b>{' '}
         {t('setupWizard.learning.privacyBodyPart3')}
       </p>
     </div>
@@ -584,14 +580,6 @@ const privacyBodyStyle: React.CSSProperties = {
   fontSize: '12.5px',
   lineHeight: 1.55,
   color: TOK.ink3,
-};
-
-const privacyLinkStyle: React.CSSProperties = {
-  color: TOK.ink2,
-  fontWeight: ACTIVE_WEIGHT,
-  textDecoration: 'underline',
-  textDecorationColor: TOK.line2,
-  textUnderlineOffset: '2px',
 };
 
 const actionsRowStyle: React.CSSProperties = {

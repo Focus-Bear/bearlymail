@@ -1,7 +1,7 @@
 /**
  * Visual stories for the everyday priority/category popover, focused on the new
  * "Categorised by: …" line that tells the user WHICH process assigned the
- * category (AI priority model / deterministic rule / local model / suggested
+ * category (AI language model / deterministic rule / local model / suggested
  * category / manual override).
  *
  * Renders the real PriorityTooltipContent so the screenshot reflects the
@@ -38,7 +38,7 @@ tooltipI18n.use(initReactI18next).init({
         'priority.tooltip.editCategoryRule': 'Edit the rule that matched this category',
         'priority.tooltip.suggestedCategory': 'Suggested Category',
         'priority.tooltip.categorisedBy.label': 'Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>',
-        'priority.tooltip.categorisedBy.ai': 'AI priority model',
+        'priority.tooltip.categorisedBy.ai': 'AI language model',
         'priority.tooltip.categorisedBy.rule': 'Deterministic rule',
         'priority.tooltip.categorisedBy.local': 'Local model',
         'priority.tooltip.categorisedBy.proto': 'Suggested category (pending promotion)',
@@ -110,7 +110,7 @@ const Popover: React.FC<{
 );
 
 export const AiPriorityModel = {
-  name: 'Categorised by — AI priority model',
+  name: 'Categorised by — AI language model',
   render: () => (
     <Popover
       category="Customer Support"

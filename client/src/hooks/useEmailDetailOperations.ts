@@ -230,6 +230,9 @@ export function useEmailDetailOperations(
           {
             type: 'custom',
             customPrompt: rule.howToSummarize,
+            // Sent so the server can persist the selector value (custom-<ruleId>)
+            // and the detail view can re-select this rule on reload.
+            ruleId: rule.ruleId,
           },
           { signal: controller.signal }
         );

@@ -13,6 +13,7 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
 import { resolveLlmCategoryToDisplayName } from "../utils/category-key.util";
+import { resolveResponseCategory } from "../utils/category-number.util";
 import {
   CategoryItem,
   CategoryShortlistService,
@@ -27,6 +28,14 @@ import {
 import { getPrompt, PRIORITY_PROMPT_IDS, renderPrompt } from "./prompts";
 
 const DEFAULT_TRIAGE_MODEL = "gpt-5.4-nano";
+const DEFAULT_ANALYZE_PRIORITY_MODEL = "amazon.nova-micro-v1:0";
+const DEFAULT_CATEGORY_NAMES = [
+  "Newsletters",
+  "Sales",
+  "Partnerships",
+  "Customer Support",
+  "HR Admin",
+];
 
 type UserContextInput = {
   urgentItems?: Array<{ value: string; explanation?: string }>;
@@ -156,12 +165,10 @@ export class PriorityAnalysisService {
     const emailCategoriesText =
       userContext?.emailCategories && userContext.emailCategories.length > 0
         ? userContext.emailCategories
-            .map((cat) => {
-              const keyPart = cat.categoryKey
-                ? ` [id: ${cat.categoryKey}]`
-                : "";
-              return `   - "${cat.name}"${keyPart}${cat.description ? `: ${cat.description}` : ""}`;
-            })
+            .map(
+              (cat, index) =>
+                `   ${index + 1}. "${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
+            )
             .join("\n")
         : "";
     return {
@@ -239,6 +246,7 @@ export class PriorityAnalysisService {
     prompt: string;
     systemPrompt: string;
     shortlistedCategoryNames: string[] | null;
+    orderedCategoryNames: string[];
   }> {
     const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
     if (!promptConfig) {
@@ -277,6 +285,11 @@ export class PriorityAnalysisService {
         }
       : userContext;
 
+    const orderedCategoryNames =
+      effectiveCategories.length > 0
+        ? effectiveCategories.map((category) => category.name)
+        : DEFAULT_CATEGORY_NAMES;
+
     const contextTexts = this.buildUserContextTexts(effectiveUserContext);
 
     const threadInfoText = threadInfo
@@ -312,6 +325,7 @@ export class PriorityAnalysisService {
       prompt,
       systemPrompt: promptConfig.systemPrompt || "",
       shortlistedCategoryNames,
+      orderedCategoryNames,
     };
   }
 
@@ -343,9 +357,13 @@ export class PriorityAnalysisService {
     response: string,
     preComputedSentimentScore: number | undefined,
     emailSubject: string,
-    responsePreview: string,
     userId: string | undefined,
+    orderedCategoryNames: string[] = [],
   ): PriorityResult | null {
+    const responsePreview = response.substring(
+      0,
+      QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
+    );
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       this.logger.error(
@@ -366,7 +384,10 @@ export class PriorityAnalysisService {
       parsed.result && typeof parsed.result === "object"
         ? parsed.result
         : parsed;
-    const category = analysisResult.category || "Other";
+    const category = resolveResponseCategory(
+      analysisResult,
+      orderedCategoryNames,
+    );
 
     return {
       urgencyScore: Math.max(
@@ -468,14 +489,18 @@ export class PriorityAnalysisService {
       threadInfo,
       preComputedSentimentScore,
     } = options;
-    const { prompt, systemPrompt, shortlistedCategoryNames } =
-      await this.buildPriorityPrompt(
-        email,
-        userHistory,
-        userContext,
-        threadInfo,
-        userId,
-      );
+    const {
+      prompt,
+      systemPrompt,
+      shortlistedCategoryNames,
+      orderedCategoryNames,
+    } = await this.buildPriorityPrompt(
+      email,
+      userHistory,
+      userContext,
+      threadInfo,
+      userId,
+    );
 
     const response = await this.llmCoreService.generateText(
       {
@@ -486,8 +511,13 @@ export class PriorityAnalysisService {
         userId,
         operation: LLM_OP_ANALYZE_PRIORITY,
         jsonMode: true,
+        model:
+          provider === undefined || provider === LLMProvider.BEDROCK
+            ? this.configService.get<string>("ANALYZE_PRIORITY_MODEL") ||
+              DEFAULT_ANALYZE_PRIORITY_MODEL
+            : undefined,
       },
-      provider,
+      provider || LLMProvider.BEDROCK,
       userId,
     );
 
@@ -501,8 +531,8 @@ export class PriorityAnalysisService {
         response,
         preComputedSentimentScore,
         email.subject,
-        responsePreview,
         userId,
+        orderedCategoryNames,
       );
       if (parsed) {
         return {

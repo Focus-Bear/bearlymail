@@ -8,6 +8,10 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Anthropic from "@anthropic-ai/sdk";
+import {
+  BedrockRuntimeClient,
+  ConverseCommand,
+} from "@aws-sdk/client-bedrock-runtime";
 import { GenerationConfig, GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 
@@ -29,6 +33,9 @@ import { TokenUsageService } from "./token-usage.service";
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_TOO_MANY_REQUESTS = 429;
+const DEFAULT_BEDROCK_REGION = "ap-southeast-2";
+const DEFAULT_BEDROCK_MODEL = "amazon.nova-micro-v1:0";
+const BEDROCK_MAX_OUTPUT_TOKENS = 5000;
 
 /**
  * Gemini returns 429 for two different conditions: a real per-minute quota
@@ -86,6 +93,7 @@ export class LLMCoreService {
   private geminiClient: GoogleGenerativeAI | null = null;
   private openaiClient: OpenAI | null = null;
   private anthropicClient: Anthropic | null = null;
+  private bedrockClient: BedrockRuntimeClient | null = null;
   private defaultProvider: LLMProvider;
   /**
    * Epoch ms after which Gemini calls are allowed again. 0 = circuit closed.
@@ -146,6 +154,15 @@ export class LLMCoreService {
         "ANTHROPIC_API_KEY not set — Anthropic will use user keys only",
       );
     }
+
+    // Credentials are resolved through the normal AWS credential chain (the
+    // ECS task role in production and the developer profile locally).
+    this.bedrockClient = new BedrockRuntimeClient({
+      region:
+        this.configService.get<string>("BEDROCK_REGION") ||
+        DEFAULT_BEDROCK_REGION,
+    });
+    this.logger.log("Bedrock client initialized");
   }
 
   async generateText(
@@ -164,6 +181,8 @@ export class LLMCoreService {
           return await this.generateWithOpenAI(request, effectiveUserId);
         case LLMProvider.ANTHROPIC:
           return await this.generateWithAnthropic(request, effectiveUserId);
+        case LLMProvider.BEDROCK:
+          return await this.generateWithBedrock(request, effectiveUserId);
         default:
           throw new Error(`Unsupported LLM provider: ${selectedProvider}`);
       }
@@ -189,9 +208,67 @@ export class LLMCoreService {
       } else if (selectedProvider === LLMProvider.OPENAI) {
         this.logger.log(`OpenAI failed, falling back to Gemini`);
         return await this.generateWithGemini(fallbackRequest, effectiveUserId);
+      } else if (selectedProvider === LLMProvider.BEDROCK) {
+        this.logger.log(`Bedrock failed, falling back to Gemini`);
+        return await this.generateWithGemini(fallbackRequest, effectiveUserId);
       }
       throw error;
     }
+  }
+
+  private async generateWithBedrock(
+    request: LLMRequest,
+    userId?: string,
+  ): Promise<string> {
+    if (!this.bedrockClient) {
+      throw new Error("Bedrock client not initialized");
+    }
+    const modelId =
+      request.model ||
+      this.configService.get<string>("BEDROCK_MODEL") ||
+      DEFAULT_BEDROCK_MODEL;
+    this.logger.log(`Generating text using Bedrock model: ${modelId}`);
+
+    return this.retryOperation(async () => {
+      const startTime = Date.now();
+      const response = await this.bedrockClient!.send(
+        new ConverseCommand({
+          modelId,
+          messages: [{ role: "user", content: [{ text: request.prompt }] }],
+          ...(request.systemPrompt
+            ? { system: [{ text: request.systemPrompt }] }
+            : {}),
+          inferenceConfig: {
+            temperature: request.temperature ?? RATIOS.SEVENTY_PERCENT,
+            maxTokens: Math.min(
+              request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+              BEDROCK_MAX_OUTPUT_TOKENS,
+            ),
+          },
+        }),
+      );
+      const durationMs = Date.now() - startTime;
+      if (response.usage) {
+        await this.tokenUsageService.logUsage({
+          userId: userId || null,
+          operation: request.operation || LLM_OP_UNKNOWN,
+          provider: LLMProvider.BEDROCK,
+          model: modelId,
+          promptTokens: response.usage.inputTokens || 0,
+          completionTokens: response.usage.outputTokens || 0,
+          totalTokens: response.usage.totalTokens || 0,
+          durationMs,
+          promptText: request.prompt,
+          systemPromptText: request.systemPrompt,
+          emailIds: request.metadata?.emailIds,
+        });
+      }
+      return (
+        response.output?.message?.content
+          ?.map((block) => ("text" in block ? block.text : ""))
+          .join("") || ""
+      );
+    });
   }
 
   private async retryOperation<T>(

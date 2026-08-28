@@ -1,17 +1,14 @@
 description: "Email prioritization prompts for BearlyMail"
 
-
 providers:
-
   - id: google:gemini-3.1-flash-lite
     config:
       temperature: 0
- 
 
 prompts:
   - file://prompts/prioritise-email.md
 
-tests:    
+tests:
   - vars:
       from: "sarah.chen@acmecorp.com"
       fromName: "Sarah Chen"
@@ -35,7 +32,7 @@ tests:
         config:
           maxScore: 49
           expectedIsUrgent: false
-          expectedSentiment: ['positive', 'neutral']
+          expectedSentiment: ["positive", "neutral"]
 
   - vars:
       from: "support@clientcompany.com"
@@ -47,7 +44,7 @@ tests:
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
           minScore: 75
-          expectedSentiment: ['upset', 'negative']
+          expectedSentiment: ["upset", "negative"]
           minSentimentScore: -0.3
 
   - vars:
@@ -61,6 +58,43 @@ tests:
         config:
           maxScore: 40
           expectedIsUrgent: false
+
+  # Regression: production category lists include stable IDs. The model previously
+  # reasoned that a Dependabot PR belonged to GitHub bot updates but emitted the
+  # wrong category identifier, which resolved to Sales pipeline in the UI.
+  - description: "GitHub bot PR returns the stable GitHub category ID, not Sales or a list position"
+    vars:
+      from: "notifications@github.com"
+      fromName: "dependabot[bot]"
+      subject: "Re: [Focus-Bear/app] Bump axios from 1.7.2 to 1.7.9 (PR #4821)"
+      body: "dependabot[bot] opened this pull request to update axios. The dependency update has now been merged. Reply to this email directly or view it on GitHub."
+      emailCategories: |
+        1. "Sales pipeline": people who are interested in buying Focus Bear
+        2. "PRs from humans": Pull requests authored by human developers, not bots
+        3. "🤖 GitHub Bot PR Updates": Automated GitHub notifications from bots such as Dependabot about pull requests, commits, and merges
+        4. "🔒 Security & Compliance": Security alerts and compliance notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "🤖 GitHub Bot PR Updates"
+
+  - description: "Automated meeting record uses the existing recap category ID, not access requests or a duplicate proto"
+    vars:
+      from: "no-reply@zoom.us"
+      fromName: "Zoom"
+      subject: "Cloud recording is now available - Weekly project standup"
+      body: "The cloud recording, transcript, and meeting summary for Weekly project standup are now available. View the recording and generated meeting summary."
+      emailCategories: |
+        1. "📂 GitHub Project & Access Requests": Requests to grant repository, organisation, project-board, or document access
+        2. "📝 Meeting Summaries & Recaps": Automated recaps, standup notes, transcripts, recordings, and generated meeting summaries
+        3. "Sales pipeline": people who are interested in buying Focus Bear
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "📝 Meeting Summaries & Recaps"
+          expectProtoCategorySuggestion: false
 
   - vars:
       from: "david.kim@startup.io"
@@ -84,7 +118,7 @@ tests:
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
           minScore: 55
-          expectedSentiment: ['negative']
+          expectedSentiment: ["negative"]
           maxSentimentScore: -0.01
 
   # Categorization tests - Thread evolution (customer feedback -> QA passed)
@@ -102,15 +136,15 @@ tests:
         [Message 1 from John Customer on Jan 15, 2026]:
         Subject: Bug report - Login button not working
         Body: Hi, I'm having trouble with the login button on your website. It doesn't respond when I click it in Chrome. This is very frustrating!
-        
+
         ---
-        
+
         [Message 2 from Dev Team on Jan 16, 2026]:
         Subject: Re: Bug report - Login button not working
         Body: Thanks for reporting this. We've identified the issue and are working on a fix. Will update you once it's resolved.
-        
+
         ---
-        
+
         [Message 3 from Dev Team on Jan 17, 2026]:
         Subject: Re: Bug report - Login button not working
         Body: Fix has been implemented and deployed to staging. Sending to QA for verification.
@@ -248,7 +282,7 @@ tests:
   # PROTO CATEGORY TESTS
   # These tests validate the proto category suggestion feature
   # for emails that don't fit any existing category.
-  # 
+  #
   # We use keyword similarity for semantic validation which is:
   # - Faster than LLM-rubric (no API call needed)
   # - More deterministic (based on keyword matching with synonyms)
@@ -470,7 +504,11 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          excludedCategories: ["New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests", "QA failed issues"]
+          excludedCategories:
+            [
+              "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests",
+              "QA failed issues",
+            ]
           expectProtoCategorySuggestion: true
 
   # QA fail comment: should get "QA failed issues", NOT "New Github issues raised by QAs"
@@ -512,5 +550,11 @@ tests:
         config:
           # "proceed with testing" is a TESTING REQUEST (testing hasn't happened yet), NOT a QA result.
           # Must NOT be classified as QA passed or QA failed.
-          excludedCategories: ["qa_passed_issues_2", "QA passed issues", "✅ QA passed issues", "qa_failed_issues", "QA failed issues"]
-
+          excludedCategories:
+            [
+              "qa_passed_issues_2",
+              "QA passed issues",
+              "✅ QA passed issues",
+              "qa_failed_issues",
+              "QA failed issues",
+            ]

@@ -1,3 +1,25 @@
+function parseNumberedCategoryNames(emailCategories) {
+  const names = [];
+  if (!emailCategories) return names;
+  for (const line of String(emailCategories).split('\n')) {
+    const match = line.match(/^\s*(?:\d+\.|-)\s*(?:\[id:[^\]]*\]\s*)?"([^"]+)"/);
+    if (match) names.push(match[1]);
+  }
+  return names;
+}
+
+function resolveResponseCategory(parsed, orderedNames) {
+  if (parsed.categoryNumber !== undefined && parsed.categoryNumber !== null) {
+    const number = Number(parsed.categoryNumber);
+    if (number === 0) return 'Other';
+    if (Number.isInteger(number) && number >= 1 && number <= orderedNames.length) {
+      return orderedNames[number - 1];
+    }
+    return undefined;
+  }
+  return typeof parsed.category === 'string' ? parsed.category : undefined;
+}
+
 /**
  * Calculate keyword overlap similarity between two strings
  * Returns a score between 0 and 1
@@ -197,32 +219,37 @@ module.exports = (output, context) => {
       }
     }
     
+    const numberedCategoryNames = parseNumberedCategoryNames(
+      context.vars && context.vars.emailCategories,
+    );
+    const resolvedCategory = resolveResponseCategory(parsed, numberedCategoryNames);
+
     // Category validation
     if (context.config.expectedCategory !== undefined) {
-      if (!parsed.category || typeof parsed.category !== 'string') {
+      if (!resolvedCategory || typeof resolvedCategory !== 'string') {
         return { pass: false, score: 0, reason: `Expected category to be a string, but it's missing or invalid` };
       }
       const expectedCategories = Array.isArray(context.config.expectedCategory) 
         ? context.config.expectedCategory 
         : [context.config.expectedCategory];
-      if (!expectedCategories.includes(parsed.category)) {
-        return { pass: false, score: 0, reason: `Expected category to be one of [${expectedCategories.join(', ')}], got "${parsed.category}"` };
+      if (!expectedCategories.includes(resolvedCategory)) {
+        return { pass: false, score: 0, reason: `Expected category to be one of [${expectedCategories.join(', ')}], got "${resolvedCategory}"` };
       }
     }
     
     // Category exclusion validation (ensure category is NOT one of these)
     if (context.config.excludedCategories !== undefined) {
-      if (!parsed.category || typeof parsed.category !== 'string') {
+      if (!resolvedCategory || typeof resolvedCategory !== 'string') {
         return { pass: false, score: 0, reason: `Expected category to be a string, but it's missing or invalid` };
       }
       const excludedCategories = Array.isArray(context.config.excludedCategories) 
         ? context.config.excludedCategories 
         : [context.config.excludedCategories];
-      if (excludedCategories.includes(parsed.category)) {
+      if (excludedCategories.includes(resolvedCategory)) {
         return {
           pass: false,
           score: 0,
-          reason: `Category should NOT be one of [${excludedCategories.join(', ')}], but got "${parsed.category}"`
+          reason: `Category should NOT be one of [${excludedCategories.join(', ')}], but got "${resolvedCategory}"`
         };
       }
     }
@@ -240,8 +267,8 @@ module.exports = (output, context) => {
             if (match) listedCategories.push(match[1]);
           }
         }
-        const isListedCategory = listedCategories.includes(parsed.category);
-        const isOther = parsed.category === 'Other';
+        const isListedCategory = listedCategories.includes(resolvedCategory);
+        const isOther = resolvedCategory === 'Other' || resolvedCategory === undefined;
         if (isListedCategory) {
           return { pass: false, score: 0, reason: `Expected category to be "Other" or a new category, got listed category "${parsed.category}"` };
         }
@@ -297,7 +324,7 @@ module.exports = (output, context) => {
       // We normalize by removing emojis and comparing case-insensitively
       const normalizeCategory = (cat) => cat.replace(/[\p{Emoji}]/gu, '').trim().toLowerCase();
       const normalizedExpected = normalizeCategory(expectedProtoCategory);
-      const normalizedActual = normalizeCategory(parsed.category || '');
+      const normalizedActual = normalizeCategory(resolvedCategory || '');
       
       // Check for match (either exact or partial overlap of main words)
       const expectedWords = normalizedExpected.split(/\s+/).filter(w => w.length > 2);
@@ -319,7 +346,7 @@ module.exports = (output, context) => {
       // gpt-5.4-mini may assign a relevant custom category directly instead of "Other" + proto suggestion
       const nameToCheck = (parsed.protoCategorySuggestion && parsed.protoCategorySuggestion.name)
         ? parsed.protoCategorySuggestion.name
-        : parsed.category;
+        : resolvedCategory;
       
       if (!nameToCheck) {
         return {
@@ -346,4 +373,3 @@ module.exports = (output, context) => {
   
   return true;
 };
-

@@ -4,6 +4,8 @@ export enum LLMProvider {
   GEMINI = "gemini",
   OPENAI = "openai",
   ANTHROPIC = "anthropic",
+  /** AWS Bedrock, used for low-cost Amazon Nova inference. */
+  BEDROCK = "bedrock",
 }
 
 export interface LLMRequest {

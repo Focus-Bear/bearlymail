@@ -18,6 +18,14 @@ const mockOpenAIChatCreate = jest.fn();
 const mockOpenAIResponsesCreate = jest.fn();
 
 const mockAnthropicMessagesCreate = jest.fn();
+const mockBedrockSend = jest.fn();
+
+jest.mock("@aws-sdk/client-bedrock-runtime", () => ({
+  BedrockRuntimeClient: jest.fn().mockImplementation(() => ({
+    send: mockBedrockSend,
+  })),
+  ConverseCommand: jest.fn().mockImplementation((input) => ({ input })),
+}));
 
 jest.mock("@google/generative-ai", () => ({
   GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
@@ -92,6 +100,33 @@ describe("LLMCoreService", () => {
     mockOpenAIChatCreate.mockReset();
     mockOpenAIResponsesCreate.mockReset();
     mockAnthropicMessagesCreate.mockReset();
+    mockBedrockSend.mockReset();
+  });
+
+  describe("Bedrock provider", () => {
+    it("returns Nova text and records the actual provider and model", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "nova-result" }] } },
+        usage: { inputTokens: 40, outputTokens: 8, totalTokens: 48 },
+      });
+      const { service, tokenUsageService } = makeService();
+
+      const result = await service.generateText(
+        baseRequest,
+        LLMProvider.BEDROCK,
+      );
+
+      expect(result).toBe("nova-result");
+      expect(tokenUsageService.logUsage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: LLMProvider.BEDROCK,
+          model: "amazon.nova-micro-v1:0",
+          promptTokens: 40,
+          completionTokens: 8,
+          totalTokens: 48,
+        }),
+      );
+    });
   });
 
   describe("Gemini provider", () => {

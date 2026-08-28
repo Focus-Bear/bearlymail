@@ -202,6 +202,15 @@ export class BearlyMailStack extends cdk.Stack {
       resources: ['*'],
     }));
 
+    // Analyze Priority runs on Amazon Nova Micro through Bedrock Converse.
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        `arn:${this.partition}:bedrock:${this.region}::foundation-model/amazon.nova-micro-v1:0`,
+      ],
+    }));
+
     // Grant SQS send permissions for context analysis queue
     props.contextAnalysisQueue.grantSendMessages(taskRole);
 

@@ -138,12 +138,35 @@ describe("SummarizationService", () => {
       // update() receives a TypeORM In() operator for the id — check the update data
       expect(mockEmailRepository.update).toHaveBeenCalledWith(
         expect.objectContaining({ id: expect.anything() }),
-        { summary, summarySource: "llm" },
+        { summary, summarySource: "llm", summaryType: null },
       );
       // lastSummarizedAt should be the most recent email's receivedAt, not new Date()
       expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
         { id: "et-123" },
         { lastSummarizedAt: newerDate },
+      );
+    });
+
+    it("persists the provided summaryType alongside the summary", async () => {
+      mockEmailsService.getThreadEmails.mockResolvedValue([
+        { id: "email-123", receivedAt: new Date("2024-01-01") },
+      ]);
+
+      await service.persistSummaryForThread(
+        "user-123",
+        "thread-123",
+        "et-123",
+        "summary",
+        "bullet-points",
+      );
+
+      expect(mockEmailRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: expect.anything() }),
+        {
+          summary: "summary",
+          summarySource: "llm",
+          summaryType: "bullet-points",
+        },
       );
     });
 

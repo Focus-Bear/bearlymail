@@ -62,11 +62,13 @@ class Thresholds:
 
     Hierarchical category: the family gate is the coarse decision (is this
     broadly a GitHub PR / a newsletter / a meeting?), and the sibling gate is the
-    fine decision within that family. The error analysis showed family is the
-    reliable part, so its gate can be looser; the sibling gate guards the
-    near-duplicate confusions. A thread whose family is confident but whose
-    sibling isn't can still use the family as a coarse label or send a cheaper,
-    family-scoped query to the LLM.
+    fine decision within that family. A WRONG FAMILY is the worst failure mode —
+    it drops the email into a totally unrelated bucket — so the family gate is
+    deliberately STRICTER than the flat-category gate: when the model isn't
+    strongly confident about the family (high top-prob AND a wide margin over the
+    runner-up), it abstains and defers to the LLM rather than committing a
+    plausible-but-wrong family. The sibling gate guards the near-duplicate
+    confusions within a (now confident) family.
 
     Priority: a single top-probability gate on the predicted band.
     """
@@ -75,8 +77,11 @@ class Thresholds:
     category_min_margin: float = 0.15
     priority_min_prob: float = 0.60
 
-    family_min_prob: float = 0.55
-    family_min_margin: float = 0.10
+    # Family gate is stricter than the flat-category gate on purpose: a wrong
+    # family is a "REALLY bad" mis-file, so we only commit a family when it is
+    # clearly the winner, otherwise we escalate to the LLM.
+    family_min_prob: float = 0.70
+    family_min_margin: float = 0.20
     sibling_min_prob: float = 0.50
 
 

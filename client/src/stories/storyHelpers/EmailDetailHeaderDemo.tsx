@@ -48,7 +48,7 @@ badgeI18n.use(initReactI18next).init({
         'priority.tooltip.editCategoryRule': 'Edit the rule that matched this category',
         'priority.tooltip.suggestedCategory': 'Suggested Category',
         'priority.tooltip.categorisedBy.label': 'Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>',
-        'priority.tooltip.categorisedBy.ai': 'AI priority model',
+        'priority.tooltip.categorisedBy.ai': 'AI language model',
         'priority.tooltip.categorisedBy.rule': 'Deterministic rule',
         'priority.tooltip.categorisedBy.local': 'Local model',
         'priority.tooltip.categorisedBy.proto': 'Suggested category (pending promotion)',

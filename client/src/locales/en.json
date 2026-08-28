@@ -3220,7 +3220,7 @@
       "suggestedCategory": "Suggested Category",
       "categorisedBy": {
         "label": "Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>",
-        "ai": "AI priority model",
+        "ai": "AI language model",
         "rule": "Deterministic rule",
         "local": "Local model",
         "proto": "Suggested category (pending promotion)",

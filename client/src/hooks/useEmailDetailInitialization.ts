@@ -381,7 +381,9 @@ async function initializeEmailSummary({
     }
   } else if (emailData?.summary && !summary) {
     setSummary(emailData.summary);
-    setSummaryType(SUMMARY_TYPE_TLDR);
+    // Restore the summary type that produced this summary so the selector stays
+    // in sync with the shown content (NULL = default 'tldr').
+    setSummaryType(emailData.summaryType ?? SUMMARY_TYPE_TLDR);
     setSummaryCollapsed(false);
     initializedEmailIdRef.current = id;
   }

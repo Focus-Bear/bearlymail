@@ -20,6 +20,7 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { CategoryWriterSource } from "../emails/category-precedence.helper";
 import { LLMProvider } from "../llm/llm.types";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_CHECK_CATEGORY_DUPLICATE } from "../llm/llm-operations";
@@ -270,6 +271,7 @@ export class ProtoCategoriesService {
    */
   async promoteToCategory(
     protoCategory: ProtoCategory,
+    reassignSource: CategoryWriterSource = "proto",
   ): Promise<ProtoCategory> {
     if (protoCategory.isPromoted) {
       this.logger.warn(
@@ -308,6 +310,7 @@ export class ProtoCategoriesService {
         existingMatch,
         mergedCandidates,
         promotedAt,
+        reassignSource,
       );
     }
 
@@ -352,6 +355,7 @@ export class ProtoCategoriesService {
       categoryExplanation: `Promoted from proto category: ${protoCategory.description || "No description"}`,
       traceDetail: `Auto-promoted from proto category "${protoCategory.name}" after ${protoCategory.emailCount} emails; this thread was bulk-reassigned by the promotion, not by per-thread priority analysis.`,
       promotedAt,
+      source: reassignSource,
     });
 
     this.logger.log(
@@ -376,6 +380,7 @@ export class ProtoCategoriesService {
     existingMatch: { name: string; contextId: string },
     consideredCandidates: ConsideredDuplicateCandidate[],
     promotedAt: Date,
+    reassignSource: CategoryWriterSource = "proto",
   ): Promise<ProtoCategory> {
     const promotionReasoning = `Merged into existing category "${existingMatch.name}" — a stronger model judged this proto category to be a duplicate of it.`;
 
@@ -400,6 +405,7 @@ export class ProtoCategoriesService {
         categoryExplanation: `Folded into existing category on promotion (proto: ${protoCategory.name})`,
         traceDetail: `Folded proto category "${protoCategory.name}" into existing category "${existingMatch.name}" on promotion; this thread was bulk-reassigned, not set by per-thread priority analysis.`,
         promotedAt,
+        source: reassignSource,
       });
     });
 

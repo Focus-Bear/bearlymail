@@ -688,6 +688,28 @@ describe("ProtoCategoriesService", () => {
       );
     });
 
+    it("uses a higher precedence (source='priority') so a user-initiated convert moves automated 'Other' emails", async () => {
+      userContextRepo.find.mockResolvedValue([]);
+      userContextRepo.create.mockImplementation((ctx: unknown) => ctx);
+      userContextRepo.save.mockResolvedValue({ contextId: "ctx-new" });
+      protoCategoryRepo.update.mockResolvedValue({});
+      protoCategoryRepo.findOne.mockResolvedValue(
+        makeProto({ isPromoted: true, promotedCategoryId: "ctx-new" }),
+      );
+
+      await service.promoteToCategory(makeProto(), "priority");
+
+      // The precedence guard's overridable-source list must include 'priority',
+      // so threads the pipeline assigned to "Other" (categorySource 'priority')
+      // are actually reassigned — the whole point of "Convert to category".
+      expect(emailThreadRepo.queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining("overridableSources"),
+        expect.objectContaining({
+          overridableSources: expect.arrayContaining(["priority"]),
+        }),
+      );
+    });
+
     it("records promotion timestamp, reasoning, and considered candidates", async () => {
       userContextRepo.find.mockResolvedValue([]);
       userContextRepo.create.mockImplementation((ctx: unknown) => ctx);

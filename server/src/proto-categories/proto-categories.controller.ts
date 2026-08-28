@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { PRIORITY_CATEGORY_SOURCE } from "../emails/category-precedence.helper";
 import { UpdateProtoCategoryDto } from "./dto/update-proto-category.dto";
 import { ProtoCategoriesService } from "./proto-categories.service";
 
@@ -68,8 +69,15 @@ export class ProtoCategoriesController {
       );
     }
 
-    const promoted =
-      await this.protoCategoriesService.promoteToCategory(protoCategory);
+    // A manual "Convert to category" is a deliberate user action, so reassign at
+    // 'priority' precedence — this moves the automated 'priority'/'local' "Other"
+    // emails the proto grouped (which the lowest-rank 'proto' source used by
+    // background auto-promotion would skip), while still leaving explicit
+    // 'user'/'rule' categories untouched.
+    const promoted = await this.protoCategoriesService.promoteToCategory(
+      protoCategory,
+      PRIORITY_CATEGORY_SOURCE,
+    );
 
     this.logger.log(
       `User ${userId} manually promoted proto category "${protoCategory.name}"`,

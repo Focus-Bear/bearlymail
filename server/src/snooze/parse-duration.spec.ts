@@ -28,19 +28,24 @@ describe("parse-duration", () => {
   });
 
   describe("parseDurationToDate", () => {
-    it("parses relative durations (m/h/d/w) from now", () => {
+    it("parses minute/hour durations from now and calendar durations at 8am", () => {
       expect(parseDurationToDate("90m", now).getTime()).toBe(
         now.getTime() + 90 * MILLISECONDS.MINUTE,
       );
       expect(parseDurationToDate("4h", now).getTime()).toBe(
         now.getTime() + 4 * MILLISECONDS.HOUR,
       );
-      expect(parseDurationToDate("3d", now).getTime()).toBe(
-        now.getTime() + 3 * MILLISECONDS.DAY,
+      const threeDays = new Date(now);
+      threeDays.setDate(threeDays.getDate() + 3);
+      threeDays.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+      expect(parseDurationToDate("3d", now)).toEqual(threeDays);
+
+      const twoWeeks = new Date(now);
+      twoWeeks.setDate(
+        twoWeeks.getDate() + 2 * SNOOZE_CONSTANTS.DAYS_IN_WEEK,
       );
-      expect(parseDurationToDate("2w", now).getTime()).toBe(
-        now.getTime() + 2 * SNOOZE_CONSTANTS.DAYS_IN_WEEK * MILLISECONDS.DAY,
-      );
+      twoWeeks.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+      expect(parseDurationToDate("2w", now)).toEqual(twoWeeks);
     });
 
     it("treats bare 'm' as minutes regardless of count", () => {
@@ -55,6 +60,7 @@ describe("parse-duration", () => {
     it("always treats 'mo' as months", () => {
       const expected = new Date(now);
       expected.setMonth(expected.getMonth() + 18);
+      expected.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
       expect(parseDurationToDate("18mo", now).getTime()).toBe(
         expected.getTime(),
       );
@@ -133,8 +139,8 @@ describe("parse-duration", () => {
   describe("durationToHours", () => {
     it("converts relative durations to whole hours, rounding up", () => {
       expect(durationToHours("4h", now)).toBe(4);
-      expect(durationToHours("3d", now)).toBe(72);
-      expect(durationToHours("2w", now)).toBe(336);
+      expect(durationToHours("3d", now)).toBe(70);
+      expect(durationToHours("2w", now)).toBe(334);
       // 90 minutes rounds up to 2 hours.
       expect(durationToHours("90m", now)).toBe(2);
     });

@@ -28,6 +28,12 @@ export interface SummarizationRule {
   type: SummaryType;
   customPrompt?: string;
   provider?: LLMProvider;
+  /**
+   * For custom-rule summaries, the rule's id — used only to persist the
+   * selector value (`custom-<ruleId>`) so the detail view can re-select the
+   * same custom rule on reload. Not needed for built-in types.
+   */
+  ruleId?: string;
 }
 
 export interface EmailWithHtmlBody {

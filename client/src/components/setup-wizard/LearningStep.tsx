@@ -325,7 +325,13 @@ interface LearningHeaderProps {
 
 const LearningHeader: React.FC<LearningHeaderProps> = ({ canFinish, headerTitle, headerDetail, displayProgress }) => (
   <div style={learnHeadStyle}>
-    <div style={spinnerStyle(canFinish)} />
+    {canFinish ? (
+      <div style={completeBadgeStyle} data-testid="learning-complete" aria-hidden>
+        {'✓'}
+      </div>
+    ) : (
+      <div style={spinnerStyle} data-testid="learning-spinner" />
+    )}
     <div style={headerTextWrapStyle}>
       <div style={learnHeadTitleStyle}>{headerTitle}</div>
       <div style={learnHeadSubStyle}>{headerDetail}</div>
@@ -372,15 +378,11 @@ const PrivacyCard: React.FC<{ t: (key: string) => string }> = ({ t }) => (
       <h4 style={privacyTitleStyle}>{t('setupWizard.learning.privacyTitle')}</h4>
       <p style={privacyBodyStyle}>
         {t('setupWizard.learning.privacyBodyPart1')} <b>{t('setupWizard.learning.privacyOpenAi')}</b>{' '}
-        {t('setupWizard.learning.privacyAnd')} <b>{t('setupWizard.learning.privacyGemini')}</b>
+        {t('setupWizard.learning.privacyAnd')} <b>{t('setupWizard.learning.privacyGemini')}</b>{' '}
         {t('setupWizard.learning.privacyBodyPart2')}{' '}
-        <a href="/settings" style={privacyLinkStyle}>
-          {t('setupWizard.learning.privacyExport')}
-        </a>{' '}
+        <b>{t('setupWizard.learning.privacyExport')}</b>{' '}
         {t('setupWizard.learning.privacyOr')}{' '}
-        <a href="/settings" style={privacyLinkStyle}>
-          {t('setupWizard.learning.privacyDelete')}
-        </a>{' '}
+        <b>{t('setupWizard.learning.privacyDelete')}</b>{' '}
         {t('setupWizard.learning.privacyBodyPart3')}
       </p>
     </div>
@@ -436,16 +438,30 @@ const learnHeadStyle: React.CSSProperties = {
   flexWrap: 'wrap',
 };
 
-const spinnerStyle = (done: boolean): React.CSSProperties => ({
+const spinnerStyle: React.CSSProperties = {
   width: '28px',
   height: '28px',
   borderRadius: '50%',
   border: `2.5px solid ${TOK.cream3}`,
-  borderTopColor: done ? TOK.green : TOK.sun,
+  borderTopColor: TOK.sun,
   animation: 'onboardingSpin 0.9s linear infinite',
   flexShrink: 0,
-  animationDuration: done ? '2.4s' : '0.9s',
-});
+};
+
+// Static "done" indicator shown once learning completes — no animation, so the
+// screen no longer looks like it is still processing.
+const completeBadgeStyle: React.CSSProperties = {
+  width: '28px',
+  height: '28px',
+  borderRadius: '50%',
+  background: TOK.green,
+  color: '#fff',
+  display: 'grid',
+  placeItems: 'center',
+  fontSize: '15px',
+  fontWeight: ACTIVE_WEIGHT,
+  flexShrink: 0,
+};
 
 const learnHeadTitleStyle: React.CSSProperties = {
   fontSize: '14px',
@@ -564,14 +580,6 @@ const privacyBodyStyle: React.CSSProperties = {
   fontSize: '12.5px',
   lineHeight: 1.55,
   color: TOK.ink3,
-};
-
-const privacyLinkStyle: React.CSSProperties = {
-  color: TOK.ink2,
-  fontWeight: ACTIVE_WEIGHT,
-  textDecoration: 'underline',
-  textDecorationColor: TOK.line2,
-  textUnderlineOffset: '2px',
 };
 
 const actionsRowStyle: React.CSSProperties = {

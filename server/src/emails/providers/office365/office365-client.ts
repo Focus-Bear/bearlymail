@@ -57,7 +57,7 @@ export class Office365Client {
           refresh_token: account.refreshToken,
           grant_type: "refresh_token",
           scope:
-            "https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/Mail.ReadWrite offline_access",
+            "https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Contacts.Read offline_access",
         }),
         {
           headers: {

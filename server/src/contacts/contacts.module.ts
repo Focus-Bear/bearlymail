@@ -10,6 +10,7 @@ import { ContactType } from "../database/entities/contact-type.entity";
 import { Email } from "../database/entities/email.entity";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
 import { ContactCrmService } from "./contact-crm.service";
@@ -23,6 +24,7 @@ import {
   GmailContactsProvider,
   setGoogleAccountsServiceGetter,
 } from "./providers/gmail-contacts.provider";
+import { Office365ContactsProvider } from "./providers/office365-contacts.provider";
 
 @Module({
   imports: [
@@ -36,6 +38,7 @@ import {
     ]),
     forwardRef(() => UsersModule),
     GoogleAccountsModule,
+    Office365AccountsModule,
     QueueModule,
     // Provides AdminGuard + JwtAuthGuard for ContactsDebugAdminController.
     forwardRef(() => AuthModule),
@@ -46,6 +49,7 @@ import {
     ContactCrmService,
     ContactsDebugAdminService,
     GmailContactsProvider,
+    Office365ContactsProvider,
     ContactSyncProcessor,
     ContactSearchTokenBackfillProcessor,
     {

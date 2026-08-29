@@ -658,6 +658,9 @@
     "bcc": "BCC",
     "bodyPlaceholder": "Escribe tu mensaje...",
     "cc": "CC",
+    "signature": {
+      "autoAdded": "Firma (se añade automáticamente al enviar)"
+    },
     "discard": "Desechar",
     "emailSentSuccess": "¡Correo electrónico enviado exitosamente!",
     "errorNoBody": "Por favor ingresa el cuerpo de un mensaje",

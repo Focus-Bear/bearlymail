@@ -41,9 +41,7 @@ describe("parse-duration", () => {
       expect(parseDurationToDate("3d", now)).toEqual(threeDays);
 
       const twoWeeks = new Date(now);
-      twoWeeks.setDate(
-        twoWeeks.getDate() + 2 * SNOOZE_CONSTANTS.DAYS_IN_WEEK,
-      );
+      twoWeeks.setDate(twoWeeks.getDate() + 2 * SNOOZE_CONSTANTS.DAYS_IN_WEEK);
       twoWeeks.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
       expect(parseDurationToDate("2w", now)).toEqual(twoWeeks);
     });

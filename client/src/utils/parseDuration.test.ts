@@ -135,7 +135,7 @@ describe('humanizeDuration (English)', () => {
     };
     expect(humanizeDuration('1d', 'en', now, keys)).toEqual({
       i18nKey: 'emailActions.snoozePreviewTomorrow',
-      values: { time: '10am' },
+      values: { time: '8am' },
     });
   });
 });

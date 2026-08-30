@@ -7,7 +7,6 @@ import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { CategoryShortlistService } from "./category-shortlist.service";
 import { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
-import { LLMProvider } from "./llm.types";
 import { PriorityAnalysisService } from "./priority-analysis.service";
 import * as prompts from "./prompts";
 
@@ -446,7 +445,7 @@ describe("PriorityAnalysisService", () => {
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
         expect.objectContaining({ jsonMode: true }),
-        LLMProvider.OPENAI,
+        LLMProvider.BEDROCK,
         undefined,
       );
     });

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { InlineSpinner } from 'components/common/InlineSpinner';
+import { TONE_CHECK_TOAST_WIDTH_BOUNDS } from 'constants/layout';
 import { STRING_NONE } from 'constants/strings';
 
 interface ToneCheckToastProps {
@@ -44,8 +45,7 @@ export const ToneCheckToast: React.FC<ToneCheckToastProps> = ({ visible, onCance
         display: 'flex',
         alignItems: 'center',
         gap: theme.spacing.md,
-        minWidth: '300px',
-        maxWidth: '420px',
+        ...TONE_CHECK_TOAST_WIDTH_BOUNDS,
         pointerEvents: 'auto',
       }}
     >

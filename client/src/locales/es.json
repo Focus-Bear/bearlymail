@@ -664,7 +664,7 @@
       "save": "Guardar",
       "saving": "Guardando…",
       "cancel": "Cancelar",
-      "applyHint": "Se guarda en tu perfil y se usa en todos los correos que envíes.",
+      "applyHint": "Esta es tu firma para todos los correos: si la editas aquí, cambia en todas partes.",
       "saveError": "No se pudo guardar tu firma. Inténtalo de nuevo."
     },
     "discard": "Desechar",

@@ -2192,7 +2192,7 @@
       "save": "Save",
       "saving": "Saving…",
       "cancel": "Cancel",
-      "applyHint": "Saved to your profile and used on every email you send.",
+      "applyHint": "This is your signature for every email — editing it here changes it everywhere.",
       "saveError": "Couldn't save your signature. Please try again."
     },
     "recipientPlaceholder": "Enter email address",

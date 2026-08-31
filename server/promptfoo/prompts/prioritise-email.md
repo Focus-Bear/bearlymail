@@ -25,6 +25,12 @@ Do NOT include sentimentScore — it is pre-computed.
 
 ## Scoring
 
+### Ground every score in THIS email's content
+Score urgency and goal alignment from what THIS email actually says — its subject, body, and thread. The user's saved context (urgent items, goals, categories) and the sender's history explain *why an email might matter*; they are NOT, on their own, evidence that THIS message is urgent. Do NOT raise urgency, invent a deadline, or assume a meeting/event/time-sensitive request unless THIS email's content states or clearly implies it.
+- A short or contentless message (e.g. "hey", "hello", a greeting or check-in with no request, question, deadline, or time reference) carries NO urgency signal → urgencyScore ≤ 30 and goalAlignmentScore ≤ 30, no matter who sent it or what that sender usually sends.
+- Every claim in `urgencyExplanation` and `goalAlignmentExplanation` must be supported by text in THIS email. NEVER describe a meeting, call, deadline, or time (e.g. "client meeting in 30 minutes", "meeting coordination") that the email does not mention. If the email has no such details, say so plainly (e.g. "No deadline, request, or time-sensitive content in this message").
+- The same sender who often sends urgent or meeting-related email can also send casual, unrelated messages. Judge the message in front of you, not the sender's pattern.
+
 **urgencyScore (0–100)**
 - 0–30: low urgency  |  31–60: moderate  |  61–89: high  |  90–100: critical/immediate
 - Subject line words "Urgent", "ASAP", "Emergency", "Critical", "Immediate", "Time-sensitive" → minimum 70

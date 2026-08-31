@@ -573,6 +573,46 @@ tests:
         value: "The chosen category is one of the listed categories (an events/meetings or professional collaboration category), not 'Other', and no brand-new category was invented."
 
 
+  # Content-grounding regression (issue: sender history inflated urgency &
+  # hallucinated meeting details). A one-word "hey" from a sender the user marked
+  # as urgent/meeting-related must still score LOW and must NOT invent a meeting.
+  - description: "Content grounding: trivial 'hey' from a meeting-heavy sender must be low urgency, no invented meeting"
+    vars:
+      from: "ekaterine.m@partnercorp.com"
+      fromName: "Ekaterine Mitagvaria"
+      subject: "hey"
+      body: "hey"
+      urgentContext: |
+        - Emails from Ekaterine Mitagvaria (usually coordinates client meetings, often time-sensitive)
+      goalsContext: |
+        - Close the PartnerCorp collaboration (Priority 1)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          maxScore: 49
+          expectedIsUrgent: false
+      - type: llm-rubric
+        value: "The urgencyExplanation and reasoning must NOT claim this email is about a meeting, call, deadline, or any time-sensitive event — the email body is just 'hey' and mentions none of those. It is acceptable to note there is no urgent content."
+
+  # Same grounding rule for a plain greeting body with no request.
+  - description: "Content grounding: 'Hello' with no request from a work sender stays low and does not invent urgency"
+    vars:
+      from: "ekaterine.m@partnercorp.com"
+      fromName: "Ekaterine Mitagvaria"
+      subject: "Hello"
+      body: "Hello from Ekaterine Mitagvaria"
+      urgentContext: |
+        - Emails from Ekaterine Mitagvaria (usually coordinates client meetings, often time-sensitive)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          maxScore: 49
+          expectedIsUrgent: false
+      - type: llm-rubric
+        value: "The explanation must not fabricate a meeting, deadline, or time-sensitive request; the email only contains a greeting with no actionable content."
+
   # Time-critical batch-escape case: a cancellation received late at night for
   # an event the NEXT MORNING must score critical urgency (90+) so it escapes
   # email batching — the user must see it before travelling to a cancelled event.

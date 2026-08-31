@@ -5,6 +5,19 @@ import { AuthGuard } from "@nestjs/passport";
 export class MicrosoftAuthGuard extends AuthGuard("microsoft") {
   private readonly logger = new Logger(MicrosoftAuthGuard.name);
 
+  /**
+   * Forward the signed connect-state (`?state=`) from the /connect endpoint on
+   * to the provider so it round-trips back to the callback. Without this,
+   * Passport drops the state, the callback can't tell it's a "connect" flow,
+   * and it falls through to login — switching to the provider's account
+   * instead of linking the new mailbox to the current user. Plain login has no
+   * `state`, so it is unaffected.
+   */
+  getAuthenticateOptions(context: ExecutionContext) {
+    const { state } = context.switchToHttp().getRequest().query ?? {};
+    return typeof state === "string" && state.length > 0 ? { state } : {};
+  }
+
   handleRequest<TUser = unknown>(
     err: Error | null,
     user: TUser | false,

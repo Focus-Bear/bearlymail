@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiX } from 'react-icons/fi';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
@@ -133,35 +132,17 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
   return (
     <div style={overlayStyle} onClick={handleOverlayClick}>
       <div style={modalStyle} role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2
-            id="feedback-modal-title"
-            style={{
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.xl,
-              fontWeight: theme.typography.fontWeight.semibold,
-              margin: 0,
-            }}
-          >
-            {t('contactFeedback.title')}
-          </h2>
-          <button
-            onClick={handleClose}
-            aria-label={t('common.close')}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: theme.colors.text.secondary,
-              lineHeight: 1,
-              padding: theme.spacing.xs,
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <FiX size={20} />
-          </button>
-        </div>
+        <h2
+          id="feedback-modal-title"
+          style={{
+            color: theme.colors.text.primary,
+            fontSize: theme.typography.fontSize.xl,
+            fontWeight: theme.typography.fontWeight.semibold,
+            margin: 0,
+          }}
+        >
+          {t('contactFeedback.title')}
+        </h2>
 
         <FeedbackForm
           message={message}

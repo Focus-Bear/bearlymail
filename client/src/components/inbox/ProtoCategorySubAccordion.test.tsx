@@ -14,6 +14,15 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+const responsive = vi.hoisted(() => ({ isMobile: false }));
+vi.mock('hooks/useResponsiveBreakpoints', () => ({
+  useResponsiveBreakpoints: () => ({
+    isMobile: responsive.isMobile,
+    isTablet: false,
+    isDesktop: !responsive.isMobile,
+  }),
+}));
+
 const BASE_PROPS = {
   name: '🛡️ Security & Monitoring Digests',
   description: null,
@@ -44,5 +53,39 @@ describe('ProtoCategorySubAccordion – Convert to category button', () => {
     fireEvent.click(screen.getByText('inbox.protoCategory.converting'));
 
     expect(onConvertToCategory).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProtoCategorySubAccordion – mobile responsiveness (#146)', () => {
+  afterEach(() => {
+    responsive.isMobile = false;
+  });
+
+  it('renders the full multi-word name on mobile (no per-letter wrapping regression)', () => {
+    responsive.isMobile = true;
+    render(
+      <ProtoCategorySubAccordion
+        {...BASE_PROPS}
+        name="Promotional Solicitations"
+        description="Unsolicited sales outreach, marketing"
+        onConvertToCategory={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    expect(screen.getByText('Promotional Solicitations')).toBeInTheDocument();
+    expect(screen.getByText('Unsolicited sales outreach, marketing')).toBeInTheDocument();
+  });
+
+  it('lets the action buttons wrap onto their own row on mobile', () => {
+    responsive.isMobile = true;
+    render(<ProtoCategorySubAccordion {...BASE_PROPS} onConvertToCategory={vi.fn().mockResolvedValue(undefined)} />);
+    const actions = screen.getByText('inbox.protoCategory.convertToCategory').parentElement as HTMLElement;
+    expect(actions.style.flexWrap).toBe('wrap');
+  });
+
+  it('keeps the action buttons on one line on desktop', () => {
+    responsive.isMobile = false;
+    render(<ProtoCategorySubAccordion {...BASE_PROPS} onConvertToCategory={vi.fn().mockResolvedValue(undefined)} />);
+    const actions = screen.getByText('inbox.protoCategory.convertToCategory').parentElement as HTMLElement;
+    expect(actions.style.flexWrap).toBe('');
   });
 });

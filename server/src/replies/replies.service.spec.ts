@@ -523,8 +523,8 @@ describe("RepliesService", () => {
       await service.sendReply(userId, emailId, "Reply body");
 
       const dateStr = email.receivedAt.toUTCString();
-      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
-      const expectedHtmlBody = `Reply body<br><blockquote style="margin:0 0 0 0.8ex;border-left:1px solid #cccccc;padding-left:1ex"><div>On ${dateStr}, ${email.from} wrote:</div>Test body</blockquote><br><br>Sent from BearlyMail (anti inbox overwhelm system)`;
+      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\n-- \nSent from BearlyMail (anti inbox overwhelm system)`;
+      const expectedHtmlBody = `Reply body<br><blockquote style="margin:0 0 0 0.8ex;border-left:1px solid #cccccc;padding-left:1ex"><div>On ${dateStr}, ${email.from} wrote:</div>Test body</blockquote><br><br><div style="color:#888888;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">Sent from BearlyMail (anti inbox overwhelm system)</div>`;
 
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
@@ -557,13 +557,15 @@ describe("RepliesService", () => {
       await service.sendReply(userId, emailId, "Reply body");
 
       const call = mockProvider.sendReply.mock.calls[0][1];
+      // HTML signature is wrapped in the distinct bordered block.
       expect(call.options.htmlBody as string).toContain(
-        "<br><br>Regards,<br>Ekaterine",
+        '<div style="color:#888888;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">Regards,<br>Ekaterine</div>',
       );
       expect(call.options.htmlBody as string).not.toContain(
         "Regards,\nEkaterine",
       );
-      expect(call.body as string).toContain("\n\nRegards,\nEkaterine");
+      // Plain body uses the "-- " signature delimiter.
+      expect(call.body as string).toContain("\n\n-- \nRegards,\nEkaterine");
     });
 
     it("should not add Re: prefix if already present", async () => {
@@ -581,7 +583,7 @@ describe("RepliesService", () => {
       await service.sendReply(userId, emailId, "Reply body");
 
       const dateStr = email.receivedAt.toUTCString();
-      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\n-- \nSent from BearlyMail (anti inbox overwhelm system)`;
 
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
@@ -609,7 +611,7 @@ describe("RepliesService", () => {
       });
 
       const dateStr = email.receivedAt.toUTCString();
-      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\n-- \nSent from BearlyMail (anti inbox overwhelm system)`;
 
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
@@ -635,7 +637,7 @@ describe("RepliesService", () => {
       });
 
       const dateStr = email.receivedAt.toUTCString();
-      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\n-- \nSent from BearlyMail (anti inbox overwhelm system)`;
 
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,

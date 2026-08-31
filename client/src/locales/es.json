@@ -659,7 +659,13 @@
     "bodyPlaceholder": "Escribe tu mensaje...",
     "cc": "CC",
     "signature": {
-      "autoAdded": "Firma (se añade automáticamente al enviar)"
+      "autoAdded": "Firma (se añade automáticamente al enviar)",
+      "edit": "Editar",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar",
+      "applyHint": "Se guarda en tu perfil y se usa en todos los correos que envíes.",
+      "saveError": "No se pudo guardar tu firma. Inténtalo de nuevo."
     },
     "discard": "Desechar",
     "emailSentSuccess": "¡Correo electrónico enviado exitosamente!",

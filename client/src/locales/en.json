@@ -2321,6 +2321,7 @@
     "noDealsWithContact": "No deals with this contact yet",
     "createDeal": "Create Deal",
     "errorLoadingDeals": "Error loading deals",
+    "errorCreatingDeal": "Could not create the deal. Please try again.",
     "expectedClose": "Expected close"
   },
   "senderContext": {

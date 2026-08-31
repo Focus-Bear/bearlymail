@@ -1444,6 +1444,7 @@
     "noDealsWithContact": "Aún no hay negocios con este contacto",
     "createDeal": "Crear Negocio",
     "errorLoadingDeals": "Error al cargar negocios",
+    "errorCreatingDeal": "No se pudo crear el negocio. Inténtalo de nuevo.",
     "expectedClose": "Cierre esperado"
   },
   "senderContext": {

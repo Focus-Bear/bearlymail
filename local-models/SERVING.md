@@ -9,10 +9,12 @@ The training side is in [README.md](README.md); this covers the serving path.
         │ upload to S3                                 ▼
         ▼                                     LocalModelInferenceService
    s3://bearlymail-local-models-<acct>-<region>/      │ invoke Lambda { userId, thread }
-        models/<userId>.joblib                         ▼
-                                              bearlymail-local-model-inference (container Lambda)
-                                                 lambda_handler.handler
-                                                 → load_bundle_from_s3 (cached per warm container)
+        models/<userId>/<version>.joblib               ▼
+        models/<userId>/current.json  ─────►  bearlymail-local-model-inference (container Lambda)
+          (pointer → current version)            lambda_handler.handler
+                                                 → resolve_bundle_key (reads current.json pointer)
+                                                 → load_bundle_from_s3 (cached per warm container,
+                                                     by versioned key — retrains bust the cache)
                                                  → predict_thread
                                                  ← { category, family, priorityBand, *Fallback }
                                                        │
@@ -26,8 +28,14 @@ The training side is in [README.md](README.md); this covers the serving path.
 `infrastructure/lib/bearlymail-local-model-serving-stack.ts` provisions:
 
 - **`bearlymail-local-models-<account>-<region>`** — S3 bucket for per-user
-  bundles (`models/<userId>.joblib`), versioned (30-day non-current expiry),
-  SSE, TLS-only, no public access.
+  bundles. Each retrain writes a new `models/<userId>/<version>.joblib` and
+  updates `models/<userId>/current.json` (a small pointer naming the current
+  version); the inference Lambda reads the pointer, so a retrain is picked up by
+  warm containers immediately instead of when they recycle. SSE, TLS-only, no
+  public access. **Follow-up:** old versioned bundles now accumulate under
+  distinct keys — add an S3 lifecycle rule (or prune in the train job) to expire
+  non-current `models/<userId>/*.joblib` versions; the existing 30-day
+  non-current-*object-version* expiry does not cover these distinct keys.
 - **`bearlymail-local-model-inference`** — a **container-image** Lambda built
   from [`Dockerfile`](Dockerfile). Container (not zip layer) because
   scikit-learn + scipy exceed the layer size limit. 1 GB memory, 30 s timeout,
@@ -56,8 +64,13 @@ Training is offline (it needs the full dataset and is too heavy for Lambda):
 ```bash
 # one bundle per user, from that user's decrypted export
 python train.py --export emails-<userId>.json --out <userId>.joblib
+# quick manual upload — lands on the legacy flat key, which the handler still
+# reads as a fallback when no current.json pointer exists for the user:
 aws s3 cp <userId>.joblib s3://bearlymail-local-models-<acct>-<region>/models/<userId>.joblib
 ```
+
+The scheduled training task uses the versioned layout instead (versioned key +
+`current.json` pointer) via `train_job._publish_bundle`.
 
 This is automated by the **scheduled training task** in the serving stack: a
 weekly Fargate task (`Dockerfile.train` → `train_job.py`) that reads each

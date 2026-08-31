@@ -7,9 +7,17 @@ served models keep up with new threads and user corrections — the
 self-improvement loop.
 
 Data flow (one bucket, two prefixes):
-    s3://<bucket>/<TRAINING_DATA_PREFIX><userId>.json   (label-rich export in)
+    s3://<bucket>/<TRAINING_DATA_PREFIX><userId>.json          (label-rich export in)
         → train(export) →
-    s3://<bucket>/<MODELS_PREFIX><userId>.joblib        (served bundle out)
+    s3://<bucket>/<MODELS_PREFIX><userId>/<version>.joblib     (served bundle out)
+    s3://<bucket>/<MODELS_PREFIX><userId>/current.json         (pointer → version)
+
+Bundles are written under a per-retrain versioned key and a small `current.json`
+pointer is updated LAST to name the new version. The inference Lambda reads that
+pointer, so a retrain is picked up immediately by warm containers (the old flat
+`<MODELS_PREFIX><userId>.joblib` path never changed key, so warm containers kept
+serving the stale model until they recycled). Versioning also gives rollback and
+provenance — old versions are retained under their timestamped keys.
 
 The export carries the LLM/user category and priority labels (and the
 `categoryIsUserCorrected` flag), so retraining naturally folds in corrections.
@@ -24,9 +32,11 @@ Env:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import tempfile
+from datetime import datetime, timezone
 
 import boto3
 import joblib
@@ -42,6 +52,30 @@ def _user_id_from_key(key: str, prefix: str) -> str | None:
     if not name.endswith(".json"):
         return None
     return name[: -len(".json")]
+
+
+def _publish_bundle(
+    s3, bucket: str, models_prefix: str, user_id: str, bundle_path: str
+) -> str:
+    """Upload a freshly trained bundle under a versioned key and point the user's
+    `current.json` at it. The pointer is written LAST so a concurrent reader
+    never sees a pointer to a not-yet-uploaded bundle. Returns the versioned key.
+    """
+    version = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    versioned_key = f"{models_prefix}{user_id}/{version}.joblib"
+    s3.upload_file(bundle_path, bucket, versioned_key)
+
+    pointer_key = f"{models_prefix}{user_id}/current.json"
+    pointer_body = json.dumps(
+        {"key": versioned_key, "version": version}
+    ).encode("utf-8")
+    s3.put_object(
+        Bucket=bucket,
+        Key=pointer_key,
+        Body=pointer_body,
+        ContentType="application/json",
+    )
+    return versioned_key
 
 
 def run() -> dict[str, int]:
@@ -65,8 +99,8 @@ def run() -> dict[str, int]:
                     bundle, report = train(export_path)
                     bundle_path = os.path.join(tmp, "model.joblib")
                     joblib.dump(bundle, bundle_path)
-                    s3.upload_file(
-                        bundle_path, bucket, f"{models_prefix}{user_id}.joblib"
+                    _publish_bundle(
+                        s3, bucket, models_prefix, user_id, bundle_path
                     )
                 trained += 1
                 logger.info(

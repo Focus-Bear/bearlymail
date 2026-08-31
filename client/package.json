@@ -94,7 +94,7 @@
     "jscodeshift": "^17.3.0",
     "prettier": "^3.8.1",
     "serve": "^14.2.6",
-    "storybook": "^10.4.6",
+    "storybook": "^10.5.10",
     "typescript-eslint": "^8.67.0",
     "vite": "^8.2.2",
     "vite-tsconfig-paths": "^6.1.1",

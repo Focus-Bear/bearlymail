@@ -2187,7 +2187,13 @@
     "subjectPlaceholder": "Subject",
     "bodyPlaceholder": "Write your message...",
     "signature": {
-      "autoAdded": "Signature (added automatically when you send)"
+      "autoAdded": "Signature (added automatically when you send)",
+      "edit": "Edit",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "applyHint": "This is your signature for every email — editing it here changes it everywhere.",
+      "saveError": "Couldn't save your signature. Please try again."
     },
     "recipientPlaceholder": "Enter email address",
     "addCc": "Add CC",

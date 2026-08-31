@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { SignaturePreview } from 'components/compose/SignaturePreview';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
@@ -481,6 +482,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
       onPasteFiles={onPasteFiles}
       onInlineImage={onInlineImage}
     />
+    <SignaturePreview />
     <ReplyComposerAttachments files={files} onFilesChange={onFilesChange} />
     <ForwardedAttachmentsList attachments={forwardAttachments} onRemove={onRemoveForwardAttachment} />
     <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />

@@ -2184,6 +2184,9 @@
     "subject": "Subject",
     "subjectPlaceholder": "Subject",
     "bodyPlaceholder": "Write your message...",
+    "signature": {
+      "autoAdded": "Signature (added automatically when you send)"
+    },
     "recipientPlaceholder": "Enter email address",
     "addCc": "Add CC",
     "addBcc": "Add BCC",

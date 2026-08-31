@@ -2058,7 +2058,9 @@
       "askAiTab": "Preguntar a IA",
       "collapse": "Contraer panel",
       "expand": "Abrir asistente",
-      "ariaLabel": "Panel de asistente de correo"
+      "ariaLabel": "Panel de asistente de correo",
+      "openMobile": "Asistente",
+      "close": "Cerrar"
     },
     "askAi": {
       "title": "Preguntar a IA",

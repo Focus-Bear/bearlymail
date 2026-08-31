@@ -6,6 +6,7 @@ import { UrgentEmailList } from 'components/inbox/overlays/UrgentEmailList';
 import { UrgentNotificationHeader } from 'components/inbox/overlays/UrgentNotificationHeader';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_CHECK } from 'constants/emojis';
+import { URGENT_NOTIFICATION_WIDTH_BOUNDS } from 'constants/layout';
 import { Z_INDEX_POPUP } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
@@ -68,8 +69,7 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({ count, e
         padding: theme.spacing.lg,
         borderRadius: theme.borderRadius.lg,
         boxShadow: theme.shadows.xl,
-        minWidth: '320px',
-        maxWidth: '400px',
+        ...URGENT_NOTIFICATION_WIDTH_BOUNDS,
         zIndex: Z_INDEX_POPUP,
         border: `2px solid ${getBorderColor()}`,
       }}

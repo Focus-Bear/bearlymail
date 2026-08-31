@@ -21,6 +21,7 @@ import { shouldShowPhishingAlert } from 'components/email-detail/emailPhishingWa
 import { EmailSchedulingCards } from 'components/email-detail/EmailSchedulingCards';
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
 import { IcsInviteCard } from 'components/email-detail/IcsInviteCard';
+import { MobileAssistantSheet } from 'components/email-detail/MobileAssistantSheet';
 import { SenderContextSection } from 'components/email-detail/SenderContextSection';
 import { SummarySection } from 'components/email-detail/SummarySection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
@@ -514,6 +515,11 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   const isInline = effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
   // Split-view (compact) hosts the assistant cards in a dedicated right-hand sidebar.
   const isCompact = effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT;
+  // The assistant/context cards live in a panel (split-view sidebar or the mobile
+  // bottom sheet) rather than inline whenever we're compact OR on mobile — this
+  // keeps the mobile reading view clean instead of burying it under the card pile
+  // (issue #144). Desktop full view is neither, so its cards stay inline.
+  const assistantInPanel = isCompact || isMobile;
 
   const { hiddenCards, hideCard, showCard } = useCardVisibilityPreferences();
   const [showCardSettings, setShowCardSettings] = useState(false);
@@ -711,6 +717,19 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
     </>
   );
 
+  // The assistant panel's "Actions" tab body — the same cards for the split-view
+  // sidebar and the mobile bottom sheet, so both stay in sync.
+  const assistantActionsContent = (
+    <>
+      {cardSettingsControl}
+      {schedulingSection}
+      {summarySection}
+      {tasksSection}
+      {notesSection}
+      {contextCardsSection}
+    </>
+  );
+
   const mainContent = (
     <>
       <EmailDetailNotesAndActions
@@ -723,7 +742,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         onShowCard={showCard}
         notesSection={notesSection}
         tasksSection={tasksSection}
-        assistantInSidebar={isCompact}
+        assistantInSidebar={assistantInPanel}
       />
       <div style={getEmailContentCardStyle(isCompactOrInline, isMobile)}>
         {/* Calendar invite always sits above the email whenever an .ics is attached — in
@@ -771,7 +790,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               st.setShowReplyComposer(true);
             }}
             hideActionButtons={isCompactOrInline && !isInline}
-            hideSchedulingCards={isCompact}
+            hideSchedulingCards={assistantInPanel}
             excludeIcsCard={hasIcsAttachment(st.email)}
           />
         )}
@@ -843,14 +862,15 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             />
           </div>
         )}
-        {/* Contextual cards: shown inline in full and inline modes; in split-view they move to the action sidebar instead. */}
-        {!isCompact && contextCardsSection}
+        {/* Contextual cards: shown inline in desktop full/inline modes; in split-view
+            and on mobile they move to the assistant panel (sidebar / bottom sheet). */}
+        {!assistantInPanel && contextCardsSection}
         {shouldShowPhishingAlert(st.email?.phishingConfidence) && st.email?.phishingConfidence && (
           <EmailPhishingWarning confidence={st.email.phishingConfidence} reason={st.email.phishingReason ?? ''} />
         )}
-        {/* Summary renders here for full view; in split-view it moves to the action sidebar.
-            It is always omitted in inline variant (summarySection is null there). */}
-        {!isCompact && summarySection}
+        {/* Summary renders inline for desktop full view; in split-view and on mobile
+            it moves to the assistant panel. Always omitted in inline variant. */}
+        {!assistantInPanel && summarySection}
         <EmailThreadView
           email={st.email as Email}
           threadEmails={st.threadEmails as Email[]}
@@ -878,6 +898,14 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           hasGithubToken={st.hasGithubToken}
         />
       )}
+      {/* Mobile: the assistant/context cards + Ask AI chat bot live behind a
+          floating button so the reading view stays uncluttered (issue #144). */}
+      {isMobile && (
+        <MobileAssistantSheet
+          actionsContent={assistantActionsContent}
+          askAiContent={<AskAiPanel emailId={st.email?.id} />}
+        />
+      )}
     </>
   );
 
@@ -889,16 +917,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           {mainContent}
         </div>
         <ActionSidebar
-          actionsContent={
-            <>
-              {cardSettingsControl}
-              {schedulingSection}
-              {summarySection}
-              {tasksSection}
-              {notesSection}
-              {contextCardsSection}
-            </>
-          }
+          actionsContent={assistantActionsContent}
           askAiContent={<AskAiPanel emailId={st.email?.id} />}
         />
       </div>

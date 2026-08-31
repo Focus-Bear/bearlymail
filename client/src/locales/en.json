@@ -274,7 +274,9 @@
       "askAiTab": "Ask AI",
       "collapse": "Collapse panel",
       "expand": "Open assistant",
-      "ariaLabel": "Email assistant panel"
+      "ariaLabel": "Email assistant panel",
+      "openMobile": "Assistant",
+      "close": "Close"
     },
     "askAi": {
       "title": "Ask AI",

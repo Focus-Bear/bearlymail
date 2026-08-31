@@ -38,22 +38,13 @@ import {
   buildUserContextTexts,
   UserContextInput,
 } from "./priority-context-texts.helper";
+import { resolvePriorityProvider } from "./priority-provider.util";
 import { getPrompt, PRIORITY_PROMPT_IDS, renderPrompt } from "./prompts";
 
-// Batch triage runs on cheap, high-volume Amazon Nova Micro (Bedrock) — the
-// same model as summarisation. Override with CATEGORY_TRIAGE_MODEL.
 const DEFAULT_TRIAGE_MODEL = "amazon.nova-micro-v1:0";
 
-// Built-in fallback categories used when the user has none yet. MUST stay in
-// the same order as the {% else %} default list in prioritise-email.md so the
-// LLM's categoryNumber maps to the same category the prompt numbered.
-const DEFAULT_CATEGORY_NAMES = [
-  "Newsletters",
-  "Sales",
-  "Partnerships",
-  "Customer Support",
-  "HR Admin",
-];
+const DEFAULT_CATEGORY_NAMES =
+  "Newsletters|Sales|Partnerships|Customer Support|HR Admin".split("|");
 
 // Sent in place of the real category list when a deterministic rule already
 // pinned the category, so the prompt renders one clarifying line instead of
@@ -532,6 +523,7 @@ export class PriorityAnalysisService {
     };
   }
 
+  // eslint-disable-next-line max-lines-per-function
   async analyzePriority(options: {
     email: {
       from: string;
@@ -590,6 +582,12 @@ export class PriorityAnalysisService {
       promptChars: prompt.length + systemPrompt.length,
     });
 
+    const priorityRoute = resolvePriorityProvider(
+      provider,
+      this.llmCoreService.getDefaultProvider(),
+      this.configService,
+    );
+
     const response = await this.llmCoreService.generateText(
       {
         prompt,
@@ -599,8 +597,9 @@ export class PriorityAnalysisService {
         userId,
         operation: LLM_OP_ANALYZE_PRIORITY,
         jsonMode: true,
+        model: priorityRoute.model,
       },
-      provider,
+      priorityRoute.provider,
       userId,
     );
 

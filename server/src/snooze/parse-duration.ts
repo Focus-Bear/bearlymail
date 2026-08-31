@@ -44,13 +44,21 @@ function deaccent(value: string): string {
 }
 
 /**
- * Adds whole calendar months to a date, preserving the time of day. Day-of-month
+ * Adds whole calendar months to a date at the default snooze hour. Day-of-month
  * overflow rolls forward (e.g. Jan 31 + 1 month → early March), which is fine for
  * a follow-up reminder.
  */
 function addMonths(from: Date, months: number): Date {
   const result = new Date(from);
   result.setMonth(result.getMonth() + months);
+  result.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+  return result;
+}
+
+function addCalendarDays(from: Date, days: number): Date {
+  const result = new Date(from);
+  result.setDate(result.getDate() + days);
+  result.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
   return result;
 }
 
@@ -117,12 +125,9 @@ export function parseDurationToDate(
       case "hr":
         return new Date(now.getTime() + value * MILLISECONDS.HOUR);
       case "d":
-        return new Date(now.getTime() + value * MILLISECONDS.DAY);
+        return addCalendarDays(now, value);
       case "w":
-        return new Date(
-          now.getTime() +
-            value * SNOOZE_CONSTANTS.DAYS_IN_WEEK * MILLISECONDS.DAY,
-        );
+        return addCalendarDays(now, value * SNOOZE_CONSTANTS.DAYS_IN_WEEK);
     }
   }
 

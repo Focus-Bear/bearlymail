@@ -166,8 +166,11 @@ describe("PriorityAnalysisService", () => {
       await service.analyzePriority({ email: mockEmail });
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
-        expect.objectContaining({ jsonMode: true }),
-        undefined,
+        expect.objectContaining({
+          jsonMode: true,
+          model: "amazon.nova-micro-v1:0",
+        }),
+        LLMProvider.BEDROCK,
         undefined,
       );
     });
@@ -183,7 +186,24 @@ describe("PriorityAnalysisService", () => {
         expect.objectContaining({
           maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         }),
+        LLMProvider.BEDROCK,
         undefined,
+      );
+    });
+
+    it("honours an explicit provider instead of forcing Bedrock", async () => {
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        validPriorityResponse,
+      );
+
+      await service.analyzePriority({
+        email: mockEmail,
+        provider: LLMProvider.GEMINI,
+      });
+
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
+        expect.objectContaining({ model: undefined }),
+        LLMProvider.GEMINI,
         undefined,
       );
     });
@@ -425,7 +445,7 @@ describe("PriorityAnalysisService", () => {
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
         expect.objectContaining({ jsonMode: true }),
-        undefined,
+        LLMProvider.BEDROCK,
         undefined,
       );
     });

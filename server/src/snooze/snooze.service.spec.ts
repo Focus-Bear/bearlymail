@@ -246,7 +246,7 @@ describe("SnoozeService", () => {
 
       const result = await service.snoozeEmail("user-1", "email-1", "5d");
 
-      const expectedTime = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+      const expectedTime = new Date("2024-01-06T08:00:00Z");
       expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
 
       jest.useRealTimers();
@@ -259,9 +259,7 @@ describe("SnoozeService", () => {
 
       const result = await service.snoozeEmail("user-1", "email-1", "2w");
 
-      const expectedTime = new Date(
-        now.getTime() + 2 * 7 * 24 * 60 * 60 * 1000,
-      );
+      const expectedTime = new Date("2024-01-15T08:00:00Z");
       expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
 
       jest.useRealTimers();

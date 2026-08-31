@@ -31,6 +31,13 @@ export const QUERY_LIMITS = {
   ONGOING_SYNC_WINDOW_DAYS: 7,
   INBOX_PROCESS_TOTAL: 1000,
   INBOX_PAGE_SIZE: 50,
+  /**
+   * Max categories the /emails/inbox-batch preload endpoint will fetch in one
+   * request (issue #145). Caps how many per-category queries a single call can
+   * fan out to, so a crafted request can't drive unbounded DB work. The client
+   * only preloads its top ~6 accordions, so 8 leaves headroom.
+   */
+  INBOX_BATCH_MAX_CATEGORIES: 8,
   THREAD_QUERY: 100,
   EMAIL_QUERY: 100,
   MAX_CONTACTS: 5000,

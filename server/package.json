@@ -83,7 +83,7 @@
     "@types/mjml": "^5.0.0",
     "archiver": "^7.0.1",
     "archiver-zip-encrypted": "^2.0.0",
-    "axios": "^1.15.2",
+    "axios": "^1.20.0",
     "bcrypt": "^6.0.0",
     "chrono-node": "^2.10.1",
     "class-transformer": "^0.5.1",

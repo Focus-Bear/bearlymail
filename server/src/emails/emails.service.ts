@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { In } from "typeorm";
 
 import {
@@ -55,6 +55,8 @@ export { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interf
  */
 @Injectable()
 export class EmailsService {
+  private readonly logger = new Logger(EmailsService.name);
+
   constructor(private readonly emailServiceDeps: EmailServiceDeps) {}
 
   // ── Priority batch buffer ─────────────────────────────────────────────────
@@ -201,6 +203,69 @@ export class EmailsService {
       pagination,
       fixStuckCalculatingThreads: (uid) => this.fixStuckCalculatingThreads(uid),
     });
+  }
+
+  /**
+   * Preload emails for several categories in a single request (issue #145).
+   *
+   * The client used to fire one `/emails/inbox` query per category when
+   * auto-expanding the top accordions on load — six-plus round-trips that stalled
+   * for seconds on mobile. This runs the same per-category `getInbox` for each
+   * key in parallel and returns them together, so the client hydrates the top
+   * accordions from one round-trip. Each category keeps its own result limit (we
+   * call getInbox once per key), so a large category can't crowd out the others.
+   *
+   * `keys` are category identifiers exactly as the inbox uses them: a category
+   * UUID, or a special bucket key like "Other"/uncategorised — getInbox accepts
+   * both via `categoryIds`. One failing category never fails the batch; it comes
+   * back with empty emails so the client falls back to its lazy fetch on expand.
+   */
+  async getInboxBatch(
+    userId: string,
+    mode: "triage" | "action" | "follow-up" | "blocked",
+    keys: string[],
+    filters?: {
+      accountIds?: string[];
+      minPriority?: number;
+      maxPriority?: number;
+    },
+    pagination?: { offset?: number; limit?: number },
+  ): Promise<{
+    categories: Array<{
+      key: string;
+      emails: Email[];
+      total: number;
+      hasMore: boolean;
+    }>;
+  }> {
+    const categories = await Promise.all(
+      keys.map(async (key) => {
+        try {
+          // Category fetches never include batched-held emails (matches the
+          // per-category /emails/inbox path, which passes includeBatched=false).
+          const result = await this.getInbox(
+            userId,
+            false,
+            mode,
+            { ...filters, categoryIds: [key] },
+            pagination,
+          );
+          return {
+            key,
+            emails: result.emails,
+            total: result.total,
+            hasMore: result.hasMore,
+          };
+        } catch (error) {
+          this.logger.error(
+            `getInboxBatch: preload failed for category "${key}" (userId=${userId})`,
+            error instanceof Error ? error.stack : String(error),
+          );
+          return { key, emails: [], total: 0, hasMore: false };
+        }
+      }),
+    );
+    return { categories };
   }
 
   // ── Single email lookups ───────────────────────────────────────────────────

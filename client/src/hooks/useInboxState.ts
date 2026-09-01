@@ -137,6 +137,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchEmails,
     refreshInPlace,
     fetchCategoryEmails,
+    fetchCategoryEmailsBatch,
     categorySummary,
     loadedCategoryNames,
     loadingCategoryNames,
@@ -374,6 +375,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   } = useCategoryFetch({
     categorySummary,
     fetchCategoryEmails,
+    fetchCategoryEmailsBatch,
     loadedCategoryNames,
     loadingCategoryNames,
     exhaustedCategoryNames,

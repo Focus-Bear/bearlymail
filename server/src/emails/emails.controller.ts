@@ -244,6 +244,51 @@ export class EmailsController {
     });
   }
 
+  /**
+   * Preload emails for several categories in one round-trip (issue #145).
+   *
+   * `categoryIds` is a comma-separated list of category keys (UUIDs, or bucket
+   * keys like "Other"); the server runs the per-category inbox query for each in
+   * parallel and returns `{ categories: [{ key, emails, total, hasMore }] }`. The
+   * client calls this once on load to hydrate its top accordions instead of
+   * firing one `/emails/inbox` request per category. Capped at
+   * INBOX_BATCH_MAX_CATEGORIES so a request can't fan out unbounded DB work.
+   */
+  @Get("inbox-batch")
+  async getInboxBatch(@Request() req, @Query() query: InboxQuery) {
+    const { mode = "triage", categoryIds, accounts, minPriority, maxPriority } =
+      query;
+    const keys = (
+      categoryIds ? categoryIds.split(",").filter(Boolean) : []
+    ).slice(0, QUERY_LIMITS.INBOX_BATCH_MAX_CATEGORIES);
+    if (keys.length === 0) {
+      return { categories: [] };
+    }
+    const accountIds = accounts
+      ? accounts.split(",").filter(Boolean)
+      : undefined;
+    const minPriorityValue =
+      minPriority !== undefined && minPriority !== ""
+        ? parseFloat(minPriority)
+        : undefined;
+    const maxPriorityValue =
+      maxPriority !== undefined && maxPriority !== ""
+        ? parseFloat(maxPriority)
+        : undefined;
+
+    return this.emailsService.getInboxBatch(
+      req.user.userId,
+      mode,
+      keys,
+      {
+        accountIds,
+        minPriority: minPriorityValue,
+        maxPriority: maxPriorityValue,
+      },
+      { offset: 0, limit: QUERY_LIMITS.INBOX_PAGE_SIZE },
+    );
+  }
+
   @Get("batch-status")
   async getBatchStatus(@Request() req) {
     const perf = new BatchStatusPerformanceTracker();

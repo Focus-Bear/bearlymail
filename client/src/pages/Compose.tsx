@@ -93,15 +93,8 @@ const Compose: React.FC = () => {
   const form = useComposeForm();
   const search = useContactSearch();
   const { showError } = useNotifications();
-  const {
-    checkingTone,
-    toneCheckResult,
-    setToneCheckResult,
-    checkTone,
-    disputing,
-    disputeResult,
-    disputeToneCheck,
-  } = useEmailDetailToneCheck();
+  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone, disputing, disputeResult, disputeToneCheck } =
+    useEmailDetailToneCheck();
   const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
 
   const [sending, setSending] = useState(false);
@@ -351,8 +344,47 @@ const Compose: React.FC = () => {
           borderRadius: theme.borderRadius.lg,
           boxShadow: theme.shadows.lg,
           overflow: 'hidden',
+          position: 'relative',
         }}
       >
+        {sending && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(255,255,255,0.8)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: theme.spacing.sm,
+              zIndex: 10,
+              cursor: 'wait',
+            }}
+          >
+            <span
+              style={{
+                width: '32px',
+                height: '32px',
+                border: `3px solid ${theme.colors.primary.subtle}`,
+                borderTopColor: theme.colors.primary.main,
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+              }}
+              role="status"
+              aria-live="polite"
+            />
+            <span
+              style={{
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: theme.typography.fontWeight.medium,
+                color: theme.colors.text.secondary,
+              }}
+            >
+              {t('compose.sendingOverlay')}
+            </span>
+          </div>
+        )}
         <div
           style={{
             padding: `${theme.spacing.md} ${theme.spacing.lg}`,

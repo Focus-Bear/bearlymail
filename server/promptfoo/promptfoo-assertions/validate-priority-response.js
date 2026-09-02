@@ -14,13 +14,35 @@ function parseNumberedCategoryNames(emailCategories) {
   return names;
 }
 
+/** Normalise a name for EXACT (not fuzzy) comparison — lower-case, emoji/space-stripped. */
+function normaliseForExactMatch(name) {
+  return String(name)
+    .toLowerCase()
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Exact-match a model-reported category NAME back into the numbered list (or null). */
+function resolveExactListedName(rawName, orderedNames) {
+  if (typeof rawName !== 'string') return null;
+  const trimmed = rawName.trim();
+  if (!trimmed || normaliseForExactMatch(trimmed) === 'other') return null;
+  const target = normaliseForExactMatch(trimmed);
+  return orderedNames.find((listed) => normaliseForExactMatch(listed) === target) || null;
+}
+
 /**
- * Resolve a parsed priority response's category to a display name. Prefers the
- * single-mode `categoryNumber` (1-based index into `orderedNames`, 0 = Other);
- * falls back to a `category` name string (batch mode / legacy). Returns
- * undefined when neither is usable.
+ * Resolve a parsed priority response's category to a display name — mirrors the
+ * production resolver (server/src/utils/category-number.util.ts). An exact
+ * `categoryName` match wins over `categoryNumber` (weak models name their pick
+ * correctly but mis-count its position); otherwise fall back to `categoryNumber`
+ * (1-based index, 0 = Other), then a legacy `category` name. Undefined when none
+ * is usable.
  */
 function resolveResponseCategory(parsed, orderedNames) {
+  const named = resolveExactListedName(parsed.categoryName, orderedNames);
+  if (named) return named;
   if (parsed.categoryNumber !== undefined && parsed.categoryNumber !== null) {
     const n = Number(parsed.categoryNumber);
     if (n === 0) return 'Other';

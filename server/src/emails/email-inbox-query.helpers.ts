@@ -4,7 +4,12 @@ import { Repository } from "typeorm";
 import { INBOX_FILTER_VALUES } from "../constants/domain-types";
 import { INBOX_MODES, QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
-import { buildThreadFilter, RawEmailRow } from "./email-inbox.types";
+import {
+  buildThreadFilter,
+  INBOX_OTHER_CATEGORY_NAME,
+  INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  RawEmailRow,
+} from "./email-inbox.types";
 
 type InboxQueryFilters = {
   accountIds?: string[];
@@ -12,7 +17,39 @@ type InboxQueryFilters = {
   maxPriority?: number;
   /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
   assigneeId?: string;
+  /**
+   * Category keys (UUIDs) to narrow the query to. When present and containing
+   * ONLY real UUIDs, the narrowing is pushed into SQL so a single-category fetch
+   * only queries/decrypts that category's threads instead of the whole inbox.
+   * The "Other"/uncategorized bucket is intentionally NOT narrowed here — its
+   * membership depends on encrypted category-name resolution and orphaned-UUID
+   * handling that only applyPostQueryFilters can resolve correctly.
+   */
+  categoryIds?: string[];
 };
+
+/**
+ * Returns the requested category UUIDs only when the request targets real
+ * categories exclusively (no "Other"/uncategorized sentinel). Returns null when
+ * the request includes the Other bucket or resolves to no real UUIDs, signalling
+ * that SQL narrowing must be skipped and the post-query filter left to decide.
+ */
+function realCategoryUuidsForNarrowing(
+  categoryIds: string[] | undefined,
+): string[] | null {
+  if (!categoryIds || categoryIds.length === 0) {
+    return null;
+  }
+  const includesOther = categoryIds.some(
+    (id) =>
+      id === INBOX_OTHER_CATEGORY_NAME ||
+      id === INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  );
+  if (includesOther) {
+    return null;
+  }
+  return categoryIds;
+}
 
 function appendInboxAdditionalFilters(
   filters: InboxQueryFilters | undefined,
@@ -46,6 +83,13 @@ function appendInboxAdditionalFilters(
   } else if (filters?.assigneeId) {
     additionalFilters += ` AND thread."assigneeId" = $${idx++}`;
     queryParams.push(filters.assigneeId);
+  }
+
+  const narrowingUuids = realCategoryUuidsForNarrowing(filters?.categoryIds);
+  if (narrowingUuids) {
+    const placeholders = narrowingUuids.map(() => `$${idx++}`).join(", ");
+    additionalFilters += ` AND thread."categoryId" IN (${placeholders})`;
+    queryParams.push(...narrowingUuids);
   }
 
   return { additionalFilters, paramIndex: idx };

@@ -8,6 +8,12 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 
 export const BLOCKED_MODE_THREAD_FILTER = `AND thread."isArchived" = true AND (thread."hasBlockedLabel" = true OR thread."archivedByWorkflow" = true)`;
 
+/** Display name used for the null-category (uncategorized) bucket; inbox summary uses id: null. */
+export const INBOX_OTHER_CATEGORY_NAME = "Other";
+
+/** Key the client sends for the null-category (uncategorized) bucket. */
+export const INBOX_UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
+
 /**
  * Returns the SQL WHERE fragment for thread filtering based on inbox mode.
  */

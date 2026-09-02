@@ -374,6 +374,7 @@ export class EmailInboxService {
     mode: string,
     filters?: {
       accountIds?: string[];
+      categoryIds?: string[];
       minPriority?: number;
       maxPriority?: number;
       /** Filter by assignee userId, or "unassigned" for threads with no assignee. */

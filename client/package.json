@@ -81,7 +81,7 @@
     ]
   },
   "devDependencies": {
-    "@storybook/react": "^10.4.4",
+    "@storybook/react": "^10.5.10",
     "@storybook/react-vite": "^10.4.6",
     "@types/node": "~24",
     "@vitejs/plugin-react": "^6.0.2",

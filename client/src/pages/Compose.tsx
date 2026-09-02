@@ -352,7 +352,7 @@ const Compose: React.FC = () => {
             style={{
               position: 'absolute',
               inset: 0,
-              backgroundColor: 'rgba(255,255,255,0.8)',
+              backgroundColor: theme.colors.background.paper,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',

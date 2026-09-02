@@ -436,10 +436,12 @@ export class PriorityAnalysisService {
       parsed.result && typeof parsed.result === "object"
         ? parsed.result
         : parsed;
-    // Primary path: the LLM returns a categoryNumber (1-based index into the
-    // numbered list, 0 = Other), resolved by exact array index — no name/fuzzy
-    // matching. Falls back to a returned `category` name only when no number is
-    // present (defensive; e.g. an older response shape).
+    // The LLM reports its pick twice — categoryName and categoryNumber — and
+    // resolveResponseCategory reconciles them: an exact categoryName match wins
+    // (weak models reliably name the right category but miscount its position),
+    // otherwise it falls back to categoryNumber (1-based index, 0 = Other), then
+    // a legacy `category` name for older response shapes. Matching is always
+    // exact — never fuzzy — so a fabricated name can't mis-route.
     const category = resolveResponseCategory(
       analysisResult,
       orderedCategoryNames,

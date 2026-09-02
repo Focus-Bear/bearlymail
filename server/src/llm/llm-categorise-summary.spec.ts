@@ -182,4 +182,93 @@ describe("categoriseFromSummary", () => {
       expect.stringContaining("LLM failure"),
     );
   });
+
+  describe("categoryName reconciliation (Nova Lite mis-count)", () => {
+    it("trusts an exact categoryName over a WRONG categoryNumber", async () => {
+      // The model named "QA passed" in its reasoning but mis-counted the
+      // position, emitting categoryNumber 1 ("QA failed"). The exact name
+      // match must win so the thread lands in the category it reasoned about.
+      generateText.mockResolvedValue(
+        JSON.stringify({
+          result: {
+            categoryNumber: 1,
+            categoryName: "QA passed",
+            categoryConfidence: "HIGH",
+            reasoning: "The fix was verified.",
+          },
+        }),
+      );
+
+      const result = await categoriseFromSummary(generateText, logger, {
+        subject: "App Crash",
+        summary: "The app crash has been QA verified and closed.",
+        categories,
+      });
+
+      expect(result?.categoryName).toBe("QA passed");
+    });
+
+    it("matches categoryName case/emoji-insensitively", async () => {
+      generateText.mockResolvedValue(
+        JSON.stringify({
+          result: {
+            categoryNumber: 1,
+            categoryName: "qa passed",
+            categoryConfidence: "HIGH",
+            reasoning: "Verified.",
+          },
+        }),
+      );
+
+      const result = await categoriseFromSummary(generateText, logger, {
+        subject: "App Crash",
+        summary: "Verified.",
+        categories,
+      });
+
+      expect(result?.categoryName).toBe("QA passed");
+    });
+
+    it("falls back to categoryNumber when categoryName is a fabricated near-name", async () => {
+      generateText.mockResolvedValue(
+        JSON.stringify({
+          result: {
+            categoryNumber: 2,
+            categoryName: "QA passed successfully",
+            categoryConfidence: "MEDIUM",
+            reasoning: "Verified.",
+          },
+        }),
+      );
+
+      const result = await categoriseFromSummary(generateText, logger, {
+        subject: "App Crash",
+        summary: "Verified.",
+        categories,
+      });
+
+      expect(result?.categoryName).toBe("QA passed");
+    });
+
+    it("resolves to Other when categoryName is fabricated and there is no usable number", async () => {
+      generateText.mockResolvedValue(
+        JSON.stringify({
+          result: {
+            categoryName: "QA passed successfully",
+            categoryConfidence: "LOW",
+            reasoning: "Unclear.",
+          },
+        }),
+      );
+
+      const result = await categoriseFromSummary(generateText, logger, {
+        subject: "App Crash",
+        summary: "Unclear.",
+        categories,
+      });
+
+      expect(result?.categoryName).toBe("Other");
+      expect(result?.categoryNumber).toBeNull();
+    });
+  });
 });

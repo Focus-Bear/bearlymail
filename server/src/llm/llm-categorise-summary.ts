@@ -5,7 +5,7 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { getErrorMessage } from "../types/common";
 import {
   hasCategoryNumber,
-  resolveCategoryNumber,
+  resolveResponseCategory,
   rewriteCategoryNumberReferences,
 } from "../utils/category-number.util";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
@@ -45,10 +45,14 @@ function normaliseConfidence(raw: unknown): "HIGH" | "MEDIUM" | "LOW" {
  * Lightweight, category-ONLY re-categorisation of a thread from its updated
  * summary — used by the incremental analysis path after a new email is
  * summarised, instead of re-running the full priority+category flow. The LLM
- * picks a numbered category (0 = Other) so resolution is an exact index (no
- * name/emoji/fuzzy matching, per the #2505 numbering approach). Returns null on
- * empty input, a missing prompt, or an LLM/parse failure so the caller leaves
- * the existing category untouched.
+ * reports its pick as BOTH a numbered category and the exact name (0 / "Other"
+ * = no fit), and resolveResponseCategory reconciles them: an exact `categoryName`
+ * match wins over `categoryNumber`, since a weak model reliably names the
+ * category its reasoning is about but frequently mis-counts its position in the
+ * list (see server/src/utils/category-number.util.ts). Matching is always exact
+ * (no fuzzy/prefix) — a fabricated name falls back to the number rather than
+ * mis-routing. Returns null on empty input, a missing prompt, or an LLM/parse
+ * failure so the caller leaves the existing category untouched.
  */
 export async function categoriseFromSummary(
   generateText: GenerateText,
@@ -124,9 +128,14 @@ export async function categoriseFromSummary(
     ) as Record<string, unknown>;
 
     const rawNumber = result.categoryNumber;
+    const rawName =
+      typeof result.categoryName === "string" ? result.categoryName : undefined;
     return {
       categoryNumber: hasCategoryNumber(rawNumber) ? Number(rawNumber) : null,
-      categoryName: resolveCategoryNumber(rawNumber, orderedNames),
+      categoryName: resolveResponseCategory(
+        { categoryNumber: rawNumber, categoryName: rawName },
+        orderedNames,
+      ),
       categoryConfidence: normaliseConfidence(result.categoryConfidence),
       // Rewrite positional "category N" references to real names — the user
       // never sees the numbered list the model picked from.

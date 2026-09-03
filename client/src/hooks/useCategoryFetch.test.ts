@@ -333,7 +333,7 @@ describe('useCategoryFetch — batch preload (#145)', () => {
     });
 
     await waitFor(() => expect(fetchCategoryEmailsBatch).toHaveBeenCalledTimes(1));
-    // Items are ordered by count desc (Alpha 5, Beta 3, Gamma 2, Delta 1).
+    // Items follow the order the keys were supplied in (the server's priority/display order).
     expect(fetchCategoryEmailsBatch).toHaveBeenCalledWith([
       { name: 'Alpha', id: 'cat-a' },
       { name: 'Beta', id: 'cat-b' },
@@ -346,6 +346,27 @@ describe('useCategoryFetch — batch preload (#145)', () => {
       await Promise.resolve();
     });
     expect(fetchCategoryEmails).not.toHaveBeenCalled();
+  });
+
+  it('batches in the supplied priority order, NOT by email count', async () => {
+    // Priority/display order (input) puts the low-count category first; a count-desc
+    // sort would reorder it. The batch must follow the input order so the top-of-inbox
+    // (highest-priority) category is preloaded first.
+    const summary = [
+      { id: 'cat-d', name: 'Delta', count: 1 },
+      { id: 'cat-a', name: 'Alpha', count: 5 },
+    ];
+    const { result } = renderHook(() => useCategoryFetch(batchProps(summary)), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.updateStableCategoryOrder(['cat-d', 'cat-a'], summary);
+    });
+
+    await waitFor(() => expect(fetchCategoryEmailsBatch).toHaveBeenCalledTimes(1));
+    expect(fetchCategoryEmailsBatch).toHaveBeenCalledWith([
+      { name: 'Delta', id: 'cat-d' },
+      { name: 'Alpha', id: 'cat-a' },
+    ]);
   });
 
   it('excludes empty (count 0) categories from the batch', async () => {

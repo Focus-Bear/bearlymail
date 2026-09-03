@@ -32,6 +32,8 @@ import { User } from "./user.entity";
 @Index(["userId", "urgencyScore"])
 // For priority-based sorting
 @Index(["userId", "priorityScore"])
+// For per-category inbox fetches (getInbox narrows threads by categoryId in SQL)
+@Index("IDX_email_threads_userId_categoryId", ["userId", "categoryId"])
 // For batch-status queries
 @Index(["userId", "isBatched", "batchReleaseAt"])
 @Index(["userId", "syncStatus", "syncStatusUpdatedAt"])

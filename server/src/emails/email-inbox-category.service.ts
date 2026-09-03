@@ -5,13 +5,15 @@ import { INBOX_MODES } from "../constants/query-limits";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
-import { threadHasBlockedLabel } from "./email-inbox.types";
+import {
+  INBOX_OTHER_CATEGORY_NAME,
+  INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  threadHasBlockedLabel,
+} from "./email-inbox.types";
 
-/** Display name used for the null-category (uncategorized) bucket; inbox summary uses id: null. */
-export const INBOX_OTHER_CATEGORY_NAME = "Other";
-
-/** Key the client sends for the null-category (uncategorized) bucket. */
-export const INBOX_UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
+// Re-exported from email-inbox.types (their dependency-free home) so existing
+// importers of these sentinels via this service keep working unchanged.
+export { INBOX_OTHER_CATEGORY_NAME, INBOX_UNCATEGORIZED_CATEGORY_KEY };
 
 /**
  * Category-counting and filtering helpers extracted from EmailInboxService.

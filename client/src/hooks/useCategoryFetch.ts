@@ -14,7 +14,7 @@ import {
 import { markCategoryLoaded } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
-/** Number of categories to auto-expand on initial mount (sorted by email count desc). */
+/** Number of categories to auto-expand on initial mount (in priority/display order). */
 const INITIAL_PRELOAD_COUNT = 6;
 
 /** Fire budget-warning signal when fetch reaches this fraction of the budget. */
@@ -199,14 +199,13 @@ export function useCategoryFetch({
         setStableCategoryOrder(categoryKeys);
         if (!hasAutoExpandedRef.current) {
           hasAutoExpandedRef.current = true;
-          // Sort by email count desc so top INITIAL_PRELOAD_COUNT categories expand first on mount.
-          const keyToCount = summaryItems
-            ? new Map(summaryItems.map(item => [getCategoryKey(item.id, item.name), item.count ?? 0]))
-            : null;
-          const orderedKeys = keyToCount
-            ? [...categoryKeys].sort((keyA, keyB) => (keyToCount.get(keyB) ?? 0) - (keyToCount.get(keyA) ?? 0))
-            : categoryKeys;
-          const topKeys = orderedKeys.slice(0, INITIAL_PRELOAD_COUNT);
+          // categoryKeys arrive in the server's priority/display order (highest max-thread
+          // priority first). Take the top INITIAL_PRELOAD_COUNT in THAT order — not by email
+          // count — so the categories the user sees at the top of the inbox are the ones
+          // auto-expanded and batch-preloaded first. Sorting by count could push a
+          // high-priority-but-small category (e.g. Payments & Financials) out of the initial
+          // batch, leaving it to lazy-load slowly while lower-priority ones render.
+          const topKeys = categoryKeys.slice(0, INITIAL_PRELOAD_COUNT);
           setExpandedCategories(new Set(topKeys));
           // Preload the top accordions in one round-trip (#145) instead of N fetches.
           preloadTopCategories(topKeys, summaryItems);

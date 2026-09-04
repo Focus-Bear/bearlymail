@@ -12,6 +12,7 @@
 const { spawn } = require('child_process');
 const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const PROMPTFOO_DIR = path.join(__dirname, '..', 'promptfoo');
@@ -200,14 +201,22 @@ function findYamlFiles(changedPromptsOnly = false) {
     configs.forEach(c => yamlFiles.add(c));
   }
 
-  return Array.from(yamlFiles).sort();
+  // A config deleted in this PR shows up in the diff but has nothing to run.
+  const deleted = Array.from(yamlFiles).filter((c) => !fs.existsSync(c));
+  if (deleted.length > 0) {
+    log(`Skipping deleted config files: ${deleted.map((c) => path.basename(c)).join(', ')}`, colors.cyan);
+  }
+  return Array.from(yamlFiles)
+    .filter((c) => fs.existsSync(c))
+    .sort();
 }
 
 /**
- * Check if output indicates a 429 rate-limit error from OpenAI.
+ * Check if output indicates a transient provider error worth retrying: a 429
+ * rate limit, or a 5xx / UNAVAILABLE outage from the model API.
  */
 function is429Error(output) {
-  return /429|rate.?limit|too many requests/i.test(output);
+  return /429|rate.?limit|too many requests|"code":\s*50[23]|UNAVAILABLE|service is currently unavailable/i.test(output);
 }
 
 /**
@@ -225,19 +234,32 @@ function sleep(ms) {
 function runEvaluationOnce(configPath, index, total) {
   const configName = path.basename(configPath);
 
+  // Results are read from promptfoo's JSON output: the console table truncates
+  // cells, which hid [PASS]/[FAIL] markers and let failing suites report as
+  // passed when counted from text.
+  const resultsPath = path.join(
+    os.tmpdir(),
+    `promptfoo-${configName.replace(/[^a-z0-9.-]/gi, '_')}-${process.pid}.json`,
+  );
+
   return new Promise((resolve) => {
     const chunks = [];
-    const child = spawn('npx', ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar'], {
-      env: { ...process.env },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(
+      'npx',
+      ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar', '-o', resultsPath],
+      {
+        env: { ...process.env },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
 
     child.stdout.on('data', (data) => chunks.push(data));
     child.stderr.on('data', (data) => chunks.push(data));
 
     child.on('close', (code) => {
       const output = Buffer.concat(chunks).toString('utf-8');
-      const stats = parseEvaluationOutput(output, configName);
+      const stats =
+        parseResultsFile(resultsPath) ?? parseEvaluationOutput(output, configName);
       stats.exitCode = code;
       stats.configName = configName;
       stats.output = output;
@@ -267,7 +289,10 @@ async function runEvaluation(configPath, index, total) {
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
     const stats = await runEvaluationOnce(configPath, index, total);
 
-    const hitRateLimit = stats.exitCode !== 0 && is429Error(stats.output);
+    // Retry the whole config when the provider was rate-limited or briefly
+    // unavailable, whether promptfoo exited non-zero or just recorded errors.
+    const hitRateLimit =
+      (stats.exitCode !== 0 || stats.failed > 0) && is429Error(stats.output);
 
     if (!hitRateLimit || attempt > MAX_RETRIES) {
       // promptfoo exited non-zero without running a single test (missing API
@@ -316,6 +341,44 @@ function extractRunErrorLines(output) {
   return lines.length > 0
     ? lines.slice(0, 5).map((line) => line.substring(0, 200))
     : ['promptfoo exited with a non-zero status before running any tests'];
+}
+
+/**
+ * Parse promptfoo's JSON results file. Returns null when the file is missing
+ * or unreadable (promptfoo aborted before evaluating), so the caller can fall
+ * back to the console output.
+ */
+function parseResultsFile(resultsPath) {
+  try {
+    if (!fs.existsSync(resultsPath)) return null;
+    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
+    fs.unlinkSync(resultsPath);
+    const results = (data.results && data.results.results) || [];
+    if (results.length === 0) return null;
+    const stats = { total: results.length, passed: 0, failed: 0, errors: [] };
+    for (const result of results) {
+      if (result.success) {
+        stats.passed += 1;
+        continue;
+      }
+      stats.failed += 1;
+      const description =
+        (result.testCase && result.testCase.description) ||
+        (result.vars && result.vars.subject) ||
+        'unnamed test';
+      const components =
+        (result.gradingResult && result.gradingResult.componentResults) || [];
+      const reasons = components
+        .filter((component) => !component.pass)
+        .map((component) => component.reason)
+        .filter(Boolean);
+      const reason = result.error || reasons.join(' | ') || 'assertion failed';
+      stats.errors.push(`${description}: ${reason}`.substring(0, 400));
+    }
+    return stats;
+  } catch (err) {
+    return null;
+  }
 }
 
 function parseEvaluationOutput(output, configName) {

@@ -12,6 +12,10 @@ prompts:
   - file://prompts/prioritise-email.md
 
 defaultTest:
+  # llm-rubric assertions need a grading model; pin it to Gemini so the suite
+  # does not silently depend on an OpenAI key (absent in CI).
+  options:
+    provider: google:gemini-3.1-flash-lite
   vars:
     # Category selection never happens in this prompt: the categoriser assigns
     # the category first and the priority prompt only scores it. Tests render

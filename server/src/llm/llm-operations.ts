@@ -9,7 +9,9 @@ export const LLM_OP_ANALYZE_EMAIL_PATTERNS = "analyze_email_patterns";
 // Email summarization
 export const LLM_OP_SUMMARIZE_EMAIL = "summarize_email";
 
-// Email summarization with LLM phishing check piggybacked (single email)
+// Structured single-email summary (summary + sentiment + action items +
+// meeting proposal). Phishing moved to the dedicated `check_phishing_only`
+// call; the id keeps its historical name so token-usage history stays intact.
 export const LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING =
   "summarize_email_with_phishing_check";
 
@@ -230,7 +232,8 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_RESOLVE_WORKFLOW_VARIABLES]: "Resolve Workflow Variables",
   [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns",
   [LLM_OP_SUMMARIZE_EMAIL]: "Summarize Email",
-  [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]: "Summarize Email + Phishing Check",
+  [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]:
+    "Summarize Email (structured: sentiment, actions, meeting)",
   [LLM_OP_SUMMARIZE_EMAIL_BATCH]: "Summarize Email (Batch)",
   [LLM_OP_CHECK_TONE]: "Check Tone",
   [LLM_OP_EXTRACT_MEETING_REFERENCES]: "Extract Meeting Date References",

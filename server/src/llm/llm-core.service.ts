@@ -11,6 +11,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import {
   BedrockRuntimeClient,
   ConverseCommand,
+  ConverseCommandOutput,
 } from "@aws-sdk/client-bedrock-runtime";
 import { GenerateContentResponse, GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
@@ -25,6 +26,10 @@ import {
   toAnthropicMessages,
   toAnthropicTools,
 } from "./anthropic-tool-translation";
+import {
+  BedrockPromptCache,
+  buildBedrockUsageLog,
+} from "./bedrock-prompt-cache";
 import { ClaudeCliClient } from "./claude-cli.helper";
 import { buildGeminiGenerationConfig } from "./gemini-request.helper";
 import { LLMProvider, LLMRequest } from "./llm.types";
@@ -99,6 +104,8 @@ export class LLMCoreService {
    * Per-process state (web and worker each maintain their own breaker).
    */
   private geminiBillingCircuitOpenUntil = 0;
+  /** Opt-in Converse prompt caching; disables itself if the model rejects it. */
+  private readonly bedrockPromptCache = new BedrockPromptCache();
   /** Local Claude Code CLI wrapper (binary probe + one-shot generations). */
   private readonly claudeCli: ClaudeCliClient;
 
@@ -410,12 +417,14 @@ export class LLMCoreService {
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
+      const system = this.bedrockPromptCache.systemBlocks(
+        request.systemPrompt,
+        request.cacheStaticPrefix,
+      );
       const command = new ConverseCommand({
         modelId,
         messages: [{ role: "user", content: [{ text: request.prompt }] }],
-        ...(request.systemPrompt
-          ? { system: [{ text: request.systemPrompt }] }
-          : {}),
+        ...(system ? { system } : {}),
         inferenceConfig: {
           temperature: request.temperature ?? RATIOS.SEVENTY_PERCENT,
           maxTokens: Math.min(
@@ -425,23 +434,26 @@ export class LLMCoreService {
         },
       });
 
-      const response = await this.bedrockClient!.send(command);
+      let response: ConverseCommandOutput;
+      try {
+        response = await this.bedrockClient!.send(command);
+      } catch (error) {
+        const warning = this.bedrockPromptCache.noteRejection(error, modelId);
+        if (warning) this.logger.warn(warning);
+        throw error;
+      }
       const durationMs = Date.now() - startTime;
 
       if (response.usage) {
-        await this.tokenUsageService.logUsage({
-          userId: userId || null,
-          operation: request.operation || LLM_OP_UNKNOWN,
-          provider: LLMProvider.BEDROCK,
-          model: modelId,
-          promptTokens: response.usage.inputTokens || 0,
-          completionTokens: response.usage.outputTokens || 0,
-          totalTokens: response.usage.totalTokens || 0,
+        const { record, cacheLogLine } = buildBedrockUsageLog({
+          request,
+          usage: response.usage,
+          modelId,
+          userId,
           durationMs,
-          promptText: request.prompt,
-          systemPromptText: request.systemPrompt,
-          emailIds: request.metadata?.emailIds,
         });
+        if (cacheLogLine) this.logger.log(cacheLogLine);
+        await this.tokenUsageService.logUsage(record);
       }
 
       return (

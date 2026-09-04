@@ -477,13 +477,22 @@ jobs:
         working-directory: server
         run: npm ci --legacy-peer-deps
 
+      - name: Check provider keys are present
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          [ -n "$GOOGLE_API_KEY" ] && echo "GOOGLE_API_KEY: present" || echo "GOOGLE_API_KEY: MISSING"
+          [ -n "$OPENAI_API_KEY" ] && echo "OPENAI_API_KEY: present" || echo "OPENAI_API_KEY: MISSING"
+
       - name: Run promptfoo tests
         working-directory: server
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           # 40 of the promptfoo suites use google:gemini-* providers, which
-          # promptfoo reads from GOOGLE_API_KEY.
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          # promptfoo reads from GOOGLE_API_KEY. Fall back to the server's own
+          # secret name so an org-level GEMINI_API_KEY also works.
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || secrets.GEMINI_API_KEY }}
           PROMPTFOO_REQUEST_BACKOFF_MS: 1000
           OPENAI_MAX_RETRIES: 3
           PROMPTFOO_CHANGED_ONLY: 'true'

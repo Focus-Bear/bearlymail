@@ -16,6 +16,7 @@ const os = require('os');
 const path = require('path');
 
 const PROMPTFOO_DIR = path.join(__dirname, '..', 'promptfoo');
+const PROVIDER_KEY_ENV_VARS = ['OPENAI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY'];
 
 // ANSI color codes
 const colors = {
@@ -244,11 +245,18 @@ function runEvaluationOnce(configPath, index, total) {
 
   return new Promise((resolve) => {
     const chunks = [];
+    // CI passes secrets through as env vars even when they are unset, and an
+    // EMPTY key makes promptfoo believe that provider is configured. Drop empty
+    // provider keys so promptfoo falls back to the keys that actually exist.
+    const env = { ...process.env };
+    for (const key of PROVIDER_KEY_ENV_VARS) {
+      if (env[key] !== undefined && env[key].trim() === '') delete env[key];
+    }
     const child = spawn(
       'npx',
       ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar', '-o', resultsPath],
       {
-        env: { ...process.env },
+        env,
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
@@ -282,6 +290,8 @@ function runEvaluationOnce(configPath, index, total) {
 
 const MAX_RETRIES = 4;
 const RETRY_BASE_DELAY_MS = 5000; // 5 s, doubles each attempt
+/** Lines of raw promptfoo output shown when a config aborts without a recognisable error. */
+const RAW_OUTPUT_TAIL_LINES = 25;
 
 async function runEvaluation(configPath, index, total) {
   const configName = path.basename(configPath);
@@ -302,6 +312,15 @@ async function runEvaluation(configPath, index, total) {
       if (stats.exitCode !== 0 && stats.total === 0 && stats.failed === 0) {
         stats.failed = 1;
         stats.errors = extractRunErrorLines(stats.output);
+        if (stats.errors.length === 0) {
+          // Nothing matched the known error patterns: surface the tail of the
+          // raw output so the failure is diagnosable from the CI log.
+          stats.errors = stats.output
+            .split('\n')
+            .filter((line) => line.trim().length > 0)
+            .slice(-RAW_OUTPUT_TAIL_LINES)
+            .map((line) => `raw: ${line.substring(0, 300)}`);
+        }
         log(`[${index}/${total}] ${configName}... ${colors.red}DID NOT RUN${colors.reset} (promptfoo exit code ${stats.exitCode})`);
         return stats;
       }

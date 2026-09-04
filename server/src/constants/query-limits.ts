@@ -25,10 +25,17 @@ export const QUERY_LIMITS = {
   INITIAL_SYNC_MAX_EMAILS: 500,
   /**
    * Sync-window policy: after the initial sync, ongoing syncs only fetch
-   * emails at most this many days old (starred emails are fetched regardless
-   * of age).
+   * emails at most this many days old. Starred emails get the wider
+   * `STARRED_SYNC_WINDOW_DAYS` instead.
    */
   ONGOING_SYNC_WINDOW_DAYS: 7,
+  /**
+   * Sync-window policy: starred/flagged threads are imported beyond the
+   * ongoing window, but only back this far. Without a bound the initial
+   * sync imported every starred thread ever (up to the fetch cap) and each
+   * one went through the full LLM pipeline.
+   */
+  STARRED_SYNC_WINDOW_DAYS: 90,
   INBOX_PROCESS_TOTAL: 1000,
   INBOX_PAGE_SIZE: 50,
   /**

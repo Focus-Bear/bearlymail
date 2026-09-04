@@ -75,12 +75,13 @@ export async function sendEmail(
     to: EmailRecipient[];
     subject: string;
     body: string;
+    htmlBody?: string;
     cc?: EmailRecipient[];
     bcc?: EmailRecipient[];
     attachments?: EmailAttachmentData[];
   },
 ): Promise<{ messageId: string; threadId: string }> {
-  const { to, subject, body, cc, bcc, attachments } = params;
+  const { to, subject, body, htmlBody, cc, bcc, attachments } = params;
   if (attachments && attachments.length > 0) {
     // TODO: Zoho attachments require a separate upload step (POST the file to
     // /messages/attachments, then reference the returned id on send). Not yet
@@ -105,7 +106,9 @@ export async function sendEmail(
     return await sendEmailViaZoho(zohoClient, zohoAccountId, mailboxAddress, {
       to,
       subject,
-      body,
+      // Zoho sends the body as HTML content; prefer an explicit HTML body
+      // (forwards) so line breaks survive as <br>.
+      body: htmlBody ?? body,
       cc,
       bcc,
     });

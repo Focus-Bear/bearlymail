@@ -185,11 +185,17 @@ export function shouldFetchProtoCategories(
   return expandedCategories.has(getCategoryKey(otherCategory.id, otherCategory.name));
 }
 
+/**
+ * Categories to render as sections. A category whose reconciled count is 0 has no
+ * rows to show and is left out (issue #2062), except when `includeEmpty` is set so
+ * an admin in debug mode can still open its diagnostic panel.
+ */
 export function buildDisplayCategories(
   summaryCategories: CategorySummaryItem[] | null,
   filteredEmails: Email[],
   stableCategoryOrder: string[],
-  mode: InboxMode
+  mode: InboxMode,
+  includeEmpty = false
 ): Array<{ id: string | null; name: string; count: number }> {
   const source: Array<{ id: string | null; name: string; count: number }> =
     summaryCategories ??
@@ -214,7 +220,7 @@ export function buildDisplayCategories(
   }
   const mergedSource = Array.from(mergedByName.values());
 
-  const nonEmptySource = mergedSource.filter(cat => cat.count > 0);
+  const nonEmptySource = includeEmpty ? mergedSource : mergedSource.filter(cat => cat.count > 0);
   if (stableCategoryOrder.length === 0) {
     return nonEmptySource;
   }

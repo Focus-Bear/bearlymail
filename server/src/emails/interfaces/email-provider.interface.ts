@@ -154,6 +154,14 @@ export interface EmailProvider {
       to: EmailRecipient[];
       subject: string;
       body: string;
+      /**
+       * HTML version of the body. When set, providers send it as the message's
+       * HTML part and use `body` only as the plain-text fallback. When omitted,
+       * `body` is treated as the HTML content (back-compat for callers that pass
+       * rich HTML in `body`). Forwards rely on this so signature/header line
+       * breaks survive as <br> instead of collapsing.
+       */
+      htmlBody?: string;
       cc?: EmailRecipient[];
       bcc?: EmailRecipient[];
       attachments?: EmailAttachmentData[];

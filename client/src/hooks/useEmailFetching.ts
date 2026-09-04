@@ -48,6 +48,7 @@ import {
   markCategoryLoaded,
   markCategoryLoadFailed,
   markCategoryLoading,
+  reconcileCategorySummaryCount,
   setCategorySummary,
   setCurrentOffset,
   setDecrypting,
@@ -287,6 +288,9 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
             dispatch(updateCategoryEmails({ categoryKey: key, emails }));
             setCachedCategoryEmails(mode, key, emails);
             dispatch(markCategoryLoaded(key));
+            // Issue #2062: the rows are the truth once loaded. A summary count above the
+            // row count came from an older state; a category with no rows must not render.
+            dispatch(reconcileCategorySummaryCount({ categoryKey: key, loadedCount: emails.length }));
           });
         });
         return { loadedKeys: keys, failedKeys: [] };

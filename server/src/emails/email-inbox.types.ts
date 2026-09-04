@@ -5,6 +5,10 @@
 
 import { INBOX_MODES } from "../constants/query-limits";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import {
+  appendInboxScopeFilters,
+  InboxScopeFilters,
+} from "./email-inbox-scope.helpers";
 
 export const BLOCKED_MODE_THREAD_FILTER = `AND thread."isArchived" = true AND (thread."hasBlockedLabel" = true OR thread."archivedByWorkflow" = true)`;
 
@@ -155,49 +159,21 @@ export function threadHasBlockedLabel(
 
 /**
  * Builds the SQL WHERE fragments and query parameters for inbox summary queries.
- * Extracted from EmailInboxService to keep it under the 800-line limit.
+ * Delegates to the scope shared with runInboxQuery (issue #2062) so the summary
+ * count and the thread list apply identical account / priority / assignee
+ * filters; the account filter tests `latest_email`, the same representative row
+ * the list filters on.
  */
 export function buildSummaryFiltersAndParams(
   userId: string,
-  filters?: {
-    minPriority?: number;
-    maxPriority?: number;
-    accountIds?: string[];
-  },
+  filters?: InboxScopeFilters,
 ): { additionalFilters: string; queryParams: (string | number)[] } {
   const queryParams: (string | number)[] = [userId];
-  let additionalFilters = "";
-  let paramIndex = 2;
-
-  if (filters?.minPriority !== undefined) {
-    additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
-    queryParams.push(filters.minPriority);
-  }
-  if (filters?.maxPriority !== undefined) {
-    additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
-    queryParams.push(filters.maxPriority);
-  }
-  if (filters?.accountIds && filters.accountIds.length > 0) {
-    const phGoogle = filters.accountIds
-      .map(() => `$${paramIndex++}`)
-      .join(", ");
-    const phOffice = filters.accountIds
-      .map(() => `$${paramIndex++}`)
-      .join(", ");
-    const phZoho = filters.accountIds.map(() => `$${paramIndex++}`).join(", ");
-    // fix(#2062): scope the account filter to the thread's REPRESENTATIVE (latest)
-    // email — the same row runInboxQuery filters on (`e."googleAccountId" IN ...`) —
-    // NOT to "any email in the thread" (the old EXISTS form). With the EXISTS form a
-    // thread whose latest email lives on account B but which also has an older email
-    // on the filtered account A was COUNTED by the summary yet EXCLUDED by the inbox
-    // list, producing a ghost accordion (count > 0, zero emails loaded). Referencing
-    // latest_email keeps the summary count exactly equal to what the inbox returns.
-    additionalFilters += ` AND (latest_email."googleAccountId" IN (${phGoogle}) OR latest_email."office365AccountId" IN (${phOffice}) OR latest_email."zohoAccountId" IN (${phZoho}))`;
-    queryParams.push(
-      ...filters.accountIds,
-      ...filters.accountIds,
-      ...filters.accountIds,
-    );
-  }
+  const { additionalFilters } = appendInboxScopeFilters(
+    filters,
+    2,
+    queryParams,
+    "latest_email",
+  );
   return { additionalFilters, queryParams };
 }

@@ -11,7 +11,8 @@ import {
 } from 'types/category-rules.types';
 
 import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
-import { EMOJI_WARNING } from 'constants/emojis';
+import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
+import { MAX_PERCENTAGE } from 'constants/numbers';
 
 const rowStyle: React.CSSProperties = {
   padding: theme.spacing.sm,
@@ -188,6 +189,27 @@ const RuleRowHeader: React.FC<DeterministicCategoryRuleRowProps & { isComposite:
   );
 };
 
+/**
+ * "Reviewed" footnote for auto-generated rules: the strong-model reviewer's
+ * verdict and confidence, with its reasoning in the tooltip. Nothing renders
+ * for hand-authored rules or rules created while the review was unavailable.
+ */
+const SanityCheckNote: React.FC<{ rule: CategoryRuleDto; t: TFunction }> = ({ rule, t }) => {
+  const check = rule.sanityCheck;
+  if (!check) {
+    return null;
+  }
+  const confidence = Math.round(check.confidence * MAX_PERCENTAGE);
+  const label = check.revised
+    ? t('settings.deterministicCategoryRules.sanityReviewedRevised', { confidence })
+    : t('settings.deterministicCategoryRules.sanityReviewed', { confidence });
+  return (
+    <span title={t('settings.deterministicCategoryRules.sanityTooltip', { reason: check.reason, model: check.model })}>
+      {EMOJI_CHECK} {label}
+    </span>
+  );
+};
+
 export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRowProps> = (props) => {
   const { rule } = props;
   const { t } = useTranslation();
@@ -233,6 +255,7 @@ export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRow
             })}
           </span>
         ) : null}
+        <SanityCheckNote rule={rule} t={t} />
       </div>
     </div>
   );

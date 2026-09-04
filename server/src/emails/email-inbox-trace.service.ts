@@ -58,20 +58,48 @@ export interface CategoryFetchTraceThreadDetail {
   inRawQuery: boolean;
 }
 
+/**
+ * The summary entry the client is rendering, as the client sees it. Passed in by
+ * the debug panel so the trace can compare what the user is looking at against
+ * a fresh server summary instead of guessing.
+ */
+export interface ClientSummarySnapshot {
+  name?: string;
+  threadIds: string[];
+}
+
+export interface CategoryFetchTraceFilters {
+  accountIds?: string[];
+  minPriority?: number;
+  maxPriority?: number;
+}
+
 export interface CategoryFetchTrace {
   categoryId: string | null;
-  /** Best-effort decrypted name; "Other" for the null-category bucket. */
+  /** Decrypted name from the fresh server summary, else the client's name, else "Other"/"(unknown)". */
   categoryName: string;
   mode: CategoryFetchTraceMode;
+  /** Filters the trace replayed (the same ones the real per-category fetch sent). */
+  filters: CategoryFetchTraceFilters;
+  /** What the client's rendered summary entry listed for this category, if the caller supplied it. */
+  clientSummaryThreadIds: string[] | null;
+  /** What a fresh server summary lists for this category right now. */
+  serverSummaryThreadIds: string[];
+  /**
+   * True when the client's summary and the fresh server summary disagree: the
+   * client is rendering a count computed from an older state than the one the
+   * rows come from. The usual cause of a section with a count but no rows.
+   */
+  summaryStale: boolean;
   /** Resolved UUID set the inbox endpoint would have used for the categoryIds filter. */
   resolvedCategoryUuids: string[];
   /** Whether the categoryId was treated as the "Other" / uncategorized bucket. */
   treatedAsOther: boolean;
-  /** Threads the summary endpoint reported for this category at trace time. */
+  /** Alias of serverSummaryThreadIds, kept for existing consumers. */
   summaryThreadIds: string[];
   /**
-   * Threads returned by runInboxQuery (before any post-query filter).
-   * NOT category-scoped — this is the full triage/action/follow-up universe.
+   * Threads returned by the SAME query the per-category fetch runs (mode +
+   * filters + SQL narrowing to this category), before post-query filters.
    */
   rawQueryAllThreadIds: string[];
   /** Threads from the raw query that match the requested category. */
@@ -110,6 +138,12 @@ export interface CategoryFetchTrace {
  * production code paths in EmailInboxService remain untouched so we don't
  * regress hot-path performance.
  */
+function sameThreadSet(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  const rightSet = new Set(right);
+  return left.every((threadId) => rightSet.has(threadId));
+}
+
 @Injectable()
 export class EmailInboxTraceService {
   private readonly logger = new Logger(EmailInboxTraceService.name);
@@ -125,21 +159,31 @@ export class EmailInboxTraceService {
     userId: string,
     categoryId: string,
     mode: CategoryFetchTraceMode,
+    options: {
+      filters?: CategoryFetchTraceFilters;
+      clientSummary?: ClientSummarySnapshot;
+    } = {},
   ): Promise<CategoryFetchTrace> {
     const treatedAsOther =
       categoryId === INBOX_UNCATEGORIZED_CATEGORY_KEY ||
       categoryId === INBOX_OTHER_CATEGORY_NAME;
+    const filters = options.filters ?? {};
 
     const { summaryThreadIds, categoryName, summaryEndedAt } =
-      await this.fetchSummaryForCategory(
-        userId,
-        mode,
+      await this.fetchSummaryForCategory(userId, mode, {
         categoryId,
         treatedAsOther,
-      );
+        filters,
+        clientName: options.clientSummary?.name,
+      });
 
     const rawStartedAt = Date.now();
-    const rawRows = await this.emailInboxService.runInboxQuery(userId, mode);
+    // Replay the real per-category fetch: same mode, same filters, same SQL
+    // narrowing. An unfiltered query would hide exactly the drops we look for.
+    const rawRows = await this.emailInboxService.runInboxQuery(userId, mode, {
+      ...filters,
+      categoryIds: [categoryId],
+    });
     const decrypted: InboxEmail[] = rawRows.map((row) =>
       this.emailInboxService.decryptRawEmailRow(row),
     );
@@ -179,6 +223,8 @@ export class EmailInboxTraceService {
       categoryId,
       categoryName,
       mode,
+      filters,
+      clientSummaryThreadIds: options.clientSummary?.threadIds ?? null,
       treatedAsOther,
       requestedUuids,
       summaryThreadIds,
@@ -251,24 +297,37 @@ export class EmailInboxTraceService {
   private async fetchSummaryForCategory(
     userId: string,
     mode: CategoryFetchTraceMode,
-    categoryId: string,
-    treatedAsOther: boolean,
+    target: {
+      categoryId: string;
+      treatedAsOther: boolean;
+      filters: CategoryFetchTraceFilters;
+      clientName?: string;
+    },
   ): Promise<{
     summaryThreadIds: string[];
     categoryName: string;
     summaryEndedAt: number;
   }> {
+    const { categoryId, treatedAsOther, filters, clientName } = target;
     const summary = await this.emailInboxService.getInboxSummary(userId, mode, {
+      ...filters,
       includeThreadIds: true,
     });
     const summaryEndedAt = Date.now();
+    // The summary keys entries by name with one canonical UUID, so match on the
+    // id the renderer holds first and fall back to the renderer's name — a stale
+    // client entry can carry a UUID the fresh summary no longer lists.
     const matched = treatedAsOther
       ? summary.categories.find((cat) => cat.id === null)
-      : summary.categories.find((cat) => cat.id === categoryId);
+      : (summary.categories.find((cat) => cat.id === categoryId) ??
+        (clientName
+          ? summary.categories.find((cat) => cat.name === clientName)
+          : undefined));
     return {
       summaryThreadIds: matched?.threadIds ?? [],
       categoryName:
         matched?.name ??
+        clientName ??
         (treatedAsOther ? INBOX_OTHER_CATEGORY_NAME : "(unknown)"),
       summaryEndedAt,
     };
@@ -406,6 +465,8 @@ export class EmailInboxTraceService {
     categoryId: string;
     categoryName: string;
     mode: CategoryFetchTraceMode;
+    filters: CategoryFetchTraceFilters;
+    clientSummaryThreadIds: string[] | null;
     treatedAsOther: boolean;
     requestedUuids: Set<string>;
     summaryThreadIds: string[];
@@ -422,10 +483,17 @@ export class EmailInboxTraceService {
     );
     const summarySet = new Set(args.summaryThreadIds);
     const rawAllSet = new Set(args.rawQueryAllThreadIds);
+    const summaryStale =
+      args.clientSummaryThreadIds !== null &&
+      !sameThreadSet(args.clientSummaryThreadIds, args.summaryThreadIds);
     return {
       categoryId: args.treatedAsOther ? null : args.categoryId,
       categoryName: args.categoryName,
       mode: args.mode,
+      filters: args.filters,
+      clientSummaryThreadIds: args.clientSummaryThreadIds,
+      serverSummaryThreadIds: args.summaryThreadIds,
+      summaryStale,
       resolvedCategoryUuids: Array.from(args.requestedUuids),
       treatedAsOther: args.treatedAsOther,
       summaryThreadIds: args.summaryThreadIds,

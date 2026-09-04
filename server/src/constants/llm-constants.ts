@@ -169,3 +169,15 @@ export const TRIAGE_PRESERVED_EXPLANATIONS = {
   CATEGORY: "Triage: existing analysis preserved",
   REASONING: "Batch triage determined no reanalysis needed",
 } as const;
+
+/**
+ * Strong, current-generation non-lite Gemini model for high-stakes, low-volume
+ * judgement calls (proto-category dedup, auto-rule sanity review) — as opposed
+ * to the cheap default model used for bulk classification.
+ * NB: "gemini-3.1-flash" does NOT exist (the 3.1 gen ships only -lite/-image);
+ * gemini-3.6-flash is the newest full flash.
+ */
+export const STRONG_GEMINI_MODEL = "gemini-3.6-flash";
+
+/** Env var that overrides {@link STRONG_GEMINI_MODEL} for ops flexibility. */
+export const STRONG_GEMINI_MODEL_ENV_VAR = "GEMINI_STRONG_MODEL";

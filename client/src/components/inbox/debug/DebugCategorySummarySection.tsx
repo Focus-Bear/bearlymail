@@ -377,6 +377,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                             categoryKey={categoryKey}
                             categoryName={category.name}
                             mode={traceMode}
+                            summaryThreadIds={category.threadIds}
                           />
                         )}
                       </div>

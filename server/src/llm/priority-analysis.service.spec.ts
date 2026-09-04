@@ -21,6 +21,9 @@ jest.mock("./prompts", () => ({
     CATEGORY_SHORTLIST: "category_shortlist",
     BATCH_PRIORITY_TRIAGE: "batch_priority_triage",
   },
+  UTILITY_PROMPT_IDS: {
+    CATEGORISE_SUMMARY: "categorise_summary",
+  },
 }));
 
 const mockEmail = {
@@ -42,6 +45,60 @@ const validPriorityResponse = JSON.stringify({
     reasoning: "Standard support email",
   },
 });
+
+const validCategoryResponse = JSON.stringify({
+  result: {
+    categoryNumber: 4,
+    categoryName: "Customer Support",
+    categoryConfidence: "HIGH",
+    reasoning: "Support request",
+  },
+});
+
+const validTriageResponse = JSON.stringify({
+  results: [
+    { key: "email-1", needsReanalysis: true, reason: "new deadline" },
+    { key: "email-2", needsReanalysis: false, reason: "routine follow-up" },
+  ],
+});
+
+type LlmReply = string | (() => Promise<string>);
+
+function toQueue(
+  value: LlmReply | LlmReply[] | undefined,
+  fallback: string,
+): LlmReply[] {
+  if (value === undefined) return [fallback];
+  return Array.isArray(value) ? [...value] : [value];
+}
+
+/**
+ * Routes mocked LLM replies by operation: the category step (categorise_summary)
+ * runs before every priority call (analyze_priority), and batches start with a
+ * triage call. An array is consumed in order (the last entry repeats); a thunk
+ * can reject.
+ */
+function routeLlm(
+  generateText: jest.Mock,
+  overrides: {
+    categorise?: LlmReply | LlmReply[];
+    priority?: LlmReply | LlmReply[];
+    triage?: LlmReply | LlmReply[];
+  } = {},
+): void {
+  const queues = {
+    categorise: toQueue(overrides.categorise, validCategoryResponse),
+    priority: toQueue(overrides.priority, validPriorityResponse),
+    triage: toQueue(overrides.triage, validTriageResponse),
+  };
+  generateText.mockImplementation(async (request: { operation?: string }) => {
+    let queue = queues.priority;
+    if (request.operation === "categorise_summary") queue = queues.categorise;
+    if (request.operation === "batch_priority_triage") queue = queues.triage;
+    const next = queue.length > 1 ? queue.shift()! : queue[0];
+    return typeof next === "function" ? next() : next;
+  });
+}
 
 describe("PriorityAnalysisService", () => {
   let service: PriorityAnalysisService;
@@ -109,13 +166,13 @@ describe("PriorityAnalysisService", () => {
 
   describe("analyzePriority", () => {
     it("should parse a valid JSON response with top-level result key correctly", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       const result = await service.analyzePriority({ email: mockEmail });
 
       expect(result.category).toBe("Customer Support");
+      // The category and its explanation come from the category step, not the
+      // priority response.
       expect(result.categoryExplanation).toBe("Support request");
       expect(result.urgencyScore).toBe(50);
       // sentimentScore is not derived from LLM output — it comes from preComputedSentimentScore.
@@ -125,9 +182,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should use preComputedSentimentScore when provided, ignoring LLM sentiment", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       const result = await service.analyzePriority({
         email: mockEmail,
@@ -148,9 +203,17 @@ describe("PriorityAnalysisService", () => {
         categoryExplanation: "Sales email",
         reasoning: "Sales inquiry",
       });
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        legacyResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        priority: legacyResponse,
+        categorise: JSON.stringify({
+          result: {
+            categoryNumber: 2,
+            categoryName: "Sales",
+            categoryConfidence: "HIGH",
+            reasoning: "Sales inquiry",
+          },
+        }),
+      });
 
       const result = await service.analyzePriority({ email: mockEmail });
 
@@ -159,9 +222,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should pass jsonMode: true to LLM to enforce JSON responses", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       await service.analyzePriority({ email: mockEmail });
 
@@ -176,9 +237,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should use LLM_MAX_TOKENS_MEDIUM to prevent JSON truncation", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       await service.analyzePriority({ email: mockEmail });
 
@@ -192,9 +251,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("honours an explicit provider instead of forcing Bedrock", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       await service.analyzePriority({
         email: mockEmail,
@@ -240,10 +297,11 @@ describe("PriorityAnalysisService", () => {
         expect.objectContaining({ operation: "analyze_priority" }),
       );
 
-      // Fallback values should be returned
+      // Fallback values should be returned; the category step also got the
+      // unusable reply, so the category is Other with its own explanation.
       expect(result.category).toBe("Other");
       expect(result.categoryExplanation).toBe(
-        "Unable to categorize - fallback response",
+        "Category model unavailable — left as Other",
       );
     });
 
@@ -277,10 +335,10 @@ describe("PriorityAnalysisService", () => {
         expect.objectContaining({ operation: "analyze_priority" }),
       );
 
-      // Fallback values should be returned
+      // The category step also got the unusable reply → Other with its own explanation.
       expect(result.category).toBe("Other");
       expect(result.categoryExplanation).toBe(
-        "Unable to categorize - fallback response",
+        "Category model unavailable — left as Other",
       );
     });
 
@@ -304,9 +362,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should return shortlistedCategoryNames as null when shortlisting is disabled", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
       mockCategoryShortlistService.isShortlistEnabled = jest
         .fn()
         .mockReturnValue(false);
@@ -317,9 +373,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should return shortlistedCategoryNames with category names when shortlisting is enabled", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
       mockCategoryShortlistService.isShortlistEnabled = jest
         .fn()
         .mockReturnValue(true);
@@ -405,13 +459,6 @@ describe("PriorityAnalysisService", () => {
       },
     ];
 
-    const validTriageResponse = JSON.stringify({
-      results: [
-        { key: "email-1", needsReanalysis: true, reason: "new deadline" },
-        { key: "email-2", needsReanalysis: false, reason: "routine follow-up" },
-      ],
-    });
-
     beforeEach(() => {
       (prompts.getPrompt as jest.Mock).mockImplementation((id: string) => {
         if (id === "batch_priority_triage") {
@@ -437,9 +484,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should pass jsonMode: true to LLM for the triage call", async () => {
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(validTriageResponse)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       await service.analyzePriorityBatch(batchEmails);
 
@@ -451,9 +496,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should mark non-flagged emails as triagePreserved and only run individual analysis for flagged ones", async () => {
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(validTriageResponse)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
@@ -463,7 +506,8 @@ describe("PriorityAnalysisService", () => {
       expect(results.get("email-1")?.category).toBe("Customer Support");
       expect(results.get("email-2")?.isFallback).toBe(false);
       expect(results.get("email-2")?.triagePreserved).toBe(true);
-      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(2);
+      // 1 triage + (category + priority) for the one flagged email.
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(3);
     });
 
     it("carries categoryConfidence through to individually-analysed batch results", async () => {
@@ -482,9 +526,9 @@ describe("PriorityAnalysisService", () => {
           reasoning: "Standard support email",
         },
       });
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(validTriageResponse)
-        .mockResolvedValueOnce(highConfidenceResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        priority: highConfidenceResponse,
+      });
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
@@ -500,24 +544,23 @@ describe("PriorityAnalysisService", () => {
           { key: "email-2", needsReanalysis: true, reason: "topic shift" },
         ],
       });
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(allFlaggedTriage)
-        .mockResolvedValueOnce(validPriorityResponse)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        triage: allFlaggedTriage,
+      });
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
       expect(results.size).toBe(2);
       expect(results.get("email-1")?.isFallback).toBe(false);
       expect(results.get("email-2")?.isFallback).toBe(false);
-      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(3);
+      // 1 triage + 2 × (category + priority).
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(5);
     });
 
     it("should reanalyse all emails when triage returns non-JSON response", async () => {
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce("Sorry, I cannot triage.")
-        .mockResolvedValueOnce(validPriorityResponse)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        triage: "Sorry, I cannot triage.",
+      });
 
       const loggerWarnSpy = jest
         .spyOn(Logger.prototype, "warn")
@@ -534,10 +577,9 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should reanalyse all emails when triage LLM call throws", async () => {
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockRejectedValueOnce(new Error("Triage LLM failed"))
-        .mockResolvedValueOnce(validPriorityResponse)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        triage: () => Promise.reject(new Error("Triage LLM failed")),
+      });
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
@@ -557,10 +599,13 @@ describe("PriorityAnalysisService", () => {
           { key: "email-2", needsReanalysis: true, reason: "topic shift" },
         ],
       });
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(allFlaggedTriage)
-        .mockResolvedValueOnce(validPriorityResponse)
-        .mockRejectedValueOnce(new Error("LLM failed for email-2"));
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        triage: allFlaggedTriage,
+        priority: [
+          validPriorityResponse,
+          () => Promise.reject(new Error("LLM failed for email-2")),
+        ],
+      });
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
@@ -582,9 +627,9 @@ describe("PriorityAnalysisService", () => {
       const singleFlaggedTriage = JSON.stringify({
         results: [{ key: "email-1", needsReanalysis: true, reason: "urgent" }],
       });
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(singleFlaggedTriage)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        triage: singleFlaggedTriage,
+      });
 
       const results = await service.analyzePriorityBatch(emailsWithSentiment);
 
@@ -596,9 +641,7 @@ describe("PriorityAnalysisService", () => {
         .spyOn(Logger.prototype, "log")
         .mockImplementation(() => undefined);
 
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(validTriageResponse)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       await service.analyzePriorityBatch(batchEmails);
 
@@ -614,9 +657,9 @@ describe("PriorityAnalysisService", () => {
           { key: "email-1", needsReanalysis: false, reason: "routine" },
         ],
       });
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(partialTriageResponse)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        triage: partialTriageResponse,
+      });
 
       const loggerWarnSpy = jest
         .spyOn(Logger.prototype, "warn")
@@ -645,9 +688,7 @@ describe("PriorityAnalysisService", () => {
           // no existingCategory, no existingUrgencyScore
         },
       ];
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       const loggerLogSpy = jest
         .spyOn(Logger.prototype, "log")
@@ -655,8 +696,13 @@ describe("PriorityAnalysisService", () => {
 
       const results = await service.analyzePriorityBatch(newEmails);
 
-      // Triage should not have been called (only 1 LLM call: individual analysis)
-      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(1);
+      // Triage should not have been called: category + priority only.
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(2);
+      expect(
+        (mockLLMCoreService.generateText as jest.Mock).mock.calls.map(
+          (call) => call[0].operation,
+        ),
+      ).toEqual(["categorise_summary", "analyze_priority"]);
       expect(results.get("new-1")?.isFallback).toBe(false);
       expect(results.get("new-1")?.triagePreserved).toBeFalsy();
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -687,9 +733,9 @@ describe("PriorityAnalysisService", () => {
           { key: "existing-1", needsReanalysis: false, reason: "no change" },
         ],
       });
-      (mockLLMCoreService.generateText as jest.Mock)
-        .mockResolvedValueOnce(triagePreservesExisting)
-        .mockResolvedValueOnce(validPriorityResponse);
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        triage: triagePreservesExisting,
+      });
 
       const results = await service.analyzePriorityBatch(mixedEmails);
 
@@ -698,8 +744,8 @@ describe("PriorityAnalysisService", () => {
       // new-2: bypassed triage → got individual analysis
       expect(results.get("new-2")?.isFallback).toBe(false);
       expect(results.get("new-2")?.triagePreserved).toBeFalsy();
-      // 2 LLM calls: 1 triage + 1 individual for new-2
-      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(2);
+      // 3 LLM calls: 1 triage + (category + priority) for new-2
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -716,9 +762,7 @@ describe("PriorityAnalysisService", () => {
       (
         mockCategoryShortlistService.getShortlistWithMeta as jest.Mock
       ).mockResolvedValue({ effective: shortlist, candidates: [] });
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       await service.analyzePriority({
         email: mockEmail,
@@ -766,9 +810,9 @@ describe("PriorityAnalysisService", () => {
           { key: "email-2", needsReanalysis: false, reason: "routine" },
         ],
       });
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
-        noFlaggedTriage,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock, {
+        triage: noFlaggedTriage,
+      });
 
       await service.analyzePriorityBatch(
         [
@@ -806,9 +850,7 @@ describe("PriorityAnalysisService", () => {
       (
         mockCategoryShortlistService.getShortlistWithMeta as jest.Mock
       ).mockResolvedValue({ effective: shortlist, candidates: [] });
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validPriorityResponse,
-      );
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
       await service.analyzePriority({
         email: mockEmail,

@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { logError, logLog, logWarn } from "../utils/logger";
+import { renderTemplate } from "./prompt-template-renderer";
 
 interface PromptConfig {
   id: string;
@@ -490,7 +491,8 @@ export function getPrompt(id: string): PromptConfig | null {
 }
 
 /**
- * Render a prompt template with variables (Nunjucks syntax)
+ * Render a prompt template with variables (Nunjucks subset — see
+ * `prompt-template-renderer.ts` for the supported syntax).
  * @param template - The template string with Nunjucks-style placeholders
  * @param vars - Variables to substitute into the template (can be strings, numbers, arrays, objects)
  */
@@ -498,66 +500,5 @@ export function renderPrompt(
   template: string,
   vars: Record<string, unknown>,
 ): string {
-  let result = template;
-
-  // Handle {% if var %}...{% else %}...{% endif %} blocks FIRST (before for loops)
-  result = result.replace(
-    /\{%\s*if\s+(\w+)\s*%\}([\s\S]*?)(?:\{%\s*else\s*%\}([\s\S]*?))?\{%\s*endif\s*%\}/g,
-    (match, key, ifContent, elseContent) => {
-      const value = vars[key];
-      // Arrays are truthy, but empty arrays should be falsy for this check
-      const isTruthy = Array.isArray(value) ? value.length > 0 : !!value;
-      return isTruthy ? ifContent : elseContent || "";
-    },
-  );
-
-  // Handle {% for item in array %}...{% endfor %} blocks (after if blocks)
-  result = result.replace(
-    /\{%\s*for\s+(\w+)\s+in\s+(\w+)\s*%\}([\s\S]*?)\{%\s*endfor\s*%\}/g,
-    (match, itemVar, arrayKey, content) => {
-      const array = vars[arrayKey];
-      if (!Array.isArray(array) || array.length === 0) {
-        return "";
-      }
-      return array
-        .map((item, index) => {
-          // Replace loop.index0 with the index (Nunjucks convention)
-          let itemContent = content.replace(
-            /\{\{\s*loop\.index0\s*\}\}/g,
-            String(index),
-          );
-          // Replace {{itemVar.property}} with item.property
-          itemContent = itemContent.replace(
-            // nosemgrep
-            new RegExp(`\\{\\{\\s*${itemVar}\\.(\\w+)\\s*\\}\\}`, "g"),
-            (match, prop) =>
-              item[prop] !== undefined ? String(item[prop]) : match,
-          );
-          // Also support {{itemVar}} directly (for objects)
-          itemContent = itemContent.replace(
-            // nosemgrep
-            new RegExp(`\\{\\{\\s*${itemVar}\\s*\\}\\}`, "g"),
-            typeof item === "object" ? JSON.stringify(item) : String(item),
-          );
-          // Replace {{property}} with item.property (when itemVar context is implied)
-          itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (match, prop) => {
-            // If this property exists in the item, use it; otherwise try vars
-            if (item[prop] !== undefined) {
-              return String(item[prop]);
-            }
-            // Fallback to vars if not in item
-            return vars[prop] !== undefined ? String(vars[prop]) : match;
-          });
-          return itemContent;
-        })
-        .join("");
-    },
-  );
-
-  // Simple template rendering: {{var}} - replace variables (this works the same in both syntaxes)
-  result = result.replace(/\{\{(\w+)\}\}/g, (match, key) =>
-    vars[key] !== undefined ? String(vars[key]) : match,
-  );
-
-  return result;
+  return renderTemplate(template, vars);
 }

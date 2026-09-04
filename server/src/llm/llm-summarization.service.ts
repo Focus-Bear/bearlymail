@@ -10,7 +10,7 @@ import {
 } from "../summarization/phishing-detection.service";
 import { convertLocalTimeInZoneToUtc } from "../utils/meeting-time.util";
 import { cleanEmailContent } from "./email-content-cleaner";
-import { LLMProvider } from "./llm.types";
+import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
 import {
   LLM_OP_CHECK_PHISHING_ONLY,
@@ -33,6 +33,25 @@ import {
   SummaryType,
 } from "./prompts";
 
+/** Fields the structured summary prompts return besides the phishing verdict. */
+export interface StructuredSummary {
+  summary: string;
+  sentiment: { score: number; explanation: string } | null;
+  actionItems: Array<{ description: string; confidence: number }> | null;
+  meetingProposal: {
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  } | null;
+}
+
+/** Structured summary plus the verdict from the dedicated phishing check. */
+export type SummaryWithPhishing = StructuredSummary & {
+  phishing: PhishingLLMResult | null;
+};
+
 /**
  * Domain service for LLM-powered email summarization (single + thread + phishing).
  * Extracted from LLMService (Phase 7a, issue #939).
@@ -44,15 +63,7 @@ export class LLMSummarizationService {
   constructor(private readonly llmCoreService: LLMCoreService) {}
 
   private async generateText(
-    request: {
-      prompt: string;
-      systemPrompt: string;
-      temperature: number;
-      maxTokens: number;
-      jsonMode?: boolean;
-      userId?: string;
-      metadata?: Record<string, unknown>;
-    },
+    request: Omit<LLMRequest, "operation">,
     provider?: LLMProvider,
     userId?: string,
     operation?: LLMOperation,
@@ -79,9 +90,6 @@ export class LLMSummarizationService {
   ): Promise<string> {
     const isThread =
       emailBody.includes("[Message") && emailBody.includes("---");
-    const contextNote = isThread
-      ? "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
-      : "";
 
     let promptId: string;
     if (
@@ -116,7 +124,6 @@ export class LLMSummarizationService {
     const prompt = renderPrompt(promptConfig.prompt || "", {
       isThread,
       subject: emailSubject,
-      contextNote: contextNote || "",
       body: cleanedBody,
       userName,
     });
@@ -127,6 +134,7 @@ export class LLMSummarizationService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.HALF,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
+        cacheStaticPrefix: true,
         userId,
       },
       provider,
@@ -136,7 +144,10 @@ export class LLMSummarizationService {
   }
 
   /**
-   * Summarize an email AND check for phishing in a single LLM call.
+   * Structured summary (summary, sentiment, action items, meeting proposal)
+   * plus a phishing verdict. The verdict comes from the dedicated
+   * check-phishing-only prompt, run in parallel — the summary prompt itself no
+   * longer carries phishing instructions (PR #2638 split them for quality).
    */
   // eslint-disable-next-line better-max-params/better-max-params
   async summarizeEmailWithPhishingCheck(
@@ -152,26 +163,11 @@ export class LLMSummarizationService {
     existingActions: string[] = [],
     userTimezone: string = "UTC",
     userName: string = "",
-  ): Promise<{
-    summary: string;
-    phishing: PhishingLLMResult | null;
-    sentiment: { score: number; explanation: string } | null;
-    actionItems: Array<{ description: string; confidence: number }> | null;
-    meetingProposal: {
-      hasProposal: boolean;
-      proposedTime: string | null;
-      proposedTimeText: string | null;
-      topic: string | null;
-      durationMinutes: number | null;
-    } | null;
-  }> {
+  ): Promise<SummaryWithPhishing> {
     const isThread =
       emailBody.includes("[Message") && emailBody.includes("---");
-    const contextNote = isThread
-      ? "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
-      : "";
 
-    const promptConfig = this.resolvePhishingSummaryPromptConfig(summaryType);
+    const promptConfig = this.resolveStructuredSummaryPromptConfig(summaryType);
 
     const cleanedBody = cleanEmailContent(
       emailBody,
@@ -187,9 +183,7 @@ export class LLMSummarizationService {
     const prompt = renderPrompt(promptConfig.prompt || "", {
       isThread,
       subject: emailSubject,
-      contextNote: contextNote || "",
       body: cleanedBody,
-      phishingSignals,
       isUserSender,
       from,
       fromName,
@@ -203,10 +197,10 @@ export class LLMSummarizationService {
       userTimezone,
     });
 
-    const PHISHING_JSON_TOKEN_OVERHEAD = 150;
-    // Run the summary and a dedicated phishing check as separate focused prompts
-    // (see checkPhishingOnly). The dedicated verdict wins; the summary prompt's
-    // own phishing field is the fallback if the check can't be parsed.
+    const STRUCTURED_JSON_TOKEN_OVERHEAD = 150;
+    // Run the summary and the dedicated phishing check as separate focused
+    // prompts (see checkPhishingOnly); the summary's static system block is
+    // identical for every call, so it is cached provider-side.
     const [response, dedicatedPhishing] = await Promise.all([
       this.generateText(
         {
@@ -214,8 +208,9 @@ export class LLMSummarizationService {
           systemPrompt: promptConfig.systemPrompt || "",
           temperature: RATIOS.HALF,
           maxTokens:
-            QUERY_LIMITS.LLM_MAX_TOKENS_SMALL + PHISHING_JSON_TOKEN_OVERHEAD,
+            QUERY_LIMITS.LLM_MAX_TOKENS_SMALL + STRUCTURED_JSON_TOKEN_OVERHEAD,
           jsonMode: true,
+          cacheStaticPrefix: true,
           userId,
         },
         provider,
@@ -231,11 +226,10 @@ export class LLMSummarizationService {
       ),
     ]);
 
-    const parsed = this.parseSummaryWithPhishing(response);
     return {
-      ...parsed,
+      ...this.parseStructuredSummary(response),
       phishing: await this.confirmPhishingVerdict({
-        verdict: dedicatedPhishing ?? parsed.phishing,
+        verdict: dedicatedPhishing,
         emailBody,
         emailSubject,
         phishingSignals,
@@ -246,21 +240,9 @@ export class LLMSummarizationService {
   }
 
   /**
-   * Parse a `{ summary, phishing, sentiment, actionItems, meetingProposal }` JSON response from the LLM.
+   * Parse a `{ summary, sentiment, actionItems, meetingProposal }` JSON response from the LLM.
    */
-  parseSummaryWithPhishing(response: string): {
-    summary: string;
-    phishing: PhishingLLMResult | null;
-    sentiment: { score: number; explanation: string } | null;
-    actionItems: Array<{ description: string; confidence: number }> | null;
-    meetingProposal: {
-      hasProposal: boolean;
-      proposedTime: string | null;
-      proposedTimeText: string | null;
-      topic: string | null;
-      durationMinutes: number | null;
-    } | null;
-  } {
+  parseStructuredSummary(response: string): StructuredSummary {
     try {
       const parsed = tryParseJsonObjectFromLlmResponse(response);
       if (parsed) {
@@ -273,7 +255,6 @@ export class LLMSummarizationService {
           );
           return {
             summary: summaryText,
-            phishing: this.validatePhishingLLMResult(parsed.phishing),
             sentiment,
             actionItems,
             meetingProposal,
@@ -285,7 +266,6 @@ export class LLMSummarizationService {
     }
     return {
       summary: extractPlainSummary(response),
-      phishing: null,
       sentiment: null,
       actionItems: null,
       meetingProposal: null,
@@ -365,7 +345,8 @@ export class LLMSummarizationService {
   }
 
   /**
-   * Summarize an email using a custom user prompt and append a phishing detection footer.
+   * Summarize an email using a custom user prompt (structured JSON footer);
+   * the phishing verdict comes from the dedicated check run alongside it.
    */
   // eslint-disable-next-line better-max-params/better-max-params
   async summarizeCustomPromptWithPhishing(
@@ -377,49 +358,29 @@ export class LLMSummarizationService {
     totalMessageCount: number,
     provider?: LLMProvider,
     userId?: string,
-  ): Promise<{
-    summary: string;
-    phishing: PhishingLLMResult | null;
-    sentiment: { score: number; explanation: string } | null;
-    actionItems: Array<{ description: string; confidence: number }> | null;
-    meetingProposal: {
-      hasProposal: boolean;
-      proposedTime: string | null;
-      proposedTimeText: string | null;
-      topic: string | null;
-      durationMinutes: number | null;
-    } | null;
-  }> {
-    const PHISHING_JSON_TOKEN_OVERHEAD = 300;
+  ): Promise<SummaryWithPhishing> {
+    const STRUCTURED_JSON_TOKEN_OVERHEAD = 300;
 
     const bodyPreamble = isThread
       ? `Email Thread Subject: ${emailSubject}\n\nThis thread contains ${totalMessageCount} messages. Here are the key messages (first + last few):\n\n${emailBody}\n\n`
       : `Email Subject: ${emailSubject}\n\nEmail Body:\n"""\n${emailBody}\n"""\n\n`;
 
-    const phishingFooter = `---
+    const structuredFooter = `---
 
 Return a JSON object (no markdown fences) with exactly these fields:
 {
   "summary": "<your answer here>",
-  "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,
   "sentiment": { "score": <number from -1.0 (very negative) to 1.0 (very positive), 0 = neutral>, "explanation": "<one sentence describing the tone>" },
   "actionItems": [{ "description": "<task the recipient needs to do>", "confidence": <0.0-1.0> }]
 }
 
-PHISHING: Is the email pressuring urgent account action, harvesting credentials, or using a mismatched sender domain to deceive? If uncertain, set is_phishing to false.
 SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (very positive/excited).`;
 
-    const phishingSignalsText =
-      phishingSignals.suspiciousKeywords.length > 0 ||
-      phishingSignals.linkedDomains.length > 0
-        ? `\n\nKeyword analysis context (use as signals to inform your judgement, not as a verdict):\n- Sender domain: ${phishingSignals.senderDomain ?? "unknown"}\n- Domains linked in body: ${phishingSignals.linkedDomains.join(", ") || "none"}\n- Domain mismatch detected: ${phishingSignals.hasDomainMismatch}\n- Suspicious keywords found: ${phishingSignals.suspiciousKeywords.join(", ") || "none"}`
-        : "";
-
-    const fullPrompt = `${bodyPreamble}${customPrompt}\n\n${phishingFooter}${phishingSignalsText}`;
+    const fullPrompt = `${bodyPreamble}${customPrompt}\n\n${structuredFooter}`;
 
     // Dedicated phishing check runs alongside the custom summary — this is the
-    // path where the combined prompt over-flagged legitimate newsletters, so the
-    // focused check-phishing-only prompt is authoritative here.
+    // path where a combined prompt over-flagged legitimate newsletters, so the
+    // focused check-phishing-only prompt is the only phishing judge.
     const [response, dedicatedPhishing] = await Promise.all([
       this.generateText(
         {
@@ -428,7 +389,7 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
             "You are a helpful assistant that summarizes email threads according to user instructions.",
           temperature: RATIOS.HALF,
           maxTokens:
-            QUERY_LIMITS.LLM_MAX_TOKENS_SMALL + PHISHING_JSON_TOKEN_OVERHEAD,
+            QUERY_LIMITS.LLM_MAX_TOKENS_SMALL + STRUCTURED_JSON_TOKEN_OVERHEAD,
           jsonMode: true,
           userId,
         },
@@ -445,11 +406,10 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
       ),
     ]);
 
-    const parsed = this.parseSummaryWithPhishing(response);
     return {
-      ...parsed,
+      ...this.parseStructuredSummary(response),
       phishing: await this.confirmPhishingVerdict({
-        verdict: dedicatedPhishing ?? parsed.phishing,
+        verdict: dedicatedPhishing,
         emailBody,
         emailSubject,
         phishingSignals,
@@ -459,8 +419,8 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
     };
   }
 
-  /** Resolve the summary prompt for the summary+phishing path (custom is rejected). */
-  private resolvePhishingSummaryPromptConfig(summaryType: SummaryType) {
+  /** Resolve the structured summary prompt for a summary type (custom is rejected). */
+  private resolveStructuredSummaryPromptConfig(summaryType: SummaryType) {
     let promptId: string;
     if (summaryType === SUMMARY_TYPES.BULLET_POINTS) {
       promptId = SUMMARY_PROMPT_IDS.BULLETS;
@@ -488,8 +448,8 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
    * Run alongside the summary call so summarisation and phishing detection each
    * get a focused prompt — small models (Nova Micro) follow one-job prompts more
    * reliably than the combined summary+phishing prompt, and this avoids the
-   * combined-prompt false positives. Returns null if the check can't be parsed;
-   * callers fall back to the summary prompt's own phishing field.
+   * combined-prompt false positives. Returns null if the check can't be parsed
+   * (treated as "no verdict" — the summary prompt carries no phishing field).
    */
   async checkPhishingOnly(
     emailBody: string,
@@ -561,8 +521,7 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
 
     const PHISHING_ONLY_MAX_TOKENS = 200;
     // Fail-safe: a transient error here (rate limit, network) must NOT fail the
-    // whole summary — the caller falls back to the summary prompt's own phishing
-    // field when this returns ok: false.
+    // whole summary — the caller treats ok: false as "no verdict".
     try {
       const response = await this.generateText(
         {
@@ -571,6 +530,7 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
           temperature: RATIOS.HALF,
           maxTokens: PHISHING_ONLY_MAX_TOKENS,
           jsonMode: true,
+          cacheStaticPrefix: true,
           userId,
         },
         provider,
@@ -585,7 +545,7 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
       };
     } catch (error) {
       this.logger.warn(
-        `Dedicated phishing check failed; using summary prompt's phishing field instead: ${(error as Error).message}`,
+        `Dedicated phishing check failed; no phishing verdict for this email: ${(error as Error).message}`,
       );
       return { ok: false, verdict: null };
     }

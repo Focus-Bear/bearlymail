@@ -286,6 +286,99 @@ describe("LLMCoreService", () => {
       expect(input.inferenceConfig.maxTokens).toBeLessThanOrEqual(5000);
     });
 
+    it("sends only a text system block when the request does not opt into caching", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "ok" }] } },
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      });
+      const { service } = makeService();
+
+      await service.generateText(
+        { prompt: "p", systemPrompt: "static rules" },
+        LLMProvider.BEDROCK,
+      );
+
+      const input = bedrockConverseCommand.mock.calls.at(-1)?.[0];
+      expect(input.system).toEqual([{ text: "static rules" }]);
+    });
+
+    it("appends a cachePoint after the system prompt when cacheStaticPrefix is set and logs cached tokens as prompt tokens", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "ok" }] } },
+        usage: {
+          inputTokens: 20,
+          outputTokens: 6,
+          totalTokens: 6395,
+          cacheReadInputTokens: 6369,
+          cacheWriteInputTokens: 0,
+        },
+      });
+      const { service, tokenUsageService } = makeService();
+
+      await service.generateText(
+        { prompt: "p", systemPrompt: "static rules", cacheStaticPrefix: true },
+        LLMProvider.BEDROCK,
+      );
+
+      const input = bedrockConverseCommand.mock.calls.at(-1)?.[0];
+      expect(input.system).toEqual([
+        { text: "static rules" },
+        { cachePoint: { type: "default" } },
+      ]);
+      expect(tokenUsageService.logUsage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          promptTokens: 6389,
+          completionTokens: 6,
+          totalTokens: 6395,
+        }),
+      );
+    });
+
+    it("never adds a cachePoint without a system prompt", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "ok" }] } },
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      });
+      const { service } = makeService();
+
+      await service.generateText(
+        { prompt: "p", cacheStaticPrefix: true },
+        LLMProvider.BEDROCK,
+      );
+
+      const input = bedrockConverseCommand.mock.calls.at(-1)?.[0];
+      expect(input.system).toBeUndefined();
+    });
+
+    it("drops the cachePoint for the rest of the process when the model rejects it, instead of falling back to Gemini", async () => {
+      const rejection = Object.assign(
+        new Error("The model does not support cachePoint blocks"),
+        { name: "ValidationException" },
+      );
+      mockBedrockSend.mockRejectedValueOnce(rejection).mockResolvedValue({
+        output: { message: { content: [{ text: "nova-uncached" }] } },
+        usage: { inputTokens: 5, outputTokens: 1, totalTokens: 6 },
+      });
+      const { service } = makeService();
+      const request: LLMRequest = {
+        prompt: "p",
+        systemPrompt: "static rules",
+        cacheStaticPrefix: true,
+      };
+
+      const first = await service.generateText(request, LLMProvider.BEDROCK);
+      await service.generateText(request, LLMProvider.BEDROCK);
+
+      expect(first).toBe("nova-uncached");
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      const systems = bedrockConverseCommand.mock.calls.map(
+        ([input]) => input.system,
+      );
+      expect(systems[0]).toHaveLength(2);
+      expect(systems[1]).toEqual([{ text: "static rules" }]);
+      expect(systems[2]).toEqual([{ text: "static rules" }]);
+    });
+
     it("falls back to Gemini when Bedrock fails", async () => {
       mockBedrockSend.mockRejectedValue(new Error("bedrock unavailable"));
       mockGeminiGenerateContent.mockResolvedValue({

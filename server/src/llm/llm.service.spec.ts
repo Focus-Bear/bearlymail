@@ -458,13 +458,13 @@ describe("LLMService", () => {
     });
   });
 
-  describe("parseSummaryWithPhishing success-path sanitisation (issue #1162)", () => {
-    // parseSummaryWithPhishing moved to LLMSummarizationService (Phase 7a, #939).
+  describe("parseStructuredSummary success-path sanitisation (issue #1162)", () => {
+    // parseStructuredSummary moved to LLMSummarizationService (Phase 7a, #939).
     // Access it via a minimal instance that only needs LLMCoreService.
     let summarizationService: LLMSummarizationService;
 
     beforeEach(() => {
-      // parseSummaryWithPhishing is a pure synchronous method — LLMCoreService
+      // parseStructuredSummary is a pure synchronous method — LLMCoreService
       // is never called, so null is safe here.
       summarizationService = new LLMSummarizationService(null);
     });
@@ -477,7 +477,7 @@ describe("LLMService", () => {
         category: null,
         categoryExplanation: null,
       });
-      const result = summarizationService.parseSummaryWithPhishing(response);
+      const result = summarizationService.parseStructuredSummary(response);
       expect(result.summary).toBe(
         "This email asks you to review the attached proposal.",
       );
@@ -493,7 +493,7 @@ describe("LLMService", () => {
         category: null,
         categoryExplanation: null,
       });
-      const result = summarizationService.parseSummaryWithPhishing(response);
+      const result = summarizationService.parseStructuredSummary(response);
       // extractPlainSummary should extract the value, not return raw JSON
       expect(result.summary).not.toContain("{");
       expect(result.summary).not.toContain("}");
@@ -502,7 +502,7 @@ describe("LLMService", () => {
 
     it("fallback path sanitises correctly (regression guard)", () => {
       // Non-JSON input — exercises the fallback path.
-      const result = summarizationService.parseSummaryWithPhishing(
+      const result = summarizationService.parseStructuredSummary(
         "  plain fallback summary  ",
       );
       expect(result.summary).toBe("plain fallback summary");
@@ -523,9 +523,9 @@ describe("LLMService", () => {
         categoryExplanation: "Service usage notice.",
         actionItems: [],
       });
-      const result = summarizationService.parseSummaryWithPhishing(response);
+      const result = summarizationService.parseStructuredSummary(response);
       expect(result.summary).toBe(inner);
-      expect(result.phishing?.is_phishing).toBe(false);
+      expect(result.sentiment?.score).toBe(0);
     });
 
     it("recovers the summary when the structured response is truncated", () => {
@@ -539,7 +539,7 @@ describe("LLMService", () => {
         meetingProposal: { hasProposal: false, proposedLocalTime: null },
       });
       const truncated = full.slice(0, full.length - 20);
-      const result = summarizationService.parseSummaryWithPhishing(truncated);
+      const result = summarizationService.parseStructuredSummary(truncated);
       expect(result.summary).toBe(
         "LinkedIn accepted your connection invitation.",
       );
@@ -556,7 +556,7 @@ describe("LLMService", () => {
         actionItems: [],
       };
       const wrapped = `\`\`\`json\n${JSON.stringify(payload)}\n\`\`\``;
-      const result = summarizationService.parseSummaryWithPhishing(wrapped);
+      const result = summarizationService.parseStructuredSummary(wrapped);
       expect(result.summary).toBe("Short TL;DR line.");
     });
   });

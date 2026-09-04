@@ -10,8 +10,11 @@ import { Logger } from "@nestjs/common";
 
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { getErrorMessage } from "../types/common";
-import { LLM_OP_ASSESS_CATEGORY_RULE_VALUE } from "./llm-operations";
+import type { LLMProvider } from "./llm.types";
+import {
+  type ProviderRoutedGenerateText,
+  runWithNovaEscalation,
+} from "./llm-nova-escalation";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
 
 /**
@@ -93,15 +96,9 @@ export interface AssessRuleValueResult {
 }
 
 /** Generates raw LLM text for the value-add operation. Supplied by the service. */
-export type AssessRuleValueGenerateText = (request: {
-  prompt: string;
-  systemPrompt: string;
-  temperature: number;
-  maxTokens: number;
-  jsonMode?: boolean;
-  userId?: string;
-  operation: typeof LLM_OP_ASSESS_CATEGORY_RULE_VALUE;
-}) => Promise<string>;
+export type AssessRuleValueGenerateText = ProviderRoutedGenerateText;
+
+const LOG_PREFIX = "[ASSESS-RULE-VALUE]";
 
 /** The lower-cased string an LLM uses for a false boolean it returned as text. */
 const FALSE_STRING = "false";
@@ -135,12 +132,18 @@ function formatRuleSpecSummary(summary: RuleSpecSummary): string {
   ].join("\n");
 }
 
+/**
+ * Parses the verdict JSON. Returns null when the response holds no JSON
+ * object or neither verdict field, so the caller can escalate to the
+ * stronger model instead of silently failing open on a weak answer.
+ */
 function parseAssessRuleValueResponse(
   response: string,
   maxSubjectNotPhrases: number,
   maxBodyNotPhrases: number,
   logger: Logger,
-): AssessRuleValueResult {
+  provider: LLMProvider,
+): AssessRuleValueResult | null {
   const jsonString = response
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
@@ -148,12 +151,14 @@ function parseAssessRuleValueResponse(
     .trim();
   const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    logger.warn(
-      "[ASSESS-RULE-VALUE] No JSON object in response; not blocking.",
-    );
-    return failOpen("Unparseable response; not blocking.");
+    logger.warn(`${LOG_PREFIX} No JSON object in ${provider} response.`);
+    return null;
   }
   const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+  if (parsed.makesSense === undefined && parsed.addsValue === undefined) {
+    logger.warn(`${LOG_PREFIX} No verdict in ${provider} response.`);
+    return null;
+  }
   const parseStringArray = (value: unknown, cap: number): string[] =>
     Array.isArray(value)
       ? (value as unknown[])
@@ -165,8 +170,8 @@ function parseAssessRuleValueResponse(
           .slice(0, cap)
       : [];
   return {
-    // Default both verdicts to true when absent so a malformed response
-    // fails open rather than silently discarding a usable rule. Treat a
+    // Default a single missing verdict to true so a partial response fails
+    // open rather than silently discarding a usable rule. Treat a
     // stringified boolean ("false"/"False") — which LLMs sometimes emit — as
     // false rather than letting it bypass the check.
     makesSense: !isFalsey(parsed.makesSense),
@@ -205,7 +210,7 @@ export async function assessRuleAddsValue(
   const promptConfig = getPrompt(UTILITY_PROMPT_IDS.ASSESS_CATEGORY_RULE_VALUE);
   if (!promptConfig) {
     logger.error(
-      "[ASSESS-RULE-VALUE] ERROR: assess_category_rule_value prompt not found",
+      `${LOG_PREFIX} ERROR: assess_category_rule_value prompt not found`,
     );
     return failOpen("Prompt unavailable; not blocking.");
   }
@@ -222,29 +227,39 @@ export async function assessRuleAddsValue(
     maxBodyNotPhrases: String(maxBodyNotPhrases),
   });
 
-  try {
-    const response = await generateText({
-      prompt,
-      systemPrompt: promptConfig.systemPrompt || "",
-      temperature: RATIOS.THIRTY_PERCENT,
-      maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
-      jsonMode: true,
-      userId,
-      operation: LLM_OP_ASSESS_CATEGORY_RULE_VALUE,
-    });
+  const result = await runWithNovaEscalation({
+    label: LOG_PREFIX,
+    logger,
+    run: async (provider) => {
+      const response = await generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: RATIOS.THIRTY_PERCENT,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+          jsonMode: true,
+          userId,
+        },
+        provider,
+      );
+      return parseAssessRuleValueResponse(
+        response,
+        maxSubjectNotPhrases,
+        maxBodyNotPhrases,
+        logger,
+        provider,
+      );
+    },
+  });
 
-    const result = parseAssessRuleValueResponse(
-      response,
-      maxSubjectNotPhrases,
-      maxBodyNotPhrases,
-      logger,
+  if (!result) {
+    logger.warn(
+      `${LOG_PREFIX} No usable verdict from any provider; not blocking.`,
     );
-    logger.log(
-      `[ASSESS-RULE-VALUE] === SUCCESS === category="${categoryName}" makesSense=${result.makesSense} addsValue=${result.addsValue} subjectNot=${result.subjectNotContainsAny.length} bodyNot=${result.bodyNotContainsAny.length}`,
-    );
-    return result;
-  } catch (error) {
-    logger.error(`[ASSESS-RULE-VALUE] ERROR: ${getErrorMessage(error)}`);
-    return failOpen("LLM error; not blocking.");
+    return failOpen("No usable verdict; not blocking.");
   }
+  logger.log(
+    `${LOG_PREFIX} === SUCCESS === category="${categoryName}" makesSense=${result.makesSense} addsValue=${result.addsValue} subjectNot=${result.subjectNotContainsAny.length} bodyNot=${result.bodyNotContainsAny.length}`,
+  );
+  return result;
 }

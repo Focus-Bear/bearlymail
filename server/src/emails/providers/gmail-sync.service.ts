@@ -32,6 +32,7 @@ import { EmailAttachment } from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
 import {
+  getOldestAllowedStarredSyncDate,
   resolveMaxFetchResults,
   resolveSyncWindowStart,
   shouldFlagSyncWindowLimited,
@@ -212,7 +213,8 @@ export class GmailSyncService {
 
     // Sync-window policy: every fetch is clamped to the ongoing window — the
     // extended (noDateFilter) sync gets the full window instead of no filter.
-    // Starred threads are fetched separately below regardless of age.
+    // Starred threads are fetched separately below with the wider starred
+    // window.
     const syncWindowStart = resolveSyncWindowStart({
       lastEmailSyncAt: user.lastEmailSyncAt,
       syncWindowHours,
@@ -232,7 +234,10 @@ export class GmailSyncService {
       );
     }
 
-    const starredQuery = `is:starred in:inbox ${baseQuery}`;
+    const starredWindowTimestamp = Math.floor(
+      getOldestAllowedStarredSyncDate().getTime() / MS_PER_SECOND,
+    );
+    const starredQuery = `is:starred in:inbox ${baseQuery} after:${starredWindowTimestamp}`;
     queries.push(inboxQuery, starredQuery, sentQuery);
 
     const [inboxResult, starredResult, sentResult] = await Promise.all([

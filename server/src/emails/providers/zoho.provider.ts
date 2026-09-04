@@ -32,6 +32,7 @@ import {
 } from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import {
+  getOldestAllowedStarredSyncDate,
   getOldestAllowedSyncDate,
   resolveMaxFetchResults,
   shouldFlagSyncWindowLimited,
@@ -325,15 +326,19 @@ export class ZohoProvider implements EmailProvider {
 
     const allInboxMessages: ZohoMailMessage[] = inboxResponse.data.data || [];
 
-    // Zoho's list endpoint has no date-filter parameter, so the ongoing
-    // sync window is applied here. High-importance ("starred") messages are
-    // kept regardless of age, matching the policy.
+    // Zoho's list endpoint has no date-filter parameter, so the sync windows
+    // are applied here. High-importance ("starred") messages get the wider
+    // starred window, matching the policy.
     const syncWindowStart = getOldestAllowedSyncDate();
-    const inboxMessages = allInboxMessages.filter(
-      (message) =>
-        message.importance === EMAIL_IMPORTANCE.HIGH ||
-        parseReceivedTimeMs(message.receivedTime) >= syncWindowStart.getTime(),
-    );
+    const starredWindowStart = getOldestAllowedStarredSyncDate();
+    const inboxMessages = allInboxMessages.filter((message) => {
+      const receivedAtMs = parseReceivedTimeMs(message.receivedTime);
+      const windowStart =
+        message.importance === EMAIL_IMPORTANCE.HIGH
+          ? starredWindowStart
+          : syncWindowStart;
+      return receivedAtMs >= windowStart.getTime();
+    });
 
     // Initial-sync overflow: a full page means the mailbox holds more mail
     // than the cap imported; window-filtered messages were skipped too.

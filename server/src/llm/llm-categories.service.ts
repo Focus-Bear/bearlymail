@@ -4,12 +4,7 @@ import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { getErrorMessage } from "../types/common";
-import {
-  type DeriveExclusionsResult,
-  type ExclusionDerivationSample,
-  formatExclusionSamples,
-  parseDeriveExclusionsResponse,
-} from "./derive-exclusions-parser";
+import type { DeriveExclusionsResult } from "./derive-exclusions-parser";
 import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -27,10 +22,14 @@ import {
   type LLMOperation,
 } from "./llm-operations";
 import {
+  deriveExclusionPhrasesFromFalsePositives as deriveExclusionPhrasesImpl,
+  type DeriveExclusionPhrasesParams,
+  suggestRulesFromEmailSamples as suggestRulesFromEmailSamplesImpl,
+} from "./llm-rule-suggestion";
+import {
   assessRuleAddsValue as assessRuleAddsValueImpl,
   type AssessRuleValueParams,
   type AssessRuleValueResult,
-  buildSuggestRulesResult,
   type SuggestRulesResult,
 } from "./llm-rule-value";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
@@ -40,16 +39,8 @@ export type {
   ExclusionDerivationSample,
 } from "./derive-exclusions-parser";
 export type { DuplicateCategoryGroup } from "./llm-duplicate-categories";
+export type { DeriveExclusionPhrasesParams } from "./llm-rule-suggestion";
 export type { SuggestRulesResult } from "./llm-rule-value";
-
-export interface DeriveExclusionPhrasesParams {
-  categoryName: string;
-  truePositives: ExclusionDerivationSample[];
-  falsePositives: ExclusionDerivationSample[];
-  maxSubjectNotPhrases: number;
-  maxBodyNotPhrases: number;
-  userId?: string;
-}
 
 /**
  * Domain service for LLM-powered email category consolidation and label identification.
@@ -706,13 +697,9 @@ export class LLMCategoriesService {
   }
 
   /**
-   * Uses the LLM to extract SHORT, GENERIC subject/body phrases and a sender
-   * pattern from a set of email samples (issue #1714).
-   *
-   * When multiple sender emails share the same domain the LLM may return a
-   * domain wildcard such as `*@github.com` in `fromMatchesAny`.
-   *
-   * Returns `null` when the LLM call fails or returns no usable phrases.
+   * Extracts subject/body phrases and a sender pattern for a category from
+   * email samples (issue #1714). Stays on Gemini — see
+   * `SUGGEST_RULES_PROVIDER` in `llm-rule-suggestion.ts`.
    */
   async suggestRulesFromEmailSamples(
     categoryName: string,
@@ -720,170 +707,54 @@ export class LLMCategoriesService {
     emailSamples: Array<{ subject: string; body: string }>,
     userId?: string,
   ): Promise<SuggestRulesResult | null> {
-    this.logger.log(
-      `[SUGGEST-CATEGORY-RULES] === START === category="${categoryName}" senders=${senderEmails.length} samples=${emailSamples.length}`,
-    );
-
-    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.SUGGEST_CATEGORY_RULES);
-    if (!promptConfig) {
-      this.logger.error(
-        "[SUGGEST-CATEGORY-RULES] ERROR: suggest_category_rules prompt not found",
-      );
-      return null;
-    }
-
-    const emailSamplesText = emailSamples
-      .map(
-        (sample, i) =>
-          `[Email ${i + 1}]\nSubject: ${sample.subject}\nBody preview: ${cleanEmailContent(sample.body || "", null, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)}`,
-      )
-      .join("\n\n");
-
-    const prompt = renderPrompt(promptConfig.prompt || "", {
-      categoryName,
-      senderEmails: senderEmails.join("\n"),
-      emailSamples: emailSamplesText,
-    });
-
-    try {
-      const response = await this.generateText(
-        {
-          prompt,
-          systemPrompt: promptConfig.systemPrompt || "",
-          temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS,
-          jsonMode: true,
+    return suggestRulesFromEmailSamplesImpl(
+      (request, provider) =>
+        this.generateText(
+          request,
+          provider,
           userId,
-        },
-        undefined,
-        userId,
-        LLM_OP_SUGGEST_CATEGORY_RULES,
-      );
-
-      const jsonString = response
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        this.logger.warn(
-          `[SUGGEST-CATEGORY-RULES] No JSON object found in response`,
-        );
-        return null;
-      }
-
-      const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
-      const result = buildSuggestRulesResult(parsed, senderEmails);
-      if (!result) {
-        this.logger.warn(
-          `[SUGGEST-CATEGORY-RULES] LLM returned no usable phrases for "${categoryName}"`,
-        );
-        return null;
-      }
-
-      this.logger.log(
-        `[SUGGEST-CATEGORY-RULES] === SUCCESS === from=${result.fromMatchesAny.join(",")} subjects=${result.subjectContainsAny.length} body=${result.bodyContainsAny.length} subjectNot=${result.subjectNotContainsAny.length} bodyNot=${result.bodyNotContainsAny.length}`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `[SUGGEST-CATEGORY-RULES] ERROR: ${getErrorMessage(error)}`,
-      );
-      return null;
-    }
+          LLM_OP_SUGGEST_CATEGORY_RULES,
+        ),
+      this.logger,
+      { categoryName, senderEmails, emailSamples, userId },
+    );
   }
 
   /**
-   * Issue #1789 follow-up: given a draft auto-rule that produced false
-   * positives during validation, asks the LLM for `subjectNotContainsAny` /
-   * `bodyNotContainsAny` exclusion phrases that appear in the FP samples but
-   * not in the TP samples. Returns empty arrays when the call fails or the
-   * LLM cannot find a clean separator — callers should treat that as "no
-   * usable exclusions" and discard the rule.
+   * Derives NOT-contains exclusions that separate a draft rule's false
+   * positives from its true positives (issue #1789 follow-up). Nova Micro
+   * first, Gemini when Nova finds nothing — see `llm-rule-suggestion.ts`.
    */
   async deriveExclusionPhrasesFromFalsePositives(
     params: DeriveExclusionPhrasesParams,
   ): Promise<DeriveExclusionsResult> {
-    const {
-      categoryName,
-      truePositives,
-      falsePositives,
-      maxSubjectNotPhrases,
-      maxBodyNotPhrases,
-      userId,
-    } = params;
-    this.logger.log(
-      `[DERIVE-RULE-EXCLUSIONS] === START === category="${categoryName}" tp=${truePositives.length} fp=${falsePositives.length}`,
+    return deriveExclusionPhrasesImpl(
+      (request, provider) =>
+        this.generateText(
+          request,
+          provider,
+          params.userId,
+          LLM_OP_DERIVE_RULE_EXCLUSIONS,
+        ),
+      this.logger,
+      params,
     );
-
-    if (falsePositives.length === 0) {
-      return { subjectNotContainsAny: [], bodyNotContainsAny: [] };
-    }
-
-    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.DERIVE_RULE_EXCLUSIONS);
-    if (!promptConfig) {
-      this.logger.error(
-        "[DERIVE-RULE-EXCLUSIONS] ERROR: derive_rule_exclusions prompt not found",
-      );
-      return { subjectNotContainsAny: [], bodyNotContainsAny: [] };
-    }
-
-    const prompt = renderPrompt(promptConfig.prompt || "", {
-      categoryName,
-      truePositiveSamples: formatExclusionSamples(truePositives),
-      falsePositiveSamples: formatExclusionSamples(falsePositives),
-      maxSubjectNotPhrases: String(maxSubjectNotPhrases),
-      maxBodyNotPhrases: String(maxBodyNotPhrases),
-    });
-
-    try {
-      const response = await this.generateText(
-        {
-          prompt,
-          systemPrompt: promptConfig.systemPrompt || "",
-          temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
-          jsonMode: true,
-          userId,
-        },
-        undefined,
-        userId,
-        LLM_OP_DERIVE_RULE_EXCLUSIONS,
-      );
-
-      const result = parseDeriveExclusionsResponse(
-        response,
-        truePositives,
-        maxSubjectNotPhrases,
-        maxBodyNotPhrases,
-      );
-      this.logger.log(
-        `[DERIVE-RULE-EXCLUSIONS] === SUCCESS === subjectNot=${result.subjectNotContainsAny.length} bodyNot=${result.bodyNotContainsAny.length}`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `[DERIVE-RULE-EXCLUSIONS] ERROR: ${getErrorMessage(error)}`,
-      );
-      return { subjectNotContainsAny: [], bodyNotContainsAny: [] };
-    }
   }
 
   /**
    * Asks the LLM whether a draft composite rule adds value over the existing
    * rules already targeting the same category, or is redundant. Delegates to
-   * `assessRuleAddsValue` in llm-rule-value.ts (kept separate for file-size).
+   * `assessRuleAddsValue` in llm-rule-value.ts (kept separate for file-size);
+   * Nova Micro first, Gemini when the verdict is missing.
    */
   async assessRuleAddsValue(
     params: AssessRuleValueParams,
   ): Promise<AssessRuleValueResult> {
     return assessRuleAddsValueImpl(
-      (request) =>
+      (request, provider) =>
         this.generateText(
           request,
-          undefined,
+          provider,
           params.userId,
           LLM_OP_ASSESS_CATEGORY_RULE_VALUE,
         ),

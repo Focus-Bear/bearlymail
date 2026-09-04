@@ -14,6 +14,12 @@ export class ApplyPromoDto {
   promoCode: string;
 }
 
+export class CreateCheckoutDto {
+  @IsString()
+  @IsIn(Object.keys(VOLUME_TIERS))
+  tierId: string;
+}
+
 export class LinkOrgRevenueCatDto {
   @IsString()
   @IsNotEmpty()

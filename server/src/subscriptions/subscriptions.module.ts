@@ -8,6 +8,7 @@ import { User } from "../database/entities/user.entity";
 import { OrganizationsModule } from "../organizations/organizations.module";
 import { UsersModule } from "../users/users.module";
 import { AiCapacityGuard } from "./ai-capacity.guard";
+import { StripeService } from "./stripe.service";
 import { SubscriptionGuard } from "./subscription.guard";
 import { SubscriptionsController } from "./subscriptions.controller";
 import { SubscriptionsService } from "./subscriptions.service";
@@ -20,7 +21,12 @@ import { SubscriptionsService } from "./subscriptions.service";
     forwardRef(() => OrganizationsModule),
   ],
   controllers: [SubscriptionsController],
-  providers: [SubscriptionsService, SubscriptionGuard, AiCapacityGuard],
+  providers: [
+    SubscriptionsService,
+    StripeService,
+    SubscriptionGuard,
+    AiCapacityGuard,
+  ],
   exports: [SubscriptionsService, SubscriptionGuard, AiCapacityGuard],
 })
 export class SubscriptionsModule {}

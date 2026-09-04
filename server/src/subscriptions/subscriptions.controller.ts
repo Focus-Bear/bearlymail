@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -6,10 +7,13 @@ import {
   Headers,
   Post,
   Query,
+  RawBodyRequest,
+  Req,
   Request,
   UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
+import { Request as ExpressRequest } from "express";
 
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -19,9 +23,11 @@ import {
   AdminGrantPlanDto,
   AdminPlanTargetDto,
   ApplyPromoDto,
+  CreateCheckoutDto,
   GrantAccessDto,
   LinkOrgRevenueCatDto,
 } from "./dto/subscriptions.dto";
+import { StripeService } from "./stripe.service";
 import {
   RevenueCatWebhookPayload,
   SubscriptionsService,
@@ -34,7 +40,78 @@ export class SubscriptionsController {
   constructor(
     private readonly subscriptionsService: SubscriptionsService,
     private readonly organizationsService: OrganizationsService,
+    private readonly stripeService: StripeService,
   ) {}
+
+  /**
+   * Resolves the caller's org, requiring owner/admin role — the gate for all
+   * billing actions (checkout, portal).
+   */
+  private async requireOrgBillingAccess(userId: string): Promise<string> {
+    const membership =
+      await this.organizationsService.findActiveMembership(userId);
+    if (!membership) {
+      throw new ForbiddenException("You are not a member of any organisation");
+    }
+    if (
+      membership.role !== MEMBER_ROLES.OWNER &&
+      membership.role !== MEMBER_ROLES.ADMIN
+    ) {
+      throw new ForbiddenException(
+        "Only org owners and admins can manage billing",
+      );
+    }
+    return membership.organizationId;
+  }
+
+  /**
+   * Start a Stripe Hosted Checkout for the caller's org to buy a volume tier.
+   * Returns the URL the client redirects to. Owner/admin only.
+   * POST /subscriptions/checkout
+   */
+  @Post("checkout")
+  @UseGuards(JwtAuthGuard)
+  async createCheckout(@Request() req, @Body() body: CreateCheckoutDto) {
+    const orgId = await this.requireOrgBillingAccess(req.user.userId);
+    return this.subscriptionsService.createOrgCheckout(orgId, body.tierId);
+  }
+
+  /**
+   * Open the Stripe Billing Portal for the caller's org (manage/cancel/update
+   * card). Returns the portal URL. Owner/admin only.
+   * POST /subscriptions/portal
+   */
+  @Post("portal")
+  @UseGuards(JwtAuthGuard)
+  async createBillingPortal(@Request() req) {
+    const orgId = await this.requireOrgBillingAccess(req.user.userId);
+    return this.subscriptionsService.createOrgBillingPortal(orgId);
+  }
+
+  /**
+   * Stripe webhook — verifies the signature over the RAW request body, then
+   * applies subscription-lifecycle changes. No JWT guard; authenticity comes
+   * from the Stripe-Signature HMAC.
+   * POST /subscriptions/stripe/webhook
+   */
+  @Post("stripe/webhook")
+  async handleStripeWebhook(
+    @Req() req: RawBodyRequest<ExpressRequest>,
+    @Headers("stripe-signature") signature: string | undefined,
+  ) {
+    if (!signature || !req.rawBody) {
+      throw new BadRequestException("Missing Stripe signature or body");
+    }
+    let event;
+    try {
+      event = this.stripeService.constructWebhookEvent(req.rawBody, signature);
+    } catch {
+      // Signature mismatch / tampered payload — reject without leaking details.
+      throw new BadRequestException("Invalid Stripe webhook signature");
+    }
+    await this.subscriptionsService.handleStripeWebhook(event);
+    return { received: true };
+  }
 
   @Post("start-trial")
   @UseGuards(JwtAuthGuard)

@@ -14,6 +14,7 @@ import OpenAI from "openai";
 import * as fs from "fs";
 import * as path from "path";
 import { sanitizeLogInput } from "./sanitize-log";
+import { stripLoneSurrogates, truncateAtCodePoint } from "./text";
 import { getLlmSecrets, resolveLlmProvider } from "./secrets";
 import type {
   PriorityEmailPayload,
@@ -159,6 +160,9 @@ function buildUserContextTexts(userContext?: UserContext): {
   };
 }
 
+/** UTF-16 code units of each body kept in the triage prompt. */
+const TRIAGE_BODY_PREVIEW_UNITS = 500;
+
 function buildEmailListForTriage(emails: PriorityEmailPayload[]): string {
   return emails
     .map((email, index) => {
@@ -167,10 +171,9 @@ function buildEmailListForTriage(emails: PriorityEmailPayload[]): string {
         email.existingUrgencyScore !== undefined
           ? `\nExisting urgency score: ${email.existingUrgencyScore}/100`
           : "";
-      // Truncate body for triage prompt
       const bodyPreview =
-        email.body.length > 500
-          ? email.body.substring(0, 500) + "…"
+        email.body.length > TRIAGE_BODY_PREVIEW_UNITS
+          ? truncateAtCodePoint(email.body, TRIAGE_BODY_PREVIEW_UNITS) + "…"
           : email.body;
       return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
 From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
@@ -195,7 +198,9 @@ function cleanEmailBody(body: string, maxChars: number): string {
   if (!body) return "";
   // Strip excessive whitespace
   const cleaned = body.replace(/\s+/g, " ").trim();
-  return cleaned.length > maxChars ? cleaned.substring(0, maxChars) + "…" : cleaned;
+  return cleaned.length > maxChars
+    ? truncateAtCodePoint(cleaned, maxChars) + "…"
+    : cleaned;
 }
 
 /**
@@ -222,13 +227,17 @@ function formatDateTimeForPrompt(date: Date, timezone?: string): string {
 }
 
 async function callLlm(
-  prompt: string,
-  systemPrompt: string,
+  rawPrompt: string,
+  rawSystemPrompt: string,
   maxTokens: number,
   temperature: number,
   model?: string,
   jsonMode = false,
 ): Promise<string> {
+  // Guard against malformed UTF-16 from upstream: a lone surrogate makes the
+  // JSON request body unparseable and the provider returns 400 on every retry.
+  const prompt = stripLoneSurrogates(rawPrompt);
+  const systemPrompt = stripLoneSurrogates(rawSystemPrompt);
   const secrets = await getLlmSecrets();
   const provider = resolveLlmProvider(secrets);
   const effectiveModel =

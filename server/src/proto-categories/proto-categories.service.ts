@@ -25,6 +25,7 @@ import { LLMProvider } from "../llm/llm.types";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_CHECK_CATEGORY_DUPLICATE } from "../llm/llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "../llm/prompts";
+import { resolveStrongGeminiModel } from "../llm/strong-gemini-model.helper";
 import { parseCategoryName } from "../utils/category-format.util";
 import { levenshteinDistance } from "../utils/levenshtein.util";
 import {
@@ -51,14 +52,11 @@ function stripCategoryName(name: string): string {
     .trim();
 }
 
-// Strong, current-generation non-lite model for duplicate decisions (a
-// high-stakes, low-volume call that decides whether a brand-new category is
-// created), with thinking enabled rather than the cheap shortlisting model.
-// NB: "gemini-3.1-flash" does NOT exist (the 3.1 gen ships only -lite/-image);
-// gemini-3.6-flash is the newest full flash. JSON reliability is guaranteed by
+// Duplicate decisions (high-stakes, low-volume: they decide whether a brand-new
+// category is created) use the shared strong model with thinking enabled rather
+// than the cheap shortlisting model. JSON reliability is guaranteed by
 // DEDUP_RESPONSE_SCHEMA (structured output) below, not by the model — so a
 // thinking model can't leak chain-of-thought into the verdict.
-const STRONG_DEDUP_MODEL = "gemini-3.6-flash";
 
 // Structured-output schema for the duplicate verdict. Constrained decoding
 // forces exactly this shape, so `matchAgainstFullList`'s JSON parse can never
@@ -99,15 +97,9 @@ export class ProtoCategoriesService {
     private configService: ConfigService,
   ) {}
 
-  /**
-   * Resolve the strong Gemini model used for duplicate decisions. Overridable
-   * via the GEMINI_STRONG_MODEL env var for ops flexibility.
-   */
+  /** The strong Gemini model used for duplicate decisions (env-overridable). */
   private get strongDedupModel(): string {
-    return (
-      this.configService.get<string>("GEMINI_STRONG_MODEL") ||
-      STRONG_DEDUP_MODEL
-    );
+    return resolveStrongGeminiModel(this.configService);
   }
 
   /**

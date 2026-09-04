@@ -94,6 +94,7 @@ export const UTILITY_PROMPT_IDS = {
   DERIVE_RULE_EXCLUSIONS: "derive_rule_exclusions",
   ASSESS_CATEGORY_RULE_VALUE: "assess_category_rule_value",
   CHECK_CATEGORY_DUPLICATE: "check_category_duplicate",
+  SANITY_CHECK_CATEGORY_RULE: "sanity_check_category_rule",
   DERIVE_MCP_SENDER_TOOL: "derive_mcp_sender_tool",
   VERIFY_DISTRACTION_PHRASE: "verify_distraction_phrase",
 } as const;
@@ -250,6 +251,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "check-category-duplicate.md",
     key: UTILITY_PROMPT_IDS.CHECK_CATEGORY_DUPLICATE,
+  },
+  {
+    file: "sanity-check-category-rule.md",
+    key: UTILITY_PROMPT_IDS.SANITY_CHECK_CATEGORY_RULE,
   },
   {
     file: "derive-mcp-sender-tool.md",

@@ -70,7 +70,10 @@ export interface RulePersistGateOutcome {
   detail?: string;
 }
 
-function specToSummary(spec: CompositeCategoryRuleSpec): RuleSpecSummary {
+/** Flattens any spec version into the LLM-facing summary shape. */
+export function specToSummary(
+  spec: CompositeCategoryRuleSpec,
+): RuleSpecSummary {
   const v2 = specToV2(spec);
   return {
     senders: v2.senderMatchesAny,

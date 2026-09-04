@@ -1,6 +1,7 @@
 import type {
   CategoryRule,
   CategoryRuleKind,
+  CategoryRuleSanityCheck,
   CategoryRuleType,
   CompositeCategoryRuleSpec,
 } from "../database/entities/category-rule.entity";
@@ -131,6 +132,8 @@ export interface CategoryRuleDto {
   pattern: string;
   subjectPrefix: string | null;
   compositeSpec: CompositeCategoryRuleSpec | null;
+  /** Strong-model review outcome for auto-generated composite rules; null otherwise. */
+  sanityCheck: CategoryRuleSanityCheck | null;
   isEnabled: boolean;
   hitCount: number;
   createdAt: Date;

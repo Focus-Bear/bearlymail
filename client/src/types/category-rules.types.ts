@@ -104,6 +104,22 @@ export interface CategoryRuleSuggestion {
   threadCount: number;
 }
 
+/**
+ * Outcome of the strong-model review an auto-generated composite rule passed
+ * before it was created. Null for hand-authored rules and rules created while
+ * the review was unavailable. Rejected candidates are never created.
+ */
+export interface CategoryRuleSanityCheck {
+  verdict: 'accept' | 'revise';
+  /** Reviewer confidence in the verdict, 0–1. */
+  confidence: number;
+  reason: string;
+  model: string;
+  checkedAt: string;
+  /** True when the stored conditions are the reviewer's revision of the original candidate. */
+  revised: boolean;
+}
+
 export interface CategoryRuleDto {
   id: string;
   categoryName: string;
@@ -117,6 +133,8 @@ export interface CategoryRuleDto {
   pattern: string;
   subjectPrefix: string | null;
   compositeSpec: CompositeSpec | null;
+  /** Absent on older payloads; null for hand-authored rules. */
+  sanityCheck?: CategoryRuleSanityCheck | null;
   isEnabled: boolean;
   hitCount: number;
   createdAt: string;

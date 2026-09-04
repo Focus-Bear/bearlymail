@@ -147,6 +147,9 @@ export const LLM_OP_DETECT_MEETING_PROPOSAL = "detect_meeting_proposal";
 // Check whether two category names are duplicates (Levenshtein near-match confirmation)
 export const LLM_OP_CHECK_CATEGORY_DUPLICATE = "check_category_duplicate";
 
+// Strong-model sanity review of an auto-generated composite category rule before it is persisted
+export const LLM_OP_SANITY_CHECK_CATEGORY_RULE = "sanity_check_category_rule";
+
 // Sender context: pick which MCP tool + arg looks up a person by email
 export const LLM_OP_DERIVE_MCP_SENDER_TOOL = "derive_mcp_sender_tool";
 
@@ -214,6 +217,7 @@ export type LLMOperation =
   | typeof LLM_OP_BATCH_PRIORITY_TRIAGE
   | typeof LLM_OP_DETECT_MEETING_PROPOSAL
   | typeof LLM_OP_CHECK_CATEGORY_DUPLICATE
+  | typeof LLM_OP_SANITY_CHECK_CATEGORY_RULE
   | typeof LLM_OP_DERIVE_MCP_SENDER_TOOL
   | typeof LLM_OP_ASK_AI_EMAIL
   | typeof LLM_OP_ASK_AI_AGENT
@@ -272,6 +276,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_BATCH_PRIORITY_TRIAGE]: "Batch Priority Triage",
   [LLM_OP_DETECT_MEETING_PROPOSAL]: "Detect Meeting Proposal",
   [LLM_OP_CHECK_CATEGORY_DUPLICATE]: "Check Category Duplicate",
+  [LLM_OP_SANITY_CHECK_CATEGORY_RULE]: "Sanity Check Category Rule",
   [LLM_OP_DERIVE_MCP_SENDER_TOOL]: "Derive MCP Sender Tool",
   [LLM_OP_ASK_AI_EMAIL]: "Ask AI (Email Assistant)",
   [LLM_OP_ASK_AI_AGENT]: "Ask AI (Agentic Assistant)",

@@ -95,6 +95,7 @@ export const UTILITY_PROMPT_IDS = {
   DERIVE_RULE_EXCLUSIONS: "derive_rule_exclusions",
   ASSESS_CATEGORY_RULE_VALUE: "assess_category_rule_value",
   CHECK_CATEGORY_DUPLICATE: "check_category_duplicate",
+  SANITY_CHECK_CATEGORY_RULE: "sanity_check_category_rule",
   DERIVE_MCP_SENDER_TOOL: "derive_mcp_sender_tool",
   VERIFY_DISTRACTION_PHRASE: "verify_distraction_phrase",
 } as const;
@@ -253,6 +254,10 @@ const PROMPT_FILE_MAP: Array<{
     key: UTILITY_PROMPT_IDS.CHECK_CATEGORY_DUPLICATE,
   },
   {
+    file: "sanity-check-category-rule.md",
+    key: UTILITY_PROMPT_IDS.SANITY_CHECK_CATEGORY_RULE,
+  },
+  {
     file: "derive-mcp-sender-tool.md",
     key: UTILITY_PROMPT_IDS.DERIVE_MCP_SENDER_TOOL,
   },
@@ -273,16 +278,14 @@ const PROMPT_FILE_MAP: Array<{
 /**
  * Reusable prompt fragments kept in ONE canonical file and inlined into every
  * prompt that references `{{token}}`, so shared rules (e.g. the category
- * selection ruleset used by both `analyze_priority` and `categorise_summary`)
- * live in a single place. Inlining happens at load time for the app; promptfoo
+ * selection ruleset used by `categorise_summary`) live in a single place. Inlining happens at load time for the app; promptfoo
  * resolves the same token by passing the file via a `file://` var (neither the
  * app's regex renderer nor promptfoo's Nunjucks supports `{% include %}`).
  */
 const SHARED_PARTIAL_FILES: Record<string, string> = {
   categorySelectionRules: "_shared/category-selection-rules.md",
   // GitHub-specific rules are a SEPARATE partial so the consuming prompt can
-  // gate them with its own `{% if showGithubRules %}` sibling conditional
-  // (analyze_priority only sends them for GitHub senders, to save tokens).
+  // gate them with its own `{% if showGithubRules %}` sibling conditional.
   // Keeping them a sibling — not nested inside another `{% if %}` — matters
   // because the app's regex prompt renderer does not support nested conditionals.
   categoryGithubRules: "_shared/category-github-rules.md",

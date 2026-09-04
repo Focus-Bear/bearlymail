@@ -465,6 +465,9 @@ export class AppleMailProvider implements EmailProvider {
       to: EmailRecipient[];
       subject: string;
       body: string;
+      // Accepted for interface parity; Mail.app sends the plain `body` locally
+      // and preserves its newlines, so no HTML part is used here.
+      htmlBody?: string;
       cc?: EmailRecipient[];
       bcc?: EmailRecipient[];
       attachments?: EmailAttachmentData[];

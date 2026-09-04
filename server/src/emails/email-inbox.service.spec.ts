@@ -1,3 +1,4 @@
+import { QUERY_LIMITS } from "../constants/query-limits";
 /**
  * Unit tests for category sort order logic in EmailInboxService (fix #1550).
  *
@@ -328,5 +329,101 @@ describe("getInboxSummary SQL — fix #2062 account scope", () => {
     expect(lateralBody).toMatch(/"googleAccountId"/);
     expect(lateralBody).toMatch(/"office365AccountId"/);
     expect(lateralBody).toMatch(/"zohoAccountId"/);
+  });
+});
+
+// ─── issue #2062: the summary must describe the same set as the thread query ──
+//
+// Header counts come from getInboxSummary; rows come from runInboxQuery. They now
+// share one scope: the same row cap in the same order, and a category join that
+// only resolves the user's own EMAIL_CATEGORY contexts.
+
+describe("getInboxSummary SQL — issue #2062 shared scope", () => {
+  async function buildService() {
+    const { emailThreadRepository } = buildServiceDeps();
+    const blockedSendersService = {
+      getBlockedEmailHashes: jest.fn().mockResolvedValue(undefined),
+      isSenderBlocked: jest.fn().mockResolvedValue(false),
+    };
+    const emailInboxCategoryService = {
+      resolveUserEmailLower: jest.fn().mockResolvedValue(null),
+      countRowsByCategory: jest.fn().mockResolvedValue({
+        categoryOrder: [],
+        categoryCounts: {},
+        categoryThreadIds: {},
+        categoryUuidByName: new Map(),
+      }),
+      filterVisibleCategoriesByIds: jest.fn().mockReturnValue([]),
+    };
+    const emailFollowUpService = {
+      selectFollowUpThreadIds: jest.fn().mockResolvedValue(new Set()),
+    };
+    const userContextRepository = { find: jest.fn().mockResolvedValue([]) };
+    const { EmailInboxService } = await import("./email-inbox.service");
+    const service = new EmailInboxService(
+      {},
+      emailThreadRepository,
+      userContextRepository,
+      blockedSendersService,
+      emailFollowUpService,
+      emailInboxCategoryService,
+      {},
+      undefined,
+    );
+    return { service, emailThreadRepository, emailFollowUpService };
+  }
+
+  it("caps the summary at the same row limit and order as the thread query", async () => {
+    const { service, emailThreadRepository } = await buildService();
+    await service.getInboxSummary("user-123", "action");
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+
+    expect(sql).toMatch(
+      /ORDER BY COALESCE\(thread\."priorityScore", 0\) DESC, thread\."updatedAt" DESC, thread\."threadId" ASC/,
+    );
+    expect(sql).toMatch(
+      new RegExp(`LIMIT ${QUERY_LIMITS.INBOX_PROCESS_TOTAL}`),
+    );
+  });
+
+  it("only resolves category names from the user's own EMAIL_CATEGORY contexts", async () => {
+    const { service, emailThreadRepository } = await buildService();
+    await service.getInboxSummary("user-123", "triage");
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+
+    expect(sql).toMatch(/uc\."userId"\s*=\s*\$1/);
+    expect(sql).toMatch(/uc\."contextKey"\s*=\s*'EMAIL_CATEGORY'/);
+  });
+
+  it("selects the fields the shared action rule needs", async () => {
+    const { service, emailThreadRepository } = await buildService();
+    await service.getInboxSummary("user-123", "action");
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+
+    expect(sql).toContain('latest_email."sentByAutoResponder"');
+    expect(sql).toContain('thread."keepInAction"');
+  });
+
+  it("binds the assignee filter like the thread query does", async () => {
+    const { service, emailThreadRepository } = await buildService();
+    await service.getInboxSummary("user-123", "triage", {
+      assigneeId: "user-2",
+    });
+    const [sql, params] = emailThreadRepository.query.mock.calls[0] as [
+      string,
+      unknown[],
+    ];
+
+    expect(sql).toContain('thread."assigneeId" = $2');
+    expect(params).toEqual(["user-123", "user-2"]);
+  });
+
+  it("decides follow-up membership with the shared follow-up rule", async () => {
+    const { service, emailFollowUpService } = await buildService();
+    await service.getInboxSummary("user-123", "follow-up");
+    expect(emailFollowUpService.selectFollowUpThreadIds).toHaveBeenCalledWith(
+      "user-123",
+      [],
+    );
   });
 });

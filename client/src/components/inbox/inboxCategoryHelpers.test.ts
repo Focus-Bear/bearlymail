@@ -212,6 +212,18 @@ describe('buildDisplayCategories', () => {
     expect(result[0].count).toBe(1);
   });
 
+  it('keeps zero-count categories only when includeEmpty is set (admin debug view)', () => {
+    const summary = [
+      { id: 'cat-a', name: 'Security', count: 0 },
+      { id: 'cat-b', name: 'Newsletters', count: 1 },
+    ];
+    expect(buildDisplayCategories(summary, [], [], 'action').map(cat => cat.name)).toEqual(['Newsletters']);
+    expect(buildDisplayCategories(summary, [], [], 'action', true).map(cat => cat.name)).toEqual([
+      'Security',
+      'Newsletters',
+    ]);
+  });
+
   it('filters out categories with a count of 0 from summaryCategories', () => {
     const summary: CategorySummaryItem[] = [
       { id: 'a', name: 'Alpha', count: 5 },

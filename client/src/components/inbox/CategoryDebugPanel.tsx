@@ -117,7 +117,13 @@ export const CategoryDebugPanel: React.FC<CategoryDebugPanelProps> = ({
   const matchingById = (categorySummary ?? []).filter((entry) => entry.id === categoryItem.id);
 
   const traceCategoryId = categoryItem.id ?? 'uncategorized';
-  const traceUrl = `${API_URL}/emails/debug/category-fetch-trace?categoryId=${encodeURIComponent(traceCategoryId)}&mode=${encodeURIComponent(mode)}`;
+  // Pass the renderer's own summary entry so the trace can flag a stale on-screen count.
+  const renderedSummaryEntry = matchingById[0] ?? matchingByName[0];
+  const traceParams = new URLSearchParams({ categoryId: traceCategoryId, mode, summaryName: categoryItem.name });
+  if (renderedSummaryEntry?.threadIds) {
+    traceParams.append('summaryThreadIds', renderedSummaryEntry.threadIds.join(','));
+  }
+  const traceUrl = `${API_URL}/emails/debug/category-fetch-trace?${traceParams.toString()}`;
   const contextsUrl = `${API_URL}/emails/debug/category-contexts`;
 
   return (

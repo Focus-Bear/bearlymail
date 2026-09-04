@@ -1,4 +1,4 @@
-description: "Category-ONLY prod prompt (categorise_summary) tested on the same 18 hard cases as the experiment. Shared category-selection ruleset injected via file:// var. CI runs flash-lite (the escalation fallback that must always be correct); Nova Micro is validated separately in categorise-email-experiment.yaml."
+description: "Category-ONLY prod prompt (categorise_summary): the single place a category is chosen, for new emails (ahead of priority scoring) and for incremental re-categorisation. Shared category-selection ruleset injected via file:// var. CI runs flash-lite (the escalation fallback that must always be correct); Nova Micro is the production primary."
 
 providers:
   - id: google:gemini-3.1-flash-lite
@@ -523,6 +523,9 @@ tests:
           if (result.categoryNumber !== 0) {
             throw new Error(`Expected Other (0) for automated alert with no fitting category, got ${result.categoryNumber}. Explanation: ${result.categoryExplanation}`);
           }
+          if (!result.protoCategorySuggestion || !result.protoCategorySuggestion.name || !result.protoCategorySuggestion.reasoning) {
+            throw new Error("Other returned without a protoCategorySuggestion with name + reasoning: " + JSON.stringify(result.protoCategorySuggestion));
+          }
           return true;
 
   # Test 17: A broad existing category fits → pick it, don't invent a narrower one
@@ -578,6 +581,46 @@ tests:
           }
           if (result.categoryNumber !== 0) {
             throw new Error(`Expected Other (0) for personal housing notice, got ${result.categoryNumber}. Explanation: ${result.categoryExplanation}`);
+          }
+          const proto = result.protoCategorySuggestion;
+          if (!proto || !proto.reasoning) {
+            throw new Error("Other returned without protoCategorySuggestion.reasoning: " + JSON.stringify(result));
+          }
+          if (!/Customer Support|Sales|Newsletters|GitHub/.test(proto.reasoning)) {
+            throw new Error("proto reasoning must name the closest existing categories it rejected: " + proto.reasoning);
+          }
+          return true;
+
+  # Proto suggestions must be generic umbrellas, never per-source variants.
+  - description: "Newsletter with no newsletter category → Other + a GENERIC '📰 Newsletters' proto, not a source-specific variant"
+    vars:
+      senderName: "TechCrunch"
+      subject: "TechCrunch Daily: the week's biggest startup stories"
+      summary: "Weekly TechCrunch newsletter digest of startup and venture news with links to the top stories; automated mass mailing."
+      categories: |
+           1. "Customer Support": Help requests and issues from existing customers
+           2. "Sales": Sales discussions, pricing, demos
+           3. "GitHub bot notifications": Automated GitHub notifications
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+          if (!result || result.categoryNumber !== 0) {
+            throw new Error(`Expected Other (0) for a newsletter with no newsletter category, got ${JSON.stringify(result)}`);
+          }
+          const proto = result.protoCategorySuggestion;
+          if (!proto || !proto.name) {
+            throw new Error("Other returned without a protoCategorySuggestion.name");
+          }
+          if (!/newsletter|digest/i.test(proto.name)) {
+            throw new Error(`Proto name should be a generic newsletters bucket, got "${proto.name}"`);
+          }
+          if (/techcrunch/i.test(proto.name)) {
+            throw new Error(`Proto name must not be source-specific, got "${proto.name}"`);
           }
           return true;
 

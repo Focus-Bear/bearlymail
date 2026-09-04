@@ -14,6 +14,11 @@
 import { Client } from "pg";
 
 import { encryptStatsForDb, parseStatsFromDb } from "./encryption";
+import {
+  BatchFailureRecord,
+  mergeBatchFailure,
+  mergeBatchResult,
+} from "./stats-merge";
 import { getDbSecrets } from "./secrets";
 import { resolveUserKey } from "./user-key";
 
@@ -99,14 +104,6 @@ export async function getDbClient(): Promise<Client> {
   throw new Error("getDbClient: exhausted retry loop");
 }
 
-function getBatchResultsMap(stats: Record<string, unknown>): Record<string, unknown> {
-  const br = stats.batchResults;
-  if (br && typeof br === "object" && !Array.isArray(br)) {
-    return { ...(br as Record<string, unknown>) };
-  }
-  return {};
-}
-
 /**
  * Update a batch result in the context_analyses record's stats JSONB column.
  * Uses row lock + decrypt/encrypt so data matches TypeORM encryption on the server.
@@ -138,15 +135,10 @@ export async function saveBatchResult(
     }
 
     const stats = parseStatsFromDb(rows[0].stats, derivedKey);
-    const key = String(batchIndex);
-    const batchResults = getBatchResultsMap(stats);
-
-    if (batchResults[key] != null) {
+    const nextStats = mergeBatchResult(stats, batchIndex, result);
+    if (!nextStats) {
       return;
     }
-
-    batchResults[key] = result;
-    const nextStats = { ...stats, batchResults };
     const encrypted = encryptStatsForDb(nextStats, derivedKey);
 
     await db.query(
@@ -166,18 +158,15 @@ export async function saveBatchResult(
 /**
  * Mark a batch as failed in the context_analyses record.
  *
- * Idempotency: if this batch index already has an entry in stats.batchResults, no-op.
+ * Recorded in both `batchResults` and `failedBatches` so the server finaliser
+ * counts it as failed rather than completed. Idempotent: no-op if the batch
+ * already has any record.
  */
 export async function saveBatchFailure(
   userId: string,
   analysisRecordId: string,
   batchIndex: number,
-  error: {
-    error: string;
-    failedAt: string;
-    errorType: string;
-    correlationId: string;
-  },
+  error: BatchFailureRecord,
 ): Promise<void> {
   const db = await getDbClient();
   const derivedKey = await resolveUserKey(db, userId);
@@ -192,15 +181,10 @@ export async function saveBatchFailure(
     }
 
     const stats = parseStatsFromDb(rows[0].stats, derivedKey);
-    const key = String(batchIndex);
-    const batchResults = getBatchResultsMap(stats);
-
-    if (batchResults[key] != null) {
+    const nextStats = mergeBatchFailure(stats, batchIndex, error);
+    if (!nextStats) {
       return;
     }
-
-    batchResults[key] = error;
-    const nextStats = { ...stats, batchResults };
     const encrypted = encryptStatsForDb(nextStats, derivedKey);
 
     await db.query(

@@ -8,12 +8,18 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+
+import { stripLoneSurrogates, truncateAtCodePoint } from "./text";
 import * as fs from "fs";
 import * as path from "path";
 import { getLlmSecrets, resolveLlmProvider } from "./secrets";
 
 // Lazy-loaded clients (cached across warm invocations)
 let anthropicClient: Anthropic | null = null;
+/** UTF-16 code units of each body kept in the prompt (mirrors the server's preview caps). */
+const RECEIVED_BODY_PREVIEW_UNITS = 500;
+const SENT_BODY_PREVIEW_UNITS = 300;
+
 let openaiClient: OpenAI | null = null;
 
 // Prompt template cache
@@ -100,7 +106,7 @@ IsRead: ${e.isRead ?? false}
 TimeToReply: ${e.timeToReply !== null && e.timeToReply !== undefined ? (e.timeToReply < 1800000 ? `QUICK (${Math.round(e.timeToReply / 60000)}min)` : `${Math.round(e.timeToReply / 60000)}min`) : "NoReply"}
 StarCount: ${e.starCount ?? 0}
 IsArchived: ${e.isArchived ?? false}
-Body: ${e.body.substring(0, 500)}`,
+Body: ${truncateAtCodePoint(e.body, RECEIVED_BODY_PREVIEW_UNITS)}`,
     )
     .join("\n\n");
 
@@ -112,7 +118,7 @@ Body: ${e.body.substring(0, 500)}`,
 To: ${e.to}
 Subject: ${e.subject}
 SentAt: ${e.sentAt}
-Body: ${e.body.substring(0, 300)}`,
+Body: ${truncateAtCodePoint(e.body, SENT_BODY_PREVIEW_UNITS)}`,
     )
     .join("\n\n");
 
@@ -121,11 +127,15 @@ Body: ${e.body.substring(0, 300)}`,
       ? currentContext.map((c) => `${c.key}: ${c.value}`).join("\n")
       : "No existing context.";
 
-  return template
-    .replace("{{userEmail}}", userEmail || "unknown")
-    .replace("{{currentContext}}", contextSection)
-    .replace("{{receivedEmails}}", receivedSection)
-    .replace("{{sentEmails}}", sentSection);
+  // Subjects and names arrive untruncated but may still carry malformed UTF-16
+  // from upstream, so sanitise the whole prompt rather than only the bodies.
+  return stripLoneSurrogates(
+    template
+      .replace("{{userEmail}}", userEmail || "unknown")
+      .replace("{{currentContext}}", contextSection)
+      .replace("{{receivedEmails}}", receivedSection)
+      .replace("{{sentEmails}}", sentSection),
+  );
 }
 
 function parseResult(raw: string): AnalysisResult {

@@ -12,6 +12,7 @@ import { User } from "../database/entities/user.entity";
 import { DebugModule } from "../debug/debug.module";
 import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { UsersModule } from "../users/users.module";
+import { CategoryRuleSanityService } from "./category-rule-sanity.service";
 import { CategoryShortlistService } from "./category-shortlist.service";
 import { EmbeddingService } from "./embedding.service";
 import { IncrementalAnalysisService } from "./incremental-analysis.service";
@@ -64,6 +65,7 @@ import { TokenUsageService } from "./token-usage.service";
     LLMSummarizationService,
     LLMToneService,
     CategoryShortlistService,
+    CategoryRuleSanityService,
     EmbeddingService,
     PriorityAnalysisService,
     IncrementalAnalysisService,
@@ -82,6 +84,7 @@ import { TokenUsageService } from "./token-usage.service";
     LLMSummarizationService,
     LLMToneService,
     CategoryShortlistService,
+    CategoryRuleSanityService,
     EmbeddingService,
     PriorityAnalysisService,
     IncrementalAnalysisService,

@@ -84,6 +84,27 @@ export type CompositeCategoryRuleSpec =
   | CompositeCategoryRuleSpecV3;
 
 /**
+ * Outcome of the strong-model sanity review an AUTO-generated composite rule
+ * passed before it was persisted (encrypted JSON at rest). Null for rules a
+ * person authored, for rules created before the review existed, and when the
+ * review was unavailable (disabled / LLM error) and the rule was created
+ * unchecked. Rejected candidates are never persisted, so a stored verdict is
+ * always "accept" or "revise".
+ */
+export type CategoryRuleSanityCheck = {
+  verdict: "accept" | "revise";
+  /** Reviewer confidence in the verdict, 0–1. */
+  confidence: number;
+  reason: string;
+  /** Model that produced the verdict. */
+  model: string;
+  /** ISO timestamp of the review. */
+  checkedAt: string;
+  /** True when the persisted spec is the reviewer's revision, not the original candidate. */
+  revised: boolean;
+};
+
+/**
  * Deterministic category rules: legacy hash-based (auto-generated) or composite
  * (user-defined sender + subject + body OR phrases).
  */
@@ -149,6 +170,12 @@ export class CategoryRule {
     transformer: makeEncryptedJsonTransformer("category_rules.compositeSpec"),
   })
   compositeSpec: CompositeCategoryRuleSpec | null;
+
+  @Column("text", {
+    nullable: true,
+    transformer: makeEncryptedJsonTransformer("category_rules.sanityCheck"),
+  })
+  sanityCheck: CategoryRuleSanityCheck | null;
 
   @Column({ default: true })
   isEnabled: boolean;

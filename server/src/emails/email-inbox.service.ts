@@ -31,6 +31,12 @@ import {
 } from "./email-inbox-category.service";
 import { EmailInboxDecryptService } from "./email-inbox-decrypt.service";
 import { runInboxQuery } from "./email-inbox-query.helpers";
+import {
+  buildUserCategoryJoinSql,
+  INBOX_SCOPE_ORDER_BY_SQL,
+  INBOX_SCOPE_VISIBILITY_SQL,
+  inboxRowLimit,
+} from "./email-inbox-scope.helpers";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
 import { PerformanceTracker } from "./performance-tracker";
 
@@ -71,6 +77,8 @@ export class EmailInboxService {
       maxPriority?: number;
       includeThreadIds?: boolean;
       accountIds?: string[];
+      /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
+      assigneeId?: string;
     },
   ): Promise<{
     total: number;
@@ -110,6 +118,13 @@ export class EmailInboxService {
     const categoryNameToId = await this.getCategoryNameToIdMap(userId, true);
     await this.blockedSendersService.getBlockedEmailHashes(userId);
 
+    // Follow-up membership is decided by the same follow-up evaluation the list
+    // uses (pending follow-up records, reply state), not by a sender heuristic.
+    const followUpThreadIds =
+      mode === INBOX_MODES.FOLLOW_UP
+        ? await this.emailFollowUpService.selectFollowUpThreadIds(userId, rows)
+        : undefined;
+
     const {
       categoryOrder,
       categoryCounts,
@@ -122,6 +137,7 @@ export class EmailInboxService {
       includeThreadIds: filters?.includeThreadIds ?? false,
       needsUserSentLastFilter,
       userEmailLower,
+      followUpThreadIds,
     });
 
     const visibleCategories =
@@ -176,6 +192,10 @@ export class EmailInboxService {
       latestFrom?: string;
       allLabels?: string[] | null;
       priorityScore?: number | null;
+      sentByAutoResponder?: boolean | null;
+      keepInAction?: boolean | null;
+      isSnoozed?: boolean | null;
+      snoozeUntil?: Date | null;
     }[]
   > {
     const {
@@ -188,13 +208,16 @@ export class EmailInboxService {
     return this.emailThreadRepository.query(
       `SELECT thread."categoryId", uc."contextValue" AS "categoryName",
               latest_email."latestFrom",
+              latest_email."sentByAutoResponder",
+              latest_email."isSnoozed", latest_email."snoozeUntil",
+              thread."keepInAction",
               thread_labels."allLabels",
               thread."priorityScore"${threadIdSelect}
        FROM email_threads thread
-       LEFT JOIN user_contexts uc
-         ON uc."contextId" = thread."categoryId"
+       ${buildUserCategoryJoinSql("$1")}
        CROSS JOIN LATERAL (
          SELECT em."from" AS "latestFrom",
+                em."sentByAutoResponder", em."isSnoozed", em."snoozeUntil",
                 em."googleAccountId", em."office365AccountId", em."zohoAccountId"
          FROM emails em
          WHERE em."emailThreadId" = thread.id AND em."userId" = $1
@@ -205,10 +228,9 @@ export class EmailInboxService {
          WHERE em."emailThreadId" = thread.id AND em."userId" = $1 AND em.labels IS NOT NULL
        ) thread_labels ON true
        WHERE thread."userId" = $1 ${threadFilter} ${additionalFilters}
-         AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
-         AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
-       ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC
-       ${mode === INBOX_MODES.BLOCKED ? "LIMIT 200" : ""}`,
+         ${INBOX_SCOPE_VISIBILITY_SQL}
+       ${INBOX_SCOPE_ORDER_BY_SQL}
+       LIMIT ${inboxRowLimit(mode)}`,
       queryParams,
     ) as Promise<
       {
@@ -249,12 +271,7 @@ export class EmailInboxService {
       this.cloudWatchService,
     );
 
-    await this.blockedSendersService.getBlockedEmailHashes(userId);
-    if (Math.random() < RATIOS.SMALL && fixStuckCalculatingThreads) {
-      fixStuckCalculatingThreads(userId).catch((err) =>
-        this.logger.error("Error auto-fixing stuck calculating threads:", err),
-      );
-    }
+    await this.prepareInboxFetch(userId, fixStuckCalculatingThreads);
 
     const budgetBase =
       mode === INBOX_MODES.ACTION
@@ -264,7 +281,11 @@ export class EmailInboxService {
       "combined_query",
       budgetBase + PERFORMANCE_BUDGETS.EMAIL_QUERY,
     );
-    const rawEmails = await this.runInboxQuery(userId, mode, filters);
+    const scopedFilters = await this.expandCategoryFilterToNameSiblings(
+      userId,
+      filters,
+    );
+    const rawEmails = await this.runInboxQuery(userId, mode, scopedFilters);
     endCombined();
 
     if (rawEmails.length === 0) {
@@ -301,7 +322,7 @@ export class EmailInboxService {
         mode,
         threadRepresentatives,
         perf,
-        filters,
+        scopedFilters,
       );
 
     this.emailInboxDecryptService
@@ -322,6 +343,64 @@ export class EmailInboxService {
     );
     perf.finish(mode);
     return { emails: finalEmails, total, hasMore };
+  }
+
+  /** Warms the blocked-sender cache and occasionally repairs stuck priority flags. */
+  private async prepareInboxFetch(
+    userId: string,
+    fixStuckCalculatingThreads?: (userId: string) => Promise<unknown>,
+  ): Promise<void> {
+    await this.blockedSendersService.getBlockedEmailHashes(userId);
+    if (Math.random() < RATIOS.SMALL && fixStuckCalculatingThreads) {
+      fixStuckCalculatingThreads(userId).catch((err) =>
+        this.logger.error("Error auto-fixing stuck calculating threads:", err),
+      );
+    }
+  }
+
+  /**
+   * The summary buckets threads by category NAME, so when two contexts share a
+   * name (a re-created or duplicated category) one summary entry covers threads
+   * carrying either UUID. A per-category fetch for that entry's UUID must
+   * therefore include every UUID with the same name, or it returns fewer rows
+   * than the header count (issue #2062).
+   */
+  private async expandCategoryFilterToNameSiblings(
+    userId: string,
+    filters?: {
+      accountIds?: string[];
+      categoryIds?: string[];
+      minPriority?: number;
+      maxPriority?: number;
+      assigneeId?: string;
+    },
+  ): Promise<typeof filters> {
+    const requested = filters?.categoryIds ?? [];
+    const realIds = requested.filter(
+      (id) =>
+        id !== INBOX_OTHER_CATEGORY_NAME &&
+        id !== INBOX_UNCATEGORIZED_CATEGORY_KEY,
+    );
+    if (realIds.length === 0) return filters;
+
+    const ctxs = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+      select: { contextId: true, contextValue: true },
+    });
+    for (const ctx of ctxs) decryptUserContextEntityForApi(ctx);
+    const idToName = new Map(
+      ctxs.map((ctx) => [ctx.contextId, parseCategoryName(ctx.contextValue)]),
+    );
+    const requestedNames = new Set(
+      realIds
+        .map((id) => idToName.get(id))
+        .filter((name): name is string => name !== undefined),
+    );
+    const siblings = ctxs
+      .filter((ctx) => requestedNames.has(idToName.get(ctx.contextId) ?? ""))
+      .map((ctx) => ctx.contextId);
+    const expanded = Array.from(new Set([...requested, ...siblings]));
+    return { ...filters, categoryIds: expanded };
   }
 
   async getCategoryNameToIdMap(

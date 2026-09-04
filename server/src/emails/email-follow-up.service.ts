@@ -12,6 +12,7 @@ import {
 } from "../database/entities/follow-up.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
+import { shouldKeepInActionMode } from "./email-inbox-scope.helpers";
 import { EmailThreadService } from "./email-thread.service";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
 import { PerformanceTracker } from "./performance-tracker";
@@ -53,6 +54,20 @@ export interface FollowUpDebugInfo {
  * Handles follow-up / action-mode post-query filtering for the inbox.
  * Extracted from EmailInboxService to keep that class under 800 lines.
  */
+/**
+ * Minimum shape the follow-up rule needs. InboxEmail satisfies it; so do the
+ * lightweight summary rows, which is what lets the count share the rule.
+ */
+export interface FollowUpCandidate {
+  threadId?: string;
+  isSnoozed?: boolean | null;
+  snoozeUntil?: Date | string | null;
+  keepInAction?: boolean | null;
+  lastTheirReplyAt?: string;
+  lastMyReplyAt?: string;
+  followUpDueAt?: string;
+}
+
 @Injectable()
 export class EmailFollowUpService {
   private readonly logger = new Logger(EmailFollowUpService.name);
@@ -85,13 +100,9 @@ export class EmailFollowUpService {
         )?.toLowerCase();
         if (userEmail) {
           const before = emails.length;
-          const result = emails.filter(
-            (emailItem) =>
-              (emailItem.from?.toLowerCase() || "") !== userEmail ||
-              emailItem.sentByAutoResponder === true ||
-              // "I still need to take action" pins the thread to Action mode
-              // even though the user sent the last email (fixes #2125 follow-up).
-              emailItem.keepInAction === true,
+          // Same rule the summary count applies (issue #2062).
+          const result = emails.filter((emailItem) =>
+            shouldKeepInActionMode(emailItem, userEmail),
           );
           if (result.length < before)
             this.logger.debug(
@@ -117,19 +128,36 @@ export class EmailFollowUpService {
     perf: PerformanceTracker,
   ): Promise<InboxEmail[]> {
     const end = perf.startSpan("follow_up_filter", QUERY_LIMITS.INBOX_TOTAL);
+    try {
+      const keep = await this.selectFollowUpThreadIds(userId, emails);
+      return emails.filter((emailItem) => keep.has(emailItem.threadId));
+    } finally {
+      end();
+    }
+  }
+
+  /**
+   * Decides which of `candidates` belong in Follow-Up mode. This is the single
+   * follow-up rule, used by the list (via filterFollowUpModeEmails) and by the
+   * category summary so header counts and rows agree (issue #2062). Candidates
+   * that are InboxEmail instances are annotated with their reply timestamps as
+   * a side effect, exactly as the list has always done.
+   */
+  async selectFollowUpThreadIds(
+    userId: string,
+    candidates: FollowUpCandidate[],
+  ): Promise<Set<string>> {
     const now = new Date();
+    this.logSnoozeMismatchDebug(candidates, now);
 
-    this.logSnoozeMismatchDebug(emails, now);
-
-    const unsnoozed = emails.filter(
-      (emailItem) =>
-        !emailItem.isSnoozed ||
-        (emailItem.snoozeUntil && new Date(emailItem.snoozeUntil) < now),
+    const unsnoozed = candidates.filter(
+      (candidate) =>
+        candidate.threadId &&
+        (!candidate.isSnoozed ||
+          (candidate.snoozeUntil && new Date(candidate.snoozeUntil) < now)),
     );
 
-    const threadIds = unsnoozed
-      .map((emailItem) => emailItem.threadId)
-      .filter(Boolean);
+    const threadIds = unsnoozed.map((candidate) => candidate.threadId!);
     const pendingDueAt = await this.fetchPendingFollowUpDueAt(
       userId,
       threadIds,
@@ -139,23 +167,22 @@ export class EmailFollowUpService {
     if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     const userEmail = EncryptionHelper.tryDecrypt(user.email);
 
-    const result: InboxEmail[] = [];
-    for (const email of unsnoozed) {
+    const keep = new Set<string>();
+    for (const candidate of unsnoozed) {
       // Threads pinned to Action mode ("I still need to take action") must not
       // re-emerge here via the implicit "starred + sent-last" rule (#2125).
-      if (email.keepInAction === true) continue;
-      const matched = await this.evaluateFollowUpCandidate(userId, email, {
+      if (candidate.keepInAction === true) continue;
+      const matched = await this.evaluateFollowUpCandidate(userId, candidate, {
         userEmail,
-        dueAt: pendingDueAt.get(email.threadId),
+        dueAt: pendingDueAt.get(candidate.threadId!),
         now,
       });
-      if (matched) result.push(email);
+      if (matched) keep.add(candidate.threadId!);
     }
-    end();
-    return result;
+    return keep;
   }
 
-  private logSnoozeMismatchDebug(emails: InboxEmail[], now: Date): void {
+  private logSnoozeMismatchDebug(emails: FollowUpCandidate[], now: Date): void {
     // Debug: log threads that passed the SQL snooze filter but still have isSnoozed
     // set on the email record — this would indicate thread vs email snooze mismatch.
     for (const emailItem of emails) {
@@ -200,13 +227,13 @@ export class EmailFollowUpService {
 
   private async evaluateFollowUpCandidate(
     userId: string,
-    email: InboxEmail,
+    email: FollowUpCandidate,
     ctx: { userEmail: string; dueAt: Date | undefined; now: Date },
   ): Promise<boolean> {
     try {
       const status = await this.computeThreadFollowUpStatus(
         userId,
-        email.threadId,
+        email.threadId!,
         ctx.userEmail,
       );
 
@@ -228,7 +255,7 @@ export class EmailFollowUpService {
   }
 
   private logFollowUpCandidateDebug(
-    email: InboxEmail,
+    email: FollowUpCandidate,
     status: {
       lastMyReplyAt: Date | null;
       lastTheirReplyAt: Date | null;

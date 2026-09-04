@@ -33,6 +33,7 @@ export {
   markCategoryLoaded,
   markCategoryLoadFailed,
   markCategoryLoading,
+  reconcileCategorySummaryCount,
   removeEmail,
   resetCategoryExhausted,
   restoreEmail,

@@ -3,6 +3,8 @@ import { useSelector } from 'react-redux';
 import { Email, InboxMode } from 'types/email';
 
 import { MODE_BLOCKED } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
+import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { selectSummaryLoading } from 'store/selectors/emailSelectors';
@@ -93,9 +95,14 @@ export function useInboxContentState({
 
   useInboxCategorySync({ summaryCategories, filteredEmails, stableCategoryOrder, onUpdateStableCategoryOrder, mode });
 
+  const { user } = useAuth();
+  const { debugViewOpen } = useDebugViewOpen();
+  // Admins with the debug view open keep empty sections so the inline category
+  // debug panel can explain them; everyone else never sees a section without rows.
+  const includeEmptyCategories = user?.isAdmin === true && debugViewOpen;
   const displayCategories = useMemo(
-    () => buildDisplayCategories(summaryCategories, filteredEmails, stableCategoryOrder, mode),
-    [summaryCategories, filteredEmails, stableCategoryOrder, mode]
+    () => buildDisplayCategories(summaryCategories, filteredEmails, stableCategoryOrder, mode, includeEmptyCategories),
+    [summaryCategories, filteredEmails, stableCategoryOrder, mode, includeEmptyCategories]
   );
 
   useEffect(() => {

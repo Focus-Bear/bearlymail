@@ -37,6 +37,26 @@ describe('parseDurationToDate', () => {
     expect(parseDurationToDate('3min', now)).toEqual(new Date(2026, 4, 27, 10, 3, 0));
   });
 
+  it('parses day-of-month ordinals to the next occurrence at 8am', () => {
+    // now is Wed 27 May → "15th" is 15 June; "28th" is tomorrow; "27th" (today) rolls a month.
+    expect(parseDurationToDate('15th', now)).toEqual(new Date(2026, 5, 15, 8, 0, 0));
+    expect(parseDurationToDate('the 15th', now)).toEqual(new Date(2026, 5, 15, 8, 0, 0));
+    expect(parseDurationToDate('on the 15th', now)).toEqual(new Date(2026, 5, 15, 8, 0, 0));
+    expect(parseDurationToDate('the 15', now)).toEqual(new Date(2026, 5, 15, 8, 0, 0));
+    expect(parseDurationToDate('28th', now)).toEqual(new Date(2026, 4, 28, 8, 0, 0));
+    expect(parseDurationToDate('27th', now)).toEqual(new Date(2026, 5, 27, 8, 0, 0));
+  });
+
+  it('skips months without the requested day', () => {
+    // June has 30 days, so "31st" typed on 27 June lands on 31 July.
+    const lateJune = new Date(2026, 5, 27, 10, 0, 0);
+    expect(parseDurationToDate('31st', lateJune)).toEqual(new Date(2026, 6, 31, 8, 0, 0));
+  });
+
+  it('does not treat a bare number or an impossible day as a day of month', () => {
+    expect(parseDurationToDate('32nd', now)).toBeNull();
+  });
+
   it('parses bare day names to the next occurrence at 8am', () => {
     // now is Wednesday → next "mon" is 2026-06-01 at 08:00
     expect(parseDurationToDate('mon', now)).toEqual(new Date(2026, 5, 1, 8, 0, 0));

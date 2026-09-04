@@ -22,6 +22,16 @@ const NOON_HOUR = 12;
 
 const RELATIVE_DURATION_REGEX = /^(\d+)\s*(mo|m|min|h|hr|d|w)$/;
 
+// Day-of-month shorthand chrono doesn't parse on its own: "15th", "the 15th",
+// "on the 15th", "the 15". A bare number without "the" or a suffix is left
+// alone so it can't be mistaken for a duration or a time. Mirrors the server
+// parser (server/src/snooze/parse-duration.ts).
+const DAY_OF_MONTH_REGEX = /^(?:on\s+)?(?:the\s+(\d{1,2})(?:st|nd|rd|th)?|(\d{1,2})(?:st|nd|rd|th))$/;
+const MIN_DAY_OF_MONTH = 1;
+const MAX_DAY_OF_MONTH = 31;
+/** Months to look ahead for a day that exists (e.g. "31st" typed in April). */
+const DAY_OF_MONTH_LOOKAHEAD_MONTHS = 12;
+
 // Common shorthand chrono doesn't recognise on its own. chrono parses
 // "tomorrow"/"tmr"/"tmrw" but not "tom"/"tomo", so an unaliased "tom" would
 // fall through to the 1-hour fallback and resurface almost immediately. Map
@@ -64,6 +74,39 @@ function addMonths(from: Date, months: number): Date {
   result.setMonth(result.getMonth() + months);
   result.setHours(DEFAULT_SNOOZE_HOUR, 0, 0, 0);
   return result;
+}
+
+/**
+ * Next occurrence of `day` at the default snooze hour: this month if that is
+ * still ahead of `now`, otherwise the next month that actually has that day.
+ * Returns null for a day outside 1–31.
+ */
+function nextDayOfMonth(now: Date, day: number): Date | null {
+  if (day < MIN_DAY_OF_MONTH || day > MAX_DAY_OF_MONTH) {
+    return null;
+  }
+  for (let offset = 0; offset <= DAY_OF_MONTH_LOOKAHEAD_MONTHS; offset++) {
+    const candidate = new Date(now.getFullYear(), now.getMonth() + offset, day, DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+    // Date overflow (e.g. 31 in a 30-day month) rolls into the next month;
+    // skip those so "31st" lands on a real 31st.
+    if (candidate.getDate() !== day) {
+      continue;
+    }
+    if (candidate.getTime() > now.getTime()) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/** "15th" / "the 15th" / "on the 15th" / "the 15" → next such day, else null. */
+function parseDayOfMonth(normalized: string, now: Date): Date | null {
+  const match = normalized.match(DAY_OF_MONTH_REGEX);
+  if (!match) {
+    return null;
+  }
+  const day = parseInt(match[1] ?? match[2], 10);
+  return nextDayOfMonth(now, day);
 }
 
 function addCalendarDays(from: Date, days: number): Date {
@@ -124,6 +167,11 @@ export function parseDurationToDate(
       case UNIT_WEEKS:
         return addCalendarDays(now, value * DAYS_IN_WEEK);
     }
+  }
+
+  const dayOfMonth = parseDayOfMonth(normalized, now);
+  if (dayOfMonth) {
+    return dayOfMonth;
   }
 
   const parser = CHRONO_BY_LOCALE[base] ?? CHRONO_BY_LOCALE.en;

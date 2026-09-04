@@ -4,18 +4,33 @@ import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { getErrorMessage } from "../types/common";
 import {
+  buildProtoSuggestionFromResponse,
   hasCategoryNumber,
   resolveResponseCategory,
   rewriteCategoryNumberReferences,
 } from "../utils/category-number.util";
+import { LLMProvider } from "./llm.types";
+import type { LLMCoreService } from "./llm-core.service";
+import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
+
+/** The null-category bucket name the category prompt returns for number 0. */
+export const OTHER_CATEGORY_NAME = "Other";
 
 export interface CategoriseFromSummaryParams {
   subject: string;
   senderName?: string | null;
+  /** Sender address, so the prompt can judge platform identity (bots, noreply). */
+  senderEmail?: string | null;
   summary: string;
   categories: Array<{ name: string; description?: string | null }>;
   userId?: string;
+}
+
+export interface ProtoCategorySuggestion {
+  name: string;
+  description: string;
+  reasoning?: string;
 }
 
 export interface CategoriseFromSummaryResult {
@@ -25,6 +40,8 @@ export interface CategoriseFromSummaryResult {
   categoryName: string;
   categoryConfidence: "HIGH" | "MEDIUM" | "LOW";
   reasoning: string | null;
+  /** Proposed new category, only when the pick was "Other". */
+  protoCategorySuggestion?: ProtoCategorySuggestion;
 }
 
 type GenerateText = (request: {
@@ -59,7 +76,8 @@ export async function categoriseFromSummary(
   logger: Logger,
   params: CategoriseFromSummaryParams,
 ): Promise<CategoriseFromSummaryResult | null> {
-  const { subject, senderName, summary, categories, userId } = params;
+  const { subject, senderName, senderEmail, summary, categories, userId } =
+    params;
   if (!summary?.trim() || categories.length === 0) {
     return null;
   }
@@ -85,6 +103,7 @@ export async function categoriseFromSummary(
   const renderVars = {
     subject: subject || "",
     senderName: senderName || "",
+    senderEmail: senderEmail || "",
     summary,
     categories: numberedCategories,
     // Category-only classification always wants the GitHub ruleset (QA
@@ -130,13 +149,25 @@ export async function categoriseFromSummary(
     const rawNumber = result.categoryNumber;
     const rawName =
       typeof result.categoryName === "string" ? result.categoryName : undefined;
+    const categoryName = resolveResponseCategory(
+      {
+        categoryNumber: rawNumber,
+        categoryName: rawName,
+        // Legacy response shape: a bare `category` name with no number.
+        category:
+          typeof result.category === "string" ? result.category : undefined,
+      },
+      orderedNames,
+    );
     return {
       categoryNumber: hasCategoryNumber(rawNumber) ? Number(rawNumber) : null,
-      categoryName: resolveResponseCategory(
-        { categoryNumber: rawNumber, categoryName: rawName },
+      categoryName,
+      categoryConfidence: normaliseConfidence(result.categoryConfidence),
+      protoCategorySuggestion: buildProtoSuggestionFromResponse(
+        result as Parameters<typeof buildProtoSuggestionFromResponse>[0],
+        categoryName,
         orderedNames,
       ),
-      categoryConfidence: normaliseConfidence(result.categoryConfidence),
       // Rewrite positional "category N" references to real names — the user
       // never sees the numbered list the model picked from.
       reasoning:
@@ -148,4 +179,54 @@ export async function categoriseFromSummary(
     logger.error(`[CATEGORISE-SUMMARY] ERROR: ${getErrorMessage(error)}`);
     return null;
   }
+}
+
+/**
+ * Category-only classification with **Nova Micro (Bedrock)** as the primary
+ * model — ~14x cheaper than Gemini flash-lite and validated at parity on
+ * category SELECTION — escalating to **flash-lite** only for the calls Nova is
+ * weakest on: an "Other" verdict, LOW confidence, or an outright failure. Most
+ * emails match an existing category confidently and never escalate, so the
+ * common path stays cheap while the harder "does anything fit?" judgement gets
+ * the stronger model. This is the single categorisation entry point used by
+ * both the new-email priority pipeline and incremental re-categorisation.
+ */
+export async function categoriseWithEscalation(
+  llmCoreService: Pick<LLMCoreService, "generateText">,
+  logger: Logger,
+  params: CategoriseFromSummaryParams,
+): Promise<CategoriseFromSummaryResult | null> {
+  const runWith = (provider: LLMProvider) =>
+    categoriseFromSummary(
+      (request) =>
+        llmCoreService.generateText(
+          { ...request, operation: LLM_OP_CATEGORISE_SUMMARY },
+          provider,
+          params.userId,
+        ),
+      logger,
+      params,
+    );
+
+  const primary = await runWith(LLMProvider.BEDROCK);
+  const needsEscalation =
+    !primary ||
+    primary.categoryName === OTHER_CATEGORY_NAME ||
+    primary.categoryConfidence === "LOW";
+  if (!needsEscalation) {
+    return primary;
+  }
+
+  const escalated = await runWith(LLMProvider.GEMINI);
+  if (!escalated) {
+    return primary;
+  }
+  logger.log(
+    `[categorise-summary] escalated to flash-lite (nova: ${
+      primary
+        ? `${primary.categoryName}/${primary.categoryConfidence}`
+        : "failed"
+    }) → "${escalated.categoryName}"`,
+  );
+  return escalated;
 }

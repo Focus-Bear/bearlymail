@@ -186,6 +186,13 @@ export const CATEGORY_RULE_COMPOSITE = {
    */
   VALUE_ADD_MAX_EXISTING_RULES: 12,
   /**
+   * Maximum number of motivating sample emails (the current email plus recent
+   * mail from the sender) shown to the strong-model sanity reviewer of an
+   * auto-generated rule. Caps prompt size; the reviewer needs enough to see
+   * what the sender's mail looks like, not the whole history.
+   */
+  SANITY_CHECK_MAX_SAMPLE_EMAILS: 6,
+  /**
    * Number of most-recently-updated threads scanned when a rule is created,
    * enabled, or edited, to retroactively re-file existing threads the rule
    * matches (LLM-free; writes go through the category precedence guard, so

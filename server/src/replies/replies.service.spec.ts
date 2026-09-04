@@ -568,6 +568,38 @@ describe("RepliesService", () => {
       expect(call.body as string).toContain("\n\n-- \nRegards,\nEkaterine");
     });
 
+    it("forwards send an HTML body so signature + header line breaks survive as <br>", async () => {
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          id: userId,
+          email: "encrypted_user@example.com",
+          name: "Test User",
+          emailSignature: "Regards,\nEkaterine",
+        }),
+      );
+      const mockProvider = {
+        sendEmail: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+      await service.sendReply(userId, emailId, "See below", {
+        isForward: true,
+        recipients: "someone@example.com",
+      });
+
+      const call = mockProvider.sendEmail.mock.calls[0][1];
+      // The HTML part carries the signature with its newline as <br>, wrapped in
+      // the distinct signature block — this is what the reply path already did
+      // and the forward path was missing (issue #123).
+      expect(call.htmlBody as string).toContain("Regards,<br>Ekaterine");
+      // The forward header line breaks are <br>, not \n, so they don't collapse.
+      expect(call.htmlBody as string).toContain(
+        "---------- Forwarded message ---------<br>From:",
+      );
+      // Plain fallback is still sent for non-HTML clients.
+      expect(call.body as string).toContain("-- \nRegards,\nEkaterine");
+    });
+
     it("should not add Re: prefix if already present", async () => {
       const emailWithRe = {
         ...email,

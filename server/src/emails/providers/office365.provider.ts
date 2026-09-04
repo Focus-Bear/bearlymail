@@ -770,6 +770,7 @@ export class Office365Provider implements EmailProvider {
       to: EmailRecipient[];
       subject: string;
       body: string;
+      htmlBody?: string;
       cc?: EmailRecipient[];
       bcc?: EmailRecipient[];
       attachments?: EmailAttachmentData[];

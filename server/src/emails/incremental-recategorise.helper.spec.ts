@@ -8,8 +8,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { LLMProvider } from "../llm/llm.types";
-import { categoriseFromSummary } from "../llm/llm-categorise-summary";
+import { categoriseWithEscalation } from "../llm/llm-categorise-summary";
 import type { LLMCoreService } from "../llm/llm-core.service";
 import { persistLlmCategoryWithPrecedence } from "./category-column-updates.helper";
 import {
@@ -23,7 +22,7 @@ jest.mock("./category-column-updates.helper", () => ({
 }));
 
 jest.mock("../llm/llm-categorise-summary", () => ({
-  categoriseFromSummary: jest.fn(),
+  categoriseWithEscalation: jest.fn(),
 }));
 
 describe("recategoriseFromSummary", () => {
@@ -138,7 +137,7 @@ describe("recategoriseFromSummary", () => {
         ),
       }),
     );
-    expect(categoriseFromSummary).not.toHaveBeenCalled();
+    expect(categoriseWithEscalation).not.toHaveBeenCalled();
   });
 
   it("falls back to summary-based LLM categorization if no deterministic rule matches", async () => {
@@ -147,7 +146,7 @@ describe("recategoriseFromSummary", () => {
       snapshot: undefined,
     });
     getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-    (categoriseFromSummary as jest.Mock).mockResolvedValue({
+    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
       categoryNumber: 2,
       categoryName: "QA passed",
       categoryConfidence: "HIGH",
@@ -157,8 +156,8 @@ describe("recategoriseFromSummary", () => {
     await recategoriseFromSummary(deps(), args());
 
     expect(getThreadSummary).toHaveBeenCalledWith("thread-1");
-    expect(categoriseFromSummary).toHaveBeenCalledWith(
-      expect.any(Function),
+    expect(categoriseWithEscalation).toHaveBeenCalledWith(
+      mockLlmCoreService,
       logger,
       {
         subject: "QA Failure in App",
@@ -167,103 +166,6 @@ describe("recategoriseFromSummary", () => {
         categories: [{ name: "QA failed" }, { name: "QA passed" }],
         userId: "user-1",
       },
-    );
-
-    // Verify generateText is wired up correctly inside the wrapper callback
-    const generateTextCallback = (categoriseFromSummary as jest.Mock).mock
-      .calls[0][0];
-    mockLlmCoreService.generateText.mockResolvedValue("mock-response");
-    await generateTextCallback({
-      prompt: "p",
-      systemPrompt: "s",
-      temperature: 0.3,
-      maxTokens: 100,
-    });
-    expect(mockLlmCoreService.generateText).toHaveBeenCalledWith(
-      {
-        prompt: "p",
-        systemPrompt: "s",
-        temperature: 0.3,
-        maxTokens: 100,
-        operation: "categorise_summary",
-      },
-      LLMProvider.BEDROCK,
-      "user-1",
-    );
-
-    expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledWith(
-      mockEmailThreadRepository,
-      logger,
-      expect.objectContaining({
-        emailThreadId: "thread-1",
-        categoryId: "cat-2",
-        finalCategory: "QA passed",
-        resolvedCategoryExplanation: "Summary says it is verified",
-      }),
-    );
-  });
-
-  it("categorises with Nova (Bedrock) first, then escalates to flash-lite (Gemini) on a LOW/Other verdict", async () => {
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: null,
-      snapshot: undefined,
-    });
-    getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-    (categoriseFromSummary as jest.Mock)
-      .mockResolvedValueOnce({
-        categoryNumber: 0,
-        categoryName: "Other",
-        categoryConfidence: "LOW",
-        reasoning: "Nova was unsure",
-      })
-      .mockResolvedValueOnce({
-        categoryNumber: 2,
-        categoryName: "QA passed",
-        categoryConfidence: "HIGH",
-        reasoning: "flash-lite verified",
-      });
-
-    await recategoriseFromSummary(deps(), args());
-
-    // Two passes: Nova primary, flash-lite escalation on the hard call.
-    expect(categoriseFromSummary).toHaveBeenCalledTimes(2);
-    const primaryCb = (categoriseFromSummary as jest.Mock).mock.calls[0][0];
-    const escalationCb = (categoriseFromSummary as jest.Mock).mock.calls[1][0];
-    mockLlmCoreService.generateText.mockResolvedValue("mock-response");
-    await primaryCb({
-      prompt: "p",
-      systemPrompt: "s",
-      temperature: 0.3,
-      maxTokens: 100,
-    });
-    await escalationCb({
-      prompt: "p",
-      systemPrompt: "s",
-      temperature: 0.3,
-      maxTokens: 100,
-    });
-    expect(mockLlmCoreService.generateText).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ operation: "categorise_summary" }),
-      LLMProvider.BEDROCK,
-      "user-1",
-    );
-    expect(mockLlmCoreService.generateText).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ operation: "categorise_summary" }),
-      LLMProvider.GEMINI,
-      "user-1",
-    );
-
-    // The escalated flash-lite verdict wins.
-    expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledWith(
-      mockEmailThreadRepository,
-      logger,
-      expect.objectContaining({
-        categoryId: "cat-2",
-        finalCategory: "QA passed",
-        resolvedCategoryExplanation: "flash-lite verified",
-      }),
     );
   });
 
@@ -286,7 +188,7 @@ describe("recategoriseFromSummary", () => {
     getThreadSummary.mockResolvedValue(
       "Thread was a habit-editing bug; latest message reports QA Status: Pass.",
     );
-    (categoriseFromSummary as jest.Mock).mockResolvedValue({
+    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
       categoryNumber: 2,
       categoryName: "QA passed",
       categoryConfidence: "HIGH",
@@ -296,7 +198,7 @@ describe("recategoriseFromSummary", () => {
     await recategoriseFromSummary(deps(), { ...args(), email: qaPassEmail });
 
     // Categorises off the (fresh) thread summary — not the raw body.
-    const call = (categoriseFromSummary as jest.Mock).mock.calls[0][2];
+    const call = (categoriseWithEscalation as jest.Mock).mock.calls[0][2];
     expect(call.summary).toBe(
       "Thread was a habit-editing bug; latest message reports QA Status: Pass.",
     );
@@ -319,7 +221,7 @@ describe("recategoriseFromSummary", () => {
 
     await recategoriseFromSummary(deps(), args());
 
-    expect(categoriseFromSummary).not.toHaveBeenCalled();
+    expect(categoriseWithEscalation).not.toHaveBeenCalled();
     expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
   });
 
@@ -339,7 +241,7 @@ describe("recategoriseFromSummary", () => {
 
     await recategoriseFromSummary(deps(), argsWithNoCategories);
 
-    expect(categoriseFromSummary).not.toHaveBeenCalled();
+    expect(categoriseWithEscalation).not.toHaveBeenCalled();
     expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
   });
 
@@ -351,7 +253,7 @@ describe("recategoriseFromSummary", () => {
     getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
 
     // Test Other
-    (categoriseFromSummary as jest.Mock).mockResolvedValue({
+    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
       categoryNumber: 0,
       categoryName: "Other",
       categoryConfidence: "LOW",
@@ -361,7 +263,7 @@ describe("recategoriseFromSummary", () => {
     expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
 
     // Test null / failure
-    (categoriseFromSummary as jest.Mock).mockResolvedValue(null);
+    (categoriseWithEscalation as jest.Mock).mockResolvedValue(null);
     await recategoriseFromSummary(deps(), args());
     expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
   });
@@ -372,7 +274,7 @@ describe("recategoriseFromSummary", () => {
       snapshot: undefined,
     });
     getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-    (categoriseFromSummary as jest.Mock).mockResolvedValue({
+    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
       categoryNumber: 3,
       categoryName: "A brand new category that does not exist in user context",
       categoryConfidence: "HIGH",
@@ -389,7 +291,7 @@ describe("recategoriseFromSummary", () => {
       snapshot: undefined,
     });
     getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-    (categoriseFromSummary as jest.Mock).mockResolvedValue({
+    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
       categoryNumber: 1,
       categoryName: "QA failed",
       categoryConfidence: "HIGH",
@@ -427,7 +329,7 @@ describe("recategoriseFromSummary", () => {
     });
 
     it("settles as a definitive 'Other' when the summary LLM returns Other", async () => {
-      (categoriseFromSummary as jest.Mock).mockResolvedValue({
+      (categoriseWithEscalation as jest.Mock).mockResolvedValue({
         categoryNumber: 0,
         categoryName: "Other",
         categoryConfidence: "LOW",
@@ -448,7 +350,7 @@ describe("recategoriseFromSummary", () => {
     });
 
     it("settles as 'Other' when the LLM category name resolves to no user category", async () => {
-      (categoriseFromSummary as jest.Mock).mockResolvedValue({
+      (categoriseWithEscalation as jest.Mock).mockResolvedValue({
         categoryNumber: 3,
         categoryName: "Some category the user does not have",
         categoryConfidence: "MEDIUM",
@@ -472,7 +374,7 @@ describe("recategoriseFromSummary", () => {
 
       await recategoriseFromSummary(deps(), noCategoryArgs);
 
-      expect(categoriseFromSummary).not.toHaveBeenCalled();
+      expect(categoriseWithEscalation).not.toHaveBeenCalled();
       expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
       const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
         .calls[0];
@@ -481,7 +383,7 @@ describe("recategoriseFromSummary", () => {
     });
 
     it("applies a real category when the summary LLM resolves one (rescue path)", async () => {
-      (categoriseFromSummary as jest.Mock).mockResolvedValue({
+      (categoriseWithEscalation as jest.Mock).mockResolvedValue({
         categoryNumber: 1,
         categoryName: "QA failed",
         categoryConfidence: "HIGH",
@@ -502,7 +404,7 @@ describe("recategoriseFromSummary", () => {
 
       await recategoriseFromSummary(deps(), localOtherArgs());
 
-      expect(categoriseFromSummary).not.toHaveBeenCalled();
+      expect(categoriseWithEscalation).not.toHaveBeenCalled();
       expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
     });
   });

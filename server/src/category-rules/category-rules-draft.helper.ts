@@ -9,6 +9,7 @@ import {
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
+import type { RuleSanitySampleEmail } from "../llm/llm-rule-sanity";
 import { computeEmailHmac } from "../utils/hmac-email";
 import type { EmailMetadata } from "./category-rules.types";
 import {
@@ -45,6 +46,12 @@ export interface DraftCompositeSpecResult {
   categoryId: string | null;
   /** False when exclusions could not be auto-derived (positive-only fallback). */
   exclusionsDerived: boolean;
+  /**
+   * The emails the LLM phrases were extracted from (current email + recent
+   * sender mail), capped — shown to the sanity reviewer so it can judge the
+   * rule against what the sender actually sends.
+   */
+  sampleEmails: RuleSanitySampleEmail[];
 }
 
 /** Builds the LLM sample set: the current email plus recent emails from the sender. */
@@ -162,7 +169,7 @@ function buildSuggestedExclusionsResult(
   categoryName: string,
   categoryId: string | null,
   allowLlmSuggestedExclusions: boolean,
-): DraftCompositeSpecResult {
+): Omit<DraftCompositeSpecResult, "sampleEmails"> {
   const suggestedSubjectNot = allowLlmSuggestedExclusions
     ? llmResult.subjectNotContainsAny.slice(
         0,
@@ -213,7 +220,7 @@ function resolveDraftOutcome(
     requireDerivedExclusions: boolean;
     allowLlmSuggestedExclusions: boolean;
   },
-): DraftCompositeSpecResult | null {
+): Omit<DraftCompositeSpecResult, "sampleEmails"> | null {
   const { outcome, positiveSpec, llmResult, categoryName, categoryId } = params;
   const derivedSpec = outcome.passes ? outcome.finalSpec : null;
 
@@ -370,7 +377,7 @@ export async function buildDraftCompositeSpec(
     categoryId,
     logger: deps.logger,
   });
-  return resolveDraftOutcome(deps, userId, {
+  const draft = resolveDraftOutcome(deps, userId, {
     outcome,
     positiveSpec: guardedSpec,
     llmResult,
@@ -379,4 +386,13 @@ export async function buildDraftCompositeSpec(
     requireDerivedExclusions: options.requireDerivedExclusions,
     allowLlmSuggestedExclusions: options.allowLlmSuggestedExclusions ?? false,
   });
+  if (!draft) {
+    return null;
+  }
+  return {
+    ...draft,
+    sampleEmails: samples
+      .slice(0, CATEGORY_RULE_COMPOSITE.SANITY_CHECK_MAX_SAMPLE_EMAILS)
+      .map((sample) => ({ from: sender, ...sample })),
+  };
 }

@@ -1,0 +1,242 @@
+description: "Tests for the strong-model sanity review of auto-generated composite category rules (accept / reject / revise before a rule is persisted)."
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/sanity-check-category-rule.md
+
+# Shared category list for the behavioural cases: the real categories the
+# garbage rules were competing with.
+defaultTest:
+  vars:
+    otherCategories: |
+      - ✅ Github QA passed issues — GitHub issue notifications where QA has marked the issue as passed / done
+      - ❌ Github QA failed issues — GitHub issue notifications where QA has marked the issue as failed
+      - 🔀 Pull request reviews — pull requests where my review has been requested
+      - 🤖 Bot updates — automated bot activity on repositories (dependabot, CI bots, automated commits)
+      - 📅 Meeting invitations — new calendar invitations from people outside Focus Bear
+      - ✔️ Meeting responses — Accepted / Declined / Tentative replies to meetings I organised
+      - 🤖 Automated System Alerts from Sentry etc. — error and uptime alerts from monitoring services
+      - Billing — invoices and receipts
+      - Other — anything that fits nowhere else
+
+tests:
+  - description: "Returns valid JSON with verdict, confidence, reason and the optional fields"
+    vars:
+      categoryName: "🤖 Automated System Alerts from Sentry etc."
+      categoryDescription: "error and uptime alerts from monitoring services"
+      ruleSummary: |
+        Sender matches any of: "noreply@sentry.io"
+        Subject contains any of: "[Sentry]"
+        Body contains any of: "New issue" · "regression"
+        Subject must NOT contain any of: (none)
+        Body must NOT contain any of: "unsubscribe" · "weekly digest"
+      sampleEmails: |
+        [Email 1]
+        From: noreply@sentry.io
+        Subject: [Sentry] New issue in bearlymail-web: TypeError in checkout
+        Body preview: A new issue was detected. TypeError: cannot read properties of undefined. View on Sentry.
+
+        [Email 2]
+        From: noreply@sentry.io
+        Subject: [Sentry] Regression in bearlymail-worker: Timeout in sync
+        Body preview: A resolved issue regressed. Timeout while syncing mailbox. View on Sentry.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (!['accept', 'reject', 'revise'].includes(parsed.verdict)) {
+            throw new Error(`Unexpected verdict: ${JSON.stringify(parsed.verdict)}`);
+          }
+          if (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1) {
+            throw new Error(`confidence must be a number in 0..1, got: ${JSON.stringify(parsed.confidence)}`);
+          }
+          if (typeof parsed.reason !== 'string' || parsed.reason.trim() === '') {
+            throw new Error('reason must be a non-empty string');
+          }
+          if (parsed.betterCategoryName !== undefined && parsed.betterCategoryName !== null && typeof parsed.betterCategoryName !== 'string') {
+            throw new Error('betterCategoryName must be a string or null');
+          }
+          if (parsed.suggestedRevision !== undefined && parsed.suggestedRevision !== null && typeof parsed.suggestedRevision !== 'object') {
+            throw new Error('suggestedRevision must be an object or null');
+          }
+          return true;
+
+  - description: "ACCEPTS a precise single-purpose-sender rule (Sentry alerts)"
+    vars:
+      categoryName: "🤖 Automated System Alerts from Sentry etc."
+      categoryDescription: "error and uptime alerts from monitoring services"
+      ruleSummary: |
+        Sender matches any of: "noreply@sentry.io"
+        Subject contains any of: "[Sentry]"
+        Body contains any of: "New issue" · "regression"
+        Subject must NOT contain any of: (none)
+        Body must NOT contain any of: "unsubscribe" · "weekly digest"
+      sampleEmails: |
+        [Email 1]
+        From: noreply@sentry.io
+        Subject: [Sentry] New issue in bearlymail-web: TypeError in checkout
+        Body preview: A new issue was detected. TypeError: cannot read properties of undefined. View on Sentry.
+
+        [Email 2]
+        From: noreply@sentry.io
+        Subject: [Sentry] Regression in bearlymail-worker: Timeout in sync
+        Body preview: A resolved issue regressed. Timeout while syncing mailbox. View on Sentry.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict !== 'accept') {
+            throw new Error(`Expected accept for a precise Sentry rule, got ${parsed.verdict}: ${parsed.reason}`);
+          }
+          return true;
+
+  - description: "REJECTS the QA DONE/FAILED rule filed under 'Content monitoring' and names the QA-passed category as the better fit"
+    vars:
+      categoryName: "Content monitoring for Focus Bear"
+      categoryDescription: "alerts for Focus Bear not competitors"
+      ruleSummary: |
+        Sender matches any of: "*@github.com"
+        Subject contains any of: "Re: [Focus-Bear/mobile-app]"
+        Body contains any of: "QA DONE ✅" · "QA FAILED ❌"
+        Subject must NOT contain any of: "Unable to star" · "App crashes"
+        Body must NOT contain any of: "Test Environment" · "Test Objective" · "Preconditions" · "Steps to Reproduce"
+      sampleEmails: |
+        [Email 1]
+        From: notifications@github.com
+        Subject: Re: [Focus-Bear/mobile-app] Focus mode timer resets on app resume (#1482)
+        Body preview: QA DONE ✅ Verified on iOS 18 build 3.4.1, timer persists across resume. — Reply to this email directly or view it on GitHub.
+
+        [Email 2]
+        From: notifications@github.com
+        Subject: Re: [Focus-Bear/mobile-app] Habit reminder fires twice (#1490)
+        Body preview: QA FAILED ❌ Reminder still fires twice on Android 14. Steps: enable habit, set reminder, background app. — Reply to this email directly or view it on GitHub.
+
+        [Email 3]
+        From: notifications@github.com
+        Subject: Re: [Focus-Bear/mobile-app] Onboarding video does not autoplay (#1495)
+        Body preview: QA DONE ✅ Autoplay confirmed on both platforms. — Reply to this email directly or view it on GitHub.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict !== 'reject') {
+            throw new Error(`Expected reject, got ${parsed.verdict}: ${parsed.reason}`);
+          }
+          const better = String(parsed.betterCategoryName || '').toLowerCase();
+          if (!better.includes('qa passed')) {
+            throw new Error(`Expected betterCategoryName to be the QA passed category, got: ${JSON.stringify(parsed.betterCategoryName)}`);
+          }
+          return true;
+
+  - description: "REJECTS the 'Bot updates' rule whose body phrase 'requested your review' is a human action, not a bot update"
+    vars:
+      categoryName: "🤖 Bot updates"
+      categoryDescription: "automated bot activity on repositories (dependabot, CI bots, automated commits)"
+      ruleSummary: |
+        Sender matches any of: "*@github.com"
+        Subject contains any of: "PR #"
+        Body contains any of: "pushed 1 commit" · "pushed 2 commits" · "requested your review"
+        Subject must NOT contain any of: (none)
+        Body must NOT contain any of: "QA DONE"
+      sampleEmails: |
+        [Email 1]
+        From: notifications@github.com
+        Subject: [Focus-Bear/backend] Bump axios from 1.7.2 to 1.7.4 (PR #2201)
+        Body preview: dependabot[bot] pushed 1 commit. Bump axios from 1.7.2 to 1.7.4. — View it on GitHub.
+
+        [Email 2]
+        From: notifications@github.com
+        Subject: [Focus-Bear/backend] Add rate limiting to auth endpoints (PR #2210)
+        Body preview: @jeremy-nagel requested your review on: #2210 Add rate limiting to auth endpoints. — View it on GitHub.
+
+        [Email 3]
+        From: notifications@github.com
+        Subject: [Focus-Bear/backend] Fix flaky snooze test (PR #2214)
+        Body preview: alice-dev pushed 2 commits. Fix flaky snooze test; address review comments. — View it on GitHub.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict === 'accept') {
+            throw new Error(`Expected reject or revise, got accept: ${parsed.reason}`);
+          }
+          if (parsed.verdict === 'revise') {
+            const body = (parsed.suggestedRevision?.bodyContainsAny || []).map(p => p.toLowerCase());
+            if (body.some(p => p.includes('requested your review'))) {
+              throw new Error(`A revision must drop the human-action phrase; got body phrases: ${JSON.stringify(body)}`);
+            }
+          }
+          return true;
+
+  - description: "REJECTS the 'Meetings with external people' rule that matches calendar Accepted:/Declined: responses (a separate 'Meeting responses' category exists)"
+    vars:
+      categoryName: "📅 Meeting invitations"
+      categoryDescription: "new calendar invitations from people outside Focus Bear"
+      ruleSummary: |
+        Sender matches any of: "calendar-notification@google.com"
+        Subject contains any of: "Accepted:" · "Declined:"
+        Body contains any of: "has accepted this invitation" · "has declined this invitation"
+        Subject must NOT contain any of: "Invitation:"
+        Body must NOT contain any of: (none)
+      sampleEmails: |
+        [Email 1]
+        From: calendar-notification@google.com
+        Subject: Accepted: Partnership sync @ Thu 4 Sep 2026 10:00 - 10:30 (AEST) (Jeremy Nagel)
+        Body preview: sam@partnerco.com has accepted this invitation. Partnership sync. When: Thu 4 Sep 2026 10:00 – 10:30.
+
+        [Email 2]
+        From: calendar-notification@google.com
+        Subject: Declined: Product demo @ Fri 5 Sep 2026 14:00 - 14:30 (AEST) (Jeremy Nagel)
+        Body preview: priya@customer.io has declined this invitation. Product demo. When: Fri 5 Sep 2026 14:00 – 14:30.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict !== 'reject') {
+            throw new Error(`Expected reject, got ${parsed.verdict}: ${parsed.reason}`);
+          }
+          const better = String(parsed.betterCategoryName || '').toLowerCase();
+          if (!better.includes('meeting responses')) {
+            throw new Error(`Expected betterCategoryName to be the Meeting responses category, got: ${JSON.stringify(parsed.betterCategoryName)}`);
+          }
+          return true;
+
+  - description: "Does NOT accept a generic '*@github.com + Re: [repo]' rule (reject or revise)"
+    vars:
+      categoryName: "✅ Github QA passed issues"
+      categoryDescription: "GitHub issue notifications where QA has marked the issue as passed / done"
+      ruleSummary: |
+        Sender matches any of: "*@github.com"
+        Subject contains any of: "Re: [Focus-Bear/mobile-app]"
+        Body contains any of: "view it on GitHub"
+        Subject must NOT contain any of: (none)
+        Body must NOT contain any of: (none)
+      sampleEmails: |
+        [Email 1]
+        From: notifications@github.com
+        Subject: Re: [Focus-Bear/mobile-app] Focus mode timer resets on app resume (#1482)
+        Body preview: QA DONE ✅ Verified on iOS 18 build 3.4.1. — Reply to this email directly or view it on GitHub.
+
+        [Email 2]
+        From: notifications@github.com
+        Subject: Re: [Focus-Bear/mobile-app] Habit reminder fires twice (#1490)
+        Body preview: Could you attach the device logs? — Reply to this email directly or view it on GitHub.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict === 'accept') {
+            throw new Error(`Expected reject or revise for a generic GitHub rule, got accept: ${parsed.reason}`);
+          }
+          return true;

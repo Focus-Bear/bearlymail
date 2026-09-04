@@ -21,6 +21,7 @@ import { buildRuleEmailMetadata } from "../emails/rule-email-metadata.helper";
 import { CategoryRuleSanityService } from "../llm/category-rule-sanity.service";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import type { RuleSanitySampleEmail } from "../llm/llm-rule-sanity";
+import { TokenUsageService } from "../llm/token-usage.service";
 import type {
   CategoryRuleDto,
   CategoryRuleEvaluationDebug,
@@ -32,6 +33,7 @@ import type {
   DeterministicRulesDebug,
   EmailMetadata,
 } from "./category-rules.types";
+import { hasExhaustedAutoGenerationBudget } from "./category-rules-auto-budget.helper";
 import {
   compositeAutoSpecsMatch,
   EmailHashes,
@@ -106,6 +108,7 @@ export class CategoryRulesService {
     @InjectRepository(UserContext)
     private readonly userContextRepository: Repository<UserContext>,
     private readonly llmCategoriesService: LLMCategoriesService,
+    private readonly tokenUsageService: TokenUsageService,
     private readonly categoryRuleSanityService: CategoryRuleSanityService,
   ) {}
 
@@ -352,6 +355,8 @@ export class CategoryRulesService {
       normaliseSender: (raw) => this.normaliseSender(raw),
       countDistinctThreadsForSender: (userId, sender) =>
         this.countDistinctThreadsForSender(userId, sender),
+      hasExhaustedAutoGenerationBudget: (userId) =>
+        hasExhaustedAutoGenerationBudget(this.tokenUsageService, userId),
       normalizeCompositeSpecDto: (dto) => this.normalizeCompositeSpecDto(dto),
       findCategoryId: (userId, categoryName) =>
         this.findCategoryId(userId, categoryName),

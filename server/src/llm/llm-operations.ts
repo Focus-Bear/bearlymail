@@ -105,7 +105,7 @@ export const LLM_OP_CLASSIFY_CONTACT_TYPE = "classify_contact_type";
 // Context compression
 export const LLM_OP_COMPRESS_CONTEXT = "compress_context";
 
-// Phishing-only check (used when summarisation uses a custom prompt)
+// Dedicated phishing check, run alongside every summary (its verdict wins over the summary prompt's own phishing field)
 export const LLM_OP_CHECK_PHISHING_ONLY = "check_phishing_only";
 export const LLM_OP_CONFIRM_PHISHING = "confirm_phishing";
 

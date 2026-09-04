@@ -28,6 +28,7 @@ function normaliseEmailAttachmentsList(raw: unknown): EmailAttachmentMeta[] {
   }
   return [];
 }
+import { CreateEmailOptions } from "./email-lifecycle.service";
 import { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interface";
 
 export { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interface";
@@ -558,7 +559,7 @@ export class EmailsService {
   async createEmail(
     userId: string,
     emailData: EmailDataWithOptionalThreadProps,
-    options?: { skipBatching?: boolean; countTowardVolume?: boolean },
+    options?: CreateEmailOptions,
   ): Promise<Email> {
     return this.emailServiceDeps.emailLifecycleService.createEmail(
       userId,

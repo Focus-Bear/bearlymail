@@ -29,6 +29,37 @@ import { PriorityBatchSchedulerService } from "./priority-batch-scheduler.servic
  * Handles email creation pipeline, batch decisions, post-save jobs, and blocked email handling.
  * Extracted from EmailsService (Phase 3).
  */
+export interface CreateEmailOptions {
+  /** Deliver straight to the inbox instead of holding for the next batch window. */
+  skipBatching?: boolean;
+  /** Meter the email against the org's volume tier (live provider sync only). */
+  countTowardVolume?: boolean;
+  /**
+   * Don't pre-generate reply options for a starred thread on save. The detail
+   * view still requests them on open (`POST /suggested-replies/:threadId/ensure`),
+   * so they are generated lazily for threads the user actually looks at.
+   */
+  skipEagerReplySuggestions?: boolean;
+}
+
+/**
+ * `createEmail` options for a provider sync. An initial sync imports every
+ * starred thread in the mailbox (no date filter, up to INITIAL_SYNC_MAX_EMAILS)
+ * — prod logs showed one onboarding producing 222 of a day's 244 reply-option
+ * generations, almost all for threads never opened. So the first sync skips
+ * batching and metering (nothing is "new" yet) and defers reply options to
+ * on-open; ongoing syncs keep the eager refresh for starred threads.
+ */
+export function providerSyncCreateEmailOptions(
+  isInitialSync: boolean,
+): CreateEmailOptions {
+  return {
+    skipBatching: isInitialSync,
+    countTowardVolume: !isInitialSync,
+    skipEagerReplySuggestions: isInitialSync,
+  };
+}
+
 @Injectable()
 export class EmailLifecycleService {
   private readonly logger = new Logger(EmailLifecycleService.name);
@@ -60,7 +91,7 @@ export class EmailLifecycleService {
   async createEmail(
     userId: string,
     emailData: EmailDataWithOptionalThreadProps,
-    options?: { skipBatching?: boolean; countTowardVolume?: boolean },
+    options?: CreateEmailOptions,
     queueBatchPriorityRefinement?: (
       userId: string,
       emailId: string,
@@ -159,6 +190,7 @@ export class EmailLifecycleService {
       batchResult,
       deferAi,
       queueBatchPriorityRefinement,
+      options,
     });
   }
 
@@ -176,6 +208,7 @@ export class EmailLifecycleService {
       userId: string,
       emailId: string,
     ) => Promise<void>;
+    options?: CreateEmailOptions;
   }): Promise<Email> {
     const { userId, email, thread, batchResult, deferAi } = args;
     const savedEmail = await this.emailRepository.save(email);
@@ -187,6 +220,7 @@ export class EmailLifecycleService {
         savedEmail,
         thread,
         args.queueBatchPriorityRefinement,
+        args.options,
       );
     } else if (savedEmail.emailThreadId) {
       // Over volume we skip the expensive priority/summary AI work, but still run
@@ -611,6 +645,7 @@ export class EmailLifecycleService {
       userId: string,
       emailId: string,
     ) => Promise<void>,
+    options?: Pick<CreateEmailOptions, "skipEagerReplySuggestions">,
   ): Promise<void> {
     if (queueBatchPriorityRefinement) {
       await queueBatchPriorityRefinement(userId, savedEmail.id).catch(
@@ -642,7 +677,12 @@ export class EmailLifecycleService {
     if (savedEmail.emailThreadId)
       this.queueThreadLevelJobs(userId, savedEmail, thread);
 
-    if (thread && thread.starCount > 0 && this.suggestedRepliesService) {
+    const shouldRefreshReplySuggestions =
+      thread &&
+      thread.starCount > 0 &&
+      !options?.skipEagerReplySuggestions &&
+      this.suggestedRepliesService;
+    if (shouldRefreshReplySuggestions) {
       this.suggestedRepliesService
         .queueSuggestedReplyGeneration(userId, thread.id, savedEmail.id)
         .catch((err) =>

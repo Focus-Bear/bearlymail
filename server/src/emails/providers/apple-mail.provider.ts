@@ -21,6 +21,7 @@ import { MILLISECONDS } from "../../constants/time-constants";
 import { Email } from "../../database/entities/email.entity";
 import { getJobPriority } from "../../queue/job-priorities";
 import { UsersService } from "../../users/users.service";
+import { providerSyncCreateEmailOptions } from "../email-lifecycle.service";
 import { EmailsService } from "../emails.service";
 import {
   EmailAttachmentData,
@@ -174,10 +175,11 @@ export class AppleMailProvider implements EmailProvider {
       archivedUpdates.set(rawEmail.threadId, false);
 
       try {
-        await this.emailsService.createEmail(userId, rawEmail, {
-          skipBatching: isInitialSync,
-          countTowardVolume: !isInitialSync,
-        });
+        await this.emailsService.createEmail(
+          userId,
+          rawEmail,
+          providerSyncCreateEmailOptions(isInitialSync),
+        );
       } catch (error) {
         this.logger.warn(
           `Failed to store Apple Mail message ${rawEmail.messageId}: ${

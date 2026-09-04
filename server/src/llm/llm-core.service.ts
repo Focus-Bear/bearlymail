@@ -29,41 +29,18 @@ import { ClaudeCliClient } from "./claude-cli.helper";
 import { buildGeminiGenerationConfig } from "./gemini-request.helper";
 import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
+import {
+  computeRetryDelayMs,
+  HTTP_FORBIDDEN,
+  HTTP_UNAUTHORIZED,
+  isGeminiBillingError,
+  isPermanentLLMError,
+  isRateLimitError,
+  LLM_RETRY_MAX_ATTEMPTS,
+  RATE_LIMIT_RETRY_MAX_ATTEMPTS,
+} from "./llm-retry-policy";
 import { supportsReasoningEffort } from "./llm-utils";
 import { TokenUsageService } from "./token-usage.service";
-
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_FORBIDDEN = 403;
-const HTTP_TOO_MANY_REQUESTS = 429;
-
-/**
- * Gemini returns 429 for two different conditions: a real per-minute quota
- * exceed (retryable), and prepayment credit depletion (NOT retryable — only
- * a billing top-up fixes it). The message text is the only way to tell them
- * apart from the SDK error.
- */
-function isGeminiBillingError(error: unknown): boolean {
-  const status = (error as { status?: number } | null)?.status;
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  return (
-    status === HTTP_TOO_MANY_REQUESTS && /prepayment credits/i.test(message)
-  );
-}
-
-/**
- * Errors that retries can never fix — short-circuit `retryOperation` so we
- * fall through to the provider fallback on the first failure instead of
- * burning two extra upstream calls per request.
- *  - 401/403: invalid/expired API key.
- *  - UnauthorizedException: the Anthropic path's wrapped form of the above.
- *  - Gemini billing 429: see `isGeminiBillingError`.
- */
-function isPermanentLLMError(error: unknown): boolean {
-  if (error instanceof UnauthorizedException) return true;
-  const status = (error as { status?: number } | null)?.status;
-  if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) return true;
-  return isGeminiBillingError(error);
-}
 
 /** Parameters for a single provider-agnostic tool-calling step. */
 export interface ToolChatParams {
@@ -280,30 +257,37 @@ export class LLMCoreService {
     }
   }
 
+  /**
+   * Retries `operation` with exponential backoff. Rate-limit errors switch to
+   * the longer `RATE_LIMIT_RETRY_*` schedule so a throttled cheap model is
+   * waited out rather than handed to the expensive fallback provider.
+   */
   private async retryOperation<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 3,
+    maxRetries: number = LLM_RETRY_MAX_ATTEMPTS,
   ): Promise<T> {
-    for (let i = 0; i < maxRetries; i++) {
+    let maxAttempts = maxRetries;
+    for (let attempt = 1; ; attempt++) {
       try {
         return await operation();
       } catch (error) {
         // Auth and billing failures are permanent — retrying just multiplies
         // upstream cost. Bail immediately so the outer fallback can take over.
         if (isPermanentLLMError(error)) throw error;
-        if (i === maxRetries - 1) throw error;
-        const delay =
-          Math.pow(2, i) * MILLISECONDS.SECOND +
-          Math.random() * MILLISECONDS.SECOND;
+        const rateLimited = isRateLimitError(error);
+        if (rateLimited) {
+          maxAttempts = Math.max(maxAttempts, RATE_LIMIT_RETRY_MAX_ATTEMPTS);
+        }
+        if (attempt >= maxAttempts) throw error;
+        const delay = computeRetryDelayMs(attempt, rateLimited);
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          `LLM operation failed, retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries}): ${errorMessage}`,
+          `LLM operation ${rateLimited ? "rate-limited" : "failed"}, retrying in ${Math.round(delay)}ms... (Attempt ${attempt}/${maxAttempts}): ${errorMessage}`,
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
-    throw new Error("Max retries exceeded");
   }
 
   private isGeminiCircuitOpen(): boolean {

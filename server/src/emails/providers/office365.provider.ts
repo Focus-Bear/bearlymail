@@ -20,6 +20,7 @@ import { getJobPriority } from "../../queue/job-priorities";
 import { isApiError, isError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { sanitizeAxiosError } from "../../utils/axios-error.utils";
+import { providerSyncCreateEmailOptions } from "../email-lifecycle.service";
 import { EmailsService } from "../emails.service";
 import {
   EmailAttachmentData,
@@ -417,7 +418,7 @@ export class Office365Provider implements EmailProvider {
     await this.emailsService.createEmail(
       userId,
       { ...rawEmail, starCount } as RawEmailMessage,
-      { skipBatching: isInitialSync, countTowardVolume: !isInitialSync },
+      providerSyncCreateEmailOptions(isInitialSync),
     );
   }
 

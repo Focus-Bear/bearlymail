@@ -13,6 +13,7 @@ import {
 import { CategoryRuleSanityService } from "../llm/category-rule-sanity.service";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { RULE_SANITY_VERDICTS } from "../llm/llm-rule-sanity";
+import { TokenUsageService } from "../llm/token-usage.service";
 import { CategoryRulesService } from "./category-rules.service";
 
 const mockRuleRepo = () => ({
@@ -69,6 +70,10 @@ const mockLLMCategoriesService = () => ({
 
 const SANITY_MODEL = "gemini-test";
 
+const mockTokenUsageService = () => ({
+  countUserCallsSince: jest.fn().mockResolvedValue(0),
+});
+
 const mockCategoryRuleSanityService = () => ({
   isEnabled: true,
   model: SANITY_MODEL,
@@ -97,6 +102,7 @@ describe("CategoryRulesService", () => {
   let userContextRepo: ReturnType<typeof mockUserContextRepo>;
   let llmCategoriesService: ReturnType<typeof mockLLMCategoriesService>;
   let sanityService: ReturnType<typeof mockCategoryRuleSanityService>;
+  let tokenUsageService: ReturnType<typeof mockTokenUsageService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -126,6 +132,10 @@ describe("CategoryRulesService", () => {
           provide: CategoryRuleSanityService,
           useFactory: mockCategoryRuleSanityService,
         },
+        {
+          provide: TokenUsageService,
+          useFactory: mockTokenUsageService,
+        },
       ],
     }).compile();
 
@@ -135,6 +145,7 @@ describe("CategoryRulesService", () => {
     userContextRepo = module.get(getRepositoryToken(UserContext));
     llmCategoriesService = module.get(LLMCategoriesService);
     sanityService = module.get(CategoryRuleSanityService);
+    tokenUsageService = module.get(TokenUsageService);
     // Default: the strong-model reviewer accepts every auto-generated rule.
     sanityService.checkRule.mockResolvedValue(sanityAccept);
 
@@ -246,6 +257,56 @@ describe("CategoryRulesService", () => {
         }),
       );
       expect(result).toEqual(created);
+    });
+
+    it("skips the LLM entirely once the user's rolling-24h auto-generation budget is spent", async () => {
+      tokenUsageService.countUserCallsSince.mockResolvedValue(
+        CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY,
+      );
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(result).toBeNull();
+      expect(tokenUsageService.countUserCallsSince).toHaveBeenCalledWith(
+        userId,
+        "suggest_category_rules",
+        expect.any(Date),
+      );
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).not.toHaveBeenCalled();
+      expect(emailRepo.find).not.toHaveBeenCalled();
+    });
+
+    it("still generates when the user is one attempt under the budget", async () => {
+      tokenUsageService.countUserCallsSince.mockResolvedValue(
+        CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY - 1,
+      );
+      armPersistGate();
+      repo.create.mockReturnValue({ id: "comp-2", ruleKind: "composite" });
+      repo.save.mockResolvedValue({ id: "comp-2", ruleKind: "composite" });
+
+      await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).toHaveBeenCalled();
     });
 
     it("stores the accepting sanity verdict on the created rule", async () => {

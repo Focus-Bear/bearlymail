@@ -23,7 +23,6 @@ import { LLMAskService } from "./llm-ask.service";
 import { LLMCategoriesService } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMMiscService } from "./llm-misc.service";
-import { LLMPatternsService } from "./llm-patterns.service";
 import { LLMReplyService } from "./llm-reply.service";
 import { LLMSearchService } from "./llm-search.service";
 import { LLMSummarizationService } from "./llm-summarization.service";
@@ -59,7 +58,6 @@ import { TokenUsageService } from "./token-usage.service";
     LLMAskService,
     LLMCategoriesService,
     LLMMiscService,
-    LLMPatternsService,
     LLMReplyService,
     LLMSearchService,
     LLMSummarizationService,
@@ -78,7 +76,6 @@ import { TokenUsageService } from "./token-usage.service";
     LLMAskService,
     LLMCategoriesService,
     LLMMiscService,
-    LLMPatternsService,
     LLMReplyService,
     LLMSearchService,
     LLMSummarizationService,

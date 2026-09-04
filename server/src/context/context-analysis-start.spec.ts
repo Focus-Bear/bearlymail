@@ -5,7 +5,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
-import { ContextSqsDispatchService } from "./context-sqs-dispatch.service";
+import { ContextEnqueueService } from "./context-enqueue.service";
 
 describe("ContextAnalysisProgressService.startAnalysis", () => {
   let service: ContextAnalysisProgressService;
@@ -34,7 +34,7 @@ describe("ContextAnalysisProgressService.startAnalysis", () => {
           provide: getRepositoryToken(ContextAnalysis),
           useValue: repository,
         },
-        { provide: ContextSqsDispatchService, useValue: {} },
+        { provide: ContextEnqueueService, useValue: {} },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: boss },
       ],
     }).compile();

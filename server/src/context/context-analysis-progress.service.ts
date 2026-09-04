@@ -5,20 +5,18 @@ import { MoreThan, Repository } from "typeorm";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
-import { DAYS, MILLISECONDS } from "../constants/time-constants";
+import { MILLISECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import type { DiscoveryThreadStub } from "../llm/llm-discover-user-context";
 import { getJobPriority } from "../queue/job-priorities";
 import { getErrorMessage } from "../types/common";
 import { writeAnalysisLog } from "./context-analysis-logger";
-import { BatchPayloadItem } from "./context-batch-payload.service";
-import {
-  ContextSqsDispatchService,
-  SqsEnqueueJobContext,
-} from "./context-sqs-dispatch.service";
+import { ContextEnqueueService } from "./context-enqueue.service";
 
 /**
  * Service for managing context analysis progress tracking and job synchronization.
- * Handles analysis progress queries, batch completion checks, and SQS job syncing.
+ * Handles analysis progress queries, batch completion checks, and re-queuing
+ * discovery batches that never ran.
  */
 @Injectable()
 export class ContextAnalysisProgressService {
@@ -27,50 +25,9 @@ export class ContextAnalysisProgressService {
   constructor(
     @InjectRepository(ContextAnalysis)
     private contextAnalysisRepository: Repository<ContextAnalysis>,
-    private readonly sqsDispatchService: ContextSqsDispatchService,
+    private readonly contextEnqueueService: ContextEnqueueService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
-
-  /**
-   * Local (no-SQS) re-queue of a single missing batch as a PgBoss
-   * ANALYZE_CONTEXT_BATCH job, mirroring the SQS path's shape so the caller can
-   * read `result.jobId` uniformly.
-   */
-  private async requeueSingleBatchLocally(
-    batchIndex: number,
-    batchPayload: BatchPayloadItem[],
-    ctx: {
-      userId: string;
-      analysisRecordId: string;
-      sentPayload: unknown[];
-      currentContextForPrompt: unknown[];
-      twelveDaysAgo: Date;
-      fiveDaysAgo: Date;
-      userEmail: string | null;
-    },
-    totalBatches: number,
-  ): Promise<{ jobId: string | null }> {
-    const jobId = await this.boss.send(
-      JOB_NAMES.ANALYZE_CONTEXT_BATCH,
-      {
-        userId: ctx.userId,
-        batchIndex,
-        batch: batchPayload,
-        sentPayload: batchIndex === 0 ? ctx.sentPayload : [],
-        userEmail: ctx.userEmail ?? undefined,
-        currentContextForPrompt: ctx.currentContextForPrompt,
-        analysisRecordId: ctx.analysisRecordId,
-        totalBatches,
-        after: ctx.twelveDaysAgo.toISOString(),
-        before: ctx.fiveDaysAgo.toISOString(),
-      },
-      {
-        priority: getJobPriority(JOB_NAMES.ANALYZE_CONTEXT_BATCH),
-        singletonKey: `analyze-context-batch-${ctx.analysisRecordId}-${batchIndex}`,
-      },
-    );
-    return { jobId };
-  }
 
   /**
    * Starts a fresh context analysis for the user (moved out of
@@ -218,8 +175,9 @@ export class ContextAnalysisProgressService {
   }
 
   /**
-   * Check and sync jobs between DB and SQS.
-   * Finds missing batches and re-queues them via SQS → Lambda.
+   * Check and sync jobs between the DB and the queue.
+   * Finds discovery batches that neither completed nor failed and re-queues them
+   * from the stubs stored on the analysis record.
    */
   async checkAndSyncJobs(userId: string, analysisId?: string): Promise<void> {
     const analysis = await this.findActiveAnalysis(userId, analysisId);
@@ -237,7 +195,8 @@ export class ContextAnalysisProgressService {
     const batchJobIds =
       (stats.batchJobIds as Record<number, string | null>) || {};
     const batchPayloadsForRetry =
-      (stats.batchPayloadsForRetry as Record<number, BatchPayloadItem[]>) || {};
+      (stats.batchPayloadsForRetry as Record<number, DiscoveryThreadStub[]>) ||
+      {};
     const totalBatches = stats.totalBatches as number;
 
     if (!this.validateTotalBatches(totalBatches, batchResults)) {
@@ -366,8 +325,9 @@ export class ContextAnalysisProgressService {
   }
 
   /**
-   * Re-queue missing batches via SQS → Lambda, updating batchJobIds in the DB.
-   * SQS deduplication IDs prevent double-processing of batches already in-flight.
+   * Re-queue missing batches as PgBoss jobs, updating batchJobIds in the DB.
+   * The per-batch singleton key prevents double-processing of a batch that is
+   * merely still queued.
    */
   private async requeueMissingBatches(options: {
     userId: string;
@@ -375,7 +335,7 @@ export class ContextAnalysisProgressService {
     stats: Record<string, unknown>;
     missingBatchIndices: number[];
     batchJobIds: Record<number, string | null>;
-    batchPayloadsForRetry: Record<number, BatchPayloadItem[]>;
+    batchPayloadsForRetry: Record<number, DiscoveryThreadStub[]>;
   }): Promise<void> {
     const {
       userId,
@@ -391,61 +351,43 @@ export class ContextAnalysisProgressService {
 
     let requeuedCount = 0;
     let requeueFailedCount = 0;
-
-    const sqsCtx: SqsEnqueueJobContext = {
-      userId,
-      analysisRecordId: analysisId,
-      sentPayload: [],
-      currentContextForPrompt: [],
-      twelveDaysAgo: new Date(Date.now() - DAYS.TWELVE * MILLISECONDS.DAY),
-      fiveDaysAgo: new Date(Date.now() - 5 * MILLISECONDS.DAY),
-      userEmail: null,
-      totalThreadIds: (stats.totalBatches as number) || 0,
-      analysisBatchSize: 0,
-    };
+    const totalBatches = (stats.totalBatches as number) || 0;
 
     for (const batchIndex of missingBatchIndices) {
-      const batchPayload = batchPayloadsForRetry[batchIndex];
-      if (batchPayload && batchPayload.length > 0) {
-        const enqueueErrors: Array<{ batchNum: number; error: string }> = [];
-        try {
-          // Local mode (no SQS): re-queue the batch as a PgBoss job the
-          // in-process worker handles, instead of dispatching to Lambda.
-          const result = process.env.CONTEXT_ANALYSIS_SQS_QUEUE_URL
-            ? await this.sqsDispatchService.enqueueSingleBatchViaSqs(
-                batchIndex,
-                batchPayload,
-                sqsCtx,
-                enqueueErrors,
-              )
-            : await this.requeueSingleBatchLocally(
-                batchIndex,
-                batchPayload,
-                sqsCtx,
-                (stats.totalBatches as number) || 0,
-              );
-
-          if (result.jobId) {
-            batchJobIds[batchIndex] = result.jobId;
-            requeuedCount++;
-            this.logger.log(
-              `[PROGRESS-CHECK] ✅ Re-queued batch ${batchIndex} via SQS, message ID: ${result.jobId}`,
-            );
-          } else {
-            requeueFailedCount++;
-            this.logger.error(
-              `[PROGRESS-CHECK] ❌ Failed to re-queue batch ${batchIndex} via SQS: ${enqueueErrors.map((err) => err.error).join(", ") || "no message ID returned"}`,
-            );
-          }
-        } catch (error) {
-          requeueFailedCount++;
-          this.logger.error(
-            `[PROGRESS-CHECK] ❌ Failed to re-queue batch ${batchIndex}: ${getErrorMessage(error)}`,
-          );
-        }
-      } else {
+      const threads = batchPayloadsForRetry[batchIndex];
+      if (!threads || threads.length === 0) {
         this.logger.warn(
           `[PROGRESS-CHECK] ⚠️ Cannot re-queue batch ${batchIndex} - no payload found in batchPayloadsForRetry`,
+        );
+        continue;
+      }
+      try {
+        const jobId = await this.contextEnqueueService.requeueBatch({
+          userId,
+          analysisRecordId: analysisId,
+          batchIndex,
+          totalBatches,
+          threads,
+          existingCategories: [],
+          existingVipContacts: [],
+        });
+        if (jobId) {
+          batchJobIds[batchIndex] = jobId;
+          requeuedCount++;
+          this.logger.log(
+            `[PROGRESS-CHECK] ✅ Re-queued batch ${batchIndex}, job ID: ${jobId}`,
+          );
+        } else {
+          // A null id means the singleton key matched a job that is still
+          // queued or running — nothing to do.
+          this.logger.log(
+            `[PROGRESS-CHECK] Batch ${batchIndex} already queued (singleton) - not re-queued`,
+          );
+        }
+      } catch (error) {
+        requeueFailedCount++;
+        this.logger.error(
+          `[PROGRESS-CHECK] ❌ Failed to re-queue batch ${batchIndex}: ${getErrorMessage(error)}`,
         );
       }
     }
@@ -461,7 +403,7 @@ export class ContextAnalysisProgressService {
         },
       );
       this.logger.log(
-        `[PROGRESS-CHECK] Re-queued ${requeuedCount} batches via SQS, ${requeueFailedCount} failed`,
+        `[PROGRESS-CHECK] Re-queued ${requeuedCount} batches, ${requeueFailedCount} failed`,
       );
     }
   }

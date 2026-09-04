@@ -270,6 +270,16 @@ async function runEvaluation(configPath, index, total) {
     const hitRateLimit = stats.exitCode !== 0 && is429Error(stats.output);
 
     if (!hitRateLimit || attempt > MAX_RETRIES) {
+      // promptfoo exited non-zero without running a single test (missing API
+      // key, unsupported Node version, invalid YAML...). Previously this was
+      // reported as "NO TESTS" and counted as a pass, which let the whole CI job
+      // go green while running nothing.
+      if (stats.exitCode !== 0 && stats.total === 0 && stats.failed === 0) {
+        stats.failed = 1;
+        stats.errors = extractRunErrorLines(stats.output);
+        log(`[${index}/${total}] ${configName}... ${colors.red}DID NOT RUN${colors.reset} (promptfoo exit code ${stats.exitCode})`);
+        return stats;
+      }
       // Final result — log and return
       if (stats.failed > 0) {
         log(`[${index}/${total}] ${configName}... ${colors.red}FAIL${colors.reset} (${stats.passed}/${stats.total} passed, ${stats.failed} failed)`);
@@ -291,6 +301,21 @@ async function runEvaluation(configPath, index, total) {
     await sleep(delayMs);
   }
   return runEvaluationOnce(configPath, index, total);
+}
+
+/**
+ * Pull the human-readable error lines out of a promptfoo run that aborted before
+ * evaluating anything (e.g. "Missing GOOGLE_API_KEY (google:gemini-...)").
+ */
+function extractRunErrorLines(output) {
+  const lines = (output || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /✗|error|missing|invalid|unsupported|requires/i.test(line))
+    .filter((line) => !/ExperimentalWarning|--trace-warnings/.test(line));
+  return lines.length > 0
+    ? lines.slice(0, 5).map((line) => line.substring(0, 200))
+    : ['promptfoo exited with a non-zero status before running any tests'];
 }
 
 function parseEvaluationOutput(output, configName) {

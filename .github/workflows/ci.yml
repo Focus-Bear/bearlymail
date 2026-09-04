@@ -481,6 +481,9 @@ jobs:
         working-directory: server
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # 40 of the promptfoo suites use google:gemini-* providers, which
+          # promptfoo reads from GOOGLE_API_KEY.
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           PROMPTFOO_REQUEST_BACKOFF_MS: 1000
           OPENAI_MAX_RETRIES: 3
           PROMPTFOO_CHANGED_ONLY: 'true'

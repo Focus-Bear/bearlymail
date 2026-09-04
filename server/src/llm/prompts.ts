@@ -272,16 +272,14 @@ const PROMPT_FILE_MAP: Array<{
 /**
  * Reusable prompt fragments kept in ONE canonical file and inlined into every
  * prompt that references `{{token}}`, so shared rules (e.g. the category
- * selection ruleset used by both `analyze_priority` and `categorise_summary`)
- * live in a single place. Inlining happens at load time for the app; promptfoo
+ * selection ruleset used by `categorise_summary`) live in a single place. Inlining happens at load time for the app; promptfoo
  * resolves the same token by passing the file via a `file://` var (neither the
  * app's regex renderer nor promptfoo's Nunjucks supports `{% include %}`).
  */
 const SHARED_PARTIAL_FILES: Record<string, string> = {
   categorySelectionRules: "_shared/category-selection-rules.md",
   // GitHub-specific rules are a SEPARATE partial so the consuming prompt can
-  // gate them with its own `{% if showGithubRules %}` sibling conditional
-  // (analyze_priority only sends them for GitHub senders, to save tokens).
+  // gate them with its own `{% if showGithubRules %}` sibling conditional.
   // Keeping them a sibling — not nested inside another `{% if %}` — matters
   // because the app's regex prompt renderer does not support nested conditionals.
   categoryGithubRules: "_shared/category-github-rules.md",

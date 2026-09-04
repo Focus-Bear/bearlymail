@@ -12,9 +12,11 @@
 const { spawn } = require('child_process');
 const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const PROMPTFOO_DIR = path.join(__dirname, '..', 'promptfoo');
+const PROVIDER_KEY_ENV_VARS = ['OPENAI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY'];
 
 // ANSI color codes
 const colors = {
@@ -200,14 +202,22 @@ function findYamlFiles(changedPromptsOnly = false) {
     configs.forEach(c => yamlFiles.add(c));
   }
 
-  return Array.from(yamlFiles).sort();
+  // A config deleted in this PR shows up in the diff but has nothing to run.
+  const deleted = Array.from(yamlFiles).filter((c) => !fs.existsSync(c));
+  if (deleted.length > 0) {
+    log(`Skipping deleted config files: ${deleted.map((c) => path.basename(c)).join(', ')}`, colors.cyan);
+  }
+  return Array.from(yamlFiles)
+    .filter((c) => fs.existsSync(c))
+    .sort();
 }
 
 /**
- * Check if output indicates a 429 rate-limit error from OpenAI.
+ * Check if output indicates a transient provider error worth retrying: a 429
+ * rate limit, or a 5xx / UNAVAILABLE outage from the model API.
  */
 function is429Error(output) {
-  return /429|rate.?limit|too many requests/i.test(output);
+  return /429|rate.?limit|too many requests|"code":\s*50[23]|UNAVAILABLE|service is currently unavailable/i.test(output);
 }
 
 /**
@@ -225,19 +235,39 @@ function sleep(ms) {
 function runEvaluationOnce(configPath, index, total) {
   const configName = path.basename(configPath);
 
+  // Results are read from promptfoo's JSON output: the console table truncates
+  // cells, which hid [PASS]/[FAIL] markers and let failing suites report as
+  // passed when counted from text.
+  const resultsPath = path.join(
+    os.tmpdir(),
+    `promptfoo-${configName.replace(/[^a-z0-9.-]/gi, '_')}-${process.pid}.json`,
+  );
+
   return new Promise((resolve) => {
     const chunks = [];
-    const child = spawn('npx', ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar'], {
-      env: { ...process.env },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    // CI passes secrets through as env vars even when they are unset, and an
+    // EMPTY key makes promptfoo believe that provider is configured. Drop empty
+    // provider keys so promptfoo falls back to the keys that actually exist.
+    const env = { ...process.env };
+    for (const key of PROVIDER_KEY_ENV_VARS) {
+      if (env[key] !== undefined && env[key].trim() === '') delete env[key];
+    }
+    const child = spawn(
+      'npx',
+      ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar', '-o', resultsPath],
+      {
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
 
     child.stdout.on('data', (data) => chunks.push(data));
     child.stderr.on('data', (data) => chunks.push(data));
 
     child.on('close', (code) => {
       const output = Buffer.concat(chunks).toString('utf-8');
-      const stats = parseEvaluationOutput(output, configName);
+      const stats =
+        parseResultsFile(resultsPath) ?? parseEvaluationOutput(output, configName);
       stats.exitCode = code;
       stats.configName = configName;
       stats.output = output;
@@ -260,6 +290,8 @@ function runEvaluationOnce(configPath, index, total) {
 
 const MAX_RETRIES = 4;
 const RETRY_BASE_DELAY_MS = 5000; // 5 s, doubles each attempt
+/** Lines of raw promptfoo output shown when a config aborts without a recognisable error. */
+const RAW_OUTPUT_TAIL_LINES = 25;
 
 async function runEvaluation(configPath, index, total) {
   const configName = path.basename(configPath);
@@ -267,9 +299,31 @@ async function runEvaluation(configPath, index, total) {
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
     const stats = await runEvaluationOnce(configPath, index, total);
 
-    const hitRateLimit = stats.exitCode !== 0 && is429Error(stats.output);
+    // Retry the whole config when the provider was rate-limited or briefly
+    // unavailable, whether promptfoo exited non-zero or just recorded errors.
+    const hitRateLimit =
+      (stats.exitCode !== 0 || stats.failed > 0) && is429Error(stats.output);
 
     if (!hitRateLimit || attempt > MAX_RETRIES) {
+      // promptfoo exited non-zero without running a single test (missing API
+      // key, unsupported Node version, invalid YAML...). Previously this was
+      // reported as "NO TESTS" and counted as a pass, which let the whole CI job
+      // go green while running nothing.
+      if (stats.exitCode !== 0 && stats.total === 0 && stats.failed === 0) {
+        stats.failed = 1;
+        stats.errors = extractRunErrorLines(stats.output);
+        if (stats.errors.length === 0) {
+          // Nothing matched the known error patterns: surface the tail of the
+          // raw output so the failure is diagnosable from the CI log.
+          stats.errors = stats.output
+            .split('\n')
+            .filter((line) => line.trim().length > 0)
+            .slice(-RAW_OUTPUT_TAIL_LINES)
+            .map((line) => `raw: ${line.substring(0, 300)}`);
+        }
+        log(`[${index}/${total}] ${configName}... ${colors.red}DID NOT RUN${colors.reset} (promptfoo exit code ${stats.exitCode})`);
+        return stats;
+      }
       // Final result — log and return
       if (stats.failed > 0) {
         log(`[${index}/${total}] ${configName}... ${colors.red}FAIL${colors.reset} (${stats.passed}/${stats.total} passed, ${stats.failed} failed)`);
@@ -291,6 +345,59 @@ async function runEvaluation(configPath, index, total) {
     await sleep(delayMs);
   }
   return runEvaluationOnce(configPath, index, total);
+}
+
+/**
+ * Pull the human-readable error lines out of a promptfoo run that aborted before
+ * evaluating anything (e.g. "Missing GOOGLE_API_KEY (google:gemini-...)").
+ */
+function extractRunErrorLines(output) {
+  const lines = (output || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /✗|error|missing|invalid|unsupported|requires/i.test(line))
+    .filter((line) => !/ExperimentalWarning|--trace-warnings/.test(line));
+  return lines.length > 0
+    ? lines.slice(0, 5).map((line) => line.substring(0, 200))
+    : ['promptfoo exited with a non-zero status before running any tests'];
+}
+
+/**
+ * Parse promptfoo's JSON results file. Returns null when the file is missing
+ * or unreadable (promptfoo aborted before evaluating), so the caller can fall
+ * back to the console output.
+ */
+function parseResultsFile(resultsPath) {
+  try {
+    if (!fs.existsSync(resultsPath)) return null;
+    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
+    fs.unlinkSync(resultsPath);
+    const results = (data.results && data.results.results) || [];
+    if (results.length === 0) return null;
+    const stats = { total: results.length, passed: 0, failed: 0, errors: [] };
+    for (const result of results) {
+      if (result.success) {
+        stats.passed += 1;
+        continue;
+      }
+      stats.failed += 1;
+      const description =
+        (result.testCase && result.testCase.description) ||
+        (result.vars && result.vars.subject) ||
+        'unnamed test';
+      const components =
+        (result.gradingResult && result.gradingResult.componentResults) || [];
+      const reasons = components
+        .filter((component) => !component.pass)
+        .map((component) => component.reason)
+        .filter(Boolean);
+      const reason = result.error || reasons.join(' | ') || 'assertion failed';
+      stats.errors.push(`${description}: ${reason}`.substring(0, 400));
+    }
+    return stats;
+  } catch (err) {
+    return null;
+  }
 }
 
 function parseEvaluationOutput(output, configName) {

@@ -217,7 +217,7 @@ function findYamlFiles(changedPromptsOnly = false) {
  * rate limit, or a 5xx / UNAVAILABLE outage from the model API.
  */
 function is429Error(output) {
-  return /429|rate.?limit|too many requests|"code":\s*50[23]|UNAVAILABLE|service is currently unavailable/i.test(output);
+  return /429|rate.?limit|too many requests|"code":\s*50[23]|UNAVAILABLE|service is currently unavailable|Failed query|database is locked|SQLITE_BUSY/i.test(output);
 }
 
 /**
@@ -252,6 +252,11 @@ function runEvaluationOnce(configPath, index, total) {
     for (const key of PROVIDER_KEY_ENV_VARS) {
       if (env[key] !== undefined && env[key].trim() === '') delete env[key];
     }
+    // Every promptfoo process gets its own config dir: concurrent evals sharing
+    // the default ~/.promptfoo SQLite database race on writes ("Failed query:
+    // update evals ...") and abort before running a single test.
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'promptfoo-config-'));
+    env.PROMPTFOO_CONFIG_DIR = configDir;
     const child = spawn(
       'npx',
       ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar', '-o', resultsPath],
@@ -265,6 +270,7 @@ function runEvaluationOnce(configPath, index, total) {
     child.stderr.on('data', (data) => chunks.push(data));
 
     child.on('close', (code) => {
+      fs.rmSync(configDir, { recursive: true, force: true });
       const output = Buffer.concat(chunks).toString('utf-8');
       const stats =
         parseResultsFile(resultsPath) ?? parseEvaluationOutput(output, configName);

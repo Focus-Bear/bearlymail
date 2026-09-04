@@ -656,7 +656,7 @@
     "addBcc": "Agregar CCO",
     "addCc": "Agregar CC",
     "bcc": "BCC",
-    "sendingOverlay": "Enviando tu correo...",
+    "sendingToast": "Enviando tu correo...",
     "bodyPlaceholder": "Escribe tu mensaje...",
     "cc": "CC",
     "signature": {

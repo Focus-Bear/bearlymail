@@ -186,15 +186,24 @@ describe('dateUtils', () => {
     });
 
     // Tests for showAbsoluteDate option
-    it('should append absolute date in brackets when showAbsoluteDate is true', () => {
+    it('should append absolute date and time in brackets when showAbsoluteDate is true', () => {
       const now = new Date('2024-02-28T12:00:00Z').getTime();
       vi.setSystemTime(now);
       const timestamp = new Date('2024-01-31T12:00:00Z');
       const result = humanizeTimestamp(timestamp, { showAbsoluteDate: true });
-      // Should contain the relative part
       expect(result).toContain('4 weeks ago');
-      // Should contain brackets with a date
-      expect(result).toMatch(/\[.+\]/);
+      // "(<short date> at <time>)" — the exact time must be readable without a tooltip.
+      expect(result).toMatch(/\(.+ at \d{1,2}:\d{2}.*\)$/);
+      expect(result).toContain('31');
+    });
+
+    it('should not duplicate the date for very old timestamps that already render absolutely', () => {
+      const now = new Date('2024-02-28T12:00:00Z').getTime();
+      vi.setSystemTime(now);
+      const timestamp = new Date('2021-01-31T12:00:00Z');
+      const result = humanizeTimestamp(timestamp, { showAbsoluteDate: true });
+      expect(result).toBe(humanizeTimestamp(timestamp));
+      expect(result).not.toContain('(');
     });
 
     it('should not include absolute date by default (backward compat)', () => {
@@ -202,7 +211,7 @@ describe('dateUtils', () => {
       vi.setSystemTime(now);
       const timestamp = new Date('2024-01-31T12:00:00Z');
       const result = humanizeTimestamp(timestamp);
-      expect(result).not.toContain('[');
+      expect(result).not.toContain('(');
     });
 
     // Regression: a missing/unparseable date must never render "Invalid Date"

@@ -181,18 +181,8 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                 color: theme.colors.text.primary,
                 opacity: 0.8,
               }}
-              title={new Date(correspondent.timestamp).toLocaleString(undefined, {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZoneName: 'short',
-              })}
             >
-              {humanizeTimestamp(correspondent.timestamp as string)}
+              {humanizeTimestamp(correspondent.timestamp as string, { showAbsoluteDate: true })}
             </div>
             {email.to && (
               <div

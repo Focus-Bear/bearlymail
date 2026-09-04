@@ -254,18 +254,8 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
                         color: theme.colors.text.primary,
                         opacity: 0.8,
                       }}
-                      title={new Date(threadEmail.receivedAt).toLocaleString(undefined, {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        timeZoneName: 'short',
-                      })}
                     >
-                      {humanizeTimestamp(threadEmail.receivedAt)}
+                      {humanizeTimestamp(threadEmail.receivedAt, { showAbsoluteDate: true })}
                     </div>
                   </div>
                   <div

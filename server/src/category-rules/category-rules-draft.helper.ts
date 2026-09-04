@@ -264,6 +264,32 @@ function resolveDraftOutcome(
 }
 
 /**
+ * Auto-generation only: the user's rolling-24h LLM budget must not be spent
+ * and the sender must have enough thread history for a rule to be worth it.
+ */
+async function passesAutoGenerationGates(
+  deps: DraftCompositeSpecDeps,
+  userId: string,
+  sender: string,
+  categoryName: string,
+): Promise<boolean> {
+  if (await deps.hasExhaustedAutoGenerationBudget(userId)) {
+    deps.logger.log(
+      `[CategoryRules] Skipping auto composite rule — user ${userId} reached ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY} rule-generation LLM attempts in 24h (category="${categoryName}")`,
+    );
+    return false;
+  }
+  const threadCount = await deps.countDistinctThreadsForSender(userId, sender);
+  if (threadCount < CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT) {
+    deps.logger.log(
+      `[CategoryRules] Skipping auto composite rule — sender "${sender}" has only ${threadCount} threads (< ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT}) for user ${userId}`,
+    );
+    return false;
+  }
+  return true;
+}
+
+/**
  * Shared core for both the auto-generate and user-draft flows. Runs the LLM
  * phrase extraction + exclusion derivation and returns the candidate spec
  * WITHOUT persisting. `enforceThreadCountGate` applies the auto-only minimum
@@ -298,23 +324,11 @@ export async function buildDraftCompositeSpec(
 
   // Issue #1714: only auto-generate rules for senders with enough thread
   // history. User-initiated drafts skip this gate — the user asked explicitly.
-  if (options.enforceThreadCountGate) {
-    if (await deps.hasExhaustedAutoGenerationBudget(userId)) {
-      deps.logger.log(
-        `[CategoryRules] Skipping auto composite rule — user ${userId} reached ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY} rule-generation LLM attempts in 24h (category="${trimmedCategory}")`,
-      );
-      return null;
-    }
-    const threadCount = await deps.countDistinctThreadsForSender(
-      userId,
-      sender,
-    );
-    if (threadCount < CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT) {
-      deps.logger.log(
-        `[CategoryRules] Skipping auto composite rule — sender "${sender}" has only ${threadCount} threads (< ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT}) for user ${userId}`,
-      );
-      return null;
-    }
+  if (
+    options.enforceThreadCountGate &&
+    !(await passesAutoGenerationGates(deps, userId, sender, trimmedCategory))
+  ) {
+    return null;
   }
 
   const samples = await fetchSenderSamples(

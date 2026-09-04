@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { createHash } from "crypto";
-import { Repository } from "typeorm";
+import { MoreThanOrEqual, Repository } from "typeorm";
 
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { estimateCostUsd } from "../constants/llm-pricing.constants";
@@ -160,17 +160,20 @@ export class TokenUsageService implements OnModuleInit {
   }
 
   /**
-   * Detect if text contains HTML content
+   * Detect if text contains HTML markup. Deliberately does NOT treat any
+   * `<word ...>` as a tag: the summary/phishing prompt templates carry JSON
+   * schema placeholders like `<your TL;DR here>`, which made every call in
+   * those operations count as an "HTML call" on the admin dashboard.
    */
   private detectHtml(text: string): boolean {
     if (!text) return false;
 
     // Common HTML patterns to detect
     const htmlPatterns = [
-      // HTML tags
-      /<\/?[a-z][\s\S]*>/i,
-      // Common HTML elements
-      /<(?:html|head|body|div|span|p|table|tr|td|th|ul|ol|li|a|img|script|style|link|meta|form|input|button|header|footer|nav|section|article|aside|main)\b/i,
+      // Closing tags
+      /<\/[a-z][a-z0-9]*\s*>/i,
+      // Common HTML elements, opened with attributes or closed immediately
+      /<(?:html|head|body|div|span|p|table|tr|td|th|ul|ol|li|a|img|script|style|link|meta|form|input|button|header|footer|nav|section|article|aside|main|br|hr)(?:\s+[a-z-]+\s*=|\s*\/?>)/i,
       // HTML entities
       /&(?:nbsp|lt|gt|amp|quot|apos|#\d+|#x[0-9a-f]+);/i,
       // DOCTYPE
@@ -278,6 +281,21 @@ export class TokenUsageService implements OnModuleInit {
       this.logger.warn("Failed to clear prompt examples from database", error);
     }
     this.logger.log(`Reset ${count} prompt examples`);
+  }
+
+  /**
+   * Number of logged calls for one user + operation since `since`. Cheap
+   * (hits the `[userId, createdAt]` index) so callers can use it as a spend
+   * budget check before an LLM call.
+   */
+  async countUserCallsSince(
+    userId: string,
+    operation: LLMOperation,
+    since: Date,
+  ): Promise<number> {
+    return this.tokenUsageRepository.count({
+      where: { userId, operation, createdAt: MoreThanOrEqual(since) },
+    });
   }
 
   /**

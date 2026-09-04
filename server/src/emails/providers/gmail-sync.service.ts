@@ -23,6 +23,7 @@ import { formatGaxiosError, isApiError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { logErrorToFile } from "../../utils/error-logger";
 import { InvalidTokenError } from "../../utils/errors";
+import { providerSyncCreateEmailOptions } from "../email-lifecycle.service";
 import {
   EmailDataWithOptionalThreadProps,
   EmailsService,
@@ -394,7 +395,7 @@ export class GmailSyncService {
         starCount,
         labels: rawEmail.labelIds,
       } as EmailDataWithOptionalThreadProps,
-      { skipBatching: isInitialSync, countTowardVolume: !isInitialSync },
+      providerSyncCreateEmailOptions(isInitialSync),
     );
   }
 

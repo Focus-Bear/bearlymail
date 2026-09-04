@@ -40,6 +40,17 @@ export const CATEGORY_RULE_COMPOSITE = {
    */
   AUTO_GENERATE_MIN_THREAD_COUNT: 10,
   /**
+   * Rolling-24h cap on auto rule-generation LLM attempts per user. Every
+   * HIGH-confidence categorisation with no rule match triggers a
+   * `suggest_category_rules` call (plus derive-exclusion / value-add calls),
+   * and the zero-false-positive persist gate rejects almost all of them — so a
+   * busy sender that keeps failing the gate burns a fresh call on every email,
+   * forever. Prod: 236 calls in a day produced ~5 rules. The cap bounds that
+   * spend; the next day's first HIGH-confidence email retries naturally.
+   * User-initiated drafts and "Suggest rules for me" are not subject to it.
+   */
+  AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY: 20,
+  /**
    * Minimum number of distinct threads a sender must have before it is
    * included in the "Suggest rules for me" response (issue #1714).
    * Lower than AUTO_GENERATE_MIN_THREAD_COUNT because the user confirms

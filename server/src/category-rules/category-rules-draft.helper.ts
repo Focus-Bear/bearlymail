@@ -28,6 +28,8 @@ export interface DraftCompositeSpecDeps {
     userId: string,
     sender: string,
   ) => Promise<number>;
+  /** Rolling-24h cap on auto rule-generation LLM spend; see AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY. */
+  hasExhaustedAutoGenerationBudget: (userId: string) => Promise<boolean>;
   normalizeCompositeSpecDto: (
     dto: CreateCompositeCategoryRuleDto,
   ) => CompositeCategoryRuleSpecV3;
@@ -290,6 +292,12 @@ export async function buildDraftCompositeSpec(
   // Issue #1714: only auto-generate rules for senders with enough thread
   // history. User-initiated drafts skip this gate — the user asked explicitly.
   if (options.enforceThreadCountGate) {
+    if (await deps.hasExhaustedAutoGenerationBudget(userId)) {
+      deps.logger.log(
+        `[CategoryRules] Skipping auto composite rule — user ${userId} reached ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY} rule-generation LLM attempts in 24h (category="${trimmedCategory}")`,
+      );
+      return null;
+    }
     const threadCount = await deps.countDistinctThreadsForSender(
       userId,
       sender,

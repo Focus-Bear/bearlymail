@@ -299,6 +299,67 @@ describe("LLMCoreService", () => {
       expect(out).toBe("gemini-fallback");
     });
 
+    // Mirrors @aws-sdk/client-bedrock-runtime's ThrottlingException shape.
+    function bedrockThrottlingError() {
+      return Object.assign(
+        new Error("Too many tokens, please wait before trying again."),
+        {
+          name: "ThrottlingException",
+          $fault: "client",
+          $metadata: { httpStatusCode: 429 },
+        },
+      );
+    }
+
+    it("waits out Bedrock throttling on the longer schedule instead of falling back to Gemini", async () => {
+      mockBedrockSend
+        .mockRejectedValueOnce(bedrockThrottlingError())
+        .mockRejectedValueOnce(bedrockThrottlingError())
+        .mockRejectedValueOnce(bedrockThrottlingError())
+        .mockRejectedValueOnce(bedrockThrottlingError())
+        .mockResolvedValue({
+          output: { message: { content: [{ text: "nova-after-wait" }] } },
+          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        });
+      const { service } = makeService();
+
+      const out = await service.generateText(baseRequest, LLMProvider.BEDROCK);
+
+      expect(out).toBe("nova-after-wait");
+      // The default 3-attempt schedule would have given up after the third
+      // throttle and paid Gemini prices for the whole call.
+      expect(mockBedrockSend).toHaveBeenCalledTimes(5);
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+    });
+
+    it("still falls back to Gemini once the rate-limit schedule is exhausted", async () => {
+      mockBedrockSend.mockRejectedValue(bedrockThrottlingError());
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: "gemini-fallback",
+        usageMetadata: undefined,
+      });
+      const { service } = makeService();
+
+      const out = await service.generateText(baseRequest, LLMProvider.BEDROCK);
+
+      expect(out).toBe("gemini-fallback");
+      expect(mockBedrockSend).toHaveBeenCalledTimes(6);
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the short schedule for non-rate-limit Bedrock failures", async () => {
+      mockBedrockSend.mockRejectedValue(new Error("bedrock unavailable"));
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: "gemini-fallback",
+        usageMetadata: undefined,
+      });
+      const { service } = makeService();
+
+      await service.generateText(baseRequest, LLMProvider.BEDROCK);
+
+      expect(mockBedrockSend).toHaveBeenCalledTimes(3);
+    });
+
     it("falls back to OpenAI when Bedrock fails and Gemini is not configured (OpenAI-only install)", async () => {
       mockBedrockSend.mockRejectedValue(new Error("bedrock unavailable"));
       mockOpenAIChatCreate.mockResolvedValue({

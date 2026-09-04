@@ -11,6 +11,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
+import { TokenUsageService } from "../llm/token-usage.service";
 import { CategoryRulesService } from "./category-rules.service";
 
 const mockRuleRepo = () => ({
@@ -65,6 +66,10 @@ const mockLLMCategoriesService = () => ({
   assessRuleAddsValue: jest.fn(),
 });
 
+const mockTokenUsageService = () => ({
+  countUserCallsSince: jest.fn().mockResolvedValue(0),
+});
+
 /** An email that matches the default generated spec (used to pass the match gate). */
 const matchingMailboxEmail = {
   from: "alerts@acmecorp.com",
@@ -78,6 +83,7 @@ describe("CategoryRulesService", () => {
   let emailRepo: ReturnType<typeof mockEmailRepo>;
   let userContextRepo: ReturnType<typeof mockUserContextRepo>;
   let llmCategoriesService: ReturnType<typeof mockLLMCategoriesService>;
+  let tokenUsageService: ReturnType<typeof mockTokenUsageService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -103,6 +109,10 @@ describe("CategoryRulesService", () => {
           provide: LLMCategoriesService,
           useFactory: mockLLMCategoriesService,
         },
+        {
+          provide: TokenUsageService,
+          useFactory: mockTokenUsageService,
+        },
       ],
     }).compile();
 
@@ -111,6 +121,7 @@ describe("CategoryRulesService", () => {
     emailRepo = module.get(getRepositoryToken(Email));
     userContextRepo = module.get(getRepositoryToken(UserContext));
     llmCategoriesService = module.get(LLMCategoriesService);
+    tokenUsageService = module.get(TokenUsageService);
 
     // Default: sender has 15 threads — above both thresholds.
     emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "15" }));
@@ -220,6 +231,56 @@ describe("CategoryRulesService", () => {
         }),
       );
       expect(result).toEqual(created);
+    });
+
+    it("skips the LLM entirely once the user's rolling-24h auto-generation budget is spent", async () => {
+      tokenUsageService.countUserCallsSince.mockResolvedValue(
+        CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY,
+      );
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(result).toBeNull();
+      expect(tokenUsageService.countUserCallsSince).toHaveBeenCalledWith(
+        userId,
+        "suggest_category_rules",
+        expect.any(Date),
+      );
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).not.toHaveBeenCalled();
+      expect(emailRepo.find).not.toHaveBeenCalled();
+    });
+
+    it("still generates when the user is one attempt under the budget", async () => {
+      tokenUsageService.countUserCallsSince.mockResolvedValue(
+        CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY - 1,
+      );
+      armPersistGate();
+      repo.create.mockReturnValue({ id: "comp-2", ruleKind: "composite" });
+      repo.save.mockResolvedValue({ id: "comp-2", ruleKind: "composite" });
+
+      await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).toHaveBeenCalled();
     });
 
     it("returns null when sender has fewer than AUTO_GENERATE_MIN_THREAD_COUNT threads", async () => {

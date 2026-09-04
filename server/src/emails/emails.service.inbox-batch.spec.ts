@@ -29,10 +29,14 @@ describe("EmailsService.getInboxBatch", () => {
     expect(getInbox).toHaveBeenCalledTimes(2);
     // Each call scopes to a single category, so each keeps its own result limit.
     expect(getInbox).toHaveBeenCalledWith(
-      expect.objectContaining({ filters: expect.objectContaining({ categoryIds: ["cat-a"] }) }),
+      expect.objectContaining({
+        filters: expect.objectContaining({ categoryIds: ["cat-a"] }),
+      }),
     );
     expect(getInbox).toHaveBeenCalledWith(
-      expect.objectContaining({ filters: expect.objectContaining({ categoryIds: ["cat-b"] }) }),
+      expect.objectContaining({
+        filters: expect.objectContaining({ categoryIds: ["cat-b"] }),
+      }),
     );
     expect(result.categories).toEqual([
       { key: "cat-a", emails: [{ id: "cat-a-1" }], total: 1, hasMore: false },

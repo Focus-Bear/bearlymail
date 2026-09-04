@@ -54,6 +54,10 @@ export const BODY_PREVIEW_LENGTHS = {
   DEBUG_LOG_PREVIEW: 800,
   // Body preview length for email classification
   CLASSIFICATION_PREVIEW: 1000,
+  // Snippet length for context-discovery thread stubs. Deliberately short: the
+  // discovery prompt only needs enough to tell a newsletter from a client
+  // request, and 100 stubs × this length bounds the whole onboarding LLM spend.
+  DISCOVERY_SNIPPET: 200,
   // Body length for deterministic composite-rule matching. Much larger than the
   // classification preview so that body "contains" / "NOT contains" phrases deep
   // in a long message (e.g. a QA "Pass"/"Fail" verdict at the end) are still

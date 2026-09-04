@@ -42,10 +42,7 @@ import {
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 import { buildReplySubject } from "../utils/reply-subject.util";
-import {
-  buildForwardBody,
-  buildForwardHtmlBody,
-} from "./forward-body.helpers";
+import { buildForwardBody, buildForwardHtmlBody } from "./forward-body.helpers";
 
 export interface ReplyRule {
   ruleId?: string;

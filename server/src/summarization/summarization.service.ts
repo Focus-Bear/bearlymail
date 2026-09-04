@@ -290,7 +290,8 @@ export class SummarizationService {
 
   private resolvePhishingSignalFromLLM(
     llmPhishing:
-      import("./phishing-detection.service").PhishingLLMResult | null,
+      | import("./phishing-detection.service").PhishingLLMResult
+      | null,
   ): PhishingSignal | null {
     if (!llmPhishing || !llmPhishing.is_phishing) return null;
     return { confidence: llmPhishing.confidence, reason: llmPhishing.reason };

@@ -65,6 +65,12 @@ export const JOB_NAMES = {
 
   // Writing style & learning
   CHECK_WRITING_STYLE_LEARNING: "check-writing-style-learning",
+  // Per-user, self-continuing backfill of writing-style examples from the
+  // user's historical sent mail. Seeded by context discovery (onboarding /
+  // "Analyze") and walks backwards one window per run until the example
+  // target is met, so learning the user's voice never sits on the onboarding
+  // critical path. Idempotent: every run re-checks the example count first.
+  LEARN_WRITING_STYLE_FROM_SENT: "learn-writing-style-from-sent",
   LEARN_FROM_STAR: "learn-from-star",
   // Debounced per-user job (enqueued on reply-send) that batch-extracts
   // common Q&A pairs from the user's recent sent emails.

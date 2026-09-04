@@ -6,6 +6,17 @@ import { CONTEXT_ANALYSIS_STATUS } from "../constants/domain-statuses";
 import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import {
+  isDiscoveryBatchFailure,
+  StoredBatchResult,
+} from "./context-discovery.types";
+
+/** Insight `type` values the client progress panel understands. */
+const INSIGHT_TYPES = {
+  CATEGORY: "category",
+  VIP: "vip",
+  PATTERN: "pattern",
+} as const;
 
 export interface AnalysisProgressResult {
   threadCount?: number;
@@ -231,204 +242,48 @@ export class ContextAnalysisQueryService {
     };
   }
 
+  /**
+   * Insights shown live in the onboarding progress panel, read straight from
+   * the per-batch discovery results as they land.
+   */
   private extractInsightsFromAnalysis(
     analysis: ContextAnalysis,
   ): Array<{ type: string; message: string }> {
     const insights: Array<{ type: string; message: string }> = [];
-
     if (!analysis.stats?.batchResults) {
       return insights;
     }
-
     const batchResults = analysis.stats.batchResults as Record<
       string,
-      {
-        context?: Array<{ key: string; value: string; source?: string }>;
-        writingStyle?: {
-          tone?: string;
-          style?: string;
-          commonPhrases?: string[];
-        };
-        completedAt?: string;
-      }
+      StoredBatchResult
     >;
-
-    Object.entries(batchResults).forEach(([, result]) => {
-      if (result.context) {
-        result.context.forEach((ctx) => {
-          const keyLower = ctx.key.toLowerCase();
-          const valueLower = ctx.value.toLowerCase();
-
-          const nonImportantIndicators = [
-            "archived unread",
-            "without replies",
-            "deprioritization",
-            "low priority",
-            "not replied",
-            "ignored",
-            "unopened",
-            "not important",
-          ];
-          const isActuallyImportant = !nonImportantIndicators.some(
-            (indicator) => valueLower.includes(indicator),
-          );
-
-          if (
-            (keyLower.includes("vip") ||
-              keyLower.includes("contact") ||
-              keyLower.includes("important")) &&
-            isActuallyImportant
-          ) {
-            insights.push({
-              type: "vip",
-              message: `Analyzed importance of contact: ${ctx.value}`,
-            });
-          } else if (keyLower.includes("style") || keyLower.includes("tone")) {
-            insights.push({
-              type: "style",
-              message: `Your communication style: ${ctx.value}`,
-            });
-          } else if (
-            keyLower.includes("working") ||
-            keyLower.includes("project") ||
-            keyLower.includes("team")
-          ) {
-            insights.push({
-              type: "project",
-              message: `Current focus: ${ctx.value}`,
-            });
-          }
+    for (const result of Object.values(batchResults)) {
+      if (isDiscoveryBatchFailure(result)) continue;
+      for (const category of result.categories ?? []) {
+        insights.push({
+          type: INSIGHT_TYPES.CATEGORY,
+          message: `Found category: ${category.name}`,
         });
       }
-
-      if (result.writingStyle) {
-        this.extractWritingStyleInsights(result.writingStyle, insights);
+      for (const contact of result.vipContacts ?? []) {
+        insights.push({
+          type: INSIGHT_TYPES.VIP,
+          message: `Found important contact: ${contact.name}`,
+        });
       }
-    });
-
+      for (const hint of result.urgentHints ?? []) {
+        insights.push({
+          type: INSIGHT_TYPES.PATTERN,
+          message: `Time-critical: ${hint}`,
+        });
+      }
+    }
     return insights;
   }
 
   private extractInsightsFromBatchResults(
     analysis: ContextAnalysis,
   ): Array<{ type: string; message: string }> {
-    const insights: Array<{ type: string; message: string }> = [];
-
-    if (!analysis.stats?.batchResults) {
-      return insights;
-    }
-
-    const batchResults = analysis.stats.batchResults as Record<
-      string,
-      {
-        context?: Array<{
-          key: string;
-          value: string;
-          source?: string;
-        }>;
-        writingStyle?: {
-          tone?: string;
-          style?: string;
-          commonPhrases?: string[];
-        };
-      }
-    >;
-
-    Object.entries(batchResults).forEach(([, result]) => {
-      if (result.context) {
-        result.context.forEach((ctx) => {
-          const keyLower = ctx.key.toLowerCase();
-          if (
-            keyLower.includes("vip") ||
-            keyLower.includes("contact") ||
-            keyLower.includes("important")
-          ) {
-            insights.push({
-              type: "vip",
-              message: `Found important contact: ${ctx.value}`,
-            });
-          } else if (keyLower.includes("style") || keyLower.includes("tone")) {
-            insights.push({
-              type: "style",
-              message: `Your communication style: ${ctx.value}`,
-            });
-          } else if (
-            keyLower.includes("working") ||
-            keyLower.includes("project") ||
-            keyLower.includes("team")
-          ) {
-            insights.push({
-              type: "project",
-              message: `Current focus: ${ctx.value}`,
-            });
-          } else {
-            insights.push({
-              type: "pattern",
-              message: `${ctx.key}: ${ctx.value}`,
-            });
-          }
-        });
-      }
-      if (result.writingStyle) {
-        this.extractWritingStyleInsights(result.writingStyle, insights);
-      }
-    });
-
-    return insights;
-  }
-
-  private extractWritingStyleInsights(
-    writingStyle: { tone?: string; style?: string; commonPhrases?: string[] },
-    insights: Array<{ type: string; message: string }>,
-  ): void {
-    const styleText =
-      `${writingStyle.tone || ""} ${writingStyle.style || ""}`.trim();
-    const styleLower = styleText.toLowerCase();
-
-    const isNAPattern =
-      styleText === "n/a" ||
-      styleText === "n/a n/a" ||
-      styleLower.startsWith("n/a") ||
-      styleLower.startsWith("n/a -") ||
-      styleLower.match(/^n\/a\s*-?\s*(no|unable|not available|absence)/i);
-
-    const isBatchSpecificError =
-      styleLower.includes("no sent emails") ||
-      styleLower.includes("no user sent emails") ||
-      styleLower.includes("unable to analyze") ||
-      styleLower.includes("not available") ||
-      styleLower.includes("absence of sent email") ||
-      styleLower.includes("not analyzable") ||
-      isNAPattern ||
-      styleText === "";
-
-    if (styleText && !isBatchSpecificError) {
-      insights.push({
-        type: "style",
-        message: `Writing style: ${styleText}`,
-      });
-    }
-
-    if (writingStyle.commonPhrases && writingStyle.commonPhrases.length > 0) {
-      const phrases = writingStyle.commonPhrases.filter((phrase) => {
-        const phraseLower = phrase.toLowerCase();
-        return (
-          !phraseLower.includes("no sent emails") &&
-          !phraseLower.includes("no user sent emails") &&
-          !phraseLower.includes("unable to analyze") &&
-          !phraseLower.includes("not available") &&
-          !phraseLower.includes("not analyzable") &&
-          phraseLower !== "n/a" &&
-          phrase.trim() !== ""
-        );
-      });
-
-      if (phrases.length > 0) {
-        insights.push({
-          type: "phrases",
-          message: `Common phrases: ${phrases.slice(0, 3).join(", ")}`,
-        });
-      }
-    }
+    return this.extractInsightsFromAnalysis(analysis);
   }
 }

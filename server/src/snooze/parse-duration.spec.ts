@@ -46,6 +46,46 @@ describe("parse-duration", () => {
       expect(parseDurationToDate("2w", now)).toEqual(twoWeeks);
     });
 
+    it("parses day-of-month ordinals to the next occurrence at 8am", () => {
+      // now is 26 May → "15th" is next month; "27th" is tomorrow; "26th" (today) rolls a month.
+      const june15 = new Date(now);
+      june15.setMonth(5, 15);
+      june15.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+      expect(parseDurationToDate("15th", now)).toEqual(june15);
+      expect(parseDurationToDate("the 15th", now)).toEqual(june15);
+      expect(parseDurationToDate("on the 15th", now)).toEqual(june15);
+      expect(parseDurationToDate("the 15", now)).toEqual(june15);
+
+      const may27 = new Date(now);
+      may27.setDate(27);
+      may27.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+      expect(parseDurationToDate("27th", now)).toEqual(may27);
+
+      const june26 = new Date(now);
+      june26.setMonth(5, 26);
+      june26.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+      expect(parseDurationToDate("26th", now)).toEqual(june26);
+      expect(mockedParseDate).not.toHaveBeenCalled();
+    });
+
+    it("skips months without the requested day", () => {
+      // Late June: June has 30 days, so "31st" lands on 31 July.
+      const lateJune = new Date("2026-06-26T10:00:00.000Z");
+      const july31 = new Date(lateJune);
+      july31.setMonth(6, 31);
+      july31.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+      expect(parseDurationToDate("31st", lateJune)).toEqual(july31);
+    });
+
+    it("leaves bare numbers and impossible days to chrono / the fallback", () => {
+      expect(parseDurationToDate("15", now).getTime()).toBe(
+        now.getTime() + MILLISECONDS.HOUR,
+      );
+      expect(parseDurationToDate("32nd", now).getTime()).toBe(
+        now.getTime() + MILLISECONDS.HOUR,
+      );
+    });
+
     it("treats bare 'm' as minutes regardless of count", () => {
       expect(parseDurationToDate("3m", now).getTime()).toBe(
         now.getTime() + 3 * MILLISECONDS.MINUTE,

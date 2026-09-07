@@ -10,11 +10,13 @@ import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { CategoryShortlistService } from "../llm/category-shortlist.service";
 import { buildDeterministicSummary } from "../llm/email-content-cleaner";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { PriorityCacheService } from "../priority/priority-cache.service";
+import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { SummarizationService } from "../summarization/summarization.service";
 import { parseCategoryName } from "../utils/category-name.util";
@@ -92,6 +94,8 @@ export class LLMSummaryProcessorService {
     private readonly incrementalSummaryHelper: IncrementalSummaryHelperService,
     private readonly categoryRulesService: CategoryRulesService,
     private readonly llmCoreService: LLMCoreService,
+    private readonly categoryShortlistService: CategoryShortlistService,
+    private readonly protoCategoriesService: ProtoCategoriesService,
   ) {}
 
   async processSummaryJobBatch(
@@ -567,13 +571,18 @@ export class LLMSummaryProcessorService {
   }
 
   /** Wired deps for the category-only re-categorisation helper, shared by the
-   * deferred summary trigger, the immediate escalation, and the in-thread flip. */
+   * deferred summary trigger, the immediate escalation, the in-thread flip and
+   * the rule-label cleanup. Carries the same shortlist + proto-category inputs
+   * the new-email priority path gives the categoriser. */
   private buildRecategoriseDeps(): RecategoriseFromSummaryDeps {
     return {
       categoryRulesService: this.categoryRulesService,
+      categoryShortlistService: this.categoryShortlistService,
       emailThreadRepository: this.emailThreadRepository,
       getThreadSummary: (id) =>
         this.incrementalSummaryHelper.getThreadSummary(id),
+      getProtoCategories: (userId) =>
+        this.protoCategoriesService.findActiveByUser(userId),
       llmCoreService: this.llmCoreService,
       logger: this.logger,
     };
@@ -621,16 +630,11 @@ export class LLMSummaryProcessorService {
   }): Promise<RuleThreadRecategoriseOutcome> {
     return recategoriseRuleThread(
       {
-        emailThreadRepository: this.emailThreadRepository,
-        categoryRulesService: this.categoryRulesService,
-        llmCoreService: this.llmCoreService,
-        getThreadSummary: (id) =>
-          this.incrementalSummaryHelper.getThreadSummary(id),
+        ...this.buildRecategoriseDeps(),
         getUserContexts: (userId) =>
           this.priorityCacheService.getUserContexts(userId),
         ensureThreadSummaryFresh: (email, userId, workerId) =>
           this.ensureThreadSummaryFresh(email, userId, workerId),
-        logger: this.logger,
       },
       args,
     );

@@ -4,34 +4,70 @@ import type { Repository } from "typeorm";
 import type { CategoryRulesService } from "../category-rules/category-rules.service";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import type { ProtoCategory } from "../database/entities/proto-category.entity";
 import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
 import { categoriseWithEscalation } from "../llm/llm-categorise-summary";
 import type { LLMCoreService } from "../llm/llm-core.service";
-import { persistLlmCategoryWithPrecedence } from "./category-column-updates.helper";
+import {
+  persistCategoryDecisionTraceOnly,
+  persistLlmCategoryWithPrecedence,
+} from "./category-column-updates.helper";
+import type { CategoryDecisionTrace } from "./category-decision-trace.types";
 import {
   recategoriseFromSummary,
   threadNeedsLocalModelRecategorisation,
 } from "./incremental-recategorise.helper";
 
-// Mock external helper modules
 jest.mock("./category-column-updates.helper", () => ({
   persistLlmCategoryWithPrecedence: jest.fn(),
+  persistCategoryDecisionTraceOnly: jest.fn(),
 }));
 
+// The categoriser itself (chooseEmailCategory → shortlist → categoriseWithEscalation)
+// runs for real; only the LLM call at the bottom is stubbed, so these tests
+// assert what the model is actually shown.
 jest.mock("../llm/llm-categorise-summary", () => ({
+  ...jest.requireActual("../llm/llm-categorise-summary"),
   categoriseWithEscalation: jest.fn(),
 }));
+
+const categoriseMock = categoriseWithEscalation as jest.Mock;
+const persistCategoryMock = persistLlmCategoryWithPrecedence as jest.Mock;
+const persistTraceOnlyMock = persistCategoryDecisionTraceOnly as jest.Mock;
+
+const NEW_EMAIL_ID = "email-new";
+const NEW_EMAIL_RECEIVED_AT = new Date("2026-09-04T13:11:00.000Z");
+const THREAD_SUMMARY =
+  "Thread about a habit-editing bug; QA reported a failure last week.";
+const NEW_BODY =
+  "Test Environment / Device: MacBook Air M1\nQA Status: Pass — 6/6 scenarios passed.";
+
+function llmPick(categoryName: string, reasoning = "because") {
+  return {
+    categoryNumber: 1,
+    categoryName,
+    categoryConfidence: "HIGH",
+    reasoning,
+  };
+}
+
+function lastTraceOnlyTrace(): CategoryDecisionTrace {
+  const [, , payload] = persistTraceOnlyMock.mock.calls.at(-1)!;
+  return payload.decisionTrace;
+}
 
 describe("recategoriseFromSummary", () => {
   let mockCategoryRulesService: jest.Mocked<CategoryRulesService>;
   let mockEmailThreadRepository: jest.Mocked<Repository<EmailThread>>;
   let mockLlmCoreService: jest.Mocked<LLMCoreService>;
   let logger: jest.Mocked<Logger>;
-
   let getThreadSummary: jest.Mock;
+  let getProtoCategories: jest.Mock;
+  let isShortlistEnabled: jest.Mock;
+  let getShortlistWithMeta: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -39,6 +75,10 @@ describe("recategoriseFromSummary", () => {
     mockCategoryRulesService = {
       peekMatchingRuleWithTrace: jest.fn(),
     } as unknown as jest.Mocked<CategoryRulesService>;
+    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
+      match: null,
+      snapshot: undefined,
+    });
 
     mockEmailThreadRepository = {} as unknown as jest.Mocked<
       Repository<EmailThread>
@@ -48,7 +88,10 @@ describe("recategoriseFromSummary", () => {
       generateText: jest.fn(),
     } as unknown as jest.Mocked<LLMCoreService>;
 
-    getThreadSummary = jest.fn();
+    getThreadSummary = jest.fn().mockResolvedValue(THREAD_SUMMARY);
+    getProtoCategories = jest.fn().mockResolvedValue([]);
+    isShortlistEnabled = jest.fn().mockReturnValue(false);
+    getShortlistWithMeta = jest.fn();
 
     logger = {
       log: jest.fn(),
@@ -58,14 +101,20 @@ describe("recategoriseFromSummary", () => {
   });
 
   const email = {
+    id: NEW_EMAIL_ID,
     emailThreadId: "thread-1",
-    subject: "QA Failure in App",
+    from: "notifications@github.com",
     fromName: "Bao Ngoc",
+    subject: "Re: Habit editing bug",
+    body: NEW_BODY,
+    receivedAt: NEW_EMAIL_RECEIVED_AT,
   } as unknown as Email;
 
+  /** Already categorised as "QA failed" by an earlier automated run. */
   const thread = {
     id: "thread-1",
-    categoryId: "old-cat-id",
+    categoryId: "cat-1",
+    categorySource: "priority",
   } as unknown as EmailThread;
 
   const userContexts: UserContext[] = [
@@ -83,8 +132,10 @@ describe("recategoriseFromSummary", () => {
 
   const deps = () => ({
     categoryRulesService: mockCategoryRulesService,
+    categoryShortlistService: { isShortlistEnabled, getShortlistWithMeta },
     emailThreadRepository: mockEmailThreadRepository,
     getThreadSummary,
+    getProtoCategories,
     llmCoreService: mockLlmCoreService,
     logger,
   });
@@ -110,207 +161,321 @@ describe("recategoriseFromSummary", () => {
     expect(
       mockCategoryRulesService.peekMatchingRuleWithTrace,
     ).not.toHaveBeenCalled();
-    expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
+    expect(persistCategoryMock).not.toHaveBeenCalled();
+    expect(persistTraceOnlyMock).not.toHaveBeenCalled();
   });
 
-  it("persists category from deterministic rule if match is found", async () => {
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: { categoryId: "cat-1", categoryName: "QA failed" },
-      snapshot: { ruleId: "rule-abc" } as any,
+  describe("deterministic rule short-circuit", () => {
+    it("persists the rule's category with a rule-step trace stamped with the NEW email, without consulting the LLM", async () => {
+      mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
+        match: { categoryId: "cat-1", categoryName: "QA failed" },
+        snapshot: { ruleId: "rule-abc" } as never,
+      });
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(
+        mockCategoryRulesService.peekMatchingRuleWithTrace,
+      ).toHaveBeenCalledWith("user-1", expect.any(Object));
+      expect(persistCategoryMock).toHaveBeenCalledWith(
+        mockEmailThreadRepository,
+        logger,
+        expect.objectContaining({
+          emailThreadId: "thread-1",
+          workerId: "worker-1",
+          ruleCategoryId: "cat-1",
+          categoryId: "cat-1",
+          finalCategory: "QA failed",
+          resolvedCategoryExplanation: expect.stringContaining(
+            "deterministic rule matched",
+          ),
+        }),
+      );
+      const trace: CategoryDecisionTrace =
+        persistCategoryMock.mock.calls[0][2].decisionTrace;
+      expect(trace.writtenBy).toBe("incremental");
+      expect(trace.trigger).toBe("new-email");
+      expect(trace.source).toBe("rule");
+      expect(trace.analyzedEmail).toEqual({
+        emailId: NEW_EMAIL_ID,
+        receivedAt: NEW_EMAIL_RECEIVED_AT.toISOString(),
+        contentSource: "email-metadata",
+      });
+      expect(trace.steps).toEqual([
+        expect.objectContaining({
+          step: "deterministic-rule",
+          outcome: "applied",
+          categoryId: "cat-1",
+        }),
+      ]);
+      expect(categoriseMock).not.toHaveBeenCalled();
+      expect(getThreadSummary).not.toHaveBeenCalled();
     });
-
-    await recategoriseFromSummary(deps(), args());
-
-    expect(
-      mockCategoryRulesService.peekMatchingRuleWithTrace,
-    ).toHaveBeenCalledWith("user-1", expect.any(Object));
-    expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledWith(
-      mockEmailThreadRepository,
-      logger,
-      expect.objectContaining({
-        emailThreadId: "thread-1",
-        workerId: "worker-1",
-        categoryId: "cat-1",
-        finalCategory: "QA failed",
-        resolvedCategoryExplanation: expect.stringContaining(
-          "deterministic rule matched",
-        ),
-      }),
-    );
-    expect(categoriseWithEscalation).not.toHaveBeenCalled();
   });
 
-  it("falls back to summary-based LLM categorization if no deterministic rule matches", async () => {
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: null,
-      snapshot: undefined,
-    });
-    getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
-      categoryNumber: 2,
-      categoryName: "QA passed",
-      categoryConfidence: "HIGH",
-      reasoning: "Summary says it is verified",
+  describe("LLM categoriser input (parity with the new-email priority path)", () => {
+    it("shows the model category descriptions, proto categories and the sender address", async () => {
+      getProtoCategories.mockResolvedValue([
+        {
+          id: "11111111-2222-3333-4444-555555555555",
+          name: "Release notes",
+          description: "Automated release announcements",
+        },
+      ] as ProtoCategory[]);
+      categoriseMock.mockResolvedValue(llmPick("QA passed"));
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(getProtoCategories).toHaveBeenCalledWith("user-1");
+      expect(categoriseMock).toHaveBeenCalledTimes(1);
+      const params = categoriseMock.mock.calls[0][2];
+      expect(params.subject).toBe("Re: Habit editing bug");
+      expect(params.senderName).toBe("Bao Ngoc");
+      expect(params.senderEmail).toBe("notifications@github.com");
+      expect(params.userId).toBe("user-1");
+      expect(params.categories).toEqual([
+        { name: "QA failed", description: "Issues that failed QA" },
+        { name: "QA passed", description: "Issues that passed QA" },
+        {
+          name: "Release notes",
+          description: "Automated release announcements",
+          categoryKey: "p_11111111222233334444555555555555",
+        },
+      ]);
     });
 
-    await recategoriseFromSummary(deps(), args());
+    it("feeds BOTH the refreshed thread summary AND the new email's cleaned body to the model", async () => {
+      categoriseMock.mockResolvedValue(llmPick("QA passed"));
 
-    expect(getThreadSummary).toHaveBeenCalledWith("thread-1");
-    expect(categoriseWithEscalation).toHaveBeenCalledWith(
-      mockLlmCoreService,
-      logger,
-      {
-        subject: "QA Failure in App",
-        senderName: "Bao Ngoc",
-        summary: "Thread contains a verified bug fix.",
-        categories: [{ name: "QA failed" }, { name: "QA passed" }],
-        userId: "user-1",
+      await recategoriseFromSummary(deps(), args());
+
+      const { summary } = categoriseMock.mock.calls[0][2];
+      expect(summary).toContain("Thread summary:");
+      expect(summary).toContain(THREAD_SUMMARY);
+      expect(summary).toContain("Latest message");
+      expect(summary).toContain("Test Environment / Device: MacBook Air M1");
+      expect(summary).toContain("QA Status: Pass");
+    });
+
+    it("runs the embedding shortlist over the combined input and passes the shortlisted candidates to the model", async () => {
+      isShortlistEnabled.mockReturnValue(true);
+      getShortlistWithMeta.mockResolvedValue({
+        effective: [
+          { name: "QA passed", description: "Issues that passed QA" },
+        ],
+        candidates: [{ name: "QA passed", score: 0.9, pinned: false }],
+      });
+      categoriseMock.mockResolvedValue(llmPick("QA passed"));
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(isShortlistEnabled).toHaveBeenCalledWith(2);
+      const [shortlistEmail, allCategories] =
+        getShortlistWithMeta.mock.calls[0];
+      expect(shortlistEmail).toEqual({
+        from: "notifications@github.com",
+        fromName: "Bao Ngoc",
+        subject: "Re: Habit editing bug",
+        summary: expect.stringContaining(THREAD_SUMMARY),
+      });
+      expect(shortlistEmail.summary).toContain("QA Status: Pass");
+      expect(allCategories).toHaveLength(2);
+      expect(categoriseMock.mock.calls[0][2].categories).toEqual([
+        { name: "QA passed", description: "Issues that passed QA" },
+      ]);
+    });
+
+    it("falls back to the summary alone when the new email has no usable body", async () => {
+      categoriseMock.mockResolvedValue(llmPick("QA passed"));
+
+      await recategoriseFromSummary(deps(), {
+        ...args(),
+        email: { ...email, body: "" } as unknown as Email,
+      });
+
+      expect(categoriseMock.mock.calls[0][2].summary).toBe(THREAD_SUMMARY);
+    });
+  });
+
+  describe("outcomes on a thread that already has a category", () => {
+    it("applies a DIFFERENT real category through the precedence guard with a trace stamped with the NEW email", async () => {
+      categoriseMock.mockResolvedValue(
+        llmPick("QA passed", "The QA verdict is Pass"),
+      );
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(persistCategoryMock).toHaveBeenCalledTimes(1);
+      const payload = persistCategoryMock.mock.calls[0][2];
+      expect(payload).toEqual(
+        expect.objectContaining({
+          categoryId: "cat-2",
+          finalCategory: "QA passed",
+          ruleCategoryId: null,
+          resolvedCategoryExplanation: "The QA verdict is Pass",
+        }),
+      );
+      const trace: CategoryDecisionTrace = payload.decisionTrace;
+      expect(trace.writtenBy).toBe("incremental");
+      expect(trace.analyzedEmail).toEqual({
+        emailId: NEW_EMAIL_ID,
+        receivedAt: NEW_EMAIL_RECEIVED_AT.toISOString(),
+        contentSource: "thread-summary-and-body",
+      });
+      expect(trace.steps).toEqual([
+        expect.objectContaining({
+          step: "llm",
+          outcome: "applied",
+          categoryId: "cat-2",
+        }),
+      ]);
+      expect(persistTraceOnlyMock).not.toHaveBeenCalled();
+    });
+
+    it("writes a trace-only 'unchanged' record when the model picks the category the thread already has", async () => {
+      categoriseMock.mockResolvedValue(
+        llmPick("QA failed", "Still describes the failing scenario"),
+      );
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(persistCategoryMock).not.toHaveBeenCalled();
+      expect(persistTraceOnlyMock).toHaveBeenCalledWith(
+        mockEmailThreadRepository,
+        logger,
+        expect.objectContaining({
+          emailThreadId: "thread-1",
+          workerId: "worker-1",
+        }),
+      );
+      const trace = lastTraceOnlyTrace();
+      expect(trace.writtenBy).toBe("incremental");
+      expect(trace.finalCategory).toBe("QA failed");
+      expect(trace.finalCategoryId).toBe("cat-1");
+      expect(trace.analyzedEmail?.emailId).toBe(NEW_EMAIL_ID);
+      expect(trace.analyzedEmail?.contentSource).toBe(
+        "thread-summary-and-body",
+      );
+      expect(trace.steps).toEqual([
+        expect.objectContaining({
+          step: "llm",
+          outcome: "applied",
+          category: "QA failed",
+          categoryId: "cat-1",
+          detail: expect.stringContaining("unchanged"),
+        }),
+      ]);
+      expect(trace.steps[0].detail).toContain(
+        "Still describes the failing scenario",
+      );
+    });
+
+    it("keeps the existing category (never demotes to Other) and records a 'suppressed' trace when the model says Other", async () => {
+      categoriseMock.mockResolvedValue({
+        categoryNumber: 0,
+        categoryName: "Other",
+        categoryConfidence: "LOW",
+        reasoning: "Unrelated",
+      });
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(persistCategoryMock).not.toHaveBeenCalled();
+      const trace = lastTraceOnlyTrace();
+      expect(trace.finalCategory).toBe("QA failed");
+      expect(trace.finalCategoryId).toBe("cat-1");
+      expect(trace.analyzedEmail?.emailId).toBe(NEW_EMAIL_ID);
+      expect(trace.steps).toEqual([
+        expect.objectContaining({
+          step: "llm",
+          outcome: "suppressed",
+          category: "Other",
+          categoryId: null,
+          detail: expect.stringContaining('existing category "QA failed" kept'),
+        }),
+      ]);
+    });
+
+    it("keeps the existing category and records a 'skipped' trace when every categoriser call fails", async () => {
+      categoriseMock.mockResolvedValue(null);
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(persistCategoryMock).not.toHaveBeenCalled();
+      const trace = lastTraceOnlyTrace();
+      expect(trace.finalCategoryId).toBe("cat-1");
+      expect(trace.steps).toEqual([
+        expect.objectContaining({
+          step: "llm",
+          outcome: "skipped",
+          category: null,
+          detail: expect.stringContaining("unavailable"),
+        }),
+      ]);
+    });
+
+    it("keeps the existing category and names the pick when the model returns something that is not a user category", async () => {
+      categoriseMock.mockResolvedValue(
+        llmPick("A brand new category that does not exist in user context"),
+      );
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(persistCategoryMock).not.toHaveBeenCalled();
+      const trace = lastTraceOnlyTrace();
+      expect(trace.finalCategoryId).toBe("cat-1");
+      expect(trace.steps[0]).toEqual(
+        expect.objectContaining({
+          outcome: "suppressed",
+          category: "A brand new category that does not exist in user context",
+          categoryId: null,
+        }),
+      );
+    });
+
+    it.each(["user", "rule"])(
+      "skips the LLM entirely when the stored categorySource (%s) outranks automated writes",
+      async (categorySource) => {
+        await recategoriseFromSummary(deps(), {
+          ...args(),
+          thread: { ...thread, categorySource } as unknown as EmailThread,
+        });
+
+        expect(getThreadSummary).not.toHaveBeenCalled();
+        expect(categoriseMock).not.toHaveBeenCalled();
+        expect(persistCategoryMock).not.toHaveBeenCalled();
+        expect(persistTraceOnlyMock).not.toHaveBeenCalled();
       },
     );
+
+    it("does nothing when there is no thread summary to evaluate", async () => {
+      getThreadSummary.mockResolvedValue(null);
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(categoriseMock).not.toHaveBeenCalled();
+      expect(persistCategoryMock).not.toHaveBeenCalled();
+      expect(persistTraceOnlyMock).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the user has no email categories", async () => {
+      await recategoriseFromSummary(deps(), {
+        ...args(),
+        userContexts: userContexts.filter(
+          (ctx) => ctx.contextKey !== ContextKey.EMAIL_CATEGORY,
+        ),
+      });
+
+      expect(categoriseMock).not.toHaveBeenCalled();
+      expect(persistCategoryMock).not.toHaveBeenCalled();
+      expect(persistTraceOnlyMock).not.toHaveBeenCalled();
+    });
   });
 
-  it("categorises off whatever fresh summary getThreadSummary returns (no message-type special-casing)", async () => {
-    // The summary is refreshed to reflect the latest message BEFORE this runs,
-    // so a status flip (e.g. QA fail → pass) is captured in the summary and the
-    // categoriser picks the right category without any body/subject bypass.
-    const qaPassEmail = {
-      emailThreadId: "thread-1",
-      subject: "Re: Habit editing bug",
-      fromName: "Bao Ngoc",
-      body: "6/6 Scenarios Passed\n🔍 QA Status: Pass ✅",
-      htmlBody: null,
-    } as unknown as Email;
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: null,
-      snapshot: undefined,
-    });
-    // Fresh summary now reflects the QA pass (regenerated upstream).
-    getThreadSummary.mockResolvedValue(
-      "Thread was a habit-editing bug; latest message reports QA Status: Pass.",
-    );
-    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
-      categoryNumber: 2,
-      categoryName: "QA passed",
-      categoryConfidence: "HIGH",
-      reasoning: "The QA verdict is Pass",
-    });
-
-    await recategoriseFromSummary(deps(), { ...args(), email: qaPassEmail });
-
-    // Categorises off the (fresh) thread summary — not the raw body.
-    const call = (categoriseWithEscalation as jest.Mock).mock.calls[0][2];
-    expect(call.summary).toBe(
-      "Thread was a habit-editing bug; latest message reports QA Status: Pass.",
-    );
-    expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledWith(
-      mockEmailThreadRepository,
-      logger,
-      expect.objectContaining({
-        categoryId: "cat-2",
-        finalCategory: "QA passed",
-      }),
-    );
-  });
-
-  it("does not update anything if getThreadSummary returns null", async () => {
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: null,
-      snapshot: undefined,
-    });
-    getThreadSummary.mockResolvedValue(null);
-
-    await recategoriseFromSummary(deps(), args());
-
-    expect(categoriseWithEscalation).not.toHaveBeenCalled();
-    expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
-  });
-
-  it("does not update anything if userContexts has no email category keys", async () => {
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: null,
-      snapshot: undefined,
-    });
-    getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-
-    const argsWithNoCategories = {
-      ...args(),
-      userContexts: userContexts.filter(
-        (ctx) => ctx.contextKey !== ContextKey.EMAIL_CATEGORY,
-      ),
-    };
-
-    await recategoriseFromSummary(deps(), argsWithNoCategories);
-
-    expect(categoriseWithEscalation).not.toHaveBeenCalled();
-    expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
-  });
-
-  it("does not clobber if LLM returns Other or failure (null)", async () => {
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: null,
-      snapshot: undefined,
-    });
-    getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-
-    // Test Other
-    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
-      categoryNumber: 0,
-      categoryName: "Other",
-      categoryConfidence: "LOW",
-      reasoning: "Unrelated",
-    });
-    await recategoriseFromSummary(deps(), args());
-    expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
-
-    // Test null / failure
-    (categoriseWithEscalation as jest.Mock).mockResolvedValue(null);
-    await recategoriseFromSummary(deps(), args());
-    expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
-  });
-
-  it("does not update if LLM category name cannot be resolved to a contextId", async () => {
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: null,
-      snapshot: undefined,
-    });
-    getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
-      categoryNumber: 3,
-      categoryName: "A brand new category that does not exist in user context",
-      categoryConfidence: "HIGH",
-      reasoning: "New category",
-    });
-
-    await recategoriseFromSummary(deps(), args());
-    expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
-  });
-
-  it("does not update if resolved categoryId is the same as the current thread categoryId", async () => {
-    mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-      match: null,
-      snapshot: undefined,
-    });
-    getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-    (categoriseWithEscalation as jest.Mock).mockResolvedValue({
-      categoryNumber: 1,
-      categoryName: "QA failed",
-      categoryConfidence: "HIGH",
-      reasoning: "Already QA failed",
-    });
-
-    const argsWithMatchingCategory = {
-      ...args(),
-      thread: { ...thread, categoryId: "cat-1" } as unknown as EmailThread,
-    };
-
-    await recategoriseFromSummary(deps(), argsWithMatchingCategory);
-    expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
-  });
-
-  // The reported bug: a thread the local model parked in provisional "Other"
-  // (categorySource 'local', categoryId null) must not stay "awaiting
-  // re-categorisation" forever. The summary pass either resolves a real
-  // category OR settles it as a definitive AI-decided "Other".
+  // A thread the local model parked in provisional "Other" (categorySource
+  // 'local', categoryId null) must not stay "awaiting re-categorisation"
+  // forever. The LLM pass either resolves a real category OR settles it as a
+  // definitive AI-decided "Other".
   describe("local-model provisional Other (categorySource 'local', categoryId null)", () => {
     const localOtherThread = {
       id: "thread-1",
@@ -320,16 +485,8 @@ describe("recategoriseFromSummary", () => {
 
     const localOtherArgs = () => ({ ...args(), thread: localOtherThread });
 
-    beforeEach(() => {
-      mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-        match: null,
-        snapshot: undefined,
-      });
-      getThreadSummary.mockResolvedValue("Thread contains a verified bug fix.");
-    });
-
-    it("settles as a definitive 'Other' when the summary LLM returns Other", async () => {
-      (categoriseWithEscalation as jest.Mock).mockResolvedValue({
+    it("settles as a definitive 'Other' when the LLM returns Other", async () => {
+      categoriseMock.mockResolvedValue({
         categoryNumber: 0,
         categoryName: "Other",
         categoryConfidence: "LOW",
@@ -338,63 +495,64 @@ describe("recategoriseFromSummary", () => {
 
       await recategoriseFromSummary(deps(), localOtherArgs());
 
-      expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
-      const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
-        .calls[0];
+      expect(persistCategoryMock).toHaveBeenCalledTimes(1);
+      const [, , payload] = persistCategoryMock.mock.calls[0];
       // categoryId null + finalCategory "Other" makes the precedence helper
       // clear categorySource, so threadNeedsLocalModelRecategorisation becomes
       // false and the "awaiting" state ends.
       expect(payload.categoryId).toBeNull();
       expect(payload.finalCategory).toBe("Other");
       expect(payload.decisionTrace.finalCategoryId).toBeNull();
+      expect(payload.decisionTrace.analyzedEmail.emailId).toBe(NEW_EMAIL_ID);
+      expect(persistTraceOnlyMock).not.toHaveBeenCalled();
     });
 
     it("settles as 'Other' when the LLM category name resolves to no user category", async () => {
-      (categoriseWithEscalation as jest.Mock).mockResolvedValue({
-        categoryNumber: 3,
-        categoryName: "Some category the user does not have",
-        categoryConfidence: "MEDIUM",
-        reasoning: null,
-      });
+      categoriseMock.mockResolvedValue(
+        llmPick("Some category the user does not have"),
+      );
 
       await recategoriseFromSummary(deps(), localOtherArgs());
 
-      expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
-      const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
-        .calls[0];
+      expect(persistCategoryMock).toHaveBeenCalledTimes(1);
+      const [, , payload] = persistCategoryMock.mock.calls[0];
+      expect(payload.categoryId).toBeNull();
+      expect(payload.finalCategory).toBe("Other");
+    });
+
+    it("settles as 'Other' when every categoriser call fails", async () => {
+      categoriseMock.mockResolvedValue(null);
+
+      await recategoriseFromSummary(deps(), localOtherArgs());
+
+      expect(persistCategoryMock).toHaveBeenCalledTimes(1);
+      const [, , payload] = persistCategoryMock.mock.calls[0];
       expect(payload.categoryId).toBeNull();
       expect(payload.finalCategory).toBe("Other");
     });
 
     it("settles as 'Other' even when the user has no categories defined", async () => {
-      const noCategoryArgs = {
+      await recategoriseFromSummary(deps(), {
         ...localOtherArgs(),
         userContexts: [] as UserContext[],
-      };
+      });
 
-      await recategoriseFromSummary(deps(), noCategoryArgs);
-
-      expect(categoriseWithEscalation).not.toHaveBeenCalled();
-      expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
-      const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
-        .calls[0];
+      expect(categoriseMock).not.toHaveBeenCalled();
+      expect(persistCategoryMock).toHaveBeenCalledTimes(1);
+      const [, , payload] = persistCategoryMock.mock.calls[0];
       expect(payload.categoryId).toBeNull();
       expect(payload.finalCategory).toBe("Other");
     });
 
-    it("applies a real category when the summary LLM resolves one (rescue path)", async () => {
-      (categoriseWithEscalation as jest.Mock).mockResolvedValue({
-        categoryNumber: 1,
-        categoryName: "QA failed",
-        categoryConfidence: "HIGH",
-        reasoning: "Summary describes a QA failure",
-      });
+    it("applies a real category when the LLM resolves one (rescue path)", async () => {
+      categoriseMock.mockResolvedValue(
+        llmPick("QA failed", "Summary describes a QA failure"),
+      );
 
       await recategoriseFromSummary(deps(), localOtherArgs());
 
-      expect(persistLlmCategoryWithPrecedence).toHaveBeenCalledTimes(1);
-      const [, , payload] = (persistLlmCategoryWithPrecedence as jest.Mock).mock
-        .calls[0];
+      expect(persistCategoryMock).toHaveBeenCalledTimes(1);
+      const [, , payload] = persistCategoryMock.mock.calls[0];
       expect(payload.categoryId).toBe("cat-1");
       expect(payload.finalCategory).toBe("QA failed");
     });
@@ -404,8 +562,8 @@ describe("recategoriseFromSummary", () => {
 
       await recategoriseFromSummary(deps(), localOtherArgs());
 
-      expect(categoriseWithEscalation).not.toHaveBeenCalled();
-      expect(persistLlmCategoryWithPrecedence).not.toHaveBeenCalled();
+      expect(categoriseMock).not.toHaveBeenCalled();
+      expect(persistCategoryMock).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,14 +1,12 @@
-import type { Logger } from "@nestjs/common";
-import type { Repository } from "typeorm";
-
-import type { CategoryRulesService } from "../category-rules/category-rules.service";
 import type { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import type { UserContext } from "../database/entities/user-context.entity";
-import type { LLMCoreService } from "../llm/llm-core.service";
 import { makeCategoryNameByIdLookup } from "./category-lookup.helper";
 import { RULE_CATEGORY_SOURCE } from "./category-precedence.helper";
-import { recategoriseFromSummary } from "./incremental-recategorise.helper";
+import {
+  recategoriseFromSummary,
+  type RecategoriseFromSummaryDeps,
+} from "./incremental-recategorise.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 /** The "Other" sentinel used in audit output when a thread has no real category. */
@@ -41,18 +39,13 @@ export interface RuleThreadRecategoriseOutcome {
   reSnappedToSameRuleCategory: boolean;
 }
 
-export interface RecategoriseRuleThreadDeps {
-  emailThreadRepository: Repository<EmailThread>;
-  categoryRulesService: CategoryRulesService;
-  llmCoreService: LLMCoreService;
-  getThreadSummary: (emailThreadId: string) => Promise<string | null>;
+export interface RecategoriseRuleThreadDeps extends RecategoriseFromSummaryDeps {
   getUserContexts: (userId: string) => Promise<UserContext[]>;
   ensureThreadSummaryFresh: (
     email: Email,
     userId: string,
     workerId: string,
   ) => Promise<void>;
-  logger: Logger;
 }
 
 export interface RecategoriseRuleThreadArgs {
@@ -113,16 +106,13 @@ export async function recategoriseRuleThread(
 
     await deps.ensureThreadSummaryFresh(email, userId, workerId);
 
-    await recategoriseFromSummary(
-      {
-        categoryRulesService: deps.categoryRulesService,
-        emailThreadRepository: deps.emailThreadRepository,
-        getThreadSummary: deps.getThreadSummary,
-        llmCoreService: deps.llmCoreService,
-        logger: deps.logger,
-      },
-      { thread, email, userId, workerId, userContexts },
-    );
+    await recategoriseFromSummary(deps, {
+      thread,
+      email,
+      userId,
+      workerId,
+      userContexts,
+    });
   } catch (error) {
     await deps.emailThreadRepository.update(
       { id: emailThreadId },

@@ -85,3 +85,33 @@ export async function persistLlmCategoryWithPrecedence(
     );
   }
 }
+
+/**
+ * Records a category decision trace WITHOUT touching the category columns —
+ * for an automated re-evaluation whose verdict left the category as it was
+ * (unchanged, or "Other"/failed and therefore kept). Goes through the same
+ * precedence guard as a real category write, as source `priority`: a
+ * user-pinned or rule-decided category keeps its own trace, since the
+ * re-evaluation could not have moved it and was not the decision that set it.
+ */
+export async function persistCategoryDecisionTraceOnly(
+  repository: Repository<EmailThread>,
+  logger: Logger,
+  args: {
+    emailThreadId: string;
+    workerId: string;
+    decisionTrace: CategoryDecisionTrace;
+  },
+): Promise<void> {
+  const { emailThreadId, workerId, decisionTrace } = args;
+  const applied = await updateThreadCategoryWithPrecedence(repository, {
+    where: { id: emailThreadId },
+    source: "priority",
+    set: { categoryDecisionTrace: decisionTrace },
+  });
+  if (applied === 0) {
+    logger.log(
+      `[Worker ${workerId}] Trace-only category write blocked by precedence for thread ${emailThreadId} (stored categorySource outranks priority) — existing trace kept`,
+    );
+  }
+}

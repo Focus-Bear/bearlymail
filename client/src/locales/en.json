@@ -3499,6 +3499,7 @@
           "ai-summary": "input: AI summary",
           "cleaned-body": "input: cleaned email body",
           "thread-summary": "input: thread summary",
+          "thread-summary-and-body": "input: thread summary + latest email body",
           "email-metadata": "input: sender/subject/body matching"
         }
       },

@@ -157,6 +157,8 @@ export async function chooseEmailCategory(
   >;
   instrumentation: CategoryInstrumentation;
   candidateCount: number;
+  /** True when every categoriser call failed, so "Other" is a fallback, not a verdict. */
+  modelUnavailable: boolean;
 }> {
   const { email, userContext, cleanedBody, userId } = options;
   const { candidates, instrumentation } = await resolveCategoryCandidates(
@@ -191,6 +193,7 @@ export async function chooseEmailCategory(
       },
       instrumentation,
       candidateCount: candidates.length,
+      modelUnavailable: true,
     };
   }
 
@@ -207,5 +210,6 @@ export async function chooseEmailCategory(
     },
     instrumentation,
     candidateCount: candidates.length,
+    modelUnavailable: false,
   };
 }

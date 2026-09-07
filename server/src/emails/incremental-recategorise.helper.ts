@@ -2,26 +2,38 @@ import type { Logger } from "@nestjs/common";
 import type { Repository } from "typeorm";
 
 import type { CategoryRulesService } from "../category-rules/category-rules.service";
+import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import type { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import {
-  ContextKey,
-  UserContext,
-} from "../database/entities/user-context.entity";
-import { categoriseWithEscalation } from "../llm/llm-categorise-summary";
+import type { ProtoCategory } from "../database/entities/proto-category.entity";
+import type { UserContext } from "../database/entities/user-context.entity";
+import { OTHER_CATEGORY_NAME } from "../llm/llm-categorise-summary";
 import type { LLMCoreService } from "../llm/llm-core.service";
-import { parseCategoryName } from "../utils/category-name.util";
-import { persistLlmCategoryWithPrecedence } from "./category-column-updates.helper";
+import type { PriorityCategoryStepDeps } from "../llm/priority-category-step";
+import { resolveCategoryName } from "../utils/category-name.util";
 import {
-  analyzedEmailFromEmail,
-  buildCategoryDecisionTrace,
-} from "./category-decision-trace.helper";
-import { makeCategoryContextIdLookup } from "./category-lookup.helper";
-import { LOCAL_CATEGORY_SOURCE } from "./category-precedence.helper";
+  persistCategoryDecisionTraceOnly,
+  persistLlmCategoryWithPrecedence,
+} from "./category-column-updates.helper";
+import type { CategoryDecisionStep } from "./category-decision-trace.types";
+import {
+  categorySourceRank,
+  LOCAL_CATEGORY_SOURCE,
+  PRIORITY_CATEGORY_SOURCE,
+} from "./category-precedence.helper";
+import {
+  buildIncrementalCategoryCandidates,
+  chooseIncrementalCategory,
+  INCREMENTAL_VERDICT_KIND,
+  type IncrementalCategoryVerdict,
+} from "./incremental-category-choice.helper";
+import {
+  incrementalLlmTrace,
+  incrementalRuleTrace,
+  keptLlmStep,
+  unchangedLlmStep,
+} from "./incremental-recategorise-trace.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
-
-/** The "Other" sentinel the summary categoriser returns for category number 0. */
-const OTHER_CATEGORY_NAME = "Other";
 
 /**
  * True when the local model applied priority but left the thread without a real
@@ -45,10 +57,26 @@ export function threadNeedsLocalModelRecategorisation(
   );
 }
 
+/**
+ * True when the stored category outranks anything this automated writer could
+ * persist (user-pinned or rule-decided): the LLM verdict would be blocked by
+ * the precedence guard, so the call is skipped rather than wasted.
+ */
+function isCategoryPinnedAboveAutomation(thread: {
+  categorySource: string | null;
+}): boolean {
+  return (
+    categorySourceRank(thread.categorySource) >
+    categorySourceRank(PRIORITY_CATEGORY_SOURCE)
+  );
+}
+
 export interface RecategoriseFromSummaryDeps {
   categoryRulesService: CategoryRulesService;
+  categoryShortlistService: PriorityCategoryStepDeps["categoryShortlistService"];
   emailThreadRepository: Repository<EmailThread>;
   getThreadSummary: (emailThreadId: string) => Promise<string | null>;
+  getProtoCategories: (userId: string) => Promise<ProtoCategory[]>;
   llmCoreService: LLMCoreService;
   logger: Logger;
 }
@@ -75,9 +103,9 @@ export interface EscalateLocalModelCategoryDeps extends RecategoriseFromSummaryD
  * Immediate LLM category escalation for a thread the local model applied
  * priority to but ABSTAINED on category (categorySource 'local', categoryId
  * null). Unlike the deferred summary-completion trigger, this ENSURES a thread
- * summary exists (generating one if missing) before running the cheap
- * category-only {@link recategoriseFromSummary} — so a thread never sits in
- * "Other" waiting for a summary job that may never run.
+ * summary exists (generating one if missing) before running the category-only
+ * {@link recategoriseFromSummary} — so a thread never sits in "Other" waiting
+ * for a summary job that may never run.
  *
  * Idempotent + anti-loop: a no-op once the thread carries a settled category
  * (`!threadNeedsLocalModelRecategorisation` — a rule/user/LLM already decided,
@@ -125,11 +153,17 @@ export async function escalateLocalModelCategory(
 /**
  * Incremental, category-ONLY re-categorisation after a new email is summarised:
  * try the deterministic category rules on the new email first (no LLM), else
- * ask the LLM to pick a category from the updated thread summary. Writes through
- * the precedence guard with a decision trace tagged `writtenBy: "incremental"`.
- * Best-effort: any failure leaves the existing category untouched. A thread that
- * already carries a real category is never demoted to "Other"; but a thread the
- * local model parked in provisional "Other" IS settled as a definitive
+ * run the SAME categoriser as the new-email priority path (category
+ * descriptions, proto categories, embedding shortlist, Nova→Gemini escalation)
+ * on the refreshed thread summary PLUS the new email's own cleaned body.
+ *
+ * Every evaluation leaves a decision trace stamped with the NEW email
+ * (`writtenBy: "incremental"`): a changed category is written through the
+ * precedence guard; an unchanged verdict, or an "Other"/unresolved/failed one
+ * on a thread that already has a category, writes a trace-only record so the
+ * debug panel shows that the latest message WAS re-evaluated. A thread that
+ * already carries a real category is never demoted to "Other"; but a thread
+ * the local model parked in provisional "Other" IS settled as a definitive
  * AI-decided "Other" when no real category resolves, so it never stays stuck
  * "awaiting re-categorisation" (see {@link settleLocalModelOther}).
  */
@@ -137,7 +171,7 @@ export async function recategoriseFromSummary(
   deps: RecategoriseFromSummaryDeps,
   args: RecategoriseFromSummaryArgs,
 ): Promise<void> {
-  const { email, userId, workerId } = args;
+  const { email, userId } = args;
   const { emailThreadId } = email;
   if (!emailThreadId) return;
   const decidedAt = new Date().toISOString();
@@ -147,47 +181,53 @@ export async function recategoriseFromSummary(
   const { match, snapshot } =
     await deps.categoryRulesService.peekMatchingRuleWithTrace(userId, meta);
   if (match?.categoryId) {
-    await persistLlmCategoryWithPrecedence(
-      deps.emailThreadRepository,
-      deps.logger,
-      {
-        emailThreadId,
-        workerId,
-        ruleCategoryId: match.categoryId,
-        categoryRuleTrace: snapshot,
-        categoryId: match.categoryId,
-        finalCategory: match.categoryName,
-        protoCategoryId: null,
-        resolvedCategoryExplanation: `Incremental re-categorisation: deterministic rule matched "${match.categoryName}".`,
-        decisionTrace: buildCategoryDecisionTrace({
-          decidedAt,
-          source: "rule",
-          writtenBy: "incremental",
-          trigger: "new-email",
-          analyzedEmail: analyzedEmailFromEmail(email, "email-metadata"),
-          finalCategory: match.categoryName,
-          finalCategoryId: match.categoryId,
-          steps: [
-            {
-              step: "deterministic-rule",
-              outcome: "applied",
-              category: match.categoryName,
-              categoryId: match.categoryId,
-              detail:
-                "Deterministic rule matched the new email during incremental re-categorisation.",
-            },
-          ],
-        }),
-      },
-    );
+    await applyRuleCategory(deps, args, emailThreadId, decidedAt, {
+      categoryId: match.categoryId,
+      categoryName: match.categoryName,
+      snapshot,
+    });
     return;
   }
 
-  // 2. Summary-based LLM categorisation (category-only, not the full flow).
-  await recategoriseViaSummaryLlm(deps, args, emailThreadId, decidedAt);
+  // 2. Main-path LLM categorisation (category-only, not the full priority flow).
+  await recategoriseViaLlm(deps, args, emailThreadId, decidedAt);
 }
 
-async function recategoriseViaSummaryLlm(
+async function applyRuleCategory(
+  deps: RecategoriseFromSummaryDeps,
+  args: RecategoriseFromSummaryArgs,
+  emailThreadId: string,
+  decidedAt: string,
+  rule: {
+    categoryId: string;
+    categoryName: string;
+    snapshot: CategoryRuleTraceSnapshot | null | undefined;
+  },
+): Promise<void> {
+  const { email, workerId } = args;
+  await persistLlmCategoryWithPrecedence(
+    deps.emailThreadRepository,
+    deps.logger,
+    {
+      emailThreadId,
+      workerId,
+      ruleCategoryId: rule.categoryId,
+      categoryRuleTrace: rule.snapshot,
+      categoryId: rule.categoryId,
+      finalCategory: rule.categoryName,
+      protoCategoryId: null,
+      resolvedCategoryExplanation: `Incremental re-categorisation: deterministic rule matched "${rule.categoryName}".`,
+      decisionTrace: incrementalRuleTrace({
+        decidedAt,
+        email,
+        categoryName: rule.categoryName,
+        categoryId: rule.categoryId,
+      }),
+    },
+  );
+}
+
+async function recategoriseViaLlm(
   deps: RecategoriseFromSummaryDeps,
   args: RecategoriseFromSummaryArgs,
   emailThreadId: string,
@@ -195,75 +235,124 @@ async function recategoriseViaSummaryLlm(
 ): Promise<void> {
   // The summary is refreshed to include the latest message BEFORE this runs (see
   // LLMSummaryProcessorService.ensureThreadSummaryFresh in the priority
-  // pipeline), so categorising off it reflects the newest message — including a
-  // status/verdict flip that would change the category — without any
-  // message-type special-casing.
-  //
-  // A thread the local model parked in provisional "Other" (categorySource
-  // 'local', categoryId null) must be SETTLED by this LLM pass rather than left
-  // "awaiting re-categorisation" forever — even when the pass can't resolve a
-  // real category. A thread that already has a real category (the incremental
-  // path) is only ever moved to a DIFFERENT real category; an "Other"/unresolved
-  // verdict leaves it untouched (never demote a real category to "Other").
-  const { thread, email, userId, userContexts } = args;
-  const isLocalModelProvisionalOther =
-    threadNeedsLocalModelRecategorisation(thread);
+  // pipeline); the new email's own body is shown alongside it so a short but
+  // decisive message (a QA verdict, a status flip) is not diluted away.
+  const { thread, email, userId, workerId, userContexts } = args;
+  if (isCategoryPinnedAboveAutomation(thread)) {
+    deps.logger.log(
+      `[Worker ${workerId}] Incremental re-categorisation skipped for thread ${emailThreadId}: categorySource "${thread.categorySource}" outranks automated writes`,
+    );
+    return;
+  }
   const summary = await deps.getThreadSummary(emailThreadId);
   if (!summary) return;
-  const categories = userContexts
-    .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
-    .map((ctx) => ({ name: parseCategoryName(ctx.contextValue) }))
-    .filter((cat) => cat.name);
+  const candidates = buildIncrementalCategoryCandidates(
+    userContexts,
+    await deps.getProtoCategories(userId),
+  );
   // No user categories at all: the thread can only be "Other". Still settle a
   // local-model provisional Other so it leaves the "awaiting" limbo.
-  if (categories.length === 0) {
-    if (isLocalModelProvisionalOther) {
+  if (candidates.emailCategories.length === 0) {
+    if (threadNeedsLocalModelRecategorisation(thread)) {
       await settleLocalModelOther(deps, args, emailThreadId, decidedAt, null);
     }
     return;
   }
 
-  const result = await categoriseWithEscalation(
-    deps.llmCoreService,
-    deps.logger,
+  const verdict = await chooseIncrementalCategory(
     {
-      subject: email.subject || "",
-      senderName: email.fromName,
-      summary,
-      categories,
-      userId,
+      llmCoreService: deps.llmCoreService,
+      categoryShortlistService: deps.categoryShortlistService,
+      logger: deps.logger,
     },
+    { email, summary, userContexts, candidates, userId },
   );
+  await applyIncrementalVerdict(deps, args, emailThreadId, decidedAt, verdict);
+}
 
-  const resolvedCategoryId =
-    result && result.categoryName !== OTHER_CATEGORY_NAME
-      ? makeCategoryContextIdLookup(userContexts)(result.categoryName)
-      : null;
-
-  // A real category resolved (and it's a change): apply it. Rescue path shared
-  // by both callers.
-  if (resolvedCategoryId && resolvedCategoryId !== thread.categoryId) {
-    await applyRealSummaryCategory(deps, args, emailThreadId, decidedAt, {
-      categoryId: resolvedCategoryId,
-      categoryName: result!.categoryName,
-      reasoning: result!.reasoning,
+/**
+ * Persists the categoriser's verdict: a DIFFERENT real category is applied; the
+ * SAME category records an "unchanged" trace; no real category settles a
+ * local-model provisional "Other" or, on a thread that already has a category,
+ * records a "kept" trace (never demote to Other).
+ */
+async function applyIncrementalVerdict(
+  deps: RecategoriseFromSummaryDeps,
+  args: RecategoriseFromSummaryArgs,
+  emailThreadId: string,
+  decidedAt: string,
+  verdict: IncrementalCategoryVerdict,
+): Promise<void> {
+  const { thread } = args;
+  if (verdict.kind === INCREMENTAL_VERDICT_KIND.CATEGORY) {
+    if (verdict.categoryId !== thread.categoryId) {
+      await applyRealSummaryCategory(
+        deps,
+        args,
+        emailThreadId,
+        decidedAt,
+        verdict,
+      );
+      return;
+    }
+    await persistTraceOnlyOutcome(deps, args, emailThreadId, {
+      decidedAt,
+      step: unchangedLlmStep(verdict),
     });
     return;
   }
-
-  // No real category. Never demote a thread that already carries one; but settle
-  // a local-model provisional "Other" as a definitive AI-decided "Other" so it
-  // stops advertising "awaiting re-categorisation" and matches the non-local LLM
-  // flow (categorySource cleared, thread freely re-categorisable / proto-eligible).
-  if (isLocalModelProvisionalOther) {
+  if (threadNeedsLocalModelRecategorisation(thread)) {
     await settleLocalModelOther(
       deps,
       args,
       emailThreadId,
       decidedAt,
-      result?.reasoning ?? null,
+      verdict.kind === INCREMENTAL_VERDICT_KIND.UNAVAILABLE
+        ? null
+        : verdict.reasoning,
     );
+    return;
   }
+  await persistTraceOnlyOutcome(deps, args, emailThreadId, {
+    decidedAt,
+    step: keptLlmStep(verdict, currentCategoryName(args)),
+  });
+}
+
+function currentCategoryName(args: RecategoriseFromSummaryArgs): string {
+  return (
+    resolveCategoryName(args.thread.categoryId, args.userContexts) ??
+    OTHER_CATEGORY_NAME
+  );
+}
+
+/** Trace-only write: the category stays as it is, but the re-evaluation is recorded. */
+async function persistTraceOnlyOutcome(
+  deps: RecategoriseFromSummaryDeps,
+  args: RecategoriseFromSummaryArgs,
+  emailThreadId: string,
+  outcome: { decidedAt: string; step: CategoryDecisionStep },
+): Promise<void> {
+  const { thread, email, workerId } = args;
+  const finalCategory = currentCategoryName(args);
+  await persistCategoryDecisionTraceOnly(
+    deps.emailThreadRepository,
+    deps.logger,
+    {
+      emailThreadId,
+      workerId,
+      decisionTrace: incrementalLlmTrace({
+        decidedAt: outcome.decidedAt,
+        email,
+        finalCategory,
+        finalCategoryId: thread.categoryId ?? null,
+        step: outcome.step,
+      }),
+    },
+  );
+  deps.logger.log(
+    `[Worker ${workerId}] Incremental re-categorisation: thread ${emailThreadId} stays "${finalCategory}" (${outcome.step.outcome}: ${outcome.step.detail})`,
+  );
 }
 
 async function applyRealSummaryCategory(
@@ -278,6 +367,9 @@ async function applyRealSummaryCategory(
   },
 ): Promise<void> {
   const { email, workerId } = args;
+  const explanation =
+    resolved.reasoning ??
+    "Incremental re-categorisation from the updated thread summary and the new message.";
   await persistLlmCategoryWithPrecedence(
     deps.emailThreadRepository,
     deps.logger,
@@ -289,33 +381,24 @@ async function applyRealSummaryCategory(
       categoryId: resolved.categoryId,
       finalCategory: resolved.categoryName,
       protoCategoryId: null,
-      resolvedCategoryExplanation:
-        resolved.reasoning ??
-        "Incremental re-categorisation from the updated thread summary.",
-      decisionTrace: buildCategoryDecisionTrace({
+      resolvedCategoryExplanation: explanation,
+      decisionTrace: incrementalLlmTrace({
         decidedAt,
-        source: "priority",
-        writtenBy: "incremental",
-        trigger: "new-email",
-        analyzedEmail: analyzedEmailFromEmail(email, "thread-summary"),
+        email,
         finalCategory: resolved.categoryName,
         finalCategoryId: resolved.categoryId,
-        steps: [
-          {
-            step: "llm",
-            outcome: "applied",
-            category: resolved.categoryName,
-            categoryId: resolved.categoryId,
-            detail:
-              resolved.reasoning ??
-              "Re-categorised from the updated thread summary (incremental).",
-          },
-        ],
+        step: {
+          step: "llm",
+          outcome: "applied",
+          category: resolved.categoryName,
+          categoryId: resolved.categoryId,
+          detail: explanation,
+        },
       }),
     },
   );
   deps.logger.log(
-    `[Worker ${workerId}] Incremental re-categorisation: thread ${emailThreadId} → "${resolved.categoryName}" (from summary)`,
+    `[Worker ${workerId}] Incremental re-categorisation: thread ${emailThreadId} → "${resolved.categoryName}" (from summary + new message)`,
   );
 }
 
@@ -352,23 +435,18 @@ async function settleLocalModelOther(
       finalCategory: OTHER_CATEGORY_NAME,
       protoCategoryId: null,
       resolvedCategoryExplanation: explanation,
-      decisionTrace: buildCategoryDecisionTrace({
+      decisionTrace: incrementalLlmTrace({
         decidedAt,
-        source: "priority",
-        writtenBy: "incremental",
-        trigger: "new-email",
-        analyzedEmail: analyzedEmailFromEmail(email, "thread-summary"),
+        email,
         finalCategory: OTHER_CATEGORY_NAME,
         finalCategoryId: null,
-        steps: [
-          {
-            step: "llm",
-            outcome: "applied",
-            category: OTHER_CATEGORY_NAME,
-            categoryId: null,
-            detail: explanation,
-          },
-        ],
+        step: {
+          step: "llm",
+          outcome: "applied",
+          category: OTHER_CATEGORY_NAME,
+          categoryId: null,
+          detail: explanation,
+        },
       }),
     },
   );

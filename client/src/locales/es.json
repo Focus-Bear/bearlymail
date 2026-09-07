@@ -3475,6 +3475,7 @@
           "ai-summary": "entrada: resumen de IA",
           "cleaned-body": "entrada: cuerpo del correo limpio",
           "thread-summary": "entrada: resumen del hilo",
+          "thread-summary-and-body": "entrada: resumen del hilo + cuerpo del último correo",
           "email-metadata": "entrada: coincidencia de remitente/asunto/cuerpo"
         }
       },

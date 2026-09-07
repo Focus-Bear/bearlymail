@@ -52,6 +52,8 @@ export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
   // live refine/summary and never starves them.
   [JOB_NAMES.ESCALATE_CATEGORY]: JobPriority.VERY_LOW,
   [JOB_NAMES.LEARN_QA_FROM_SENT]: JobPriority.VERY_LOW,
+  // Gradual writing-style backfill: pure background learning, never urgent.
+  [JOB_NAMES.LEARN_WRITING_STYLE_FROM_SENT]: JobPriority.VERY_LOW,
   [JOB_NAMES.SYNC_GMAIL]: JobPriority.MEDIUM,
   [JOB_NAMES.AUTO_RESPONDER]: JobPriority.LOW,
   [JOB_NAMES.GENERATE_SUGGESTED_REPLIES]: JobPriority.LOW,

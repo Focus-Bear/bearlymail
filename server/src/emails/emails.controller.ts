@@ -256,8 +256,13 @@ export class EmailsController {
    */
   @Get("inbox-batch")
   async getInboxBatch(@Request() req, @Query() query: InboxQuery) {
-    const { mode = "triage", categoryIds, accounts, minPriority, maxPriority } =
-      query;
+    const {
+      mode = "triage",
+      categoryIds,
+      accounts,
+      minPriority,
+      maxPriority,
+    } = query;
     const keys = (
       categoryIds ? categoryIds.split(",").filter(Boolean) : []
     ).slice(0, QUERY_LIMITS.INBOX_BATCH_MAX_CATEGORIES);

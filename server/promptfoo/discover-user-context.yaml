@@ -1,0 +1,124 @@
+description: "Slim onboarding discovery prompt (discover_user_context): initial category set + VIP contacts from a sample of thread stubs. Production primary is Nova Micro (run locally with --providers bedrock:amazon.nova-micro-v1:0); CI runs the Gemini escalation model, which must always be correct."
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/discover-user-context.md
+
+defaultTest:
+  vars:
+    userEmail: "jeremy@focusbear.io"
+    existingCategories: "(none)"
+    existingVipContacts: "(none)"
+
+tests:
+  # Test 1: realistic 100-thread inbox sample → sensible category set, humans-only VIPs
+  - description: "100-thread sample: 7-15 emoji-prefixed categories, no per-sender newsletter variants, VIPs are replied-to humans not bots"
+    vars:
+      threadCount: 100
+      threads: file://fixtures/discovery-threads-100.txt
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-discovery-response.js
+        config:
+          minCategories: 7
+          maxCategories: 15
+          # Per-sender variants of a generic bucket are the failure mode we care about most.
+          forbiddenCategoryTerms:
+            - "morning brew"
+            - "tldr"
+            - "lenny"
+            - "indie hackers"
+            - "substack"
+            - "uniqlo"
+            - "stripe receipts"
+            - "northwind"
+          expectedCategoryTerms:
+            - "newsletter"
+            - "github"
+            - "invoice"
+          # Bots, systems and mailboxes must never be VIPs; nor the user themselves.
+          forbiddenVipTerms:
+            - "github-actions"
+            - "dependabot"
+            - "devin"
+            - "sentry"
+            - "stripe"
+            - "intercom"
+            - "newsletter"
+            - "noreply"
+            - "no-reply"
+            - "jeremy"
+          forbiddenVipEmails:
+            - "jeremy@focusbear.io"
+            - "noreply"
+            - "no-reply"
+          expectedVipTerms:
+            - "priya"
+          maxVips: 5
+
+  # Test 2: production-sized 20-thread batch → a handful of categories, valid JSON
+  - description: "20-thread batch: 3-8 categories, valid structure"
+    vars:
+      threadCount: 20
+      threads: file://fixtures/discovery-threads-20.txt
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-discovery-response.js
+        config:
+          minCategories: 3
+          maxCategories: 8
+          forbiddenVipTerms:
+            - "github-actions"
+            - "dependabot"
+            - "devin"
+            - "sentry"
+            - "intercom"
+            - "noreply"
+            - "no-reply"
+
+  # Test 3: existing categories are not re-proposed (manual re-analyze path)
+  - description: "Existing categories are not duplicated; only missing buckets are added"
+    vars:
+      threadCount: 20
+      threads: file://fixtures/discovery-threads-20.txt
+      existingCategories: |
+        - 📰 Newsletters
+        - 🔔 GitHub Notifications
+        - 🚨 Monitoring Alerts
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-discovery-response.js
+        config:
+          maxCategories: 8
+          forbiddenCategoryTerms:
+            - "newsletter"
+            - "github"
+            - "monitoring"
+
+  # Test 4: near-duplicate senders collapse into one bucket, nothing invented for a tiny sample
+  - description: "Small homogeneous sample: newsletters from five senders collapse into a single category, no VIPs"
+    vars:
+      threadCount: 5
+      threads: |
+        1. From: Morning Brew <crew@morningbrew.com> | Subject: ☕ Fed holds rates | UserReplied: no | Snippet: Good morning. The Fed held rates steady yesterday...
+        2. From: TLDR Newsletter <dan@tldrnewsletter.com> | Subject: TLDR 2026-08-28 | UserReplied: no | Snippet: Big Tech & Startups: OpenAI announced a new batch pricing tier...
+        3. From: Lenny's Newsletter <lenny@substack.com> | Subject: How to run a great product review | UserReplied: no | Snippet: A step-by-step playbook for product reviews...
+        4. From: The Hustle <news@thehustle.co> | Subject: Why everyone is building a browser now | UserReplied: no | Snippet: Arc, Comet, Dia — the browser wars are back...
+        5. From: Dense Discovery <kai@densediscovery.com> | Subject: Issue 312: Slow tools | UserReplied: no | Snippet: On the joy of tools that don't rush you...
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-discovery-response.js
+        config:
+          minCategories: 1
+          maxCategories: 2
+          forbiddenCategoryTerms:
+            - "morning brew"
+            - "tldr"
+            - "lenny"
+            - "hustle"
+            - "dense discovery"
+          maxVips: 0

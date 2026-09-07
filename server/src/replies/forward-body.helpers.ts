@@ -9,7 +9,10 @@ const escapeHtml = (value: string): string =>
  * "---------- Forwarded message ---------" header block with the original
  * email's metadata and content.
  */
-export function buildForwardBody(userText: string, originalEmail: Email): string {
+export function buildForwardBody(
+  userText: string,
+  originalEmail: Email,
+): string {
   const fromDisplay = originalEmail.fromName
     ? `${originalEmail.fromName} <${originalEmail.from}>`
     : originalEmail.from;

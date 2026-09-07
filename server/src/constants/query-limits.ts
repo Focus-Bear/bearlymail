@@ -110,9 +110,18 @@ export const QUERY_LIMITS = {
   // Gmail/provider API batch sizes
   GMAIL_BATCH_SIZE: 50,
   PROVIDER_BATCH_SIZE: 50,
-  // Email fetch limits for context analysis
-  CONTEXT_RECENT_EMAILS: 300,
-  CONTEXT_SENT_EMAILS: 150,
+  // Slim context discovery (onboarding / "Analyze"): how many recent received
+  // threads to sample, how many thread stubs go into one LLM call, and how far
+  // back to look. 100 stubs of from/subject/snippet is plenty to name the
+  // user's category set and VIPs; the per-email pipeline does the rest.
+  DISCOVERY_SAMPLE_THREADS: 100,
+  DISCOVERY_BATCH_SIZE: 20,
+  DISCOVERY_LOOKBACK_DAYS: 30,
+  // Upper bound on categories a single discovery batch may return — anything
+  // beyond this is a sign the model is inventing per-sender buckets.
+  DISCOVERY_MAX_CATEGORIES_PER_BATCH: 15,
+  DISCOVERY_MAX_VIPS_PER_BATCH: 5,
+  DISCOVERY_MAX_HINTS_PER_BATCH: 3,
   // Writing style sample size
   WRITING_STYLE_SAMPLE: 20,
   // Email address preview length for message IDs

@@ -7,7 +7,6 @@ import { LLMAskService } from "./llm-ask.service";
 import { LLMCategoriesService } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMMiscService } from "./llm-misc.service";
-import { LLMPatternsService } from "./llm-patterns.service";
 import { LLMReplyService } from "./llm-reply.service";
 import { LLMSearchService } from "./llm-search.service";
 import { LLMSummarizationService } from "./llm-summarization.service";
@@ -39,7 +38,6 @@ describe("LLMService", () => {
         LLMAskService,
         LLMCategoriesService,
         LLMMiscService,
-        LLMPatternsService,
         LLMReplyService,
         LLMSearchService,
         LLMSummarizationService,
@@ -57,7 +55,7 @@ describe("LLMService", () => {
       // Verify all critical prompts are loaded
       const requiredPrompts = [
         "analyze_priority",
-        "analyze_email_patterns",
+        "discover_user_context",
         "generate_reply",
         "generate_multiple_replies",
         "generate_meeting_reply",
@@ -217,7 +215,7 @@ describe("LLMService", () => {
       // This test ensures we don't have typos in prompt IDs
       const promptIds = [
         "analyze_priority",
-        "analyze_email_patterns",
+        "discover_user_context",
         "generate_reply",
         "generate_multiple_replies",
         "generate_meeting_reply",

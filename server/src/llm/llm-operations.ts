@@ -3,8 +3,14 @@
  * Each operation represents a distinct use case for LLM calls.
  */
 
-// Context and pattern analysis
+// Legacy mega-prompt context analysis. Retired in favour of
+// `discover_user_context`; the constant stays so historic token-usage rows keep
+// their admin label.
 export const LLM_OP_ANALYZE_EMAIL_PATTERNS = "analyze_email_patterns";
+
+// Slim context discovery (onboarding / "Analyze"): initial category set + VIPs
+// from a sample of recent thread stubs, on Nova Micro with Gemini escalation.
+export const LLM_OP_DISCOVER_USER_CONTEXT = "discover_user_context";
 
 // Email summarization
 export const LLM_OP_SUMMARIZE_EMAIL = "summarize_email";
@@ -173,6 +179,7 @@ export type LLMOperation =
   | typeof LLM_OP_EVALUATE_WORKFLOW_CONDITION
   | typeof LLM_OP_RESOLVE_WORKFLOW_VARIABLES
   | typeof LLM_OP_ANALYZE_EMAIL_PATTERNS
+  | typeof LLM_OP_DISCOVER_USER_CONTEXT
   | typeof LLM_OP_SUMMARIZE_EMAIL
   | typeof LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING
   | typeof LLM_OP_SUMMARIZE_EMAIL_BATCH
@@ -230,7 +237,8 @@ export type LLMOperation =
 export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_EVALUATE_WORKFLOW_CONDITION]: "Evaluate Workflow Condition",
   [LLM_OP_RESOLVE_WORKFLOW_VARIABLES]: "Resolve Workflow Variables",
-  [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns",
+  [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns (legacy)",
+  [LLM_OP_DISCOVER_USER_CONTEXT]: "Discover User Context",
   [LLM_OP_SUMMARIZE_EMAIL]: "Summarize Email",
   [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]:
     "Summarize Email (structured: sentiment, actions, meeting)",

@@ -60,7 +60,7 @@ export const CLASSIFICATION_PROMPT_IDS = {
  * Named constants for context-analysis and extraction prompt IDs.
  */
 export const CONTEXT_PROMPT_IDS = {
-  ANALYZE_EMAIL_PATTERNS: "analyze_email_patterns",
+  DISCOVER_USER_CONTEXT: "discover_user_context",
   EXTRACT_ACTION_ITEMS: "extract_action_items",
   EXTRACT_COMMON_QUESTIONS: "extract_common_questions",
   INCREMENTAL_SUMMARY: "incremental_summary",
@@ -143,8 +143,8 @@ const PROMPT_FILE_MAP: Array<{
   },
   { file: "generate-reply.md", key: REPLY_PROMPT_IDS.GENERATE_REPLY },
   {
-    file: "analyze-email-patterns.md",
-    key: CONTEXT_PROMPT_IDS.ANALYZE_EMAIL_PATTERNS,
+    file: "discover-user-context.md",
+    key: CONTEXT_PROMPT_IDS.DISCOVER_USER_CONTEXT,
   },
   {
     file: "search-relevance-explanation.md",

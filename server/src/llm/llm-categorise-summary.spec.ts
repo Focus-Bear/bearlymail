@@ -364,47 +364,63 @@ describe("categoriseWithEscalation", () => {
       },
     });
 
-  it("returns the Nova verdict without escalating when it is confident and not Other", async () => {
+  const escalationModel = "gemini-strong-test";
+
+  it("returns the flash-lite verdict without escalating when it is confident and not Other", async () => {
     const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
-    const result = await categoriseWithEscalation(
-      { generateText },
-      logger,
-      params,
-    );
+    const result = await categoriseWithEscalation({ generateText }, logger, {
+      ...params,
+      escalationModel,
+    });
     expect(result?.categoryName).toBe("QA passed");
     expect(generateText).toHaveBeenCalledTimes(1);
-    expect(generateText.mock.calls[0][1]).toBe(LLMProvider.BEDROCK);
+    expect(generateText.mock.calls[0][1]).toBe(LLMProvider.GEMINI);
     expect(generateText.mock.calls[0][0]).toEqual(
-      expect.objectContaining({ operation: "categorise_summary" }),
+      expect.objectContaining({
+        operation: "categorise_summary",
+        model: undefined,
+      }),
     );
   });
 
-  it("escalates to Gemini on a LOW or Other verdict and returns the escalated pick", async () => {
+  it("escalates to the strong Gemini model on a LOW or Other verdict and returns the escalated pick", async () => {
     const generateText = jest
       .fn()
       .mockResolvedValueOnce(response(0, "LOW"))
       .mockResolvedValueOnce(response(2, "HIGH"));
+    const result = await categoriseWithEscalation({ generateText }, logger, {
+      ...params,
+      escalationModel,
+    });
+    expect(result?.categoryName).toBe("QA passed");
+    expect(generateText).toHaveBeenCalledTimes(2);
+    expect(generateText.mock.calls[0][1]).toBe(LLMProvider.GEMINI);
+    expect(generateText.mock.calls[1][1]).toBe(LLMProvider.GEMINI);
+    expect(generateText.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ model: escalationModel }),
+    );
+  });
+
+  it("accepts a LOW or Other verdict as-is when no escalation model is configured", async () => {
+    const generateText = jest.fn().mockResolvedValue(response(0, "LOW"));
     const result = await categoriseWithEscalation(
       { generateText },
       logger,
       params,
     );
-    expect(result?.categoryName).toBe("QA passed");
-    expect(generateText).toHaveBeenCalledTimes(2);
-    expect(generateText.mock.calls[0][1]).toBe(LLMProvider.BEDROCK);
-    expect(generateText.mock.calls[1][1]).toBe(LLMProvider.GEMINI);
+    expect(result?.categoryName).toBe("Other");
+    expect(generateText).toHaveBeenCalledTimes(1);
   });
 
-  it("escalates when Nova fails outright and keeps Nova's verdict when Gemini also fails", async () => {
+  it("escalates when flash-lite fails outright and returns null when the strong model also fails", async () => {
     const generateText = jest
       .fn()
       .mockResolvedValueOnce("not json")
       .mockResolvedValueOnce("still not json");
-    const result = await categoriseWithEscalation(
-      { generateText },
-      logger,
-      params,
-    );
+    const result = await categoriseWithEscalation({ generateText }, logger, {
+      ...params,
+      escalationModel,
+    });
     expect(result).toBeNull();
     expect(generateText).toHaveBeenCalledTimes(2);
   });

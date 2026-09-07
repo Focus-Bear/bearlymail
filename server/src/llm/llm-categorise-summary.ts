@@ -25,6 +25,11 @@ export interface CategoriseFromSummaryParams {
   summary: string;
   categories: Array<{ name: string; description?: string | null }>;
   userId?: string;
+  /**
+   * Stronger Gemini model to re-run the call on when the primary verdict is
+   * "Other" or LOW confidence. Omit to accept the primary verdict as-is.
+   */
+  escalationModel?: string;
 }
 
 export interface ProtoCategorySuggestion {
@@ -181,26 +186,30 @@ export async function categoriseFromSummary(
   }
 }
 
+/** Primary provider for the category step: Gemini (flash-lite by default). */
+export const CATEGORY_PRIMARY_PROVIDER = LLMProvider.GEMINI;
+
 /**
- * Category-only classification with **Nova Micro (Bedrock)** as the primary
- * model — ~14x cheaper than Gemini flash-lite and validated at parity on
- * category SELECTION — escalating to **flash-lite** only for the calls Nova is
- * weakest on: an "Other" verdict, LOW confidence, or an outright failure. Most
- * emails match an existing category confidently and never escalate, so the
- * common path stays cheap while the harder "does anything fit?" judgement gets
- * the stronger model. This is the single categorisation entry point used by
- * both the new-email priority pipeline and incremental re-categorisation.
+ * Category-only classification on **Gemini flash-lite**, escalating to the
+ * strong Gemini model (`params.escalationModel`, when supplied) only for the
+ * verdicts flash-lite is weakest on: an "Other" verdict, LOW confidence, or an
+ * outright failure. Nova Micro was tried as the primary and produced confident
+ * but wrong picks (e.g. a merged-PR notification filed under a legal category)
+ * that never triggered escalation, so category selection now stays on Gemini
+ * while summaries keep the cheaper Nova path. This is the single
+ * categorisation entry point used by both the new-email priority pipeline and
+ * incremental re-categorisation.
  */
 export async function categoriseWithEscalation(
   llmCoreService: Pick<LLMCoreService, "generateText">,
   logger: Logger,
   params: CategoriseFromSummaryParams,
 ): Promise<CategoriseFromSummaryResult | null> {
-  const runWith = (provider: LLMProvider) =>
+  const runWith = (provider: LLMProvider, model?: string) =>
     categoriseFromSummary(
       (request) =>
         llmCoreService.generateText(
-          { ...request, operation: LLM_OP_CATEGORISE_SUMMARY },
+          { ...request, operation: LLM_OP_CATEGORISE_SUMMARY, model },
           provider,
           params.userId,
         ),
@@ -208,21 +217,24 @@ export async function categoriseWithEscalation(
       params,
     );
 
-  const primary = await runWith(LLMProvider.BEDROCK);
+  const primary = await runWith(CATEGORY_PRIMARY_PROVIDER);
   const needsEscalation =
     !primary ||
     primary.categoryName === OTHER_CATEGORY_NAME ||
     primary.categoryConfidence === "LOW";
-  if (!needsEscalation) {
+  if (!needsEscalation || !params.escalationModel) {
     return primary;
   }
 
-  const escalated = await runWith(LLMProvider.GEMINI);
+  const escalated = await runWith(
+    CATEGORY_PRIMARY_PROVIDER,
+    params.escalationModel,
+  );
   if (!escalated) {
     return primary;
   }
   logger.log(
-    `[categorise-summary] escalated to flash-lite (nova: ${
+    `[categorise-summary] escalated to ${params.escalationModel} (flash-lite: ${
       primary
         ? `${primary.categoryName}/${primary.categoryConfidence}`
         : "failed"

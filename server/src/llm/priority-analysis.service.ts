@@ -40,6 +40,7 @@ import {
 } from "./priority-context-texts.helper";
 import { resolvePriorityProvider } from "./priority-provider.util";
 import { getPrompt, PRIORITY_PROMPT_IDS, renderPrompt } from "./prompts";
+import { resolveStrongGeminiModel } from "./strong-gemini-model.helper";
 
 const DEFAULT_TRIAGE_MODEL = "amazon.nova-micro-v1:0";
 
@@ -444,6 +445,7 @@ export class PriorityAnalysisService {
           llmCoreService: this.llmCoreService,
           categoryShortlistService: this.categoryShortlistService,
           logger: this.logger,
+          escalationModel: resolveStrongGeminiModel(this.configService),
         },
         { email, userContext, cleanedBody, userId },
       );

@@ -826,7 +826,7 @@ export function useEmailDetailOperations(
           // but that is idempotent (filter on already-absent id is a no-op).
           dispatch(removeEmail(currentId));
 
-          await triggerAnimation(ANIMATION_TYPE_SEND);
+          triggerAnimation(ANIMATION_TYPE_SEND);
           routeAfterSend({
             keepInAction,
             expectedReplyHours,

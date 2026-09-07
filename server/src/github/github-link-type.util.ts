@@ -45,32 +45,3 @@ export function detectGithubLinkType(
   }
   return null;
 }
-
-// GitHub Actions run notifications use the subject skeleton
-// "[owner/repo] Run <status>: <workflow> …". The run status is a clean,
-// deterministic sub-stream — far more separable than PR-vs-issue, which real
-// mailboxes routinely mislabel.
-const CI_RUN_STATUS_PATTERN =
-  /\brun\s+(failed|cancelled|canceled|succeeded|passed|errored|timed out|startup failure)\b/i;
-
-/**
- * Detects the fine-grained GitHub notification sub-stream: a CI run status
- * (`ci:run_failed`) when present, else the PR/issue link type (`pr` / `issue`),
- * else null. CI status is checked first because it is the cleanest separator.
- */
-export function detectGithubSubtype(
-  from: string,
-  subject: string,
-  body?: string | null,
-  htmlBody?: string | null,
-): string | null {
-  if (!isGitHubNotificationEmail(from)) {
-    return null;
-  }
-  const ciMatch = (subject || "").match(CI_RUN_STATUS_PATTERN);
-  if (ciMatch) {
-    const status = ciMatch[1].toLowerCase().replace(/\s+/g, "_");
-    return `ci:run_${status}`;
-  }
-  return detectGithubLinkType(from, body, htmlBody);
-}

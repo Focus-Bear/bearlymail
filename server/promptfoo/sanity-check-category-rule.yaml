@@ -240,3 +240,70 @@ tests:
             throw new Error(`Expected reject or revise for a generic GitHub rule, got accept: ${parsed.reason}`);
           }
           return true;
+
+  - description: "Structural rule: accepts a bot PR-updates rule pinned to bot sub-streams with no phrases (pins bound it; breakdown is clean)"
+    vars:
+      categoryName: "🤖 Bot updates"
+      categoryDescription: "automated bot activity on repositories (dependabot, CI bots, automated commits)"
+      ruleSummary: |
+        Sender matches any of: "notifications@github.com"
+        Notification sub-stream equals or refines one of: "github:pr:comment:bot" · "github:pr:push:bot" · "github:pr:opened:bot"
+        Subject contains any of: (none)
+        Body contains any of: (none)
+        Subject must NOT contain any of: (none)
+        Body must NOT contain any of: "Test Environment" · "Test Objective" · "Preconditions"
+      sampleEmails: |
+        [Email 1]
+        From: notifications@github.com
+        Subject: Re: [Focus-Bear/backend] Bump ws from 8.17.0 to 8.18.0 (PR #2466)
+        Body preview: @dependabot[bot] left a comment (Focus-Bear/backend#2466) Superseded by #2470.
+
+        [Email 2]
+        From: notifications@github.com
+        Subject: [Focus-Bear/backend] Bump axios from 1.6.0 to 1.7.0 (PR #2470)
+        Body preview: Bumps axios from 1.6.0 to 1.7.0. You can view, comment on, or merge this pull request online at: https://github.com/Focus-Bear/backend/pull/2470
+      subtypeBreakdown: |
+        - github:pr:comment:bot: 57 in this category, 0 in other categories — PINNED by this rule
+        - github:pr:push:bot: 31 in this category, 0 in other categories — PINNED by this rule
+        - github:pr:opened:bot: 11 in this category, 0 in other categories — PINNED by this rule
+        - github:pr:comment:human: 0 in this category, 84 in other categories
+        - github:pr:merged:human: 0 in this category, 40 in other categories
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict !== 'accept') {
+            throw new Error(`Expected accept for a clean bot-pinned structural rule, got ${parsed.verdict}: ${parsed.reason}`);
+          }
+          return true;
+
+  - description: "Structural rule: rejects/revises a bot-updates rule whose pinned sub-stream is human activity"
+    vars:
+      categoryName: "🤖 Bot updates"
+      categoryDescription: "automated bot activity on repositories (dependabot, CI bots, automated commits)"
+      ruleSummary: |
+        Sender matches any of: "notifications@github.com"
+        Notification sub-stream equals or refines one of: "github:pr:comment:bot" · "github:pr:review_requested:human"
+        Subject contains any of: (none)
+        Body contains any of: (none)
+        Subject must NOT contain any of: (none)
+        Body must NOT contain any of: (none)
+      sampleEmails: |
+        [Email 1]
+        From: notifications@github.com
+        Subject: Re: [Focus-Bear/backend] Add retry logic (PR #482)
+        Body preview: @jeremy requested your review on: #482 Add retry logic.
+      subtypeBreakdown: |
+        - github:pr:comment:bot: 57 in this category, 0 in other categories — PINNED by this rule
+        - github:pr:review_requested:human: 2 in this category, 63 in other categories — PINNED by this rule
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict === 'accept') {
+            throw new Error(`Expected reject/revise when a human review-request sub-stream is pinned for a bot category: ${parsed.reason}`);
+          }
+          return true;

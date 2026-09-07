@@ -75,6 +75,16 @@ export type CompositeCategoryRuleSpecV3 = {
    * exclusions. Undefined = no constraint.
    */
   notificationSubtype?: string;
+  /**
+   * SET form of the structural condition: the email's resolved subtype must
+   * equal or refine ANY listed member (OR within). Lets one rule cover several
+   * fine GitHub sub-streams — e.g. a human "PR updates" rule pinned to
+   * `github:pr:comment:human`, `github:pr:push:human` and
+   * `github:pr:review_approved:human` while excluding bot/merged/review-request
+   * streams. Read together with `notificationSubtype` (union); the normaliser
+   * stores a single subtype in `notificationSubtype` and two or more here.
+   */
+  notificationSubtypeAny?: string[];
 };
 
 /** Union of all supported composite rule spec versions. */

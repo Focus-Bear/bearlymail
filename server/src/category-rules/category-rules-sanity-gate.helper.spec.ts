@@ -277,4 +277,55 @@ describe("evaluateRuleSanityGate", () => {
     );
     expect(checkRule.mock.calls[0][0].otherCategories).toHaveLength(2);
   });
+
+  it("forwards the sub-stream breakdown to the reviewer and keeps a structural candidate's subtype set through a revision", async () => {
+    const structuralSpec: CompositeCategoryRuleSpecV3 = {
+      v: 3,
+      fromMatchesAny: ["notifications@github.com"],
+      subjectContainsAny: [],
+      bodyContainsAny: [],
+      notificationSubtypeAny: ["github:pr:comment:bot", "github:pr:push:bot"],
+    };
+    const subtypeBreakdown = [
+      {
+        subtype: "github:pr:comment:bot",
+        truePositives: 57,
+        falsePositives: 0,
+      },
+    ];
+    checkRule
+      .mockResolvedValueOnce({
+        ...revise(["notifications@github.com"]),
+        suggestedRevision: {
+          fromMatchesAny: ["notifications@github.com"],
+          subjectContainsAny: ["Bump"],
+          bodyContainsAny: ["dependabot"],
+          subjectNotContainsAny: [],
+          bodyNotContainsAny: [],
+        },
+      })
+      .mockResolvedValueOnce(accept());
+
+    const outcome = await evaluateRuleSanityGate(deps, {
+      ...params(),
+      candidateSpec: structuralSpec,
+      subtypeBreakdown,
+    });
+
+    expect(checkRule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subtypeBreakdown,
+        candidate: expect.objectContaining({
+          notificationSubtypes: ["github:pr:comment:bot", "github:pr:push:bot"],
+        }),
+      }),
+    );
+    expect(outcome.shouldPersist).toBe(true);
+    expect(outcome.finalSpec).toEqual(
+      expect.objectContaining({
+        subjectContainsAny: ["Bump"],
+        notificationSubtypeAny: ["github:pr:comment:bot", "github:pr:push:bot"],
+      }),
+    );
+  });
 });

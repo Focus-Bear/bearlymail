@@ -706,6 +706,7 @@ export class LLMCategoriesService {
     senderEmails: string[],
     emailSamples: Array<{ subject: string; body: string }>,
     userId?: string,
+    notificationSubtype?: string,
   ): Promise<SuggestRulesResult | null> {
     return suggestRulesFromEmailSamplesImpl(
       (request, provider) =>
@@ -716,7 +717,7 @@ export class LLMCategoriesService {
           LLM_OP_SUGGEST_CATEGORY_RULES,
         ),
       this.logger,
-      { categoryName, senderEmails, emailSamples, userId },
+      { categoryName, senderEmails, emailSamples, notificationSubtype, userId },
     );
   }
 

@@ -20,7 +20,6 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { buildRuleEmailMetadata } from "../emails/rule-email-metadata.helper";
 import { CategoryRuleSanityService } from "../llm/category-rule-sanity.service";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
-import type { RuleSanitySampleEmail } from "../llm/llm-rule-sanity";
 import { TokenUsageService } from "../llm/token-usage.service";
 import type {
   CategoryRuleDto,
@@ -45,6 +44,7 @@ import {
 } from "./category-rules-auto-gate.helper";
 import { selectDiscriminativeExclusions } from "./category-rules-derive-exclusions.helper";
 import {
+  AutoRuleCandidate,
   buildDraftCompositeSpec,
   DraftCompositeSpecDeps,
 } from "./category-rules-draft.helper";
@@ -180,18 +180,13 @@ export class CategoryRulesService {
       {
         enforceThreadCountGate: true,
         requireDerivedExclusions: true,
+        preferStructuralSubtypeSet: true,
       },
     );
     if (!draft) {
       return null;
     }
-    return this.gateAndPersistCompositeRule(
-      userId,
-      draft.spec,
-      draft.categoryName,
-      draft.categoryId,
-      draft.sampleEmails,
-    );
+    return this.gateAndPersistCompositeRule(userId, draft);
   }
 
   /**
@@ -372,11 +367,15 @@ export class CategoryRulesService {
    */
   private async gateAndPersistCompositeRule(
     userId: string,
-    candidateSpec: CompositeCategoryRuleSpec,
-    trimmedCategory: string,
-    categoryId: string | null,
-    sampleEmails: RuleSanitySampleEmail[],
+    draft: AutoRuleCandidate,
   ): Promise<CategoryRule | null> {
+    const {
+      spec: candidateSpec,
+      categoryName: trimmedCategory,
+      categoryId,
+      sampleEmails,
+      subtypeBreakdown,
+    } = draft;
     // Fetch composite rules once and share with both the duplicate check and
     // the persist gate (which uses them for the value-add comparison) to avoid
     // redundant queries.
@@ -413,6 +412,7 @@ export class CategoryRulesService {
         categoryName: trimmedCategory,
         categoryId,
         sampleEmails,
+        subtypeBreakdown,
         compositeRules,
       },
     );
@@ -665,6 +665,7 @@ export class CategoryRulesService {
           emailReceived: dto.compositeSpec.emailReceived,
           emailRead: dto.compositeSpec.emailRead,
           notificationSubtype: dto.compositeSpec.notificationSubtype,
+          notificationSubtypeAny: dto.compositeSpec.notificationSubtypeAny,
         }),
       );
       if (!specHasExclusion(spec) && !specHasStructuralConstraint(spec)) {

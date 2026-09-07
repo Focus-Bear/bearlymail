@@ -243,7 +243,13 @@ describe("CategoryRulesService", () => {
 
       expect(
         llmCategoriesService.suggestRulesFromEmailSamples,
-      ).toHaveBeenCalledWith("CI", ["alerts@acmecorp.com"], expect.any(Array));
+      ).toHaveBeenCalledWith(
+        "CI",
+        ["alerts@acmecorp.com"],
+        expect.any(Array),
+        userId,
+        undefined,
+      );
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           ruleKind: "composite",

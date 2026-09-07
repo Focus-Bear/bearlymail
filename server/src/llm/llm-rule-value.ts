@@ -70,6 +70,11 @@ export interface RuleSpecSummary {
   bodyContains: string[];
   subjectNotContains: string[];
   bodyNotContains: string[];
+  /**
+   * Structural notification sub-streams the rule is pinned to (OR within), e.g.
+   * `github:pr:comment:bot`. Empty/absent when the rule is phrase-only.
+   */
+  notificationSubtypes?: string[];
 }
 
 export interface AssessRuleValueParams {
@@ -125,6 +130,10 @@ function formatRuleSpecSummary(summary: RuleSpecSummary): string {
     `  ${label}: ${values.length > 0 ? values.join(", ") : "(none)"}`;
   return [
     line("Senders", summary.senders),
+    line(
+      "Notification sub-stream is one of",
+      summary.notificationSubtypes ?? [],
+    ),
     line("Subject contains", summary.subjectContains),
     line("Body contains", summary.bodyContains),
     line("Subject NOT contains", summary.subjectNotContains),

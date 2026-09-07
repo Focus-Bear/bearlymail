@@ -1,7 +1,4 @@
-import {
-  detectGithubLinkType,
-  detectGithubSubtype,
-} from "./github-link-type.util";
+import { detectGithubLinkType } from "./github-link-type.util";
 
 describe("detectGithubLinkType", () => {
   const from = "notifications@github.com";
@@ -63,37 +60,5 @@ describe("detectGithubLinkType", () => {
         "https://github.com/owner/repo/pull/3",
       ),
     ).toBe("pr");
-  });
-});
-
-describe("detectGithubSubtype", () => {
-  const from = "notifications@github.com";
-
-  it("detects a CI run-failed notification from the subject skeleton", () => {
-    expect(
-      detectGithubSubtype(from, "[owner/repo] Run failed: CI · main"),
-    ).toBe("ci:run_failed");
-  });
-
-  it("normalises multi-word run statuses (e.g. 'timed out')", () => {
-    expect(
-      detectGithubSubtype(from, "[owner/repo] Run timed out: Deploy"),
-    ).toBe("ci:run_timed_out");
-  });
-
-  it("falls back to the PR link type when the subject is not a CI run", () => {
-    expect(
-      detectGithubSubtype(
-        from,
-        "[owner/repo] Add feature (#42)",
-        "https://github.com/owner/repo/pull/42",
-      ),
-    ).toBe("pr");
-  });
-
-  it("returns null for non-GitHub senders", () => {
-    expect(
-      detectGithubSubtype("ci@example.com", "[repo] Run failed: CI"),
-    ).toBeNull();
   });
 });

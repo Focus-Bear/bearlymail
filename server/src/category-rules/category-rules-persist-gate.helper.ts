@@ -30,6 +30,7 @@ import {
   specHasExclusion,
   specHasStructuralConstraint,
 } from "./category-rules-match-gate.helper";
+import { notificationSubtypesOf } from "./category-rules-notification-subtype.helper";
 
 export interface RulePersistGateParams {
   categoryRuleRepository: Repository<CategoryRule>;
@@ -81,6 +82,7 @@ export function specToSummary(
     bodyContains: v2.bodyContainsAny,
     subjectNotContains: v2.subjectNotContainsAny ?? [],
     bodyNotContains: v2.bodyNotContainsAny ?? [],
+    notificationSubtypes: notificationSubtypesOf(spec),
   };
 }
 

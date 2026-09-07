@@ -23,6 +23,7 @@ import {
   evaluateComposite,
   specToV2,
 } from "./category-rules-auto-composite.helper";
+import { specHasNotificationSubtype } from "./category-rules-notification-subtype.helper";
 
 /** A single email reduced to the fields needed for composite matching. */
 export type MatchScanRow = Pick<
@@ -147,7 +148,7 @@ export function specHasExclusion(spec: CompositeCategoryRuleSpec): boolean {
 export function specHasStructuralConstraint(
   spec: CompositeCategoryRuleSpec,
 ): boolean {
-  return spec.v === 3 && spec.notificationSubtype !== undefined;
+  return specHasNotificationSubtype(spec);
 }
 
 /** Lower-cased, trimmed set of phrases for case-insensitive overlap checks. */

@@ -31,6 +31,7 @@ import {
   specHasExclusion,
   specHasStructuralConstraint,
 } from "./category-rules-match-gate.helper";
+import { specHasGithubNotificationSubtype } from "./category-rules-notification-subtype.helper";
 import {
   DecryptedValidationRow,
   decryptValidationRow,
@@ -66,6 +67,12 @@ export interface DeriveExclusionsParams {
    * why exclusion rules never persist — see the branch summaries below.
    */
   logger: { log: (message: string) => void };
+  /**
+   * Pre-fetched validation windows, when the caller already loaded them (the
+   * structural draft path builds its subtype breakdown from the same rows).
+   * Fetched here when omitted.
+   */
+  windows?: ValidationWindows;
 }
 
 /**
@@ -104,13 +111,6 @@ export function isQaCategory(categoryName: string): boolean {
   );
 }
 
-/** True when a v3 spec is pinned to a GitHub notification sub-stream. */
-function isGithubStructuralSpec(spec: CompositeCategoryRuleSpec): boolean {
-  return (
-    spec.v === 3 && (spec.notificationSubtype?.startsWith("github:") ?? false)
-  );
-}
-
 /**
  * For a non-QA GitHub category, adds the QA template markers (`Test Environment`,
  * `Test Objective`, `Preconditions`) as body NOT-contains exclusions. Structured
@@ -125,7 +125,7 @@ export function augmentExclusionsForQaTemplates(
   spec: CompositeCategoryRuleSpec,
   categoryName: string,
 ): CompositeCategoryRuleSpec {
-  if (!isGithubStructuralSpec(spec) || isQaCategory(categoryName)) {
+  if (!specHasGithubNotificationSubtype(spec) || isQaCategory(categoryName)) {
     return spec;
   }
   return mergeExclusionsIntoSpec(
@@ -384,7 +384,7 @@ export function applyDerivedExclusionsAndCheck(
   };
 }
 
-interface ValidationWindows {
+export interface ValidationWindows {
   /** The candidate category's OWN recent threads — the dense true-positive window. */
   categoryRows: DecryptedValidationRow[];
   /** A BROAD recent sample of all categorised mail — the false-positive window. */
@@ -400,7 +400,7 @@ interface ValidationWindows {
  * caught against non-category threads. Returned unpartitioned so the refine loop
  * can re-partition against an evolving spec each round.
  */
-async function fetchValidationWindows(
+export async function fetchValidationWindows(
   emailThreadRepository: Repository<EmailThread>,
   userId: string,
   targetCategoryId: string | null,
@@ -685,11 +685,13 @@ export async function deriveExclusionsForCompositeRule(
       `[CategoryRules][derive] category="${categoryName}" minRequired=${minMatches} ${fields} user=${userId}`,
     );
 
-  const { categoryRows, broadRows } = await fetchValidationWindows(
-    emailThreadRepository,
-    userId,
-    targetCategoryId,
-  );
+  const { categoryRows, broadRows } =
+    params.windows ??
+    (await fetchValidationWindows(
+      emailThreadRepository,
+      userId,
+      targetCategoryId,
+    ));
 
   const truePositiveRows = truePositivesOf(
     categoryRows,

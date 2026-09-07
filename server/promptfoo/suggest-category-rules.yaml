@@ -161,3 +161,37 @@ tests:
             throw new Error('Exclusion fields must be arrays even when empty');
           }
           return true;
+
+  - description: "Structural pin: does not re-encode the pinned event/actor in phrases (empty positives are acceptable)"
+    vars:
+      categoryName: "🤖 GitHub Bot PR Updates"
+      senderEmails: "notifications@github.com"
+      notificationSubtype: "github:pr:comment:bot"
+      emailSamples: |
+        [Email 1]
+        Subject: Re: [Focus-Bear/backend] Bump ws from 8.17.0 to 8.18.0 (PR #2466)
+        Body preview: @dependabot[bot] left a comment (Focus-Bear/backend#2466) Superseded by #2470. View it on GitHub.
+
+        [Email 2]
+        Subject: Re: [Focus-Bear/backend] Bump axios from 1.6.0 to 1.7.0 (PR #2470)
+        Body preview: @dependabot[bot] left a comment (Focus-Bear/backend#2470) Looks like axios is up-to-date now. View it on GitHub.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          for (const key of ['fromMatchesAny', 'subjectContainsAny', 'bodyContainsAny', 'subjectNotContainsAny', 'bodyNotContainsAny']) {
+            if (!Array.isArray(parsed[key])) {
+              throw new Error(`Expected ${key} to be an array, got: ${JSON.stringify(parsed[key])}`);
+            }
+          }
+          const positives = [...parsed.subjectContainsAny, ...parsed.bodyContainsAny].map(p => p.toLowerCase());
+          // The pin already encodes "comment by a bot" — phrases must not restate it.
+          const pinned = ['left a comment', '[bot]', 'dependabot', 'view it on github'];
+          for (const p of positives) {
+            if (pinned.some(marker => p.includes(marker))) {
+              throw new Error(`Re-encoded the structural pin in a phrase: "${p}"`);
+            }
+          }
+          return true;

@@ -8,8 +8,10 @@
  * with a deterministic "most specific wins" order.
  *
  * Specificity, in strict priority order:
- *   1. A rule pinned to a `notificationSubtype` (a hard structural separator)
- *      beats one without.
+ *   1. A rule pinned to a notification subtype (a hard structural separator)
+ *      beats one without; among pinned rules a DEEPER pin wins — a fine
+ *      `github:pr:merged:human` rule beats a legacy coarse `github:pr` rule
+ *      that also matches the email (a set counts as its shallowest member).
  *   2. More total exclusion phrases (`subjectNotContainsAny` + `bodyNotContainsAny`)
  *      beats fewer — a more-excluded rule is more precise.
  *   3. More positive conditions (senders + subject + body phrases) beats fewer.
@@ -17,11 +19,9 @@
  *   5. Lexicographic `id` — final tiebreak so the order is total (no ambiguity
  *      is ever left to insertion order).
  */
-import {
-  CompositeCategoryRuleSpec,
-  CompositeCategoryRuleSpecV3,
-} from "../database/entities/category-rule.entity";
+import { CompositeCategoryRuleSpec } from "../database/entities/category-rule.entity";
 import { specToV2 } from "./category-rules-auto-composite.helper";
+import { notificationSubtypeDepthOf } from "./category-rules-notification-subtype.helper";
 
 /** The fields the comparator needs from a matching composite rule. */
 export interface SpecificityCandidate {
@@ -31,17 +31,10 @@ export interface SpecificityCandidate {
 }
 
 interface SpecificityScore {
-  hasNotificationSubtype: boolean;
+  /** Segment depth of the subtype pin; 0 when the rule is unpinned. */
+  notificationSubtypeDepth: number;
   exclusionCount: number;
   positiveCount: number;
-}
-
-function notificationSubtypeOf(
-  spec: CompositeCategoryRuleSpec,
-): string | undefined {
-  return spec.v === 3
-    ? (spec as CompositeCategoryRuleSpecV3).notificationSubtype
-    : undefined;
 }
 
 function scoreOf(spec: CompositeCategoryRuleSpec): SpecificityScore {
@@ -54,7 +47,7 @@ function scoreOf(spec: CompositeCategoryRuleSpec): SpecificityScore {
     v2.subjectContainsAny.length +
     v2.bodyContainsAny.length;
   return {
-    hasNotificationSubtype: notificationSubtypeOf(spec) !== undefined,
+    notificationSubtypeDepth: notificationSubtypeDepthOf(spec),
     exclusionCount,
     positiveCount,
   };
@@ -72,8 +65,8 @@ export function compareCompositeRuleSpecificity(
   const scoreA = scoreOf(first.spec);
   const scoreB = scoreOf(second.spec);
 
-  if (scoreA.hasNotificationSubtype !== scoreB.hasNotificationSubtype) {
-    return scoreA.hasNotificationSubtype ? -1 : 1;
+  if (scoreA.notificationSubtypeDepth !== scoreB.notificationSubtypeDepth) {
+    return scoreB.notificationSubtypeDepth - scoreA.notificationSubtypeDepth;
   }
   if (scoreA.exclusionCount !== scoreB.exclusionCount) {
     return scoreB.exclusionCount - scoreA.exclusionCount;

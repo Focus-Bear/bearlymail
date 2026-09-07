@@ -25,6 +25,8 @@ import type { UserContextInput } from "./priority-context-texts.helper";
 
 export interface PriorityCategoryStepDeps {
   llmCoreService: Pick<LLMCoreService, "generateText">;
+  /** Strong Gemini model for escalating Other/LOW verdicts; omit to skip. */
+  escalationModel?: string;
   categoryShortlistService: Pick<
     CategoryShortlistService,
     "isShortlistEnabled" | "getShortlistWithMeta"
@@ -175,6 +177,7 @@ export async function chooseEmailCategory(
       senderEmail: email.from,
       summary: cleanedBody,
       categories: candidates,
+      escalationModel: deps.escalationModel,
       userId,
     },
   );

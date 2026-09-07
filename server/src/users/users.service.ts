@@ -13,6 +13,9 @@ import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
 const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
+
+/** Table every user-owned row ultimately hangs off, for FK discovery. */
+const USERS_TABLE = "users";
 const RECENT_LOGIN_GRACE_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
 
 /**
@@ -621,7 +624,7 @@ export class UsersService {
     // Tables with a direct FK to `users` — the ones we delete by userId.
     const directChildren = new Map<string, string>();
     for (const fk of fks) {
-      if (stripQuotes(fk.parent) === "users") {
+      if (stripQuotes(fk.parent) === USERS_TABLE) {
         directChildren.set(stripQuotes(fk.child), stripQuotes(fk.column));
       }
     }

@@ -655,20 +655,42 @@ describe("UsersService", () => {
   });
 
   describe("deleteAccount", () => {
+    let managerUpsert: jest.Mock;
+    let managerUserDelete: jest.Mock;
+    let managerQuery: jest.Mock;
+    let transaction: jest.Mock;
+
+    beforeEach(() => {
+      managerUpsert = jest.fn().mockResolvedValue(undefined);
+      managerUserDelete = jest.fn().mockResolvedValue({ affected: 1 });
+      // FK-catalogue discovery returns no user-owned tables by default; tests
+      // that care about the delete order override this.
+      managerQuery = jest.fn().mockResolvedValue([]);
+      const mockManager = {
+        query: managerQuery,
+        getRepository: jest.fn((entity: unknown) =>
+          entity === DeletedAccount
+            ? { upsert: managerUpsert }
+            : { delete: managerUserDelete },
+        ),
+      };
+      transaction = jest.fn(
+        async (cb: (m: typeof mockManager) => Promise<void>) => cb(mockManager),
+      );
+      (repository as unknown as { manager: unknown }).manager = { transaction };
+    });
+
     it("should save a tombstone to deleted_accounts before deleting", async () => {
       const userWithPassword = {
         ...mockUser,
         emailHash: "hash_test@example.com",
         password: "bcrypt-hash",
       } as User;
-      // findOne is called twice: once in deleteAccount, once in deleteAccount chain
       repository.findOne.mockResolvedValue(userWithPassword);
-      repository.query.mockResolvedValue([]);
-      repository.delete = jest.fn().mockResolvedValue({ affected: 1 });
 
       await service.deleteAccount("user-1", DeletionReason.INACTIVITY);
 
-      expect(deletedAccountRepository.upsert).toHaveBeenCalledWith(
+      expect(managerUpsert).toHaveBeenCalledWith(
         {
           emailHash: "hash_test@example.com",
           passwordHash: "bcrypt-hash",
@@ -676,7 +698,7 @@ describe("UsersService", () => {
         },
         { conflictPaths: ["emailHash"] },
       );
-      expect(repository.delete).toHaveBeenCalledWith("user-1");
+      expect(managerUserDelete).toHaveBeenCalledWith("user-1");
     });
 
     it("should default to MANUAL deletion reason", async () => {
@@ -686,12 +708,10 @@ describe("UsersService", () => {
         password: "bcrypt-hash",
       } as User;
       repository.findOne.mockResolvedValue(userWithPassword);
-      repository.query.mockResolvedValue([]);
-      repository.delete = jest.fn().mockResolvedValue({ affected: 1 });
 
       await service.deleteAccount("user-1");
 
-      expect(deletedAccountRepository.upsert).toHaveBeenCalledWith(
+      expect(managerUpsert).toHaveBeenCalledWith(
         expect.objectContaining({ deletionReason: DeletionReason.MANUAL }),
         expect.anything(),
       );
@@ -704,12 +724,67 @@ describe("UsersService", () => {
         password: "bcrypt-hash",
       } as unknown as User;
       repository.findOne.mockResolvedValue(userNoHash);
-      repository.query.mockResolvedValue([]);
-      repository.delete = jest.fn().mockResolvedValue({ affected: 1 });
 
       await service.deleteAccount("user-1");
 
-      expect(deletedAccountRepository.upsert).not.toHaveBeenCalled();
+      expect(managerUpsert).not.toHaveBeenCalled();
+      expect(managerUserDelete).toHaveBeenCalledWith("user-1");
+    });
+
+    it("deletes discovered user-owned tables in dependency order before the user row", async () => {
+      const userWithPassword = {
+        ...mockUser,
+        emailHash: "hash_test@example.com",
+        password: "bcrypt-hash",
+      } as User;
+      repository.findOne.mockResolvedValue(userWithPassword);
+      // deals references deal_stages, so deals must be deleted first.
+      managerQuery.mockImplementation((sql: string) => {
+        if (sql.includes("pg_constraint")) {
+          return Promise.resolve([
+            { child: "emails", column: "userId", parent: "users" },
+            { child: "deals", column: "userId", parent: "users" },
+            { child: "deal_stages", column: "userId", parent: "users" },
+            { child: "deals", column: "stageId", parent: "deal_stages" },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      await service.deleteAccount("user-1");
+
+      const deleteSqls = managerQuery.mock.calls
+        .map((call) => call[0] as string)
+        .filter((sql) => sql.startsWith("DELETE FROM"));
+      const dealsIdx = deleteSqls.findIndex((sql) => sql.includes('"deals"'));
+      const stagesIdx = deleteSqls.findIndex((sql) =>
+        sql.includes('"deal_stages"'),
+      );
+      expect(dealsIdx).toBeGreaterThanOrEqual(0);
+      expect(stagesIdx).toBeGreaterThan(dealsIdx);
+      expect(managerUserDelete).toHaveBeenCalledWith("user-1");
+    });
+
+    it("does not delete the user row when a child-table delete fails (atomic)", async () => {
+      const userWithPassword = {
+        ...mockUser,
+        emailHash: "hash_test@example.com",
+        password: "bcrypt-hash",
+      } as User;
+      repository.findOne.mockResolvedValue(userWithPassword);
+      managerQuery.mockImplementation((sql: string) => {
+        if (sql.includes("pg_constraint")) {
+          return Promise.resolve([
+            { child: "emails", column: "userId", parent: "users" },
+          ]);
+        }
+        return Promise.reject(new Error("FK violation"));
+      });
+
+      await expect(service.deleteAccount("user-1")).rejects.toThrow(
+        "FK violation",
+      );
+      expect(managerUserDelete).not.toHaveBeenCalled();
     });
   });
 });

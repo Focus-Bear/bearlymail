@@ -1,0 +1,162 @@
+description: "Tests for the derive-rule-exclusions prompt: NOT-contains phrases that separate a draft rule's false positives from its true positives."
+
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/derive-rule-exclusions.md
+
+defaultTest:
+  vars:
+    maxSubjectNotPhrases: "3"
+    maxBodyNotPhrases: "3"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+        const parsed = JSON.parse(cleaned);
+        for (const key of ['subjectNotContainsAny', 'bodyNotContainsAny']) {
+          if (!Array.isArray(parsed[key])) {
+            throw new Error(`Expected ${key} to be an array, got: ${JSON.stringify(parsed[key])}`);
+          }
+          for (const phrase of parsed[key]) {
+            if (typeof phrase !== 'string' || phrase.trim() === '') {
+              throw new Error(`Expected ${key} entries to be non-empty strings, got: ${JSON.stringify(phrase)}`);
+            }
+          }
+        }
+        return true;
+
+tests:
+  - description: "Finds the issue-vs-PR separator: excludes 'Issue #' / 'opened an issue' that only the false positives contain"
+    vars:
+      categoryName: "GitHub PR updates"
+      truePositiveSamples: |
+        [Email 1]
+        Subject: [repo] PR #482: Checkout flow refactor
+        Body preview: alice requested your review on this pull request. View it on GitHub.
+
+        [Email 2]
+        Subject: [repo] PR #491: Fix login redirect
+        Body preview: bob merged this pull request. View it on GitHub.
+      falsePositiveSamples: |
+        [Email 1]
+        Subject: [repo] Issue #120: Checkout button unresponsive
+        Body preview: carol opened an issue. View it on GitHub.
+
+        [Email 2]
+        Subject: [repo] Issue #133: Login page 500
+        Body preview: dave opened an issue and mentioned you. View it on GitHub.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const all = [...parsed.subjectNotContainsAny, ...parsed.bodyNotContainsAny].map((p) => p.toLowerCase());
+          if (all.length === 0) {
+            throw new Error('Expected at least one exclusion phrase for a clearly separable issue/PR split');
+          }
+          const hasIssueSignal = all.some((p) => p.includes('issue'));
+          if (!hasIssueSignal) {
+            throw new Error(`Expected an issue-related exclusion, got: ${JSON.stringify(all)}`);
+          }
+          const tpText = 'pr #482: checkout flow refactor pr #491: fix login redirect requested your review on this pull request merged this pull request view it on github';
+          const leaked = all.filter((p) => tpText.includes(p));
+          if (leaked.length > 0) {
+            throw new Error(`Exclusion phrase also appears in a true positive: ${JSON.stringify(leaked)}`);
+          }
+          return true;
+
+  - description: "Never returns a phrase that appears in a true-positive sample (shared boilerplate is not a separator)"
+    vars:
+      categoryName: "CI build failures"
+      truePositiveSamples: |
+        [Email 1]
+        Subject: [repo] Workflow run failed: Deploy
+        Body preview: The Deploy workflow run failed on main. View the run on GitHub.
+
+        [Email 2]
+        Subject: [repo] Workflow run failed: Tests
+        Body preview: The Tests workflow run failed on feature/x. View the run on GitHub.
+      falsePositiveSamples: |
+        [Email 1]
+        Subject: [repo] Workflow run succeeded: Deploy
+        Body preview: The Deploy workflow run succeeded on main. View the run on GitHub.
+
+        [Email 2]
+        Subject: [repo] Workflow run cancelled: Tests
+        Body preview: The Tests workflow run was cancelled. View the run on GitHub.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const all = [...parsed.subjectNotContainsAny, ...parsed.bodyNotContainsAny].map((p) => p.toLowerCase());
+          const tpText = '[repo] workflow run failed: deploy the deploy workflow run failed on main. view the run on github. [repo] workflow run failed: tests the tests workflow run failed on feature/x. view the run on github.';
+          const leaked = all.filter((p) => tpText.includes(p));
+          if (leaked.length > 0) {
+            throw new Error(`Exclusion phrase also appears in a true positive: ${JSON.stringify(leaked)}`);
+          }
+          const hasOutcomeSignal = all.some((p) => p.includes('succeeded') || p.includes('cancelled'));
+          if (!hasOutcomeSignal) {
+            throw new Error(`Expected a succeeded/cancelled exclusion, got: ${JSON.stringify(all)}`);
+          }
+          return true;
+
+  - description: "Returns empty arrays when the two sets are indistinguishable on the available text"
+    vars:
+      categoryName: "Acme invoices"
+      truePositiveSamples: |
+        [Email 1]
+        Subject: Invoice #1042 from Acme
+        Body preview: Your invoice is ready. Amount due: $120.
+
+        [Email 2]
+        Subject: Invoice #1051 from Acme
+        Body preview: Your invoice is ready. Amount due: $85.
+      falsePositiveSamples: |
+        [Email 1]
+        Subject: Invoice #1047 from Acme
+        Body preview: Your invoice is ready. Amount due: $90.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const all = [...parsed.subjectNotContainsAny, ...parsed.bodyNotContainsAny];
+          // An invoice number is the only difference; it is not a reusable separator.
+          const generic = all.filter((p) => !/\d/.test(p));
+          if (generic.length > 0) {
+            throw new Error(`Expected no generic exclusions for indistinguishable samples, got: ${JSON.stringify(all)}`);
+          }
+          return true;
+
+  - description: "Respects the per-field caps"
+    vars:
+      maxSubjectNotPhrases: "1"
+      maxBodyNotPhrases: "1"
+      categoryName: "Newsletter digests"
+      truePositiveSamples: |
+        [Email 1]
+        Subject: Weekly digest: 12 new posts
+        Body preview: Here is your weekly digest of new posts.
+      falsePositiveSamples: |
+        [Email 1]
+        Subject: Password reset requested
+        Body preview: Click the link to reset your password. This link expires in 1 hour.
+
+        [Email 2]
+        Subject: Verify your email address
+        Body preview: Confirm your email address to finish signing up.
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.subjectNotContainsAny.length > 1 || parsed.bodyNotContainsAny.length > 1) {
+            throw new Error(`Expected at most one phrase per field, got: ${JSON.stringify(parsed)}`);
+          }
+          return true;

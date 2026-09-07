@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { IsNull, LessThan, Repository } from "typeorm";
+import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
 import { ERROR_MESSAGES } from "../constants/error-messages";
@@ -13,6 +13,9 @@ import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
 const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
+
+/** Table every user-owned row ultimately hangs off, for FK discovery. */
+const USERS_TABLE = "users";
 const RECENT_LOGIN_GRACE_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
 
 /**
@@ -541,54 +544,127 @@ export class UsersService {
     const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId} (reason: ${reason})`;
     writeDebugLog(logMsg);
 
-    if (user.emailHash) {
-      await this.deletedAccountRepository.upsert(
-        {
-          emailHash: user.emailHash,
-          passwordHash: user.password ?? null,
-          deletionReason: reason,
-        },
-        { conflictPaths: ["emailHash"] },
-      );
-    }
+    // Run the whole deletion in one transaction. Previously the tombstone
+    // upsert, the child-table deletes, and the final user delete ran outside a
+    // transaction, so if any step threw — e.g. the hardcoded table list below
+    // was missing a user-owned table and its foreign key blocked the final
+    // `DELETE FROM users` — the deletes that had already run stayed committed
+    // (disconnecting the email account etc.) while the user row survived,
+    // leaving an account that still logged in. A transaction makes it
+    // all-or-nothing.
+    await this.userRepository.manager.transaction(async (manager) => {
+      if (user.emailHash) {
+        await manager.getRepository(DeletedAccount).upsert(
+          {
+            emailHash: user.emailHash,
+            passwordHash: user.password ?? null,
+            deletionReason: reason,
+          },
+          { conflictPaths: ["emailHash"] },
+        );
+      }
 
-    await this.deleteUserRelatedData(userId);
-    await this.userRepository.delete(userId);
+      await this.deleteUserRelatedData(manager, userId);
+      await manager.getRepository(User).delete(userId);
+    });
 
     const completedMsg = `[UsersService.deleteAccount] Successfully deleted account for user ${userId}`;
     writeDebugLog(completedMsg);
   }
 
-  private async deleteUserRelatedData(userId: string): Promise<void> {
-    const userTables = [
-      "action_items",
-      "suggested_replies",
-      "reply_drafts",
-      "private_notes",
-      "auto_response_logs",
-      "auto_response_suppressions",
-      "follow_ups",
-      "emails",
-      "email_threads",
-      "scan_emails",
-      "contacts",
-      "blocked_senders",
-      "blocked_keywords",
-      "batch_schedules",
-      "user_contexts",
-      "context_analyses",
-      "summarization_rules",
-      "priority_overrides",
-      "token_usage",
-      "google_accounts",
-      "office365_accounts",
-      "zoho_accounts",
-    ];
-    for (const tableName of userTables) {
-      await this.userRepository.query(
-        `DELETE FROM ${tableName} WHERE "userId" = $1`,
-        [userId],
-      );
+  /**
+   * Deletes every row a user owns, so the final `DELETE FROM users` cannot be
+   * blocked by a stray foreign key.
+   *
+   * The set of tables is discovered from the database's own foreign-key
+   * catalogue rather than hardcoded, so tables added later are covered
+   * automatically (the previous hardcoded list had drifted well behind the
+   * schema, which is what broke account deletion). Rows in deeper tables
+   * (grandchildren) are removed by their `ON DELETE CASCADE` keys when the
+   * parent row goes.
+   */
+  private async deleteUserRelatedData(
+    manager: EntityManager,
+    userId: string,
+  ): Promise<void> {
+    const ordered = await this.getUserOwnedTablesInDeleteOrder(manager);
+    for (const { table, column } of ordered) {
+      await manager.query(`DELETE FROM "${table}" WHERE "${column}" = $1`, [
+        userId,
+      ]);
     }
+  }
+
+  /**
+   * Returns the tables that reference `users` directly, ordered so that a table
+   * is deleted before any other user-owned table it references. This keeps a
+   * non-cascading foreign key between two user-owned tables from blocking a
+   * delete, without hardcoding any table names.
+   */
+  private async getUserOwnedTablesInDeleteOrder(
+    manager: EntityManager,
+  ): Promise<{ table: string; column: string }[]> {
+    // Every single-column foreign key in the current schema: the child table,
+    // its FK column, and the table it points at. conkey[1] is the first column
+    // of the constraint (all of these user FKs are single-column).
+    const fks: { child: string; column: string; parent: string }[] =
+      await manager.query(`
+        SELECT
+          con.conrelid::regclass::text AS child,
+          att.attname AS "column",
+          con.confrelid::regclass::text AS parent
+        FROM pg_constraint con
+        JOIN pg_attribute att
+          ON att.attrelid = con.conrelid AND att.attnum = con.conkey[1]
+        WHERE con.contype = 'f'
+      `);
+
+    const stripQuotes = (name: string): string => name.replace(/"/g, "");
+
+    // Tables with a direct FK to `users` — the ones we delete by userId.
+    const directChildren = new Map<string, string>();
+    for (const fk of fks) {
+      if (stripQuotes(fk.parent) === USERS_TABLE) {
+        directChildren.set(stripQuotes(fk.child), stripQuotes(fk.column));
+      }
+    }
+
+    // Dependencies among those children: X -> Y when X references Y. X must be
+    // deleted before Y so a non-cascading X->Y key can't block Y's delete.
+    const dependsOn = new Map<string, Set<string>>();
+    for (const table of directChildren.keys()) {
+      dependsOn.set(table, new Set());
+    }
+    for (const fk of fks) {
+      const child = stripQuotes(fk.child);
+      const parent = stripQuotes(fk.parent);
+      if (
+        child !== parent &&
+        directChildren.has(child) &&
+        directChildren.has(parent)
+      ) {
+        dependsOn.get(child)?.add(parent);
+      }
+    }
+
+    // Post-order DFS lists a table after everything it references; reversing it
+    // gives referencing tables first, which is the safe delete order.
+    const ordered: { table: string; column: string }[] = [];
+    const visited = new Set<string>();
+    const visit = (table: string, stack: Set<string>): void => {
+      if (visited.has(table) || stack.has(table)) return;
+      stack.add(table);
+      for (const dep of dependsOn.get(table) ?? []) {
+        visit(dep, stack);
+      }
+      stack.delete(table);
+      visited.add(table);
+      ordered.push({ table, column: directChildren.get(table) as string });
+    };
+    for (const table of directChildren.keys()) {
+      visit(table, new Set());
+    }
+
+    return ordered.reverse();
   }
 }

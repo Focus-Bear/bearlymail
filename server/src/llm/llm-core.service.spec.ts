@@ -286,6 +286,99 @@ describe("LLMCoreService", () => {
       expect(input.inferenceConfig.maxTokens).toBeLessThanOrEqual(5000);
     });
 
+    it("sends only a text system block when the request does not opt into caching", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "ok" }] } },
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      });
+      const { service } = makeService();
+
+      await service.generateText(
+        { prompt: "p", systemPrompt: "static rules" },
+        LLMProvider.BEDROCK,
+      );
+
+      const input = bedrockConverseCommand.mock.calls.at(-1)?.[0];
+      expect(input.system).toEqual([{ text: "static rules" }]);
+    });
+
+    it("appends a cachePoint after the system prompt when cacheStaticPrefix is set and logs cached tokens as prompt tokens", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "ok" }] } },
+        usage: {
+          inputTokens: 20,
+          outputTokens: 6,
+          totalTokens: 6395,
+          cacheReadInputTokens: 6369,
+          cacheWriteInputTokens: 0,
+        },
+      });
+      const { service, tokenUsageService } = makeService();
+
+      await service.generateText(
+        { prompt: "p", systemPrompt: "static rules", cacheStaticPrefix: true },
+        LLMProvider.BEDROCK,
+      );
+
+      const input = bedrockConverseCommand.mock.calls.at(-1)?.[0];
+      expect(input.system).toEqual([
+        { text: "static rules" },
+        { cachePoint: { type: "default" } },
+      ]);
+      expect(tokenUsageService.logUsage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          promptTokens: 6389,
+          completionTokens: 6,
+          totalTokens: 6395,
+        }),
+      );
+    });
+
+    it("never adds a cachePoint without a system prompt", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "ok" }] } },
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      });
+      const { service } = makeService();
+
+      await service.generateText(
+        { prompt: "p", cacheStaticPrefix: true },
+        LLMProvider.BEDROCK,
+      );
+
+      const input = bedrockConverseCommand.mock.calls.at(-1)?.[0];
+      expect(input.system).toBeUndefined();
+    });
+
+    it("drops the cachePoint for the rest of the process when the model rejects it, instead of falling back to Gemini", async () => {
+      const rejection = Object.assign(
+        new Error("The model does not support cachePoint blocks"),
+        { name: "ValidationException" },
+      );
+      mockBedrockSend.mockRejectedValueOnce(rejection).mockResolvedValue({
+        output: { message: { content: [{ text: "nova-uncached" }] } },
+        usage: { inputTokens: 5, outputTokens: 1, totalTokens: 6 },
+      });
+      const { service } = makeService();
+      const request: LLMRequest = {
+        prompt: "p",
+        systemPrompt: "static rules",
+        cacheStaticPrefix: true,
+      };
+
+      const first = await service.generateText(request, LLMProvider.BEDROCK);
+      await service.generateText(request, LLMProvider.BEDROCK);
+
+      expect(first).toBe("nova-uncached");
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      const systems = bedrockConverseCommand.mock.calls.map(
+        ([input]) => input.system,
+      );
+      expect(systems[0]).toHaveLength(2);
+      expect(systems[1]).toEqual([{ text: "static rules" }]);
+      expect(systems[2]).toEqual([{ text: "static rules" }]);
+    });
+
     it("falls back to Gemini when Bedrock fails", async () => {
       mockBedrockSend.mockRejectedValue(new Error("bedrock unavailable"));
       mockGeminiGenerateContent.mockResolvedValue({
@@ -297,6 +390,67 @@ describe("LLMCoreService", () => {
       const out = await service.generateText(baseRequest, LLMProvider.BEDROCK);
 
       expect(out).toBe("gemini-fallback");
+    });
+
+    // Mirrors @aws-sdk/client-bedrock-runtime's ThrottlingException shape.
+    function bedrockThrottlingError() {
+      return Object.assign(
+        new Error("Too many tokens, please wait before trying again."),
+        {
+          name: "ThrottlingException",
+          $fault: "client",
+          $metadata: { httpStatusCode: 429 },
+        },
+      );
+    }
+
+    it("waits out Bedrock throttling on the longer schedule instead of falling back to Gemini", async () => {
+      mockBedrockSend
+        .mockRejectedValueOnce(bedrockThrottlingError())
+        .mockRejectedValueOnce(bedrockThrottlingError())
+        .mockRejectedValueOnce(bedrockThrottlingError())
+        .mockRejectedValueOnce(bedrockThrottlingError())
+        .mockResolvedValue({
+          output: { message: { content: [{ text: "nova-after-wait" }] } },
+          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        });
+      const { service } = makeService();
+
+      const out = await service.generateText(baseRequest, LLMProvider.BEDROCK);
+
+      expect(out).toBe("nova-after-wait");
+      // The default 3-attempt schedule would have given up after the third
+      // throttle and paid Gemini prices for the whole call.
+      expect(mockBedrockSend).toHaveBeenCalledTimes(5);
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+    });
+
+    it("still falls back to Gemini once the rate-limit schedule is exhausted", async () => {
+      mockBedrockSend.mockRejectedValue(bedrockThrottlingError());
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: "gemini-fallback",
+        usageMetadata: undefined,
+      });
+      const { service } = makeService();
+
+      const out = await service.generateText(baseRequest, LLMProvider.BEDROCK);
+
+      expect(out).toBe("gemini-fallback");
+      expect(mockBedrockSend).toHaveBeenCalledTimes(6);
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the short schedule for non-rate-limit Bedrock failures", async () => {
+      mockBedrockSend.mockRejectedValue(new Error("bedrock unavailable"));
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: "gemini-fallback",
+        usageMetadata: undefined,
+      });
+      const { service } = makeService();
+
+      await service.generateText(baseRequest, LLMProvider.BEDROCK);
+
+      expect(mockBedrockSend).toHaveBeenCalledTimes(3);
     });
 
     it("falls back to OpenAI when Bedrock fails and Gemini is not configured (OpenAI-only install)", async () => {

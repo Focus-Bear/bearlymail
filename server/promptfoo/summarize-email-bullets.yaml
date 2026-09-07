@@ -11,7 +11,6 @@ tests:
   - vars:
       isThread: false
       subject: "Project Update"
-      contextNote: ""
       body: "Hi team, here's the update: 1) We completed the API integration 2) The UI redesign is in progress 3) We need to schedule user testing 4) The deadline is still on track"
     assert:
       - type: javascript
@@ -44,7 +43,6 @@ tests:
   - vars:
       isThread: false
       subject: "Meeting Notes"
-      contextNote: ""
       body: "Key decisions: Launch date confirmed for Q1. Team will work in sprints. Need budget approval by next week."
     assert:
       - type: javascript
@@ -75,7 +73,6 @@ tests:
       isThread: true
       userName: "Beverly Dueñas"
       subject: "Re: Presentation slides feedback"
-      contextNote: "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
       body: |
         [Original from You on 06/18/2026]:
         """
@@ -123,7 +120,6 @@ tests:
       fromName: "Sam Connector"
       from: "sam@connector.com"
       subject: "Intro: Jeremy <> Priya"
-      contextNote: ""
       body: |
         Hi both,
 

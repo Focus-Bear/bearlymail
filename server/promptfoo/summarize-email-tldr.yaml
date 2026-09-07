@@ -13,7 +13,6 @@ tests:
   - vars:
       isThread: false
       subject: "Q4 Project Update"
-      contextNote: ""
       body: "Hi team, I wanted to update you on our Q4 project progress. We've completed 80% of the milestones, encountered some delays with the API integration, but overall we're on track to meet our deadline. The team has been working hard and I'm confident we'll deliver on time."
     assert:
       - type: javascript
@@ -52,7 +51,6 @@ tests:
   - vars:
       isThread: true
       subject: "Meeting discussion"
-      contextNote: "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
       body: "[Message 1 from Sarah on 12/10/2024]:\nLet's schedule a meeting.\n\n---\n\n[Message 2 from You on 12/11/2024]:\nHow about Friday?\n\n---\n\n[Message 3 from Sarah on 12/12/2024]:\nFriday works! See you then."
     assert:
       - type: javascript
@@ -81,13 +79,7 @@ tests:
   - vars:
       isThread: false
       subject: "URGENT: Your account has been suspended!"
-      contextNote: ""
       body: "Dear customer, your account has been suspended due to suspicious activity. Click here immediately to verify your account: http://not-real-bank.com/verify?user=12345. Failure to act within 24 hours will result in permanent suspension."
-      phishingSignals:
-        senderDomain: "suspicious-domain.net"
-        linkedDomains: ["not-real-bank.com"]
-        hasDomainMismatch: true
-        suspiciousKeywords: ["suspended", "verify", "immediately"]
     assert:
       - type: javascript
         value: |
@@ -99,12 +91,10 @@ tests:
           } catch (e) {
             throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
           }
-          // phishing field should flag this
-          if (!parsed.phishing || parsed.phishing.is_phishing !== true) {
-            throw new Error(`Expected phishing.is_phishing=true for obvious phishing email, got: ${JSON.stringify(parsed.phishing)}`);
-          }
-          if (!['low', 'medium', 'high'].includes(parsed.phishing.confidence)) {
-            throw new Error(`Expected phishing confidence level, got: ${parsed.phishing.confidence}`);
+          // Phishing is judged by the dedicated check-phishing-only prompt
+          // (summarize-email-phishing.yaml); the summary prompt must not emit a verdict.
+          if ('phishing' in parsed) {
+            throw new Error(`Summary prompt must not return a phishing field, got: ${JSON.stringify(parsed.phishing)}`);
           }
           // sentiment should be negative
           if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
@@ -114,12 +104,11 @@ tests:
             throw new Error(`Expected negative sentiment for threatening email, got: ${parsed.sentiment.score}`);
           }
           return true;
-    description: "Should detect phishing and return negative sentiment for suspicious email"
+    description: "Threatening email: negative sentiment, and no phishing field (dedicated prompt owns that verdict)"
 
   - vars:
       isThread: false
       subject: "Meeting with trainees"
-      contextNote: ""
       currentDatetime: "2026-05-22T00:00:00Z"
       userTimezone: "Australia/Melbourne"
       body: "Hi Jeremy, an online meeting would work well for us at 11.30am on 29th. It will be with trainees Harrison and Asher."
@@ -158,7 +147,6 @@ tests:
       isThread: true
       userName: "Beverly Dueñas"
       subject: "Re: Review of Presentation Slides and Availability for Feedback"
-      contextNote: "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
       body: |
         [Original from You on 06/18/2026]:
         """
@@ -210,7 +198,6 @@ tests:
       fromName: "Kulvinder Kour"
       from: "kulvinder@example.com"
       subject: "Feedback on your presentation slides"
-      contextNote: ""
       body: "Hi Beverly, I reviewed the presentation slides you sent. Could you add a slide on the pilot results before Friday? Happy to discuss on a quick call."
     assert:
       - type: javascript
@@ -247,7 +234,6 @@ tests:
       fromName: "Sam Connector"
       from: "sam@connector.com"
       subject: "Intro: Jeremy <> Priya"
-      contextNote: ""
       body: |
         Hi both,
 

@@ -15,7 +15,9 @@ export const LLM_OP_DISCOVER_USER_CONTEXT = "discover_user_context";
 // Email summarization
 export const LLM_OP_SUMMARIZE_EMAIL = "summarize_email";
 
-// Email summarization with LLM phishing check piggybacked (single email)
+// Structured single-email summary (summary + sentiment + action items +
+// meeting proposal). Phishing moved to the dedicated `check_phishing_only`
+// call; the id keeps its historical name so token-usage history stays intact.
 export const LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING =
   "summarize_email_with_phishing_check";
 
@@ -111,7 +113,7 @@ export const LLM_OP_CLASSIFY_CONTACT_TYPE = "classify_contact_type";
 // Context compression
 export const LLM_OP_COMPRESS_CONTEXT = "compress_context";
 
-// Phishing-only check (used when summarisation uses a custom prompt)
+// Dedicated phishing check, run alongside every summary (its verdict wins over the summary prompt's own phishing field)
 export const LLM_OP_CHECK_PHISHING_ONLY = "check_phishing_only";
 export const LLM_OP_CONFIRM_PHISHING = "confirm_phishing";
 
@@ -238,7 +240,8 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns (legacy)",
   [LLM_OP_DISCOVER_USER_CONTEXT]: "Discover User Context",
   [LLM_OP_SUMMARIZE_EMAIL]: "Summarize Email",
-  [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]: "Summarize Email + Phishing Check",
+  [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]:
+    "Summarize Email (structured: sentiment, actions, meeting)",
   [LLM_OP_SUMMARIZE_EMAIL_BATCH]: "Summarize Email (Batch)",
   [LLM_OP_CHECK_TONE]: "Check Tone",
   [LLM_OP_EXTRACT_MEETING_REFERENCES]: "Extract Meeting Date References",

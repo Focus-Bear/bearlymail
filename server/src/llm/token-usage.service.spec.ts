@@ -374,3 +374,66 @@ describe("TokenUsageService - getUsageByOperation cost estimates", () => {
     expect(result[0].estimatedCostUsd).toBeNull();
   });
 });
+
+describe("TokenUsageService - logUsage HTML detection", () => {
+  let service: TokenUsageService;
+  let tokenUsageRepo: ReturnType<typeof mockTokenUsageRepository>;
+
+  beforeEach(async () => {
+    tokenUsageRepo = mockTokenUsageRepository();
+    tokenUsageRepo.create.mockImplementation((row) => row);
+    tokenUsageRepo.save.mockImplementation(async (row) => row);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TokenUsageService,
+        {
+          provide: getRepositoryToken(TokenUsage),
+          useValue: tokenUsageRepo,
+        },
+        {
+          provide: getRepositoryToken(PromptExampleEntity),
+          useValue: mockPromptExampleRepository(),
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository(),
+        },
+        { provide: DebugService, useValue: mockDebugService() },
+      ],
+    }).compile();
+
+    service = module.get<TokenUsageService>(TokenUsageService);
+  });
+
+  const logWithPrompt = async (promptText: string) => {
+    await service.logUsage({
+      operation: "summarize_email",
+      provider: "bedrock",
+      model: "amazon.nova-micro-v1:0",
+      promptTokens: 10,
+      completionTokens: 5,
+      totalTokens: 15,
+      promptText,
+    });
+    return (tokenUsageRepo.create.mock.calls[0][0] as { containsHtml: boolean })
+      .containsHtml;
+  };
+
+  it("does not flag prompt-template placeholders like <your TL;DR here> as HTML", async () => {
+    const containsHtml = await logWithPrompt(
+      'Respond with JSON: {"tldr": "<your TL;DR here>", "actions": ["<task the recipient needs to do>"], "reason": "<null if clearly legitimate>"}',
+    );
+    expect(containsHtml).toBe(false);
+  });
+
+  it("flags real markup in the email body", async () => {
+    expect(
+      await logWithPrompt('Email body: <div class="header"><p>Hello</p></div>'),
+    ).toBe(true);
+    expect(
+      await logWithPrompt('Body: click <a href="https://x">here</a>'),
+    ).toBe(true);
+    expect(await logWithPrompt("Line one<br/>line two")).toBe(true);
+  });
+});

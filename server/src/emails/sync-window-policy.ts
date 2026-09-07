@@ -7,7 +7,9 @@ import { MILLISECONDS } from "../constants/time-constants";
  * 1. The initial sync caps at the `INITIAL_SYNC_MAX_EMAILS` most recent emails.
  * 2. After the initial sync, ongoing syncs only fetch emails at most
  *    `ONGOING_SYNC_WINDOW_DAYS` old. Starred emails are fetched separately
- *    by each provider regardless of age.
+ *    by each provider with the wider `STARRED_SYNC_WINDOW_DAYS` window — a
+ *    starred thread whose newest message is older than that is not imported
+ *    until the thread receives a new message.
  * 3. When the cap/window means older mail is being skipped during the initial
  *    sync, `User.syncWindowLimited` is set so the client can show a
  *    "we're not syncing your old emails" banner.
@@ -26,6 +28,18 @@ export const INCREMENTAL_SYNC_OVERLAP_HOURS = 4;
 export function getOldestAllowedSyncDate(now: Date = new Date()): Date {
   return new Date(
     now.getTime() - QUERY_LIMITS.ONGOING_SYNC_WINDOW_DAYS * MILLISECONDS.DAY,
+  );
+}
+
+/**
+ * Oldest `receivedAt` a starred/flagged-thread fetch is allowed to reach back
+ * to. Applies to every sync, not just the initial one: an ongoing sync also
+ * imports starred threads it has not seen, so an initial-only bound would be
+ * undone by the next sync.
+ */
+export function getOldestAllowedStarredSyncDate(now: Date = new Date()): Date {
+  return new Date(
+    now.getTime() - QUERY_LIMITS.STARRED_SYNC_WINDOW_DAYS * MILLISECONDS.DAY,
   );
 }
 

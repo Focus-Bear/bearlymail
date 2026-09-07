@@ -23,6 +23,17 @@ export const CATEGORY_RULE_COMPOSITE = {
   MAX_NOTIFICATION_SUBTYPES: 12,
   /** Maximum length of one notification subtype key (`github:pr:review_requested:human`). */
   MAX_NOTIFICATION_SUBTYPE_LENGTH: 80,
+  /**
+   * Caps for the GitHub-metadata structural conditions a composite rule may
+   * carry (`githubStateAny`, `githubProjectStatusAny`, `githubLabelsAny`).
+   * A rule pinning more than a handful of board statuses or labels is no longer
+   * a structural separator, and the vocabulary of states is only three long.
+   */
+  MAX_GITHUB_STATES: 3,
+  MAX_GITHUB_PROJECT_STATUSES: 6,
+  MAX_GITHUB_LABELS: 10,
+  /** Maximum length of one GitHub board status / project name / label. */
+  MAX_GITHUB_CONDITION_VALUE_LENGTH: 120,
   /** Current spec version for newly created composite rules. */
   SPEC_VERSION: 3 as const,
   /** v2 spec — still supported for backward compatibility. */

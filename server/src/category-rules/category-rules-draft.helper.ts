@@ -8,8 +8,10 @@ import {
 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import type { GithubCategorySignals } from "../github/github-category-signals.helper";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import type {
+  GithubFactsBreakdownEntry,
   NotificationSubtypeBreakdownEntry,
   RuleSanitySampleEmail,
 } from "../llm/llm-rule-sanity";
@@ -21,6 +23,9 @@ import {
   fetchValidationWindows,
   ValidationWindows,
 } from "./category-rules-derive-exclusions.helper";
+import { selectCleanGithubConditions } from "./category-rules-github-breakdown.helper";
+import type { GithubRuleConditions } from "./category-rules-github-conditions.helper";
+import { describeGithubConditions } from "./category-rules-github-conditions.helper";
 import { isGithubNotificationSubtype } from "./category-rules-notification-subtype.helper";
 import {
   buildNotificationSubtypeBreakdown,
@@ -67,12 +72,23 @@ export interface DraftCompositeSpecResult {
    * shown to the sanity reviewer so it can judge actor/event fit.
    */
   subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
+  /**
+   * Per-GitHub-fact TP/FP evidence for a seed whose thread carries fetched
+   * metadata (board status, state, author kind, labels), shown to the sanity
+   * reviewer alongside the sub-stream breakdown.
+   */
+  githubBreakdown?: GithubFactsBreakdownEntry[];
 }
 
 /** What the auto-generation gates need from a draft to review and persist it. */
 export type AutoRuleCandidate = Pick<
   DraftCompositeSpecResult,
-  "spec" | "categoryName" | "categoryId" | "sampleEmails" | "subtypeBreakdown"
+  | "spec"
+  | "categoryName"
+  | "categoryId"
+  | "sampleEmails"
+  | "subtypeBreakdown"
+  | "githubBreakdown"
 >;
 
 export interface DraftCompositeSpecOptions {
@@ -236,6 +252,29 @@ function buildStructuralSpec(
       subjectContainsAny: [],
       bodyContainsAny: [],
       notificationSubtypeAny,
+    } as CreateCompositeCategoryRuleDto);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The GitHub-facts candidate for a seed with fetched metadata: sender + the
+ * pinned facts, no phrases. Null when the spec fails validation.
+ */
+function buildGithubFactsSpec(
+  normalizeCompositeSpecDto: DraftCompositeSpecDeps["normalizeCompositeSpecDto"],
+  categoryName: string,
+  sender: string,
+  conditions: GithubRuleConditions,
+): CompositeCategoryRuleSpec | null {
+  try {
+    return normalizeCompositeSpecDto({
+      categoryName,
+      senderMatchesAny: [sender],
+      subjectContainsAny: [],
+      bodyContainsAny: [],
+      ...conditions,
     } as CreateCompositeCategoryRuleDto);
   } catch {
     return null;
@@ -447,6 +486,75 @@ async function draftStructuralSubtypeRule(
 }
 
 /**
+ * STRUCTURAL-FIRST path for a GitHub seed whose thread carries fetched
+ * metadata. Probes each fact the seed satisfies (board status, lifecycle
+ * state, author kind, labels) as a sender + fact rule against the validation
+ * windows and pins the cleanest one — so "board status QA passed → QA passed"
+ * is draftable with no phrases at all. Returns null (plus the breakdown, for
+ * the reviewer) when nothing is clean or the candidate fails validation, so
+ * the caller falls back to sub-stream then phrase drafting. No LLM call.
+ */
+async function draftGithubFactsRule(
+  context: DraftContext,
+  seed: GithubCategorySignals,
+  windows: ValidationWindows,
+): Promise<{
+  draft: Omit<DraftCompositeSpecResult, "sampleEmails"> | null;
+  breakdown: GithubFactsBreakdownEntry[];
+}> {
+  const { deps, userId, sender, categoryName, categoryId } = context;
+  const { conditions, breakdown } = selectCleanGithubConditions({
+    categoryRows: windows.categoryRows,
+    broadRows: windows.broadRows,
+    senderPatterns: [sender],
+    normaliseSender: deps.normaliseSender,
+    targetCategoryId: categoryId,
+    seed,
+  });
+  const factsSpec = conditions
+    ? buildGithubFactsSpec(
+        deps.normalizeCompositeSpecDto,
+        categoryName,
+        sender,
+        conditions,
+      )
+    : null;
+  if (!factsSpec) {
+    deps.logger.log(
+      `[CategoryRules][github-facts] No clean fact for seed (probed=${breakdown.length}) — falling back for user ${userId} category="${categoryName}"`,
+    );
+    return { draft: null, breakdown };
+  }
+
+  const outcome = await deriveExclusionsForCompositeRule({
+    emailThreadRepository: deps.emailThreadRepository,
+    llmCategoriesService: deps.llmCategoriesService,
+    normaliseSender: deps.normaliseSender,
+    userId,
+    positiveSpec: augmentExclusionsForQaTemplates(factsSpec, categoryName),
+    categoryName,
+    categoryId,
+    logger: deps.logger,
+    windows,
+  });
+  deps.logger.log(
+    `[CategoryRules][github-facts] pinned=[${describeGithubConditions(factsSpec).join("; ")}] TP=${outcome.truePositives} FP=${outcome.falsePositives} passes=${outcome.passes} for user ${userId} category="${categoryName}"`,
+  );
+  if (!outcome.passes || !outcome.finalSpec) {
+    return { draft: null, breakdown };
+  }
+  return {
+    draft: {
+      spec: outcome.finalSpec,
+      categoryName,
+      categoryId,
+      exclusionsDerived: true,
+    },
+    breakdown,
+  };
+}
+
+/**
  * PHRASE path: LLM-extracted subject/body phrases (plus the seed's subtype pin
  * when one resolved), validated and refined with FP-derived exclusions.
  */
@@ -522,6 +630,60 @@ async function draftPhraseRule(
   });
 }
 
+/** The TP/FP evidence a structural attempt gathered, for the sanity reviewer. */
+interface StructuralEvidence {
+  subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
+  githubBreakdown?: GithubFactsBreakdownEntry[];
+}
+
+/**
+ * The structural-first attempt for a GitHub seed: thread metadata FIRST (a
+ * board status such as "QA passed" is the rarest, most decisive fact an email
+ * carries, so it beats a sub-stream pin), then the clean sub-stream set.
+ * Returns the validation windows so the phrase fallback can reuse them.
+ */
+async function draftStructuralRule(
+  context: DraftContext,
+  seed: {
+    seedSubtype: string | undefined;
+    seedGithubFacts: GithubCategorySignals | null;
+  },
+): Promise<{
+  draft: Omit<DraftCompositeSpecResult, "sampleEmails"> | null;
+  evidence: StructuralEvidence;
+  windows: ValidationWindows;
+}> {
+  const windows = await fetchValidationWindows(
+    context.deps.emailThreadRepository,
+    context.userId,
+    context.categoryId,
+  );
+  const evidence: StructuralEvidence = {};
+  if (seed.seedGithubFacts) {
+    const facts = await draftGithubFactsRule(
+      context,
+      seed.seedGithubFacts,
+      windows,
+    );
+    evidence.githubBreakdown = facts.breakdown;
+    if (facts.draft) {
+      return { draft: facts.draft, evidence, windows };
+    }
+  }
+  if (seed.seedSubtype && isGithubNotificationSubtype(seed.seedSubtype)) {
+    const structural = await draftStructuralSubtypeRule(
+      context,
+      seed.seedSubtype,
+      windows,
+    );
+    evidence.subtypeBreakdown = structural.breakdown;
+    if (structural.draft) {
+      return { draft: structural.draft, evidence, windows };
+    }
+  }
+  return { draft: null, evidence, windows };
+}
+
 /**
  * Shared core for both the auto-generate and user-draft flows. Returns the
  * candidate spec WITHOUT persisting. For a GitHub seed under
@@ -574,31 +736,27 @@ export async function buildDraftCompositeSpec(
   const sampleEmails = toSanitySamples(sender, samples);
 
   const seedSubtype = email.notificationSubtype;
+  const seedGithubFacts = email.github ?? null;
   const structuralFirst =
     Boolean(options.preferStructuralSubtypeSet) &&
-    isGithubNotificationSubtype(seedSubtype);
-  let windows: ValidationWindows | undefined;
-  let subtypeBreakdown: NotificationSubtypeBreakdownEntry[] | undefined;
-  if (structuralFirst && seedSubtype) {
-    windows = await fetchValidationWindows(
-      deps.emailThreadRepository,
-      userId,
-      categoryId,
-    );
-    const structural = await draftStructuralSubtypeRule(
-      context,
+    (isGithubNotificationSubtype(seedSubtype) || seedGithubFacts !== null);
+  if (structuralFirst) {
+    const structural = await draftStructuralRule(context, {
       seedSubtype,
-      windows,
-    );
-    subtypeBreakdown = structural.breakdown;
+      seedGithubFacts,
+    });
     if (structural.draft) {
-      return { ...structural.draft, sampleEmails, subtypeBreakdown };
+      return { ...structural.draft, sampleEmails, ...structural.evidence };
     }
+    const draft = await draftPhraseRule(
+      context,
+      samples,
+      options,
+      structural.windows,
+    );
+    return draft ? { ...draft, sampleEmails, ...structural.evidence } : null;
   }
 
-  const draft = await draftPhraseRule(context, samples, options, windows);
-  if (!draft) {
-    return null;
-  }
-  return { ...draft, sampleEmails, subtypeBreakdown };
+  const draft = await draftPhraseRule(context, samples, options, undefined);
+  return draft ? { ...draft, sampleEmails } : null;
 }

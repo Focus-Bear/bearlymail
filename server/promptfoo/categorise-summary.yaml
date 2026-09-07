@@ -1040,3 +1040,85 @@ tests:
           forbidden:
             - "📅 Meetings & Scheduling"
 
+
+  # GitHub facts block (githubFacts var): thread metadata fetched from the
+  # GitHub API is authoritative over anything inferable from the prose.
+  - description: "GH-FACTS (a) project board status \"QA passed\" wins over a prose \"proceed with testing\" comment"
+    vars:
+      subject: "Re: [Focus-Bear/Mac-App] Timer drifts after sleep (Issue #812)"
+      senderName: "qa-tester"
+      senderEmail: "notifications@github.com"
+      summary: "A QA teammate commented on the issue: \"QA — the design has been updated. Proceed with testing.\""
+      githubFacts: "Item: issue #812 Focus-Bear/Mac-App · state: open · event: comment by human (qa-tester) · issue author: human (jeremy) · project status: QA passed (Mac App roadmap)"
+      categories: |
+           1. ✅ Github QA passed issues — GitHub issue notifications where QA has marked the issue as passed / done
+           2. ❌ Github QA failed issues — GitHub issue notifications where QA has marked the issue as failed
+           3. 💬 Github issue comments — general comments on GitHub issues, including requests to start testing
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-choice.js
+        config:
+          expected:
+            - "✅ Github QA passed issues"
+          forbidden:
+            - "❌ Github QA failed issues"
+
+  - description: "GH-FACTS (b) state: merged by a human → merged-PR category, not a review-request category"
+    vars:
+      subject: "Re: [Focus-Bear/backend] Add retry logic (PR #482)"
+      senderName: "jeremy"
+      senderEmail: "notifications@github.com"
+      summary: "Notification about activity on pull request #482 \"Add retry logic\" in Focus-Bear/backend."
+      githubFacts: "Item: PR #482 Focus-Bear/backend · state: merged · event: merged by human (jeremy) · PR author: human (sam) · checks: passing"
+      categories: |
+           1. 🔀 Pull request reviews — pull requests where my review has been requested
+           2. ✅ Merged pull requests — pull requests that have been merged
+           3. 🤖 Bot updates — automated bot activity on repositories (dependabot, CI bots)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-choice.js
+        config:
+          expected:
+            - "✅ Merged pull requests"
+          forbidden:
+            - "🔀 Pull request reviews"
+
+  - description: "GH-FACTS (c) bot-AUTHORED PR merged by a human → AI/bot PR category, not a human-merge category"
+    vars:
+      subject: "Re: [Focus-Bear/backend] Fix flaky snooze test (PR #517)"
+      senderName: "jeremy"
+      senderEmail: "notifications@github.com"
+      summary: "Jeremy merged pull request #517 \"Fix flaky snooze test\" in Focus-Bear/backend."
+      githubFacts: "Item: PR #517 Focus-Bear/backend · state: merged · event: merged by human (jeremy) · PR author: bot (devin-ai-integration[bot])"
+      categories: |
+           1. 👤 PRs by human developers — pull requests opened by human teammates
+           2. 🤖 AI-written PRs — pull requests opened by AI assistants such as Devin, regardless of who merged them
+           3. 💬 Github issue comments — general comments on GitHub issues
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-choice.js
+        config:
+          expected:
+            - "🤖 AI-written PRs"
+          forbidden:
+            - "👤 PRs by human developers"
+
+  - description: "GH-FACTS (d) no facts block → unchanged prose-only behaviour (testing request is NOT a QA result)"
+    vars:
+      subject: "Re: [Focus-Bear/Mac-App] Timer drifts after sleep (Issue #812)"
+      senderName: "qa-tester"
+      senderEmail: "notifications@github.com"
+      summary: "A QA teammate commented on the issue: \"QA — the design has been updated. Proceed with testing.\""
+      categories: |
+           1. ✅ Github QA passed issues — GitHub issue notifications where QA has marked the issue as passed / done
+           2. ❌ Github QA failed issues — GitHub issue notifications where QA has marked the issue as failed
+           3. 💬 Github issue comments — general comments on GitHub issues, including requests to start testing
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-category-choice.js
+        config:
+          expected:
+            - "💬 Github issue comments"
+          forbidden:
+            - "✅ Github QA passed issues"
+            - "❌ Github QA failed issues"

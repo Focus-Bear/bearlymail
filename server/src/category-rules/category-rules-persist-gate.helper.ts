@@ -22,6 +22,7 @@ import { Email } from "../database/entities/email.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { RuleSpecSummary } from "../llm/llm-rule-value";
 import { specToV2 } from "./category-rules-auto-composite.helper";
+import { describeGithubConditions } from "./category-rules-github-conditions.helper";
 import {
   countMatchesInRows,
   dropContradictoryExclusions,
@@ -83,6 +84,7 @@ export function specToSummary(
     subjectNotContains: v2.subjectNotContainsAny ?? [],
     bodyNotContains: v2.bodyNotContainsAny ?? [],
     notificationSubtypes: notificationSubtypesOf(spec),
+    githubConditions: describeGithubConditions(spec),
   };
 }
 

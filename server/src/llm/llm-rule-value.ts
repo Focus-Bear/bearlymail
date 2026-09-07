@@ -75,6 +75,11 @@ export interface RuleSpecSummary {
    * `github:pr:comment:bot`. Empty/absent when the rule is phrase-only.
    */
   notificationSubtypes?: string[];
+  /**
+   * Human-readable GitHub-metadata conditions (`state is one of: merged`,
+   * `project board status is one of: QA passed`). Empty/absent when none.
+   */
+  githubConditions?: string[];
 }
 
 export interface AssessRuleValueParams {
@@ -134,6 +139,7 @@ function formatRuleSpecSummary(summary: RuleSpecSummary): string {
       "Notification sub-stream is one of",
       summary.notificationSubtypes ?? [],
     ),
+    line("GitHub facts must satisfy", summary.githubConditions ?? []),
     line("Subject contains", summary.subjectContains),
     line("Body contains", summary.bodyContains),
     line("Subject NOT contains", summary.subjectNotContains),

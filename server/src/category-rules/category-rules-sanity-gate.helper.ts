@@ -26,6 +26,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { CategoryRuleSanityService } from "../llm/category-rule-sanity.service";
 import {
+  GithubFactsBreakdownEntry,
   NotificationSubtypeBreakdownEntry,
   RULE_SANITY_VERDICTS,
   RuleSanityCategory,
@@ -34,6 +35,7 @@ import {
   RuleSanitySampleEmail,
 } from "../llm/llm-rule-sanity";
 import { parseCategoryValue } from "../utils/category-format.util";
+import { githubConditionsOf } from "./category-rules-github-conditions.helper";
 import { notificationSubtypesOf } from "./category-rules-notification-subtype.helper";
 import { specToSummary } from "./category-rules-persist-gate.helper";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
@@ -60,6 +62,8 @@ export interface SanityGateParams {
   sampleEmails: RuleSanitySampleEmail[];
   /** Per-sub-stream TP/FP evidence for structural candidates. */
   subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
+  /** Per-GitHub-fact TP/FP evidence for metadata-pinned candidates. */
+  githubBreakdown?: GithubFactsBreakdownEntry[];
 }
 
 export const SANITY_GATE_REASONS = {
@@ -145,8 +149,8 @@ function buildRevisedSpec(
   if (broadensSender) {
     return null;
   }
-  // A reviewer may tighten phrases, never touch the structural pin — carry the
-  // candidate's subtype condition(s) through unchanged.
+  // A reviewer may tighten phrases, never touch the structural pins — carry
+  // the candidate's subtype and GitHub-fact condition(s) through unchanged.
   const notificationSubtypes = notificationSubtypesOf(candidateSpec);
   try {
     return deps.normalizeRevision({
@@ -160,6 +164,7 @@ function buildRevisedSpec(
       ...(notificationSubtypes.length > 0 && {
         notificationSubtypeAny: notificationSubtypes,
       }),
+      ...githubConditionsOf(candidateSpec),
     } as CreateCompositeCategoryRuleDto);
   } catch {
     return null;
@@ -238,6 +243,7 @@ async function resolveRevision(
     otherCategories: categories.others,
     sampleEmails: params.sampleEmails,
     subtypeBreakdown: params.subtypeBreakdown,
+    githubBreakdown: params.githubBreakdown,
     userId: params.userId,
   });
   if (!secondPass || secondPass.verdict !== RULE_SANITY_VERDICTS.ACCEPT) {
@@ -294,6 +300,7 @@ export async function evaluateRuleSanityGate(
     otherCategories: categories.others,
     sampleEmails: params.sampleEmails,
     subtypeBreakdown: params.subtypeBreakdown,
+    githubBreakdown: params.githubBreakdown,
     userId,
   });
 

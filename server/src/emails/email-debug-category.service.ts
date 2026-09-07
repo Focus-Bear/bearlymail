@@ -12,6 +12,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { GithubCategorySignalsService } from "../github/github-category-signals.service";
 import { CategoryShortlistService } from "../llm/category-shortlist.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
@@ -22,6 +23,7 @@ import {
   resolveCategoryName,
 } from "../utils/category-name.util";
 import type { CategoryDecisionTrace } from "./category-decision-trace.types";
+import { cachedGithubSignalsForEmail } from "./email-github-signals.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 /** Cap on the thread-timeline list in the debug payload — threads longer than this keep only the newest entries (the recent tail is what staleness questions are about). */
@@ -138,7 +140,17 @@ export class EmailDebugCategoryService {
     private categoryRulesService: CategoryRulesService,
     private categoryShortlistService: CategoryShortlistService,
     private priorityAnalysisService: PriorityAnalysisService,
+    private githubCategorySignalsService: GithubCategorySignalsService,
   ) {}
+
+  /** The GitHub facts the live rule matcher would see — cached metadata only. */
+  private cachedGithubSignals(email: Email) {
+    return cachedGithubSignalsForEmail(
+      this.emailThreadRepository,
+      this.githubCategorySignalsService,
+      email,
+    );
+  }
 
   private get emailRepository() {
     return this.dataSource.getRepository(Email);
@@ -340,9 +352,13 @@ export class EmailDebugCategoryService {
       BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
     // Deterministic rules match against exactly what the real categoriser sees
-    // (full plain text + HTML match text, and the resolved notification
-    // subtype), so the debug trace can never disagree with processing.
-    const meta = buildRuleEmailMetadata(email);
+    // (full plain text + HTML match text, the resolved notification subtype and
+    // the thread's cached GitHub facts), so the debug trace can never disagree
+    // with processing.
+    const meta = buildRuleEmailMetadata(
+      email,
+      await this.cachedGithubSignals(email),
+    );
     const deterministicRules =
       await this.categoryRulesService.getDeterministicRulesDebug(userId, meta);
     const { winningRule } = deterministicRules;

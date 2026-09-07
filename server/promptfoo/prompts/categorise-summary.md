@@ -37,6 +37,10 @@ Subject: {{subject}}
 
 Current content (reflects the latest message):
 {{summary}}
+{% if githubFacts %}
+### GitHub facts (authoritative)
+{{githubFacts}}
+{% endif %}
 
 ### Available Categories
 

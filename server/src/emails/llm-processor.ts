@@ -26,6 +26,11 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { DebugService } from "../debug/debug.service";
 import { DEBUG_FEATURES } from "../debug/debug-feature-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import {
+  type GithubCategorySignals,
+  githubFactsTraceDetail,
+} from "../github/github-category-signals.helper";
+import { GithubCategorySignalsService } from "../github/github-category-signals.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { LocalModelInferenceService } from "../local-model/local-model-inference.service";
@@ -39,12 +44,17 @@ import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { shouldBypassSummaryForPriority } from "./batch-email-payloads.helper";
 import type { CategoryDecisionAnalyzedEmail } from "./category-decision-trace.types";
 import { applyCategoryRuleToResult } from "./category-rule-apply.helper";
+import {
+  cachedGithubSignalsForEmail,
+  githubSignalsEmailFields,
+} from "./email-github-signals.helper";
 import { EmailsService } from "./emails.service";
 import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { LocalModelPromotionService } from "./local-model-promotion.service";
+import { runPriorityAnalysisForEmail } from "./priority-analysis-request.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 // Preview length constants for log messages
@@ -69,6 +79,10 @@ export class LLMProcessor implements OnModuleInit {
   private readonly priorityConcurrency: number;
   private readonly summaryConcurrency: number;
 
+  // 21 collaborators: this class is the priority/summary job orchestrator and
+  // every one of them is a distinct pipeline step; a NestJS constructor cannot
+  // take an options object.
+  // eslint-disable-next-line better-max-params/better-max-params
   constructor(
     @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     @InjectRepository(Email)
@@ -88,6 +102,7 @@ export class LLMProcessor implements OnModuleInit {
     private debugService: DebugService,
     private categoryRulesService: CategoryRulesService,
     private priorityRulesService: PriorityRulesService,
+    private readonly githubCategorySignalsService: GithubCategorySignalsService,
     private readonly userEncryptionService: UserEncryptionService,
     @Inject(forwardRef(() => SubscriptionsService))
     private readonly subscriptionsService: SubscriptionsService,
@@ -249,18 +264,21 @@ export class LLMProcessor implements OnModuleInit {
     return { email, thread };
   }
 
-  private async resolveCategoryHint(
-    userId: string,
-    emailId: string,
-    email: Email,
-    workerId: string,
-    bodyForPriority: string,
-  ): Promise<{
+  private async resolveCategoryHint(options: {
+    userId: string;
+    emailId: string;
+    email: Email;
+    workerId: string;
+    bodyForPriority: string;
+    githubSignals: GithubCategorySignals | null;
+  }): Promise<{
     categoryRuleMatch: CategoryRuleMatch | null;
     bodyWithCategoryHint: string;
     ruleTraceSnapshot: CategoryRuleTraceSnapshot;
   }> {
-    const emailMetadata = buildRuleEmailMetadata(email);
+    const { userId, emailId, email, workerId, bodyForPriority, githubSignals } =
+      options;
+    const emailMetadata = buildRuleEmailMetadata(email, githubSignals);
     const { match: categoryRuleMatch, snapshot: ruleTraceSnapshot } =
       await this.categoryRulesService.findMatchingRuleWithTrace(
         userId,
@@ -284,14 +302,17 @@ export class LLMProcessor implements OnModuleInit {
    * persist a deterministic rule so future emails skip the LLM category step.
    * Errors are swallowed — rule generation must never block email processing.
    */
-  private async tryGenerateCategoryRule(
-    userId: string,
-    emailId: string,
-    email: Email,
-    categoryName: string,
-    workerId: string,
-  ): Promise<void> {
-    const emailMetadata = buildRuleEmailMetadata(email);
+  private async tryGenerateCategoryRule(options: {
+    userId: string;
+    emailId: string;
+    email: Email;
+    categoryName: string;
+    workerId: string;
+    githubSignals: GithubCategorySignals | null;
+  }): Promise<void> {
+    const { userId, emailId, email, categoryName, workerId, githubSignals } =
+      options;
+    const emailMetadata = buildRuleEmailMetadata(email, githubSignals);
     try {
       await this.categoryRulesService.generateCompositeRuleFromEmail(
         userId,
@@ -330,13 +351,14 @@ export class LLMProcessor implements OnModuleInit {
         );
         return;
       }
-      await this.tryGenerateCategoryRule(
+      await this.tryGenerateCategoryRule({
         userId,
         emailId,
         email,
         categoryName,
         workerId,
-      );
+        githubSignals: await this.cachedGithubSignals(email),
+      });
       // A manual correction can also mean an EXISTING rule mis-filed this email
       // under the old category. Add an exclusion to that specific offending rule
       // so it stops matching. Best-effort — the correct-category rule build above
@@ -352,6 +374,16 @@ export class LLMProcessor implements OnModuleInit {
     });
   }
 
+  private cachedGithubSignals(
+    email: Email,
+  ): Promise<GithubCategorySignals | null> {
+    return cachedGithubSignalsForEmail(
+      this.emailThreadRepository,
+      this.githubCategorySignalsService,
+      email,
+    );
+  }
+
   /**
    * Adds an exclusion to the composite rule that mis-filed this email under the
    * user-corrected-away category (`demoteCategoryId`), so it stops matching this
@@ -364,7 +396,10 @@ export class LLMProcessor implements OnModuleInit {
     demoteCategoryId: string,
     workerId: string,
   ): Promise<void> {
-    const emailMetadata = buildRuleEmailMetadata(email);
+    const emailMetadata = buildRuleEmailMetadata(
+      email,
+      await this.cachedGithubSignals(email),
+    );
     try {
       const result =
         await this.categoryRulesService.addExclusionToMismatchedRule(
@@ -389,22 +424,25 @@ export class LLMProcessor implements OnModuleInit {
    * generation was skipped so "why no new rules" is answerable from the logs
    * (the skip used to be silent).
    */
-  private async maybeGenerateCategoryRule(
-    userId: string,
-    email: Email,
-    workerId: string,
-    categoryRuleMatch: CategoryRuleMatch | null,
-    llmResult: { category: string; categoryConfidence?: string },
-  ): Promise<void> {
+  private async maybeGenerateCategoryRule(options: {
+    userId: string;
+    email: Email;
+    workerId: string;
+    categoryRuleMatch: CategoryRuleMatch | null;
+    llmResult: { category: string; categoryConfidence?: string };
+    githubSignals: GithubCategorySignals | null;
+  }): Promise<void> {
+    const { userId, email, workerId, categoryRuleMatch, llmResult } = options;
     if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") {
       // Issue #1671: generate proper 3-condition composite rules (sender + subject + body) instead of legacy single-signal rules.
-      await this.tryGenerateCategoryRule(
+      await this.tryGenerateCategoryRule({
         userId,
-        email.id,
+        emailId: email.id,
         email,
-        llmResult.category,
+        categoryName: llmResult.category,
         workerId,
-      );
+        githubSignals: options.githubSignals,
+      });
       return;
     }
     this.logger.log(
@@ -478,6 +516,7 @@ export class LLMProcessor implements OnModuleInit {
     replyStatus: ReturnType<LLMProcessor["determineThreadReplyStatus"]>;
     bodyForPriority: string;
     bodyForPrioritySource: CategoryDecisionAnalyzedEmail["contentSource"];
+    githubSignals: GithubCategorySignals | null;
   }): Promise<void> {
     const {
       userId,
@@ -492,42 +531,42 @@ export class LLMProcessor implements OnModuleInit {
       replyStatus,
       bodyForPriority,
       bodyForPrioritySource,
+      githubSignals,
     } = options;
     const { categoryRuleMatch, bodyWithCategoryHint, ruleTraceSnapshot } =
-      await this.resolveCategoryHint(
+      await this.resolveCategoryHint({
         userId,
         emailId,
         email,
         workerId,
         bodyForPriority,
-      );
-    const userTimezone =
-      await this.priorityCacheService.getUserTimezone(userId);
-    const llmResult = await this.priorityAnalysisService.analyzePriority({
-      email: {
-        from: email.from || "",
-        fromName: email.fromName,
-        senderJobTitle: email.senderJobTitle,
-        subject: email.subject || "",
-        body: bodyWithCategoryHint,
-        receivedAt: email.receivedAt ?? undefined,
+        githubSignals,
+      });
+    const llmResult = await runPriorityAnalysisForEmail(
+      {
+        priorityAnalysisService: this.priorityAnalysisService,
+        priorityCacheService: this.priorityCacheService,
       },
-      userHistory: { averageTimeToReply: avgTimeToReply },
-      userId,
-      userContext,
-      threadInfo: replyStatus,
-      preComputedSentimentScore: email.sentimentScore ?? undefined,
-      userTimezone,
-      // A rule match pins the category (applied below, overriding the LLM), so the
-      // prompt can skip the category list + shortlist entirely for these emails.
-      categoryPreAssigned: !!categoryRuleMatch,
-    });
+      {
+        userId,
+        email,
+        bodyWithCategoryHint,
+        avgTimeToReply,
+        userContext,
+        replyStatus,
+        categoryPreAssigned: !!categoryRuleMatch,
+        githubSignals,
+      },
+    );
     // Apply the rule match (overriding the LLM category) and attach the trace
     // snapshot so the category-debug view can show the ORIGINAL outcome (rule
     // matched / no rule matched / matched-but-disabled) instead of only a live
     // re-run. Shared with the batch path so both behave identically.
     applyCategoryRuleToResult(llmResult, categoryRuleMatch, ruleTraceSnapshot);
     llmResult.analyzedContentSource = bodyForPrioritySource;
+    llmResult.githubFactsTrace =
+      githubFactsTraceDetail(githubSignalsEmailFields(email), githubSignals) ??
+      undefined;
     tracker.endPhase("llmCall");
     tracker.startPhase("dbUpdate");
     const finalScore = await this.priorityResultService.applyPriorityResult(
@@ -548,25 +587,34 @@ export class LLMProcessor implements OnModuleInit {
       workerId,
     );
     tracker.endPhase("dbUpdate");
-    await this.maybeGenerateCategoryRule(
+    await this.maybeGenerateCategoryRule({
       userId,
       email,
       workerId,
       categoryRuleMatch,
       llmResult,
-    );
+      githubSignals,
+    });
     this.logger.log(
       `[Worker ${workerId}] Refined priority for email ${emailId} (thread: ${email.threadId?.substring(0, ORCHESTRATOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}...)`,
     );
-    await this.debugService.log(
+    await this.logPriorityRefinementDebug(userId, email, threadEmails.length);
+  }
+
+  private logPriorityRefinementDebug(
+    userId: string,
+    email: Email,
+    emailCount: number,
+  ): Promise<void> {
+    return this.debugService.log(
       DEBUG_FEATURES.PRIORITY_ANALYSIS_TRACKING,
       userId,
       {
         threadId: email.threadId ?? null,
-        emailCount: threadEmails.length,
+        emailCount,
         caller: "runFullPriorityRefinement",
         callerFile: "llm-processor.ts",
-        emailId,
+        emailId: email.id,
         jobType: "REFINE_PRIORITY",
       },
     );
@@ -631,10 +679,22 @@ export class LLMProcessor implements OnModuleInit {
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");
 
+    // GitHub facts BEFORE categorisation: refreshes the thread's cached GitHub
+    // metadata inline (bounded, best-effort) when it is missing or older than
+    // this email, so both the deterministic rules and the categoriser see the
+    // current board status / merge state rather than a stale snapshot.
+    const githubSignals =
+      await this.githubCategorySignalsService.resolveForEmail(
+        userId,
+        { id: email.id, ...githubSignalsEmailFields(email) },
+        thread,
+      );
+
     await this.runLlmAndPersist({
       userId,
       emailId,
       email,
+      githubSignals,
       workerId,
       tracker,
       avgTimeToReply,

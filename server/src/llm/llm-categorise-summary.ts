@@ -24,6 +24,12 @@ export interface CategoriseFromSummaryParams {
   senderEmail?: string | null;
   summary: string;
   categories: Array<{ name: string; description?: string | null }>;
+  /**
+   * Compact, authoritative "GitHub facts" line for the PR/issue the email is
+   * about (see `formatGithubFactsForPrompt`). Omitted for non-GitHub mail, in
+   * which case the prompt renders no facts block at all.
+   */
+  githubFacts?: string | null;
   userId?: string;
   /**
    * Stronger Gemini model to re-run the call on when the primary verdict is
@@ -111,6 +117,7 @@ export async function categoriseFromSummary(
     senderEmail: senderEmail || "",
     summary,
     categories: numberedCategories,
+    githubFacts: params.githubFacts || "",
     // Category-only classification always wants the GitHub ruleset (QA
     // pass/fail, bot-vs-human etc.); unlike the priority prompt it does not
     // gate it on sender, so the shared {% if showGithubRules %} always resolves

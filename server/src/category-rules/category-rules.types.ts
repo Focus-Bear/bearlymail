@@ -5,6 +5,7 @@ import type {
   CategoryRuleType,
   CompositeCategoryRuleSpec,
 } from "../database/entities/category-rule.entity";
+import type { GithubCategorySignals } from "../github/github-category-signals.helper";
 
 export interface EmailMetadata {
   from: string;
@@ -20,6 +21,13 @@ export interface EmailMetadata {
    * carries a `notificationSubtype` condition.
    */
   notificationSubtype?: string;
+  /**
+   * GitHub facts for the PR/issue the email is about (message-level event /
+   * actor plus the thread's fetched metadata: state, board status, author
+   * kind, labels). Undefined for non-GitHub mail. Consumed by composite rules
+   * carrying `github*` conditions; null/undefined never satisfies one.
+   */
+  github?: GithubCategorySignals | null;
 }
 
 /**
@@ -162,6 +170,11 @@ export interface CompositeRuleEvaluationDetail {
    * constraint.
    */
   notificationSubtypeMatch?: boolean;
+  /**
+   * True when the spec's GitHub-metadata conditions (state / board status /
+   * author kind / labels) are satisfied, or absent.
+   */
+  githubMatch?: boolean;
 }
 
 export interface CategoryRuleEvaluationDebug {

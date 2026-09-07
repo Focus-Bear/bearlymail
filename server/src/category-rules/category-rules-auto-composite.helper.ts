@@ -16,6 +16,10 @@ import type {
   CompositeRuleEvaluationDetail,
   EmailMetadata,
 } from "./category-rules.types";
+import {
+  sameNotificationSubtypes,
+  specMatchesNotificationSubtype,
+} from "./category-rules-notification-subtype.helper";
 
 export interface EmailHashes {
   senderHash: string;
@@ -90,7 +94,7 @@ export function pickAutoCompositeBodyPhrase(
 
 /**
  * Returns the optional v3-only fields carried by `spec` (read status,
- * attachment, received/read time, and the GitHub link-type constraint), or an
+ * attachment, received/read time, and the notification-subtype constraints), or an
  * empty object for v1/v2 specs. Centralised so every place that rebuilds a v3
  * spec (exclusion merges, sibling merges) preserves these fields identically —
  * dropping one silently regresses the rule.
@@ -112,6 +116,9 @@ export function copyV3ExtraFields(
     ...(spec.emailRead !== undefined && { emailRead: spec.emailRead }),
     ...(spec.notificationSubtype !== undefined && {
       notificationSubtype: spec.notificationSubtype,
+    }),
+    ...(spec.notificationSubtypeAny !== undefined && {
+      notificationSubtypeAny: spec.notificationSubtypeAny,
     }),
   };
 }
@@ -151,6 +158,11 @@ export function compositeAutoSpecsMatch(
   first: CompositeCategoryRuleSpec,
   second: CompositeCategoryRuleSpec,
 ): boolean {
+  // Two structural rules with identical phrases but different sub-stream pins
+  // are different rules (phrases are optional for them), never duplicates.
+  if (!sameNotificationSubtypes(first, second)) {
+    return false;
+  }
   const v2First = specToV2(first);
   const v2Second = specToV2(second);
   // Unit separator avoids false positives when joining multi-element arrays.
@@ -307,12 +319,6 @@ export function mergeBodyPhrasesIntoSibling(
   };
 }
 
-function notificationSubtypeOf(
-  spec: CompositeCategoryRuleSpec,
-): string | undefined {
-  return spec.v === 3 ? spec.notificationSubtype : undefined;
-}
-
 function toCiSet(values: string[] | undefined): Set<string> {
   const set = new Set<string>();
   for (const value of values ?? []) {
@@ -346,9 +352,9 @@ function isSubsetOf(subset: Set<string>, superset: Set<string>): boolean {
  * conditions are a subset of one another, which is how divergent-exclusion
  * siblings (same `*@github.com`, different Pass/Fail exclusion lists) accrue.
  *
- * Rules pinned to DIFFERENT `notificationSubtype`s are hard structural
- * separators (e.g. GitHub PR vs issue) and never reconcile — both sides must
- * share the same subtype (or both have none). Overlap is then either:
+ * Rules pinned to DIFFERENT notification-subtype sets are hard structural
+ * separators (e.g. GitHub PR vs issue, bot vs human) and never reconcile — both
+ * sides must pin the same set (or both have none). Overlap is then either:
  *   - the same sender set (the classic divergent-exclusion sibling case), OR
  *   - one rule's positive conditions (senders AND subjects AND bodies) are a
  *     subset of the other's (the broader rule already covers the narrower one).
@@ -357,7 +363,7 @@ export function compositeRulesShouldReconcile(
   existing: CompositeCategoryRuleSpec,
   candidate: CompositeCategoryRuleSpec,
 ): boolean {
-  if (notificationSubtypeOf(existing) !== notificationSubtypeOf(candidate)) {
+  if (!sameNotificationSubtypes(existing, candidate)) {
     return false;
   }
   const existingV2 = specToV2(existing);
@@ -508,7 +514,6 @@ interface ResolvedSpecFields {
   bodyPhrases: string[];
   subjectNotPhrases: string[] | undefined;
   bodyNotPhrases: string[] | undefined;
-  notificationSubtype: string | undefined;
 }
 
 function resolveSpecFields(
@@ -521,7 +526,6 @@ function resolveSpecFields(
       bodyPhrases: spec.bodyContainsAny,
       subjectNotPhrases: spec.subjectNotContainsAny,
       bodyNotPhrases: spec.bodyNotContainsAny,
-      notificationSubtype: spec.notificationSubtype,
     };
   }
   if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V2) {
@@ -531,7 +535,6 @@ function resolveSpecFields(
       bodyPhrases: spec.bodyContainsAny,
       subjectNotPhrases: spec.subjectNotContainsAny,
       bodyNotPhrases: spec.bodyNotContainsAny,
-      notificationSubtype: undefined,
     };
   }
   return {
@@ -540,7 +543,6 @@ function resolveSpecFields(
     bodyPhrases: spec.bodyContainsAny,
     subjectNotPhrases: undefined,
     bodyNotPhrases: undefined,
-    notificationSubtype: undefined,
   };
 }
 
@@ -564,7 +566,6 @@ export function evaluateComposite(
     bodyPhrases,
     subjectNotPhrases,
     bodyNotPhrases,
-    notificationSubtype,
   } = resolveSpecFields(spec);
 
   const normFrom = normaliseSender(email.from);
@@ -619,13 +620,15 @@ export function evaluateComposite(
   const exclusionOk =
     subjectExcludedMatch === null && bodyExcludedMatch === null;
 
-  // Structured sub-stream condition: when the rule targets a specific
-  // notification sub-stream (e.g. GitHub PR vs issue), the email's resolved
-  // subtype must match. Undefined on the spec means "no constraint"; undefined
-  // on the email (no sub-stream resolved) can never satisfy a constrained rule.
-  const notificationSubtypeOk =
-    notificationSubtype === undefined ||
-    email.notificationSubtype === notificationSubtype;
+  // Structured sub-stream condition: when the rule pins notification
+  // sub-streams (single or set), the email's resolved subtype must equal or
+  // refine one of them — so a legacy `github:pr` pin still matches today's
+  // fine `github:pr:comment:bot`. No pin means "no constraint"; an unresolved
+  // email subtype can never satisfy a pinned rule.
+  const notificationSubtypeOk = specMatchesNotificationSubtype(
+    spec,
+    email.notificationSubtype,
+  );
 
   return {
     matches:

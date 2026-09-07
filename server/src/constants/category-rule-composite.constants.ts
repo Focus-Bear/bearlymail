@@ -13,6 +13,16 @@ export const CATEGORY_RULE_COMPOSITE = {
   MAX_SUBJECT_NOT_PHRASES: 10,
   /** Maximum body NOT-contains exclusion phrases per composite rule (issue #1789). */
   MAX_BODY_NOT_PHRASES: 20,
+  /**
+   * Maximum notification subtypes one composite rule may pin
+   * (`notificationSubtypeAny`, OR within). GitHub yields at most
+   * item × event × actor ≈ 2 × 12 × 2 fine sub-streams; a single category
+   * rarely spans more than a handful, and a rule pinned to "everything" is not
+   * structural at all.
+   */
+  MAX_NOTIFICATION_SUBTYPES: 12,
+  /** Maximum length of one notification subtype key (`github:pr:review_requested:human`). */
+  MAX_NOTIFICATION_SUBTYPE_LENGTH: 80,
   /** Current spec version for newly created composite rules. */
   SPEC_VERSION: 3 as const,
   /** v2 spec — still supported for backward compatibility. */

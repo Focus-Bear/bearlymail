@@ -106,6 +106,20 @@ export class CreateCompositeCategoryRuleDto {
    */
   @IsOptional()
   @IsString()
-  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_CONTAINS_LENGTH)
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPE_LENGTH)
   notificationSubtype?: string;
+
+  /**
+   * SET form of the structural condition: the email's resolved sub-stream must
+   * equal or refine any listed member (OR within). Round-trips with
+   * `notificationSubtype`; the normaliser canonicalises the two.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPES)
+  @IsString({ each: true })
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPE_LENGTH, {
+    each: true,
+  })
+  notificationSubtypeAny?: string[];
 }

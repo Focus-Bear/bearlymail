@@ -26,6 +26,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { CategoryRuleSanityService } from "../llm/category-rule-sanity.service";
 import {
+  NotificationSubtypeBreakdownEntry,
   RULE_SANITY_VERDICTS,
   RuleSanityCategory,
   RuleSanityCheckResult,
@@ -33,6 +34,7 @@ import {
   RuleSanitySampleEmail,
 } from "../llm/llm-rule-sanity";
 import { parseCategoryValue } from "../utils/category-format.util";
+import { notificationSubtypesOf } from "./category-rules-notification-subtype.helper";
 import { specToSummary } from "./category-rules-persist-gate.helper";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
 
@@ -56,6 +58,8 @@ export interface SanityGateParams {
   categoryId: string | null;
   candidateSpec: CompositeCategoryRuleSpec;
   sampleEmails: RuleSanitySampleEmail[];
+  /** Per-sub-stream TP/FP evidence for structural candidates. */
+  subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
 }
 
 export const SANITY_GATE_REASONS = {
@@ -141,8 +145,9 @@ function buildRevisedSpec(
   if (broadensSender) {
     return null;
   }
-  const notificationSubtype =
-    candidateSpec.v === 3 ? candidateSpec.notificationSubtype : undefined;
+  // A reviewer may tighten phrases, never touch the structural pin — carry the
+  // candidate's subtype condition(s) through unchanged.
+  const notificationSubtypes = notificationSubtypesOf(candidateSpec);
   try {
     return deps.normalizeRevision({
       categoryName,
@@ -152,7 +157,9 @@ function buildRevisedSpec(
       bodyContainsAny: revision.bodyContainsAny,
       subjectNotContainsAny: revision.subjectNotContainsAny,
       bodyNotContainsAny: revision.bodyNotContainsAny,
-      ...(notificationSubtype && { notificationSubtype }),
+      ...(notificationSubtypes.length > 0 && {
+        notificationSubtypeAny: notificationSubtypes,
+      }),
     } as CreateCompositeCategoryRuleDto);
   } catch {
     return null;
@@ -230,6 +237,7 @@ async function resolveRevision(
     candidate: specToSummary(gatedSpec),
     otherCategories: categories.others,
     sampleEmails: params.sampleEmails,
+    subtypeBreakdown: params.subtypeBreakdown,
     userId: params.userId,
   });
   if (!secondPass || secondPass.verdict !== RULE_SANITY_VERDICTS.ACCEPT) {
@@ -285,6 +293,7 @@ export async function evaluateRuleSanityGate(
     candidate: specToSummary(candidateSpec),
     otherCategories: categories.others,
     sampleEmails: params.sampleEmails,
+    subtypeBreakdown: params.subtypeBreakdown,
     userId,
   });
 

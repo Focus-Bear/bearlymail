@@ -31,6 +31,18 @@ export interface RuleSanitySampleEmail {
   body: string;
 }
 
+/**
+ * How one notification sub-stream of the rule's sender splits across the
+ * target category (true positives) and every other category (false positives)
+ * in the user's recent mail. Shown to the reviewer so it can judge actor/event
+ * fit from evidence instead of guessing from phrases.
+ */
+export interface NotificationSubtypeBreakdownEntry {
+  subtype: string;
+  truePositives: number;
+  falsePositives: number;
+}
+
 /** The reviewer's proposed corrected rule (verdict "revise" only). */
 export interface RuleSanityRevision {
   fromMatchesAny: string[];
@@ -55,6 +67,8 @@ export interface RuleSanityCheckParams {
   candidate: RuleSpecSummary;
   otherCategories: RuleSanityCategory[];
   sampleEmails: RuleSanitySampleEmail[];
+  /** Per-sub-stream TP/FP evidence for structural (subtype-pinned) rules. */
+  subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
   userId?: string;
 }
 
@@ -117,11 +131,42 @@ export function formatSanityRuleSummary(summary: RuleSpecSummary): string {
     }`;
   return [
     line("Sender matches any of", summary.senders),
+    line(
+      "Notification sub-stream equals or refines one of",
+      summary.notificationSubtypes ?? [],
+    ),
     line("Subject contains any of", summary.subjectContains),
     line("Body contains any of", summary.bodyContains),
     line("Subject must NOT contain any of", summary.subjectNotContains),
     line("Body must NOT contain any of", summary.bodyNotContains),
   ].join("\n");
+}
+
+/**
+ * Renders the per-sub-stream evidence as one line each, marking the
+ * sub-streams the rule pins so the reviewer can see both what is covered and
+ * what was deliberately left out (and why: false positives elsewhere).
+ */
+export function formatSanitySubtypeBreakdown(
+  breakdown: NotificationSubtypeBreakdownEntry[] | undefined,
+  pinnedSubtypes: string[],
+): string {
+  if (!breakdown || breakdown.length === 0) {
+    return NONE_PLACEHOLDER;
+  }
+  const pinned = new Set(
+    pinnedSubtypes.map((subtype) => subtype.toLowerCase()),
+  );
+  return breakdown
+    .map(
+      (entry) =>
+        `- ${entry.subtype}: ${entry.truePositives} in this category, ${entry.falsePositives} in other categories${
+          pinned.has(entry.subtype.toLowerCase())
+            ? " — PINNED by this rule"
+            : ""
+        }`,
+    )
+    .join("\n");
 }
 
 export function formatSanityCategories(
@@ -162,6 +207,10 @@ export function buildSanityPromptVariables(
     ruleSummary: formatSanityRuleSummary(params.candidate),
     otherCategories: formatSanityCategories(params.otherCategories),
     sampleEmails: formatSanitySampleEmails(params.sampleEmails),
+    subtypeBreakdown: formatSanitySubtypeBreakdown(
+      params.subtypeBreakdown,
+      params.candidate.notificationSubtypes ?? [],
+    ),
   };
 }
 

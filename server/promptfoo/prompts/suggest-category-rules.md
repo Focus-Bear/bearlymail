@@ -5,6 +5,9 @@ Given a category name and multiple email samples (possibly from different sender
 Category: {{categoryName}}
 Sender email addresses:
 {{senderEmails}}
+{% if notificationSubtype %}
+Structural pin (already applied, not something you need to express in phrases): this rule will ALSO require the email's notification sub-stream to be `{{notificationSubtype}}`. The sub-stream key is `platform:item:event:actor` — for GitHub, item is `pr` / `issue`, event is what happened (`opened`, `comment`, `review_requested`, `review_approved`, `changes_requested`, `push`, `merged`, `closed`, `reopened`, `assigned`), and actor is `bot` (dependabot[bot], github-actions[bot], …) or `human`. Because the pin already separates this sub-stream from every other one, do NOT spend phrases re-encoding the event or the actor ("left a comment", "merged", "[bot]"). Pick phrases that separate this category from OTHER mail within the same sub-stream, and return empty `subjectContainsAny` / `bodyContainsAny` when the sub-stream alone is the whole signal.
+{% endif %}
 
 Email samples:
 {{emailSamples}}

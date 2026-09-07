@@ -2,6 +2,10 @@ import { BadRequestException } from "@nestjs/common";
 
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CompositeCategoryRuleSpecV3 } from "../database/entities/category-rule.entity";
+import {
+  cleanNotificationSubtypes,
+  notificationSubtypeFields,
+} from "./category-rules-notification-subtype.helper";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
 
 /** The trimmed, normalised phrase arrays a composite spec is validated against. */
@@ -11,8 +15,8 @@ interface NormalisedCompositeFields {
   bodyContainsAny: string[];
   subjectNotContainsAny: string[];
   bodyNotContainsAny: string[];
-  /** True when the rule is pinned to a resolved notification sub-stream. */
-  hasStructuralSubtype: boolean;
+  /** The resolved notification sub-streams the rule is pinned to (empty = none). */
+  notificationSubtypes: string[];
 }
 
 /**
@@ -31,8 +35,9 @@ function assertCompositeSpecFieldsValid(
     bodyContainsAny,
     subjectNotContainsAny,
     bodyNotContainsAny,
-    hasStructuralSubtype,
+    notificationSubtypes,
   } = fields;
+  const hasStructuralSubtype = notificationSubtypes.length > 0;
   const require = (condition: boolean, message: string): void => {
     if (condition) throw new BadRequestException(message);
   };
@@ -55,6 +60,8 @@ function assertCompositeSpecFieldsValid(
     CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES, `At most ${CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES} subject not-contains phrases allowed`);
   require(bodyNotContainsAny.length >
     CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES, `At most ${CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES} body not-contains phrases allowed`);
+  require(notificationSubtypes.length >
+    CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPES, `At most ${CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPES} notification subtypes allowed`);
 
   // A resolved notification subtype counts as a distinct structural condition:
   // sender + subtype is already a hard separator, so structural rules clear the
@@ -96,7 +103,12 @@ export function normalizeCompositeSpec(
   const bodyNotContainsAny = (dto.bodyNotContainsAny ?? [])
     .map((phrase) => phrase.trim())
     .filter(Boolean);
-  const hasStructuralSubtype = Boolean(dto.notificationSubtype?.trim());
+  // Single field ∪ set, canonicalised: one subtype → `notificationSubtype`,
+  // several → `notificationSubtypeAny`, so persisted rules have one shape.
+  const notificationSubtypes = cleanNotificationSubtypes([
+    dto.notificationSubtype,
+    ...(dto.notificationSubtypeAny ?? []),
+  ]);
 
   assertCompositeSpecFieldsValid({
     senderMatchesAny,
@@ -104,7 +116,7 @@ export function normalizeCompositeSpec(
     bodyContainsAny,
     subjectNotContainsAny,
     bodyNotContainsAny,
-    hasStructuralSubtype,
+    notificationSubtypes,
   });
 
   return {
@@ -118,8 +130,6 @@ export function normalizeCompositeSpec(
     ...(dto.emailAttachment && { emailAttachment: dto.emailAttachment }),
     ...(dto.emailReceived && { emailReceived: dto.emailReceived }),
     ...(dto.emailRead && { emailRead: dto.emailRead }),
-    ...(dto.notificationSubtype && {
-      notificationSubtype: dto.notificationSubtype,
-    }),
+    ...notificationSubtypeFields(notificationSubtypes),
   };
 }

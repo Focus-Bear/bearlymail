@@ -3,6 +3,7 @@ import {
   formatSanityCategories,
   formatSanityRuleSummary,
   formatSanitySampleEmails,
+  formatSanitySubtypeBreakdown,
   parseRuleSanityResponse,
   RULE_SANITY_VERDICTS,
 } from "./llm-rule-sanity";
@@ -130,6 +131,43 @@ describe("prompt formatting", () => {
     expect(text).toContain("Body preview: TypeError in checkout");
   });
 
+  it("renders the pinned sub-streams and the breakdown for a structural rule", () => {
+    const text = formatSanityRuleSummary({
+      senders: ["notifications@github.com"],
+      subjectContains: [],
+      bodyContains: [],
+      subjectNotContains: [],
+      bodyNotContains: [],
+      notificationSubtypes: ["github:pr:comment:bot", "github:pr:push:bot"],
+    });
+    expect(text).toContain(
+      'Notification sub-stream equals or refines one of: "github:pr:comment:bot" · "github:pr:push:bot"',
+    );
+    expect(text).toContain("Subject contains any of: (none)");
+
+    const breakdown = formatSanitySubtypeBreakdown(
+      [
+        {
+          subtype: "github:pr:comment:bot",
+          truePositives: 57,
+          falsePositives: 0,
+        },
+        {
+          subtype: "github:pr:comment:human",
+          truePositives: 0,
+          falsePositives: 84,
+        },
+      ],
+      ["github:pr:comment:bot"],
+    );
+    expect(breakdown).toBe(
+      "- github:pr:comment:bot: 57 in this category, 0 in other categories — PINNED by this rule\n" +
+        "- github:pr:comment:human: 0 in this category, 84 in other categories",
+    );
+    expect(formatSanitySubtypeBreakdown(undefined, [])).toBe("(none)");
+    expect(formatSanitySubtypeBreakdown([], [])).toBe("(none)");
+  });
+
   it("builds every template variable, substituting placeholders for empty inputs", () => {
     const variables = buildSanityPromptVariables({
       categoryName: "Alerts",
@@ -151,5 +189,9 @@ describe("prompt formatting", () => {
     );
     expect(variables.otherCategories).toBe("(none)");
     expect(variables.sampleEmails).toBe("(none)");
+    expect(variables.ruleSummary).toContain(
+      "Notification sub-stream equals or refines one of: (none)",
+    );
+    expect(variables.subtypeBreakdown).toBe("(none)");
   });
 });

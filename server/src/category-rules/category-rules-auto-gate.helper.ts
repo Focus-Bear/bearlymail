@@ -19,7 +19,10 @@ import { Email } from "../database/entities/email.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { CategoryRuleSanityService } from "../llm/category-rule-sanity.service";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
-import type { RuleSanitySampleEmail } from "../llm/llm-rule-sanity";
+import type {
+  NotificationSubtypeBreakdownEntry,
+  RuleSanitySampleEmail,
+} from "../llm/llm-rule-sanity";
 import { evaluateRulePersistGate } from "./category-rules-persist-gate.helper";
 import { evaluateRuleSanityGate } from "./category-rules-sanity-gate.helper";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
@@ -43,6 +46,8 @@ export interface AutoRuleGateParams {
   categoryName: string;
   categoryId: string | null;
   sampleEmails: RuleSanitySampleEmail[];
+  /** Per-sub-stream TP/FP evidence for structural candidates (reviewer input). */
+  subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
   /** Pre-fetched composite rules, shared with the value-add comparison. */
   compositeRules: CategoryRule[];
 }
@@ -117,6 +122,7 @@ export async function gateAutoCompositeCandidate(
       categoryId,
       candidateSpec: gate.finalSpec,
       sampleEmails: params.sampleEmails,
+      subtypeBreakdown: params.subtypeBreakdown,
     },
   );
   if (!sanity.shouldPersist || !sanity.finalSpec) {

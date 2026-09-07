@@ -53,6 +53,13 @@ export interface SuggestRulesParams {
   categoryName: string;
   senderEmails: string[];
   emailSamples: Array<{ subject: string; body: string }>;
+  /**
+   * The structural notification sub-stream the drafted rule will be pinned to
+   * (e.g. `github:pr:comment:human`), so the prompt can steer phrases away from
+   * re-encoding the event/actor the pin already captures. Omitted for senders
+   * with no resolvable sub-stream.
+   */
+  notificationSubtype?: string;
   userId?: string;
 }
 
@@ -161,6 +168,7 @@ export async function suggestRulesFromEmailSamples(
     categoryName,
     senderEmails: senderEmails.join("\n"),
     emailSamples: formatEmailSamples(emailSamples),
+    notificationSubtype: params.notificationSubtype ?? "",
   });
 
   try {

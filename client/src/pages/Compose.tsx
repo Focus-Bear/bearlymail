@@ -92,16 +92,9 @@ const Compose: React.FC = () => {
 
   const form = useComposeForm();
   const search = useContactSearch();
-  const { showError } = useNotifications();
-  const {
-    checkingTone,
-    toneCheckResult,
-    setToneCheckResult,
-    checkTone,
-    disputing,
-    disputeResult,
-    disputeToneCheck,
-  } = useEmailDetailToneCheck();
+  const { showError, showLoading } = useNotifications();
+  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone, disputing, disputeResult, disputeToneCheck } =
+    useEmailDetailToneCheck();
   const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
 
   const [sending, setSending] = useState(false);
@@ -214,6 +207,8 @@ const Compose: React.FC = () => {
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const scheduledSendAtIso = scheduledSendAt?.toISOString();
 
+    const dismissSendingToast = showLoading(t('compose.sendingToast'));
+
     try {
       await postComposedEmail({
         to: form.to,
@@ -240,6 +235,7 @@ const Compose: React.FC = () => {
       setError(axiosErr.response?.data?.message || t('compose.errorSendFailed'));
       showError(axiosErr.response?.data?.message || t('compose.errorSendFailed'));
     } finally {
+      dismissSendingToast();
       setSending(false);
     }
   };

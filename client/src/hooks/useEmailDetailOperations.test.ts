@@ -26,6 +26,7 @@ vi.mock('contexts/NotificationContext', () => ({
   useNotifications: () => ({
     showSuccess: vi.fn(),
     showError: vi.fn(),
+    showLoading: vi.fn(() => vi.fn()),
   }),
 }));
 
@@ -53,7 +54,7 @@ vi.mock('utils/githubUtils', () => ({
 }));
 
 // Zero out animation delay to avoid test timeouts
-vi.mock('constants/numbers', async (importOriginal) => ({
+vi.mock('constants/numbers', async importOriginal => ({
   ...(await importOriginal<typeof import('constants/numbers')>()),
   TIMEOUT_800_MS: 0,
 }));

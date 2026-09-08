@@ -2190,6 +2190,7 @@
     "to": "To",
     "cc": "CC",
     "bcc": "BCC",
+    "sendingToast": "Sending your email...",
     "subject": "Subject",
     "subjectPlaceholder": "Subject",
     "bodyPlaceholder": "Write your message...",

@@ -43,6 +43,11 @@ ARG BUILD_TIME=unknown
 ENV COMMIT_HASH=$COMMIT_HASH
 ENV BUILD_TIME=$BUILD_TIME
 
+# @nestjs/config v12 bundles dotenv v17, which prints five promotional "tip" banners
+# to stdout on every process start. The worker forks one process per CPU core, so
+# these would land in CloudWatch on every boot for no benefit.
+ENV DOTENV_CONFIG_QUIET=true
+
 # Expose port
 EXPOSE 3001
 

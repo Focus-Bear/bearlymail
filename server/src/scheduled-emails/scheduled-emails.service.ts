@@ -369,11 +369,14 @@ export class ScheduledEmailsService {
       },
     });
 
-    if (scheduledEmail.expectedReplyHours) {
-      this.logger.log(
-        `Expected reply in ${scheduledEmail.expectedReplyHours} hours for scheduled email ${scheduledEmail.id}`,
-      );
-    }
+    // A reply already has its thread, so the window the composer asked for is
+    // honoured against that thread — the same follow-up an immediate reply
+    // would have created (RepliesService.createFollowUpAfterReply).
+    await this.createFollowUpAfterScheduledSend(
+      scheduledEmail,
+      scheduledEmail.threadId,
+      { sentEmailId: scheduledEmail.emailId },
+    );
   }
 
   /**
@@ -488,12 +491,32 @@ export class ScheduledEmailsService {
 
     // Only now does the message have a thread to follow up on, so the window
     // the composer asked for is honoured here rather than at scheduling time.
+    await this.createFollowUpAfterScheduledSend(scheduledEmail, sent.threadId, {
+      subject: scheduledEmail.subject,
+    });
+  }
+
+  /**
+   * Schedules the follow-up a scheduled send asked for, on the thread the
+   * message ended up in.
+   *
+   * Called only after the provider accepted the message, so a failed send
+   * leaves no stray reminder; `createFollowUpForSentMessage` re-uses any active
+   * follow-up on the thread, so a retried send cannot create a second one.
+   * Never throws — the message is already out, and losing the reminder must not
+   * turn a delivered send into a reported failure.
+   */
+  private async createFollowUpAfterScheduledSend(
+    scheduledEmail: ScheduledEmail,
+    threadId: string,
+    options: { sentEmailId?: string; subject?: string },
+  ): Promise<void> {
     try {
       await this.followUpsService.createFollowUpForSentMessage(
-        userId,
-        sent.threadId,
+        scheduledEmail.userId,
+        threadId,
         scheduledEmail.expectedReplyHours ?? undefined,
-        { subject: scheduledEmail.subject },
+        options,
       );
     } catch (error) {
       this.logger.error(

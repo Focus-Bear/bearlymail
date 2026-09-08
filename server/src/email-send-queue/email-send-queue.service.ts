@@ -94,7 +94,11 @@ export class EmailSendQueueService {
       .returning("*")
       .execute();
 
-    if (!claim.affected) return null;
+    // `affected` is not populated by every driver path when RETURNING is used,
+    // so fall back to the returned row count before deciding we lost the claim.
+    const claimedRows =
+      claim.affected ?? (Array.isArray(claim.raw) ? claim.raw.length : 0);
+    if (!claimedRows) return null;
     // `returning('*')` bypasses the column transformers, so re-read the entity
     // to get the decrypted payload.
     return this.attemptRepository.findOne({ where: { id: sendId } });

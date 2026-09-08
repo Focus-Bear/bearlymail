@@ -1,7 +1,10 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   forwardRef,
+  HttpCode,
+  HttpStatus,
   Inject,
   Param,
   Post,
@@ -19,13 +22,13 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
+import { encodeAttachments } from "../email-send-queue/queued-attachment.helpers";
 import { getJobPriority } from "../queue/job-priorities";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
-import { UsersService } from "../users/users.service";
 import { EmailAdminService } from "./email-admin.service";
 import {
-  appendSignature,
   EMAIL_CONTROLLER_DEFAULTS,
   getBossDb,
 } from "./email-controller.helpers";
@@ -88,14 +91,22 @@ export class EmailSendController {
   constructor(
     private readonly emailsService: EmailsService,
     private readonly emailProviderManager: EmailProviderManager,
-    private readonly usersService: UsersService,
     private readonly emailAdminService: EmailAdminService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @Inject(forwardRef(() => ScheduledEmailsService))
     private readonly scheduledEmailsService: ScheduledEmailsService,
+    private readonly emailSendQueueService: EmailSendQueueService,
   ) {}
 
+  /**
+   * Accepts a composed message and hands it to the background send queue.
+   *
+   * Nothing here waits on the mail provider: the request validates, persists
+   * the message and returns a correlation id, and the client learns the real
+   * outcome from the `email-send-succeeded` / `email-send-failed` Pusher event.
+   */
   @Post("send")
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseInterceptors(FilesInterceptor("files", 10))
   async sendEmail(
     @Request() req,
@@ -146,32 +157,29 @@ export class EmailSendController {
       };
     }
 
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-    if (!provider) {
-      throw new Error(
-        "No email provider connected. Please connect your email account.",
-      );
+    if (to.length === 0) {
+      throw new BadRequestException(ERROR_MESSAGES.NO_RECIPIENTS);
     }
 
-    const user = await this.usersService.findOne(userId);
-    const bodyWithSignature = appendSignature(body.body, user?.emailSignature);
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (!provider) {
+      throw new BadRequestException(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
+    }
 
-    const result = await provider.sendEmail(userId, {
+    const queued = await this.emailSendQueueService.queueNewEmail(userId, {
       to,
-      subject: body.subject,
-      body: bodyWithSignature,
       cc,
       bcc,
-      attachments,
+      subject: body.subject,
+      body: body.body,
+      attachments: encodeAttachments(attachments),
     });
-
-    const allRecipients = [...to, ...(cc || []), ...(bcc || [])];
-    await this.emailAdminService.trackEmailRecipients(userId, allRecipients);
 
     return {
       success: true,
-      messageId: result.messageId,
-      threadId: result.threadId,
+      queued: true,
+      sendId: queued.sendId,
+      status: queued.status,
     };
   }
 

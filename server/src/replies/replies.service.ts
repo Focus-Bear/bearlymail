@@ -53,8 +53,12 @@ export interface ReplyRule {
   priority: number;
 }
 
-type ReplyAttachment = { filename: string; mimeType: string; content: Buffer };
-type InlineImage = {
+export type ReplyAttachment = {
+  filename: string;
+  mimeType: string;
+  content: Buffer;
+};
+export type InlineImage = {
   contentId: string;
   filename: string;
   mimeType: string;
@@ -748,7 +752,7 @@ ${closing}`;
        */
       keepInAction?: boolean;
     } = {},
-  ): Promise<void> {
+  ): Promise<{ messageId: string; threadId: string }> {
     const {
       expectedReplyHours,
       cc,
@@ -846,6 +850,8 @@ ${closing}`;
       keepInAction,
       expectedReplyHours,
     });
+
+    return sentMessage;
   }
 
   /**

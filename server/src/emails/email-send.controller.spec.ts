@@ -1,6 +1,9 @@
+import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { AppleMailAccountsService } from "../apple-mail-accounts/apple-mail-accounts.service";
+import { EMAIL_SEND_STATUS } from "../constants/email-send.constants";
+import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
@@ -43,6 +46,10 @@ describe("EmailSendController", () => {
 
   const mockScheduledEmailsService = {
     scheduleEmail: jest.fn(),
+  };
+
+  const mockEmailSendQueueService = {
+    queueNewEmail: jest.fn(),
   };
 
   const mockGoogleAccountsService = {
@@ -88,6 +95,10 @@ describe("EmailSendController", () => {
         {
           provide: ScheduledEmailsService,
           useValue: mockScheduledEmailsService,
+        },
+        {
+          provide: EmailSendQueueService,
+          useValue: mockEmailSendQueueService,
         },
         {
           provide: GoogleAccountsService,
@@ -158,7 +169,7 @@ describe("EmailSendController", () => {
       );
     });
 
-    it("should send email immediately when no scheduledSendAt", async () => {
+    it("queues the send and returns a correlation id without calling the provider", async () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
       const body = {
@@ -166,36 +177,36 @@ describe("EmailSendController", () => {
         subject: "Test",
         body: "Hello",
       };
-      const mockProvider = {
-        sendEmail: jest
-          .fn()
-          .mockResolvedValue({ messageId: "msg-1", threadId: "thread-1" }),
-      };
-      const mockUser = { emailSignature: null };
+      const mockProvider = { sendEmail: jest.fn() };
 
       mockEmailProviderManager.getPrimaryProvider.mockResolvedValue(
         mockProvider,
       );
-      mockUsersService.findOne.mockResolvedValue(mockUser);
-      mockEmailAdminService.trackEmailRecipients.mockResolvedValue(undefined);
+      mockEmailSendQueueService.queueNewEmail.mockResolvedValue({
+        sendId: "send-1",
+        status: EMAIL_SEND_STATUS.QUEUED,
+      });
 
       const result = await controller.sendEmail(mockRequest, body);
 
       expect(result).toEqual({
         success: true,
-        messageId: "msg-1",
-        threadId: "thread-1",
+        queued: true,
+        sendId: "send-1",
+        status: EMAIL_SEND_STATUS.QUEUED,
       });
-      expect(mockProvider.sendEmail).toHaveBeenCalledWith(
+      expect(mockProvider.sendEmail).not.toHaveBeenCalled();
+      expect(mockEmailSendQueueService.queueNewEmail).toHaveBeenCalledWith(
         userId,
         expect.objectContaining({
           to: [{ email: "recipient@example.com" }],
           subject: body.subject,
+          body: body.body,
         }),
       );
     });
 
-    it("parses JSON-string recipients and maps uploaded files to attachments (multipart path)", async () => {
+    it("parses JSON-string recipients and base64-encodes uploads (multipart path)", async () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
       // On the multipart/form-data path recipients arrive as JSON strings and
@@ -213,21 +224,18 @@ describe("EmailSendController", () => {
           buffer: Buffer.from("pdf-bytes"),
         },
       ] as Express.Multer.File[];
-      const mockProvider = {
-        sendEmail: jest
-          .fn()
-          .mockResolvedValue({ messageId: "msg-1", threadId: "thread-1" }),
-      };
 
-      mockEmailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider,
-      );
-      mockUsersService.findOne.mockResolvedValue({ emailSignature: null });
-      mockEmailAdminService.trackEmailRecipients.mockResolvedValue(undefined);
+      mockEmailProviderManager.getPrimaryProvider.mockResolvedValue({
+        sendEmail: jest.fn(),
+      });
+      mockEmailSendQueueService.queueNewEmail.mockResolvedValue({
+        sendId: "send-2",
+        status: EMAIL_SEND_STATUS.QUEUED,
+      });
 
       await controller.sendEmail(mockRequest, body, files);
 
-      expect(mockProvider.sendEmail).toHaveBeenCalledWith(
+      expect(mockEmailSendQueueService.queueNewEmail).toHaveBeenCalledWith(
         userId,
         expect.objectContaining({
           to: [{ email: "recipient@example.com", name: "R" }],
@@ -236,11 +244,25 @@ describe("EmailSendController", () => {
             {
               filename: "slides.pdf",
               mimeType: "application/pdf",
-              content: expect.any(Buffer),
+              content: Buffer.from("pdf-bytes").toString("base64"),
             },
           ],
         }),
       );
+    });
+
+    it("rejects a send with no recipients before queueing", async () => {
+      mockEmailProviderManager.getPrimaryProvider.mockResolvedValue({
+        sendEmail: jest.fn(),
+      });
+
+      await expect(
+        controller.sendEmail(
+          { user: { userId: "user-123" } },
+          { to: [], subject: "Test", body: "Hello" },
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockEmailSendQueueService.queueNewEmail).not.toHaveBeenCalled();
     });
 
     it("should throw when no email provider connected", async () => {
@@ -256,6 +278,7 @@ describe("EmailSendController", () => {
       await expect(controller.sendEmail(mockRequest, body)).rejects.toThrow(
         "No email provider connected",
       );
+      expect(mockEmailSendQueueService.queueNewEmail).not.toHaveBeenCalled();
     });
   });
 

@@ -29,6 +29,7 @@ import { QueryPerformanceLogger } from "./database/query-logger";
 import { createTypeOrmConfig } from "./database/typeorm-config.factory";
 import { DraftsModule } from "./drafts/drafts.module";
 import { EmailModule } from "./email/email.module";
+import { EmailSendWorkerModule } from "./email-send-queue/email-send-worker.module";
 import { EmailsModule } from "./emails/emails.module";
 import { EncryptionModule } from "./encryption/encryption.module";
 import { UserEncryptionInterceptor } from "./encryption/user-encryption.interceptor";
@@ -133,6 +134,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     AuthModule,
     UsersModule,
     EmailsModule,
+    EmailSendWorkerModule,
     PriorityModule,
     SummarizationModule,
     SnoozeModule,

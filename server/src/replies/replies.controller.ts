@@ -28,9 +28,9 @@ import {
 import { EmailsService } from "../emails/emails.service";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
-import { durationToHours } from "../snooze/parse-duration";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
+import { resolveExpectedReplyHours } from "../utils/expected-reply.util";
 import { buildReplySubject } from "../utils/reply-subject.util";
 import { RepliesService, ReplyRule } from "./replies.service";
 import { parseBooleanFlag, splitReplyUploads } from "./reply-upload.helpers";
@@ -143,7 +143,7 @@ export class RepliesController {
     const forwardAttachmentIds = this.parseForwardAttachmentIds(
       body.forwardAttachmentIds,
     );
-    const expectedReplyHours = this.resolveExpectedReplyHours(body);
+    const expectedReplyHours = resolveExpectedReplyHours(body);
     const isForward = parseBooleanFlag(body.isForward);
     const keepInAction = parseBooleanFlag(body.keepInAction);
 
@@ -168,9 +168,7 @@ export class RepliesController {
         body: body.reply,
         attachments: encodeAttachments(attachments),
         inlineImages: encodeInlineImages(inlineImages),
-        expectedReplyHours: isNaN(expectedReplyHours as number)
-          ? undefined
-          : expectedReplyHours,
+        expectedReplyHours,
         forwardAttachmentIds,
         recipients: body.recipients || undefined,
         cc: body.cc || undefined,
@@ -187,25 +185,6 @@ export class RepliesController {
       sendId: queued.sendId,
       status: queued.status,
     };
-  }
-
-  /**
-   * A custom free-text follow-up window is parsed (identically to snooze) into
-   * whole hours and overrides the preset `expectedReplyHours` value.
-   */
-  private resolveExpectedReplyHours(body: {
-    expectedReplyHours?: number | string;
-    expectedReplyDuration?: string;
-    locale?: string;
-  }): number | undefined {
-    const customDuration = body.expectedReplyDuration?.trim();
-    if (customDuration) {
-      return durationToHours(customDuration, new Date(), body.locale);
-    }
-    if (typeof body.expectedReplyHours === "string") {
-      return parseInt(body.expectedReplyHours, 10);
-    }
-    return body.expectedReplyHours;
   }
 
   private parseForwardAttachmentIds(
@@ -269,9 +248,7 @@ export class RepliesController {
         attachments: scheduledAttachments,
         scheduledSendAt: new Date(body.scheduledSendAt!),
         userTimezone: body.userTimezone,
-        expectedReplyHours: isNaN(parsed.expectedReplyHours as number)
-          ? undefined
-          : parsed.expectedReplyHours,
+        expectedReplyHours: parsed.expectedReplyHours,
         forwardAttachmentIds: parsed.forwardAttachmentIds,
       },
     );

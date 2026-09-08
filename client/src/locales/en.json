@@ -2269,7 +2269,8 @@
     "editRecipient": "Click to edit",
     "unsavedChangesTitle": "Unsent email",
     "leaveAnyway": "Leave anyway",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "followUpSection": "Follow-up"
   },
   "emailSend": {
     "failedNotification": "Your message was not sent. {{reason}}",

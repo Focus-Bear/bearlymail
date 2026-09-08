@@ -27,6 +27,7 @@ import { encodeAttachments } from "../email-send-queue/queued-attachment.helpers
 import { getJobPriority } from "../queue/job-priorities";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
+import { resolveExpectedReplyHours } from "../utils/expected-reply.util";
 import { EmailAdminService } from "./email-admin.service";
 import {
   EMAIL_CONTROLLER_DEFAULTS,
@@ -126,6 +127,8 @@ export class EmailSendController {
         content: file.buffer,
       })) || undefined;
 
+    const expectedReplyHours = resolveExpectedReplyHours(body);
+
     if (body.scheduledSendAt) {
       const scheduledSendAt = new Date(body.scheduledSendAt);
       const scheduledAttachments = attachments?.map((att) => ({
@@ -146,6 +149,7 @@ export class EmailSendController {
           attachments: scheduledAttachments,
           scheduledSendAt,
           userTimezone: body.userTimezone,
+          expectedReplyHours,
         },
       );
 
@@ -173,6 +177,7 @@ export class EmailSendController {
       subject: body.subject,
       body: body.body,
       attachments: encodeAttachments(attachments),
+      expectedReplyHours,
     });
 
     return {

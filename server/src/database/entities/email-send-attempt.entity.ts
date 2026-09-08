@@ -39,6 +39,8 @@ export interface QueuedNewEmailPayload {
   subject: string;
   body: string;
   attachments?: QueuedAttachment[];
+  /** Follow-up window the composer asked for; 0/undefined means no follow-up. */
+  expectedReplyHours?: number;
 }
 
 /** Everything `RepliesService.sendReply` needs, minus the Buffers. */

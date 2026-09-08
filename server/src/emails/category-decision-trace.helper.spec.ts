@@ -1,5 +1,7 @@
 import {
   buildLlmCategoryOutcome,
+  deterministicRuleDecisionTrace,
+  llmDecisionTrace,
   localModelDecisionTrace,
 } from "./category-decision-trace.helper";
 
@@ -84,5 +86,52 @@ describe("buildLlmCategoryOutcome", () => {
       step: "llm",
       outcome: "applied",
     });
+  });
+});
+
+describe("GitHub facts in the decision trace", () => {
+  const GITHUB_FACTS =
+    "GitHub facts: Item: issue #812 Focus-Bear/Mac-App · state: open · project status: QA passed (Mac App roadmap)";
+
+  it("appends what the categoriser saw to the LLM step detail", () => {
+    const trace = llmDecisionTrace({
+      decidedAt: "2026-09-01T12:00:00.000Z",
+      finalCategory: "✅ QA passed issues",
+      llmCategoryId: "cat-1",
+      protoCategoryId: null,
+      finalCategoryId: "cat-1",
+      githubFacts: GITHUB_FACTS,
+    });
+
+    expect(trace.steps[0].detail).toContain(
+      'LLM categorisation resolved to "✅ QA passed issues".',
+    );
+    expect(trace.steps[0].detail).toContain(GITHUB_FACTS);
+  });
+
+  it("appends what the rule matcher saw to the deterministic-rule step detail", () => {
+    const trace = deterministicRuleDecisionTrace({
+      decidedAt: "2026-09-01T12:00:00.000Z",
+      categoryName: "✅ QA passed issues",
+      ruleCategoryId: "cat-1",
+      finalCategoryId: "cat-1",
+      githubFacts: "GitHub facts: none available",
+    });
+
+    expect(trace.steps[0].detail).toContain("GitHub facts: none available");
+  });
+
+  it("leaves the detail untouched for mail with no GitHub facts line", () => {
+    const trace = llmDecisionTrace({
+      decidedAt: "2026-09-01T12:00:00.000Z",
+      finalCategory: "Billing",
+      llmCategoryId: "cat-2",
+      protoCategoryId: null,
+      finalCategoryId: "cat-2",
+    });
+
+    expect(trace.steps[0].detail).toBe(
+      'LLM categorisation resolved to "Billing".',
+    );
   });
 });

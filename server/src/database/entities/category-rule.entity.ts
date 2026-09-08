@@ -9,6 +9,10 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
+import type {
+  GithubActorKind,
+  GithubItemState,
+} from "../../constants/github-notification.constants";
 import {
   makeEncryptedColumnTransformer,
   makeEncryptedJsonTransformer,
@@ -85,6 +89,30 @@ export type CompositeCategoryRuleSpecV3 = {
    * stores a single subtype in `notificationSubtype` and two or more here.
    */
   notificationSubtypeAny?: string[];
+  /**
+   * GitHub-metadata structural conditions, evaluated against the thread's
+   * fetched `githubMetadata` for the PR/issue the email is about (see
+   * `GithubCategorySignals`). Each is "no constraint" when absent; a present
+   * condition can never be satisfied by an email whose thread has no fetched
+   * metadata. `githubStateAny` pins the item's lifecycle state (open / closed /
+   * merged); `githubProjectStatusAny` pins the GitHub Projects board status
+   * (case-insensitive, optionally scoped to one project); `githubAuthorKind`
+   * pins whether the PR/issue was AUTHORED by a bot or a human (distinct from
+   * the notification's actor, which lives in the subtype); `githubLabelsAny`
+   * requires any of the listed labels (case-insensitive).
+   */
+  githubStateAny?: GithubItemState[];
+  githubProjectStatusAny?: GithubProjectStatusCondition[];
+  githubAuthorKind?: GithubActorKind;
+  githubLabelsAny?: string[];
+};
+
+/** One pinned GitHub Projects board status, optionally scoped to a project. */
+export type GithubProjectStatusCondition = {
+  /** Board "Status" field value, e.g. "QA passed"; matched case-insensitively. */
+  status: string;
+  /** Project (board) title; when set the status must come from that board. */
+  project?: string;
 };
 
 /** Union of all supported composite rule spec versions. */

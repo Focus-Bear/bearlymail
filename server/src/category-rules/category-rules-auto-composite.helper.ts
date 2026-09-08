@@ -17,6 +17,11 @@ import type {
   EmailMetadata,
 } from "./category-rules.types";
 import {
+  githubConditionsOf,
+  sameGithubConditions,
+  specMatchesGithubConditions,
+} from "./category-rules-github-conditions.helper";
+import {
   sameNotificationSubtypes,
   specMatchesNotificationSubtype,
 } from "./category-rules-notification-subtype.helper";
@@ -120,6 +125,7 @@ export function copyV3ExtraFields(
     ...(spec.notificationSubtypeAny !== undefined && {
       notificationSubtypeAny: spec.notificationSubtypeAny,
     }),
+    ...githubConditionsOf(spec),
   };
 }
 
@@ -158,9 +164,13 @@ export function compositeAutoSpecsMatch(
   first: CompositeCategoryRuleSpec,
   second: CompositeCategoryRuleSpec,
 ): boolean {
-  // Two structural rules with identical phrases but different sub-stream pins
-  // are different rules (phrases are optional for them), never duplicates.
-  if (!sameNotificationSubtypes(first, second)) {
+  // Two structural rules with identical phrases but different sub-stream or
+  // GitHub-fact pins are different rules (phrases are optional for them),
+  // never duplicates.
+  if (
+    !sameNotificationSubtypes(first, second) ||
+    !sameGithubConditions(first, second)
+  ) {
     return false;
   }
   const v2First = specToV2(first);
@@ -363,7 +373,10 @@ export function compositeRulesShouldReconcile(
   existing: CompositeCategoryRuleSpec,
   candidate: CompositeCategoryRuleSpec,
 ): boolean {
-  if (!sameNotificationSubtypes(existing, candidate)) {
+  if (
+    !sameNotificationSubtypes(existing, candidate) ||
+    !sameGithubConditions(existing, candidate)
+  ) {
     return false;
   }
   const existingV2 = specToV2(existing);
@@ -629,10 +642,18 @@ export function evaluateComposite(
     spec,
     email.notificationSubtype,
   );
+  // GitHub-metadata conditions (state / board status / author kind / labels)
+  // need resolved facts; an email without them never satisfies a pinned rule.
+  const githubOk = specMatchesGithubConditions(spec, email.github);
 
   return {
     matches:
-      senderOk && subjectOk && bodyOk && exclusionOk && notificationSubtypeOk,
+      senderOk &&
+      subjectOk &&
+      bodyOk &&
+      exclusionOk &&
+      notificationSubtypeOk &&
+      githubOk,
     detail: {
       senderMatch: senderOk,
       subjectMatch: subjectOk,
@@ -643,6 +664,7 @@ export function evaluateComposite(
       subjectExcludedMatch,
       bodyExcludedMatch,
       notificationSubtypeMatch: notificationSubtypeOk,
+      githubMatch: githubOk,
     },
   };
 }

@@ -80,3 +80,34 @@ export const KNOWN_GITHUB_BOT_LOGINS: readonly string[] = [
   "github-actions",
   "renovate",
 ];
+
+/**
+ * Lifecycle state of the PR/issue a notification is about, as reported by the
+ * thread's fetched GitHub metadata (`githubMetadata.links[].status.state`).
+ * A merged PR is reported as `merged` even though GitHub's REST state is
+ * `closed` — the `merged` flag is folded in so rules can pin it directly.
+ */
+export const GITHUB_ITEM_STATES = {
+  OPEN: "open",
+  CLOSED: "closed",
+  MERGED: "merged",
+} as const;
+
+export type GithubItemState =
+  (typeof GITHUB_ITEM_STATES)[keyof typeof GITHUB_ITEM_STATES];
+
+/** `author.type` values GitHub reports for a PR/issue author. */
+export const GITHUB_AUTHOR_TYPES = {
+  USER: "User",
+  BOT: "Bot",
+  ORGANIZATION: "Organization",
+} as const;
+
+/**
+ * Inline metadata refresh before categorisation: how long the category step
+ * waits for a live GitHub status fetch when the thread's metadata is missing
+ * or older than the email being categorised. On timeout the email is
+ * categorised with whatever metadata exists; the background job still refreshes
+ * the badge afterwards.
+ */
+export const GITHUB_METADATA_INLINE_FETCH_TIMEOUT_MS = 8000;

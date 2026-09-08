@@ -1,6 +1,7 @@
 import {
   buildSanityPromptVariables,
   formatSanityCategories,
+  formatSanityGithubBreakdown,
   formatSanityRuleSummary,
   formatSanitySampleEmails,
   formatSanitySubtypeBreakdown,
@@ -193,5 +194,72 @@ describe("prompt formatting", () => {
       "Notification sub-stream equals or refines one of: (none)",
     );
     expect(variables.subtypeBreakdown).toBe("(none)");
+    expect(variables.githubFactsBreakdown).toBe("(none)");
+  });
+
+  it("renders the pinned GitHub facts and their breakdown for a facts-pinned rule", () => {
+    const text = formatSanityRuleSummary({
+      senders: ["notifications@github.com"],
+      subjectContains: [],
+      bodyContains: [],
+      subjectNotContains: [],
+      bodyNotContains: [],
+      githubConditions: [
+        "project board status is one of: Mac App roadmap / QA passed",
+      ],
+    });
+    expect(text).toContain(
+      'GitHub facts must satisfy: "project board status is one of: Mac App roadmap / QA passed"',
+    );
+
+    const breakdown = formatSanityGithubBreakdown(
+      [
+        {
+          condition:
+            "project board status is one of: Mac App roadmap / QA passed",
+          truePositives: 42,
+          falsePositives: 0,
+        },
+        {
+          condition: "state is one of: closed",
+          truePositives: 39,
+          falsePositives: 51,
+        },
+      ],
+      ["project board status is one of: Mac App roadmap / QA passed"],
+    );
+    expect(breakdown).toBe(
+      "- project board status is one of: Mac App roadmap / QA passed: 42 in this category, 0 in other categories — PINNED by this rule\n" +
+        "- state is one of: closed: 39 in this category, 51 in other categories",
+    );
+    expect(formatSanityGithubBreakdown(undefined, [])).toBe("(none)");
+    expect(formatSanityGithubBreakdown([], [])).toBe("(none)");
+  });
+
+  it("passes the GitHub-fact evidence through to the prompt variables", () => {
+    const variables = buildSanityPromptVariables({
+      categoryName: "✅ QA passed issues",
+      categoryDescription: "verified by QA",
+      candidate: {
+        senders: ["notifications@github.com"],
+        subjectContains: [],
+        bodyContains: [],
+        subjectNotContains: [],
+        bodyNotContains: [],
+        githubConditions: ["state is one of: merged"],
+      },
+      otherCategories: [],
+      sampleEmails: [],
+      githubBreakdown: [
+        {
+          condition: "state is one of: merged",
+          truePositives: 8,
+          falsePositives: 0,
+        },
+      ],
+    });
+    expect(variables.githubFactsBreakdown).toContain(
+      "state is one of: merged: 8 in this category, 0 in other categories — PINNED by this rule",
+    );
   });
 });

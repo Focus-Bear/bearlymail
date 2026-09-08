@@ -289,3 +289,145 @@ describe("buildDraftCompositeSpec — structural-first path for GitHub seeds", (
     expect(suggestRulesFromEmailSamples).toHaveBeenCalled();
   });
 });
+
+const ISSUE_URL = "https://github.com/owner/repo/issues/812";
+const QA_TESTER = "qa-tester <notifications@github.com>";
+const ROW_RECEIVED_AT = new Date("2026-09-01T10:00:00.000Z");
+const STATUS_FETCHED_AT = "2026-09-01T11:00:00.000Z";
+
+/** A GitHub issue-comment row whose thread carries a fetched board status. */
+function issueRow(
+  boardStatus: string | null,
+  categoryId: string,
+  actor: { from: string; opener: string } = {
+    from: QA_TESTER,
+    opener: "@qa-tester left a comment (owner/repo#812)",
+  },
+): ValidationRow {
+  return {
+    from: actor.from,
+    subject: "Re: [owner/repo] Timer drifts after sleep (Issue #812)",
+    body: `${actor.opener}\n\nQA — please proceed with testing.\n\nView it on GitHub:\n${ISSUE_URL}`,
+    htmlBody: null,
+    categoryId,
+    receivedAt: ROW_RECEIVED_AT,
+    githubMetadata: JSON.stringify({
+      links: [
+        {
+          type: "issue",
+          owner: "owner",
+          repo: "repo",
+          number: 812,
+          url: ISSUE_URL,
+          status: {
+            state: "open",
+            ...(boardStatus && {
+              projects: [{ name: "Mac App roadmap", status: boardStatus }],
+            }),
+          },
+          fetchedAt: STATUS_FETCHED_AT,
+        },
+      ],
+    }),
+  };
+}
+
+const QA_SEED: EmailMetadata = {
+  from: QA_TESTER,
+  subject: "Re: [owner/repo] Timer drifts after sleep (Issue #812)",
+  bodyTextForMatch:
+    "@qa-tester left a comment (owner/repo#812) QA — please proceed with testing.",
+  notificationSubtype: "github:issue:comment:human",
+  github: {
+    item: "issue",
+    reference: { owner: "owner", repo: "repo", number: 812 },
+    subtype: "github:issue:comment:human",
+    event: "comment",
+    actorKind: "human",
+    actorLogin: "qa-tester",
+    reason: null,
+    state: "open",
+    authorKind: null,
+    authorLogin: null,
+    projectStatuses: [{ project: "Mac App roadmap", status: "QA passed" }],
+    labels: [],
+    reviewStatus: null,
+    checksState: null,
+    metadataFetchedAt: STATUS_FETCHED_AT,
+    metadataStale: false,
+  },
+};
+
+describe("buildDraftCompositeSpec — GitHub-facts structural path", () => {
+  it("drafts a phrase-free `board status = QA passed` rule with no LLM call", async () => {
+    const { deps, suggestRulesFromEmailSamples } = buildDeps({
+      categoryRows: [
+        issueRow("QA passed", TARGET),
+        issueRow("QA passed", TARGET),
+      ],
+      broadRows: [issueRow("QA failed", OTHER), issueRow(null, OTHER)],
+    });
+
+    const draft = await buildDraftCompositeSpec(
+      deps,
+      USER_ID,
+      QA_SEED,
+      "✅ QA passed issues",
+      autoOptions,
+    );
+
+    expect(draft?.spec).toEqual(
+      expect.objectContaining({
+        v: 3,
+        fromMatchesAny: ["notifications@github.com"],
+        subjectContainsAny: [],
+        bodyContainsAny: [],
+        githubProjectStatusAny: [
+          { status: "QA passed", project: "Mac App roadmap" },
+        ],
+      }),
+    );
+    expect(draft?.spec).not.toHaveProperty("notificationSubtypeAny");
+    expect(draft?.githubBreakdown).toEqual(
+      expect.arrayContaining([
+        {
+          condition:
+            "project board status is one of: Mac App roadmap / QA passed",
+          truePositives: 2,
+          falsePositives: 0,
+        },
+      ]),
+    );
+    expect(suggestRulesFromEmailSamples).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the sub-stream path when no GitHub fact separates the categories", async () => {
+    // "QA passed" also shows up under another category, so the board status is
+    // not clean — but the human-comment sub-stream still is.
+    const { deps } = buildDeps({
+      categoryRows: [issueRow("QA passed", TARGET)],
+      broadRows: [
+        issueRow("QA passed", OTHER, {
+          from: BOT,
+          opener: "@dependabot[bot] left a comment (owner/repo#812)",
+        }),
+      ],
+    });
+
+    const draft = await buildDraftCompositeSpec(
+      deps,
+      USER_ID,
+      QA_SEED,
+      "✅ QA passed issues",
+      autoOptions,
+    );
+
+    expect(draft?.spec).not.toHaveProperty("githubProjectStatusAny");
+    expect(draft?.spec).toEqual(
+      expect.objectContaining({
+        notificationSubtype: "github:issue:comment:human",
+      }),
+    );
+    expect(draft?.githubBreakdown?.length).toBeGreaterThan(0);
+  });
+});

@@ -3,6 +3,10 @@ import { BadRequestException } from "@nestjs/common";
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CompositeCategoryRuleSpecV3 } from "../database/entities/category-rule.entity";
 import {
+  githubConditionFields,
+  GithubRuleConditions,
+} from "./category-rules-github-conditions.helper";
+import {
   cleanNotificationSubtypes,
   notificationSubtypeFields,
 } from "./category-rules-notification-subtype.helper";
@@ -17,14 +21,17 @@ interface NormalisedCompositeFields {
   bodyNotContainsAny: string[];
   /** The resolved notification sub-streams the rule is pinned to (empty = none). */
   notificationSubtypes: string[];
+  /** The cleaned GitHub-metadata conditions (empty object = none). */
+  githubConditions: GithubRuleConditions;
 }
 
 /**
  * Enforces the composite-rule field limits and the minimum-condition rule.
- * Structural rules (pinned to a resolved notification sub-stream) may omit
- * subject/body phrases — the subtype is itself a precise separator — and clear
- * the distinct-condition bar with sender + subtype; phrase-only rules still need
- * all three fields. Throws BadRequestException on the first violation.
+ * Structural rules (pinned to a resolved notification sub-stream and/or a
+ * GitHub-metadata fact such as a board status) may omit subject/body phrases —
+ * the structural pin is itself a precise separator — and clear the
+ * distinct-condition bar with sender + pin; phrase-only rules still need all
+ * three fields. Throws BadRequestException on the first violation.
  */
 function assertCompositeSpecFieldsValid(
   fields: NormalisedCompositeFields,
@@ -36,8 +43,10 @@ function assertCompositeSpecFieldsValid(
     subjectNotContainsAny,
     bodyNotContainsAny,
     notificationSubtypes,
+    githubConditions,
   } = fields;
-  const hasStructuralSubtype = notificationSubtypes.length > 0;
+  const hasStructuralSubtype =
+    notificationSubtypes.length > 0 || Object.keys(githubConditions).length > 0;
   const require = (condition: boolean, message: string): void => {
     if (condition) throw new BadRequestException(message);
   };
@@ -62,6 +71,12 @@ function assertCompositeSpecFieldsValid(
     CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES, `At most ${CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES} body not-contains phrases allowed`);
   require(notificationSubtypes.length >
     CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPES, `At most ${CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPES} notification subtypes allowed`);
+  require((githubConditions.githubStateAny?.length ?? 0) >
+    CATEGORY_RULE_COMPOSITE.MAX_GITHUB_STATES, `At most ${CATEGORY_RULE_COMPOSITE.MAX_GITHUB_STATES} GitHub states allowed`);
+  require((githubConditions.githubProjectStatusAny?.length ?? 0) >
+    CATEGORY_RULE_COMPOSITE.MAX_GITHUB_PROJECT_STATUSES, `At most ${CATEGORY_RULE_COMPOSITE.MAX_GITHUB_PROJECT_STATUSES} GitHub project statuses allowed`);
+  require((githubConditions.githubLabelsAny?.length ?? 0) >
+    CATEGORY_RULE_COMPOSITE.MAX_GITHUB_LABELS, `At most ${CATEGORY_RULE_COMPOSITE.MAX_GITHUB_LABELS} GitHub labels allowed`);
 
   // A resolved notification subtype counts as a distinct structural condition:
   // sender + subtype is already a hard separator, so structural rules clear the
@@ -109,6 +124,14 @@ export function normalizeCompositeSpec(
     dto.notificationSubtype,
     ...(dto.notificationSubtypeAny ?? []),
   ]);
+  // GitHub-metadata pins are cleaned (trimmed, de-duplicated, vocab-checked)
+  // so a persisted rule never carries an unmatchable state or empty status.
+  const githubConditions = githubConditionFields({
+    githubStateAny: dto.githubStateAny,
+    githubProjectStatusAny: dto.githubProjectStatusAny,
+    githubAuthorKind: dto.githubAuthorKind,
+    githubLabelsAny: dto.githubLabelsAny,
+  });
 
   assertCompositeSpecFieldsValid({
     senderMatchesAny,
@@ -117,6 +140,7 @@ export function normalizeCompositeSpec(
     subjectNotContainsAny,
     bodyNotContainsAny,
     notificationSubtypes,
+    githubConditions,
   });
 
   return {
@@ -131,5 +155,6 @@ export function normalizeCompositeSpec(
     ...(dto.emailReceived && { emailReceived: dto.emailReceived }),
     ...(dto.emailRead && { emailRead: dto.emailRead }),
     ...notificationSubtypeFields(notificationSubtypes),
+    ...githubConditions,
   };
 }

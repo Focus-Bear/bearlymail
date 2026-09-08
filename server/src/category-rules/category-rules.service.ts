@@ -375,6 +375,7 @@ export class CategoryRulesService {
       categoryId,
       sampleEmails,
       subtypeBreakdown,
+      githubBreakdown,
     } = draft;
     // Fetch composite rules once and share with both the duplicate check and
     // the persist gate (which uses them for the value-add comparison) to avoid
@@ -413,6 +414,7 @@ export class CategoryRulesService {
         categoryId,
         sampleEmails,
         subtypeBreakdown,
+        githubBreakdown,
         compositeRules,
       },
     );
@@ -666,6 +668,10 @@ export class CategoryRulesService {
           emailRead: dto.compositeSpec.emailRead,
           notificationSubtype: dto.compositeSpec.notificationSubtype,
           notificationSubtypeAny: dto.compositeSpec.notificationSubtypeAny,
+          githubStateAny: dto.compositeSpec.githubStateAny,
+          githubProjectStatusAny: dto.compositeSpec.githubProjectStatusAny,
+          githubAuthorKind: dto.compositeSpec.githubAuthorKind,
+          githubLabelsAny: dto.compositeSpec.githubLabelsAny,
         }),
       );
       if (!specHasExclusion(spec) && !specHasStructuralConstraint(spec)) {

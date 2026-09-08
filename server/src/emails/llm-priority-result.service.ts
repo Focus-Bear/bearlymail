@@ -34,6 +34,11 @@ import {
 } from "./category-resolution-log.helper";
 import { applyDirectProtoMatch } from "./direct-proto-match.helper";
 import { applyEmergencyDelivery } from "./emergency-delivery.helper";
+import type {
+  PriorityBreakdownItem,
+  PriorityDimensions,
+  PriorityExplanationPayload,
+} from "./priority-explanation.types";
 import { calculateScoreContributions } from "./score-contributions.helper";
 
 type PriorityLlmResult = {
@@ -77,26 +82,8 @@ type PriorityLlmResult = {
   ruleCategoryId?: string | null;
   /** What content the priority LLM was given for this email (AI summary vs cleaned body). Set by the single-email refiner. */
   analyzedContentSource?: CategoryDecisionAnalyzedEmail["contentSource"];
-};
-
-type PriorityBreakdownItem = {
-  factor: string;
-  value: number;
-  description: string;
-};
-
-type PriorityDimensions = {
-  urgency: { score: number; reasons: string[] };
-  goalAlignment: { score: number; reasons: string[] };
-  vipContact: { score: number; reasons: string[] };
-  sentiment: { score: number; type: string; reasons: string[] };
-};
-
-type PriorityExplanationPayload = {
-  score: number;
-  breakdown: PriorityBreakdownItem[];
-  dimensions: PriorityDimensions;
-  calculatedAt: string;
+  /** The GitHub facts the category step saw, recorded in the decision trace. Set by the single-email refiner. */
+  githubFactsTrace?: string;
 };
 
 // Constants for priority result computation
@@ -334,6 +321,7 @@ export class LLMPriorityResultService {
         llmResult.categoryExplanation || thread.categoryExplanation || null,
       rawLlmCategory: llmResult.category ?? null,
       llmProtoSuggestionName: llmResult.protoCategorySuggestion?.name ?? null,
+      githubFacts: llmResult.githubFactsTrace,
       analyzedEmail: await buildAnalyzedEmailSnapshot(
         this.emailRepository,
         email,

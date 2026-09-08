@@ -43,6 +43,19 @@ export interface NotificationSubtypeBreakdownEntry {
   falsePositives: number;
 }
 
+/**
+ * How one GitHub-metadata fact of the rule's sender mail (a board status, a
+ * state, an author kind, a label) splits across the target category (true
+ * positives) and every other category (false positives). Shown to the
+ * reviewer alongside the sub-stream breakdown.
+ */
+export interface GithubFactsBreakdownEntry {
+  /** Human-readable fact, e.g. `project board status is one of: QA passed`. */
+  condition: string;
+  truePositives: number;
+  falsePositives: number;
+}
+
 /** The reviewer's proposed corrected rule (verdict "revise" only). */
 export interface RuleSanityRevision {
   fromMatchesAny: string[];
@@ -69,6 +82,8 @@ export interface RuleSanityCheckParams {
   sampleEmails: RuleSanitySampleEmail[];
   /** Per-sub-stream TP/FP evidence for structural (subtype-pinned) rules. */
   subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
+  /** Per-GitHub-fact TP/FP evidence for rules pinning thread metadata. */
+  githubBreakdown?: GithubFactsBreakdownEntry[];
   userId?: string;
 }
 
@@ -135,6 +150,7 @@ export function formatSanityRuleSummary(summary: RuleSpecSummary): string {
       "Notification sub-stream equals or refines one of",
       summary.notificationSubtypes ?? [],
     ),
+    line("GitHub facts must satisfy", summary.githubConditions ?? []),
     line("Subject contains any of", summary.subjectContains),
     line("Body contains any of", summary.bodyContains),
     line("Subject must NOT contain any of", summary.subjectNotContains),
@@ -162,6 +178,32 @@ export function formatSanitySubtypeBreakdown(
       (entry) =>
         `- ${entry.subtype}: ${entry.truePositives} in this category, ${entry.falsePositives} in other categories${
           pinned.has(entry.subtype.toLowerCase())
+            ? " — PINNED by this rule"
+            : ""
+        }`,
+    )
+    .join("\n");
+}
+
+/**
+ * Renders the per-GitHub-fact evidence one line each, marking the facts the
+ * rule pins so the reviewer sees what is covered and what was left out.
+ */
+export function formatSanityGithubBreakdown(
+  breakdown: GithubFactsBreakdownEntry[] | undefined,
+  pinnedConditions: string[],
+): string {
+  if (!breakdown || breakdown.length === 0) {
+    return NONE_PLACEHOLDER;
+  }
+  const pinned = new Set(
+    pinnedConditions.map((condition) => condition.toLowerCase()),
+  );
+  return breakdown
+    .map(
+      (entry) =>
+        `- ${entry.condition}: ${entry.truePositives} in this category, ${entry.falsePositives} in other categories${
+          pinned.has(entry.condition.toLowerCase())
             ? " — PINNED by this rule"
             : ""
         }`,
@@ -210,6 +252,10 @@ export function buildSanityPromptVariables(
     subtypeBreakdown: formatSanitySubtypeBreakdown(
       params.subtypeBreakdown,
       params.candidate.notificationSubtypes ?? [],
+    ),
+    githubFactsBreakdown: formatSanityGithubBreakdown(
+      params.githubBreakdown,
+      params.candidate.githubConditions ?? [],
     ),
   };
 }

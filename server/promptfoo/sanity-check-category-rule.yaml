@@ -22,6 +22,8 @@ defaultTest:
       - 🤖 Automated System Alerts from Sentry etc. — error and uptime alerts from monitoring services
       - Billing — invoices and receipts
       - Other — anything that fits nowhere else
+    subtypeBreakdown: "(none)"
+    githubFactsBreakdown: "(none)"
 
 tests:
   - description: "Returns valid JSON with verdict, confidence, reason and the optional fields"
@@ -305,5 +307,63 @@ tests:
           const parsed = JSON.parse(cleaned);
           if (parsed.verdict === 'accept') {
             throw new Error(`Expected reject/revise when a human review-request sub-stream is pinned for a bot category: ${parsed.reason}`);
+          }
+          return true;
+
+  - description: "GitHub facts rule: accepts a phrase-free board-status pin that fits the category"
+    vars:
+      categoryName: "✅ Github QA passed issues"
+      categoryDescription: "GitHub issue notifications where QA has marked the issue as passed / done"
+      ruleSummary: |
+        Sender matches any of: "notifications@github.com"
+        GitHub facts must satisfy: project board status is one of: Mac App roadmap / QA passed
+        Subject contains any of: (none)
+        Body contains any of: (none)
+        Subject must NOT contain any of: (none)
+        Body must NOT contain any of: (none)
+      sampleEmails: |
+        [Email 1]
+        From: notifications@github.com
+        Subject: Re: [Focus-Bear/Mac-App] Timer drifts after sleep (Issue #812)
+        Body preview: @qa-tester left a comment (Focus-Bear/Mac-App#812) QA — please proceed with testing.
+      githubFactsBreakdown: |
+        - project board status is one of: Mac App roadmap / QA passed: 42 in this category, 0 in other categories — PINNED by this rule
+        - state is one of: closed: 39 in this category, 51 in other categories
+        - labels include one of: bug: 20 in this category, 33 in other categories
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict !== 'accept') {
+            throw new Error(`Expected accept for a phrase-free rule pinned to the "QA passed" board status, got ${parsed.verdict}: ${parsed.reason}`);
+          }
+          return true;
+
+  - description: "GitHub facts rule: rejects/revises a bot-author pin for a humans-only category"
+    vars:
+      categoryName: "🔀 Pull request reviews"
+      categoryDescription: "pull requests where my review has been requested"
+      ruleSummary: |
+        Sender matches any of: "notifications@github.com"
+        GitHub facts must satisfy: PR/issue author is a bot
+        Subject contains any of: (none)
+        Body contains any of: (none)
+        Subject must NOT contain any of: (none)
+        Body must NOT contain any of: (none)
+      sampleEmails: |
+        [Email 1]
+        From: notifications@github.com
+        Subject: [Focus-Bear/backend] Bump axios from 1.6.0 to 1.7.0 (PR #2470)
+        Body preview: Bumps axios from 1.6.0 to 1.7.0. dependabot[bot] opened this pull request.
+      githubFactsBreakdown: |
+        - PR/issue author is a bot: 3 in this category, 88 in other categories — PINNED by this rule
+    assert:
+      - type: javascript
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.verdict === 'accept') {
+            throw new Error(`Expected reject/revise when a bot-author pin dominates other categories: ${parsed.reason}`);
           }
           return true;

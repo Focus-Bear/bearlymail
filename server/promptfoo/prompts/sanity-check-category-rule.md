@@ -7,6 +7,10 @@ Some rules are STRUCTURAL: they additionally pin one or more notification sub-st
 - Judge a structural rule by whether its pinned sub-streams (item, event, actor) fit the category, using the sub-stream breakdown below. Do NOT reject it because its phrases could also match other events or actors — the pin already excludes them (a rule pinned to `github:pr:comment:bot` cannot match a human comment, a merge, or a review request).
 - DO reject or revise it when a pinned sub-stream contradicts the category (a "Bot updates" rule pinning a `:human` sub-stream; a "PR merged" rule pinning `github:pr:comment:…`), or when the breakdown shows a pinned sub-stream with many emails in OTHER categories.
 
+A structural rule may instead (or also) pin GITHUB FACTS ("GitHub facts must satisfy"): the lifecycle state of the PR/issue (`open` / `closed` / `merged`), its GitHub Projects board status (e.g. "QA passed"), whether it was AUTHORED by a bot or a human, or its labels. These are read from the GitHub API for the exact item the email is about — they are facts, not wording, and an email whose thread has no fetched metadata can never satisfy them. So:
+- A facts-pinned rule with "(none)" phrases is a precise rule, not an incoherent one; judge it by whether the pinned facts fit the category ("board status QA passed" → a QA-passed category; "state merged" → a merged-PR category; "author is a bot" → a bot/AI-PR category).
+- Use the GitHub facts breakdown below: reject or revise when a pinned fact shows many emails in OTHER categories, or when a fact plainly contradicts the category.
+
 ## Target category
 Name: {{categoryName}}
 Description: {{categoryDescription}}
@@ -22,6 +26,9 @@ Description: {{categoryDescription}}
 
 ## Notification sub-stream breakdown (sender's recent mail; "PINNED" = covered by this rule)
 {{subtypeBreakdown}}
+
+## GitHub facts breakdown (sender's recent mail; "PINNED" = required by this rule)
+{{githubFactsBreakdown}}
 
 ## Your judgement
 

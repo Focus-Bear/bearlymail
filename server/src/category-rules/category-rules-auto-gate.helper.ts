@@ -20,6 +20,7 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { CategoryRuleSanityService } from "../llm/category-rule-sanity.service";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import type {
+  GithubFactsBreakdownEntry,
   NotificationSubtypeBreakdownEntry,
   RuleSanitySampleEmail,
 } from "../llm/llm-rule-sanity";
@@ -48,6 +49,8 @@ export interface AutoRuleGateParams {
   sampleEmails: RuleSanitySampleEmail[];
   /** Per-sub-stream TP/FP evidence for structural candidates (reviewer input). */
   subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
+  /** Per-GitHub-fact TP/FP evidence for metadata-pinned candidates (reviewer input). */
+  githubBreakdown?: GithubFactsBreakdownEntry[];
   /** Pre-fetched composite rules, shared with the value-add comparison. */
   compositeRules: CategoryRule[];
 }
@@ -123,6 +126,7 @@ export async function gateAutoCompositeCandidate(
       candidateSpec: gate.finalSpec,
       sampleEmails: params.sampleEmails,
       subtypeBreakdown: params.subtypeBreakdown,
+      githubBreakdown: params.githubBreakdown,
     },
   );
   if (!sanity.shouldPersist || !sanity.finalSpec) {

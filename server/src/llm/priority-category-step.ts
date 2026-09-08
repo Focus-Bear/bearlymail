@@ -145,6 +145,8 @@ export async function chooseEmailCategory(
     email: { from: string; fromName?: string; subject: string };
     userContext?: UserContextInput;
     cleanedBody: string;
+    /** Authoritative GitHub facts line for the thread's PR/issue, when any. */
+    githubFacts?: string | null;
     userId?: string;
   },
 ): Promise<{
@@ -162,7 +164,7 @@ export async function chooseEmailCategory(
   /** True when every categoriser call failed, so "Other" is a fallback, not a verdict. */
   modelUnavailable: boolean;
 }> {
-  const { email, userContext, cleanedBody, userId } = options;
+  const { email, userContext, cleanedBody, githubFacts, userId } = options;
   const { candidates, instrumentation } = await resolveCategoryCandidates(
     deps,
     email,
@@ -180,6 +182,7 @@ export async function chooseEmailCategory(
       summary: cleanedBody,
       categories: candidates,
       escalationModel: deps.escalationModel,
+      githubFacts,
       userId,
     },
   );

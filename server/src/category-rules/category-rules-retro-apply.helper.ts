@@ -21,12 +21,11 @@ import {
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { buildCategoryDecisionTrace } from "../emails/category-decision-trace.helper";
 import { updateThreadCategoryWithPrecedence } from "../emails/category-precedence.helper";
-import { buildRuleMatchText } from "../llm/email-content-cleaner";
-import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import { evaluateComposite } from "./category-rules-auto-composite.helper";
 import {
   decryptValidationRow,
   ValidationRow,
+  validationRowToEmailMetadata,
 } from "./category-rules-validate.helper";
 
 /** One representative email per recent thread, with the thread id attached. */
@@ -54,19 +53,21 @@ export async function fetchRecentThreadRowsForRetroApply(
   return emailThreadRepository.manager.query(
     `
     WITH recent_threads AS (
-      SELECT id, "categoryId"
+      SELECT id, "categoryId", "githubMetadata"
       FROM email_threads
       WHERE "userId" = $1
       ORDER BY "updatedAt" DESC
       LIMIT $2
     )
     SELECT DISTINCT ON (e."emailThreadId")
-      rt.id           AS "threadId",
-      e."from"        AS "from",
-      e.subject       AS subject,
-      e.body          AS body,
-      e."htmlBody"    AS "htmlBody",
-      rt."categoryId" AS "categoryId"
+      rt.id               AS "threadId",
+      e."from"            AS "from",
+      e.subject           AS subject,
+      e.body              AS body,
+      e."htmlBody"        AS "htmlBody",
+      e."receivedAt"      AS "receivedAt",
+      rt."categoryId"     AS "categoryId",
+      rt."githubMetadata" AS "githubMetadata"
     FROM recent_threads rt
     INNER JOIN emails e ON e."emailThreadId" = rt.id
     WHERE e."userId" = $1
@@ -92,24 +93,9 @@ export function selectRetroApplyThreadIds(
     if (row.categoryId === targetCategoryId) {
       continue;
     }
-    const decrypted = decryptValidationRow(row);
     const evaluation = evaluateComposite(
       spec,
-      {
-        from: decrypted.from,
-        subject: decrypted.subject,
-        bodyTextForMatch: buildRuleMatchText(
-          decrypted.body,
-          decrypted.htmlBody,
-        ),
-        notificationSubtype:
-          resolveNotificationSubtype({
-            from: decrypted.from,
-            subject: decrypted.subject,
-            body: decrypted.body,
-            htmlBody: decrypted.htmlBody,
-          }) ?? undefined,
-      },
+      validationRowToEmailMetadata(decryptValidationRow(row)),
       normaliseSender,
     );
     if (evaluation.matches) {

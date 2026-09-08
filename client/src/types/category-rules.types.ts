@@ -24,10 +24,24 @@ export interface CompositeSpecV2 {
   bodyNotContainsAny?: string[];
 }
 
+/** Lifecycle state of the PR/issue a GitHub rule can pin. */
+export type GithubItemState = 'open' | 'closed' | 'merged';
+
+/** Whether the PR/issue was authored by a bot or a human. */
+export type GithubActorKind = 'bot' | 'human';
+
+/** One pinned GitHub Projects board status, optionally scoped to a project. */
+export interface GithubProjectStatusCondition {
+  status: string;
+  project?: string;
+}
+
 /**
  * v3 spec — renamed `senderMatchesAny` → `fromMatchesAny` to align with the
  * priority classification model input format (issue #1975). Adds optional
- * fields for read status, attachment, and received/read time conditions.
+ * fields for read status, attachment, and received/read time conditions, and
+ * the GitHub-metadata conditions matched against the thread's fetched PR/issue
+ * status (state, Projects board status, author kind, labels).
  */
 export interface CompositeSpecV3 {
   v: 3;
@@ -40,7 +54,22 @@ export interface CompositeSpecV3 {
   emailAttachment?: Record<string, string>;
   emailReceived?: string;
   emailRead?: string;
+  githubStateAny?: GithubItemState[];
+  githubProjectStatusAny?: GithubProjectStatusCondition[];
+  githubAuthorKind?: GithubActorKind;
+  githubLabelsAny?: string[];
 }
+
+/** The GitHub-metadata conditions a spec pins (all empty for v1/v2). */
+export interface GithubSpecConditions {
+  states: GithubItemState[];
+  projectStatuses: GithubProjectStatusCondition[];
+  authorKind?: GithubActorKind;
+  labels: string[];
+}
+
+/** Separator between a project title and its board status when displayed. */
+export const GITHUB_PROJECT_STATUS_SCOPE_SEPARATOR = ' / ';
 
 /** Union of all supported composite rule spec versions. */
 export type CompositeSpec = CompositeSpecV1 | CompositeSpecV2 | CompositeSpecV3;
@@ -78,6 +107,37 @@ export function specBodyNotContains(spec: CompositeSpec): string[] {
     return [];
   }
   return spec.bodyNotContainsAny ?? [];
+}
+
+/** Helper to read the GitHub-metadata conditions regardless of spec version. */
+export function specGithubConditions(spec: CompositeSpec): GithubSpecConditions {
+  if (spec.v !== 3) {
+    return { states: [], projectStatuses: [], labels: [] };
+  }
+  return {
+    states: spec.githubStateAny ?? [],
+    projectStatuses: spec.githubProjectStatusAny ?? [],
+    authorKind: spec.githubAuthorKind,
+    labels: spec.githubLabelsAny ?? [],
+  };
+}
+
+/** True when the spec pins at least one GitHub-metadata condition. */
+export function specHasGithubConditions(spec: CompositeSpec): boolean {
+  const conditions = specGithubConditions(spec);
+  return (
+    conditions.states.length > 0 ||
+    conditions.projectStatuses.length > 0 ||
+    conditions.labels.length > 0 ||
+    conditions.authorKind !== undefined
+  );
+}
+
+/** `Board / QA passed` when scoped to a project, otherwise just the status. */
+export function formatGithubProjectStatus(condition: GithubProjectStatusCondition): string {
+  return condition.project
+    ? `${condition.project}${GITHUB_PROJECT_STATUS_SCOPE_SEPARATOR}${condition.status}`
+    : condition.status;
 }
 
 /**

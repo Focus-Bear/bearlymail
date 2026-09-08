@@ -98,6 +98,11 @@ export type PriorityResult = {
   categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
   /** What content the LLM saw (AI summary vs cleaned body); attached by the single-email refiner, not by `analyzePriority`. */
   analyzedContentSource?: CategoryDecisionAnalyzedEmail["contentSource"];
+  /**
+   * The GitHub facts line the category step was given, for the decision trace.
+   * Attached by the single-email refiner, not by `analyzePriority`.
+   */
+  githubFactsTrace?: string;
 };
 
 export type BatchPriorityResult = PriorityResult & {
@@ -431,14 +436,21 @@ export class PriorityAnalysisService {
     email: { from: string; fromName?: string; subject: string };
     userContext?: UserContextInput;
     cleanedBody: string;
+    githubFacts?: string | null;
     userId?: string;
     categoryPreAssigned: boolean;
   }): Promise<{
     chosen: Awaited<ReturnType<typeof chooseEmailCategory>> | null;
     instrumentation: CategoryInstrumentation;
   }> {
-    const { email, userContext, cleanedBody, userId, categoryPreAssigned } =
-      options;
+    const {
+      email,
+      userContext,
+      cleanedBody,
+      githubFacts,
+      userId,
+      categoryPreAssigned,
+    } = options;
     if (!categoryPreAssigned) {
       const chosen = await chooseEmailCategory(
         {
@@ -447,7 +459,7 @@ export class PriorityAnalysisService {
           logger: this.logger,
           escalationModel: resolveStrongGeminiModel(this.configService),
         },
-        { email, userContext, cleanedBody, userId },
+        { email, userContext, cleanedBody, githubFacts, userId },
       );
       return { chosen, instrumentation: chosen.instrumentation };
     }
@@ -492,6 +504,8 @@ export class PriorityAnalysisService {
     /** True when a deterministic rule already assigned the category — skips the
      * category list + shortlist in the prompt (the LLM's category is discarded). */
     categoryPreAssigned?: boolean;
+    /** Authoritative GitHub facts line handed to the category step, when any. */
+    githubFacts?: string | null;
   }): Promise<PriorityResult> {
     const {
       email,
@@ -503,6 +517,7 @@ export class PriorityAnalysisService {
       preComputedSentimentScore,
       userTimezone,
       categoryPreAssigned,
+      githubFacts,
     } = options;
     const cleanedBody = cleanEmailContent(
       email.body,
@@ -516,6 +531,7 @@ export class PriorityAnalysisService {
       email,
       userContext,
       cleanedBody,
+      githubFacts,
       userId,
       categoryPreAssigned: categoryPreAssigned === true,
     });

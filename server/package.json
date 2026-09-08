@@ -97,7 +97,7 @@
     "mjml": "^5.4.0",
     "natural": "^8.1.1",
     "node-ical": "^0.27.1",
-    "openai": "^7.0.0",
+    "openai": "^7.10.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",

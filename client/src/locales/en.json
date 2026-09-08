@@ -2271,6 +2271,15 @@
     "leaveAnyway": "Leave anyway",
     "keepEditing": "Keep editing"
   },
+  "emailSend": {
+    "failedNotification": "Your message was not sent. {{reason}}",
+    "retryAction": "Retry",
+    "failure": {
+      "providerRejected": "Your email provider rejected it.",
+      "unconfirmed": "We could not confirm it was delivered — check your Sent folder before resending.",
+      "unknown": "Something went wrong on our side."
+    }
+  },
   "contacts": {
     "title": "Contacts",
     "syncContacts": "Sync Contacts",

@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
+import { takeComposeRestore } from 'utils/composeRestore';
 import { getNextMorning } from 'utils/dateUtils';
+import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
 import { markScheduledEmailSent } from 'utils/scheduledTour';
 
@@ -45,16 +47,24 @@ interface ComposeSendArgs {
 }
 
 /**
+ * The endpoint queues the message rather than sending it, so it answers with a
+ * correlation id. `sendId` is absent on the scheduled-send path.
+ */
+interface ComposeSendResponse {
+  sendId?: string;
+}
+
+/**
  * POSTs a composed email to /emails/send. When attachments are present the
  * request must be multipart/form-data (the endpoint reads files via Multer's
  * `files` field); recipient objects are JSON-encoded so the server parses them
  * back into arrays. Otherwise a plain JSON body is sent.
  */
-const postComposedEmail = async (args: ComposeSendArgs): Promise<void> => {
+const postComposedEmail = async (args: ComposeSendArgs): Promise<ComposeSendResponse> => {
   const { to, cc, bcc, subject, body, attachments, scheduledSendAtIso, userTimezone } = args;
 
   if (attachments.length === 0) {
-    await axios.post(`${API_URL}/emails/send`, {
+    const response = await axios.post<ComposeSendResponse>(`${API_URL}/emails/send`, {
       to,
       cc: cc.length > 0 ? cc : undefined,
       bcc: bcc.length > 0 ? bcc : undefined,
@@ -63,7 +73,7 @@ const postComposedEmail = async (args: ComposeSendArgs): Promise<void> => {
       scheduledSendAt: scheduledSendAtIso,
       userTimezone: scheduledSendAtIso ? userTimezone : undefined,
     });
-    return;
+    return response.data;
   }
 
   const formData = new FormData();
@@ -83,7 +93,8 @@ const postComposedEmail = async (args: ComposeSendArgs): Promise<void> => {
   attachments.forEach(file => formData.append('files', file));
   // Let Axios/the browser set Content-Type with the multipart boundary — an
   // explicit 'multipart/form-data' header omits the boundary and breaks Multer.
-  await axios.post(`${API_URL}/emails/send`, formData);
+  const response = await axios.post<ComposeSendResponse>(`${API_URL}/emails/send`, formData);
+  return response.data;
 };
 
 const Compose: React.FC = () => {
@@ -112,6 +123,22 @@ const Compose: React.FC = () => {
   useEffect(() => {
     captureEvent(ANALYTICS_EVENTS.COMPOSE_VIEWED);
   }, []);
+
+  // A background send that failed parks its fields here, so Retry reopens the
+  // composer with the message the user thought they had already sent.
+  // Attachments can't be serialised and must be re-added.
+  const { setTo, setCc, setBcc, setSubject, setBody } = form;
+  useEffect(() => {
+    const restored = takeComposeRestore();
+    if (!restored) {
+      return;
+    }
+    setTo(restored.to);
+    setCc(restored.cc);
+    setBcc(restored.bcc);
+    setSubject(restored.subject);
+    setBody(restored.body);
+  }, [setTo, setCc, setBcc, setSubject, setBody]);
 
   useEffect(() => {
     const fetchFrequent = async () => {
@@ -209,17 +236,26 @@ const Compose: React.FC = () => {
 
     const dismissSendingToast = showLoading(t('compose.sendingToast'));
 
+    const composed = {
+      to: form.to,
+      cc: form.cc,
+      bcc: form.bcc,
+      subject: form.subject.trim(),
+      body: form.body.trim(),
+    };
+
     try {
-      await postComposedEmail({
-        to: form.to,
-        cc: form.cc,
-        bcc: form.bcc,
-        subject: form.subject.trim(),
-        body: form.body.trim(),
+      const { sendId } = await postComposedEmail({
+        ...composed,
         attachments: form.attachments,
         scheduledSendAtIso,
         userTimezone,
       });
+      // The message is only queued at this point, so keep a copy until the
+      // outcome event confirms it actually went out (see useEmailSendOutcomes).
+      if (sendId) {
+        rememberPendingSend({ sendId, kind: PENDING_SEND_KIND.COMPOSE, ...composed });
+      }
       setSendSuccess(true);
       if (scheduledSendAt) {
         // Surface where scheduled emails live (inbox ⋮ menu) on next inbox view.

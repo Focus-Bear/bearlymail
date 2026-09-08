@@ -18,6 +18,14 @@ jobs:
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
+    # Dependabot-triggered runs get Dependabot's own secret store, not the
+    # repo's, so CLAUDE_CODE_OAUTH_TOKEN resolves empty and the action dies on
+    # "Environment variable validation failed" before reviewing anything. A
+    # dependency bump is covered by the rest of CI (build, tests, audit), so
+    # skip the AI review rather than leaving a permanently red check that
+    # blocks the routine bump backlog.
+    if: github.actor != 'dependabot[bot]'
+
     runs-on: ubuntu-latest
     permissions:
       contents: read

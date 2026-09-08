@@ -737,7 +737,8 @@
     "editRecipient": "Haz clic para editar",
     "unsavedChangesTitle": "Correo sin enviar",
     "leaveAnyway": "Salir de todos modos",
-    "keepEditing": "Seguir editando"
+    "keepEditing": "Seguir editando",
+    "followUpSection": "Seguimiento"
   },
   "emailSend": {
     "failedNotification": "Tu mensaje no se envió. {{reason}}",

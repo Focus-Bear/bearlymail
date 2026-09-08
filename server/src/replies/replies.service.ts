@@ -39,6 +39,7 @@ import {
   parseRecipientsFromString,
   sanitizeRecipientList,
 } from "../utils/email-address.utils";
+import { followUpDaysFromHours } from "../utils/expected-reply.util";
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 import { buildReplySubject } from "../utils/reply-subject.util";
@@ -456,10 +457,7 @@ ${closing}`;
     const snoozeUntil = new Date(
       Date.now() + expectedReplyHours * MILLISECONDS.HOUR,
     );
-    const followUpDays = Math.max(
-      1,
-      Math.ceil(expectedReplyHours / HOURS_PER_DAY),
-    );
+    const followUpDays = followUpDaysFromHours(expectedReplyHours);
     const followUpDueAt = new Date();
     followUpDueAt.setDate(followUpDueAt.getDate() + followUpDays);
 

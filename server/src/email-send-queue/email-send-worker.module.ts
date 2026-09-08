@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 
 import { EmailsModule } from "../emails/emails.module";
+import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { RepliesModule } from "../replies/replies.module";
 import { UsersModule } from "../users/users.module";
 import { EmailSendProcessor } from "./email-send.processor";
@@ -14,7 +15,13 @@ import { EmailSendQueueModule } from "./email-send-queue.module";
  * EmailsModule) without any forwardRef.
  */
 @Module({
-  imports: [EmailSendQueueModule, EmailsModule, RepliesModule, UsersModule],
+  imports: [
+    EmailSendQueueModule,
+    EmailsModule,
+    RepliesModule,
+    FollowUpsModule,
+    UsersModule,
+  ],
   providers: [EmailSendProcessor],
 })
 export class EmailSendWorkerModule {}

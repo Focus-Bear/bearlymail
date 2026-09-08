@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DateTime } from "luxon";
 import { LessThanOrEqual, Repository } from "typeorm";
@@ -19,6 +19,7 @@ import {
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { UsersService } from "../users/users.service";
 
 // Time constants for scheduling
@@ -59,6 +60,8 @@ export class ScheduledEmailsService {
     private contactsService: ContactsService,
     private usersService: UsersService,
     private readonly userEncryptionService: UserEncryptionService,
+    @Inject(forwardRef(() => FollowUpsService))
+    private readonly followUpsService: FollowUpsService,
   ) {}
 
   /**
@@ -474,7 +477,7 @@ export class ScheduledEmailsService {
       throw new Error(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
     }
 
-    await provider.sendEmail(userId, {
+    const sent = await provider.sendEmail(userId, {
       to: scheduledEmail.to,
       subject: scheduledEmail.subject,
       body: bodyWithSignature,
@@ -482,6 +485,22 @@ export class ScheduledEmailsService {
       bcc: scheduledEmail.bcc || undefined,
       attachments,
     });
+
+    // Only now does the message have a thread to follow up on, so the window
+    // the composer asked for is honoured here rather than at scheduling time.
+    try {
+      await this.followUpsService.createFollowUpForSentMessage(
+        userId,
+        sent.threadId,
+        scheduledEmail.expectedReplyHours ?? undefined,
+        { subject: scheduledEmail.subject },
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to create follow-up for scheduled email ${scheduledEmail.id}:`,
+        error,
+      );
+    }
   }
 
   /**

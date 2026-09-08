@@ -21,6 +21,7 @@ import { EmailAdminService } from "../emails/email-admin.service";
 import { appendSignature } from "../emails/email-controller.helpers";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { PusherService } from "../pusher/pusher.service";
 import { registerWorker } from "../queue/register-worker";
 import { RepliesService } from "../replies/replies.service";
@@ -66,6 +67,7 @@ export class EmailSendProcessor implements OnModuleInit {
     private readonly emailAdminService: EmailAdminService,
     private readonly usersService: UsersService,
     private readonly userEncryptionService: UserEncryptionService,
+    private readonly followUpsService: FollowUpsService,
     private readonly pusherService: PusherService,
   ) {}
 
@@ -108,6 +110,7 @@ export class EmailSendProcessor implements OnModuleInit {
       try {
         const sent = await this.dispatch(userId, attempt);
         await this.sendQueueService.markSent(attempt.id, sent);
+        await this.createComposeFollowUp(userId, attempt, sent);
         await this.pusherService.triggerEmailSendSucceeded(userId, {
           sendId: attempt.id,
           sendType: attempt.sendType,
@@ -119,6 +122,39 @@ export class EmailSendProcessor implements OnModuleInit {
         await this.handleSendError(attempt, error);
       }
     });
+  }
+
+  /**
+   * Schedules the follow-up a composed message asked for.
+   *
+   * A brand-new message has no thread until the provider creates one, so this
+   * can only run here — and only after the send succeeded, so a failed send
+   * never leaves a stray reminder behind. Replies are excluded because
+   * RepliesService already handles their thread bookkeeping.
+   *
+   * Never throws: the message is already out, and losing the reminder must not
+   * turn a delivered send into a reported failure.
+   */
+  private async createComposeFollowUp(
+    userId: string,
+    attempt: EmailSendAttempt,
+    sent: SentMessage,
+  ): Promise<void> {
+    if (attempt.sendType !== EMAIL_SEND_TYPE.NEW) return;
+    const payload = attempt.payload as QueuedNewEmailPayload;
+
+    try {
+      await this.followUpsService.createFollowUpForSentMessage(
+        userId,
+        sent.threadId,
+        payload.expectedReplyHours,
+        { subject: payload.subject },
+      );
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to create follow-up for send attempt ${attempt.id}: ${describeError(error)}`,
+      );
+    }
   }
 
   private dispatch(

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { humanizeDuration } from 'utils/parseDuration';
@@ -7,8 +7,8 @@ import { InfoTooltip } from './InfoTooltip';
 
 interface ExpectedReplyRowProps {
   followUpDuration: string;
-  sending: boolean;
-  checkingTone: boolean;
+  /** True while the message is being sent or checked — the field goes read-only. */
+  disabled: boolean;
   tooltipText: string;
   onChange: (value: string) => void;
 }
@@ -22,13 +22,12 @@ interface ExpectedReplyRowProps {
  */
 export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
   followUpDuration,
-  sending,
-  checkingTone,
+  disabled: isDisabled,
   tooltipText,
   onChange,
 }) => {
   const { t, i18n } = useTranslation();
-  const isDisabled = sending || checkingTone;
+  const inputId = useId();
   const [showSuggestions, setShowSuggestions] = useState(false);
   const preview = useMemo(
     () => humanizeDuration(followUpDuration, i18n.language),
@@ -57,7 +56,8 @@ export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-        <span
+        <label
+          htmlFor={inputId}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -69,8 +69,9 @@ export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
         >
           {t('emailDetail.expectedReply.label')}
           <InfoTooltip text={tooltipText} />
-        </span>
+        </label>
         <input
+          id={inputId}
           type="text"
           value={followUpDuration}
           onChange={event => onChange(event.target.value)}

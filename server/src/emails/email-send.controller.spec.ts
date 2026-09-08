@@ -15,6 +15,9 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailSendController } from "./email-send.controller";
 import { EmailsService } from "./emails.service";
 
+const FOLLOW_UP_HOURS = 48;
+const HOUR_IN_MS = 3600000;
+
 describe("EmailSendController", () => {
   let controller: EmailSendController;
 
@@ -248,6 +251,72 @@ describe("EmailSendController", () => {
             },
           ],
         }),
+      );
+    });
+
+    it("parses a free-text follow-up window into whole hours", async () => {
+      const userId = "user-123";
+      mockEmailProviderManager.getPrimaryProvider.mockResolvedValue({
+        sendEmail: jest.fn(),
+      });
+      mockEmailSendQueueService.queueNewEmail.mockResolvedValue({
+        sendId: "send-3",
+        status: EMAIL_SEND_STATUS.QUEUED,
+      });
+
+      await controller.sendEmail({ user: { userId } }, {
+        to: ["recipient@example.com"],
+        subject: "Test",
+        body: "Hello",
+        expectedReplyDuration: "48h",
+        locale: "en",
+      } as never);
+
+      expect(mockEmailSendQueueService.queueNewEmail).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({ expectedReplyHours: FOLLOW_UP_HOURS }),
+      );
+    });
+
+    it("queues no follow-up window when the composer cleared the field", async () => {
+      mockEmailProviderManager.getPrimaryProvider.mockResolvedValue({
+        sendEmail: jest.fn(),
+      });
+      mockEmailSendQueueService.queueNewEmail.mockResolvedValue({
+        sendId: "send-4",
+        status: EMAIL_SEND_STATUS.QUEUED,
+      });
+
+      await controller.sendEmail({ user: { userId: "user-123" } }, {
+        to: ["recipient@example.com"],
+        subject: "T",
+        body: "B",
+      } as never);
+
+      const [, payload] =
+        mockEmailSendQueueService.queueNewEmail.mock.calls.at(-1);
+      expect(payload.expectedReplyHours).toBeUndefined();
+    });
+
+    it("carries the follow-up window onto a scheduled send", async () => {
+      const scheduledSendAt = new Date(Date.now() + HOUR_IN_MS).toISOString();
+      mockScheduledEmailsService.scheduleEmail.mockResolvedValue({
+        id: "scheduled-2",
+        scheduledSendAt: new Date(scheduledSendAt),
+      });
+
+      await controller.sendEmail({ user: { userId: "user-123" } }, {
+        to: ["recipient@example.com"],
+        subject: "Test",
+        body: "Hello",
+        scheduledSendAt,
+        expectedReplyDuration: "48h",
+        locale: "en",
+      } as never);
+
+      expect(mockScheduledEmailsService.scheduleEmail).toHaveBeenCalledWith(
+        "user-123",
+        expect.objectContaining({ expectedReplyHours: FOLLOW_UP_HOURS }),
       );
     });
 

@@ -12,6 +12,7 @@ import { EmailSendAttempt } from "../database/entities/email-send-attempt.entity
 import { EmailAdminService } from "../emails/email-admin.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { PusherService } from "../pusher/pusher.service";
 import { RepliesService } from "../replies/replies.service";
 import { UsersService } from "../users/users.service";
@@ -27,6 +28,7 @@ const USER_ID = "user-1";
 const SEND_ID = "send-1";
 const EMAIL_ID = "email-1";
 const SENT = { messageId: "msg-1", threadId: "thread-1" };
+const FOLLOW_UP_HOURS = 48;
 
 function buildAttempt(overrides: Partial<EmailSendAttempt> = {}) {
   return {
@@ -60,6 +62,7 @@ describe("EmailSendProcessor", () => {
   };
   let emailProviderManager: { getPrimaryProvider: jest.Mock };
   let emailAdminService: { trackEmailRecipients: jest.Mock };
+  let followUpsService: { createFollowUpForSentMessage: jest.Mock };
 
   const runSendJob = () =>
     handlers[JOB_NAMES.SEND_QUEUED_EMAIL]([
@@ -102,6 +105,9 @@ describe("EmailSendProcessor", () => {
     emailAdminService = {
       trackEmailRecipients: jest.fn().mockResolvedValue(undefined),
     };
+    followUpsService = {
+      createFollowUpForSentMessage: jest.fn().mockResolvedValue(null),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -119,6 +125,7 @@ describe("EmailSendProcessor", () => {
               task(),
           },
         },
+        { provide: FollowUpsService, useValue: followUpsService },
         { provide: PusherService, useValue: pusherService },
       ],
     }).compile();
@@ -223,6 +230,90 @@ describe("EmailSendProcessor", () => {
           emailId: undefined,
         }),
       );
+    });
+  });
+
+  describe("compose follow-up", () => {
+    const claimNewEmail = (expectedReplyHours?: number) =>
+      sendQueueService.claimForSending.mockResolvedValue(
+        buildAttempt({
+          sendType: EMAIL_SEND_TYPE.NEW,
+          emailId: null,
+          payload: {
+            to: [{ email: "to@example.com" }],
+            subject: "Hi",
+            body: "Body",
+            expectedReplyHours,
+          },
+        }),
+      );
+
+    it("creates exactly one follow-up on the provider's real thread", async () => {
+      emailProviderManager.getPrimaryProvider.mockResolvedValue({
+        sendEmail: jest.fn().mockResolvedValue(SENT),
+      });
+      claimNewEmail(FOLLOW_UP_HOURS);
+
+      await runSendJob();
+
+      expect(
+        followUpsService.createFollowUpForSentMessage,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        followUpsService.createFollowUpForSentMessage,
+      ).toHaveBeenCalledWith(USER_ID, SENT.threadId, FOLLOW_UP_HOURS, {
+        subject: "Hi",
+      });
+    });
+
+    it("leaves no follow-up behind when the send fails", async () => {
+      emailProviderManager.getPrimaryProvider.mockResolvedValue({
+        sendEmail: jest.fn().mockRejectedValue(new Error("gmail 400")),
+      });
+      sendQueueService.hasExhaustedAttempts.mockReturnValue(true);
+      claimNewEmail(FOLLOW_UP_HOURS);
+
+      await runSendJob();
+
+      expect(
+        followUpsService.createFollowUpForSentMessage,
+      ).not.toHaveBeenCalled();
+      expect(pusherService.triggerEmailSendFailed).toHaveBeenCalled();
+    });
+
+    it("creates no second follow-up when a retried job loses the claim", async () => {
+      sendQueueService.claimForSending.mockResolvedValue(null);
+
+      await runSendJob();
+
+      expect(
+        followUpsService.createFollowUpForSentMessage,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("still reports success when the follow-up could not be created", async () => {
+      emailProviderManager.getPrimaryProvider.mockResolvedValue({
+        sendEmail: jest.fn().mockResolvedValue(SENT),
+      });
+      followUpsService.createFollowUpForSentMessage.mockRejectedValue(
+        new Error("db down"),
+      );
+      claimNewEmail(FOLLOW_UP_HOURS);
+
+      await runSendJob();
+
+      expect(pusherService.triggerEmailSendSucceeded).toHaveBeenCalled();
+      expect(pusherService.triggerEmailSendFailed).not.toHaveBeenCalled();
+    });
+
+    it("does not touch follow-ups for a reply (RepliesService owns those)", async () => {
+      sendQueueService.claimForSending.mockResolvedValue(buildAttempt());
+
+      await runSendJob();
+
+      expect(
+        followUpsService.createFollowUpForSentMessage,
+      ).not.toHaveBeenCalled();
     });
   });
 

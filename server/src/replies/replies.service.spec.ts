@@ -82,7 +82,7 @@ describe("RepliesService", () => {
         {
           provide: FollowUpsService,
           useValue: {
-            createFollowUp: jest.fn(),
+            createFollowUpForSentMessage: jest.fn().mockResolvedValue(null),
             findActiveFollowUpByThread: jest.fn().mockResolvedValue(null),
             cancelFollowUp: jest.fn().mockResolvedValue(undefined),
           },
@@ -700,9 +700,9 @@ describe("RepliesService", () => {
       const followUpsService = module.get(FollowUpsService);
       const emailThreadService = module.get(EmailThreadService);
       (snoozeService.snoozeEmail as jest.Mock).mockResolvedValue(undefined);
-      (followUpsService.createFollowUp as jest.Mock).mockResolvedValue(
-        undefined,
-      );
+      (
+        followUpsService.createFollowUpForSentMessage as jest.Mock
+      ).mockResolvedValue(null);
       (emailThreadService.updateThreadStarCount as jest.Mock).mockResolvedValue(
         undefined,
       );
@@ -718,6 +718,31 @@ describe("RepliesService", () => {
         // STAR_COUNTS.LOW
         1,
       );
+    });
+
+    it("creates the follow-up through the shared sent-message entry point", async () => {
+      // The scheduled-send path calls createFollowUpForSentMessage with this
+      // exact tuple (see scheduled-emails.service.spec), so an immediate reply
+      // and a scheduled reply cannot drift into different follow-up rules.
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+        syncStarStatusToGmail: jest.fn().mockResolvedValue(undefined),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+      const snoozeService = module.get(SnoozeService);
+      const followUpsService = module.get(FollowUpsService);
+      (snoozeService.snoozeEmail as jest.Mock).mockResolvedValue(undefined);
+
+      await service.sendReply(userId, emailId, "Reply body", {
+        expectedReplyHours: 48,
+      });
+
+      expect(
+        followUpsService.createFollowUpForSentMessage,
+      ).toHaveBeenCalledWith(userId, email.threadId, 48, {
+        sentEmailId: emailId,
+      });
     });
 
     describe("archive-on-no-follow-up (issue #2125)", () => {
@@ -809,9 +834,9 @@ describe("RepliesService", () => {
         const followUpsService = module.get(FollowUpsService);
         const emailThreadService = module.get(EmailThreadService);
         (snoozeService.snoozeEmail as jest.Mock).mockResolvedValue(undefined);
-        (followUpsService.createFollowUp as jest.Mock).mockResolvedValue(
-          undefined,
-        );
+        (
+          followUpsService.createFollowUpForSentMessage as jest.Mock
+        ).mockResolvedValue(null);
         (
           emailThreadService.updateThreadStarCount as jest.Mock
         ).mockResolvedValue(undefined);

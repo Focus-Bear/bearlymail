@@ -478,11 +478,14 @@ ${closing}`;
       emailId,
       `${expectedReplyHours}h`,
     );
-    await this.followUpsService.createFollowUp(
+    // Same entry point the scheduled-send path uses, so an immediate reply and
+    // a scheduled reply asking for the same window produce the same follow-up
+    // (and neither can stack a second reminder on the thread).
+    await this.followUpsService.createFollowUpForSentMessage(
       userId,
       email.threadId,
-      followUpDays,
-      emailId,
+      expectedReplyHours,
+      { sentEmailId: emailId },
     );
     await this.emailThreadService.updateThreadStarCount(
       userId,

@@ -2,12 +2,21 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { ContactsService } from "../contacts/contacts.service";
+import { ContextService } from "../context/context.service";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  FollowUp,
+  FollowUpStatus,
+} from "../database/entities/follow-up.entity";
 import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
+import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import {
   CreateScheduledEmailDto,
@@ -264,6 +273,182 @@ describe("ScheduledEmailsService", () => {
         undefined,
         { subject: "Project kickoff" },
       );
+    });
+  });
+
+  /**
+   * A scheduled reply goes through the same entry point as an immediate reply
+   * (`FollowUpsService.createFollowUpForSentMessage`, called by
+   * `RepliesService.createFollowUpAfterReply`), so these run the real
+   * FollowUpsService over mocked repositories: what is asserted is the
+   * follow-up actually written, not just that the call was delegated.
+   */
+  describe("sendScheduledEmail (reply follow-up)", () => {
+    const EXPECTED_REPLY_HOURS = 48;
+    /** followUpDaysFromHours(48) — the window an immediate reply produces. */
+    const FOLLOW_UP_DAYS_FOR_48H = 2;
+    const SENT_AT = new Date("2026-03-01T09:00:00.000Z");
+    const DUE_AT_FOR_48H = "2026-03-03T09:00:00.000Z";
+    const THREAD_ID = "19deabad8035dc29";
+    const SOURCE_EMAIL_ID = "email-1";
+
+    let replyService: ScheduledEmailsService;
+    let scheduledRepo: jest.Mocked<Repository<ScheduledEmail>>;
+    let followUpRepo: jest.Mocked<Repository<FollowUp>>;
+    let sendReply: jest.Mock;
+
+    const scheduledReply = (
+      expectedReplyHours: number | null,
+    ): ScheduledEmail =>
+      ({
+        id: "sched-3",
+        userId: "user-1",
+        emailType: "reply",
+        emailId: SOURCE_EMAIL_ID,
+        threadId: THREAD_ID,
+        to: [{ email: "someone@example.com" }],
+        cc: [],
+        bcc: [],
+        subject: "Re: Test",
+        body: "Scheduled reply body",
+        attachments: null,
+        forwardAttachmentIds: null,
+        expectedReplyHours,
+      }) as unknown as ScheduledEmail;
+
+    /** Drives the private send path the cron job would run. */
+    const sendScheduled = (scheduled: ScheduledEmail): Promise<void> =>
+      (
+        replyService as unknown as {
+          sendScheduledEmail: (email: ScheduledEmail) => Promise<void>;
+        }
+      ).sendScheduledEmail(scheduled);
+
+    beforeEach(async () => {
+      jest.useFakeTimers({ now: SENT_AT });
+      sendReply = jest
+        .fn()
+        .mockResolvedValue({ messageId: "msg-1", threadId: THREAD_ID });
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ScheduledEmailsService,
+          FollowUpsService,
+          {
+            provide: getRepositoryToken(ScheduledEmail),
+            useFactory: mockRepository,
+          },
+          { provide: getRepositoryToken(FollowUp), useFactory: mockRepository },
+          {
+            provide: getRepositoryToken(EmailThread),
+            useFactory: mockRepository,
+          },
+          { provide: getRepositoryToken(Email), useFactory: mockRepository },
+          {
+            provide: EmailProviderManager,
+            useValue: {
+              getPrimaryProvider: jest.fn().mockResolvedValue({ sendReply }),
+            },
+          },
+          {
+            provide: EmailsService,
+            useValue: {
+              getEmailById: jest.fn().mockResolvedValue({
+                id: SOURCE_EMAIL_ID,
+              }),
+            },
+          },
+          { provide: UserEncryptionService, useValue: {} },
+          {
+            provide: ContactsService,
+            useValue: {
+              incrementContactFrequency: jest.fn().mockResolvedValue(undefined),
+            },
+          },
+          {
+            provide: UsersService,
+            useValue: {
+              findOne: jest.fn().mockResolvedValue({ emailSignature: null }),
+            },
+          },
+          { provide: LLMService, useValue: {} },
+          { provide: ContextService, useValue: {} },
+          { provide: INJECT_TOKENS.PG_BOSS, useValue: {} },
+        ],
+      }).compile();
+
+      replyService = module.get(ScheduledEmailsService);
+      scheduledRepo = module.get(getRepositoryToken(ScheduledEmail));
+      followUpRepo = module.get(getRepositoryToken(FollowUp));
+      const emailThreadRepo: jest.Mocked<Repository<EmailThread>> = module.get(
+        getRepositoryToken(EmailThread),
+      );
+      const emailRepo: jest.Mocked<Repository<Email>> = module.get(
+        getRepositoryToken(Email),
+      );
+
+      scheduledRepo.save.mockResolvedValue({} as ScheduledEmail);
+      emailThreadRepo.findOne.mockResolvedValue(null);
+      emailRepo.find.mockResolvedValue([]);
+      followUpRepo.findOne.mockResolvedValue(null);
+      followUpRepo.create.mockImplementation(
+        (data) => data as unknown as FollowUp,
+      );
+      followUpRepo.save.mockImplementation((data) =>
+        Promise.resolve(data as FollowUp),
+      );
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("creates one follow-up on the thread the reply was sent to", async () => {
+      await sendScheduled(scheduledReply(EXPECTED_REPLY_HOURS));
+
+      expect(followUpRepo.save).toHaveBeenCalledTimes(1);
+      const created = followUpRepo.create.mock.calls[0][0] as FollowUp;
+      expect(created).toEqual(
+        expect.objectContaining({
+          userId: "user-1",
+          threadId: THREAD_ID,
+          sentEmailId: SOURCE_EMAIL_ID,
+          status: FollowUpStatus.AWAITING_REPLY,
+          // Identical to what RepliesService produces for 48h, because both
+          // paths call createFollowUpForSentMessage.
+          followUpDays: FOLLOW_UP_DAYS_FOR_48H,
+        }),
+      );
+      expect(created.followUpDueAt.toISOString()).toBe(DUE_AT_FOR_48H);
+    });
+
+    it("creates no follow-up when the composer cleared the field", async () => {
+      await sendScheduled(scheduledReply(null));
+
+      expect(sendReply).toHaveBeenCalledTimes(1);
+      expect(followUpRepo.save).not.toHaveBeenCalled();
+    });
+
+    it("creates no follow-up when the send fails", async () => {
+      sendReply.mockRejectedValue(new Error("provider rejected the message"));
+
+      await expect(
+        sendScheduled(scheduledReply(EXPECTED_REPLY_HOURS)),
+      ).rejects.toThrow("provider rejected the message");
+
+      expect(followUpRepo.save).not.toHaveBeenCalled();
+    });
+
+    it("creates no second follow-up when the send is retried", async () => {
+      await sendScheduled(scheduledReply(EXPECTED_REPLY_HOURS));
+      // The first send persisted a follow-up; the retry now finds it.
+      followUpRepo.findOne.mockResolvedValue(
+        followUpRepo.create.mock.calls[0][0] as FollowUp,
+      );
+
+      await sendScheduled(scheduledReply(EXPECTED_REPLY_HOURS));
+
+      expect(followUpRepo.save).toHaveBeenCalledTimes(1);
     });
   });
 });

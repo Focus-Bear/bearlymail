@@ -23,8 +23,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = props => 
 
       <ExpectedReplyRow
         followUpDuration={hook.followUpDuration}
-        sending={sending}
-        checkingTone={checkingTone}
+        disabled={sending || checkingTone}
         tooltipText={hook.expectedReplyTooltip}
         onChange={hook.setFollowUpDuration}
       />

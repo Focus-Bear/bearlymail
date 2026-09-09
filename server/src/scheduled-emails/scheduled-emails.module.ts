@@ -14,6 +14,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { ContactsModule } from "../contacts/contacts.module";
 import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
 import { EmailsModule } from "../emails/emails.module";
+import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { registerWorker } from "../queue/register-worker";
@@ -27,6 +28,7 @@ import { SendScheduledEmailsProcessor } from "./send-scheduled-emails.processor"
   imports: [
     TypeOrmModule.forFeature([ScheduledEmail]),
     forwardRef(() => EmailsModule),
+    forwardRef(() => FollowUpsModule),
     ContactsModule,
     UsersModule,
     GoogleAccountsModule,

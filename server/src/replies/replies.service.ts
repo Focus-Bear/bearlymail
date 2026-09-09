@@ -39,6 +39,7 @@ import {
   parseRecipientsFromString,
   sanitizeRecipientList,
 } from "../utils/email-address.utils";
+import { followUpDaysFromHours } from "../utils/expected-reply.util";
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 import { buildReplySubject } from "../utils/reply-subject.util";
@@ -53,8 +54,12 @@ export interface ReplyRule {
   priority: number;
 }
 
-type ReplyAttachment = { filename: string; mimeType: string; content: Buffer };
-type InlineImage = {
+export type ReplyAttachment = {
+  filename: string;
+  mimeType: string;
+  content: Buffer;
+};
+export type InlineImage = {
   contentId: string;
   filename: string;
   mimeType: string;
@@ -452,10 +457,7 @@ ${closing}`;
     const snoozeUntil = new Date(
       Date.now() + expectedReplyHours * MILLISECONDS.HOUR,
     );
-    const followUpDays = Math.max(
-      1,
-      Math.ceil(expectedReplyHours / HOURS_PER_DAY),
-    );
+    const followUpDays = followUpDaysFromHours(expectedReplyHours);
     const followUpDueAt = new Date();
     followUpDueAt.setDate(followUpDueAt.getDate() + followUpDays);
 
@@ -748,7 +750,7 @@ ${closing}`;
        */
       keepInAction?: boolean;
     } = {},
-  ): Promise<void> {
+  ): Promise<{ messageId: string; threadId: string }> {
     const {
       expectedReplyHours,
       cc,
@@ -846,6 +848,8 @@ ${closing}`;
       keepInAction,
       expectedReplyHours,
     });
+
+    return sentMessage;
   }
 
   /**

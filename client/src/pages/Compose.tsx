@@ -4,13 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
+import { takeComposeRestore } from 'utils/composeRestore';
+import { postComposedEmail } from 'utils/composeSend';
 import { getNextMorning } from 'utils/dateUtils';
+import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
 import { markScheduledEmailSent } from 'utils/scheduledTour';
 
 import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeBody } from 'components/compose/ComposeBody';
+import { ComposeFollowUpSection } from 'components/compose/ComposeFollowUpSection';
 import { ComposeMessages } from 'components/compose/ComposeMessages';
 import { FrequentContactsList } from 'components/compose/FrequentContactsList';
 import { RecipientFields } from 'components/compose/RecipientFields';
@@ -30,65 +34,13 @@ import { useNotifications } from 'contexts/NotificationContext';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
+import { useFollowUpDuration } from 'hooks/useFollowUpDuration';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
 import { useUnsavedChangesGuard } from 'hooks/useUnsavedChangesGuard';
 
-interface ComposeSendArgs {
-  to: { email: string; name?: string }[];
-  cc: { email: string; name?: string }[];
-  bcc: { email: string; name?: string }[];
-  subject: string;
-  body: string;
-  attachments: File[];
-  scheduledSendAtIso?: string;
-  userTimezone: string;
-}
-
-/**
- * POSTs a composed email to /emails/send. When attachments are present the
- * request must be multipart/form-data (the endpoint reads files via Multer's
- * `files` field); recipient objects are JSON-encoded so the server parses them
- * back into arrays. Otherwise a plain JSON body is sent.
- */
-const postComposedEmail = async (args: ComposeSendArgs): Promise<void> => {
-  const { to, cc, bcc, subject, body, attachments, scheduledSendAtIso, userTimezone } = args;
-
-  if (attachments.length === 0) {
-    await axios.post(`${API_URL}/emails/send`, {
-      to,
-      cc: cc.length > 0 ? cc : undefined,
-      bcc: bcc.length > 0 ? bcc : undefined,
-      subject,
-      body,
-      scheduledSendAt: scheduledSendAtIso,
-      userTimezone: scheduledSendAtIso ? userTimezone : undefined,
-    });
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('to', JSON.stringify(to));
-  if (cc.length > 0) {
-    formData.append('cc', JSON.stringify(cc));
-  }
-  if (bcc.length > 0) {
-    formData.append('bcc', JSON.stringify(bcc));
-  }
-  formData.append('subject', subject);
-  formData.append('body', body);
-  if (scheduledSendAtIso) {
-    formData.append('scheduledSendAt', scheduledSendAtIso);
-    formData.append('userTimezone', userTimezone);
-  }
-  attachments.forEach(file => formData.append('files', file));
-  // Let Axios/the browser set Content-Type with the multipart boundary — an
-  // explicit 'multipart/form-data' header omits the boundary and breaks Multer.
-  await axios.post(`${API_URL}/emails/send`, formData);
-};
-
 const Compose: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const form = useComposeForm();
   const search = useContactSearch();
@@ -96,6 +48,7 @@ const Compose: React.FC = () => {
   const { checkingTone, toneCheckResult, setToneCheckResult, checkTone, disputing, disputeResult, disputeToneCheck } =
     useEmailDetailToneCheck();
   const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
+  const followUp = useFollowUpDuration();
 
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
@@ -112,6 +65,22 @@ const Compose: React.FC = () => {
   useEffect(() => {
     captureEvent(ANALYTICS_EVENTS.COMPOSE_VIEWED);
   }, []);
+
+  // A background send that failed parks its fields here, so Retry reopens the
+  // composer with the message the user thought they had already sent.
+  // Attachments can't be serialised and must be re-added.
+  const { setTo, setCc, setBcc, setSubject, setBody } = form;
+  useEffect(() => {
+    const restored = takeComposeRestore();
+    if (!restored) {
+      return;
+    }
+    setTo(restored.to);
+    setCc(restored.cc);
+    setBcc(restored.bcc);
+    setSubject(restored.subject);
+    setBody(restored.body);
+  }, [setTo, setCc, setBcc, setSubject, setBody]);
 
   useEffect(() => {
     const fetchFrequent = async () => {
@@ -202,6 +171,7 @@ const Compose: React.FC = () => {
       has_bcc: form.bcc.length > 0,
       has_subject: !!form.subject.trim(),
       has_attachments: form.attachments.length > 0,
+      expected_reply_duration: followUp.expectedReplyDuration ?? null,
     });
 
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -209,17 +179,28 @@ const Compose: React.FC = () => {
 
     const dismissSendingToast = showLoading(t('compose.sendingToast'));
 
+    const composed = {
+      to: form.to,
+      cc: form.cc,
+      bcc: form.bcc,
+      subject: form.subject.trim(),
+      body: form.body.trim(),
+    };
+
     try {
-      await postComposedEmail({
-        to: form.to,
-        cc: form.cc,
-        bcc: form.bcc,
-        subject: form.subject.trim(),
-        body: form.body.trim(),
+      const { sendId } = await postComposedEmail({
+        ...composed,
         attachments: form.attachments,
         scheduledSendAtIso,
         userTimezone,
+        expectedReplyDuration: followUp.expectedReplyDuration,
+        locale: i18n.language,
       });
+      // The message is only queued at this point, so keep a copy until the
+      // outcome event confirms it actually went out (see useEmailSendOutcomes).
+      if (sendId) {
+        rememberPendingSend({ sendId, kind: PENDING_SEND_KIND.COMPOSE, ...composed });
+      }
       setSendSuccess(true);
       if (scheduledSendAt) {
         // Surface where scheduled emails live (inbox ⋮ menu) on next inbox view.
@@ -429,6 +410,13 @@ const Compose: React.FC = () => {
           />
 
           <ComposeMessages error={error} sendSuccess={sendSuccess} scheduledFor={scheduledSendAt} />
+
+          <ComposeFollowUpSection
+            followUpDuration={followUp.followUpDuration}
+            disabled={sending || sendSuccess || checkingTone}
+            tooltipText={followUp.tooltipText}
+            onChange={followUp.setFollowUpDuration}
+          />
         </div>
 
         <ComposeActions

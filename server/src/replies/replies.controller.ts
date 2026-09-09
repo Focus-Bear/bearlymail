@@ -4,7 +4,10 @@ import {
   Delete,
   forwardRef,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -16,19 +19,21 @@ import {
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import {
-  BOOLEAN_STRING_VALUES,
-  UPLOAD_FIELD_NAMES,
-} from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
+import {
+  encodeAttachments,
+  encodeInlineImages,
+} from "../email-send-queue/queued-attachment.helpers";
 import { EmailsService } from "../emails/emails.service";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
-import { durationToHours } from "../snooze/parse-duration";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
+import { resolveExpectedReplyHours } from "../utils/expected-reply.util";
 import { buildReplySubject } from "../utils/reply-subject.util";
 import { RepliesService, ReplyRule } from "./replies.service";
+import { parseBooleanFlag, splitReplyUploads } from "./reply-upload.helpers";
 
 @Controller("replies")
 @UseGuards(JwtAuthGuard, AiCapacityGuard)
@@ -38,6 +43,7 @@ export class RepliesController {
     @Inject(forwardRef(() => ScheduledEmailsService))
     private readonly scheduledEmailsService: ScheduledEmailsService,
     private readonly emailsService: EmailsService,
+    private readonly emailSendQueueService: EmailSendQueueService,
   ) {}
 
   @Post("draft/:id")
@@ -94,7 +100,16 @@ export class RepliesController {
     return { message: "Rule deleted" };
   }
 
+  /**
+   * Accepts a reply/forward and hands it to the background send queue.
+   *
+   * The provider round-trip (and the thread bookkeeping that follows it) runs
+   * in the worker, so this returns as soon as the message is durably persisted.
+   * The client learns the real outcome from the `email-send-succeeded` /
+   * `email-send-failed` Pusher event carrying the returned `sendId`.
+   */
   @Post("send/:id")
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseInterceptors(AnyFilesInterceptor())
   async sendReply(
     @Request() req,
@@ -124,66 +139,13 @@ export class RepliesController {
     },
     @UploadedFiles() allFiles?: Express.Multer.File[],
   ) {
-    // Separate regular file attachments from inline images.
-    // Inline images use fieldname 'inlineImages'; their originalname encodes the
-    // CID as "<cid>::::<filename>" so the MIME Content-ID header can be set correctly.
-    const regularFiles = (allFiles ?? []).filter(
-      (fileItem) => fileItem.fieldname === UPLOAD_FIELD_NAMES.FILES,
-    );
-    const inlineImageFiles = (allFiles ?? []).filter(
-      (fileItem) => fileItem.fieldname === UPLOAD_FIELD_NAMES.INLINE_IMAGES,
-    );
-
-    const attachments = regularFiles.map((file) => ({
-      filename: file.originalname,
-      mimeType: file.mimetype,
-      content: file.buffer,
-    }));
-
-    const inlineImages = inlineImageFiles.map((file) => {
-      // originalname format: "<cid>::::<original_filename>"
-      const separatorIndex = file.originalname.indexOf("::::");
-      const contentId =
-        separatorIndex >= 0
-          ? file.originalname.substring(0, separatorIndex)
-          : file.originalname;
-      const filename =
-        separatorIndex >= 0
-          ? file.originalname.substring(separatorIndex + 4)
-          : file.originalname;
-      return {
-        contentId,
-        filename,
-        mimeType: file.mimetype,
-        content: file.buffer,
-      };
-    });
+    const { attachments, inlineImages } = splitReplyUploads(allFiles);
     const forwardAttachmentIds = this.parseForwardAttachmentIds(
       body.forwardAttachmentIds,
     );
-    // A custom free-text follow-up window is parsed (identically to snooze)
-    // into whole hours and overrides the preset expectedReplyHours value.
-    const customDuration = body.expectedReplyDuration?.trim();
-    let expectedReplyHours: number | undefined;
-    if (customDuration) {
-      expectedReplyHours = durationToHours(
-        customDuration,
-        new Date(),
-        body.locale,
-      );
-    } else if (typeof body.expectedReplyHours === "string") {
-      expectedReplyHours = parseInt(body.expectedReplyHours, 10);
-    } else {
-      ({ expectedReplyHours } = body);
-    }
-    const isForward =
-      typeof body.isForward === "string"
-        ? body.isForward === BOOLEAN_STRING_VALUES.TRUE
-        : !!body.isForward;
-    const keepInAction =
-      typeof body.keepInAction === "string"
-        ? body.keepInAction === BOOLEAN_STRING_VALUES.TRUE
-        : !!body.keepInAction;
+    const expectedReplyHours = resolveExpectedReplyHours(body);
+    const isForward = parseBooleanFlag(body.isForward);
+    const keepInAction = parseBooleanFlag(body.keepInAction);
 
     if (body.scheduledSendAt) {
       return this.scheduleReply(req.user.userId, id, body, {
@@ -194,21 +156,35 @@ export class RepliesController {
       });
     }
 
-    await this.repliesService.sendReply(req.user.userId, id, body.reply, {
-      attachments,
-      inlineImages: inlineImages.length > 0 ? inlineImages : undefined,
-      expectedReplyHours: isNaN(expectedReplyHours as number)
-        ? undefined
-        : expectedReplyHours,
-      forwardAttachmentIds,
-      recipients: body.recipients || undefined,
-      cc: body.cc || undefined,
-      bcc: body.bcc || undefined,
-      subject: body.subject || undefined,
-      isForward,
-      keepInAction,
-    });
-    return { message: "Reply sent successfully" };
+    // Validate up front — once the send is queued the only channel back to the
+    // user is a Pusher failure event, so a bad email id should still 404 here.
+    const email = await this.emailsService.getEmailById(req.user.userId, id);
+    if (!email) throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+
+    const queued = await this.emailSendQueueService.queueReply(
+      req.user.userId,
+      id,
+      {
+        body: body.reply,
+        attachments: encodeAttachments(attachments),
+        inlineImages: encodeInlineImages(inlineImages),
+        expectedReplyHours,
+        forwardAttachmentIds,
+        recipients: body.recipients || undefined,
+        cc: body.cc || undefined,
+        bcc: body.bcc || undefined,
+        subject: body.subject || undefined,
+        isForward,
+        keepInAction,
+      },
+    );
+
+    return {
+      message: "Reply queued for sending",
+      queued: true,
+      sendId: queued.sendId,
+      status: queued.status,
+    };
   }
 
   private parseForwardAttachmentIds(
@@ -272,9 +248,7 @@ export class RepliesController {
         attachments: scheduledAttachments,
         scheduledSendAt: new Date(body.scheduledSendAt!),
         userTimezone: body.userTimezone,
-        expectedReplyHours: isNaN(parsed.expectedReplyHours as number)
-          ? undefined
-          : parsed.expectedReplyHours,
+        expectedReplyHours: parsed.expectedReplyHours,
         forwardAttachmentIds: parsed.forwardAttachmentIds,
       },
     );

@@ -22,6 +22,7 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
+import { followUpDaysFromHours } from "../utils/expected-reply.util";
 
 @Injectable()
 export class FollowUpsService {
@@ -49,6 +50,8 @@ export class FollowUpsService {
     threadId: string,
     followUpDays: number,
     sentEmailId?: string,
+    /** Used when the thread has no synced email yet (a freshly composed message). */
+    fallbackSubject?: string,
   ): Promise<FollowUp> {
     // Find the email thread
     const emailThread = await this.emailThreadRepository.findOne({
@@ -99,10 +102,50 @@ export class FollowUpsService {
         QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
       ),
       lastMyReplyAt: lastMyEmail?.receivedAt,
-      subject: emails[0]?.subject,
+      subject: emails[0]?.subject ?? fallbackSubject,
     });
 
     return this.followUpRepository.save(followUp);
+  }
+
+  /**
+   * Creates the follow-up for a message that has just been sent, if the sender
+   * asked for one.
+   *
+   * Used by the background send pipeline once the provider has returned the
+   * real thread id. It is safe to call twice for the same thread: a retried
+   * send job re-uses the existing active follow-up rather than stacking a
+   * second reminder on the same conversation.
+   */
+  async createFollowUpForSentMessage(
+    userId: string,
+    threadId: string,
+    expectedReplyHours: number | undefined,
+    options: { sentEmailId?: string; subject?: string } = {},
+  ): Promise<FollowUp | null> {
+    if (!expectedReplyHours || expectedReplyHours <= 0) {
+      return null;
+    }
+
+    const existing = await this.findActiveFollowUpByThread(userId, threadId);
+    if (existing) {
+      this.logger.log(
+        `Thread ${threadId} already has an active follow-up, not creating another`,
+      );
+      return existing;
+    }
+
+    const followUp = await this.createFollowUp(
+      userId,
+      threadId,
+      followUpDaysFromHours(expectedReplyHours),
+      options.sentEmailId,
+      options.subject,
+    );
+    this.logger.log(
+      `Created follow-up for sent message on thread ${threadId} (${expectedReplyHours}h expected reply)`,
+    );
+    return followUp;
   }
 
   /**

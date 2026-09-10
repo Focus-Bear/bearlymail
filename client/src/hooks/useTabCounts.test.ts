@@ -1,12 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 
-import { useTabCounts } from './useTabCounts';
+import { reconcileActiveTabCounts, useTabCounts } from './useTabCounts';
 
 vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3';
+const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV4';
 const TAB_COUNTS_POLL_INTERVAL_MS = 30_000;
 
 describe('useTabCounts', () => {
@@ -526,5 +526,63 @@ describe('useTabCounts', () => {
 
       expect(result.current.tabCounts).toEqual(updatedCounts);
     });
+  });
+});
+
+describe('reconcileActiveTabCounts', () => {
+  const counts = { triage: 10, action: 5, followUp: 0 };
+  const summary = [{ count: 3 }, { count: 2 }];
+
+  it('replaces a stale zero with the total across displayed follow-up categories', () => {
+    expect(reconcileActiveTabCounts({ counts, mode: 'follow-up', summary }))
+      .toEqual({ ...counts, followUp: 5 });
+  });
+
+  it('clears the active badge when its unfiltered summary is empty', () => {
+    expect(reconcileActiveTabCounts({ counts, mode: 'action', summary: [] }))
+      .toEqual({ ...counts, action: 0 });
+  });
+
+  it('preserves counts while the summary is unavailable or the mode is switching', () => {
+    expect(reconcileActiveTabCounts({ counts, mode: 'follow-up', summary: null })).toEqual(counts);
+  });
+
+  it('does not invent counts for tabs that have not loaded', () => {
+    expect(reconcileActiveTabCounts({ counts: null, mode: 'follow-up', summary })).toBeNull();
+  });
+
+  it('does not substitute totals from non-tab views', () => {
+    expect(reconcileActiveTabCounts({ counts, mode: 'blocked', summary })).toEqual(counts);
+  });
+
+  it('uses the full Follow Up summary when the guided priority filter is suppressed', () => {
+    expect(reconcileActiveTabCounts({
+      counts: { ...counts, followUp: 9 }, mode: 'follow-up', summary,
+      filters: { accountIds: [], categories: [], minPriority: 30, maxPriority: null, priorityFilterSource: 'guided' },
+    })).toEqual({ ...counts, followUp: 5 });
+  });
+
+  it.each([
+    { minPriority: 30, maxPriority: null },
+    { minPriority: null, maxPriority: 30 },
+  ])('preserves all-priority totals when a manual filter narrows the list: %j', bounds => {
+    expect(reconcileActiveTabCounts({
+      counts: { ...counts, followUp: 9 }, mode: 'follow-up', summary,
+      filters: { accountIds: [], categories: [], ...bounds, priorityFilterSource: 'manual' },
+    })).toEqual({ ...counts, followUp: 9 });
+  });
+
+  it('never shows fewer threads than are visible even with a manual priority filter', () => {
+    expect(reconcileActiveTabCounts({
+      counts, mode: 'follow-up', summary,
+      filters: { accountIds: [], categories: [], minPriority: 30, maxPriority: null, priorityFilterSource: 'manual' },
+    })).toEqual({ ...counts, followUp: 5 });
+  });
+
+  it('preserves all-priority Triage counts while its guided filter is active', () => {
+    expect(reconcileActiveTabCounts({
+      counts, mode: 'triage', summary,
+      filters: { accountIds: [], categories: [], minPriority: 30, maxPriority: null, priorityFilterSource: 'guided' },
+    })).toEqual(counts);
   });
 });

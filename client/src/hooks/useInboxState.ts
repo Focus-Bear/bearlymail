@@ -27,7 +27,7 @@ import { useInboxModeChanges } from 'hooks/useInboxModeChanges';
 import { useInboxTourRefs } from 'hooks/useInboxTourRefs';
 import { useInboxUIState } from 'hooks/useInboxUIState';
 import { useInboxUrlSync } from 'hooks/useInboxUrlSync';
-import { useTabCounts } from 'hooks/useTabCounts';
+import { reconcileActiveTabCounts, useTabCounts } from 'hooks/useTabCounts';
 import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { clearCategoryState, setSummaryLoading } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
@@ -491,7 +491,12 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     nextDelivery,
     lastUrgentCheck,
     updateLastUrgentCheck,
-    tabCounts,
+    tabCounts: reconcileActiveTabCounts({
+      counts: tabCounts,
+      mode,
+      summary: loadingModeSwitch ? null : categorySummary,
+      filters: inboxFilters.filters,
+    }),
     fetchTabCounts,
     workAdditionCount,
     // Refs

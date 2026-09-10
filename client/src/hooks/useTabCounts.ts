@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { InboxMode } from 'types/email';
 
 import { API_URL } from 'config/api';
-import { InboxFilter } from 'hooks/useInboxFilters';
+import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { InboxFilter, resolveEffectiveFilters } from 'hooks/useInboxFilters';
 
 const ABORT_ERROR_NAME = 'AbortError';
 
@@ -35,7 +37,7 @@ interface UseTabCountsReturn {
   workAdditionCount: number;
 }
 
-const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3'; // Bumped to invalidate old cache shape
+const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV4'; // Invalidate counts cached before summary reconciliation.
 const TAB_COUNTS_CACHE_TTL = 30000; // 30 seconds
 // Background poll interval — short enough to catch batch deliveries and background syncs
 // promptly while the user stays on one tab, but not so short that it hammers the server.
@@ -44,6 +46,28 @@ const TAB_COUNTS_POLL_INTERVAL_MS = 30_000; // 30 seconds
 interface CacheEntry {
   counts: TabCounts;
   timestamp: number;
+}
+
+/** Reconcile the active badge with the summary that renders its category list. */
+export function reconcileActiveTabCounts(options: {
+  counts: TabCounts | null;
+  mode: InboxMode;
+  summary: ReadonlyArray<{ count: number }> | null;
+  filters?: InboxFilter;
+}): TabCounts | null {
+  const { counts, mode, summary, filters } = options;
+  if (!counts || summary === null) {
+    return counts;
+  }
+  if (mode !== MODE_TRIAGE && mode !== MODE_ACTION && mode !== MODE_FOLLOW_UP) {
+    return counts;
+  }
+  const key = mode === MODE_FOLLOW_UP ? 'followUp' : mode;
+  const total = summary.reduce((sum, category) => sum + category.count, 0);
+  const effectiveFilters = resolveEffectiveFilters(mode, filters);
+  // Badges count all priorities. A manually narrowed list is only a lower bound.
+  const hasPriorityFilter = effectiveFilters?.minPriority != null || effectiveFilters?.maxPriority != null;
+  return { ...counts, [key]: hasPriorityFilter ? Math.max(counts[key], total) : total };
 }
 
 /**

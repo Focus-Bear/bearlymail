@@ -30,7 +30,13 @@ import { LLMService } from "../llm/llm.service";
 import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
-import { deriveRecipientDisplayName } from "../utils/email-address.utils";
+import {
+  deriveRecipientDisplayName,
+  extractEmailAddress,
+  parseRecipientsFromString,
+} from "../utils/email-address.utils";
+import { resolveFollowUpRecipient } from "./follow-up-recipient.util";
+import { resolveUserDisplayName } from "../utils/user-display-fields.util";
 import { analyzeThreadStyle } from "../utils/thread-style-extractor";
 import { FollowUpsService } from "./follow-ups.service";
 
@@ -51,6 +57,8 @@ type FollowUpContext = {
   businessDaysWaiting: number;
   userCommunicationStyle: { tone?: string; commonPhrases?: string[] };
   threadStyleInfo: ReturnType<typeof analyzeThreadStyle>;
+  lastOtherPartyMessage?: string;
+  userLastMessage?: string;
 };
 
 @Injectable()
@@ -172,31 +180,8 @@ export class FollowUpsProcessor implements OnModuleInit {
       .filter((item) => item.contextKey === ContextKey.COMMON_PHRASE)
       .map((item) => EncryptionHelper.tryDecrypt(item.contextValue));
 
-    const recipientMessages = threadMessages
-      .filter((message) => !message.isFromUser)
-      .sort(
-        (itemA, itemB) =>
-          itemB.receivedAt.getTime() - itemA.receivedAt.getTime(),
-      );
-
-    const lastTheirMessage = recipientMessages[0];
-    // If the other party hasn't replied yet, there's no "their message" to pull a
-    // name from — fall back to who the user actually addressed their last message
-    // to, rather than a generic placeholder the LLM will otherwise turn into a
-    // hallucinated greeting (e.g. "Hi Team,").
-    const theirName =
-      lastTheirMessage?.fromName ||
-      lastTheirMessage?.from ||
-      deriveRecipientDisplayName(lastUserMessage.to) ||
-      "there";
-
-    const userDisplayName = user.displayName
-      ? EncryptionHelper.tryDecrypt(user.displayName)
-      : undefined;
-    const threadStyleInfo = analyzeThreadStyle(
-      recipientMessages,
-      userDisplayName,
-    );
+    const { theirName, messagesFromCurrentRecipient, threadStyleInfo } =
+      resolveFollowUpRecipient(threadMessages, resolveUserDisplayName(user));
 
     return {
       user,
@@ -209,6 +194,8 @@ export class FollowUpsProcessor implements OnModuleInit {
         commonPhrases: commonPhrases.length > 0 ? commonPhrases : undefined,
       },
       threadStyleInfo,
+      lastOtherPartyMessage: messagesFromCurrentRecipient[0]?.body,
+      userLastMessage: lastUserMessage.body,
     };
   }
 
@@ -304,6 +291,8 @@ export class FollowUpsProcessor implements OnModuleInit {
         userCommunicationStyle: ctx.userCommunicationStyle,
         userId,
         threadStyleInfo: ctx.threadStyleInfo,
+        lastOtherPartyMessage: ctx.lastOtherPartyMessage,
+        userLastMessage: ctx.userLastMessage,
       });
 
       followUp.draftFollowUp = draft;

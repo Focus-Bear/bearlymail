@@ -22,6 +22,8 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
+import { resolveFollowUpRecipient } from "./follow-up-recipient.util";
+import { resolveUserDisplayName } from "../utils/user-display-fields.util";
 
 @Injectable()
 export class FollowUpsService {
@@ -50,32 +52,84 @@ export class FollowUpsService {
     followUpDays: number,
     sentEmailId?: string,
   ): Promise<FollowUp> {
-    // Find the email thread
     const emailThread = await this.emailThreadRepository.findOne({
       where: { userId, threadId },
     });
 
-    // Get the latest emails in the thread to capture context
     const emails = await this.emailRepository.find({
       where: { userId, threadId },
       order: { receivedAt: "DESC" },
       take: 10,
     });
 
-    // Find the last email from "them" (not from user) and from user
-    const userEmails: Email[] = [];
-    const myEmails: Email[] = [];
+    const user = await this.usersService.findOne(userId);
+    const userEmail = user?.email
+      ? EncryptionHelper.tryDecrypt(user.email)
+      : undefined;
 
-    for (const email of emails) {
-      if (await this.isFromUser(email, userId)) {
-        myEmails.push(email);
-      } else {
-        userEmails.push(email);
+    const decryptedEmails = emails.map((email) => {
+      const from = EncryptionHelper.tryDecrypt(email.from) ?? "";
+      const isFromUser =
+        email.labels?.includes("SENT") ||
+        from.toLowerCase() === (userEmail ?? "").toLowerCase();
+      return {
+        email,
+        from,
+        fromName: email.fromName
+          ? EncryptionHelper.tryDecrypt(email.fromName)
+          : undefined,
+        to: email.to ? EncryptionHelper.tryDecrypt(email.to) : undefined,
+        body: EncryptionHelper.tryDecrypt(email.body) ?? "",
+        isFromUser,
+      };
+    });
+
+    const myEmails = decryptedEmails.filter((entry) => entry.isFromUser);
+    const lastMyEmailEntry = myEmails[0];
+
+    let lastTheirReply: string | undefined;
+    let lastTheirReplyFrom: string | undefined;
+    let lastTheirReplyAt: Date | undefined;
+
+    if (lastMyEmailEntry && user) {
+      // Reuses the same recipient-resolution logic used at draft-generation
+      // time (see follow-ups.processor.ts), so this snapshot can't drift
+      // from what's later used to actually draft the email. Fixes #14: the
+      // old code took the first non-user email among the last 10 (DESC
+      // order), which on an introduction thread (e.g. Scott introducing
+      // Jeremy to Sasha) picks the introducer, not the real recipient, if
+      // she hasn't replied yet.
+      const threadMessagesForResolution = decryptedEmails
+        .slice()
+        .reverse() // resolveFollowUpRecipient expects chronological ASC order
+        .map((entry) => ({
+          from: entry.from,
+          fromName: entry.fromName,
+          to: entry.to,
+          body: entry.body,
+          receivedAt: entry.email.receivedAt,
+          isFromUser: entry.isFromUser,
+        }));
+
+      try {
+        const { theirName, messagesFromCurrentRecipient } =
+          resolveFollowUpRecipient(
+            threadMessagesForResolution,
+            resolveUserDisplayName(user),
+          );
+        const lastTheirMessage = messagesFromCurrentRecipient[0];
+        lastTheirReply = lastTheirMessage?.body?.substring(
+          0,
+          QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+        );
+        lastTheirReplyFrom = theirName;
+        lastTheirReplyAt = lastTheirMessage?.receivedAt;
+      } catch (error) {
+        this.logger.warn(
+          `Could not resolve follow-up recipient for thread ${threadId}: ${error}`,
+        );
       }
     }
-
-    const lastTheirEmail = userEmails[0];
-    const lastMyEmail = myEmails[0];
 
     const followUpDueAt = new Date();
     followUpDueAt.setDate(followUpDueAt.getDate() + followUpDays);
@@ -88,17 +142,14 @@ export class FollowUpsService {
       status: FollowUpStatus.AWAITING_REPLY,
       followUpDueAt,
       followUpDays,
-      lastTheirReply: lastTheirEmail?.body?.substring(
+      lastTheirReply,
+      lastTheirReplyFrom,
+      lastTheirReplyAt,
+      lastMyReply: lastMyEmailEntry?.body?.substring(
         0,
         QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
       ),
-      lastTheirReplyFrom: lastTheirEmail?.fromName || lastTheirEmail?.from,
-      lastTheirReplyAt: lastTheirEmail?.receivedAt,
-      lastMyReply: lastMyEmail?.body?.substring(
-        0,
-        QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
-      ),
-      lastMyReplyAt: lastMyEmail?.receivedAt,
+      lastMyReplyAt: lastMyEmailEntry?.email.receivedAt,
       subject: emails[0]?.subject,
     });
 

@@ -25,6 +25,7 @@ jest.mock("../encryption/encryption.helper", () => {
     // Simple mock - returns as-is
     EncryptionHelper: {
       decrypt: jest.fn((encryptedValue: string) => encryptedValue),
+      tryDecrypt: jest.fn((encryptedValue: string) => encryptedValue),
     },
     makeEmailTransformer: () => noopTransformer,
     makeEncryptedColumnTransformer: () => noopTransformer,

@@ -33,7 +33,7 @@ describe('getSettingsNavItems', () => {
   it('uses the translate function for item labels', () => {
     const items = getSettingsNavItems(translateMock);
     const emailDeliveryGroup = items[1] as SettingsSubNavGroup;
-    expect(emailDeliveryGroup.items[0].label).toBe('settings.nav.googleAccounts');
+    expect(emailDeliveryGroup.items[0].label).toBe('settings.nav.emailAccounts');
   });
 
   it('omits the MFA item for non-admin users', () => {

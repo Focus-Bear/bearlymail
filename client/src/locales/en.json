@@ -1145,6 +1145,7 @@
       "password": "Password",
       "twoFactorAuth": "Two-Factor Auth",
       "emailDelivery": "Email Delivery",
+      "emailAccounts": "Email Accounts",
       "googleAccounts": "Google Accounts",
       "emailBatching": "Email Batching",
       "blockedSenders": "Blocked Senders",

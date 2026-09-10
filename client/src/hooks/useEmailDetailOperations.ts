@@ -15,6 +15,7 @@ import {
 import { getAxiosErrorMessage } from 'utils/errors';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
+import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 
@@ -812,7 +813,25 @@ export function useEmailDetailOperations(
         const dismissSendingToast = showLoading(t('compose.sendingToast'));
 
         try {
-          await sendReplyRequest(payload);
+          const { sendId } = await sendReplyRequest(payload);
+          // The provider has NOT been contacted yet — the server only queued
+          // the message. Keep what the user wrote until the outcome event
+          // confirms delivery, so a failure can put them back where they were
+          // instead of leaving a false "sent" (see useEmailSendOutcomes).
+          if (sendId) {
+            rememberPendingSend({
+              sendId,
+              kind: PENDING_SEND_KIND.REPLY,
+              emailId: currentId,
+              threadId: email?.threadId,
+              draft: draftToSend,
+              recipients: currentReplyRecipients,
+              cc: currentReplyCc,
+              bcc: currentReplyBcc,
+              subject: currentReplySubject || undefined,
+              replyMode: currentReplyMode,
+            });
+          }
           setDraft(null);
           deleteDraft();
           const successMessage = scheduledSendAt
@@ -857,6 +876,7 @@ export function useEmailDetailOperations(
     [
       id,
       draft,
+      email?.threadId,
       replyMode,
       replyTargetEmailId,
       replyRecipients,

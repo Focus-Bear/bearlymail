@@ -7,6 +7,7 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { getEmailPreview } from "../llm/email-content-cleaner";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import {
   EnrichedSearchResult,
@@ -243,7 +244,7 @@ export class SearchEnrichmentService {
 /** Maximum number of characters for the email snippet shown in search results. */
 const SNIPPET_MAX_CHARS = 120;
 
-function toEnrichedResult(
+export function toEnrichedResult(
   email: Email & { thread?: EmailThread },
 ): EnrichedSearchResult {
   const { thread } = email;
@@ -258,7 +259,9 @@ function toEnrichedResult(
     date: email.receivedAt
       ? new Date(email.receivedAt).toISOString()
       : new Date().toISOString(),
-    snippet: email.body ? email.body.slice(0, SNIPPET_MAX_CHARS) : "",
+    // Bodies are not reliably plain text: with no text/plain part the provider
+    // stores markup in `body`, which surfaced as literal <p> tags in results.
+    snippet: getEmailPreview(email.body, email.htmlBody, SNIPPET_MAX_CHARS),
     isRead: email.isRead ?? false,
     // labelIds are not persisted to the DB — omit rather than return a misleading empty array.
     // Gmail label data (INBOX, UNREAD, etc.) is only available during the live API fetch;

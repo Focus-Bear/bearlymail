@@ -92,16 +92,9 @@ export class FollowUpsService {
     let lastTheirReplyAt: Date | undefined;
 
     if (lastMyEmailEntry && user) {
-      // Reuses the same recipient-resolution logic used at draft-generation
-      // time (see follow-ups.processor.ts), so this snapshot can't drift
-      // from what's later used to actually draft the email. Fixes #14: the
-      // old code took the first non-user email among the last 10 (DESC
-      // order), which on an introduction thread (e.g. Scott introducing
-      // Jeremy to Sasha) picks the introducer, not the real recipient, if
-      // she hasn't replied yet.
       const threadMessagesForResolution = decryptedEmails
         .slice()
-        .reverse() // resolveFollowUpRecipient expects chronological ASC order
+        .reverse()
         .map((entry) => ({
           from: entry.from,
           fromName: entry.fromName,

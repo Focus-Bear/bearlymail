@@ -29,7 +29,9 @@ export function resolveFollowUpRecipient(
 ): RecipientResolution {
   const lastUserMessage = threadMessages
     .filter((message) => message.isFromUser)
-    .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())[0];
+    .sort(
+      (msgA, msgB) => msgB.receivedAt.getTime() - msgA.receivedAt.getTime(),
+    )[0];
 
   if (!lastUserMessage) {
     throw new Error("No user message found in thread");
@@ -37,7 +39,9 @@ export function resolveFollowUpRecipient(
 
   const recipientMessages = threadMessages
     .filter((message) => !message.isFromUser)
-    .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
+    .sort(
+      (msgA, msgB) => msgB.receivedAt.getTime() - msgA.receivedAt.getTime(),
+    );
 
   const currentRecipientEmail = extractEmailAddress(
     parseRecipientsFromString(lastUserMessage.to ?? "")[0]?.email,

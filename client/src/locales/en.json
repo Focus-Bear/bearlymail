@@ -2269,7 +2269,17 @@
     "editRecipient": "Click to edit",
     "unsavedChangesTitle": "Unsent email",
     "leaveAnyway": "Leave anyway",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "followUpSection": "Follow-up"
+  },
+  "emailSend": {
+    "failedNotification": "Your message was not sent. {{reason}}",
+    "retryAction": "Retry",
+    "failure": {
+      "providerRejected": "Your email provider rejected it.",
+      "unconfirmed": "We could not confirm it was delivered — check your Sent folder before resending.",
+      "unknown": "Something went wrong on our side."
+    }
   },
   "contacts": {
     "title": "Contacts",

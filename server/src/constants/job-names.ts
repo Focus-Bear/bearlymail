@@ -83,6 +83,18 @@ export const JOB_NAMES = {
   // Scheduled emails
   SEND_SCHEDULED_EMAILS: "send-scheduled-emails",
 
+  // Background email sending. The reply and compose endpoints validate,
+  // persist an `email_send_attempts` row and enqueue this job, then return
+  // immediately — the provider round-trip never sits on the request path. The
+  // outcome reaches the user over Pusher. Idempotent: the processor claims the
+  // row with a conditional `queued -> sending` update, so a retried job cannot
+  // send the same message twice.
+  SEND_QUEUED_EMAIL: "send-queued-email",
+  // Safety net for the queue above: re-enqueues sends whose job was lost and
+  // finalises sends whose worker died mid-provider-call, so a crash can never
+  // leave the user believing a message went out.
+  SWEEP_STALLED_EMAIL_SENDS: "sweep-stalled-email-sends",
+
   // Follow-ups
   BULK_SEND_FOLLOW_UPS: "bulk-send-follow-ups",
   GENERATE_FOLLOW_UP_DRAFT: "generate-follow-up-draft",

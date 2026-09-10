@@ -12,6 +12,7 @@ import { CategoryRuleIdBackfillModule } from "./category-rules/category-rule-id-
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContextModule } from "./context/context.module";
 import { createTypeOrmConfig } from "./database/typeorm-config.factory";
+import { EmailSendWorkerModule } from "./email-send-queue/email-send-worker.module";
 import { EmailsModule } from "./emails/emails.module";
 import { EncryptionModule } from "./encryption/encryption.module";
 import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
@@ -60,6 +61,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     // with pg-boss on init, so the worker picks up jobs automatically.
     UsersModule,
     EmailsModule,
+    EmailSendWorkerModule,
     PriorityModule,
     SummarizationModule,
     LLMModule,

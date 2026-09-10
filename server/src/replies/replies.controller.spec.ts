@@ -1,5 +1,8 @@
+import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { EMAIL_SEND_STATUS } from "../constants/email-send.constants";
+import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
 import { EmailsService } from "../emails/emails.service";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
@@ -31,6 +34,10 @@ describe("RepliesController", () => {
     getEmailById: jest.fn(),
   };
 
+  const mockEmailSendQueueService = {
+    queueReply: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RepliesController],
@@ -46,6 +53,10 @@ describe("RepliesController", () => {
         {
           provide: EmailsService,
           useValue: mockEmailsService,
+        },
+        {
+          provide: EmailSendQueueService,
+          useValue: mockEmailSendQueueService,
         },
       ],
     })
@@ -220,23 +231,37 @@ describe("RepliesController", () => {
   });
 
   describe("sendReply", () => {
-    it("should send reply", async () => {
-      const userId = "user-123";
-      const emailId = "email-123";
-      const mockRequest = { user: { userId } };
-      const body = { reply: "Thank you for your email" };
+    const userId = "user-123";
+    const emailId = "email-123";
+    const mockRequest = { user: { userId } };
+    const queued = {
+      sendId: "send-1",
+      status: EMAIL_SEND_STATUS.QUEUED,
+    };
 
-      mockRepliesService.sendReply.mockResolvedValue(undefined);
+    beforeEach(() => {
+      mockEmailsService.getEmailById.mockResolvedValue({ id: emailId });
+      mockEmailSendQueueService.queueReply.mockResolvedValue(queued);
+    });
+
+    it("returns a correlation id without touching the provider", async () => {
+      const body = { reply: "Thank you for your email" };
 
       const result = await controller.sendReply(mockRequest, emailId, body);
 
-      expect(result).toEqual({ message: "Reply sent successfully" });
-      expect(repliesService.sendReply).toHaveBeenCalledWith(
+      expect(result).toEqual({
+        message: "Reply queued for sending",
+        queued: true,
+        sendId: queued.sendId,
+        status: EMAIL_SEND_STATUS.QUEUED,
+      });
+      expect(repliesService.sendReply).not.toHaveBeenCalled();
+      expect(mockEmailSendQueueService.queueReply).toHaveBeenCalledWith(
         userId,
         emailId,
-        body.reply,
         {
-          attachments: [],
+          body: body.reply,
+          attachments: undefined,
           bcc: undefined,
           cc: undefined,
           expectedReplyHours: undefined,
@@ -245,15 +270,21 @@ describe("RepliesController", () => {
           isForward: false,
           keepInAction: false,
           recipients: undefined,
+          subject: undefined,
         },
       );
     });
 
-    it("should send reply with attachments", async () => {
-      const userId = "user-123";
-      const emailId = "email-123";
-      const mockRequest = { user: { userId } };
-      const body = { reply: "Thank you for your email" };
+    it("404s for an unknown email instead of queueing", async () => {
+      mockEmailsService.getEmailById.mockResolvedValue(null);
+
+      await expect(
+        controller.sendReply(mockRequest, emailId, { reply: "Hi" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(mockEmailSendQueueService.queueReply).not.toHaveBeenCalled();
+    });
+
+    it("base64-encodes attachments into the queued payload", async () => {
       const mockFiles = [
         {
           fieldname: "files",
@@ -263,176 +294,105 @@ describe("RepliesController", () => {
         },
       ] as Express.Multer.File[];
 
-      mockRepliesService.sendReply.mockResolvedValue(undefined);
-
-      const result = await controller.sendReply(
+      await controller.sendReply(
         mockRequest,
         emailId,
-        body,
+        { reply: "Thank you for your email" },
         mockFiles,
       );
 
-      expect(result).toEqual({ message: "Reply sent successfully" });
-      expect(repliesService.sendReply).toHaveBeenCalledWith(
+      expect(mockEmailSendQueueService.queueReply).toHaveBeenCalledWith(
         userId,
         emailId,
-        body.reply,
-        {
+        expect.objectContaining({
           attachments: [
             {
               filename: "test.pdf",
               mimeType: "application/pdf",
-              content: Buffer.from("test content"),
+              content: Buffer.from("test content").toString("base64"),
             },
           ],
-          bcc: undefined,
-          cc: undefined,
-          expectedReplyHours: undefined,
-          forwardAttachmentIds: undefined,
-          inlineImages: undefined,
-          isForward: false,
-          keepInAction: false,
-          recipients: undefined,
-        },
+        }),
       );
     });
 
-    it("should send reply with forward attachment IDs", async () => {
-      const userId = "user-123";
-      const emailId = "email-123";
-      const mockRequest = { user: { userId } };
-      const body = {
+    it("recovers the Content-ID of an inline image", async () => {
+      const mockFiles = [
+        {
+          fieldname: "inlineImages",
+          originalname: "cid-1::::logo.png",
+          mimetype: "image/png",
+          buffer: Buffer.from("png"),
+        },
+      ] as Express.Multer.File[];
+
+      await controller.sendReply(
+        mockRequest,
+        emailId,
+        { reply: "See image" },
+        mockFiles,
+      );
+
+      expect(mockEmailSendQueueService.queueReply).toHaveBeenCalledWith(
+        userId,
+        emailId,
+        expect.objectContaining({
+          inlineImages: [
+            {
+              contentId: "cid-1",
+              filename: "logo.png",
+              mimeType: "image/png",
+              content: Buffer.from("png").toString("base64"),
+            },
+          ],
+        }),
+      );
+    });
+
+    it("queues forward attachment IDs and expected reply hours", async () => {
+      await controller.sendReply(mockRequest, emailId, {
         reply: "Thank you for your email",
         forwardAttachmentIds: JSON.stringify(["attach-1", "attach-2"]),
-      };
-
-      mockRepliesService.sendReply.mockResolvedValue(undefined);
-
-      const result = await controller.sendReply(mockRequest, emailId, body);
-
-      expect(result).toEqual({ message: "Reply sent successfully" });
-      expect(repliesService.sendReply).toHaveBeenCalledWith(
-        userId,
-        emailId,
-        body.reply,
-        {
-          attachments: [],
-          bcc: undefined,
-          cc: undefined,
-          expectedReplyHours: undefined,
-          forwardAttachmentIds: ["attach-1", "attach-2"],
-          inlineImages: undefined,
-          isForward: false,
-          keepInAction: false,
-          recipients: undefined,
-        },
-      );
-    });
-
-    it("should send reply with expected reply hours", async () => {
-      const userId = "user-123";
-      const emailId = "email-123";
-      const mockRequest = { user: { userId } };
-      const body = {
-        reply: "Thank you for your email",
         expectedReplyHours: 24,
-      };
+      });
 
-      mockRepliesService.sendReply.mockResolvedValue(undefined);
-
-      const result = await controller.sendReply(mockRequest, emailId, body);
-
-      expect(result).toEqual({ message: "Reply sent successfully" });
-      expect(repliesService.sendReply).toHaveBeenCalledWith(
+      expect(mockEmailSendQueueService.queueReply).toHaveBeenCalledWith(
         userId,
         emailId,
-        body.reply,
-        {
-          attachments: [],
-          bcc: undefined,
-          cc: undefined,
+        expect.objectContaining({
+          forwardAttachmentIds: ["attach-1", "attach-2"],
           expectedReplyHours: 24,
-          forwardAttachmentIds: undefined,
-          inlineImages: undefined,
-          isForward: false,
-          keepInAction: false,
-          recipients: undefined,
-        },
+        }),
       );
     });
 
-    it("should forward keepInAction=true to the service", async () => {
-      const userId = "user-123";
-      const emailId = "email-123";
-      const mockRequest = { user: { userId } };
-      const body = {
-        reply: "Thanks",
-        keepInAction: true,
-      };
-
-      mockRepliesService.sendReply.mockResolvedValue(undefined);
-
-      await controller.sendReply(mockRequest, emailId, body);
-
-      expect(repliesService.sendReply).toHaveBeenCalledWith(
-        userId,
-        emailId,
-        body.reply,
-        expect.objectContaining({ keepInAction: true }),
-      );
-    });
-
-    it("should coerce keepInAction string 'true' to boolean", async () => {
-      const userId = "user-123";
-      const emailId = "email-123";
-      const mockRequest = { user: { userId } };
-      const body = {
+    it("coerces keepInAction string 'true' to boolean", async () => {
+      await controller.sendReply(mockRequest, emailId, {
         reply: "Thanks",
         keepInAction: "true",
-      };
+      });
 
-      mockRepliesService.sendReply.mockResolvedValue(undefined);
-
-      await controller.sendReply(mockRequest, emailId, body);
-
-      expect(repliesService.sendReply).toHaveBeenCalledWith(
+      expect(mockEmailSendQueueService.queueReply).toHaveBeenCalledWith(
         userId,
         emailId,
-        body.reply,
         expect.objectContaining({ keepInAction: true }),
       );
     });
 
-    it("should send reply-all with recipients and cc", async () => {
-      const userId = "user-123";
-      const emailId = "email-123";
-      const mockRequest = { user: { userId } };
-      const body = {
+    it("carries reply-all recipients and cc through to the queue", async () => {
+      await controller.sendReply(mockRequest, emailId, {
         reply: "Thanks everyone",
         recipients: "sender@example.com, other@example.com",
         cc: "cc@example.com",
-      };
+      });
 
-      mockRepliesService.sendReply.mockResolvedValue(undefined);
-
-      const result = await controller.sendReply(mockRequest, emailId, body);
-
-      expect(result).toEqual({ message: "Reply sent successfully" });
-      expect(repliesService.sendReply).toHaveBeenCalledWith(
+      expect(mockEmailSendQueueService.queueReply).toHaveBeenCalledWith(
         userId,
         emailId,
-        body.reply,
-        {
-          attachments: [],
-          bcc: undefined,
+        expect.objectContaining({
           cc: "cc@example.com",
-          expectedReplyHours: undefined,
-          forwardAttachmentIds: undefined,
-          inlineImages: undefined,
-          isForward: false,
-          keepInAction: false,
           recipients: "sender@example.com, other@example.com",
-        },
+        }),
       );
     });
   });

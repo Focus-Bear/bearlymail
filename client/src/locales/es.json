@@ -737,7 +737,17 @@
     "editRecipient": "Haz clic para editar",
     "unsavedChangesTitle": "Correo sin enviar",
     "leaveAnyway": "Salir de todos modos",
-    "keepEditing": "Seguir editando"
+    "keepEditing": "Seguir editando",
+    "followUpSection": "Seguimiento"
+  },
+  "emailSend": {
+    "failedNotification": "Tu mensaje no se envió. {{reason}}",
+    "retryAction": "Reintentar",
+    "failure": {
+      "providerRejected": "Tu proveedor de correo lo rechazó.",
+      "unconfirmed": "No pudimos confirmar que se entregara: revisa tu carpeta de Enviados antes de volver a enviarlo.",
+      "unknown": "Algo salió mal por nuestra parte."
+    }
   },
   "consent": {
     "acceptAndContinue": "Aceptar y continuar",

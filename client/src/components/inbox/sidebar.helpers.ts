@@ -48,7 +48,7 @@ export function getSettingsNavItems(
     {
       label: translate('settings.nav.emailDelivery'),
       items: [
-        { id: 'google-accounts', label: translate('settings.nav.googleAccounts'), anchor: 'google-accounts' },
+        { id: 'email-accounts', label: translate('settings.nav.emailAccounts'), anchor: 'email-accounts' },
         { id: 'email-batching', label: translate('settings.nav.emailBatching'), anchor: 'email-batching' },
         { id: 'blocked-senders', label: translate('settings.nav.blockedSenders'), anchor: 'blocked-senders' },
         { id: 'email-signature', label: translate('settings.nav.emailSignature'), anchor: 'email-signature' },

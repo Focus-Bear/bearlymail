@@ -75,49 +75,64 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
         {EMOJI_EMAIL} {email.subject}
       </h1>
 
+      {/* Metadata group: avatar + (sender/priority on one row, then date and
+          recipients beneath) so author, date and priority read as one aligned
+          block, with the priority chip tied to the sender line rather than
+          floating centred against the whole header. */}
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems: 'flex-start',
+          gap: theme.spacing.md,
           borderBottom: `1px solid ${theme.colors.border.light}`,
           paddingBottom: theme.spacing.lg,
+          marginBottom: theme.spacing.lg,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={event => onNavigateToContact(event, correspondent.email, email.senderContactId)}
+          onKeyDown={event => {
+            if (event.key === KEY_ENTER || event.key === KEY_SPACE) {
+              onNavigateToContact(event, correspondent.email, email.senderContactId);
+            }
+          }}
+          title={t('emailDetail.viewContact')}
+          style={{
+            flexShrink: 0,
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            backgroundColor: theme.colors.primary.subtle,
+            color: theme.colors.primary.main,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: theme.typography.fontWeight.bold,
+            fontSize: theme.typography.fontSize.lg,
+            cursor: 'pointer',
+          }}
+        >
+          {correspondent.name[0]?.toUpperCase() ?? '?'}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Sender identity and priority share the top line of the group. */}
           <div
-            role="button"
-            tabIndex={0}
-            onClick={event => onNavigateToContact(event, correspondent.email, email.senderContactId)}
-            onKeyDown={event => {
-              if (event.key === KEY_ENTER || event.key === KEY_SPACE) {
-                onNavigateToContact(event, correspondent.email, email.senderContactId);
-              }
-            }}
-            title={t('emailDetail.viewContact')}
             style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              backgroundColor: theme.colors.primary.subtle,
-              color: theme.colors.primary.main,
               display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: theme.typography.fontWeight.bold,
-              fontSize: theme.typography.fontSize.lg,
-              cursor: 'pointer',
+              gap: theme.spacing.md,
             }}
           >
-            {correspondent.name[0]?.toUpperCase() ?? '?'}
-          </div>
-          <div>
             <div
               style={{
                 fontWeight: theme.typography.fontWeight.semibold,
                 color: theme.colors.text.primary,
                 display: 'flex',
                 alignItems: 'center',
+                flexWrap: 'wrap',
                 gap: theme.spacing.xs,
               }}
             >
@@ -175,42 +190,42 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                 </span>
               )}
             </div>
+            {priorityBadge && <div style={{ flexShrink: 0 }}>{priorityBadge}</div>}
+          </div>
+          <div
+            style={{
+              fontSize: theme.typography.fontSize.sm,
+              color: theme.colors.text.secondary,
+              marginTop: theme.spacing.xs,
+            }}
+          >
+            {humanizeTimestamp(correspondent.timestamp as string, { showAbsoluteDate: true })}
+          </div>
+          {email.to && (
             <div
               style={{
-                fontSize: theme.typography.fontSize.lg,
-                color: theme.colors.text.primary,
-                opacity: 0.8,
+                fontSize: theme.typography.fontSize.sm,
+                color: theme.colors.text.secondary,
+                marginTop: theme.spacing.xs,
               }}
             >
-              {humanizeTimestamp(correspondent.timestamp as string, { showAbsoluteDate: true })}
+              <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.toLabel')}</span>{' '}
+              {email.to}
             </div>
-            {email.to && (
-              <div
-                style={{
-                  fontSize: theme.typography.fontSize.sm,
-                  color: theme.colors.text.secondary,
-                  marginTop: theme.spacing.xs,
-                }}
-              >
-                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.toLabel')}</span>{' '}
-                {email.to}
-              </div>
-            )}
-            {email.cc && (
-              <div
-                style={{
-                  fontSize: theme.typography.fontSize.sm,
-                  color: theme.colors.text.secondary,
-                  marginTop: theme.spacing.xs,
-                }}
-              >
-                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.ccLabel')}</span>{' '}
-                {email.cc}
-              </div>
-            )}
-          </div>
+          )}
+          {email.cc && (
+            <div
+              style={{
+                fontSize: theme.typography.fontSize.sm,
+                color: theme.colors.text.secondary,
+                marginTop: theme.spacing.xs,
+              }}
+            >
+              <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.ccLabel')}</span>{' '}
+              {email.cc}
+            </div>
+          )}
         </div>
-        {priorityBadge}
       </div>
     </div>
   );

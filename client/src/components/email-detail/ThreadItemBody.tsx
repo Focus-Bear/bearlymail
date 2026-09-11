@@ -4,26 +4,30 @@ import { theme } from 'theme/theme';
 import { extractCleanHtmlBody, InlineAttachmentRef, looksLikeHtml, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
 import { EmailBodyIframe } from './EmailBodyIframe';
+import { getThreadItemBgColor } from './ThreadItemHeader';
 
 interface ThreadItemBodyProps {
   body: string;
   htmlBody?: string;
   attachments?: InlineAttachmentRef[];
+  /** Matches the body background to its header so the message reads as one surface. */
+  isCurrentEmail?: boolean;
 }
 
 function looksLikeCiphertext(text: string): boolean {
   return /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]{2,}$/i.test(text.trim());
 }
 
-export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody, attachments }) => {
+export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody, attachments, isCurrentEmail = false }) => {
   const { t } = useTranslation();
+  const backgroundColor = getThreadItemBgColor(isCurrentEmail);
 
   if (looksLikeCiphertext(body) || (htmlBody != null && looksLikeCiphertext(htmlBody))) {
     return (
       <div
         style={{
           padding: theme.spacing.md,
-          backgroundColor: theme.colors.background.paper,
+          backgroundColor,
           borderTop: `1px solid ${theme.colors.border.light}`,
           color: theme.colors.text.secondary,
         }}
@@ -44,7 +48,7 @@ export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody, 
     <div
       style={{
         padding: theme.spacing.md,
-        backgroundColor: theme.colors.background.paper,
+        backgroundColor,
         borderTop: `1px solid ${theme.colors.border.light}`,
         overflowX: 'auto',
       }}

@@ -618,6 +618,7 @@
     "toneCheckPassed": "Tone check passed!",
     "inappropriateTiming": "Timing note:",
     "calendarConflictLabel": "Calendar check:",
+    "recipientMismatchLabel": "Recipient check:",
     "checkTone": "Check Tone",
     "checking": "Checking...",
     "sendReply": "Send Reply",

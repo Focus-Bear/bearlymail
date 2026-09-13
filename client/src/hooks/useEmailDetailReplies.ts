@@ -5,6 +5,7 @@ import { Email } from 'types/email';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 import { markScheduledEmailSent } from 'utils/scheduledTour';
+import { buildToneCheckContext } from 'utils/toneCheckContext';
 
 import { API_URL } from 'config/api';
 import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
@@ -390,6 +391,7 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
         files?: File[];
         expectedReplyHours?: number;
         forwardAttachmentIds?: string[];
+        forwardAttachmentFilenames?: string[];
         onClose?: () => void;
         draftOverride?: string;
         scheduledSendAtOverride?: Date;
@@ -399,6 +401,7 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
         files = [],
         expectedReplyHours,
         forwardAttachmentIds,
+        forwardAttachmentFilenames,
         onClose,
         draftOverride,
         scheduledSendAtOverride,
@@ -416,10 +419,15 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
       // the user has already queued the email for a specific delivery time.
       // A provided draftOverride is a deliberate override (revised text or
       // hold-to-send-anyway) and skips the check; so does an empty forward body.
+      const toneCheckContext = buildToneCheckContext({
+        files,
+        forwardedFilenames: forwardAttachmentFilenames,
+        recipientFields: [replyRecipients, replyCc],
+      });
       if (
         draftOverride === undefined &&
         draftToSend.trim() &&
-        !(await checkTone(draftToSend, scheduleTime?.toISOString() ?? null, replyRecipients))
+        !(await checkTone(draftToSend, scheduleTime?.toISOString() ?? null, replyRecipients, toneCheckContext))
       ) {
         return;
       }

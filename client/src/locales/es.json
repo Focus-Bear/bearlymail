@@ -1283,6 +1283,7 @@
     "toneCheckPassed": "¡Se pasó la verificación de tono!",
     "inappropriateTiming": "Nota de horario:",
     "calendarConflictLabel": "Revisión del calendario:",
+    "recipientMismatchLabel": "Revisión del destinatario:",
     "totalScore": "Puntuación total",
     "tweakRules": "Modificar las reglas de priorización",
     "useRevisedText": "Usar texto revisado",

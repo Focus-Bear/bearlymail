@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { SignaturePreview } from 'components/compose/SignaturePreview';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
+import { RecipientMismatchBanner } from 'components/email-detail-inline/RecipientMismatchBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ReplyComposerDebugPanel } from 'components/email-detail-inline/ReplyComposerDebugPanel';
 import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyComposerFooter';
@@ -32,6 +33,7 @@ interface ToneCheckResultData {
   revisedText?: string;
   attachmentReminder?: string | null;
   inappropriateTiming?: string | null;
+  recipientMismatch?: string | null;
   calendarWarning?: string | null;
 }
 interface DisputeResult {
@@ -86,6 +88,8 @@ interface ReplyComposerProps {
     expectedReplyHours?: number;
     expectedReplyDuration?: string;
     forwardAttachmentIds?: string[];
+    /** Filenames of the forwarded attachments kept, so the tone check knows they are attached. */
+    forwardAttachmentFilenames?: string[];
     draftOverride?: string;
     scheduledSendAt?: Date;
     keepInAction?: boolean;
@@ -232,6 +236,9 @@ const useReplyComposerState = (
       expectedReplyHours,
       expectedReplyDuration,
       forwardAttachmentIds: currentForwardIds,
+      forwardAttachmentFilenames: initialAttachments
+        .filter(attachment => forwardAttachmentIds.includes(attachment.attachmentId))
+        .map(attachment => attachment.filename),
       draftOverride,
       scheduledSendAt: scheduledAt,
       keepInAction,
@@ -486,6 +493,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
     <ReplyComposerAttachments files={files} onFilesChange={onFilesChange} />
     <ForwardedAttachmentsList attachments={forwardAttachments} onRemove={onRemoveForwardAttachment} />
     <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
+    <RecipientMismatchBanner recipientMismatch={toneCheckResult?.recipientMismatch} />
     <CalendarConflictBanner calendarWarning={toneCheckResult?.calendarWarning} />
     <ToneCheckResult
       toneCheckResult={toneCheckResult}

@@ -30,9 +30,9 @@ import { LLMService } from "../llm/llm.service";
 import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
-import { resolveFollowUpRecipient } from "./follow-up-recipient.util";
-import { resolveUserDisplayName } from "../utils/user-display-fields.util";
 import { analyzeThreadStyle } from "../utils/thread-style-extractor";
+import { resolveUserDisplayName } from "../utils/user-display-fields.util";
+import { resolveFollowUpRecipient } from "./follow-up-recipient.util";
 import { FollowUpsService } from "./follow-ups.service";
 
 type ThreadMessage = {

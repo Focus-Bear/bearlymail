@@ -18,6 +18,7 @@ import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
+import { buildToneCheckContext } from 'utils/toneCheckContext';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
@@ -692,6 +693,7 @@ export function useEmailDetailOperations(
         expectedReplyHours?: number;
         expectedReplyDuration?: string;
         forwardAttachmentIds?: string[];
+        forwardAttachmentFilenames?: string[];
         draftOverride?: string;
         scheduledSendAt?: Date;
         keepInAction?: boolean;
@@ -703,6 +705,7 @@ export function useEmailDetailOperations(
         expectedReplyHours,
         expectedReplyDuration,
         forwardAttachmentIds,
+        forwardAttachmentFilenames,
         draftOverride,
         scheduledSendAt,
         keepInAction,
@@ -744,6 +747,11 @@ export function useEmailDetailOperations(
               // Pass the scheduled send time so the server can suppress timing nags when
               // the user has already queued the email for a specific delivery time.
               scheduledSendAt: scheduledSendAt?.toISOString(),
+              ...buildToneCheckContext({
+                files,
+                forwardedFilenames: forwardAttachmentFilenames,
+                recipientFields: [replyRecipients, replyCc],
+              }),
             },
             { signal: controller.signal }
           );

@@ -24,6 +24,7 @@ import { LLMReplyService } from "./llm-reply.service";
 import { LLMSearchService } from "./llm-search.service";
 import { LLMSummarizationService } from "./llm-summarization.service";
 import { LLMToneService } from "./llm-tone.service";
+import type { ToneCheckOptions, ToneCheckResult } from "./llm-tone.types";
 import { SummaryType } from "./prompts";
 
 // Re-export for backward compatibility with existing callers
@@ -240,37 +241,8 @@ export class LLMService {
 
   // ─── Tone ────────────────────────────────────────────────────────────────
 
-  async checkTone(options: {
-    text: string;
-    rules?: string[];
-    provider?: LLMProvider;
-    userId?: string;
-    scheduledSendAt?: string | null;
-    currentTime?: string | null;
-  }): Promise<{
-    isOk: boolean;
-    significance?: "low" | "medium" | "high";
-    suggestions: string[];
-    revisedText?: string;
-    attachmentReminder?: string | null;
-    inappropriateTiming?: string | null;
-  }> {
-    const {
-      text,
-      rules = ["Be concise", "Use non-violent communication"],
-      provider,
-      userId,
-      scheduledSendAt,
-      currentTime,
-    } = options;
-    return this.llmToneService.checkTone(
-      text,
-      rules,
-      provider,
-      userId,
-      scheduledSendAt,
-      currentTime,
-    );
+  async checkTone(options: ToneCheckOptions): Promise<ToneCheckResult> {
+    return this.llmToneService.checkTone(options);
   }
 
   async disputeToneCheck(options: {

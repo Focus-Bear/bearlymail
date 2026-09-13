@@ -13,6 +13,11 @@ import {
   LLM_OP_VALIDATE_WRITING_EXAMPLE,
   type LLMOperation,
 } from "./llm-operations";
+import {
+  describeRecipient,
+  suppressAttachmentNagsWhenAttached,
+} from "./llm-tone.helper";
+import type { ToneCheckOptions, ToneCheckResult } from "./llm-tone.types";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
 
 /**
@@ -60,22 +65,17 @@ export class LLMToneService {
     return this.llmCoreService.generateText(effectiveRequest, provider, userId);
   }
 
-  // eslint-disable-next-line better-max-params/better-max-params
-  async checkTone(
-    text: string,
-    rules: string[] = ["Be concise", "Use non-violent communication"],
-    provider?: LLMProvider,
-    userId?: string,
-    scheduledSendAt?: string | null,
-    currentTime?: string | null,
-  ): Promise<{
-    isOk: boolean;
-    significance?: "low" | "medium" | "high";
-    suggestions: string[];
-    revisedText?: string;
-    attachmentReminder?: string | null;
-    inappropriateTiming?: string | null;
-  }> {
+  async checkTone(options: ToneCheckOptions): Promise<ToneCheckResult> {
+    const {
+      text,
+      rules = ["Be concise", "Use non-violent communication"],
+      provider,
+      userId,
+      scheduledSendAt,
+      currentTime,
+      attachmentFilenames = [],
+      recipients = [],
+    } = options;
     const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_TONE_STYLE);
     if (!promptConfig) {
       this.logger.error(
@@ -89,6 +89,8 @@ export class LLMToneService {
       text,
       currentTime: currentTime ?? null,
       scheduledSendAt: scheduledSendAt ?? null,
+      attachmentFilenames,
+      recipients: recipients.map(describeRecipient),
     });
 
     const response = await this.generateText(
@@ -108,7 +110,10 @@ export class LLMToneService {
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        return suppressAttachmentNagsWhenAttached(
+          JSON.parse(jsonMatch[0]) as ToneCheckResult,
+          attachmentFilenames,
+        );
       }
     } catch (error) {
       this.logger.warn(

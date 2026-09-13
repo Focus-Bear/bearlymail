@@ -10,6 +10,7 @@ import { getNextMorning } from 'utils/dateUtils';
 import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
 import { markScheduledEmailSent } from 'utils/scheduledTour';
+import { buildToneCheckContext } from 'utils/toneCheckContext';
 
 import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { ComposeActions } from 'components/compose/ComposeActions';
@@ -22,6 +23,7 @@ import { TimePicker } from 'components/compose/TimePicker';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
+import { RecipientMismatchBanner } from 'components/email-detail-inline/RecipientMismatchBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
@@ -158,7 +160,11 @@ const Compose: React.FC = () => {
       setToneCheckResult(null);
     } else {
       const recipientList = form.to.map(recipient => recipient.email).join(', ');
-      const toneOk = await checkTone(form.body.trim(), null, recipientList);
+      const toneCheckContext = buildToneCheckContext({
+        files: form.attachments,
+        recipients: [...form.to, ...form.cc],
+      });
+      const toneOk = await checkTone(form.body.trim(), null, recipientList, toneCheckContext);
       if (!toneOk) {
         return;
       }
@@ -391,6 +397,7 @@ const Compose: React.FC = () => {
           />
 
           <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
+          <RecipientMismatchBanner recipientMismatch={toneCheckResult?.recipientMismatch} />
           <CalendarConflictBanner calendarWarning={toneCheckResult?.calendarWarning} />
           <ToneCheckResult
             toneCheckResult={toneCheckResult}

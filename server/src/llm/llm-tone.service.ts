@@ -14,7 +14,8 @@ import {
   type LLMOperation,
 } from "./llm-operations";
 import {
-  describeRecipient,
+  summariseAttachments,
+  summariseRecipients,
   suppressAttachmentNagsWhenAttached,
 } from "./llm-tone.helper";
 import type { ToneCheckOptions, ToneCheckResult } from "./llm-tone.types";
@@ -89,8 +90,8 @@ export class LLMToneService {
       text,
       currentTime: currentTime ?? null,
       scheduledSendAt: scheduledSendAt ?? null,
-      attachmentFilenames,
-      recipients: recipients.map(describeRecipient),
+      attachmentsSummary: summariseAttachments(attachmentFilenames),
+      recipientsSummary: summariseRecipients(recipients),
     });
 
     const response = await this.generateText(

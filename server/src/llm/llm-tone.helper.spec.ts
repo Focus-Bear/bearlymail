@@ -1,5 +1,8 @@
+import { TONE_CHECK } from "../constants/tone-check.constants";
 import {
   describeRecipient,
+  summariseAttachments,
+  summariseRecipients,
   suppressAttachmentNagsWhenAttached,
 } from "./llm-tone.helper";
 import type { ToneCheckResult } from "./llm-tone.types";
@@ -16,6 +19,23 @@ describe("describeRecipient", () => {
     expect(describeRecipient({ email: "rob@acme.com", name: "  " })).toBe(
       "rob@acme.com",
     );
+  });
+});
+
+describe("summariseAttachments / summariseRecipients", () => {
+  it("joins the lists for the prompt", () => {
+    expect(summariseAttachments(["a.csv", "b.pdf"])).toBe("a.csv, b.pdf");
+    expect(
+      summariseRecipients([
+        { name: "Rob Smith", email: "rob@acme.com" },
+        { email: "sam@acme.com" },
+      ]),
+    ).toBe("Rob Smith <rob@acme.com>, sam@acme.com");
+  });
+
+  it("renders the empty case as the exact label the prompt keys off", () => {
+    expect(summariseAttachments([])).toBe(TONE_CHECK.NO_ATTACHMENTS_LABEL);
+    expect(summariseRecipients([])).toBe(TONE_CHECK.UNKNOWN_RECIPIENTS_LABEL);
   });
 });
 

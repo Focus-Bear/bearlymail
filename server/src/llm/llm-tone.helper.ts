@@ -7,6 +7,20 @@ export function describeRecipient(recipient: ToneCheckRecipient): string {
   return name ? `${name} <${recipient.email}>` : recipient.email;
 }
 
+/** The attachment list exactly as the prompt's rules expect to read it. */
+export function summariseAttachments(filenames: string[]): string {
+  return filenames.length > 0
+    ? filenames.join(", ")
+    : TONE_CHECK.NO_ATTACHMENTS_LABEL;
+}
+
+/** The recipient list exactly as the prompt's rules expect to read it. */
+export function summariseRecipients(recipients: ToneCheckRecipient[]): string {
+  return recipients.length > 0
+    ? recipients.map(describeRecipient).join(", ")
+    : TONE_CHECK.UNKNOWN_RECIPIENTS_LABEL;
+}
+
 function mentionsAttachment(suggestion: string): boolean {
   const lowered = suggestion.toLowerCase();
   return TONE_CHECK.ATTACHMENT_SUGGESTION_KEYWORDS.some((keyword) =>

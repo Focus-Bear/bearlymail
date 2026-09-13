@@ -11,6 +11,13 @@ providers:
 prompts:
   - file://prompts/check-tone-style.md
 
+# The service always renders these two lines, so every case gets them. Cases
+# that exercise the attachment or recipient rules override them.
+defaultTest:
+  vars:
+    attachmentsSummary: "(none)"
+    recipientsSummary: "(unknown)"
+
 tests:
   - vars:
       rules:
@@ -250,10 +257,8 @@ tests:
       rules:
         - "Be professional"
       text: "<p>Hi Sam,</p><p>Please find the reconciliation attached.</p><p>-J</p>"
-      attachmentFilenames:
-        - "Itemized_payout_reconciliation_AUD.csv"
-      recipients:
-        - "Sam Jones <sam@acme.com>"
+      attachmentsSummary: "Itemized_payout_reconciliation_AUD.csv"
+      recipientsSummary: "Sam Jones <sam@acme.com>"
     assert:
       - type: javascript
         value: |
@@ -283,9 +288,8 @@ tests:
       rules:
         - "Be professional"
       text: "<p>Hi Sam,</p><p>Please find the reconciliation attached.</p><p>-J</p>"
-      attachmentFilenames: []
-      recipients:
-        - "Sam Jones <sam@acme.com>"
+      attachmentsSummary: "(none)"
+      recipientsSummary: "Sam Jones <sam@acme.com>"
     assert:
       - type: javascript
         value: |
@@ -306,9 +310,8 @@ tests:
       rules:
         - "Be professional"
       text: "<p>Hi Peter,</p><p>Thanks for hosting us at the University of Canberra last week.</p><p>-J</p>"
-      attachmentFilenames: []
-      recipients:
-        - "Rob Smith <rob@sydney.edu.au>"
+      attachmentsSummary: "(none)"
+      recipientsSummary: "Rob Smith <rob@sydney.edu.au>"
     assert:
       - type: javascript
         value: |
@@ -335,9 +338,8 @@ tests:
       rules:
         - "Be professional"
       text: "<p>Hi Rob,</p><p>Peter asked me to forward the notes from the Sydney session.</p><p>-J</p>"
-      attachmentFilenames: []
-      recipients:
-        - "Rob Smith <rob@sydney.edu.au>"
+      attachmentsSummary: "(none)"
+      recipientsSummary: "Rob Smith <rob@sydney.edu.au>"
     assert:
       - type: javascript
         value: |

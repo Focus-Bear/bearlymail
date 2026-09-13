@@ -5,7 +5,7 @@ import { Email } from 'types/email';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 import { markScheduledEmailSent } from 'utils/scheduledTour';
-import { buildToneCheckContext } from 'utils/toneCheckContext';
+import { buildToneCheckContext, ToneCheckContext } from 'utils/toneCheckContext';
 
 import { API_URL } from 'config/api';
 import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
@@ -345,7 +345,12 @@ interface SendReplyHandlerDeps {
   replyBcc: string;
   replyMode: string;
   scheduledSendAt: Date | null;
-  checkTone: (draft: string, scheduledSendAt?: string | null, recipients?: string) => Promise<boolean>;
+  checkTone: (
+    draft: string,
+    scheduledSendAt?: string | null,
+    recipients?: string,
+    context?: ToneCheckContext
+  ) => Promise<boolean>;
   setDraft: (d: string | null) => void;
   setReplyCc: (v: string) => void;
   setReplyBcc: (v: string) => void;

@@ -119,6 +119,16 @@ export const CATEGORY_RULE_COMPOSITE = {
    */
   AUTO_VALIDATE_MIN_MATCHES: 3,
   /**
+   * Floor for the true-positive bar once it is scaled to the category's own
+   * evidence. A category whose entire history in the validation window is one
+   * or two threads can never reach AUTO_VALIDATE_MIN_MATCHES, so a
+   * zero-false-positive rule covering everything that category HAS is the best
+   * evidence obtainable — demanding more is unsatisfiable, not safer, and is
+   * why narrow low-volume categories never got a rule (prod logs showed a long
+   * tail of `branch=clean-zero-fp preTP=1 preFP=0 passes=false`).
+   */
+  AUTO_VALIDATE_SPARSE_CATEGORY_MIN_MATCHES: 1,
+  /**
    * Minimum true positives a STRUCTURAL rule (one pinned to a resolved
    * `notificationSubtype`) needs when it produced ZERO false positives. A
    * zero-FP structural rule is a hard, deterministic separator (it can only fire

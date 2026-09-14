@@ -89,6 +89,10 @@ export class LLMSearchService {
 
     const fullPrompt = renderPrompt(promptConfig.prompt || "", {
       query,
+      // Single-email mode: the prompt's `{% else %}` branch. Gate on an explicit
+      // flag rather than the presence of an `emails` array, so our renderer and
+      // Nunjucks (promptfoo) agree on which branch renders (issue #266).
+      hasEmails: false,
       from: email.from,
       subject: email.subject,
       bodyPreview: cleanEmailContent(
@@ -233,6 +237,9 @@ export class LLMSearchService {
     const fullPrompt = renderPrompt(promptConfig.prompt || "", {
       query,
       emails: emailChunk,
+      // Batch mode: gate on the flag, not the array, so our renderer matches
+      // Nunjucks on the empty-array edge (issue #266).
+      hasEmails: emailChunk.length > 0,
     });
 
     this.logger.debug(

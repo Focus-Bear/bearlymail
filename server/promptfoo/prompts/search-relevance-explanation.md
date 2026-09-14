@@ -8,7 +8,7 @@ For each email, your explanation must:
 
 Search Query: {{query}}
 
-{% if emails %}
+{% if hasEmails %}
 You are processing multiple emails in parallel. For each email below, provide a specific explanation.
 
 Emails:

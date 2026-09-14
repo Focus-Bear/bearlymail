@@ -4,7 +4,7 @@ The user prefers a {{tone}} tone.
 Writing style: {{writingStyle}}
 {% endif %}
 
-{% if emailExamples %}
+{% if hasEmailExamples %}
 Here are examples of how the user writes emails. MATCH THIS STYLE CLOSELY - use similar greetings, phrasing, sentence structure, and closing:
 {% for example in emailExamples %}
 - {{example}}

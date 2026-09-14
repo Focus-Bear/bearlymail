@@ -7,7 +7,17 @@
  *   nested objects; an undefined path leaves the tag in place (so a missing
  *   variable is visible in the rendered prompt rather than silently blank).
  * - `{% if path %}` / `{% if not path %}` / `{% elif path %}` / `{% else %}` /
- *   `{% endif %}` — nestable; empty arrays are falsy.
+ *   `{% endif %}` — nestable.
+ *
+ * KNOWN DIVERGENCE (issue #266): this renderer treats an empty array as FALSY
+ * (`[].length > 0` is false), but real Nunjucks treats `[]` as TRUTHY. So a
+ * template that gates `{% if someArray %}` on an array that is also iterated
+ * with `{% for … in someArray %}` renders differently here vs under promptfoo
+ * when that array is empty. Do NOT gate an `{% if %}` on an array's own
+ * truthiness — pass an explicit boolean (e.g. `hasEmailExamples`) or a
+ * pre-rendered summary string from the service instead. The `{% for %}` loop
+ * itself is safe: it renders nothing over an empty array in both engines.
+ * `renderer-nunjucks-parity.spec.ts` asserts this for the constructs we support.
  * - `{% for item in path %} … {% endfor %}` with `loop.index0` / `loop.index`;
  *   inside the body a bare `{{ prop }}` resolves against the current item
  *   before the outer variables.

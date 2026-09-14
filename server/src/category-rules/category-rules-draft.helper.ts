@@ -93,6 +93,12 @@ export type AutoRuleCandidate = Pick<
 
 export interface DraftCompositeSpecOptions {
   enforceThreadCountGate: boolean;
+  /**
+   * When true (auto-generation), the rolling-24h LLM budget gates the phrase
+   * path. It deliberately does NOT gate the structural / github-facts paths,
+   * which make no LLM call. User-initiated drafts leave this false.
+   */
+  enforceLlmBudgetGate?: boolean;
   requireDerivedExclusions: boolean;
   /**
    * When true (user-initiated drafts), fall back to the LLM's speculative
@@ -116,6 +122,8 @@ interface DraftContext {
   userId: string;
   email: EmailMetadata;
   sender: string;
+  /** True when the auto-generation LLM budget is spent — blocks the phrase path only. */
+  llmBudgetSpent: boolean;
   categoryName: string;
   categoryId: string | null;
 }
@@ -389,21 +397,15 @@ function resolveDraftOutcome(
 }
 
 /**
- * Auto-generation only: the user's rolling-24h LLM budget must not be spent
- * and the sender must have enough thread history for a rule to be worth it.
+ * Auto-generation only: the sender must have enough thread history for a rule
+ * to be worth authoring at all. Cheap (one COUNT) and independent of LLM spend,
+ * so it runs before any drafting.
  */
-async function passesAutoGenerationGates(
+async function passesSenderHistoryGate(
   deps: DraftCompositeSpecDeps,
   userId: string,
   sender: string,
-  categoryName: string,
 ): Promise<boolean> {
-  if (await deps.hasExhaustedAutoGenerationBudget(userId)) {
-    deps.logger.log(
-      `[CategoryRules] Skipping auto composite rule — user ${userId} reached ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY} rule-generation LLM attempts in 24h (category="${categoryName}")`,
-    );
-    return false;
-  }
   const threadCount = await deps.countDistinctThreadsForSender(userId, sender);
   if (threadCount < CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT) {
     deps.logger.log(
@@ -412,6 +414,33 @@ async function passesAutoGenerationGates(
     return false;
   }
   return true;
+}
+
+/**
+ * Auto-generation only: whether the user's rolling-24h rule-generation LLM
+ * budget is spent. Resolved once per draft and consulted by the phrase path
+ * alone — the structural and github-facts paths are deterministic and cost
+ * nothing, so an exhausted budget must not stop them authoring a rule.
+ */
+async function resolveLlmBudgetSpent(
+  deps: DraftCompositeSpecDeps,
+  userId: string,
+  options: DraftCompositeSpecOptions,
+): Promise<boolean> {
+  if (!options.enforceLlmBudgetGate) {
+    return false;
+  }
+  return deps.hasExhaustedAutoGenerationBudget(userId);
+}
+
+function logLlmBudgetSkip(
+  deps: DraftCompositeSpecDeps,
+  userId: string,
+  categoryName: string,
+): void {
+  deps.logger.log(
+    `[CategoryRules] Skipping auto composite rule — user ${userId} reached ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY} rule-generation LLM attempts in 24h (category="${categoryName}")`,
+  );
 }
 
 /**
@@ -565,6 +594,10 @@ async function draftPhraseRule(
   windows: ValidationWindows | undefined,
 ): Promise<Omit<DraftCompositeSpecResult, "sampleEmails"> | null> {
   const { deps, userId, email, sender, categoryName, categoryId } = context;
+  if (context.llmBudgetSpent) {
+    logLlmBudgetSkip(deps, userId, categoryName);
+    return null;
+  }
   const llmResult =
     await deps.llmCategoriesService.suggestRulesFromEmailSamples(
       categoryName,
@@ -713,12 +746,28 @@ export async function buildDraftCompositeSpec(
   // history. User-initiated drafts skip this gate — the user asked explicitly.
   if (
     options.enforceThreadCountGate &&
-    !(await passesAutoGenerationGates(deps, userId, sender, trimmedCategory))
+    !(await passesSenderHistoryGate(deps, userId, sender))
   ) {
     return null;
   }
 
   const categoryId = await deps.findCategoryId(userId, trimmedCategory);
+  const llmBudgetSpent = await resolveLlmBudgetSpent(deps, userId, options);
+
+  const seedSubtype = email.notificationSubtype;
+  const seedGithubFacts = email.github ?? null;
+  const structuralFirst =
+    Boolean(options.preferStructuralSubtypeSet) &&
+    (isGithubNotificationSubtype(seedSubtype) || seedGithubFacts !== null);
+
+  // Without a structural seed the LLM phrase path is the only way to draft, so
+  // an exhausted budget short-circuits before the sample fetch. With one, the
+  // deterministic paths still run — they cost no tokens.
+  if (!structuralFirst && llmBudgetSpent) {
+    logLlmBudgetSkip(deps, userId, trimmedCategory);
+    return null;
+  }
+
   const context: DraftContext = {
     deps,
     userId,
@@ -726,6 +775,7 @@ export async function buildDraftCompositeSpec(
     sender,
     categoryName: trimmedCategory,
     categoryId,
+    llmBudgetSpent,
   };
   const samples = await fetchSenderSamples(
     deps.emailRepository,
@@ -734,12 +784,6 @@ export async function buildDraftCompositeSpec(
     email,
   );
   const sampleEmails = toSanitySamples(sender, samples);
-
-  const seedSubtype = email.notificationSubtype;
-  const seedGithubFacts = email.github ?? null;
-  const structuralFirst =
-    Boolean(options.preferStructuralSubtypeSet) &&
-    (isGithubNotificationSubtype(seedSubtype) || seedGithubFacts !== null);
   if (structuralFirst) {
     const structural = await draftStructuralRule(context, {
       seedSubtype,

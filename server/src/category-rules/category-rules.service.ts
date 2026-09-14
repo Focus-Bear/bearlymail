@@ -179,6 +179,7 @@ export class CategoryRulesService {
       categoryName,
       {
         enforceThreadCountGate: true,
+        enforceLlmBudgetGate: true,
         requireDerivedExclusions: true,
         preferStructuralSubtypeSet: true,
       },

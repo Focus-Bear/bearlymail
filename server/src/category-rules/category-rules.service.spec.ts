@@ -802,6 +802,54 @@ describe("CategoryRulesService", () => {
       );
       expect(result).toEqual(created);
     });
+
+    it("still authors a structural rule for a GitHub seed once the LLM budget is spent", async () => {
+      // The structural path is deterministic — it makes no LLM call — so an
+      // exhausted rule-generation budget must not stop it. Only the phrase path
+      // is budgeted.
+      tokenUsageService.countUserCallsSince.mockResolvedValue(
+        CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY,
+      );
+      const githubPrEmail = {
+        from: "notifications@github.com",
+        subject: "[owner/repo] Add feature (#42)",
+        body: "A user commented on the pull request",
+        htmlBody:
+          '<a href="https://github.com/owner/repo/pull/42">View it on GitHub</a>',
+      };
+      emailRepo.find.mockResolvedValue([githubPrEmail]);
+      repo.find.mockResolvedValue([]);
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextId: "cat-gh",
+          contextValue: "GitHub PRs",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+      const created = {
+        id: "comp-structural-no-budget",
+        ruleKind: "composite",
+        categoryName: "GitHub PRs",
+      };
+      repo.create.mockReturnValue(created);
+      repo.save.mockResolvedValue(created);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] Add feature (#42)",
+          bodyTextForMatch: "A user commented on the pull request",
+          notificationSubtype: "github:pr",
+        },
+        "GitHub PRs",
+      );
+
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).not.toHaveBeenCalled();
+      expect(result).toEqual(created);
+    });
   });
 
   // ---------------------------------------------------------------------------

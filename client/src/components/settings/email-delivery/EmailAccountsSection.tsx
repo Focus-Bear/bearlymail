@@ -9,6 +9,7 @@ import { PROVIDER_APPLE_MAIL, PROVIDER_GMAIL, PROVIDER_GOOGLE, STRING_NONE } fro
 
 import {
   buildAllAccounts,
+  canDisconnectAccounts,
   type EmailAccount,
   type EmailAccountProvider,
   getDisconnectConfirmKey,
@@ -31,11 +32,13 @@ interface EmailAccountsSectionProps {
 interface EmailAccountRowProps {
   account: EmailAccount;
   t: (k: string) => string;
+  /** Only true when another account is connected; the last account cannot be disconnected. */
+  canDisconnect: boolean;
   onSetPrimary: (id: string, provider: EmailAccountProvider) => Promise<void>;
   onDisconnect: (id: string, provider: EmailAccountProvider) => Promise<void>;
 }
 
-const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, onSetPrimary, onDisconnect }) => (
+const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, canDisconnect, onSetPrimary, onDisconnect }) => (
   <div
     style={{
       padding: theme.spacing.md,
@@ -113,7 +116,7 @@ const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, onSetPrim
           {t('settings.gmail.setPrimary')}
         </button>
       )}
-      {!account.isSSO && (
+      {!account.isSSO && canDisconnect && (
         <button
           onClick={() => onDisconnect(account.id, account.provider)}
           style={{
@@ -226,6 +229,8 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { handleConnectProvider, handleDisconnect, handleSetPrimary } = useEmailAccountHandlers({ onFetchData, t });
   const allAccounts = buildAllAccounts(googleAccounts, office365Accounts, zohoAccounts, appleMailAccounts);
+  const canDisconnect = canDisconnectAccounts(allAccounts.length);
+  const showLastAccountHint = !canDisconnect && allAccounts.some(account => !account.isSSO);
 
   return (
     <>
@@ -259,10 +264,23 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
                 key={`${account.provider}-${account.id}`}
                 account={account}
                 t={t}
+                canDisconnect={canDisconnect}
                 onSetPrimary={handleSetPrimary}
                 onDisconnect={handleDisconnect}
               />
             ))}
+            {showLastAccountHint && (
+              <p
+                style={{
+                  color: theme.colors.text.secondary,
+                  fontSize: theme.typography.fontSize.xs,
+                  marginTop: theme.spacing.xs,
+                  marginBottom: 0,
+                }}
+              >
+                {t('settings.emailAccounts.lastAccountHint')}
+              </p>
+            )}
             <button
               onClick={() => setIsModalOpen(true)}
               style={{

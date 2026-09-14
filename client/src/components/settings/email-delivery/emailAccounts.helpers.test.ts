@@ -2,7 +2,7 @@
  * Unit tests for EmailAccountsSection helpers
  * Issue #769 — backfill unit tests for frontend business logic helpers
  */
-import { buildAllAccounts, getDisconnectConfirmKey, getProviderName } from './emailAccounts.helpers';
+import { buildAllAccounts, canDisconnectAccounts, getDisconnectConfirmKey, getProviderName } from './emailAccounts.helpers';
 
 describe('buildAllAccounts', () => {
   it('stamps each Google account with PROVIDER_GMAIL', () => {
@@ -45,6 +45,21 @@ describe('buildAllAccounts', () => {
     const result = buildAllAccounts([{ id: 'g1', email: 'a@gmail.com', name: 'Alice', isPrimary: true }], [], []);
     expect(result[0].name).toBe('Alice');
     expect(result[0].isPrimary).toBe(true);
+  });
+});
+
+describe('canDisconnectAccounts', () => {
+  it('returns false when no accounts are connected', () => {
+    expect(canDisconnectAccounts(0)).toBe(false);
+  });
+
+  it('returns false when only one account is connected', () => {
+    expect(canDisconnectAccounts(1)).toBe(false);
+  });
+
+  it('returns true when more than one account is connected', () => {
+    expect(canDisconnectAccounts(2)).toBe(true);
+    expect(canDisconnectAccounts(3)).toBe(true);
   });
 });
 

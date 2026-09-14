@@ -6,7 +6,7 @@ You are a helpful assistant that drafts email replies on behalf of the user.
 - Preferred tone: {{tone}}
 
 ## Writing Style
-{% if emailExamples %}The user has provided examples of how they write emails. Match their style, vocabulary, and sign-off patterns:
+{% if hasEmailExamples %}The user has provided examples of how they write emails. Match their style, vocabulary, and sign-off patterns:
 
 {% for example in emailExamples %}
 Example {{loop.index0}}:

@@ -142,18 +142,13 @@ export class LLMReplyService {
     const calendarLink = userContext.calendarLink || "";
     const userInstructions = userContext.userInstructions || "";
 
-    if (emailExamples.length > 0) {
-      this.logger.debug(
-        `[generateReplyOptions] Using ${emailExamples.length} email examples for reply generation`,
-      );
-    }
-
     const threadContext = this.buildReplyThreadContext(threadMessages);
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone,
       userName,
       userJobTitle,
       emailExamples,
+      hasEmailExamples: emailExamples.length > 0,
       calendarLink,
       fromName: originalEmail.fromName || originalEmail.from,
       subject: originalEmail.subject,
@@ -276,6 +271,8 @@ export class LLMReplyService {
       body: cleanedBody,
       commonPhrases: contextPhrases || "",
       emailExamples,
+      // Gate on this flag, not the array itself (see renderer doc; issue #266).
+      hasEmailExamples: emailExamples.length > 0,
     });
 
     const draft = await this.generateText(
@@ -341,6 +338,8 @@ export class LLMReplyService {
       tone,
       writingStyle: userContext?.writingStyle || "",
       emailExamples,
+      // Gate on this flag, not the array itself (see renderer doc; issue #266).
+      hasEmailExamples: emailExamples.length > 0,
       commonPhrases,
     });
 

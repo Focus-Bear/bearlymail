@@ -3987,6 +3987,7 @@
       "connect": "Conectar cuenta",
       "connectAnother": "Conectar otro",
       "noAccounts": "No hay cuentas de correo electrónico conectadas",
+      "lastAccountHint": "Conecta otra cuenta antes de desconectar esta. Para eliminar tu única cuenta, elimina tu cuenta de BearlyMail en su lugar.",
       "providers": {
         "gmail": {
           "description": "Conecta tu cuenta de Gmail"

@@ -20,8 +20,8 @@ describe("Organization entity encryption scope", () => {
     );
 
     expect(column).toBeDefined();
-    expect(getEncryptedTransformerMeta(column!.options.transformer)?.scope).toBe(
-      ENCRYPTED_TRANSFORMER_SCOPE.GLOBAL,
-    );
+    expect(
+      getEncryptedTransformerMeta(column!.options.transformer)?.scope,
+    ).toBe(ENCRYPTED_TRANSFORMER_SCOPE.GLOBAL);
   });
 });

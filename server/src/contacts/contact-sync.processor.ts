@@ -41,12 +41,19 @@ export class ContactSyncProcessor implements OnModuleInit {
               /** Check if user should have contact sync based on User entity tokens */
               const hasUserToken = !!user.googleCalendarAccessToken;
 
-              /** Check if user has any active GoogleAccount with a valid token */
+              /**
+               * Check if user has any active GoogleAccount with a valid token.
+               * GoogleAccount columns are per-user encrypted, so this read needs
+               * the owner's KMS key in ALS — without it the transformer falls
+               * back to the global key, `accessToken` decrypts to null, and the
+               * user is silently skipped for contact sync forever.
+               */
               let hasGoogleAccount = false;
               if (!hasUserToken) {
                 try {
-                  const primary = await this.googleAccountsService.findPrimary(
+                  const primary = await this.userEncryptionService.withUserKey(
                     user.id,
+                    () => this.googleAccountsService.findPrimary(user.id),
                   );
                   hasGoogleAccount = !!primary?.accessToken;
                 } catch {

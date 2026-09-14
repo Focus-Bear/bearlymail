@@ -25,6 +25,7 @@ import { MCPModule } from "./mcp/mcp.module";
 import { NotesModule } from "./notes/notes.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
 import { OnboardingModule } from "./onboarding/onboarding.module";
+import { OrganizationNameRepairModule } from "./organizations/organization-name-repair.module";
 import { PriorityModule } from "./priority/priority.module";
 import { ProtoCategoriesModule } from "./proto-categories/proto-categories.module";
 import { PusherModule } from "./pusher/pusher.module";
@@ -83,6 +84,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     NotesModule,
     PusherModule,
     CategoryRuleIdBackfillModule,
+    OrganizationNameRepairModule,
     ContactsModule,
     ScheduledEmailsModule,
     WorkflowsModule,

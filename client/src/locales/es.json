@@ -1405,7 +1405,7 @@
     "errorLoading": "Error al cargar los contactos. Por favor, inténtalo de nuevo.",
     "errorSyncing": "Error al sincronizar los contactos. Por favor, inténtalo de nuevo.",
     "noContacts": "Aún no hay contactos",
-    "syncToGetStarted": "Sincroniza tus contactos de Gmail para comenzar.",
+    "syncToGetStarted": "Sincroniza tus contactos desde una cuenta de correo conectada para comenzar.",
     "noSearchResults": "No se encontraron contactos",
     "tryDifferentSearch": "Prueba con un término de búsqueda diferente.",
     "totalContacts": "{{count}} contacto",

@@ -7,6 +7,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -90,6 +91,15 @@ describe("AuthController", () => {
           useValue: mockOffice365AccountsService,
         },
         { provide: ZohoAccountsService, useValue: mockZohoAccountsService },
+        {
+          // The real service wraps the task in the user's KMS key; tests only
+          // need the task to run, so pass it straight through.
+          provide: UserEncryptionService,
+          useValue: {
+            withUserKey: (_userId: string, task: () => Promise<unknown>) =>
+              task(),
+          },
+        },
         { provide: WaitlistService, useValue: mockWaitlistService },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
       ],

@@ -23,6 +23,7 @@ import { AUTH_ACTION_TYPES, NODE_ENV_VALUES } from "../constants/domain-types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { SECONDS } from "../constants/time-constants";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { getJobPriority } from "../queue/job-priorities";
@@ -64,6 +65,7 @@ export class AuthController {
     private googleAccountsService: GoogleAccountsService,
     private office365AccountsService: Office365AccountsService,
     private zohoAccountsService: ZohoAccountsService,
+    private userEncryptionService: UserEncryptionService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
@@ -495,32 +497,15 @@ export class AuthController {
     }
 
     // All required fields present — proceed with upsert
-    const existingAccounts = await this.zohoAccountsService.findAllByUser(
-      zohoUser.id,
-    );
-    const accountExists = existingAccounts.find((acc) => acc.zohoId === zohoId);
-
-    if (accountExists) {
-      await this.zohoAccountsService.updateTokens(
-        accountExists.id,
-        zohoUser.id,
-        zAccessToken,
-        zRefreshToken,
-        zAccountsServer,
-      );
-    } else {
-      await this.zohoAccountsService.create({
-        userId: zohoUser.id,
-        zohoId,
-        email: zEmail,
-        name: zName,
-        accessToken: zAccessToken,
-        refreshToken: zRefreshToken,
-        // Non-null: missingFields check above guarantees accountsServer is set.
-        accountsServer: zAccountsServer as string,
-        isPrimary: existingAccounts.length === 0,
-      });
-    }
+    await this.upsertZohoAccount(zohoUser.id, {
+      zohoId,
+      email: zEmail,
+      name: zName,
+      accessToken: zAccessToken,
+      refreshToken: zRefreshToken,
+      // Non-null: missingFields check above guarantees accountsServer is set.
+      accountsServer: zAccountsServer as string,
+    });
     const loginData = await this.authService.login(req.user);
     const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
     res.cookie(
@@ -657,30 +642,14 @@ export class AuthController {
       if (!googleId || !email || !accessToken || !refreshToken) {
         return this.redirectConnectError("Google", frontendUrl, res);
       }
-      const existingAccounts = await this.googleAccountsService.findAllByUser(
-        stateData.userId,
-      );
-      const accountExists = existingAccounts.find(
-        (acc) => acc.googleId === googleId,
-      );
-      if (accountExists) {
-        await this.googleAccountsService.updateTokens(
-          accountExists.id,
-          stateData.userId,
-          accessToken,
-          refreshToken,
-        );
-      } else {
-        const isPrimary = existingAccounts.length === 0;
-        await this.googleAccountsService.create({
-          userId: stateData.userId,
-          googleId,
-          email,
-          name,
-          accessToken,
-          refreshToken,
-          isPrimary,
-        });
+      const accountCreated = await this.upsertGoogleAccount(stateData.userId, {
+        googleId,
+        email,
+        name,
+        accessToken,
+        refreshToken,
+      });
+      if (accountCreated) {
         // Immediately trigger contact sync for newly linked Google account
         this.boss
           .send(
@@ -743,30 +712,13 @@ export class AuthController {
       if (!microsoftId || !email || !accessToken || !refreshToken) {
         return this.redirectConnectError("Microsoft", frontendUrl, res);
       }
-      const existingAccounts =
-        await this.office365AccountsService.findAllByUser(stateData.userId);
-      const accountExists = existingAccounts.find(
-        (acc) => acc.microsoftId === microsoftId,
-      );
-      if (accountExists) {
-        await this.office365AccountsService.updateTokens(
-          accountExists.id,
-          stateData.userId,
-          accessToken,
-          refreshToken,
-        );
-      } else {
-        const isPrimary = existingAccounts.length === 0;
-        await this.office365AccountsService.create({
-          userId: stateData.userId,
-          microsoftId,
-          email,
-          name,
-          accessToken,
-          refreshToken,
-          isPrimary,
-        });
-      }
+      await this.upsertOffice365Account(stateData.userId, {
+        microsoftId,
+        email,
+        name,
+        accessToken,
+        refreshToken,
+      });
       this.queueEmailFetchForConnectedAccount(stateData.userId);
       res.redirect(`${frontendUrl}/settings?office365Connected=true`);
       return true;
@@ -777,6 +729,132 @@ export class AuthController {
       );
       return this.redirectConnectError("Microsoft", frontendUrl, res);
     }
+  }
+
+  /**
+   * OAuth callbacks are unauthenticated, so `UserEncryptionInterceptor` has not
+   * run and there is no per-user KMS key in AsyncLocalStorage. Provider-account
+   * columns are per-user encrypted and the transformer silently falls back to
+   * the GLOBAL key when no user key is present — so an unwrapped callback both
+   * fails to read the user's existing tokens and writes new ones the
+   * authenticated path can no longer decrypt. Every provider-account read and
+   * write on a callback path therefore runs inside `withUserKey`.
+   *
+   * Returns true when a new account row was created (vs. tokens refreshed).
+   */
+  private upsertGoogleAccount(
+    userId: string,
+    details: {
+      googleId: string;
+      email: string;
+      name: string;
+      accessToken: string;
+      refreshToken: string;
+    },
+  ): Promise<boolean> {
+    return this.userEncryptionService.withUserKey(userId, async () => {
+      const existingAccounts =
+        await this.googleAccountsService.findAllByUser(userId);
+      const existing = existingAccounts.find(
+        (account) => account.googleId === details.googleId,
+      );
+      if (existing) {
+        await this.googleAccountsService.updateTokens(
+          existing.id,
+          userId,
+          details.accessToken,
+          details.refreshToken,
+        );
+        return false;
+      }
+      await this.googleAccountsService.create({
+        userId,
+        ...details,
+        isPrimary: existingAccounts.length === 0,
+      });
+      return true;
+    });
+  }
+
+  /**
+   * See {@link upsertGoogleAccount} for why this runs under `withUserKey`.
+   * A missing refresh token still refreshes an existing account's access token
+   * but never creates a new account — an account without one cannot be renewed.
+   */
+  private upsertOffice365Account(
+    userId: string,
+    details: {
+      microsoftId: string;
+      email: string;
+      name: string;
+      accessToken: string;
+      refreshToken?: string;
+    },
+  ): Promise<void> {
+    return this.userEncryptionService.withUserKey(userId, async () => {
+      const existingAccounts =
+        await this.office365AccountsService.findAllByUser(userId);
+      const existing = existingAccounts.find(
+        (account) => account.microsoftId === details.microsoftId,
+      );
+      if (existing) {
+        await this.office365AccountsService.updateTokens(
+          existing.id,
+          userId,
+          details.accessToken,
+          details.refreshToken || undefined,
+        );
+        return;
+      }
+      if (!details.refreshToken) {
+        return;
+      }
+      await this.office365AccountsService.create({
+        userId,
+        microsoftId: details.microsoftId,
+        email: details.email,
+        name: details.name,
+        accessToken: details.accessToken,
+        refreshToken: details.refreshToken,
+        isPrimary: existingAccounts.length === 0,
+      });
+    });
+  }
+
+  /** See {@link upsertGoogleAccount} for why this runs under `withUserKey`. */
+  private upsertZohoAccount(
+    userId: string,
+    details: {
+      zohoId: string;
+      email: string;
+      name: string;
+      accessToken: string;
+      refreshToken: string;
+      accountsServer: string;
+    },
+  ): Promise<void> {
+    return this.userEncryptionService.withUserKey(userId, async () => {
+      const existingAccounts =
+        await this.zohoAccountsService.findAllByUser(userId);
+      const existing = existingAccounts.find(
+        (account) => account.zohoId === details.zohoId,
+      );
+      if (existing) {
+        await this.zohoAccountsService.updateTokens(
+          existing.id,
+          userId,
+          details.accessToken,
+          details.refreshToken,
+          details.accountsServer,
+        );
+        return;
+      }
+      await this.zohoAccountsService.create({
+        userId,
+        ...details,
+        isPrimary: existingAccounts.length === 0,
+      });
+    });
   }
 
   private async saveMicrosoftAccountForUser(user: {
@@ -801,31 +879,13 @@ export class AuthController {
     const name = user.microsoftProfile?.displayName || "";
     if (!microsoftId || !accessToken || !email) return;
     try {
-      const existingAccounts =
-        await this.office365AccountsService.findAllByUser(user.id);
-      const accountExists = existingAccounts.find(
-        (acc) => acc.microsoftId === microsoftId,
-      );
-      if (accountExists) {
-        await this.office365AccountsService.updateTokens(
-          accountExists.id,
-          user.id,
-          accessToken,
-          refreshToken || undefined,
-        );
-      } else {
-        if (!refreshToken) return;
-        const isPrimary = existingAccounts.length === 0;
-        await this.office365AccountsService.create({
-          userId: user.id,
-          microsoftId,
-          email,
-          name,
-          accessToken,
-          refreshToken,
-          isPrimary,
-        });
-      }
+      await this.upsertOffice365Account(user.id, {
+        microsoftId,
+        email,
+        name,
+        accessToken,
+        refreshToken,
+      });
     } catch (err) {
       this.logger.error(
         `Failed to save Office365Account for user ${user.id}: ${err instanceof Error ? err.message : String(err)}`,
@@ -870,33 +930,14 @@ export class AuthController {
       ) {
         return this.redirectConnectError("Zoho", frontendUrl, res);
       }
-      const existingAccounts = await this.zohoAccountsService.findAllByUser(
-        stateData.userId,
-      );
-      const accountExists = existingAccounts.find(
-        (acc) => acc.zohoId === zohoId,
-      );
-      if (accountExists) {
-        await this.zohoAccountsService.updateTokens(
-          accountExists.id,
-          stateData.userId,
-          accessToken,
-          refreshToken,
-          accountsServer,
-        );
-      } else {
-        const isPrimary = existingAccounts.length === 0;
-        await this.zohoAccountsService.create({
-          userId: stateData.userId,
-          zohoId,
-          email,
-          name,
-          accessToken,
-          refreshToken,
-          accountsServer,
-          isPrimary,
-        });
-      }
+      await this.upsertZohoAccount(stateData.userId, {
+        zohoId,
+        email,
+        name,
+        accessToken,
+        refreshToken,
+        accountsServer,
+      });
       this.queueEmailFetchForConnectedAccount(stateData.userId);
       res.redirect(`${frontendUrl}/settings?zohoConnected=true`);
       return true;

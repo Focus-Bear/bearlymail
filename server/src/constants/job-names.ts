@@ -122,6 +122,10 @@ export const JOB_NAMES = {
   // KMS key, since renaming a category used to silently break name-keyed rules.
   BACKFILL_CATEGORY_RULE_IDS: "backfill-category-rule-ids",
 
+  // One-shot repair of `organizations.name` rows encrypted under an owner's
+  // per-user KMS key instead of the global key (admin-triggered, idempotent).
+  REPAIR_ORGANIZATION_NAMES: "repair-organization-names",
+
   // Admin-triggered, bounded, idempotent re-categorisation of a user's threads
   // whose category came from a now-removed over-broad deterministic rule
   // (categorySource 'rule'). Re-runs the live category-only pipeline (rules-first

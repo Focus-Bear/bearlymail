@@ -29,3 +29,19 @@ describe('buildSearchSnippet', () => {
     expect(buildSearchSnippet(undefined)).toBe('');
   });
 });
+
+describe('buildSearchSnippet — CSS leakage', () => {
+  it('previews the message, not the style block, for a tag-free HTML conversion', () => {
+    // Reported case: results read "body{ width: 100% !important; … url(data:"
+    // because the stored body is a tag-free conversion that kept its <style>
+    // text, so there was no <style> element left for the DOM path to remove.
+    const body =
+      'body{ width: 100% !important; height: 100%; margin: 0; line-height: 1.4; ' +
+      'background-color: #F0F2FA; color: #333; } url(data:image/png;base64,AAAA) ' +
+      'Invoice from Fullstack Advisory for Focus Bear Pty Ltd is attached.';
+
+    expect(buildSearchSnippet(body)).toBe(
+      'Invoice from Fullstack Advisory for Focus Bear Pty Ltd is attached.'
+    );
+  });
+});

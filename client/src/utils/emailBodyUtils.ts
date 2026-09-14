@@ -21,6 +21,57 @@ import { NODE_NAME_ANCHOR } from 'constants/strings';
  * returns e.g. an email's boilerplate `<style>` CSS (`#outlook a { padding:0 }
  * …`) verbatim, which then surfaces as the message preview snippet.
  */
+/**
+ * An unquoted CSS declaration (`line-height: 1.4`). The "unquoted" part is the
+ * discriminator against JSON: CSS property names are bare identifiers, JSON
+ * keys are quoted, so `{"total": 9}` in a real message is never mistaken for a
+ * style rule.
+ */
+const CSS_DECLARATION = String.raw`[a-zA-Z-]+\s*:\s*[^;{}"']*`;
+
+/** An optional selector or at-rule followed by a block of those declarations. */
+const CSS_RULE = new RegExp(
+  String.raw`(?:@[\w-]+[^{}]*)?[^{}]{0,200}?\{\s*(?:${CSS_DECLARATION};\s*)*${CSS_DECLARATION};?\s*\}`,
+  'g'
+);
+
+/**
+ * A block left empty once its declarations were removed, with its selector or
+ * at-rule prefix (`@media screen and (max-width:600px){ }`).
+ */
+const CSS_EMPTY_BLOCK = /(?:@[\w-]+[^{}]*)?[^{}]{0,200}?\{\s*\}/g;
+
+/** `url(data:image/png;base64,…)` — never meaningful in a text preview. */
+const CSS_DATA_URI = /url\(\s*data:[^)]*\)?/gi;
+
+/** Nested rules (e.g. inside `@media`) need one pass per level of nesting. */
+const CSS_STRIP_MAX_PASSES = 4;
+
+/**
+ * Strip CSS rule blocks out of text that is ALREADY plain — i.e. has no tags
+ * left for the DOM parser to drop `<style>` from.
+ *
+ * `domVisibleText` removes `<style>` elements, but a body stored as a tag-free
+ * conversion of an HTML mail keeps their *text*, so a preview reads
+ * `body{ width: 100% !important; height: 100%; … }` instead of the message.
+ * Only brace blocks whose contents are unquoted `prop: value` declarations are
+ * removed, so prose and JSON survive untouched.
+ */
+export function stripCssNoise(text: string): string {
+  if (!text.includes('{')) {
+    return text;
+  }
+  let stripped = text;
+  for (let pass = 0; pass < CSS_STRIP_MAX_PASSES; pass += 1) {
+    const next = stripped.replace(CSS_RULE, ' ').replace(CSS_EMPTY_BLOCK, ' ');
+    if (next === stripped) {
+      break;
+    }
+    stripped = next;
+  }
+  return stripped.replace(CSS_DATA_URI, ' ');
+}
+
 function domVisibleText(doc: Document): string {
   doc
     .querySelectorAll('style, script, head, title, noscript')
@@ -616,8 +667,11 @@ export function stripHtmlTags(html: string): string {
   }
   // No tags, but the text may still carry HTML entities (e.g. a plain-text part that
   // encoded "—" as "&mdash;") — decode those rather than returning them verbatim.
+  // It may also be a tag-free conversion of an HTML mail that kept the text of
+  // its <style> blocks; the DOM path below drops those elements, so this path
+  // has to strip the equivalent CSS itself.
   if (!html.includes('<')) {
-    return decodeHtmlEntities(html);
+    return stripCssNoise(decodeHtmlEntities(html));
   }
 
   // Replace block-level elements and line breaks with newlines before extracting text

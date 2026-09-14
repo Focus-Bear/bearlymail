@@ -7,6 +7,10 @@ import type { ProtoCategoriesService } from "../proto-categories/proto-categorie
  * (the defensive fuzzy-match path). If assigning tips the proto over the promotion threshold it is
  * promoted and its real category returned; otherwise the thread is parked in "Other" under the
  * proto. Returns null when there's no match or on error (logged, non-fatal).
+ *
+ * `exactOnly` restricts matching to the deterministic exact/alternate-name
+ * comparison, skipping the LLM fuzzy fallback. Callers set it for a
+ * HIGH-confidence pick, where a loose re-route would be worse than no match.
  */
 export async function applyDirectProtoMatch(
   deps: { protoCategoriesService: ProtoCategoriesService; logger: Logger },
@@ -16,6 +20,7 @@ export async function applyDirectProtoMatch(
     userId: string;
     workerId: string;
     lookupCategoryContextId: (name: string | null) => string | null;
+    exactOnly?: boolean;
   },
 ): Promise<{
   finalCategory: string | null;
@@ -31,11 +36,15 @@ export async function applyDirectProtoMatch(
     lookupCategoryContextId,
   } = options;
   try {
-    const directProtoMatch =
-      await protoCategoriesService.findMatchingProtoCategory(
-        userId,
-        categoryName,
-      );
+    const directProtoMatch = options.exactOnly
+      ? await protoCategoriesService.findExactProtoCategoryMatch(
+          userId,
+          categoryName,
+        )
+      : await protoCategoriesService.findMatchingProtoCategory(
+          userId,
+          categoryName,
+        );
     if (!directProtoMatch) return null;
     const updatedProto =
       await protoCategoriesService.assignThreadToProtoCategory(

@@ -483,6 +483,7 @@ export class ProtoCategoriesService {
     userId: string;
     considered?: ConsideredDuplicateCandidate[];
     excludeId?: string;
+    exactOnly?: boolean;
     onConfirmed?: (candidate: DedupCandidate) => Promise<void>;
   }): Promise<DedupCandidate | null> {
     const { suggestedName, userId, considered, excludeId, onConfirmed } =
@@ -497,6 +498,7 @@ export class ProtoCategoriesService {
       candidates,
     );
     if (exactOrAlternate) return exactOrAlternate;
+    if (params.exactOnly) return null;
 
     const match = await this.matchAgainstFullList(
       suggestedName,
@@ -659,6 +661,36 @@ export class ProtoCategoriesService {
     considered?: ConsideredDuplicateCandidate[],
     excludeProtoId?: string,
   ): Promise<ProtoCategory | null> {
+    return this.resolveProtoMatch({
+      userId,
+      suggestedName,
+      considered,
+      excludeProtoId,
+    });
+  }
+
+  /**
+   * Like {@link findMatchingProtoCategory} but matches ONLY on the
+   * deterministic exact/alternate-name comparison — no LLM fuzzy fallback. For
+   * callers that must not risk a loose re-route (a HIGH-confidence LLM pick),
+   * where the only acceptable match is "this name IS that proto's name".
+   */
+  async findExactProtoCategoryMatch(
+    userId: string,
+    suggestedName: string,
+  ): Promise<ProtoCategory | null> {
+    return this.resolveProtoMatch({ userId, suggestedName, exactOnly: true });
+  }
+
+  private async resolveProtoMatch(params: {
+    userId: string;
+    suggestedName: string;
+    considered?: ConsideredDuplicateCandidate[];
+    excludeProtoId?: string;
+    exactOnly?: boolean;
+  }): Promise<ProtoCategory | null> {
+    const { userId, suggestedName, considered, excludeProtoId, exactOnly } =
+      params;
     const activeCategories = await this.findActiveByUser(userId);
     const candidates: DedupCandidate[] = activeCategories.map((proto) => ({
       id: proto.id,
@@ -671,6 +703,7 @@ export class ProtoCategoriesService {
       userId,
       considered,
       excludeId: excludeProtoId,
+      exactOnly,
     });
     if (!match) return null;
 

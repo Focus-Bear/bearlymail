@@ -84,6 +84,8 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           provide: ProtoCategoriesService,
           useValue: {
             findMatchingProtoCategory: jest.fn().mockResolvedValue(null),
+      findExactProtoCategoryMatch: jest.fn().mockResolvedValue(null),
+            findExactProtoCategoryMatch: jest.fn().mockResolvedValue(null),
             findMatchingFullCategory: jest.fn().mockResolvedValue(null),
             assignThreadToProtoCategory: jest.fn(),
             createAndAssignToThread: jest.fn(),
@@ -416,7 +418,11 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
 
 describe("LLMPriorityResultService - resolveCategoryAndProtoCategory", () => {
   let service: LLMPriorityResultService;
-  let protoCategoriesService: { findMatchingProtoCategory: jest.Mock };
+  let protoCategoriesService: {
+    findMatchingProtoCategory: jest.Mock;
+    findExactProtoCategoryMatch: jest.Mock;
+    assignThreadToProtoCategory: jest.Mock;
+  };
 
   const githubPrCategory = {
     contextId: "ctx-gh-pr",
@@ -427,6 +433,8 @@ describe("LLMPriorityResultService - resolveCategoryAndProtoCategory", () => {
   beforeEach(async () => {
     protoCategoriesService = {
       findMatchingProtoCategory: jest.fn().mockResolvedValue(null),
+      findExactProtoCategoryMatch: jest.fn().mockResolvedValue(null),
+      assignThreadToProtoCategory: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -506,7 +514,9 @@ describe("LLMPriorityResultService - resolveCategoryAndProtoCategory", () => {
     ).toHaveBeenCalledWith("user-1", "Some Brand New Topic");
   });
 
-  it("does NOT proto-match a HIGH-confidence pick whose name doesn't resolve (leaves it Other, not mis-bucketed)", async () => {
+  it("never FUZZY-matches a HIGH-confidence pick whose name doesn't resolve", async () => {
+    // A confident pick must not be dragged into an unrelated proto by the
+    // LLM dedup matcher, so only the deterministic name comparison is allowed.
     const result = await service.resolveCategoryAndProtoCategory({
       email: { id: "email-1", emailThreadId: "thread-1" } as Email,
       thread: { protoCategoryId: null } as EmailThread,
@@ -523,7 +533,45 @@ describe("LLMPriorityResultService - resolveCategoryAndProtoCategory", () => {
     expect(
       protoCategoriesService.findMatchingProtoCategory,
     ).not.toHaveBeenCalled();
+    expect(
+      protoCategoriesService.findExactProtoCategoryMatch,
+    ).toHaveBeenCalledWith("user-1", "Some Brand New Topic");
     expect(result.categoryId).toBeNull();
+  });
+
+  it("rescues a HIGH-confidence pick that IS a proto category's own name", async () => {
+    // Prod: the LLM confidently returns a PROTO's name (e.g. "📝 Meeting
+    // Summaries & Recaps"). It resolves to no real category, and the old
+    // HIGH-confidence skip left BOTH ids null — the thread lost its category
+    // and the proto never accrued threads toward promotion.
+    protoCategoriesService.findExactProtoCategoryMatch.mockResolvedValue({
+      id: "proto-7",
+      name: "📝 Meeting Summaries & Recaps",
+    });
+    protoCategoriesService.assignThreadToProtoCategory.mockResolvedValue({
+      id: "proto-7",
+      name: "📝 Meeting Summaries & Recaps",
+      isPromoted: false,
+    });
+
+    const result = await service.resolveCategoryAndProtoCategory({
+      email: { id: "email-1", emailThreadId: "thread-1" } as Email,
+      thread: { protoCategoryId: null } as EmailThread,
+      llmResult: {
+        category: "📝 Meeting Summaries & Recaps",
+        categoryConfidence: "HIGH",
+      } as never,
+      userId: "user-1",
+      workerId: "w1",
+      knownCategoryNames: [],
+      contexts: [githubPrCategory],
+    });
+
+    expect(
+      protoCategoriesService.assignThreadToProtoCategory,
+    ).toHaveBeenCalledWith("proto-7", "thread-1");
+    expect(result.protoCategoryId).toBe("proto-7");
+    expect(result.finalCategory).toBe("Other");
   });
 
   it("uses the matched rule's categoryId when its category NAME no longer resolves (renamed), instead of falling to Other", async () => {
@@ -583,6 +631,7 @@ describe("LLMPriorityResultService - applyProtoSuggestion", () => {
   let protoCategoriesService: {
     findMatchingFullCategory: jest.Mock;
     findMatchingProtoCategory: jest.Mock;
+    findExactProtoCategoryMatch: jest.Mock;
     assignThreadToProtoCategory: jest.Mock;
     createAndAssignToThread: jest.Mock;
   };
@@ -601,6 +650,7 @@ describe("LLMPriorityResultService - applyProtoSuggestion", () => {
     protoCategoriesService = {
       findMatchingFullCategory: jest.fn().mockResolvedValue(null),
       findMatchingProtoCategory: jest.fn().mockResolvedValue(null),
+      findExactProtoCategoryMatch: jest.fn().mockResolvedValue(null),
       assignThreadToProtoCategory: jest.fn(),
       createAndAssignToThread: jest.fn(),
     };

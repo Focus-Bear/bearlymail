@@ -2,6 +2,7 @@ import { CompositeCategoryRuleSpec } from "../database/entities/category-rule.en
 import {
   countMatchesInRows,
   dropContradictoryExclusions,
+  fetchRecentEmailsForMatching,
   type MatchScanRow,
   mergeExclusionsIntoSpec,
   specHasExclusion,
@@ -193,5 +194,27 @@ describe("dropContradictoryExclusions", () => {
       subjectNotContainsAny: ["Issue #"],
     };
     expect(dropContradictoryExclusions(spec)).toBe(spec);
+  });
+});
+
+describe("fetchRecentEmailsForMatching", () => {
+  it("selects the primary key so TypeORM's relation pagination stays valid", async () => {
+    // A `find` that combines `relations` with `take` is paginated by TypeORM
+    // through a DISTINCT sub-select keyed on the primary column. Dropping `id`
+    // from the projection therefore produced, in prod,
+    // `column distinctAlias.Email_id does not exist` — which threw inside the
+    // persist gate and stopped EVERY auto-generated rule from being saved.
+    const emailRepository = { find: jest.fn().mockResolvedValue([]) };
+
+    await fetchRecentEmailsForMatching(
+      emailRepository as never,
+      "user-1",
+      50,
+    );
+
+    const [options] = emailRepository.find.mock.calls[0];
+    expect(options.relations).toBeDefined();
+    expect(options.take).toBe(50);
+    expect(options.select.id).toBe(true);
   });
 });

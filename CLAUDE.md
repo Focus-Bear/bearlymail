@@ -853,6 +853,10 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Consent tracking versions                 |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |
 | `ZOHO_CLIQ_*`                                                 | No       | Zoho Cliq notifications                   |
+| `PUSHER_APP_ID`                                               | No       | Pusher app id (realtime events)           |
+| `PUSHER_KEY`                                                  | No       | Pusher key (also exposed to the client)   |
+| `PUSHER_SECRET`                                               | No       | Pusher secret (signs channel auth)        |
+| `PUSHER_CLUSTER`                                              | No       | Pusher cluster, e.g. `ap4`                |
 
 ### Frontend (`client/.env`)
 
@@ -861,6 +865,8 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `REACT_APP_API_URL`            | Yes      | Backend URL (default: `http://localhost:3001`) |
 | `REACT_APP_POSTHOG_API_KEY`    | No       | PostHog analytics                              |
 | `REACT_APP_REVENUECAT_API_KEY` | No       | RevenueCat public key                          |
+| `VITE_PUSHER_KEY`              | No       | Pusher key; must match server `PUSHER_KEY`     |
+| `VITE_PUSHER_CLUSTER`          | No       | Pusher cluster; must match `PUSHER_CLUSTER`    |
 
 ### Environment Variable Impact Matrix
 
@@ -880,6 +886,7 @@ This table shows what breaks if a required environment variable is missing:
 | **GitHub integration**                 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`                | ⚠️ GitHub PR/issue metadata extraction disabled        |
 | **Subscriptions**                      | `REVENUECAT_API_KEY`                                              | ⚠️ Subscription features disabled                      |
 | **Analytics**                          | `REACT_APP_POSTHOG_API_KEY`                                       | ⚠️ No usage analytics (app works fine)                 |
+| **Realtime events (contact sync, background send outcomes)** | All four `PUSHER_*` server vars **and** both `VITE_PUSHER_*` client vars | ⚠️ `PusherService.trigger()` returns early and every event is silently dropped: contact-sync progress never updates, and a failed background send is never retracted — the user keeps the optimistic "sent" state. |
 | **Waitlist notifications**             | `ZOHO_CLIQ_*` variables                                           | ⚠️ No Slack notifications for signups (app works fine) |
 | **CORS**                               | `FRONTEND_URL`                                                    | ❌ Frontend cannot call API (CORS errors)              |
 | **User's own OpenAI key**              | User sets `openAiApiKey` in profile                               | ⚠️ Uses system OpenAI key instead (if available)       |

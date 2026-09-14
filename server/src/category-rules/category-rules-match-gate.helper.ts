@@ -73,6 +73,12 @@ export async function fetchRecentEmailsForMatching(
     take: scanCount,
     relations: { thread: true },
     select: {
+      // `id` is unused by the caller but MUST be selected: a `find` that
+      // combines `relations` with `take` makes TypeORM paginate via a DISTINCT
+      // sub-select that orders on the primary key, so omitting it produces
+      // `column distinctAlias.Email_id does not exist` at runtime and every
+      // rule-persist attempt throws.
+      id: true,
       from: true,
       subject: true,
       body: true,

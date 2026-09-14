@@ -11,15 +11,24 @@ import { mockPartial } from "../test/helpers/mock-utils";
 import { SnoozeService } from "./snooze.service";
 
 jest.mock("chrono-node", () => {
-  const parseDate = jest.fn();
+  const parse = jest.fn();
   // The parser selects chrono.<locale>.casual; share one mock so the existing
-  // `chrono.parseDate` assertions still control the default (English) path.
+  // `chrono.parse` assertions still control the default (English) path.
   return {
-    parseDate,
-    en: { casual: { parseDate } },
-    es: { casual: { parseDate } },
+    parse,
+    en: { casual: { parse } },
+    es: { casual: { parse } },
   };
 });
+
+/**
+ * A chrono result carrying an explicit time, so `parseDurationToDate` returns
+ * it unchanged rather than snapping a date-only phrase to the default hour.
+ */
+const chronoResultFor = (date: Date | null) =>
+  date === null
+    ? []
+    : [{ start: { date: () => new Date(date), isCertain: () => true } }];
 
 describe("SnoozeService", () => {
   let service: SnoozeService;
@@ -87,7 +96,7 @@ describe("SnoozeService", () => {
     threadRepository = module.get(getRepositoryToken(EmailThread));
     emailProviderManager = module.get(EmailProviderManager);
     jest.clearAllMocks();
-    (chrono.parseDate as jest.Mock).mockReturnValue(null);
+    (chrono.parse as jest.Mock).mockReturnValue([]);
   });
 
   describe("snoozeEmail", () => {
@@ -290,7 +299,7 @@ describe("SnoozeService", () => {
     it("should use chrono for natural language dates", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       const chronoDate = new Date("2024-01-15T10:00:00Z");
-      (chrono.parseDate as jest.Mock).mockReturnValue(chronoDate);
+      (chrono.parse as jest.Mock).mockReturnValue(chronoResultFor(chronoDate));
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
@@ -308,7 +317,7 @@ describe("SnoozeService", () => {
     it("should parse time-of-day (5pm) via chrono", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       const expected5pm = new Date("2024-01-01T17:00:00Z");
-      (chrono.parseDate as jest.Mock).mockReturnValue(expected5pm);
+      (chrono.parse as jest.Mock).mockReturnValue(chronoResultFor(expected5pm));
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
@@ -322,7 +331,7 @@ describe("SnoozeService", () => {
     it("should parse day and time (Wed 3pm) via chrono", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       const expectedWed3pm = new Date("2024-01-03T15:00:00Z");
-      (chrono.parseDate as jest.Mock).mockReturnValue(expectedWed3pm);
+      (chrono.parse as jest.Mock).mockReturnValue(chronoResultFor(expectedWed3pm));
       jest.useFakeTimers();
       jest.setSystemTime(now);
 

@@ -5,16 +5,32 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { durationToHours, parseDurationToDate } from "./parse-duration";
 
 jest.mock("chrono-node", () => {
-  const enParseDate = jest.fn();
-  const esParseDate = jest.fn();
+  const enParse = jest.fn();
+  const esParse = jest.fn();
   return {
-    en: { casual: { parseDate: enParseDate } },
-    es: { casual: { parseDate: esParseDate } },
+    en: { casual: { parse: enParse } },
+    es: { casual: { parse: esParse } },
   };
 });
 
-const mockedParseDate = chrono.en.casual.parseDate as jest.Mock;
-const mockedEsParseDate = chrono.es.casual.parseDate as jest.Mock;
+const mockedParse = chrono.en.casual.parse as jest.Mock;
+const mockedEsParse = chrono.es.casual.parse as jest.Mock;
+
+/**
+ * A chrono result for a phrase that named an explicit time ("5pm"), so the
+ * parser leaves the hour exactly as chrono returned it.
+ */
+const certainTimeResult = (date: Date) => [
+  { start: { date: () => new Date(date), isCertain: () => true } },
+];
+
+/**
+ * A chrono result for a date-only phrase ("tomorrow"): chrono copies the
+ * reference clock across and marks the hour uncertain.
+ */
+const dateOnlyResult = (date: Date) => [
+  { start: { date: () => new Date(date), isCertain: () => false } },
+];
 
 describe("parse-duration", () => {
   // Fixed reference time so relative durations and day-names are deterministic.
@@ -23,8 +39,8 @@ describe("parse-duration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default: chrono can't parse the input, so relative/day-name handling runs.
-    mockedParseDate.mockReturnValue(null);
-    mockedEsParseDate.mockReturnValue(null);
+    mockedParse.mockReturnValue([]);
+    mockedEsParse.mockReturnValue([]);
   });
 
   describe("parseDurationToDate", () => {
@@ -65,7 +81,7 @@ describe("parse-duration", () => {
       june26.setMonth(5, 26);
       june26.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
       expect(parseDurationToDate("26th", now)).toEqual(june26);
-      expect(mockedParseDate).not.toHaveBeenCalled();
+      expect(mockedParse).not.toHaveBeenCalled();
     });
 
     it("skips months without the requested day", () => {
@@ -118,20 +134,58 @@ describe("parse-duration", () => {
 
     it("defers to chrono for natural-language input", () => {
       const chronoResult = new Date(now.getTime() + 5 * MILLISECONDS.HOUR);
-      mockedParseDate.mockReturnValue(chronoResult);
+      mockedParse.mockReturnValue(certainTimeResult(chronoResult));
 
-      expect(parseDurationToDate("in 5 hours", now)).toBe(chronoResult);
-      expect(mockedParseDate).toHaveBeenCalledWith("in 5 hours", now);
+      expect(parseDurationToDate("in 5 hours", now).getTime()).toBe(
+        chronoResult.getTime(),
+      );
+      expect(mockedParse).toHaveBeenCalledWith("in 5 hours", now);
     });
 
     it("expands 'tom' shorthand to tomorrow before handing to chrono", () => {
       // chrono doesn't recognise "tom"; without the alias it would hit the
       // 1-hour fallback and resurface almost immediately.
       const chronoResult = new Date(now.getTime() + MILLISECONDS.DAY);
-      mockedParseDate.mockReturnValue(chronoResult);
+      mockedParse.mockReturnValue(certainTimeResult(chronoResult));
 
-      expect(parseDurationToDate("tom", now)).toBe(chronoResult);
-      expect(mockedParseDate).toHaveBeenCalledWith("tomorrow", now);
+      expect(parseDurationToDate("tom", now).getTime()).toBe(
+        chronoResult.getTime(),
+      );
+      expect(mockedParse).toHaveBeenCalledWith("tomorrow", now);
+    });
+
+    it("snaps a date-only phrase to the default hour instead of the current time", () => {
+      // chrono copies the reference clock into "tomorrow", so without the snap
+      // a 16:29 snooze reappears tomorrow at 16:29 rather than the morning.
+      // Local-time constructors: the snap compares local hours/minutes.
+      const lateAfternoon = new Date(2026, 4, 26, 16, 29, 0, 0);
+      mockedParse.mockReturnValue(
+        dateOnlyResult(new Date(2026, 4, 27, 16, 29, 0, 0)),
+      );
+
+      const result = parseDurationToDate("tomorrow", lateAfternoon);
+
+      expect(result.getHours()).toBe(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR);
+      expect(result.getMinutes()).toBe(0);
+      expect(result.getDate()).toBe(27);
+    });
+
+    it("leaves an explicit time alone", () => {
+      const fivePm = new Date(2026, 4, 26, 17, 0, 0, 0);
+      mockedParse.mockReturnValue(certainTimeResult(fivePm));
+
+      expect(parseDurationToDate("5pm", now).getTime()).toBe(fivePm.getTime());
+    });
+
+    it("leaves a phrase chrono gave its own implied hour alone", () => {
+      // "tonight" resolves to 22:00, which is neither certain nor the caller's
+      // clock — snapping it to 8am would move the snooze into the past.
+      const tonight = new Date(2026, 4, 26, 22, 0, 0, 0);
+      mockedParse.mockReturnValue(dateOnlyResult(tonight));
+
+      expect(parseDurationToDate("tonight", now).getTime()).toBe(
+        tonight.getTime(),
+      );
     });
 
     it("falls back to one hour out when nothing parses", () => {
@@ -164,13 +218,13 @@ describe("parse-duration", () => {
 
     it("uses chrono's Spanish parser when locale is es", () => {
       const chronoResult = new Date(now.getTime() + 5 * MILLISECONDS.HOUR);
-      mockedEsParseDate.mockReturnValue(chronoResult);
+      mockedEsParse.mockReturnValue(certainTimeResult(chronoResult));
 
-      expect(parseDurationToDate("próximo lunes", now, "es")).toBe(
-        chronoResult,
+      expect(parseDurationToDate("próximo lunes", now, "es").getTime()).toBe(
+        chronoResult.getTime(),
       );
-      expect(mockedEsParseDate).toHaveBeenCalledWith("próximo lunes", now);
-      expect(mockedParseDate).not.toHaveBeenCalled();
+      expect(mockedEsParse).toHaveBeenCalledWith("próximo lunes", now);
+      expect(mockedParse).not.toHaveBeenCalled();
     });
   });
 
@@ -184,15 +238,15 @@ describe("parse-duration", () => {
     });
 
     it("never returns less than one hour (past or sub-hour targets)", () => {
-      mockedParseDate.mockReturnValue(
-        new Date(now.getTime() - MILLISECONDS.DAY),
+      mockedParse.mockReturnValue(
+        certainTimeResult(new Date(now.getTime() - MILLISECONDS.DAY)),
       );
       expect(durationToHours("yesterday", now)).toBe(1);
     });
 
     it("converts a chrono-parsed absolute time to hours from now", () => {
-      mockedParseDate.mockReturnValue(
-        new Date(now.getTime() + 6 * MILLISECONDS.HOUR),
+      mockedParse.mockReturnValue(
+        certainTimeResult(new Date(now.getTime() + 6 * MILLISECONDS.HOUR)),
       );
       expect(durationToHours("5pm", now)).toBe(6);
     });

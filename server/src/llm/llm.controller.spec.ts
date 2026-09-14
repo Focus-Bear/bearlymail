@@ -130,6 +130,8 @@ describe("LLMController (Integration)", () => {
         userId: "test-user-id",
         scheduledSendAt: null,
         currentTime: null,
+        attachmentFilenames: [],
+        recipients: [],
       });
     });
 
@@ -149,6 +151,8 @@ describe("LLMController (Integration)", () => {
         userId: "test-user-id",
         scheduledSendAt: null,
         currentTime: null,
+        attachmentFilenames: [],
+        recipients: [],
       });
     });
 
@@ -168,7 +172,9 @@ describe("LLMController (Integration)", () => {
       expect(response.body).toEqual({
         isOk: true,
         suggestions: [],
+        attachmentReminder: null,
         inappropriateTiming: null,
+        recipientMismatch: null,
       });
       // Should not call checkTone service when no rules
       expect(mockLLMService.checkTone).not.toHaveBeenCalled();
@@ -192,6 +198,8 @@ describe("LLMController (Integration)", () => {
         userId: "test-user-id",
         scheduledSendAt: scheduledTime,
         currentTime: null,
+        attachmentFilenames: [],
+        recipients: [],
       });
     });
 
@@ -213,6 +221,8 @@ describe("LLMController (Integration)", () => {
         userId: "test-user-id",
         scheduledSendAt: null,
         currentTime,
+        attachmentFilenames: [],
+        recipients: [],
       });
     });
 
@@ -236,6 +246,30 @@ describe("LLMController (Integration)", () => {
         userId: "test-user-id",
         scheduledSendAt: scheduledTime,
         currentTime,
+        attachmentFilenames: [],
+        recipients: [],
+      });
+    });
+
+    it("should pass composer attachments and recipients to checkTone service", async () => {
+      await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "See attached",
+          rules: ["Be professional"],
+          attachmentFilenames: ["reconciliation.csv"],
+          recipients: [{ email: "rob@acme.com", name: "Rob Smith" }],
+        })
+        .expect(201);
+
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith({
+        text: "See attached",
+        rules: ["Be professional"],
+        userId: "test-user-id",
+        scheduledSendAt: null,
+        currentTime: null,
+        attachmentFilenames: ["reconciliation.csv"],
+        recipients: [{ email: "rob@acme.com", name: "Rob Smith" }],
       });
     });
 
@@ -260,6 +294,7 @@ describe("LLMController (Integration)", () => {
         suggestions: [],
         attachmentReminder: null,
         inappropriateTiming: null,
+        recipientMismatch: null,
       });
     });
 

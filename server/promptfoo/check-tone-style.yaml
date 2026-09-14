@@ -11,6 +11,13 @@ providers:
 prompts:
   - file://prompts/check-tone-style.md
 
+# The service always renders these two lines, so every case gets them. Cases
+# that exercise the attachment or recipient rules override them.
+defaultTest:
+  vars:
+    attachmentsSummary: "(none)"
+    recipientsSummary: "(unknown)"
+
 tests:
   - vars:
       rules:
@@ -245,3 +252,108 @@ tests:
             throw new Error(`Test failed: ${e.message}`);
           }
     description: "inappropriateTiming must be null when no scheduledSendAt is provided"
+
+  - vars:
+      rules:
+        - "Be professional"
+      text: "<p>Hi Sam,</p><p>Please find the reconciliation attached.</p><p>-J</p>"
+      attachmentsSummary: "Itemized_payout_reconciliation_AUD.csv"
+      recipientsSummary: "Sam Jones <sam@acme.com>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (parsed.attachmentReminder != null) {
+              throw new Error(
+                `attachmentReminder must be null when a file is attached, got: ${JSON.stringify(parsed.attachmentReminder)}`
+              );
+            }
+            const ATTACHMENT_PATTERN = /attach/i;
+            const nags = (parsed.suggestions || []).filter(s => ATTACHMENT_PATTERN.test(s));
+            if (nags.length > 0) {
+              throw new Error(
+                'A missing-attachment complaint must never appear in suggestions when a file is attached: ' + JSON.stringify(nags)
+              );
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Never claim a missing attachment when the draft already carries one"
+
+  - vars:
+      rules:
+        - "Be professional"
+      text: "<p>Hi Sam,</p><p>Please find the reconciliation attached.</p><p>-J</p>"
+      attachmentsSummary: "(none)"
+      recipientsSummary: "Sam Jones <sam@acme.com>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.attachmentReminder) {
+              throw new Error('Expected attachmentReminder when the draft says "attached" but nothing is attached');
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Remind about a missing attachment when the draft references one and none is attached"
+
+  - vars:
+      rules:
+        - "Be professional"
+      text: "<p>Hi Peter,</p><p>Thanks for hosting us at the University of Canberra last week.</p><p>-J</p>"
+      attachmentsSummary: "(none)"
+      recipientsSummary: "Rob Smith <rob@sydney.edu.au>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.recipientMismatch) {
+              throw new Error(
+                'Expected recipientMismatch for a draft greeting "Peter" addressed to Rob Smith at a different university'
+              );
+            }
+            const MISMATCH_PATTERN = /recipient|greeting|copied|peter|rob|canberra|sydney/i;
+            if (!MISMATCH_PATTERN.test(parsed.recipientMismatch)) {
+              throw new Error(`recipientMismatch should name what mismatched, got: ${parsed.recipientMismatch}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Flag a copy-paste error when the greeting and organisation contradict the recipient"
+
+  - vars:
+      rules:
+        - "Be professional"
+      text: "<p>Hi Rob,</p><p>Peter asked me to forward the notes from the Sydney session.</p><p>-J</p>"
+      attachmentsSummary: "(none)"
+      recipientsSummary: "Rob Smith <rob@sydney.edu.au>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (parsed.recipientMismatch != null) {
+              throw new Error(
+                `recipientMismatch must be null when the greeting matches the recipient and other names are third parties, got: ${JSON.stringify(parsed.recipientMismatch)}`
+              );
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Do not flag a third-party name when the greeting matches the recipient"

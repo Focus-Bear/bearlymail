@@ -22,9 +22,9 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
-import { resolveFollowUpRecipient } from "./follow-up-recipient.util";
-import { resolveUserDisplayName } from "../utils/user-display-fields.util";
 import { followUpDaysFromHours } from "../utils/expected-reply.util";
+import { resolveUserDisplayName } from "../utils/user-display-fields.util";
+import { resolveFollowUpRecipient } from "./follow-up-recipient.util";
 
 @Injectable()
 export class FollowUpsService {

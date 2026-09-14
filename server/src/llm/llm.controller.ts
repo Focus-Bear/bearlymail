@@ -22,6 +22,7 @@ import {
 } from "../utils/user-display-fields.util";
 import { validateAnthropicKey } from "./anthropic-key-validator";
 import { LLMService } from "./llm.service";
+import type { ToneCheckRecipient } from "./llm-tone.types";
 
 @Controller("llm")
 @UseGuards(JwtAuthGuard, AiCapacityGuard)
@@ -50,6 +51,8 @@ export class LLMController {
       rules?: string[];
       currentTime?: string | null;
       scheduledSendAt?: string | null;
+      attachmentFilenames?: string[];
+      recipients?: ToneCheckRecipient[];
     },
   ) {
     // Fetch user tone settings if rules not provided
@@ -65,7 +68,9 @@ export class LLMController {
         isOk: true,
         suggestions: [],
         revisedText: undefined,
+        attachmentReminder: null,
         inappropriateTiming: null,
+        recipientMismatch: null,
       };
     }
 
@@ -75,11 +80,13 @@ export class LLMController {
       userId: req.user.userId,
       scheduledSendAt: body.scheduledSendAt ?? null,
       currentTime: body.currentTime ?? null,
+      attachmentFilenames: body.attachmentFilenames ?? [],
+      recipients: body.recipients ?? [],
     });
 
     // Suppress low-significance results — trivial rewording should never block a send.
-    // Preserve attachmentReminder and inappropriateTiming even when isOk is forced true
-    // (both are sender-only fields independent of the tone check gate).
+    // Preserve attachmentReminder, inappropriateTiming and recipientMismatch even when
+    // isOk is forced true (all three are sender-only fields independent of the tone gate).
     if (result.significance === "low") {
       return {
         isOk: true,
@@ -87,6 +94,7 @@ export class LLMController {
         revisedText: undefined,
         attachmentReminder: result.attachmentReminder ?? null,
         inappropriateTiming: result.inappropriateTiming ?? null,
+        recipientMismatch: result.recipientMismatch ?? null,
       };
     }
 

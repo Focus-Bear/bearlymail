@@ -21,6 +21,23 @@ describe('parseDurationToDate', () => {
     expect(parseDurationToDate('2w', now)).toEqual(new Date(2026, 5, 10, 8, 0, 0));
   });
 
+  it('snaps date-only phrases to the default 8am instead of the current time', () => {
+    // chrono copies the reference clock into a date-only phrase, so "tomorrow"
+    // typed at 10:00 would otherwise mean "tomorrow at 10:00".
+    expect(parseDurationToDate('tomorrow', now)).toEqual(new Date(2026, 4, 28, 8, 0, 0));
+    expect(parseDurationToDate('in 2 days', now)).toEqual(new Date(2026, 4, 29, 8, 0, 0));
+  });
+
+  it('keeps an explicitly named time', () => {
+    expect(parseDurationToDate('5pm', now)).toEqual(new Date(2026, 4, 27, 17, 0, 0));
+    expect(parseDurationToDate('tomorrow at 9am', now)).toEqual(new Date(2026, 4, 28, 9, 0, 0));
+  });
+
+  it('keeps a phrase chrono gives its own implied hour', () => {
+    // "tonight" means 22:00; snapping it to 8am would land in the past.
+    expect(parseDurationToDate('tonight', now)).toEqual(new Date(2026, 4, 27, 22, 0, 0));
+  });
+
   it('parses minute durations regardless of count', () => {
     expect(parseDurationToDate('90m', now)).toEqual(new Date(2026, 4, 27, 11, 30, 0));
     expect(parseDurationToDate('13m', now)).toEqual(new Date(2026, 4, 27, 10, 13, 0));
@@ -62,10 +79,10 @@ describe('parseDurationToDate', () => {
     expect(parseDurationToDate('mon', now)).toEqual(new Date(2026, 5, 1, 8, 0, 0));
   });
 
-  it('parses "tom" shorthand as tomorrow (chrono keeps the time of day)', () => {
-    // now is Wed 10:00 → "tom" expands to "tomorrow" → Thu 2026-05-28 at 10:00.
+  it('parses "tom" shorthand as tomorrow morning', () => {
+    // now is Wed 10:00 → "tom" expands to "tomorrow" → Thu 2026-05-28 at 08:00.
     // Without the alias chrono returns null and the snooze falls back to +1h.
-    expect(parseDurationToDate('tom', now)).toEqual(new Date(2026, 4, 28, 10, 0, 0));
+    expect(parseDurationToDate('tom', now)).toEqual(new Date(2026, 4, 28, 8, 0, 0));
   });
 
   it('returns null for unparseable input', () => {

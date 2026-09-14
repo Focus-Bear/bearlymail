@@ -1,4 +1,5 @@
 import * as chrono from "chrono-node";
+import type { ParsedResult } from "chrono-node";
 
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -115,6 +116,37 @@ function addCalendarDays(from: Date, days: number): Date {
 }
 
 /**
+ * chrono fills a date-only phrase ("tomorrow", "next week", "in 2 days") with
+ * the reference clock time, so "tomorrow" typed at 16:29 means "tomorrow at
+ * 16:29" rather than the start of the day. Snap those to the same default hour
+ * the day-name and "3d"/"2w" paths already use.
+ *
+ * Only phrases that carried the clock across untouched are snapped: an explicit
+ * time ("5pm", "tomorrow at 9am") is certain, and a phrase chrono gave its own
+ * implied hour ("tonight" → 22:00, "next monday" → 12:00) already means
+ * something specific and must be left alone — snapping those could even move
+ * the result into the past.
+ */
+function snapDateOnlyResultToDefaultHour(
+  result: ParsedResult,
+  now: Date,
+): Date {
+  const parsed = result.start.date();
+  const carriedReferenceClock =
+    parsed.getHours() === now.getHours() &&
+    parsed.getMinutes() === now.getMinutes();
+  const isLaterDay = parsed.toDateString() !== now.toDateString();
+  if (
+    !result.start.isCertain("hour") &&
+    carriedReferenceClock &&
+    isLaterDay
+  ) {
+    parsed.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+  }
+  return parsed;
+}
+
+/**
  * Parses a free-text duration/time into an absolute Date.
  *
  * Supports the same syntax as the snooze input so that snooze and reply
@@ -190,9 +222,9 @@ export function parseDurationToDate(
   }
 
   const parser = CHRONO_BY_LOCALE[base] ?? CHRONO_BY_LOCALE.en;
-  const parsed = parser.parseDate(normalized, now);
-  if (parsed) {
-    return parsed;
+  const [result] = parser.parse(normalized, now);
+  if (result) {
+    return snapDateOnlyResultToDefaultHour(result, now);
   }
 
   return new Date(now.getTime() + MILLISECONDS.HOUR);

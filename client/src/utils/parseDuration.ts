@@ -121,6 +121,28 @@ function addCalendarDays(from: Date, days: number): Date {
  * so the inline preview matches the follow-up time the backend will actually use.
  * Returns null when the input is blank or cannot be parsed (no follow-up).
  */
+/**
+ * chrono fills a date-only phrase ("tomorrow", "next week", "in 2 days") with
+ * the reference clock time, so "tomorrow" typed at 16:29 means "tomorrow at
+ * 16:29" rather than the start of the day. Snap those to the same default hour
+ * the day-name and "3d"/"2w" paths already use. Mirrors the server parser.
+ *
+ * Only phrases that carried the clock across untouched are snapped: an explicit
+ * time ("5pm", "tomorrow at 9am") is certain, and a phrase chrono gave its own
+ * implied hour ("tonight" -> 22:00, "next monday" -> 12:00) already means
+ * something specific and must be left alone.
+ */
+const snapDateOnlyResultToDefaultHour = (result: chrono.ParsedResult, now: Date): Date => {
+  const parsed = result.start.date();
+  const carriedReferenceClock =
+    parsed.getHours() === now.getHours() && parsed.getMinutes() === now.getMinutes();
+  const isLaterDay = parsed.toDateString() !== now.toDateString();
+  if (!result.start.isCertain('hour') && carriedReferenceClock && isLaterDay) {
+    parsed.setHours(DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+  }
+  return parsed;
+};
+
 export function parseDurationToDate(
   duration: string,
   now: Date = new Date(),
@@ -175,9 +197,9 @@ export function parseDurationToDate(
   }
 
   const parser = CHRONO_BY_LOCALE[base] ?? CHRONO_BY_LOCALE.en;
-  const parsed = parser.parseDate(normalized, now);
-  if (parsed) {
-    return parsed;
+  const [result] = parser.parse(normalized, now);
+  if (result) {
+    return snapDateOnlyResultToDefaultHour(result, now);
   }
 
   return null;

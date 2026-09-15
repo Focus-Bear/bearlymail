@@ -5,10 +5,10 @@ import { Response } from "express";
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
-import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -83,8 +83,8 @@ describe("AuthController OAuth callbacks", () => {
   // The real service wraps the task in the owner's KMS key; the tests only need
   // the task to run, plus the ability to assert it was wrapped at all.
   const mockUserEncryptionService = {
-    withUserKey: jest.fn(
-      (_userId: string, task: () => Promise<unknown>) => task(),
+    withUserKey: jest.fn((_userId: string, task: () => Promise<unknown>) =>
+      task(),
     ),
   };
 
@@ -370,7 +370,6 @@ describe("AuthController OAuth callbacks", () => {
       );
       expect(callOrder).toEqual(["withUserKey", "findAllByUser"]);
     });
-
 
     it("should redirect to the auth-error page when the guard reports an error", async () => {
       const res = createMockResponse();

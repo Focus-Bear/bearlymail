@@ -206,11 +206,7 @@ describe("fetchRecentEmailsForMatching", () => {
     // persist gate and stopped EVERY auto-generated rule from being saved.
     const emailRepository = { find: jest.fn().mockResolvedValue([]) };
 
-    await fetchRecentEmailsForMatching(
-      emailRepository as never,
-      "user-1",
-      50,
-    );
+    await fetchRecentEmailsForMatching(emailRepository as never, "user-1", 50);
 
     const [options] = emailRepository.find.mock.calls[0];
     expect(options.relations).toBeDefined();

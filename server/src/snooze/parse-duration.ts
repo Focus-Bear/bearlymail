@@ -1,5 +1,5 @@
-import * as chrono from "chrono-node";
 import type { ParsedResult } from "chrono-node";
+import * as chrono from "chrono-node";
 
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -136,11 +136,7 @@ function snapDateOnlyResultToDefaultHour(
     parsed.getHours() === now.getHours() &&
     parsed.getMinutes() === now.getMinutes();
   const isLaterDay = parsed.toDateString() !== now.toDateString();
-  if (
-    !result.start.isCertain("hour") &&
-    carriedReferenceClock &&
-    isLaterDay
-  ) {
+  if (!result.start.isCertain("hour") && carriedReferenceClock && isLaterDay) {
     parsed.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
   }
   return parsed;

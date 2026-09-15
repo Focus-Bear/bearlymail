@@ -456,7 +456,7 @@ describe("getInboxSummary — follow-up membership does not depend on includeThr
       query: jest.fn(async (sql: string) => {
         const projectsThreadId =
           selectClauseOf(sql).includes('thread."threadId"');
-        const { threadId, ...withoutThreadId } = FOLLOW_UP_ROW;
+        const { threadId: _threadId, ...withoutThreadId } = FOLLOW_UP_ROW;
         return [projectsThreadId ? FOLLOW_UP_ROW : withoutThreadId];
       }),
       find: jest.fn().mockResolvedValue([]),

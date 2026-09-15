@@ -97,17 +97,12 @@ export class EmailInboxService {
     const needsUserSentLastFilter =
       mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP;
 
-    const threadIdSelect = filters?.includeThreadIds
-      ? ', thread."threadId"'
-      : "";
-
     const rows = await this.querySummaryRows({
       userId,
       mode,
       threadFilter,
       additionalFilters,
       queryParams,
-      threadIdSelect,
     });
 
     const userEmailLower =
@@ -172,6 +167,12 @@ export class EmailInboxService {
    *
    * Extracted to keep getInboxSummary under the max-lines-per-function limit.
    *
+   * `thread."threadId"` is ALWAYS selected, regardless of the caller's
+   * `includeThreadIds`: follow-up membership is keyed on it (a row without one
+   * is dropped by the shared follow-up rule), so omitting it silently zeroed the
+   * Follow-Up tab count. `includeThreadIds` decides only whether the ids are
+   * RETURNED to the caller.
+   *
    * fix(#1554): both lateral subqueries use CROSS JOIN LATERAL with
    * em."userId" = $1 so that only the current user's emails are considered —
    * matching the behaviour of runInboxQuery() and preventing tab-count inflation
@@ -183,7 +184,6 @@ export class EmailInboxService {
     threadFilter: string;
     additionalFilters: string;
     queryParams: (string | number)[];
-    threadIdSelect: string;
   }): Promise<
     {
       categoryName: string | null;
@@ -198,13 +198,7 @@ export class EmailInboxService {
       snoozeUntil?: Date | null;
     }[]
   > {
-    const {
-      mode,
-      threadFilter,
-      additionalFilters,
-      queryParams,
-      threadIdSelect,
-    } = opts;
+    const { mode, threadFilter, additionalFilters, queryParams } = opts;
     return this.emailThreadRepository.query(
       `SELECT thread."categoryId", uc."contextValue" AS "categoryName",
               latest_email."latestFrom",
@@ -212,7 +206,7 @@ export class EmailInboxService {
               latest_email."isSnoozed", latest_email."snoozeUntil",
               thread."keepInAction",
               thread_labels."allLabels",
-              thread."priorityScore"${threadIdSelect}
+              thread."priorityScore", thread."threadId"
        FROM email_threads thread
        ${buildUserCategoryJoinSql("$1")}
        CROSS JOIN LATERAL (

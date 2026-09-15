@@ -331,7 +331,9 @@ describe("SnoozeService", () => {
     it("should parse day and time (Wed 3pm) via chrono", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       const expectedWed3pm = new Date("2024-01-03T15:00:00Z");
-      (chrono.parse as jest.Mock).mockReturnValue(chronoResultFor(expectedWed3pm));
+      (chrono.parse as jest.Mock).mockReturnValue(
+        chronoResultFor(expectedWed3pm),
+      );
       jest.useFakeTimers();
       jest.setSystemTime(now);
 

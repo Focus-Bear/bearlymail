@@ -84,7 +84,7 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           provide: ProtoCategoriesService,
           useValue: {
             findMatchingProtoCategory: jest.fn().mockResolvedValue(null),
-      findExactProtoCategoryMatch: jest.fn().mockResolvedValue(null),
+            findExactProtoCategoryMatch: jest.fn().mockResolvedValue(null),
             findExactProtoCategoryMatch: jest.fn().mockResolvedValue(null),
             findMatchingFullCategory: jest.fn().mockResolvedValue(null),
             assignThreadToProtoCategory: jest.fn(),

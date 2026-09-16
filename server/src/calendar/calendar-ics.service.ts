@@ -4,8 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { OAuth2Client } from "google-auth-library";
-import { calendar_v3, google } from "googleapis";
+import { Auth, calendar_v3, google } from "googleapis";
 
 import { createUserGoogleOAuthClient } from "../auth/google-oauth-client";
 import { ERROR_MESSAGES } from "../constants/error-messages";
@@ -53,7 +52,7 @@ export class CalendarIcsService {
     id: string;
     googleCalendarAccessToken: string;
     googleCalendarRefreshToken?: string | null;
-  }): OAuth2Client {
+  }): Auth.OAuth2Client {
     return createUserGoogleOAuthClient(
       this.usersService,
       user.id,

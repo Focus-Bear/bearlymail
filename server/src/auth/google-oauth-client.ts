@@ -1,6 +1,5 @@
 import { Logger } from "@nestjs/common";
-import { google } from "googleapis";
-import type { OAuth2Client } from "googleapis-common";
+import { Auth, google } from "googleapis";
 
 import { UsersService } from "../users/users.service";
 
@@ -27,7 +26,7 @@ export function createUserGoogleOAuthClient(
   accessToken: string | null | undefined,
   refreshToken: string | null | undefined,
   options?: { redirectUri?: string },
-): OAuth2Client {
+): Auth.OAuth2Client {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = options?.redirectUri ?? process.env.GOOGLE_REDIRECT_URI;

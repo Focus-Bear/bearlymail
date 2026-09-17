@@ -429,3 +429,72 @@ describe("EmailContentCleaner", () => {
     });
   });
 });
+
+describe("cleanEmailContent — block boundaries survive into the LLM input", () => {
+  // `normalizeWhitespace` trimmed each line with /^\s+|\s+$/gm. `\s` includes
+  // `\n`, so the trailing-whitespace branch swallowed the line breaks it was
+  // meant to preserve — but only when a block boundary was ADJACENT to a
+  // newline in the source, i.e. `</p>\n<p>`, which is how every real HTML email
+  // is formatted. The LLM then received "...ends here.Starts here.".
+
+  it("keeps the break when the source has a newline between block tags", () => {
+    const cleaned = cleanEmailContent(
+      "<p>Ends here.</p>\n<p>Starts here.</p>",
+      null,
+      5000,
+    );
+
+    expect(cleaned).toBe("Ends here.\n\nStarts here.");
+    expect(cleaned).not.toContain("here.Starts");
+  });
+
+  it("keeps blank-line paragraph breaks in a plain-text body", () => {
+    const cleaned = cleanEmailContent(
+      "First paragraph.\n\nSecond paragraph.",
+      null,
+      5000,
+    );
+
+    expect(cleaned).toBe("First paragraph.\n\nSecond paragraph.");
+  });
+
+  it("still trims the spaces and tabs around each line", () => {
+    const cleaned = cleanEmailContent(
+      "<p>   Padded line.   </p>\n<p>\tTabbed line.\t</p>",
+      null,
+      5000,
+    );
+
+    expect(cleaned).toBe("Padded line.\n\nTabbed line.");
+  });
+
+  it("separates a helpdesk transcript from its boilerplate", () => {
+    // Shape of the AskUNE email whose meeting time went undetected: standing
+    // boilerplate, then the real message under a transcript header.
+    const cleaned = cleanEmailContent(
+      "<html><head><style>body{margin:0;color:#333}</style></head><body>" +
+        "<p>This email was sent to you because you raised an enquiry with AskUNE.</p>\n" +
+        "<h3>Discussion Thread</h3>\n" +
+        "<p><strong>Our Message (16/09/2026 08.28 AM):</strong></p>\n" +
+        "<p>Hi Jeremy,</p>\n" +
+        "<p>Thank you for your email. Thursday 24th at 2pm sounds amazing :)</p>" +
+        "</body></html>",
+      null,
+      5000,
+    );
+
+    expect(cleaned).toContain("Discussion Thread\n");
+    expect(cleaned).toContain("Our Message (16/09/2026 08.28 AM):\n");
+    expect(cleaned).toContain(
+      "Thank you for your email. Thursday 24th at 2pm sounds amazing :)",
+    );
+    // The giveaway of the old behaviour: the transcript header fused to the greeting.
+    expect(cleaned).not.toMatch(/\):Hi Jeremy/);
+  });
+
+  it("still collapses runs of three or more newlines to a blank line", () => {
+    const cleaned = cleanEmailContent("A.\n\n\n\n\nB.", null, 5000);
+
+    expect(cleaned).toBe("A.\n\nB.");
+  });
+});

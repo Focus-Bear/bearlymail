@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Pusher from "pusher";
 
@@ -136,5 +141,36 @@ export class PusherService {
     await this.trigger(userChannel(userId), PUSHER_EVENTS.EMAIL_SEND_FAILED, {
       ...payload,
     });
+  }
+
+  /**
+   * Signs a subscription to a `private-user-*` channel, but only when the
+   * channel belongs to the caller. This is the whole reason the channels are
+   * private: Pusher will not deliver a user's events to a browser that cannot
+   * produce this signature.
+   *
+   * Fails closed — an unconfigured Pusher cannot sign anything, and returning a
+   * bare success would leave the client believing it was subscribed.
+   */
+  authorizeUserChannel(
+    userId: string,
+    socketId: string,
+    channelName: string,
+  ): Pusher.ChannelAuthResponse {
+    const ownChannel = userChannel(userId);
+    if (channelName !== ownChannel) {
+      this.logger.warn(
+        `Rejected Pusher auth: user ${userId} requested channel ${channelName}`,
+      );
+      throw new ForbiddenException(
+        "You may only subscribe to your own channel",
+      );
+    }
+
+    if (!this.pusher) {
+      throw new ServiceUnavailableException("Realtime updates are unavailable");
+    }
+
+    return this.pusher.authorizeChannel(socketId, channelName);
   }
 }

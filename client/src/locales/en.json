@@ -3638,7 +3638,10 @@
       "quietHoursTo": "to",
       "quietHoursSuffix": "next day. Truly urgent emails still break through.",
       "startLearning": "Start learning",
-      "saveError": "Failed to save your schedule. Please try again."
+      "saveError": "Failed to save your schedule. Please try again.",
+      "hourAria": "Hour",
+      "minuteAria": "Minutes",
+      "meridiemAria": "AM or PM"
     },
     "learning": {
       "title": "Getting to know your inbox.",

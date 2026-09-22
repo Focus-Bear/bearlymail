@@ -99,10 +99,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUse
       </main>
 
       <footer style={bottomStyle}>
-        <a href="/privacy" style={bottomLinkStyle}>
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" style={bottomLinkStyle}>
           {t('setupWizard.footer.privacy')}
         </a>
-        <a href="/terms" style={bottomLinkStyle}>
+        <a href="/terms" target="_blank" rel="noopener noreferrer" style={bottomLinkStyle}>
           {t('setupWizard.footer.terms')}
         </a>
         <span>{t('setupWizard.footer.copyright')}</span>

@@ -421,9 +421,12 @@ export class UsersService {
   }
 
   async completeOnboarding(userId: string): Promise<User> {
+    // Deliberately do NOT set `hasSeenTour` here. Finishing the setup wizard must
+    // still leave `hasSeenTour` false so the inbox tour fires for the new user on
+    // their first inbox load; the tour marks itself seen via /users/tour-complete
+    // once finished or skipped (issue #300).
     await this.userRepository.update(userId, {
       hasCompletedOnboarding: true,
-      hasSeenTour: true,
       hasScannedHistory: true,
     });
     return this.findOne(userId);

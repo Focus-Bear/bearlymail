@@ -324,6 +324,24 @@ describe("UsersService", () => {
     });
   });
 
+  describe("completeOnboarding", () => {
+    it("marks onboarding and history-scan done but leaves hasSeenTour so the tour still fires (#300)", async () => {
+      repository.update.mockResolvedValue({ affected: 1 } as never);
+      repository.findOne.mockResolvedValue(mockUser);
+
+      await service.completeOnboarding("user-1");
+
+      expect(repository.update).toHaveBeenCalledWith("user-1", {
+        hasCompletedOnboarding: true,
+        hasScannedHistory: true,
+      });
+      // Guard against re-introducing the bug where finishing setup pre-marked the
+      // tour as seen, so new users never saw it.
+      const [, payload] = repository.update.mock.calls[0];
+      expect(payload).not.toHaveProperty("hasSeenTour");
+    });
+  });
+
   describe("incrementScanProgress", () => {
     beforeEach(() => {
       process.env.TERMS_VERSION = "1.0.0";

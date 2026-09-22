@@ -9,12 +9,26 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { SnoozeService } from "./snooze.service";
+import { BulkSnoozeResult, SnoozeService } from "./snooze.service";
 
 @Controller("snooze")
 @UseGuards(JwtAuthGuard)
 export class SnoozeController {
   constructor(private readonly snoozeService: SnoozeService) {}
+
+  // Declared before @Post(":id") so "bulk" is not matched as an email id.
+  @Post("bulk")
+  async bulkSnoozeEmails(
+    @Request() req,
+    @Body() body: { emailIds: string[]; duration: string; locale?: string },
+  ): Promise<BulkSnoozeResult> {
+    return this.snoozeService.bulkSnoozeEmails(
+      req.user.userId,
+      body.emailIds,
+      body.duration,
+      body.locale,
+    );
+  }
 
   @Post(":id")
   async snoozeEmail(

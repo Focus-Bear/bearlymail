@@ -401,7 +401,8 @@
       "selected_plural": "{{count}} emails selected",
       "markAsRead": "Mark as read",
       "markAsUnread": "Mark as unread",
-      "archive": "Archive"
+      "archive": "Archive",
+      "snooze": "Snooze"
     },
     "category": {
       "newsletters": "Newsletters",

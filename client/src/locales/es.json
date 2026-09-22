@@ -1896,6 +1896,7 @@
     "blockSender": "Bloquear remitente",
     "bulk": {
       "archive": "Archivar",
+      "snooze": "Posponer",
       "markAsRead": "Marcar como leído",
       "markAsUnread": "Marcar como no leído",
       "selected": "{{count}} correo seleccionado",

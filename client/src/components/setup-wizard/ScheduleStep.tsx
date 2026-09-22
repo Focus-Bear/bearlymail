@@ -5,6 +5,7 @@ import axios from 'axios';
 import { API_URL } from 'config/api';
 import { STRING_UTC } from 'constants/strings';
 
+import { BatchTimeInput } from './BatchTimeInput';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 interface ScheduleStepProps {
@@ -213,33 +214,14 @@ const BatchList: React.FC<BatchListProps> = ({ times, labels, onChangeTime, t })
         <BatchTimeInput
           value={time}
           onChange={value => onChangeTime(idx, value)}
-          ariaLabel={t(labels[idx] ?? labels[labels.length - 1])}
+          hourLabel={`${t(labels[idx] ?? labels[labels.length - 1])} — ${t('setupWizard.schedule.hourAria')}`}
+          minuteLabel={`${t(labels[idx] ?? labels[labels.length - 1])} — ${t('setupWizard.schedule.minuteAria')}`}
+          meridiemLabel={`${t(labels[idx] ?? labels[labels.length - 1])} — ${t('setupWizard.schedule.meridiemAria')}`}
         />
       </div>
     ))}
   </div>
 );
-
-interface BatchTimeInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  ariaLabel?: string;
-}
-
-const BatchTimeInput: React.FC<BatchTimeInputProps> = ({ value, onChange, ariaLabel }) => {
-  const [focused, setFocused] = useState(false);
-  return (
-    <input
-      type="time"
-      value={value}
-      onChange={event => onChange(event.target.value)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={focused ? batchInputFocusStyle : batchInputStyle}
-      aria-label={ariaLabel}
-    />
-  );
-};
 
 const MoonIcon: React.FC = () => (
   <svg
@@ -388,30 +370,6 @@ const batchSubLabelStyle: React.CSSProperties = {
   fontWeight: FONT_WEIGHT_REGULAR,
   marginTop: '1px',
   fontSize: '11.5px',
-};
-
-const batchInputStyle: React.CSSProperties = {
-  border: `1px solid ${TOK.line2}`,
-  outline: 0,
-  background: TOK.cream,
-  font: 'inherit',
-  fontSize: '14px',
-  fontWeight: FONT_WEIGHT_SEMIBOLD,
-  color: TOK.ink,
-  width: '150px',
-  minWidth: 0,
-  padding: '8px 12px',
-  borderRadius: '8px',
-  fontFamily: TOK.fontMono,
-  cursor: 'text',
-  transition: 'background 120ms ease, border-color 120ms ease, box-shadow 120ms ease',
-};
-
-const batchInputFocusStyle: React.CSSProperties = {
-  ...batchInputStyle,
-  background: '#FFFFFF',
-  border: `1px solid ${TOK.sun}`,
-  boxShadow: `0 0 0 3px ${TOK.sunPale}`,
 };
 
 const quietSummaryStyle: React.CSSProperties = {

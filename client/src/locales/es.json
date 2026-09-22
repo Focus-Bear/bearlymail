@@ -3198,7 +3198,10 @@
       "quietHoursTo": "a",
       "quietHoursSuffix": "del día siguiente. Los correos verdaderamente urgentes igual pasan.",
       "startLearning": "Empezar a aprender",
-      "saveError": "No se pudo guardar tu horario. Por favor, inténtalo de nuevo."
+      "saveError": "No se pudo guardar tu horario. Por favor, inténtalo de nuevo.",
+      "hourAria": "Hora",
+      "minuteAria": "Minutos",
+      "meridiemAria": "a. m. o p. m."
     },
     "learning": {
       "title": "Conociendo tu bandeja de entrada.",

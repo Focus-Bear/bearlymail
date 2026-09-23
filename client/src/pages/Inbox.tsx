@@ -488,6 +488,7 @@ const InboxView: React.FC = () => {
         <BulkOperationsBar
           selectedCount={selectedEmailIds.size}
           onBulkArchive={emailActions.handleBulkArchive}
+          onBulkSnooze={emailActions.handleBulkSnooze}
           onClearSelection={() => setSelectedEmailIds(new Set())}
         />
         {keyboardHint.showKeyboardHint && <KeyboardHintTooltip action={keyboardHint.showKeyboardHint.action} />}

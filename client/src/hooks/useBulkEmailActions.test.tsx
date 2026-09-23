@@ -154,6 +154,111 @@ describe('useBulkEmailActions', () => {
     });
   });
 
+  describe('handleBulkSnooze', () => {
+    it('should do nothing when no emails selected', async () => {
+      const store = createTestStore();
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: new Set(),
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleBulkSnooze('tomorrow');
+      });
+
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+      expect(mockedCaptureEvent).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing when the duration is blank', async () => {
+      const store = createTestStore([{ id: '1', subject: 'Test 1' } as Email]);
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: new Set(['1']),
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleBulkSnooze('   ');
+      });
+
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+
+    it('should snooze all selected emails with a single bulk API call', async () => {
+      const testEmails: Email[] = [
+        { id: '1', subject: 'Test 1' } as Email,
+        { id: '2', subject: 'Test 2' } as Email,
+      ];
+      const store = createTestStore(testEmails);
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: new Set(['1', '2']),
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleBulkSnooze(' tomorrow 9am ');
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/snooze/bulk'), {
+        emailIds: ['1', '2'],
+        duration: 'tomorrow 9am',
+      });
+      expect(mockedCaptureEvent).toHaveBeenCalledWith('bulk_snooze_confirmed', {
+        selected_count: 2,
+        snooze_input_length: 'tomorrow 9am'.length,
+      });
+      expect(mockSetSelectedEmailIds).toHaveBeenCalledWith(new Set());
+      // Removed from the list and marked optimistically snoozed so a fetch in
+      // flight cannot flash them back.
+      expect(store.getState().inboxData.emails).toHaveLength(0);
+      expect(store.getState().inboxUI.optimisticallySnoozed).toEqual(['1', '2']);
+    });
+
+    it('should restore the emails when the API call fails', async () => {
+      const testEmails: Email[] = [{ id: '1', subject: 'Test 1' } as Email];
+      const store = createTestStore(testEmails);
+      mockedAxios.post.mockRejectedValueOnce(new Error('network down'));
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: new Set(['1']),
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleBulkSnooze('tomorrow');
+      });
+
+      await waitFor(() => {
+        expect(store.getState().inboxData.emails).toHaveLength(1);
+      });
+      expect(store.getState().inboxUI.optimisticallySnoozed).toEqual([]);
+    });
+  });
+
   describe('handleBulkStar', () => {
     it('should do nothing when no emails selected', async () => {
       const store = createTestStore();

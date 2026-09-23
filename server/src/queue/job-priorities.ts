@@ -58,6 +58,7 @@ export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
   [JOB_NAMES.AUTO_RESPONDER]: JobPriority.LOW,
   [JOB_NAMES.GENERATE_SUGGESTED_REPLIES]: JobPriority.LOW,
   [JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC]: JobPriority.HIGH,
+  [JOB_NAMES.SNOOZE_THREAD_PROVIDER_SYNC]: JobPriority.HIGH,
   // The user pressed Send and is waiting on the outcome notification — this is
   // the most latency-sensitive job in the system.
   [JOB_NAMES.SEND_QUEUED_EMAIL]: JobPriority.HIGH,

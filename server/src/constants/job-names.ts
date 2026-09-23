@@ -78,6 +78,7 @@ export const JOB_NAMES = {
 
   // Snooze
   CHECK_EXPIRED_SNOOZES: "check-expired-snoozes",
+  SNOOZE_THREAD_PROVIDER_SYNC: "snooze-thread-provider-sync",
   UNSNOOZE_THREAD: "unsnooze-thread",
 
   // Scheduled emails

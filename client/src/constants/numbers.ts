@@ -40,6 +40,9 @@ export const CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS = 48;
 // Width values
 export const SIDEBAR_WIDTH_PX = 50;
 export const INPUT_WIDTH_PX = 80;
+// Holds the add-keyword button steady so its label swapping between
+// "Add Keyword" and "Saving…" cannot resize or reflow the control.
+export const ADD_BUTTON_MIN_WIDTH_PX = 120;
 export const MODAL_WIDTH_LARGE = 800;
 export const MODAL_WIDTH_MEDIUM = 600;
 export const MODAL_WIDTH_SMALL = 500;

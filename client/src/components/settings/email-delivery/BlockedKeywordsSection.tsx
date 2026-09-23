@@ -7,7 +7,7 @@ import { BlockedKeywordItem } from 'components/settings/email-delivery/BlockedKe
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_BLOCK } from 'constants/emojis';
-import { INPUT_WIDTH_PX, OPACITY_HALF } from 'constants/numbers';
+import { ADD_BUTTON_MIN_WIDTH_PX, INPUT_WIDTH_PX, OPACITY_HALF } from 'constants/numbers';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 
 interface BlockedKeyword {
@@ -105,6 +105,7 @@ const AddKeywordForm: React.FC<AddKeywordFormProps> = ({ t, onAdd }) => {
       <button
         onClick={handleAdd}
         disabled={!newKeyword.trim() || isAdding}
+        aria-busy={isAdding}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
           backgroundColor: theme.colors.primary.main,
@@ -114,6 +115,12 @@ const AddKeywordForm: React.FC<AddKeywordFormProps> = ({ t, onAdd }) => {
           cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',
           fontSize: theme.typography.fontSize.sm,
           opacity: newKeyword.trim() && !isAdding ? 1 : OPACITY_HALF,
+          // Fixed size + no wrap so the "Saving…" label replaces "Add Keyword"
+          // in place, rather than resizing or reflowing into a second-button look.
+          minWidth: `${ADD_BUTTON_MIN_WIDTH_PX}px`,
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
+          textAlign: 'center',
         }}
       >
         {isAdding ? t('common.saving') : t('settings.blockedKeywords.addKeyword')}

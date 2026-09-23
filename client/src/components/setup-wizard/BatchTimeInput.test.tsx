@@ -32,8 +32,7 @@ describe('BatchTimeInput', () => {
       <BatchTimeInput
         value={value}
         onChange={onChange}
-        hourLabel="Morning batch — Hour"
-        minuteLabel="Morning batch — Minutes"
+        timeLabel="Morning batch — Time"
         meridiemLabel="Morning batch — AM or PM"
       />
     );
@@ -48,22 +47,30 @@ describe('BatchTimeInput', () => {
     expect(meridiem.value).toBe('PM');
   });
 
+  it('offers the hour:minute in a single dropdown stepping by 30 minutes', () => {
+    renderInput('15:00');
+    const time = screen.getByLabelText('Morning batch — Time') as HTMLSelectElement;
+    expect(time.value).toBe('3:00');
+    expect(screen.getByRole('option', { name: '3:30' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: '3:15' })).not.toBeInTheDocument();
+  });
+
   it('emits an updated 24-hour value when AM/PM is switched with the dropdown', () => {
     const onChange = renderInput('15:00');
     fireEvent.change(screen.getByLabelText('Morning batch — AM or PM'), { target: { value: 'AM' } });
     expect(onChange).toHaveBeenCalledWith('03:00');
   });
 
-  it('emits an updated value when the hour dropdown changes', () => {
-    const onChange = renderInput('15:00');
-    fireEvent.change(screen.getByLabelText('Morning batch — Hour'), { target: { value: '9' } });
-    expect(onChange).toHaveBeenCalledWith('21:00');
+  it('emits an updated value when the merged time dropdown changes, keeping the meridiem', () => {
+    const onChange = renderInput('15:00'); // 3:00 PM
+    fireEvent.change(screen.getByLabelText('Morning batch — Time'), { target: { value: '9:30' } });
+    expect(onChange).toHaveBeenCalledWith('21:30'); // 9:30 PM
   });
 
-  it('keeps an off-step minute selectable rather than rounding it away', () => {
-    renderInput('11:07');
-    const minute = screen.getByLabelText('Morning batch — Minutes') as HTMLSelectElement;
-    expect(minute.value).toBe('7');
-    expect(screen.getByRole('option', { name: '07' })).toBeInTheDocument();
+  it('keeps an off-step time selectable rather than dropping it', () => {
+    renderInput('11:07'); // 11:07 AM — not on the half-hour grid
+    const time = screen.getByLabelText('Morning batch — Time') as HTMLSelectElement;
+    expect(time.value).toBe('11:07');
+    expect(screen.getByRole('option', { name: '11:07' })).toBeInTheDocument();
   });
 });

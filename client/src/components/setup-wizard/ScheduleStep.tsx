@@ -214,8 +214,7 @@ const BatchList: React.FC<BatchListProps> = ({ times, labels, onChangeTime, t })
         <BatchTimeInput
           value={time}
           onChange={value => onChangeTime(idx, value)}
-          hourLabel={`${t(labels[idx] ?? labels[labels.length - 1])} — ${t('setupWizard.schedule.hourAria')}`}
-          minuteLabel={`${t(labels[idx] ?? labels[labels.length - 1])} — ${t('setupWizard.schedule.minuteAria')}`}
+          timeLabel={`${t(labels[idx] ?? labels[labels.length - 1])} — ${t('setupWizard.schedule.timeAria')}`}
           meridiemLabel={`${t(labels[idx] ?? labels[labels.length - 1])} — ${t('setupWizard.schedule.meridiemAria')}`}
         />
       </div>

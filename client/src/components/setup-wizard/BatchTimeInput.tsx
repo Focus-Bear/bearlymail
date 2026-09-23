@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 /**
- * A batch delivery-time picker built from three native `<select>` controls
- * (hour, minute, AM/PM) instead of `<input type="time">`.
+ * A batch delivery-time picker built from two native `<select>` controls — a
+ * single hour:minute dropdown in 30-minute steps, plus AM/PM — instead of
+ * `<input type="time">`.
  *
  * Safari renders the native time input WITHOUT a clickable AM/PM stepper, so
  * the meridiem could only be changed with the keyboard — a visible control was
@@ -18,8 +19,10 @@ import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 const NOON_HOUR = 12;
 const HOUR_WRAP_OFFSET = 11;
 const TIME_PART_PAD = 2;
-const MINUTE_STEP = 5;
-const MINUTES_IN_HOUR = 60;
+const MINUTE_STEP = 30;
+const HALF_HOUR_MINUTES = [0, MINUTE_STEP];
+// 12-hour clock order (12 first, then 1–11) so the dropdown reads naturally.
+const CLOCK_HOURS = Array.from({ length: NOON_HOUR }, (_unused, idx) => (idx === 0 ? NOON_HOUR : idx));
 
 export type Meridiem = 'AM' | 'PM';
 
@@ -54,84 +57,70 @@ export function buildTimeValue({ hour12, minute, meridiem }: TimeParts): string 
   return `${String(hour24).padStart(TIME_PART_PAD, '0')}:${String(minute).padStart(TIME_PART_PAD, '0')}`;
 }
 
-const HOUR_OPTIONS = Array.from({ length: NOON_HOUR }, (_unused, idx) => idx + 1);
+interface HourMinute {
+  hour12: number;
+  minute: number;
+}
 
-/** 5-minute steps, but always include the current minute so an existing value is never silently rounded. */
-function minuteOptions(current: number): number[] {
-  const steps: number[] = [];
-  for (let minute = 0; minute < MINUTES_IN_HOUR; minute += MINUTE_STEP) {
-    steps.push(minute);
+const slotValue = ({ hour12, minute }: HourMinute): string =>
+  `${hour12}:${String(minute).padStart(TIME_PART_PAD, '0')}`;
+
+/**
+ * Every 30-minute slot on a 12-hour clock, plus the current value if it happens
+ * to fall off the half-hour grid, so an existing time is never unrepresentable.
+ */
+function timeSlots(current: HourMinute): HourMinute[] {
+  const slots: HourMinute[] = [];
+  for (const hour12 of CLOCK_HOURS) {
+    for (const minute of HALF_HOUR_MINUTES) {
+      slots.push({ hour12, minute });
+    }
   }
-  if (!steps.includes(current)) {
-    steps.push(current);
-    steps.sort((first, second) => first - second);
+  if (!slots.some(slot => slot.hour12 === current.hour12 && slot.minute === current.minute)) {
+    slots.push(current);
   }
-  return steps;
+  return slots;
 }
 
 interface BatchTimeInputProps {
   value: string;
   onChange: (value: string) => void;
-  hourLabel: string;
-  minuteLabel: string;
+  timeLabel: string;
   meridiemLabel: string;
 }
 
-export const BatchTimeInput: React.FC<BatchTimeInputProps> = ({
-  value,
-  onChange,
-  hourLabel,
-  minuteLabel,
-  meridiemLabel,
-}) => {
+export const BatchTimeInput: React.FC<BatchTimeInputProps> = ({ value, onChange, timeLabel, meridiemLabel }) => {
   const [focused, setFocused] = useState(false);
   const parts = parseTimeParts(value);
+  const current: HourMinute = { hour12: parts.hour12, minute: parts.minute };
 
-  const emit = (next: Partial<TimeParts>): void => {
-    onChange(buildTimeValue({ ...parts, ...next }));
+  const handleTimeChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
+    const [hour12, minute] = event.target.value.split(':').map(Number);
+    onChange(buildTimeValue({ hour12, minute, meridiem: parts.meridiem }));
   };
 
-  const selectStyle = focused ? selectFocusStyle : baseSelectStyle;
+  const handleMeridiemChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
+    onChange(buildTimeValue({ ...parts, meridiem: event.target.value as Meridiem }));
+  };
+
+  const timeStyle = focused ? timeFocusStyle : timeSelectStyle;
+  const meridiemStyle = focused ? meridiemFocusStyle : meridiemSelectStyle;
 
   return (
-    <div
-      style={wrapStyle}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-    >
-      <select
-        value={parts.hour12}
-        onChange={event => emit({ hour12: Number(event.target.value) })}
-        style={selectStyle}
-        aria-label={hourLabel}
-      >
-        {HOUR_OPTIONS.map(hour => (
-          <option key={hour} value={hour}>
-            {hour}
-          </option>
-        ))}
+    <div style={wrapStyle} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
+      <select value={slotValue(current)} onChange={handleTimeChange} style={timeStyle} aria-label={timeLabel}>
+        {timeSlots(current).map(slot => {
+          const optionValue = slotValue(slot);
+          return (
+            <option key={optionValue} value={optionValue}>
+              {optionValue}
+            </option>
+          );
+        })}
       </select>
-      <span style={colonStyle}>:</span>
-      <select
-        value={parts.minute}
-        onChange={event => emit({ minute: Number(event.target.value) })}
-        style={selectStyle}
-        aria-label={minuteLabel}
-      >
-        {minuteOptions(parts.minute).map(minute => (
-          <option key={minute} value={minute}>
-            {String(minute).padStart(TIME_PART_PAD, '0')}
-          </option>
-        ))}
-      </select>
-      <select
-        value={parts.meridiem}
-        onChange={event => emit({ meridiem: event.target.value as Meridiem })}
-        style={selectStyle}
-        aria-label={meridiemLabel}
-      >
-        <option value="AM">AM</option>
-        <option value="PM">PM</option>
+      <select value={parts.meridiem} onChange={handleMeridiemChange} style={meridiemStyle} aria-label={meridiemLabel}>
+        <option value={MERIDIEM_AM}>{MERIDIEM_AM}</option>
+        <option value={MERIDIEM_PM}>{MERIDIEM_PM}</option>
       </select>
     </div>
   );
@@ -143,14 +132,8 @@ const wrapStyle: React.CSSProperties = {
   gap: '4px',
 };
 
-// Every segment shows at most two characters (12 / 55 / PM), so a single fixed
-// width keeps the three dropdowns identical instead of the hour box growing
-// wider for 10/11/12 (issue #295 follow-up).
-const SELECT_WIDTH = '58px';
-
 const baseSelectStyle: React.CSSProperties = {
   appearance: 'auto',
-  width: SELECT_WIDTH,
   boxSizing: 'border-box',
   textAlign: 'center',
   textAlignLast: 'center',
@@ -161,22 +144,20 @@ const baseSelectStyle: React.CSSProperties = {
   fontSize: '14px',
   fontWeight: 600,
   color: TOK.ink,
-  padding: '8px 6px',
+  padding: '8px 4px',
   borderRadius: '8px',
   fontFamily: TOK.fontMono,
   cursor: 'pointer',
   transition: 'background 120ms ease, border-color 120ms ease, box-shadow 120ms ease',
 };
 
-const selectFocusStyle: React.CSSProperties = {
-  ...baseSelectStyle,
+const focusOverlay: React.CSSProperties = {
   background: '#FFFFFF',
   border: `1px solid ${TOK.sun}`,
   boxShadow: `0 0 0 3px ${TOK.sunPale}`,
 };
 
-const colonStyle: React.CSSProperties = {
-  fontFamily: TOK.fontMono,
-  fontWeight: 600,
-  color: TOK.ink3,
-};
+const timeSelectStyle: React.CSSProperties = { ...baseSelectStyle, width: '68px' };
+const meridiemSelectStyle: React.CSSProperties = { ...baseSelectStyle, width: '58px' };
+const timeFocusStyle: React.CSSProperties = { ...timeSelectStyle, ...focusOverlay };
+const meridiemFocusStyle: React.CSSProperties = { ...meridiemSelectStyle, ...focusOverlay };

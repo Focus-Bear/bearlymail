@@ -1421,7 +1421,9 @@
       "times": {
         "label": "Delivery Times",
         "removeTime": "Remove time",
-        "addTime": "Add Time"
+        "addTime": "Add Time",
+        "timeAria": "Time",
+        "meridiemAria": "AM or PM"
       }
     },
     "emailAccounts": {
@@ -3639,8 +3641,7 @@
       "quietHoursSuffix": "next day. Truly urgent emails still break through.",
       "startLearning": "Start learning",
       "saveError": "Failed to save your schedule. Please try again.",
-      "hourAria": "Hour",
-      "minuteAria": "Minutes",
+      "timeAria": "Time",
       "meridiemAria": "AM or PM"
     },
     "learning": {

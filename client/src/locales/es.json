@@ -3199,8 +3199,7 @@
       "quietHoursSuffix": "del día siguiente. Los correos verdaderamente urgentes igual pasan.",
       "startLearning": "Empezar a aprender",
       "saveError": "No se pudo guardar tu horario. Por favor, inténtalo de nuevo.",
-      "hourAria": "Hora",
-      "minuteAria": "Minutos",
+      "timeAria": "Hora",
       "meridiemAria": "a. m. o p. m."
     },
     "learning": {
@@ -3983,7 +3982,9 @@
       "times": {
         "addTime": "Agregar hora",
         "label": "Plazos de entrega",
-        "removeTime": "quitar tiempo"
+        "removeTime": "quitar tiempo",
+        "timeAria": "Hora",
+        "meridiemAria": "a. m. o p. m."
       },
       "timezone": "Zona horaria"
     },

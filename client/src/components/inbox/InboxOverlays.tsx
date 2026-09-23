@@ -24,6 +24,7 @@ interface InboxOverlaysProps {
   tourSteps: TourStep[];
   onSkipTour: () => void;
   onNextTourStep: () => void;
+  onPrevTourStep: () => void;
   triageTabRef: RefObject<HTMLButtonElement | null>;
   actionTabRef: RefObject<HTMLButtonElement | null>;
   deliverBtnRef: RefObject<HTMLButtonElement | null>;
@@ -55,6 +56,7 @@ export const InboxOverlays: React.FC<InboxOverlaysProps> = ({
   tourSteps,
   onSkipTour,
   onNextTourStep,
+  onPrevTourStep,
   triageTabRef,
   actionTabRef,
   deliverBtnRef,
@@ -76,6 +78,7 @@ export const InboxOverlays: React.FC<InboxOverlaysProps> = ({
           tourSteps={tourSteps}
           onSkipTour={onSkipTour}
           onNextTourStep={onNextTourStep}
+          onPrevTourStep={onPrevTourStep}
           triageTabRef={triageTabRef}
           actionTabRef={actionTabRef}
           deliverBtnRef={deliverBtnRef}

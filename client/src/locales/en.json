@@ -2440,6 +2440,7 @@
       "assistantTitle": "Your AI Assistant Panel",
       "assistantContent": "Open any email and a side panel appears on the right. The Actions tab gathers the summary, tasks, and notes, while the Ask AI tab (coming soon) will let you chat about the email — draft replies, get summaries, and spot what needs your attention.",
       "skip": "Skip",
+      "back": "Back",
       "next": "Next",
       "finish": "Finish",
       "stepProgress": "{{current}} of {{total}}"

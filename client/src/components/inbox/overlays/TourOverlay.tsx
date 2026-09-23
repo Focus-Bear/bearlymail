@@ -13,6 +13,7 @@ interface TourOverlayProps {
   tourSteps: TourStep[];
   onSkipTour: () => void;
   onNextTourStep: () => void;
+  onPrevTourStep: () => void;
   triageTabRef: RefObject<HTMLButtonElement | null>;
   actionTabRef: RefObject<HTMLButtonElement | null>;
   deliverBtnRef: RefObject<HTMLButtonElement | null>;
@@ -27,6 +28,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({
   tourSteps,
   onSkipTour,
   onNextTourStep,
+  onPrevTourStep,
   triageTabRef,
   actionTabRef,
   deliverBtnRef,
@@ -46,6 +48,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({
 
   const targetElement = getTargetElement();
   const isLastStep = tourStep === tourSteps.length - 1;
+  const isFirstStep = tourStep === 0;
 
   return (
     <div
@@ -64,8 +67,10 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({
         tourStep={tourStep}
         tourSteps={tourSteps}
         isLastStep={isLastStep}
+        isFirstStep={isFirstStep}
         onSkipTour={onSkipTour}
         onNextTourStep={onNextTourStep}
+        onPrevTourStep={onPrevTourStep}
       />
     </div>
   );

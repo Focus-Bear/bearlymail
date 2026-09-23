@@ -372,6 +372,7 @@ const InboxView: React.FC = () => {
           tourSteps={tourSteps}
           onSkipTour={() => onboarding.handleSkipTour()}
           onNextTourStep={() => onboarding.handleNextTourStep(tourSteps.length)}
+          onPrevTourStep={onboarding.handlePrevTourStep}
           triageTabRef={triageTabRef}
           actionTabRef={actionTabRef}
           deliverBtnRef={deliverBtnRef}

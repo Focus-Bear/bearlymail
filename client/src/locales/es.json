@@ -3126,6 +3126,7 @@
       "actionTitle": "Pestaña Acción",
       "assistantContent": "Abre cualquier correo y aparecerá un panel lateral a la derecha. La pestaña Acciones reúne el resumen, las tareas y las notas, mientras que la pestaña Preguntar a IA (próximamente) te permitirá conversar sobre el correo: redactar respuestas, obtener resúmenes y ver qué necesita tu atención.",
       "assistantTitle": "Tu panel de asistente con IA",
+      "back": "Atrás",
       "deliveryContent": "Los nuevos correos electrónicos se agrupan y entregan cada pocas horas para evitar distracciones. Utilice 'Entregar ahora' si necesita realizar una verificación urgente.",
       "deliveryTitle": "Entrega programada",
       "finish": "Finalizar",

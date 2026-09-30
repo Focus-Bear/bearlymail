@@ -477,6 +477,10 @@ jobs:
         working-directory: server
         run: npm ci --legacy-peer-deps
 
+      - name: Test custom promptfoo providers offline
+        working-directory: server
+        run: node --test promptfoo/providers/*.test.cjs
+
       - name: Check provider keys are present
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || secrets.GEMINI_API_KEY }}

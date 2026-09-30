@@ -14,9 +14,9 @@ import type {
 } from "./category-shortlist.service";
 import {
   categoriseWithEscalation,
+  type CategoryModelClient,
   OTHER_CATEGORY_NAME,
 } from "./llm-categorise-summary";
-import type { LLMCoreService } from "./llm-core.service";
 import type {
   CategoryInstrumentation,
   PriorityResult,
@@ -24,7 +24,7 @@ import type {
 import type { UserContextInput } from "./priority-context-texts.helper";
 
 export interface PriorityCategoryStepDeps {
-  llmCoreService: Pick<LLMCoreService, "generateText">;
+  llmCoreService: CategoryModelClient;
   /** Strong Gemini model for escalating Other/LOW verdicts; omit to skip. */
   escalationModel?: string;
   categoryShortlistService: Pick<
@@ -133,8 +133,7 @@ async function resolveCategoryCandidates(
 }
 
 /**
- * Chooses the email's category with the category-only prompt (Nova Micro,
- * escalating to Gemini on "Other"/LOW/failure) BEFORE priority scoring runs.
+ * Chooses the email's category with Jev (Gemini on uncertainty/failure) BEFORE priority scoring runs.
  * Category selection never happens inside the priority prompt: a weak model
  * choosing among dozens of categories while also scoring urgency picks
  * nonsense, whereas the same model on the category-only prompt is reliable.

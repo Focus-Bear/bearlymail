@@ -20,7 +20,7 @@ test('preserves full category descriptions and authoritative facts without ambig
   assert.equal(request.state.githubFacts, VARS.githubFacts);
   assert.equal(request.questions.category.criteria['2'], 'QA — passed — Verified fix');
   assert.match(request.questions.category.criteria['0'], /Other/);
-  assert.match(request.questions.category.instructions.selectionRules, /exclusion/);
+  assert.match(request.questions.category.instructions, /exclusion/);
 });
 
 test('rejects malformed, duplicated and oversized category lists instead of dropping candidates', () => {
@@ -51,9 +51,9 @@ test('maps the chosen number and retains raw confidence, model and usage', async
 test('service failures and unknown choices are errors, never scored Other responses', async () => {
   process.env.TYPESAFE_AI_API_KEY = 'test-only';
   global.fetch = async () => ({ ok: false, status: 429 });
-  assert.equal((await new Provider().callApi('', { vars: VARS })).error, 'TypeSafe HTTP 429');
+  assert.equal((await new Provider().callApi('', { vars: VARS })).error, 'Jev HTTP 429');
   global.fetch = async () => ({ ok: true, json: async () => ({
     answers: { category: { type: 'choice', choice: '99', confidence: 1, probabilities: {} } },
   }) });
-  assert.match((await new Provider().callApi('', { vars: VARS })).error, /invalid/);
+  assert.match((await new Provider().callApi('', { vars: VARS })).error, /Invalid/);
 });

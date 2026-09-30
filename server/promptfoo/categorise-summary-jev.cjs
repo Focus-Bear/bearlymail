@@ -6,9 +6,10 @@ const YAML = require('yaml');
 const baseline = YAML.parse(fs.readFileSync(path.join(__dirname, 'categorise-summary.yaml'), 'utf8'));
 module.exports = {
   ...baseline,
-  description: 'Jev Choice vs Gemini: unchanged categorisation regressions, including generation contract checks',
+  description: 'Jev Choice vs Gemini: unchanged categorisation regressions, with separate generation tests',
   providers: [
     ...baseline.providers,
     { id: path.join(__dirname, 'providers/jev-categorisation.cjs') },
+    { id: path.join(__dirname, 'providers/jev-categorisation-hybrid.cjs'), label: 'jev-hybrid' },
   ],
 };

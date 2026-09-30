@@ -1,59 +1,56 @@
-# Jev categorisation trial
+# Jev primary categorisation
 
-Status: approved live evaluation completed on 2026-09-30. Jev is promising for category selection, but is not a drop-in replacement for the full generation contract. Production remains on Gemini.
+The PR now uses Jev 1.13.0 as the primary category selector when `TYPESAFE_AI_API_KEY` is configured. Gemini handles uncertainty, invalid responses, timeouts and unsupported category counts. Existing stronger-Gemini escalation remains available. No deployment or runtime-secret provisioning is included.
 
-## Measured results
+Other is a valid selection, not a Jev failure. New-category suggestions run afterward as a separate Gemini operation (`suggest_proto_category`); a failed suggestion leaves Other intact. Existing-category Jev choices avoid Gemini entirely. User-facing reasoning transparently states the selected category and Choice confidence rather than claiming Jev generated an explanation.
 
-| Provider/run | Full-contract passes | API errors | Median request latency |
-| --- | --- | --- | --- |
-| Gemini 3.1 Flash Lite baseline | 40/40 | 0 | 1,186 ms |
-| Jev 1.13.0 initial | 35/40 | 0 | 282 ms |
-| Jev 1.13.0 with transport/author clarification | 36/40 | 0 | 272 ms |
+## Results on 2026-09-30
 
-The initial Jev run misclassified a human-authored merged PR as Bot updates (Choice confidence 0.45). Clarifying that GitHub's notification transport address is distinct from the PR author fixed it on a complete rerun. No remaining wrong-category assertion failures were observed. The same fixtures informed the prompt revision, so this is a regression result, not a held-out accuracy estimate; several inherited checks only forbid one wrong label.
+| Provider | Selection regressions | Median | Mean | p95 | Total tokens |
+| --- | --- | --- | --- | --- | --- |
+| Gemini 3.1 Flash Lite | 40/40 | 1,183 ms | 1,223 ms | 1,499 ms | 165,156 |
+| Raw Jev 1.13.0 | 40/40 | 261 ms | 266 ms | 328 ms | 168,232 |
+| Production Jev-first/Gemini cascade | 40/40 | 273 ms | 653 ms | 1,699 ms | 205,748 |
 
-The four remaining failures are deliberately retained:
+All 120 selection evaluations passed with no API errors. In the cascade, 28/40 cases used Jev alone, eight needed Gemini classification fallback, and four accepted Other then used Gemini only for new-category generation. The cascade's median improved, but its p95 and token total were higher than Gemini alone. These are local provider-path timings, not inbox latency or a price comparison.
 
-- Monitoring alert: correctly selected Other, but no generated proto-category suggestion.
-- Rent-increase notice: correctly selected Other, but no generated proto-category reasoning.
-- Newsletter without a matching category: correctly selected Other, but no generated newsletter proto-category.
-- Response-contract case: selected the same category as Gemini, but lacks the application's confidence enum and generated reasoning.
+The independent new-category generation suite passes 3/3: monitoring alerts, personal housing notices and generic newsletters. It checks generated suggestions, not the already completed category decision. The former generated confidence/reasoning assertion is now an exact expected-category assertion; application-output formatting is covered by unit tests.
 
-Jev was about 4.4× faster by median provider-call latency in these runs. This is not an end-to-end application benchmark. The final 40 Jev calls used 161,876 input and 7,396 output tokens; costs were not estimated. `jev-latest` resolved to `jev-1.13.0`. All runs disabled Promptfoo caching and sharing, with concurrency 4.
+Initially Jev passed 35/40 of the combined selection-and-generation contract. Clarifying that GitHub notification transport is distinct from the PR author fixed the single wrong-category regression. The remaining four failures concerned output that a Choice model does not generate. Splitting selection and generation matches the production decomposition rather than requiring Jev to invent text.
 
-Raw local reports: `/tmp/bearlymail-jev-comparison.json` (80 results: baseline plus initial Jev) and `/tmp/bearlymail-jev-refined.json` (40 revised Jev results). They contain fixture text and are intentionally not committed.
+A second 40/40 cascade run with production’s stronger-Gemini escalation setting also passed (28 Jev-only, eight classification fallbacks, four generation calls; median 302 ms, p95 1,618 ms, 205,692 tokens). No case required the stronger model in that run.
 
-Recommendation: evaluate a Jev-first hybrid with Gemini for Other/new-category suggestions and uncertain decisions. Decide explicitly what explanation to show for accepted Jev choices, calibrate the confidence policy on held-out examples, and test the resulting full application contract before changing production. This PR establishes the comparison rather than silently replacing missing output with invented reasoning.
+These fixtures informed prompt development and are not a held-out accuracy estimate. Some inherited assertions forbid a wrong category without requiring one exact right category. The acceptance threshold of 0.9 is a conservative policy, not a claim of calibrated 90% accuracy. Representative held-out examples are still needed for calibration.
 
-The TypeSafe skill was installed for Codex with `npx skills add typesafe-ai/skills --skill typesafe-ai --agent codex --yes --global`. This trial follows its Choice guidance and the live API contract at https://docs.typesafe.ai/api: a state object, one category question, and the complete category criteria plus Other. It retains the existing selection rules, GitHub rules and authoritative GitHub facts.
+## Implementation
 
-`server/promptfoo/categorise-summary-jev.cjs` loads all 40 cases and unchanged assertions from `categorise-summary.yaml`, comparing the existing Gemini provider against Jev. It is an explicit experiment, outside the YAML-only automatic CI runner, so CI does not unexpectedly require a new credential.
+- `JevCategoryClient` and the shared request/response transport are used by production and promptfoo; no separate evaluation-only prompt logic.
+- The category list uses numeric keys mapped back to exact original names. Preserve descriptions and GitHub facts; never truncate away candidates. Above 254 existing categories, use Gemini.
+- Validate question types, candidate membership, confidence/probability bounds and usage before accepting a response. Requests time out after five seconds.
+- Usage records include the actual returned model and real token counts, including uncertain calls that subsequently fall back.
+- Missing key or `JEV_CATEGORISATION_ENABLED=false` retains Gemini. `TYPESAFE_AI_MODEL` optionally overrides the pinned model.
+- No vendor response/body text or credential is included in Jev fallback logs.
+- Other operations remain on their existing providers. See [the complete prompt audit](jev-prompt-candidates.md) for the requested broader migration, including phishing detection.
 
-From `server/`, using a Promptfoo-supported Node runtime (the installed version requires Node 22.22+):
+The TypeSafe skill was installed for Codex using `npx skills add typesafe-ai/skills --skill typesafe-ai --agent codex --yes --global`. The integration follows its Choice guidance and the [live HTTP contract](https://docs.typesafe.ai/api).
+
+## Reproduce
+
+Use Node 22.22+ and a local `server/.env` containing `GEMINI_API_KEY` and `TYPESAFE_AI_API_KEY`. From `server/`:
 
 ```sh
 npx --no-install promptfoo eval \
   -c promptfoo/categorise-summary-jev.cjs \
   --env-file .env --no-cache --no-share --no-table \
-  -o /tmp/bearlymail-jev-comparison.json
+  -o /tmp/bearlymail-jev-cascade.json
+
+npx --no-install promptfoo eval \
+  -c promptfoo/suggest-proto-category.yaml \
+  --env-file .env --no-cache --no-share --no-table \
+  -o /tmp/bearlymail-jev-proto-generation.json
+
+node --test promptfoo/providers/*.test.cjs
+npm test -- --runInBand jev-category llm-categorise-summary llm-core.service
 ```
 
-The environment file needs `GEMINI_API_KEY` and `TYPESAFE_AI_API_KEY`. Keep credentials local; never include them in result artifacts. For an isolated worktree, pass the original checkout's environment path. To run only Jev, add `--filter-providers jev`; for the baseline, use `--filter-providers google`.
-
-## Interpretation
-
-- Category numbers are returned unchanged, with complete option descriptions preserved. Names containing dashes are never split heuristically.
-- Jev returns raw numeric confidence and probabilities. There is deliberately no guessed conversion into the application's HIGH/MEDIUM/LOW labels.
-- Jev cannot generate explanations or new-category suggestions. Three Other/proto-suggestion cases and the generated-response contract case therefore cannot fully pass with raw Choice output, even if the category itself is right. Keep these failures visible and distinguish them from wrong-category failures when reviewing the report. Do not interpret the aggregate pass rate as category accuracy alone.
-- Some inherited assertions only forbid an incorrect category, rather than requiring the correct one. Inspect the actual selections too; passing the suite alone is insufficient for rollout.
-- HTTP errors, malformed responses and absent credentials are errors, not Other decisions or Gemini fallback successes. This trial does not silently fall back, so the report measures Jev itself.
-- Record the actual model from response metadata, per-case selections, errors, confidence, token usage and Promptfoo latency. Evaluate a fallback threshold on representative labelled data before translating numeric confidence into application policy.
-- A production integration should preserve Gemini for Other/new-category generation and verified uncertainty cases, along with existing error fallback and usage accounting. Build that after quality results justify the switch.
-
-Local verification:
-
-```sh
-node --test server/promptfoo/providers/jev-categorisation.test.cjs
-```
-
-Five adapter tests pass. Request construction was also checked against all 40 existing cases. These are offline integration checks, not evidence of model quality.
+Local reports contain fixture text and are intentionally not committed. Caching, sharing and telemetry were disabled for the recorded evaluations. The Jev comparison is explicit rather than part of the YAML-only CI runner, so ordinary CI does not require a TypeSafe secret. CI runs offline Jev adapter tests and the affected Gemini YAML suites.

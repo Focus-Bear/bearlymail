@@ -92,6 +92,9 @@ export const UTILITY_PROMPT_IDS = {
   DETECT_OPT_OUT: "detect_opt_out",
   SUGGEST_CATEGORY_RULES: "suggest_category_rules",
   CATEGORISE_SUMMARY: "categorise_summary",
+  CATEGORISE_SUMMARY_JEV: "categorise_summary_jev",
+  SUGGEST_PROTO_CATEGORY: "suggest_proto_category",
+  IDENTIFY_CUSTOM_LABELS: "identify_custom_labels",
   DERIVE_RULE_EXCLUSIONS: "derive_rule_exclusions",
   ASSESS_CATEGORY_RULE_VALUE: "assess_category_rule_value",
   CHECK_CATEGORY_DUPLICATE: "check_category_duplicate",
@@ -232,6 +235,18 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "categorise-summary.md",
     key: UTILITY_PROMPT_IDS.CATEGORISE_SUMMARY,
+  },
+  {
+    file: "categorise-summary-jev.md",
+    key: UTILITY_PROMPT_IDS.CATEGORISE_SUMMARY_JEV,
+  },
+  {
+    file: "suggest-proto-category.md",
+    key: UTILITY_PROMPT_IDS.SUGGEST_PROTO_CATEGORY,
+  },
+  {
+    file: "identify-custom-labels.md",
+    key: UTILITY_PROMPT_IDS.IDENTIFY_CUSTOM_LABELS,
   },
   {
     file: "derive-rule-exclusions.md",

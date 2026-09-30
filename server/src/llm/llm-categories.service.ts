@@ -659,14 +659,16 @@ export class LLMCategoriesService {
       return [];
     }
 
-    const prompt = await renderPrompt("identify_custom_labels", {
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.IDENTIFY_CUSTOM_LABELS);
+    if (!promptConfig) return [];
+    const prompt = renderPrompt(promptConfig.prompt, {
       labels: labels.join(", "),
     });
     this.logger.log(`[IDENTIFY-CUSTOM-LABELS] Calling LLM to identify labels`);
     const response = await this.generateText(
       {
         prompt,
-        systemPrompt: "",
+        systemPrompt: promptConfig.systemPrompt,
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         jsonMode: true,

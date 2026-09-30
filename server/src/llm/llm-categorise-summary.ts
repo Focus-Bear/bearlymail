@@ -1,5 +1,6 @@
 import type { Logger } from "@nestjs/common";
 
+import { JEV } from "../constants/jev.constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { getErrorMessage } from "../types/common";
@@ -9,13 +10,14 @@ import {
   resolveResponseCategory,
   rewriteCategoryNumberReferences,
 } from "../utils/category-number.util";
+import { suggestProtoCategory } from "./jev-category-enrichment";
 import { LLMProvider } from "./llm.types";
 import type { LLMCoreService } from "./llm-core.service";
 import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
 
 /** The null-category bucket name the category prompt returns for number 0. */
-export const OTHER_CATEGORY_NAME = "Other";
+export const OTHER_CATEGORY_NAME = JEV.OTHER_CATEGORY;
 
 export interface CategoriseFromSummaryParams {
   subject: string;
@@ -193,25 +195,24 @@ export async function categoriseFromSummary(
   }
 }
 
-/** Primary provider for the category step: Gemini (flash-lite by default). */
-export const CATEGORY_PRIMARY_PROVIDER = LLMProvider.GEMINI;
+export type CategoryModelClient = Pick<LLMCoreService, "generateText"> &
+  Partial<Pick<LLMCoreService, "categoriseWithJev">>;
 
-/**
- * Category-only classification on **Gemini flash-lite**, escalating to the
- * strong Gemini model (`params.escalationModel`, when supplied) only for the
- * verdicts flash-lite is weakest on: an "Other" verdict, LOW confidence, or an
- * outright failure. Nova Micro was tried as the primary and produced confident
- * but wrong picks (e.g. a merged-PR notification filed under a legal category)
- * that never triggered escalation, so category selection now stays on Gemini
- * while summaries keep the cheaper Nova path. This is the single
- * categorisation entry point used by both the new-email priority pipeline and
- * incremental re-categorisation.
- */
-export async function categoriseWithEscalation(
-  llmCoreService: Pick<LLMCoreService, "generateText">,
+export const CATEGORY_FALLBACK_PROVIDER = LLMProvider.GEMINI;
+
+/** Selects a category; new-category generation is a separate enrichment step. */
+export async function categoriseOnlyWithEscalation(
+  llmCoreService: CategoryModelClient,
   logger: Logger,
   params: CategoriseFromSummaryParams,
 ): Promise<CategoriseFromSummaryResult | null> {
+  if (!params.summary?.trim() || !params.categories.length) return null;
+  try {
+    const jev = await llmCoreService.categoriseWithJev?.(params);
+    if (jev) return jev;
+  } catch {
+    logger.warn("Jev categorisation failed; falling back to Gemini");
+  }
   const runWith = (provider: LLMProvider, model?: string) =>
     categoriseFromSummary(
       (request) =>
@@ -224,7 +225,7 @@ export async function categoriseWithEscalation(
       params,
     );
 
-  const primary = await runWith(CATEGORY_PRIMARY_PROVIDER);
+  const primary = await runWith(CATEGORY_FALLBACK_PROVIDER);
   const needsEscalation =
     !primary ||
     primary.categoryName === OTHER_CATEGORY_NAME ||
@@ -234,7 +235,7 @@ export async function categoriseWithEscalation(
   }
 
   const escalated = await runWith(
-    CATEGORY_PRIMARY_PROVIDER,
+    CATEGORY_FALLBACK_PROVIDER,
     params.escalationModel,
   );
   if (!escalated) {
@@ -248,4 +249,22 @@ export async function categoriseWithEscalation(
     }) → "${escalated.categoryName}"`,
   );
   return escalated;
+}
+
+export async function categoriseWithEscalation(
+  client: CategoryModelClient,
+  logger: Logger,
+  params: CategoriseFromSummaryParams,
+): Promise<CategoriseFromSummaryResult | null> {
+  const result = await categoriseOnlyWithEscalation(client, logger, params);
+  if (
+    !result ||
+    result.categoryName !== OTHER_CATEGORY_NAME ||
+    result.protoCategorySuggestion
+  )
+    return result;
+  const suggestion = await suggestProtoCategory(client, logger, params);
+  return suggestion
+    ? { ...result, protoCategorySuggestion: suggestion }
+    : result;
 }

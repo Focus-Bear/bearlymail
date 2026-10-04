@@ -165,4 +165,6 @@ const EVALUATION_SUITES = [
   ...Object.keys(JEV_DECISION_REGISTRY),
   ...Object.keys(definitions),
 ];
-module.exports = { createPlan, EVALUATION, EVALUATION_SUITES };
+/** Suites whose decisions production routes to Jev. */
+const ROUTED_SUITES = Object.keys(JEV_DECISION_REGISTRY);
+module.exports = { createPlan, EVALUATION, EVALUATION_SUITES, ROUTED_SUITES };

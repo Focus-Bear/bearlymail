@@ -187,3 +187,25 @@ test("priority skips goal alignment when the user has no goals or current work",
   );
   assert.ok(withGoals.questions.goalAlignmentScore);
 });
+
+test("the acceptance gate reads back exactly the cases the provider accepted", () => {
+  const fs = require("node:fs");
+  const os = require("node:os");
+  const path = require("node:path");
+  const {
+    CASE_INDEX_KEY,
+    recordDecision,
+    readAcceptedCases,
+  } = require("./jev-decision-log.cjs");
+  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "jev-")), "d");
+  const previous = process.env.JEV_EVAL_DECISION_LOG;
+  process.env.JEV_EVAL_DECISION_LOG = log;
+  try {
+    recordDecision({ metadata: { [CASE_INDEX_KEY]: 0 } }, true);
+    recordDecision({ metadata: { [CASE_INDEX_KEY]: 1 } }, false);
+    assert.deepEqual([...readAcceptedCases(log)], [0]);
+  } finally {
+    if (previous === undefined) delete process.env.JEV_EVAL_DECISION_LOG;
+    else process.env.JEV_EVAL_DECISION_LOG = previous;
+  }
+});

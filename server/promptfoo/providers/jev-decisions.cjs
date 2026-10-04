@@ -3,6 +3,7 @@ const { JEV } = require("../../src/constants/jev.constants");
 const { requestJev } = require("../../src/llm/jev-system-one");
 const { createPlan } = require("./jev-decision-plan.cjs");
 const { compose } = require("./jev-decision-output.cjs");
+const { recordDecision } = require("./jev-decision-log.cjs");
 module.exports = class JevDecisionProvider {
   constructor(options) {
     this.config = options.config;
@@ -23,6 +24,10 @@ module.exports = class JevDecisionProvider {
         process.env[JEV.API_KEY_ENV],
       );
       const result = compose(plan, response.answers);
+      recordDecision(
+        context.test,
+        !result.generationRequired && !result.uncertain,
+      );
       return {
         output: JSON.stringify(result.output),
         tokenUsage: {

@@ -4,6 +4,7 @@ const YAML = require("yaml");
 require("./providers/jev-categorisation.cjs"); // Register the TypeScript loader.
 const { EVALUATION_SUITES } = require("./providers/jev-decision-plan.cjs");
 const synthetic = require("./jev-synthetic-fixtures.cjs");
+const { CASE_INDEX_KEY } = require("./providers/jev-decision-log.cjs");
 const LOCAL_ASSERTIONS = new Set(["javascript", "is-json"]);
 const suite = process.env.JEV_EVAL_SUITE || "check-phishing-only";
 const mode = process.env.JEV_EVAL_MODE || "jev";
@@ -38,9 +39,10 @@ if (localTests.length !== baseline.tests.length)
 module.exports = {
   ...baseline,
   description: `Experimental ${mode} decisions: ${suite}; production routing unchanged`,
-  tests: localTests.map((test) => ({
+  tests: localTests.map((test, caseIndex) => ({
     ...test,
     options: { ...test.options, disableVarExpansion: true },
+    metadata: { ...test.metadata, [CASE_INDEX_KEY]: caseIndex },
   })),
   defaultTest: {
     ...baseline.defaultTest,

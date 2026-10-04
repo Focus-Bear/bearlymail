@@ -28,7 +28,7 @@ Thresholds are 0.8 on Jev's documented confidence scale, except phishing clearan
 - priority scoring: user-facing explanations
 - mixed prompts that need generated text
 
-Fixture replay of the ten routed suites with the production definitions (60 cases): Gemini alone 58/60 (median 1.2 s). Cascade at 0.8: 60/60, with 47 cases answered by Jev alone and a median of 0.31 s. Tokens roughly double, so the measured gain is accuracy and latency; cost depends on TypeSafe pricing. The harness now evaluates these suites through the production definitions, so fixture results track what ships.
+Fixture replay of the ten routed suites with the production definitions (60 cases): Gemini alone 58/60 (median 1.2 s). Cascade at 0.8: 60/60, with 47 cases answered by Jev alone and a median of 0.31 s. Tokens roughly double, so the measured gain is accuracy and latency; cost depends on TypeSafe pricing. The harness now evaluates these suites through the production definitions, so fixture results track what ships. CI's promptfoo job runs `JEV_EVAL_GATE=accepted node promptfoo/run-jev-evaluation.cjs` over these suites. It fails if any answer production would accept from Jev is wrong, and warns when the `TYPESAFE_AI_API_KEY` secret is missing. Locally on 2026-10-04: 47 accepted, all correct; 13 deferred.
 
 ## Bounded decisions
 
@@ -125,8 +125,8 @@ The audit also found a concrete existing bug: `identifyCustomLabels` sent the li
 `promptfoo/jev-decisions.cjs` runs each suite's existing fixtures, plus synthetic fixtures in `jev-synthetic-fixtures.cjs` for production prompts without a promptfoo config. It uses either raw Jev (`JEV_EVAL_MODE=jev`) or the baseline `gemini-3.1-flash-lite` at temperature 0 (`JEV_EVAL_MODE=gemini`). Assertions that need a model grader are excluded. Production routing is unchanged.
 
 ```bash
-JEV_EVAL_MODE=jev    JEV_EVAL_REPORT_DIR=/tmp/jev    node promptfoo/run-jev-evaluation.cjs server/.env
-JEV_EVAL_MODE=gemini JEV_EVAL_REPORT_DIR=/tmp/gemini node promptfoo/run-jev-evaluation.cjs server/.env
+JEV_EVAL_ENV_FILE=.env JEV_EVAL_MODE=jev    JEV_EVAL_REPORT_DIR=/tmp/jev    node promptfoo/run-jev-evaluation.cjs
+JEV_EVAL_ENV_FILE=.env JEV_EVAL_MODE=gemini JEV_EVAL_REPORT_DIR=/tmp/gemini node promptfoo/run-jev-evaluation.cjs
 node promptfoo/analyse-jev-cascade.cjs /tmp/jev /tmp/gemini
 ```
 

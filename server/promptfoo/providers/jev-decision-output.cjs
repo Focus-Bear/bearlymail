@@ -1,9 +1,11 @@
 const { EVALUATION } = require("./jev-decision-plan.cjs");
 const { JEV_QUESTION_TYPES } = require("../../src/constants/jev.constants");
 const yes = (answer) => answer.noul >= EVALUATION.YES;
+// Jev's documented Noul confidence (distance from 0.5), so Nouls share the
+// Choice/Score scale and one threshold means the same thing for every type.
 const confidence = (answer) =>
   answer.type === JEV_QUESTION_TYPES.NOUL
-    ? Math.max(answer.noul, 1 - answer.noul)
+    ? Math.abs(2 * answer.noul - 1)
     : answer.confidence;
 const verdictText = (value) =>
   `Jev decision: ${value}. No generated explanation.`;
@@ -52,10 +54,12 @@ function compose(plan, answers) {
             (read("urgencyScore").score / EVALUATION.SCORE_MAX) *
               EVALUATION.PERCENT,
           );
-      const goalAlignmentScore = Math.round(
-        (read("goalAlignmentScore").score / EVALUATION.SCORE_MAX) *
-          EVALUATION.PERCENT,
-      );
+      const goalAlignmentScore = plan.questions.goalAlignmentScore
+        ? Math.round(
+            (read("goalAlignmentScore").score / EVALUATION.SCORE_MAX) *
+              EVALUATION.PERCENT,
+          )
+        : 0;
       const categoryName = String(plan.vars.emailCategories).match(
         /1\.\s*\"([^\"]+)\"/,
       )?.[1];
@@ -295,9 +299,10 @@ function compose(plan, answers) {
   return {
     output,
     generationRequired,
+    usedKeys: [...used],
     uncertain: [...used].some(
       (key) => confidence(answers[key]) < EVALUATION.HIGH,
     ),
   };
 }
-module.exports = { compose };
+module.exports = { compose, confidence };

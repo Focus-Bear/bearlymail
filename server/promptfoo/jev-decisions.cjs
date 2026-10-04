@@ -5,6 +5,21 @@ const definitions = require("./jev-evaluation-questions.json");
 const synthetic = require("./jev-synthetic-fixtures.cjs");
 const LOCAL_ASSERTIONS = new Set(["javascript", "is-json"]);
 const suite = process.env.JEV_EVAL_SUITE || "check-phishing-only";
+const mode = process.env.JEV_EVAL_MODE || "jev";
+// Same model and temperature as the production-baseline promptfoo suites.
+const GEMINI_BASELINE = {
+  id: "google:gemini-3.1-flash-lite",
+  label: "gemini-baseline",
+  config: { temperature: 0 },
+};
+const JEV_RAW = {
+  id: path.join(__dirname, "providers/jev-decisions.cjs"),
+  label: "jev-raw",
+  config: { suite, mode: "raw" },
+};
+const PROVIDERS = { jev: JEV_RAW, gemini: GEMINI_BASELINE };
+if (!Object.hasOwn(PROVIDERS, mode))
+  throw new Error(`Unsupported Jev evaluation mode: ${mode}`);
 if (!Object.hasOwn(definitions, suite))
   throw new Error(`Unsupported Jev evaluation suite: ${suite}`);
 const baseline =
@@ -21,7 +36,7 @@ if (localTests.length !== baseline.tests.length)
   );
 module.exports = {
   ...baseline,
-  description: `Experimental Jev decisions: ${suite}; production routing unchanged`,
+  description: `Experimental ${mode} decisions: ${suite}; production routing unchanged`,
   tests: localTests.map((test) => ({
     ...test,
     options: { ...test.options, disableVarExpansion: true },
@@ -30,11 +45,5 @@ module.exports = {
     ...baseline.defaultTest,
     options: { disableVarExpansion: true },
   },
-  providers: [
-    {
-      id: path.join(__dirname, "providers/jev-decisions.cjs"),
-      label: "jev-raw",
-      config: { suite, mode: "raw" },
-    },
-  ],
+  providers: [PROVIDERS[mode]],
 };

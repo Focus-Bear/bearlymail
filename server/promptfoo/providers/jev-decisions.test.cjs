@@ -171,3 +171,21 @@ test("synthetic assertions are executable statement blocks, and expected answers
       }
     }
 });
+
+test("priority skips goal alignment when the user has no goals or current work", () => {
+  const vars = { emailCategories: '1. "Work"' };
+  const plan = createPlan("prioritise-email-prompts", vars, "test");
+  assert.equal(plan.questions.goalAlignmentScore, undefined);
+  const result = compose(plan, {
+    urgencyScore: { type: "score", score: 2, confidence: 1 },
+    newsletter: noul(0),
+  });
+  assert.equal(result.output.result.goalAlignmentScore, 0);
+  assert.equal(result.uncertain, false);
+  const withGoals = createPlan(
+    "prioritise-email-prompts",
+    { ...vars, goalsContext: "Close the Series A" },
+    "test",
+  );
+  assert.ok(withGoals.questions.goalAlignmentScore);
+});

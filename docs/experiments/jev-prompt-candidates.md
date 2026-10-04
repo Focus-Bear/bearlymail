@@ -1,6 +1,6 @@
 # Jev prompt audit
 
-Audited the current prompt files and their output contracts on 2026-09-30. Only category selection is implemented and live-evaluated in this PR so far. Broader production routing is pending approval for sending bodies, drafts, transcripts, user context, rules and workflow data to TypeSafe. The entries below describe the intended decomposition, not completed migrations or measured accuracy.
+Audited the current prompt files and their output contracts on 2026-09-30. Only category selection is implemented and live-evaluated in this PR so far. Broader production routing is pending approval for sending bodies, drafts, transcripts, user context, rules and workflow data to TypeSafe. The entries below describe the intended decomposition, not completed migrations; fixture-level Jev vs Gemini results are in the evaluation section.
 
 Jev returns typed judgments, not generated prose. Existing category selection now uses Jev first, with Gemini fallback on uncertainty or failure. Other remains a valid choice; suggesting a new category is a separate Gemini operation. The same principle applies to the remaining prompts: keep exact lookups, dates, arithmetic and execution in code; use Jev for judgments; keep Gemini for generated text and uncertain judgments.
 
@@ -94,39 +94,67 @@ The file inventory alone is insufficient: these prompts are embedded in services
 
 The audit also found a concrete existing bug: `identifyCustomLabels` sent the literal prompt ID rather than the template and label list, and the template was absent from the prompt registry. This PR registers and renders it correctly with an offline regression test. Its generative provider is unchanged.
 
-## Raw Jev decision evaluation (test fixtures only)
+## Jev vs Gemini decision evaluation (test fixtures only)
 
-`promptfoo/jev-decisions.cjs` runs each suite's existing fixtures (plus synthetic fixtures in `jev-synthetic-fixtures.cjs` for suites without a promptfoo config) through raw Jev only. No fallback, and assertions that need an external model grader are excluded. Production routing is unchanged. Run with `node promptfoo/run-jev-evaluation.cjs /path/to/server/.env [suite...]`.
+`promptfoo/jev-decisions.cjs` runs each suite's existing fixtures, plus synthetic fixtures in `jev-synthetic-fixtures.cjs` for production prompts without a promptfoo config. It uses either raw Jev (`JEV_EVAL_MODE=jev`) or the baseline `gemini-3.1-flash-lite` at temperature 0 (`JEV_EVAL_MODE=gemini`). Assertions that need a model grader are excluded. Production routing is unchanged.
 
-Results on 2026-10-01, `jev-1.13.0`: 116/132 cases pass, 0 API errors, ~504K total tokens. "Uncertain" means at least one answer was below the 0.9 acceptance threshold, so a cascade would send that case to Gemini.
+```bash
+JEV_EVAL_MODE=jev    JEV_EVAL_REPORT_DIR=/tmp/jev    node promptfoo/run-jev-evaluation.cjs server/.env
+JEV_EVAL_MODE=gemini JEV_EVAL_REPORT_DIR=/tmp/gemini node promptfoo/run-jev-evaluation.cjs server/.env
+node promptfoo/analyse-jev-cascade.cjs /tmp/jev /tmp/gemini
+```
 
-| Suite | Pass | Uncertain | Needs generation | Median ms |
+`analyse-jev-cascade.cjs` replays the saved Jev answers to estimate a Jev-first cascade at several thresholds. A case stays on Jev only if every answer used in its output clears the threshold and no generated text is needed; otherwise it costs Jev plus Gemini. Both providers run at temperature 0, so this replay stands in for a live cascade run.
+
+### Results (2026-10-04, `jev-1.13.0`, 139 cases)
+
+| Route | Pass | Jev-only | Median ms | p95 ms | Tokens |
+| --- | --- | --- | --- | --- | --- |
+| Gemini only | 136 | 0 | 1,219 | 1,705 | 169K |
+| Jev only | 121 | 139 | 302 | 417 | 237K |
+| Cascade ≥0.5 | 137 | 105 | 323 | 1,837 | 302K |
+| Cascade ≥0.7 | 137 | 93 | 334 | 1,857 | 319K |
+| Cascade ≥0.8 | 138 | 83 | 345 | 1,887 | 334K |
+| Cascade ≥0.9 | 137 | 60 | 1,244 | 1,971 | 362K |
+
+| Suite | Jev | Gemini | Jev median ms | Gemini median ms |
 | --- | --- | --- | --- | --- |
-| check-phishing-only | 5/5 | — | — | 310 |
-| classify-contact-type | 4/4 | 0 | 0 | 286 |
-| classify-email-type | 6/6 | 5 | 0 | 287 |
-| verify-distraction-phrase | 7/7 | 0 | 0 | 355 |
-| incremental-priority-check | 7/7 | 4 | 0 | 291 |
-| check-category-duplicate | 15/15 | 1 | 0 | 372 |
-| derive-mcp-sender-tool | 4/4 | 0 | 0 | 317 |
-| sanity-check-category-rule | 10/10 | 5 | 0 | 324 |
-| assess-category-rule-value | 5/5 | 5 | 1 | 313 |
-| suggest-actions | 5/5 | 4 | 0 | 364 |
-| search-ranking | 3/3 | 3 | 0 | 1,872 |
-| merge-duplicate-categories | 5/5 | 1 | 0 | 270 |
-| dispute-tone-check | 3/3 | 2 | 0 | 271 |
-| prioritise-email-prompts | 11/11 | 10 | 0 | 354 |
-| detect-opt-out (synthetic) | 6/6 | 2 | 0 | 630 |
-| evaluate-workflow-condition (synthetic) | 4/4 | 0 | 0 | 436 |
-| check-custom-exclusion-rules (synthetic) | 3/3 | 0 | 0 | 540 |
-| batch-priority-triage (synthetic) | 1/1 | 0 | 0 | 400 |
-| validate-writing-example | 6/8 | 2 | 2 | 285 |
-| check-tone-style | 7/11 | 7 | 5 | 330 |
-| detect-meeting-proposal | 4/14 | 4 | 10 | 396 |
+| check-phishing-only | 5/5 | 5/5 | 337 | 1,418 |
+| classify-contact-type | 4/4 | 4/4 | 316 | 1,449 |
+| classify-email-type | 6/6 | 6/6 | 295 | 1,562 |
+| verify-distraction-phrase | 7/7 | 7/7 | 307 | 1,173 |
+| incremental-priority-check | 7/7 | 7/7 | 303 | 1,420 |
+| check-category-duplicate | 15/15 | 13/15 | 257 | 853 |
+| derive-mcp-sender-tool | 4/4 | 4/4 | 328 | 1,205 |
+| sanity-check-category-rule | 10/10 | 10/10 | 379 | 1,124 |
+| assess-category-rule-value | 5/5 | 5/5 | 318 | 1,282 |
+| suggest-actions | 5/5 | 5/5 | 319 | 1,499 |
+| search-ranking | 3/3 | 3/3 | 332 | 1,053 |
+| merge-duplicate-categories | 5/5 | 5/5 | 292 | 1,208 |
+| dispute-tone-check | 3/3 | 3/3 | 347 | 1,358 |
+| prioritise-email-prompts | 12/13 | 13/13 | 255 | 1,486 |
+| detect-opt-out (synthetic) | 6/6 | 6/6 | 300 | 1,260 |
+| evaluate-workflow-condition (synthetic) | 4/4 | 4/4 | 296 | 1,110 |
+| check-custom-exclusion-rules (synthetic) | 3/3 | 3/3 | 314 | 1,178 |
+| batch-priority-triage (synthetic) | 1/1 | 1/1 | 309 | 1,315 |
+| validate-writing-example | 6/8 | 8/8 | 332 | 1,125 |
+| check-tone-style | 7/11 | 11/11 | 298 | 1,211 |
+| detect-meeting-proposal | 3/14 | 13/14 | 271 | 1,149 |
 
-All 16 failures are in mixed contracts and concern output Jev does not produce: cleaned writing samples, meeting date/time extraction, and tone rewrites/warning text. Every failing case is one the adapter already flags as needing generation, so a cascade would send it to Gemini. The phishing row comes from the first standalone run, which predates the uncertainty/generation metadata.
+Findings:
 
-Caveats: pass rates are on small tuned regression sets, not held-out accuracy. Uncertainty is high for scored outputs (priority, email type, ranking), so a 0.9-threshold cascade would send most of those cases to Gemini and save little. The Gemini baseline and Jev→Gemini cascade comparison have not been run: sending these fixtures to Gemini was outside the approved test data-sharing scope.
+- **Mixed contracts need Gemini.** 17 of Jev's 18 failures are cleaned writing samples, meeting date/time extraction and tone rewrites. The adapter flags all of them as needing generation, so the cascade always sends them to Gemini.
+- **Bounded decisions: one Jev error.** It is a boundary miss: urgency 69 against a `>= 70` assertion, at confidence 0.79. Gemini's three errors are two duplicate-category false positives (bot vs human, umbrella vs sub-topic) that Jev gets right, plus one meeting-extraction miss.
+- **0.9 is too strict for these decisions.** It sends 57% of cases to Gemini (median 1.2 s, against 0.35 s at 0.8) and loses accuracy, because one correct Jev duplicate answer (confidence 0.86) is replaced by Gemini's wrong one. 0.8 gave the best result here, but it is fitted to a single error in 139 cases. Choose thresholds per decision and risk, as TypeSafe recommends, and re-check them on held-out production-shaped data. The 0.9 categorisation threshold is a separate, single-Choice policy and is unchanged.
+- **Why answers fall below the threshold:**
+  - *Score confidence measures spread around the top level.* Probability split between adjacent levels (73% critical, 27% high → urgency 93) reads as 0.76 even though the numeric output barely moves. An expected-spread gate (≤0.5 level) was also tried; it did not improve on plain confidence.
+  - *Genuinely ambiguous judgments.* Examples: rule-sanity accept vs revise at ~0.5, and whether a rule needs exclusions at ~0.6.
+  - *Multi-question suites compound.* One low answer out of six sends the whole case to Gemini.
+  - *Missing context.* Priority fixtures had no user goals, so goal alignment was a flat guess. The plan now sets alignment to 0 without goals or current work, matching the prompt's "No goals defined" policy. Two fixtures with goals were added to `prioritise-email-prompts.yaml` (Gemini and Jev both pass).
+- **Tokens.** The plan first repeated the full rendered policy in every question. Sending it once in `state`, as TypeSafe recommends, cut Jev tokens 53% (504K → 237K) with unchanged decisions apart from the boundary case above. Jev still uses more tokens than Gemini on the same prompts, so latency is the measured gain; any cost gain depends on TypeSafe pricing.
+- **Fixture fixes.** The synthetic workflow-condition and batch-triage fixtures now mirror the production prompt formats (`WorkflowExecutionService`, `PriorityAnalysisService`). Assertions tolerate fenced JSON because the promptfoo baseline does not use JSON mode.
+
+Caveats: these are small regression sets, partly tuned during development, not held-out accuracy estimates.
 
 ## Migration checks
 

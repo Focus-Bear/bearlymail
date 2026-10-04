@@ -4,13 +4,14 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const definitions = require("./jev-evaluation-questions.json");
 const server = path.resolve(__dirname, "..");
+const mode = process.env.JEV_EVAL_MODE || "jev";
 const reportDir =
   process.env.JEV_EVAL_REPORT_DIR ||
-  path.join(os.tmpdir(), "bearlymail-jev-decisions");
+  path.join(os.tmpdir(), `bearlymail-${mode}-decisions`);
 const envFile = process.argv[2];
 if (!envFile)
   throw new Error(
-    "Usage: node promptfoo/run-jev-evaluation.cjs /path/to/server/.env [suite...]",
+    "Usage: [JEV_EVAL_MODE=jev|gemini] node promptfoo/run-jev-evaluation.cjs /path/to/server/.env [suite...]",
   );
 const suites = process.argv.slice(3);
 const requested = suites.length ? suites : Object.keys(definitions);
@@ -46,6 +47,7 @@ for (const suite of requested) {
         env: {
           ...process.env,
           JEV_EVAL_SUITE: suite,
+          JEV_EVAL_MODE: mode,
           PROMPTFOO_CONFIG_DIR: configDir,
           PROMPTFOO_DISABLE_TELEMETRY: "1",
         },

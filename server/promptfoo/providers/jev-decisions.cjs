@@ -16,7 +16,7 @@ module.exports = class JevDecisionProvider {
       const plan = createPlan(this.config.suite, context.vars, prompt);
       const response = await requestJev(
         {
-          state: { input: context.vars },
+          state: plan.state,
           model: process.env[JEV.MODEL_ENV] || JEV.DEFAULT_MODEL,
           questions: plan.questions,
         },

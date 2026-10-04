@@ -216,3 +216,33 @@ tests:
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
           maxScore: 75
+
+  # Goal alignment needs stated goals: without them the prompt says "No goals
+  # defined" and every other case here only exercises urgency.
+  - description: "Goal alignment: email that directly advances a stated goal scores as directly related"
+    vars:
+      from: "priya@northstarvc.example.com"
+      fromName: "Priya Raman"
+      subject: "Data room access for the term sheet"
+      body: "Hi Jeremy, our partners want to review the financial model and cap table before we issue the term sheet. Could you share data room access? Thanks, Priya"
+      goalsContext: "Close the Series A funding round by December"
+      workingOnContext: "Investor due diligence and the data room"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = JSON.parse(output.match(/\{[\s\S]*\}/)[0]);
+          return (parsed.result || parsed).goalAlignmentScore >= 61;
+
+  - description: "Goal alignment: email unrelated to the stated goals stays not related"
+    vars:
+      from: "office@coworking.example.com"
+      fromName: "Office Manager"
+      subject: "Kitchen cleaning roster"
+      body: "Hi all, the new kitchen cleaning roster is attached to the fridge. Please wipe down the benches after use."
+      goalsContext: "Close the Series A funding round by December"
+      workingOnContext: "Investor due diligence and the data room"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = JSON.parse(output.match(/\{[\s\S]*\}/)[0]);
+          return (parsed.result || parsed).goalAlignmentScore <= 30;

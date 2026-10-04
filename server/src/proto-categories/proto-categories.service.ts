@@ -10,6 +10,7 @@ import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 
 import { CategoryKeyAssignmentService } from "../category-keys/category-key-assignment.service";
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   ConsideredDuplicateCandidate,
@@ -78,6 +79,26 @@ const DEDUP_RESPONSE_SCHEMA: Record<string, unknown> = {
 // returned no parseable verdict and failed open). The no-thinking retry needs
 // far less, but shares this budget.
 const DEDUP_MAX_TOKENS = 4096;
+
+function extractDedupJson(text: string | null): string | null {
+  return (
+    text
+      ?.replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim()
+      .match(/\{[\s\S]*\}/)?.[0] ?? null
+  );
+}
+
+function categoryDuplicateDecision(orderedCandidates: DedupCandidate[]) {
+  return {
+    kind: JEV_DECISION_KINDS.CATEGORY_DUPLICATE,
+    input: {
+      candidateNames: orderedCandidates.map((candidate) => candidate.name),
+    },
+  };
+}
 
 @Injectable()
 export class ProtoCategoriesService {
@@ -571,6 +592,11 @@ export class ProtoCategoriesService {
             operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
             model: this.strongDedupModel,
             thinking: useThinking,
+            // Jev answers once; the no-thinking retry only runs after Gemini
+            // failed to return JSON, so asking Jev again would repeat its null.
+            ...(useThinking && {
+              jevDecision: categoryDuplicateDecision(orderedCandidates),
+            }),
           },
           LLMProvider.GEMINI,
           userId,
@@ -585,14 +611,6 @@ export class ProtoCategoriesService {
       }
     };
 
-    const extractJson = (text: string | null): string | null =>
-      text
-        ?.replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim()
-        .match(/\{[\s\S]*\}/)?.[0] ?? null;
-
     // Primary pass uses the thinking model for the best judgement on paraphrase
     // duplicates. But thinking can exhaust the token budget on the full category
     // list before emitting the JSON body — which previously failed OPEN (no JSON
@@ -600,12 +618,12 @@ export class ProtoCategoriesService {
     // ~40% of dedup calls). Retry ONCE without thinking, which emits a compact,
     // reliably-parseable verdict, so a token-budget overrun no longer silently
     // spawns a duplicate proto.
-    let jsonText = extractJson(await runDedup(true));
+    let jsonText = extractDedupJson(await runDedup(true));
     if (!jsonText) {
       this.logger.warn(
         `[CHECK-CATEGORY-DUPLICATE] No JSON from thinking model for "${suggestedName}" — retrying without thinking`,
       );
-      jsonText = extractJson(await runDedup(false));
+      jsonText = extractDedupJson(await runDedup(false));
     }
     if (!jsonText) {
       this.logger.error(

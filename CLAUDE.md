@@ -439,6 +439,8 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 
 **LLM Fallback**: If the primary provider fails, the system automatically falls back to the other provider. If Gemini fails → falls back to OpenAI. If OpenAI fails → falls back to Gemini. Users can also provide their own OpenAI API key (`user.openAiApiKey`), which takes precedence over the system key.
 
+**Jev typed decisions**: Bounded decisions (categorisation, workflow conditions, contact/email type, duplicate checks, exclusion rules, incremental priority, phishing clearance) try Jev first. A call site adds a typed `jevDecision` to its `LLMRequest`; `LLMCoreService.generateText` returns Jev's answer in the caller's existing JSON contract when confident, otherwise the normal provider call runs. Definitions live in `server/src/llm/jev-decisions/`; evaluate them with `server/promptfoo/run-jev-evaluation.cjs` (see `docs/experiments/jev-prompt-candidates.md`).
+
 **Available Prompts** (in `server/promptfoo/prompts/`):
 
 | Prompt File                         | Prompt ID                        | Purpose                                                       |
@@ -849,6 +851,8 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `CLAUDE_CLI_PATH`, `CLAUDE_CLI_MODEL`                         | No       | Claude Code CLI binary path (default `claude`) and model alias (default `sonnet`) for `claude-cli` |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`                              | No       | Google Gemini config                      |
 | `OPENAI_API_KEY`, `OPENAI_MODEL`                              | No       | OpenAI config                             |
+| `TYPESAFE_AI_API_KEY`, `TYPESAFE_AI_MODEL`                    | No       | Jev (TypeSafe) typed-decision model       |
+| `JEV_CATEGORISATION_ENABLED`, `JEV_DECISIONS_ENABLED`         | No       | Set `false` to bypass Jev for categorisation / other decisions |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`            | No       | GitHub integration                        |
 | `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Consent tracking versions                 |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |

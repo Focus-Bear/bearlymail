@@ -1,3 +1,4 @@
+import type { JevDecisionRequest } from "./jev-decisions/jev-decision.types";
 import { LLMOperation } from "./llm-operations";
 
 export enum LLMProvider {
@@ -49,4 +50,9 @@ export interface LLMRequest {
     /** Email IDs processed in this LLM call (for tracking duplicate summarisations). */
     emailIds?: string[];
   };
+  /**
+   * Typed form of this request's decision. When present, Jev answers it first
+   * and the provider call only runs if Jev is unsure or text is needed.
+   */
+  jevDecision?: JevDecisionRequest;
 }

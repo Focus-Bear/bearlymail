@@ -2,6 +2,7 @@ import { Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter } from "events";
 
+import { JEV, JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { UsersService } from "../users/users.service";
 import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -949,6 +950,61 @@ describe("LLMCoreService", () => {
       const [cmd, args] = mockSpawn.mock.calls[0] as [string, string[]];
       expect(cmd).toBe("/opt/bin/claude");
       expect(args).toEqual(expect.arrayContaining(["--model", "haiku"]));
+    });
+  });
+
+  describe("Jev decisions", () => {
+    const decisionRequest: LLMRequest = {
+      prompt: "CONDITION: invoice\nBODY: Please pay invoice 104.",
+      jsonMode: true,
+      jevDecision: { kind: JEV_DECISION_KINDS.WORKFLOW_CONDITION, input: {} },
+    };
+    const respondFromJev = (noul: number) =>
+      jest.spyOn(global, "fetch").mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            model: JEV.DEFAULT_MODEL,
+            answers: { matches: { type: "noul", noul } },
+            usage: { input_tokens: 10, output_tokens: 1 },
+          }),
+        ),
+      );
+    afterEach(() => jest.mocked(global.fetch).mockRestore?.());
+
+    it("answers from Jev without calling the provider when Jev is confident", async () => {
+      respondFromJev(0.99);
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      const out = await service.generateText(
+        decisionRequest,
+        LLMProvider.GEMINI,
+      );
+
+      expect(out).toBe('{"matches":true}');
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+    });
+
+    it("runs the provider unchanged when Jev is unsure", async () => {
+      respondFromJev(0.55);
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: '{"matches":false}',
+        usageMetadata: undefined,
+      });
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      const out = await service.generateText(
+        decisionRequest,
+        LLMProvider.GEMINI,
+      );
+
+      expect(out).toBe('{"matches":false}');
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
     });
   });
 

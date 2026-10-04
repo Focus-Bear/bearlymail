@@ -1,7 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const YAML = require("yaml");
-const definitions = require("./jev-evaluation-questions.json");
+require("./providers/jev-categorisation.cjs"); // Register the TypeScript loader.
+const { EVALUATION_SUITES } = require("./providers/jev-decision-plan.cjs");
 const synthetic = require("./jev-synthetic-fixtures.cjs");
 const LOCAL_ASSERTIONS = new Set(["javascript", "is-json"]);
 const suite = process.env.JEV_EVAL_SUITE || "check-phishing-only";
@@ -20,7 +21,7 @@ const JEV_RAW = {
 const PROVIDERS = { jev: JEV_RAW, gemini: GEMINI_BASELINE };
 if (!Object.hasOwn(PROVIDERS, mode))
   throw new Error(`Unsupported Jev evaluation mode: ${mode}`);
-if (!Object.hasOwn(definitions, suite))
+if (!EVALUATION_SUITES.includes(suite))
   throw new Error(`Unsupported Jev evaluation suite: ${suite}`);
 const baseline =
   synthetic[suite] ||

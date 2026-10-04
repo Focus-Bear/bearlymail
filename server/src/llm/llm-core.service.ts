@@ -33,6 +33,7 @@ import {
 import { ClaudeCliClient } from "./claude-cli.helper";
 import { buildGeminiGenerationConfig } from "./gemini-request.helper";
 import { JevCategoryClient } from "./jev-category-client";
+import { JevDecisionClient } from "./jev-decisions/jev-decision-client";
 import { LLMProvider, LLMRequest } from "./llm.types";
 import type { CategoriseFromSummaryParams } from "./llm-categorise-summary";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
@@ -108,6 +109,7 @@ export class LLMCoreService {
   /** Local Claude Code CLI wrapper (binary probe + one-shot generations). */
   private readonly claudeCli: ClaudeCliClient;
   private readonly jevCategories: JevCategoryClient;
+  private readonly jevDecisions: JevDecisionClient;
 
   constructor(
     private configService: ConfigService,
@@ -121,6 +123,11 @@ export class LLMCoreService {
       this.tokenUsageService,
     );
     this.jevCategories = new JevCategoryClient(
+      (key) => this.configService.get<string>(key),
+      this.logger,
+      this.tokenUsageService,
+    );
+    this.jevDecisions = new JevDecisionClient(
       (key) => this.configService.get<string>(key),
       this.logger,
       this.tokenUsageService,
@@ -204,6 +211,16 @@ export class LLMCoreService {
   }
 
   async generateText(
+    request: LLMRequest,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<string> {
+    const jevOutput = await this.jevDecisions.decide(request, userId);
+    if (jevOutput !== null) return jevOutput;
+    return this.generateWithProviderFallback(request, provider, userId);
+  }
+
+  private async generateWithProviderFallback(
     request: LLMRequest,
     provider?: LLMProvider,
     userId?: string,

@@ -1,15 +1,22 @@
 const { EVALUATION } = require("./jev-decision-plan.cjs");
-const { JEV_QUESTION_TYPES } = require("../../src/constants/jev.constants");
+const { JEV_DECISIONS } = require("../../src/constants/jev.constants");
+const {
+  jevAnswerConfidence: confidence,
+} = require("../../src/llm/jev-decisions/jev-answer.helpers");
 const yes = (answer) => answer.noul >= EVALUATION.YES;
-// Jev's documented Noul confidence (distance from 0.5), so Nouls share the
-// Choice/Score scale and one threshold means the same thing for every type.
-const confidence = (answer) =>
-  answer.type === JEV_QUESTION_TYPES.NOUL
-    ? Math.abs(2 * answer.noul - 1)
-    : answer.confidence;
 const verdictText = (value) =>
   `Jev decision: ${value}. No generated explanation.`;
+function composeProduction(plan, answers) {
+  const outcome = plan.definition.compose(plan.input, answers);
+  return {
+    ...outcome,
+    uncertain: outcome.usedKeys.some(
+      (key) => confidence(answers[key]) < plan.definition.minConfidence,
+    ),
+  };
+}
 function compose(plan, answers) {
+  if (plan.definition) return composeProduction(plan, answers);
   const used = new Set();
   const read = (key) => {
     used.add(key);
@@ -25,16 +32,6 @@ function compose(plan, answers) {
         isOptOut: bool("isOptOut"),
         confidence: confidence(read("isOptOut")),
         reason: verdictText("opt-out"),
-      };
-      break;
-    case "evaluate-workflow-condition":
-      output = { matches: bool("matches") };
-      break;
-    case "check-custom-exclusion-rules":
-      output = {
-        matched: pick("rule") !== "0",
-        matchedRule: plan.candidates[Number(pick("rule")) - 1] || null,
-        reason: verdictText("exclusion match"),
       };
       break;
     case "batch-priority-triage":
@@ -80,80 +77,6 @@ function compose(plan, answers) {
       };
       break;
     }
-    case "check-phishing-only": {
-      const risk = pick("risk");
-      const certainty = confidence(read("risk"));
-      output = {
-        phishing:
-          risk === "legitimate"
-            ? null
-            : {
-                is_phishing: risk === "phishing",
-                confidence:
-                  risk === "uncertain"
-                    ? "low"
-                    : certainty >= EVALUATION.HIGH
-                      ? "high"
-                      : certainty >= EVALUATION.MEDIUM
-                        ? "medium"
-                        : "low",
-                reason: verdictText(risk),
-              },
-      };
-      generationRequired = risk === "uncertain";
-      break;
-    }
-    case "classify-contact-type":
-      output = {
-        contactType: pick("contactType"),
-        confidence: confidence(read("contactType")),
-        reasoning: verdictText(pick("contactType")),
-      };
-      break;
-    case "classify-email-type":
-      output = {
-        ...Object.fromEntries(
-          [
-            "isAutomated",
-            "isNewsletter",
-            "isColdOutreach",
-            "isOutOfOffice",
-          ].map((key) => [key, bool(key)]),
-        ),
-        personalizationScore:
-          read("personalizationScore").score / EVALUATION.SCORE_MAX,
-        urgencyLevel: pick("urgencyLevel"),
-        reasons: [verdictText("email classification")],
-      };
-      break;
-    case "verify-distraction-phrase":
-      output = { verified: bool("verified") };
-      break;
-    case "incremental-priority-check":
-      output = {
-        result: {
-          needsFullRecalc: bool("needsFullRecalc"),
-          categoryMightChange: bool("categoryMightChange"),
-          suggestedUrgencyDelta: Math.round(
-            read("urgencyChange").score * EVALUATION.URGENCY_STEP +
-              EVALUATION.URGENCY_MIN,
-          ),
-          reason: verdictText("priority change"),
-        },
-      };
-      break;
-    case "check-category-duplicate":
-      output = {
-        duplicateNumber: Number(pick("duplicate")),
-        reasoning: verdictText(`duplicate ${pick("duplicate")}`),
-      };
-      break;
-    case "derive-mcp-sender-tool":
-      output = plan.candidates[Number(pick("tool")) - 1] || {
-        toolName: null,
-        emailArgName: null,
-      };
-      break;
     case "sanity-check-category-rule": {
       const verdict = pick("verdict");
       output = {
@@ -241,26 +164,6 @@ function compose(plan, answers) {
           })),
       };
       break;
-    case "merge-duplicate-categories": {
-      const groups = [];
-      for (let index = 0; index < plan.candidates.length; index++) {
-        // Complete-link grouping avoids merging A and C merely because both match B.
-        const group = groups.find((members) =>
-          members.every((member) => bool(`pair_${member}_${index}`)),
-        );
-        if (group) group.push(index);
-        else groups.push([index]);
-      }
-      output = {
-        duplicate_groups: groups
-          .filter((group) => group.length > 1)
-          .map((group) => ({
-            canonical: plan.candidates[group[0]].name,
-            members: group.map((index) => plan.candidates[index].name),
-          })),
-      };
-      break;
-    }
     case "search-ranking":
       output = plan.candidates
         .map(({ index, daysAgo }) => {
@@ -301,8 +204,8 @@ function compose(plan, answers) {
     generationRequired,
     usedKeys: [...used],
     uncertain: [...used].some(
-      (key) => confidence(answers[key]) < EVALUATION.HIGH,
+      (key) => confidence(answers[key]) < JEV_DECISIONS.STANDARD_MIN_CONFIDENCE,
     ),
   };
 }
-module.exports = { compose, confidence };
+module.exports = { compose };

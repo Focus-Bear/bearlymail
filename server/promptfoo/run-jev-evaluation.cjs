@@ -2,7 +2,8 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const definitions = require("./jev-evaluation-questions.json");
+require("./providers/jev-categorisation.cjs"); // Register the TypeScript loader.
+const { EVALUATION_SUITES } = require("./providers/jev-decision-plan.cjs");
 const server = path.resolve(__dirname, "..");
 const mode = process.env.JEV_EVAL_MODE || "jev";
 const reportDir =
@@ -14,9 +15,9 @@ if (!envFile)
     "Usage: [JEV_EVAL_MODE=jev|gemini] node promptfoo/run-jev-evaluation.cjs /path/to/server/.env [suite...]",
   );
 const suites = process.argv.slice(3);
-const requested = suites.length ? suites : Object.keys(definitions);
+const requested = suites.length ? suites : EVALUATION_SUITES;
 for (const suite of requested)
-  if (!Object.hasOwn(definitions, suite))
+  if (!EVALUATION_SUITES.includes(suite))
     throw new Error(`Unknown suite: ${suite}`);
 fs.mkdirSync(reportDir, { recursive: true });
 let failed = false;

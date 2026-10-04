@@ -1,8 +1,10 @@
 import type { Logger } from "@nestjs/common";
 
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { getErrorMessage } from "../types/common";
+import type { LLMRequest } from "./llm.types";
 import { LLM_OP_MERGE_DUPLICATE_CATEGORIES } from "./llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
 
@@ -23,6 +25,7 @@ export type MergeDuplicateGenerateText = (request: {
   jsonMode?: boolean;
   userId?: string;
   operation: typeof LLM_OP_MERGE_DUPLICATE_CATEGORIES;
+  jevDecision?: LLMRequest["jevDecision"];
 }) => Promise<string>;
 
 export interface IdentifyDuplicatesParams {
@@ -85,6 +88,10 @@ export async function identifyDuplicateCategories(
       jsonMode: true,
       userId,
       operation: LLM_OP_MERGE_DUPLICATE_CATEGORIES,
+      jevDecision: {
+        kind: JEV_DECISION_KINDS.MERGE_DUPLICATE_CATEGORIES,
+        input: { categories },
+      },
     });
     const groups = parseDuplicateGroupsResponse(
       response,

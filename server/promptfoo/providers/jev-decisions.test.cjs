@@ -18,14 +18,14 @@ afterEach(() => {
   else process.env[JEV.API_KEY_ENV] = originalKey;
 });
 
-test("phishing unknown is low confidence and never becomes a positive detection", () => {
-  const result = compose(
-    { suite: "check-phishing-only" },
-    { risk: choice("uncertain") },
-  );
-  assert.equal(result.output.phishing.is_phishing, false);
-  assert.equal(result.output.phishing.confidence, "low");
-  assert.equal(result.generationRequired, true);
+test("routed suites use the production decision definitions", () => {
+  const plan = createPlan("check-phishing-only", {}, "test policy");
+  assert.equal(plan.state.policyAndInput, "test policy");
+  const uncertain = compose(plan, { risk: choice("uncertain") });
+  assert.equal(uncertain.generationRequired, true);
+  const legitimate = compose(plan, { risk: choice("legitimate") });
+  assert.deepEqual(legitimate.output, { phishing: null });
+  assert.equal(legitimate.uncertain, false);
 });
 
 test("tool selection copies an exact valid schema pair and only admits string arguments", () => {
@@ -51,20 +51,18 @@ test("tool selection copies an exact valid schema pair and only admits string ar
   });
 });
 
-test("duplicate grouping requires direct agreement for every pair, not transitive closure", () => {
+test("any duplicate pair hands the merge to the generative model", () => {
   const plan = createPlan(
     "merge-duplicate-categories",
     { categories: "- A: first\n- B: second\n- C: third" },
     "test",
   );
   const result = compose(plan, {
-    pair_0_1: noul(1),
+    pair_0_1: noul(0),
     pair_0_2: noul(0),
     pair_1_2: noul(1),
   });
-  assert.deepEqual(result.output, {
-    duplicate_groups: [{ canonical: "A", members: ["A", "B"] }],
-  });
+  assert.equal(result.generationRequired, true);
 });
 
 test("unused speculative rule answers do not force escalation for a rejected dispute", () => {

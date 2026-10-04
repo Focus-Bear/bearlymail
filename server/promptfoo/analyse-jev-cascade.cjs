@@ -6,7 +6,10 @@ require("./providers/jev-categorisation.cjs"); // Register the TypeScript loader
 const fs = require("node:fs");
 const path = require("node:path");
 const { createPlan } = require("./providers/jev-decision-plan.cjs");
-const { compose, confidence } = require("./providers/jev-decision-output.cjs");
+const { compose } = require("./providers/jev-decision-output.cjs");
+const {
+  jevAnswerConfidence: confidence,
+} = require("../src/llm/jev-decisions/jev-answer.helpers");
 const THRESHOLDS = [0, 0.5, 0.6, 0.7, 0.8, 0.9];
 // Scores feed numeric outputs through their expected value, so their gate is
 // the expected distance from that value in levels (0.5 level = 12.5/100).
@@ -91,8 +94,8 @@ function simulate(cases, threshold, scoreGate) {
       pass: gemini.success,
       ms: jev.latencyMs + gemini.latencyMs,
       tokens:
-        (jev.response.tokenUsage?.total || 0) +
-        (gemini.response.tokenUsage?.total || 0),
+        (jev.response?.tokenUsage?.total || 0) +
+        (gemini.response?.tokenUsage?.total || 0),
       jev: false,
     };
   });
@@ -120,7 +123,7 @@ const baseline = (cases, key) =>
     cases.map((row) => ({
       pass: row[key].success,
       ms: row[key].latencyMs,
-      tokens: row[key].response.tokenUsage?.total || 0,
+      tokens: row[key].response?.tokenUsage?.total || 0,
       jev: key === "jev",
     })),
   );

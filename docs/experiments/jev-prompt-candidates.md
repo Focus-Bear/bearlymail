@@ -1,8 +1,34 @@
 # Jev prompt audit
 
-Audited the current prompt files and their output contracts on 2026-09-30. Only category selection is implemented and live-evaluated in this PR so far. Broader production routing is pending approval for sending bodies, drafts, transcripts, user context, rules and workflow data to TypeSafe. The entries below describe the intended decomposition, not completed migrations; fixture-level Jev vs Gemini results are in the evaluation section.
+Audited the current prompt files and their output contracts on 2026-09-30. Category selection and the ten decisions in "Production routing" below now use Jev first; the remaining entries describe the intended decomposition, not completed migrations. Fixture-level Jev vs Gemini results are in the evaluation section.
 
 Jev returns typed judgments, not generated prose. Existing category selection now uses Jev first, with Gemini fallback on uncertainty or failure. Other remains a valid choice; suggesting a new category is a separate Gemini operation. The same principle applies to the remaining prompts: keep exact lookups, dates, arithmetic and execution in code; use Jev for judgments; keep Gemini for generated text and uncertain judgments.
+
+## Production routing (2026-10-04)
+
+Call sites attach a typed `jevDecision` to their existing `LLMRequest`. `LLMCoreService.generateText` asks Jev first (`server/src/llm/jev-decisions/`). If every answer that shapes the output clears the decision's threshold and no generated text is needed, it returns JSON in the contract the call site already parses. Otherwise the original provider call runs unchanged. The policy and input are sent once in Jev `state`. Usage is logged under the caller's operation with provider `typesafe`. `JEV_DECISIONS_ENABLED=false` disables it, and nothing changes unless `TYPESAFE_AI_API_KEY` is set.
+
+| Decision | Call site | Jev answers alone when | Still goes to the existing model |
+| --- | --- | --- | --- |
+| Workflow NL condition | `WorkflowExecutionService.evaluateNaturalLanguageCondition` | confident match / no match | uncertain |
+| Distraction phrase | `TriageService.verifyDistractionPhrase` | confident verdict | uncertain |
+| MCP sender tool | `McpSenderMappingService.askLLM` | confident tool + string argument (still validated against the schema) | uncertain |
+| Contact type | `ContactTypeClassifierService.classifyContactType` | confident type | uncertain |
+| Email type | `EmailClassifierService.classifyWithLLM` | all flags, personalisation and urgency confident | any uncertain answer |
+| Custom exclusion rules | `EmailClassifierService.checkCustomExclusionRules` | confident exact rule or none | uncertain |
+| Category duplicate | `ProtoCategoriesService.matchAgainstFullList` (thinking pass only) | confident exact candidate or none; reasoning says it was Jev | uncertain |
+| Merge duplicate categories | `identifyDuplicateCategories` | every pair confidently not a duplicate | any duplicate pair (the model picks groups and the canonical name), or >14 categories |
+| Incremental priority | `IncrementalAnalysisService.checkIfRecalcNeeded` | confident recalc verdict, plus a confident urgency change when the recalc is skipped | uncertain |
+| Phishing | `LlmSummarizationService.checkPhishingOnly` (primary check only) | confidently legitimate (threshold 0.9) | phishing or unsure → Nova → Gemini confirmation writes the banner reason |
+
+Thresholds are 0.8 on Jev's documented confidence scale, except phishing clearance at 0.9. Not routed:
+
+- opt-out detection: no production caller
+- batch triage: one fixture
+- priority scoring: user-facing explanations
+- mixed prompts that need generated text
+
+Fixture replay of the ten routed suites with the production definitions (60 cases): Gemini alone 58/60 (median 1.2 s). Cascade at 0.8: 60/60, with 47 cases answered by Jev alone and a median of 0.31 s. Tokens roughly double, so the measured gain is accuracy and latency; cost depends on TypeSafe pricing. The harness now evaluates these suites through the production definitions, so fixture results track what ships.
 
 ## Bounded decisions
 

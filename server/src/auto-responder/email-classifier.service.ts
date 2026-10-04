@@ -1,6 +1,7 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 
 import { AUTO_REPLY_VALUES } from "../constants/domain-types";
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import {
   BODY_PREVIEW_LENGTHS,
   EMAIL_CLASSIFICATION,
@@ -453,6 +454,7 @@ export class EmailClassifierService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: LLM_CONFIG.CLASSIFICATION_MAX_TOKENS,
+        jevDecision: { kind: JEV_DECISION_KINDS.EMAIL_TYPE, input: {} },
       },
       LLMProvider.OPENAI,
       undefined,
@@ -648,6 +650,10 @@ export class EmailClassifierService {
           systemPrompt: promptConfig.systemPrompt || "",
           temperature: RATIOS.THIRTY_PERCENT,
           maxTokens: LLM_CONFIG.CUSTOM_RULES_MAX_TOKENS,
+          jevDecision: {
+            kind: JEV_DECISION_KINDS.CUSTOM_EXCLUSION_RULES,
+            input: { rules: customRules },
+          },
         },
         LLMProvider.OPENAI,
         undefined,

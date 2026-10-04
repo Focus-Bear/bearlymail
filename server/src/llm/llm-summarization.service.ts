@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { StructuralError } from "../errors/structural-error";
@@ -532,6 +533,14 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
           jsonMode: true,
           cacheStaticPrefix: true,
           userId,
+          // Jev may only clear mail on the primary check; the confirmation
+          // stays an independent second opinion from Gemini.
+          ...(operation === LLM_OP_CHECK_PHISHING_ONLY && {
+            jevDecision: {
+              kind: JEV_DECISION_KINDS.PHISHING_CLEARANCE,
+              input: {},
+            },
+          }),
         },
         provider,
         userId,

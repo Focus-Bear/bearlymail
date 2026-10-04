@@ -4,6 +4,7 @@ import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { DEFAULT_LEGAL_VERSIONS } from "../constants/legal-versions";
 import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import {
   DeletedAccount,
@@ -32,6 +33,28 @@ function getInactivityThresholdDays(): number {
   return Number.isFinite(envVal) && envVal > 0
     ? envVal
     : DEFAULT_INACTIVITY_THRESHOLD_DAYS;
+}
+
+function currentConsentVersions() {
+  return {
+    currentTermsVersion:
+      process.env.TERMS_VERSION || DEFAULT_LEGAL_VERSIONS.TERMS,
+    currentPrivacyVersion:
+      process.env.PRIVACY_VERSION || DEFAULT_LEGAL_VERSIONS.PRIVACY,
+  };
+}
+
+function consentNeeds(
+  user: User,
+  currentTermsVersion: string,
+  currentPrivacyVersion: string,
+) {
+  return {
+    needsTermsAcceptance:
+      !user.termsAcceptedAt || user.termsVersion !== currentTermsVersion,
+    needsPrivacyAcceptance:
+      !user.privacyAcceptedAt || user.privacyVersion !== currentPrivacyVersion,
+  };
 }
 
 @Injectable()
@@ -347,8 +370,8 @@ export class UsersService {
     privacyAccepted: boolean,
   ): Promise<User> {
     const now = new Date();
-    const currentTermsVersion = process.env.TERMS_VERSION || "1.0.0";
-    const currentPrivacyVersion = process.env.PRIVACY_VERSION || "1.0.0";
+    const { currentTermsVersion, currentPrivacyVersion } =
+      currentConsentVersions();
 
     const updates: Partial<User> = {};
     if (termsAccepted) {
@@ -377,13 +400,13 @@ export class UsersService {
       throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
-    const currentTermsVersion = process.env.TERMS_VERSION || "1.0.0";
-    const currentPrivacyVersion = process.env.PRIVACY_VERSION || "1.0.0";
-
-    const needsTermsAcceptance =
-      !user.termsAcceptedAt || user.termsVersion !== currentTermsVersion;
-    const needsPrivacyAcceptance =
-      !user.privacyAcceptedAt || user.privacyVersion !== currentPrivacyVersion;
+    const { currentTermsVersion, currentPrivacyVersion } =
+      currentConsentVersions();
+    const { needsTermsAcceptance, needsPrivacyAcceptance } = consentNeeds(
+      user,
+      currentTermsVersion,
+      currentPrivacyVersion,
+    );
 
     return {
       needsTermsAcceptance,
@@ -405,13 +428,13 @@ export class UsersService {
       throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
-    const currentTermsVersion = process.env.TERMS_VERSION || "1.0.0";
-    const currentPrivacyVersion = process.env.PRIVACY_VERSION || "1.0.0";
-
-    const needsTermsAcceptance =
-      !user.termsAcceptedAt || user.termsVersion !== currentTermsVersion;
-    const needsPrivacyAcceptance =
-      !user.privacyAcceptedAt || user.privacyVersion !== currentPrivacyVersion;
+    const { currentTermsVersion, currentPrivacyVersion } =
+      currentConsentVersions();
+    const { needsTermsAcceptance, needsPrivacyAcceptance } = consentNeeds(
+      user,
+      currentTermsVersion,
+      currentPrivacyVersion,
+    );
 
     return {
       hasCompletedOnboarding: user.hasCompletedOnboarding,

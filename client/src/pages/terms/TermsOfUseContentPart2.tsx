@@ -9,8 +9,9 @@ export const TermsOfUseContentPart2: React.FC = () => {
     <>
       <LegalSection title="8. Third-Party Services">
         <LegalParagraph>
-          The Service integrates with third-party services (Google, OpenAI, etc.). Your use of these services is subject
-          to their respective terms of service and privacy policies.
+          The Service integrates with third-party services, including Google (Gmail, Calendar and Gemini), Microsoft,
+          Zoho, OpenAI, Amazon Web Services (including Amazon Bedrock) and TypeSafe. Your use of these services is
+          subject to their respective terms of service and privacy policies.
         </LegalParagraph>
       </LegalSection>
 

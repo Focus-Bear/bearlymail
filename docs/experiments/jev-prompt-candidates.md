@@ -94,6 +94,40 @@ The file inventory alone is insufficient: these prompts are embedded in services
 
 The audit also found a concrete existing bug: `identifyCustomLabels` sent the literal prompt ID rather than the template and label list, and the template was absent from the prompt registry. This PR registers and renders it correctly with an offline regression test. Its generative provider is unchanged.
 
+## Raw Jev decision evaluation (test fixtures only)
+
+`promptfoo/jev-decisions.cjs` runs each suite's existing fixtures (plus synthetic fixtures in `jev-synthetic-fixtures.cjs` for suites without a promptfoo config) through raw Jev only. No fallback, and assertions that need an external model grader are excluded. Production routing is unchanged. Run with `node promptfoo/run-jev-evaluation.cjs /path/to/server/.env [suite...]`.
+
+Results on 2026-10-01, `jev-1.13.0`: 116/132 cases pass, 0 API errors, ~504K total tokens. "Uncertain" means at least one answer was below the 0.9 acceptance threshold, so a cascade would send that case to Gemini.
+
+| Suite | Pass | Uncertain | Needs generation | Median ms |
+| --- | --- | --- | --- | --- |
+| check-phishing-only | 5/5 | — | — | 310 |
+| classify-contact-type | 4/4 | 0 | 0 | 286 |
+| classify-email-type | 6/6 | 5 | 0 | 287 |
+| verify-distraction-phrase | 7/7 | 0 | 0 | 355 |
+| incremental-priority-check | 7/7 | 4 | 0 | 291 |
+| check-category-duplicate | 15/15 | 1 | 0 | 372 |
+| derive-mcp-sender-tool | 4/4 | 0 | 0 | 317 |
+| sanity-check-category-rule | 10/10 | 5 | 0 | 324 |
+| assess-category-rule-value | 5/5 | 5 | 1 | 313 |
+| suggest-actions | 5/5 | 4 | 0 | 364 |
+| search-ranking | 3/3 | 3 | 0 | 1,872 |
+| merge-duplicate-categories | 5/5 | 1 | 0 | 270 |
+| dispute-tone-check | 3/3 | 2 | 0 | 271 |
+| prioritise-email-prompts | 11/11 | 10 | 0 | 354 |
+| detect-opt-out (synthetic) | 6/6 | 2 | 0 | 630 |
+| evaluate-workflow-condition (synthetic) | 4/4 | 0 | 0 | 436 |
+| check-custom-exclusion-rules (synthetic) | 3/3 | 0 | 0 | 540 |
+| batch-priority-triage (synthetic) | 1/1 | 0 | 0 | 400 |
+| validate-writing-example | 6/8 | 2 | 2 | 285 |
+| check-tone-style | 7/11 | 7 | 5 | 330 |
+| detect-meeting-proposal | 4/14 | 4 | 10 | 396 |
+
+All 16 failures are in mixed contracts and concern output Jev does not produce: cleaned writing samples, meeting date/time extraction, and tone rewrites/warning text. Every failing case is one the adapter already flags as needing generation, so a cascade would send it to Gemini. The phishing row comes from the first standalone run, which predates the uncertainty/generation metadata.
+
+Caveats: pass rates are on small tuned regression sets, not held-out accuracy. Uncertainty is high for scored outputs (priority, email type, ranking), so a 0.9-threshold cascade would send most of those cases to Gemini and save little. The Gemini baseline and Jev→Gemini cascade comparison have not been run: sending these fixtures to Gemini was outside the approved test data-sharing scope.
+
 ## Migration checks
 
 For each subsequent adapter, reuse production request/output code in promptfoo. Measure raw Jev and the actual Gemini fallback path independently; record fallback frequency, combined latency, token usage and API errors. Add malformed-response, timeout, threshold-boundary and missing-key tests. Do not treat concentrated probabilities as proof of correctness or permission to perform actions. Category fixtures are regressions used during tuning, not a held-out accuracy estimate.

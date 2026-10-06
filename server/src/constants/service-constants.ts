@@ -82,3 +82,16 @@ export const SQS_CONSTANTS = {
     SQS_BODY_TRIM_SHORT,
   ] as const,
 } as const;
+
+// HTTP server socket timeouts. The AWS ALB keeps idle upstream connections open
+// for 60s (its default idle_timeout), but Node closes idle keep-alive sockets
+// after 5s. When the ALB reuses a socket Node has just closed, the request dies
+// with an ALB 502 that never reaches the app, so Node must outlive the ALB.
+const ALB_IDLE_TIMEOUT_MS = 60_000;
+const KEEP_ALIVE_MARGIN_MS = 5_000;
+const HEADERS_MARGIN_MS = 1_000;
+export const HTTP_SERVER_TIMEOUTS = {
+  KEEP_ALIVE_MS: ALB_IDLE_TIMEOUT_MS + KEEP_ALIVE_MARGIN_MS,
+  // Must exceed keepAliveTimeout, or Node can still drop a reused socket.
+  HEADERS_MS: ALB_IDLE_TIMEOUT_MS + KEEP_ALIVE_MARGIN_MS + HEADERS_MARGIN_MS,
+} as const;

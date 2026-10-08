@@ -53,6 +53,7 @@ export {
   addAnimatingOut,
   addOptimisticArchive,
   addOptimisticSnooze,
+  pruneStaleOptimisticRemovals,
   removeAnimatingOut,
   removeOptimisticArchive,
   removeOptimisticSnooze,

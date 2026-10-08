@@ -6,6 +6,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 
+import { useHiddenCategoryEmailCount } from 'components/inbox/debug/useHiddenCategoryEmailCount';
 import { API_URL } from 'config/api';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
@@ -109,6 +110,7 @@ export const CategoryDebugPanel: React.FC<CategoryDebugPanelProps> = ({
 }) => {
   const [contexts, setContexts] = useState<LoadState<unknown>>({ status: STATUS_IDLE });
   const [trace, setTrace] = useState<LoadState<unknown>>({ status: STATUS_IDLE });
+  const hiddenByOptimisticCount = useHiddenCategoryEmailCount(categoryKey);
 
   // Summary entries that share this category's display name. If more than one
   // shows up the inbox is being fed duplicate categories with distinct UUIDs —
@@ -159,6 +161,7 @@ export const CategoryDebugPanel: React.FC<CategoryDebugPanelProps> = ({
         <Pill label="key" value={categoryKey} />
         <Pill label="summary.count" value={categoryItem.count} />
         <Pill label="emails.length" value={categoryEmailsLength} />
+        <Pill label="hidden (optimistic archive/snooze)" value={hiddenByOptimisticCount} />
         <Pill label="isLoaded" value={String(isLoaded)} />
         <Pill label="isExpanded" value={String(isExpanded)} />
         <Pill label="mode" value={mode} />

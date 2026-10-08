@@ -7,14 +7,13 @@ import { hasIcsAttachment } from 'utils/calendarUtils';
 import { extractEmailAddress, getCorrespondent } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
 
-import { TimePicker } from 'components/compose/TimePicker';
 import { CRMDealsSection } from 'components/crm/CRMDealsSection';
 import { CardDisplaySettings, CardDisplaySettingsButton } from 'components/email-detail/CardDisplaySettings';
-import { CustomRuleModal } from 'components/email-detail/CustomRuleModal';
 import { EmailDetailActions } from 'components/email-detail/EmailDetailActions';
 import { EmailDetailAnimationOverlay } from 'components/email-detail/EmailDetailAnimationOverlay';
 import { EmailDetailDebugInfo } from 'components/email-detail/EmailDetailDebugInfo';
 import { EmailDetailHeader } from 'components/email-detail/EmailDetailHeader';
+import { EmailDetailOverlays } from 'components/email-detail/EmailDetailOverlays';
 import { EmailDetailSidebar } from 'components/email-detail/EmailDetailSidebar';
 import { EmailPhishingWarning } from 'components/email-detail/EmailPhishingWarning';
 import { shouldShowPhishingAlert } from 'components/email-detail/emailPhishingWarning.helpers';
@@ -55,7 +54,6 @@ import { useEmailDetailOperations } from 'hooks/useEmailDetailOperations';
 import { useEmailDetailState } from 'hooks/useEmailDetailState';
 import { useEmailDetailTimePicker } from 'hooks/useEmailDetailTimePicker';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { TimeSuggestion } from 'hooks/useScheduledEmails';
 
 /**
  * Controls how `EmailDetail` renders.
@@ -312,22 +310,33 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       />
     );
 
+    const overlays = (
+      <EmailDetailOverlays
+        showRuleModal={showRuleModal}
+        customRule={customRule}
+        onCustomRuleChange={state.setCustomRule}
+        onCloseRuleModal={() => {
+          state.setShowRuleModal(false);
+          state.setCustomRule({ whenToUse: '', howToSummarize: '' });
+        }}
+        onCreateCustomRule={ops.handleCreateCustomRule}
+        showTimePicker={showTimePicker}
+        scheduledSendAt={scheduledSendAt}
+        timeSuggestions={timeSuggestions}
+        timeWarning={timeWarning}
+        suggestedTime={suggestedTime}
+        onTimeSelect={handleTimeSelect}
+        onCancelTimePicker={handleCancelTimePicker}
+      />
+    );
+
     // Compact (split-view): EmailDetailContent returns its own two-column layout
     // (email body + action sidebar), so render it directly into a full-height column.
     if (isCompact) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
           {emailContent}
-          <CustomRuleModal
-            show={showRuleModal}
-            customRule={customRule}
-            onCustomRuleChange={state.setCustomRule}
-            onClose={() => {
-              state.setShowRuleModal(false);
-              state.setCustomRule({ whenToUse: '', howToSummarize: '' });
-            }}
-            onCreate={ops.handleCreateCustomRule}
-          />
+          {overlays}
         </div>
       );
     }
@@ -339,16 +348,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
           <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm }}>
             {emailContent}
           </div>
-          <CustomRuleModal
-            show={showRuleModal}
-            customRule={customRule}
-            onCustomRuleChange={state.setCustomRule}
-            onClose={() => {
-              state.setShowRuleModal(false);
-              state.setCustomRule({ whenToUse: '', howToSummarize: '' });
-            }}
-            onCreate={ops.handleCreateCustomRule}
-          />
+          {overlays}
         </div>
       );
     }
@@ -358,23 +358,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
         animationClass={animationClass}
         isMobile={isMobile}
         emailContent={emailContent}
-        showRuleModal={showRuleModal}
-        customRule={customRule}
-        onCustomRuleChange={state.setCustomRule}
-        onCloseRuleModal={() => {
-          state.setShowRuleModal(false);
-          state.setCustomRule({ whenToUse: '', howToSummarize: '' });
-        }}
-        onCreateCustomRule={async () => {
-          await ops.handleCreateCustomRule();
-        }}
-        showTimePicker={showTimePicker}
-        scheduledSendAt={scheduledSendAt}
-        timeSuggestions={timeSuggestions}
-        timeWarning={timeWarning}
-        suggestedTime={suggestedTime}
-        onTimeSelect={handleTimeSelect}
-        onCancelTimePicker={handleCancelTimePicker}
+        overlays={overlays}
       />
     );
   }
@@ -386,37 +370,10 @@ interface EmailDetailFullLayoutProps {
   animationClass: string | null;
   isMobile: boolean;
   emailContent: React.ReactNode;
-  showRuleModal: boolean;
-  customRule: { whenToUse: string; howToSummarize: string };
-  onCustomRuleChange: (rule: { whenToUse: string; howToSummarize: string }) => void;
-  onCloseRuleModal: () => void;
-  onCreateCustomRule: () => Promise<void>;
-  showTimePicker: boolean;
-  scheduledSendAt: Date | null;
-  timeSuggestions: TimeSuggestion[];
-  timeWarning: string | undefined;
-  suggestedTime: Date | undefined;
-  onTimeSelect: (time: Date) => void;
-  onCancelTimePicker: () => void;
+  overlays: React.ReactNode;
 }
 
-const EmailDetailFullLayout: React.FC<EmailDetailFullLayoutProps> = ({
-  animationClass,
-  isMobile,
-  emailContent,
-  showRuleModal,
-  customRule,
-  onCustomRuleChange,
-  onCloseRuleModal,
-  onCreateCustomRule,
-  showTimePicker,
-  scheduledSendAt,
-  timeSuggestions,
-  timeWarning,
-  suggestedTime,
-  onTimeSelect,
-  onCancelTimePicker,
-}) => (
+const EmailDetailFullLayout: React.FC<EmailDetailFullLayoutProps> = ({ animationClass, isMobile, emailContent, overlays }) => (
   <>
     <EmailDetailAnimationOverlay animationClass={animationClass} />
     <EmailDetailSidebar />
@@ -439,23 +396,7 @@ const EmailDetailFullLayout: React.FC<EmailDetailFullLayoutProps> = ({
         <div style={{ maxWidth: isMobile ? '100%' : '900px', margin: '0 auto' }}>{emailContent}</div>
       </div>
     </div>
-    <CustomRuleModal
-      show={showRuleModal}
-      customRule={customRule}
-      onCustomRuleChange={onCustomRuleChange}
-      onClose={onCloseRuleModal}
-      onCreate={onCreateCustomRule}
-    />
-    {showTimePicker && (
-      <TimePicker
-        selectedTime={scheduledSendAt}
-        suggestions={timeSuggestions}
-        warning={timeWarning}
-        suggestedTime={suggestedTime}
-        onTimeSelect={onTimeSelect}
-        onCancel={onCancelTimePicker}
-      />
-    )}
+    {overlays}
   </>
 );
 

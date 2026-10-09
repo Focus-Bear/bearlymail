@@ -59,6 +59,7 @@ const createTestStore = (
       inboxUI: {
         optimisticallyArchived: uiState.optimisticallyArchived ?? ([] as string[]),
         optimisticallySnoozed: uiState.optimisticallySnoozed ?? ([] as string[]),
+        optimisticAddedAt: {},
         animatingOut: uiState.animatingOut ?? ([] as { id: string; type: 'archive' | 'priority' }[]),
         loading: uiState.loading ?? true,
         decrypting: uiState.decrypting ?? false,

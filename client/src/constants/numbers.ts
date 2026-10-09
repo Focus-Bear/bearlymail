@@ -209,6 +209,9 @@ export const NUMBER_FORMAT_MILLION = 1000000;
 export const EXIT_ANIMATION_DURATION_MS = 300;
 export const ERROR_NOTIFICATION_DURATION_MS = 6000;
 export const UNDO_TOAST_DURATION_MS = 5000; // 5 seconds for undo-toast countdown before committing
+// How long an optimistically archived/snoozed email stays hidden from fetches that start
+// after it. Covers in-flight fetches and the undo window, far above the API round-trip.
+export const OPTIMISTIC_REMOVAL_GRACE_MS = 30_000;
 export const TOAST_ENTRANCE_DELAY_MS = 10; // Small delay to trigger entrance CSS animation
 export const TOAST_ACTION_FOCUS_DELAY_MS = 50; // Delay before focusing action button for accessibility
 export const AUTO_SAVE_INTERVAL_MS = 10000;

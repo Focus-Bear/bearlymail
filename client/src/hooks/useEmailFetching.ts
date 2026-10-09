@@ -48,6 +48,7 @@ import {
   markCategoryLoaded,
   markCategoryLoadFailed,
   markCategoryLoading,
+  pruneStaleOptimisticRemovals,
   reconcileCategorySummaryCount,
   setCategorySummary,
   setCurrentOffset,
@@ -130,6 +131,7 @@ async function fetchInboxSummary(
   signal?: AbortSignal
 ): Promise<CategorySummaryItem[] | null> {
   const params = buildSummaryParams();
+  dispatch(pruneStaleOptimisticRemovals());
   const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`, { signal });
   const { total, categories } = response.data;
   dispatch(setCategorySummary(categories));
@@ -278,6 +280,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       keys.forEach(key => dispatch(markCategoryLoading(key)));
       try {
         const params = buildBatchParamsImpl(mode, filters, keys);
+        dispatch(pruneStaleOptimisticRemovals());
         const response = await axios.get(`${API_URL}/emails/inbox-batch?${params.toString()}`);
         const categories = (response.data?.categories ?? []) as Array<{ key: string; emails: Email[] }>;
         const emailsByKey = new Map(categories.map(cat => [cat.key, cat.emails ?? []]));
@@ -450,6 +453,7 @@ function serveCategoryFromCacheAndRefresh({
 
   const sessionId = fetchSessionRef.current;
   const params = buildCategoryParams(catKey);
+  dispatch(pruneStaleOptimisticRemovals());
   axios
     .get(`${API_URL}/emails/inbox?${params.toString()}`)
     .then(response => {
@@ -581,6 +585,7 @@ serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dis
 
   try {
     const params = buildCategoryParams(catKey);
+    dispatch(pruneStaleOptimisticRemovals());
     const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
     // Emails now include category_id (UUID) from the server, so groupEmailsByCategory
     // keys by UUID directly. No normalization needed.
@@ -703,6 +708,7 @@ async function refreshInPlaceImpl({
 
   try {
     const summaryParams = buildSummaryParams();
+    dispatch(pruneStaleOptimisticRemovals());
     const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`, { signal });
     const freshCategories = summaryResponse.data.categories;
     dispatch(setCategorySummary(freshCategories));

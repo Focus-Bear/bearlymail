@@ -73,6 +73,7 @@ const createTestStore = (emails: Email[] = []) => {
       inboxUI: {
         optimisticallyArchived: [] as string[],
         optimisticallySnoozed: [] as string[],
+        optimisticAddedAt: {},
         animatingOut: [] as { id: string; type: 'archive' | 'priority' }[],
         loading: false,
         decrypting: false,

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { Contact } from "../database/entities/contact.entity";
 import { LLMService } from "../llm/llm.service";
@@ -79,6 +80,7 @@ export class ContactTypeClassifierService {
           userId,
           operation: LLM_OP_CLASSIFY_CONTACT_TYPE,
           jsonMode: true,
+          jevDecision: { kind: JEV_DECISION_KINDS.CONTACT_TYPE, input: {} },
         },
         LLMProvider.BEDROCK,
         userId,

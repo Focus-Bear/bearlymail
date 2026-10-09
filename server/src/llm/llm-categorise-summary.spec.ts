@@ -3,7 +3,7 @@ import { Logger } from "@nestjs/common";
 import { LLMProvider } from "./llm.types";
 import {
   categoriseFromSummary,
-  categoriseWithEscalation,
+  categoriseOnlyWithEscalation as categoriseWithEscalation,
 } from "./llm-categorise-summary";
 import { getPrompt } from "./prompts";
 

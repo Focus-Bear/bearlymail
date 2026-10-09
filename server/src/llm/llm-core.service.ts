@@ -32,17 +32,17 @@ import {
 } from "./bedrock-prompt-cache";
 import { ClaudeCliClient } from "./claude-cli.helper";
 import { buildGeminiGenerationConfig } from "./gemini-request.helper";
+import { JevCategoryClient } from "./jev-category-client";
+import { JevDecisionClient } from "./jev-decisions/jev-decision-client";
 import { LLMProvider, LLMRequest } from "./llm.types";
+import type { CategoriseFromSummaryParams } from "./llm-categorise-summary";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
 import {
-  computeRetryDelayMs,
   HTTP_FORBIDDEN,
   HTTP_UNAUTHORIZED,
   isGeminiBillingError,
-  isPermanentLLMError,
-  isRateLimitError,
   LLM_RETRY_MAX_ATTEMPTS,
-  RATE_LIMIT_RETRY_MAX_ATTEMPTS,
+  retryLLMOperation,
 } from "./llm-retry-policy";
 import { supportsReasoningEffort } from "./llm-utils";
 import { TokenUsageService } from "./token-usage.service";
@@ -108,6 +108,8 @@ export class LLMCoreService {
   private readonly bedrockPromptCache = new BedrockPromptCache();
   /** Local Claude Code CLI wrapper (binary probe + one-shot generations). */
   private readonly claudeCli: ClaudeCliClient;
+  private readonly jevCategories: JevCategoryClient;
+  private readonly jevDecisions: JevDecisionClient;
 
   constructor(
     private configService: ConfigService,
@@ -116,6 +118,16 @@ export class LLMCoreService {
     private tokenUsageService: TokenUsageService,
   ) {
     this.claudeCli = new ClaudeCliClient(
+      (key) => this.configService.get<string>(key),
+      this.logger,
+      this.tokenUsageService,
+    );
+    this.jevCategories = new JevCategoryClient(
+      (key) => this.configService.get<string>(key),
+      this.logger,
+      this.tokenUsageService,
+    );
+    this.jevDecisions = new JevDecisionClient(
       (key) => this.configService.get<string>(key),
       this.logger,
       this.tokenUsageService,
@@ -132,6 +144,10 @@ export class LLMCoreService {
         `Claude CLI binary not found (CLAUDE_CLI_PATH=${this.claudeCli.cliPath}), claude-cli will be unavailable`,
       );
     }
+  }
+
+  categoriseWithJev(params: CategoriseFromSummaryParams) {
+    return this.jevCategories.categorise(params);
   }
 
   private initializeClients() {
@@ -195,6 +211,16 @@ export class LLMCoreService {
   }
 
   async generateText(
+    request: LLMRequest,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<string> {
+    const jevOutput = await this.jevDecisions.decide(request, userId);
+    if (jevOutput !== null) return jevOutput;
+    return this.generateWithProviderFallback(request, provider, userId);
+  }
+
+  private async generateWithProviderFallback(
     request: LLMRequest,
     provider?: LLMProvider,
     userId?: string,
@@ -273,28 +299,7 @@ export class LLMCoreService {
     operation: () => Promise<T>,
     maxRetries: number = LLM_RETRY_MAX_ATTEMPTS,
   ): Promise<T> {
-    let maxAttempts = maxRetries;
-    for (let attempt = 1; ; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        // Auth and billing failures are permanent — retrying just multiplies
-        // upstream cost. Bail immediately so the outer fallback can take over.
-        if (isPermanentLLMError(error)) throw error;
-        const rateLimited = isRateLimitError(error);
-        if (rateLimited) {
-          maxAttempts = Math.max(maxAttempts, RATE_LIMIT_RETRY_MAX_ATTEMPTS);
-        }
-        if (attempt >= maxAttempts) throw error;
-        const delay = computeRetryDelayMs(attempt, rateLimited);
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        this.logger.warn(
-          `LLM operation ${rateLimited ? "rate-limited" : "failed"}, retrying in ${Math.round(delay)}ms... (Attempt ${attempt}/${maxAttempts}): ${errorMessage}`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
+    return retryLLMOperation(operation, this.logger, maxRetries);
   }
 
   private isGeminiCircuitOpen(): boolean {

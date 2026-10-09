@@ -39,7 +39,10 @@ const ThirdPartyServicesSection: React.FC = () => (
           <strong>Google Calendar API:</strong> For calendar booking functionality
         </>,
         <>
-          <strong>OpenAI/Gemini:</strong> For AI-powered email analysis and summaries (you may use your own API keys)
+          <strong>AI providers (OpenAI, Google Gemini, Amazon Bedrock and TypeSafe):</strong> To analyse, classify,
+          prioritise and summarise your emails. Relevant email content is sent to these providers only to perform these
+          features. You may use your own OpenAI or Anthropic API key, in which case requests that use it go to that
+          provider
         </>,
         <>
           <strong>PostHog:</strong> For analytics and product insights

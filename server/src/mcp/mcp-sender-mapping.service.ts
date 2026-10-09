@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import {
   MCPSenderLookupMapping,
   MCPServerConfig,
@@ -101,6 +102,10 @@ export class MCPSenderMappingService {
           temperature: DERIVE_TEMPERATURE,
           maxTokens: DERIVE_MAX_TOKENS,
           jsonMode: true,
+          jevDecision: {
+            kind: JEV_DECISION_KINDS.MCP_SENDER_TOOL,
+            input: { tools },
+          },
         },
         undefined,
         userId,

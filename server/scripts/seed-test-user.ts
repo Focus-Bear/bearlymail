@@ -1,3 +1,4 @@
+import { DEFAULT_LEGAL_VERSIONS } from '../src/constants/legal-versions';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { config } from 'dotenv';
@@ -519,9 +520,9 @@ async function seedTestUser() {
       existingUser.hasScannedHistory = true;
       const now = new Date();
       existingUser.termsAcceptedAt = now;
-      existingUser.termsVersion = process.env.TERMS_VERSION || '1.0.0';
+      existingUser.termsVersion = process.env.TERMS_VERSION || DEFAULT_LEGAL_VERSIONS.TERMS;
       existingUser.privacyAcceptedAt = now;
-      existingUser.privacyVersion = process.env.PRIVACY_VERSION || '1.0.0';
+      existingUser.privacyVersion = process.env.PRIVACY_VERSION || DEFAULT_LEGAL_VERSIONS.PRIVACY;
       testUser = await userRepository.save(existingUser);
       console.log('Test user updated');
     } else {
@@ -544,9 +545,9 @@ async function seedTestUser() {
         hasCompletedOnboarding: true,
         hasScannedHistory: true,
         termsAcceptedAt: now,
-        termsVersion: process.env.TERMS_VERSION || '1.0.0',
+        termsVersion: process.env.TERMS_VERSION || DEFAULT_LEGAL_VERSIONS.TERMS,
         privacyAcceptedAt: now,
-        privacyVersion: process.env.PRIVACY_VERSION || '1.0.0',
+        privacyVersion: process.env.PRIVACY_VERSION || DEFAULT_LEGAL_VERSIONS.PRIVACY,
       });
 
       testUser = await userRepository.save(newUser);

@@ -5,10 +5,12 @@ import { theme } from 'theme/theme';
 
 interface LegalPageLayoutProps {
   title: string;
+  /** ISO date (YYYY-MM-DD) the document's wording last changed. */
+  lastUpdated: string;
   children: React.ReactNode;
 }
 
-export const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({ title, children }) => {
+export const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({ title, lastUpdated, children }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -65,7 +67,7 @@ export const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({ title, childre
             color: theme.colors.text.secondary,
           }}
         >
-          {t('legal.lastUpdated', { date: new Date().toLocaleDateString() })}
+          {t('legal.lastUpdated', { date: new Date(`${lastUpdated}T00:00:00`).toLocaleDateString() })}
         </p>
         {children}
       </div>

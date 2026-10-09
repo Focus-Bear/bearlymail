@@ -137,6 +137,7 @@ export const LLM_OP_SUGGEST_CATEGORY_RULES = "suggest_category_rules";
 
 // Incremental re-categorisation of a thread from its updated summary
 export const LLM_OP_CATEGORISE_SUMMARY = "categorise_summary";
+export const LLM_OP_SUGGEST_PROTO_CATEGORY = "suggest_proto_category";
 
 // Derive not-contains exclusions for an auto-rule from real false positives
 export const LLM_OP_DERIVE_RULE_EXCLUSIONS = "derive_rule_exclusions";
@@ -218,6 +219,7 @@ export type LLMOperation =
   | typeof LLM_OP_CATEGORY_SHORTLIST
   | typeof LLM_OP_CATEGORY_EMBEDDING
   | typeof LLM_OP_SUGGEST_CATEGORY_RULES
+  | typeof LLM_OP_SUGGEST_PROTO_CATEGORY
   | typeof LLM_OP_CATEGORISE_SUMMARY
   | typeof LLM_OP_DERIVE_RULE_EXCLUSIONS
   | typeof LLM_OP_ASSESS_CATEGORY_RULE_VALUE
@@ -278,6 +280,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_CATEGORY_SHORTLIST]: "Category Shortlist",
   [LLM_OP_CATEGORY_EMBEDDING]: "Category Embedding",
   [LLM_OP_SUGGEST_CATEGORY_RULES]: "Suggest Category Rules",
+  [LLM_OP_SUGGEST_PROTO_CATEGORY]: "Suggest New Category",
   [LLM_OP_CATEGORISE_SUMMARY]: "Categorise From Summary",
   [LLM_OP_DERIVE_RULE_EXCLUSIONS]: "Derive Rule Exclusions",
   [LLM_OP_ASSESS_CATEGORY_RULE_VALUE]: "Assess Category Rule Value",

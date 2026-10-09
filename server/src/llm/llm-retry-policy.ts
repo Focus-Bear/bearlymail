@@ -1,4 +1,4 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { Logger, UnauthorizedException } from "@nestjs/common";
 
 import { MILLISECONDS } from "../constants/time-constants";
 
@@ -92,4 +92,33 @@ export function computeRetryDelayMs(
   return (
     Math.pow(2, attempt - 1) * baseDelayMs + Math.random() * MILLISECONDS.SECOND
   );
+}
+
+export async function retryLLMOperation<T>(
+  operation: () => Promise<T>,
+  logger: Pick<Logger, "warn">,
+  maxRetries: number = LLM_RETRY_MAX_ATTEMPTS,
+): Promise<T> {
+  let maxAttempts = maxRetries;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      // Auth and billing failures are permanent — retrying just multiplies
+      // upstream cost. Bail immediately so the outer fallback can take over.
+      if (isPermanentLLMError(error)) throw error;
+      const rateLimited = isRateLimitError(error);
+      if (rateLimited) {
+        maxAttempts = Math.max(maxAttempts, RATE_LIMIT_RETRY_MAX_ATTEMPTS);
+      }
+      if (attempt >= maxAttempts) throw error;
+      const delay = computeRetryDelayMs(attempt, rateLimited);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.warn(
+        `LLM operation ${rateLimited ? "rate-limited" : "failed"}, retrying in ${Math.round(delay)}ms... (Attempt ${attempt}/${maxAttempts}): ${errorMessage}`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
 }

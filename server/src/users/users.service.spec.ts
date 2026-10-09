@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { DEFAULT_LEGAL_VERSIONS } from "../constants/legal-versions";
 import {
   DeletedAccount,
   DeletionReason,
@@ -576,18 +577,35 @@ describe("UsersService", () => {
       const userUpToDate = {
         ...mockUser,
         termsAcceptedAt: new Date(),
-        termsVersion: "1.0.0",
+        termsVersion: DEFAULT_LEGAL_VERSIONS.TERMS,
         privacyAcceptedAt: new Date(),
-        privacyVersion: "1.0.0",
+        privacyVersion: DEFAULT_LEGAL_VERSIONS.PRIVACY,
       };
       repository.findOne.mockResolvedValue(userUpToDate);
 
       const result = await service.getConsentStatus("user-1");
 
-      expect(result.currentTermsVersion).toBe("1.0.0");
-      expect(result.currentPrivacyVersion).toBe("1.0.0");
+      expect(result.currentTermsVersion).toBe(DEFAULT_LEGAL_VERSIONS.TERMS);
+      expect(result.currentPrivacyVersion).toBe(DEFAULT_LEGAL_VERSIONS.PRIVACY);
       expect(result.needsTermsAcceptance).toBe(false);
       expect(result.needsPrivacyAcceptance).toBe(false);
+    });
+
+    it("asks users who accepted the original privacy policy to accept the updated one", async () => {
+      delete process.env.TERMS_VERSION;
+      delete process.env.PRIVACY_VERSION;
+      repository.findOne.mockResolvedValue({
+        ...mockUser,
+        termsAcceptedAt: new Date(),
+        termsVersion: DEFAULT_LEGAL_VERSIONS.TERMS,
+        privacyAcceptedAt: new Date(),
+        privacyVersion: "1.0.0",
+      });
+
+      const result = await service.getConsentStatus("user-1");
+
+      expect(result.needsTermsAcceptance).toBe(false);
+      expect(result.needsPrivacyAcceptance).toBe(true);
     });
   });
 

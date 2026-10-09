@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { safeJsonParse } from "../utils/json";
 import { cleanEmailContent } from "./email-content-cleaner";
@@ -111,6 +112,10 @@ export class IncrementalAnalysisService {
         {
           prompt: renderedPrompt,
           operation: LLM_OP_INCREMENTAL_PRIORITY_CHECK,
+          jevDecision: {
+            kind: JEV_DECISION_KINDS.INCREMENTAL_PRIORITY,
+            input: {},
+          },
         },
         provider ?? LLMProvider.BEDROCK,
         userId,

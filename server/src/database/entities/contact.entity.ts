@@ -16,18 +16,10 @@ import { ContactNote } from "./contact-note.entity";
 import { Deal } from "./deal.entity";
 import { User } from "./user.entity";
 
-export const DEFAULT_CONTACT_TYPES = [
-  "lead",
-  "customer",
-  "team_member",
-  "advisor",
-  "stranger",
-  "bot",
-  "partner",
-  "spammer",
-] as const;
-
-export type DefaultContactType = (typeof DEFAULT_CONTACT_TYPES)[number];
+export {
+  DEFAULT_CONTACT_TYPES,
+  type DefaultContactType,
+} from "../../constants/contact-types";
 
 /**
  * Contact entity with searchable encryption using blind indexing.

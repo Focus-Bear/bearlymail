@@ -95,7 +95,7 @@
     "googleapis": "^176.0.0",
     "i18next": "^26.4.2",
     "luxon": "^3.7.2",
-    "mjml": "^5.4.0",
+    "mjml": "^5.4.1",
     "natural": "^8.1.1",
     "node-ical": "^0.27.1",
     "openai": "^7.10.0",
@@ -111,7 +111,7 @@
     "rxjs": "^7.8.1",
     "stripe": "^22.5.0",
     "typeorm": "^1.1.1",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",
@@ -143,7 +143,7 @@
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "jest": "^30.4.2",
     "js-yaml": "^5.2.2",
-    "jscodeshift": "^17.3.0",
+    "jscodeshift": "^17.4.0",
     "nodemon": "^3.1.14",
     "prettier": "^3.9.5",
     "promptfoo": "^0.122.0",

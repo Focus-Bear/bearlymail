@@ -2,10 +2,10 @@
  * PlanPickerModal.stories.tsx — Storybook stories for the in-app plan picker.
  *
  * Four scenarios:
- *   1. Default      — trial org, owner/admin, RevenueCat key configured → buy buttons
+ *   1. Default      — trial org, owner/admin → "Choose plan" (Stripe Checkout) buttons
  *   2. CurrentPlan  — active Growth plan highlighted with a "Current plan" badge
  *   3. MemberView   — plain org member: read-only tiers + "ask your org owner" note
- *   4. Fallback     — no VITE_REVENUECAT_API_KEY → contact-us mailto CTA + note
+ *   4. Fallback     — user with no org to bill → contact-us mailto CTA + note
  *
  * All stories render the REAL PlanPickerModal; tiers are supplied via React
  * Query cache seeding (see PlanPickerModalDemo).
@@ -22,7 +22,7 @@ const meta: Meta<typeof PlanPickerModalDemo> = {
     docs: {
       description: {
         component:
-          'Modal listing the purchasable volume tiers. Owners/admins with a configured RevenueCat Web Billing key get in-app checkout; without a key the action falls back to a contact-us mailto; members see the tiers read-only.',
+          'Modal listing the purchasable volume tiers. Owners/admins get a "Choose plan" button that opens Stripe Hosted Checkout; users with no org to bill fall back to a contact-us mailto; members see the tiers read-only.',
       },
     },
   },
@@ -47,6 +47,6 @@ export const MemberView: Story = {
 };
 
 export const Fallback: Story = {
-  name: 'Fallback — no RevenueCat key, contact-us CTA',
+  name: 'Fallback — no org to bill, contact-us CTA',
   args: { scenario: 'fallback' },
 };

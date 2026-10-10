@@ -5,61 +5,18 @@ import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import { VolumeUsage } from 'queries/useOrgUsage';
 
-import { getRevenueCatApiKey } from 'config/revenuecat';
-
 import { PlanPickerModal } from './PlanPickerModal';
 
 vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-const showSuccess = vi.fn();
 const showError = vi.fn();
+const showSuccess = vi.fn();
 vi.mock('contexts/NotificationContext', () => ({
-  useNotifications: () => ({ showSuccess, showError }),
+  useNotifications: () => ({ showError, showSuccess }),
 }));
 
-vi.mock('contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'user-1', email: 'owner@example.com' } }),
-}));
-
-vi.mock('config/revenuecat', () => ({
-  getRevenueCatApiKey: vi.fn(),
-}));
-const mockedGetKey = vi.mocked(getRevenueCatApiKey);
-
-const rcMocks = vi.hoisted(() => {
-  const instance = {
-    getOfferings: vi.fn(),
-    purchase: vi.fn(),
-    getAppUserId: vi.fn(() => 'user-1'),
-    changeUser: vi.fn(),
-  };
-  return {
-    instance,
-    isConfigured: vi.fn(() => false),
-    configure: vi.fn(() => instance),
-    getSharedInstance: vi.fn(() => instance),
-  };
-});
-
-vi.mock('@revenuecat/purchases-js', () => {
-  class MockPurchasesError extends Error {
-    errorCode: number;
-    constructor(errorCode: number) {
-      super('purchases error');
-      this.errorCode = errorCode;
-    }
-  }
-  return {
-    ErrorCode: { UserCancelledError: 1 },
-    PurchasesError: MockPurchasesError,
-    Purchases: {
-      isConfigured: rcMocks.isConfigured,
-      configure: rcMocks.configure,
-      getSharedInstance: rcMocks.getSharedInstance,
-    },
-  };
-});
+vi.mock('utils/posthog', () => ({ captureEvent: vi.fn() }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -74,26 +31,15 @@ const TIERS = [
   { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000 },
 ];
 
-const OFFERINGS = {
-  all: {
-    default: {
-      availablePackages: [
-        {
-          identifier: '$rc_monthly',
-          webBillingProduct: { identifier: 'bearlymail_starter', price: { formattedPrice: '$15.00' } },
-        },
-        {
-          identifier: 'growth_pkg',
-          webBillingProduct: { identifier: 'bearlymail_growth', price: { formattedPrice: '$25.00' } },
-        },
-        {
-          identifier: 'enterprise_pkg',
-          webBillingProduct: { identifier: 'bearlymail_enterprise', price: { formattedPrice: '$40.00' } },
-        },
-      ],
-    },
-  },
-};
+const CHECKOUT_URL = 'https://checkout.stripe.com/c/pay/cs_test_123';
+
+// jsdom's window.location.assign is non-configurable, so replace the whole
+// location object with a mock we can assert the redirect against.
+const assignMock = vi.fn();
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: { assign: assignMock, href: 'http://localhost/settings', search: '', pathname: '/settings', hash: '' },
+});
 
 function buildVolumeUsage(overrides: Partial<VolumeUsage> = {}): VolumeUsage {
   return {
@@ -123,24 +69,16 @@ function renderModal(props: Partial<React.ComponentProps<typeof PlanPickerModal>
   );
 }
 
-describe('PlanPickerModal', () => {
+describe('PlanPickerModal (Stripe Hosted Checkout)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetKey.mockReturnValue('rcb_test_key');
-    rcMocks.isConfigured.mockReturnValue(false);
-    rcMocks.configure.mockReturnValue(rcMocks.instance);
-    rcMocks.instance.getOfferings.mockResolvedValue(OFFERINGS);
-    rcMocks.instance.purchase.mockResolvedValue({});
-    mockedAxios.post.mockResolvedValue({ data: { success: true } });
     mockedAxios.get.mockImplementation((url: string) => {
       if (url.includes('/subscriptions/tiers')) {
         return Promise.resolve({ data: TIERS });
       }
-      if (url.includes('/organizations/usage')) {
-        return Promise.resolve({ data: buildVolumeUsage({ planStatus: 'active', tier: 'bearlymail_growth' }) });
-      }
       return Promise.reject(new Error(`unexpected GET ${url}`));
     });
+    mockedAxios.post.mockResolvedValue({ data: { url: CHECKOUT_URL } });
   });
 
   it('renders all three tiers with buy buttons for an owner/admin', async () => {
@@ -152,30 +90,31 @@ describe('PlanPickerModal', () => {
     expect(screen.getAllByText('team.settings.planPicker.choosePlan')).toHaveLength(3);
   });
 
-  it('renders live RevenueCat prices when the offering exposes them', async () => {
+  it('creates a Stripe checkout session and redirects when a plan is chosen', async () => {
     renderModal();
 
-    const starterPrice = await screen.findByTestId('plan-tier-price-bearlymail_starter');
-    // pricePerMonthFormatted uses the RC formattedPrice verbatim (it already includes the currency symbol).
-    expect(starterPrice).toHaveTextContent('team.settings.planPicker.pricePerMonthFormatted:{"price":"$15.00"}');
-    expect(screen.getByTestId('plan-tier-price-bearlymail_growth')).toHaveTextContent('"price":"$25.00"');
-    expect(screen.getByTestId('plan-tier-price-bearlymail_enterprise')).toHaveTextContent('"price":"$40.00"');
+    await userEvent.click(await screen.findByTestId('plan-choose-bearlymail_growth'));
+
+    await waitFor(() =>
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.stringMatching(/\/subscriptions\/checkout$/),
+        { tierId: 'bearlymail_growth' },
+      ),
+    );
+    await waitFor(() => expect(assignMock).toHaveBeenCalledWith(CHECKOUT_URL));
+    expect(showError).not.toHaveBeenCalled();
   });
 
-  it('falls back to the server tier price when the offering has no price', async () => {
-    rcMocks.instance.getOfferings.mockResolvedValue({
-      all: {
-        default: {
-          availablePackages: [
-            { identifier: '$rc_monthly', webBillingProduct: { identifier: 'bearlymail_starter' } },
-          ],
-        },
-      },
-    });
+  it('shows an error toast and does not redirect when checkout creation fails', async () => {
+    mockedAxios.post.mockRejectedValue(new Error('boom'));
     renderModal();
 
-    const starterPrice = await screen.findByTestId('plan-tier-price-bearlymail_starter');
-    expect(starterPrice).toHaveTextContent('team.settings.planPicker.pricePerMonth:{"price":15}');
+    await userEvent.click(await screen.findByTestId('plan-choose-bearlymail_enterprise'));
+
+    await waitFor(() => expect(showError).toHaveBeenCalledWith('team.settings.planPicker.purchaseError'));
+    expect(assignMock).not.toHaveBeenCalled();
+    // Button is re-enabled for a retry.
+    expect(await screen.findByTestId('plan-choose-bearlymail_enterprise')).toBeEnabled();
   });
 
   it('highlights the current plan and disables its button', async () => {
@@ -184,7 +123,6 @@ describe('PlanPickerModal', () => {
     });
 
     await screen.findByTestId('plan-tier-card-bearlymail_growth');
-    // Badge + disabled button both carry the currentPlan label.
     expect(screen.getAllByText('team.settings.planPicker.currentPlan').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByTestId('plan-choose-bearlymail_growth')).not.toBeInTheDocument();
     expect(screen.getByTestId('plan-choose-bearlymail_starter')).toBeInTheDocument();
@@ -196,66 +134,14 @@ describe('PlanPickerModal', () => {
     await screen.findByTestId('plan-tier-card-bearlymail_starter');
     expect(screen.getByText('team.settings.planPicker.memberNote')).toBeInTheDocument();
     expect(screen.queryByText('team.settings.planPicker.choosePlan')).not.toBeInTheDocument();
-    expect(screen.queryByText('team.settings.planPicker.contactUs')).not.toBeInTheDocument();
   });
 
-  it('falls back to the contact-us CTA when no RevenueCat key is configured', async () => {
-    mockedGetKey.mockReturnValue(null);
-    renderModal();
+  it('falls back to the contact-us CTA when the user has no org to bill', async () => {
+    renderModal({ canPurchase: false, showMemberNote: false });
 
     await screen.findByTestId('plan-tier-card-bearlymail_starter');
     expect(screen.getAllByText('team.settings.planPicker.contactUs')).toHaveLength(3);
     expect(screen.getByText('team.settings.planPicker.contactNote')).toBeInTheDocument();
     expect(screen.queryByText('team.settings.planPicker.choosePlan')).not.toBeInTheDocument();
-  });
-
-  it('links the user, purchases the matching package, and reports success once the plan activates', async () => {
-    renderModal();
-
-    await userEvent.click(await screen.findByTestId('plan-choose-bearlymail_growth'));
-
-    await waitFor(() =>
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringMatching(/\/subscriptions\/link-revenuecat$/),
-        { revenueCatUserId: 'user-1' },
-        expect.objectContaining({ signal: expect.any(AbortSignal) }),
-      ),
-    );
-    await waitFor(() => expect(rcMocks.instance.purchase).toHaveBeenCalled());
-    expect(rcMocks.configure).toHaveBeenCalledWith({ apiKey: 'rcb_test_key', appUserId: 'user-1' });
-    const purchaseArgs = rcMocks.instance.purchase.mock.calls[0][0];
-    expect(purchaseArgs.rcPackage.webBillingProduct.identifier).toBe('bearlymail_growth');
-    expect(purchaseArgs.customerEmail).toBe('owner@example.com');
-
-    // The usage poll returns planStatus 'active' immediately → success state.
-    expect(await screen.findByTestId('plan-purchase-status-success')).toBeInTheDocument();
-    expect(showSuccess).toHaveBeenCalled();
-    expect(showError).not.toHaveBeenCalled();
-  });
-
-  it('stays silent when the user cancels the RevenueCat checkout', async () => {
-    const { PurchasesError, ErrorCode } = await import('@revenuecat/purchases-js');
-    rcMocks.instance.purchase.mockRejectedValue(
-      new (PurchasesError as unknown as new (code: number) => Error)(ErrorCode.UserCancelledError as unknown as number),
-    );
-    renderModal();
-
-    await userEvent.click(await screen.findByTestId('plan-choose-bearlymail_starter'));
-
-    await waitFor(() => expect(rcMocks.instance.purchase).toHaveBeenCalled());
-    // Back to the picker, no error toast.
-    expect(await screen.findByTestId('plan-choose-bearlymail_starter')).toBeEnabled();
-    expect(showError).not.toHaveBeenCalled();
-    expect(screen.queryByTestId('plan-purchase-status-success')).not.toBeInTheDocument();
-  });
-
-  it('shows an error toast when the purchase fails', async () => {
-    rcMocks.instance.purchase.mockRejectedValue(new Error('card declined'));
-    renderModal();
-
-    await userEvent.click(await screen.findByTestId('plan-choose-bearlymail_enterprise'));
-
-    await waitFor(() => expect(showError).toHaveBeenCalledWith('team.settings.planPicker.purchaseError'));
-    expect(screen.queryByTestId('plan-purchase-status-success')).not.toBeInTheDocument();
   });
 });

@@ -13,6 +13,7 @@ import { theme } from 'theme/theme';
 
 import { ConfirmModal } from 'components/ConfirmModal';
 import { PlanPickerModal } from 'components/settings/plan-picker/PlanPickerModal';
+import { useCheckoutReturn } from 'components/settings/plan-picker/useCheckoutReturn';
 import { PlanStatusBanner } from 'components/settings/PlanStatusBanner';
 import { PLANS_QUERY_OPEN, PLANS_QUERY_PARAM } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
@@ -181,6 +182,10 @@ export const TeamSettingsSection: React.FC = () => {
   const [planPickerOpen, setPlanPickerOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Handle the return from Stripe Hosted Checkout (?checkout=success|cancelled):
+  // polls for the webhook to activate the plan, then toasts + refreshes.
+  useCheckoutReturn();
 
   // Deep link from the AI-limit banner's "View plans" CTA: ?plans=open
   // auto-opens the plan picker, then the param is stripped (replace, keeping

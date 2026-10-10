@@ -76,6 +76,12 @@ vi.mock('components/settings/plan-picker/PlanPickerModal', () => ({
     isOpen ? <div data-testid="plan-picker-open" /> : <div data-testid="plan-picker-closed" />,
 }));
 
+// The Stripe checkout-return hook needs a QueryClient this focused deep-link
+// test doesn't provide; its own behaviour is covered separately.
+vi.mock('components/settings/plan-picker/useCheckoutReturn', () => ({
+  useCheckoutReturn: vi.fn(),
+}));
+
 const LocationProbe: React.FC = () => {
   const location = useLocation();
   return (

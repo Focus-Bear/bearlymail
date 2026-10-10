@@ -7,10 +7,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import axios from "axios";
+import type Stripe from "stripe";
 import { In, IsNull, LessThan, Repository } from "typeorm";
 
 import {
@@ -33,6 +35,12 @@ import { applyTrialExpiryIfDue } from "../organizations/org-plan-status.util";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ApiError } from "../types/common";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
+import { StripeService } from "./stripe.service";
+import {
+  STRIPE_BILLING_REASON_CYCLE,
+  STRIPE_LIVE_SUB_STATUSES,
+  STRIPE_WEBHOOK_EVENTS,
+} from "./stripe-billing.constants";
 import {
   FREE_TIER_EMAIL_LIMIT,
   VOLUME_TIER_NONE,
@@ -134,6 +142,7 @@ export class SubscriptionsService {
     private configService: ConfigService,
     @Inject(forwardRef(() => OrganizationsService))
     private organizationsService: OrganizationsService,
+    private stripeService: StripeService,
   ) {
     this.apiKey = this.configService.get<string>("REVENUECAT_API_KEY") || null;
     this.webhookSecret =
@@ -945,6 +954,281 @@ export class SubscriptionsService {
         `Deactivated ${members.length} team seat(s) for org ${org.id} due to ${eventType}`,
       );
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stripe direct Web Billing
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Creates a Stripe Hosted Checkout session for an org to purchase a volume
+   * tier and returns the redirect URL. The org id + tier ride on the session
+   * metadata so the webhook activates the right org on completion.
+   */
+  async createOrgCheckout(
+    orgId: string,
+    tierId: string,
+  ): Promise<{ url: string }> {
+    if (!this.stripeService.isConfigured()) {
+      throw new ServiceUnavailableException("Billing is not configured");
+    }
+    if (!(tierId in VOLUME_TIERS)) {
+      throw new BadRequestException(`Unknown plan tier: ${tierId}`);
+    }
+    const priceId = this.stripeService.priceIdForTier(tierId);
+    if (!priceId) {
+      throw new ServiceUnavailableException(
+        `No Stripe price configured for tier ${tierId}`,
+      );
+    }
+    const org = await this.orgRepository.findOne({ where: { id: orgId } });
+    if (!org) {
+      throw new NotFoundException("Organisation not found");
+    }
+    const owner = await this.userRepository.findOne({
+      where: { id: org.ownerId },
+    });
+    const frontendUrl = this.configService.get<string>("FRONTEND_URL") ?? "";
+    const url = await this.stripeService.createCheckoutSession({
+      orgId: org.id,
+      tierId,
+      priceId,
+      customerId: org.stripeCustomerId,
+      customerEmail: owner?.email ?? "",
+      successUrl: `${frontendUrl}/settings?checkout=success#team-usage`,
+      cancelUrl: `${frontendUrl}/settings?checkout=cancelled#team-usage`,
+    });
+    return { url };
+  }
+
+  /**
+   * Creates a Stripe Billing Portal session for an org's existing customer so
+   * the owner can manage/cancel the plan or update their card.
+   */
+  async createOrgBillingPortal(orgId: string): Promise<{ url: string }> {
+    if (!this.stripeService.isConfigured()) {
+      throw new ServiceUnavailableException("Billing is not configured");
+    }
+    const org = await this.orgRepository.findOne({ where: { id: orgId } });
+    if (!org?.stripeCustomerId) {
+      throw new BadRequestException("No billing account for this organisation");
+    }
+    const frontendUrl = this.configService.get<string>("FRONTEND_URL") ?? "";
+    const url = await this.stripeService.createBillingPortalSession(
+      org.stripeCustomerId,
+      `${frontendUrl}/settings#team-usage`,
+    );
+    return { url };
+  }
+
+  /**
+   * Handles a verified Stripe webhook event. Only subscription-lifecycle
+   * events are acted on; everything else is acknowledged and ignored.
+   */
+  async handleStripeWebhook(event: Stripe.Event): Promise<void> {
+    switch (event.type) {
+      case STRIPE_WEBHOOK_EVENTS.CHECKOUT_COMPLETED:
+        await this.handleStripeCheckoutCompleted(
+          event.data.object as Stripe.Checkout.Session,
+        );
+        break;
+      case STRIPE_WEBHOOK_EVENTS.SUBSCRIPTION_UPDATED:
+        await this.handleStripeSubscriptionUpdated(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
+      case STRIPE_WEBHOOK_EVENTS.SUBSCRIPTION_DELETED:
+        await this.handleStripeSubscriptionDeleted(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
+      case STRIPE_WEBHOOK_EVENTS.INVOICE_PAID:
+        await this.handleStripeInvoicePaid(event.data.object as Stripe.Invoice);
+        break;
+      default:
+        this.logger.debug(`Ignoring Stripe event ${event.type}`);
+    }
+  }
+
+  /** Coerces a Stripe expandable field (id string or object) to its id. */
+  private stripeIdOf(
+    value: string | { id: string } | null | undefined,
+  ): string | null {
+    if (!value) return null;
+    return typeof value === "string" ? value : value.id;
+  }
+
+  /**
+   * Resolves the Organisation for a Stripe event, trying (in order) the org id
+   * from metadata, the stored Stripe subscription id, then the customer id.
+   */
+  private async findOrgForStripe(opts: {
+    subscriptionId?: string | null;
+    customerId?: string | null;
+    orgId?: string | null;
+  }): Promise<Organization | null> {
+    if (opts.orgId) {
+      const byId = await this.orgRepository.findOne({
+        where: { id: opts.orgId },
+      });
+      if (byId) return byId;
+    }
+    if (opts.subscriptionId) {
+      const bySub = await this.orgRepository.findOne({
+        where: { stripeSubscriptionId: opts.subscriptionId },
+      });
+      if (bySub) return bySub;
+    }
+    if (opts.customerId) {
+      return this.orgRepository.findOne({
+        where: { stripeCustomerId: opts.customerId },
+      });
+    }
+    return null;
+  }
+
+  private async handleStripeCheckoutCompleted(
+    session: Stripe.Checkout.Session,
+  ): Promise<void> {
+    const orgId =
+      session.client_reference_id ?? session.metadata?.orgId ?? null;
+    const tierId = session.metadata?.tierId ?? null;
+    const customerId = this.stripeIdOf(session.customer);
+    const subscriptionId = this.stripeIdOf(session.subscription);
+    const org = await this.findOrgForStripe({
+      orgId,
+      customerId,
+      subscriptionId,
+    });
+    if (!org) {
+      this.logger.warn(
+        `Stripe checkout.session.completed: no org (ref=${orgId}, cus=${customerId})`,
+      );
+      return;
+    }
+    if (!tierId || !(tierId in VOLUME_TIERS)) {
+      this.logger.warn(
+        `Stripe checkout.session.completed: unknown tier '${tierId}' for org ${org.id}`,
+      );
+      return;
+    }
+    await this.activateOrgStripeTier(org, tierId, {
+      subscriptionId,
+      customerId,
+      resetCycle: true,
+    });
+    this.logger.log(
+      `Org ${org.id} activated on tier ${tierId} via Stripe checkout`,
+    );
+  }
+
+  private async handleStripeSubscriptionUpdated(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    const customerId = this.stripeIdOf(subscription.customer);
+    const org = await this.findOrgForStripe({
+      subscriptionId: subscription.id,
+      customerId,
+      orgId: subscription.metadata?.orgId ?? null,
+    });
+    if (!org) {
+      this.logger.warn(
+        `Stripe subscription.updated: no org for sub ${subscription.id}`,
+      );
+      return;
+    }
+    if (!STRIPE_LIVE_SUB_STATUSES.includes(subscription.status)) {
+      await this.deactivateOrgStripe(org);
+      this.logger.log(
+        `Org ${org.id} downgraded (Stripe sub status ${subscription.status})`,
+      );
+      return;
+    }
+    const priceId = subscription.items.data[0]?.price.id;
+    const tierId =
+      (priceId ? this.stripeService.tierForPriceId(priceId) : null) ??
+      subscription.metadata?.tierId ??
+      null;
+    if (!tierId || !(tierId in VOLUME_TIERS)) {
+      this.logger.warn(
+        `Stripe subscription.updated: unknown tier (price=${priceId}) for org ${org.id}`,
+      );
+      return;
+    }
+    await this.activateOrgStripeTier(org, tierId, {
+      subscriptionId: subscription.id,
+      customerId,
+      resetCycle: false,
+    });
+  }
+
+  private async handleStripeSubscriptionDeleted(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    const org = await this.findOrgForStripe({
+      subscriptionId: subscription.id,
+      customerId: this.stripeIdOf(subscription.customer),
+    });
+    if (!org) return;
+    await this.deactivateOrgStripe(org);
+    this.logger.log(`Org ${org.id} downgraded (Stripe subscription deleted)`);
+  }
+
+  private async handleStripeInvoicePaid(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
+    // Only recurring renewals reset the usage cycle; the first invoice is
+    // already handled by checkout.session.completed.
+    if (invoice.billing_reason !== STRIPE_BILLING_REASON_CYCLE) return;
+    const org = await this.findOrgForStripe({
+      customerId: this.stripeIdOf(invoice.customer),
+    });
+    if (!org) return;
+    await this.resetOrgStripeCycle(org);
+    this.logger.log(`Org ${org.id} billing cycle reset (Stripe renewal)`);
+  }
+
+  /** Activates (or updates) an org's volume tier from a Stripe subscription. */
+  private async activateOrgStripeTier(
+    org: Organization,
+    tierId: string,
+    opts: {
+      subscriptionId: string | null;
+      customerId: string | null;
+      resetCycle: boolean;
+    },
+  ): Promise<void> {
+    org.volumeTierProductId = tierId;
+    org.emailVolumeLimit = VOLUME_TIERS[tierId].limit;
+    org.planStatus = ORG_PLAN_STATUS.ACTIVE;
+    org.trialEndsAt = null;
+    if (opts.customerId) org.stripeCustomerId = opts.customerId;
+    if (opts.subscriptionId) org.stripeSubscriptionId = opts.subscriptionId;
+    if (opts.resetCycle || !org.billingCycleStart) {
+      org.emailsUsedThisCycle = 0;
+      org.billingCycleStart = new Date();
+    }
+    await this.orgRepository.save(org);
+    await this.syncOrgSeatSubscriptions(org, "INITIAL_PURCHASE");
+  }
+
+  /** Downgrades an org to the free tier when its Stripe plan ends. */
+  private async deactivateOrgStripe(org: Organization): Promise<void> {
+    org.maxSeats = 1;
+    org.volumeTierProductId = null;
+    org.emailVolumeLimit = FREE_TIER_EMAIL_LIMIT;
+    org.planStatus = ORG_PLAN_STATUS.EXPIRED;
+    org.stripeSubscriptionId = null;
+    await this.orgRepository.save(org);
+    await this.syncOrgSeatSubscriptions(org, "EXPIRATION");
+  }
+
+  /** Resets an org's usage cycle on a Stripe renewal. */
+  private async resetOrgStripeCycle(org: Organization): Promise<void> {
+    org.emailsUsedThisCycle = 0;
+    org.billingCycleStart = new Date();
+    await this.orgRepository.save(org);
+    await this.syncOrgSeatSubscriptions(org, "RENEWAL");
   }
 
   /**

@@ -4,12 +4,11 @@
 
 /**
  * Where the Upgrade CTA points when in-app checkout is unavailable
- * (no VITE_REVENUECAT_API_KEY configured, or the user has no organisation
- * the webhook could activate).
+ * (the user has no organisation the Stripe webhook could activate).
  */
 export const UPGRADE_MAILTO_HREF = 'mailto:jeremy@focusbear.io?subject=BearlyMail%20upgrade';
 
-/** Translation keys for the RevenueCat volume-tier entitlement slugs. */
+/** Translation keys for the volume-tier slugs. */
 export const TIER_NAME_KEYS: Record<string, string> = {
   bearlymail_starter: 'team.settings.tierStarter',
   bearlymail_growth: 'team.settings.tierGrowth',

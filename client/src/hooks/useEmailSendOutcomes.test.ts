@@ -4,7 +4,7 @@ import { takeComposeRestore } from 'utils/composeRestore';
 import { PENDING_SEND_KIND, rememberPendingSend, takePendingSend } from 'utils/pendingSends';
 
 import { API_URL } from 'config/api';
-import { EMAIL_SEND_FAILURE_REASON, EmailSendFailureReason, PUSHER_EVENTS } from 'constants/pusher-events';
+import { EMAIL_SEND_FAILURE_REASON, EmailSendFailureReason, PUSHER_EVENTS, userChannel } from 'constants/pusher-events';
 
 import { useEmailSendOutcomes } from './useEmailSendOutcomes';
 
@@ -36,9 +36,10 @@ const mockChannel = {
   }),
   unbind: vi.fn(),
 };
+const mockSubscribe = vi.fn(() => mockChannel);
 vi.mock('config/pusher', () => ({
   getPusherInstance: () => ({
-    subscribe: () => mockChannel,
+    subscribe: mockSubscribe,
     unsubscribe: vi.fn(),
   }),
 }));
@@ -62,6 +63,13 @@ describe('useEmailSendOutcomes', () => {
     window.sessionStorage.clear();
     vi.clearAllMocks();
     mockedAxios.post = vi.fn().mockResolvedValue({ data: {} });
+  });
+
+  it('subscribes on the authenticated user\'s private channel', () => {
+    renderHook(() => useEmailSendOutcomes());
+
+    expect(mockSubscribe).toHaveBeenCalledWith(userChannel('user-1'));
+    expect(mockSubscribe).toHaveBeenCalledWith(expect.stringMatching(/^private-/));
   });
 
   it('subscribes to both send outcome events', () => {

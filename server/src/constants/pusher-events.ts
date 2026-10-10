@@ -15,7 +15,14 @@ export const PUSHER_EVENTS = {
   EMAIL_SEND_FAILED: "email-send-failed",
 } as const;
 
+/**
+ * Pusher treats the `private-` prefix as load-bearing: only channels named with
+ * it require an authorization call before a client may subscribe. Without it the
+ * channel is public and anyone who knows a user id can read that user's events.
+ */
+export const PUSHER_PRIVATE_CHANNEL_PREFIX = "private-";
+
 /** Private per-user channel every realtime event for a user is published on. */
 export function userChannel(userId: string): string {
-  return `user-${userId}`;
+  return `${PUSHER_PRIVATE_CHANNEL_PREFIX}user-${userId}`;
 }

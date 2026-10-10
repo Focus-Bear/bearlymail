@@ -4,10 +4,12 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { OAuth2Client } from "google-auth-library";
 import { calendar_v3, google } from "googleapis";
 
-import { createUserGoogleOAuthClient } from "../auth/google-oauth-client";
+import {
+  createUserGoogleOAuthClient,
+  type GoogleOAuth2Client,
+} from "../auth/google-oauth-client";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -53,7 +55,7 @@ export class CalendarIcsService {
     id: string;
     googleCalendarAccessToken: string;
     googleCalendarRefreshToken?: string | null;
-  }): OAuth2Client {
+  }): GoogleOAuth2Client {
     return createUserGoogleOAuthClient(
       this.usersService,
       user.id,
@@ -236,11 +238,8 @@ export class CalendarIcsService {
       match.organizer?.email?.toLowerCase() === userEmail?.toLowerCase();
     const userResponseStatus =
       (userAttendee?.responseStatus as
-        | "accepted"
-        | "declined"
-        | "tentative"
-        | "needsAction"
-        | undefined) ?? (isOrganizer ? "accepted" : "needsAction");
+        "accepted" | "declined" | "tentative" | "needsAction" | undefined) ??
+      (isOrganizer ? "accepted" : "needsAction");
 
     const currentStart = match.start?.dateTime ?? match.start?.date;
     const currentEnd = match.end?.dateTime ?? match.end?.date;
@@ -388,11 +387,7 @@ export class CalendarIcsService {
     let exists = false;
     let calendarEventId: string | undefined;
     let userResponseStatus:
-      | "accepted"
-      | "declined"
-      | "tentative"
-      | "needsAction"
-      | undefined;
+      "accepted" | "declined" | "tentative" | "needsAction" | undefined;
     let htmlLink: string | undefined;
     let currentStartAt: string | undefined;
     let currentEndAt: string | undefined;

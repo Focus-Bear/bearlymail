@@ -1,10 +1,11 @@
 // jest-dom adds custom matchers for asserting on DOM nodes, e.g.
 // expect(element).toHaveTextContent(/react/i)
 // https://github.com/testing-library/jest-dom
-import '@testing-library/jest-dom';
-
+import * as domMatchers from '@testing-library/jest-dom/matchers';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, expect, vi } from 'vitest';
+
+expect.extend(domMatchers);
 
 // Testing Library's `waitFor` pumps fake timers itself, but only when it detects
 // a Jest-style fake-timer environment: it requires a global `jest` object AND a

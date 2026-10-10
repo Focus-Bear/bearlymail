@@ -1,8 +1,11 @@
 import { Logger } from "@nestjs/common";
 import { google } from "googleapis";
-import type { OAuth2Client } from "googleapis-common";
 
 import { UsersService } from "../users/users.service";
+
+// Derive the type from the same SDK that constructs the client. Transitive
+// google-auth-library versions can coexist and have incompatible private fields.
+export type GoogleOAuth2Client = InstanceType<typeof google.auth.OAuth2>;
 
 const logger = new Logger("GoogleOAuthClient");
 
@@ -27,7 +30,7 @@ export function createUserGoogleOAuthClient(
   accessToken: string | null | undefined,
   refreshToken: string | null | undefined,
   options?: { redirectUri?: string },
-): OAuth2Client {
+): GoogleOAuth2Client {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = options?.redirectUri ?? process.env.GOOGLE_REDIRECT_URI;

@@ -1,11 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "crypto";
-import { OAuth2Client } from "google-auth-library";
 import { calendar_v3, google } from "googleapis";
 import { Repository } from "typeorm";
 
-import { createUserGoogleOAuthClient } from "../auth/google-oauth-client";
+import {
+  createUserGoogleOAuthClient,
+  type GoogleOAuth2Client,
+} from "../auth/google-oauth-client";
 import {
   BOOKING_STATUS,
   CALENDAR_ENTRY_POINT_TYPES,
@@ -86,7 +88,7 @@ export class CalendarService {
     id: string;
     googleCalendarAccessToken: string;
     googleCalendarRefreshToken?: string | null;
-  }): OAuth2Client {
+  }): GoogleOAuth2Client {
     return createUserGoogleOAuthClient(
       this.usersService,
       user.id,

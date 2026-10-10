@@ -25,12 +25,26 @@ export const QUERY_LIMITS = {
   INITIAL_SYNC_MAX_EMAILS: 500,
   /**
    * Sync-window policy: after the initial sync, ongoing syncs only fetch
-   * emails at most this many days old (starred emails are fetched regardless
-   * of age).
+   * emails at most this many days old. Starred emails get the wider
+   * `STARRED_SYNC_WINDOW_DAYS` instead.
    */
   ONGOING_SYNC_WINDOW_DAYS: 7,
+  /**
+   * Sync-window policy: starred/flagged threads are imported beyond the
+   * ongoing window, but only back this far. Without a bound the initial
+   * sync imported every starred thread ever (up to the fetch cap) and each
+   * one went through the full LLM pipeline.
+   */
+  STARRED_SYNC_WINDOW_DAYS: 90,
   INBOX_PROCESS_TOTAL: 1000,
   INBOX_PAGE_SIZE: 50,
+  /**
+   * Max categories the /emails/inbox-batch preload endpoint will fetch in one
+   * request (issue #145). Caps how many per-category queries a single call can
+   * fan out to, so a crafted request can't drive unbounded DB work. The client
+   * only preloads its top ~6 accordions, so 8 leaves headroom.
+   */
+  INBOX_BATCH_MAX_CATEGORIES: 8,
   THREAD_QUERY: 100,
   EMAIL_QUERY: 100,
   MAX_CONTACTS: 5000,
@@ -96,9 +110,18 @@ export const QUERY_LIMITS = {
   // Gmail/provider API batch sizes
   GMAIL_BATCH_SIZE: 50,
   PROVIDER_BATCH_SIZE: 50,
-  // Email fetch limits for context analysis
-  CONTEXT_RECENT_EMAILS: 300,
-  CONTEXT_SENT_EMAILS: 150,
+  // Slim context discovery (onboarding / "Analyze"): how many recent received
+  // threads to sample, how many thread stubs go into one LLM call, and how far
+  // back to look. 100 stubs of from/subject/snippet is plenty to name the
+  // user's category set and VIPs; the per-email pipeline does the rest.
+  DISCOVERY_SAMPLE_THREADS: 100,
+  DISCOVERY_BATCH_SIZE: 20,
+  DISCOVERY_LOOKBACK_DAYS: 30,
+  // Upper bound on categories a single discovery batch may return — anything
+  // beyond this is a sign the model is inventing per-sender buckets.
+  DISCOVERY_MAX_CATEGORIES_PER_BATCH: 15,
+  DISCOVERY_MAX_VIPS_PER_BATCH: 5,
+  DISCOVERY_MAX_HINTS_PER_BATCH: 3,
   // Writing style sample size
   WRITING_STYLE_SAMPLE: 20,
   // Email address preview length for message IDs

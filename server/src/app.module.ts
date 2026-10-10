@@ -29,6 +29,7 @@ import { QueryPerformanceLogger } from "./database/query-logger";
 import { createTypeOrmConfig } from "./database/typeorm-config.factory";
 import { DraftsModule } from "./drafts/drafts.module";
 import { EmailModule } from "./email/email.module";
+import { EmailSendWorkerModule } from "./email-send-queue/email-send-worker.module";
 import { EmailsModule } from "./emails/emails.module";
 import { EncryptionModule } from "./encryption/encryption.module";
 import { UserEncryptionInterceptor } from "./encryption/user-encryption.interceptor";
@@ -42,6 +43,7 @@ import { MCPModule } from "./mcp/mcp.module";
 import { NotesModule } from "./notes/notes.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
 import { OnboardingModule } from "./onboarding/onboarding.module";
+import { OrganizationNameRepairModule } from "./organizations/organization-name-repair.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { PriorityModule } from "./priority/priority.module";
 import { ProtoCategoriesModule } from "./proto-categories/proto-categories.module";
@@ -133,6 +135,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     AuthModule,
     UsersModule,
     EmailsModule,
+    EmailSendWorkerModule,
     PriorityModule,
     SummarizationModule,
     SnoozeModule,
@@ -157,6 +160,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     BlockedKeywordsModule,
     CategoryRulesModule,
     CategoryRuleIdBackfillModule,
+    OrganizationNameRepairModule,
     EmailModule,
     GoogleAccountsModule,
     Office365AccountsModule,

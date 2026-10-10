@@ -40,6 +40,9 @@ export const CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS = 48;
 // Width values
 export const SIDEBAR_WIDTH_PX = 50;
 export const INPUT_WIDTH_PX = 80;
+// Holds the add-keyword button steady so its label swapping between
+// "Add Keyword" and "Saving…" cannot resize or reflow the control.
+export const ADD_BUTTON_MIN_WIDTH_PX = 120;
 export const MODAL_WIDTH_LARGE = 800;
 export const MODAL_WIDTH_MEDIUM = 600;
 export const MODAL_WIDTH_SMALL = 500;
@@ -206,6 +209,9 @@ export const NUMBER_FORMAT_MILLION = 1000000;
 export const EXIT_ANIMATION_DURATION_MS = 300;
 export const ERROR_NOTIFICATION_DURATION_MS = 6000;
 export const UNDO_TOAST_DURATION_MS = 5000; // 5 seconds for undo-toast countdown before committing
+// How long an optimistically archived/snoozed email stays hidden from fetches that start
+// after it. Covers in-flight fetches and the undo window, far above the API round-trip.
+export const OPTIMISTIC_REMOVAL_GRACE_MS = 30_000;
 export const TOAST_ENTRANCE_DELAY_MS = 10; // Small delay to trigger entrance CSS animation
 export const TOAST_ACTION_FOCUS_DELAY_MS = 50; // Delay before focusing action button for accessibility
 export const AUTO_SAVE_INTERVAL_MS = 10000;

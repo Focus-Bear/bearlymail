@@ -12,6 +12,7 @@ import { CategoryRuleIdBackfillModule } from "./category-rules/category-rule-id-
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContextModule } from "./context/context.module";
 import { createTypeOrmConfig } from "./database/typeorm-config.factory";
+import { EmailSendWorkerModule } from "./email-send-queue/email-send-worker.module";
 import { EmailsModule } from "./emails/emails.module";
 import { EncryptionModule } from "./encryption/encryption.module";
 import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
@@ -24,6 +25,7 @@ import { MCPModule } from "./mcp/mcp.module";
 import { NotesModule } from "./notes/notes.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
 import { OnboardingModule } from "./onboarding/onboarding.module";
+import { OrganizationNameRepairModule } from "./organizations/organization-name-repair.module";
 import { PriorityModule } from "./priority/priority.module";
 import { ProtoCategoriesModule } from "./proto-categories/proto-categories.module";
 import { PusherModule } from "./pusher/pusher.module";
@@ -60,6 +62,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     // with pg-boss on init, so the worker picks up jobs automatically.
     UsersModule,
     EmailsModule,
+    EmailSendWorkerModule,
     PriorityModule,
     SummarizationModule,
     LLMModule,
@@ -81,6 +84,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     NotesModule,
     PusherModule,
     CategoryRuleIdBackfillModule,
+    OrganizationNameRepairModule,
     ContactsModule,
     ScheduledEmailsModule,
     WorkflowsModule,

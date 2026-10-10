@@ -1,6 +1,38 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Pusher from "pusher";
+
+import {
+  EmailSendFailureReason,
+  EmailSendType,
+} from "../constants/email-send.constants";
+import { PUSHER_EVENTS, userChannel } from "../constants/pusher-events";
+
+/** Payload of {@link PUSHER_EVENTS.EMAIL_SEND_SUCCEEDED}. */
+export interface EmailSendSucceededPayload {
+  /** Correlation id returned by the send endpoint. */
+  sendId: string;
+  sendType: EmailSendType;
+  /** Source email for a reply/forward; absent for a composed message. */
+  emailId?: string;
+  /** The provider's real ids — the reason the client waits for this event. */
+  messageId: string;
+  threadId: string;
+}
+
+/** Payload of {@link PUSHER_EVENTS.EMAIL_SEND_FAILED}. */
+export interface EmailSendFailedPayload {
+  sendId: string;
+  sendType: EmailSendType;
+  emailId?: string;
+  /** Machine-readable code the client turns into translated copy. */
+  reason: EmailSendFailureReason;
+}
 
 @Injectable()
 export class PusherService {
@@ -55,18 +87,90 @@ export class PusherService {
     userId: string,
     results: { synced: number; provider: string }[],
   ): Promise<void> {
-    await this.trigger(`user-${userId}`, "contacts-sync-complete", {
-      results,
-    });
+    await this.trigger(
+      userChannel(userId),
+      PUSHER_EVENTS.CONTACTS_SYNC_COMPLETE,
+      { results },
+    );
   }
 
   async triggerContactSyncStarted(userId: string): Promise<void> {
-    await this.trigger(`user-${userId}`, "contacts-sync-started", {});
+    await this.trigger(
+      userChannel(userId),
+      PUSHER_EVENTS.CONTACTS_SYNC_STARTED,
+      {},
+    );
   }
 
   async triggerContactSyncFailed(userId: string, error: string): Promise<void> {
-    await this.trigger(`user-${userId}`, "contacts-sync-failed", {
-      error,
+    await this.trigger(
+      userChannel(userId),
+      PUSHER_EVENTS.CONTACTS_SYNC_FAILED,
+      {
+        error,
+      },
+    );
+  }
+
+  /**
+   * Confirms a background send actually reached the provider, carrying the real
+   * message/thread ids. Until this lands the client's "sent" state is optimistic.
+   */
+  async triggerEmailSendSucceeded(
+    userId: string,
+    payload: EmailSendSucceededPayload,
+  ): Promise<void> {
+    await this.trigger(
+      userChannel(userId),
+      PUSHER_EVENTS.EMAIL_SEND_SUCCEEDED,
+      {
+        ...payload,
+      },
+    );
+  }
+
+  /**
+   * Tells the client a background send failed for good, so it can retract the
+   * optimistic "sent" state and offer a retry instead of silently losing the
+   * message.
+   */
+  async triggerEmailSendFailed(
+    userId: string,
+    payload: EmailSendFailedPayload,
+  ): Promise<void> {
+    await this.trigger(userChannel(userId), PUSHER_EVENTS.EMAIL_SEND_FAILED, {
+      ...payload,
     });
+  }
+
+  /**
+   * Signs a subscription to a `private-user-*` channel, but only when the
+   * channel belongs to the caller. This is the whole reason the channels are
+   * private: Pusher will not deliver a user's events to a browser that cannot
+   * produce this signature.
+   *
+   * Fails closed — an unconfigured Pusher cannot sign anything, and returning a
+   * bare success would leave the client believing it was subscribed.
+   */
+  authorizeUserChannel(
+    userId: string,
+    socketId: string,
+    channelName: string,
+  ): Pusher.ChannelAuthResponse {
+    const ownChannel = userChannel(userId);
+    if (channelName !== ownChannel) {
+      this.logger.warn(
+        `Rejected Pusher auth: user ${userId} requested channel ${channelName}`,
+      );
+      throw new ForbiddenException(
+        "You may only subscribe to your own channel",
+      );
+    }
+
+    if (!this.pusher) {
+      throw new ServiceUnavailableException("Realtime updates are unavailable");
+    }
+
+    return this.pusher.authorizeChannel(socketId, channelName);
   }
 }

@@ -14,8 +14,10 @@ import { humanizeTimestamp } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { MAX_SEARCH_RESULT_LENGTH, MS_PER_SECOND } from 'constants/numbers';
+import { MS_PER_SECOND } from 'constants/numbers';
 import { NAVIGATION_SOURCE_SEARCH, SEARCH_RESULT_NO_RESULTS, STATUS_PENDING, STRING_NA } from 'constants/strings';
+
+import { buildSearchSnippet } from './searchSnippet';
 
 interface SearchDebugInfo {
   message?: string;
@@ -300,7 +302,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 {email.subject}
               </div>
               <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
-                {email.body?.slice(0, MAX_SEARCH_RESULT_LENGTH)}
+                {buildSearchSnippet(email.body)}
               </div>
               {enriched.relevanceScore !== undefined ? (
                 <div style={{ marginTop: theme.spacing.xs }}>
@@ -664,7 +666,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   marginBottom: searchEmail.searchExplanation ? theme.spacing.xs : 0,
                 }}
               >
-                {(email.body || '').substring(0, MAX_SEARCH_RESULT_LENGTH)}...
+                {buildSearchSnippet(email.body)}...
               </div>
               {searchEmail.searchExplanation && (
                 <div

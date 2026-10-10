@@ -79,6 +79,11 @@ function buildService(opts: {
     incrementalSummaryHelper as never,
     categoryRulesService as unknown as CategoryRulesService,
     empty as never,
+    {
+      isShortlistEnabled: () => false,
+      getShortlistWithMeta: jest.fn(),
+    } as never,
+    { findActiveByUser: jest.fn().mockResolvedValue([]) } as never,
   );
 
   return {

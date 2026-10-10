@@ -9,6 +9,7 @@ import {
   deriveExclusionsForCompositeRule,
   isQaCategory,
   passesValidationMatchGate,
+  requiredTruePositives,
 } from "./category-rules-derive-exclusions.helper";
 import { DecryptedValidationRow } from "./category-rules-validate.helper";
 
@@ -553,6 +554,39 @@ describe("passesValidationMatchGate", () => {
     const min = CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
     expect(passesValidationMatchGate(positiveSpec, min - 1, 0)).toBe(false);
     expect(passesValidationMatchGate(positiveSpec, min, 0)).toBe(true);
+  });
+
+  it("scales the bar down for a category with less mail than the unscaled minimum", () => {
+    const sparseWindow = CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES - 1;
+    expect(requiredTruePositives(positiveSpec, sparseWindow)).toBe(
+      sparseWindow,
+    );
+    expect(
+      passesValidationMatchGate(positiveSpec, sparseWindow, 0, sparseWindow),
+    ).toBe(true);
+  });
+
+  it("still requires the sparse category's whole window to be covered", () => {
+    expect(passesValidationMatchGate(positiveSpec, 1, 0, 2)).toBe(false);
+  });
+
+  it("keeps the unscaled bar for a category with plenty of mail", () => {
+    const min = CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
+    expect(requiredTruePositives(positiveSpec, 300)).toBe(min);
+    expect(passesValidationMatchGate(positiveSpec, min - 1, 0, 300)).toBe(
+      false,
+    );
+  });
+
+  it("never scales below one true positive, even for an empty window", () => {
+    expect(requiredTruePositives(positiveSpec, 0)).toBe(
+      CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_SPARSE_CATEGORY_MIN_MATCHES,
+    );
+    expect(passesValidationMatchGate(positiveSpec, 0, 0, 0)).toBe(false);
+  });
+
+  it("still rejects any false positive however sparse the category", () => {
+    expect(passesValidationMatchGate(positiveSpec, 1, 1, 1)).toBe(false);
   });
 });
 

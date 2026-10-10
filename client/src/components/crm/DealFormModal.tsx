@@ -12,6 +12,10 @@ interface DealFormModalProps {
   deal: Deal | null;
   stages: DealStage[];
   contacts: Contact[];
+  /** Preselects the contact for a NEW deal (deal === null), e.g. the email
+   * sender when adding a deal from the email view. Ignored when editing an
+   * existing deal, which carries its own contactId. */
+  initialContactId?: string;
   onSave: (payload: {
     title: string;
     details?: string;
@@ -587,13 +591,17 @@ interface DealFormState {
   setExpectedCloseDate: (v: string) => void;
 }
 
-function useDealFormState(deal: Deal | null, stages: DealStage[]): DealFormState {
+function useDealFormState(
+  deal: Deal | null,
+  stages: DealStage[],
+  initialContactId?: string
+): DealFormState {
   const [title, setTitle] = useState(deal?.title || '');
   const [details, setDetails] = useState(deal?.details || '');
   const [value, setValue] = useState(deal?.value?.toString() || '');
   const [currency, setCurrency] = useState(deal?.currency || 'USD');
   const [stageId, setStageId] = useState(deal?.stageId || stages[0]?.id || '');
-  const [contactId, setContactId] = useState(deal?.contactId || '');
+  const [contactId, setContactId] = useState(deal?.contactId || initialContactId || '');
   const [expectedCloseDate, setExpectedCloseDate] = useState(
     deal?.expectedCloseDate ? deal.expectedCloseDate.split('T')[0] : ''
   );
@@ -615,9 +623,16 @@ function useDealFormState(deal: Deal | null, stages: DealStage[]): DealFormState
   };
 }
 
-export const DealFormModal: React.FC<DealFormModalProps> = ({ deal, stages, contacts, onSave, onClose }) => {
+export const DealFormModal: React.FC<DealFormModalProps> = ({
+  deal,
+  stages,
+  contacts,
+  initialContactId,
+  onSave,
+  onClose,
+}) => {
   const { t } = useTranslation();
-  const formState = useDealFormState(deal, stages);
+  const formState = useDealFormState(deal, stages, initialContactId);
   const { title, details, value, currency, stageId, contactId, expectedCloseDate } = formState;
 
   const handleSubmit = (event: React.FormEvent) => {

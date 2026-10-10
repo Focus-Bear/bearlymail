@@ -20,6 +20,10 @@ const COLLAPSED_KEY = 'bearlymail-action-sidebar-collapsed';
 const EXPANDED_WIDTH = 360;
 const COLLAPSED_WIDTH = 48;
 
+// Soft left-edge shadow so the assistant panel reads as a surface distinct from
+// the email content, rather than being separated only by a faint 1px line (#252).
+const PANEL_SEPARATION_SHADOW = '-6px 0 18px -14px rgba(11, 11, 11, 0.18)';
+
 const TAB_ACTIONS = 'actions';
 const TAB_ASK_AI = 'askAi';
 type ActionSidebarTab = typeof TAB_ACTIONS | typeof TAB_ASK_AI;
@@ -100,6 +104,7 @@ export const ActionSidebar: React.FC<ActionSidebarProps> = ({ actionsContent, as
         flexDirection: 'column',
         borderLeft: `1px solid ${theme.colors.border.light}`,
         backgroundColor: theme.colors.background.subtle,
+        boxShadow: PANEL_SEPARATION_SHADOW,
         overflow: 'hidden',
       }}
     >
@@ -174,6 +179,7 @@ const CollapsedRail: React.FC<{ onExpand: (tab: ActionSidebarTab) => void }> = (
         paddingTop: theme.spacing.sm,
         borderLeft: `1px solid ${theme.colors.border.light}`,
         backgroundColor: theme.colors.background.subtle,
+        boxShadow: PANEL_SEPARATION_SHADOW,
       }}
     >
       <button

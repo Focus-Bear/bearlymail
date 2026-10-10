@@ -13,6 +13,27 @@ export const CATEGORY_RULE_COMPOSITE = {
   MAX_SUBJECT_NOT_PHRASES: 10,
   /** Maximum body NOT-contains exclusion phrases per composite rule (issue #1789). */
   MAX_BODY_NOT_PHRASES: 20,
+  /**
+   * Maximum notification subtypes one composite rule may pin
+   * (`notificationSubtypeAny`, OR within). GitHub yields at most
+   * item × event × actor ≈ 2 × 12 × 2 fine sub-streams; a single category
+   * rarely spans more than a handful, and a rule pinned to "everything" is not
+   * structural at all.
+   */
+  MAX_NOTIFICATION_SUBTYPES: 12,
+  /** Maximum length of one notification subtype key (`github:pr:review_requested:human`). */
+  MAX_NOTIFICATION_SUBTYPE_LENGTH: 80,
+  /**
+   * Caps for the GitHub-metadata structural conditions a composite rule may
+   * carry (`githubStateAny`, `githubProjectStatusAny`, `githubLabelsAny`).
+   * A rule pinning more than a handful of board statuses or labels is no longer
+   * a structural separator, and the vocabulary of states is only three long.
+   */
+  MAX_GITHUB_STATES: 3,
+  MAX_GITHUB_PROJECT_STATUSES: 6,
+  MAX_GITHUB_LABELS: 10,
+  /** Maximum length of one GitHub board status / project name / label. */
+  MAX_GITHUB_CONDITION_VALUE_LENGTH: 120,
   /** Current spec version for newly created composite rules. */
   SPEC_VERSION: 3 as const,
   /** v2 spec — still supported for backward compatibility. */
@@ -39,6 +60,17 @@ export const CATEGORY_RULE_COMPOSITE = {
    * Rules auto-created below this threshold are too specific / noisy.
    */
   AUTO_GENERATE_MIN_THREAD_COUNT: 10,
+  /**
+   * Rolling-24h cap on auto rule-generation LLM attempts per user. Every
+   * HIGH-confidence categorisation with no rule match triggers a
+   * `suggest_category_rules` call (plus derive-exclusion / value-add calls),
+   * and the zero-false-positive persist gate rejects almost all of them — so a
+   * busy sender that keeps failing the gate burns a fresh call on every email,
+   * forever. Prod: 236 calls in a day produced ~5 rules. The cap bounds that
+   * spend; the next day's first HIGH-confidence email retries naturally.
+   * User-initiated drafts and "Suggest rules for me" are not subject to it.
+   */
+  AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY: 20,
   /**
    * Minimum number of distinct threads a sender must have before it is
    * included in the "Suggest rules for me" response (issue #1714).
@@ -86,6 +118,16 @@ export const CATEGORY_RULE_COMPOSITE = {
    * 3 recurring examples is enough to prove a real pattern.
    */
   AUTO_VALIDATE_MIN_MATCHES: 3,
+  /**
+   * Floor for the true-positive bar once it is scaled to the category's own
+   * evidence. A category whose entire history in the validation window is one
+   * or two threads can never reach AUTO_VALIDATE_MIN_MATCHES, so a
+   * zero-false-positive rule covering everything that category HAS is the best
+   * evidence obtainable — demanding more is unsatisfiable, not safer, and is
+   * why narrow low-volume categories never got a rule (prod logs showed a long
+   * tail of `branch=clean-zero-fp preTP=1 preFP=0 passes=false`).
+   */
+  AUTO_VALIDATE_SPARSE_CATEGORY_MIN_MATCHES: 1,
   /**
    * Minimum true positives a STRUCTURAL rule (one pinned to a resolved
    * `notificationSubtype`) needs when it produced ZERO false positives. A
@@ -174,6 +216,13 @@ export const CATEGORY_RULE_COMPOSITE = {
    * the LLM value-add comparison. Caps prompt size.
    */
   VALUE_ADD_MAX_EXISTING_RULES: 12,
+  /**
+   * Maximum number of motivating sample emails (the current email plus recent
+   * mail from the sender) shown to the strong-model sanity reviewer of an
+   * auto-generated rule. Caps prompt size; the reviewer needs enough to see
+   * what the sender's mail looks like, not the whole history.
+   */
+  SANITY_CHECK_MAX_SAMPLE_EMAILS: 6,
   /**
    * Number of most-recently-updated threads scanned when a rule is created,
    * enabled, or edited, to retroactively re-file existing threads the rule

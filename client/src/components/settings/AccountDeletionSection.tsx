@@ -204,18 +204,29 @@ export const AccountDeletionSection: React.FC = () => {
             disabled={isDeleting}
           />
           {error && <p style={errorTextStyle}>{error}</p>}
-          <div style={actionsRowStyle}>
-            <button onClick={handleCancel} disabled={isDeleting} style={getCancelButtonStyle(isDeleting)}>
-              {t('common.cancel')}
-            </button>
-            <button
-              onClick={handleConfirmDelete}
-              disabled={!isConfirmationValid || isDeleting}
-              style={getConfirmDeleteButtonStyle(isConfirmationValid, isDeleting)}
-            >
-              {isDeleting ? t('settings.accountDeletion.deleting') : t('settings.accountDeletion.confirmDelete')}
-            </button>
-          </div>
+          {isDeleting ? (
+            // While the deletion request is in flight, show only the loading
+            // state — no cancel, no second "Permanently Delete Account" button —
+            // so the controls can never read as two competing delete actions.
+            <div style={actionsRowStyle}>
+              <button type="button" disabled style={getConfirmDeleteButtonStyle(true, true)}>
+                {t('settings.accountDeletion.deleting')}
+              </button>
+            </div>
+          ) : (
+            <div style={actionsRowStyle}>
+              <button onClick={handleCancel} style={getCancelButtonStyle(false)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={!isConfirmationValid}
+                style={getConfirmDeleteButtonStyle(isConfirmationValid, false)}
+              >
+                {t('settings.accountDeletion.confirmDelete')}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

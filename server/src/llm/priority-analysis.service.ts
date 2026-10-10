@@ -24,7 +24,6 @@ import { formatDateTimeForPrompt } from "../utils/timezone.utils";
 import {
   CategoryItem,
   CategoryShortlistService,
-  isGithubSenderEmail,
   ShortlistCandidate,
 } from "./category-shortlist.service";
 import { cleanEmailContent } from "./email-content-cleaner";
@@ -34,30 +33,20 @@ import {
   LLM_OP_ANALYZE_PRIORITY,
   LLM_OP_BATCH_PRIORITY_TRIAGE,
 } from "./llm-operations";
+import { chooseEmailCategory } from "./priority-category-step";
 import {
   buildUserContextTexts,
   UserContextInput,
 } from "./priority-context-texts.helper";
+import { resolvePriorityProvider } from "./priority-provider.util";
 import { getPrompt, PRIORITY_PROMPT_IDS, renderPrompt } from "./prompts";
+import { resolveStrongGeminiModel } from "./strong-gemini-model.helper";
 
-// Batch triage runs on cheap, high-volume Amazon Nova Micro (Bedrock) — the
-// same model as summarisation. Override with CATEGORY_TRIAGE_MODEL.
 const DEFAULT_TRIAGE_MODEL = "amazon.nova-micro-v1:0";
 
-// Built-in fallback categories used when the user has none yet. MUST stay in
-// the same order as the {% else %} default list in prioritise-email.md so the
-// LLM's categoryNumber maps to the same category the prompt numbered.
-const DEFAULT_CATEGORY_NAMES = [
-  "Newsletters",
-  "Sales",
-  "Partnerships",
-  "Customer Support",
-  "HR Admin",
-];
-
-// Sent in place of the real category list when a deterministic rule already
-// pinned the category, so the prompt renders one clarifying line instead of
-// falling back to the 5 default categories. The LLM's category is discarded.
+// Sent as the assigned category when a deterministic rule already pinned it:
+// the caller overrides the LLM's category downstream, so the prompt only needs
+// one clarifying line. Category selection never happens in the priority prompt.
 const CATEGORY_PRE_ASSIGNED_PLACEHOLDER: CategoryItem = {
   name: "(category already assigned by a rule — score urgency & goal alignment only)",
 };
@@ -65,14 +54,14 @@ const CATEGORY_PRE_ASSIGNED_PLACEHOLDER: CategoryItem = {
 export type CategoryConfidence = "HIGH" | "MEDIUM" | "LOW";
 
 /** Category-resolution instrumentation captured per email and attached to the result. */
-type CategoryInstrumentation = {
+export type CategoryInstrumentation = {
   shortlistedCategoryNames: string[] | null;
   shortlistCandidates: ShortlistCandidate[] | null;
   totalCategoryCount: number;
   protoCategoryCount: number;
 };
 
-type PriorityResult = {
+export type PriorityResult = {
   urgencyScore: number;
   urgencyExplanation: string;
   sentimentScore: number | undefined;
@@ -109,6 +98,11 @@ type PriorityResult = {
   categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
   /** What content the LLM saw (AI summary vs cleaned body); attached by the single-email refiner, not by `analyzePriority`. */
   analyzedContentSource?: CategoryDecisionAnalyzedEmail["contentSource"];
+  /**
+   * The GitHub facts line the category step was given, for the decision trace.
+   * Attached by the single-email refiner, not by `analyzePriority`.
+   */
+  githubFactsTrace?: string;
 };
 
 export type BatchPriorityResult = PriorityResult & {
@@ -159,76 +153,6 @@ export class PriorityAnalysisService {
     private categoryShortlistService: CategoryShortlistService,
     private readonly configService: ConfigService,
   ) {}
-
-  /**
-   * Runs the two-step category shortlisting logic and returns the effective category list
-   * plus the shortlisted names for debug storage. When shortlisting is skipped (category
-   * count below the threshold) `shortlistedCategoryNames` is null.
-   */
-  private async resolveEffectiveCategories(
-    email: { from: string; fromName?: string; subject: string },
-    userContext: UserContextInput | undefined,
-    cleanedBody: string,
-    categoryPreAssigned?: boolean,
-  ): Promise<{
-    effectiveCategories: CategoryItem[];
-    instrumentation: CategoryInstrumentation;
-  }> {
-    const realCategories = userContext?.emailCategories ?? [];
-    const protoCategories = userContext?.protoCategories ?? [];
-    const allCategories = [...realCategories, ...protoCategories];
-    const counts = {
-      totalCategoryCount: allCategories.length,
-      protoCategoryCount: protoCategories.length,
-    };
-    // A deterministic rule already pinned the category (its pick overrides the
-    // LLM downstream), so don't send the category list or run the embedding
-    // shortlist — the model only scores urgency + goal for these emails. Use a
-    // single placeholder item (not []): an empty list makes the prompt's
-    // `{% if emailCategories %}` falsy and renders the 5 default categories via
-    // the {% else %} fallback, which we don't want. One placeholder line renders
-    // instead, and signals the model that no category selection is needed.
-    if (categoryPreAssigned) {
-      return {
-        effectiveCategories: [CATEGORY_PRE_ASSIGNED_PLACEHOLDER],
-        instrumentation: {
-          shortlistedCategoryNames: null,
-          shortlistCandidates: null,
-          ...counts,
-        },
-      };
-    }
-    if (
-      !this.categoryShortlistService.isShortlistEnabled(allCategories.length)
-    ) {
-      return {
-        effectiveCategories: allCategories,
-        instrumentation: {
-          shortlistedCategoryNames: null,
-          shortlistCandidates: null,
-          ...counts,
-        },
-      };
-    }
-    const { effective, candidates } =
-      await this.categoryShortlistService.getShortlistWithMeta(
-        {
-          from: email.from,
-          fromName: email.fromName,
-          subject: email.subject,
-          summary: cleanedBody,
-        },
-        allCategories,
-      );
-    return {
-      effectiveCategories: effective,
-      instrumentation: {
-        shortlistedCategoryNames: effective.map((cat) => cat.name),
-        shortlistCandidates: candidates,
-        ...counts,
-      },
-    };
-  }
 
   /**
    * Structured per-call analytics for the analyze_priority prompt shape. Category
@@ -283,15 +207,13 @@ export class PriorityAnalysisService {
     };
     userId?: string;
     userTimezone?: string;
-    /** True when a deterministic rule already assigned the category, so the LLM's
-     * category output is discarded downstream. Lets us skip sending the category
-     * list (and the embedding shortlist call) — a big prompt-token saving. */
-    categoryPreAssigned?: boolean;
+    /** The category already chosen for this email (by a rule or the categoriser). */
+    assignedCategory: CategoryItem;
+    cleanedBody: string;
   }): Promise<{
     prompt: string;
     systemPrompt: string;
     orderedCategoryNames: string[];
-    instrumentation: CategoryInstrumentation;
   }> {
     const {
       email,
@@ -300,7 +222,8 @@ export class PriorityAnalysisService {
       threadInfo,
       userId,
       userTimezone,
-      categoryPreAssigned,
+      assignedCategory,
+      cleanedBody,
     } = options;
     const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
     if (!promptConfig) {
@@ -315,12 +238,6 @@ export class PriorityAnalysisService {
       throw error;
     }
 
-    const cleanedBody = cleanEmailContent(
-      email.body,
-      null,
-      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-    );
-
     // Date AND time (in the user's timezone) so the model can score deadline
     // proximity correctly — e.g. an event cancellation received at 10:44 PM the
     // night before the event is time-critical, not "reschedule whenever".
@@ -329,29 +246,16 @@ export class PriorityAnalysisService {
       ? formatDateTimeForPrompt(email.receivedAt, userTimezone)
       : "";
 
-    const { effectiveCategories, instrumentation } =
-      await this.resolveEffectiveCategories(
-        email,
-        userContext,
-        cleanedBody,
-        categoryPreAssigned,
-      );
+    // The priority prompt only ever sees the one assigned category; it scores
+    // urgency and goal alignment and echoes the category back as number 1.
+    const effectiveCategories = [assignedCategory];
+    const orderedCategoryNames = effectiveCategories.map((cat) => cat.name);
 
-    // The exact order the categories are numbered in the prompt — used to map
-    // the LLM's categoryNumber back to a category. Falls back to the prompt's
-    // built-in default list when the user has no categories yet.
-    const orderedCategoryNames =
-      effectiveCategories.length > 0
-        ? effectiveCategories.map((cat) => cat.name)
-        : DEFAULT_CATEGORY_NAMES;
-
-    const effectiveUserContext: UserContextInput | undefined = userContext
-      ? {
-          ...userContext,
-          emailCategories: effectiveCategories,
-          protoCategories: [],
-        }
-      : userContext;
+    const effectiveUserContext: UserContextInput = {
+      ...(userContext ?? {}),
+      emailCategories: effectiveCategories,
+      protoCategories: [],
+    };
 
     const contextTexts = buildUserContextTexts(effectiveUserContext);
 
@@ -371,22 +275,12 @@ export class PriorityAnalysisService {
       dontCareContext: contextTexts.dontCareContextText,
       emailCategories: contextTexts.emailCategoriesText,
       threadInfo: buildThreadInfoText(threadInfo),
-      // Gates the category-selection rules out of the template when a
-      // deterministic rule already pinned the category (the LLM's category is
-      // discarded downstream), cutting ~12K chars of prompt on those calls.
-      categoryPreAssigned: !!categoryPreAssigned,
-      // Gates the large GitHub-specific categorisation rules (~4K chars) in only
-      // for GitHub senders that still choose a category (not pre-assigned),
-      // saving ~1K prompt tokens on the majority of non-GitHub emails. Combined
-      // into one flag because the custom renderer cannot nest `{% if %}` blocks.
-      showGithubRules: !categoryPreAssigned && isGithubSenderEmail(email.from),
     });
 
     return {
       prompt,
       systemPrompt: promptConfig.systemPrompt || "",
       orderedCategoryNames,
-      instrumentation,
     };
   }
 
@@ -445,10 +339,12 @@ export class PriorityAnalysisService {
       parsed.result && typeof parsed.result === "object"
         ? parsed.result
         : parsed;
-    // Primary path: the LLM returns a categoryNumber (1-based index into the
-    // numbered list, 0 = Other), resolved by exact array index — no name/fuzzy
-    // matching. Falls back to a returned `category` name only when no number is
-    // present (defensive; e.g. an older response shape).
+    // The LLM reports its pick twice — categoryName and categoryNumber — and
+    // resolveResponseCategory reconciles them: an exact categoryName match wins
+    // (weak models reliably name the right category but miscount its position),
+    // otherwise it falls back to categoryNumber (1-based index, 0 = Other), then
+    // a legacy `category` name for older response shapes. Matching is always
+    // exact — never fuzzy — so a fabricated name can't mis-route.
     const category = resolveResponseCategory(
       analysisResult,
       orderedCategoryNames,
@@ -532,6 +428,55 @@ export class PriorityAnalysisService {
     };
   }
 
+  /**
+   * Runs the category step unless a deterministic rule already pinned the
+   * category, in which case only the count instrumentation is produced.
+   */
+  private async runCategoryStep(options: {
+    email: { from: string; fromName?: string; subject: string };
+    userContext?: UserContextInput;
+    cleanedBody: string;
+    githubFacts?: string | null;
+    userId?: string;
+    categoryPreAssigned: boolean;
+  }): Promise<{
+    chosen: Awaited<ReturnType<typeof chooseEmailCategory>> | null;
+    instrumentation: CategoryInstrumentation;
+  }> {
+    const {
+      email,
+      userContext,
+      cleanedBody,
+      githubFacts,
+      userId,
+      categoryPreAssigned,
+    } = options;
+    if (!categoryPreAssigned) {
+      const chosen = await chooseEmailCategory(
+        {
+          llmCoreService: this.llmCoreService,
+          categoryShortlistService: this.categoryShortlistService,
+          logger: this.logger,
+          escalationModel: resolveStrongGeminiModel(this.configService),
+        },
+        { email, userContext, cleanedBody, githubFacts, userId },
+      );
+      return { chosen, instrumentation: chosen.instrumentation };
+    }
+    const protoCategoryCount = userContext?.protoCategories?.length ?? 0;
+    return {
+      chosen: null,
+      instrumentation: {
+        shortlistedCategoryNames: null,
+        shortlistCandidates: null,
+        totalCategoryCount:
+          (userContext?.emailCategories?.length ?? 0) + protoCategoryCount,
+        protoCategoryCount,
+      },
+    };
+  }
+
+  // eslint-disable-next-line max-lines-per-function
   async analyzePriority(options: {
     email: {
       from: string;
@@ -559,6 +504,8 @@ export class PriorityAnalysisService {
     /** True when a deterministic rule already assigned the category — skips the
      * category list + shortlist in the prompt (the LLM's category is discarded). */
     categoryPreAssigned?: boolean;
+    /** Authoritative GitHub facts line handed to the category step, when any. */
+    githubFacts?: string | null;
   }): Promise<PriorityResult> {
     const {
       email,
@@ -570,8 +517,26 @@ export class PriorityAnalysisService {
       preComputedSentimentScore,
       userTimezone,
       categoryPreAssigned,
+      githubFacts,
     } = options;
-    const { prompt, systemPrompt, orderedCategoryNames, instrumentation } =
+    const cleanedBody = cleanEmailContent(
+      email.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
+
+    // Category first, always via the category-only prompt (unless a rule
+    // already pinned it); the priority prompt then scores the assigned category.
+    const { chosen, instrumentation } = await this.runCategoryStep({
+      email,
+      userContext,
+      cleanedBody,
+      githubFacts,
+      userId,
+      categoryPreAssigned: categoryPreAssigned === true,
+    });
+
+    const { prompt, systemPrompt, orderedCategoryNames } =
       await this.buildPriorityPrompt({
         email,
         userHistory,
@@ -579,16 +544,24 @@ export class PriorityAnalysisService {
         threadInfo,
         userId,
         userTimezone,
-        categoryPreAssigned,
+        assignedCategory:
+          chosen?.assignedCategory ?? CATEGORY_PRE_ASSIGNED_PLACEHOLDER,
+        cleanedBody,
       });
 
     this.logPromptShape({
       userId,
       categoryPreAssigned: categoryPreAssigned === true,
       instrumentation,
-      effectiveCategoryCount: orderedCategoryNames.length,
+      effectiveCategoryCount: chosen?.candidateCount ?? 0,
       promptChars: prompt.length + systemPrompt.length,
     });
+
+    const priorityRoute = resolvePriorityProvider(
+      provider,
+      this.llmCoreService.getDefaultProvider(),
+      this.configService,
+    );
 
     const response = await this.llmCoreService.generateText(
       {
@@ -599,8 +572,9 @@ export class PriorityAnalysisService {
         userId,
         operation: LLM_OP_ANALYZE_PRIORITY,
         jsonMode: true,
+        model: priorityRoute.model,
       },
-      provider,
+      priorityRoute.provider,
       userId,
     );
 
@@ -618,8 +592,12 @@ export class PriorityAnalysisService {
         orderedCategoryNames,
       );
       if (parsed) {
+        // The category came from the categoriser, not from this response.
+        const withCategory = chosen
+          ? { ...parsed, ...chosen.categoryFields }
+          : parsed;
         return {
-          ...this.applyCategoryKeyResolution(parsed, userContext),
+          ...this.applyCategoryKeyResolution(withCategory, userContext),
           ...instrumentation,
         };
       }
@@ -636,6 +614,7 @@ export class PriorityAnalysisService {
 
     return {
       ...this.buildFallbackPriorityResult(response, preComputedSentimentScore),
+      ...(chosen?.categoryFields ?? {}),
       ...instrumentation,
     };
   }

@@ -77,3 +77,89 @@ describe("EmailInboxCategoryService", () => {
     ).toBeUndefined();
   });
 });
+
+// ─── issue #2062: the summary applies the same action / follow-up rules as the list ──
+describe("EmailInboxCategoryService — shared mode rules (#2062)", () => {
+  let service: EmailInboxCategoryService;
+  const USER_EMAIL = "me@example.com";
+  const actionRules = {
+    needsUserSentLastFilter: true,
+    userEmailLower: USER_EMAIL,
+  };
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        EmailInboxCategoryService,
+        {
+          provide: BlockedSendersService,
+          useValue: { isSenderBlocked: jest.fn().mockResolvedValue(false) },
+        },
+        { provide: UsersService, useValue: { findOne: jest.fn() } },
+      ],
+    }).compile();
+    service = moduleRef.get(EmailInboxCategoryService);
+    jest
+      .spyOn(EncryptionHelper, "tryDecrypt")
+      .mockImplementation((value: string) => value);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("action mode keeps a user-sent-last thread that is pinned with keepInAction, like the list does", async () => {
+    const skipPinned = await service.shouldSkipSummaryRow(
+      "user-1",
+      "action",
+      { latestFrom: USER_EMAIL, keepInAction: true },
+      actionRules,
+    );
+    const skipPlain = await service.shouldSkipSummaryRow(
+      "user-1",
+      "action",
+      { latestFrom: USER_EMAIL, keepInAction: false },
+      actionRules,
+    );
+    const skipAutoResponded = await service.shouldSkipSummaryRow(
+      "user-1",
+      "action",
+      { latestFrom: USER_EMAIL, sentByAutoResponder: true },
+      actionRules,
+    );
+    expect(skipPinned).toBe(false);
+    expect(skipPlain).toBe(true);
+    expect(skipAutoResponded).toBe(false);
+  });
+
+  it("action mode matches the sender exactly rather than by substring", async () => {
+    const skip = await service.shouldSkipSummaryRow(
+      "user-1",
+      "action",
+      { latestFrom: `someone-else-${USER_EMAIL}` },
+      actionRules,
+    );
+    expect(skip).toBe(false);
+  });
+
+  it("follow-up mode keeps exactly the threads the shared follow-up rule accepted", async () => {
+    const followUpRules = {
+      ...actionRules,
+      followUpThreadIds: new Set(["t-1"]),
+    };
+    const keep = await service.shouldSkipSummaryRow(
+      "user-1",
+      "follow-up",
+      { threadId: "t-1", latestFrom: USER_EMAIL },
+      followUpRules,
+    );
+    const drop = await service.shouldSkipSummaryRow(
+      "user-1",
+      "follow-up",
+      { threadId: "t-2", latestFrom: USER_EMAIL },
+      followUpRules,
+    );
+    expect(keep).toBe(false);
+    expect(drop).toBe(true);
+  });
+});

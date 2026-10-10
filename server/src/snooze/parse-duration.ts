@@ -1,3 +1,4 @@
+import type { ParsedResult } from "chrono-node";
 import * as chrono from "chrono-node";
 
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
@@ -17,6 +18,17 @@ const CHRONO_BY_LOCALE: { [locale: string]: chrono.Chrono } = {
 };
 
 const RELATIVE_DURATION_REGEX = /^(\d+)\s*(mo|m|min|h|hr|d|w)$/;
+
+// Day-of-month shorthand chrono doesn't parse on its own: "15th", "the 15th",
+// "on the 15th", "the 15". A bare number without "the" or a suffix is left
+// alone so it can't be mistaken for a duration or a time. Mirrors the client
+// parser (client/src/utils/parseDuration.ts).
+const DAY_OF_MONTH_REGEX =
+  /^(?:on\s+)?(?:the\s+(\d{1,2})(?:st|nd|rd|th)?|(\d{1,2})(?:st|nd|rd|th))$/;
+const MIN_DAY_OF_MONTH = 1;
+const MAX_DAY_OF_MONTH = 31;
+/** Months to look ahead for a day that exists (e.g. "31st" typed in April). */
+const DAY_OF_MONTH_LOOKAHEAD_MONTHS = 12;
 
 // Common shorthand chrono doesn't recognise on its own. chrono parses
 // "tomorrow"/"tmr"/"tmrw" but not "tom"/"tomo", so an unaliased "tom" would hit
@@ -44,14 +56,90 @@ function deaccent(value: string): string {
 }
 
 /**
- * Adds whole calendar months to a date, preserving the time of day. Day-of-month
+ * Adds whole calendar months to a date at the default snooze hour. Day-of-month
  * overflow rolls forward (e.g. Jan 31 + 1 month → early March), which is fine for
  * a follow-up reminder.
  */
 function addMonths(from: Date, months: number): Date {
   const result = new Date(from);
   result.setMonth(result.getMonth() + months);
+  result.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
   return result;
+}
+
+/**
+ * Next occurrence of `day` at the default snooze hour: this month if that is
+ * still ahead of `now`, otherwise the next month that actually has that day.
+ * Returns null for a day outside 1–31.
+ */
+function nextDayOfMonth(now: Date, day: number): Date | null {
+  if (day < MIN_DAY_OF_MONTH || day > MAX_DAY_OF_MONTH) {
+    return null;
+  }
+  for (let offset = 0; offset <= DAY_OF_MONTH_LOOKAHEAD_MONTHS; offset++) {
+    const candidate = new Date(
+      now.getFullYear(),
+      now.getMonth() + offset,
+      day,
+      SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR,
+      0,
+      0,
+      0,
+    );
+    // Date overflow (e.g. 31 in a 30-day month) rolls into the next month;
+    // skip those so "31st" lands on a real 31st.
+    if (candidate.getDate() !== day) {
+      continue;
+    }
+    if (candidate.getTime() > now.getTime()) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/** "15th" / "the 15th" / "on the 15th" / "the 15" → next such day, else null. */
+function parseDayOfMonth(normalized: string, now: Date): Date | null {
+  const match = normalized.match(DAY_OF_MONTH_REGEX);
+  if (!match) {
+    return null;
+  }
+  const day = parseInt(match[1] ?? match[2], 10);
+  return nextDayOfMonth(now, day);
+}
+
+function addCalendarDays(from: Date, days: number): Date {
+  const result = new Date(from);
+  result.setDate(result.getDate() + days);
+  result.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+  return result;
+}
+
+/**
+ * chrono fills a date-only phrase ("tomorrow", "next week", "in 2 days") with
+ * the reference clock time, so "tomorrow" typed at 16:29 means "tomorrow at
+ * 16:29" rather than the start of the day. Snap those to the same default hour
+ * the day-name and "3d"/"2w" paths already use.
+ *
+ * Only phrases that carried the clock across untouched are snapped: an explicit
+ * time ("5pm", "tomorrow at 9am") is certain, and a phrase chrono gave its own
+ * implied hour ("tonight" → 22:00, "next monday" → 12:00) already means
+ * something specific and must be left alone — snapping those could even move
+ * the result into the past.
+ */
+function snapDateOnlyResultToDefaultHour(
+  result: ParsedResult,
+  now: Date,
+): Date {
+  const parsed = result.start.date();
+  const carriedReferenceClock =
+    parsed.getHours() === now.getHours() &&
+    parsed.getMinutes() === now.getMinutes();
+  const isLaterDay = parsed.toDateString() !== now.toDateString();
+  if (!result.start.isCertain("hour") && carriedReferenceClock && isLaterDay) {
+    parsed.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+  }
+  return parsed;
 }
 
 /**
@@ -64,6 +152,7 @@ function addMonths(from: Date, months: number): Date {
  *     via chrono's locale-specific parser
  *   - relative durations ("4h", "90m", "3d", "2w")
  *   - months: "3mo" (use "mo" explicitly; bare "m" is always minutes)
+ *   - day of month ("15th", "the 15th", "on the 15th") → next occurrence at the default hour
  *
  * Falls back to one hour from `now` when the input cannot be parsed.
  *
@@ -117,19 +206,21 @@ export function parseDurationToDate(
       case "hr":
         return new Date(now.getTime() + value * MILLISECONDS.HOUR);
       case "d":
-        return new Date(now.getTime() + value * MILLISECONDS.DAY);
+        return addCalendarDays(now, value);
       case "w":
-        return new Date(
-          now.getTime() +
-            value * SNOOZE_CONSTANTS.DAYS_IN_WEEK * MILLISECONDS.DAY,
-        );
+        return addCalendarDays(now, value * SNOOZE_CONSTANTS.DAYS_IN_WEEK);
     }
   }
 
+  const dayOfMonth = parseDayOfMonth(normalized, now);
+  if (dayOfMonth) {
+    return dayOfMonth;
+  }
+
   const parser = CHRONO_BY_LOCALE[base] ?? CHRONO_BY_LOCALE.en;
-  const parsed = parser.parseDate(normalized, now);
-  if (parsed) {
-    return parsed;
+  const [result] = parser.parse(normalized, now);
+  if (result) {
+    return snapDateOnlyResultToDefaultHour(result, now);
   }
 
   return new Date(now.getTime() + MILLISECONDS.HOUR);

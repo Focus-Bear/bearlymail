@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { SignaturePreview } from 'components/compose/SignaturePreview';
 import { RichTextEditor } from 'components/rich-text/RichTextEditor';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
@@ -60,6 +61,7 @@ export const ComposeBody: React.FC<ComposeBodyProps> = ({ subject, body, onSubje
         placeholder={t('compose.bodyPlaceholder')}
         minHeight="300px"
       />
+      <SignaturePreview />
     </>
   );
 };

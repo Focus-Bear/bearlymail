@@ -46,6 +46,12 @@ interface CategoryFetchTrace {
   categoryId: string | null;
   categoryName: string;
   mode: 'triage' | 'action' | 'follow-up';
+  /** The renderer's summary entry as sent with the request, if any. */
+  clientSummaryThreadIds: string[] | null;
+  /** A fresh server summary for the same category. */
+  serverSummaryThreadIds: string[];
+  /** True when the rendered count came from an older state than the rows. */
+  summaryStale: boolean;
   resolvedCategoryUuids: string[];
   treatedAsOther: boolean;
   summaryThreadIds: string[];
@@ -65,6 +71,8 @@ interface Props {
   categoryKey: string;
   categoryName: string;
   mode: 'triage' | 'action' | 'follow-up';
+  /** Thread ids of the summary entry the accordion is rendering, so the trace can compare. */
+  summaryThreadIds?: string[];
 }
 
 const STAGE_LABELS: Record<CategoryFetchTraceDrop['stage'], string> = {
@@ -248,8 +256,16 @@ const TraceContent: React.FC<{ trace: CategoryFetchTrace }> = ({ trace }) => (
       <code style={codeStyle}>treatedAsOther</code> {String(trace.treatedAsOther)}{' · '}
       <code style={codeStyle}>resolvedUuids</code> {trace.resolvedCategoryUuids.join(', ') || '(none)'}
     </div>
-    <StageRow label="Summary thread IDs" ids={trace.summaryThreadIds} />
-    <StageRow label="Raw query (all threads)" ids={trace.rawQueryAllThreadIds} />
+    {trace.summaryStale && (
+      <div style={{ ...monoStyle, color: theme.colors.text.primary }}>
+        ⚠️ The rendered summary is stale: the count on screen was computed from an older state than the rows. Client
+        listed {trace.clientSummaryThreadIds?.length ?? 0} thread(s); the server now lists{' '}
+        {trace.serverSummaryThreadIds.length}.
+      </div>
+    )}
+    {trace.clientSummaryThreadIds && <StageRow label="Client summary thread IDs" ids={trace.clientSummaryThreadIds} />}
+    <StageRow label="Server summary thread IDs" ids={trace.serverSummaryThreadIds} />
+    <StageRow label="Raw query (this category, real filters)" ids={trace.rawQueryAllThreadIds} />
     <StageRow label="After category filter" ids={trace.afterCategoryFilterThreadIds} />
     <StageRow label="After blocked filter" ids={trace.afterBlockedFilterThreadIds} />
     <StageRow label="After mode filter (final)" ids={trace.afterModeFilterThreadIds} />
@@ -280,7 +296,7 @@ function buttonLabel(loading: boolean, hasTrace: boolean): string {
   return '🔬 Trace fetch pipeline';
 }
 
-export const CategoryFetchTracePanel: React.FC<Props> = ({ categoryKey, categoryName, mode }) => {
+export const CategoryFetchTracePanel: React.FC<Props> = ({ categoryKey, categoryName, mode, summaryThreadIds }) => {
   const [loading, setLoading] = useState(false);
   const [trace, setTrace] = useState<CategoryFetchTrace | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -292,7 +308,13 @@ export const CategoryFetchTracePanel: React.FC<Props> = ({ categoryKey, category
       const params = new URLSearchParams({
         categoryId: categoryKey === CATEGORY_KEY_UNCATEGORIZED ? CATEGORY_KEY_UNCATEGORIZED : categoryKey,
         mode,
+        summaryName: categoryName,
       });
+      // Send the renderer's own summary entry so the server can say whether the
+      // count on screen is stale relative to what it would compute now.
+      if (summaryThreadIds) {
+        params.append('summaryThreadIds', summaryThreadIds.join(','));
+      }
       const response = await axios.get<CategoryFetchTrace>(
         `${API_URL}/emails/debug/category-fetch-trace?${params.toString()}`,
       );
@@ -303,7 +325,7 @@ export const CategoryFetchTracePanel: React.FC<Props> = ({ categoryKey, category
     } finally {
       setLoading(false);
     }
-  }, [categoryKey, mode]);
+  }, [categoryKey, categoryName, mode, summaryThreadIds]);
 
   return (
     <div style={{ marginTop: theme.spacing.sm }}>

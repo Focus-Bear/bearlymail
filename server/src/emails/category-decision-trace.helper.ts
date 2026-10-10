@@ -7,6 +7,11 @@ import type {
 } from "./category-decision-trace.types";
 import { buildHonestCategoryExplanation } from "./category-explanation.helper";
 
+/** Appends the GitHub facts the step saw to its detail line, when it had any. */
+function withGithubFacts(detail: string, githubFacts?: string): string {
+  return githubFacts ? `${detail} ${githubFacts}.` : detail;
+}
+
 /**
  * Assembles the full decision trace from the ordered steps and the final
  * outcome. `decidedAt` is stamped by the caller (passed in) so this stays a
@@ -128,6 +133,8 @@ export function deterministicRuleDecisionTrace(args: {
   categoryName: string;
   ruleCategoryId: string | null;
   finalCategoryId: string | null;
+  /** The GitHub facts the rule matcher saw, appended to the step detail. */
+  githubFacts?: string;
   trigger?: CategoryDecisionTrigger;
   analyzedEmail?: CategoryDecisionAnalyzedEmail;
 }): CategoryDecisionTrace {
@@ -145,7 +152,10 @@ export function deterministicRuleDecisionTrace(args: {
         outcome: "applied",
         category: args.categoryName,
         categoryId: args.ruleCategoryId,
-        detail: `Learned deterministic rule matched category "${args.categoryName}".`,
+        detail: withGithubFacts(
+          `Learned deterministic rule matched category "${args.categoryName}".`,
+          args.githubFacts,
+        ),
       },
     ],
   });
@@ -164,6 +174,8 @@ export function buildLlmCategoryOutcome(args: {
   categoryExplanation: string | null;
   rawLlmCategory: string | null;
   llmProtoSuggestionName: string | null;
+  /** The GitHub facts the categoriser saw, appended to the step detail. */
+  githubFacts?: string;
   trigger?: CategoryDecisionTrigger;
   analyzedEmail?: CategoryDecisionAnalyzedEmail;
 }): {
@@ -178,6 +190,7 @@ export function buildLlmCategoryOutcome(args: {
     llmCategoryId: args.llmCategoryId,
     protoCategoryId: args.protoCategoryId,
     finalCategoryId: categoryId,
+    githubFacts: args.githubFacts,
     trigger: args.trigger,
     analyzedEmail: args.analyzedEmail,
   });
@@ -203,6 +216,8 @@ export function llmDecisionTrace(args: {
   llmCategoryId: string | null;
   protoCategoryId: string | null;
   finalCategoryId: string | null;
+  /** The GitHub facts the categoriser saw, appended to the step detail. */
+  githubFacts?: string;
   trigger?: CategoryDecisionTrigger;
   analyzedEmail?: CategoryDecisionAnalyzedEmail;
 }): CategoryDecisionTrace {
@@ -220,9 +235,12 @@ export function llmDecisionTrace(args: {
         outcome: "applied",
         category: args.finalCategory,
         categoryId: args.llmCategoryId,
-        detail: args.protoCategoryId
-          ? `LLM categorisation resolved to proto-category (proto id ${args.protoCategoryId}).`
-          : `LLM categorisation resolved to "${args.finalCategory ?? "Other"}".`,
+        detail: withGithubFacts(
+          args.protoCategoryId
+            ? `LLM categorisation resolved to proto-category (proto id ${args.protoCategoryId}).`
+            : `LLM categorisation resolved to "${args.finalCategory ?? "Other"}".`,
+          args.githubFacts,
+        ),
       },
     ],
   });

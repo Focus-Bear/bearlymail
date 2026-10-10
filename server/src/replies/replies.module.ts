@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ContextModule } from "../context/context.module";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailSendQueueModule } from "../email-send-queue/email-send-queue.module";
 import { EmailsModule } from "../emails/emails.module";
 import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { LLMModule } from "../llm/llm.module";
@@ -19,6 +20,7 @@ import { RepliesService } from "./replies.service";
     SubscriptionsModule,
     TypeOrmModule.forFeature([Email, EmailThread]),
     EmailsModule,
+    EmailSendQueueModule,
     forwardRef(() => ContextModule),
     LLMModule,
     UsersModule,

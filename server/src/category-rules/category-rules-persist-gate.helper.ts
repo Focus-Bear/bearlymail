@@ -22,6 +22,7 @@ import { Email } from "../database/entities/email.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { RuleSpecSummary } from "../llm/llm-rule-value";
 import { specToV2 } from "./category-rules-auto-composite.helper";
+import { describeGithubConditions } from "./category-rules-github-conditions.helper";
 import {
   countMatchesInRows,
   dropContradictoryExclusions,
@@ -30,6 +31,7 @@ import {
   specHasExclusion,
   specHasStructuralConstraint,
 } from "./category-rules-match-gate.helper";
+import { notificationSubtypesOf } from "./category-rules-notification-subtype.helper";
 
 export interface RulePersistGateParams {
   categoryRuleRepository: Repository<CategoryRule>;
@@ -70,7 +72,10 @@ export interface RulePersistGateOutcome {
   detail?: string;
 }
 
-function specToSummary(spec: CompositeCategoryRuleSpec): RuleSpecSummary {
+/** Flattens any spec version into the LLM-facing summary shape. */
+export function specToSummary(
+  spec: CompositeCategoryRuleSpec,
+): RuleSpecSummary {
   const v2 = specToV2(spec);
   return {
     senders: v2.senderMatchesAny,
@@ -78,6 +83,8 @@ function specToSummary(spec: CompositeCategoryRuleSpec): RuleSpecSummary {
     bodyContains: v2.bodyContainsAny,
     subjectNotContains: v2.subjectNotContainsAny ?? [],
     bodyNotContains: v2.bodyNotContainsAny ?? [],
+    notificationSubtypes: notificationSubtypesOf(spec),
+    githubConditions: describeGithubConditions(spec),
   };
 }
 

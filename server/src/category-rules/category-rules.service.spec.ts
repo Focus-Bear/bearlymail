@@ -10,7 +10,10 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { CategoryRuleSanityService } from "../llm/category-rule-sanity.service";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
+import { RULE_SANITY_VERDICTS } from "../llm/llm-rule-sanity";
+import { TokenUsageService } from "../llm/token-usage.service";
 import { CategoryRulesService } from "./category-rules.service";
 
 const mockRuleRepo = () => ({
@@ -65,6 +68,26 @@ const mockLLMCategoriesService = () => ({
   assessRuleAddsValue: jest.fn(),
 });
 
+const SANITY_MODEL = "gemini-test";
+
+const mockTokenUsageService = () => ({
+  countUserCallsSince: jest.fn().mockResolvedValue(0),
+});
+
+const mockCategoryRuleSanityService = () => ({
+  isEnabled: true,
+  model: SANITY_MODEL,
+  checkRule: jest.fn(),
+});
+
+const sanityAccept = {
+  verdict: RULE_SANITY_VERDICTS.ACCEPT,
+  confidence: 0.9,
+  reason: "specific to the sender's build failures",
+  betterCategoryName: null,
+  suggestedRevision: null,
+};
+
 /** An email that matches the default generated spec (used to pass the match gate). */
 const matchingMailboxEmail = {
   from: "alerts@acmecorp.com",
@@ -78,6 +101,8 @@ describe("CategoryRulesService", () => {
   let emailRepo: ReturnType<typeof mockEmailRepo>;
   let userContextRepo: ReturnType<typeof mockUserContextRepo>;
   let llmCategoriesService: ReturnType<typeof mockLLMCategoriesService>;
+  let sanityService: ReturnType<typeof mockCategoryRuleSanityService>;
+  let tokenUsageService: ReturnType<typeof mockTokenUsageService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -103,6 +128,14 @@ describe("CategoryRulesService", () => {
           provide: LLMCategoriesService,
           useFactory: mockLLMCategoriesService,
         },
+        {
+          provide: CategoryRuleSanityService,
+          useFactory: mockCategoryRuleSanityService,
+        },
+        {
+          provide: TokenUsageService,
+          useFactory: mockTokenUsageService,
+        },
       ],
     }).compile();
 
@@ -111,6 +144,10 @@ describe("CategoryRulesService", () => {
     emailRepo = module.get(getRepositoryToken(Email));
     userContextRepo = module.get(getRepositoryToken(UserContext));
     llmCategoriesService = module.get(LLMCategoriesService);
+    sanityService = module.get(CategoryRuleSanityService);
+    tokenUsageService = module.get(TokenUsageService);
+    // Default: the strong-model reviewer accepts every auto-generated rule.
+    sanityService.checkRule.mockResolvedValue(sanityAccept);
 
     // Default: sender has 15 threads — above both thresholds.
     emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "15" }));
@@ -206,7 +243,13 @@ describe("CategoryRulesService", () => {
 
       expect(
         llmCategoriesService.suggestRulesFromEmailSamples,
-      ).toHaveBeenCalledWith("CI", ["alerts@acmecorp.com"], expect.any(Array));
+      ).toHaveBeenCalledWith(
+        "CI",
+        ["alerts@acmecorp.com"],
+        expect.any(Array),
+        userId,
+        undefined,
+      );
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           ruleKind: "composite",
@@ -220,6 +263,256 @@ describe("CategoryRulesService", () => {
         }),
       );
       expect(result).toEqual(created);
+    });
+
+    it("skips the LLM entirely once the user's rolling-24h auto-generation budget is spent", async () => {
+      tokenUsageService.countUserCallsSince.mockResolvedValue(
+        CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY,
+      );
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(result).toBeNull();
+      expect(tokenUsageService.countUserCallsSince).toHaveBeenCalledWith(
+        userId,
+        "suggest_category_rules",
+        expect.any(Date),
+      );
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).not.toHaveBeenCalled();
+      expect(emailRepo.find).not.toHaveBeenCalled();
+    });
+
+    it("still generates when the user is one attempt under the budget", async () => {
+      tokenUsageService.countUserCallsSince.mockResolvedValue(
+        CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY - 1,
+      );
+      armPersistGate();
+      repo.create.mockReturnValue({ id: "comp-2", ruleKind: "composite" });
+      repo.save.mockResolvedValue({ id: "comp-2", ruleKind: "composite" });
+
+      await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).toHaveBeenCalled();
+    });
+
+    it("stores the accepting sanity verdict on the created rule", async () => {
+      armPersistGate();
+      repo.create.mockImplementation((rule) => rule);
+      repo.save.mockImplementation(async (rule) => rule);
+
+      await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(sanityService.checkRule).toHaveBeenCalledTimes(1);
+      expect(sanityService.checkRule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          categoryName: "CI",
+          userId,
+          candidate: expect.objectContaining({
+            senders: ["alerts@acmecorp.com"],
+            subjectContains: ["Build failed"],
+          }),
+          sampleEmails: expect.arrayContaining([
+            expect.objectContaining({
+              from: "alerts@acmecorp.com",
+              subject: "Build failed",
+            }),
+          ]),
+        }),
+      );
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sanityCheck: expect.objectContaining({
+            verdict: RULE_SANITY_VERDICTS.ACCEPT,
+            confidence: 0.9,
+            reason: sanityAccept.reason,
+            model: SANITY_MODEL,
+            revised: false,
+          }),
+        }),
+      );
+    });
+
+    it("does not create the rule when the sanity review rejects it", async () => {
+      armPersistGate();
+      sanityService.checkRule.mockResolvedValue({
+        verdict: RULE_SANITY_VERDICTS.REJECT,
+        confidence: 0.95,
+        reason: "these are QA results, not CI",
+        betterCategoryName: "QA passed",
+        suggestedRevision: null,
+      });
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(result).toBeNull();
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it("persists the reviewer's revision only after a second review accepts it", async () => {
+      armPersistGate();
+      sanityService.checkRule
+        .mockResolvedValueOnce({
+          verdict: RULE_SANITY_VERDICTS.REVISE,
+          confidence: 0.7,
+          reason: "body phrase is too generic",
+          betterCategoryName: null,
+          suggestedRevision: {
+            fromMatchesAny: ["alerts@acmecorp.com"],
+            subjectContainsAny: ["Build failed"],
+            bodyContainsAny: ["compile failed"],
+            subjectNotContainsAny: ["weekly digest"],
+            bodyNotContainsAny: [],
+          },
+        })
+        .mockResolvedValueOnce(sanityAccept);
+      repo.create.mockImplementation((rule) => rule);
+      repo.save.mockImplementation(async (rule) => rule);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(sanityService.checkRule).toHaveBeenCalledTimes(2);
+      expect(sanityService.checkRule.mock.calls[1][0].candidate).toEqual(
+        expect.objectContaining({ bodyContains: ["compile failed"] }),
+      );
+      expect(result).not.toBeNull();
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          compositeSpec: expect.objectContaining({
+            bodyContainsAny: ["compile failed"],
+            subjectNotContainsAny: ["weekly digest"],
+          }),
+          sanityCheck: expect.objectContaining({
+            verdict: RULE_SANITY_VERDICTS.REVISE,
+            revised: true,
+            reason: "body phrase is too generic",
+          }),
+        }),
+      );
+    });
+
+    it("drops a revised rule when the second review does not accept it", async () => {
+      armPersistGate();
+      sanityService.checkRule
+        .mockResolvedValueOnce({
+          verdict: RULE_SANITY_VERDICTS.REVISE,
+          confidence: 0.7,
+          reason: "too generic",
+          betterCategoryName: null,
+          suggestedRevision: {
+            fromMatchesAny: ["alerts@acmecorp.com"],
+            subjectContainsAny: ["Build failed"],
+            bodyContainsAny: ["compile failed"],
+            subjectNotContainsAny: ["weekly digest"],
+            bodyNotContainsAny: [],
+          },
+        })
+        .mockResolvedValueOnce({
+          verdict: RULE_SANITY_VERDICTS.REJECT,
+          confidence: 0.8,
+          reason: "still generic",
+          betterCategoryName: null,
+          suggestedRevision: null,
+        });
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(result).toBeNull();
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it("creates the rule unchecked (no stored verdict) when the reviewer is unavailable", async () => {
+      armPersistGate();
+      sanityService.checkRule.mockResolvedValue(null);
+      repo.create.mockImplementation((rule) => rule);
+      repo.save.mockImplementation(async (rule) => rule);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(result).not.toBeNull();
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ sanityCheck: null }),
+      );
+    });
+
+    it("never sanity-reviews a rule a person creates by hand", async () => {
+      emailRepo.find.mockResolvedValue([matchingMailboxEmail]);
+      repo.create.mockImplementation((rule) => rule);
+      repo.save.mockImplementation(async (rule) => rule);
+
+      await service.createCompositeRule(userId, {
+        categoryName: "CI",
+        senderMatchesAny: ["alerts@acmecorp.com"],
+        subjectContainsAny: ["Build failed"],
+        bodyContainsAny: ["compile failed"],
+        subjectNotContainsAny: ["weekly digest"],
+        bodyNotContainsAny: [],
+      });
+
+      expect(sanityService.checkRule).not.toHaveBeenCalled();
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.not.objectContaining({ sanityCheck: expect.anything() }),
+      );
     });
 
     it("returns null when sender has fewer than AUTO_GENERATE_MIN_THREAD_COUNT threads", async () => {
@@ -507,6 +800,54 @@ describe("CategoryRulesService", () => {
           }),
         }),
       );
+      expect(result).toEqual(created);
+    });
+
+    it("still authors a structural rule for a GitHub seed once the LLM budget is spent", async () => {
+      // The structural path is deterministic — it makes no LLM call — so an
+      // exhausted rule-generation budget must not stop it. Only the phrase path
+      // is budgeted.
+      tokenUsageService.countUserCallsSince.mockResolvedValue(
+        CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY,
+      );
+      const githubPrEmail = {
+        from: "notifications@github.com",
+        subject: "[owner/repo] Add feature (#42)",
+        body: "A user commented on the pull request",
+        htmlBody:
+          '<a href="https://github.com/owner/repo/pull/42">View it on GitHub</a>',
+      };
+      emailRepo.find.mockResolvedValue([githubPrEmail]);
+      repo.find.mockResolvedValue([]);
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextId: "cat-gh",
+          contextValue: "GitHub PRs",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+      const created = {
+        id: "comp-structural-no-budget",
+        ruleKind: "composite",
+        categoryName: "GitHub PRs",
+      };
+      repo.create.mockReturnValue(created);
+      repo.save.mockResolvedValue(created);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "notifications@github.com",
+          subject: "[owner/repo] Add feature (#42)",
+          bodyTextForMatch: "A user commented on the pull request",
+          notificationSubtype: "github:pr",
+        },
+        "GitHub PRs",
+      );
+
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).not.toHaveBeenCalled();
       expect(result).toEqual(created);
     });
   });

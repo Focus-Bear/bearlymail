@@ -127,6 +127,30 @@ describe('axios-interceptors', () => {
       expect(mockLogout).toHaveBeenCalled();
     });
 
+    it('should NOT logout on a step-up 401 (requiresStepUp) — it is not a session expiry', async () => {
+      const error = {
+        response: { status: HTTP_UNAUTHORIZED, data: { requiresStepUp: true } },
+        config: { url: '/zoho-accounts/abc', method: 'delete' },
+      };
+
+      const errorHandler = responseInterceptor[1];
+
+      await expect(errorHandler(error)).rejects.toEqual(error);
+      expect(mockLogout).not.toHaveBeenCalled();
+    });
+
+    it('should NOT logout on a step-up 401 (requiresPassword) — the caller drives the modal', async () => {
+      const error = {
+        response: { status: HTTP_UNAUTHORIZED, data: { requiresPassword: true } },
+        config: { url: '/auth/step-up', method: 'post' },
+      };
+
+      const errorHandler = responseInterceptor[1];
+
+      await expect(errorHandler(error)).rejects.toEqual(error);
+      expect(mockLogout).not.toHaveBeenCalled();
+    });
+
     it('should pass through non-401 errors', async () => {
       const error = {
         response: { status: 500 },

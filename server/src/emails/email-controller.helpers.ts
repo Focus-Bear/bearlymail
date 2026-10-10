@@ -48,9 +48,17 @@ export const appendSignature = (
     // The signature is stored as plain text (a settings <textarea>), so its
     // newlines must become <br> or they collapse to a single line in HTML mail.
     const htmlSignature = signature.replace(/\r?\n/g, "<br>");
-    return `${emailBody}<br><br>${htmlSignature}`;
+    // Wrap it in a bordered, dimmed block so the signature reads as a distinct
+    // element (Gmail/Outlook-style) rather than blending into the message body.
+    return (
+      `${emailBody}<br><br>` +
+      `<div style="color:#888888;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">` +
+      `${htmlSignature}</div>`
+    );
   }
-  return `${emailBody}\n\n${signature}`;
+  // Plain text: the standard "-- " signature delimiter (RFC 3676) that mail
+  // clients recognise and render as a separated signature block.
+  return `${emailBody}\n\n-- \n${signature}`;
 };
 
 /**

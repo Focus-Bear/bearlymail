@@ -48,6 +48,8 @@ import {
   markCategoryLoaded,
   markCategoryLoadFailed,
   markCategoryLoading,
+  pruneStaleOptimisticRemovals,
+  reconcileCategorySummaryCount,
   setCategorySummary,
   setCurrentOffset,
   setDecrypting,
@@ -129,6 +131,7 @@ async function fetchInboxSummary(
   signal?: AbortSignal
 ): Promise<CategorySummaryItem[] | null> {
   const params = buildSummaryParams();
+  dispatch(pruneStaleOptimisticRemovals());
   const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`, { signal });
   const { total, categories } = response.data;
   dispatch(setCategorySummary(categories));
@@ -257,6 +260,52 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
     [mode, dispatch, buildCategoryParams, buildSummaryParams, categoryBackoff]
   );
 
+  /**
+   * Preload emails for several categories in one round-trip (issue #145). Used
+   * for the initial top-of-inbox accordions instead of firing one request per
+   * category. Marks each category loading, calls /emails/inbox-batch, then writes
+   * each returned category's emails to the store + cache and marks it loaded.
+   * Returns which keys loaded vs failed so the caller can update category status.
+   * A whole-request failure marks every key failed so the lazy per-category fetch
+   * can recover on expand.
+   */
+  const fetchCategoryEmailsBatch = useCallback(
+    async (
+      items: Array<{ name: string; id?: string | null }>
+    ): Promise<{ loadedKeys: string[]; failedKeys: string[] }> => {
+      const keys = items.map(item => getCategoryKey(item.id, item.name));
+      if (keys.length === 0) {
+        return { loadedKeys: [], failedKeys: [] };
+      }
+      keys.forEach(key => dispatch(markCategoryLoading(key)));
+      try {
+        const params = buildBatchParamsImpl(mode, filters, keys);
+        dispatch(pruneStaleOptimisticRemovals());
+        const response = await axios.get(`${API_URL}/emails/inbox-batch?${params.toString()}`);
+        const categories = (response.data?.categories ?? []) as Array<{ key: string; emails: Email[] }>;
+        const emailsByKey = new Map(categories.map(cat => [cat.key, cat.emails ?? []]));
+        // Single batched render for all N categories instead of N (see refreshInPlace note).
+        unstable_batchedUpdates(() => {
+          keys.forEach(key => {
+            const emails = emailsByKey.get(key) ?? [];
+            dispatch(updateCategoryEmails({ categoryKey: key, emails }));
+            setCachedCategoryEmails(mode, key, emails);
+            dispatch(markCategoryLoaded(key));
+            // Issue #2062: the rows are the truth once loaded. A summary count above the
+            // row count came from an older state; a category with no rows must not render.
+            dispatch(reconcileCategorySummaryCount({ categoryKey: key, loadedCount: emails.length }));
+          });
+        });
+        return { loadedKeys: keys, failedKeys: [] };
+      } catch (err) {
+        console.warn('[Accordion] Batch category preload failed — falling back to lazy fetch:', err); // nosemgrep
+        keys.forEach(key => dispatch(markCategoryLoadFailed(key)));
+        return { loadedKeys: [], failedKeys: keys };
+      }
+    },
+    [mode, dispatch, filters]
+  );
+
   // Cleanup: cancel all pending retry timers on unmount
   useEffect(() => {
     const pendingTimers = pendingRetryTimersRef.current;
@@ -294,7 +343,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
     ]
   );
 
-  return { fetchEmails, fetchCategoryEmails, refreshInPlace };
+  return { fetchEmails, fetchCategoryEmails, fetchCategoryEmailsBatch, refreshInPlace };
 }
 
 /**
@@ -404,6 +453,7 @@ function serveCategoryFromCacheAndRefresh({
 
   const sessionId = fetchSessionRef.current;
   const params = buildCategoryParams(catKey);
+  dispatch(pruneStaleOptimisticRemovals());
   axios
     .get(`${API_URL}/emails/inbox?${params.toString()}`)
     .then(response => {
@@ -535,6 +585,7 @@ serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dis
 
   try {
     const params = buildCategoryParams(catKey);
+    dispatch(pruneStaleOptimisticRemovals());
     const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
     // Emails now include category_id (UUID) from the server, so groupEmailsByCategory
     // keys by UUID directly. No normalization needed.
@@ -657,6 +708,7 @@ async function refreshInPlaceImpl({
 
   try {
     const summaryParams = buildSummaryParams();
+    dispatch(pruneStaleOptimisticRemovals());
     const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`, { signal });
     const freshCategories = summaryResponse.data.categories;
     dispatch(setCategorySummary(freshCategories));
@@ -748,6 +800,35 @@ export function buildCategoryParamsImpl(
   params.append('limit', INBOX_FETCH_LIMIT.toString());
   params.append('offset', '0');
   // Guided priority filter is Triage-only; drop its bounds for other modes (keep account filter).
+  const effectiveFilters = resolveEffectiveFilters(mode, filters);
+  if (effectiveFilters) {
+    if (effectiveFilters.accountIds?.length) {
+      params.append('accounts', effectiveFilters.accountIds.join(','));
+    }
+    if (effectiveFilters.minPriority !== null && effectiveFilters.minPriority !== undefined) {
+      params.append('minPriority', effectiveFilters.minPriority.toString());
+    }
+    if (effectiveFilters.maxPriority !== null && effectiveFilters.maxPriority !== undefined) {
+      params.append('maxPriority', effectiveFilters.maxPriority.toString());
+    }
+  }
+  return params;
+}
+
+/**
+ * Build query params for the batch category preload (issue #145): the same shape
+ * as a single-category fetch, but with several category keys joined into one
+ * `categoryIds=` list so the server can return them all in one round-trip.
+ */
+export function buildBatchParamsImpl(
+  mode: InboxMode,
+  filters: InboxFilter | undefined,
+  categoryKeys: string[]
+): URLSearchParams {
+  const params = new URLSearchParams();
+  params.append('mode', mode);
+  params.append(PARAM_CATEGORY_IDS, categoryKeys.join(','));
+  // The server applies its own per-category limit for the batch endpoint.
   const effectiveFilters = resolveEffectiveFilters(mode, filters);
   if (effectiveFilters) {
     if (effectiveFilters.accountIds?.length) {

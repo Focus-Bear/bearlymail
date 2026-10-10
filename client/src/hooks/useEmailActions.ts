@@ -112,6 +112,7 @@ interface UseEmailActionsReturn {
   handleBulkArchive: () => Promise<void>;
   handleBulkArchiveByIds: (emailIds: string[]) => Promise<void>;
   handleCategoryArchiveAll: (emailIds: string[]) => Promise<CategoryArchiveSuggestion | null>;
+  handleBulkSnooze: (duration: string) => Promise<void>;
   handleBulkStar: (starCount: number) => Promise<void>;
   handleBulkMarkAsRead: () => Promise<void>;
   handleBulkMarkAsUnread: () => Promise<void>;

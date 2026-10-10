@@ -8,6 +8,16 @@ import { Sidebar } from 'components/inbox/Sidebar';
 import { useAuth } from 'contexts/AuthContext';
 import { useSidebarState } from 'hooks/useSidebarState';
 
+/**
+ * Article ids come from the URL in kebab-case (e.g. `follow-up`), but the
+ * localization keys are camelCase (`help.articles.followUp`). Convert so the
+ * detail page reads the same keys the help list uses; without this a multi-word
+ * article rendered its raw key instead of the text (issue #258). Single-word
+ * ids pass through unchanged.
+ */
+export const toArticleKeySegment = (id: string): string =>
+  id.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
+
 const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
   const { user, logout } = useAuth();
@@ -21,8 +31,9 @@ const HelpArticle: React.FC = () => {
       return null;
     }
 
-    const contentKey = `help.articles.${articleId}.content`;
-    const titleKey = `help.articles.${articleId}.title`;
+    const keySegment = toArticleKeySegment(articleId);
+    const contentKey = `help.articles.${keySegment}.content`;
+    const titleKey = `help.articles.${keySegment}.title`;
 
     // Get content sections
     const sections = [];

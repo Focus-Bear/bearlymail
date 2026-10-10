@@ -110,21 +110,33 @@ const Settings: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [settingsData.loading]);
 
+  const sidebar = (
+    <Sidebar
+      user={user}
+      logout={logout}
+      isCollapsed={isCollapsed}
+      canToggleCollapse={canToggleCollapse}
+      onToggleCollapse={toggleCollapse}
+      isMobileMenuOpen={isMobileMenuOpen}
+      onCloseMobileMenu={closeMobileMenu}
+    />
+  );
+
+  // Keep the sidebar/layout mounted while settings data loads so navigating to
+  // Settings is a smooth in-app transition, not a full-page blank — the loading
+  // indicator shows only in the content column.
   if (settingsData.loading) {
-    return <div>{t('common.loading')}</div>;
+    return (
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+        {sidebar}
+        <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl }}>{t('common.loading')}</div>
+      </div>
+    );
   }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar
-        user={user}
-        logout={logout}
-        isCollapsed={isCollapsed}
-        canToggleCollapse={canToggleCollapse}
-        onToggleCollapse={toggleCollapse}
-        isMobileMenuOpen={isMobileMenuOpen}
-        onCloseMobileMenu={closeMobileMenu}
-      />
+      {sidebar}
       <div
         style={{
           flex: 1,

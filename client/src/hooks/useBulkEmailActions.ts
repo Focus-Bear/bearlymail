@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { Email } from 'types/email';
 import { CategoryArchiveSuggestion } from 'utils/categoryArchiveWorkflow';
@@ -12,10 +13,12 @@ import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import {
   addOptimisticArchive,
+  addOptimisticSnooze,
   decrementCategorySummaryCount,
   incrementCategorySummaryCount,
   removeEmail,
   removeOptimisticArchive,
+  removeOptimisticSnooze,
   restoreEmail,
 } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
@@ -45,23 +48,27 @@ interface UseBulkEmailActionsReturn {
   handleBulkArchive: () => Promise<void>;
   handleBulkArchiveByIds: (emailIds: string[]) => Promise<void>;
   handleCategoryArchiveAll: (emailIds: string[]) => Promise<CategoryArchiveSuggestion | null>;
+  handleBulkSnooze: (duration: string) => Promise<void>;
   handleBulkStar: (starCount: number) => Promise<void>;
   handleBulkMarkAsRead: () => Promise<void>;
   handleBulkMarkAsUnread: () => Promise<void>;
 }
 
-function collectArchiveTargets(
+/** Marks/unmarks an email as optimistically removed (addOptimisticArchive, removeOptimisticSnooze, …). */
+type OptimisticRemovalAction = (emailId: string) => PayloadAction<string>;
+
+function collectBulkTargets(
   emailIds: string[],
   emails: Email[]
-): { emailsToArchive: Email[]; categoryCountChanges: Map<string, number> } {
+): { targetEmails: Email[]; categoryCountChanges: Map<string, number> } {
   const emailsById = new Map(emails.map(email => [email.id, email]));
-  const emailsToArchive: Email[] = [];
+  const targetEmails: Email[] = [];
   const categoryCountChanges = new Map<string, number>();
 
   emailIds.forEach(id => {
     const email = emailsById.get(id);
     if (email) {
-      emailsToArchive.push(email);
+      targetEmails.push(email);
       // UUID-only keying: use category_id when available, "uncategorized" otherwise.
       // Never use the category name string as a key.
       const categoryKey = email.category_id ?? CATEGORY_KEY_UNCATEGORIZED;
@@ -69,57 +76,70 @@ function collectArchiveTargets(
     }
   });
 
-  return { emailsToArchive, categoryCountChanges };
+  return { targetEmails, categoryCountChanges };
 }
 
-function applyOptimisticArchiveUpdates(
-  dispatch: AppDispatch,
-  emailIds: string[],
-  categoryCountChanges: Map<string, number>,
+function adjustTabCountForMode(
   mode: string | undefined,
+  delta: number,
   onTabCountsUpdateOptimistically: ((changes: TabCountChanges) => void) | undefined
 ): void {
+  if (!onTabCountsUpdateOptimistically) {
+    return;
+  }
+  if (mode === MODE_TRIAGE) {
+    onTabCountsUpdateOptimistically({ triage: delta });
+  } else if (mode === MODE_ACTION) {
+    onTabCountsUpdateOptimistically({ action: delta });
+  } else if (mode === MODE_FOLLOW_UP) {
+    onTabCountsUpdateOptimistically({ followUp: delta });
+  }
+}
+
+/** Everything the optimistic helpers need beyond the emails themselves. */
+interface BulkRemovalContext {
+  dispatch: AppDispatch;
+  categoryCountChanges: Map<string, number>;
+  mode: string | undefined;
+  onTabCountsUpdateOptimistically: ((changes: TabCountChanges) => void) | undefined;
+}
+
+/**
+ * Removes emails from the list immediately and records them as optimistically
+ * removed, so a fetch that lands before the API call finishes cannot flash them
+ * back. Shared by bulk archive and bulk snooze — they differ only in which
+ * optimistic marker they set.
+ */
+function applyOptimisticRemoval(
+  context: BulkRemovalContext,
+  emailIds: string[],
+  markOptimistic: OptimisticRemovalAction
+): void {
+  const { dispatch, categoryCountChanges, mode, onTabCountsUpdateOptimistically } = context;
   emailIds.forEach(id => {
     dispatch(removeEmail(id));
-    dispatch(addOptimisticArchive(id));
+    dispatch(markOptimistic(id));
   });
   categoryCountChanges.forEach((count, categoryKey) => {
     dispatch(decrementCategorySummaryCount({ categoryKey, count }));
   });
-  if (onTabCountsUpdateOptimistically) {
-    if (mode === MODE_TRIAGE) {
-      onTabCountsUpdateOptimistically({ triage: -emailIds.length });
-    } else if (mode === MODE_ACTION) {
-      onTabCountsUpdateOptimistically({ action: -emailIds.length });
-    } else if (mode === MODE_FOLLOW_UP) {
-      onTabCountsUpdateOptimistically({ followUp: -emailIds.length });
-    }
-  }
+  adjustTabCountForMode(mode, -emailIds.length, onTabCountsUpdateOptimistically);
 }
 
-function revertOptimisticArchiveUpdates(
-  dispatch: AppDispatch,
-  emailsToArchive: Email[],
-  categoryCountChanges: Map<string, number>,
-  mode: string | undefined,
-  onTabCountsUpdateOptimistically: ((changes: TabCountChanges) => void) | undefined
+function revertOptimisticRemoval(
+  context: BulkRemovalContext,
+  targetEmails: Email[],
+  unmarkOptimistic: OptimisticRemovalAction
 ): void {
-  emailsToArchive.forEach(email => {
+  const { dispatch, categoryCountChanges, mode, onTabCountsUpdateOptimistically } = context;
+  targetEmails.forEach(email => {
     dispatch(restoreEmail(email));
-    dispatch(removeOptimisticArchive(email.id));
+    dispatch(unmarkOptimistic(email.id));
   });
   categoryCountChanges.forEach((count, categoryKey) => {
     dispatch(incrementCategorySummaryCount({ categoryKey, count }));
   });
-  if (onTabCountsUpdateOptimistically) {
-    if (mode === MODE_TRIAGE) {
-      onTabCountsUpdateOptimistically({ triage: emailsToArchive.length });
-    } else if (mode === MODE_ACTION) {
-      onTabCountsUpdateOptimistically({ action: emailsToArchive.length });
-    } else if (mode === MODE_FOLLOW_UP) {
-      onTabCountsUpdateOptimistically({ followUp: emailsToArchive.length });
-    }
-  }
+  adjustTabCountForMode(mode, targetEmails.length, onTabCountsUpdateOptimistically);
 }
 
 export function useBulkEmailActions({
@@ -142,27 +162,16 @@ export function useBulkEmailActions({
       }
       captureEvent(ANALYTICS_EVENTS.BULK_ARCHIVE_CLICKED, { selected_count: emailIdsToArchive.length });
 
-      const { emailsToArchive, categoryCountChanges } = collectArchiveTargets(emailIdsToArchive, emails);
-      applyOptimisticArchiveUpdates(
-        dispatch,
-        emailIdsToArchive,
-        categoryCountChanges,
-        mode,
-        onTabCountsUpdateOptimistically
-      );
+      const { targetEmails, categoryCountChanges } = collectBulkTargets(emailIdsToArchive, emails);
+      const removalContext = { dispatch, categoryCountChanges, mode, onTabCountsUpdateOptimistically };
+      applyOptimisticRemoval(removalContext, emailIdsToArchive, addOptimisticArchive);
 
       try {
         await axios.post(`${API_URL}/emails/bulk/archive`, { emailIds: emailIdsToArchive });
         devLog(`[BulkArchive] Successfully archived ${emailIdsToArchive.length} emails`);
       } catch (error) {
         console.error('[BulkArchive] Failed to archive emails:', error);
-        revertOptimisticArchiveUpdates(
-          dispatch,
-          emailsToArchive,
-          categoryCountChanges,
-          mode,
-          onTabCountsUpdateOptimistically
-        );
+        revertOptimisticRemoval(removalContext, targetEmails, removeOptimisticArchive);
       }
     },
     [dispatch, emails, onTabCountsUpdateOptimistically, mode]
@@ -181,14 +190,9 @@ export function useBulkEmailActions({
       }
       captureEvent(ANALYTICS_EVENTS.BULK_ARCHIVE_CLICKED, { selected_count: emailIdsToArchive.length });
 
-      const { emailsToArchive, categoryCountChanges } = collectArchiveTargets(emailIdsToArchive, emails);
-      applyOptimisticArchiveUpdates(
-        dispatch,
-        emailIdsToArchive,
-        categoryCountChanges,
-        mode,
-        onTabCountsUpdateOptimistically
-      );
+      const { targetEmails, categoryCountChanges } = collectBulkTargets(emailIdsToArchive, emails);
+      const removalContext = { dispatch, categoryCountChanges, mode, onTabCountsUpdateOptimistically };
+      applyOptimisticRemoval(removalContext, emailIdsToArchive, addOptimisticArchive);
 
       try {
         const response = await axios.post<{ archived: number; suggestion: CategoryArchiveSuggestion | null }>(
@@ -198,13 +202,7 @@ export function useBulkEmailActions({
         return response.data.suggestion ?? null;
       } catch (error) {
         console.error('[CategoryArchiveAll] Failed to archive emails:', error);
-        revertOptimisticArchiveUpdates(
-          dispatch,
-          emailsToArchive,
-          categoryCountChanges,
-          mode,
-          onTabCountsUpdateOptimistically
-        );
+        revertOptimisticRemoval(removalContext, targetEmails, removeOptimisticArchive);
         return null;
       }
     },
@@ -219,6 +217,39 @@ export function useBulkEmailActions({
     setSelectedEmailIds(new Set());
     await handleBulkArchiveByIds(emailIds);
   }, [selectedEmailIds, setSelectedEmailIds, handleBulkArchiveByIds]);
+
+  /**
+   * Snooze every selected email until the same moment. The server parses the
+   * duration once so the whole selection wakes together, rather than drifting by
+   * however long each request took.
+   */
+  const handleBulkSnooze = useCallback(
+    async (duration: string) => {
+      const trimmedDuration = duration.trim();
+      if (selectedEmailIds.size === 0 || !trimmedDuration) {
+        return;
+      }
+      captureEvent(ANALYTICS_EVENTS.BULK_SNOOZE_CONFIRMED, {
+        selected_count: selectedEmailIds.size,
+        snooze_input_length: trimmedDuration.length,
+      });
+
+      const emailIds = Array.from(selectedEmailIds);
+      setSelectedEmailIds(new Set());
+      const { targetEmails, categoryCountChanges } = collectBulkTargets(emailIds, emails);
+      const removalContext = { dispatch, categoryCountChanges, mode, onTabCountsUpdateOptimistically };
+      applyOptimisticRemoval(removalContext, emailIds, addOptimisticSnooze);
+
+      try {
+        await axios.post(`${API_URL}/snooze/bulk`, { emailIds, duration: trimmedDuration });
+        devLog(`[BulkSnooze] Successfully snoozed ${emailIds.length} emails`);
+      } catch (error) {
+        console.error('[BulkSnooze] Failed to snooze emails:', error);
+        revertOptimisticRemoval(removalContext, targetEmails, removeOptimisticSnooze);
+      }
+    },
+    [dispatch, emails, selectedEmailIds, setSelectedEmailIds, onTabCountsUpdateOptimistically, mode]
+  );
 
   const handleBulkStar = useCallback(
     async (starCount: number) => {
@@ -273,6 +304,7 @@ export function useBulkEmailActions({
     handleBulkArchive,
     handleBulkArchiveByIds,
     handleCategoryArchiveAll,
+    handleBulkSnooze,
     handleBulkStar,
     handleBulkMarkAsRead: handleBulkMarkAsReadAction,
     handleBulkMarkAsUnread: handleBulkMarkAsUnreadAction,

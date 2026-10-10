@@ -1,0 +1,101 @@
+description: New-category suggestion generation, independent of category selection
+providers:
+  - id: google:gemini-3.1-flash-lite
+    config:
+      temperature: 0
+prompts:
+  - file://prompts/suggest-proto-category.md
+tests:
+  - description: Automated monitoring alert needs a reusable monitoring category
+    vars:
+      senderName: Datadog Alerts
+      subject: "[ALERT] High error rate on api-prod"
+      summary: "Automated monitoring alert: HTTP 5xx error rate exceeded the threshold
+        on service api-prod for the last 5 minutes."
+      categories: |
+        1. "Customer Support": Help requests and issues from existing customers
+        2. "Sales": Sales discussions, pricing, demos
+        3. "HR Admin": HR communications and internal admin
+      currentDate: Wednesday, March 18, 2026
+    assert:
+      - type: javascript
+        value: >
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+
+          if (!result?.protoCategorySuggestion ||
+          !result.protoCategorySuggestion.name ||
+          !result.protoCategorySuggestion.reasoning) {
+            throw new Error("Other returned without a protoCategorySuggestion with name + reasoning: " + JSON.stringify(result.protoCategorySuggestion));
+          }
+
+          return true;
+  - description: Personal rent-increase notice needs reasoning naming closest categories
+    vars:
+      senderName: Sarah (property manager)
+      subject: "Notice: rent increase for your apartment"
+      summary: This is formal notice that your monthly rent will increase by 4%
+        effective next quarter. Please sign the attached acknowledgement.
+      categories: |
+        1. "Newsletters": Marketing emails and digests
+        2. "Sales": Sales discussions and demos
+        3. "Customer Support": Support requests from existing customers
+        4. "GitHub bot notifications": Automated GitHub notifications
+      currentDate: Wednesday, March 18, 2026
+    assert:
+      - type: javascript
+        value: >
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+
+          const proto = result?.protoCategorySuggestion;
+
+          if (!proto || !proto.reasoning) {
+            throw new Error("Other returned without protoCategorySuggestion.reasoning: " + JSON.stringify(result));
+          }
+
+          if (!/Customer
+          Support|Sales|Newsletters|GitHub/.test(proto.reasoning)) {
+            throw new Error("proto reasoning must name the closest existing categories it rejected: " + proto.reasoning);
+          }
+
+          return true;
+  - description: Newsletter needs a GENERIC '📰
+      Newsletters' proto, not a source-specific variant
+    vars:
+      senderName: TechCrunch
+      subject: "TechCrunch Daily: the week's biggest startup stories"
+      summary: Weekly TechCrunch newsletter digest of startup and venture news with
+        links to the top stories; automated mass mailing.
+      categories: |
+        1. "Customer Support": Help requests and issues from existing customers
+        2. "Sales": Sales discussions, pricing, demos
+        3. "GitHub bot notifications": Automated GitHub notifications
+      currentDate: Wednesday, March 18, 2026
+    assert:
+      - type: javascript
+        value: >
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const result = parsed?.result;
+
+          const proto = result?.protoCategorySuggestion;
+
+          if (!proto || !proto.name) {
+            throw new Error("Other returned without a protoCategorySuggestion.name");
+          }
+
+          if (!/newsletter|digest/i.test(proto.name)) {
+            throw new Error(`Proto name should be a generic newsletters bucket, got "${proto.name}"`);
+          }
+
+          if (/techcrunch/i.test(proto.name)) {
+            throw new Error(`Proto name must not be source-specific, got "${proto.name}"`);
+          }
+
+          return true;

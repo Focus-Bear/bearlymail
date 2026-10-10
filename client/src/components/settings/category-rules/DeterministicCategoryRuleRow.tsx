@@ -2,16 +2,19 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
-import type { CategoryRuleDto } from 'types/category-rules.types';
+import type { CategoryRuleDto, CompositeSpec } from 'types/category-rules.types';
 import {
+  formatGithubProjectStatus,
   specBodyNotContains,
+  specGithubConditions,
   specSenders,
   specSubjectNotContains,
   specSubjects,
 } from 'types/category-rules.types';
 
 import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
-import { EMOJI_WARNING } from 'constants/emojis';
+import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
+import { MAX_PERCENTAGE } from 'constants/numbers';
 
 const rowStyle: React.CSSProperties = {
   padding: theme.spacing.sm,
@@ -66,6 +69,41 @@ export interface DeterministicCategoryRuleRowProps {
   onUpgradeToComposite?: (rule: CategoryRuleDto) => void;
 }
 
+/**
+ * The GitHub-metadata conditions a rule pins — the PR/issue lifecycle state,
+ * its Projects board status, whether it was authored by a bot or a human, and
+ * its labels. Renders nothing for rules that pin none of them.
+ */
+const GithubConditionsSummary: React.FC<{ spec: CompositeSpec; t: TFunction }> = ({ spec, t }) => {
+  const { states, projectStatuses, authorKind, labels } = specGithubConditions(spec);
+  const separator = t('settings.deterministicCategoryRules.bodyPhraseSeparator');
+  return (
+    <>
+      {states.length > 0 ? (
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.githubStateField')}: {states.join(separator)}
+        </div>
+      ) : null}
+      {projectStatuses.length > 0 ? (
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.githubProjectStatusField')}:{' '}
+          {projectStatuses.map(formatGithubProjectStatus).join(separator)}
+        </div>
+      ) : null}
+      {authorKind ? (
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.githubAuthorKindField')}: {authorKind}
+        </div>
+      ) : null}
+      {labels.length > 0 ? (
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.githubLabelsField')}: {labels.join(separator)}
+        </div>
+      ) : null}
+    </>
+  );
+};
+
 const CompositeSpecSummary: React.FC<{ rule: CategoryRuleDto; t: TFunction }> = ({ rule, t }) => {
   if (!rule.compositeSpec) {
     return null;
@@ -97,6 +135,7 @@ const CompositeSpecSummary: React.FC<{ rule: CategoryRuleDto; t: TFunction }> = 
           {t('settings.deterministicCategoryRules.bodyNotContainsField')}: {bodyNot.join(separator)}
         </div>
       ) : null}
+      <GithubConditionsSummary spec={rule.compositeSpec} t={t} />
     </>
   );
 };
@@ -188,6 +227,27 @@ const RuleRowHeader: React.FC<DeterministicCategoryRuleRowProps & { isComposite:
   );
 };
 
+/**
+ * "Reviewed" footnote for auto-generated rules: the strong-model reviewer's
+ * verdict and confidence, with its reasoning in the tooltip. Nothing renders
+ * for hand-authored rules or rules created while the review was unavailable.
+ */
+const SanityCheckNote: React.FC<{ rule: CategoryRuleDto; t: TFunction }> = ({ rule, t }) => {
+  const check = rule.sanityCheck;
+  if (!check) {
+    return null;
+  }
+  const confidence = Math.round(check.confidence * MAX_PERCENTAGE);
+  const label = check.revised
+    ? t('settings.deterministicCategoryRules.sanityReviewedRevised', { confidence })
+    : t('settings.deterministicCategoryRules.sanityReviewed', { confidence });
+  return (
+    <span title={t('settings.deterministicCategoryRules.sanityTooltip', { reason: check.reason, model: check.model })}>
+      {EMOJI_CHECK} {label}
+    </span>
+  );
+};
+
 export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRowProps> = (props) => {
   const { rule } = props;
   const { t } = useTranslation();
@@ -233,6 +293,7 @@ export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRow
             })}
           </span>
         ) : null}
+        <SanityCheckNote rule={rule} t={t} />
       </div>
     </div>
   );

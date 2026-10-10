@@ -10,6 +10,7 @@ import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 
 import { CategoryKeyAssignmentService } from "../category-keys/category-key-assignment.service";
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   ConsideredDuplicateCandidate,
@@ -20,10 +21,12 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { CategoryWriterSource } from "../emails/category-precedence.helper";
 import { LLMProvider } from "../llm/llm.types";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_CHECK_CATEGORY_DUPLICATE } from "../llm/llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "../llm/prompts";
+import { resolveStrongGeminiModel } from "../llm/strong-gemini-model.helper";
 import { parseCategoryName } from "../utils/category-format.util";
 import { levenshteinDistance } from "../utils/levenshtein.util";
 import {
@@ -50,14 +53,11 @@ function stripCategoryName(name: string): string {
     .trim();
 }
 
-// Strong, current-generation non-lite model for duplicate decisions (a
-// high-stakes, low-volume call that decides whether a brand-new category is
-// created), with thinking enabled rather than the cheap shortlisting model.
-// NB: "gemini-3.1-flash" does NOT exist (the 3.1 gen ships only -lite/-image);
-// gemini-3.6-flash is the newest full flash. JSON reliability is guaranteed by
+// Duplicate decisions (high-stakes, low-volume: they decide whether a brand-new
+// category is created) use the shared strong model with thinking enabled rather
+// than the cheap shortlisting model. JSON reliability is guaranteed by
 // DEDUP_RESPONSE_SCHEMA (structured output) below, not by the model — so a
 // thinking model can't leak chain-of-thought into the verdict.
-const STRONG_DEDUP_MODEL = "gemini-3.6-flash";
 
 // Structured-output schema for the duplicate verdict. Constrained decoding
 // forces exactly this shape, so `matchAgainstFullList`'s JSON parse can never
@@ -80,6 +80,26 @@ const DEDUP_RESPONSE_SCHEMA: Record<string, unknown> = {
 // far less, but shares this budget.
 const DEDUP_MAX_TOKENS = 4096;
 
+function extractDedupJson(text: string | null): string | null {
+  return (
+    text
+      ?.replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim()
+      .match(/\{[\s\S]*\}/)?.[0] ?? null
+  );
+}
+
+function categoryDuplicateDecision(orderedCandidates: DedupCandidate[]) {
+  return {
+    kind: JEV_DECISION_KINDS.CATEGORY_DUPLICATE,
+    input: {
+      candidateNames: orderedCandidates.map((candidate) => candidate.name),
+    },
+  };
+}
+
 @Injectable()
 export class ProtoCategoriesService {
   private readonly logger = new Logger(ProtoCategoriesService.name);
@@ -98,15 +118,9 @@ export class ProtoCategoriesService {
     private configService: ConfigService,
   ) {}
 
-  /**
-   * Resolve the strong Gemini model used for duplicate decisions. Overridable
-   * via the GEMINI_STRONG_MODEL env var for ops flexibility.
-   */
+  /** The strong Gemini model used for duplicate decisions (env-overridable). */
   private get strongDedupModel(): string {
-    return (
-      this.configService.get<string>("GEMINI_STRONG_MODEL") ||
-      STRONG_DEDUP_MODEL
-    );
+    return resolveStrongGeminiModel(this.configService);
   }
 
   /**
@@ -270,6 +284,7 @@ export class ProtoCategoriesService {
    */
   async promoteToCategory(
     protoCategory: ProtoCategory,
+    reassignSource: CategoryWriterSource = "proto",
   ): Promise<ProtoCategory> {
     if (protoCategory.isPromoted) {
       this.logger.warn(
@@ -308,6 +323,7 @@ export class ProtoCategoriesService {
         existingMatch,
         mergedCandidates,
         promotedAt,
+        reassignSource,
       );
     }
 
@@ -352,6 +368,7 @@ export class ProtoCategoriesService {
       categoryExplanation: `Promoted from proto category: ${protoCategory.description || "No description"}`,
       traceDetail: `Auto-promoted from proto category "${protoCategory.name}" after ${protoCategory.emailCount} emails; this thread was bulk-reassigned by the promotion, not by per-thread priority analysis.`,
       promotedAt,
+      source: reassignSource,
     });
 
     this.logger.log(
@@ -376,6 +393,7 @@ export class ProtoCategoriesService {
     existingMatch: { name: string; contextId: string },
     consideredCandidates: ConsideredDuplicateCandidate[],
     promotedAt: Date,
+    reassignSource: CategoryWriterSource = "proto",
   ): Promise<ProtoCategory> {
     const promotionReasoning = `Merged into existing category "${existingMatch.name}" — a stronger model judged this proto category to be a duplicate of it.`;
 
@@ -400,6 +418,7 @@ export class ProtoCategoriesService {
         categoryExplanation: `Folded into existing category on promotion (proto: ${protoCategory.name})`,
         traceDetail: `Folded proto category "${protoCategory.name}" into existing category "${existingMatch.name}" on promotion; this thread was bulk-reassigned, not set by per-thread priority analysis.`,
         promotedAt,
+        source: reassignSource,
       });
     });
 
@@ -485,6 +504,7 @@ export class ProtoCategoriesService {
     userId: string;
     considered?: ConsideredDuplicateCandidate[];
     excludeId?: string;
+    exactOnly?: boolean;
     onConfirmed?: (candidate: DedupCandidate) => Promise<void>;
   }): Promise<DedupCandidate | null> {
     const { suggestedName, userId, considered, excludeId, onConfirmed } =
@@ -499,6 +519,7 @@ export class ProtoCategoriesService {
       candidates,
     );
     if (exactOrAlternate) return exactOrAlternate;
+    if (params.exactOnly) return null;
 
     const match = await this.matchAgainstFullList(
       suggestedName,
@@ -571,6 +592,11 @@ export class ProtoCategoriesService {
             operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
             model: this.strongDedupModel,
             thinking: useThinking,
+            // Jev answers once; the no-thinking retry only runs after Gemini
+            // failed to return JSON, so asking Jev again would repeat its null.
+            ...(useThinking && {
+              jevDecision: categoryDuplicateDecision(orderedCandidates),
+            }),
           },
           LLMProvider.GEMINI,
           userId,
@@ -585,14 +611,6 @@ export class ProtoCategoriesService {
       }
     };
 
-    const extractJson = (text: string | null): string | null =>
-      text
-        ?.replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim()
-        .match(/\{[\s\S]*\}/)?.[0] ?? null;
-
     // Primary pass uses the thinking model for the best judgement on paraphrase
     // duplicates. But thinking can exhaust the token budget on the full category
     // list before emitting the JSON body — which previously failed OPEN (no JSON
@@ -600,12 +618,12 @@ export class ProtoCategoriesService {
     // ~40% of dedup calls). Retry ONCE without thinking, which emits a compact,
     // reliably-parseable verdict, so a token-budget overrun no longer silently
     // spawns a duplicate proto.
-    let jsonText = extractJson(await runDedup(true));
+    let jsonText = extractDedupJson(await runDedup(true));
     if (!jsonText) {
       this.logger.warn(
         `[CHECK-CATEGORY-DUPLICATE] No JSON from thinking model for "${suggestedName}" — retrying without thinking`,
       );
-      jsonText = extractJson(await runDedup(false));
+      jsonText = extractDedupJson(await runDedup(false));
     }
     if (!jsonText) {
       this.logger.error(
@@ -661,6 +679,36 @@ export class ProtoCategoriesService {
     considered?: ConsideredDuplicateCandidate[],
     excludeProtoId?: string,
   ): Promise<ProtoCategory | null> {
+    return this.resolveProtoMatch({
+      userId,
+      suggestedName,
+      considered,
+      excludeProtoId,
+    });
+  }
+
+  /**
+   * Like {@link findMatchingProtoCategory} but matches ONLY on the
+   * deterministic exact/alternate-name comparison — no LLM fuzzy fallback. For
+   * callers that must not risk a loose re-route (a HIGH-confidence LLM pick),
+   * where the only acceptable match is "this name IS that proto's name".
+   */
+  async findExactProtoCategoryMatch(
+    userId: string,
+    suggestedName: string,
+  ): Promise<ProtoCategory | null> {
+    return this.resolveProtoMatch({ userId, suggestedName, exactOnly: true });
+  }
+
+  private async resolveProtoMatch(params: {
+    userId: string;
+    suggestedName: string;
+    considered?: ConsideredDuplicateCandidate[];
+    excludeProtoId?: string;
+    exactOnly?: boolean;
+  }): Promise<ProtoCategory | null> {
+    const { userId, suggestedName, considered, excludeProtoId, exactOnly } =
+      params;
     const activeCategories = await this.findActiveByUser(userId);
     const candidates: DedupCandidate[] = activeCategories.map((proto) => ({
       id: proto.id,
@@ -673,6 +721,7 @@ export class ProtoCategoriesService {
       userId,
       considered,
       excludeId: excludeProtoId,
+      exactOnly,
     });
     if (!match) return null;
 

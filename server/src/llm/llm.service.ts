@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 import {
   PhishingLLMResult,
@@ -13,13 +13,18 @@ import {
   LLMCategoriesService,
 } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
+import {
+  DiscoverUserContextParams,
+  discoverUserContextWithEscalation,
+  DiscoveryResult,
+} from "./llm-discover-user-context";
 import { LLMMiscService } from "./llm-misc.service";
 import { LLMOperation } from "./llm-operations";
-import { LLMPatternsService } from "./llm-patterns.service";
 import { LLMReplyService } from "./llm-reply.service";
 import { LLMSearchService } from "./llm-search.service";
 import { LLMSummarizationService } from "./llm-summarization.service";
 import { LLMToneService } from "./llm-tone.service";
+import type { ToneCheckOptions, ToneCheckResult } from "./llm-tone.types";
 import { SummaryType } from "./prompts";
 
 // Re-export for backward compatibility with existing callers
@@ -35,13 +40,14 @@ export { extractPlainSummary } from "./llm-summary-utils";
  */
 @Injectable()
 export class LLMService {
+  private readonly logger = new Logger(LLMService.name);
+
   constructor(
     private readonly llmCoreService: LLMCoreService,
     private readonly llmActionsService: LLMActionsService,
     private readonly llmAskService: LLMAskService,
     private readonly llmCategoriesService: LLMCategoriesService,
     private readonly llmMiscService: LLMMiscService,
-    private readonly llmPatternsService: LLMPatternsService,
     private readonly llmReplyService: LLMReplyService,
     private readonly llmSearchService: LLMSearchService,
     private readonly llmSummarizationService: LLMSummarizationService,
@@ -74,57 +80,19 @@ export class LLMService {
     return this.llmAskService.askAboutEmail(options);
   }
 
-  // ─── Patterns ────────────────────────────────────────────────────────────
+  // ─── Context discovery ───────────────────────────────────────────────────
 
-  async analyzeEmailPatterns(options: {
-    receivedEmails: Array<{
-      from: string;
-      fromName?: string;
-      subject: string;
-      body: string;
-      receivedAt: string;
-      isRead?: boolean;
-      timeToReply?: number | null;
-      readAt?: string | null;
-      repliedAt?: string | null;
-      starCount?: number;
-      isArchived?: boolean;
-    }>;
-    sentEmails: Array<{
-      emailId?: string;
-      to: string;
-      subject: string;
-      body: string;
-      sentAt: string;
-    }>;
-    provider?: LLMProvider;
-    userId?: string;
-    userEmail?: string;
-    currentContext?: Array<{ key: string; value: string; source?: string }>;
-  }): Promise<{
-    context: Array<{ key: string; value: string; source: string }>;
-    writingStyle: {
-      tone: string;
-      style: string;
-      commonPhrases: string[];
-      emailExamples?: string[];
-    };
-  }> {
-    const {
-      receivedEmails,
-      sentEmails,
-      provider,
-      userId,
-      userEmail,
-      currentContext,
-    } = options;
-    return this.llmPatternsService.analyzeEmailPatterns(
-      receivedEmails,
-      sentEmails,
-      provider,
-      userId,
-      userEmail,
-      currentContext,
+  /**
+   * Slim onboarding discovery: initial category set + VIPs from a batch of
+   * thread stubs (Nova Micro primary, Gemini escalation).
+   */
+  async discoverUserContext(
+    params: DiscoverUserContextParams,
+  ): Promise<DiscoveryResult | null> {
+    return discoverUserContextWithEscalation(
+      this.llmCoreService,
+      this.logger,
+      params,
     );
   }
 
@@ -273,37 +241,8 @@ export class LLMService {
 
   // ─── Tone ────────────────────────────────────────────────────────────────
 
-  async checkTone(options: {
-    text: string;
-    rules?: string[];
-    provider?: LLMProvider;
-    userId?: string;
-    scheduledSendAt?: string | null;
-    currentTime?: string | null;
-  }): Promise<{
-    isOk: boolean;
-    significance?: "low" | "medium" | "high";
-    suggestions: string[];
-    revisedText?: string;
-    attachmentReminder?: string | null;
-    inappropriateTiming?: string | null;
-  }> {
-    const {
-      text,
-      rules = ["Be concise", "Use non-violent communication"],
-      provider,
-      userId,
-      scheduledSendAt,
-      currentTime,
-    } = options;
-    return this.llmToneService.checkTone(
-      text,
-      rules,
-      provider,
-      userId,
-      scheduledSendAt,
-      currentTime,
-    );
+  async checkTone(options: ToneCheckOptions): Promise<ToneCheckResult> {
+    return this.llmToneService.checkTone(options);
   }
 
   async disputeToneCheck(options: {

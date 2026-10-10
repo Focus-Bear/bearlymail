@@ -9,6 +9,7 @@ import {
   normalizeSchemelessExternalHref,
   removeSignature,
   sanitizeAndProcessHtml,
+  stripCssNoise,
   stripHtmlTags,
 } from './emailBodyUtils';
 
@@ -773,5 +774,39 @@ describe('emailBodyUtils', () => {
       const set = getReferencedCidSet('<p>reference cid:notanimage@x here</p>');
       expect(set.size).toBe(0);
     });
+  });
+});
+
+describe('stripCssNoise', () => {
+  it('removes style-block CSS that survived a tag-free body conversion', () => {
+    const body =
+      'body{ width: 100% !important; height: 100%; margin: 0; line-height: 1.4; ' +
+      'background-color: #F0F2FA; color: #333; } .wrap{padding:0} ' +
+      'url(data:image/png;base64,AAAA) Invoice from Fullstack Advisory is attached.';
+
+    expect(stripCssNoise(body).replace(/\s+/g, ' ').trim()).toBe(
+      'Invoice from Fullstack Advisory is attached.'
+    );
+  });
+
+  it('removes an at-rule wrapper once its nested rules are gone', () => {
+    const body =
+      '@media screen and (max-width:600px){ .col{width:100% !important;} } Payment received.';
+
+    expect(stripCssNoise(body).replace(/\s+/g, ' ').trim()).toBe('Payment received.');
+  });
+
+  it('leaves JSON and prose braces alone (quoted keys are not CSS)', () => {
+    expect(stripCssNoise('Your order {"total": 9, "id": "abc"} has shipped.')).toBe(
+      'Your order {"total": 9, "id": "abc"} has shipped.'
+    );
+    expect(stripCssNoise('Use the {placeholder} token in the template.')).toBe(
+      'Use the {placeholder} token in the template.'
+    );
+  });
+
+  it('returns text without braces untouched', () => {
+    const body = 'Note: meeting at 3pm. Agenda: roadmap.';
+    expect(stripCssNoise(body)).toBe(body);
   });
 });

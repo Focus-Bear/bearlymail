@@ -5,11 +5,13 @@
  */
 import { Email } from 'types/email';
 
+import { OPTIMISTIC_REMOVAL_GRACE_MS } from 'constants/numbers';
 import { selectAnimatingOut, selectVisibleEmails } from 'store/selectors/emailSelectors';
 import { RootState } from 'store/store';
 
 import inboxDataReducer, {
   InboxDataState,
+  reconcileCategorySummaryCount,
   removeEmail,
   updateCategoryEmails,
   upsertCategorySummaryCount,
@@ -17,8 +19,11 @@ import inboxDataReducer, {
 import inboxUIReducer, {
   addAnimatingOut,
   addOptimisticArchive,
+  addOptimisticSnooze,
   InboxUIState,
+  pruneStaleOptimisticRemovals,
   removeAnimatingOut,
+  removeOptimisticArchive,
 } from './inboxUISlice';
 
 const makeEmail = (id: string, category?: string | null): Email =>
@@ -52,6 +57,7 @@ const baseDataState: InboxDataState = {
 const baseUIState: InboxUIState = {
   optimisticallyArchived: [],
   optimisticallySnoozed: [],
+  optimisticAddedAt: {},
   animatingOut: [],
   loading: false,
   decrypting: false,
@@ -341,5 +347,110 @@ describe('updateCategoryEmails', () => {
     const stored = state.emails.find(email => email.id === '22');
     expect(stored).toBeDefined();
     expect(stored!.category_id).toBe('Work');
+  });
+});
+
+describe('inboxDataSlice – reconcileCategorySummaryCount (issue #2062)', () => {
+  const baseState = () => inboxDataReducer(undefined, { type: '@@INIT' });
+
+  it('lowers a summary count to the number of rows the server returned', () => {
+    const state = {
+      ...baseState(),
+      categorySummary: [{ id: 'cat-a', name: 'Security', count: 3, threadIds: ['t1', 't2', 'gone'] }],
+    };
+    const next = inboxDataReducer(state, reconcileCategorySummaryCount({ categoryKey: 'cat-a', loadedCount: 2 }));
+    expect(next.categorySummary).toEqual([
+      { id: 'cat-a', name: 'Security', count: 2, threadIds: ['t1', 't2', 'gone'] },
+    ]);
+  });
+
+  it('removes a category whose summary listed a thread the row query did not return', () => {
+    const state = {
+      ...baseState(),
+      categorySummary: [
+        { id: 'cat-a', name: 'Security', count: 1, threadIds: ['gone'] },
+        { id: 'cat-b', name: 'Newsletters', count: 1, threadIds: ['t9'] },
+      ],
+    };
+    const next = inboxDataReducer(state, reconcileCategorySummaryCount({ categoryKey: 'cat-a', loadedCount: 0 }));
+    expect(next.categorySummary).toEqual([{ id: 'cat-b', name: 'Newsletters', count: 1, threadIds: ['t9'] }]);
+  });
+
+  it('keeps an emptied category entry while emails for it are still in the store', () => {
+    const state = {
+      ...baseState(),
+      emails: [{ id: 'e1', category_id: 'cat-a' } as unknown as Email],
+      categorySummary: [{ id: 'cat-a', name: 'Security', count: 1 }],
+    };
+    const next = inboxDataReducer(state, reconcileCategorySummaryCount({ categoryKey: 'cat-a', loadedCount: 0 }));
+    expect(next.categorySummary).toEqual([{ id: 'cat-a', name: 'Security', count: 0 }]);
+  });
+
+  it('is a no-op when the count already matches or the category is unknown', () => {
+    const state = {
+      ...baseState(),
+      categorySummary: [{ id: 'cat-a', name: 'Security', count: 1 }],
+    };
+    expect(inboxDataReducer(state, reconcileCategorySummaryCount({ categoryKey: 'cat-a', loadedCount: 1 }))).toBe(state);
+    expect(inboxDataReducer(state, reconcileCategorySummaryCount({ categoryKey: 'cat-zzz', loadedCount: 0 }))).toBe(state);
+  });
+});
+
+
+describe('inboxUISlice – stale optimistic removals (issue #2062)', () => {
+  const HIDDEN_AT_MS = 1_000_000;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(HIDDEN_AT_MS);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const fetchStartedAfter = (elapsedMs: number) => {
+    vi.setSystemTime(HIDDEN_AT_MS + elapsedMs);
+    return pruneStaleOptimisticRemovals();
+  };
+
+  it('keeps an archived email hidden from fetches that start within the grace period', () => {
+    let state = inboxUIReducer(baseUIState, addOptimisticArchive('1'));
+    state = inboxUIReducer(state, fetchStartedAfter(OPTIMISTIC_REMOVAL_GRACE_MS - 1));
+    expect(state.optimisticallyArchived).toEqual(['1']);
+  });
+
+  it('stops hiding archived and snoozed emails once a fetch starts after the grace period', () => {
+    let state = inboxUIReducer(baseUIState, addOptimisticArchive('1'));
+    state = inboxUIReducer(state, addOptimisticSnooze('2'));
+    state = inboxUIReducer(state, fetchStartedAfter(OPTIMISTIC_REMOVAL_GRACE_MS + 1));
+    expect(state.optimisticallyArchived).toEqual([]);
+    expect(state.optimisticallySnoozed).toEqual([]);
+    expect(state.optimisticAddedAt).toEqual({});
+  });
+
+  it('only prunes ids that are older than the grace period', () => {
+    let state = inboxUIReducer(baseUIState, addOptimisticArchive('old'));
+    vi.setSystemTime(HIDDEN_AT_MS + OPTIMISTIC_REMOVAL_GRACE_MS);
+    state = inboxUIReducer(state, addOptimisticArchive('recent'));
+    state = inboxUIReducer(state, fetchStartedAfter(OPTIMISTIC_REMOVAL_GRACE_MS + 1));
+    expect(state.optimisticallyArchived).toEqual(['recent']);
+    expect(Object.keys(state.optimisticAddedAt)).toEqual(['recent']);
+  });
+
+  it('forgets the timestamp when an optimistic archive is reverted', () => {
+    let state = inboxUIReducer(baseUIState, addOptimisticArchive('1'));
+    state = inboxUIReducer(state, removeOptimisticArchive('1'));
+    expect(state.optimisticAddedAt).toEqual({});
+  });
+
+  it('shows an email that returns from the server after its archive went stale', () => {
+    let uiState = inboxUIReducer(baseUIState, addOptimisticArchive('1'));
+    const hidden = selectVisibleEmails(makeState({}, uiState) as unknown as RootState);
+    expect(hidden.map(email => email.id)).not.toContain('1');
+
+    uiState = inboxUIReducer(uiState, fetchStartedAfter(OPTIMISTIC_REMOVAL_GRACE_MS + 1));
+    const visible = selectVisibleEmails(makeState({}, uiState) as unknown as RootState);
+    expect(visible.map(email => email.id)).toContain('1');
   });
 });

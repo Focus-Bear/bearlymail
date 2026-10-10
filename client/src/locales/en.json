@@ -274,7 +274,9 @@
       "askAiTab": "Ask AI",
       "collapse": "Collapse panel",
       "expand": "Open assistant",
-      "ariaLabel": "Email assistant panel"
+      "ariaLabel": "Email assistant panel",
+      "openMobile": "Assistant",
+      "close": "Close"
     },
     "askAi": {
       "title": "Ask AI",
@@ -399,7 +401,8 @@
       "selected_plural": "{{count}} emails selected",
       "markAsRead": "Mark as read",
       "markAsUnread": "Mark as unread",
-      "archive": "Archive"
+      "archive": "Archive",
+      "snooze": "Snooze"
     },
     "category": {
       "newsletters": "Newsletters",
@@ -616,6 +619,7 @@
     "toneCheckPassed": "Tone check passed!",
     "inappropriateTiming": "Timing note:",
     "calendarConflictLabel": "Calendar check:",
+    "recipientMismatchLabel": "Recipient check:",
     "checkTone": "Check Tone",
     "checking": "Checking...",
     "sendReply": "Send Reply",
@@ -977,6 +981,9 @@
       "pattern": "Pattern",
       "subjectPrefix": "Subject prefix",
       "hits": "{{count}} matches",
+      "sanityReviewed": "AI-reviewed ({{confidence}}% confident)",
+      "sanityReviewedRevised": "AI-reviewed and revised ({{confidence}}% confident)",
+      "sanityTooltip": "A stronger model checked this auto-generated rule before it was created ({{model}}): {{reason}}",
       "createdAt": "Created {{date}}",
       "addRule": "Add composite rule",
       "editRule": "Edit composite rule",
@@ -999,6 +1006,10 @@
       "bodyNotContainsPlaceholder": "unsubscribe link\ndigest summary",
       "bodyNotContainsHelp": "Optional. The rule fails to match if ANY of these phrases appears in the body. Useful when the same sender produces both wanted and unwanted notifications.",
       "bodyPhraseSeparator": " · ",
+      "githubStateField": "GitHub PR/issue state is any of",
+      "githubProjectStatusField": "GitHub project board status is any of",
+      "githubAuthorKindField": "GitHub PR/issue author is a",
+      "githubLabelsField": "GitHub labels include any of",
       "toggleSuccess": "Rule updated",
       "toggleError": "Could not update the rule",
       "createSuccess": "Composite rule created",
@@ -1136,6 +1147,7 @@
       "password": "Password",
       "twoFactorAuth": "Two-Factor Auth",
       "emailDelivery": "Email Delivery",
+      "emailAccounts": "Email Accounts",
       "googleAccounts": "Google Accounts",
       "emailBatching": "Email Batching",
       "blockedSenders": "Blocked Senders",
@@ -1410,7 +1422,9 @@
       "times": {
         "label": "Delivery Times",
         "removeTime": "Remove time",
-        "addTime": "Add Time"
+        "addTime": "Add Time",
+        "timeAria": "Time",
+        "meridiemAria": "AM or PM"
       }
     },
     "emailAccounts": {
@@ -1418,6 +1432,7 @@
       "noAccounts": "No email accounts connected",
       "connect": "Connect Account",
       "connectAnother": "Connect Another",
+      "lastAccountHint": "Connect another account before disconnecting this one. To remove your only account, delete your BearlyMail account instead.",
       "providers": {
         "gmail": {
           "description": "Connect your Gmail account"
@@ -2181,9 +2196,19 @@
     "to": "To",
     "cc": "CC",
     "bcc": "BCC",
+    "sendingToast": "Sending your email...",
     "subject": "Subject",
     "subjectPlaceholder": "Subject",
     "bodyPlaceholder": "Write your message...",
+    "signature": {
+      "autoAdded": "Signature (added automatically when you send)",
+      "edit": "Edit",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "applyHint": "This is your signature for every email — editing it here changes it everywhere.",
+      "saveError": "Couldn't save your signature. Please try again."
+    },
     "recipientPlaceholder": "Enter email address",
     "addCc": "Add CC",
     "addBcc": "Add BCC",
@@ -2250,7 +2275,17 @@
     "editRecipient": "Click to edit",
     "unsavedChangesTitle": "Unsent email",
     "leaveAnyway": "Leave anyway",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "followUpSection": "Follow-up"
+  },
+  "emailSend": {
+    "failedNotification": "Your message was not sent. {{reason}}",
+    "retryAction": "Retry",
+    "failure": {
+      "providerRejected": "Your email provider rejected it.",
+      "unconfirmed": "We could not confirm it was delivered — check your Sent folder before resending.",
+      "unknown": "Something went wrong on our side."
+    }
   },
   "contacts": {
     "title": "Contacts",
@@ -2262,12 +2297,12 @@
     "errorLoading": "Failed to load contacts. Please try again.",
     "errorSyncing": "Failed to sync contacts. Please try again.",
     "noContacts": "No contacts yet",
-    "syncToGetStarted": "Sync your contacts from Gmail to get started.",
+    "syncToGetStarted": "Sync your contacts from a connected email account to get started.",
     "noSearchResults": "No contacts found",
     "tryDifferentSearch": "Try a different search term.",
     "totalContacts": "{{count}} contact",
     "totalContacts_plural": "{{count}} contacts",
-    "gmailOnlyContactInfo": "This contact is from Gmail and hasn't been synced yet. Sync contacts to view details.",
+    "unsyncedContactInfo": "This contact hasn't been synced yet. Sync contacts to view details.",
     "addContact": "Add Contact",
     "viewDetail": "View Details",
     "notes": "Notes",
@@ -2318,6 +2353,7 @@
     "noDealsWithContact": "No deals with this contact yet",
     "createDeal": "Create Deal",
     "errorLoadingDeals": "Error loading deals",
+    "errorCreatingDeal": "Could not create the deal. Please try again.",
     "expectedClose": "Expected close"
   },
   "senderContext": {
@@ -2404,6 +2440,7 @@
       "assistantTitle": "Your AI Assistant Panel",
       "assistantContent": "Open any email and a side panel appears on the right. The Actions tab gathers the summary, tasks, and notes, while the Ask AI tab (coming soon) will let you chat about the email — draft replies, get summaries, and spot what needs your attention.",
       "skip": "Skip",
+      "back": "Back",
       "next": "Next",
       "finish": "Finish",
       "stepProgress": "{{current}} of {{total}}"
@@ -3220,7 +3257,7 @@
       "suggestedCategory": "Suggested Category",
       "categorisedBy": {
         "label": "Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>",
-        "ai": "AI priority model",
+        "ai": "AI language model",
         "rule": "Deterministic rule",
         "local": "Local model",
         "proto": "Suggested category (pending promotion)",
@@ -3429,12 +3466,12 @@
         "notScored": "The local model hasn't scored this thread yet.",
         "decidedBy": "Decided by",
         "decidedByLocal": "Local model",
-        "decidedByLlm": "LLM",
+        "decidedByLlm": "LLM (Nova Micro)",
         "family": "Family",
         "category": "Category",
         "priority": "Priority",
         "local": "Local",
-        "llm": "LLM",
+        "llm": "LLM (Nova Micro)",
         "agree": "match",
         "disagree": "differs",
         "belowThreshold": "below threshold → LLM"
@@ -3484,6 +3521,7 @@
           "ai-summary": "input: AI summary",
           "cleaned-body": "input: cleaned email body",
           "thread-summary": "input: thread summary",
+          "thread-summary-and-body": "input: thread summary + latest email body",
           "email-metadata": "input: sender/subject/body matching"
         }
       },
@@ -3604,7 +3642,9 @@
       "quietHoursTo": "to",
       "quietHoursSuffix": "next day. Truly urgent emails still break through.",
       "startLearning": "Start learning",
-      "saveError": "Failed to save your schedule. Please try again."
+      "saveError": "Failed to save your schedule. Please try again.",
+      "timeAria": "Time",
+      "meridiemAria": "AM or PM"
     },
     "learning": {
       "title": "Getting to know your inbox.",

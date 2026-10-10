@@ -1,6 +1,10 @@
 import { Logger } from "@nestjs/common";
 
-import { categoriseFromSummary } from "./llm-categorise-summary";
+import { LLMProvider } from "./llm.types";
+import {
+  categoriseFromSummary,
+  categoriseOnlyWithEscalation as categoriseWithEscalation,
+} from "./llm-categorise-summary";
 import { getPrompt } from "./prompts";
 
 // Isolate from filesystem/prompt loading
@@ -181,5 +185,243 @@ describe("categoriseFromSummary", () => {
     expect(logger.error).toHaveBeenCalledWith(
       expect.stringContaining("LLM failure"),
     );
+  });
+
+  describe("categoryName reconciliation (Nova Lite mis-count)", () => {
+    it("trusts an exact categoryName over a WRONG categoryNumber", async () => {
+      // The model named "QA passed" in its reasoning but mis-counted the
+      // position, emitting categoryNumber 1 ("QA failed"). The exact name
+      // match must win so the thread lands in the category it reasoned about.
+      generateText.mockResolvedValue(
+        JSON.stringify({
+          result: {
+            categoryNumber: 1,
+            categoryName: "QA passed",
+            categoryConfidence: "HIGH",
+            reasoning: "The fix was verified.",
+          },
+        }),
+      );
+
+      const result = await categoriseFromSummary(generateText, logger, {
+        subject: "App Crash",
+        summary: "The app crash has been QA verified and closed.",
+        categories,
+      });
+
+      expect(result?.categoryName).toBe("QA passed");
+    });
+
+    it("matches categoryName case/emoji-insensitively", async () => {
+      generateText.mockResolvedValue(
+        JSON.stringify({
+          result: {
+            categoryNumber: 1,
+            categoryName: "qa passed",
+            categoryConfidence: "HIGH",
+            reasoning: "Verified.",
+          },
+        }),
+      );
+
+      const result = await categoriseFromSummary(generateText, logger, {
+        subject: "App Crash",
+        summary: "Verified.",
+        categories,
+      });
+
+      expect(result?.categoryName).toBe("QA passed");
+    });
+
+    it("falls back to categoryNumber when categoryName is a fabricated near-name", async () => {
+      generateText.mockResolvedValue(
+        JSON.stringify({
+          result: {
+            categoryNumber: 2,
+            categoryName: "QA passed successfully",
+            categoryConfidence: "MEDIUM",
+            reasoning: "Verified.",
+          },
+        }),
+      );
+
+      const result = await categoriseFromSummary(generateText, logger, {
+        subject: "App Crash",
+        summary: "Verified.",
+        categories,
+      });
+
+      expect(result?.categoryName).toBe("QA passed");
+    });
+
+    it("resolves to Other when categoryName is fabricated and there is no usable number", async () => {
+      generateText.mockResolvedValue(
+        JSON.stringify({
+          result: {
+            categoryName: "QA passed successfully",
+            categoryConfidence: "LOW",
+            reasoning: "Unclear.",
+          },
+        }),
+      );
+
+      const result = await categoriseFromSummary(generateText, logger, {
+        subject: "App Crash",
+        summary: "Unclear.",
+        categories,
+      });
+
+      expect(result?.categoryName).toBe("Other");
+      expect(result?.categoryNumber).toBeNull();
+    });
+  });
+});
+
+describe("categoriseFromSummary — protoCategorySuggestion", () => {
+  const logger = {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  } as unknown as jest.Mocked<Logger>;
+  const categories = [{ name: "Sales", description: "Sales discussions" }];
+
+  it("returns the proto suggestion when the pick is Other", async () => {
+    const generateText = jest.fn().mockResolvedValue(
+      JSON.stringify({
+        result: {
+          categoryNumber: 0,
+          categoryName: "Other",
+          categoryConfidence: "LOW",
+          reasoning: "No listed category fits an automated alert.",
+          protoCategorySuggestion: {
+            name: "🖥️ Infrastructure Alerts",
+            description: "Automated monitoring alerts",
+            reasoning:
+              "'Sales' was the closest but this is an automated alert.",
+          },
+        },
+      }),
+    );
+    const result = await categoriseFromSummary(generateText, logger, {
+      subject: "[ALERT] api-prod",
+      summary: "HTTP 5xx rate exceeded threshold.",
+      categories,
+    });
+    expect(result?.categoryName).toBe("Other");
+    expect(result?.protoCategorySuggestion).toEqual({
+      name: "🖥️ Infrastructure Alerts",
+      description: "Automated monitoring alerts",
+      reasoning: "'Sales' was the closest but this is an automated alert.",
+    });
+  });
+
+  it("drops a proto suggestion when a listed category was chosen", async () => {
+    const generateText = jest.fn().mockResolvedValue(
+      JSON.stringify({
+        result: {
+          categoryNumber: 1,
+          categoryName: "Sales",
+          categoryConfidence: "HIGH",
+          reasoning: 'matches "Sales"',
+          protoCategorySuggestion: { name: "🧾 Receipts", description: "x" },
+        },
+      }),
+    );
+    const result = await categoriseFromSummary(generateText, logger, {
+      subject: "Pricing",
+      summary: "Asks for a quote.",
+      categories,
+    });
+    expect(result?.categoryName).toBe("Sales");
+    expect(result?.protoCategorySuggestion).toBeUndefined();
+  });
+});
+
+describe("categoriseWithEscalation", () => {
+  const logger = {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  } as unknown as jest.Mocked<Logger>;
+  const categories = [
+    { name: "QA failed", description: "Issues that failed QA" },
+    { name: "QA passed", description: "Issues that passed QA" },
+  ];
+  const params = {
+    subject: "App Crash",
+    senderName: "Bao Ngoc",
+    summary: "The app crash has been QA verified and closed.",
+    categories,
+    userId: "user-123",
+  };
+  const response = (categoryNumber: number, categoryConfidence: string) =>
+    JSON.stringify({
+      result: {
+        categoryNumber,
+        categoryName: categoryNumber === 0 ? "Other" : "QA passed",
+        categoryConfidence,
+        reasoning: "because",
+      },
+    });
+
+  const escalationModel = "gemini-strong-test";
+
+  it("returns the flash-lite verdict without escalating when it is confident and not Other", async () => {
+    const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
+    const result = await categoriseWithEscalation({ generateText }, logger, {
+      ...params,
+      escalationModel,
+    });
+    expect(result?.categoryName).toBe("QA passed");
+    expect(generateText).toHaveBeenCalledTimes(1);
+    expect(generateText.mock.calls[0][1]).toBe(LLMProvider.GEMINI);
+    expect(generateText.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        operation: "categorise_summary",
+        model: undefined,
+      }),
+    );
+  });
+
+  it("escalates to the strong Gemini model on a LOW or Other verdict and returns the escalated pick", async () => {
+    const generateText = jest
+      .fn()
+      .mockResolvedValueOnce(response(0, "LOW"))
+      .mockResolvedValueOnce(response(2, "HIGH"));
+    const result = await categoriseWithEscalation({ generateText }, logger, {
+      ...params,
+      escalationModel,
+    });
+    expect(result?.categoryName).toBe("QA passed");
+    expect(generateText).toHaveBeenCalledTimes(2);
+    expect(generateText.mock.calls[0][1]).toBe(LLMProvider.GEMINI);
+    expect(generateText.mock.calls[1][1]).toBe(LLMProvider.GEMINI);
+    expect(generateText.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ model: escalationModel }),
+    );
+  });
+
+  it("accepts a LOW or Other verdict as-is when no escalation model is configured", async () => {
+    const generateText = jest.fn().mockResolvedValue(response(0, "LOW"));
+    const result = await categoriseWithEscalation(
+      { generateText },
+      logger,
+      params,
+    );
+    expect(result?.categoryName).toBe("Other");
+    expect(generateText).toHaveBeenCalledTimes(1);
+  });
+
+  it("escalates when flash-lite fails outright and returns null when the strong model also fails", async () => {
+    const generateText = jest
+      .fn()
+      .mockResolvedValueOnce("not json")
+      .mockResolvedValueOnce("still not json");
+    const result = await categoriseWithEscalation({ generateText }, logger, {
+      ...params,
+      escalationModel,
+    });
+    expect(result).toBeNull();
+    expect(generateText).toHaveBeenCalledTimes(2);
   });
 });

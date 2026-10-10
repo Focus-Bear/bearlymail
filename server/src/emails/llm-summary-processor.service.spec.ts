@@ -7,9 +7,11 @@ import type { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import type { UserEncryptionService } from "../encryption/user-encryption.service";
+import type { CategoryShortlistService } from "../llm/category-shortlist.service";
 import type { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
 import type { LLMCoreService } from "../llm/llm-core.service";
 import type { PriorityCacheService } from "../priority/priority-cache.service";
+import type { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import type { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import type { SummarizationService } from "../summarization/summarization.service";
 import type { EmailsService } from "./emails.service";
@@ -31,6 +33,8 @@ function makeService(mocks: {
   incrementalAnalysisService?: unknown;
   priorityCacheService?: unknown;
   incrementalSummaryHelper?: unknown;
+  categoryShortlistService?: unknown;
+  protoCategoriesService?: unknown;
 }): LLMSummaryProcessorService {
   return new LLMSummaryProcessorService(
     mocks.emailRepository as Repository<Email>,
@@ -46,6 +50,8 @@ function makeService(mocks: {
     mocks.incrementalSummaryHelper as IncrementalSummaryHelperService,
     {} as CategoryRulesService,
     {} as LLMCoreService,
+    mocks.categoryShortlistService as CategoryShortlistService,
+    mocks.protoCategoriesService as ProtoCategoriesService,
   );
 }
 
@@ -242,6 +248,75 @@ describe("LLMSummaryProcessorService.tryIncrementalAnalysis ordering", () => {
     expect(recategoriseFromSummary).toHaveBeenCalledTimes(1);
     expect(ensureFresh.mock.invocationCallOrder[0]).toBeLessThan(
       (recategoriseFromSummary as jest.Mock).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("hands the re-categoriser the same shortlist + proto-category inputs as the priority path", async () => {
+    const categoryShortlistService = {
+      isShortlistEnabled: jest.fn(),
+      getShortlistWithMeta: jest.fn(),
+    };
+    const protoCategoriesService = {
+      findActiveByUser: jest.fn().mockResolvedValue([{ id: "proto-1" }]),
+    };
+    const service = makeService({
+      emailThreadRepository: { update: jest.fn() },
+      emailsService: { getThreadEmails: jest.fn().mockResolvedValue([]) },
+      incrementalAnalysisService: {
+        formatThreadContextForIncremental: jest.fn().mockReturnValue(""),
+        checkIfRecalcNeeded: jest.fn().mockResolvedValue({
+          needsFullRecalc: false,
+          reason: "same topic",
+          suggestedUrgencyDelta: 0,
+        }),
+      },
+      priorityCacheService: {
+        getUserContexts: jest.fn().mockResolvedValue([]),
+      },
+      incrementalSummaryHelper: {
+        getThreadSummary: jest.fn().mockResolvedValue("existing summary"),
+      },
+      categoryShortlistService,
+      protoCategoriesService,
+    });
+    jest.spyOn(service, "ensureThreadSummaryFresh").mockResolvedValue();
+
+    await service.tryIncrementalAnalysis({
+      thread: {
+        id: "t1",
+        categoryId: "cat-1",
+        urgencyScore: 40,
+        priorityExplanation: {
+          score: 50,
+          breakdown: [{ factor: "Sender", value: 10, description: "known" }],
+        },
+      } as unknown as EmailThread,
+      email: {
+        id: "e1",
+        emailThreadId: "t1",
+        threadId: "pt1",
+        from: "a@b.com",
+        subject: "Re: bug",
+        body: "new comment",
+        receivedAt: new Date("2026-01-03"),
+      } as unknown as Email,
+      forceRecalculate: false,
+      userId: "user-1",
+      workerId: "worker-1",
+      tracker: {
+        startPhase: jest.fn(),
+        endPhase: jest.fn(),
+        finish: jest.fn(),
+      } as unknown as JobPerformanceTracker,
+    });
+
+    const [deps] = (recategoriseFromSummary as jest.Mock).mock.calls[0];
+    expect(deps.categoryShortlistService).toBe(categoryShortlistService);
+    await expect(deps.getProtoCategories("user-1")).resolves.toEqual([
+      { id: "proto-1" },
+    ]);
+    expect(protoCategoriesService.findActiveByUser).toHaveBeenCalledWith(
+      "user-1",
     );
   });
 });

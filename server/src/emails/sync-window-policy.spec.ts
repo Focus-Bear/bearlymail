@@ -1,6 +1,7 @@
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
 import {
+  getOldestAllowedStarredSyncDate,
   getOldestAllowedSyncDate,
   INCREMENTAL_SYNC_OVERLAP_HOURS,
   resolveMaxFetchResults,
@@ -17,6 +18,37 @@ describe("sync-window-policy", () => {
   describe("getOldestAllowedSyncDate", () => {
     it("returns ONGOING_SYNC_WINDOW_DAYS before now", () => {
       expect(getOldestAllowedSyncDate(now)).toEqual(oldestAllowed);
+    });
+  });
+
+  describe("getOldestAllowedStarredSyncDate", () => {
+    it("returns STARRED_SYNC_WINDOW_DAYS before now", () => {
+      expect(getOldestAllowedStarredSyncDate(now)).toEqual(
+        new Date(
+          now.getTime() -
+            QUERY_LIMITS.STARRED_SYNC_WINDOW_DAYS * MILLISECONDS.DAY,
+        ),
+      );
+    });
+
+    it("reaches further back than the ongoing inbox window", () => {
+      expect(getOldestAllowedStarredSyncDate(now).getTime()).toBeLessThan(
+        getOldestAllowedSyncDate(now).getTime(),
+      );
+    });
+
+    it("is bounded — a starred thread older than the window is not imported", () => {
+      const justInside = new Date(
+        now.getTime() -
+          (QUERY_LIMITS.STARRED_SYNC_WINDOW_DAYS - 1) * MILLISECONDS.DAY,
+      );
+      const justOutside = new Date(
+        now.getTime() -
+          (QUERY_LIMITS.STARRED_SYNC_WINDOW_DAYS + 1) * MILLISECONDS.DAY,
+      );
+      const oldestStarred = getOldestAllowedStarredSyncDate(now).getTime();
+      expect(justInside.getTime()).toBeGreaterThanOrEqual(oldestStarred);
+      expect(justOutside.getTime()).toBeLessThan(oldestStarred);
     });
   });
 

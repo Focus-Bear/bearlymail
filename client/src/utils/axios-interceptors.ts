@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { SESSION_EXPIRED_REASON } from 'utils/sessionState';
 
 import { HTTP_PAYMENT_REQUIRED, HTTP_UNAUTHORIZED } from 'constants/numbers';
@@ -18,6 +18,16 @@ declare module 'axios' {
 }
 
 let interceptorsSetup = false;
+
+/**
+ * A 401 whose body carries a step-up challenge (`requiresStepUp`/`requiresPassword`)
+ * is a sensitive action asking for re-verification, not an expired session, so it
+ * must not trigger logout — the caller drives its own step-up flow. (Issue #257)
+ */
+const isStepUpChallenge = (error: AxiosError): boolean => {
+  const body = error.response?.data as { requiresStepUp?: boolean; requiresPassword?: boolean } | undefined;
+  return Boolean(body?.requiresStepUp || body?.requiresPassword);
+};
 
 // Callback the UI registers (see AiLimitBanner) so the interceptor can surface
 // a persistent banner when the API rejects a request with the AI-capacity 402.
@@ -73,6 +83,14 @@ export const setupAxiosInterceptors = (
         // Explicit opt-out: callers (e.g. the logout POST itself) can set
         // _skipInterceptor to prevent a 401 from triggering another logout().
         if (originalRequest?._skipInterceptor) {
+          return Promise.reject(error);
+        }
+
+        // A step-up 401 (a sensitive action asking for password re-verification)
+        // is NOT a session expiry — logging the user out here disconnects nothing
+        // and drops them at the login screen (issue #257). Let the caller drive
+        // its own step-up flow instead.
+        if (isStepUpChallenge(error)) {
           return Promise.reject(error);
         }
 

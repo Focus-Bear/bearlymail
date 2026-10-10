@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
+import { ToneCheckContext } from 'utils/toneCheckContext';
 
 import { API_URL } from 'config/api';
 import { useNotifications } from 'contexts/NotificationContext';
@@ -14,6 +15,8 @@ interface ToneCheckResult {
   inappropriateTiming?: string | null;
   /** Advisory warning when the draft's meeting date doesn't match the calendar. */
   calendarWarning?: string | null;
+  /** Advisory warning when the draft looks addressed to someone other than its recipients. */
+  recipientMismatch?: string | null;
 }
 
 /**
@@ -84,7 +87,12 @@ export function useEmailDetailToneCheck() {
     setCheckingTone(false);
   }, []);
 
-  const checkTone = useCallback(async (draft: string, scheduledSendAt?: string | null, recipients?: string): Promise<boolean> => {
+  const checkTone = useCallback(async (
+    draft: string,
+    scheduledSendAt?: string | null,
+    recipients?: string,
+    context?: ToneCheckContext
+  ): Promise<boolean> => {
     // Cancel any in-flight tone check before starting a new one
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -116,6 +124,8 @@ export function useEmailDetailToneCheck() {
             text: draft,
             currentTime,
             scheduledSendAt: scheduledSendAt ?? null,
+            attachmentFilenames: context?.attachmentFilenames ?? [],
+            recipients: context?.recipients ?? [],
           },
           { signal: controller.signal }
         ),

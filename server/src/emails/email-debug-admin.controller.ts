@@ -48,6 +48,19 @@ import {
 } from "./email-inbox-trace.service";
 import { EmailsService } from "./emails.service";
 
+/** Query string of GET /emails/debug/category-fetch-trace. */
+interface CategoryFetchTraceQuery {
+  categoryId?: string;
+  mode?: string;
+  /** Comma-separated account ids the inbox request was filtered by. */
+  accounts?: string;
+  minPriority?: string;
+  maxPriority?: string;
+  /** Comma-separated thread ids of the summary entry the accordion rendered. */
+  summaryThreadIds?: string;
+  summaryName?: string;
+}
+
 const VALID_TRACE_MODES: readonly CategoryFetchTraceMode[] = [
   "triage",
   "action",
@@ -272,9 +285,17 @@ export class EmailDebugAdminController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   async traceCategoryFetch(
     @Request() req,
-    @Query("categoryId") categoryId?: string,
-    @Query("mode") mode?: string,
+    @Query() query: CategoryFetchTraceQuery,
   ): Promise<CategoryFetchTrace> {
+    const {
+      categoryId,
+      mode,
+      accounts,
+      minPriority,
+      maxPriority,
+      summaryThreadIds,
+      summaryName,
+    } = query;
     if (!categoryId) {
       throw new BadRequestException(
         "Missing required query parameter: categoryId",
@@ -285,10 +306,29 @@ export class EmailDebugAdminController {
         ? mode
         : "triage"
     ) as CategoryFetchTraceMode;
+    const parsePriority = (value?: string): number | undefined =>
+      value !== undefined && value !== "" ? parseFloat(value) : undefined;
+    const accountIds = accounts?.split(",").filter(Boolean);
     return this.emailInboxTraceService.traceCategoryFetch(
       req.user.userId,
       categoryId,
       resolvedMode,
+      {
+        filters: {
+          ...(accountIds && accountIds.length > 0 ? { accountIds } : {}),
+          minPriority: parsePriority(minPriority),
+          maxPriority: parsePriority(maxPriority),
+        },
+        // The renderer's summary entry, so the trace can flag a stale client
+        // count instead of silently comparing against its own fresh summary.
+        clientSummary:
+          summaryThreadIds !== undefined
+            ? {
+                name: summaryName || undefined,
+                threadIds: summaryThreadIds.split(",").filter(Boolean),
+              }
+            : undefined,
+      },
     );
   }
 

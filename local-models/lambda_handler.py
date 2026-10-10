@@ -18,7 +18,12 @@ Response:
 
 Environment:
     LOCAL_MODELS_BUCKET   S3 bucket holding the per-user model bundles
-    LOCAL_MODELS_PREFIX   key prefix (default "models/"); key = <prefix><userId>.joblib
+    LOCAL_MODELS_PREFIX   key prefix (default "models/"). The retrain job writes
+                          versioned bundles at <prefix><userId>/<version>.joblib
+                          and a pointer at <prefix><userId>/current.json; this
+                          handler reads the pointer to find the current version.
+                          Falls back to the legacy flat <prefix><userId>.joblib
+                          for users not retrained since versioning shipped.
 """
 
 from __future__ import annotations
@@ -27,12 +32,21 @@ import json
 import os
 from typing import Any
 
-from predict import load_bundle_from_s3, predict
+from predict import load_bundle_from_s3, predict, resolve_bundle_key
 
 
-def _model_key(user_id: str) -> str:
-    prefix = os.environ.get("LOCAL_MODELS_PREFIX", "models/")
-    return f"{prefix}{user_id}.joblib"
+def _prefix() -> str:
+    return os.environ.get("LOCAL_MODELS_PREFIX", "models/")
+
+
+def _pointer_key(user_id: str) -> str:
+    """Small JSON object naming the current versioned bundle for this user."""
+    return f"{_prefix()}{user_id}/current.json"
+
+
+def _legacy_model_key(user_id: str) -> str:
+    """Pre-versioning flat path, used until the user's first versioned retrain."""
+    return f"{_prefix()}{user_id}.joblib"
 
 
 def _response(status: int, body: dict[str, Any]) -> dict[str, Any]:
@@ -54,7 +68,10 @@ def handler(event: dict[str, Any], _context: Any = None) -> dict[str, Any]:
         return _response(500, {"error": "LOCAL_MODELS_BUCKET not configured"})
 
     try:
-        bundle = load_bundle_from_s3(bucket, _model_key(user_id))
+        key = resolve_bundle_key(
+            bucket, _pointer_key(user_id), _legacy_model_key(user_id)
+        )
+        bundle = load_bundle_from_s3(bucket, key)
     except Exception as e:  # noqa: BLE001 — no model yet ⇒ cold start, use the LLM
         # No per-user model (new user / not trained yet), or a load failure
         # (missing object, permissions, corrupt bundle): tell the caller to use

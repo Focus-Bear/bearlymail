@@ -52,10 +52,18 @@ export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
   // live refine/summary and never starves them.
   [JOB_NAMES.ESCALATE_CATEGORY]: JobPriority.VERY_LOW,
   [JOB_NAMES.LEARN_QA_FROM_SENT]: JobPriority.VERY_LOW,
+  // Gradual writing-style backfill: pure background learning, never urgent.
+  [JOB_NAMES.LEARN_WRITING_STYLE_FROM_SENT]: JobPriority.VERY_LOW,
   [JOB_NAMES.SYNC_GMAIL]: JobPriority.MEDIUM,
   [JOB_NAMES.AUTO_RESPONDER]: JobPriority.LOW,
   [JOB_NAMES.GENERATE_SUGGESTED_REPLIES]: JobPriority.LOW,
   [JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC]: JobPriority.HIGH,
+  [JOB_NAMES.SNOOZE_THREAD_PROVIDER_SYNC]: JobPriority.HIGH,
+  // The user pressed Send and is waiting on the outcome notification — this is
+  // the most latency-sensitive job in the system.
+  [JOB_NAMES.SEND_QUEUED_EMAIL]: JobPriority.HIGH,
+  // Periodic safety net; never competes with a live send.
+  [JOB_NAMES.SWEEP_STALLED_EMAIL_SENDS]: JobPriority.LOW,
   [JOB_NAMES.SYNC_CONTACTS]: JobPriority.LOW,
   [JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS]: JobPriority.LOW,
   [JOB_NAMES.EVALUATE_WORKFLOWS]: JobPriority.LOW,
@@ -89,7 +97,8 @@ export function getJobPriority(
     }
     if (
       jobType === JOB_NAMES.FETCH_USER_EMAILS ||
-      jobType === JOB_NAMES.SYNC_EMAILS
+      jobType === JOB_NAMES.SYNC_EMAILS ||
+      jobType === JOB_NAMES.SEND_QUEUED_EMAIL
     ) {
       return JobPriority.HIGH;
     }

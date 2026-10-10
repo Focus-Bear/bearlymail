@@ -73,12 +73,13 @@ export async function sendEmail(
     to: EmailRecipient[];
     subject: string;
     body: string;
+    htmlBody?: string;
     cc?: EmailRecipient[];
     bcc?: EmailRecipient[];
     attachments?: EmailAttachmentData[];
   },
 ): Promise<{ messageId: string; threadId: string }> {
-  const { to, subject, body, cc, bcc, attachments } = params;
+  const { to, subject, body, htmlBody, cc, bcc, attachments } = params;
   const primaryAccount =
     await provider.office365AccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Office 365 account not connected.");
@@ -90,7 +91,8 @@ export async function sendEmail(
     return await sendEmailViaOffice365(graphClient, {
       to,
       subject,
-      htmlBody: body,
+      // Prefer an explicit HTML body (forwards); otherwise treat `body` as HTML.
+      htmlBody: htmlBody ?? body,
       cc,
       bcc,
       attachments,

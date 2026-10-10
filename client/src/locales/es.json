@@ -656,8 +656,18 @@
     "addBcc": "Agregar CCO",
     "addCc": "Agregar CC",
     "bcc": "BCC",
+    "sendingToast": "Enviando tu correo...",
     "bodyPlaceholder": "Escribe tu mensaje...",
     "cc": "CC",
+    "signature": {
+      "autoAdded": "Firma (se añade automáticamente al enviar)",
+      "edit": "Editar",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar",
+      "applyHint": "Esta es tu firma para todos los correos: si la editas aquí, cambia en todas partes.",
+      "saveError": "No se pudo guardar tu firma. Inténtalo de nuevo."
+    },
     "discard": "Desechar",
     "emailSentSuccess": "¡Correo electrónico enviado exitosamente!",
     "errorNoBody": "Por favor ingresa el cuerpo de un mensaje",
@@ -727,7 +737,17 @@
     "editRecipient": "Haz clic para editar",
     "unsavedChangesTitle": "Correo sin enviar",
     "leaveAnyway": "Salir de todos modos",
-    "keepEditing": "Seguir editando"
+    "keepEditing": "Seguir editando",
+    "followUpSection": "Seguimiento"
+  },
+  "emailSend": {
+    "failedNotification": "Tu mensaje no se envió. {{reason}}",
+    "retryAction": "Reintentar",
+    "failure": {
+      "providerRejected": "Tu proveedor de correo lo rechazó.",
+      "unconfirmed": "No pudimos confirmar que se entregara: revisa tu carpeta de Enviados antes de volver a enviarlo.",
+      "unknown": "Algo salió mal por nuestra parte."
+    }
   },
   "consent": {
     "acceptAndContinue": "Aceptar y continuar",
@@ -1263,6 +1283,7 @@
     "toneCheckPassed": "¡Se pasó la verificación de tono!",
     "inappropriateTiming": "Nota de horario:",
     "calendarConflictLabel": "Revisión del calendario:",
+    "recipientMismatchLabel": "Revisión del destinatario:",
     "totalScore": "Puntuación total",
     "tweakRules": "Modificar las reglas de priorización",
     "useRevisedText": "Usar texto revisado",
@@ -1385,12 +1406,12 @@
     "errorLoading": "Error al cargar los contactos. Por favor, inténtalo de nuevo.",
     "errorSyncing": "Error al sincronizar los contactos. Por favor, inténtalo de nuevo.",
     "noContacts": "Aún no hay contactos",
-    "syncToGetStarted": "Sincroniza tus contactos de Gmail para comenzar.",
+    "syncToGetStarted": "Sincroniza tus contactos desde una cuenta de correo conectada para comenzar.",
     "noSearchResults": "No se encontraron contactos",
     "tryDifferentSearch": "Prueba con un término de búsqueda diferente.",
     "totalContacts": "{{count}} contacto",
     "totalContacts_plural": "{{count}} contactos",
-    "gmailOnlyContactInfo": "Este contacto es de Gmail y aún no ha sido sincronizado. Sincroniza los contactos para ver los detalles.",
+    "unsyncedContactInfo": "Este contacto aún no ha sido sincronizado. Sincroniza los contactos para ver los detalles.",
     "addContact": "Agregar Contacto",
     "viewDetail": "Ver Detalles",
     "notes": "Notas",
@@ -1441,6 +1462,7 @@
     "noDealsWithContact": "Aún no hay negocios con este contacto",
     "createDeal": "Crear Negocio",
     "errorLoadingDeals": "Error al cargar negocios",
+    "errorCreatingDeal": "No se pudo crear el negocio. Inténtalo de nuevo.",
     "expectedClose": "Cierre esperado"
   },
   "senderContext": {
@@ -1874,6 +1896,7 @@
     "blockSender": "Bloquear remitente",
     "bulk": {
       "archive": "Archivar",
+      "snooze": "Posponer",
       "markAsRead": "Marcar como leído",
       "markAsUnread": "Marcar como no leído",
       "selected": "{{count}} correo seleccionado",
@@ -2054,7 +2077,9 @@
       "askAiTab": "Preguntar a IA",
       "collapse": "Contraer panel",
       "expand": "Abrir asistente",
-      "ariaLabel": "Panel de asistente de correo"
+      "ariaLabel": "Panel de asistente de correo",
+      "openMobile": "Asistente",
+      "close": "Cerrar"
     },
     "askAi": {
       "title": "Preguntar a IA",
@@ -3101,6 +3126,7 @@
       "actionTitle": "Pestaña Acción",
       "assistantContent": "Abre cualquier correo y aparecerá un panel lateral a la derecha. La pestaña Acciones reúne el resumen, las tareas y las notas, mientras que la pestaña Preguntar a IA (próximamente) te permitirá conversar sobre el correo: redactar respuestas, obtener resúmenes y ver qué necesita tu atención.",
       "assistantTitle": "Tu panel de asistente con IA",
+      "back": "Atrás",
       "deliveryContent": "Los nuevos correos electrónicos se agrupan y entregan cada pocas horas para evitar distracciones. Utilice 'Entregar ahora' si necesita realizar una verificación urgente.",
       "deliveryTitle": "Entrega programada",
       "finish": "Finalizar",
@@ -3174,7 +3200,9 @@
       "quietHoursTo": "a",
       "quietHoursSuffix": "del día siguiente. Los correos verdaderamente urgentes igual pasan.",
       "startLearning": "Empezar a aprender",
-      "saveError": "No se pudo guardar tu horario. Por favor, inténtalo de nuevo."
+      "saveError": "No se pudo guardar tu horario. Por favor, inténtalo de nuevo.",
+      "timeAria": "Hora",
+      "meridiemAria": "a. m. o p. m."
     },
     "learning": {
       "title": "Conociendo tu bandeja de entrada.",
@@ -3408,12 +3436,12 @@
         "notScored": "El modelo local aún no ha evaluado este hilo.",
         "decidedBy": "Decidido por",
         "decidedByLocal": "Modelo local",
-        "decidedByLlm": "LLM",
+        "decidedByLlm": "LLM (Nova Micro)",
         "family": "Familia",
         "category": "Categoría",
         "priority": "Prioridad",
         "local": "Local",
-        "llm": "LLM",
+        "llm": "LLM (Nova Micro)",
         "agree": "coincide",
         "disagree": "difiere",
         "belowThreshold": "bajo el umbral → LLM"
@@ -3463,6 +3491,7 @@
           "ai-summary": "entrada: resumen de IA",
           "cleaned-body": "entrada: cuerpo del correo limpio",
           "thread-summary": "entrada: resumen del hilo",
+          "thread-summary-and-body": "entrada: resumen del hilo + cuerpo del último correo",
           "email-metadata": "entrada: coincidencia de remitente/asunto/cuerpo"
         }
       },
@@ -3492,7 +3521,7 @@
       "suggestedCategory": "Categoría sugerida",
       "categorisedBy": {
         "label": "Clasificado por: <ruleLink>{{sourceLabel}}</ruleLink>",
-        "ai": "Modelo de prioridad de IA",
+        "ai": "Modelo de lenguaje de IA",
         "rule": "Regla determinista",
         "local": "Modelo local",
         "proto": "Categoría sugerida (pendiente de promoción)",
@@ -3814,6 +3843,9 @@
       "pattern": "Patrón",
       "subjectPrefix": "Prefijo del asunto",
       "hits": "{{count}} coincidencias",
+      "sanityReviewed": "Revisada por IA ({{confidence}}% de confianza)",
+      "sanityReviewedRevised": "Revisada y corregida por IA ({{confidence}}% de confianza)",
+      "sanityTooltip": "Un modelo más potente comprobó esta regla generada automáticamente antes de crearla ({{model}}): {{reason}}",
       "createdAt": "Creada {{date}}",
       "addRule": "Añadir regla compuesta",
       "editRule": "Editar regla compuesta",
@@ -3836,6 +3868,10 @@
       "bodyNotContainsPlaceholder": "enlace de baja\nresumen del día",
       "bodyNotContainsHelp": "Opcional. La regla NO coincide si CUALQUIERA de estas frases aparece en el cuerpo. Útil cuando el mismo remitente envía notificaciones deseadas y no deseadas.",
       "bodyPhraseSeparator": " · ",
+      "githubStateField": "El estado del PR/issue de GitHub es alguno de",
+      "githubProjectStatusField": "El estado del tablero de proyecto de GitHub es alguno de",
+      "githubAuthorKindField": "El autor del PR/issue de GitHub es un",
+      "githubLabelsField": "Las etiquetas de GitHub incluyen alguna de",
       "toggleSuccess": "Regla actualizada",
       "toggleError": "No se pudo actualizar la regla",
       "createSuccess": "Regla compuesta creada",
@@ -3948,7 +3984,9 @@
       "times": {
         "addTime": "Agregar hora",
         "label": "Plazos de entrega",
-        "removeTime": "quitar tiempo"
+        "removeTime": "quitar tiempo",
+        "timeAria": "Hora",
+        "meridiemAria": "a. m. o p. m."
       },
       "timezone": "Zona horaria"
     },
@@ -3956,6 +3994,7 @@
       "connect": "Conectar cuenta",
       "connectAnother": "Conectar otro",
       "noAccounts": "No hay cuentas de correo electrónico conectadas",
+      "lastAccountHint": "Conecta otra cuenta antes de desconectar esta. Para eliminar tu única cuenta, elimina tu cuenta de BearlyMail en su lugar.",
       "providers": {
         "gmail": {
           "description": "Conecta tu cuenta de Gmail"
@@ -4065,6 +4104,7 @@
       "emailDelivery": "Entrega de correo electrónico",
       "emailCategories": "Categorías de Correo",
       "emailSignature": "Firma de correo electrónico",
+      "emailAccounts": "Cuentas de Correo",
       "githubIntegration": "Integración de GitHub",
       "googleAccounts": "Cuentas de Google",
       "guideOurAI": "Guía nuestra IA",

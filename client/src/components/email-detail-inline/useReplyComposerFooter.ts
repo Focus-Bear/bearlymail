@@ -3,16 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { NO_FOLLOW_UP_HOURS } from 'constants/followUp';
 import { REPLY_MODE_FORWARD } from 'constants/strings';
+import { useFollowUpDuration } from 'hooks/useFollowUpDuration';
 
-/**
- * Default follow-up window pre-filled into the (editable) free-text input.
- * Clearing the field means "no follow-up".
- */
-export const DEFAULT_FOLLOW_UP_DURATION = '48h';
-
-// expectedReplyHours value that maps to "no follow-up" (archive after reply).
-const NO_FOLLOW_UP_HOURS = 0;
+export { DEFAULT_FOLLOW_UP_DURATION } from 'constants/followUp';
 
 export interface ReplyComposerFooterProps {
   sending: boolean;
@@ -42,13 +37,12 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
   const { sending, checkingTone, draft, replyMode, scheduledSendAt, onSend, onSchedule } = props;
   const { t } = useTranslation();
 
-  const [followUpDuration, setFollowUpDuration] = useState<string>(DEFAULT_FOLLOW_UP_DURATION);
+  const followUp = useFollowUpDuration();
+  const { followUpDuration, setFollowUpDuration, trimmedDuration, hasFollowUp } = followUp;
   const [keepInAction, setKeepInAction] = useState<boolean>(false);
   const [showSchedulePopup, setShowSchedulePopup] = useState<boolean>(false);
   const scheduleButtonRef = useRef<HTMLDivElement>(null);
 
-  const trimmedDuration = followUpDuration.trim();
-  const hasFollowUp = trimmedDuration.length > 0;
   // Forwards may be sent without any added text — the original message is the content.
   const isMissingDraft = !draft && replyMode !== REPLY_MODE_FORWARD;
   const isDisabled = isMissingDraft || sending || checkingTone;
@@ -105,10 +99,6 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
     }
   };
 
-  const expectedReplyTooltip = hasFollowUp
-    ? t('emailDetail.expectedReply.tooltip', { time: trimmedDuration })
-    : t('emailDetail.expectedReply.tooltipNoFollowUp');
-
   return {
     followUpDuration,
     setFollowUpDuration,
@@ -119,7 +109,7 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
     scheduleButtonRef,
     isDisabled,
     getButtonText,
-    expectedReplyTooltip,
+    expectedReplyTooltip: followUp.tooltipText,
     handleSend,
     handleSendAnyway,
     handleScheduleIconClick,

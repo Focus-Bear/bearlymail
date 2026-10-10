@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { TOAST_WIDTH_BOUNDS } from 'constants/layout';
 import { EXIT_ANIMATION_DURATION_MS, TOAST_ACTION_FOCUS_DELAY_MS, TOAST_ENTRANCE_DELAY_MS } from 'constants/numbers';
 import {
   KEY_ESCAPE,
@@ -102,8 +103,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({ notificati
         padding: theme.spacing.md,
         borderRadius: theme.borderRadius.md,
         boxShadow: theme.shadows.lg,
-        minWidth: '300px',
-        maxWidth: '400px',
+        ...TOAST_WIDTH_BOUNDS,
         borderLeft: `4px solid ${backgroundColor}`,
         pointerEvents: 'auto',
         transform: isVisible && !isExiting ? 'translateX(0)' : 'translateX(400px)',

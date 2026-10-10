@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { EMOJI_CLOSE } from 'constants/emojis';
 
 import { formatTime12h } from './deliveryTimesManager.helpers';
+import { TimeDropdownField } from './TimeDropdownField';
 
 interface DeliveryTimesManagerProps {
   deliveryTimes: string[];
@@ -76,16 +77,11 @@ export const DeliveryTimesManager: React.FC<DeliveryTimesManagerProps> = ({
         ))}
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
-        <input
-          type="time"
+        <TimeDropdownField
           value={newDeliveryTime}
-          onChange={event => onNewDeliveryTimeChange(event.target.value)}
-          style={{
-            padding: theme.spacing.sm,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            fontSize: theme.typography.fontSize.sm,
-          }}
+          onChange={onNewDeliveryTimeChange}
+          timeLabel={t('settings.delivery.times.timeAria')}
+          meridiemLabel={t('settings.delivery.times.meridiemAria')}
         />
         <button
           onClick={onAddTime}

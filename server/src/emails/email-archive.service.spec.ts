@@ -7,6 +7,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   ContextKey,
+  Source,
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EmailArchiveService } from "./email-archive.service";
@@ -34,6 +35,8 @@ const mockCategoryOverrideRepository = {
 
 const mockUserContextRepository = {
   find: jest.fn(),
+  create: jest.fn((entity) => entity),
+  save: jest.fn(),
 };
 
 const mockEmailCrudService = {
@@ -203,7 +206,7 @@ describe("EmailArchiveService", () => {
 
       expect(mockUserContextRepository.find).toHaveBeenCalledWith({
         where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-        select: { contextId: true, contextValue: true },
+        select: { contextId: true, contextValue: true, categoryKey: true },
       });
 
       expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
@@ -214,24 +217,72 @@ describe("EmailArchiveService", () => {
       );
     });
 
-    it("does NOT update categoryId when no matching UserContext row exists", async () => {
+    it("creates a new USER_EDITED category and assigns it when the name doesn't exist yet", async () => {
       mockUserContextRepository.find.mockResolvedValue([]);
+      const createdId = "new-category-uuid";
+      mockUserContextRepository.save.mockResolvedValue({
+        contextId: createdId,
+      });
 
       const result = await service.overrideCategory(
         userId,
         emailId,
-        newCategory,
+        "Brand New Category",
       );
 
+      // The new category was persisted as an EMAIL_CATEGORY / USER_EDITED
+      // context with a name and a generated categoryKey.
+      expect(mockUserContextRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId,
+          contextKey: ContextKey.EMAIL_CATEGORY,
+          contextValue: "Brand New Category",
+          source: Source.USER_EDITED,
+          categoryKey: expect.any(String),
+        }),
+      );
+      expect(mockUserContextRepository.save).toHaveBeenCalled();
+
+      // The email is placed under the newly created category, not "Other".
       expect(result).toEqual({
         success: true,
-        category: newCategory,
+        category: "Brand New Category",
+        categoryId: createdId,
+      });
+      const updateCall = mockEmailThreadRepository.update.mock.calls[0];
+      expect(updateCall[1]).toMatchObject({ categoryId: createdId });
+    });
+
+    it("gives the new category a categoryKey unique among existing keys", async () => {
+      mockUserContextRepository.find.mockResolvedValue([
+        {
+          contextId: "c1",
+          contextValue: "Existing",
+          categoryKey: "brand_new_category",
+        },
+      ]);
+      mockUserContextRepository.save.mockResolvedValue({ contextId: "new-id" });
+
+      await service.overrideCategory(userId, emailId, "Brand New Category");
+
+      const createArg = mockUserContextRepository.create.mock.calls[0][0];
+      // Base slug collides with the existing key, so it must be suffixed.
+      expect(createArg.categoryKey).not.toBe("brand_new_category");
+      expect(createArg.categoryKey).toMatch(/^brand_new_category_\d+$/);
+    });
+
+    it("does NOT create a category when correcting to Other", async () => {
+      mockUserContextRepository.find.mockResolvedValue([]);
+
+      const result = await service.overrideCategory(userId, emailId, "Other");
+
+      expect(mockUserContextRepository.create).not.toHaveBeenCalled();
+      expect(mockUserContextRepository.save).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: true,
+        category: "Other",
         categoryId: null,
       });
-
-      const updateCall = mockEmailThreadRepository.update.mock.calls[0];
-      const updatePayload = updateCall[1];
-      expect(updatePayload).toMatchObject({ categoryId: null });
     });
 
     it("updates categoryExplanation regardless of context lookup result", async () => {

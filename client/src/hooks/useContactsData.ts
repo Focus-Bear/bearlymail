@@ -18,6 +18,7 @@ import { API_URL } from 'config/api';
 import { getPusherInstance } from 'config/pusher';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MILLISECONDS_PER_MINUTE, TOAST_DURATION_MS } from 'constants/numbers';
+import { PUSHER_EVENTS, userChannel } from 'constants/pusher-events';
 
 export interface UseContactsDataResult {
   contacts: Contact[];
@@ -102,23 +103,29 @@ export const useContactsData = (userId: string | undefined): UseContactsDataResu
       return;
     }
 
-    const channel = pusher.subscribe(`user-${userId}`);
+    const channel = pusher.subscribe(userChannel(userId));
 
-    channel.bind('contacts-sync-started', () => {
-      setSyncing(true);
-    });
-    channel.bind('contacts-sync-complete', () => {
+    const onSyncStarted = () => setSyncing(true);
+    const onSyncComplete = () => {
       setSyncing(false);
       fetchContacts();
-    });
-    channel.bind('contacts-sync-failed', (eventData: { error: string }) => {
+    };
+    const onSyncFailed = (eventData: { error: string }) => {
       setSyncing(false);
       setError(eventData.error);
-    });
+    };
+
+    channel.bind(PUSHER_EVENTS.CONTACTS_SYNC_STARTED, onSyncStarted);
+    channel.bind(PUSHER_EVENTS.CONTACTS_SYNC_COMPLETE, onSyncComplete);
+    channel.bind(PUSHER_EVENTS.CONTACTS_SYNC_FAILED, onSyncFailed);
 
     return () => {
-      channel.unbind_all();
-      pusher.unsubscribe(`user-${userId}`);
+      // Unbind only these handlers and leave the channel subscribed: it is
+      // shared with app-wide listeners (background send outcomes), which
+      // unbind_all/unsubscribe would silently kill.
+      channel.unbind(PUSHER_EVENTS.CONTACTS_SYNC_STARTED, onSyncStarted);
+      channel.unbind(PUSHER_EVENTS.CONTACTS_SYNC_COMPLETE, onSyncComplete);
+      channel.unbind(PUSHER_EVENTS.CONTACTS_SYNC_FAILED, onSyncFailed);
     };
   }, [userId, fetchContacts]);
 

@@ -30,8 +30,9 @@ describe('FeedbackModal — guard against discarding typed feedback', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: text } });
   };
 
+  // Cancel is now the single close control (the redundant top-right X was removed).
   const clickClose = () => {
-    fireEvent.click(screen.getByRole('button', { name: 'common.close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
   };
 
   it('closes immediately (no confirm) when no text has been entered', () => {
@@ -104,7 +105,7 @@ describe('FeedbackModal — draft persistence', () => {
     render(<FeedbackModal onClose={vi.fn()} />);
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'throwaway' } });
-    fireEvent.click(screen.getByRole('button', { name: 'common.close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
 
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull();
   });

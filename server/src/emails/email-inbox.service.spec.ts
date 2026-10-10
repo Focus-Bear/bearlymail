@@ -1,3 +1,4 @@
+import { QUERY_LIMITS } from "../constants/query-limits";
 /**
  * Unit tests for category sort order logic in EmailInboxService (fix #1550).
  *
@@ -328,5 +329,210 @@ describe("getInboxSummary SQL — fix #2062 account scope", () => {
     expect(lateralBody).toMatch(/"googleAccountId"/);
     expect(lateralBody).toMatch(/"office365AccountId"/);
     expect(lateralBody).toMatch(/"zohoAccountId"/);
+  });
+});
+
+// ─── issue #2062: the summary must describe the same set as the thread query ──
+//
+// Header counts come from getInboxSummary; rows come from runInboxQuery. They now
+// share one scope: the same row cap in the same order, and a category join that
+// only resolves the user's own EMAIL_CATEGORY contexts.
+
+describe("getInboxSummary SQL — issue #2062 shared scope", () => {
+  async function buildService() {
+    const { emailThreadRepository } = buildServiceDeps();
+    const blockedSendersService = {
+      getBlockedEmailHashes: jest.fn().mockResolvedValue(undefined),
+      isSenderBlocked: jest.fn().mockResolvedValue(false),
+    };
+    const emailInboxCategoryService = {
+      resolveUserEmailLower: jest.fn().mockResolvedValue(null),
+      countRowsByCategory: jest.fn().mockResolvedValue({
+        categoryOrder: [],
+        categoryCounts: {},
+        categoryThreadIds: {},
+        categoryUuidByName: new Map(),
+      }),
+      filterVisibleCategoriesByIds: jest.fn().mockReturnValue([]),
+    };
+    const emailFollowUpService = {
+      selectFollowUpThreadIds: jest.fn().mockResolvedValue(new Set()),
+    };
+    const userContextRepository = { find: jest.fn().mockResolvedValue([]) };
+    const { EmailInboxService } = await import("./email-inbox.service");
+    const service = new EmailInboxService(
+      {},
+      emailThreadRepository,
+      userContextRepository,
+      blockedSendersService,
+      emailFollowUpService,
+      emailInboxCategoryService,
+      {},
+      undefined,
+    );
+    return { service, emailThreadRepository, emailFollowUpService };
+  }
+
+  it("caps the summary at the same row limit and order as the thread query", async () => {
+    const { service, emailThreadRepository } = await buildService();
+    await service.getInboxSummary("user-123", "action");
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+
+    expect(sql).toMatch(
+      /ORDER BY COALESCE\(thread\."priorityScore", 0\) DESC, thread\."updatedAt" DESC, thread\."threadId" ASC/,
+    );
+    expect(sql).toMatch(
+      new RegExp(`LIMIT ${QUERY_LIMITS.INBOX_PROCESS_TOTAL}`),
+    );
+  });
+
+  it("only resolves category names from the user's own EMAIL_CATEGORY contexts", async () => {
+    const { service, emailThreadRepository } = await buildService();
+    await service.getInboxSummary("user-123", "triage");
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+
+    expect(sql).toMatch(/uc\."userId"\s*=\s*\$1/);
+    expect(sql).toMatch(/uc\."contextKey"\s*=\s*'EMAIL_CATEGORY'/);
+  });
+
+  it("selects the fields the shared action rule needs", async () => {
+    const { service, emailThreadRepository } = await buildService();
+    await service.getInboxSummary("user-123", "action");
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+
+    expect(sql).toContain('latest_email."sentByAutoResponder"');
+    expect(sql).toContain('thread."keepInAction"');
+  });
+
+  it("binds the assignee filter like the thread query does", async () => {
+    const { service, emailThreadRepository } = await buildService();
+    await service.getInboxSummary("user-123", "triage", {
+      assigneeId: "user-2",
+    });
+    const [sql, params] = emailThreadRepository.query.mock.calls[0] as [
+      string,
+      unknown[],
+    ];
+
+    expect(sql).toContain('thread."assigneeId" = $2');
+    expect(params).toEqual(["user-123", "user-2"]);
+  });
+
+  it("decides follow-up membership with the shared follow-up rule", async () => {
+    const { service, emailFollowUpService } = await buildService();
+    await service.getInboxSummary("user-123", "follow-up");
+    expect(emailFollowUpService.selectFollowUpThreadIds).toHaveBeenCalledWith(
+      "user-123",
+      [],
+    );
+  });
+});
+
+// ─── Follow-Up tab count: threadId must not depend on includeThreadIds ────────
+//
+// The Follow-Up badge read 0 while opening the tab showed 9. Both come from
+// getInboxSummary, but only the active view asked for includeThreadIds=true.
+// `thread."threadId"` was selected ONLY for that flag, and follow-up membership
+// is keyed on it twice over: selectFollowUpThreadIds drops candidates without a
+// threadId, and shouldExclude drops rows without one. So the tab-counts call
+// (which never sets the flag) evaluated every follow-up row as excluded.
+
+describe("getInboxSummary — follow-up membership does not depend on includeThreadIds", () => {
+  const FOLLOW_UP_ROW = {
+    categoryId: "cat-1",
+    categoryName: "Partnerships",
+    threadId: "thread-abc",
+    latestFrom: "enc(me@example.com)",
+  };
+
+  /** The SELECT list only — `ORDER BY` also names threadId, so the whole SQL is not a usable signal. */
+  const selectClauseOf = (sql: string): string =>
+    sql.slice(0, sql.search(/\bFROM\b/));
+
+  async function runFollowUpSummary(includeThreadIds?: boolean) {
+    const emailThreadRepository = {
+      // Behave like the database: a column that was not projected is absent
+      // from the row, which is exactly what broke the follow-up count.
+      query: jest.fn(async (sql: string) => {
+        const projectsThreadId =
+          selectClauseOf(sql).includes('thread."threadId"');
+        const { threadId: _threadId, ...withoutThreadId } = FOLLOW_UP_ROW;
+        return [projectsThreadId ? FOLLOW_UP_ROW : withoutThreadId];
+      }),
+      find: jest.fn().mockResolvedValue([]),
+    };
+    const blockedSendersService = {
+      getBlockedEmailHashes: jest.fn().mockResolvedValue(undefined),
+      isSenderBlocked: jest.fn().mockResolvedValue(false),
+    };
+    // The real rule keys on threadId; mirror that so a row that never carried
+    // one cannot be counted.
+    const emailFollowUpService = {
+      selectFollowUpThreadIds: jest.fn(
+        async (_userId: string, rows: Array<{ threadId?: string }>) =>
+          new Set(rows.map((row) => row.threadId).filter(Boolean)),
+      ),
+    };
+    const emailInboxCategoryService = {
+      resolveUserEmailLower: jest.fn().mockResolvedValue("me@example.com"),
+      countRowsByCategory: jest.fn(
+        async (options: {
+          rows: Array<{ threadId?: string; categoryName: string }>;
+          followUpThreadIds?: Set<string>;
+        }) => {
+          const kept = options.rows.filter(
+            (row) =>
+              row.threadId && options.followUpThreadIds?.has(row.threadId),
+          );
+          return {
+            categoryOrder: kept.length ? ["Partnerships"] : [],
+            categoryCounts: kept.length ? { Partnerships: kept.length } : {},
+            categoryThreadIds: {},
+            categoryUuidByName: new Map([["Partnerships", "cat-1"]]),
+          };
+        },
+      ),
+      filterVisibleCategoriesByIds: jest.fn((_u, order: string[]) => order),
+    };
+    const userContextRepository = { find: jest.fn().mockResolvedValue([]) };
+
+    const { EmailInboxService } = await import("./email-inbox.service");
+    const service = new EmailInboxService(
+      {} as never,
+      emailThreadRepository as never,
+      userContextRepository as never,
+      blockedSendersService as never,
+      emailFollowUpService as never,
+      emailInboxCategoryService as never,
+      {} as never,
+      undefined,
+    );
+
+    const result = await service.getInboxSummary(
+      "user-123",
+      "follow-up",
+      includeThreadIds === undefined ? undefined : { includeThreadIds },
+    );
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+    return { result, sql };
+  }
+
+  it("projects thread.threadId even when the caller does not ask for thread ids", async () => {
+    const { sql } = await runFollowUpSummary(undefined);
+
+    expect(selectClauseOf(sql)).toContain('thread."threadId"');
+  });
+
+  it("counts follow-up threads for the tab-counts call (no includeThreadIds)", async () => {
+    const { result } = await runFollowUpSummary(undefined);
+
+    expect(result.total).toBe(1);
+  });
+
+  it("matches the count the active view gets with includeThreadIds", async () => {
+    const withFlag = await runFollowUpSummary(true);
+    const withoutFlag = await runFollowUpSummary(undefined);
+
+    expect(withoutFlag.result.total).toBe(withFlag.result.total);
   });
 });

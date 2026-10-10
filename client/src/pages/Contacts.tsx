@@ -132,12 +132,13 @@ const ContactsList: React.FC<ContactsListProps> = ({ contacts, getContactTypeCon
               key={contact.id || contact.email}
               onClick={() => {
                 // Navigate for contacts with a valid UUID id (local DB records).
-                // Gmail-only search results use a Google People API resource name
-                // (e.g. "people/c12345") which is not a UUID — show feedback instead.
+                // Unsynced search results use a provider resource name
+                // (e.g. Google People API "people/c12345") which is not a UUID —
+                // show feedback instead.
                 if (canNavigate) {
                   navigate(`/crm/contacts/${contact.id}`);
                 } else {
-                  showInfo(t('contacts.gmailOnlyContactInfo'));
+                  showInfo(t('contacts.unsyncedContactInfo'));
                 }
               }}
               style={{

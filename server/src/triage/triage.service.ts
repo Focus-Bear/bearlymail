@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { LLMCoreService } from "../llm/llm-core.service";
 import { LLM_OP_VERIFY_DISTRACTION_PHRASE } from "../llm/llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "../llm/prompts";
@@ -59,6 +60,10 @@ export class TriageService {
           maxTokens: VERIFY_DISTRACTION_PHRASE_MAX_TOKENS,
           jsonMode: true,
           operation: LLM_OP_VERIFY_DISTRACTION_PHRASE,
+          jevDecision: {
+            kind: JEV_DECISION_KINDS.DISTRACTION_PHRASE,
+            input: {},
+          },
         },
         undefined,
         userId,

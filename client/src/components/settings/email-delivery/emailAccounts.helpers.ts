@@ -57,6 +57,17 @@ export function buildAllAccounts(
   ];
 }
 
+/**
+ * Whether the Disconnect action should be offered for a connected account.
+ * Disconnecting is only allowed when another account is already connected;
+ * removing the only account would leave BearlyMail with no email provider, so
+ * the user must connect another account first or delete their BearlyMail
+ * account instead.
+ */
+export function canDisconnectAccounts(totalAccounts: number): boolean {
+  return totalAccounts > 1;
+}
+
 export function getDisconnectConfirmKey(provider: string): string {
   if (provider === PROVIDER_GMAIL) {
     return 'settings.gmail.confirmDisconnect';

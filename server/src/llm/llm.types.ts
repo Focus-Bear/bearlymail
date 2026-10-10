@@ -1,3 +1,4 @@
+import type { JevDecisionRequest } from "./jev-decisions/jev-decision.types";
 import { LLMOperation } from "./llm-operations";
 
 export enum LLMProvider {
@@ -37,8 +38,21 @@ export interface LLMRequest {
    * thinking budget; non-thinking models ignore it.
    */
   thinking?: boolean;
+  /**
+   * When true, the provider is asked to cache the static `systemPrompt` prefix
+   * across calls (Bedrock Converse `cachePoint`; Gemini caches implicitly).
+   * Only worth setting for high-volume prompts whose system block is fully
+   * static — the cache key is the exact prefix, so any per-call text must go
+   * in `prompt`, not `systemPrompt`.
+   */
+  cacheStaticPrefix?: boolean;
   metadata?: {
     /** Email IDs processed in this LLM call (for tracking duplicate summarisations). */
     emailIds?: string[];
   };
+  /**
+   * Typed form of this request's decision. When present, Jev answers it first
+   * and the provider call only runs if Jev is unsure or text is needed.
+   */
+  jevDecision?: JevDecisionRequest;
 }

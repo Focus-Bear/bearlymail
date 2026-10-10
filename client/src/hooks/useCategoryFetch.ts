@@ -14,7 +14,7 @@ import {
 import { markCategoryLoaded } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
-/** Number of categories to auto-expand on initial mount (sorted by email count desc). */
+/** Number of categories to auto-expand on initial mount (in priority/display order). */
 const INITIAL_PRELOAD_COUNT = 6;
 
 /** Fire budget-warning signal when fetch reaches this fraction of the budget. */
@@ -30,6 +30,15 @@ interface CategorySummaryItem {
 export interface UseCategoryFetchParams {
   categorySummary: CategorySummaryItem[] | null | undefined;
   fetchCategoryEmails: (name: string, id?: string) => Promise<void>;
+  /**
+   * Optional batch preloader (#145). When provided, the initial top-of-inbox
+   * accordions are hydrated in ONE round-trip instead of one fetch per category
+   * (which stalled for seconds on mobile). When omitted, the per-category effect
+   * loads each individually as before.
+   */
+  fetchCategoryEmailsBatch?: (
+    items: Array<{ name: string; id?: string | null }>
+  ) => Promise<{ loadedKeys: string[]; failedKeys: string[] }>;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
   exhaustedCategoryNames?: string[];
@@ -39,11 +48,15 @@ export interface UseCategoryFetchParams {
 export function useCategoryFetch({
   categorySummary,
   fetchCategoryEmails,
+  fetchCategoryEmailsBatch,
   loadedCategoryNames,
   loadingCategoryNames,
   exhaustedCategoryNames = [],
 }: UseCategoryFetchParams) {
   const dispatch = useDispatch<AppDispatch>();
+  // Kept in a ref so updateStableCategoryOrder stays reference-stable.
+  const fetchCategoryEmailsBatchRef = useRef(fetchCategoryEmailsBatch);
+  fetchCategoryEmailsBatchRef.current = fetchCategoryEmailsBatch;
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [stableCategoryOrder, setStableCategoryOrder] = useState<string[]>([]);
   /**
@@ -129,22 +142,78 @@ export function useCategoryFetch({
     }
   }, [triggerLookaheadPreload]);
 
-  const updateStableCategoryOrder = useCallback((categoryKeys: string[], summaryItems?: CategorySummaryItem[]) => {
-    if (categoryKeys.length > 0) {
-      setStableCategoryOrder(categoryKeys);
-      if (!hasAutoExpandedRef.current) {
-        hasAutoExpandedRef.current = true;
-        // Sort by email count desc so top INITIAL_PRELOAD_COUNT categories expand first on mount.
-        const keyToCount = summaryItems
-          ? new Map(summaryItems.map(item => [getCategoryKey(item.id, item.name), item.count ?? 0]))
-          : null;
-        const orderedKeys = keyToCount
-          ? [...categoryKeys].sort((keyA, keyB) => (keyToCount.get(keyB) ?? 0) - (keyToCount.get(keyA) ?? 0))
-          : categoryKeys;
-        setExpandedCategories(new Set(orderedKeys.slice(0, INITIAL_PRELOAD_COUNT)));
+  /**
+   * Hydrate the initially auto-expanded categories in a single request (#145).
+   * Reserves their keys in fetchSessionRef *before* the fetch effect runs so the
+   * per-category effect skips them (no duplicate single-category calls), fires the
+   * batch, then marks each category's status from the result. No-op when no batch
+   * preloader was provided (falls back to per-category loading). Categories the
+   * summary reports as empty are left to the effect's fast-path (resolved without
+   * a network call).
+   */
+  const preloadTopCategories = useCallback(
+    (topKeys: string[], summaryItems?: CategorySummaryItem[]) => {
+      const batchFn = fetchCategoryEmailsBatchRef.current;
+      if (!batchFn || !summaryItems) {
+        return;
       }
-    }
-  }, []);
+      const keyToItem = new Map(summaryItems.map(item => [getCategoryKey(item.id, item.name), item]));
+      const batchItems = topKeys
+        .map(key => keyToItem.get(key))
+        .filter((item): item is CategorySummaryItem => !!item && (item.count ?? 0) > 0)
+        .map(item => ({ name: item.name, id: item.id ?? undefined }));
+      const batchKeys = batchItems.map(item => getCategoryKey(item.id, item.name));
+      if (batchKeys.length === 0) {
+        return;
+      }
+      batchKeys.forEach(key => {
+        fetchSessionRef.current.add(key);
+        dispatch(categoryFetchStart(key));
+      });
+      batchFn(batchItems)
+        .then(({ loadedKeys, failedKeys }) => {
+          loadedKeys.forEach(key => dispatch(categoryFetchSuccess({ key, emails: [], fetchedAt: Date.now() })));
+          failedKeys.forEach(key =>
+            dispatch(
+              categoryFetchError({
+                key,
+                error: 'Batch preload failed',
+                retryCount: 1,
+                nextRetryAt: Date.now() + CATEGORY_FETCH_RETRY_DELAY_MS,
+              })
+            )
+          );
+          // Release the reservation so a manual expand can re-fetch if needed.
+          [...loadedKeys, ...failedKeys].forEach(key => fetchSessionRef.current.delete(key));
+        })
+        .catch(() => {
+          batchKeys.forEach(key => fetchSessionRef.current.delete(key));
+        });
+    },
+    [dispatch]
+  );
+
+  const updateStableCategoryOrder = useCallback(
+    (categoryKeys: string[], summaryItems?: CategorySummaryItem[]) => {
+      if (categoryKeys.length > 0) {
+        setStableCategoryOrder(categoryKeys);
+        if (!hasAutoExpandedRef.current) {
+          hasAutoExpandedRef.current = true;
+          // categoryKeys arrive in the server's priority/display order (highest max-thread
+          // priority first). Take the top INITIAL_PRELOAD_COUNT in THAT order — not by email
+          // count — so the categories the user sees at the top of the inbox are the ones
+          // auto-expanded and batch-preloaded first. Sorting by count could push a
+          // high-priority-but-small category (e.g. Payments & Financials) out of the initial
+          // batch, leaving it to lazy-load slowly while lower-priority ones render.
+          const topKeys = categoryKeys.slice(0, INITIAL_PRELOAD_COUNT);
+          setExpandedCategories(new Set(topKeys));
+          // Preload the top accordions in one round-trip (#145) instead of N fetches.
+          preloadTopCategories(topKeys, summaryItems);
+        }
+      }
+    },
+    [preloadTopCategories]
+  );
 
   const resetForModeChange = useCallback(() => {
     setStableCategoryOrder([]);

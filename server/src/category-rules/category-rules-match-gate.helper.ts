@@ -16,6 +16,8 @@ import {
   CompositeCategoryRuleSpecV3,
 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
+import type { EmailThread } from "../database/entities/email-thread.entity";
+import { buildGithubCategorySignals } from "../github/github-category-signals.helper";
 import { buildRuleMatchText } from "../llm/email-content-cleaner";
 import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import {
@@ -23,12 +25,20 @@ import {
   evaluateComposite,
   specToV2,
 } from "./category-rules-auto-composite.helper";
+import { specHasGithubConditions } from "./category-rules-github-conditions.helper";
+import { specHasNotificationSubtype } from "./category-rules-notification-subtype.helper";
 
-/** A single email reduced to the fields needed for composite matching. */
+/**
+ * A single email reduced to the fields needed for composite matching, plus
+ * its thread's GitHub metadata (for rules with `github*` conditions).
+ */
 export type MatchScanRow = Pick<
   Email,
   "from" | "subject" | "body" | "htmlBody"
->;
+> & {
+  receivedAt?: Date | null;
+  thread?: Pick<EmailThread, "githubMetadata"> | null;
+};
 
 /**
  * Caches the cleaned match text per row so repeated `countMatchesInRows`
@@ -61,11 +71,20 @@ export async function fetchRecentEmailsForMatching(
     where: { userId },
     order: { receivedAt: "DESC" },
     take: scanCount,
+    relations: { thread: true },
     select: {
+      // `id` is unused by the caller but MUST be selected: a `find` that
+      // combines `relations` with `take` makes TypeORM paginate via a DISTINCT
+      // sub-select that orders on the primary key, so omitting it produces
+      // `column distinctAlias.Email_id does not exist` at runtime and every
+      // rule-persist attempt throws.
+      id: true,
       from: true,
       subject: true,
       body: true,
       htmlBody: true,
+      receivedAt: true,
+      thread: { id: true, githubMetadata: true },
     },
   });
 }
@@ -91,6 +110,16 @@ export function countMatchesInRows(
             body: row.body,
             htmlBody: row.htmlBody,
           }) ?? undefined,
+        github: buildGithubCategorySignals(
+          {
+            from: row.from || "",
+            subject: row.subject || "",
+            body: row.body,
+            htmlBody: row.htmlBody,
+            receivedAt: row.receivedAt,
+          },
+          row.thread?.githubMetadata ?? null,
+        ),
       },
       normaliseSender,
     );
@@ -138,16 +167,17 @@ export function specHasExclusion(spec: CompositeCategoryRuleSpec): boolean {
 
 /**
  * True when the spec carries a structural condition that already prevents it
- * from matching too broadly WITHOUT relying on NOT-contains phrases. Currently
- * this is the notification-subtype constraint: a rule pinned to `github:pr` (or
- * any resolved sub-stream) only fires on that sub-stream, which is a hard,
- * deterministic separator — so the "must have an exclusion" requirement (whose
- * sole purpose is to stop over-broad matching) can be satisfied by it instead.
+ * from matching too broadly WITHOUT relying on NOT-contains phrases: the
+ * notification-subtype constraint (a rule pinned to `github:pr` or any resolved
+ * sub-stream only fires on that sub-stream) or a GitHub-metadata condition
+ * (state / board status / author kind / labels). Both are hard, deterministic
+ * separators — so the "must have an exclusion" requirement (whose sole purpose
+ * is to stop over-broad matching) can be satisfied by them instead.
  */
 export function specHasStructuralConstraint(
   spec: CompositeCategoryRuleSpec,
 ): boolean {
-  return spec.v === 3 && spec.notificationSubtype !== undefined;
+  return specHasNotificationSubtype(spec) || specHasGithubConditions(spec);
 }
 
 /** Lower-cased, trimmed set of phrases for case-insensitive overlap checks. */

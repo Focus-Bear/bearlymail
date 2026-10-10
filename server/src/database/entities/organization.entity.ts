@@ -14,7 +14,7 @@ import {
   ORG_PLAN_STATUS,
   OrgPlanStatus,
 } from "../../constants/domain-statuses";
-import { makeEncryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { makeGlobalEncryptedColumnTransformer } from "../../encryption/encryption.helper";
 import { OrganizationMember } from "./organization-member.entity";
 import { User } from "./user.entity";
 
@@ -23,8 +23,17 @@ export class Organization {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
+  /**
+   * GLOBAL key, not the per-user key: an organization is shared data, read by
+   * every member and by unauthenticated paths (the OAuth callback provisions
+   * the personal org before any interceptor has put a key in ALS). Under the
+   * per-user transformer the value was encrypted with whichever key happened to
+   * be in ALS at write time and decrypted with whichever happened to be there at
+   * read time, so the two rarely matched — the source of the recurring
+   * `organizations.name userKey=absent` decrypt failures.
+   */
   @Column({
-    transformer: makeEncryptedColumnTransformer("organizations.name"),
+    transformer: makeGlobalEncryptedColumnTransformer("organizations.name"),
   })
   name: string;
 

@@ -16,6 +16,6 @@ export const SNOOZE_CONSTANTS = {
   MAX_SNOOZE_DAYS: 20,
   // Days in a week (for calculating next week's date)
   DAYS_IN_WEEK: 7,
-  // Default hour for day-name snooze (9 AM)
-  DEFAULT_SNOOZE_HOUR: 9,
+  // Default hour for calendar-day snoozes (8 AM)
+  DEFAULT_SNOOZE_HOUR: 8,
 } as const;

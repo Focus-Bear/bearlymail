@@ -299,3 +299,110 @@ describe('useCategoryFetch — lookahead preload', () => {
     });
   });
 });
+
+describe('useCategoryFetch — batch preload (#145)', () => {
+  let fetchCategoryEmails: jest.Mock;
+  let fetchCategoryEmailsBatch: jest.Mock;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchCategoryEmails = vi.fn().mockResolvedValue(undefined);
+    fetchCategoryEmailsBatch = vi
+      .fn()
+      .mockResolvedValue({ loadedKeys: ['cat-a', 'cat-b', 'cat-c', 'cat-d'], failedKeys: [] });
+    (measurePerformance as jest.Mock).mockImplementation(async (_opts: unknown, op: () => Promise<unknown>) => {
+      const result = await op();
+      return { result, durationMs: 100, overBudget: false, overageMs: 0 };
+    });
+  });
+
+  const batchProps = (summary = SUMMARY) => ({
+    categorySummary: summary,
+    fetchCategoryEmails,
+    fetchCategoryEmailsBatch,
+    loadedCategoryNames: [],
+    loadingCategoryNames: [],
+    exhaustedCategoryNames: [],
+  });
+
+  it('preloads the top categories in one batch call and suppresses the per-category fetches', async () => {
+    const { result } = renderHook(() => useCategoryFetch(batchProps()), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.updateStableCategoryOrder(['cat-a', 'cat-b', 'cat-c', 'cat-d'], SUMMARY);
+    });
+
+    await waitFor(() => expect(fetchCategoryEmailsBatch).toHaveBeenCalledTimes(1));
+    // Items follow the order the keys were supplied in (the server's priority/display order).
+    expect(fetchCategoryEmailsBatch).toHaveBeenCalledWith([
+      { name: 'Alpha', id: 'cat-a' },
+      { name: 'Beta', id: 'cat-b' },
+      { name: 'Gamma', id: 'cat-c' },
+      { name: 'Delta', id: 'cat-d' },
+    ]);
+
+    // The reserved keys are skipped by the per-category effect — no duplicate single fetches.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(fetchCategoryEmails).not.toHaveBeenCalled();
+  });
+
+  it('batches in the supplied priority order, NOT by email count', async () => {
+    // Priority/display order (input) puts the low-count category first; a count-desc
+    // sort would reorder it. The batch must follow the input order so the top-of-inbox
+    // (highest-priority) category is preloaded first.
+    const summary = [
+      { id: 'cat-d', name: 'Delta', count: 1 },
+      { id: 'cat-a', name: 'Alpha', count: 5 },
+    ];
+    const { result } = renderHook(() => useCategoryFetch(batchProps(summary)), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.updateStableCategoryOrder(['cat-d', 'cat-a'], summary);
+    });
+
+    await waitFor(() => expect(fetchCategoryEmailsBatch).toHaveBeenCalledTimes(1));
+    expect(fetchCategoryEmailsBatch).toHaveBeenCalledWith([
+      { name: 'Delta', id: 'cat-d' },
+      { name: 'Alpha', id: 'cat-a' },
+    ]);
+  });
+
+  it('excludes empty (count 0) categories from the batch', async () => {
+    const summary = [
+      { id: 'cat-a', name: 'Alpha', count: 5 },
+      { id: 'cat-z', name: 'Zeta', count: 0 },
+    ];
+    const { result } = renderHook(() => useCategoryFetch(batchProps(summary)), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.updateStableCategoryOrder(['cat-a', 'cat-z'], summary);
+    });
+
+    await waitFor(() => expect(fetchCategoryEmailsBatch).toHaveBeenCalledTimes(1));
+    expect(fetchCategoryEmailsBatch).toHaveBeenCalledWith([{ name: 'Alpha', id: 'cat-a' }]);
+  });
+
+  it('falls back to per-category fetches when no batch preloader is provided', async () => {
+    const { result } = renderHook(
+      () =>
+        useCategoryFetch({
+          categorySummary: SUMMARY,
+          fetchCategoryEmails,
+          loadedCategoryNames: [],
+          loadingCategoryNames: [],
+          exhaustedCategoryNames: [],
+        }),
+      { wrapper: createWrapper() }
+    );
+
+    act(() => {
+      result.current.updateStableCategoryOrder(['cat-a', 'cat-b', 'cat-c', 'cat-d'], SUMMARY);
+    });
+
+    // Without a batch preloader the effect loads each expanded category individually.
+    await waitFor(() => expect(fetchCategoryEmails).toHaveBeenCalledWith('Alpha', 'cat-a'));
+    expect(fetchCategoryEmailsBatch).not.toHaveBeenCalled();
+  });
+});

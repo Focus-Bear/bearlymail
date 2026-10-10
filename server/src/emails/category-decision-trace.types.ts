@@ -77,6 +77,8 @@ export type CategoryDecisionContentSource =
   | "cleaned-body"
   /** The thread-level summary (incremental re-categorisation). */
   | "thread-summary"
+  /** The refreshed thread summary PLUS the new email's cleaned body (incremental re-categorisation). */
+  | "thread-summary-and-body"
   /** Sender/subject/body metadata only (deterministic rule matching). */
   | "email-metadata";
 

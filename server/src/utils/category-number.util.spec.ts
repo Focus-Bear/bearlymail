@@ -100,6 +100,72 @@ describe("resolveResponseCategory", () => {
   });
 });
 
+describe("resolveResponseCategory — categoryName reconciliation", () => {
+  const ordered = [
+    "🔧 GitHub PR Updates",
+    "❌ CI/CD & QA Pipeline Failures",
+    "New Github issues raised by QAs",
+  ];
+
+  it("trusts an exact categoryName over a WRONG categoryNumber (Nova Lite mis-count)", () => {
+    // The reported regression: the model named "GitHub PR Updates" in its
+    // reasoning but emitted categoryNumber 3 ("New Github issues..."). The exact
+    // name match must win so the right category is applied.
+    expect(
+      resolveResponseCategory(
+        { categoryNumber: 3, categoryName: "🔧 GitHub PR Updates" },
+        ordered,
+      ),
+    ).toBe("🔧 GitHub PR Updates");
+  });
+
+  it("matches categoryName case/emoji-insensitively", () => {
+    expect(
+      resolveResponseCategory(
+        { categoryNumber: 3, categoryName: "github pr updates" },
+        ordered,
+      ),
+    ).toBe("🔧 GitHub PR Updates");
+  });
+
+  it("uses categoryNumber when name and number agree", () => {
+    expect(
+      resolveResponseCategory(
+        { categoryNumber: 2, categoryName: "❌ CI/CD & QA Pipeline Failures" },
+        ordered,
+      ),
+    ).toBe("❌ CI/CD & QA Pipeline Failures");
+  });
+
+  it("falls back to categoryNumber when categoryName is a fabricated near-name", () => {
+    // Not an exact match → don't fuzzy-route on the name; trust the number.
+    expect(
+      resolveResponseCategory(
+        { categoryNumber: 2, categoryName: "New GitHub Bug Reports" },
+        ordered,
+      ),
+    ).toBe("❌ CI/CD & QA Pipeline Failures");
+  });
+
+  it("falls back to categoryNumber when categoryName is 'Other'", () => {
+    expect(
+      resolveResponseCategory(
+        { categoryNumber: 1, categoryName: "Other" },
+        ordered,
+      ),
+    ).toBe("🔧 GitHub PR Updates");
+  });
+
+  it("resolves to Other when the name is fabricated and there is no usable number", () => {
+    expect(
+      resolveResponseCategory(
+        { categoryName: "New GitHub Bug Reports" },
+        ordered,
+      ),
+    ).toBe("Other");
+  });
+});
+
 describe("rewriteCategoryNumberReferences", () => {
   const ordered = [
     "🐛 Human-reported Bug Issues",

@@ -170,12 +170,6 @@ export class ContextService {
       threadsReadButNotReplied: number;
       vipContactsEvaluated: number;
     };
-    trueVipContacts?: Array<{
-      emailKey: string;
-      from: string;
-      fromName?: string;
-      threadCount: number;
-    }>;
   }): Promise<void> {
     return this.finalizerService.finalizeContextAnalysis(options);
   }

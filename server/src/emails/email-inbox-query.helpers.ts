@@ -1,51 +1,72 @@
 /* istanbul ignore file */
 import { Repository } from "typeorm";
 
-import { INBOX_FILTER_VALUES } from "../constants/domain-types";
-import { INBOX_MODES, QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
-import { buildThreadFilter, RawEmailRow } from "./email-inbox.types";
+import {
+  buildThreadFilter,
+  INBOX_OTHER_CATEGORY_NAME,
+  INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  RawEmailRow,
+} from "./email-inbox.types";
+import {
+  appendInboxScopeFilters,
+  buildUserCategoryJoinSql,
+  INBOX_SCOPE_ORDER_BY_SQL,
+  INBOX_SCOPE_VISIBILITY_SQL,
+  inboxRowLimit,
+  InboxScopeFilters,
+} from "./email-inbox-scope.helpers";
 
-type InboxQueryFilters = {
-  accountIds?: string[];
-  minPriority?: number;
-  maxPriority?: number;
-  /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
-  assigneeId?: string;
+type InboxQueryFilters = InboxScopeFilters & {
+  /**
+   * Category keys (UUIDs) to narrow the query to. When present and containing
+   * ONLY real UUIDs, the narrowing is pushed into SQL so a single-category fetch
+   * only queries/decrypts that category's threads instead of the whole inbox.
+   * The "Other"/uncategorized bucket is intentionally NOT narrowed here — its
+   * membership depends on encrypted category-name resolution and orphaned-UUID
+   * handling that only applyPostQueryFilters can resolve correctly.
+   */
+  categoryIds?: string[];
 };
+
+/**
+ * Returns the requested category UUIDs only when the request targets real
+ * categories exclusively (no "Other"/uncategorized sentinel). Returns null when
+ * the request includes the Other bucket or resolves to no real UUIDs, signalling
+ * that SQL narrowing must be skipped and the post-query filter left to decide.
+ */
+function realCategoryUuidsForNarrowing(
+  categoryIds: string[] | undefined,
+): string[] | null {
+  if (!categoryIds || categoryIds.length === 0) {
+    return null;
+  }
+  const includesOther = categoryIds.some(
+    (id) =>
+      id === INBOX_OTHER_CATEGORY_NAME ||
+      id === INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  );
+  if (includesOther) {
+    return null;
+  }
+  return categoryIds;
+}
 
 function appendInboxAdditionalFilters(
   filters: InboxQueryFilters | undefined,
   paramIndex: number,
   queryParams: (string | number)[],
 ): { additionalFilters: string; paramIndex: number } {
-  let additionalFilters = "";
-  let idx = paramIndex;
+  // Shared scope first (same order as the summary) so bound params line up.
+  const scoped = appendInboxScopeFilters(filters, paramIndex, queryParams, "e");
+  let { additionalFilters } = scoped;
+  let idx = scoped.paramIndex;
 
-  if (filters?.accountIds && filters.accountIds.length > 0) {
-    const phGoogle = filters.accountIds.map(() => `$${idx++}`).join(", ");
-    const phOffice = filters.accountIds.map(() => `$${idx++}`).join(", ");
-    const phZoho = filters.accountIds.map(() => `$${idx++}`).join(", ");
-    additionalFilters += ` AND (e."googleAccountId" IN (${phGoogle}) OR e."office365AccountId" IN (${phOffice}) OR e."zohoAccountId" IN (${phZoho}))`;
-    queryParams.push(
-      ...filters.accountIds,
-      ...filters.accountIds,
-      ...filters.accountIds,
-    );
-  }
-  if (filters?.minPriority !== undefined) {
-    additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${idx++}`;
-    queryParams.push(filters.minPriority);
-  }
-  if (filters?.maxPriority !== undefined) {
-    additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${idx++}`;
-    queryParams.push(filters.maxPriority);
-  }
-  if (filters?.assigneeId === INBOX_FILTER_VALUES.UNASSIGNED) {
-    additionalFilters += ` AND thread."assigneeId" IS NULL`;
-  } else if (filters?.assigneeId) {
-    additionalFilters += ` AND thread."assigneeId" = $${idx++}`;
-    queryParams.push(filters.assigneeId);
+  const narrowingUuids = realCategoryUuidsForNarrowing(filters?.categoryIds);
+  if (narrowingUuids) {
+    const placeholders = narrowingUuids.map(() => `$${idx++}`).join(", ");
+    additionalFilters += ` AND thread."categoryId" IN (${placeholders})`;
+    queryParams.push(...narrowingUuids);
   }
 
   return { additionalFilters, paramIndex: idx };
@@ -130,12 +151,11 @@ export async function runInboxQuery(
       WHERE em."emailThreadId" = thread.id AND em.labels IS NOT NULL
     ) thread_labels ON true
     LEFT JOIN proto_categories pc ON pc.id = thread."protoCategoryId"
-    LEFT JOIN user_contexts uc ON uc."contextId" = thread."categoryId"
+    ${buildUserCategoryJoinSql("$1")}
     WHERE thread."userId" = $1 ${threadFilter} ${additionalFilters}
-      AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
-      AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
-    ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC, thread."threadId" ASC
-    LIMIT ${mode === INBOX_MODES.ACTION ? QUERY_LIMITS.INBOX_PROCESS_TOTAL : QUERY_LIMITS.INBOX_TOTAL}`,
+      ${INBOX_SCOPE_VISIBILITY_SQL}
+    ${INBOX_SCOPE_ORDER_BY_SQL}
+    LIMIT ${inboxRowLimit(mode)}`,
     queryParams,
   ) as Promise<RawEmailRow[]>;
 }

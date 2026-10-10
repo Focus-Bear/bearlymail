@@ -61,11 +61,17 @@ describe("AuthController OAuth connect-flow error handling", () => {
       updateTokens: jest.fn(),
     };
     const boss = { send: jest.fn().mockResolvedValue("job-1") };
+    // The real service wraps the task in the user's KMS key; tests only need
+    // the task to run, so pass it straight through.
+    const userEncryptionService = {
+      withUserKey: (_userId: string, task: () => Promise<unknown>) => task(),
+    };
     const controller = new AuthController(
       authService as never,
       googleAccountsService as never,
       office365AccountsService as never,
       zohoAccountsService as never,
+      userEncryptionService as never,
       boss as never,
     );
     return { controller, authService, zohoAccountsService };

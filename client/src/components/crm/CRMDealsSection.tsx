@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiBriefcase, FiDollarSign } from 'react-icons/fi';
+import { FiBriefcase, FiDollarSign, FiPlus } from 'react-icons/fi';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { Deal } from 'types/deal';
+import { Contact } from 'types/contact';
+import { Deal, DealStage } from 'types/deal';
 
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
+import { DealFormModal } from 'components/crm/DealFormModal';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_CURRENCY, STRING_EN_US, STRING_ES, STRING_ES_ES, STRING_USD } from 'constants/strings';
@@ -203,10 +205,104 @@ const useCRMDeals =(senderEmail: string | undefined, contactId: string | undefin
   return { deals, loading, error, hasFetched, fetchDeals };
 };
 
+type DealPayload = {
+  title: string;
+  details?: string;
+  value?: number;
+  currency?: string;
+  stageId?: string;
+  contactId?: string;
+  expectedCloseDate?: string;
+};
+
+/**
+ * Drives the "add a deal from the email view" flow behind the Deals section's
+ * "+" button: ensures a Contact exists for the sender (find-or-create by email,
+ * so the deal has something to link to), loads the stages + contacts the form
+ * needs, and creates the deal. `onCreated` refreshes the section's deal list.
+ */
+const useAddDealFlow = (
+  senderEmail: string | undefined,
+  contactId: string | undefined,
+  onCreated: () => void
+) => {
+  const { t } = useTranslation();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [stages, setStages] = useState<DealStage[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [formContactId, setFormContactId] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const openForm = useCallback(async () => {
+    setPreparing(true);
+    setAddError(null);
+    try {
+      // Ensure a contact exists for the sender so the deal can link to it.
+      // POST /contacts is idempotent on email (find-or-create), so an existing
+      // sender isn't duplicated.
+      let resolvedContactId = contactId ?? '';
+      if (!resolvedContactId && senderEmail) {
+        const contactRes = await axios.post(`${API_URL}/contacts`, { email: senderEmail });
+        resolvedContactId = contactRes.data?.id ?? '';
+      }
+      const [stagesRes, contactsRes] = await Promise.all([
+        axios.get(`${API_URL}/deals/stages`),
+        axios.get(`${API_URL}/contacts`),
+      ]);
+      setStages(stagesRes.data ?? []);
+      setContacts(contactsRes.data ?? []);
+      setFormContactId(resolvedContactId);
+      setIsFormOpen(true);
+    } catch (err) {
+      console.error('Error preparing deal form:', err);
+      setAddError(t('crm.errorCreatingDeal'));
+    } finally {
+      setPreparing(false);
+    }
+  }, [senderEmail, contactId, t]);
+
+  const closeForm = useCallback(() => setIsFormOpen(false), []);
+
+  const saveDeal = useCallback(
+    async (payload: DealPayload) => {
+      try {
+        await axios.post(`${API_URL}/deals`, payload);
+        setIsFormOpen(false);
+        onCreated();
+      } catch (err) {
+        console.error('Error creating deal:', err);
+        setAddError(t('crm.errorCreatingDeal'));
+      }
+    },
+    [onCreated, t]
+  );
+
+  return {
+    isFormOpen,
+    preparing,
+    stages,
+    contacts,
+    formContactId,
+    addError,
+    openForm,
+    closeForm,
+    saveDeal,
+  };
+};
+
 export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, contactId, onDismiss }) => {
   const { t, i18n } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const { deals, loading, error, hasFetched, fetchDeals } = useCRMDeals(senderEmail, contactId);
+
+  const onDealCreated = useCallback(() => {
+    setIsCollapsed(false); // reveal the list so the new deal is visible
+    fetchDeals();
+  }, [fetchDeals]);
+
+  const { isFormOpen, preparing, stages, contacts, formContactId, addError, openForm, closeForm, saveDeal } =
+    useAddDealFlow(senderEmail, contactId, onDealCreated);
 
   useEffect(() => {
     if (!isCollapsed && !hasFetched) {
@@ -232,19 +328,66 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
     preview = `${deals.length} ${dealCountText}${totalValueText}`;
   }
 
-  return (
-    <CollapsibleSection
-      icon={<FiBriefcase size={18} />}
-      title={t('crm.deals')}
-      isCollapsed={isCollapsed}
-      onToggle={() => setIsCollapsed(!isCollapsed)}
-      accentColor={CRM_ACCENT}
-      backgroundColor={CRM_BG}
-      preview={preview}
-      onDismiss={onDismiss}
-      dismissTitle={t('emailDetail.hideCard')}
+  const addDealControl = (
+    <button
+      type="button"
+      onClick={openForm}
+      disabled={preparing}
+      title={t('crm.createDeal')}
+      aria-label={t('crm.createDeal')}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        cursor: preparing ? 'wait' : 'pointer',
+        color: CRM_ACCENT,
+        display: 'flex',
+        alignItems: 'center',
+        padding: theme.spacing.xs,
+        borderRadius: theme.borderRadius.sm,
+      }}
     >
-      <DealSectionContent loading={loading} error={error} deals={deals} locale={locale} t={t} />
-    </CollapsibleSection>
+      <FiPlus size={16} />
+    </button>
+  );
+
+  return (
+    <>
+      <CollapsibleSection
+        icon={<FiBriefcase size={18} />}
+        title={t('crm.deals')}
+        isCollapsed={isCollapsed}
+        onToggle={() => setIsCollapsed(!isCollapsed)}
+        accentColor={CRM_ACCENT}
+        backgroundColor={CRM_BG}
+        preview={preview}
+        controls={addDealControl}
+        onDismiss={onDismiss}
+        dismissTitle={t('emailDetail.hideCard')}
+      >
+        {addError && (
+          <div
+            style={{
+              padding: theme.spacing.sm,
+              marginBottom: theme.spacing.sm,
+              color: theme.colors.error.main,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
+            {addError}
+          </div>
+        )}
+        <DealSectionContent loading={loading} error={error} deals={deals} locale={locale} t={t} />
+      </CollapsibleSection>
+      {isFormOpen && (
+        <DealFormModal
+          deal={null}
+          stages={stages}
+          contacts={contacts}
+          initialContactId={formContactId}
+          onSave={saveDeal}
+          onClose={closeForm}
+        />
+      )}
+    </>
   );
 };

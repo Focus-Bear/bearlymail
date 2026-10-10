@@ -65,6 +65,12 @@ export const JOB_NAMES = {
 
   // Writing style & learning
   CHECK_WRITING_STYLE_LEARNING: "check-writing-style-learning",
+  // Per-user, self-continuing backfill of writing-style examples from the
+  // user's historical sent mail. Seeded by context discovery (onboarding /
+  // "Analyze") and walks backwards one window per run until the example
+  // target is met, so learning the user's voice never sits on the onboarding
+  // critical path. Idempotent: every run re-checks the example count first.
+  LEARN_WRITING_STYLE_FROM_SENT: "learn-writing-style-from-sent",
   LEARN_FROM_STAR: "learn-from-star",
   // Debounced per-user job (enqueued on reply-send) that batch-extracts
   // common Q&A pairs from the user's recent sent emails.
@@ -72,10 +78,23 @@ export const JOB_NAMES = {
 
   // Snooze
   CHECK_EXPIRED_SNOOZES: "check-expired-snoozes",
+  SNOOZE_THREAD_PROVIDER_SYNC: "snooze-thread-provider-sync",
   UNSNOOZE_THREAD: "unsnooze-thread",
 
   // Scheduled emails
   SEND_SCHEDULED_EMAILS: "send-scheduled-emails",
+
+  // Background email sending. The reply and compose endpoints validate,
+  // persist an `email_send_attempts` row and enqueue this job, then return
+  // immediately — the provider round-trip never sits on the request path. The
+  // outcome reaches the user over Pusher. Idempotent: the processor claims the
+  // row with a conditional `queued -> sending` update, so a retried job cannot
+  // send the same message twice.
+  SEND_QUEUED_EMAIL: "send-queued-email",
+  // Safety net for the queue above: re-enqueues sends whose job was lost and
+  // finalises sends whose worker died mid-provider-call, so a crash can never
+  // leave the user believing a message went out.
+  SWEEP_STALLED_EMAIL_SENDS: "sweep-stalled-email-sends",
 
   // Follow-ups
   BULK_SEND_FOLLOW_UPS: "bulk-send-follow-ups",
@@ -103,6 +122,10 @@ export const JOB_NAMES = {
   // each rule to its UserContext by decrypting categoryName under each user's
   // KMS key, since renaming a category used to silently break name-keyed rules.
   BACKFILL_CATEGORY_RULE_IDS: "backfill-category-rule-ids",
+
+  // One-shot repair of `organizations.name` rows encrypted under an owner's
+  // per-user KMS key instead of the global key (admin-triggered, idempotent).
+  REPAIR_ORGANIZATION_NAMES: "repair-organization-names",
 
   // Admin-triggered, bounded, idempotent re-categorisation of a user's threads
   // whose category came from a now-removed over-broad deterministic rule

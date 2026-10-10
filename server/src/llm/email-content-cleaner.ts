@@ -312,8 +312,11 @@ function normalizeWhitespace(text: string): string {
       .replace(/\n{3,}/g, "\n\n")
       // Multiple spaces/tabs to single space
       .replace(/[ \t]+/g, " ")
-      // Trim each line
-      .replace(/^\s+|\s+$/gm, "")
+      // Trim each line. Spaces/tabs ONLY: `\s` includes `\n`, so `/\s+$/gm`
+      // swallowed the line breaks themselves — any block boundary whose source
+      // also carried a newline (`</p>\n<p>`, i.e. essentially every HTML email)
+      // collapsed into "...ends here.Starts here." before the LLM ever saw it.
+      .replace(/^[ \t]+|[ \t]+$/gm, "")
       .trim()
   );
 }

@@ -13,6 +13,7 @@ import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { AllExceptionsFilter } from "./filters/http-exception.filter";
 import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
+import { applyLoadBalancerKeepAlive } from "./utils/http-server-timeouts";
 import { isDevelopment } from "./utils/logs-dir";
 import { securityHeadersMiddleware } from "./utils/security-headers.middleware";
 
@@ -101,6 +102,7 @@ async function bootstrap() {
     // Default port for development
     const port = process.env.PORT || DEFAULT_PORT;
     await app.listen(port);
+    applyLoadBalancerKeepAlive(app.getHttpServer());
     logger.log(`Application is running on: http://localhost:${port}`);
   } catch (error: unknown) {
     logErrorToFile("Failed to start application", error, "Server");

@@ -136,3 +136,46 @@ describe("compareCompositeRuleSpecificity", () => {
     );
   });
 });
+
+describe("compareCompositeRuleSpecificity — subtype depth", () => {
+  const createdAt = new Date("2024-01-01T00:00:00Z");
+  const candidate = (
+    id: string,
+    subtypeFields: Pick<
+      CompositeCategoryRuleSpecV3,
+      "notificationSubtype" | "notificationSubtypeAny"
+    >,
+  ): SpecificityCandidate => ({
+    id,
+    createdAt,
+    spec: {
+      v: 3,
+      fromMatchesAny: ["notifications@github.com"],
+      subjectContainsAny: [],
+      bodyContainsAny: [],
+      ...subtypeFields,
+    },
+  });
+
+  it("ranks a fine github:pr:merged:human pin ahead of a legacy coarse github:pr pin", () => {
+    const fine = candidate("fine", {
+      notificationSubtype: "github:pr:merged:human",
+    });
+    const coarse = candidate("coarse", { notificationSubtype: "github:pr" });
+    expect(compareCompositeRuleSpecificity(fine, coarse)).toBeLessThan(0);
+    expect(compareCompositeRuleSpecificity(coarse, fine)).toBeGreaterThan(0);
+  });
+
+  it("scores a set by its shallowest member", () => {
+    const mixed = candidate("mixed", {
+      notificationSubtypeAny: ["github:pr:merged:human", "github:pr"],
+    });
+    const fineSet = candidate("fineSet", {
+      notificationSubtypeAny: [
+        "github:pr:comment:human",
+        "github:pr:push:human",
+      ],
+    });
+    expect(compareCompositeRuleSpecificity(fineSet, mixed)).toBeLessThan(0);
+  });
+});

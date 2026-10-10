@@ -146,6 +146,10 @@ interface UseEmailManagementReturn {
   ) => Promise<void>;
   refreshInPlace: () => Promise<void>;
   fetchCategoryEmails: (categoryName: string) => Promise<void>;
+  /** Preload several categories' emails in one round-trip (issue #145). */
+  fetchCategoryEmailsBatch: (
+    items: Array<{ name: string; id?: string | null }>
+  ) => Promise<{ loadedKeys: string[]; failedKeys: string[] }>;
   categorySummary: CategorySummaryItem[] | null;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
@@ -180,7 +184,10 @@ export function useEmailManagement(props: UseEmailManagementProps): UseEmailMana
     exhaustedCategoryNames,
   } = useEmailReduxState();
 
-  const { fetchEmails, fetchCategoryEmails, refreshInPlace } = useEmailFetching({ mode, filters });
+  const { fetchEmails, fetchCategoryEmails, fetchCategoryEmailsBatch, refreshInPlace } = useEmailFetching({
+    mode,
+    filters,
+  });
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
     fetchEmails,
     onSuggestionRemove,
@@ -262,6 +269,7 @@ export function useEmailManagement(props: UseEmailManagementProps): UseEmailMana
     fetchEmails,
     refreshInPlace,
     fetchCategoryEmails,
+    fetchCategoryEmailsBatch,
     categorySummary,
     loadedCategoryNames,
     loadingCategoryNames,

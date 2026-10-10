@@ -14,7 +14,8 @@
  *   1. Platform-specific resolvers, keyed off the shared `PLATFORM_PINNING`
  *      registry, run first. GitHub is the first concrete entry (PR vs issue,
  *      via the canonical `github.com/.../pull|issues/N` URL — the same signal
- *      that builds `EmailThread.githubMetadata`).
+ *      that builds `EmailThread.githubMetadata` — refined by the notification
+ *      event and actor kind: `github:pr:comment:bot`, `github:issue:closed:human`).
  *   2. A general structural-subject-skeleton fallback handles every other
  *      sender: it keys off the `[tag]` / `(TICKET-123)` prefix that virtually
  *      all notification platforms put at the front of the subject, with numbers
@@ -27,7 +28,7 @@ import {
   platformForSender,
   senderDomain,
 } from "../constants/platform-pinning.constants";
-import { detectGithubSubtype } from "../github/github-link-type.util";
+import { detectGithubSubtype } from "../github/github-notification-facts.util";
 
 export interface NotificationSubtypeInput {
   from: string;
@@ -45,6 +46,9 @@ const PLATFORM_SUBTYPE_RESOLVERS: Record<string, PlatformSubtypeResolver> = {
   github: (input) =>
     detectGithubSubtype(input.from, input.subject, input.body, input.htmlBody),
 };
+
+/** Separates the segments of a subtype: `github` : `pr` : `merged` : `human`. */
+export const NOTIFICATION_SUBTYPE_SEPARATOR = ":";
 
 const SUBJECT_TAG_PATTERN = /^[[(]([^\])]{1,60})[\])]/;
 const REPLY_PREFIX_PATTERN = /^(?:re|fwd|fw)\s*:\s*/i;
@@ -98,4 +102,51 @@ export function resolveNotificationSubtype(
     return structuralSubjectSubtype(input.subject);
   }
   return null;
+}
+
+function normaliseSubtype(subtype: string): string {
+  return subtype.trim().toLowerCase();
+}
+
+/** Number of `:`-separated segments — the depth (specificity) of a subtype. */
+export function notificationSubtypeDepth(subtype: string): number {
+  return normaliseSubtype(subtype)
+    .split(NOTIFICATION_SUBTYPE_SEPARATOR)
+    .filter(Boolean).length;
+}
+
+/**
+ * True when an email's resolved subtype satisfies a rule's pinned subtype.
+ *
+ * A pinned subtype matches the email's subtype when they are equal OR when the
+ * email's subtype REFINES it by extra trailing segments: a rule pinned to the
+ * coarse `github:pr` (persisted before events/actors existed) keeps matching
+ * `github:pr:comment:bot`, and a rule pinned to `github:pr:comment` matches
+ * both actor kinds. Segment-wise, so `github:pr` never matches `github:prx`.
+ * An unresolved email subtype satisfies nothing.
+ */
+export function notificationSubtypeMatches(
+  pinnedSubtype: string,
+  emailSubtype: string | undefined | null,
+): boolean {
+  if (!emailSubtype) {
+    return false;
+  }
+  const pinned = normaliseSubtype(pinnedSubtype);
+  const resolved = normaliseSubtype(emailSubtype);
+  return (
+    pinned.length > 0 &&
+    (resolved === pinned ||
+      resolved.startsWith(`${pinned}${NOTIFICATION_SUBTYPE_SEPARATOR}`))
+  );
+}
+
+/** True when the email's subtype satisfies ANY of the pinned subtypes (OR set). */
+export function notificationSubtypeMatchesAny(
+  pinnedSubtypes: readonly string[],
+  emailSubtype: string | undefined | null,
+): boolean {
+  return pinnedSubtypes.some((pinned) =>
+    notificationSubtypeMatches(pinned, emailSubtype),
+  );
 }

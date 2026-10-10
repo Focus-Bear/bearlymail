@@ -32,17 +32,16 @@ import { ContextAnalysisHelpersService } from "./context-analysis-helpers.servic
 import { ContextAnalysisOrchestratorService } from "./context-analysis-orchestrator.service";
 import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
 import { ContextAnalysisQueryService } from "./context-analysis-query.service";
-import { ContextBatchAnalysisProcessor } from "./context-batch-analysis.processor";
 import { ContextBatchPayloadService } from "./context-batch-payload.service";
 import { ContextCategoryService } from "./context-category.service";
 import { ContextCompressionService } from "./context-compression.service";
 import { ContextCrudService } from "./context-crud.service";
+import { ContextDiscoveryBatchProcessor } from "./context-discovery-batch.processor";
 import { ContextEnqueueService } from "./context-enqueue.service";
 import { ContextFinalizationProcessor } from "./context-finalization.processor";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
-import { ContextSqsDispatchService } from "./context-sqs-dispatch.service";
 import { LearnQaProcessor } from "./learn-qa.processor";
 import { WritingStyleLearningProcessor } from "./writing-style-learning.processor";
 import { WritingStyleLearningService } from "./writing-style-learning.service";
@@ -79,7 +78,6 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextAnalysisQueryService,
     ContextAnalysisOrchestratorService,
     ContextAnalysisFinalizerService,
-    ContextSqsDispatchService,
     ContextEnqueueService,
     ContextBatchPayloadService,
     ContextCrudService,
@@ -91,7 +89,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextQaExtractionService,
     LearnQaProcessor,
     ContextAnalysisProcessor,
-    ContextBatchAnalysisProcessor,
+    ContextDiscoveryBatchProcessor,
     ContextFinalizationProcessor,
     ContextAnalysisCleanupService,
     WritingStyleLearningService,

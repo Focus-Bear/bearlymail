@@ -28,6 +28,7 @@ import { ScanEmail } from "../database/entities/scan-email.entity";
 import { SyncHistoryLog } from "../database/entities/sync-history-log.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { DebugModule } from "../debug/debug.module";
+import { EmailSendQueueModule } from "../email-send-queue/email-send-queue.module";
 import { GitHubModule } from "../github/github.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { LLMModule } from "../llm/llm.module";
@@ -164,6 +165,7 @@ import { SyncHistoryService } from "./sync-history.service";
     DebugModule,
     CategoryRulesModule,
     PriorityRulesModule,
+    EmailSendQueueModule,
   ],
   // EmailsController must be LAST: it defines @Get(":id"), which otherwise steals
   // paths like recategorize-progress, backlog-progress, etc. from sibling controllers.
@@ -334,6 +336,7 @@ import { SyncHistoryService } from "./sync-history.service";
     ScanEmailService,
     EmailBacklogService,
     EmailArchiveService,
+    EmailAdminService,
   ],
 })
 export class EmailsModule {}

@@ -31,6 +31,7 @@ import {
   specHasExclusion,
   specHasStructuralConstraint,
 } from "./category-rules-match-gate.helper";
+import { specHasGithubNotificationSubtype } from "./category-rules-notification-subtype.helper";
 import {
   DecryptedValidationRow,
   decryptValidationRow,
@@ -66,31 +67,58 @@ export interface DeriveExclusionsParams {
    * why exclusion rules never persist — see the branch summaries below.
    */
   logger: { log: (message: string) => void };
+  /**
+   * Pre-fetched validation windows, when the caller already loaded them (the
+   * structural draft path builds its subtype breakdown from the same rows).
+   * Fetched here when omitted.
+   */
+  windows?: ValidationWindows;
 }
 
 /**
- * Whether a draft rule clears the validation match gate. A zero-false-positive
- * STRUCTURAL rule (one pinned to a resolved notification sub-stream) is a hard
- * deterministic separator, so a single true positive is enough to keep it —
- * AUTO_VALIDATE_MIN_MATCHES is waived. Phrase-only rules still need the full
- * min-match count. Any false positive fails the gate regardless.
+ * How many true positives a draft rule must produce to be kept.
+ *
+ * A zero-false-positive STRUCTURAL rule (one pinned to a resolved notification
+ * sub-stream) is a hard deterministic separator, so a single true positive is
+ * enough. A phrase-only rule normally needs AUTO_VALIDATE_MIN_MATCHES recurring
+ * examples — but that bar is only meaningful when the category HAS that many
+ * threads to match. `categoryWindowSize` (the category's own validation window)
+ * caps it, so a category with one or two threads in total is judged on covering
+ * what it has rather than on a quota it can never reach. Pass `undefined` when
+ * the window size is unknown to keep the unscaled bar.
+ */
+export function requiredTruePositives(
+  spec: CompositeCategoryRuleSpec,
+  categoryWindowSize?: number,
+): number {
+  if (specHasStructuralConstraint(spec)) {
+    return CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_STRUCTURAL_MIN_MATCHES;
+  }
+  const unscaled = CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
+  if (categoryWindowSize === undefined) {
+    return unscaled;
+  }
+  return Math.max(
+    CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_SPARSE_CATEGORY_MIN_MATCHES,
+    Math.min(unscaled, categoryWindowSize),
+  );
+}
+
+/**
+ * Whether a draft rule clears the validation match gate: zero false positives
+ * and at least `requiredTruePositives` matches in the category's own window.
+ * Any false positive fails the gate regardless.
  */
 export function passesValidationMatchGate(
   spec: CompositeCategoryRuleSpec,
   truePositives: number,
   falsePositives: number,
+  categoryWindowSize?: number,
 ): boolean {
   if (falsePositives !== 0) {
     return false;
   }
-  if (
-    specHasStructuralConstraint(spec) &&
-    truePositives >=
-      CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_STRUCTURAL_MIN_MATCHES
-  ) {
-    return true;
-  }
-  return truePositives >= CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
+  return truePositives >= requiredTruePositives(spec, categoryWindowSize);
 }
 
 /**
@@ -101,13 +129,6 @@ export function isQaCategory(categoryName: string): boolean {
   const normalized = categoryName.trim().toLowerCase();
   return CATEGORY_RULE_COMPOSITE.QA_CATEGORY_KEYWORDS.some((keyword) =>
     normalized.includes(keyword),
-  );
-}
-
-/** True when a v3 spec is pinned to a GitHub notification sub-stream. */
-function isGithubStructuralSpec(spec: CompositeCategoryRuleSpec): boolean {
-  return (
-    spec.v === 3 && (spec.notificationSubtype?.startsWith("github:") ?? false)
   );
 }
 
@@ -125,7 +146,7 @@ export function augmentExclusionsForQaTemplates(
   spec: CompositeCategoryRuleSpec,
   categoryName: string,
 ): CompositeCategoryRuleSpec {
-  if (!isGithubStructuralSpec(spec) || isQaCategory(categoryName)) {
+  if (!specHasGithubNotificationSubtype(spec) || isQaCategory(categoryName)) {
     return spec;
   }
   return mergeExclusionsIntoSpec(
@@ -188,6 +209,12 @@ export interface ApplyDerivedExclusionsParams {
   derived: { subjectNotContainsAny: string[]; bodyNotContainsAny: string[] };
   normaliseSender: (raw: string) => string;
   targetCategoryId: string | null;
+  /**
+   * Size of the category's own validation window, so the true-positive bar can
+   * be scaled to the evidence a sparse category actually has. Omit when
+   * unknown to keep the unscaled bar.
+   */
+  categoryWindowSize?: number;
 }
 
 /** The lowercased subject + cleaned body text an exclusion phrase is tested against. */
@@ -375,6 +402,7 @@ export function applyDerivedExclusionsAndCheck(
     finalSpec,
     truePositives,
     falsePositives,
+    params.categoryWindowSize,
   );
   return {
     passes,
@@ -384,7 +412,7 @@ export function applyDerivedExclusionsAndCheck(
   };
 }
 
-interface ValidationWindows {
+export interface ValidationWindows {
   /** The candidate category's OWN recent threads — the dense true-positive window. */
   categoryRows: DecryptedValidationRow[];
   /** A BROAD recent sample of all categorised mail — the false-positive window. */
@@ -400,7 +428,7 @@ interface ValidationWindows {
  * caught against non-category threads. Returned unpartitioned so the refine loop
  * can re-partition against an evolving spec each round.
  */
-async function fetchValidationWindows(
+export async function fetchValidationWindows(
   emailThreadRepository: Repository<EmailThread>,
   userId: string,
   targetCategoryId: string | null,
@@ -647,7 +675,12 @@ function buildRefineOutcome(params: {
   ).length;
   const passes =
     specHasExclusion(currentSpec) &&
-    passesValidationMatchGate(currentSpec, finalTp, finalFp);
+    passesValidationMatchGate(
+      currentSpec,
+      finalTp,
+      finalFp,
+      categoryRows.length,
+    );
   logLine(
     `branch=refine-done stopReason=${stopReason} finalTP=${finalTp} finalFP=${finalFp} passes=${passes}`,
   );
@@ -679,17 +712,21 @@ export async function deriveExclusionsForCompositeRule(
     logger,
   } = params;
 
-  const minMatches = CATEGORY_RULE_COMPOSITE.AUTO_VALIDATE_MIN_MATCHES;
+  const { categoryRows, broadRows } =
+    params.windows ??
+    (await fetchValidationWindows(
+      emailThreadRepository,
+      userId,
+      targetCategoryId,
+    ));
+
+  // Logged so "why was this rule discarded" stays answerable: the bar is scaled
+  // to how much mail the category actually has, so it differs between candidates.
+  const minMatches = requiredTruePositives(positiveSpec, categoryRows.length);
   const logLine = (fields: string): void =>
     logger.log(
-      `[CategoryRules][derive] category="${categoryName}" minRequired=${minMatches} ${fields} user=${userId}`,
+      `[CategoryRules][derive] category="${categoryName}" minRequired=${minMatches} categoryWindow=${categoryRows.length} ${fields} user=${userId}`,
     );
-
-  const { categoryRows, broadRows } = await fetchValidationWindows(
-    emailThreadRepository,
-    userId,
-    targetCategoryId,
-  );
 
   const truePositiveRows = truePositivesOf(
     categoryRows,
@@ -725,6 +762,7 @@ export async function deriveExclusionsForCompositeRule(
       positiveSpec,
       truePositives,
       falsePositives,
+      categoryRows.length,
     );
     // Clean, zero-FP candidate. When this fails it is because the sender+phrase
     // spec matched fewer than `minRequired` threads in the target category —

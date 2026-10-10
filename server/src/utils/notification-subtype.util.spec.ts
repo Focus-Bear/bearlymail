@@ -1,4 +1,7 @@
 import {
+  notificationSubtypeDepth,
+  notificationSubtypeMatches,
+  notificationSubtypeMatchesAny,
   resolveNotificationSubtype,
   structuralSubjectSubtype,
 } from "./notification-subtype.util";
@@ -40,14 +43,25 @@ describe("resolveNotificationSubtype", () => {
     ).toBe("github:ci:run_failed");
   });
 
-  it("resolves GitHub PRs via the canonical URL, namespaced by platform", () => {
+  it("resolves GitHub PRs to the fine item:event:actor subtype, namespaced by platform", () => {
     expect(
       resolveNotificationSubtype({
-        from: "notifications@github.com",
-        subject: "[owner/repo] Add feature (#42)",
-        body: "https://github.com/owner/repo/pull/42",
+        from: "octocat <notifications@github.com>",
+        subject: "Re: [owner/repo] Add feature (PR #42)",
+        body: "Merged #42 into main.\n\nhttps://github.com/owner/repo/pull/42",
       }),
-    ).toBe("github:pr");
+    ).toBe("github:pr:merged:human");
+  });
+
+  it("resolves a bot issue comment to the bot actor kind", () => {
+    expect(
+      resolveNotificationSubtype({
+        from: '"github-actions[bot]" <notifications@github.com>',
+        subject: "Re: [owner/repo] Crash (Issue #7)",
+        body: "https://github.com/owner/repo/issues/7",
+        htmlBody: "<p><b>@github-actions[bot]</b> left a comment</p>",
+      }),
+    ).toBe("github:issue:comment:bot");
   });
 
   it("falls back to the subject skeleton for a known platform with no dedicated resolver", () => {
@@ -77,5 +91,84 @@ describe("resolveNotificationSubtype", () => {
         subject: "lunch tomorrow?",
       }),
     ).toBeNull();
+  });
+});
+
+describe("notificationSubtypeMatches", () => {
+  it("matches an identical subtype (case-insensitive, trimmed)", () => {
+    expect(
+      notificationSubtypeMatches(
+        "github:pr:merged:human",
+        " GitHub:PR:merged:human ",
+      ),
+    ).toBe(true);
+  });
+
+  it("lets a coarse pinned subtype match any finer refinement (legacy github:pr rules keep matching)", () => {
+    expect(
+      notificationSubtypeMatches("github:pr", "github:pr:comment:bot"),
+    ).toBe(true);
+    expect(
+      notificationSubtypeMatches(
+        "github:pr:comment",
+        "github:pr:comment:human",
+      ),
+    ).toBe(true);
+    expect(
+      notificationSubtypeMatches("github:ci", "github:ci:run_failed"),
+    ).toBe(true);
+  });
+
+  it("never lets a fine pinned subtype match a coarser email subtype", () => {
+    expect(
+      notificationSubtypeMatches("github:pr:merged:human", "github:pr"),
+    ).toBe(false);
+  });
+
+  it("matches whole segments only, and rejects other sub-streams", () => {
+    expect(
+      notificationSubtypeMatches("github:pr", "github:prx:comment:bot"),
+    ).toBe(false);
+    expect(
+      notificationSubtypeMatches(
+        "github:pr:comment:bot",
+        "github:pr:comment:human",
+      ),
+    ).toBe(false);
+    expect(
+      notificationSubtypeMatches("github:issue", "github:pr:comment:bot"),
+    ).toBe(false);
+  });
+
+  it("is never satisfied by an unresolved email subtype or an empty pin", () => {
+    expect(notificationSubtypeMatches("github:pr", undefined)).toBe(false);
+    expect(notificationSubtypeMatches("github:pr", null)).toBe(false);
+    expect(notificationSubtypeMatches("", "github:pr")).toBe(false);
+  });
+
+  it("matches a set when any member matches", () => {
+    const humanPrUpdates = [
+      "github:pr:comment:human",
+      "github:pr:push:human",
+      "github:pr:review_approved:human",
+    ];
+    expect(
+      notificationSubtypeMatchesAny(humanPrUpdates, "github:pr:push:human"),
+    ).toBe(true);
+    expect(
+      notificationSubtypeMatchesAny(humanPrUpdates, "github:pr:push:bot"),
+    ).toBe(false);
+    expect(
+      notificationSubtypeMatchesAny(humanPrUpdates, "github:pr:merged:human"),
+    ).toBe(false);
+    expect(notificationSubtypeMatchesAny([], "github:pr:push:human")).toBe(
+      false,
+    );
+  });
+
+  it("reports subtype depth as the segment count", () => {
+    expect(notificationSubtypeDepth("github:pr")).toBe(2);
+    expect(notificationSubtypeDepth("github:pr:comment:bot")).toBe(4);
+    expect(notificationSubtypeDepth("tag:alert")).toBe(2);
   });
 });

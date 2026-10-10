@@ -27,6 +27,7 @@ interface UseOnboardingReturn {
   scanProgress: ScanProgress | null;
   markTourComplete: () => Promise<void>;
   handleNextTourStep: (totalSteps: number) => void;
+  handlePrevTourStep: () => void;
   handleSkipTour: () => Promise<void>;
   handleStartScan: () => Promise<void>;
 }
@@ -98,6 +99,10 @@ export function useOnboarding({ user, authLoading, refreshUser }: UseOnboardingP
     [tourStep, markTourComplete]
   );
 
+  const handlePrevTourStep = useCallback(() => {
+    setTourStep(step => (step !== null && step > 0 ? step - 1 : step));
+  }, []);
+
   const handleSkipTour = useCallback(async () => {
     setTourStep(null);
     await markTourComplete();
@@ -118,6 +123,7 @@ export function useOnboarding({ user, authLoading, refreshUser }: UseOnboardingP
     scanProgress,
     markTourComplete,
     handleNextTourStep,
+    handlePrevTourStep,
     handleSkipTour,
     handleStartScan,
   };

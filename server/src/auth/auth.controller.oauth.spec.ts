@@ -5,6 +5,7 @@ import { Response } from "express";
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
@@ -79,6 +80,14 @@ describe("AuthController OAuth callbacks", () => {
     create: jest.fn(),
   };
 
+  // The real service wraps the task in the owner's KMS key; the tests only need
+  // the task to run, plus the ability to assert it was wrapped at all.
+  const mockUserEncryptionService = {
+    withUserKey: jest.fn((_userId: string, task: () => Promise<unknown>) =>
+      task(),
+    ),
+  };
+
   const mockOffice365AccountsService = {
     findAllByUser: jest.fn(),
     updateTokens: jest.fn(),
@@ -119,6 +128,7 @@ describe("AuthController OAuth callbacks", () => {
           useValue: mockOffice365AccountsService,
         },
         { provide: ZohoAccountsService, useValue: mockZohoAccountsService },
+        { provide: UserEncryptionService, useValue: mockUserEncryptionService },
         { provide: WaitlistService, useValue: {} },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
       ],
@@ -325,6 +335,40 @@ describe("AuthController OAuth callbacks", () => {
         expectedCookieOptions,
       );
       expect(res.redirect).toHaveBeenCalledWith(`${FRONTEND_URL}/inbox`);
+    });
+
+    it("reads and writes the provider account under the owner's encryption key", async () => {
+      // OAuth callbacks are unauthenticated, so no interceptor has put the
+      // user's KMS key in ALS. Without withUserKey the per-user columns are
+      // read and written under the GLOBAL key: existing tokens fail to decrypt
+      // and freshly written ones become unreadable to the authenticated path.
+      const res = createMockResponse();
+      mockOffice365AccountsService.findAllByUser.mockResolvedValue([]);
+      const callOrder: string[] = [];
+      mockUserEncryptionService.withUserKey.mockImplementationOnce(
+        async (_userId: string, task: () => Promise<unknown>) => {
+          callOrder.push("withUserKey");
+          return task();
+        },
+      );
+      mockOffice365AccountsService.findAllByUser.mockImplementationOnce(
+        async () => {
+          callOrder.push("findAllByUser");
+          return [];
+        },
+      );
+
+      await controller.microsoftAuthRedirect(
+        { user: microsoftUser },
+        asResponse(res),
+        undefined,
+      );
+
+      expect(mockUserEncryptionService.withUserKey).toHaveBeenCalledWith(
+        "user-1",
+        expect.any(Function),
+      );
+      expect(callOrder).toEqual(["withUserKey", "findAllByUser"]);
     });
 
     it("should redirect to the auth-error page when the guard reports an error", async () => {

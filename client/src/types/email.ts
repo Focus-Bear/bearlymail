@@ -178,6 +178,11 @@ export interface Email {
   // How `summary` was produced. 'deterministic' is a cheap text placeholder for
   // low-priority threads; the detail view upgrades it to an LLM summary on open.
   summarySource?: 'llm' | 'deterministic' | null;
+  // Selector value of the summary type that produced `summary` ('tldr',
+  // 'bullet-points', 'action-items', 'sender-request', or 'custom-<ruleId>').
+  // NULL/undefined means the default ('tldr'). Used to keep the summary-type
+  // selector in sync with the shown summary after navigating away and back.
+  summaryType?: string | null;
   starCount?: number;
   isArchived?: boolean;
   lastCheckedAt?: string | null;

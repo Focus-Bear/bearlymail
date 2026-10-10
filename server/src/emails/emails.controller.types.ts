@@ -40,4 +40,13 @@ export type SendEmailBody = {
   bcc?: import("./interfaces/email-provider.interface").EmailRecipient[];
   scheduledSendAt?: string;
   userTimezone?: string;
+  /** Follow-up window in whole hours; 0 means no follow-up. */
+  expectedReplyHours?: number | string;
+  /**
+   * Free-text follow-up window ("3d", "next Monday"), parsed with the same
+   * parser as snooze. Takes precedence over `expectedReplyHours`.
+   */
+  expectedReplyDuration?: string;
+  /** UI language (e.g. "en", "es") used to parse `expectedReplyDuration`. */
+  locale?: string;
 };

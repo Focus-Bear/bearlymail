@@ -12,6 +12,7 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { SUMMARY_TYPES } from "../llm/prompts";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
 import { validatePatterns } from "./pattern-matcher";
 import {
@@ -113,6 +114,18 @@ export class SummarizationController {
       rule,
     );
 
+    // The client's summary-type selector value, so the detail view can restore
+    // it in sync with the shown summary on reload. Custom rules round-trip as
+    // `custom-<ruleId>`; built-in types are stored as-is.
+    let summaryType: string;
+    if (rule?.type === SUMMARY_TYPES.CUSTOM) {
+      summaryType = rule.ruleId
+        ? `custom-${rule.ruleId}`
+        : SUMMARY_TYPES.CUSTOM;
+    } else {
+      summaryType = rule?.type ?? SUMMARY_TYPES.TLDR;
+    }
+
     // Persist the full-thread summary to the DB so subsequent page loads show
     // the refreshed version. Fire-and-forget — the response is already correct.
     this.summarizationService
@@ -121,6 +134,7 @@ export class SummarizationController {
         result.threadId,
         result.emailThreadId,
         result.summary,
+        summaryType,
       )
       .catch(() => {
         // Non-critical: response already contains the correct summary

@@ -1,17 +1,39 @@
+import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
+  ValidateNested,
 } from "class-validator";
 
 import { CATEGORY_RULE_COMPOSITE } from "../../constants/category-rule-composite.constants";
+import {
+  GITHUB_ACTOR_KINDS,
+  GITHUB_ITEM_STATES,
+  GithubActorKind,
+  GithubItemState,
+} from "../../constants/github-notification.constants";
+
+/** One pinned GitHub Projects board status, optionally scoped to a project. */
+export class GithubProjectStatusConditionDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_GITHUB_CONDITION_VALUE_LENGTH)
+  status!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_GITHUB_CONDITION_VALUE_LENGTH)
+  project?: string;
+}
 
 export class CreateCompositeCategoryRuleDto {
   @IsString()
@@ -106,6 +128,53 @@ export class CreateCompositeCategoryRuleDto {
    */
   @IsOptional()
   @IsString()
-  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_CONTAINS_LENGTH)
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPE_LENGTH)
   notificationSubtype?: string;
+
+  /**
+   * SET form of the structural condition: the email's resolved sub-stream must
+   * equal or refine any listed member (OR within). Round-trips with
+   * `notificationSubtype`; the normaliser canonicalises the two.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPES)
+  @IsString({ each: true })
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPE_LENGTH, {
+    each: true,
+  })
+  notificationSubtypeAny?: string[];
+
+  /**
+   * GitHub-metadata structural conditions (see `CompositeCategoryRuleSpecV3`):
+   * the PR/issue lifecycle state(s) the email's thread must be in.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_GITHUB_STATES)
+  @IsIn(Object.values(GITHUB_ITEM_STATES), { each: true })
+  githubStateAny?: GithubItemState[];
+
+  /** GitHub Projects board status(es) the thread's item must carry (case-insensitive). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_GITHUB_PROJECT_STATUSES)
+  @ValidateNested({ each: true })
+  @Type(() => GithubProjectStatusConditionDto)
+  githubProjectStatusAny?: GithubProjectStatusConditionDto[];
+
+  /** Whether the PR/issue must have been AUTHORED by a bot or a human. */
+  @IsOptional()
+  @IsIn(Object.values(GITHUB_ACTOR_KINDS))
+  githubAuthorKind?: GithubActorKind;
+
+  /** Label(s) the thread's item must carry (any match, case-insensitive). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_GITHUB_LABELS)
+  @IsString({ each: true })
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_GITHUB_CONDITION_VALUE_LENGTH, {
+    each: true,
+  })
+  githubLabelsAny?: string[];
 }

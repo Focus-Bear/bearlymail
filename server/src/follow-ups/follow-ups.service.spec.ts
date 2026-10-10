@@ -25,6 +25,7 @@ jest.mock("../encryption/encryption.helper", () => {
     // Simple mock - returns as-is
     EncryptionHelper: {
       decrypt: jest.fn((encryptedValue: string) => encryptedValue),
+      tryDecrypt: jest.fn((encryptedValue: string) => encryptedValue),
     },
     makeEmailTransformer: () => noopTransformer,
     makeEncryptedColumnTransformer: () => noopTransformer,
@@ -245,6 +246,112 @@ describe("FollowUpsService", () => {
       const createdCall = followUpRepository.create.mock.calls[0][0];
       expect(createdCall.lastTheirReply).toBe(theirEmail.body);
       expect(createdCall.lastMyReply).toBe(myEmail.body);
+    });
+
+    it("snapshots the addressed recipient, not the introducer, on an intro thread (#14)", async () => {
+      // Scott introduced Jeremy (the user) to Sasha; the user wrote to Sasha,
+      // who has not replied. The follow-up must chase Sasha, not Scott.
+      const scottIntro = mockPartial({
+        ...mockEmail,
+        id: "email-scott",
+        from: "scott@focusbear.io",
+        fromName: "Scott Crowe",
+        to: "Jeremy <user@example.com>, Sasha Gusain <sasha@summer-works.com>",
+        body: "Hi Sasha and Jeremy, I think you two should chat.",
+        receivedAt: new Date("2026-07-07T02:41:01Z"),
+        labels: [],
+        getPriorityScore: jest.fn().mockReturnValue(50),
+      });
+      const myEmailToSasha = mockPartial({
+        ...mockEmail,
+        id: "email-jeremy",
+        from: "user@example.com",
+        fromName: "Jeremy",
+        to: "Sasha Gusain <sasha@summer-works.com>",
+        body: "Thanks for the intro Scott. Hi Sasha, would you be up for a chat?",
+        receivedAt: new Date("2026-07-07T03:00:00Z"),
+        labels: ["SENT"],
+        getPriorityScore: jest.fn().mockReturnValue(50),
+      });
+
+      emailThreadRepository.findOne.mockResolvedValue(mockEmailThread);
+      // find() returns newest first.
+      emailRepository.find.mockResolvedValue([myEmailToSasha, scottIntro]);
+      usersService.findOne.mockResolvedValue(mockUser);
+      followUpRepository.create.mockReturnValue(mockFollowUp as FollowUp);
+      followUpRepository.save.mockResolvedValue(mockFollowUp);
+
+      await service.createFollowUp("user-1", "thread-1", 7);
+
+      const createdCall = followUpRepository.create.mock.calls[0][0];
+      expect(createdCall.lastTheirReplyFrom).toBe("Sasha Gusain");
+      expect(createdCall.lastTheirReplyFrom).not.toBe("Scott Crowe");
+      // Sasha never replied, so there is no "their reply" body to snapshot.
+      expect(createdCall.lastTheirReply).toBeUndefined();
+    });
+  });
+
+  describe("createFollowUpForSentMessage", () => {
+    const primeCreate = () => {
+      emailThreadRepository.findOne.mockResolvedValue(null);
+      emailRepository.find.mockResolvedValue([]);
+      followUpRepository.create.mockReturnValue(mockFollowUp as FollowUp);
+      followUpRepository.save.mockResolvedValue(mockFollowUp);
+    };
+
+    it("creates one follow-up for the requested window", async () => {
+      followUpRepository.findOne.mockResolvedValue(null);
+      primeCreate();
+
+      const result = await service.createFollowUpForSentMessage(
+        "user-1",
+        "thread-1",
+        48,
+      );
+
+      expect(result).toEqual(mockFollowUp);
+      expect(followUpRepository.save).toHaveBeenCalledTimes(1);
+      expect(followUpRepository.create.mock.calls[0][0].followUpDays).toBe(2);
+    });
+
+    it("uses the composed subject when the thread has no synced email yet", async () => {
+      followUpRepository.findOne.mockResolvedValue(null);
+      primeCreate();
+
+      await service.createFollowUpForSentMessage("user-1", "thread-1", 48, {
+        subject: "Project kickoff",
+      });
+
+      expect(followUpRepository.create.mock.calls[0][0].subject).toBe(
+        "Project kickoff",
+      );
+    });
+
+    it("creates nothing when no follow-up was asked for", async () => {
+      expect(
+        await service.createFollowUpForSentMessage("user-1", "thread-1", 0),
+      ).toBeNull();
+      expect(
+        await service.createFollowUpForSentMessage(
+          "user-1",
+          "thread-1",
+          undefined,
+        ),
+      ).toBeNull();
+      expect(followUpRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("re-uses the active follow-up when the send job is retried", async () => {
+      followUpRepository.findOne.mockResolvedValue(mockFollowUp);
+
+      const result = await service.createFollowUpForSentMessage(
+        "user-1",
+        "thread-1",
+        48,
+      );
+
+      expect(result).toEqual(mockFollowUp);
+      expect(followUpRepository.save).not.toHaveBeenCalled();
     });
   });
 

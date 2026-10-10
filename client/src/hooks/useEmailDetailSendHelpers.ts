@@ -82,31 +82,41 @@ export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   return formData;
 }
 
-export async function sendReplyRequest(payload: SendReplyPayload): Promise<void> {
+/**
+ * The send endpoint returns before the mail provider has been contacted, so it
+ * answers with a correlation id rather than a delivery result. `sendId` is
+ * absent on the scheduled-send path, which returns a scheduled email instead.
+ */
+export interface SendReplyResponse {
+  sendId?: string;
+}
+
+export async function sendReplyRequest(payload: SendReplyPayload): Promise<SendReplyResponse> {
   const hasAttachments = payload.files.length > 0 || (payload.inlineImages && payload.inlineImages.size > 0);
   if (hasAttachments) {
     const formData = buildSendReplyFormData(payload);
-    await axios.post(`${API_URL}/replies/send/${payload.emailId}`, formData, {
+    const response = await axios.post<SendReplyResponse>(`${API_URL}/replies/send/${payload.emailId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-  } else {
-    await axios.post(`${API_URL}/replies/send/${payload.emailId}`, {
-      reply: payload.draft,
-      recipients: payload.recipients,
-      cc: payload.cc || undefined,
-      bcc: payload.bcc || undefined,
-      replyAll: payload.replyMode === REPLY_MODE_REPLY_ALL,
-      isForward: payload.replyMode === REPLY_MODE_FORWARD,
-      subject: payload.subject || undefined,
-      forwardAttachmentIds: payload.forwardAttachmentIds?.length ? payload.forwardAttachmentIds : undefined,
-      expectedReplyHours: payload.expectedReplyHours,
-      expectedReplyDuration: payload.expectedReplyDuration || undefined,
-      // Tell the server which language to parse the free-text duration in.
-      locale: payload.expectedReplyDuration ? i18n.language : undefined,
-      scheduledSendAt: payload.scheduledSendAt?.toISOString(),
-      keepInAction: payload.keepInAction || undefined,
-    });
+    return response.data;
   }
+  const response = await axios.post<SendReplyResponse>(`${API_URL}/replies/send/${payload.emailId}`, {
+    reply: payload.draft,
+    recipients: payload.recipients,
+    cc: payload.cc || undefined,
+    bcc: payload.bcc || undefined,
+    replyAll: payload.replyMode === REPLY_MODE_REPLY_ALL,
+    isForward: payload.replyMode === REPLY_MODE_FORWARD,
+    subject: payload.subject || undefined,
+    forwardAttachmentIds: payload.forwardAttachmentIds?.length ? payload.forwardAttachmentIds : undefined,
+    expectedReplyHours: payload.expectedReplyHours,
+    expectedReplyDuration: payload.expectedReplyDuration || undefined,
+    // Tell the server which language to parse the free-text duration in.
+    locale: payload.expectedReplyDuration ? i18n.language : undefined,
+    scheduledSendAt: payload.scheduledSendAt?.toISOString(),
+    keepInAction: payload.keepInAction || undefined,
+  });
+  return response.data;
 }
 
 export interface PostSendRoutingParams {

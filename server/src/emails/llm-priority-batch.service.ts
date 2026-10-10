@@ -21,6 +21,10 @@ import {
 import { DebugService } from "../debug/debug.service";
 import { DEBUG_FEATURES } from "../debug/debug-feature-names";
 import {
+  buildEmailCategoryInputs,
+  buildProtoCategoryInputs,
+} from "../llm/category-context-input.helper";
+import {
   BatchPriorityResult,
   PriorityAnalysisService,
 } from "../llm/priority-analysis.service";
@@ -30,7 +34,6 @@ import { PriorityRulesService } from "../priority-rules/priority-rules.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
-import { protoCategoryKey } from "../utils/category-key.util";
 import { parseCategoryValue } from "../utils/category-name.util";
 import { buildBatchEmailPayloads } from "./batch-email-payloads.helper";
 import { applyCategoryRuleToResult } from "./category-rule-apply.helper";
@@ -460,23 +463,8 @@ export class LLMPriorityBatchService {
       dontCare: contexts
         .filter((category) => category.contextKey === ContextKey.DONT_CARE)
         .map((category) => ({ value: category.contextValue })),
-      emailCategories: contexts
-        .filter((category) => category.contextKey === ContextKey.EMAIL_CATEGORY)
-        .map((category) => {
-          const { name, description } = parseCategoryValue(
-            category.contextValue,
-          );
-          return {
-            name,
-            description: description ?? undefined,
-            categoryKey: category.categoryKey ?? undefined,
-          };
-        }),
-      protoCategories: protoCategories.map((pc) => ({
-        name: pc.name,
-        description: pc.description || undefined,
-        categoryKey: protoCategoryKey(pc.id),
-      })),
+      emailCategories: buildEmailCategoryInputs(contexts),
+      protoCategories: buildProtoCategoryInputs(protoCategories),
     };
   }
 

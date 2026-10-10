@@ -12,11 +12,9 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { GithubCategorySignalsService } from "../github/github-category-signals.service";
 import { CategoryShortlistService } from "../llm/category-shortlist.service";
-import {
-  buildRuleMatchText,
-  cleanEmailContent,
-} from "../llm/email-content-cleaner";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import type { LocalModelDebugSnapshot } from "../local-model/local-model.types";
 import { protoCategoryKey } from "../utils/category-key.util";
@@ -24,8 +22,9 @@ import {
   parseCategoryValue,
   resolveCategoryName,
 } from "../utils/category-name.util";
-import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import type { CategoryDecisionTrace } from "./category-decision-trace.types";
+import { cachedGithubSignalsForEmail } from "./email-github-signals.helper";
+import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 /** Cap on the thread-timeline list in the debug payload — threads longer than this keep only the newest entries (the recent tail is what staleness questions are about). */
 const THREAD_TIMELINE_LIMIT = 50;
@@ -141,7 +140,17 @@ export class EmailDebugCategoryService {
     private categoryRulesService: CategoryRulesService,
     private categoryShortlistService: CategoryShortlistService,
     private priorityAnalysisService: PriorityAnalysisService,
+    private githubCategorySignalsService: GithubCategorySignalsService,
   ) {}
+
+  /** The GitHub facts the live rule matcher would see — cached metadata only. */
+  private cachedGithubSignals(email: Email) {
+    return cachedGithubSignalsForEmail(
+      this.emailThreadRepository,
+      this.githubCategorySignalsService,
+      email,
+    );
+  }
 
   private get emailRepository() {
     return this.dataSource.getRepository(Email);
@@ -342,27 +351,14 @@ export class EmailDebugCategoryService {
       null,
       BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
-    // Deterministic rules match against (almost) the full message — plain text
-    // AND the HTML part — mirroring the real categoriser, so body contains /
-    // NOT-contains phrases deep in a long email or only in the HTML still apply.
-    // The shortlist still uses the short classification preview.
-    const bodyForRuleMatch = buildRuleMatchText(
-      email.body || "",
-      email.htmlBody,
-      BODY_PREVIEW_LENGTHS.RULE_MATCH,
+    // Deterministic rules match against exactly what the real categoriser sees
+    // (full plain text + HTML match text, the resolved notification subtype and
+    // the thread's cached GitHub facts), so the debug trace can never disagree
+    // with processing.
+    const meta = buildRuleEmailMetadata(
+      email,
+      await this.cachedGithubSignals(email),
     );
-    const meta = {
-      from: email.from || "",
-      subject: email.subject || "",
-      bodyTextForMatch: bodyForRuleMatch,
-      notificationSubtype:
-        resolveNotificationSubtype({
-          from: email.from || "",
-          subject: email.subject || "",
-          body: email.body,
-          htmlBody: email.htmlBody,
-        }) ?? undefined,
-    };
     const deterministicRules =
       await this.categoryRulesService.getDeterministicRulesDebug(userId, meta);
     const { winningRule } = deterministicRules;

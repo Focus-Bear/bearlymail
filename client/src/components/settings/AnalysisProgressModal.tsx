@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { EMOJI_WARNING } from 'constants/emojis';
+import { ANALYSIS_MODAL_WIDTH_BOUNDS } from 'constants/layout';
 import { ANALYSIS_RECENT_INSIGHTS_COUNT, Z_INDEX_POPUP } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { AnalyzeProgress } from 'hooks/useSettingsData';
@@ -139,8 +140,7 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({ an
         padding: theme.spacing.lg,
         borderRadius: theme.borderRadius.lg,
         boxShadow: theme.shadows.xl,
-        minWidth: '300px',
-        maxWidth: '500px',
+        ...ANALYSIS_MODAL_WIDTH_BOUNDS,
         zIndex: Z_INDEX_POPUP,
         border: `1px solid ${error ? theme.colors.accent.error : theme.colors.border.light}`,
       }}

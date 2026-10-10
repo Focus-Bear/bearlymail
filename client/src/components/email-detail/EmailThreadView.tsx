@@ -13,6 +13,13 @@ import { ResolvedEmailBody } from './ResolvedEmailBody';
 
 type ReplyMode = typeof REPLY_MODE_REPLY | typeof REPLY_MODE_REPLY_ALL | typeof REPLY_MODE_FORWARD;
 
+/**
+ * Minimum height (px) for an expanded thread message body. Without a generous
+ * floor short/mis-measured emails collapse into a cramped ~150px scrollbox
+ * (the iframe otherwise floors at 100px); this keeps the reading area roomy.
+ */
+const THREAD_MESSAGE_BODY_MIN_HEIGHT = 320;
+
 const threadReplyButtonStyle: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -247,18 +254,8 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
                         color: theme.colors.text.primary,
                         opacity: 0.8,
                       }}
-                      title={new Date(threadEmail.receivedAt).toLocaleString(undefined, {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        timeZoneName: 'short',
-                      })}
                     >
-                      {humanizeTimestamp(threadEmail.receivedAt)}
+                      {humanizeTimestamp(threadEmail.receivedAt, { showAbsoluteDate: true })}
                     </div>
                   </div>
                   <div
@@ -305,6 +302,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
                           html={isBodyExpanded ? rawHtmlBody : (cleanHtmlResult?.html ?? extractCleanHtmlBody(rawHtmlBody))}
                           attachments={threadEmail.attachments}
                           sanitize={sanitizeAndProcessHtml}
+                          minHeight={THREAD_MESSAGE_BODY_MIN_HEIGHT}
                         />
                         {cleanHtmlResult?.wasTruncated && (
                           <ExpandCollapseButton

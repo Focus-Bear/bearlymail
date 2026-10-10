@@ -6,6 +6,7 @@ import { Repository } from "typeorm";
 import { assertSafeOutboundUrl } from "../common/url-validation.utils";
 import { WORKFLOW_RESULT_STATUS } from "../constants/domain-statuses";
 import { WORKFLOW_STEP_TYPES } from "../constants/domain-types";
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { WorkflowExecutionLog } from "../database/entities/workflow-execution-log.entity";
 import { WorkflowRule } from "../database/entities/workflow-rule.entity";
 import { EmailArchiveService } from "../emails/email-archive.service";
@@ -156,6 +157,7 @@ export class WorkflowExecutionService {
       const response = await this.llmCoreService.generateText({
         prompt,
         operation: LLM_OP_EVALUATE_WORKFLOW_CONDITION,
+        jevDecision: { kind: JEV_DECISION_KINDS.WORKFLOW_CONDITION, input: {} },
         maxTokens: 64,
         jsonMode: true,
         userId: context.userId,

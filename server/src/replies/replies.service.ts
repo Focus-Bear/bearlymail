@@ -39,9 +39,11 @@ import {
   parseRecipientsFromString,
   sanitizeRecipientList,
 } from "../utils/email-address.utils";
+import { followUpDaysFromHours } from "../utils/expected-reply.util";
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 import { buildReplySubject } from "../utils/reply-subject.util";
+import { buildForwardBody, buildForwardHtmlBody } from "./forward-body.helpers";
 
 export interface ReplyRule {
   ruleId?: string;
@@ -52,8 +54,12 @@ export interface ReplyRule {
   priority: number;
 }
 
-type ReplyAttachment = { filename: string; mimeType: string; content: Buffer };
-type InlineImage = {
+export type ReplyAttachment = {
+  filename: string;
+  mimeType: string;
+  content: Buffer;
+};
+export type InlineImage = {
   contentId: string;
   filename: string;
   mimeType: string;
@@ -451,10 +457,7 @@ ${closing}`;
     const snoozeUntil = new Date(
       Date.now() + expectedReplyHours * MILLISECONDS.HOUR,
     );
-    const followUpDays = Math.max(
-      1,
-      Math.ceil(expectedReplyHours / HOURS_PER_DAY),
-    );
+    const followUpDays = followUpDaysFromHours(expectedReplyHours);
     const followUpDueAt = new Date();
     followUpDueAt.setDate(followUpDueAt.getDate() + followUpDays);
 
@@ -555,30 +558,6 @@ ${closing}`;
   }
 
   /**
-   * Build the body for a forwarded email, prepending the conventional
-   * "---------- Forwarded message ---------" header block with the original
-   * email's metadata and content.
-   */
-  private buildForwardBody(userText: string, originalEmail: Email): string {
-    const fromDisplay = originalEmail.fromName
-      ? `${originalEmail.fromName} <${originalEmail.from}>`
-      : originalEmail.from;
-
-    const header = [
-      "---------- Forwarded message ---------",
-      `From: ${fromDisplay}`,
-      `Date: ${originalEmail.receivedAt.toUTCString()}`,
-      `Subject: ${originalEmail.subject}`,
-      `To: ${originalEmail.to ?? ""}`,
-    ].join("\n");
-
-    // Prefer HTML body if available so rich content survives forwarding
-    const originalBody = originalEmail.htmlBody || originalEmail.body || "";
-
-    return `${userText}\n\n${header}\n\n${originalBody}`;
-  }
-
-  /**
    * Gather all attachment data (user-supplied + forwarded) and resolve the
    * reply-to address.  Returns the complete payload ready for dispatch.
    */
@@ -609,11 +588,11 @@ ${closing}`;
     } = options;
 
     const bodyForSending = isForward
-      ? this.buildForwardBody(body, email)
+      ? buildForwardBody(body, email)
       : this.buildReplyQuotedBody(body, email);
 
     const htmlBodyForSending = isForward
-      ? this.buildForwardBody(body, email)
+      ? buildForwardHtmlBody(body, email)
       : this.buildReplyQuotedHtmlBody(body, email);
 
     const bodyWithSignature = appendSignature(
@@ -721,6 +700,9 @@ ${closing}`;
         to: toRecipients,
         subject: replySubject,
         body: bodyWithSignature,
+        // HTML part with <br> line breaks so the signature (and forward header)
+        // don't collapse to a single line the way the plain body would.
+        htmlBody: htmlBodyWithSignature,
         cc: ccRecipients,
         bcc: bccRecipients,
         attachments:
@@ -768,7 +750,7 @@ ${closing}`;
        */
       keepInAction?: boolean;
     } = {},
-  ): Promise<void> {
+  ): Promise<{ messageId: string; threadId: string }> {
     const {
       expectedReplyHours,
       cc,
@@ -866,6 +848,8 @@ ${closing}`;
       keepInAction,
       expectedReplyHours,
     });
+
+    return sentMessage;
   }
 
   /**

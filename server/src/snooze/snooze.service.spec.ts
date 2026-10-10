@@ -3,6 +3,8 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import * as chrono from "chrono-node";
 import { Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -11,21 +13,31 @@ import { mockPartial } from "../test/helpers/mock-utils";
 import { SnoozeService } from "./snooze.service";
 
 jest.mock("chrono-node", () => {
-  const parseDate = jest.fn();
+  const parse = jest.fn();
   // The parser selects chrono.<locale>.casual; share one mock so the existing
-  // `chrono.parseDate` assertions still control the default (English) path.
+  // `chrono.parse` assertions still control the default (English) path.
   return {
-    parseDate,
-    en: { casual: { parseDate } },
-    es: { casual: { parseDate } },
+    parse,
+    en: { casual: { parse } },
+    es: { casual: { parse } },
   };
 });
+
+/**
+ * A chrono result carrying an explicit time, so `parseDurationToDate` returns
+ * it unchanged rather than snapping a date-only phrase to the default hour.
+ */
+const chronoResultFor = (date: Date | null) =>
+  date === null
+    ? []
+    : [{ start: { date: () => new Date(date), isCertain: () => true } }];
 
 describe("SnoozeService", () => {
   let service: SnoozeService;
   let repository: jest.Mocked<Repository<Email>>;
   let threadRepository: jest.Mocked<Repository<EmailThread>>;
   let emailProviderManager: jest.Mocked<EmailProviderManager>;
+  let boss: { send: jest.Mock };
 
   const mockEmail: Email = mockPartial({
     id: "email-1",
@@ -63,7 +75,9 @@ describe("SnoozeService", () => {
           provide: getRepositoryToken(Email),
           useValue: {
             findOne: jest.fn(),
+            find: jest.fn(),
             save: jest.fn(),
+            update: jest.fn(),
           },
         },
         {
@@ -71,6 +85,7 @@ describe("SnoozeService", () => {
           useValue: {
             findOne: jest.fn(),
             save: jest.fn(),
+            update: jest.fn(),
           },
         },
         {
@@ -79,6 +94,10 @@ describe("SnoozeService", () => {
             getPrimaryProvider: jest.fn(),
           },
         },
+        {
+          provide: INJECT_TOKENS.PG_BOSS,
+          useValue: { send: jest.fn().mockResolvedValue("job-1") },
+        },
       ],
     }).compile();
 
@@ -86,8 +105,9 @@ describe("SnoozeService", () => {
     repository = module.get(getRepositoryToken(Email));
     threadRepository = module.get(getRepositoryToken(EmailThread));
     emailProviderManager = module.get(EmailProviderManager);
+    boss = module.get(INJECT_TOKENS.PG_BOSS);
     jest.clearAllMocks();
-    (chrono.parseDate as jest.Mock).mockReturnValue(null);
+    (chrono.parse as jest.Mock).mockReturnValue([]);
   });
 
   describe("snoozeEmail", () => {
@@ -246,7 +266,7 @@ describe("SnoozeService", () => {
 
       const result = await service.snoozeEmail("user-1", "email-1", "5d");
 
-      const expectedTime = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+      const expectedTime = new Date("2024-01-06T08:00:00Z");
       expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
 
       jest.useRealTimers();
@@ -259,9 +279,7 @@ describe("SnoozeService", () => {
 
       const result = await service.snoozeEmail("user-1", "email-1", "2w");
 
-      const expectedTime = new Date(
-        now.getTime() + 2 * 7 * 24 * 60 * 60 * 1000,
-      );
+      const expectedTime = new Date("2024-01-15T08:00:00Z");
       expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
 
       jest.useRealTimers();
@@ -292,7 +310,7 @@ describe("SnoozeService", () => {
     it("should use chrono for natural language dates", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       const chronoDate = new Date("2024-01-15T10:00:00Z");
-      (chrono.parseDate as jest.Mock).mockReturnValue(chronoDate);
+      (chrono.parse as jest.Mock).mockReturnValue(chronoResultFor(chronoDate));
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
@@ -310,7 +328,7 @@ describe("SnoozeService", () => {
     it("should parse time-of-day (5pm) via chrono", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       const expected5pm = new Date("2024-01-01T17:00:00Z");
-      (chrono.parseDate as jest.Mock).mockReturnValue(expected5pm);
+      (chrono.parse as jest.Mock).mockReturnValue(chronoResultFor(expected5pm));
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
@@ -324,7 +342,9 @@ describe("SnoozeService", () => {
     it("should parse day and time (Wed 3pm) via chrono", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       const expectedWed3pm = new Date("2024-01-03T15:00:00Z");
-      (chrono.parseDate as jest.Mock).mockReturnValue(expectedWed3pm);
+      (chrono.parse as jest.Mock).mockReturnValue(
+        chronoResultFor(expectedWed3pm),
+      );
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
@@ -372,6 +392,94 @@ describe("SnoozeService", () => {
       expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
 
       jest.useRealTimers();
+    });
+  });
+
+  describe("bulkSnoozeEmails", () => {
+    const wakeUpAt = new Date("2026-09-23T09:00:00.000Z");
+
+    beforeEach(() => {
+      (chrono.parse as jest.Mock).mockReturnValue(chronoResultFor(wakeUpAt));
+      repository.find.mockResolvedValue([
+        mockPartial<Email>({ id: "email-1", threadId: "gmail-thread-1" }),
+        mockPartial<Email>({ id: "email-2", threadId: "gmail-thread-1" }),
+        mockPartial<Email>({ id: "email-3", threadId: "gmail-thread-2" }),
+      ]);
+    });
+
+    it("should do nothing when no email ids are given", async () => {
+      const result = await service.bulkSnoozeEmails("user-1", [], "1h");
+
+      expect(result).toEqual({
+        snoozedEmailIds: [],
+        threadCount: 0,
+        snoozeUntil: null,
+      });
+      expect(repository.find).not.toHaveBeenCalled();
+      expect(threadRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("should snooze every thread of the selection until the same moment", async () => {
+      const result = await service.bulkSnoozeEmails(
+        "user-1",
+        ["email-1", "email-2", "email-3"],
+        "tomorrow 9am",
+      );
+
+      expect(result.snoozedEmailIds).toEqual(["email-1", "email-2", "email-3"]);
+      expect(result.threadCount).toBe(2);
+      expect(result.snoozeUntil).toEqual(wakeUpAt);
+
+      // One parse for the whole batch: every thread must wake together.
+      expect(chrono.parse).toHaveBeenCalledTimes(1);
+      expect(threadRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-1" }),
+        expect.objectContaining({
+          isSnoozed: true,
+          snoozeUntil: wakeUpAt,
+          syncStatus: "unsynced",
+        }),
+      );
+      expect(repository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-1" }),
+        expect.objectContaining({ isSnoozed: true, snoozeUntil: wakeUpAt }),
+      );
+    });
+
+    it("should queue one provider sync job per unique thread", async () => {
+      await service.bulkSnoozeEmails(
+        "user-1",
+        ["email-1", "email-2", "email-3"],
+        "tomorrow 9am",
+      );
+
+      const syncJobs = boss.send.mock.calls.filter(
+        (call) => call[0] === JOB_NAMES.SNOOZE_THREAD_PROVIDER_SYNC,
+      );
+      expect(syncJobs).toHaveLength(2);
+      expect(syncJobs.map((call) => call[1].threadId)).toEqual([
+        "gmail-thread-1",
+        "gmail-thread-2",
+      ]);
+      expect(syncJobs[0][1].snoozeUntil).toBe(wakeUpAt.toISOString());
+      // The request must not wait on the provider — that is the job's work.
+      expect(emailProviderManager.getPrimaryProvider).not.toHaveBeenCalled();
+    });
+
+    it("should not write anything when none of the ids match an email", async () => {
+      repository.find.mockResolvedValue([]);
+
+      const result = await service.bulkSnoozeEmails(
+        "user-1",
+        ["missing"],
+        "1h",
+      );
+
+      expect(result.snoozedEmailIds).toEqual([]);
+      expect(result.threadCount).toBe(0);
+      expect(threadRepository.update).not.toHaveBeenCalled();
+      expect(repository.update).not.toHaveBeenCalled();
+      expect(boss.send).not.toHaveBeenCalled();
     });
   });
 

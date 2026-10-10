@@ -17,9 +17,14 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import {
+  buildGithubCategorySignals,
+  ThreadGithubMetadata,
+} from "../github/github-category-signals.helper";
 import { buildRuleMatchText } from "../llm/email-content-cleaner";
 import { parseCategoryName } from "../utils/category-name.util";
 import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
+import type { EmailMetadata } from "./category-rules.types";
 import { evaluateComposite } from "./category-rules-auto-composite.helper";
 
 export interface ValidateCompositeRuleResult {
@@ -219,6 +224,10 @@ export interface ValidationRow {
   body: string;
   htmlBody: string | null;
   categoryId: string | null;
+  /** When the email arrived — dates the thread's GitHub metadata against it. */
+  receivedAt?: Date | string | null;
+  /** The thread's encrypted `githubMetadata` JSON (raw column value). */
+  githubMetadata?: string | null;
 }
 
 /** A `ValidationRow` after `EncryptionHelper.decrypt` has been applied. */
@@ -228,6 +237,8 @@ export interface DecryptedValidationRow {
   body: string;
   htmlBody: string | null;
   categoryId: string | null;
+  receivedAt?: Date | string | null;
+  githubMetadata?: ThreadGithubMetadata | null;
 }
 
 /**
@@ -253,18 +264,20 @@ export async function fetchRecentCategorisedEmailRows(
   return emailThreadRepository.manager.query(
     `
     WITH recent_threads AS (
-      SELECT id, "categoryId"
+      SELECT id, "categoryId", "githubMetadata"
       FROM email_threads
       WHERE "userId" = $1 AND "categoryId" IS NOT NULL
       ORDER BY "updatedAt" DESC
       LIMIT $2
     )
     SELECT DISTINCT ON (e."emailThreadId")
-      e."from"        AS "from",
-      e.subject       AS subject,
-      e.body          AS body,
-      e."htmlBody"    AS "htmlBody",
-      rt."categoryId" AS "categoryId"
+      e."from"            AS "from",
+      e.subject           AS subject,
+      e.body              AS body,
+      e."htmlBody"        AS "htmlBody",
+      e."receivedAt"      AS "receivedAt",
+      rt."categoryId"     AS "categoryId",
+      rt."githubMetadata" AS "githubMetadata"
     FROM recent_threads rt
     INNER JOIN emails e ON e."emailThreadId" = rt.id
     WHERE e."userId" = $1
@@ -293,18 +306,20 @@ export async function fetchRecentThreadsForCategoryRows(
   return emailThreadRepository.manager.query(
     `
     WITH recent_threads AS (
-      SELECT id, "categoryId"
+      SELECT id, "categoryId", "githubMetadata"
       FROM email_threads
       WHERE "userId" = $1 AND "categoryId" = $2
       ORDER BY "updatedAt" DESC
       LIMIT $3
     )
     SELECT DISTINCT ON (e."emailThreadId")
-      e."from"        AS "from",
-      e.subject       AS subject,
-      e.body          AS body,
-      e."htmlBody"    AS "htmlBody",
-      rt."categoryId" AS "categoryId"
+      e."from"            AS "from",
+      e.subject           AS subject,
+      e.body              AS body,
+      e."htmlBody"        AS "htmlBody",
+      e."receivedAt"      AS "receivedAt",
+      rt."categoryId"     AS "categoryId",
+      rt."githubMetadata" AS "githubMetadata"
     FROM recent_threads rt
     INNER JOIN emails e ON e."emailThreadId" = rt.id
     WHERE e."userId" = $1
@@ -327,6 +342,29 @@ export interface ValidateCompositeRuleParams {
   categoryName: string;
 }
 
+/**
+ * Decrypts and parses the thread's raw `githubMetadata` column. Best-effort:
+ * a missing, undecryptable or malformed value is treated as "no metadata" so
+ * one bad row never fails a whole validation window.
+ */
+export function parseEncryptedGithubMetadata(
+  raw: string | null | undefined,
+): ThreadGithubMetadata | null {
+  if (!raw) {
+    return null;
+  }
+  try {
+    const decrypted = EncryptionHelper.decrypt(raw);
+    if (!decrypted) {
+      return null;
+    }
+    const parsed = JSON.parse(decrypted) as ThreadGithubMetadata;
+    return Array.isArray(parsed?.links) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Decrypts a raw `ValidationRow` (TypeORM transformer is bypassed for raw queries). */
 export function decryptValidationRow(
   row: ValidationRow,
@@ -337,6 +375,41 @@ export function decryptValidationRow(
     body: EncryptionHelper.decrypt(row.body),
     htmlBody: row.htmlBody ? EncryptionHelper.decrypt(row.htmlBody) : null,
     categoryId: row.categoryId,
+    receivedAt: row.receivedAt ?? null,
+    githubMetadata: parseEncryptedGithubMetadata(row.githubMetadata),
+  };
+}
+
+/**
+ * The rule-matching view of a decrypted validation row: cleaned body text,
+ * the notification subtype resolved from the RAW body/HTML, and the GitHub
+ * facts built from the thread's metadata — exactly what the live category
+ * step evaluates rules against, so validation never disagrees with processing.
+ */
+export function validationRowToEmailMetadata(
+  row: DecryptedValidationRow,
+): EmailMetadata {
+  return {
+    from: row.from,
+    subject: row.subject,
+    bodyTextForMatch: buildRuleMatchText(row.body, row.htmlBody),
+    notificationSubtype:
+      resolveNotificationSubtype({
+        from: row.from,
+        subject: row.subject,
+        body: row.body,
+        htmlBody: row.htmlBody,
+      }) ?? undefined,
+    github: buildGithubCategorySignals(
+      {
+        from: row.from,
+        subject: row.subject,
+        body: row.body,
+        htmlBody: row.htmlBody,
+        receivedAt: row.receivedAt,
+      },
+      row.githubMetadata,
+    ),
   };
 }
 
@@ -363,18 +436,7 @@ export function partitionMatchesByCategory(
   for (const row of rows) {
     const evaluation = evaluateComposite(
       spec,
-      {
-        from: row.from,
-        subject: row.subject,
-        bodyTextForMatch: buildRuleMatchText(row.body, row.htmlBody),
-        notificationSubtype:
-          resolveNotificationSubtype({
-            from: row.from,
-            subject: row.subject,
-            body: row.body,
-            htmlBody: row.htmlBody,
-          }) ?? undefined,
-      },
+      validationRowToEmailMetadata(row),
       normaliseSender,
     );
     if (!evaluation.matches) {

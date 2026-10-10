@@ -55,29 +55,69 @@ function normaliseForExactMatch(name: string): string {
 }
 
 /**
- * Resolve an LLM response's category.
+ * Exact (normalised) match of a model-reported category NAME back into the
+ * numbered list. Returns the listed name, or null when the name is absent,
+ * "Other", or not an exact match (a fabricated/near name — never fuzzy-matched).
+ */
+/** `normaliseForExactMatch("Other")` — the catch-all is handled via the number, not the name. */
+const OTHER_NORMALISED = "other";
+
+function resolveExactListedName(
+  rawName: unknown,
+  orderedNames: string[],
+): string | null {
+  if (typeof rawName !== "string") return null;
+  const trimmed = rawName.trim();
+  if (!trimmed || normaliseForExactMatch(trimmed) === OTHER_NORMALISED) {
+    return null;
+  }
+  const target = normaliseForExactMatch(trimmed);
+  return (
+    orderedNames.find((listed) => normaliseForExactMatch(listed) === target) ??
+    null
+  );
+}
+
+/**
+ * Resolve an LLM response's category, reconciling the model's `categoryName`
+ * against its `categoryNumber`.
  *
- * Primary path: prefer `categoryNumber` — an exact 1-based index into the
- * numbered list (0 / out-of-range → "Other").
+ * Weak models (e.g. Nova Lite) reliably NAME the category their reasoning is
+ * about, but frequently mis-emit the positional NUMBER — so trusting the bare
+ * integer routed emails into an unrelated category while the explanation named
+ * the right one. Therefore:
  *
- * Defensive path: when the model disobeys and reports a NAME instead of a
- * number, recover the pick ONLY by an exact (normalised) match back into the
- * numbered list. A name that isn't in the list resolves to "Other" — we never
- * fall back to fuzzy/prefix name matching, which re-routes fabricated near-names
- * (e.g. "New GitHub Bug Reports" ≈ "New Github issues raised by QAs") into the
- * wrong category or a bogus proto. "Other" is the honest outcome for a pick the
- * model invented rather than selecting from the list.
+ * 1. If `categoryName` EXACTLY matches a listed category, trust it — this is the
+ *    category the model actually reasoned about, regardless of the number.
+ * 2. Otherwise fall back to `categoryNumber` (exact 1-based index; 0 / out of
+ *    range → "Other").
+ * 3. Legacy defensive path: an older response that reported a name only in
+ *    `category` with no number, matched exactly back into the list.
+ *
+ * Matching is always EXACT (normalised) — never fuzzy/prefix — so a fabricated
+ * near-name resolves to "Other" (via the number) rather than mis-routing.
  */
 export function resolveResponseCategory(
-  analysisResult: { categoryNumber?: unknown; category?: string },
+  analysisResult: {
+    categoryNumber?: unknown;
+    categoryName?: string;
+    category?: string;
+  },
   orderedNames: string[],
 ): string {
+  const named = resolveExactListedName(
+    analysisResult.categoryName,
+    orderedNames,
+  );
+  if (named) return named;
+
   if (hasCategoryNumber(analysisResult.categoryNumber)) {
     return resolveCategoryNumber(analysisResult.categoryNumber, orderedNames);
   }
-  const name = analysisResult.category?.trim();
-  if (!name || name === "Other") return "Other";
-  const target = normaliseForExactMatch(name);
+
+  const legacyName = analysisResult.category?.trim();
+  if (!legacyName || legacyName === "Other") return "Other";
+  const target = normaliseForExactMatch(legacyName);
   const exact = orderedNames.find(
     (listed) => normaliseForExactMatch(listed) === target,
   );

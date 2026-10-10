@@ -15,13 +15,21 @@ import {
 import { getAxiosErrorMessage } from 'utils/errors';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
+import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
+import { buildToneCheckContext } from 'utils/toneCheckContext';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, MS_PER_SECOND, SUBJECT_PREVIEW_LENGTH, TIMEOUT_800_MS } from 'constants/numbers';
+import {
+  HTTP_FORBIDDEN,
+  HTTP_UNAUTHORIZED,
+  MS_PER_SECOND,
+  SUBJECT_PREVIEW_LENGTH,
+  TIMEOUT_800_MS,
+} from 'constants/numbers';
 import {
   ANIMATION_TYPE_ARCHIVE,
   ANIMATION_TYPE_PRIORITY,
@@ -95,6 +103,7 @@ export function useEmailDetailOperations(
     setShowCc,
     setShowBcc,
     setLoadingReplies,
+    setSending,
 
     setToneCheckResult,
     setCheckingTone,
@@ -230,6 +239,9 @@ export function useEmailDetailOperations(
           {
             type: 'custom',
             customPrompt: rule.howToSummarize,
+            // Sent so the server can persist the selector value (custom-<ruleId>)
+            // and the detail view can re-select this rule on reload.
+            ruleId: rule.ruleId,
           },
           { signal: controller.signal }
         );
@@ -651,7 +663,15 @@ export function useEmailDetailOperations(
     user?.email
   );
 
-  const { fetchDraft, saveDraft, deleteDraft, handleGenerateDraft, handleOpenReplyComposer, generateFromCustomPrompt, generatingFromCustomPrompt } = draftOps;
+  const {
+    fetchDraft,
+    saveDraft,
+    deleteDraft,
+    handleGenerateDraft,
+    handleOpenReplyComposer,
+    generateFromCustomPrompt,
+    generatingFromCustomPrompt,
+  } = draftOps;
 
   // Archive, snooze and delete operations extracted to sub-hook
   const archiveOps = useEmailDetailArchiveOps({
@@ -667,13 +687,13 @@ export function useEmailDetailOperations(
   const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
   const handleSendReply = useCallback(
-     
     async (
       sendOptions: {
         files?: File[];
         expectedReplyHours?: number;
         expectedReplyDuration?: string;
         forwardAttachmentIds?: string[];
+        forwardAttachmentFilenames?: string[];
         draftOverride?: string;
         scheduledSendAt?: Date;
         keepInAction?: boolean;
@@ -685,6 +705,7 @@ export function useEmailDetailOperations(
         expectedReplyHours,
         expectedReplyDuration,
         forwardAttachmentIds,
+        forwardAttachmentFilenames,
         draftOverride,
         scheduledSendAt,
         keepInAction,
@@ -726,6 +747,11 @@ export function useEmailDetailOperations(
               // Pass the scheduled send time so the server can suppress timing nags when
               // the user has already queued the email for a specific delivery time.
               scheduledSendAt: scheduledSendAt?.toISOString(),
+              ...buildToneCheckContext({
+                files,
+                forwardedFilenames: forwardAttachmentFilenames,
+                recipientFields: [replyRecipients, replyCc],
+              }),
             },
             { signal: controller.signal }
           );
@@ -772,7 +798,6 @@ export function useEmailDetailOperations(
       const sendEmailId = replyTargetEmailId ?? id;
 
       setShowReplyComposer(false);
-      triggerAnimation(ANIMATION_TYPE_SEND);
 
       const sendReplyAsync = async () => {
         const payload: SendReplyPayload = {
@@ -791,8 +816,30 @@ export function useEmailDetailOperations(
           forwardAttachmentIds,
           keepInAction,
         };
+
+        setSending(true);
+        const dismissSendingToast = showLoading(t('compose.sendingToast'));
+
         try {
-          await sendReplyRequest(payload);
+          const { sendId } = await sendReplyRequest(payload);
+          // The provider has NOT been contacted yet — the server only queued
+          // the message. Keep what the user wrote until the outcome event
+          // confirms delivery, so a failure can put them back where they were
+          // instead of leaving a false "sent" (see useEmailSendOutcomes).
+          if (sendId) {
+            rememberPendingSend({
+              sendId,
+              kind: PENDING_SEND_KIND.REPLY,
+              emailId: currentId,
+              threadId: email?.threadId,
+              draft: draftToSend,
+              recipients: currentReplyRecipients,
+              cc: currentReplyCc,
+              bcc: currentReplyBcc,
+              subject: currentReplySubject || undefined,
+              replyMode: currentReplyMode,
+            });
+          }
           setDraft(null);
           deleteDraft();
           const successMessage = scheduledSendAt
@@ -805,6 +852,8 @@ export function useEmailDetailOperations(
           // The archive/snooze paths call removeEmail again inside their own handlers,
           // but that is idempotent (filter on already-absent id is a no-op).
           dispatch(removeEmail(currentId));
+
+          triggerAnimation(ANIMATION_TYPE_SEND);
           routeAfterSend({
             keepInAction,
             expectedReplyHours,
@@ -824,6 +873,9 @@ export function useEmailDetailOperations(
           setReplySubject(currentReplySubject);
           setShowReplyComposer(true);
           showError(getAxiosErrorMessage(error, t('emailDetail.replySentError')));
+        } finally {
+          dismissSendingToast();
+          setSending(false);
         }
       };
 
@@ -832,6 +884,7 @@ export function useEmailDetailOperations(
     [
       id,
       draft,
+      email?.threadId,
       replyMode,
       replyTargetEmailId,
       replyRecipients,
@@ -851,6 +904,7 @@ export function useEmailDetailOperations(
       setReplyRecipients,
       setReplyCc,
       setReplyBcc,
+      setSending,
       showSuccess,
       showError,
       showLoading,

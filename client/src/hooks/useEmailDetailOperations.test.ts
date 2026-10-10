@@ -5,6 +5,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { mockPartial } from 'test/mockUtils';
 import { Email } from 'types/email';
+import { takePendingSend } from 'utils/pendingSends';
 
 import { API_URL } from 'config/api';
 import inboxDataReducer from 'store/slices/inboxDataSlice';
@@ -26,6 +27,7 @@ vi.mock('contexts/NotificationContext', () => ({
   useNotifications: () => ({
     showSuccess: vi.fn(),
     showError: vi.fn(),
+    showLoading: vi.fn(() => vi.fn()),
   }),
 }));
 
@@ -53,7 +55,7 @@ vi.mock('utils/githubUtils', () => ({
 }));
 
 // Zero out animation delay to avoid test timeouts
-vi.mock('constants/numbers', async (importOriginal) => ({
+vi.mock('constants/numbers', async importOriginal => ({
   ...(await importOriginal<typeof import('constants/numbers')>()),
   TIMEOUT_800_MS: 0,
 }));
@@ -80,6 +82,7 @@ const createTestStore = (emails: Email[] = []) =>
       inboxUI: {
         optimisticallyArchived: [] as string[],
         optimisticallySnoozed: [] as string[],
+        optimisticAddedAt: {},
         animatingOut: [] as { id: string; type: 'archive' | 'priority' }[],
         loading: false,
         decrypting: false,
@@ -206,6 +209,7 @@ describe('useEmailDetailOperations', () => {
     mockNavigate.mockClear();
     // Reset location state so tests start without fromMode
     delete mockLocationState.fromMode;
+    window.localStorage.clear();
     mockedAxios.post.mockResolvedValue({ data: {} });
     mockedAxios.put.mockResolvedValue({ data: {} });
     mockedAxios.delete.mockResolvedValue({ data: {} });
@@ -427,6 +431,42 @@ describe('useEmailDetailOperations', () => {
         `${API_URL}/replies/send/${TEST_EMAIL_ID}`,
         expect.objectContaining({ expectedReplyHours: undefined })
       );
+    });
+  });
+
+  describe('handleSendReply – background send bookkeeping', () => {
+    it('records the pending send so a later failure can restore the draft', async () => {
+      const store = createTestStore([]);
+      mockedAxios.post.mockResolvedValue({ data: { sendId: 'send-42' } });
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleSendReply({ files: [], draftOverride: 'Test reply' });
+      });
+
+      await waitFor(() => expect(takePendingSend('send-42')).not.toBeNull());
+    });
+
+    it('records nothing when the server scheduled the send instead', async () => {
+      const store = createTestStore([]);
+      mockedAxios.post.mockResolvedValue({ data: { scheduledEmailId: 'sched-1' } });
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleSendReply({
+          files: [],
+          draftOverride: 'Test reply',
+          scheduledSendAt: new Date('2030-01-01T10:00:00Z'),
+        });
+      });
+
+      expect(window.localStorage.getItem('bearlymail.pendingSends')).toBeNull();
     });
   });
 

@@ -12,6 +12,7 @@ import { theme } from 'theme/theme';
 import { AdminMfaProvider } from 'components/admin/AdminMfaGate';
 import { ConsentModal } from 'components/ConsentModal';
 import { AiLimitBanner } from 'components/notifications/AiLimitBanner';
+import { EmailSendOutcomeListener } from 'components/notifications/EmailSendOutcomeListener';
 import { SetupWizard } from 'components/setup-wizard';
 import { API_URL } from 'config/api';
 import { AuthProvider, useAuth } from 'contexts/AuthContext';
@@ -350,6 +351,9 @@ function App() {
                 >
                   {/* Needs the Router for its "View plans" navigation. */}
                   <AiLimitBanner />
+                  {/* Background sends report their real outcome after the user
+                      has left the composer, so this listens app-wide. */}
+                  <EmailSendOutcomeListener />
                   <AppRoutes />
                 </div>
               </AdminMfaProvider>

@@ -305,6 +305,39 @@ const inboxDataSlice = createSlice({
       }
     },
     /**
+     * Reconcile a category's summary count with the rows the server actually returned
+     * for it (issue #2062). The summary and the row query are computed at different
+     * moments, so a count can describe a state the rows no longer match; once the rows
+     * are in, they are the truth. A category reconciled to 0 with no remaining emails is
+     * removed so no section renders with a phantom count.
+     */
+    reconcileCategorySummaryCount: (
+      state,
+      action: PayloadAction<{ categoryKey: string; loadedCount: number }>
+    ) => {
+      const { categoryKey, loadedCount } = action.payload;
+      if (!state.categorySummary) {
+        return;
+      }
+      const category = state.categorySummary.find(cat =>
+        categoryKey === CATEGORY_KEY_UNCATEGORIZED ? cat.id === null : cat.id === categoryKey
+      );
+      if (!category || category.count === loadedCount) {
+        return;
+      }
+      category.count = loadedCount;
+      if (loadedCount === 0) {
+        const hasRemainingEmails = state.emails.some(email =>
+          categoryKey === CATEGORY_KEY_UNCATEGORIZED
+            ? !email.category_id || email.category_id === null
+            : email.category_id === categoryKey
+        );
+        if (!hasRemainingEmails) {
+          state.categorySummary = state.categorySummary.filter(cat => cat !== category);
+        }
+      }
+    },
+    /**
      * Explicitly set a category's summary count to 0 (and remove the entry if no remaining
      * emails reference it). Use this when the server has confirmed the category is empty,
      * rather than subtracting the cached count via decrementCategorySummaryCount — subtraction
@@ -363,6 +396,7 @@ export const {
   clearCategorySummaryCount,
   decrementCategorySummaryCount,
   incrementCategorySummaryCount,
+  reconcileCategorySummaryCount,
   upsertCategorySummaryCount,
   setLastFetchedAt,
   invalidateInboxCache,

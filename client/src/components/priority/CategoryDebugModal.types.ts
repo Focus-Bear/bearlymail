@@ -61,7 +61,12 @@ export type CategoryDecisionTrigger =
   | 'proto-promotion';
 
 /** Mirrors the server's CategoryDecisionContentSource. */
-export type CategoryDecisionContentSource = 'ai-summary' | 'cleaned-body' | 'thread-summary' | 'email-metadata';
+export type CategoryDecisionContentSource =
+  | 'ai-summary'
+  | 'cleaned-body'
+  | 'thread-summary'
+  | 'thread-summary-and-body'
+  | 'email-metadata';
 
 /** Mirrors the server's CategoryDecisionAnalyzedEmail: which email the decision was computed from. */
 export interface CategoryDecisionAnalyzedEmail {

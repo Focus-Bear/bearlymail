@@ -42,8 +42,9 @@ export const formatScheduledTime = (date: Date): string =>
  * Uses the user's browser timezone automatically via toLocaleString
  *
  * @param date - The date to humanize
- * @param options.showAbsoluteDate - When true, appends the absolute date in brackets,
- *   e.g. "4 weeks ago [Feb 14]". Defaults to false for backward compatibility.
+ * @param options.showAbsoluteDate - When true, appends the absolute date and time in
+ *   brackets, e.g. "Yesterday (2 Sept at 7:57 pm)", so the exact time is readable
+ *   without hovering for a tooltip. Defaults to false for backward compatibility.
  */
 export function humanizeTimestamp(date: Date | string, options: { showAbsoluteDate?: boolean } = {}): string {
   // Guard against missing input first: `new Date(null)` is the epoch (1970),
@@ -75,6 +76,7 @@ export function humanizeTimestamp(date: Date | string, options: { showAbsoluteDa
 
   // Humanize based on time difference
   let relative: string;
+  let isAbsolute = false;
   if (diffSeconds < SECONDS_PER_MINUTE) {
     relative = 'Just now';
   } else if (diffMinutes < MINUTES_PER_HOUR) {
@@ -101,6 +103,7 @@ export function humanizeTimestamp(date: Date | string, options: { showAbsoluteDa
     relative = 'Over a year ago';
   } else {
     // For very old dates, show full date in user's timezone
+    isAbsolute = true;
     relative = `${timestamp.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -113,15 +116,30 @@ export function humanizeTimestamp(date: Date | string, options: { showAbsoluteDa
     })}`;
   }
 
-  if (!options.showAbsoluteDate) {
+  // Very old dates already render as an absolute date, so a bracketed copy would be noise.
+  if (!options.showAbsoluteDate || isAbsolute) {
     return relative;
   }
 
-  const absDate = timestamp.toLocaleDateString(undefined, {
+  return `${relative} (${formatAbsoluteDateTime(timestamp, now, timezone)})`;
+}
+
+/**
+ * Formats a timestamp as a short absolute date and time in the browser locale,
+ * e.g. "2 Sept at 7:57 pm" (en-AU) or "Sep 2 at 7:57 PM" (en-US). The year is
+ * only shown when it differs from the current year.
+ */
+function formatAbsoluteDateTime(timestamp: Date, now: Date, timezone: string): string {
+  const datePart = timestamp.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: timestamp.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     timeZone: timezone,
   });
-  return `${relative} [${absDate}]`;
+  const timePart = timestamp.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: timezone,
+  });
+  return `${datePart} at ${timePart}`;
 }

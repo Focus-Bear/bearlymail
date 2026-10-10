@@ -5,6 +5,8 @@ import {
 } from "../database/entities/category-rule.entity";
 import {
   compositeAutoSpecsMatch,
+  compositeRulesShouldReconcile,
+  copyV3ExtraFields,
   evaluateComposite,
   senderMatchesPattern,
 } from "./category-rules-auto-composite.helper";
@@ -290,5 +292,112 @@ describe("senderMatchesPattern", () => {
     expect(
       senderMatchesPattern("notifications@github.com", "*@github.com"),
     ).toBe(true);
+  });
+});
+
+describe("notificationSubtype set matching and coarse compatibility", () => {
+  const humanPrUpdates: CompositeCategoryRuleSpecV3 = {
+    v: 3,
+    fromMatchesAny: ["notifications@github.com"],
+    subjectContainsAny: [],
+    bodyContainsAny: [],
+    notificationSubtypeAny: [
+      "github:pr:comment:human",
+      "github:pr:push:human",
+      "github:pr:review_approved:human",
+    ],
+  };
+  const legacyCoarsePr: CompositeCategoryRuleSpecV3 = {
+    v: 3,
+    fromMatchesAny: ["notifications@github.com"],
+    subjectContainsAny: [],
+    bodyContainsAny: [],
+    notificationSubtype: "github:pr",
+  };
+  const email = (notificationSubtype: string | undefined) => ({
+    from: "notifications@github.com",
+    subject: "Re: [owner/repo] Add feature (PR #430)",
+    bodyTextForMatch: "anything",
+    notificationSubtype,
+  });
+
+  it("matches when the email's fine subtype is any member of the pinned set", () => {
+    expect(
+      evaluateComposite(
+        humanPrUpdates,
+        email("github:pr:push:human"),
+        normalise,
+      ).matches,
+    ).toBe(true);
+    expect(
+      evaluateComposite(
+        humanPrUpdates,
+        email("github:pr:review_approved:human"),
+        normalise,
+      ).matches,
+    ).toBe(true);
+  });
+
+  it("rejects bot, merged and review-request sub-streams the set leaves out", () => {
+    for (const subtype of [
+      "github:pr:push:bot",
+      "github:pr:merged:human",
+      "github:pr:review_requested:human",
+    ]) {
+      const result = evaluateComposite(
+        humanPrUpdates,
+        email(subtype),
+        normalise,
+      );
+      expect(result.matches).toBe(false);
+      expect(result.detail.notificationSubtypeMatch).toBe(false);
+    }
+  });
+
+  it("keeps a persisted coarse github:pr rule matching today's fine PR subtypes but not issues", () => {
+    expect(
+      evaluateComposite(
+        legacyCoarsePr,
+        email("github:pr:comment:bot"),
+        normalise,
+      ).matches,
+    ).toBe(true);
+    expect(
+      evaluateComposite(
+        legacyCoarsePr,
+        email("github:pr:merged:human"),
+        normalise,
+      ).matches,
+    ).toBe(true);
+    expect(
+      evaluateComposite(
+        legacyCoarsePr,
+        email("github:issue:comment:bot"),
+        normalise,
+      ).matches,
+    ).toBe(false);
+  });
+
+  it("treats identical phrase-free rules with different subtype pins as DIFFERENT rules (no dedup)", () => {
+    const mergedOnly: CompositeCategoryRuleSpecV3 = {
+      ...legacyCoarsePr,
+      notificationSubtype: "github:pr:merged:human",
+    };
+    expect(compositeAutoSpecsMatch(legacyCoarsePr, mergedOnly)).toBe(false);
+    expect(compositeAutoSpecsMatch(humanPrUpdates, { ...humanPrUpdates })).toBe(
+      true,
+    );
+    expect(compositeRulesShouldReconcile(legacyCoarsePr, mergedOnly)).toBe(
+      false,
+    );
+    expect(
+      compositeRulesShouldReconcile(humanPrUpdates, { ...humanPrUpdates }),
+    ).toBe(true);
+  });
+
+  it("preserves the set through copyV3ExtraFields", () => {
+    expect(copyV3ExtraFields(humanPrUpdates)).toEqual({
+      notificationSubtypeAny: humanPrUpdates.notificationSubtypeAny,
+    });
   });
 });

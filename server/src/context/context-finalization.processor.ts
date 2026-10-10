@@ -31,12 +31,6 @@ interface FinalizationJob {
     threadsReadButNotReplied: number;
     vipContactsEvaluated: number;
   };
-  trueVipContacts: Array<{
-    emailKey: string;
-    from: string;
-    fromName?: string;
-    threadCount: number;
-  }>;
   userEmail?: string;
   /** Tracks how many times this finalization job has been re-queued (Bug #3 fix). */
   retryCount?: number;
@@ -294,7 +288,6 @@ export class ContextFinalizationProcessor implements OnModuleInit {
       threadsInRange,
       sentEmailsData,
       analysisStats,
-      trueVipContacts,
     } = jobData;
     const completedBatches =
       await this.contextService.getCompletedBatchCount(analysisRecordId);
@@ -314,7 +307,6 @@ export class ContextFinalizationProcessor implements OnModuleInit {
       totalThreads: threadsInRange,
       sentEmailsCount: sentEmailsData,
       analysisStats,
-      trueVipContacts,
     });
 
     this.logger.log(

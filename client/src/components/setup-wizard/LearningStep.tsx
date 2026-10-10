@@ -95,7 +95,7 @@ interface LearningView {
  * bar blends both; the phase is taken from the analysis stage; counts are the
  * raw numbers the backend reports — nothing is synthesised.
  */
-function computeLearningView(
+export function computeLearningView(
   analyzeProgress: AnalyzeProgress,
   importProgress: ImportProgress,
   timedOut: boolean,
@@ -104,8 +104,13 @@ function computeLearningView(
   const analysisProgress = progress ? Math.min(PROGRESS_MAX, progress.current / Math.max(1, progress.total)) : 0;
   const importProgressPct = Math.min(PROGRESS_MAX, importProgress.prioritizedCount / IMPORT_TARGET);
   const overallProgress = Math.min(PROGRESS_MAX, ANALYSIS_WEIGHT * analysisProgress + IMPORT_WEIGHT * importProgressPct);
-  const displayProgress = importProgress.isReady ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, overallProgress);
   const canFinish = (importProgress.isReady && analyzeProgress.isComplete) || timedOut;
+  // Once learning is finished the rows and header both read "done", so the bar
+  // must show 100% too. Deriving it from `isReady` alone left it stuck at the
+  // blended value (e.g. 70% when analysis completed but the import poll never
+  // reported ready) even though every other indicator said complete (#294).
+  const displayProgress =
+    importProgress.isReady || canFinish ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, overallProgress);
   const realProgress: RealProgress = {
     syncedCount: importProgress.prioritizedCount,
     threadCount: progress?.threadCount,

@@ -12,6 +12,7 @@ import { User } from "../database/entities/user.entity";
 import { DebugModule } from "../debug/debug.module";
 import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { UsersModule } from "../users/users.module";
+import { CategoryRuleSanityService } from "./category-rule-sanity.service";
 import { CategoryShortlistService } from "./category-shortlist.service";
 import { EmbeddingService } from "./embedding.service";
 import { IncrementalAnalysisService } from "./incremental-analysis.service";
@@ -22,7 +23,6 @@ import { LLMAskService } from "./llm-ask.service";
 import { LLMCategoriesService } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMMiscService } from "./llm-misc.service";
-import { LLMPatternsService } from "./llm-patterns.service";
 import { LLMReplyService } from "./llm-reply.service";
 import { LLMSearchService } from "./llm-search.service";
 import { LLMSummarizationService } from "./llm-summarization.service";
@@ -58,12 +58,12 @@ import { TokenUsageService } from "./token-usage.service";
     LLMAskService,
     LLMCategoriesService,
     LLMMiscService,
-    LLMPatternsService,
     LLMReplyService,
     LLMSearchService,
     LLMSummarizationService,
     LLMToneService,
     CategoryShortlistService,
+    CategoryRuleSanityService,
     EmbeddingService,
     PriorityAnalysisService,
     IncrementalAnalysisService,
@@ -76,12 +76,12 @@ import { TokenUsageService } from "./token-usage.service";
     LLMAskService,
     LLMCategoriesService,
     LLMMiscService,
-    LLMPatternsService,
     LLMReplyService,
     LLMSearchService,
     LLMSummarizationService,
     LLMToneService,
     CategoryShortlistService,
+    CategoryRuleSanityService,
     EmbeddingService,
     PriorityAnalysisService,
     IncrementalAnalysisService,

@@ -705,6 +705,7 @@ export class SummarizationService {
     threadId: string,
     emailThreadId: string | null,
     summary: string,
+    summaryType?: string | null,
   ): Promise<void> {
     const threadEmails = await this.emailsService.getThreadEmails(
       userId,
@@ -718,7 +719,13 @@ export class SummarizationService {
 
     await this.emailRepository.update(
       { id: In(threadEmailIds) },
-      { summary: plainSummary, summarySource: "llm" as const },
+      {
+        summary: plainSummary,
+        summarySource: "llm" as const,
+        // Persist the selector value so the detail view restores the summary
+        // type in sync with the shown summary. NULL = default ('tldr').
+        summaryType: summaryType ?? null,
+      },
     );
 
     if (emailThreadId) {

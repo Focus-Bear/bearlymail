@@ -9,6 +9,10 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
+import type {
+  GithubActorKind,
+  GithubItemState,
+} from "../../constants/github-notification.constants";
 import {
   makeEncryptedColumnTransformer,
   makeEncryptedJsonTransformer,
@@ -75,6 +79,40 @@ export type CompositeCategoryRuleSpecV3 = {
    * exclusions. Undefined = no constraint.
    */
   notificationSubtype?: string;
+  /**
+   * SET form of the structural condition: the email's resolved subtype must
+   * equal or refine ANY listed member (OR within). Lets one rule cover several
+   * fine GitHub sub-streams — e.g. a human "PR updates" rule pinned to
+   * `github:pr:comment:human`, `github:pr:push:human` and
+   * `github:pr:review_approved:human` while excluding bot/merged/review-request
+   * streams. Read together with `notificationSubtype` (union); the normaliser
+   * stores a single subtype in `notificationSubtype` and two or more here.
+   */
+  notificationSubtypeAny?: string[];
+  /**
+   * GitHub-metadata structural conditions, evaluated against the thread's
+   * fetched `githubMetadata` for the PR/issue the email is about (see
+   * `GithubCategorySignals`). Each is "no constraint" when absent; a present
+   * condition can never be satisfied by an email whose thread has no fetched
+   * metadata. `githubStateAny` pins the item's lifecycle state (open / closed /
+   * merged); `githubProjectStatusAny` pins the GitHub Projects board status
+   * (case-insensitive, optionally scoped to one project); `githubAuthorKind`
+   * pins whether the PR/issue was AUTHORED by a bot or a human (distinct from
+   * the notification's actor, which lives in the subtype); `githubLabelsAny`
+   * requires any of the listed labels (case-insensitive).
+   */
+  githubStateAny?: GithubItemState[];
+  githubProjectStatusAny?: GithubProjectStatusCondition[];
+  githubAuthorKind?: GithubActorKind;
+  githubLabelsAny?: string[];
+};
+
+/** One pinned GitHub Projects board status, optionally scoped to a project. */
+export type GithubProjectStatusCondition = {
+  /** Board "Status" field value, e.g. "QA passed"; matched case-insensitively. */
+  status: string;
+  /** Project (board) title; when set the status must come from that board. */
+  project?: string;
 };
 
 /** Union of all supported composite rule spec versions. */
@@ -82,6 +120,27 @@ export type CompositeCategoryRuleSpec =
   | CompositeCategoryRuleSpecV1
   | CompositeCategoryRuleSpecV2
   | CompositeCategoryRuleSpecV3;
+
+/**
+ * Outcome of the strong-model sanity review an AUTO-generated composite rule
+ * passed before it was persisted (encrypted JSON at rest). Null for rules a
+ * person authored, for rules created before the review existed, and when the
+ * review was unavailable (disabled / LLM error) and the rule was created
+ * unchecked. Rejected candidates are never persisted, so a stored verdict is
+ * always "accept" or "revise".
+ */
+export type CategoryRuleSanityCheck = {
+  verdict: "accept" | "revise";
+  /** Reviewer confidence in the verdict, 0–1. */
+  confidence: number;
+  reason: string;
+  /** Model that produced the verdict. */
+  model: string;
+  /** ISO timestamp of the review. */
+  checkedAt: string;
+  /** True when the persisted spec is the reviewer's revision, not the original candidate. */
+  revised: boolean;
+};
 
 /**
  * Deterministic category rules: legacy hash-based (auto-generated) or composite
@@ -149,6 +208,12 @@ export class CategoryRule {
     transformer: makeEncryptedJsonTransformer("category_rules.compositeSpec"),
   })
   compositeSpec: CompositeCategoryRuleSpec | null;
+
+  @Column("text", {
+    nullable: true,
+    transformer: makeEncryptedJsonTransformer("category_rules.sanityCheck"),
+  })
+  sanityCheck: CategoryRuleSanityCheck | null;
 
   @Column({ default: true })
   isEnabled: boolean;

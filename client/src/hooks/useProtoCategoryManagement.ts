@@ -77,6 +77,9 @@ export const useProtoCategoryManagement = (
   const handleConvertProtoCategory = useCallback(
     async (protoCategoryId: string, name: string) => {
       if (!protoCategoryId) {
+        // Never fail silently — the id should always resolve, but if it doesn't
+        // the user still gets feedback instead of a dead button.
+        showNotification(t('inbox.protoCategory.convertError'), 'error');
         return;
       }
       setConvertingProtoCategoryId(protoCategoryId);

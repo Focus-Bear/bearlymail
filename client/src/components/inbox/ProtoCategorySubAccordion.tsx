@@ -6,6 +6,7 @@ import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationTo
 import { EMOJI_ARCHIVE } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { KEY_ESCAPE, KEY_Y, KEY_Y_UPPERCASE, STRING_NONE } from 'constants/strings';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const ARCHIVE_ALL_ICON = EMOJI_ARCHIVE;
 
@@ -29,12 +30,17 @@ const contentRowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: theme.spacing.sm,
+  minWidth: 0,
 };
 
 const categoryNameStyle: React.CSSProperties = {
   fontWeight: theme.typography.fontWeight.medium,
   fontSize: theme.typography.fontSize.sm,
   color: theme.colors.text.primary,
+  // Let the name shrink and wrap at word/character boundaries. Without this a
+  // long name in a narrow (mobile) column wrapped one letter per line (#146).
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 };
 
 const emailCountBadgeStyle: React.CSSProperties = {
@@ -54,11 +60,18 @@ const descriptionStyle: React.CSSProperties = {
   paddingLeft: '1.5rem',
 };
 
-const actionsContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: theme.spacing.sm,
-  flexShrink: 0,
-};
+function getActionsContainerStyle(isMobile: boolean): React.CSSProperties {
+  return {
+    display: 'flex',
+    gap: theme.spacing.sm,
+    // Desktop: keep the buttons on one line beside the name. Mobile: they sit on
+    // their own full-width row below the name (header goes column, see
+    // getHeaderStyle), so allow them to wrap and hug the right edge instead of
+    // squeezing the name column to a sliver (#146).
+    flexShrink: 0,
+    ...(isMobile ? { flexWrap: 'wrap', justifyContent: 'flex-end' } : {}),
+  };
+}
 
 const childrenContainerStyle: React.CSSProperties = {
   padding: theme.spacing.sm,
@@ -68,11 +81,15 @@ const childrenContainerStyle: React.CSSProperties = {
 };
 
 // Dynamic style helpers — accept state values to avoid inline ternaries in JSX
-function getHeaderStyle(isExpanded: boolean): React.CSSProperties {
+function getHeaderStyle(isExpanded: boolean, isMobile: boolean): React.CSSProperties {
   return {
     display: 'flex',
-    alignItems: 'center',
+    // Mobile stacks the name/description above the action buttons so the text
+    // gets the full width; desktop keeps them side by side (#146).
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'stretch' : 'center',
     justifyContent: 'space-between',
+    gap: isMobile ? theme.spacing.sm : 0,
     padding: `${theme.spacing.sm} ${theme.spacing.md}`,
     cursor: 'pointer',
     borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
@@ -176,6 +193,7 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
   isDeleting,
 }) => {
   const { t } = useTranslation();
+  const { isMobile } = useResponsiveBreakpoints();
   const [isExpanded, setIsExpanded] = useState(true);
   const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
@@ -213,7 +231,7 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
 
   return (
     <div style={containerStyle}>
-      <div onClick={() => setIsExpanded(!isExpanded)} style={getHeaderStyle(isExpanded)}>
+      <div onClick={() => setIsExpanded(!isExpanded)} style={getHeaderStyle(isExpanded, isMobile)}>
         <div style={contentColumnStyle}>
           <div style={contentRowStyle}>
             <span style={getChevronStyle(isExpanded)}>▶</span>
@@ -222,7 +240,7 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
           </div>
           {description && <span style={descriptionStyle}>{description}</span>}
         </div>
-        <div style={actionsContainerStyle} onClick={event => event.stopPropagation()}>
+        <div style={getActionsContainerStyle(isMobile)} onClick={event => event.stopPropagation()}>
           {onArchiveAll && emailCount > 0 && (
             <button
               onClick={handleArchiveAllClick}

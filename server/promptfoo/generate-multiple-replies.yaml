@@ -71,6 +71,9 @@ tests:
       fromName: "Client Team"
       subject: "Project timeline"
       body: "Can you commit to delivering this by end of quarter?"
+      # hasEmailExamples gates the writing-examples block; the service passes it
+      # so our renderer and Nunjucks agree on the empty case (issue #266).
+      hasEmailExamples: true
       emailExamples:
         - "Hi team,\n\nThanks for the update.\n\nLet me know if you need anything else.\n\ncheers,\nJohn"
     assert:

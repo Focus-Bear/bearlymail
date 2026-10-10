@@ -8,13 +8,29 @@ import {
 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import type { GithubCategorySignals } from "../github/github-category-signals.helper";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
+import type {
+  GithubFactsBreakdownEntry,
+  NotificationSubtypeBreakdownEntry,
+  RuleSanitySampleEmail,
+} from "../llm/llm-rule-sanity";
 import { computeEmailHmac } from "../utils/hmac-email";
 import type { EmailMetadata } from "./category-rules.types";
 import {
   augmentExclusionsForQaTemplates,
   deriveExclusionsForCompositeRule,
+  fetchValidationWindows,
+  ValidationWindows,
 } from "./category-rules-derive-exclusions.helper";
+import { selectCleanGithubConditions } from "./category-rules-github-breakdown.helper";
+import type { GithubRuleConditions } from "./category-rules-github-conditions.helper";
+import { describeGithubConditions } from "./category-rules-github-conditions.helper";
+import { isGithubNotificationSubtype } from "./category-rules-notification-subtype.helper";
+import {
+  buildNotificationSubtypeBreakdown,
+  selectCleanSubtypes,
+} from "./category-rules-subtype-breakdown.helper";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
 
 /** Service-owned operations the draft builder needs, injected to avoid coupling. */
@@ -28,6 +44,8 @@ export interface DraftCompositeSpecDeps {
     userId: string,
     sender: string,
   ) => Promise<number>;
+  /** Rolling-24h cap on auto rule-generation LLM spend; see AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY. */
+  hasExhaustedAutoGenerationBudget: (userId: string) => Promise<boolean>;
   normalizeCompositeSpecDto: (
     dto: CreateCompositeCategoryRuleDto,
   ) => CompositeCategoryRuleSpecV3;
@@ -43,6 +61,71 @@ export interface DraftCompositeSpecResult {
   categoryId: string | null;
   /** False when exclusions could not be auto-derived (positive-only fallback). */
   exclusionsDerived: boolean;
+  /**
+   * The emails the LLM phrases were extracted from (current email + recent
+   * sender mail), capped — shown to the sanity reviewer so it can judge the
+   * rule against what the sender actually sends.
+   */
+  sampleEmails: RuleSanitySampleEmail[];
+  /**
+   * Per-sub-stream TP/FP evidence for a GitHub seed (whichever draft path won),
+   * shown to the sanity reviewer so it can judge actor/event fit.
+   */
+  subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
+  /**
+   * Per-GitHub-fact TP/FP evidence for a seed whose thread carries fetched
+   * metadata (board status, state, author kind, labels), shown to the sanity
+   * reviewer alongside the sub-stream breakdown.
+   */
+  githubBreakdown?: GithubFactsBreakdownEntry[];
+}
+
+/** What the auto-generation gates need from a draft to review and persist it. */
+export type AutoRuleCandidate = Pick<
+  DraftCompositeSpecResult,
+  | "spec"
+  | "categoryName"
+  | "categoryId"
+  | "sampleEmails"
+  | "subtypeBreakdown"
+  | "githubBreakdown"
+>;
+
+export interface DraftCompositeSpecOptions {
+  enforceThreadCountGate: boolean;
+  /**
+   * When true (auto-generation), the rolling-24h LLM budget gates the phrase
+   * path. It deliberately does NOT gate the structural / github-facts paths,
+   * which make no LLM call. User-initiated drafts leave this false.
+   */
+  enforceLlmBudgetGate?: boolean;
+  requireDerivedExclusions: boolean;
+  /**
+   * When true (user-initiated drafts), fall back to the LLM's speculative
+   * exclusion suggestions if none could be derived from real false positives.
+   * The user reviews them before saving. Auto-generation leaves this false so
+   * only FP-derived exclusions are ever applied.
+   */
+  allowLlmSuggestedExclusions?: boolean;
+  /**
+   * When true (auto-generation), a GitHub seed first tries a STRUCTURAL rule —
+   * sender + the set of clean sub-streams seen among the category's own mail,
+   * no phrases — before falling back to LLM phrase drafting. Off for user
+   * drafts, whose review UI only round-trips phrases.
+   */
+  preferStructuralSubtypeSet?: boolean;
+}
+
+/** Everything the draft paths share once the gates and category lookup are done. */
+interface DraftContext {
+  deps: DraftCompositeSpecDeps;
+  userId: string;
+  email: EmailMetadata;
+  sender: string;
+  /** True when the auto-generation LLM budget is spent — blocks the phrase path only. */
+  llmBudgetSpent: boolean;
+  categoryName: string;
+  categoryId: string | null;
 }
 
 /** Builds the LLM sample set: the current email plus recent emails from the sender. */
@@ -71,6 +154,15 @@ async function fetchSenderSamples(
       body: sample.body || "",
     })),
   ];
+}
+
+function toSanitySamples(
+  sender: string,
+  samples: Array<{ subject: string; body: string }>,
+): RuleSanitySampleEmail[] {
+  return samples
+    .slice(0, CATEGORY_RULE_COMPOSITE.SANITY_CHECK_MAX_SAMPLE_EMAILS)
+    .map((sample) => ({ from: sender, ...sample }));
 }
 
 /**
@@ -123,12 +215,13 @@ function buildPositiveSpec(
     llmResult.fromMatchesAny.length > 0 ? llmResult.fromMatchesAny : [sender];
   try {
     // Structured sub-stream signal: pin the rule to this email's notification
-    // sub-stream (e.g. github:pr, github:ci:run_failed) so sibling sub-categories
-    // that share the same sender and similar wording don't become false
-    // positives. Passed INTO the normaliser (not spread on afterwards) so it can
-    // relax the subject/body-phrase requirement for structural rules — a subtype
-    // makes phrases optional refinements. Undefined for senders with no
-    // resolvable sub-stream, in which case phrases stay mandatory.
+    // sub-stream (e.g. github:pr:comment:human, github:ci:run_failed) so
+    // sibling sub-categories that share the same sender and similar wording
+    // don't become false positives. Passed INTO the normaliser (not spread on
+    // afterwards) so it can relax the subject/body-phrase requirement for
+    // structural rules — a subtype makes phrases optional refinements.
+    // Undefined for senders with no resolvable sub-stream, in which case
+    // phrases stay mandatory.
     return normalizeCompositeSpecDto({
       categoryName,
       senderMatchesAny,
@@ -148,6 +241,55 @@ function buildPositiveSpec(
 }
 
 /**
+ * The structural candidate for a GitHub seed: sender + the clean sub-stream
+ * set, no phrases. Null when the set is empty or the spec fails validation.
+ */
+function buildStructuralSpec(
+  normalizeCompositeSpecDto: DraftCompositeSpecDeps["normalizeCompositeSpecDto"],
+  categoryName: string,
+  sender: string,
+  notificationSubtypeAny: string[],
+): CompositeCategoryRuleSpec | null {
+  if (notificationSubtypeAny.length === 0) {
+    return null;
+  }
+  try {
+    return normalizeCompositeSpecDto({
+      categoryName,
+      senderMatchesAny: [sender],
+      subjectContainsAny: [],
+      bodyContainsAny: [],
+      notificationSubtypeAny,
+    } as CreateCompositeCategoryRuleDto);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The GitHub-facts candidate for a seed with fetched metadata: sender + the
+ * pinned facts, no phrases. Null when the spec fails validation.
+ */
+function buildGithubFactsSpec(
+  normalizeCompositeSpecDto: DraftCompositeSpecDeps["normalizeCompositeSpecDto"],
+  categoryName: string,
+  sender: string,
+  conditions: GithubRuleConditions,
+): CompositeCategoryRuleSpec | null {
+  try {
+    return normalizeCompositeSpecDto({
+      categoryName,
+      senderMatchesAny: [sender],
+      subjectContainsAny: [],
+      bodyContainsAny: [],
+      ...conditions,
+    } as CreateCompositeCategoryRuleDto);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * User-draft fallback when real false positives yielded no exclusions: pre-fill
  * the review UI with the LLM's speculative exclusion suggestions (capped) so the
  * user has something to vet rather than an empty form. `exclusionsDerived` stays
@@ -160,7 +302,7 @@ function buildSuggestedExclusionsResult(
   categoryName: string,
   categoryId: string | null,
   allowLlmSuggestedExclusions: boolean,
-): DraftCompositeSpecResult {
+): Omit<DraftCompositeSpecResult, "sampleEmails"> {
   const suggestedSubjectNot = allowLlmSuggestedExclusions
     ? llmResult.subjectNotContainsAny.slice(
         0,
@@ -211,7 +353,7 @@ function resolveDraftOutcome(
     requireDerivedExclusions: boolean;
     allowLlmSuggestedExclusions: boolean;
   },
-): DraftCompositeSpecResult | null {
+): Omit<DraftCompositeSpecResult, "sampleEmails"> | null {
   const { outcome, positiveSpec, llmResult, categoryName, categoryId } = params;
   const derivedSpec = outcome.passes ? outcome.finalSpec : null;
 
@@ -255,70 +397,219 @@ function resolveDraftOutcome(
 }
 
 /**
- * Shared core for both the auto-generate and user-draft flows. Runs the LLM
- * phrase extraction + exclusion derivation and returns the candidate spec
- * WITHOUT persisting. `enforceThreadCountGate` applies the auto-only minimum
- * sender history check; `requireDerivedExclusions` returns null (rather than a
- * positive-only fallback) when exclusions can't be derived.
+ * Auto-generation only: the sender must have enough thread history for a rule
+ * to be worth authoring at all. Cheap (one COUNT) and independent of LLM spend,
+ * so it runs before any drafting.
  */
-export async function buildDraftCompositeSpec(
+async function passesSenderHistoryGate(
   deps: DraftCompositeSpecDeps,
   userId: string,
-  email: EmailMetadata,
-  categoryName: string,
-  options: {
-    enforceThreadCountGate: boolean;
-    requireDerivedExclusions: boolean;
-    /**
-     * When true (user-initiated drafts), fall back to the LLM's speculative
-     * exclusion suggestions if none could be derived from real false positives.
-     * The user reviews them before saving. Auto-generation leaves this false so
-     * only FP-derived exclusions are ever applied.
-     */
-    allowLlmSuggestedExclusions?: boolean;
-  },
-): Promise<DraftCompositeSpecResult | null> {
-  const trimmedCategory = categoryName?.trim();
-  if (!trimmedCategory) {
-    return null;
-  }
-  const sender = deps.normaliseSender(email.from);
-  if (!sender) {
-    return null;
-  }
-
-  // Issue #1714: only auto-generate rules for senders with enough thread
-  // history. User-initiated drafts skip this gate — the user asked explicitly.
-  if (options.enforceThreadCountGate) {
-    const threadCount = await deps.countDistinctThreadsForSender(
-      userId,
-      sender,
+  sender: string,
+): Promise<boolean> {
+  const threadCount = await deps.countDistinctThreadsForSender(userId, sender);
+  if (threadCount < CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT) {
+    deps.logger.log(
+      `[CategoryRules] Skipping auto composite rule — sender "${sender}" has only ${threadCount} threads (< ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT}) for user ${userId}`,
     );
-    if (threadCount < CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT) {
-      deps.logger.log(
-        `[CategoryRules] Skipping auto composite rule — sender "${sender}" has only ${threadCount} threads (< ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MIN_THREAD_COUNT}) for user ${userId}`,
-      );
-      return null;
-    }
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Auto-generation only: whether the user's rolling-24h rule-generation LLM
+ * budget is spent. Resolved once per draft and consulted by the phrase path
+ * alone — the structural and github-facts paths are deterministic and cost
+ * nothing, so an exhausted budget must not stop them authoring a rule.
+ */
+async function resolveLlmBudgetSpent(
+  deps: DraftCompositeSpecDeps,
+  userId: string,
+  options: DraftCompositeSpecOptions,
+): Promise<boolean> {
+  if (!options.enforceLlmBudgetGate) {
+    return false;
+  }
+  return deps.hasExhaustedAutoGenerationBudget(userId);
+}
+
+function logLlmBudgetSkip(
+  deps: DraftCompositeSpecDeps,
+  userId: string,
+  categoryName: string,
+): void {
+  deps.logger.log(
+    `[CategoryRules] Skipping auto composite rule — user ${userId} reached ${CATEGORY_RULE_COMPOSITE.AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY} rule-generation LLM attempts in 24h (category="${categoryName}")`,
+  );
+}
+
+/**
+ * STRUCTURAL-FIRST path for GitHub seeds. Derives the sub-stream set from the
+ * category's own recent mail from this sender (every fine subtype with ≥1 true
+ * positive and 0 false positives, plus the seed's own), drafts sender + that
+ * set with no phrases, and validates it against the same windows. Returns null
+ * — and the breakdown, for the reviewer — when no clean set exists or the
+ * candidate fails validation, so the caller can fall back to phrase drafting.
+ * Deterministic: no LLM call.
+ */
+async function draftStructuralSubtypeRule(
+  context: DraftContext,
+  seedSubtype: string,
+  windows: ValidationWindows,
+): Promise<{
+  draft: Omit<DraftCompositeSpecResult, "sampleEmails"> | null;
+  breakdown: NotificationSubtypeBreakdownEntry[];
+}> {
+  const { deps, userId, sender, categoryName, categoryId } = context;
+  const breakdown = buildNotificationSubtypeBreakdown({
+    categoryRows: windows.categoryRows,
+    broadRows: windows.broadRows,
+    senderPatterns: [sender],
+    normaliseSender: deps.normaliseSender,
+    targetCategoryId: categoryId,
+  });
+  const subtypes = selectCleanSubtypes(breakdown, seedSubtype);
+  const structuralSpec = buildStructuralSpec(
+    deps.normalizeCompositeSpecDto,
+    categoryName,
+    sender,
+    subtypes,
+  );
+  if (!structuralSpec) {
+    deps.logger.log(
+      `[CategoryRules][structural] No clean sub-stream set for seed=${seedSubtype} (breakdown=${breakdown.length} sub-streams) — falling back to phrase drafting for user ${userId} category="${categoryName}"`,
+    );
+    return { draft: null, breakdown };
   }
 
-  const samples = await fetchSenderSamples(
-    deps.emailRepository,
-    userId,
-    sender,
-    email,
+  const guardedSpec = augmentExclusionsForQaTemplates(
+    structuralSpec,
+    categoryName,
   );
+  const outcome = await deriveExclusionsForCompositeRule({
+    emailThreadRepository: deps.emailThreadRepository,
+    llmCategoriesService: deps.llmCategoriesService,
+    normaliseSender: deps.normaliseSender,
+    userId,
+    positiveSpec: guardedSpec,
+    categoryName,
+    categoryId,
+    logger: deps.logger,
+    windows,
+  });
+  deps.logger.log(
+    `[CategoryRules][structural] seed=${seedSubtype} pinned=[${subtypes.join(",")}] TP=${outcome.truePositives} FP=${outcome.falsePositives} passes=${outcome.passes} for user ${userId} category="${categoryName}"`,
+  );
+  if (!outcome.passes || !outcome.finalSpec) {
+    return { draft: null, breakdown };
+  }
+  return {
+    draft: {
+      spec: outcome.finalSpec,
+      categoryName,
+      categoryId,
+      exclusionsDerived: true,
+    },
+    breakdown,
+  };
+}
+
+/**
+ * STRUCTURAL-FIRST path for a GitHub seed whose thread carries fetched
+ * metadata. Probes each fact the seed satisfies (board status, lifecycle
+ * state, author kind, labels) as a sender + fact rule against the validation
+ * windows and pins the cleanest one — so "board status QA passed → QA passed"
+ * is draftable with no phrases at all. Returns null (plus the breakdown, for
+ * the reviewer) when nothing is clean or the candidate fails validation, so
+ * the caller falls back to sub-stream then phrase drafting. No LLM call.
+ */
+async function draftGithubFactsRule(
+  context: DraftContext,
+  seed: GithubCategorySignals,
+  windows: ValidationWindows,
+): Promise<{
+  draft: Omit<DraftCompositeSpecResult, "sampleEmails"> | null;
+  breakdown: GithubFactsBreakdownEntry[];
+}> {
+  const { deps, userId, sender, categoryName, categoryId } = context;
+  const { conditions, breakdown } = selectCleanGithubConditions({
+    categoryRows: windows.categoryRows,
+    broadRows: windows.broadRows,
+    senderPatterns: [sender],
+    normaliseSender: deps.normaliseSender,
+    targetCategoryId: categoryId,
+    seed,
+  });
+  const factsSpec = conditions
+    ? buildGithubFactsSpec(
+        deps.normalizeCompositeSpecDto,
+        categoryName,
+        sender,
+        conditions,
+      )
+    : null;
+  if (!factsSpec) {
+    deps.logger.log(
+      `[CategoryRules][github-facts] No clean fact for seed (probed=${breakdown.length}) — falling back for user ${userId} category="${categoryName}"`,
+    );
+    return { draft: null, breakdown };
+  }
+
+  const outcome = await deriveExclusionsForCompositeRule({
+    emailThreadRepository: deps.emailThreadRepository,
+    llmCategoriesService: deps.llmCategoriesService,
+    normaliseSender: deps.normaliseSender,
+    userId,
+    positiveSpec: augmentExclusionsForQaTemplates(factsSpec, categoryName),
+    categoryName,
+    categoryId,
+    logger: deps.logger,
+    windows,
+  });
+  deps.logger.log(
+    `[CategoryRules][github-facts] pinned=[${describeGithubConditions(factsSpec).join("; ")}] TP=${outcome.truePositives} FP=${outcome.falsePositives} passes=${outcome.passes} for user ${userId} category="${categoryName}"`,
+  );
+  if (!outcome.passes || !outcome.finalSpec) {
+    return { draft: null, breakdown };
+  }
+  return {
+    draft: {
+      spec: outcome.finalSpec,
+      categoryName,
+      categoryId,
+      exclusionsDerived: true,
+    },
+    breakdown,
+  };
+}
+
+/**
+ * PHRASE path: LLM-extracted subject/body phrases (plus the seed's subtype pin
+ * when one resolved), validated and refined with FP-derived exclusions.
+ */
+async function draftPhraseRule(
+  context: DraftContext,
+  samples: Array<{ subject: string; body: string }>,
+  options: DraftCompositeSpecOptions,
+  windows: ValidationWindows | undefined,
+): Promise<Omit<DraftCompositeSpecResult, "sampleEmails"> | null> {
+  const { deps, userId, email, sender, categoryName, categoryId } = context;
+  if (context.llmBudgetSpent) {
+    logLlmBudgetSkip(deps, userId, categoryName);
+    return null;
+  }
   const llmResult =
     await deps.llmCategoriesService.suggestRulesFromEmailSamples(
-      trimmedCategory,
+      categoryName,
       [sender],
       samples,
+      userId,
+      email.notificationSubtype,
     );
-  // Structural rules (a resolved notification sub-stream, e.g. github:pr) can
-  // persist on sender + subtype alone, so phrases are optional for them. For
-  // non-structural senders phrases remain mandatory: without them the rule would
-  // be just "sender → category", which is too broad. The subtype's own precision
-  // is what lets a single rule cover an entire github:pr / github:issue stream.
+  // Structural rules (a resolved notification sub-stream) can persist on
+  // sender + subtype alone, so phrases are optional for them. For
+  // non-structural senders phrases remain mandatory: without them the rule
+  // would be just "sender → category", which is too broad.
   const hasStructuralSubtype = Boolean(email.notificationSubtype);
   const phrasesMissing =
     !llmResult ||
@@ -333,7 +624,7 @@ export async function buildDraftCompositeSpec(
 
   const positiveSpec = buildPositiveSpec(
     deps.normalizeCompositeSpecDto,
-    trimmedCategory,
+    categoryName,
     llmResult,
     sender,
     email.notificationSubtype,
@@ -348,27 +639,168 @@ export async function buildDraftCompositeSpec(
   // categories.
   const guardedSpec = augmentExclusionsForQaTemplates(
     positiveSpec,
-    trimmedCategory,
+    categoryName,
   );
-
-  const categoryId = await deps.findCategoryId(userId, trimmedCategory);
   const outcome = await deriveExclusionsForCompositeRule({
     emailThreadRepository: deps.emailThreadRepository,
     llmCategoriesService: deps.llmCategoriesService,
     normaliseSender: deps.normaliseSender,
     userId,
     positiveSpec: guardedSpec,
-    categoryName: trimmedCategory,
+    categoryName,
     categoryId,
     logger: deps.logger,
+    windows,
   });
   return resolveDraftOutcome(deps, userId, {
     outcome,
     positiveSpec: guardedSpec,
     llmResult,
-    categoryName: trimmedCategory,
+    categoryName,
     categoryId,
     requireDerivedExclusions: options.requireDerivedExclusions,
     allowLlmSuggestedExclusions: options.allowLlmSuggestedExclusions ?? false,
   });
+}
+
+/** The TP/FP evidence a structural attempt gathered, for the sanity reviewer. */
+interface StructuralEvidence {
+  subtypeBreakdown?: NotificationSubtypeBreakdownEntry[];
+  githubBreakdown?: GithubFactsBreakdownEntry[];
+}
+
+/**
+ * The structural-first attempt for a GitHub seed: thread metadata FIRST (a
+ * board status such as "QA passed" is the rarest, most decisive fact an email
+ * carries, so it beats a sub-stream pin), then the clean sub-stream set.
+ * Returns the validation windows so the phrase fallback can reuse them.
+ */
+async function draftStructuralRule(
+  context: DraftContext,
+  seed: {
+    seedSubtype: string | undefined;
+    seedGithubFacts: GithubCategorySignals | null;
+  },
+): Promise<{
+  draft: Omit<DraftCompositeSpecResult, "sampleEmails"> | null;
+  evidence: StructuralEvidence;
+  windows: ValidationWindows;
+}> {
+  const windows = await fetchValidationWindows(
+    context.deps.emailThreadRepository,
+    context.userId,
+    context.categoryId,
+  );
+  const evidence: StructuralEvidence = {};
+  if (seed.seedGithubFacts) {
+    const facts = await draftGithubFactsRule(
+      context,
+      seed.seedGithubFacts,
+      windows,
+    );
+    evidence.githubBreakdown = facts.breakdown;
+    if (facts.draft) {
+      return { draft: facts.draft, evidence, windows };
+    }
+  }
+  if (seed.seedSubtype && isGithubNotificationSubtype(seed.seedSubtype)) {
+    const structural = await draftStructuralSubtypeRule(
+      context,
+      seed.seedSubtype,
+      windows,
+    );
+    evidence.subtypeBreakdown = structural.breakdown;
+    if (structural.draft) {
+      return { draft: structural.draft, evidence, windows };
+    }
+  }
+  return { draft: null, evidence, windows };
+}
+
+/**
+ * Shared core for both the auto-generate and user-draft flows. Returns the
+ * candidate spec WITHOUT persisting. For a GitHub seed under
+ * `preferStructuralSubtypeSet` the structural sub-stream-set draft is tried
+ * first (LLM-free); otherwise — or when it yields nothing — the LLM phrase
+ * path runs. `enforceThreadCountGate` applies the auto-only minimum sender
+ * history check; `requireDerivedExclusions` returns null (rather than a
+ * positive-only fallback) when exclusions can't be derived.
+ */
+export async function buildDraftCompositeSpec(
+  deps: DraftCompositeSpecDeps,
+  userId: string,
+  email: EmailMetadata,
+  categoryName: string,
+  options: DraftCompositeSpecOptions,
+): Promise<DraftCompositeSpecResult | null> {
+  const trimmedCategory = categoryName?.trim();
+  if (!trimmedCategory) {
+    return null;
+  }
+  const sender = deps.normaliseSender(email.from);
+  if (!sender) {
+    return null;
+  }
+
+  // Issue #1714: only auto-generate rules for senders with enough thread
+  // history. User-initiated drafts skip this gate — the user asked explicitly.
+  if (
+    options.enforceThreadCountGate &&
+    !(await passesSenderHistoryGate(deps, userId, sender))
+  ) {
+    return null;
+  }
+
+  const categoryId = await deps.findCategoryId(userId, trimmedCategory);
+  const llmBudgetSpent = await resolveLlmBudgetSpent(deps, userId, options);
+
+  const seedSubtype = email.notificationSubtype;
+  const seedGithubFacts = email.github ?? null;
+  const structuralFirst =
+    Boolean(options.preferStructuralSubtypeSet) &&
+    (isGithubNotificationSubtype(seedSubtype) || seedGithubFacts !== null);
+
+  // Without a structural seed the LLM phrase path is the only way to draft, so
+  // an exhausted budget short-circuits before the sample fetch. With one, the
+  // deterministic paths still run — they cost no tokens.
+  if (!structuralFirst && llmBudgetSpent) {
+    logLlmBudgetSkip(deps, userId, trimmedCategory);
+    return null;
+  }
+
+  const context: DraftContext = {
+    deps,
+    userId,
+    email,
+    sender,
+    categoryName: trimmedCategory,
+    categoryId,
+    llmBudgetSpent,
+  };
+  const samples = await fetchSenderSamples(
+    deps.emailRepository,
+    userId,
+    sender,
+    email,
+  );
+  const sampleEmails = toSanitySamples(sender, samples);
+  if (structuralFirst) {
+    const structural = await draftStructuralRule(context, {
+      seedSubtype,
+      seedGithubFacts,
+    });
+    if (structural.draft) {
+      return { ...structural.draft, sampleEmails, ...structural.evidence };
+    }
+    const draft = await draftPhraseRule(
+      context,
+      samples,
+      options,
+      structural.windows,
+    );
+    return draft ? { ...draft, sampleEmails, ...structural.evidence } : null;
+  }
+
+  const draft = await draftPhraseRule(context, samples, options, undefined);
+  return draft ? { ...draft, sampleEmails } : null;
 }

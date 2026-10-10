@@ -212,6 +212,14 @@ export class Email {
   summarySource: "llm" | "deterministic" | null;
 
   @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Which summary type produced the cached `summary`, as the client's selector value: a built-in type ('tldr', 'bullet-points', 'action-items', 'sender-request') or 'custom-<ruleId>'. NULL means the default ('tldr') — e.g. background/auto summaries — so the detail view restores the selector in sync with the shown summary.",
+  })
+  summaryType: string | null;
+
+  @Column({
     type: "text",
     nullable: true,
     transformer: makeEncryptedJsonTransformer("emails.actionItemsJson"),

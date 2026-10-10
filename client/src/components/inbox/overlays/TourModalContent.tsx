@@ -14,16 +14,20 @@ interface TourModalContentProps {
   tourStep: number;
   tourSteps: TourStep[];
   isLastStep: boolean;
+  isFirstStep: boolean;
   onSkipTour: () => void;
   onNextTourStep: () => void;
+  onPrevTourStep: () => void;
 }
 
 export const TourModalContent: React.FC<TourModalContentProps> = ({
   tourStep,
   tourSteps,
   isLastStep,
+  isFirstStep,
   onSkipTour,
   onNextTourStep,
+  onPrevTourStep,
 }) => {
   const { t } = useTranslation();
 
@@ -68,6 +72,21 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
         >
           {t('onboarding.tour.skip')}
         </button>
+        {!isFirstStep && (
+          <button
+            onClick={onPrevTourStep}
+            style={{
+              padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+              backgroundColor: COLOR_TRANSPARENT,
+              color: theme.colors.text.secondary,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
+              cursor: 'pointer',
+            }}
+          >
+            {t('onboarding.tour.back')}
+          </button>
+        )}
         <button
           onClick={onNextTourStep}
           style={{

@@ -3,13 +3,21 @@
  * Each operation represents a distinct use case for LLM calls.
  */
 
-// Context and pattern analysis
+// Legacy mega-prompt context analysis. Retired in favour of
+// `discover_user_context`; the constant stays so historic token-usage rows keep
+// their admin label.
 export const LLM_OP_ANALYZE_EMAIL_PATTERNS = "analyze_email_patterns";
+
+// Slim context discovery (onboarding / "Analyze"): initial category set + VIPs
+// from a sample of recent thread stubs, on Nova Micro with Gemini escalation.
+export const LLM_OP_DISCOVER_USER_CONTEXT = "discover_user_context";
 
 // Email summarization
 export const LLM_OP_SUMMARIZE_EMAIL = "summarize_email";
 
-// Email summarization with LLM phishing check piggybacked (single email)
+// Structured single-email summary (summary + sentiment + action items +
+// meeting proposal). Phishing moved to the dedicated `check_phishing_only`
+// call; the id keeps its historical name so token-usage history stays intact.
 export const LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING =
   "summarize_email_with_phishing_check";
 
@@ -105,7 +113,7 @@ export const LLM_OP_CLASSIFY_CONTACT_TYPE = "classify_contact_type";
 // Context compression
 export const LLM_OP_COMPRESS_CONTEXT = "compress_context";
 
-// Phishing-only check (used when summarisation uses a custom prompt)
+// Dedicated phishing check, run alongside every summary (its verdict wins over the summary prompt's own phishing field)
 export const LLM_OP_CHECK_PHISHING_ONLY = "check_phishing_only";
 export const LLM_OP_CONFIRM_PHISHING = "confirm_phishing";
 
@@ -129,6 +137,7 @@ export const LLM_OP_SUGGEST_CATEGORY_RULES = "suggest_category_rules";
 
 // Incremental re-categorisation of a thread from its updated summary
 export const LLM_OP_CATEGORISE_SUMMARY = "categorise_summary";
+export const LLM_OP_SUGGEST_PROTO_CATEGORY = "suggest_proto_category";
 
 // Derive not-contains exclusions for an auto-rule from real false positives
 export const LLM_OP_DERIVE_RULE_EXCLUSIONS = "derive_rule_exclusions";
@@ -144,6 +153,9 @@ export const LLM_OP_DETECT_MEETING_PROPOSAL = "detect_meeting_proposal";
 
 // Check whether two category names are duplicates (Levenshtein near-match confirmation)
 export const LLM_OP_CHECK_CATEGORY_DUPLICATE = "check_category_duplicate";
+
+// Strong-model sanity review of an auto-generated composite category rule before it is persisted
+export const LLM_OP_SANITY_CHECK_CATEGORY_RULE = "sanity_check_category_rule";
 
 // Sender context: pick which MCP tool + arg looks up a person by email
 export const LLM_OP_DERIVE_MCP_SENDER_TOOL = "derive_mcp_sender_tool";
@@ -168,6 +180,7 @@ export type LLMOperation =
   | typeof LLM_OP_EVALUATE_WORKFLOW_CONDITION
   | typeof LLM_OP_RESOLVE_WORKFLOW_VARIABLES
   | typeof LLM_OP_ANALYZE_EMAIL_PATTERNS
+  | typeof LLM_OP_DISCOVER_USER_CONTEXT
   | typeof LLM_OP_SUMMARIZE_EMAIL
   | typeof LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING
   | typeof LLM_OP_SUMMARIZE_EMAIL_BATCH
@@ -206,12 +219,14 @@ export type LLMOperation =
   | typeof LLM_OP_CATEGORY_SHORTLIST
   | typeof LLM_OP_CATEGORY_EMBEDDING
   | typeof LLM_OP_SUGGEST_CATEGORY_RULES
+  | typeof LLM_OP_SUGGEST_PROTO_CATEGORY
   | typeof LLM_OP_CATEGORISE_SUMMARY
   | typeof LLM_OP_DERIVE_RULE_EXCLUSIONS
   | typeof LLM_OP_ASSESS_CATEGORY_RULE_VALUE
   | typeof LLM_OP_BATCH_PRIORITY_TRIAGE
   | typeof LLM_OP_DETECT_MEETING_PROPOSAL
   | typeof LLM_OP_CHECK_CATEGORY_DUPLICATE
+  | typeof LLM_OP_SANITY_CHECK_CATEGORY_RULE
   | typeof LLM_OP_DERIVE_MCP_SENDER_TOOL
   | typeof LLM_OP_ASK_AI_EMAIL
   | typeof LLM_OP_ASK_AI_AGENT
@@ -224,9 +239,11 @@ export type LLMOperation =
 export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_EVALUATE_WORKFLOW_CONDITION]: "Evaluate Workflow Condition",
   [LLM_OP_RESOLVE_WORKFLOW_VARIABLES]: "Resolve Workflow Variables",
-  [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns",
+  [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns (legacy)",
+  [LLM_OP_DISCOVER_USER_CONTEXT]: "Discover User Context",
   [LLM_OP_SUMMARIZE_EMAIL]: "Summarize Email",
-  [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]: "Summarize Email + Phishing Check",
+  [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]:
+    "Summarize Email (structured: sentiment, actions, meeting)",
   [LLM_OP_SUMMARIZE_EMAIL_BATCH]: "Summarize Email (Batch)",
   [LLM_OP_CHECK_TONE]: "Check Tone",
   [LLM_OP_EXTRACT_MEETING_REFERENCES]: "Extract Meeting Date References",
@@ -263,12 +280,14 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_CATEGORY_SHORTLIST]: "Category Shortlist",
   [LLM_OP_CATEGORY_EMBEDDING]: "Category Embedding",
   [LLM_OP_SUGGEST_CATEGORY_RULES]: "Suggest Category Rules",
+  [LLM_OP_SUGGEST_PROTO_CATEGORY]: "Suggest New Category",
   [LLM_OP_CATEGORISE_SUMMARY]: "Categorise From Summary",
   [LLM_OP_DERIVE_RULE_EXCLUSIONS]: "Derive Rule Exclusions",
   [LLM_OP_ASSESS_CATEGORY_RULE_VALUE]: "Assess Category Rule Value",
   [LLM_OP_BATCH_PRIORITY_TRIAGE]: "Batch Priority Triage",
   [LLM_OP_DETECT_MEETING_PROPOSAL]: "Detect Meeting Proposal",
   [LLM_OP_CHECK_CATEGORY_DUPLICATE]: "Check Category Duplicate",
+  [LLM_OP_SANITY_CHECK_CATEGORY_RULE]: "Sanity Check Category Rule",
   [LLM_OP_DERIVE_MCP_SENDER_TOOL]: "Derive MCP Sender Tool",
   [LLM_OP_ASK_AI_EMAIL]: "Ask AI (Email Assistant)",
   [LLM_OP_ASK_AI_AGENT]: "Ask AI (Agentic Assistant)",

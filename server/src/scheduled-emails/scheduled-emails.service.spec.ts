@@ -7,6 +7,7 @@ import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { UsersService } from "../users/users.service";
 import {
   CreateScheduledEmailDto,
@@ -38,6 +39,10 @@ describe("ScheduledEmailsService", () => {
         { provide: UserEncryptionService, useValue: {} },
         { provide: ContactsService, useValue: {} },
         { provide: UsersService, useValue: {} },
+        {
+          provide: FollowUpsService,
+          useValue: { createFollowUpForSentMessage: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -194,6 +199,71 @@ describe("ScheduledEmailsService", () => {
       );
 
       expect(sendReply.mock.calls[0][1].options.htmlBody).toBeUndefined();
+    });
+  });
+
+  describe("sendScheduledEmail (composed message follow-up)", () => {
+    const SENT = { messageId: "msg-1", threadId: "thread-9" };
+
+    const wireNewEmailMocks = (createFollowUpForSentMessage: jest.Mock) => {
+      const sendEmail = jest.fn().mockResolvedValue(SENT);
+      (service as any).usersService = {
+        findOne: jest.fn().mockResolvedValue({ emailSignature: null }),
+      };
+      (service as any).emailProviderManager = {
+        getPrimaryProvider: jest.fn().mockResolvedValue({ sendEmail }),
+      };
+      (service as any).contactsService = {
+        incrementContactFrequency: jest.fn().mockResolvedValue(undefined),
+      };
+      (service as any).followUpsService = { createFollowUpForSentMessage };
+      repo.save.mockResolvedValue({} as any);
+      return sendEmail;
+    };
+
+    const newEmailEntity = (
+      expectedReplyHours: number | null,
+    ): ScheduledEmail =>
+      ({
+        id: "sched-2",
+        userId: "user-1",
+        emailType: "new",
+        to: [{ email: "someone@example.com" }],
+        cc: [],
+        bcc: [],
+        subject: "Project kickoff",
+        body: "Hello there",
+        attachments: null,
+        forwardAttachmentIds: null,
+        expectedReplyHours,
+      }) as unknown as ScheduledEmail;
+
+    it("creates the follow-up on the thread the provider just created", async () => {
+      const createFollowUpForSentMessage = jest.fn().mockResolvedValue(null);
+      wireNewEmailMocks(createFollowUpForSentMessage);
+
+      await (service as any).sendScheduledEmail(newEmailEntity(48));
+
+      expect(createFollowUpForSentMessage).toHaveBeenCalledWith(
+        "user-1",
+        SENT.threadId,
+        48,
+        { subject: "Project kickoff" },
+      );
+    });
+
+    it("asks for no follow-up when the composer cleared the field", async () => {
+      const createFollowUpForSentMessage = jest.fn().mockResolvedValue(null);
+      wireNewEmailMocks(createFollowUpForSentMessage);
+
+      await (service as any).sendScheduledEmail(newEmailEntity(null));
+
+      expect(createFollowUpForSentMessage).toHaveBeenCalledWith(
+        "user-1",
+        SENT.threadId,
+        undefined,
+        { subject: "Project kickoff" },
+      );
     });
   });
 });

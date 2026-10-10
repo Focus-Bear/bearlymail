@@ -14,7 +14,10 @@ import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
-import { EmailLifecycleService } from "./email-lifecycle.service";
+import {
+  EmailLifecycleService,
+  providerSyncCreateEmailOptions,
+} from "./email-lifecycle.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailThreadService } from "./email-thread.service";
 import { PriorityBatchSchedulerService } from "./priority-batch-scheduler.service";
@@ -41,6 +44,9 @@ describe("EmailLifecycleService", () => {
   let usersService: jest.Mocked<UsersService>;
   let subscriptionsService: { trackEmailForUser: jest.Mock };
   let boss: { send: jest.Mock };
+  let suggestedRepliesService: {
+    queueSuggestedReplyGeneration: jest.Mock;
+  };
 
   beforeEach(async () => {
     boss = { send: jest.fn().mockResolvedValue("job-id") };
@@ -154,6 +160,7 @@ describe("EmailLifecycleService", () => {
     }).compile();
 
     service = module.get<EmailLifecycleService>(EmailLifecycleService);
+    suggestedRepliesService = module.get(SuggestedRepliesService);
     emailRepository = module.get(getRepositoryToken(Email));
     emailThreadRepository = module.get(getRepositoryToken(EmailThread));
     actionItemRepository = module.get(getRepositoryToken(ActionItem));
@@ -410,6 +417,42 @@ describe("EmailLifecycleService", () => {
   });
 
   describe("queuePostSaveJobs", () => {
+    it("refreshes reply options for a starred thread on an ongoing sync", async () => {
+      const savedEmail = mockPartial({
+        id: "email-starred",
+        emailThreadId: "thread-row-1",
+        threadId: "provider-thread-1",
+      });
+      const thread = mockPartial({ id: "thread-row-1", starCount: 2 });
+
+      await service.queuePostSaveJobs("user-1", savedEmail, thread);
+
+      expect(
+        suggestedRepliesService.queueSuggestedReplyGeneration,
+      ).toHaveBeenCalledWith("user-1", "thread-row-1", "email-starred");
+    });
+
+    it("does not pre-generate reply options for starred threads imported by an initial sync", async () => {
+      const savedEmail = mockPartial({
+        id: "email-starred",
+        emailThreadId: "thread-row-1",
+        threadId: "provider-thread-1",
+      });
+      const thread = mockPartial({ id: "thread-row-1", starCount: 2 });
+
+      await service.queuePostSaveJobs(
+        "user-1",
+        savedEmail,
+        thread,
+        undefined,
+        providerSyncCreateEmailOptions(true),
+      );
+
+      expect(
+        suggestedRepliesService.queueSuggestedReplyGeneration,
+      ).not.toHaveBeenCalled();
+    });
+
     it("does not enqueue the background summary here — it is gated on priorityScore at priority-completion time", async () => {
       const savedEmail = mockPartial({
         id: "email-2",

@@ -2,21 +2,14 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { humanizeDuration, PreviewKeys } from 'utils/parseDuration';
+import { humanizeDuration } from 'utils/parseDuration';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { SNOOZE_PREVIEW_KEYS } from 'constants/snooze';
 import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
-
-// "Reappears …" wording for the live preview; mirrors the same date/time
-// resolution the server uses to schedule the snooze.
-const SNOOZE_PREVIEW_KEYS: PreviewKeys = {
-  today: 'emailActions.snoozePreviewToday',
-  tomorrow: 'emailActions.snoozePreviewTomorrow',
-  date: 'emailActions.snoozePreviewDate',
-};
 
 const labelStyle: React.CSSProperties = {
   fontSize: theme.typography.fontSize.xs,

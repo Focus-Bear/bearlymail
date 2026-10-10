@@ -16,6 +16,8 @@ interface ResolvedEmailBodyProps {
     inlineData?: string;
   }>;
   sanitize: (html: string, attachments?: InlineAttachmentRef[]) => string;
+  /** Minimum rendered height (px) of the body iframe. */
+  minHeight?: number;
 }
 
 /**
@@ -31,6 +33,7 @@ export const ResolvedEmailBody: React.FC<ResolvedEmailBodyProps> = ({
   html,
   attachments,
   sanitize,
+  minHeight,
 }) => {
   const resolvedAttachments = useResolvedInlineImages(emailId, attachments);
 
@@ -39,5 +42,5 @@ export const ResolvedEmailBody: React.FC<ResolvedEmailBodyProps> = ({
     [html, resolvedAttachments, sanitize],
   );
 
-  return <EmailBodyIframe html={processedHtml} />;
+  return <EmailBodyIframe html={processedHtml} minHeight={minHeight} />;
 };

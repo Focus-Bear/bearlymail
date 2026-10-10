@@ -5,13 +5,16 @@ import { INBOX_MODES } from "../constants/query-limits";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
-import { threadHasBlockedLabel } from "./email-inbox.types";
+import {
+  INBOX_OTHER_CATEGORY_NAME,
+  INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  threadHasBlockedLabel,
+} from "./email-inbox.types";
+import { shouldKeepInActionMode } from "./email-inbox-scope.helpers";
 
-/** Display name used for the null-category (uncategorized) bucket; inbox summary uses id: null. */
-export const INBOX_OTHER_CATEGORY_NAME = "Other";
-
-/** Key the client sends for the null-category (uncategorized) bucket. */
-export const INBOX_UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
+// Re-exported from email-inbox.types (their dependency-free home) so existing
+// importers of these sentinels via this service keep working unchanged.
+export { INBOX_OTHER_CATEGORY_NAME, INBOX_UNCATEGORIZED_CATEGORY_KEY };
 
 /**
  * Category-counting and filtering helpers extracted from EmailInboxService.
@@ -20,6 +23,14 @@ export const INBOX_UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
  *
  * Extracted to keep EmailInboxService under the 800-line limit.
  */
+/** Inputs the per-row mode rules need: action-mode sender check, follow-up membership. */
+export interface SummaryModeRules {
+  needsUserSentLastFilter: boolean;
+  userEmailLower: string | null;
+  /** Threads the shared follow-up rule accepted; required in follow-up mode. */
+  followUpThreadIds?: Set<string>;
+}
+
 @Injectable()
 export class EmailInboxCategoryService {
   private readonly logger = new Logger(EmailInboxCategoryService.name);
@@ -50,10 +61,17 @@ export class EmailInboxCategoryService {
   async shouldSkipSummaryRow(
     userId: string,
     mode: string,
-    row: { latestFrom?: string; allLabels?: string[] | null },
-    needsUserSentLastFilter: boolean,
-    userEmailLower: string | null,
+    row: {
+      threadId?: string;
+      latestFrom?: string;
+      allLabels?: string[] | null;
+      sentByAutoResponder?: boolean | null;
+      keepInAction?: boolean | null;
+    },
+    modeRules: SummaryModeRules,
   ): Promise<boolean> {
+    const { needsUserSentLastFilter, userEmailLower, followUpThreadIds } =
+      modeRules;
     if (mode === INBOX_MODES.BLOCKED) {
       // Use threadHasBlockedLabel to check all emails in the thread (not just the latest).
       return !threadHasBlockedLabel(row.allLabels);
@@ -71,13 +89,27 @@ export class EmailInboxCategoryService {
       )
         return true;
     }
-    if (needsUserSentLastFilter && userEmailLower && row.latestFrom) {
+    if (mode === INBOX_MODES.FOLLOW_UP && followUpThreadIds) {
+      // Same decision the list makes (issue #2062): membership comes from the
+      // follow-up evaluation, not from who sent the latest message.
+      return !row.threadId || !followUpThreadIds.has(row.threadId);
+    }
+    if (
+      mode === INBOX_MODES.ACTION &&
+      needsUserSentLastFilter &&
+      userEmailLower &&
+      row.latestFrom
+    ) {
       try {
-        const fromLower =
-          EncryptionHelper.tryDecrypt(row.latestFrom)?.toLowerCase() || "";
-        const userSentLast = fromLower.includes(userEmailLower);
-        if (mode === INBOX_MODES.ACTION && userSentLast) return true;
-        if (mode === INBOX_MODES.FOLLOW_UP && !userSentLast) return true;
+        const from = EncryptionHelper.tryDecrypt(row.latestFrom) || "";
+        return !shouldKeepInActionMode(
+          {
+            from,
+            sentByAutoResponder: row.sentByAutoResponder,
+            keepInAction: row.keepInAction,
+          },
+          userEmailLower,
+        );
       } catch {
         /* include on error */
       }
@@ -95,10 +127,14 @@ export class EmailInboxCategoryService {
       latestFrom?: string;
       allLabels?: string[] | null;
       priorityScore?: number | null;
+      sentByAutoResponder?: boolean | null;
+      keepInAction?: boolean | null;
     }[];
     includeThreadIds: boolean;
     needsUserSentLastFilter: boolean;
     userEmailLower: string | null;
+    /** Threads the shared follow-up rule accepted (follow-up mode only). */
+    followUpThreadIds?: Set<string>;
   }): Promise<{
     categoryOrder: string[];
     categoryCounts: Record<string, number>;
@@ -112,6 +148,7 @@ export class EmailInboxCategoryService {
       includeThreadIds,
       needsUserSentLastFilter,
       userEmailLower,
+      followUpThreadIds,
     } = options;
     const categoryOrder: string[] = [];
     const categoryCounts: Record<string, number> = {};
@@ -121,13 +158,11 @@ export class EmailInboxCategoryService {
 
     for (const row of rows) {
       if (
-        await this.shouldSkipSummaryRow(
-          userId,
-          mode,
-          row,
+        await this.shouldSkipSummaryRow(userId, mode, row, {
           needsUserSentLastFilter,
           userEmailLower,
-        )
+          followUpThreadIds,
+        })
       )
         continue;
 

@@ -10,6 +10,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { GithubCategorySignalsService } from "../github/github-category-signals.service";
 import { CategoryShortlistService } from "../llm/category-shortlist.service";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { EmailDebugService } from "./email-debug.service";
@@ -123,6 +124,10 @@ describe("EmailDebugService", () => {
           useValue: {
             analyzePriority: jest.fn(),
           },
+        },
+        {
+          provide: GithubCategorySignalsService,
+          useValue: { buildForEmail: jest.fn().mockReturnValue(null) },
         },
         EmailDebugCategoryService,
       ],

@@ -439,12 +439,14 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 
 **LLM Fallback**: If the primary provider fails, the system automatically falls back to the other provider. If Gemini fails → falls back to OpenAI. If OpenAI fails → falls back to Gemini. Users can also provide their own OpenAI API key (`user.openAiApiKey`), which takes precedence over the system key.
 
+**Jev typed decisions**: Bounded decisions (categorisation, workflow conditions, contact/email type, duplicate checks, exclusion rules, incremental priority, phishing clearance) try Jev first. A call site adds a typed `jevDecision` to its `LLMRequest`; `LLMCoreService.generateText` returns Jev's answer in the caller's existing JSON contract when confident, otherwise the normal provider call runs. Definitions live in `server/src/llm/jev-decisions/`; evaluate them with `server/promptfoo/run-jev-evaluation.cjs` (see `docs/experiments/jev-prompt-candidates.md`).
+
 **Available Prompts** (in `server/promptfoo/prompts/`):
 
 | Prompt File                         | Prompt ID                        | Purpose                                                       |
 | ----------------------------------- | -------------------------------- | ------------------------------------------------------------- |
 | `prioritise-email.md`               | `analyze_priority`               | Score email importance (0-100)                                |
-| `analyze-email-patterns.md`         | `analyze_email_patterns`         | Extract VIP contacts, projects, categories from email history |
+| `discover-user-context.md`          | `discover_user_context`          | Slim onboarding discovery: initial categories + VIP contacts from thread stubs (Nova → Gemini) |
 | `analyze-priority-feedback.md`      | `analyze_priority_feedback`      | Learn from user priority overrides                            |
 | `generate-reply.md`                 | `generate_reply`                 | Generate single reply draft                                   |
 | `generate-multiple-replies.md`      | `generate_multiple_replies`      | Generate 3-5 reply options                                    |
@@ -722,7 +724,7 @@ Other Features
 | Task                              | Prompt File                    | Prompt ID                   |
 | --------------------------------- | ------------------------------ | --------------------------- |
 | Score email importance            | `prioritise-email.md`          | `analyze_priority`          |
-| Extract VIP contacts, projects    | `analyze-email-patterns.md`    | `analyze_email_patterns`    |
+| Discover categories + VIP contacts | `discover-user-context.md`     | `discover_user_context`     |
 | Generate single reply             | `generate-reply.md`            | `generate_reply`            |
 | Generate multiple reply options   | `generate-multiple-replies.md` | `generate_multiple_replies` |
 | Generate meeting scheduling reply | `generate-meeting-reply.md`    | `generate_meeting_reply`    |
@@ -849,10 +851,16 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `CLAUDE_CLI_PATH`, `CLAUDE_CLI_MODEL`                         | No       | Claude Code CLI binary path (default `claude`) and model alias (default `sonnet`) for `claude-cli` |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`                              | No       | Google Gemini config                      |
 | `OPENAI_API_KEY`, `OPENAI_MODEL`                              | No       | OpenAI config                             |
+| `TYPESAFE_AI_API_KEY`, `TYPESAFE_AI_MODEL`                    | No       | Jev (TypeSafe) typed-decision model       |
+| `JEV_CATEGORISATION_ENABLED`, `JEV_DECISIONS_ENABLED`         | No       | Set `false` to bypass Jev for categorisation / other decisions |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`            | No       | GitHub integration                        |
 | `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Consent tracking versions                 |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |
 | `ZOHO_CLIQ_*`                                                 | No       | Zoho Cliq notifications                   |
+| `PUSHER_APP_ID`                                               | No       | Pusher app id (realtime events)           |
+| `PUSHER_KEY`                                                  | No       | Pusher key (also exposed to the client)   |
+| `PUSHER_SECRET`                                               | No       | Pusher secret (signs channel auth)        |
+| `PUSHER_CLUSTER`                                              | No       | Pusher cluster, e.g. `ap4`                |
 
 ### Frontend (`client/.env`)
 
@@ -861,6 +869,8 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `REACT_APP_API_URL`            | Yes      | Backend URL (default: `http://localhost:3001`) |
 | `REACT_APP_POSTHOG_API_KEY`    | No       | PostHog analytics                              |
 | `REACT_APP_REVENUECAT_API_KEY` | No       | RevenueCat public key                          |
+| `VITE_PUSHER_KEY`              | No       | Pusher key; must match server `PUSHER_KEY`     |
+| `VITE_PUSHER_CLUSTER`          | No       | Pusher cluster; must match `PUSHER_CLUSTER`    |
 
 ### Environment Variable Impact Matrix
 
@@ -880,6 +890,7 @@ This table shows what breaks if a required environment variable is missing:
 | **GitHub integration**                 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`                | ⚠️ GitHub PR/issue metadata extraction disabled        |
 | **Subscriptions**                      | `REVENUECAT_API_KEY`                                              | ⚠️ Subscription features disabled                      |
 | **Analytics**                          | `REACT_APP_POSTHOG_API_KEY`                                       | ⚠️ No usage analytics (app works fine)                 |
+| **Realtime events (contact sync, background send outcomes)** | All four `PUSHER_*` server vars **and** both `VITE_PUSHER_*` client vars | ⚠️ `PusherService.trigger()` returns early and every event is silently dropped: contact-sync progress never updates, and a failed background send is never retracted — the user keeps the optimistic "sent" state. |
 | **Waitlist notifications**             | `ZOHO_CLIQ_*` variables                                           | ⚠️ No Slack notifications for signups (app works fine) |
 | **CORS**                               | `FRONTEND_URL`                                                    | ❌ Frontend cannot call API (CORS errors)              |
 | **User's own OpenAI key**              | User sets `openAiApiKey` in profile                               | ⚠️ Uses system OpenAI key instead (if available)       |

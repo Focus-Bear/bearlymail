@@ -1,12 +1,23 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import type { PgBoss } from "pg-boss";
+import { In, Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
+import { SECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { getJobPriority } from "../queue/job-priorities";
 import { parseDurationToDate } from "./parse-duration";
+
+export interface BulkSnoozeResult {
+  snoozedEmailIds: string[];
+  threadCount: number;
+  snoozeUntil: Date | null;
+}
 
 @Injectable()
 export class SnoozeService {
@@ -19,6 +30,7 @@ export class SnoozeService {
     private emailThreadRepository: Repository<EmailThread>,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   async snoozeEmail(
@@ -74,6 +86,96 @@ export class SnoozeService {
     }
 
     return { id: thread.id, isSnoozed: thread.isSnoozed, snoozeUntil };
+  }
+
+  /**
+   * Snooze many emails until the same moment. The duration is parsed once so every
+   * selected thread lands on an identical wake-up time, and provider sync is queued
+   * per thread rather than awaited — a large selection would otherwise make the
+   * request wait on one provider round-trip per thread.
+   */
+  async bulkSnoozeEmails(
+    userId: string,
+    emailIds: string[],
+    duration: string,
+    locale = "en",
+  ): Promise<BulkSnoozeResult> {
+    if (emailIds.length === 0) {
+      return { snoozedEmailIds: [], threadCount: 0, snoozeUntil: null };
+    }
+
+    const snoozeUntil = this.parseDuration(duration, locale);
+
+    // Only plaintext columns: hydrating full entities would decrypt fields this
+    // path never reads (see the comment in SnoozeProcessor for the same trap).
+    const emails = await this.emailRepository.find({
+      where: { userId, id: In(emailIds) },
+      select: { id: true, threadId: true },
+    });
+    if (emails.length === 0) {
+      this.logger.warn(
+        `[Snooze] No emails found for bulk snooze: userId=${userId}`,
+      );
+      return { snoozedEmailIds: [], threadCount: 0, snoozeUntil };
+    }
+
+    const threadIds = [
+      ...new Set(emails.map((email) => email.threadId).filter(Boolean)),
+    ];
+    const now = new Date();
+
+    await this.emailThreadRepository.update(
+      { userId, threadId: In(threadIds) },
+      {
+        isSnoozed: true,
+        snoozeUntil,
+        lastUserOperationAt: now,
+        syncStatus: "unsynced",
+        syncStatusUpdatedAt: now,
+      },
+    );
+    await this.emailRepository.update(
+      { userId, threadId: In(threadIds) },
+      { isSnoozed: true, snoozeUntil },
+    );
+
+    this.logger.log(
+      `[Snooze] Bulk snoozed ${emails.length} emails in ${threadIds.length} threads until ` +
+        `${snoozeUntil.toISOString()}: userId=${userId}`,
+    );
+
+    for (const threadId of threadIds) {
+      this.queueProviderSnoozeSync(userId, threadId, snoozeUntil);
+    }
+
+    return {
+      snoozedEmailIds: emails.map((email) => email.id),
+      threadCount: threadIds.length,
+      snoozeUntil,
+    };
+  }
+
+  private queueProviderSnoozeSync(
+    userId: string,
+    threadId: string,
+    snoozeUntil: Date,
+  ): void {
+    this.boss
+      .send(
+        JOB_NAMES.SNOOZE_THREAD_PROVIDER_SYNC,
+        { userId, threadId, snoozeUntil: snoozeUntil.toISOString() },
+        {
+          priority: getJobPriority(JOB_NAMES.SNOOZE_THREAD_PROVIDER_SYNC, true),
+          singletonKey: `snooze-provider-sync-${threadId}`,
+          singletonSeconds: SECONDS.FIVE_MINUTES,
+        },
+      )
+      .catch((error: unknown) =>
+        this.logger.error(
+          `[Snooze] Failed to queue provider sync job for thread ${threadId}:`,
+          error,
+        ),
+      );
   }
 
   async unsnoozeEmail(

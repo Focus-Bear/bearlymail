@@ -33,6 +33,7 @@ export class SnoozeProcessor implements OnModuleInit {
   async onModuleInit() {
     await this.boss.schedule(JOB_NAMES.CHECK_EXPIRED_SNOOZES, "* * * * *");
     await this.registerSnoozeCheckWorker();
+    await this.registerSnoozeProviderSyncWorker();
     await this.registerUnsnoozeThreadWorker();
     this.logger.log("Snooze processor initialized - checking every minute");
   }
@@ -105,6 +106,68 @@ export class SnoozeProcessor implements OnModuleInit {
           );
         } catch (error) {
           this.logger.error("[Snooze] Error in check-expired-snoozes:", error);
+          tracker.finish(error as Error);
+          throw error;
+        }
+      },
+    );
+  }
+
+  /**
+   * Syncs a bulk-snoozed thread to the email provider. Bulk snooze writes the DB
+   * rows synchronously and queues this job per thread so the HTTP request does not
+   * wait on one provider round-trip per selected thread.
+   */
+  private async registerSnoozeProviderSyncWorker() {
+    await registerWorker(
+      this.boss,
+      JOB_NAMES.SNOOZE_THREAD_PROVIDER_SYNC,
+      { teamSize: 3 },
+      async (job) => {
+        const { userId, threadId, snoozeUntil } = job.data as {
+          userId: string;
+          threadId: string;
+          snoozeUntil: string;
+        };
+        const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker(
+          JOB_NAMES.SNOOZE_THREAD_PROVIDER_SYNC,
+          workerId,
+          this.cloudWatchService,
+        );
+        tracker.setMetadata({ userId, threadId });
+
+        try {
+          tracker.startPhase("snoozeInProvider");
+          const provider =
+            await this.emailProviderManager.getPrimaryProvider(userId);
+          if (!provider) {
+            this.logger.warn(
+              `[Worker ${workerId}] No email provider connected for user ${userId}`,
+            );
+            tracker.endPhase("snoozeInProvider");
+            tracker.finish();
+            return;
+          }
+          await provider.snoozeThread(userId, threadId, new Date(snoozeUntil));
+          tracker.endPhase("snoozeInProvider");
+
+          tracker.startPhase("updateSyncStatus");
+          await this.emailThreadRepository.update(
+            { userId, threadId },
+            { syncStatus: "synced", syncStatusUpdatedAt: new Date() },
+          );
+          tracker.endPhase("updateSyncStatus");
+          tracker.finish();
+
+          this.logger.log(
+            `[Worker ${workerId}] Synced snooze for thread ${threadId} to provider`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `[Worker ${workerId}] Failed to sync snooze for thread ${threadId}:`,
+            error,
+          );
           tracker.finish(error as Error);
           throw error;
         }

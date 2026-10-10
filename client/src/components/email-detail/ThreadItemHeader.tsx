@@ -9,7 +9,13 @@ import { useNotifications } from 'contexts/NotificationContext';
 const COPY_ICON = '⧉';
 const ICON_EXPANDED = '▼';
 const ICON_COLLAPSED = '▶';
-const getHeaderBgColor = (isCurrentEmail: boolean): string =>
+/**
+ * Background for a thread item: pale orange for the currently-open email, a
+ * light neutral for the others. Shared with {@link ThreadItemBody} so the
+ * header and body of one message read as a single surface rather than an
+ * orange header with an isolated white body.
+ */
+export const getThreadItemBgColor = (isCurrentEmail: boolean): string =>
   isCurrentEmail ? theme.colors.primary.subtle : theme.colors.background.subtle;
 
 interface AddressFieldProps {
@@ -64,7 +70,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
       onClick={onToggle}
       style={{
         padding: theme.spacing.md,
-        backgroundColor: getHeaderBgColor(isCurrentEmail),
+        backgroundColor: getThreadItemBgColor(isCurrentEmail),
         cursor: 'pointer',
         display: 'flex',
         justifyContent: 'space-between',

@@ -29,6 +29,12 @@ interface NotificationContextType {
   showSuccessWithUndo: (message: string, onCommit: () => void, onUndo: () => void, duration?: number) => () => void;
   /** Shows a persistent info toast with no auto-dismiss. Returns a function to dismiss it manually. */
   showLoading: (message: string, action?: NotificationAction) => () => void;
+  /**
+   * Shows a persistent error toast with an action button (e.g. Retry). Used
+   * where the user must be able to act on the failure, not just read it.
+   * Returns a function to dismiss it manually.
+   */
+  showErrorWithAction: (message: string, action: NotificationAction) => () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -100,6 +106,16 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     [removeNotification]
   );
 
+  const showErrorWithAction = useCallback(
+    (message: string, action: NotificationAction): (() => void) => {
+      const id = `notification-${Date.now()}-${Math.random()}`;
+      const notification: Notification = { id, message, type: 'error', duration: 0, action };
+      setNotifications(prev => [...prev, notification]);
+      return () => removeNotification(id);
+    },
+    [removeNotification]
+  );
+
   const showSuccessWithUndo = useCallback(
     (message: string, onCommit: () => void, onUndo: () => void, duration: number = UNDO_TOAST_DURATION_MS): (() => void) => {
       const id = `notification-${Date.now()}-${Math.random()}`;
@@ -147,7 +163,16 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   );
 
   return (
-    <NotificationContext.Provider value={{ showNotification, showSuccess, showError, showInfo, showWarning, showSuccessWithUndo, showLoading }}>
+    <NotificationContext.Provider value={{
+        showNotification,
+        showSuccess,
+        showError,
+        showInfo,
+        showWarning,
+        showSuccessWithUndo,
+        showLoading,
+        showErrorWithAction,
+      }}>
       {children}
       <div
         style={{

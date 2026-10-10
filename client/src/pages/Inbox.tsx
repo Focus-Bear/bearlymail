@@ -372,6 +372,7 @@ const InboxView: React.FC = () => {
           tourSteps={tourSteps}
           onSkipTour={() => onboarding.handleSkipTour()}
           onNextTourStep={() => onboarding.handleNextTourStep(tourSteps.length)}
+          onPrevTourStep={onboarding.handlePrevTourStep}
           triageTabRef={triageTabRef}
           actionTabRef={actionTabRef}
           deliverBtnRef={deliverBtnRef}
@@ -488,6 +489,7 @@ const InboxView: React.FC = () => {
         <BulkOperationsBar
           selectedCount={selectedEmailIds.size}
           onBulkArchive={emailActions.handleBulkArchive}
+          onBulkSnooze={emailActions.handleBulkSnooze}
           onClearSelection={() => setSelectedEmailIds(new Set())}
         />
         {keyboardHint.showKeyboardHint && <KeyboardHintTooltip action={keyboardHint.showKeyboardHint.action} />}

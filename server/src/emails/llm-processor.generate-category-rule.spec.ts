@@ -8,6 +8,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { DebugService } from "../debug/debug.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { GithubCategorySignalsService } from "../github/github-category-signals.service";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { PriorityService } from "../priority/priority.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
@@ -73,6 +74,13 @@ describe("LLMProcessor — handleGenerateCategoryRuleJob", () => {
           useValue: { generateCompositeRuleFromEmail },
         },
         { provide: PriorityRulesService, useValue: {} },
+        {
+          provide: GithubCategorySignalsService,
+          useValue: {
+            buildForEmail: jest.fn().mockReturnValue(null),
+            resolveForEmail: jest.fn().mockResolvedValue(null),
+          },
+        },
         {
           provide: UserEncryptionService,
           useValue: {

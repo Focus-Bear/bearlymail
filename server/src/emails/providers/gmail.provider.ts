@@ -421,12 +421,13 @@ export class GmailProvider implements EmailProvider {
       to: EmailRecipient[];
       subject: string;
       body: string;
+      htmlBody?: string;
       cc?: EmailRecipient[];
       bcc?: EmailRecipient[];
       attachments?: EmailAttachmentData[];
     },
   ): Promise<{ messageId: string; threadId: string }> {
-    const { to, subject, body, cc, bcc, attachments } = params;
+    const { to, subject, body, htmlBody, cc, bcc, attachments } = params;
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error("Gmail account not connected.");
 
@@ -435,8 +436,9 @@ export class GmailProvider implements EmailProvider {
       subject,
       // plain-text fallback for email clients that don't render HTML
       body: stripHtmlTags(body),
-      // HTML content from rich text editor
-      htmlBody: body,
+      // Prefer an explicit HTML body (e.g. forwards with <br> signatures); fall
+      // back to treating `body` as HTML for callers that pass rich HTML there.
+      htmlBody: htmlBody ?? body,
       cc,
       bcc,
       attachments,

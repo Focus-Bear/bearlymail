@@ -6,6 +6,7 @@ import axios from 'axios';
 import { Email } from 'types/email';
 import * as emailCache from 'utils/emailCache';
 
+import { buildDisplayCategories } from 'components/inbox/inboxCategoryHelpers';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { ERROR_GMAIL, ERROR_GMAIL_REQUIRED, MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { HIGH_PRIORITY_THRESHOLD, InboxFilter, PRIORITY_FILTER_SOURCE } from 'hooks/useInboxFilters';
@@ -469,6 +470,72 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     expect(mockedClearCacheForMode).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchCategoryEmailsBatch – summary reconciled with returned rows (issue #2062)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    console.log = vi.fn();
+    console.warn = vi.fn();
+    console.error = vi.fn();
+  });
+
+  const makeStore = (categorySummary: Array<{ id: string | null; name: string; count: number; threadIds?: string[] }>) =>
+    configureStore({
+      reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer },
+      preloadedState: {
+        inboxData: { ...inboxDataReducer(undefined, { type: '@@INIT' }), categorySummary },
+      },
+    });
+
+  it('drops a category whose summary listed a thread the batch query did not return, so no empty section renders', async () => {
+    // The summary counted thread "gone" under Security, but the row query returned nothing for it.
+    const store = makeStore([
+      { id: 'uuid-security', name: 'Security', count: 1, threadIds: ['gone'] },
+      { id: 'uuid-news', name: 'Newsletters', count: 1, threadIds: ['t-news'] },
+    ]);
+    const Wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(Provider, { store, children });
+    const newsEmail = { id: 'e-news', threadId: 't-news', category_id: 'uuid-news', isArchived: false } as unknown as Email;
+    mockedAxios.get.mockResolvedValueOnce({
+      data: {
+        categories: [
+          { key: 'uuid-security', emails: [] },
+          { key: 'uuid-news', emails: [newsEmail] },
+        ],
+      },
+    });
+
+    const { result } = renderHook(() => useEmailFetching({ mode: MODE_ACTION }), { wrapper: Wrapper });
+    await act(async () => {
+      await result.current.fetchCategoryEmailsBatch([
+        { name: 'Security', id: 'uuid-security' },
+        { name: 'Newsletters', id: 'uuid-news' },
+      ]);
+    });
+
+    const summary = store.getState().inboxData.categorySummary ?? [];
+    expect(summary.map(cat => cat.id)).toEqual(['uuid-news']);
+    const sections = buildDisplayCategories(summary, store.getState().inboxData.emails, [], MODE_ACTION);
+    expect(sections.map(section => section.name)).toEqual(['Newsletters']);
+    // Header count equals the number of rows the query returned.
+    expect(sections[0].count).toBe(1);
+  });
+
+  it('lowers a summary count that exceeds the rows returned', async () => {
+    const store = makeStore([{ id: 'uuid-security', name: 'Security', count: 2, threadIds: ['t1', 'gone'] }]);
+    const Wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(Provider, { store, children });
+    const email = { id: 'e1', threadId: 't1', category_id: 'uuid-security', isArchived: false } as unknown as Email;
+    mockedAxios.get.mockResolvedValueOnce({ data: { categories: [{ key: 'uuid-security', emails: [email] }] } });
+
+    const { result } = renderHook(() => useEmailFetching({ mode: MODE_ACTION }), { wrapper: Wrapper });
+    await act(async () => {
+      await result.current.fetchCategoryEmailsBatch([{ name: 'Security', id: 'uuid-security' }]);
+    });
+
+    expect(store.getState().inboxData.categorySummary).toEqual([
+      { id: 'uuid-security', name: 'Security', count: 1, threadIds: ['t1', 'gone'] },
+    ]);
   });
 });
 

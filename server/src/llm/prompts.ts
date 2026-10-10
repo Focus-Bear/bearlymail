@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { logError, logLog, logWarn } from "../utils/logger";
+import { renderTemplate } from "./prompt-template-renderer";
 
 interface PromptConfig {
   id: string;
@@ -59,7 +60,7 @@ export const CLASSIFICATION_PROMPT_IDS = {
  * Named constants for context-analysis and extraction prompt IDs.
  */
 export const CONTEXT_PROMPT_IDS = {
-  ANALYZE_EMAIL_PATTERNS: "analyze_email_patterns",
+  DISCOVER_USER_CONTEXT: "discover_user_context",
   EXTRACT_ACTION_ITEMS: "extract_action_items",
   EXTRACT_COMMON_QUESTIONS: "extract_common_questions",
   INCREMENTAL_SUMMARY: "incremental_summary",
@@ -91,9 +92,13 @@ export const UTILITY_PROMPT_IDS = {
   DETECT_OPT_OUT: "detect_opt_out",
   SUGGEST_CATEGORY_RULES: "suggest_category_rules",
   CATEGORISE_SUMMARY: "categorise_summary",
+  CATEGORISE_SUMMARY_JEV: "categorise_summary_jev",
+  SUGGEST_PROTO_CATEGORY: "suggest_proto_category",
+  IDENTIFY_CUSTOM_LABELS: "identify_custom_labels",
   DERIVE_RULE_EXCLUSIONS: "derive_rule_exclusions",
   ASSESS_CATEGORY_RULE_VALUE: "assess_category_rule_value",
   CHECK_CATEGORY_DUPLICATE: "check_category_duplicate",
+  SANITY_CHECK_CATEGORY_RULE: "sanity_check_category_rule",
   DERIVE_MCP_SENDER_TOOL: "derive_mcp_sender_tool",
   VERIFY_DISTRACTION_PHRASE: "verify_distraction_phrase",
 } as const;
@@ -141,8 +146,8 @@ const PROMPT_FILE_MAP: Array<{
   },
   { file: "generate-reply.md", key: REPLY_PROMPT_IDS.GENERATE_REPLY },
   {
-    file: "analyze-email-patterns.md",
-    key: CONTEXT_PROMPT_IDS.ANALYZE_EMAIL_PATTERNS,
+    file: "discover-user-context.md",
+    key: CONTEXT_PROMPT_IDS.DISCOVER_USER_CONTEXT,
   },
   {
     file: "search-relevance-explanation.md",
@@ -232,6 +237,18 @@ const PROMPT_FILE_MAP: Array<{
     key: UTILITY_PROMPT_IDS.CATEGORISE_SUMMARY,
   },
   {
+    file: "categorise-summary-jev.md",
+    key: UTILITY_PROMPT_IDS.CATEGORISE_SUMMARY_JEV,
+  },
+  {
+    file: "suggest-proto-category.md",
+    key: UTILITY_PROMPT_IDS.SUGGEST_PROTO_CATEGORY,
+  },
+  {
+    file: "identify-custom-labels.md",
+    key: UTILITY_PROMPT_IDS.IDENTIFY_CUSTOM_LABELS,
+  },
+  {
     file: "derive-rule-exclusions.md",
     key: UTILITY_PROMPT_IDS.DERIVE_RULE_EXCLUSIONS,
   },
@@ -250,6 +267,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "check-category-duplicate.md",
     key: UTILITY_PROMPT_IDS.CHECK_CATEGORY_DUPLICATE,
+  },
+  {
+    file: "sanity-check-category-rule.md",
+    key: UTILITY_PROMPT_IDS.SANITY_CHECK_CATEGORY_RULE,
   },
   {
     file: "derive-mcp-sender-tool.md",
@@ -272,16 +293,14 @@ const PROMPT_FILE_MAP: Array<{
 /**
  * Reusable prompt fragments kept in ONE canonical file and inlined into every
  * prompt that references `{{token}}`, so shared rules (e.g. the category
- * selection ruleset used by both `analyze_priority` and `categorise_summary`)
- * live in a single place. Inlining happens at load time for the app; promptfoo
+ * selection ruleset used by `categorise_summary`) live in a single place. Inlining happens at load time for the app; promptfoo
  * resolves the same token by passing the file via a `file://` var (neither the
  * app's regex renderer nor promptfoo's Nunjucks supports `{% include %}`).
  */
 const SHARED_PARTIAL_FILES: Record<string, string> = {
   categorySelectionRules: "_shared/category-selection-rules.md",
   // GitHub-specific rules are a SEPARATE partial so the consuming prompt can
-  // gate them with its own `{% if showGithubRules %}` sibling conditional
-  // (analyze_priority only sends them for GitHub senders, to save tokens).
+  // gate them with its own `{% if showGithubRules %}` sibling conditional.
   // Keeping them a sibling — not nested inside another `{% if %}` — matters
   // because the app's regex prompt renderer does not support nested conditionals.
   categoryGithubRules: "_shared/category-github-rules.md",
@@ -490,7 +509,8 @@ export function getPrompt(id: string): PromptConfig | null {
 }
 
 /**
- * Render a prompt template with variables (Nunjucks syntax)
+ * Render a prompt template with variables (Nunjucks subset — see
+ * `prompt-template-renderer.ts` for the supported syntax).
  * @param template - The template string with Nunjucks-style placeholders
  * @param vars - Variables to substitute into the template (can be strings, numbers, arrays, objects)
  */
@@ -498,66 +518,5 @@ export function renderPrompt(
   template: string,
   vars: Record<string, unknown>,
 ): string {
-  let result = template;
-
-  // Handle {% if var %}...{% else %}...{% endif %} blocks FIRST (before for loops)
-  result = result.replace(
-    /\{%\s*if\s+(\w+)\s*%\}([\s\S]*?)(?:\{%\s*else\s*%\}([\s\S]*?))?\{%\s*endif\s*%\}/g,
-    (match, key, ifContent, elseContent) => {
-      const value = vars[key];
-      // Arrays are truthy, but empty arrays should be falsy for this check
-      const isTruthy = Array.isArray(value) ? value.length > 0 : !!value;
-      return isTruthy ? ifContent : elseContent || "";
-    },
-  );
-
-  // Handle {% for item in array %}...{% endfor %} blocks (after if blocks)
-  result = result.replace(
-    /\{%\s*for\s+(\w+)\s+in\s+(\w+)\s*%\}([\s\S]*?)\{%\s*endfor\s*%\}/g,
-    (match, itemVar, arrayKey, content) => {
-      const array = vars[arrayKey];
-      if (!Array.isArray(array) || array.length === 0) {
-        return "";
-      }
-      return array
-        .map((item, index) => {
-          // Replace loop.index0 with the index (Nunjucks convention)
-          let itemContent = content.replace(
-            /\{\{\s*loop\.index0\s*\}\}/g,
-            String(index),
-          );
-          // Replace {{itemVar.property}} with item.property
-          itemContent = itemContent.replace(
-            // nosemgrep
-            new RegExp(`\\{\\{\\s*${itemVar}\\.(\\w+)\\s*\\}\\}`, "g"),
-            (match, prop) =>
-              item[prop] !== undefined ? String(item[prop]) : match,
-          );
-          // Also support {{itemVar}} directly (for objects)
-          itemContent = itemContent.replace(
-            // nosemgrep
-            new RegExp(`\\{\\{\\s*${itemVar}\\s*\\}\\}`, "g"),
-            typeof item === "object" ? JSON.stringify(item) : String(item),
-          );
-          // Replace {{property}} with item.property (when itemVar context is implied)
-          itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (match, prop) => {
-            // If this property exists in the item, use it; otherwise try vars
-            if (item[prop] !== undefined) {
-              return String(item[prop]);
-            }
-            // Fallback to vars if not in item
-            return vars[prop] !== undefined ? String(vars[prop]) : match;
-          });
-          return itemContent;
-        })
-        .join("");
-    },
-  );
-
-  // Simple template rendering: {{var}} - replace variables (this works the same in both syntaxes)
-  result = result.replace(/\{\{(\w+)\}\}/g, (match, key) =>
-    vars[key] !== undefined ? String(vars[key]) : match,
-  );
-
-  return result;
+  return renderTemplate(template, vars);
 }

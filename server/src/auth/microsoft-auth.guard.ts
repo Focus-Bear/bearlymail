@@ -1,9 +1,33 @@
-import { ExecutionContext, Injectable, Logger } from "@nestjs/common";
-import { AuthGuard } from "@nestjs/passport";
+import { ExecutionContext, Injectable, Logger, Optional } from "@nestjs/common";
+import { AuthGuard, AuthModuleOptions } from "@nestjs/passport";
 
 @Injectable()
 export class MicrosoftAuthGuard extends AuthGuard("microsoft") {
   private readonly logger = new Logger(MicrosoftAuthGuard.name);
+
+  /**
+   * Nest 12 reads `@Optional()` constructor metadata with `Reflect.getOwnMetadata`
+   * instead of `Reflect.getMetadata`, so the optional `AuthModuleOptions` parameter
+   * declared on the `AuthGuard()` mixin is no longer inherited by subclasses.
+   * Without re-declaring it here, Nest treats `AuthModuleOptions` as required and
+   * every module using this guard fails to boot unless it imports `PassportModule`.
+   */
+  constructor(@Optional() options?: AuthModuleOptions) {
+    super(options);
+  }
+
+  /**
+   * Forward the signed connect-state (`?state=`) from the /connect endpoint on
+   * to the provider so it round-trips back to the callback. Without this,
+   * Passport drops the state, the callback can't tell it's a "connect" flow,
+   * and it falls through to login — switching to the provider's account
+   * instead of linking the new mailbox to the current user. Plain login has no
+   * `state`, so it is unaffected.
+   */
+  getAuthenticateOptions(context: ExecutionContext) {
+    const { state } = context.switchToHttp().getRequest().query ?? {};
+    return typeof state === "string" && state.length > 0 ? { state } : {};
+  }
 
   handleRequest<TUser = unknown>(
     err: Error | null,

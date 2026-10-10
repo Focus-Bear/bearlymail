@@ -1,3 +1,4 @@
+import { DEFAULT_LEGAL_VERSIONS } from '../src/constants/legal-versions';
 import * as bcrypt from 'bcrypt';
 import { config } from 'dotenv';
 import * as path from 'path';
@@ -74,9 +75,9 @@ async function seedLocalUser() {
       // Left NOT-onboarded so the first login runs the setup wizard
       // (batching preferences + AI training).
       termsAcceptedAt: now,
-      termsVersion: process.env.TERMS_VERSION || '1.0.0',
+      termsVersion: process.env.TERMS_VERSION || DEFAULT_LEGAL_VERSIONS.TERMS,
       privacyAcceptedAt: now,
-      privacyVersion: process.env.PRIVACY_VERSION || '1.0.0',
+      privacyVersion: process.env.PRIVACY_VERSION || DEFAULT_LEGAL_VERSIONS.PRIVACY,
     }),
   );
   console.log(`Local user ${email} created`);

@@ -5,7 +5,7 @@
   "author": "",
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
-    "build": "nest build",
+    "build": "npm run type-check && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 nest start --watch",
@@ -55,7 +55,8 @@
     "security:audit:llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --llm",
     "security:audit:diff:llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff --llm",
     "security:audit:ci": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --ci",
-    "queue:dashboard": "node node_modules/@pg-boss/dashboard/bin/cli.js"
+    "queue:dashboard": "node node_modules/@pg-boss/dashboard/bin/cli.js",
+    "type-check": "node node_modules/@typescript/native/bin/tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
@@ -153,7 +154,8 @@
     "ts-loader": "^9.6.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^7.0.2"
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "@typescript/native": "npm:typescript@^7.0.2"
   },
   "overrides": {
     "@nestjs/throttler": {

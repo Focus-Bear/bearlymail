@@ -110,7 +110,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "typeorm": "^1.1.1",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",

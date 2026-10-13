@@ -2794,7 +2794,7 @@
           },
           "aiProviders": {
             "q": "¿Qué proveedores de IA procesan mi correo y para qué?",
-            "a": "Usamos OpenAI, Google Gemini y Amazon Bedrock (modelos Amazon Nova) para resumir correos, puntuar la prioridad, ordenar el correo en categorías y redactar respuestas. Todos procesan tu correo bajo acuerdos que prohíben entrenar con tus datos."
+            "a": "Usamos OpenAI, Google Gemini y Amazon Bedrock (modelos Amazon Nova) para resumir correos, puntuar la prioridad, ordenar el correo en categorías y redactar respuestas. Las decisiones rápidas de sí/no o de opción múltiple —como a qué categoría pertenece un correo o si parece phishing— pasan primero por Jev, un pequeño modelo de clasificación de TypeSafe AI (alojado en EE. UU.). Todos estos proveedores se comprometen a no entrenar sus modelos con tu correo."
           },
           "aiData": {
             "q": "¿Qué se envía exactamente a la IA?",
@@ -2802,7 +2802,7 @@
           },
           "aiTraining": {
             "q": "¿Se usa mi correo para entrenar modelos de IA?",
-            "a": "No. Nuestros proveedores de IA tienen prohibido por contrato entrenar con tus datos, nada se usa para mejorar sus modelos y nunca vendemos tus datos. Puedes exportarlo o eliminarlo todo cuando quieras."
+            "a": "No. Todos los proveedores de IA que usamos —OpenAI, Google Gemini, Amazon Bedrock y TypeSafe AI (Jev)— se comprometen a no entrenar sus modelos con tus datos, y nunca los vendemos. Puedes exportarlo o eliminarlo todo cuando quieras."
           },
           "aiActions": {
             "q": "¿La IA enviará o archivará correos sin mí?",
@@ -2928,7 +2928,7 @@
           },
           "noTraining": {
             "title": "No se usan para entrenar IA",
-            "body": "Nuestros proveedores de IA tienen prohibido por contrato entrenar sus modelos con tu correo."
+            "body": "Todos los proveedores de IA que usamos se comprometen a no entrenar sus modelos con tu correo."
           },
           "control": {
             "title": "Tú tienes el control",

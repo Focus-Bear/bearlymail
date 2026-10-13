@@ -4269,7 +4269,7 @@
           },
           "aiProviders": {
             "q": "Which AI providers process my email, and for what?",
-            "a": "We use OpenAI, Google Gemini and Amazon Bedrock (Amazon Nova models) to summarise emails, score priority, sort email into categories and draft replies. All of them process your email under agreements that block training on your data."
+            "a": "We use OpenAI, Google Gemini and Amazon Bedrock (Amazon Nova models) to summarise emails, score priority, sort email into categories and draft replies. Quick yes/no and multiple-choice decisions — such as which category an email belongs in, or whether it looks like phishing — go first to Jev, a small classification model from TypeSafe AI (hosted in the US). Every one of these providers commits not to train its models on your email."
           },
           "aiData": {
             "q": "What exactly is sent to the AI?",
@@ -4277,7 +4277,7 @@
           },
           "aiTraining": {
             "q": "Is my email used to train AI models?",
-            "a": "No. Our AI providers are contractually barred from training on your data, nothing is used to improve their models, and we never sell your data. You can export or delete everything at any time."
+            "a": "No. Every AI provider we use — OpenAI, Google Gemini, Amazon Bedrock and TypeSafe AI (Jev) — commits not to train its models on your data, and we never sell it. You can export or delete everything at any time."
           },
           "aiActions": {
             "q": "Will the AI send or archive email without me?",
@@ -4403,7 +4403,7 @@
           },
           "noTraining": {
             "title": "Not used to train AI",
-            "body": "Our AI providers are contractually barred from training their models on your email."
+            "body": "Every AI provider we use commits not to train its models on your email."
           },
           "control": {
             "title": "You stay in control",

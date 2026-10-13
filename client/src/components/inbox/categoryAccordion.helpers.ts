@@ -9,6 +9,7 @@ import {
   CATEGORY_NEWSLETTERS,
   CATEGORY_OTHER,
   CATEGORY_PARTNERSHIPS,
+  CATEGORY_PENDING,
   CATEGORY_SALES,
   KEY_ESCAPE,
   KEY_Y,
@@ -22,6 +23,7 @@ export const DEFAULT_CATEGORY_TRANSLATIONS: Record<string, string> = {
   [CATEGORY_HR_ADMIN]: 'inbox.category.hrAdmin',
   [CATEGORY_OTHER]: 'inbox.category.other',
   [CATEGORY_DANGEROUS_PHISHING]: 'inbox.category.dangerousPhishing',
+  [CATEGORY_PENDING]: 'inbox.category.pendingCategorisation',
 };
 
 export function isDefaultCategory(category: string): boolean {
@@ -41,6 +43,7 @@ export function getCategoryIcon(category: string): string {
     [CATEGORY_HR_ADMIN]: '📋',
     [CATEGORY_OTHER]: '📧',
     [CATEGORY_DANGEROUS_PHISHING]: '🛑',
+    [CATEGORY_PENDING]: '✨',
   };
   return icons[category] || '📧';
 }

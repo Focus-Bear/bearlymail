@@ -172,7 +172,6 @@ export function InboxProvider({ children, isFocusedMode = false }: InboxProvider
       triageTabRef: inboxState.triageTabRef,
       actionTabRef: inboxState.actionTabRef,
       followUpTabRef: inboxState.followUpTabRef,
-      deliverBtnRef: inboxState.deliverBtnRef,
       emailListRef: inboxState.emailListRef,
       emailDetailRef: inboxState.emailDetailRef,
     }),
@@ -190,7 +189,6 @@ export function InboxProvider({ children, isFocusedMode = false }: InboxProvider
       inboxState.triageTabRef,
       inboxState.actionTabRef,
       inboxState.followUpTabRef,
-      inboxState.deliverBtnRef,
       inboxState.emailListRef,
       inboxState.emailDetailRef,
     ]

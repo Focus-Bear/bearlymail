@@ -10,16 +10,20 @@ import { categorySettingsUrl } from 'utils/settingsNavigation';
 import { OverflowMenu, OverflowMenuItem } from 'components/common/OverflowMenu';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
+import { PendingCategoryHint } from 'components/inbox/PendingCategoryHint';
 import {
   CATEGORY_DANGEROUS_PHISHING,
+  CATEGORY_KEY_PENDING,
   CATEGORY_NEWSLETTERS,
   CATEGORY_OTHER,
+  CATEGORY_PENDING,
   INBOX_ARCHIVE_ALL_CATEGORY_EVENT,
   MODE_AUTORESPONDED,
   PHISHING_CONFIDENCE_HIGH,
   PHISHING_CONFIDENCE_MEDIUM,
   STRING_NONE,
 } from 'constants/strings';
+import { TOUR_TARGETS } from 'constants/tour';
 import { useNotifications } from 'contexts/NotificationContext';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
@@ -160,6 +164,7 @@ interface CategoryAccordionHeaderProps {
   emailCount: number;
   isExpanded: boolean;
   isOtherCategory: boolean;
+  isPendingCategory: boolean;
   hasArchiveAll: boolean;
   /** Overflow (⋮) menu items for this category; the menu is hidden when empty. */
   overflowItems: OverflowMenuItem[];
@@ -174,6 +179,7 @@ interface CategoryHeaderLeftProps {
   emailCount: number;
   isExpanded: boolean;
   isOtherCategory: boolean;
+  isPendingCategory: boolean;
   t: (tKey: string) => string;
 }
 
@@ -183,6 +189,7 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
   emailCount,
   isExpanded,
   isOtherCategory,
+  isPendingCategory,
   t,
 }) => {
   const [isCogHovered, setIsCogHovered] = useState(false);
@@ -228,6 +235,7 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {family && <span style={familyLabelStyle}>{family}</span>}
         <span style={nameStyle}>{displayName}</span>
+        {isPendingCategory && <PendingCategoryHint />}
       </div>
       <span
         style={{
@@ -245,7 +253,7 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
       {/* The "Other" bucket isn't a real category, so it has no settings page to open —
           it offers the Recategorise action below instead of the cog. The cog is an anchor
           so middle-click/cmd-click work; it always opens settings in a new tab. */}
-      {!isOtherCategory && (
+      {!isOtherCategory && !isPendingCategory && (
         <a
           href={categorySettingsUrl(category)}
           target="_blank"
@@ -283,6 +291,7 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
   emailCount,
   isExpanded,
   isOtherCategory,
+  isPendingCategory,
   hasArchiveAll,
   overflowItems,
   onToggle,
@@ -361,6 +370,7 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
         emailCount={emailCount}
         isExpanded={isExpanded}
         isOtherCategory={isOtherCategory}
+        isPendingCategory={isPendingCategory}
         t={t}
       />
       {hasActions && (
@@ -462,6 +472,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const emailCount = count !== undefined ? count : emails.length;
   const emailIds = emails.map(event => event.id);
   const isOtherCategory = category === CATEGORY_OTHER;
+  const isPendingCategory = category === CATEGORY_PENDING;
   const isNewsletterCategory = category === CATEGORY_NEWSLETTERS;
   const displayName = isDefaultCategory(category) ? t(getCategoryTranslationKey(category) as string) : category;
 
@@ -527,7 +538,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
       },
     });
   }
-  if (!isOtherCategory && categoryId) {
+  if (!isOtherCategory && !isPendingCategory && categoryId) {
     overflowItems.push({
       key: 'auto-archive',
       label: t('inbox.category.autoArchiveMenuItem'),
@@ -566,6 +577,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   return (
     <div
       data-category-key={categoryKey ?? category}
+      data-tour={TOUR_TARGETS.CATEGORY_ACCORDION}
       style={{
         marginBottom: theme.spacing.md,
         borderRadius: theme.borderRadius.lg,
@@ -579,6 +591,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
         emailCount={emailCount}
         isExpanded={isExpanded}
         isOtherCategory={isOtherCategory}
+        isPendingCategory={isPendingCategory}
         hasArchiveAll={Boolean(onArchiveAll)}
         overflowItems={overflowItems}
         onToggle={onToggle}
@@ -634,26 +647,37 @@ export interface CategoryGroup {
   maxPriority: number;
 }
 
+/** The accordion an email renders under — must match the summary key of its bucket. */
+export const getEmailGroupKey = (email: Email): string => {
+  const isPhishing =
+    email.phishingConfidence === PHISHING_CONFIDENCE_MEDIUM || email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
+  // If the server has assigned a specific category (not "Other"), respect it even when
+  // the phishing classifier fires. Fundraising or investor emails can trigger medium/high
+  // phishing confidence while still having a valid server-assigned category — in those
+  // cases we should NOT override the category. Only route to the phishing bucket when
+  // the email has no server-assigned category (or is already in "Other" / still pending).
+  const hasServerCategory =
+    Boolean(email.category_id) && email.category_id !== CATEGORY_OTHER && email.category_id !== CATEGORY_KEY_PENDING;
+  if (isPhishing && !hasServerCategory) {
+    return CATEGORY_DANGEROUS_PHISHING;
+  }
+  // Still being categorised: the server reports category "Other" for these, so this
+  // check must run before getCategoryKey or they would land in the Other accordion.
+  if (email.isCategoryPending) {
+    return CATEGORY_KEY_PENDING;
+  }
+  // Use getCategoryKey() to compute the stable group key — same logic used by
+  // useEmailFetching's summary path. When category_id is null (Other/uncategorized
+  // emails), getCategoryKey returns "uncategorized", matching the summary lookup key.
+  // Falls back to the category name string for auto-responded and legacy emails.
+  return getCategoryKey(email.category_id, email.category ?? CATEGORY_OTHER);
+};
+
 export const groupEmailsByCategory = (emails: Email[], mode?: InboxMode): CategoryGroup[] => {
   const categoryMap = new Map<string, Email[]>();
 
   emails.forEach(email => {
-    const isPhishing =
-      email.phishingConfidence === PHISHING_CONFIDENCE_MEDIUM || email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
-    // If the server has assigned a specific category (not "Other"), respect it even when
-    // the phishing classifier fires. Fundraising or investor emails can trigger medium/high
-    // phishing confidence while still having a valid server-assigned category — in those
-    // cases we should NOT override the category. Only route to the phishing bucket when
-    // the email has no server-assigned category (or is already in "Other").
-    const hasServerCategory = Boolean(email.category_id) && email.category_id !== CATEGORY_OTHER;
-    // Use getCategoryKey() to compute the stable group key — same logic used by
-    // useEmailFetching's summary path. When category_id is null (Other/uncategorized
-    // emails), getCategoryKey returns "uncategorized", matching the summary lookup key.
-    // Falls back to the category name string for auto-responded and legacy emails.
-    const categoryKey =
-      isPhishing && !hasServerCategory
-        ? CATEGORY_DANGEROUS_PHISHING
-        : getCategoryKey(email.category_id, email.category ?? CATEGORY_OTHER);
+    const categoryKey = getEmailGroupKey(email);
     if (!categoryMap.has(categoryKey)) {
       categoryMap.set(categoryKey, []);
     }

@@ -22,6 +22,7 @@ import { FollowUpDraft } from 'components/inbox/FollowUpDraft';
 import { FollowUpMetadata } from 'components/inbox/FollowUpMetadata';
 import { MetadataIndicators } from 'components/inbox/MetadataIndicators';
 import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, MODE_FOLLOW_UP } from 'constants/strings';
+import { TOUR_TARGETS } from 'constants/tour';
 
 export interface EmailListItemViewProps {
   email: Email;
@@ -125,6 +126,7 @@ export const EmailListItemView: React.FC<EmailListItemViewProps> = ({
     <div
       data-email-index={index}
       data-email-id={email.id}
+      data-tour={TOUR_TARGETS.EMAIL_ROW}
       className={animationClass}
       style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, position: 'relative', minWidth: 0 }}
     >

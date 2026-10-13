@@ -7,6 +7,7 @@ import { captureEvent } from 'utils/posthog';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
+import { TOUR_TARGETS } from 'constants/tour';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface TabCounts {
@@ -104,6 +105,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
     <div style={{ display: 'flex', gap: isMobile ? theme.spacing.xs : theme.spacing.md }}>
       <button
         ref={triageTabRef}
+        data-tour={TOUR_TARGETS.TRIAGE_TAB}
         className="triage-tab"
         onClick={() => handleTabClick('triage')}
         disabled={loadingModeSwitch}
@@ -113,6 +115,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
       </button>
       <button
         ref={actionTabRef}
+        data-tour={TOUR_TARGETS.ACTION_TAB}
         className={`action-tab${actionTabPulsing ? ' animate-tab-pulse' : ''}`}
         onClick={() => handleTabClick('action')}
         disabled={loadingModeSwitch}

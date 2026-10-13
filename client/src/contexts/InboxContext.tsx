@@ -67,7 +67,6 @@ export interface InboxUIValue {
   triageTabRef: InboxStateReturn['triageTabRef'];
   actionTabRef: InboxStateReturn['actionTabRef'];
   followUpTabRef: InboxStateReturn['followUpTabRef'];
-  deliverBtnRef: InboxStateReturn['deliverBtnRef'];
   emailListRef: InboxStateReturn['emailListRef'];
   emailDetailRef: InboxStateReturn['emailDetailRef'];
 }

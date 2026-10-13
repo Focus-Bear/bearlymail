@@ -1909,6 +1909,8 @@
       "customerSupport": "Soporte al cliente",
       "hrAdmin": "Recursos humanos",
       "other": "Otros",
+      "pendingCategorisation": "La IA está decidiendo la categoría…",
+      "pendingCategorisationHint": "Se moverán a su categoría en un momento",
       "selectAll": "Seleccionar todo",
       "deselectAll": "Deseleccionar todo",
       "archiveAll": "Archivar todo",
@@ -3122,12 +3124,12 @@
       "title": "Personaliza tu experiencia"
     },
     "tour": {
-      "actionContent": "Destaca un correo electrónico para moverlo aquí. Este es su espacio de trabajo enfocado a los correos electrónicos que necesitan acción.",
+      "actionContent": "Los correos que destacas pasan a esta pestaña. Es tu lista de tareas para los correos que requieren trabajo de verdad.",
       "actionTitle": "Pestaña Acción",
-      "assistantContent": "Abre cualquier correo y aparecerá un panel lateral a la derecha. La pestaña Acciones reúne el resumen, las tareas y las notas, mientras que la pestaña Preguntar a IA (próximamente) te permitirá conversar sobre el correo: redactar respuestas, obtener resúmenes y ver qué necesita tu atención.",
-      "assistantTitle": "Tu panel de asistente con IA",
+      "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y su prioridad. Usa sus botones para archivarlo, posponerlo o destacarlo, o ábrelo para ver el panel lateral de IA con tareas, notas y Preguntar a IA.",
+      "assistantTitle": "Tus correos",
       "back": "Atrás",
-      "deliveryContent": "Los nuevos correos electrónicos se agrupan y entregan cada pocas horas para evitar distracciones. Utilice 'Entregar ahora' si necesita realizar una verificación urgente.",
+      "deliveryContent": "En lugar de llegar a cuentagotas todo el día, los correos nuevos llegan por tandas. Esta barra muestra cuándo llega la próxima; los urgentes siguen llegando al momento.",
       "deliveryTitle": "Entrega programada",
       "finish": "Finalizar",
       "next": "Próximo",
@@ -3135,10 +3137,10 @@
       "processTitle": "Pestaña Proceso",
       "skip": "Saltar",
       "stepProgress": "{{current}} de {{total}}",
-      "triageContent": "Aquí es donde llegan los nuevos correos electrónicos. Decide rápidamente responderlos, archivarlos o posponerlos.",
+      "triageContent": "Los correos nuevos llegan a esta pestaña, con los más importantes primero. Decide qué hacer con cada uno: responder, archivar, posponer o destacarlo para moverlo a Acción.",
       "triageTitle": "Pestaña de clasificación",
       "welcome": "¡Bienvenido a BearlyMail!",
-      "welcomeContent": "Hagamos un recorrido rápido para ayudarle a comenzar con su nueva experiencia de correo electrónico enfocada."
+      "welcomeContent": "Este es un recorrido rápido por tu bandeja de entrada. Iremos resaltando cada parte: usa las flechas para cambiar de paso o Esc para saltarlo."
     }
   },
   "setupWizard": {

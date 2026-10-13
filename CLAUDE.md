@@ -486,6 +486,7 @@ Defined in `server/src/constants/performance-budgets.ts`. Key budgets:
 - Email query: 100ms
 - Decryption: 100ms
 - Batch status: 500ms
+- Category accordion load (`getInboxCategory(mode)`): 500ms (1000ms action); top-accordion batch preload (`getInboxBatch(mode)`): 1000ms
 
 Use `PerformanceTracker` class for enforcement:
 

@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 
+import { INBOX_PREVIEW_BODY_COLUMNS_SQL } from "./email-inbox-query.helpers";
+
 /**
  * This test ensures that the raw SQL LATERAL subquery in getInbox()
  * selects all columns that the outer SELECT references from the `e` alias.
@@ -16,10 +18,16 @@ describe("getInbox raw SQL query column coverage", () => {
   let source: string;
 
   beforeAll(() => {
-    source = fs.readFileSync(
-      path.join(__dirname, "email-inbox-query.helpers.ts"),
-      "utf-8",
-    );
+    // Inline the interpolated column fragment so its columns count as selected.
+    source = fs
+      .readFileSync(
+        path.join(__dirname, "email-inbox-query.helpers.ts"),
+        "utf-8",
+      )
+      .replace(
+        "${INBOX_PREVIEW_BODY_COLUMNS_SQL}",
+        INBOX_PREVIEW_BODY_COLUMNS_SQL,
+      );
   });
 
   it("should include all outer-SELECT e.* columns in the LATERAL subquery", () => {

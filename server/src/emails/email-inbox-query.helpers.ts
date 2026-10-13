@@ -52,6 +52,25 @@ function realCategoryUuidsForNarrowing(
   return categoryIds;
 }
 
+/**
+ * True when the inbox row has no stored summary and none is being generated —
+ * the only case where EmailInboxDecryptService.deriveInboxSummary needs the
+ * body to build a deterministic preview. Mirrors that method's condition
+ * (an empty summary is stored as NULL because encrypting "" yields NULL).
+ */
+const NEEDS_BODY_PREVIEW_SQL = `(em.summary IS NULL OR em.summary = '') AND em."isProcessingSummary" IS NOT TRUE`;
+
+/**
+ * body / htmlBody are only projected for rows that need the preview fallback.
+ * They are by far the widest columns (hex-encoded ciphertext, TOASTed, often
+ * tens to hundreds of KB for newsletters), so selecting them for every row made
+ * a 500-thread category fetch ship ~23MB from Postgres and detoast ~7x more
+ * pages, while the response never includes them. NULL here costs nothing: a
+ * CASE branch that isn't taken never detoasts the value.
+ */
+export const INBOX_PREVIEW_BODY_COLUMNS_SQL = `CASE WHEN ${NEEDS_BODY_PREVIEW_SQL} THEN em.body END AS body,
+        CASE WHEN ${NEEDS_BODY_PREVIEW_SQL} THEN em."htmlBody" END AS "htmlBody"`;
+
 function appendInboxAdditionalFilters(
   filters: InboxQueryFilters | undefined,
   paramIndex: number,
@@ -129,7 +148,7 @@ export async function runInboxQuery(
         em."from", em."fromName", em."senderJobTitle", em.subject,
         em."googleAccountId", em."office365AccountId", em."zohoAccountId",
         em."isSnoozed", em."snoozeUntil", em."isRead", em.summary, em."isProcessingSummary",
-        em.body, em."htmlBody",
+        ${INBOX_PREVIEW_BODY_COLUMNS_SQL},
         em."phishingConfidence", em."phishingReason",
         em."receivedAt", em.labels, em."to", em."cc", em."senderContactId",
         em."sentByAutoResponder"

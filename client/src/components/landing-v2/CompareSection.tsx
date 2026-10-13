@@ -7,27 +7,27 @@ const NO_MARK = <span className="x">× </span>;
 const YES_MARK = <span className="ck">✓ </span>;
 
 const GMAIL_MARKERS = {
-  delivery: null,
-  urgency: NO_MARK,
   priority: NO_MARK,
-  quietHours: NO_MARK,
-  philosophy: null,
+  categories: NO_MARK,
+  delivery: NO_MARK,
+  ai: null,
+  providers: null,
 };
 
 const BEARLY_MARKERS = {
-  delivery: null,
-  urgency: YES_MARK,
   priority: YES_MARK,
-  quietHours: YES_MARK,
-  philosophy: null,
+  categories: YES_MARK,
+  delivery: YES_MARK,
+  ai: YES_MARK,
+  providers: YES_MARK,
 };
 
 const SUPERHUMAN_MARKERS = {
-  delivery: null,
-  urgency: NO_MARK,
   priority: NO_MARK,
-  quietHours: NO_MARK,
-  philosophy: null,
+  categories: NO_MARK,
+  delivery: NO_MARK,
+  ai: null,
+  providers: null,
 };
 
 export const CompareSection: React.FC = () => {
@@ -41,12 +41,7 @@ export const CompareSection: React.FC = () => {
             {t('landing.v2.compare.titlePre')}
             <em>{t('landing.v2.compare.titleEm')}</em>
           </h2>
-          <p className="section-sub">
-            {t('landing.v2.compare.sub1')}
-            <i>{t('landing.v2.compare.sub1Em')}</i>
-            {t('landing.v2.compare.sub2')}
-            <i>{t('landing.v2.compare.sub2Em')}</i>
-          </p>
+          <p className="section-sub">{t('landing.v2.compare.sub')}</p>
         </div>
 
         <div className="compare-stage">
@@ -73,6 +68,11 @@ export const CompareSection: React.FC = () => {
             rowMarkers={SUPERHUMAN_MARKERS}
           />
         </div>
+
+        <aside className="compare-note">
+          <b>{t('landing.v2.compare.gemini.title')}</b>
+          <p>{t('landing.v2.compare.gemini.body')}</p>
+        </aside>
       </div>
     </section>
   );

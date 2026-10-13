@@ -6,6 +6,14 @@ import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 
 import { SIGNUP_PATH } from './constants';
 
+const NAV_LINKS = [
+  { anchor: '#how', labelKey: 'howItWorks' },
+  { anchor: '#who', labelKey: 'whoItsFor' },
+  { anchor: '#compare', labelKey: 'compare' },
+  { anchor: '#security', labelKey: 'security' },
+  { anchor: '#faq', labelKey: 'faq' },
+] as const;
+
 export const SiteHeader: React.FC = () => {
   const { t } = useTranslation();
   return (
@@ -18,10 +26,11 @@ export const SiteHeader: React.FC = () => {
           <span>{t('landing.v2.header.brand')}</span>
         </a>
         <nav className="nav">
-          <a href="#how">{t('landing.v2.header.nav.howItWorks')}</a>
-          <a href="#compare">{t('landing.v2.header.nav.compare')}</a>
-          <a href="#story">{t('landing.v2.header.nav.story')}</a>
-          <a href="#faq">{t('landing.v2.header.nav.faq')}</a>
+          {NAV_LINKS.map(link => (
+            <a key={link.anchor} href={link.anchor}>
+              {t(`landing.v2.header.nav.${link.labelKey}`)}
+            </a>
+          ))}
         </nav>
         <div className="nav-cta">
           <a className="btn btn-ghost" href={SIGNUP_PATH}>

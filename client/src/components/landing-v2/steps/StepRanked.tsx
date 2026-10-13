@@ -21,11 +21,15 @@ export const StepRanked: React.FC = () => {
         {RANKED_ROWS.map((row, index) => {
           const labelKey = `landing.v2.steps.visuals.ranked.row${index + 1}Label`;
           const smallKey = `landing.v2.steps.visuals.ranked.row${index + 1}Small`;
+          const categoryKey = `landing.v2.steps.visuals.ranked.row${index + 1}Category`;
           return (
             <div key={row.score} className={`score-row${row.high ? ' high' : ''}`}>
               <div className="label">
                 {t(labelKey)}
-                <small>{t(smallKey)}</small>
+                <small>
+                  <span className="score-cat">{t(categoryKey)}</span>
+                  {t(smallKey)}
+                </small>
               </div>
               <div className="meter">
                 <i style={{ width: `${row.width}%` }} />

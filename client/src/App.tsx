@@ -1,5 +1,6 @@
 import './i18n'; // Initialize i18n
 import './App.css';
+import './theme/appFonts';
 
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +12,7 @@ import { theme } from 'theme/theme';
 
 import { AdminMfaProvider } from 'components/admin/AdminMfaGate';
 import { ConsentModal } from 'components/ConsentModal';
+import { ENGINEERING_MANAGER_LANDING_PATH, PRODUCT_MANAGER_LANDING_PATH } from 'components/landing-v2/constants';
 import { AiLimitBanner } from 'components/notifications/AiLimitBanner';
 import { EmailSendOutcomeListener } from 'components/notifications/EmailSendOutcomeListener';
 import { SetupWizard } from 'components/setup-wizard';
@@ -178,8 +180,8 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const AppRoutes: React.FC = () => (
   <Routes>
     <Route path="/" element={<Landing />} />
-    <Route path="/for/engineering-managers" element={<EngineeringManagerLanding />} />
-    <Route path="/for/product-managers" element={<ProductManagerLanding />} />
+    <Route path={ENGINEERING_MANAGER_LANDING_PATH} element={<EngineeringManagerLanding />} />
+    <Route path={PRODUCT_MANAGER_LANDING_PATH} element={<ProductManagerLanding />} />
     <Route path="/login" element={<Login />} />
     <Route path="/auth-error" element={<AuthError />} />
     <Route path="/setup-password" element={<SetupPassword />} />

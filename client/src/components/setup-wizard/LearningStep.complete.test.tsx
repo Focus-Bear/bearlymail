@@ -14,8 +14,8 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-// Analysis reports complete; combined with an isReady import payload this drives
-// canFinish=true so the header shows its finished state.
+// Analysis reports complete; combined with an isReady import payload and a fully
+// categorised inbox this drives canFinish=true so the header shows its finished state.
 vi.mock('hooks/settings/useAnalysisProgress', () => ({
   useAnalysisProgress: () => ({
     analyzing: false,
@@ -32,7 +32,15 @@ describe('LearningStep — completed state', () => {
   });
 
   it('replaces the spinner with a static completed badge once learning finishes', async () => {
-    mockedAxios.get.mockResolvedValue({ data: { prioritizedCount: 100, isReady: true } });
+    mockedAxios.get.mockImplementation(async (url: string) => {
+      if (url.includes('/onboarding/categorisation-progress')) {
+        return { data: { total: 10, categorised: 10 } };
+      }
+      if (url.includes('/onboarding/email-import-progress')) {
+        return { data: { prioritizedCount: 100, isReady: true } };
+      }
+      return { data: [] };
+    });
 
     render(<LearningStep onComplete={noop} onBack={noop} isLoading={false} />);
 

@@ -161,7 +161,7 @@ export const ScheduleStep: React.FC<ScheduleStepProps> = ({ onComplete, onBack }
         </button>
         <div style={spacerStyle} />
         <button onClick={handleNext} disabled={isSaving} style={primaryButtonStyle(!isSaving)}>
-          {isSaving ? t('common.loading') : t('setupWizard.schedule.startLearning')}
+          {isSaving ? t('common.loading') : t('setupWizard.schedule.saveSchedule')}
           {!isSaving && <ArrowRight />}
         </button>
       </div>

@@ -1,268 +1,125 @@
-import React from 'react';
+import React, { useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from 'theme/theme';
 
-import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { EMOJI_SHIELD } from 'constants/emojis';
-import { OPACITY_DISABLED_ALT, VIEWPORT_HEIGHT_90, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
-import { PROVIDER_GOOGLE, STRING_NONE } from 'constants/strings';
+import {
+  hasConsentScreenTips,
+  OAUTH_PERMISSIONS,
+  OAUTH_PROVIDER_DISPLAY_NAMES,
+  type OAuthPermission,
+  type OAuthProvider,
+} from './oauth-permissions';
+import * as styles from './PermissionsExplanation.styles';
+import { PermissionsHoldButton } from './PermissionsHoldButton';
+
+const KEY_ESCAPE = 'Escape';
+const CONSENT_TIP_KEYS = ['auth.permissions.tips.keepTicked', 'auth.permissions.tips.ongoingAccess'];
 
 interface PermissionsExplanationProps {
   onContinue: () => void;
   onCancel: () => void;
-  provider: 'google' | 'zoho';
+  provider: OAuthProvider;
 }
-
-interface PermissionItemProps {
-  icon: string;
-  title: string;
-  description: string;
-}
-
-const PermissionItem: React.FC<PermissionItemProps> = ({ icon, title, description }) => (
-  <div style={{ marginBottom: theme.spacing.lg }}>
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.md }}>
-      <div style={{ fontSize: theme.typography.fontSize['2xl'], lineHeight: 1 }}>{icon}</div>
-      <div>
-        <h3
-          style={{
-            color: theme.colors.text.primary,
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: theme.spacing.xs,
-          }}
-        >
-          {title}
-        </h3>
-        <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, lineHeight: 1.5 }}>
-          {description}
-        </p>
-      </div>
-    </div>
-  </div>
-);
-
-interface PermissionsContentProps {
-  t: (key: string) => string;
-  provider: 'google' | 'zoho';
-}
-
-const PermissionsContent: React.FC<PermissionsContentProps> = ({ t, provider}) => (
-  <>
-    <div style={{ marginBottom: theme.spacing.xl }}>
-      { provider === PROVIDER_GOOGLE ?
-      (<>
-      <PermissionItem
-        icon="📧"
-        title={t('auth.permissions.gmail.title')}
-        description={t('auth.permissions.gmail.description')}
-      />
-      <div
-        style={{
-          backgroundColor: `${theme.colors.success.main}08`,
-          border: `1px solid ${theme.colors.success.main}30`,
-          borderRadius: theme.borderRadius.md,
-          padding: theme.spacing.md,
-          marginTop: `-${theme.spacing.sm}`,
-          marginBottom: theme.spacing.lg,
-          marginLeft: `calc(${theme.typography.fontSize['2xl']} + ${theme.spacing.md})`,
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <span style={{ fontSize: theme.typography.fontSize.sm }}>{EMOJI_SHIELD}</span>
-        <p
-          style={{
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.xs,
-            lineHeight: 1.5,
-            margin: 0,
-            fontStyle: 'italic',
-          }}
-        >
-          {t('auth.permissions.gmail.sendClarification')}
-        </p>
-      </div>
-      <PermissionItem
-        icon="📅"
-        title={t('auth.permissions.calendar.title')}
-        description={t('auth.permissions.calendar.description')}
-      />
-      <PermissionItem
-        icon="👥"
-        title={t('auth.permissions.contacts.title')}
-        description={t('auth.permissions.contacts.description')}
-      />
-      </>) : (
-        <>
-        <PermissionItem
-        icon="📧"
-        title={t('auth.permissions.zoho.title')}
-        description={t('auth.permissions.zoho.description')}
-      />
-      <div
-        style={{
-          backgroundColor: `${theme.colors.success.main}08`,
-          border: `1px solid ${theme.colors.success.main}30`,
-          borderRadius: theme.borderRadius.md,
-          padding: theme.spacing.md,
-          marginTop: `-${theme.spacing.sm}`,
-          marginBottom: theme.spacing.lg,
-          marginLeft: `calc(${theme.typography.fontSize['2xl']} + ${theme.spacing.md})`,
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <span style={{ fontSize: theme.typography.fontSize.sm }}>{EMOJI_SHIELD}</span>
-        <p
-          style={{
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.xs,
-            lineHeight: 1.5,
-            margin: 0,
-            fontStyle: 'italic',
-          }}
-        >
-          {t('auth.permissions.zoho.sendClarification')}
-        </p>
-      </div>
-        </>
-        )}
-    </div>
-
-    <div
-      style={{
-        backgroundColor: `${theme.colors.primary.main}10`,
-        borderLeft: `4px solid ${theme.colors.primary.main}`,
-        padding: theme.spacing.md,
-        borderRadius: theme.borderRadius.md,
-        marginBottom: theme.spacing.xl,
-      }}
-    >
-      <p
-        style={{
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
-          lineHeight: 1.5,
-          margin: 0,
-        }}
-      >
-        {t('auth.permissions.security')}
-      </p>
-    </div>
-  </>
-);
-
-interface PermissionsActionsProps {
-  onCancel: () => void;
-  onContinue: () => void;
-  provider: 'google' | 'zoho';
-  t: (key: string) => string;
-}
-
-const PermissionsActions: React.FC<PermissionsActionsProps> = ({ onCancel, onContinue, provider, t }) => (
-  <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'flex-end' }}>
-    <button
-      onClick={onCancel}
-      style={{
-        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-        backgroundColor: theme.colors.background.paper,
-        color: theme.colors.text.secondary,
-        border: `1px solid ${theme.colors.border.medium}`,
-        borderRadius: theme.borderRadius.md,
-        fontSize: theme.typography.fontSize.base,
-        fontWeight: theme.typography.fontWeight.medium,
-        cursor: 'pointer',
-      }}
-    >
-      {t('common.cancel')}
-    </button>
-    <button
-      onClick={onContinue}
-      style={{
-        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-        backgroundColor: theme.colors.primary.main,
-        color: COLOR_NAMED_WHITE,
-        border: STRING_NONE,
-        borderRadius: theme.borderRadius.md,
-        fontSize: theme.typography.fontSize.base,
-        fontWeight: theme.typography.fontWeight.semibold,
-        cursor: 'pointer',
-      }}
-      onMouseOver={event => {
-        event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
-      }}
-      onMouseOut={event => {
-        event.currentTarget.style.backgroundColor = theme.colors.primary.main;
-      }}
-    >
-     {provider === PROVIDER_GOOGLE ? t('auth.permissions.continue') : t('auth.permissions.zoho.continue')}
-    </button>
-  </div>
-);
 
 /**
- * Permissions explanation modal
- * Shown before Google OAuth to explain why BearlyMail needs each permission
- * Only shown once per user (tracked via localStorage)
+ * Shown before redirecting to the provider's OAuth consent screen. Explains in
+ * plain language every scope the server requests (see oauth-permissions.ts)
+ * and makes the user press-and-hold to continue, so the explanation is read
+ * rather than clicked past. Shown once per browser (tracked by Login).
  */
-export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({ onContinue,provider, onCancel }) => {
+export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({ onContinue, provider, onCancel }) => {
   const { t } = useTranslation();
+  const titleId = useId();
+  const providerName = OAUTH_PROVIDER_DISPLAY_NAMES[provider];
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === KEY_ESCAPE) {
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: `rgba(0, 0, 0, ${OPACITY_DISABLED_ALT})`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: Z_INDEX_MODAL_OVERLAY,
-        padding: theme.spacing.lg,
-      }}
-    >
+    <div style={styles.overlayStyle}>
+      <PermissionsExplanationResponsiveStyles />
       <div
-        style={{
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing['2xl'],
-          maxWidth: '600px',
-          width: '100%',
-          maxHeight: VIEWPORT_HEIGHT_90,
-          overflowY: 'auto',
-          boxShadow: theme.shadows.xl,
-        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="permissions-card"
+        style={styles.cardStyle}
       >
-        <h2
-          style={{
-            color: theme.colors.text.primary,
-            fontSize: theme.typography.fontSize['2xl'],
-            fontWeight: theme.typography.fontWeight.bold,
-            marginBottom: theme.spacing.md,
-          }}
-        >
-          {t('auth.permissions.title')}
+        <p style={styles.eyebrowStyle}>{t('auth.permissions.eyebrow', { provider: providerName })}</p>
+        <h2 id={titleId} className="permissions-title" style={styles.titleStyle}>
+          {t('auth.permissions.title', { provider: providerName })}
         </h2>
-        <p
-          style={{
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.base,
-            marginBottom: theme.spacing.xl,
-            lineHeight: 1.6,
-          }}
-        >
-          {t('auth.permissions.intro')}
-        </p>
+        <p style={styles.ledeStyle}>{t('auth.permissions.intro', { provider: providerName })}</p>
 
-        <PermissionsContent provider={provider} t={t} />
-        <PermissionsActions onCancel={onCancel} onContinue={onContinue} provider={provider}  t={t} />
+        <ul style={styles.listStyle}>
+          {OAUTH_PERMISSIONS[provider].map(permission => (
+            <PermissionRow key={permission.id} permission={permission} />
+          ))}
+        </ul>
+
+        {hasConsentScreenTips(provider) && <ConsentScreenTips providerName={providerName} />}
+
+        <p style={styles.securityStyle}>{t('auth.permissions.security')}</p>
+
+        <div className="permissions-actions" style={styles.actionsStyle}>
+          <button type="button" onClick={onCancel} style={styles.cancelButtonStyle}>
+            {t('common.cancel')}
+          </button>
+          <PermissionsHoldButton
+            label={t('auth.permissions.holdToContinue', { provider: providerName })}
+            onConfirm={onContinue}
+          />
+        </div>
       </div>
     </div>
   );
 };
+
+const PermissionRow: React.FC<{ permission: OAuthPermission }> = ({ permission }) => {
+  const { t } = useTranslation();
+  return (
+    <li style={styles.rowStyle}>
+      <span aria-hidden style={styles.rowIconStyle}>
+        {permission.icon}
+      </span>
+      <div>
+        <h3 style={styles.rowTitleStyle}>{t(`auth.permissions.items.${permission.id}.title`)}</h3>
+        <p style={styles.rowBodyStyle}>{t(`auth.permissions.items.${permission.id}.description`)}</p>
+      </div>
+    </li>
+  );
+};
+
+const ConsentScreenTips: React.FC<{ providerName: string }> = ({ providerName }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={styles.tipsStyle} data-testid="consent-screen-tips">
+      <h3 style={styles.tipsTitleStyle}>{t('auth.permissions.tips.title', { provider: providerName })}</h3>
+      <ol style={styles.tipsListStyle}>
+        {CONSENT_TIP_KEYS.map(key => (
+          <li key={key} style={styles.tipItemStyle}>
+            {t(key)}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+};
+
+const PermissionsExplanationResponsiveStyles: React.FC = () => (
+  <style>{`
+    @media (max-width: 640px) {
+      .permissions-card { padding: 26px 20px 22px !important; border-radius: 18px !important; }
+      .permissions-title { font-size: 22px !important; }
+      .permissions-actions { flex-direction: column-reverse !important; align-items: stretch !important; }
+      .permissions-actions > * { width: 100%; }
+    }
+    .permissions-hold-button:focus-visible { outline: 3px solid ${styles.FOCUS_RING_COLOR}; outline-offset: 2px; }
+  `}</style>
+);

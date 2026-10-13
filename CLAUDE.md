@@ -856,7 +856,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `TYPESAFE_AI_API_KEY`, `TYPESAFE_AI_MODEL`                    | No       | Jev (TypeSafe) typed-decision model       |
 | `JEV_CATEGORISATION_ENABLED`, `JEV_DECISIONS_ENABLED`         | No       | Set `false` to bypass Jev for categorisation / other decisions |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`            | No       | GitHub integration                        |
-| `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Consent tracking versions                 |
+| `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Override consent versions (defaults in `server/src/constants/legal-versions.ts`; bump the default when policy wording changes so users re-accept) |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |
 | `ZOHO_CLIQ_*`                                                 | No       | Zoho Cliq notifications                   |
 | `PUSHER_APP_ID`                                               | No       | Pusher app id (realtime events)           |

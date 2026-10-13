@@ -23,6 +23,7 @@ export const ReplyComposerDemo: React.FC<ReplyComposerDemoProps> = ({
   scheduledSendAt = null,
 }) => {
   const [sent, setSent] = useState(false);
+  const [isTrackingOpens, setIsTrackingOpens] = useState(true);
 
   if (sent) {
     return <div style={{ padding: '16px', color: '#059669', fontWeight: 500 }}>✅ Reply sent!</div>;
@@ -37,8 +38,10 @@ export const ReplyComposerDemo: React.FC<ReplyComposerDemoProps> = ({
           draft={draft}
           scheduledSendAt={scheduledSendAt}
           onClose={() => console.log('Cancelled')}
-          onSend={(expectedReplyHours, _draft, _scheduledAt, keepInAction) => {
-            console.log('Send clicked', { expectedReplyHours, keepInAction });
+          isTrackingOpens={isTrackingOpens}
+          onTrackOpensChange={setIsTrackingOpens}
+          onSend={request => {
+            console.log('Send clicked', { ...request, trackOpens: isTrackingOpens });
             setSent(true);
           }}
           onClearSchedule={() => console.log('Schedule cleared')}

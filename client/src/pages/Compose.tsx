@@ -17,7 +17,6 @@ import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeBody } from 'components/compose/ComposeBody';
 import { ComposeFollowUpSection } from 'components/compose/ComposeFollowUpSection';
 import { ComposeMessages } from 'components/compose/ComposeMessages';
-import { ComposeTrackOpensToggle } from 'components/compose/ComposeTrackOpensToggle';
 import { FrequentContactsList } from 'components/compose/FrequentContactsList';
 import { RecipientFields } from 'components/compose/RecipientFields';
 import { TimePicker } from 'components/compose/TimePicker';
@@ -29,6 +28,7 @@ import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyCo
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
 import { SidebarPageLayout } from 'components/layout/SidebarPageLayout';
+import { TrackOpensCheckbox } from 'components/tracking/TrackOpensCheckbox';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
@@ -430,11 +430,9 @@ const Compose: React.FC = () => {
             onChange={followUp.setFollowUpDuration}
           />
 
-          <ComposeTrackOpensToggle
-            isTracking={trackOpens}
-            disabled={sending || sendSuccess}
-            onChange={setTrackOpens}
-          />
+          <div style={{ marginTop: theme.spacing.md }}>
+            <TrackOpensCheckbox isTracking={trackOpens} disabled={sending || sendSuccess} onChange={setTrackOpens} />
+          </div>
         </div>
 
         <ComposeActions

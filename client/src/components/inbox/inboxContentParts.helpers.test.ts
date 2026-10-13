@@ -6,6 +6,7 @@ import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 import {
   computeCanRenderCategories,
+  computeDisplayedCategoryCount,
   computeEmailListBorderRight,
   computeEmailListFlex,
   computeIsEmailsEmpty,
@@ -217,5 +218,20 @@ describe('computeIsEmailsEmpty — post-archive blank screen fix (#1456)', () =>
       { id: 'c2', name: 'Work', count: 3 },
     ];
     expect(computeIsEmailsEmpty(false, summary, false, false, 0)).toBe(false);
+  });
+});
+
+describe('computeDisplayedCategoryCount', () => {
+  it('shows the summary count before the category is loaded', () => {
+    expect(computeDisplayedCategoryCount({ isLoaded: false, loadedCount: 0, summaryCount: 7, hasMore: false })).toBe(7);
+  });
+
+  it('shows the loaded row count once everything is loaded (issue #2062: rows are the truth)', () => {
+    expect(computeDisplayedCategoryCount({ isLoaded: true, loadedCount: 3, summaryCount: 5, hasMore: false })).toBe(3);
+  });
+
+  it('shows the full category count, not the first page, when more pages exist', () => {
+    expect(computeDisplayedCategoryCount({ isLoaded: true, loadedCount: 50, summaryCount: 120, hasMore: true })).toBe(120);
+    expect(computeDisplayedCategoryCount({ isLoaded: true, loadedCount: 50, summaryCount: 40, hasMore: true })).toBe(50);
   });
 });

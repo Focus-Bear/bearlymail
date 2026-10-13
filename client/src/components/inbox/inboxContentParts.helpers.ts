@@ -86,3 +86,21 @@ export function computeEmailListFlex(splitView: {
   }
   return 1;
 }
+
+/**
+ * The count a category accordion shows. Once loaded, the loaded rows are the truth
+ * (issue #2062) — unless the category has further pages, where the rows are only the
+ * first page and the summary count (reconciled to the row query's total) is shown instead.
+ */
+export function computeDisplayedCategoryCount(options: {
+  isLoaded: boolean;
+  loadedCount: number;
+  summaryCount: number;
+  hasMore: boolean;
+}): number {
+  const { isLoaded, loadedCount, summaryCount, hasMore } = options;
+  if (!isLoaded) {
+    return summaryCount;
+  }
+  return hasMore ? Math.max(summaryCount, loadedCount) : loadedCount;
+}

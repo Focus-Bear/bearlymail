@@ -14,6 +14,7 @@ import { ACCORDION_BUDGETS } from 'utils/performanceBudget';
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { CategoryAccordion, CategoryGroup } from 'components/inbox/CategoryAccordion';
 import { CategoryDebugPanel } from 'components/inbox/CategoryDebugPanel';
+import { CategoryLoadMoreButton } from 'components/inbox/CategoryLoadMoreButton';
 import { DebugView } from 'components/inbox/DebugView';
 import { EmailListItem } from 'components/inbox/EmailListItem';
 import { EmailListStates } from 'components/inbox/EmailListStates';
@@ -30,6 +31,7 @@ import { INBOX_FETCH_LIMIT } from 'constants/numbers';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE, PARAM_CATEGORY_IDS } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { OTHER_FAMILY, useCategoryFamilyMap } from 'hooks/useCategoryFamilies';
+import { useCategoryPagination } from 'hooks/useCategoryPagination';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 import { getCategoryKey } from 'hooks/useEmailFetching';
@@ -51,6 +53,7 @@ import {
 } from './inbox.types';
 import {
   computeCanRenderCategories,
+  computeDisplayedCategoryCount,
   computeEmailListBorderRight,
   computeEmailListFlex,
   computeIsEmailsEmpty,
@@ -274,11 +277,17 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   const isAdmin = user?.isAdmin === true && debugViewOpen;
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
+  const pagination = useCategoryPagination({ mode, categoryKey, loadedCount: categoryEmails.length });
   // Match the badge value the user sees: emails.length when loaded, otherwise
   // the cached summary count. A never-expanded category with summary.count > 0
   // displays a non-zero badge and does NOT count as empty — only render the
   // admin debug panel for accordions that actually appear at "0" on screen.
-  const displayedCount = isLoaded ? categoryEmails.length : categoryItem.count;
+  const displayedCount = computeDisplayedCategoryCount({
+    isLoaded,
+    loadedCount: categoryEmails.length,
+    summaryCount: categoryItem.count,
+    hasMore: pagination.hasMore,
+  });
   const isEmptyForAdminDebug = isAdmin && displayedCount === 0;
   // Budget warning: subtle amber indicator when this category's fetch is approaching budget.
   const isNearBudget = useSelector(selectCategoryBudgetWarning(categoryKey));
@@ -367,12 +376,38 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
     ? categoryEmails.filter(email => !protoGroupedEmailIds.has(email.id))
     : [];
 
+  /**
+   * Archive All must cover the whole category, not just the page on screen: when more
+   * rows exist server-side, fetch their IDs and archive them in the same request.
+   */
+  const archiveLoadedAndUnloaded = async (loadedIds: string[]) => {
+    if (!onBulkArchive) {
+      return;
+    }
+    let unloadedIds: string[] = [];
+    try {
+      unloadedIds = await pagination.fetchUnloadedIds();
+    } catch (err) {
+      console.warn('[InboxContent] Could not fetch the unloaded rows for Archive All; archiving loaded rows only:', err);
+    }
+    await onBulkArchive([...loadedIds, ...unloadedIds]);
+    if (unloadedIds.length > 0) {
+      // Bulk archive only adjusts counts for rows it holds; account for the unloaded ones.
+      dispatch(
+        decrementCategorySummaryCount({
+          categoryKey: categoryItem.id ?? CATEGORY_KEY_UNCATEGORIZED,
+          count: unloadedIds.length,
+        })
+      );
+    }
+  };
+
   const handleArchiveAll = async (catName: string, ids: string[]) => {
     if (!onBulkArchive) {
       return;
     }
     if (ids && ids.length > 0) {
-      await onBulkArchive(ids);
+      await archiveLoadedAndUnloaded(ids);
       return;
     }
     try {
@@ -417,8 +452,10 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
         categoryKey={categoryKey}
         family={family}
         emails={categoryEmails}
-        count={isLoaded ? categoryEmails.length : categoryItem.count}
-        isLoadingContent={isExpanded && !isLoaded}
+        count={displayedCount}
+        // Rows kept from an earlier load (a collapsed category the refresh marked stale)
+        // stay on screen while they revalidate, instead of flashing a spinner.
+        isLoadingContent={isExpanded && !isLoaded && categoryEmails.length === 0}
         isExpanded={isExpanded}
         onToggle={() => handleToggleWithTiming(categoryKey)}
         onArchiveAll={handleArchiveAll}
@@ -442,6 +479,13 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
           />
         ) : (
           categoryEmails.map((email, indexInCategory) => renderItem(email, globalIndex + indexInCategory))
+        )}
+        {pagination.hasMore && (
+          <CategoryLoadMoreButton
+            remainingCount={pagination.remainingCount}
+            isLoading={pagination.isLoadingMore}
+            onLoadMore={pagination.loadMore}
+          />
         )}
       </CategoryAccordion>
       {isEmptyForAdminDebug && (

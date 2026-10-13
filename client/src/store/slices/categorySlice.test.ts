@@ -19,7 +19,7 @@ import categoryReducer, {
   selectLoadingCategoryKeys,
 } from './categorySlice';
 
-const emptyState: CategorySliceState = { categories: {} };
+const emptyState: CategorySliceState = { categories: {}, expandedKeys: [] };
 
 const mockEmail: Email = {
   id: 'email-1',
@@ -55,6 +55,7 @@ describe('categorySlice reducers', () => {
 
     it('preserves existing emails when transitioning to loading', () => {
       const preloaded: CategorySliceState = {
+        expandedKeys: [],
         categories: {
           work: { ...defaultCategoryState, status: 'loaded', emails: [mockEmail], fetchedAt: 12345 },
         },
@@ -66,6 +67,7 @@ describe('categorySlice reducers', () => {
 
     it('clears error on retry', () => {
       const errored: CategorySliceState = {
+        expandedKeys: [],
         categories: {
           work: { ...defaultCategoryState, status: 'error', error: 'some error', retryCount: 1, nextRetryAt: 9999 },
         },
@@ -85,6 +87,7 @@ describe('categorySlice reducers', () => {
 
     it('resets retryCount and error on success', () => {
       const errored: CategorySliceState = {
+        expandedKeys: [],
         categories: {
           work: { ...defaultCategoryState, status: 'error', retryCount: 3, error: 'failed', nextRetryAt: 1000 },
         },
@@ -110,6 +113,7 @@ describe('categorySlice reducers', () => {
 
     it('preserves existing emails on error', () => {
       const loaded: CategorySliceState = {
+        expandedKeys: [],
         categories: {
           work: { ...defaultCategoryState, status: 'loaded', emails: [mockEmail] },
         },
@@ -125,6 +129,7 @@ describe('categorySlice reducers', () => {
   describe('markExhausted', () => {
     it('sets status to exhausted', () => {
       const loaded: CategorySliceState = {
+        expandedKeys: [],
         categories: { work: { ...defaultCategoryState, status: 'loaded' } },
       };
       const state = categoryReducer(loaded, markExhausted('work'));
@@ -140,6 +145,7 @@ describe('categorySlice reducers', () => {
   describe('markStale', () => {
     it('transitions loaded → stale', () => {
       const loaded: CategorySliceState = {
+        expandedKeys: [],
         categories: { work: { ...defaultCategoryState, status: 'loaded' } },
       };
       const state = categoryReducer(loaded, markStale('work'));
@@ -148,6 +154,7 @@ describe('categorySlice reducers', () => {
 
     it('does NOT transition non-loaded status to stale', () => {
       const loading: CategorySliceState = {
+        expandedKeys: [],
         categories: { work: { ...defaultCategoryState, status: 'loading' } },
       };
       const state = categoryReducer(loading, markStale('work'));
@@ -164,6 +171,7 @@ describe('categorySlice reducers', () => {
   describe('resetCategory', () => {
     it('resets a single category back to default', () => {
       const loaded: CategorySliceState = {
+        expandedKeys: [],
         categories: {
           work: { ...defaultCategoryState, status: 'loaded', emails: [mockEmail], fetchedAt: 12345 },
           personal: { ...defaultCategoryState, status: 'loaded', emails: [mockEmail] },
@@ -179,6 +187,7 @@ describe('categorySlice reducers', () => {
   describe('resetAll', () => {
     it('clears all categories', () => {
       const withData: CategorySliceState = {
+        expandedKeys: [],
         categories: {
           work: { ...defaultCategoryState, status: 'loaded' },
           personal: { ...defaultCategoryState, status: 'loading' },
@@ -193,7 +202,7 @@ describe('categorySlice reducers', () => {
 // ─── Selector tests ──────────────────────────────────────────────────────────
 
 const makeRootState = (categories: Record<string, CategoryFetchState>) => ({
-  category: { categories },
+  category: { categories, expandedKeys: [] },
 });
 
 describe('categorySlice selectors', () => {

@@ -252,6 +252,8 @@ categoryAccordionI18n.use(initReactI18next).init({
         'inbox.category.autoArchiveConfirmCta': 'Auto-archive',
         'common.cancel': 'Cancel',
         'inbox.category.loadingContent': 'Loading…',
+        'inbox.category.loadMore': 'Show {{count}} more',
+        'inbox.category.loadingMore': 'Loading more…',
         'inbox.category.other': 'Other',
         'inbox.familyCategoryCount_one': '{{count}} category',
         'inbox.familyCategoryCount_other': '{{count}} categories',

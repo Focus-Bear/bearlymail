@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -294,13 +294,7 @@ const PrivacyCard: React.FC<{ t: (key: string) => string }> = ({ t }) => (
     <div>
       <h4 style={privacyTitleStyle}>{t('setupWizard.learning.privacyTitle')}</h4>
       <p style={privacyBodyStyle}>
-        {t('setupWizard.learning.privacyBodyPart1')} <b>{t('setupWizard.learning.privacyOpenAi')}</b>{' '}
-        {t('setupWizard.learning.privacyAnd')} <b>{t('setupWizard.learning.privacyGemini')}</b>{' '}
-        {t('setupWizard.learning.privacyBodyPart2')}{' '}
-        <b>{t('setupWizard.learning.privacyExport')}</b>{' '}
-        {t('setupWizard.learning.privacyOr')}{' '}
-        <b>{t('setupWizard.learning.privacyDelete')}</b>{' '}
-        {t('setupWizard.learning.privacyBodyPart3')}
+        <Trans i18nKey="setupWizard.learning.privacyBody" components={{ b: <b /> }} />
       </p>
     </div>
   </div>

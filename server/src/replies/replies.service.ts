@@ -10,6 +10,7 @@ import type { PgBoss } from "pg-boss";
 import { Repository } from "typeorm";
 
 import { LLM_PROVIDER_STRINGS, TONE_STYLES } from "../constants/domain-types";
+import { TRACKED_SEND_SOURCE } from "../constants/email-tracking.constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -24,6 +25,7 @@ import { WritingStyleLearningService } from "../context/writing-style-learning.s
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ContextKey } from "../database/entities/user-context.entity";
+import { TrackedEmailSender } from "../email-tracking/tracked-email-sender.service";
 import { appendSignature } from "../emails/email-controller.helpers";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailThreadService } from "../emails/email-thread.service";
@@ -44,6 +46,11 @@ import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 import { buildReplySubject } from "../utils/reply-subject.util";
 import { buildForwardBody, buildForwardHtmlBody } from "./forward-body.helpers";
+import {
+  InlineImage,
+  ReplyAttachment,
+  SendReplyRequestOptions,
+} from "./replies.types";
 
 export interface ReplyRule {
   ruleId?: string;
@@ -53,18 +60,6 @@ export interface ReplyRule {
   template: string;
   priority: number;
 }
-
-export type ReplyAttachment = {
-  filename: string;
-  mimeType: string;
-  content: Buffer;
-};
-export type InlineImage = {
-  contentId: string;
-  filename: string;
-  mimeType: string;
-  content: Buffer;
-};
 
 type ReplyPayload = {
   bodyWithSignature: string;
@@ -101,6 +96,7 @@ export class RepliesService {
     private emailThreadRepository: Repository<EmailThread>,
     @Inject(INJECT_TOKENS.PG_BOSS)
     private boss: PgBoss,
+    private trackedEmailSender: TrackedEmailSender,
   ) {}
 
   /**
@@ -663,9 +659,14 @@ ${closing}`;
       Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>
     >,
     payload: ReplyPayload,
-    options: { cc?: string; bcc?: string; isForward?: boolean },
+    options: {
+      cc?: string;
+      bcc?: string;
+      isForward?: boolean;
+      trackOpens?: boolean;
+    },
   ): Promise<{ messageId: string; threadId: string }> {
-    const { isForward = false } = options;
+    const { isForward = false, trackOpens } = options;
     const {
       bodyWithSignature,
       htmlBodyWithSignature,
@@ -696,60 +697,56 @@ ${closing}`;
         ...allInlineImages,
       ];
 
-      return provider.sendEmail(userId, {
-        to: toRecipients,
-        subject: replySubject,
-        body: bodyWithSignature,
-        // HTML part with <br> line breaks so the signature (and forward header)
-        // don't collapse to a single line the way the plain body would.
-        htmlBody: htmlBodyWithSignature,
-        cc: ccRecipients,
-        bcc: bccRecipients,
-        attachments:
-          forwardAttachmentsWithInline.length > 0
-            ? forwardAttachmentsWithInline
-            : undefined,
-      });
+      return this.trackedEmailSender.sendEmail(
+        userId,
+        provider,
+        {
+          to: toRecipients,
+          subject: replySubject,
+          body: bodyWithSignature,
+          // HTML part with <br> line breaks so the signature (and forward header)
+          // don't collapse to a single line the way the plain body would.
+          htmlBody: htmlBodyWithSignature,
+          cc: ccRecipients,
+          bcc: bccRecipients,
+          attachments:
+            forwardAttachmentsWithInline.length > 0
+              ? forwardAttachmentsWithInline
+              : undefined,
+        },
+        { source: TRACKED_SEND_SOURCE.FORWARD, trackOpens },
+      );
     }
 
     // Regular reply — thread into the existing conversation
     const attachmentsWithInline = [...allAttachments, ...allInlineImages];
-    return provider.sendReply(userId, {
-      threadId: email.threadId,
-      to: replyToAddress,
-      subject: replySubject,
-      body: bodyWithSignature,
-      options: {
-        attachments:
-          attachmentsWithInline.length > 0 ? attachmentsWithInline : undefined,
-        htmlBody: htmlBodyWithSignature,
-        cc: cc || undefined,
-        bcc: bcc || undefined,
+    return this.trackedEmailSender.sendReply(
+      userId,
+      provider,
+      {
+        threadId: email.threadId,
+        to: replyToAddress,
+        subject: replySubject,
+        body: bodyWithSignature,
+        options: {
+          attachments:
+            attachmentsWithInline.length > 0
+              ? attachmentsWithInline
+              : undefined,
+          htmlBody: htmlBodyWithSignature,
+          cc: cc || undefined,
+          bcc: bcc || undefined,
+        },
       },
-    });
+      { source: TRACKED_SEND_SOURCE.REPLY, trackOpens },
+    );
   }
 
   async sendReply(
     userId: string,
     emailId: string,
     body: string,
-    options: {
-      attachments?: ReplyAttachment[];
-      /** Inline images to embed as CID MIME parts in the email. */
-      inlineImages?: InlineImage[];
-      expectedReplyHours?: number;
-      forwardAttachmentIds?: string[];
-      recipients?: string;
-      cc?: string;
-      bcc?: string;
-      subject?: string;
-      isForward?: boolean;
-      /**
-       * User explicitly chose "Keep in Action" — preserve the thread state
-       * (no follow-up, no archive). Defaults to false.
-       */
-      keepInAction?: boolean;
-    } = {},
+    options: SendReplyRequestOptions = {},
   ): Promise<{ messageId: string; threadId: string }> {
     const {
       expectedReplyHours,
@@ -793,6 +790,7 @@ ${closing}`;
         cc,
         bcc,
         isForward,
+        trackOpens: options.trackOpens,
       },
     );
 

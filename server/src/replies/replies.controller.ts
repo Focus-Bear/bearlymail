@@ -33,7 +33,11 @@ import { parseRecipientsFromString } from "../utils/email-address.utils";
 import { resolveExpectedReplyHours } from "../utils/expected-reply.util";
 import { buildReplySubject } from "../utils/reply-subject.util";
 import { RepliesService, ReplyRule } from "./replies.service";
-import { parseBooleanFlag, splitReplyUploads } from "./reply-upload.helpers";
+import {
+  parseBooleanFlag,
+  parseOptionalBooleanFlag,
+  splitReplyUploads,
+} from "./reply-upload.helpers";
 
 @Controller("replies")
 @UseGuards(JwtAuthGuard, AiCapacityGuard)
@@ -136,6 +140,8 @@ export class RepliesController {
       keepInAction?: boolean | string;
       /** UI language (e.g. "en", "es") used to parse expectedReplyDuration. */
       locale?: string;
+      /** Per-message open-tracking choice; omitted defers to the setting. */
+      trackOpens?: boolean | string;
     },
     @UploadedFiles() allFiles?: Express.Multer.File[],
   ) {
@@ -176,6 +182,7 @@ export class RepliesController {
         subject: body.subject || undefined,
         isForward,
         keepInAction,
+        trackOpens: parseOptionalBooleanFlag(body.trackOpens),
       },
     );
 
@@ -210,6 +217,7 @@ export class RepliesController {
       subject?: string;
       scheduledSendAt?: string;
       userTimezone?: string;
+      trackOpens?: boolean | string;
     },
     parsed: {
       attachments?: { filename: string; mimeType: string; content: Buffer }[];
@@ -250,6 +258,7 @@ export class RepliesController {
         userTimezone: body.userTimezone,
         expectedReplyHours: parsed.expectedReplyHours,
         forwardAttachmentIds: parsed.forwardAttachmentIds,
+        trackOpens: parseOptionalBooleanFlag(body.trackOpens),
       },
     );
 

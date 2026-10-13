@@ -1,8 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { OpenTrackingSummary } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
 
+import { OpenTrackingIndicator } from 'components/tracking/OpenTrackingIndicator';
 import { SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
 import { useNotifications } from 'contexts/NotificationContext';
 
@@ -39,6 +41,8 @@ interface ThreadItemHeaderProps {
   isExpanded: boolean;
   isCurrentEmail: boolean;
   onToggle: () => void;
+  /** Present only for the user's own tracked messages. */
+  openTracking?: OpenTrackingSummary;
 }
 
 export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
@@ -50,6 +54,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
   isExpanded,
   isCurrentEmail,
   onToggle,
+  openTracking,
 }) => {
   const { t } = useTranslation();
   const { showSuccess } = useNotifications();
@@ -78,7 +83,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
       }}
     >
       <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing.xs }}>
           <strong style={{ color: theme.colors.text.primary }}>{fromName || from}</strong>
           {from && fromName && (
             <span
@@ -127,6 +132,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
           <span style={{ color: theme.colors.text.secondary }}>
             {humanizeTimestamp(new Date(receivedAt), { showAbsoluteDate: true })}
           </span>
+          {openTracking && <OpenTrackingIndicator summary={openTracking} />}
         </div>
         {to && <AddressField label={t('emailDetail.to', { defaultValue: 'To' })} value={to} />}
         {cc && <AddressField label={t('emailDetail.cc', { defaultValue: 'CC' })} value={cc} />}

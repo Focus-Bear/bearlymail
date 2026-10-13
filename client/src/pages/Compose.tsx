@@ -17,6 +17,7 @@ import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeBody } from 'components/compose/ComposeBody';
 import { ComposeFollowUpSection } from 'components/compose/ComposeFollowUpSection';
 import { ComposeMessages } from 'components/compose/ComposeMessages';
+import { ComposeTrackOpensToggle } from 'components/compose/ComposeTrackOpensToggle';
 import { FrequentContactsList } from 'components/compose/FrequentContactsList';
 import { RecipientFields } from 'components/compose/RecipientFields';
 import { TimePicker } from 'components/compose/TimePicker';
@@ -32,6 +33,7 @@ import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { EMAIL_FIELD_CC, EMAIL_FIELD_TO } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
@@ -51,6 +53,8 @@ const Compose: React.FC = () => {
     useEmailDetailToneCheck();
   const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
   const followUp = useFollowUpDuration();
+  const { user } = useAuth();
+  const [trackOpens, setTrackOpens] = useState(user?.trackEmailOpens !== false);
 
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
@@ -201,6 +205,7 @@ const Compose: React.FC = () => {
         userTimezone,
         expectedReplyDuration: followUp.expectedReplyDuration,
         locale: i18n.language,
+        trackOpens,
       });
       // The message is only queued at this point, so keep a copy until the
       // outcome event confirms it actually went out (see useEmailSendOutcomes).
@@ -423,6 +428,12 @@ const Compose: React.FC = () => {
             disabled={sending || sendSuccess || checkingTone}
             tooltipText={followUp.tooltipText}
             onChange={followUp.setFollowUpDuration}
+          />
+
+          <ComposeTrackOpensToggle
+            isTracking={trackOpens}
+            disabled={sending || sendSuccess}
+            onChange={setTrackOpens}
           />
         </div>
 

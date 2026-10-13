@@ -12,7 +12,6 @@
  *       → EmailDebugController (email-debug.controller.ts)
  *       → EmailDebugAdminController (email-debug-admin.controller.ts)
  */
-
 import {
   BadRequestException,
   Body,
@@ -50,6 +49,8 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { SECONDS } from "../constants/time-constants";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
+import { EmailTrackingSummaryService } from "../email-tracking/email-tracking-summary.service";
+import { stripTrackingPixels } from "../email-tracking/tracking-pixel.helpers";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { getJobPriority } from "../queue/job-priorities";
 import { sanitizeLogInput } from "../utils/sanitize-log";
@@ -92,6 +93,7 @@ export class EmailsController {
     private readonly emailExportJobService: EmailExportJobService,
     private readonly auditService: AuditService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
+    private readonly emailTrackingSummaryService: EmailTrackingSummaryService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -571,11 +573,15 @@ export class EmailsController {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
-    const stats = await this.emailAdminService.getEmailStats(userId, since);
+    const [stats, openTracking] = await Promise.all([
+      this.emailAdminService.getEmailStats(userId, since),
+      this.emailTrackingSummaryService.getStats(userId, since),
+    ]);
 
     return {
       days,
       ...stats,
+      openTracking,
     };
   }
 
@@ -655,8 +661,13 @@ export class EmailsController {
       email.threadId,
       { order: "DESC" },
     );
+    const annotatedEmails =
+      await this.emailTrackingSummaryService.annotateThreadEmails(
+        req.user.userId,
+        threadEmails,
+      );
     // Defence-in-depth: normalise attachments to null if not an array (see #1589)
-    return threadEmails.map((threadEmail) => {
+    return annotatedEmails.map((threadEmail) => {
       if (
         threadEmail.attachments !== null &&
         threadEmail.attachments !== undefined &&
@@ -675,6 +686,9 @@ export class EmailsController {
   async getEmail(@Request() req, @Param("id") id: string) {
     const email = await this.getEmailOrThrow(req.user.userId, id);
     decryptEmailEntityForApi(email);
+    // Showing the user their own sent message must never count as an open.
+    email.body = stripTrackingPixels(email.body);
+    email.htmlBody = stripTrackingPixels(email.htmlBody);
 
     // Defence-in-depth: ensure attachments is always null or an Array.
     // encryptedJsonTransformer returns `unknown` at runtime; if bad data is stored

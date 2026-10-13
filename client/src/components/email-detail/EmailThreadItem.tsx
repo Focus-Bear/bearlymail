@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { OpenTrackingSummary } from 'types/email';
 
 import { EmailAttachments } from 'components/email-detail/EmailAttachments';
 import { ThreadItemBody } from 'components/email-detail/ThreadItemBody';
@@ -23,6 +24,7 @@ interface EmailThreadItemProps {
       contentId?: string;
       inlineData?: string;
     }>;
+    openTracking?: OpenTrackingSummary;
   };
   isExpanded: boolean;
   isCurrentEmail: boolean;
@@ -56,6 +58,7 @@ export const EmailThreadItem: React.FC<EmailThreadItemProps> = ({
         isExpanded={isExpanded}
         isCurrentEmail={isCurrentEmail}
         onToggle={onToggle}
+        openTracking={threadEmail.openTracking}
       />
       {isExpanded && (
         <>

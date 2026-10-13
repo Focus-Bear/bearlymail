@@ -43,6 +43,8 @@ export interface User {
   hasScannedHistory?: boolean;
   /** True when the initial sync skipped older mail (cap/window) — shows the inbox banner. */
   syncWindowLimited?: boolean;
+  /** Mailtrack-style open tracking for outgoing mail; on unless the user turned it off. */
+  trackEmailOpens?: boolean;
   isAdmin?: boolean;
   isApproved?: boolean;
   termsAcceptedAt?: string;

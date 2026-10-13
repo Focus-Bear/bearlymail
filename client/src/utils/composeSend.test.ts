@@ -21,6 +21,7 @@ const baseArgs: ComposeSendArgs = {
   attachments: [],
   userTimezone: 'Australia/Melbourne',
   locale: 'en',
+  trackOpens: true,
 };
 
 describe('postComposedEmail', () => {
@@ -44,6 +45,12 @@ describe('postComposedEmail', () => {
       const payload = mockedPost.mock.calls[0][1] as Record<string, unknown>;
       expect(payload.expectedReplyDuration).toBeUndefined();
       expect(payload.locale).toBeUndefined();
+    });
+
+    it('sends the per-message open-tracking choice', async () => {
+      await postComposedEmail({ ...baseArgs, trackOpens: false });
+
+      expect(mockedPost.mock.calls[0][1]).toMatchObject({ trackOpens: false });
     });
 
     it('passes a natural-language duration through untouched', async () => {
@@ -70,6 +77,13 @@ describe('postComposedEmail', () => {
       expect(formData).toBeInstanceOf(FormData);
       expect(formData.get('expectedReplyDuration')).toBe('3d');
       expect(formData.get('locale')).toBe('en');
+    });
+
+    it('appends the per-message open-tracking choice', async () => {
+      await postComposedEmail({ ...baseArgs, attachments: [attachment()], trackOpens: false });
+
+      const formData = mockedPost.mock.calls[0][1] as FormData;
+      expect(formData.get('trackOpens')).toBe('false');
     });
 
     it('appends neither field when the follow-up was cleared', async () => {

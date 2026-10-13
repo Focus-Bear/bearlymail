@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 
+import { OpenTrackingIndicator } from 'components/tracking/OpenTrackingIndicator';
 import { MS_PER_DAY } from 'constants/numbers';
 
 interface FollowUpMetadataProps {
@@ -47,9 +48,14 @@ export const FollowUpMetadata: React.FC<FollowUpMetadataProps> = ({ email }) => 
         </div>
       )}
       {email.lastMyReplyAt && (
-        <div>
-          <strong>{t('inbox.followUpDetails.youSentLast')}:</strong>{' '}
-          {new Date(email.lastMyReplyAt).toLocaleDateString()}
+        <div
+          style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing.sm }}
+        >
+          <span>
+            <strong>{t('inbox.followUpDetails.youSentLast')}:</strong>{' '}
+            {new Date(email.lastMyReplyAt).toLocaleDateString()}
+          </span>
+          {email.openTracking && <OpenTrackingIndicator summary={email.openTracking} />}
         </div>
       )}
     </div>

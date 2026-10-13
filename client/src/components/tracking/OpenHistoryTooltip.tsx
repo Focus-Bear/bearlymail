@@ -44,7 +44,9 @@ export const OpenHistoryTooltip: React.FC<OpenHistoryTooltipProps> = ({ id, summ
       style={{
         position: 'absolute',
         top: 'calc(100% + 6px)',
-        right: 0,
+        // Indicators sit at the left of their header; open rightwards so the
+        // card's overflow:hidden never clips the popover.
+        left: 0,
         zIndex: 999,
         width: '260px',
         maxWidth: '80vw',

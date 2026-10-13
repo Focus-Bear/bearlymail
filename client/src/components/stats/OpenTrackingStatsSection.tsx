@@ -9,6 +9,7 @@ import { MAX_PERCENTAGE } from 'constants/numbers';
 import { OPEN_TRACKING_SETTINGS_ANCHOR } from 'constants/openTracking';
 import { OpenTrackingStats } from 'hooks/useEmailStats';
 
+const STAT_TILE_MIN_WIDTH_PX = 180;
 const SETTINGS_PATH = `/settings#${OPEN_TRACKING_SETTINGS_ANCHOR}`;
 
 interface OpenTrackingStatsSectionProps {
@@ -21,6 +22,14 @@ const sectionStyle: React.CSSProperties = {
   padding: theme.spacing.lg,
   border: `1px solid ${theme.colors.border.light}`,
   marginBottom: theme.spacing.xl,
+};
+
+// A grid (not flex-wrap) so a wrapped last tile keeps its column width.
+const tileGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: `repeat(auto-fit, minmax(${STAT_TILE_MIN_WIDTH_PX}px, 1fr))`,
+  gap: theme.spacing.md,
+  marginTop: theme.spacing.md,
 };
 
 const noteStyle: React.CSSProperties = {
@@ -46,7 +55,7 @@ export const OpenTrackingStatsSection: React.FC<OpenTrackingStatsSectionProps> =
 
       {hasTrackedMail ? (
         <>
-          <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap', marginTop: theme.spacing.md }}>
+          <div style={tileGridStyle}>
             <StatCard
               label={t('stats.openTracking.openRate')}
               value={`${Math.round((stats.openRate ?? 0) * MAX_PERCENTAGE)}%`}

@@ -5,12 +5,13 @@ import {
   FaqSection,
   FinalCta,
   FounderSection,
-  GithubIntegrationSection,
   HeroSection,
   HowItWorks,
   ProblemSection,
+  SecuritySection,
   SiteFooter,
   SiteHeader,
+  WhoItsForSection,
 } from 'components/landing-v2';
 
 import { LANDING_STYLES } from './Landing.styles';
@@ -19,9 +20,8 @@ import { useLandingFonts } from './useLandingFonts';
 /**
  * Role-specific landing page for product managers. Reuses every shared
  * landing-v2 component; the hero copy + inbox-demo content come from the
- * landing.pm.* i18n namespace. Section order matches the default landing
- * (GitHub integration kept in its default after-FAQ slot — PMs care less
- * about CI/PR signal than engineering leaders do).
+ * landing.pm.* i18n namespace. Section order matches the default landing; the
+ * GitHub integration section stays on the engineering-manager page only.
  */
 const ProductManagerLanding: React.FC = () => {
   useLandingFonts();
@@ -33,10 +33,11 @@ const ProductManagerLanding: React.FC = () => {
       <HeroSection heroPrefix="landing.pm.hero" demoPrefix="landing.pm.demo" />
       <ProblemSection />
       <HowItWorks />
+      <WhoItsForSection />
       <CompareSection />
+      <SecuritySection />
       <FounderSection />
       <FaqSection />
-      <GithubIntegrationSection />
       <FinalCta />
       <SiteFooter />
     </div>

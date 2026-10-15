@@ -2392,31 +2392,29 @@
         "nav": {
           "howItWorks": "How it works",
           "compare": "Compare",
-          "story": "Story",
-          "faq": "FAQ"
+          "faq": "FAQ",
+          "whoItsFor": "Para quién es",
+          "security": "Seguridad"
         },
-        "signIn": "Sign in",
-        "joinWaitlist": "Join waitlist"
+        "signIn": "Sign in"
       },
       "cta": {
-        "getStarted": "Empieza gratis"
+        "getStarted": "Empezar"
       },
       "hero": {
-        "eyebrow": "Ahora en beta abierta · Empieza gratis",
-        "titlePre": "Email that",
-        "titleEm": "respects",
-        "titlePostEm": " your",
-        "titleAfter": "focus time.",
-        "lead": "BearlyMail batches non-urgent email and delivers it on your schedule. Truly urgent messages still break through. Your inbox becomes a planned task, not a constant distraction.",
-        "emailLabel": "Email address",
-        "emailPlaceholder": "you@work.com",
-        "submit": "Join waitlist →",
+        "eyebrow": "El cliente de correo pensado para el TDAH",
+        "titlePre": "El correo que",
+        "titleEm": "se prioriza",
+        "titlePostEm": " y",
+        "titleAfter": "se organiza solo.",
+        "lead": "BearlyMail ordena automáticamente cada correo por importancia y agrupa el resto en categorías, para que lo importante te espere arriba y los boletines, recibos y notificaciones queden tranquilos en su sitio. Se acabó clasificar desde cero.",
+        "builtFor": "Diseñado para mentes con TDAH y para el trabajo profundo: tranquilo por defecto, sin nada importante enterrado.",
         "benefits": {
-          "noSpam": "No spam",
-          "followUp": "One quick follow-up",
-          "unsubscribe": "Unsubscribe anytime"
+          "prioritise": "Prioriza tu bandeja automáticamente",
+          "categorise": "Agrupa los correos en categorías",
+          "calm": "Menos interrupciones, menos decisiones"
         },
-        "builtFor": "Built for ADHD & deep-work brains"
+        "adhdBadge": "Pensado para el TDAH"
       },
       "demo": {
         "title": "BearlyMail · Tuesday, 10:42 AM",
@@ -2424,17 +2422,6 @@
         "calloutLabel": "Prueba la demo en vivo",
         "restart": "↺ Reiniciar demo",
         "filter": "Filtrar",
-        "settings": "Ajustes",
-        "tourReplay": "↻ Tour",
-        "tourReplayTitle": "Repetir el tour",
-        "readReceived": "Leer correo completo",
-        "readSent": "Leer lo que enviaste",
-        "followupSend": "✉️ Enviar seguimiento",
-        "followupSent": "✓ Seguimiento enviado",
-        "replyLock": {
-          "text": "Responder, enviar y posponer forman parte de la app completa.",
-          "cta": "Regístrate para probar la experiencia completa →"
-        },
         "tabs": {
           "triage": "Triage",
           "action": "Action",
@@ -2449,20 +2436,6 @@
           "prefix": "UX:",
           "body": " Comunicaciones de diseño, feedback de UX/UI, planificación de proyectos creativos, sesiones de diseño, colaboración externa",
           "archiveAll": "Archivar todo"
-        },
-        "topics": {
-          "triage": {
-            "prefix": "UX:",
-            "body": " Comunicaciones de diseño, feedback de UX/UI, planificación de proyectos creativos, sesiones de diseño, colaboración externa"
-          },
-          "action": {
-            "prefix": "Para actuar:",
-            "body": " ordenados por importancia — atiende primero el de arriba y sigue con el resto."
-          },
-          "followup": {
-            "prefix": "Esperando respuesta:",
-            "body": " correos que enviaste y que nadie ha contestado todavía — recuérdaselos con un clic."
-          }
         },
         "email": {
           "from": "Aria Patel",
@@ -2501,77 +2474,6 @@
             "time": "Ayer"
           }
         },
-        "cards": {
-          "aria": {
-            "sender": "Aria Patel",
-            "contactChip": "👤 Cliente",
-            "priorityLabel": "Alta (74)",
-            "time": "9 may, 19:00",
-            "subject": "Flujo de onboarding: gran abandono en el paso 3, ¿podemos lanzar un arreglo hoy?",
-            "preview": "Hola Jeremy, acabo de revisar los analytics y hay un abandono claro en el paso 3 del flujo de onboarding…",
-            "detail": "Hola Jeremy,\n\nAcabo de revisar los analytics y hay un abandono claro en el paso 3 del flujo de onboarding que lanzamos anoche. Un 41 % de los nuevos usuarios se va en la pantalla de contraseña.\n\n¿Podemos hacer una llamada rápida para repasar un arreglo? Cualquier hora me sirve hoy — con 15 minutos basta para decidir si revertimos o parcheamos.\n\nGracias,\nAria"
-          },
-          "sam": {
-            "sender": "Sam Rivera",
-            "contactChip": "👤 Compañero",
-            "priorityLabel": "Media (28)",
-            "time": "7:54",
-            "subject": "¿Puedes aprobar hoy el nuevo flujo de pago?",
-            "preview": "Diseño cerró la versión final — solo falta tu visto bueno antes de que ingeniería lo retome…",
-            "detail": "Hola,\n\nDiseño cerró el nuevo flujo de pago y dejé notas en Figma. Ingeniería puede empezar mañana si lo apruebas hoy.\n\nNada que bloquee — solo me gustaría que revisaras el paso del pago antes de comprometernos.\n\nSam"
-          },
-          "notion": {
-            "sender": "Notion",
-            "contactChip": "🔔 Notificación",
-            "priorityLabel": "Baja (9)",
-            "time": "Ayer",
-            "subject": "3 comentarios nuevos en el documento del roadmap del Q3",
-            "preview": "Priya, Marcus y 1 persona más comentaron en «Roadmap del Q3»…",
-            "detail": "Priya Shah comentó:\n«¿Deberíamos adelantar la revisión de facturación frente a búsqueda?»\n\nMarcus Lee comentó:\n«+1 — me lanzo a dimensionarlo esta semana.»\n\nNormalmente los hojeas y respondes en lote — nada urgente."
-          },
-          "daniel": {
-            "sender": "Daniel Okafor",
-            "contactChip": "👤 CEO",
-            "priorityLabel": "Alta (68)",
-            "time": "8:12",
-            "subject": "¿Comentarios al plan del Q3 antes del jueves?",
-            "preview": "Leí el borrador anoche — buena dirección. Dos dudas sobre el ramp-up de contratación…",
-            "detail": "Hola — leí anoche el borrador del Q3, buena dirección en general.\n\nDos dudas antes de la revisión del jueves:\n1. El ramp-up de contratación asume cerrar los dos roles senior a finales de julio. ¿Realista?\n2. ¿Podemos adelantar la migración de infraestructura un sprint sin poner en riesgo el lanzamiento?\n\nSin prisa hoy, pero me gustaría tener las respuestas antes de presentarlo al consejo.\n\nDaniel"
-          },
-          "acme": {
-            "sender": "Acme Legal",
-            "contactChip": "👤 Proveedor",
-            "priorityLabel": "Alta (61)",
-            "time": "Ayer",
-            "subject": "Contrato con cambios listo para tu revisión",
-            "preview": "Hemos devuelto el MSA con los cambios de la llamada del martes. Dos puntos abiertos…",
-            "detail": "Hola,\n\nHemos devuelto el MSA con los cambios de la llamada del martes. Los cambios en seguimiento van adjuntos.\n\nDos puntos abiertos siguen necesitando tu visto bueno:\n• Límite de responsabilidad — proponemos 12 meses de tarifas.\n• Anexo de tratamiento de datos — un matiz de redacción sobre subprocesadores.\n\nSi te encaja, podemos tener firmas para el viernes.\n\nSaludos,\nAcme Legal"
-          },
-          "morgan": {
-            "sender": "Para: Morgan Lee",
-            "waitChip": "⏳ Sin respuesta · 3d",
-            "time": "Enviado lun, 9:02",
-            "subject": "Re: Propuesta de partnership — ¿próximos pasos?",
-            "preview": "Hola Morgan, solo confirmo si viste la propuesta — encantado de hacer una llamada…",
-            "detail": "Hola Morgan,\n\nSolo confirmo si viste la propuesta de partnership que envié la semana pasada. Sin presión, pero me encantaría avanzar antes de fin de mes.\n\nEncantado de hacer una llamada rápida si te resulta más fácil.\n\nGracias,\nJeremy"
-          },
-          "jordan": {
-            "sender": "Para: Jordan Blake",
-            "waitChip": "⏳ Sin respuesta · 5d",
-            "time": "Enviado el mié pasado",
-            "subject": "Re: Factura #2207 — fechas de pago",
-            "preview": "Hola Jordan, retomando lo de la factura del mes pasado — avísame…",
-            "detail": "Hola Jordan,\n\nRetomando lo de la factura #2207 del mes pasado. ¿Puedes decirme aproximadamente cuándo está programado el pago?\n\nEncantado de reenviar el PDF si te resulta más fácil.\n\nUn saludo,\nJeremy"
-          },
-          "taylor": {
-            "sender": "Para: Taylor Kim",
-            "waitChip": "⏳ Sin respuesta · 2d",
-            "time": "Enviado mar, 16:30",
-            "subject": "Re: Feedback de la beta — ¿15 min esta semana?",
-            "preview": "Hola Taylor, me encantaría tu opinión sobre la nueva build — cualquier hueco vale…",
-            "detail": "Hola Taylor,\n\nMe encantaría tener 15 minutos para escuchar tu opinión sobre la nueva build antes de lanzarla a más gente. Cualquier hueco esta semana me sirve.\n\nSin problema si vas con todo — incluso notas en asíncrono ayudarían.\n\nGracias,\nJeremy"
-          }
-        },
         "foot": {
           "nextBatch": "Next batch in",
           "summary": "{{triage}} in Triage · {{action}} in Action · {{followup}} in Follow Up"
@@ -2600,14 +2502,6 @@
           "archiveDone": "Archivado — una cosa menos 🎉",
           "followupSent": "Seguimiento enviado ✓"
         },
-        "tour": {
-          "priorityScore": "Cada correo recibe una <b>puntuación de prioridad</b> de 0 a 100 — BearlyMail lee de quién viene y qué te están pidiendo de verdad.",
-          "sortedByPriority": "Tu bandeja está <b>ordenada por prioridad</b>, no por hora. Lo que importa sube arriba; los boletines y el ruido caen al fondo.",
-          "pulsingReaction": "Un toque y lo clasificas. La <b>reacción que parpadea</b> es la sugerencia de BearlyMail para este correo — pruébala.",
-          "skip": "Saltar tour",
-          "next": "Siguiente →",
-          "done": "Entendido →"
-        },
         "floats": {
           "urgent": "Respuesta urgente del equipo — pasó el filtro"
         }
@@ -2628,24 +2522,44 @@
             "body": "Black Friday sales, weekly digests, receipts: your inbox shows them the moment they arrive, with the same visual weight as a customer about to churn. You can't tell what's important without reading every single one."
           },
           "engine": {
-            "title": "You become the prioritisation engine.",
+            "title": "Tú acabas priorizando todo.",
             "body": "You're forced to decide, again and again, what actually matters. Every glance becomes a triage exercise. Most of it isn't even decision work; it's noise. And it's running on the most expensive CPU you have: yours."
           }
         },
         "minis": {
-          "decide": "› decide",
-          "messagesToday": "× 217 messages today",
-          "wasted": "≈ 15m wasted",
-          "urgentQuestion": "— urgent? —",
-          "open": "› open"
+          "buried": {
+            "lunch": "Re: ¿Comemos?",
+            "lunchTime": "10:42",
+            "offsite": "Fotos del offsite 📸",
+            "offsiteTime": "10:15",
+            "investor": "Seguimiento del inversor",
+            "investorTime": "09:18",
+            "customer": "Problema grave de un cliente",
+            "customerTime": "Ayer",
+            "importantTag": "Importante"
+          },
+          "equallyUrgent": {
+            "sale": "Black Friday: ¡50 % de descuento!",
+            "churn": "Un cliente a punto de cancelar",
+            "digest": "Tu resumen semanal",
+            "newTag": "Nuevo"
+          },
+          "engine": {
+            "emails": "Correos hoy",
+            "emailsValue": "217",
+            "decide": "Decidir qué necesita cada uno",
+            "decideValue": "~4 s cada uno",
+            "total": "Solo clasificar, antes de trabajar de verdad",
+            "totalValue": "≈ 15 min"
+          }
         }
       },
       "steps": {
         "kicker": "How it works",
-        "titlePre": "Four ideas. ",
-        "titleEm": "One calmer",
-        "titleAfter": " inbox.",
-        "sub": "Click any step on the left to see what it looks like in practice.",
+        "titlePre": "Conecta tu bandeja. ",
+        "titleEm": "Recupera una más",
+        "titleAfter": " tranquila.",
+        "sub": "BearlyMail funciona sobre la cuenta de correo que ya tienes. Elige cualquier paso para ver cómo se ve en la práctica.",
         "list": {
           "urgent": {
             "title": "Truly urgent emails break through immediately.",
@@ -2656,12 +2570,16 @@
             "body": "Choose 2×, 3×, or 4× daily. Set quiet hours: no email before 11 AM, none after 6 PM. Block off entire weekends. Your inbox stops being someone else's interrupt."
           },
           "ranked": {
-            "title": "Lo importante primero, una acción a la vez.",
-            "body": "Cada lote se clasifica de 0 a 100 según su importancia, basándose en tu comportamiento. Marca tú mismo a tus remitentes VIP y corrige cualquier puntuación: la clasificación aprende de ti. Atiende la pregunta del CEO antes que la notificación de la grabación de Zoom, sin tener que pensarlo."
+            "title": "Priorizado y ordenado en categorías, automáticamente.",
+            "body": "Cada correo recibe una puntuación de importancia de 0 a 100 y entra en una categoría, así la pregunta del CEO queda por encima de la notificación de la grabación de Zoom sin que tengas que pensarlo. Marca tú mismo a tus remitentes VIP y corrige cualquier puntuación: BearlyMail aprende de ti."
           },
           "snooze": {
             "title": "Snoozing that takes one second.",
             "body": "Type \"2h\" or \"tomorrow\" or \"Mon 9am\". No calendar navigation. No complex scheduling. Snooze and move on, the email comes back at exactly the right moment."
+          },
+          "connect": {
+            "title": "Conecta el correo que ya usas.",
+            "body": "Inicia sesión con Google Workspace, Office365 o Zoho. Sin dirección nueva ni migraciones. BearlyMail se convierte en una vista más tranquila y priorizada de tu cuenta actual."
           }
         },
         "visuals": {
@@ -2694,7 +2612,7 @@
             "row5Lane": "Quiet, evening protected"
           },
           "ranked": {
-            "heading": "Midday batch · ranked",
+            "heading": "Lote del mediodía · ordenado y categorizado",
             "tag": "9 messages",
             "row1Label": "CEO · \"thoughts on the Q3 plan?\"",
             "row1Small": "From Daniel · usually replied within 6m",
@@ -2705,7 +2623,12 @@
             "row4Label": "Figma · \"Sara invited you\"",
             "row4Small": "Passive notification",
             "row5Label": "Stripe · \"weekly digest\"",
-            "row5Small": "You archived the last 8"
+            "row5Small": "You archived the last 8",
+            "row1Category": "Dirección",
+            "row2Category": "Ventas",
+            "row3Category": "Producto",
+            "row4Category": "Notificaciones",
+            "row5Category": "Recibos"
           },
           "snooze": {
             "heading": "Snooze with words",
@@ -2723,57 +2646,76 @@
               "nextQuiet": "next quiet hours"
             },
             "footer": "Comes back exactly when you said. No calendar dance."
+          },
+          "connect": {
+            "heading": "Tus cuentas",
+            "tag": "Sin migración",
+            "providers": {
+              "google": "Google Workspace / Gmail",
+              "office365": "Office365 / Outlook",
+              "zoho": "Zoho Mail"
+            },
+            "connected": "Compatible",
+            "resultBold": "BearlyMail te muestra: ",
+            "resultRest": "una bandeja tranquila, ordenada por importancia y agrupada por categoría.",
+            "footerBold": "Tu cuenta sigue siendo tuya.",
+            "footerRest": " Tu correo se queda donde está. BearlyMail solo lo cambia cuando tú actúas: si archivas aquí, también se archiva allí."
           }
+        },
+        "tip": {
+          "label": "Consejo",
+          "body": "Cuando BearlyMail sea tu bandeja, bloquea gmail.com, outlook.com y tu antigua app de correo con <focusBear>Focus Bear</focusBear> para no caer de nuevo en el torrente sin ordenar."
         }
       },
       "compare": {
         "kicker": "How we compare",
-        "titlePre": "Most email tools ask the ",
-        "titleEm": "wrong question.",
-        "sub1": "Superhuman asks ",
-        "sub1Em": "\"what do you want to do with this?\"",
-        "sub2": " — assuming you should deal with it now. We ask ",
-        "sub2Em": "\"when do you want to see this?\"",
-        "recommended": "Recommended",
-        "rowLabels": {
-          "delivery": "Delivery",
-          "urgency": "Urgency",
-          "priority": "Priority",
-          "quietHours": "Quiet hours",
-          "philosophy": "Philosophy"
-        },
+        "titlePre": "La mayoría de bandejas te lo muestran todo, ",
+        "titleEm": "lo más nuevo primero.",
+        "recommended": "Recomendado",
         "gmail": {
-          "name": "Gmail",
-          "ask": "\"Here's everything, the moment it arrived.\"",
-          "delivery": "Immediate",
-          "urgency": "Manual filters",
-          "priority": "Manual sorting",
-          "quietHours": "No",
-          "philosophy": "Universal access",
-          "priceBold": "Free",
-          "priceRest": " · no batching or prioritisation"
+          "name": "Gmail + Gemini",
+          "ask": "\"Aquí está todo, lo más nuevo primero. Pregunta a Gemini si necesitas ayuda.\"",
+          "priceBold": "Gratis",
+          "priceRest": " · las funciones de Gemini dependen de tu plan de Google",
+          "priority": "Lo más nuevo primero",
+          "categories": "Pestañas fijas y etiquetas manuales",
+          "delivery": "Inmediata",
+          "ai": "Resume o redacta un correo cuando se lo pides",
+          "providers": "Cuentas de Google"
         },
         "bearlymail": {
           "name": "BearlyMail",
-          "ask": "\"Only the most important emails.\"",
-          "delivery": "Batched on your schedule",
-          "urgency": "AI learns what's urgent to you",
-          "priority": "0–100 score per message",
-          "quietHours": "Default on, fully tunable",
-          "philosophy": "Respect focus time",
-          "priceBold": "From $15 / mo USD",
-          "priceRest": " · waitlist members get a lifetime discount"
+          "ask": "\"Aquí está lo importante, ya ordenado.\"",
+          "priceBold": "Desde 5 USD / mes",
+          "priceRest": " · 7 días de prueba gratis",
+          "priority": "Cada correo puntuado de 0 a 100",
+          "categories": "Agrupado automáticamente, aprende tus categorías",
+          "delivery": "Por lotes en tu horario; lo urgente llega al momento",
+          "ai": "Trabaja sobre toda tu bandeja, automáticamente",
+          "providers": "Google Workspace, Office365 y Zoho"
         },
         "superhuman": {
           "name": "Superhuman",
-          "ask": "\"Keyboard shortcuts are the solution to everything!\"",
-          "delivery": "Immediate",
-          "urgency": "Manual filters",
-          "priority": "Manual sorting",
-          "quietHours": "No",
-          "philosophy": "Speed & efficiency",
-          "priceBold": "$30 / mo",
-          "priceRest": " · fast, but still shows everything"
+          "ask": "\"Despacha todo más rápido.\"",
+          "priceBold": "30 USD / mes",
+          "priceRest": " · rápido, pero sigue mostrándolo todo",
+          "priority": "Lo más nuevo primero",
+          "categories": "Bandejas divididas que configuras tú",
+          "delivery": "Inmediata",
+          "ai": "Ayuda para redactar y resúmenes",
+          "providers": "Gmail y Outlook"
+        },
+        "sub": "BearlyMail cambia qué ves y cuándo: el correo importante sube arriba, el resto se agrupa en categorías y lo que no es urgente espera a tu próximo lote.",
+        "rowLabels": {
+          "priority": "Prioridad",
+          "categories": "Categorías",
+          "delivery": "Entrega",
+          "ai": "IA",
+          "providers": "Compatible con"
+        },
+        "gemini": {
+          "title": "¿Ya usas Gemini en Gmail?",
+          "body": "Gemini te ayuda con un correo cada vez, cuando se lo pides: un resumen por aquí, un borrador por allá, dentro de la misma bandeja ordenada por fecha. BearlyMail cambia la bandeja en sí: cada mensaje priorizado, categorizado y agrupado en lotes antes de que lo abras. Y funciona con Office365 y Zoho, además de Google Workspace."
         }
       },
       "founder": {
@@ -2782,8 +2724,7 @@
         "quoteEm": "quietly destroying",
         "quoteAfter": " my ability to focus. Every new message gave me a dopamine hit. My inbox was a slot machine.”",
         "name": "Jeremy Nagel",
-        "role": "Founder & CEO, BearlyMail",
-        "previously": "Previously built Focus Bear",
+        "role": "Fundador y CEO de BearlyMail y Focus Bear",
         "readStory": "Read the full story",
         "paragraphs": {
           "p1": "Every new email gave me a dopamine hit. It could be a new customer, an investor, something exciting — and that possibility kept pulling me back to my inbox.",
@@ -2824,8 +2765,8 @@
             "a": "Probably not. Most replies that feel \"instant\" are really under an hour, which still happens with 3× daily delivery. For people you always want to hear from immediately, mark them as VIPs and their email skips the batch."
           },
           "providers": {
-            "q": "Will it work with Gmail, Outlook, or iCloud?",
-            "a": "Yes. BearlyMail sits on top of your existing account. No migration, no new email address. Gmail and Microsoft 365 are supported at launch; iCloud and Fastmail follow shortly after."
+            "q": "¿Con qué proveedores de correo funciona?",
+            "a": "Con Google Workspace y Gmail, Office365 y Outlook, y Zoho Mail. BearlyMail funciona sobre tu cuenta actual: sin migraciones ni dirección nueva."
           },
           "calendar": {
             "q": "¿Funciona con mi calendario?",
@@ -2835,74 +2776,63 @@
             "q": "Can I peek at what’s being held?",
             "a": "Technically yes, by opening Gmail or Outlook directly. We recommend blocking those sites and apps during focus time using <focusBear>Focus Bear</focusBear> so the temptation doesn't pull you back in."
           },
-          "ai": {
-            "q": "Is my email content sent to an AI?",
-            "a": "Yes, that's how summaries and prioritisation work. We use OpenAI and Gemini under contracts that block training on your data. Nothing is used to improve their models, and we never sell data. Full export and full delete, any time."
-          },
           "gmailImportant": {
             "q": "How is this different from Gmail’s \"Important\" or Snooze?",
             "a": "Gmail's Important label still shows you everything immediately, just sorted differently. Snooze still relies on you to triage every email first. BearlyMail flips the default: nothing arrives unless you've decided to be interrupted, or unless it's actually urgent."
           },
           "price": {
-            "q": "What does it cost?",
-            "a": "From $15 USD / month at launch. Waitlist members get a lifetime discount and the first month free."
+            "q": "¿Cuánto cuesta?",
+            "a": "Desde 5 USD al mes, según la cantidad de correo que recibas."
           },
           "cancel": {
-            "q": "What happens if I cancel?",
-            "a": "Nothing is lost. BearlyMail sits on top of Gmail or Outlook, so every email is still there in your normal account. Cancel any time and your inbox goes back to standard delivery."
+            "q": "¿Qué pasa si cancelo?",
+            "a": "No pierdes nada. BearlyMail funciona sobre tu cuenta de Google, Microsoft o Zoho, así que todos tus correos siguen ahí. Cancela cuando quieras y vuelve sin más a tu bandeja de siempre."
+          },
+          "categories": {
+            "q": "¿Cómo decide BearlyMail las categorías?",
+            "a": "Al conectar tu cuenta, BearlyMail revisa tu correo reciente para sugerir categorías que encajen con tu trabajo: clientes, proyectos, notificaciones, recibos, etc. El correo nuevo se ordena en ellas automáticamente. Puedes renombrar, fusionar o añadir categorías y mover cualquier correo, y BearlyMail aprende de cada corrección."
+          },
+          "aiProviders": {
+            "q": "¿Qué proveedores de IA procesan mi correo y para qué?",
+            "a": "Usamos OpenAI, Google Gemini y Amazon Bedrock (modelos Amazon Nova) para resumir correos, puntuar la prioridad, ordenar el correo en categorías y redactar respuestas. Las decisiones rápidas de sí/no o de opción múltiple —como a qué categoría pertenece un correo o si parece phishing— pasan primero por Jev, un pequeño modelo de clasificación de TypeSafe AI (alojado en EE. UU.). Todos estos proveedores se comprometen a no entrenar sus modelos con tu correo."
+          },
+          "aiData": {
+            "q": "¿Qué se envía exactamente a la IA?",
+            "a": "Solo lo que la tarea necesita: por ejemplo, el correo que se resume o el hilo al que respondes, junto con las prioridades y categorías que has definido. A los datos que BearlyMail guarda para aprender tus preferencias se les quitan antes los datos personales, como teléfonos, direcciones o datos bancarios."
+          },
+          "aiTraining": {
+            "q": "¿Se usa mi correo para entrenar modelos de IA?",
+            "a": "No. Todos los proveedores de IA que usamos —OpenAI, Google Gemini, Amazon Bedrock y TypeSafe AI (Jev)— se comprometen a no entrenar sus modelos con tus datos, y nunca los vendemos. Puedes exportarlo o eliminarlo todo cuando quieras."
+          },
+          "aiActions": {
+            "q": "¿La IA enviará o archivará correos sin mí?",
+            "a": "No, salvo que tú lo actives. Los borradores de respuesta solo se envían cuando tú los envías. La respuesta automática viene desactivada y solo responde a los tipos de correo que elijas. Las reglas de archivado automático solo se aplican a las categorías que hayas activado."
+          },
+          "aiLearning": {
+            "q": "¿Cómo aprende mis prioridades?",
+            "a": "De lo que haces: a quién respondes rápido, qué marcas con estrella, qué archivas sin leer y cada puntuación o categoría que corriges. También puedes decírselo directamente marcando remitentes VIP e indicando en qué estás trabajando."
+          },
+          "ownKey": {
+            "q": "¿Puedo usar mi propia clave de API de IA?",
+            "a": "Sí. Añade tu propia clave de API de OpenAI o Anthropic en Ajustes y BearlyMail la usará para tus solicitudes en lugar de la nuestra."
+          },
+          "trial": {
+            "q": "¿Hay una prueba gratuita?",
+            "a": "Sí. Cada cuenta nueva empieza con 7 días de prueba gratis con priorización y categorización por IA completas, para que veas la diferencia en tu propia bandeja antes de pagar."
           }
         }
       },
       "ctaFinal": {
-        "titlePre": "Take back your ",
-        "titleEm": "focus.",
-        "body": "Regístrate en segundos, conecta tu correo y deja que BearlyMail empiece a agrupar el ruido hoy mismo — para quienes necesitan pensar.",
-        "emailLabel": "Email address",
-        "emailPlaceholder": "you@work.com",
-        "submit": "Reserve my spot →",
-        "meta": "Gratis para empezar · conecta Gmail, Outlook o Zoho · cancela cuando quieras"
+        "titlePre": "Recupera tu ",
+        "titleEm": "concentración.",
+        "body": "Regístrate en segundos, conecta tu bandeja y deja que BearlyMail priorice, categorice y agrupe tu correo desde hoy, para quienes necesitan pensar.",
+        "meta": "7 días de prueba gratis · después desde 5 USD / mes · funciona con Google Workspace, Office365 y Zoho"
       },
       "footer": {
         "copyright": "© 2026 BearlyMail",
         "privacy": "Privacy",
         "terms": "Terms",
         "contact": "Contact"
-      },
-      "modal": {
-        "titlePre": "You're nearly in. ",
-        "titleEm": "Tell us",
-        "titleAfter": " a bit more.",
-        "sub": "We'll use this to invite the right people to the beta first. Takes 30 seconds.",
-        "firstName": "First name",
-        "firstNamePlaceholder": "Jeremy",
-        "email": "Email",
-        "emailPlaceholder": "you@work.com",
-        "systemLabel": "Which email system do you use?",
-        "systemPlaceholder": "Select your email system",
-        "systems": {
-          "gmail": "Gmail / Google Workspace",
-          "outlook": "Outlook / Microsoft 365",
-          "icloud": "iCloud Mail",
-          "protonmail": "ProtonMail",
-          "fastmail": "Fastmail",
-          "zoho": "Zoho Mail",
-          "other": "Other"
-        },
-        "why": "Why do you want to use BearlyMail?",
-        "whyPlaceholder": "e.g. Email destroys my focus, I have ADHD, I want fewer interruptions…",
-        "whyHint": "Optional but helps us prioritise invites.",
-        "cancel": "Cancel",
-        "submit": "Reserve my spot →",
-        "submitting": "Submitting…",
-        "error": "Failed to submit. Please try again.",
-        "alreadyOnList": "Ya estás en la lista — ¡te contactaremos pronto!",
-        "success": {
-          "title": "You're on the list.",
-          "body": "We'll be in touch when your spot opens. In the meantime, read the founder story, or close this and let your inbox stop interrupting you.",
-          "close": "Close",
-          "readStory": "Read the story"
-        },
-        "closeLabel": "Close"
       },
       "github": {
         "kicker": "Extra para ingeniería",
@@ -2941,25 +2871,81 @@
           "trigger": "Disparador:"
         },
         "collapsedHint": "Leer luego en tu próximo lote"
+      },
+      "video": {
+        "title": "Recorrido por BearlyMail",
+        "caption": "Mira cómo BearlyMail prioriza y categoriza una bandeja real.",
+        "comingSoon": "Vídeo del producto muy pronto"
+      },
+      "who": {
+        "kicker": "Para quién es",
+        "titlePre": "Para quienes reciben ",
+        "titleEm": "muchísimo",
+        "titleAfter": " correo.",
+        "sub": "Si tu bandeja decide cómo va tu día, BearlyMail te devuelve esa decisión. Y ayuda especialmente si tienes TDAH.",
+        "audiences": {
+          "founders": {
+            "title": "Fundadores",
+            "body": "Inversores, clientes, candidatos y proveedores llegan a la misma bandeja. Ve primero los correos que mueven el negocio y deja que el resto espere."
+          },
+          "productManagers": {
+            "title": "Product managers",
+            "body": "Las escalaciones de clientes y las preguntas de dirección suben arriba; los resúmenes de estado y los hilos informativos se agrupan aparte.",
+            "link": "BearlyMail para product managers →"
+          },
+          "consultants": {
+            "title": "Consultores",
+            "body": "¿Varios clientes a la vez? El correo de cada cliente se categoriza y se prioriza, para que nadie espere una respuesta que quedó enterrada."
+          },
+          "engineeringManagers": {
+            "title": "Engineering managers",
+            "body": "Las alertas de producción y los PR que esperan tu revisión llegan al momento; el ruido de CI y los cambios de calendario esperan a tu bloque de concentración.",
+            "link": "BearlyMail para engineering managers →"
+          }
+        }
+      },
+      "security": {
+        "kicker": "Seguridad y privacidad",
+        "titlePre": "Tu correo es sensible. ",
+        "titleEm": "Lo tratamos así.",
+        "sub": "BearlyMail lee tu correo para poder priorizarlo y categorizarlo. Así lo protegemos.",
+        "audit": {
+          "title": "Auditoría de seguridad independiente",
+          "body": "BearlyMail ha pasado una evaluación de seguridad independiente realizada por TAC Security dentro del programa CASA (Cloud Application Security Assessment) de Google, la revisión que Google exige antes de que una app pueda acceder a datos de Gmail."
+        },
+        "points": {
+          "encrypted": {
+            "title": "Cifrado en reposo",
+            "body": "El contenido, las direcciones y los asuntos de tus correos se cifran en nuestra base de datos con AES-256-GCM."
+          },
+          "transit": {
+            "title": "Cifrado en tránsito",
+            "body": "Todas las conexiones —entre tú, BearlyMail y tu proveedor de correo— usan TLS."
+          },
+          "neverSold": {
+            "title": "Nunca vendemos tus datos",
+            "body": "Ganamos dinero con las suscripciones, no con tus datos. Nunca los vendemos ni los usamos para publicidad."
+          },
+          "noTraining": {
+            "title": "No se usan para entrenar IA",
+            "body": "Todos los proveedores de IA que usamos se comprometen a no entrenar sus modelos con tu correo."
+          },
+          "control": {
+            "title": "Tú tienes el control",
+            "body": "Exporta o elimina tus datos cuando quieras. Si desconectas BearlyMail, tu cuenta de correo queda tal como está."
+          }
+        }
       }
     },
     "em": {
       "hero": {
-        "eyebrow": "Para managers de ingeniería · Ahora en beta abierta",
+        "eyebrow": "Para engineering managers",
         "titlePre": "Detecta el incidente,",
         "titleEm": "no el ping",
         "titlePostEm": "",
         "titleAfter": " del stand-up.",
         "lead": "BearlyMail muestra el PR esperando tu review, el fallo de CI en main y la alerta de producción. Lo demás espera a tu bloque de foco. Para líderes de ingeniería que no quieren clasificar su bandeja de entrada a las 2am.",
-        "emailLabel": "Email de trabajo",
-        "emailPlaceholder": "tu@empresa.com",
-        "submit": "Unirme a la lista →",
-        "benefits": {
-          "noSpam": "Sin spam",
-          "followUp": "Una breve pregunta de seguimiento",
-          "unsubscribe": "Cancelar suscripción cuando quieras"
-        },
-        "builtFor": "Para managers de ingeniería y tech leads"
+        "builtFor": "Hecho para engineering managers y tech leads, y especialmente amable con las mentes con TDAH."
       },
       "demo": {
         "title": "BearlyMail · martes, 14:23",
@@ -3028,21 +3014,13 @@
     },
     "pm": {
       "hero": {
-        "eyebrow": "Para product managers · Ahora en beta abierta",
+        "eyebrow": "Para product managers",
         "titlePre": "Encuentra la escalación del cliente,",
         "titleEm": "no el resumen",
         "titlePostEm": "",
         "titleAfter": " del stand-up.",
         "lead": "BearlyMail muestra al cliente que se va, al ejecutivo que necesita respuesta hoy, y el bloqueante de ingeniería que retrasa el release. Digests de estado, invitaciones de calendario e hilos FYI esperan al próximo lote. Para product managers que prefieren enviar a clasificar.",
-        "emailLabel": "Email de trabajo",
-        "emailPlaceholder": "tu@empresa.com",
-        "submit": "Unirme a la lista →",
-        "benefits": {
-          "noSpam": "Sin spam",
-          "followUp": "Una breve pregunta de seguimiento",
-          "unsubscribe": "Cancelar suscripción cuando quieras"
-        },
-        "builtFor": "Para product managers y líderes de producto"
+        "builtFor": "Hecho para product managers y responsables de producto, y especialmente amable con las mentes con TDAH."
       },
       "demo": {
         "title": "BearlyMail · miércoles, 09:18",

@@ -1,6 +1,22 @@
-/* eslint-disable i18next/no-literal-string */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+
+const PROBLEM_PREFIX = 'landing.v2.problem';
+
+/** Inbox rows in time order; the important ones sink below the chatter. */
+const BURIED_ROWS = [
+  { id: 'lunch', important: false },
+  { id: 'offsite', important: false },
+  { id: 'investor', important: true },
+  { id: 'customer', important: true },
+] as const;
+
+/** Wildly different emails that all arrive with identical visual weight. */
+const EQUAL_WEIGHT_ROWS = ['sale', 'churn', 'digest'] as const;
+
+/** The final stat is the punchline and is styled as a running total. */
+const ENGINE_TOTAL_STAT = 'total';
+const ENGINE_STATS = ['emails', 'decide', ENGINE_TOTAL_STAT] as const;
 
 export const ProblemSection: React.FC = () => {
   const { t } = useTranslation();
@@ -8,100 +24,95 @@ export const ProblemSection: React.FC = () => {
     <section className="section-band">
       <div className="wrap">
         <div className="section-head">
-          <span className="kicker">{t('landing.v2.problem.kicker')}</span>
+          <span className="kicker">{t(`${PROBLEM_PREFIX}.kicker`)}</span>
           <h2 className="section-title">
-            {t('landing.v2.problem.titlePre')}
-            <em>{t('landing.v2.problem.titleEm')}</em>
-            {t('landing.v2.problem.titleAfter')}
+            {t(`${PROBLEM_PREFIX}.titlePre`)}
+            <em>{t(`${PROBLEM_PREFIX}.titleEm`)}</em>
+            {t(`${PROBLEM_PREFIX}.titleAfter`)}
           </h2>
-          <p className="section-sub">{t('landing.v2.problem.sub')}</p>
+          <p className="section-sub">{t(`${PROBLEM_PREFIX}.sub`)}</p>
         </div>
 
         <div className="problems">
-          <BuriedCard />
-          <EquallyUrgentCard />
-          <EngineCard />
+          <ProblemCard cardKey="buried" number={1}>
+            <BuriedMini />
+          </ProblemCard>
+          <ProblemCard cardKey="equallyUrgent" number={2}>
+            <EqualWeightMini />
+          </ProblemCard>
+          <ProblemCard cardKey="engine" number={3}>
+            <EngineMini />
+          </ProblemCard>
         </div>
       </div>
     </section>
   );
 };
 
-const BuriedCard: React.FC = () => {
+interface ProblemCardProps {
+  cardKey: string;
+  number: number;
+  children: React.ReactNode;
+}
+
+/** Card rows (number, title, body, visual) sit on a shared subgrid so every
+ * card's title, copy and mini-visual line up across the row. */
+const ProblemCard: React.FC<ProblemCardProps> = ({ cardKey, number, children }) => {
   const { t } = useTranslation();
   return (
-    <div className="problem-card">
-      <div className="num">01</div>
-      <h3>{t('landing.v2.problem.cards.buried.title')}</h3>
-      <p>{t('landing.v2.problem.cards.buried.body')}</p>
-      <div className="demo-mini">
-        <div className="row">
-          <span>Re: Lunch?</span>
-          <b>10:42</b>
-        </div>
-        <div className="row strike">
-          <span>Investor follow-up</span>
-          <span>09:18</span>
-        </div>
-        <div className="row strike">
-          <span>Major customer issue</span>
-          <span>Yesterday</span>
-        </div>
+    <article className="problem-card">
+      <span className="problem-num">{String(number).padStart(2, '0')}</span>
+      <h3>{t(`${PROBLEM_PREFIX}.cards.${cardKey}.title`)}</h3>
+      <p>{t(`${PROBLEM_PREFIX}.cards.${cardKey}.body`)}</p>
+      <div className="problem-mini" aria-hidden="true">
+        {children}
       </div>
-    </div>
+    </article>
   );
 };
 
-const EquallyUrgentCard: React.FC = () => {
+const BuriedMini: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <div className="problem-card">
-      <div className="num">02</div>
-      <h3>{t('landing.v2.problem.cards.equallyUrgent.title')}</h3>
-      <p>{t('landing.v2.problem.cards.equallyUrgent.body')}</p>
-      <div className="demo-mini">
-        <div className="row">
-          <span>Black Friday — 50% off!</span>
-          <b className="mini-muted">{t('landing.v2.problem.minis.urgentQuestion')}</b>
-        </div>
-        <div className="row">
-          <span>Your weekly digest</span>
-          <b className="mini-muted">{t('landing.v2.problem.minis.urgentQuestion')}</b>
-        </div>
-        <div className="row">
-          <span>Receipt #7842</span>
-          <b className="mini-muted">{t('landing.v2.problem.minis.urgentQuestion')}</b>
-        </div>
-      </div>
-    </div>
+    <ul className="mini-list">
+      {BURIED_ROWS.map(row => (
+        <li key={row.id} className={row.important ? 'mini-row mini-row-buried' : 'mini-row'}>
+          <span className="mini-subject">{t(`${PROBLEM_PREFIX}.minis.buried.${row.id}`)}</span>
+          {row.important && (
+            <span className="mini-tag mini-tag-important">{t(`${PROBLEM_PREFIX}.minis.buried.importantTag`)}</span>
+          )}
+          <span className="mini-meta">{t(`${PROBLEM_PREFIX}.minis.buried.${row.id}Time`)}</span>
+        </li>
+      ))}
+    </ul>
   );
 };
 
-const EngineCard: React.FC = () => {
+const EqualWeightMini: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <div className="problem-card">
-      <div className="num">03</div>
-      <h3>{t('landing.v2.problem.cards.engine.title')}</h3>
-      <p>{t('landing.v2.problem.cards.engine.body')}</p>
-      <div className="demo-mini">
-        <div className="row">
-          <span className="mini-accent">{t('landing.v2.problem.minis.decide')}</span>
-          <b>0.4s</b>
-        </div>
-        <div className="row">
-          <span className="mini-accent">{t('landing.v2.problem.minis.decide')}</span>
-          <b>0.6s</b>
-        </div>
-        <div className="row">
-          <span className="mini-accent">{t('landing.v2.problem.minis.open')}</span>
-          <b>15s</b>
-        </div>
-        <div className="row">
-          <span>{t('landing.v2.problem.minis.messagesToday')}</span>
-          <b className="mini-red">{t('landing.v2.problem.minis.wasted')}</b>
-        </div>
-      </div>
-    </div>
+    <ul className="mini-list">
+      {EQUAL_WEIGHT_ROWS.map(rowId => (
+        <li key={rowId} className="mini-row">
+          <span className="mini-unread" />
+          <span className="mini-subject">{t(`${PROBLEM_PREFIX}.minis.equallyUrgent.${rowId}`)}</span>
+          <span className="mini-tag">{t(`${PROBLEM_PREFIX}.minis.equallyUrgent.newTag`)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+const EngineMini: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <ul className="mini-list">
+      {ENGINE_STATS.map(statKey => (
+        <li key={statKey} className={statKey === ENGINE_TOTAL_STAT ? 'mini-row mini-row-total' : 'mini-row'}>
+          <span className="mini-subject">{t(`${PROBLEM_PREFIX}.minis.engine.${statKey}`)}</span>
+          <span className="mini-value">{t(`${PROBLEM_PREFIX}.minis.engine.${statKey}Value`)}</span>
+        </li>
+      ))}
+    </ul>
   );
 };

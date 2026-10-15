@@ -1,16 +1,16 @@
-// Self-hosted landing-page font stack. Imported here rather than loaded from the
-// Google Fonts CDN at runtime so we don't relax the strict CSP or leak visitor IPs
-// to a third party. Weights mirror the previous css2 request:
-//   Inter 400/500/600/700/800, Instrument Serif 400 (roman + italic), JetBrains Mono 400/500.
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
-import '@fontsource/inter/600.css';
-import '@fontsource/inter/700.css';
-import '@fontsource/inter/800.css';
-import '@fontsource/instrument-serif/400.css';
-import '@fontsource/instrument-serif/400-italic.css';
-import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
+// Self-hosted landing-page font pairing, bundled rather than loaded from the Google
+// Fonts CDN so we don't relax the strict CSP or leak visitor IPs to a third party.
+// Bricolage Grotesque gives headings warmth and character; Lexend was designed to
+// reduce visual stress and improve reading fluency, which suits an ADHD-first audience.
+import '@fontsource/bricolage-grotesque/500.css';
+import '@fontsource/bricolage-grotesque/600.css';
+import '@fontsource/bricolage-grotesque/700.css';
+import '@fontsource/bricolage-grotesque/800.css';
+import '@fontsource/lexend/300.css';
+import '@fontsource/lexend/400.css';
+import '@fontsource/lexend/500.css';
+import '@fontsource/lexend/600.css';
+import '@fontsource/lexend/700.css';
 
 /**
  * Shared by every landing-v2 page so the font wiring lives in one place. The font

@@ -9,7 +9,10 @@ import {
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
-import { SuggestedRepliesService } from "./suggested-replies.service";
+import {
+  hasCurrentOptions,
+  SuggestedRepliesService,
+} from "./suggested-replies.service";
 
 @Controller("suggested-replies")
 @UseGuards(JwtAuthGuard)
@@ -33,8 +36,15 @@ export class SuggestedRepliesController {
       return { options: null, isGenerating: false };
     }
 
+    const latestEmailId = await this.suggestedRepliesService.findLatestEmailId(
+      req.user.userId,
+      threadId,
+    );
+
     return {
-      options: suggestedReply.options,
+      options: hasCurrentOptions(suggestedReply, latestEmailId)
+        ? suggestedReply.options
+        : [],
       isGenerating: suggestedReply.isGenerating,
       lastEmailId: suggestedReply.lastEmailId,
       updatedAt: suggestedReply.updatedAt,

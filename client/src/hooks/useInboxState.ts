@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
 import {
+  LAST_INBOX_MODE_STORAGE_KEY,
   MODE_ACTION,
   MODE_AUTORESPONDED,
   MODE_BLOCKED,
@@ -339,7 +340,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // survives page refreshes and direct-URL access (see EmailDetailSidebar, getInboxPath).
   useEffect(() => {
     try {
-      sessionStorage.setItem('bearlymail_lastInboxMode', mode);
+      sessionStorage.setItem(LAST_INBOX_MODE_STORAGE_KEY, mode);
       sessionStorage.setItem('bearlymail_lastBasePath', basePath);
     } catch {
       // sessionStorage unavailable — back navigation falls back to /inbox (no regression)

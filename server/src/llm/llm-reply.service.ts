@@ -22,6 +22,7 @@ import {
   renderPrompt,
   REPLY_PROMPT_IDS,
 } from "./prompts";
+import type { ReplyPerspective } from "./reply-perspective";
 
 /** Returned by detectMeetingProposal when no proposal can be parsed. */
 /** Length of a YYYY-MM-DD date prefix, used to trim any time portion the LLM appends. */
@@ -37,6 +38,18 @@ const EMPTY_MEETING_PROPOSAL = {
   topic: null,
   durationMinutes: null,
 } as const;
+
+export interface ReplyOptionsUserContext {
+  tone?: string;
+  writingStyle?: string;
+  userName?: string;
+  userJobTitle?: string;
+  emailExamples?: string[];
+  calendarLink?: string | null;
+  userInstructions?: string;
+  /** Who writes to whom; without it the prompt assumes a normal reply. */
+  perspective?: ReplyPerspective;
+}
 
 /**
  * Domain service for LLM-powered reply generation (options, drafts, meeting replies, follow-ups).
@@ -96,15 +109,7 @@ export class LLMReplyService {
       subject: string;
       body: string;
     },
-    userContext: {
-      tone?: string;
-      writingStyle?: string;
-      userName?: string;
-      userJobTitle?: string;
-      emailExamples?: string[];
-      calendarLink?: string | null;
-      userInstructions?: string;
-    },
+    userContext: ReplyOptionsUserContext,
     provider?: LLMProvider,
     userId?: string,
     threadMessages?: Array<{
@@ -143,10 +148,15 @@ export class LLMReplyService {
     const userInstructions = userContext.userInstructions || "";
 
     const threadContext = this.buildReplyThreadContext(threadMessages);
+    const { perspective } = userContext;
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone,
       userName,
       userJobTitle,
+      userEmail: perspective?.userEmail ?? "",
+      isFollowUp: perspective?.isFollowUp ?? false,
+      recipientName: perspective?.recipientName ?? "",
+      recipientEmail: perspective?.recipientEmail ?? "",
       emailExamples,
       hasEmailExamples: emailExamples.length > 0,
       calendarLink,

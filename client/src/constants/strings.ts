@@ -56,6 +56,9 @@ export type InboxModeType =
   | typeof MODE_AUTORESPONDED
   | typeof MODE_SCHEDULED;
 
+/** sessionStorage key holding the inbox mode the user last viewed (written by useInboxState). */
+export const LAST_INBOX_MODE_STORAGE_KEY = 'bearlymail_lastInboxMode';
+
 // Reply modes
 export const REPLY_MODE_REPLY = 'reply' as const;
 export const REPLY_MODE_REPLY_ALL = 'replyAll' as const;

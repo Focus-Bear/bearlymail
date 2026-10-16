@@ -34,7 +34,7 @@ describe("CategorisationProgressService", () => {
     });
   });
 
-  it("scopes the count to untriaged, non-archived threads and treats isProcessingPriority=false as settled", async () => {
+  it("scopes the count to untriaged, non-archived threads", async () => {
     emailThreadRepository.query.mockResolvedValue([
       { total: 0, categorised: 0 },
     ]);
@@ -44,10 +44,26 @@ describe("CategorisationProgressService", () => {
     const [sql, params] = emailThreadRepository.query.mock.calls[0];
     expect(sql).toContain('"isArchived" = false');
     expect(sql).toContain('"starCount" = $2');
-    expect(sql).toContain('FILTER (WHERE "isProcessingPriority" = false)');
     // Never decrypts or touches categoryId: NULL is a valid settled "Other".
     expect(sql).not.toContain("categoryId");
     expect(params).toEqual(["user-1", STAR_COUNTS.NONE]);
+  });
+
+  it("only counts a thread as categorised once a categoriser wrote its result or AI was deferred", async () => {
+    emailThreadRepository.query.mockResolvedValue([
+      { total: 0, categorised: 0 },
+    ]);
+
+    await service.getProgress("user-1");
+
+    const [sql] = emailThreadRepository.query.mock.calls[0];
+    const filter = sql.slice(sql.indexOf("FILTER"));
+    // isProcessingPriority=false alone is not proof: failure paths clear it
+    // without any categoriser having run.
+    expect(filter).toContain('"isProcessingPriority" = false');
+    expect(filter).toContain('"prioritySource" IS NOT NULL');
+    expect(filter).toContain('"categorySource" IS NOT NULL');
+    expect(filter).toContain('"aiProcessingDeferred" = true');
   });
 
   it("parses string counts returned by the pg driver", async () => {

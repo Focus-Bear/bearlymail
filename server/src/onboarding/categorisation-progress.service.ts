@@ -5,6 +5,10 @@ import { Repository } from "typeorm";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
 
+const SETTLED_THREAD_PREDICATE = `"aiProcessingDeferred" = true
+  OR ("isProcessingPriority" = false
+      AND ("prioritySource" IS NOT NULL OR "categorySource" IS NOT NULL))`;
+
 export interface CategorisationProgress {
   /** Untriaged, non-archived threads the user will land on in the inbox. */
   total: number;
@@ -23,9 +27,13 @@ interface CategorisationProgressRow {
  * inbox opens organised instead of as a wall of "Other".
  *
  * `categoryId IS NULL` cannot be the signal: NULL is also the settled answer
- * "Other". `isProcessingPriority` is set when a new email lands and cleared
- * once the refine job (rules → local model → LLM) has written its category,
- * on failure, and when AI work is deferred — so it means "still waiting".
+ * "Other". `isProcessingPriority = false` alone is not enough either — it is
+ * also false on paths where no categoriser ever ran (refine-job failure,
+ * queueing failure), which would let the user in early. So a thread only
+ * counts once a categoriser has positively written its result
+ * (`prioritySource` / `categorySource`, set by the rule, local-model and LLM
+ * writers), or AI was deliberately deferred (it will never be categorised
+ * now, so waiting on it is pointless).
  */
 @Injectable()
 export class CategorisationProgressService {
@@ -38,7 +46,7 @@ export class CategorisationProgressService {
     const rows = (await this.emailThreadRepository.query(
       `SELECT
          COUNT(*)::int AS total,
-         COUNT(*) FILTER (WHERE "isProcessingPriority" = false)::int AS categorised
+         COUNT(*) FILTER (WHERE ${SETTLED_THREAD_PREDICATE})::int AS categorised
        FROM email_threads
        WHERE "userId" = $1
          AND "isArchived" = false

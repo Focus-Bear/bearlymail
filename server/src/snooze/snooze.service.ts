@@ -11,7 +11,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { getJobPriority } from "../queue/job-priorities";
-import { parseDurationToDate } from "./parse-duration";
+import { resolveSnoozeUntil } from "./resolve-snooze-until";
 
 export interface BulkSnoozeResult {
   snoozedEmailIds: string[];
@@ -38,6 +38,7 @@ export class SnoozeService {
     emailId: string,
     duration: string,
     locale = "en",
+    requestedSnoozeUntil?: string,
   ): Promise<{ id: string; isSnoozed: boolean; snoozeUntil: Date }> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
@@ -47,7 +48,11 @@ export class SnoozeService {
       throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
-    const snoozeUntil = this.parseDuration(duration, locale);
+    const snoozeUntil = resolveSnoozeUntil(
+      duration,
+      locale,
+      requestedSnoozeUntil,
+    );
 
     const thread = await this.findThreadForEmail(email, emailId);
 
@@ -99,12 +104,17 @@ export class SnoozeService {
     emailIds: string[],
     duration: string,
     locale = "en",
+    requestedSnoozeUntil?: string,
   ): Promise<BulkSnoozeResult> {
     if (emailIds.length === 0) {
       return { snoozedEmailIds: [], threadCount: 0, snoozeUntil: null };
     }
 
-    const snoozeUntil = this.parseDuration(duration, locale);
+    const snoozeUntil = resolveSnoozeUntil(
+      duration,
+      locale,
+      requestedSnoozeUntil,
+    );
 
     // Only plaintext columns: hydrating full entities would decrypt fields this
     // path never reads (see the comment in SnoozeProcessor for the same trap).
@@ -260,9 +270,5 @@ export class SnoozeService {
     }
 
     return thread;
-  }
-
-  private parseDuration(duration: string, locale = "en"): Date {
-    return parseDurationToDate(duration, new Date(), locale);
   }
 }

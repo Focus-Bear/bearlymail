@@ -11,6 +11,13 @@ import {
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BulkSnoozeResult, SnoozeService } from "./snooze.service";
 
+interface SnoozeRequestBody {
+  duration: string;
+  locale?: string;
+  /** ISO instant the client resolved `duration` to in the user's timezone. */
+  snoozeUntil?: string;
+}
+
 @Controller("snooze")
 @UseGuards(JwtAuthGuard)
 export class SnoozeController {
@@ -20,13 +27,14 @@ export class SnoozeController {
   @Post("bulk")
   async bulkSnoozeEmails(
     @Request() req,
-    @Body() body: { emailIds: string[]; duration: string; locale?: string },
+    @Body() body: SnoozeRequestBody & { emailIds: string[] },
   ): Promise<BulkSnoozeResult> {
     return this.snoozeService.bulkSnoozeEmails(
       req.user.userId,
       body.emailIds,
       body.duration,
       body.locale,
+      body.snoozeUntil,
     );
   }
 
@@ -34,13 +42,14 @@ export class SnoozeController {
   async snoozeEmail(
     @Request() req,
     @Param("id") id: string,
-    @Body() body: { duration: string; locale?: string },
+    @Body() body: SnoozeRequestBody,
   ): Promise<{ id: string; isSnoozed: boolean; snoozeUntil: Date }> {
     return this.snoozeService.snoozeEmail(
       req.user.userId,
       id,
       body.duration,
       body.locale,
+      body.snoozeUntil,
     );
   }
 

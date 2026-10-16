@@ -6,6 +6,7 @@ import { Repository } from "typeorm";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
+import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -381,6 +382,23 @@ describe("SnoozeService", () => {
       jest.useRealTimers();
     });
 
+    it("should persist the client-resolved wake-up time instead of re-parsing in UTC", async () => {
+      const clientSnoozeUntil = new Date(
+        Date.now() + MILLISECONDS.DAY,
+      ).toISOString();
+
+      const result = await service.snoozeEmail(
+        "user-1",
+        "email-1",
+        "tomorrow",
+        "en",
+        clientSnoozeUntil,
+      );
+
+      expect(result.snoozeUntil).toEqual(new Date(clientSnoozeUntil));
+      expect(chrono.parse).not.toHaveBeenCalled();
+    });
+
     it("should default to 1 hour if parsing fails", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       jest.useFakeTimers();
@@ -464,6 +482,56 @@ describe("SnoozeService", () => {
       expect(syncJobs[0][1].snoozeUntil).toBe(wakeUpAt.toISOString());
       // The request must not wait on the provider — that is the job's work.
       expect(emailProviderManager.getPrimaryProvider).not.toHaveBeenCalled();
+    });
+
+    it("should persist the client-resolved wake-up time on every selected thread", async () => {
+      // What the bulk bar's preview showed: "tomorrow" at 8am in the user's
+      // timezone. Parsing "tomorrow" on the UTC server lands hours earlier.
+      const clientSnoozeUntil = new Date(
+        Date.now() + 2 * MILLISECONDS.DAY,
+      ).toISOString();
+
+      const result = await service.bulkSnoozeEmails(
+        "user-1",
+        ["email-1", "email-2", "email-3"],
+        "tomorrow",
+        "en",
+        clientSnoozeUntil,
+      );
+
+      const expected = new Date(clientSnoozeUntil);
+      expect(result.snoozeUntil).toEqual(expected);
+      expect(chrono.parse).not.toHaveBeenCalled();
+      expect(threadRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-1" }),
+        expect.objectContaining({ isSnoozed: true, snoozeUntil: expected }),
+      );
+      expect(repository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-1" }),
+        expect.objectContaining({ isSnoozed: true, snoozeUntil: expected }),
+      );
+      // Still in the future, so the inbox's snooze filter keeps hiding them.
+      expect(expected.getTime()).toBeGreaterThan(Date.now());
+      const syncJobs = boss.send.mock.calls.filter(
+        (call) => call[0] === JOB_NAMES.SNOOZE_THREAD_PROVIDER_SYNC,
+      );
+      expect(syncJobs.map((call) => call[1].snoozeUntil)).toEqual([
+        clientSnoozeUntil,
+        clientSnoozeUntil,
+      ]);
+    });
+
+    it("should fall back to parsing the duration when the client instant is in the past", async () => {
+      const result = await service.bulkSnoozeEmails(
+        "user-1",
+        ["email-1"],
+        "tomorrow 9am",
+        "en",
+        new Date(Date.now() - MILLISECONDS.MINUTE).toISOString(),
+      );
+
+      expect(result.snoozeUntil).toEqual(wakeUpAt);
+      expect(chrono.parse).toHaveBeenCalledTimes(1);
     });
 
     it("should not write anything when none of the ids match an email", async () => {

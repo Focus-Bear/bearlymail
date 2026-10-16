@@ -44,9 +44,15 @@ export class PerformanceTracker {
   private logFile = path.join(LOGS_DIR, "performance.log");
   private cloudWatchService?: CloudWatchService;
 
+  /**
+   * @param totalBudgetMs Explicit total budget for operations that have their
+   *   own named budget; when omitted the budget is derived from the operation
+   *   name and inbox mode (see resolveTotalBudget).
+   */
   constructor(
     private operation: string,
     cloudWatchService?: CloudWatchService,
+    private totalBudgetMs?: number,
   ) {
     this.startTime = Date.now();
     this.cloudWatchService = cloudWatchService;
@@ -66,20 +72,7 @@ export class PerformanceTracker {
   finish(mode?: "triage" | "action" | "follow-up" | "blocked"): void {
     const totalDuration = Date.now() - this.startTime;
     const exceededSpans = this.spans.filter((span) => span.exceeded);
-    let budget: number;
-    if (this.operation === PERFORMANCE_OPERATIONS.PRIORITY_EXPLANATION) {
-      budget = PERF_BUDGETS.PRIORITY_EXPLANATION;
-    } else if (
-      this.operation === PERFORMANCE_OPERATIONS.SEARCH_RELEVANCE_EXPLANATIONS
-    ) {
-      // 3 seconds for all search explanations
-      budget = PERFORMANCE_BUDGETS.SEARCH_RELEVANCE_EXPLANATIONS;
-    } else {
-      budget =
-        mode === EMAIL_MODES.ACTION
-          ? PERF_BUDGETS.INBOX_PROCESS_TOTAL
-          : PERF_BUDGETS.INBOX_TOTAL;
-    }
+    const budget = this.resolveTotalBudget(mode);
     const totalExceeded = totalDuration > budget;
 
     // Emit CloudWatch metrics for performance budget tracking
@@ -144,5 +137,25 @@ export class PerformanceTracker {
         }
       }
     }
+  }
+
+  private resolveTotalBudget(
+    mode?: "triage" | "action" | "follow-up" | "blocked",
+  ): number {
+    if (this.totalBudgetMs !== undefined) {
+      return this.totalBudgetMs;
+    }
+    if (this.operation === PERFORMANCE_OPERATIONS.PRIORITY_EXPLANATION) {
+      return PERF_BUDGETS.PRIORITY_EXPLANATION;
+    }
+    if (
+      this.operation === PERFORMANCE_OPERATIONS.SEARCH_RELEVANCE_EXPLANATIONS
+    ) {
+      // 3 seconds for all search explanations
+      return PERFORMANCE_BUDGETS.SEARCH_RELEVANCE_EXPLANATIONS;
+    }
+    return mode === EMAIL_MODES.ACTION
+      ? PERF_BUDGETS.INBOX_PROCESS_TOTAL
+      : PERF_BUDGETS.INBOX_TOTAL;
   }
 }

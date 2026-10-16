@@ -1,8 +1,30 @@
+import { QUERY_LIMITS } from "../constants/query-limits";
 import {
   appendSignature,
   EMAIL_CONTROLLER_DEFAULTS,
   looksLikeHtml,
+  resolveInboxBatchLimit,
 } from "./email-controller.helpers";
+
+describe("resolveInboxBatchLimit", () => {
+  it("defaults to one inbox page when no limit is sent", () => {
+    expect(resolveInboxBatchLimit()).toBe(QUERY_LIMITS.INBOX_PAGE_SIZE);
+  });
+
+  it("falls back to one page for non-numeric or non-positive limits", () => {
+    expect(resolveInboxBatchLimit("abc")).toBe(QUERY_LIMITS.INBOX_PAGE_SIZE);
+    expect(resolveInboxBatchLimit("0")).toBe(QUERY_LIMITS.INBOX_PAGE_SIZE);
+    expect(resolveInboxBatchLimit("-5")).toBe(QUERY_LIMITS.INBOX_PAGE_SIZE);
+  });
+
+  it("honours a limit within range so refreshes cover paged-in categories", () => {
+    expect(resolveInboxBatchLimit("100")).toBe(100);
+  });
+
+  it("clamps oversized limits to INBOX_TOTAL", () => {
+    expect(resolveInboxBatchLimit("100000")).toBe(QUERY_LIMITS.INBOX_TOTAL);
+  });
+});
 
 describe("appendSignature", () => {
   const multilineSignature = "Regards,\nEkaterine";

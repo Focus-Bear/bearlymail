@@ -17,6 +17,16 @@ export const PERFORMANCE_BUDGETS = {
   INBOX_PROCESS_TOTAL: 1000,
   THREAD_QUERY: 100,
   EMAIL_QUERY: 100,
+  // Inbox category accordion: loading one category's threads. A category is a
+  // subset of the inbox, so it gets the same totals as a full inbox load
+  // (action mode is the slower "process" path), but is tracked under its own
+  // operation name so category loads are visible separately from full loads.
+  INBOX_CATEGORY_FETCH: 500,
+  INBOX_CATEGORY_FETCH_PROCESS: 1000,
+  // Resolving the requested category UUIDs (load + decrypt the user's categories)
+  CATEGORY_SCOPE_RESOLVE: 50,
+  // /emails/inbox-batch: the top accordions' category fetches, run in parallel
+  INBOX_BATCH_PRELOAD: 1000,
   // Search relevance explanations budget (3 seconds for all search explanations)
   SEARCH_RELEVANCE_EXPLANATIONS: 3000,
   // Job performance budgets (in milliseconds)

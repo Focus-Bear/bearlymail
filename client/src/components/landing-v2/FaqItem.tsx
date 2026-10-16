@@ -1,7 +1,7 @@
 import React from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
-const FOCUS_BEAR_URL = 'https://focusbear.io';
+import { FOCUS_BEAR_URL } from './constants';
 
 export const FaqItem: React.FC<{ faqKey: string }> = ({ faqKey }) => {
   const { t } = useTranslation();
@@ -13,7 +13,9 @@ export const FaqItem: React.FC<{ faqKey: string }> = ({ faqKey }) => {
         <Trans
           i18nKey={`landing.v2.faq.items.${faqKey}.a`}
           components={{
-            focusBear: <a href={FOCUS_BEAR_URL} className="focus-bear-link" />,
+            focusBear: (
+              <a href={FOCUS_BEAR_URL} className="focus-bear-link" target="_blank" rel="noopener noreferrer" />
+            ),
           }}
         />
       </p>

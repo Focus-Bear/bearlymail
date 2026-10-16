@@ -1,20 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
-import { STEP_AUTOCYCLE_MS, STEP_COUNT } from './constants';
+import { FOCUS_BEAR_URL, STEP_AUTOCYCLE_MS } from './constants';
+import { StepConnect } from './steps/StepConnect';
 import { StepRanked } from './steps/StepRanked';
 import { StepSchedule } from './steps/StepSchedule';
 import { StepSnooze } from './steps/StepSnooze';
 import { StepUrgency } from './steps/StepUrgency';
 
-const STEP_KEYS = ['urgent', 'schedule', 'ranked', 'snooze'] as const;
-
-const STEP_VISUALS: Record<number, React.FC> = {
-  1: StepUrgency,
-  2: StepSchedule,
-  3: StepRanked,
-  4: StepSnooze,
-};
+const STEPS: { key: string; Visual: React.FC }[] = [
+  { key: 'connect', Visual: StepConnect },
+  { key: 'ranked', Visual: StepRanked },
+  { key: 'urgent', Visual: StepUrgency },
+  { key: 'schedule', Visual: StepSchedule },
+  { key: 'snooze', Visual: StepSnooze },
+];
 
 export const HowItWorks: React.FC = () => {
   const { t } = useTranslation();
@@ -26,12 +26,12 @@ export const HowItWorks: React.FC = () => {
       if (interactedRef.current) {
         return;
       }
-      setActive(previous => (previous % STEP_COUNT) + 1);
+      setActive(previous => (previous % STEPS.length) + 1);
     }, STEP_AUTOCYCLE_MS);
     return () => clearInterval(id);
   }, []);
 
-  const ActiveVisual = STEP_VISUALS[active];
+  const ActiveVisual = STEPS[active - 1]?.Visual;
 
   return (
     <section id="how">
@@ -48,7 +48,7 @@ export const HowItWorks: React.FC = () => {
 
         <div className="steps">
           <div className="steps-list">
-            {STEP_KEYS.map((key, index) => {
+            {STEPS.map(({ key }, index) => {
               const stepNumber = index + 1;
               return (
                 <StepListItem
@@ -70,6 +70,8 @@ export const HowItWorks: React.FC = () => {
 
           <div className="step-visual">{ActiveVisual && <ActiveVisual />}</div>
         </div>
+
+        <FocusBearTip />
       </div>
     </section>
   );
@@ -86,13 +88,8 @@ interface StepListItemProps {
 const StepListItem: React.FC<StepListItemProps> = ({ stepKey, stepNumber, active, onActivate, onHover }) => {
   const { t } = useTranslation();
   return (
-    <button
-      type="button"
-      className={`step${active ? ' active' : ''}`}
-      onMouseEnter={onHover}
-      onClick={onActivate}
-    >
-      <div className="n">0{stepNumber}</div>
+    <button type="button" className={`step${active ? ' active' : ''}`} onMouseEnter={onHover} onClick={onActivate}>
+      <div className="n">{String(stepNumber).padStart(2, '0')}</div>
       <div>
         <h3>{t(`landing.v2.steps.list.${stepKey}.title`)}</h3>
         <p
@@ -101,5 +98,25 @@ const StepListItem: React.FC<StepListItemProps> = ({ stepKey, stepNumber, active
         />
       </div>
     </button>
+  );
+};
+
+/** Nudges people to block their old webmail so BearlyMail stays the only inbox they check. */
+const FocusBearTip: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <aside className="focus-tip">
+      <span className="focus-tip-label">{t('landing.v2.steps.tip.label')}</span>
+      <p>
+        <Trans
+          i18nKey="landing.v2.steps.tip.body"
+          components={{
+            focusBear: (
+              <a href={FOCUS_BEAR_URL} className="focus-bear-link" target="_blank" rel="noopener noreferrer" />
+            ),
+          }}
+        />
+      </p>
+    </aside>
   );
 };

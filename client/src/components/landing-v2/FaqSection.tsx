@@ -6,6 +6,7 @@ import { FaqItem } from './FaqItem';
 const FAQ_KEYS = [
   'timeSensitive',
   'priorityScore',
+  'categories',
   'lowScore',
   'vip',
   'manualTriage',
@@ -13,10 +14,16 @@ const FAQ_KEYS = [
   'providers',
   'calendar',
   'peek',
-  'ai',
+  'aiProviders',
+  'aiData',
+  'aiTraining',
+  'aiActions',
+  'aiLearning',
+  'ownKey',
   'gmailImportant',
   'price',
   'cancel',
+  'trial',
 ] as const;
 
 export const FaqSection: React.FC = () => {

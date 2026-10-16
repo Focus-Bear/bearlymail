@@ -14,14 +14,26 @@ import {
 } from 'utils/sessionState';
 
 import { LoginFormSection } from 'components/auth/LoginFormSection';
+import type { OAuthProvider } from 'components/auth/oauth-permissions';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { SessionExpiredBanner } from 'components/auth/SessionExpiredBanner';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { PROVIDER_ZOHO } from 'constants/strings';
+import { PROVIDER_GOOGLE, PROVIDER_MICROSOFT, PROVIDER_ZOHO } from 'constants/strings';
 import { DeletedAccountError, OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
+
+const OAUTH_START_PATHS: Record<OAuthProvider, string> = {
+  [PROVIDER_GOOGLE]: '/auth/google',
+  [PROVIDER_MICROSOFT]: '/auth/microsoft',
+  [PROVIDER_ZOHO]: '/auth/zoho',
+};
+
+const OAUTH_INITIATED_EVENTS: Partial<Record<OAuthProvider, string>> = {
+  [PROVIDER_GOOGLE]: ANALYTICS_EVENTS.GOOGLE_LOGIN_INITIATED,
+  [PROVIDER_ZOHO]: ANALYTICS_EVENTS.ZOHO_LOGIN_INITIATED,
+};
 
 const Login: React.FC = () => {
   const { t } = useTranslation();
@@ -31,7 +43,7 @@ const Login: React.FC = () => {
   const [isOAuthOnlyError, setIsOAuthOnlyError] = useState(false);
   const [deletedAccountReason, setDeletedAccountReason] = useState<'manual' | 'inactivity' | null>(null);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
-  const [pendingProvider, setPendingProvider] = useState<'google' | 'zoho'>('google');
+  const [pendingProvider, setPendingProvider] = useState<OAuthProvider>(PROVIDER_GOOGLE);
   const { login, loginWithAppleMail, user, loading } = useAuth();
   const navigate = useNavigate();
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -115,52 +127,32 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
-    if (!hasSeenPermissions) {
-      setPendingProvider('google');
-      setShowPermissionsModal(true);
-    } else {
-      proceedToGoogleOAuth();
+  const proceedToOAuth = (provider: OAuthProvider) => {
+    const initiatedEvent = OAUTH_INITIATED_EVENTS[provider];
+    if (initiatedEvent) {
+      captureEvent(initiatedEvent);
     }
+    localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
+    setLastLoginMethod(provider);
+    window.location.href = `${API_URL}${OAUTH_START_PATHS[provider]}`;
   };
 
-  const handleZohoLogin = () => {
-    const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
-    if (!hasSeenPermissions) {
-      setPendingProvider('zoho');
-      setShowPermissionsModal(true);
-    } else {
-      proceedToZohoOAuth();
+  const requestOAuth = (provider: OAuthProvider) => {
+    if (localStorage.getItem(PERMISSIONS_SEEN_KEY)) {
+      proceedToOAuth(provider);
+      return;
     }
+    setPendingProvider(provider);
+    setShowPermissionsModal(true);
   };
 
-  const handleMicrosoftLogin = () => {
-    setLastLoginMethod('microsoft');
-    window.location.href = `${API_URL}/auth/microsoft`;
-  };
-
-  const proceedToGoogleOAuth = () => {
-    captureEvent(ANALYTICS_EVENTS.GOOGLE_LOGIN_INITIATED);
-    localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
-    setLastLoginMethod('google');
-    window.location.href = `${API_URL}/auth/google`;
-  };
-
-  const proceedToZohoOAuth = () => {
-    captureEvent(ANALYTICS_EVENTS.ZOHO_LOGIN_INITIATED);
-    localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
-    setLastLoginMethod('zoho');
-    window.location.href = `${API_URL}/auth/zoho`;
-  };
+  const handleGoogleLogin = () => requestOAuth(PROVIDER_GOOGLE);
+  const handleMicrosoftLogin = () => requestOAuth(PROVIDER_MICROSOFT);
+  const handleZohoLogin = () => requestOAuth(PROVIDER_ZOHO);
 
   const handlePermissionsContinue = () => {
     setShowPermissionsModal(false);
-    if (pendingProvider === PROVIDER_ZOHO) {
-      proceedToZohoOAuth();
-    } else {
-      proceedToGoogleOAuth();
-    }
+    proceedToOAuth(pendingProvider);
   };
 
   const handlePermissionsCancel = () => {

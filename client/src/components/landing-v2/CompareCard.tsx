@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-export const COMPARE_ROW_KEYS = ['delivery', 'urgency', 'priority', 'quietHours', 'philosophy'] as const;
+export const COMPARE_ROW_KEYS = ['priority', 'categories', 'delivery', 'ai', 'providers'] as const;
 type CompareRowKey = (typeof COMPARE_ROW_KEYS)[number];
 
 interface CompareCardProps {

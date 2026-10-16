@@ -9,16 +9,16 @@ function readPrefersReducedMotion(): boolean {
   return window.matchMedia(REDUCED_MOTION_QUERY).matches;
 }
 
-/** Tracks the OS "reduce motion" setting so animations (spinners, smooth scrolls) can be skipped. */
+/** Tracks the OS "reduce motion" setting so animated UI (spinners, smooth scrolls, hold fills) can fall back to static feedback. */
 export function usePrefersReducedMotion(): boolean {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(readPrefersReducedMotion);
 
   useEffect(() => {
-    if (typeof window.matchMedia !== 'function') {
-      return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
     }
     const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
-    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
+    const handleChange = (event: MediaQueryListEvent) => setPrefersReducedMotion(event.matches);
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);

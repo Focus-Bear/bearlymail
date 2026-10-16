@@ -5,7 +5,6 @@
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
-    "@fontsource/bricolage-grotesque": "^5.3.0",
     "@fontsource/instrument-serif": "^5.2.8",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",

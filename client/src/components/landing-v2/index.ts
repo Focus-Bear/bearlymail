@@ -10,3 +10,4 @@ export { SecuritySection } from './SecuritySection';
 export { SiteFooter } from './SiteFooter';
 export { SiteHeader } from './SiteHeader';
 export { WhoItsForSection } from './WhoItsForSection';
+export { WhyNotClaudeSection } from './WhyNotClaudeSection';

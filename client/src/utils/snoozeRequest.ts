@@ -1,4 +1,4 @@
-import { parseDurationToDate } from 'utils/parseDuration';
+import { resolveDurationInstant } from 'utils/durationInstant';
 
 export interface SnoozeRequestBody {
   duration: string;
@@ -7,17 +7,11 @@ export interface SnoozeRequestBody {
   snoozeUntil?: string;
 }
 
-/**
- * Body for POST /snooze/:id and /snooze/bulk. The API runs in UTC, so if it
- * parsed "tomorrow" itself an Australian morning would resolve to 7pm the same
- * day and the snoozed emails would come straight back. Resolving the phrase
- * here — with the parser that draws the "Reappears …" preview — sends the
- * instant the user actually saw. `duration` stays as the server's fallback.
- */
+/** Body for POST /snooze/:id and /snooze/bulk; see resolveDurationInstant for why it carries `snoozeUntil`. */
 export function buildSnoozeRequestBody(duration: string, locale: string, now: Date = new Date()): SnoozeRequestBody {
-  const snoozeUntil = parseDurationToDate(duration, now, locale);
+  const snoozeUntil = resolveDurationInstant(duration, locale, now);
   if (!snoozeUntil) {
     return { duration, locale };
   }
-  return { duration, locale, snoozeUntil: snoozeUntil.toISOString() };
+  return { duration, locale, snoozeUntil };
 }

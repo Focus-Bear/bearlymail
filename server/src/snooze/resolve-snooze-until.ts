@@ -1,3 +1,4 @@
+import { parseFutureInstant } from "../utils/future-instant.util";
 import { parseDurationToDate } from "./parse-duration";
 
 /**
@@ -18,22 +19,8 @@ export function resolveSnoozeUntil(
   now: Date = new Date(),
 ): Date {
   return (
-    parseRequestedSnoozeUntil(requestedSnoozeUntil, now) ??
+    // A past instant would wake the thread on the next expired-snooze sweep.
+    parseFutureInstant(requestedSnoozeUntil, now) ??
     parseDurationToDate(duration, now, locale)
   );
-}
-
-function parseRequestedSnoozeUntil(
-  requestedSnoozeUntil: string | undefined,
-  now: Date,
-): Date | null {
-  if (typeof requestedSnoozeUntil !== "string") {
-    return null;
-  }
-  const requested = new Date(requestedSnoozeUntil);
-  if (Number.isNaN(requested.getTime())) {
-    return null;
-  }
-  // A past instant would wake the thread on the next expired-snooze sweep.
-  return requested.getTime() > now.getTime() ? requested : null;
 }

@@ -2,10 +2,12 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
+import i18n from 'i18next';
 import { Email } from 'types/email';
 import { CategoryArchiveSuggestion } from 'utils/categoryArchiveWorkflow';
 import { devLog } from 'utils/dev-logger';
 import { captureEvent } from 'utils/posthog';
+import { buildSnoozeRequestBody } from 'utils/snoozeRequest';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -241,7 +243,10 @@ export function useBulkEmailActions({
       applyOptimisticRemoval(removalContext, emailIds, addOptimisticSnooze);
 
       try {
-        await axios.post(`${API_URL}/snooze/bulk`, { emailIds, duration: trimmedDuration });
+        await axios.post(`${API_URL}/snooze/bulk`, {
+          emailIds,
+          ...buildSnoozeRequestBody(trimmedDuration, i18n.language),
+        });
         devLog(`[BulkSnooze] Successfully snoozed ${emailIds.length} emails`);
       } catch (error) {
         console.error('[BulkSnooze] Failed to snooze emails:', error);

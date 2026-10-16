@@ -28,9 +28,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ heroPrefix = DEFAULT_H
       <div className="wrap">
         <div className="hero-grid">
           <div>
-            <span className="eyebrow">
-              <span className="dot" /> {localT('eyebrow')}
-            </span>
+            <span className="eyebrow">{localT('eyebrow')}</span>
             <h1 className="display">
               {localT('titlePre')}
               <br />

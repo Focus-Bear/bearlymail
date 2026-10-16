@@ -2407,7 +2407,7 @@
         "titleEm": "se prioriza",
         "titlePostEm": " y",
         "titleAfter": "se organiza solo.",
-        "lead": "BearlyMail ordena automáticamente cada correo por importancia y agrupa el resto en categorías, para que lo importante te espere arriba y los boletines, recibos y notificaciones queden tranquilos en su sitio. Se acabó clasificar desde cero.",
+        "lead": "BearlyMail ordena automáticamente cada correo por importancia y agrupa el resto en categorías, para que lo importante te espere arriba mientras los correos comerciales no solicitados, las notificaciones de poco valor y las actualizaciones de calendario quedan tranquilos en su sitio.",
         "builtFor": "Diseñado para mentes con TDAH y para el trabajo profundo: tranquilo por defecto, sin nada importante enterrado.",
         "benefits": {
           "prioritise": "Prioriza tu bandeja automáticamente",
@@ -2658,8 +2658,8 @@
             "connected": "Compatible",
             "resultBold": "BearlyMail te muestra: ",
             "resultRest": "una bandeja tranquila, ordenada por importancia y agrupada por categoría.",
-            "footerBold": "Tu cuenta sigue siendo tuya.",
-            "footerRest": " Tu correo se queda donde está. BearlyMail solo lo cambia cuando tú actúas: si archivas aquí, también se archiva allí."
+            "footerBold": "Tu cuenta de Gmail u Outlook sigue ahí, intacta.",
+            "footerRest": " BearlyMail es una nueva forma de ver tu bandeja de entrada, y puedes volver atrás en cualquier momento. (Te recomendamos bloquear la bandeja de entrada normal para no caer en la tentación.)"
           }
         },
         "tip": {
@@ -2696,7 +2696,7 @@
         },
         "superhuman": {
           "name": "Superhuman",
-          "ask": "\"Despacha todo más rápido.\"",
+          "ask": "\"Los atajos de teclado son la respuesta a todo.\"",
           "priceBold": "30 USD / mes",
           "priceRest": " · rápido, pero sigue mostrándolo todo",
           "priority": "Lo más nuevo primero",
@@ -2716,6 +2716,16 @@
         "gemini": {
           "title": "¿Ya usas Gemini en Gmail?",
           "body": "Gemini te ayuda con un correo cada vez, cuando se lo pides: un resumen por aquí, un borrador por allá, dentro de la misma bandeja ordenada por fecha. BearlyMail cambia la bandeja en sí: cada mensaje priorizado, categorizado y agrupado en lotes antes de que lo abras. Y funciona con Office365 y Zoho, además de Google Workspace."
+        }
+      },
+      "whyNotClaude": {
+        "kicker": "¿Por qué no usar Claude sin más?",
+        "titlePre": "La IA puede redactar la respuesta. ",
+        "titleEm": "Tú sigues decidiendo qué importa.",
+        "paragraphs": {
+          "trust": "Por supuesto que puedes usar Claude para ayudarte a responder correos. Pero ¿de verdad quieres que responda a tus inversores o a tus clientes más importantes sin que tú lo mires siquiera?",
+          "job": "El correo es comunicación. Si una IA pudiera encargarse del 100 % de la tuya, ¿cuál sería tu trabajo? ¿Qué valor aportas tú?",
+          "value": "Aportas valor con tu criterio y tu experiencia, y ningún sistema de IA puede sustituir eso. BearlyMail no lo intenta. Te da una forma mejor de ver tu bandeja de entrada, para que tu atención vaya a los correos que te necesitan."
         }
       },
       "founder": {

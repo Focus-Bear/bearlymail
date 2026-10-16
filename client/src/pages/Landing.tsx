@@ -12,6 +12,7 @@ import {
   SiteFooter,
   SiteHeader,
   WhoItsForSection,
+  WhyNotClaudeSection,
 } from 'components/landing-v2';
 
 import { LANDING_STYLES } from './Landing.styles';
@@ -29,6 +30,7 @@ const Landing: React.FC = () => {
       <HowItWorks />
       <WhoItsForSection />
       <CompareSection />
+      <WhyNotClaudeSection />
       <SecuritySection />
       <FounderSection />
       <FaqSection />

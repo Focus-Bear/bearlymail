@@ -1,13 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
-
-export const HOLD_TO_CONFIRM_DEFAULT_MS = 5000;
-const PROGRESS_TICK_MS = 50;
-const KEY_SPACE = ' ';
-const KEY_ENTER_NAME = 'Enter';
+import { HOLD_PROGRESS_TICK_MS, HOLD_TO_CONFIRM_DEFAULT_MS, useHoldToConfirm } from 'hooks/useHoldToConfirm';
 
 interface HoldToConfirmButtonProps {
   label: string;
@@ -60,73 +56,14 @@ export const HoldToConfirmButton: React.FC<HoldToConfirmButtonProps> = ({
   durationMs = HOLD_TO_CONFIRM_DEFAULT_MS,
   disabled = false,
 }) => {
-  const [progress, setProgress] = useState(0);
-  const [holding, setHolding] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startedAtRef = useRef<number>(0);
-  const confirmedRef = useRef(false);
-  const onConfirmRef = useRef(onConfirm);
-
-  useEffect(() => {
-    onConfirmRef.current = onConfirm;
-  }, [onConfirm]);
-
-  const stopHold = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setHolding(false);
-    setProgress(0);
-  }, []);
-
-  const startHold = useCallback(() => {
-    if (disabled || intervalRef.current) {
-      return;
-    }
-    confirmedRef.current = false;
-    startedAtRef.current = Date.now();
-    setHolding(true);
-    intervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startedAtRef.current;
-      const ratio = Math.min(elapsed / durationMs, 1);
-      setProgress(ratio);
-      if (ratio >= 1 && !confirmedRef.current) {
-        confirmedRef.current = true;
-        stopHold();
-        onConfirmRef.current();
-      }
-    }, PROGRESS_TICK_MS);
-  }, [disabled, durationMs, stopHold]);
-
-  useEffect(() => stopHold, [stopHold]);
-
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if ((event.key === KEY_SPACE || event.key === KEY_ENTER_NAME) && !event.repeat) {
-      event.preventDefault();
-      startHold();
-    }
-  };
-
-  const handleKeyUp = (event: React.KeyboardEvent) => {
-    if (event.key === KEY_SPACE || event.key === KEY_ENTER_NAME) {
-      stopHold();
-    }
-  };
+  const { progress, isHolding, holdHandlers } = useHoldToConfirm({ onConfirm, durationMs, disabled });
 
   const accentColor = theme.colors.accent.warning ?? theme.colors.primary.main;
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex' }}>
       <button
-        onPointerDown={startHold}
-        onPointerUp={stopHold}
-        onPointerLeave={stopHold}
-        onPointerCancel={stopHold}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        onBlur={stopHold}
-        onContextMenu={event => event.preventDefault()}
+        {...holdHandlers}
         disabled={disabled}
         aria-label={label}
         style={{
@@ -145,13 +82,13 @@ export const HoldToConfirmButton: React.FC<HoldToConfirmButtonProps> = ({
             bottom: 0,
             width: `${progress * 100}%`,
             backgroundColor: 'rgba(255, 255, 255, 0.35)',
-            transition: holding ? `width ${PROGRESS_TICK_MS}ms linear` : 'none',
+            transition: isHolding ? `width ${HOLD_PROGRESS_TICK_MS}ms linear` : 'none',
             pointerEvents: 'none',
           }}
         />
         <span style={{ position: 'relative' }}>{label}</span>
       </button>
-      {holding && (
+      {isHolding && (
         <div role="status" style={HOLD_MESSAGE_STYLE}>
           {holdMessage}
         </div>

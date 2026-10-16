@@ -1,11 +1,7 @@
-import React, { RefObject } from 'react';
+import React from 'react';
 
 import { ReloginBanner, ScanModal, ScanNotification, TourOverlay, UrgentNotification } from 'components/inbox/overlays';
-
-interface TourStep {
-  title: string;
-  content: string;
-}
+import { TourStep } from 'components/inbox/overlays/tourSteps';
 
 interface ScanProgress {
   current: number;
@@ -25,9 +21,6 @@ interface InboxOverlaysProps {
   onSkipTour: () => void;
   onNextTourStep: () => void;
   onPrevTourStep: () => void;
-  triageTabRef: RefObject<HTMLButtonElement | null>;
-  actionTabRef: RefObject<HTMLButtonElement | null>;
-  deliverBtnRef: RefObject<HTMLButtonElement | null>;
 
   // Scan modal props
   showScanModal: boolean;
@@ -57,9 +50,6 @@ export const InboxOverlays: React.FC<InboxOverlaysProps> = ({
   onSkipTour,
   onNextTourStep,
   onPrevTourStep,
-  triageTabRef,
-  actionTabRef,
-  deliverBtnRef,
   showScanModal,
   isScanning,
   onStartScan,
@@ -79,9 +69,6 @@ export const InboxOverlays: React.FC<InboxOverlaysProps> = ({
           onSkipTour={onSkipTour}
           onNextTourStep={onNextTourStep}
           onPrevTourStep={onPrevTourStep}
-          triageTabRef={triageTabRef}
-          actionTabRef={actionTabRef}
-          deliverBtnRef={deliverBtnRef}
         />
       )}
 

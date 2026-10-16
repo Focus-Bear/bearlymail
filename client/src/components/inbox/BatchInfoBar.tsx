@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { EMOJI_INFO } from 'constants/emojis';
+import { TOUR_TARGETS } from 'constants/tour';
 
 import { getLastCheckText, getNextDeliveryText } from './batchInfoBar.helpers';
 
@@ -64,6 +65,7 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({ nextDelivery, lastUr
 
   return (
     <div
+      data-tour={TOUR_TARGETS.BATCH_DELIVERY}
       style={{
         display: 'flex',
         flexDirection: 'column',

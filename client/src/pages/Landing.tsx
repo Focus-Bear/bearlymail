@@ -5,12 +5,13 @@ import {
   FaqSection,
   FinalCta,
   FounderSection,
-  GithubIntegrationSection,
   HeroSection,
   HowItWorks,
   ProblemSection,
+  SecuritySection,
   SiteFooter,
   SiteHeader,
+  WhoItsForSection,
 } from 'components/landing-v2';
 
 import { LANDING_STYLES } from './Landing.styles';
@@ -26,10 +27,11 @@ const Landing: React.FC = () => {
       <HeroSection />
       <ProblemSection />
       <HowItWorks />
+      <WhoItsForSection />
       <CompareSection />
+      <SecuritySection />
       <FounderSection />
       <FaqSection />
-      <GithubIntegrationSection />
       <FinalCta />
       <SiteFooter />
     </div>

@@ -9,8 +9,10 @@ import {
   HeroSection,
   HowItWorks,
   ProblemSection,
+  SecuritySection,
   SiteFooter,
   SiteHeader,
+  WhoItsForSection,
 } from 'components/landing-v2';
 
 import { LANDING_STYLES } from './Landing.styles';
@@ -34,7 +36,9 @@ const EngineeringManagerLanding: React.FC = () => {
       <GithubIntegrationSection />
       <ProblemSection />
       <HowItWorks />
+      <WhoItsForSection />
       <CompareSection />
+      <SecuritySection />
       <FounderSection />
       <FaqSection />
       <FinalCta />

@@ -7,7 +7,11 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { buildDeterministicSummary } from "../llm/email-content-cleaner";
 import { parseCategoryName } from "../utils/category-name.util";
 import { deriveCategorizationSource } from "./category-source.helper";
-import { RawEmailRow, SYSTEM_LABELS } from "./email-inbox.types";
+import {
+  isThreadCategoryPending,
+  RawEmailRow,
+  SYSTEM_LABELS,
+} from "./email-inbox.types";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
 import { parseLabelsValue } from "./labels.util";
@@ -134,6 +138,10 @@ export class EmailInboxDecryptService {
       // user_context was deleted. Null out categoryId so this email is treated as
       // truly uncategorized downstream (fixes #1404 — stale-UUID category mismatch).
       categoryId: row.categoryName ? row.categoryId : null,
+      isCategoryPending: isThreadCategoryPending({
+        hasResolvedCategory: Boolean(row.categoryName && row.categoryId),
+        isProcessingPriority: row.isProcessingPriority,
+      }),
       to: row.to ? EncryptionHelper.tryDecrypt(row.to) : null,
       cc: row.cc ? EncryptionHelper.tryDecrypt(row.cc) : null,
       sentByAutoResponder: row.sentByAutoResponder ?? false,

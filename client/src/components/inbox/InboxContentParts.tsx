@@ -19,7 +19,7 @@ import { DebugView } from 'components/inbox/DebugView';
 import { EmailListItem } from 'components/inbox/EmailListItem';
 import { EmailListStates } from 'components/inbox/EmailListStates';
 import { FollowUpActions } from 'components/inbox/FollowUpActions';
-import { OtherProtoGroup } from 'components/inbox/inboxCategoryHelpers';
+import { hasPendingCategorisation, OtherProtoGroup } from 'components/inbox/inboxCategoryHelpers';
 import { familyGroupingAppliesTo, orderCategoriesByFamily } from 'components/inbox/inboxFamilyGrouping';
 import { InboxFamilyHeader } from 'components/inbox/InboxFamilyHeader';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
@@ -1022,10 +1022,12 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
           onUnlockPriorityTier={onUnlockPriorityTier}
           onClearFilters={onClearFilters}
         />
+        {/* The "AI deciding category" accordion already lists in-flight threads. */}
         {canRenderCategories &&
           unprioritisedCount !== null &&
           unprioritisedCount !== undefined &&
-          unprioritisedCount > 0 && <AnalysingPriorityCategory count={unprioritisedCount} />}
+          unprioritisedCount > 0 &&
+          !hasPendingCategorisation(displayCategories) && <AnalysingPriorityCategory count={unprioritisedCount} />}
         {canRenderCategories && <InboxCategoryList {...categoryListProps} />}
         {isDebugModeEnabled && <DebugView emails={emails} />}
       </div>

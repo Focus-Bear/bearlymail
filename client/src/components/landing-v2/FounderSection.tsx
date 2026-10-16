@@ -23,8 +23,6 @@ export const FounderSection: React.FC = () => {
               <b>{t('landing.v2.founder.name')}</b>
               <span className="sep" />
               <span>{t('landing.v2.founder.role')}</span>
-              <span className="sep" />
-              <span>{t('landing.v2.founder.previously')}</span>
             </div>
 
             <details>

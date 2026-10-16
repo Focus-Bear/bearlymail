@@ -218,6 +218,9 @@ export const CONTEXT_SOURCE_UNAPPROVED = 'UNAPPROVED' as const;
 
 // Context key additional values
 export const CONTEXT_KEY_WORKING_ON = 'WORKING_ON' as const;
+export const CONTEXT_KEY_VIP_CONTACT = 'VIP_CONTACT' as const;
+export const CONTEXT_KEY_MY_GOALS = 'MY_GOALS' as const;
+export const CONTEXT_KEY_URGENT = 'URGENT' as const;
 
 // Button variants
 export const BUTTON_VARIANT_PRIMARY = 'primary' as const;
@@ -251,6 +254,10 @@ export const NODE_NAME_USE = 'USE' as const;
 // Email categories
 export const CATEGORY_OTHER = 'Other' as const;
 export const CATEGORY_DANGEROUS_PHISHING = 'Dangerous / Phishing' as const;
+// Threads the AI is still categorising. Must match the server's
+// INBOX_PENDING_CATEGORY_KEY (summary id / fetch key) and INBOX_PENDING_CATEGORY_NAME.
+export const CATEGORY_KEY_PENDING = 'pending-categorisation' as const;
+export const CATEGORY_PENDING = 'AI deciding category' as const;
 
 // Email providers
 export const PROVIDER_GMAIL = 'gmail' as const;
@@ -259,6 +266,7 @@ export const PROVIDER_ZOHO = 'zoho' as const;
 export const PROVIDER_APPLE_MAIL = 'apple-mail' as const;
 export const PROVIDER_OUTLOOK = 'outlook' as const;
 export const PROVIDER_GOOGLE = 'google' as const;
+export const PROVIDER_MICROSOFT = 'microsoft' as const;
 export const PROVIDER_OTHER = 'other' as const;
 
 // Contact field types

@@ -6,7 +6,7 @@
 import { Email, InboxMode } from 'types/email';
 
 import { CategoryGroup, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
-import { CATEGORY_OTHER } from 'constants/strings';
+import { CATEGORY_KEY_PENDING, CATEGORY_OTHER } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
@@ -222,14 +222,39 @@ export function buildDisplayCategories(
 
   const nonEmptySource = includeEmpty ? mergedSource : mergedSource.filter(cat => cat.count > 0);
   if (stableCategoryOrder.length === 0) {
-    return nonEmptySource;
+    return pinPendingCategoryFirst(nonEmptySource);
   }
   const orderMap = new Map(stableCategoryOrder.map((key, idx) => [key, idx]));
-  return nonEmptySource.slice().sort((itemA, itemB) => {
+  const sorted = nonEmptySource.slice().sort((itemA, itemB) => {
     const keyA = getCategoryKey(itemA.id, itemA.name);
     const keyB = getCategoryKey(itemB.id, itemB.name);
     const orderA = orderMap.get(keyA) ?? Number.MAX_SAFE_INTEGER;
     const orderB = orderMap.get(keyB) ?? Number.MAX_SAFE_INTEGER;
     return orderA - orderB;
   });
+  return pinPendingCategoryFirst(sorted);
+}
+
+/** True for the "AI deciding category" summary entry (threads still being categorised). */
+export function isPendingCategoryItem(category: { id?: string | null }): boolean {
+  return category.id === CATEGORY_KEY_PENDING;
+}
+
+/** Whether the summary currently has threads waiting on categorisation. */
+export function hasPendingCategorisation(categories: Array<{ id?: string | null; count: number }> | null | undefined): boolean {
+  return (categories ?? []).some(category => isPendingCategoryItem(category) && category.count > 0);
+}
+
+/**
+ * The pending bucket always renders first: it is where a new user's mail sits
+ * until categorisation finishes, and its threads move out on their own. Pinning
+ * it also keeps it from jumping around as the stable order is rebuilt.
+ */
+function pinPendingCategoryFirst<T extends { id: string | null }>(categories: T[]): T[] {
+  const pendingIndex = categories.findIndex(isPendingCategoryItem);
+  if (pendingIndex <= 0) {
+    return categories;
+  }
+  const pending = categories[pendingIndex];
+  return [pending, ...categories.slice(0, pendingIndex), ...categories.slice(pendingIndex + 1)];
 }

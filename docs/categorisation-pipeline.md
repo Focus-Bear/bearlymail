@@ -10,6 +10,7 @@
 
 - `EmailThread.categoryId` (UUID, nullable) is the **only** source of truth for a thread's category. It references a `UserContext` row with `contextKey = EMAIL_CATEGORY`.
 - **`categoryId = NULL` means "Other"**. There is no "Other" context row and no denormalised name column (removed in #1293).
+- **Pending vs Other**: a `NULL` category while `isProcessingPriority = true` means the refine pipeline below hasn't decided yet. The inbox reports these as `isCategoryPending` and buckets them under the `pending-categorisation` summary key ("AI deciding category") instead of "Other"; once the pipeline clears the flag they settle into their category (or genuinely into Other). See `isThreadCategoryPending` in `server/src/emails/email-inbox.types.ts`.
 - `UserContext.contextValue` stores the category as `"Name - Description"` (sometimes emoji-prefixed). `parseCategoryName()` extracts the display name; each category also has a short stable `categoryKey` used in LLM prompts.
 - `EmailThread.protoCategoryId` points at a **proto-category**: a staging bucket for suggested categories mined from "Other" emails. A thread can be "Other" (`categoryId` null) and belong to a proto at the same time.
 - Supporting columns: `categorySource` (`'priority'` today; see precedence work), `categoryExplanation`, `categoryRuleTrace` (deterministic-rule trace snapshot), `localModelDebug` (shadow snapshot), `categoryDecisionTrace`.

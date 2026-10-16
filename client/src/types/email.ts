@@ -174,6 +174,8 @@ export interface Email {
   receivedAt: string;
   isProcessingPriority?: boolean;
   isProcessingSummary?: boolean;
+  /** No category yet and categorisation is still running ("AI deciding category"). */
+  isCategoryPending?: boolean;
   summary?: string | null;
   // How `summary` was produced. 'deterministic' is a cheap text placeholder for
   // low-priority threads; the detail view upgrades it to an LLM summary on open.

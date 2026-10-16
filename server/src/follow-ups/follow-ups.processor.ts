@@ -9,6 +9,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import type { Job, PgBoss } from "pg-boss";
 import { Repository } from "typeorm";
 
+import { TRACKED_SEND_SOURCE } from "../constants/email-tracking.constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -23,6 +24,7 @@ import {
 } from "../database/entities/follow-up.entity";
 import { User } from "../database/entities/user.entity";
 import { ContextKey } from "../database/entities/user-context.entity";
+import { TrackedEmailSender } from "../email-tracking/tracked-email-sender.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
@@ -73,6 +75,7 @@ export class FollowUpsProcessor implements OnModuleInit {
     private usersService: UsersService,
     private emailProviderManager: EmailProviderManager,
     private readonly userEncryptionService: UserEncryptionService,
+    private readonly trackedEmailSender: TrackedEmailSender,
   ) {}
 
   async onModuleInit() {
@@ -324,12 +327,17 @@ export class FollowUpsProcessor implements OnModuleInit {
 
     while (retries < maxRetries) {
       try {
-        await provider.sendReply(userId, {
-          threadId: followUp.threadId,
-          to: recipient,
-          subject,
-          body: draft,
-        });
+        await this.trackedEmailSender.sendReply(
+          userId,
+          provider,
+          {
+            threadId: followUp.threadId,
+            to: recipient,
+            subject,
+            body: draft,
+          },
+          { source: TRACKED_SEND_SOURCE.FOLLOW_UP },
+        );
         return;
       } catch (error: unknown) {
         lastError = error as Error;

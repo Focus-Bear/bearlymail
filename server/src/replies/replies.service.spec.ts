@@ -13,6 +13,7 @@ import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { LLMService } from "../llm/llm.service";
 import { SnoozeService } from "../snooze/snooze.service";
 import { mockPartial } from "../test/helpers/mock-utils";
+import { createPassThroughTrackedEmailSender } from "../test/helpers/tracked-email-sender.mock";
 import { UsersService } from "../users/users.service";
 import { RepliesService } from "./replies.service";
 
@@ -28,6 +29,7 @@ describe("RepliesService", () => {
     module = await Test.createTestingModule({
       providers: [
         RepliesService,
+        createPassThroughTrackedEmailSender(),
         {
           provide: EmailsService,
           useValue: {

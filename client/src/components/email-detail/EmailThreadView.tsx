@@ -5,6 +5,7 @@ import { Email } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { CleanBodyResult, CleanHtmlResult, InlineAttachmentRef, looksLikeHtml } from 'utils/emailBodyUtils';
 
+import { OpenTrackingIndicator } from 'components/tracking/OpenTrackingIndicator';
 import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY, REPLY_MODE_REPLY_ALL } from 'constants/strings';
 
 import { EmailAttachments } from './EmailAttachments';
@@ -257,6 +258,11 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
                     >
                       {humanizeTimestamp(threadEmail.receivedAt, { showAbsoluteDate: true })}
                     </div>
+                    {threadEmail.openTracking && (
+                      <div style={{ marginTop: theme.spacing.xs }}>
+                        <OpenTrackingIndicator summary={threadEmail.openTracking} />
+                      </div>
+                    )}
                   </div>
                   <div
                     style={{

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ReplyFooterSendRequest } from 'types/replySend';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -17,14 +18,11 @@ export interface ReplyComposerFooterProps {
   /** True when the last tone check failed; swaps Send for a hold-to-confirm button. */
   toneCheckFailed?: boolean;
   scheduledSendAt?: Date | null;
+  /** Per-message open-tracking choice, owned by the composer so every send path sees it. */
+  isTrackingOpens: boolean;
+  onTrackOpensChange: (isTracking: boolean) => void;
   onClose: () => void;
-  onSend: (
-    expectedReplyHours?: number,
-    draftOverride?: string,
-    scheduledSendAt?: Date,
-    keepInAction?: boolean,
-    expectedReplyDuration?: string
-  ) => void;
+  onSend: (request: ReplyFooterSendRequest) => void;
   onSchedule?: () => void;
   onClearSchedule?: () => void;
 }
@@ -60,12 +58,11 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
 
   // An empty field means "no follow-up" (archive after reply); otherwise the
   // raw duration string is sent and parsed server-side, exactly like a snooze.
-  const dispatchSend = (sendAt?: Date, draftOverride?: string) => {
-    if (hasFollowUp) {
-      onSend(undefined, draftOverride, sendAt, keepInAction, trimmedDuration);
-    } else {
-      onSend(NO_FOLLOW_UP_HOURS, draftOverride, sendAt, keepInAction);
-    }
+  const dispatchSend = (scheduledAt?: Date, draftOverride?: string) => {
+    const followUpWindow = hasFollowUp
+      ? { expectedReplyDuration: trimmedDuration }
+      : { expectedReplyHours: NO_FOLLOW_UP_HOURS };
+    onSend({ ...followUpWindow, draftOverride, scheduledSendAt: scheduledAt, keepInAction });
   };
 
   const handleSend = () => {

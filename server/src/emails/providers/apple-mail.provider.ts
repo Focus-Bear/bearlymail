@@ -65,6 +65,8 @@ const SCAN_HISTORY_LIMIT = 300;
 @Injectable()
 export class AppleMailProvider implements EmailProvider {
   private readonly logger = new Logger(AppleMailProvider.name);
+  /** Mail.app is driven with the plain body only; HTML parts never go out. */
+  readonly sendsPlainTextOnly = true;
 
   constructor(
     private usersService: UsersService,

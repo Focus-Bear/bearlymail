@@ -10,6 +10,7 @@ import {
   MCPOAuthMetadata,
   MCPServerConfig,
 } from "../database/entities/mcp-server-config.entity";
+import { resolveBackendBaseUrl } from "../utils/backend-base-url.util";
 
 const HTTP_TIMEOUT_MS = 15_000;
 /** Refresh access tokens this many ms before they actually expire. */
@@ -56,16 +57,7 @@ export class MCPOAuthService {
 
   /** Absolute redirect URI the authorization server calls back to. */
   static buildRedirectUri(): string {
-    let base = process.env.BACKEND_URL;
-    if (!base && process.env.GOOGLE_REDIRECT_URI) {
-      try {
-        base = new URL(process.env.GOOGLE_REDIRECT_URI).origin;
-      } catch {
-        // fall through to the localhost default
-      }
-    }
-    base = base || "http://localhost:3001";
-    return `${base}${MCP_OAUTH_CALLBACK_PATH}`;
+    return `${resolveBackendBaseUrl()}${MCP_OAUTH_CALLBACK_PATH}`;
   }
 
   /**

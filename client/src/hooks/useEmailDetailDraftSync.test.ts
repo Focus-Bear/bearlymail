@@ -180,3 +180,98 @@ describe('useEmailDetailDraftSync — auto-save behaviour (fix #978)', () => {
     expect(saveDraft).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useEmailDetailDraftSync — draft restore happens once per opened thread', () => {
+  const SAVED_DRAFT = { content: '<p>Saved draft</p>', replyMode: 'reply', recipients: 'ryan@example.com' };
+  const emailInThread = (threadId: string) => ({ threadId }) as unknown as import('types/email').Email;
+
+  const deferred = <T>() => {
+    let resolve: (value: T) => void = () => {};
+    const promise = new Promise<T>(resolvePromise => {
+      resolve = resolvePromise;
+    });
+    return { promise, resolve };
+  };
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('restores the saved draft when the thread opens, and never again on later re-renders', async () => {
+    const setDraft = vi.fn();
+    const fetchDraft = vi.fn().mockResolvedValue(SAVED_DRAFT);
+    const params = makeBaseParams({ setDraft, fetchDraft });
+
+    const { rerender } = renderHook(props => useEmailDetailDraftSync(props), { initialProps: params });
+    await act(async () => {});
+
+    expect(setDraft).toHaveBeenCalledWith(SAVED_DRAFT.content);
+
+    // Autosave round trips, email refetches and new callback identities re-render
+    // the hook while the user keeps typing — none of them may read the draft back.
+    rerender({
+      ...params,
+      draft: '<p>Saved draft, then more typing</p>',
+      fetchDraft: vi.fn().mockResolvedValue(SAVED_DRAFT),
+    });
+    rerender({ ...params, draft: '<p>Saved draft, then even more typing</p>', email: emailInThread('thread-1') });
+    await act(async () => {});
+
+    expect(fetchDraft).toHaveBeenCalledTimes(1);
+    expect(setDraft.mock.calls.filter(([value]) => value === SAVED_DRAFT.content)).toHaveLength(1);
+  });
+
+  it('does not overwrite text typed while the saved draft was still loading', async () => {
+    const setDraft = vi.fn();
+    const pendingDraft = deferred<typeof SAVED_DRAFT>();
+    const params = makeBaseParams({ setDraft, fetchDraft: vi.fn(() => pendingDraft.promise) });
+
+    const { rerender } = renderHook(props => useEmailDetailDraftSync(props), { initialProps: params });
+    rerender({ ...params, draft: '<p>Typed before the draft arrived</p>' });
+    await act(async () => {
+      pendingDraft.resolve(SAVED_DRAFT);
+    });
+
+    expect(setDraft).not.toHaveBeenCalledWith(SAVED_DRAFT.content);
+  });
+
+  it('drops a saved draft that arrives after the user has moved to another thread', async () => {
+    const setDraft = vi.fn();
+    const pendingDraft = deferred<typeof SAVED_DRAFT>();
+    const params = makeBaseParams({ setDraft, fetchDraft: vi.fn(() => pendingDraft.promise) });
+
+    const { rerender } = renderHook(props => useEmailDetailDraftSync(props), { initialProps: params });
+    rerender({
+      ...params,
+      id: 'email-2',
+      email: emailInThread('thread-2'),
+      fetchDraft: vi.fn().mockResolvedValue(null),
+    });
+    await act(async () => {
+      pendingDraft.resolve(SAVED_DRAFT);
+    });
+
+    expect(setDraft).not.toHaveBeenCalledWith(SAVED_DRAFT.content);
+  });
+
+  it("restores a thread's draft again after switching away and back", async () => {
+    const setDraft = vi.fn();
+    const fetchDraft = vi.fn().mockResolvedValue(SAVED_DRAFT);
+    const params = makeBaseParams({ setDraft, fetchDraft });
+
+    const { rerender } = renderHook(props => useEmailDetailDraftSync(props), { initialProps: params });
+    await act(async () => {});
+    rerender({
+      ...params,
+      id: 'email-2',
+      email: emailInThread('thread-2'),
+      fetchDraft: vi.fn().mockResolvedValue(null),
+    });
+    await act(async () => {});
+    rerender(params);
+    await act(async () => {});
+
+    expect(fetchDraft).toHaveBeenCalledTimes(2);
+    expect(setDraft.mock.calls.filter(([value]) => value === SAVED_DRAFT.content)).toHaveLength(2);
+  });
+});

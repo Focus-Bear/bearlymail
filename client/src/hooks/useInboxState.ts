@@ -228,7 +228,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   });
 
   // Tour element refs sub-hook (replaces 6 useRef calls)
-  const { triageTabRef, actionTabRef, followUpTabRef, deliverBtnRef, emailListRef, emailDetailRef } =
+  const { triageTabRef, actionTabRef, followUpTabRef, emailListRef, emailDetailRef } =
     useInboxTourRefs();
 
   // Mode changes hook
@@ -503,7 +503,6 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     triageTabRef,
     actionTabRef,
     followUpTabRef,
-    deliverBtnRef,
     emailListRef,
     emailDetailRef,
     // Handlers

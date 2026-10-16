@@ -1,25 +1,43 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
-interface TourStep {
+interface TourStepCopy {
   title: string;
   content: string;
 }
 
+// Fixed width on desktop, never wider than a phone screen minus its gutters.
+const CARD_WIDTH = 'min(360px, calc(100vw - 32px))';
+
 interface TourModalContentProps {
   tourStep: number;
-  tourSteps: TourStep[];
+  tourSteps: TourStepCopy[];
   isLastStep: boolean;
   isFirstStep: boolean;
   onSkipTour: () => void;
   onNextTourStep: () => void;
   onPrevTourStep: () => void;
+  /** Dialog semantics supplied by the positioning layer (Joyride's tooltipProps). */
+  dialogProps?: { role: string; 'aria-modal': boolean };
 }
 
+const secondaryButtonStyle: React.CSSProperties = {
+  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+  backgroundColor: COLOR_TRANSPARENT,
+  color: theme.colors.text.secondary,
+  border: `1px solid ${theme.colors.border.medium}`,
+  borderRadius: theme.borderRadius.md,
+  cursor: 'pointer',
+};
+
+/**
+ * The tour card: step title, copy, Skip/Back/Next and progress. Placement (next
+ * to the spotlit element, or centred) is handled by the TourOverlay.
+ */
 export const TourModalContent: React.FC<TourModalContentProps> = ({
   tourStep,
   tourSteps,
@@ -28,29 +46,44 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
   onSkipTour,
   onNextTourStep,
   onPrevTourStep,
+  dialogProps,
 }) => {
   const { t } = useTranslation();
+  const titleId = useId();
+  const contentId = useId();
 
   return (
     <div
+      role={dialogProps?.role ?? 'dialog'}
+      aria-modal={dialogProps?.['aria-modal'] ?? true}
+      aria-labelledby={titleId}
+      aria-describedby={contentId}
       style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
+        // Joyride portals the card to <body>, outside the app's font scope.
+        fontFamily: theme.typography.fontFamily,
         backgroundColor: theme.colors.background.paper,
-        padding: theme.spacing['2xl'],
+        padding: theme.spacing.lg,
         borderRadius: theme.borderRadius.lg,
         boxShadow: theme.shadows.xl,
-        maxWidth: '500px',
-        textAlign: 'center',
-        zIndex: 1002,
+        boxSizing: 'border-box',
+        width: CARD_WIDTH,
+        textAlign: 'left',
       }}
     >
-      <h2 style={{ marginBottom: theme.spacing.md, color: theme.colors.text.primary }}>{tourSteps[tourStep].title}</h2>
-      <p
+      <h2
+        id={titleId}
         style={{
-          marginBottom: theme.spacing.xl,
+          margin: `0 0 ${theme.spacing.sm}`,
+          fontSize: theme.typography.fontSize.xl,
+          color: theme.colors.text.primary,
+        }}
+      >
+        {tourSteps[tourStep].title}
+      </h2>
+      <p
+        id={contentId}
+        style={{
+          margin: `0 0 ${theme.spacing.lg}`,
           color: theme.colors.text.secondary,
           lineHeight: 1.6,
         }}
@@ -58,39 +91,31 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
         {tourSteps[tourStep].content}
       </p>
 
-      <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'center' }}>
-        <button
-          onClick={onSkipTour}
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+        <span
           style={{
-            padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-            backgroundColor: COLOR_TRANSPARENT,
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
+            marginRight: 'auto',
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.tertiary,
           }}
         >
+          {t('onboarding.tour.stepProgress', { current: tourStep + 1, total: tourSteps.length })}
+        </span>
+        <button type="button" onClick={onSkipTour} style={secondaryButtonStyle}>
           {t('onboarding.tour.skip')}
         </button>
         {!isFirstStep && (
-          <button
-            onClick={onPrevTourStep}
-            style={{
-              padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-              backgroundColor: COLOR_TRANSPARENT,
-              color: theme.colors.text.secondary,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              cursor: 'pointer',
-            }}
-          >
+          <button type="button" onClick={onPrevTourStep} style={secondaryButtonStyle}>
             {t('onboarding.tour.back')}
           </button>
         )}
         <button
+          type="button"
+          // Focus lands on Next so Enter advances the tour.
+          autoFocus
           onClick={onNextTourStep}
           style={{
-            padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             backgroundColor: theme.colors.primary.main,
             color: COLOR_NAMED_WHITE,
             border: STRING_NONE,
@@ -101,15 +126,6 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
         >
           {isLastStep ? t('onboarding.tour.finish') : t('onboarding.tour.next')}
         </button>
-      </div>
-      <div
-        style={{
-          marginTop: theme.spacing.md,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.tertiary,
-        }}
-      >
-        {t('onboarding.tour.stepProgress', { current: tourStep + 1, total: tourSteps.length })}
       </div>
     </div>
   );

@@ -7,7 +7,12 @@ import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
 import {
   INBOX_OTHER_CATEGORY_NAME,
+  INBOX_PENDING_CATEGORY_KEY,
+  INBOX_PENDING_CATEGORY_NAME,
   INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  isOtherCategoryKey,
+  isSentinelCategoryKey,
+  isThreadCategoryPending,
   threadHasBlockedLabel,
 } from "./email-inbox.types";
 import { shouldKeepInActionMode } from "./email-inbox-scope.helpers";
@@ -127,6 +132,7 @@ export class EmailInboxCategoryService {
       latestFrom?: string;
       allLabels?: string[] | null;
       priorityScore?: number | null;
+      isProcessingPriority?: boolean | null;
       sentByAutoResponder?: boolean | null;
       keepInAction?: boolean | null;
     }[];
@@ -177,12 +183,7 @@ export class EmailInboxCategoryService {
         rawResolved && !EncryptionHelper.looksLikeEncryptedPayload(rawResolved)
           ? rawResolved
           : null;
-      let category: string;
-      if (row.categoryId != null && decryptedCategoryName != null) {
-        category = parseCategoryName(decryptedCategoryName);
-      } else {
-        category = INBOX_OTHER_CATEGORY_NAME;
-      }
+      const category = this.resolveSummaryBucket(row, decryptedCategoryName);
       const threadPriority = row.priorityScore ?? 0;
       if (!categoryOrder.includes(category)) {
         categoryOrder.push(category);
@@ -214,6 +215,7 @@ export class EmailInboxCategoryService {
       (catA, catB) =>
         (categoryMaxPriority[catB] ?? 0) - (categoryMaxPriority[catA] ?? 0),
     );
+    pinPendingBucketFirst(categoryOrder);
 
     return {
       categoryOrder,
@@ -221,6 +223,24 @@ export class EmailInboxCategoryService {
       categoryThreadIds,
       categoryUuidByName,
     };
+  }
+
+  /**
+   * Bucket name for a summary row: its category name when resolved, the
+   * pending bucket while categorisation is still running, otherwise "Other".
+   */
+  private resolveSummaryBucket(
+    row: { categoryId: string | null; isProcessingPriority?: boolean | null },
+    decryptedCategoryName: string | null,
+  ): string {
+    const hasResolvedCategory =
+      row.categoryId != null && decryptedCategoryName != null;
+    if (hasResolvedCategory) return parseCategoryName(decryptedCategoryName);
+    const isPending = isThreadCategoryPending({
+      hasResolvedCategory,
+      isProcessingPriority: row.isProcessingPriority,
+    });
+    return isPending ? INBOX_PENDING_CATEGORY_NAME : INBOX_OTHER_CATEGORY_NAME;
   }
 
   filterVisibleCategoriesByIds(
@@ -233,14 +253,11 @@ export class EmailInboxCategoryService {
     if (!categoryIds || categoryIds.length === 0) return categoryOrder;
 
     // Client sends "uncategorized" for the null-category bucket; treat as synonym for "Other".
-    const requestedOther =
-      categoryIds.includes(INBOX_OTHER_CATEGORY_NAME) ||
-      categoryIds.includes(INBOX_UNCATEGORIZED_CATEGORY_KEY);
-    const realIds = categoryIds.filter(
-      (id) =>
-        id !== INBOX_OTHER_CATEGORY_NAME &&
-        id !== INBOX_UNCATEGORIZED_CATEGORY_KEY,
-    );
+    const requestedOther = categoryIds.some(isOtherCategoryKey);
+    // Pending threads used to be counted under Other, so an Other filter keeps them.
+    const requestedPending =
+      requestedOther || categoryIds.includes(INBOX_PENDING_CATEGORY_KEY);
+    const realIds = categoryIds.filter((id) => !isSentinelCategoryKey(id));
     const requestedUuids = new Set(realIds);
     const idToName = new Map<string, string>();
     categoryNameToId.forEach((id, name) => idToName.set(id, name));
@@ -259,9 +276,18 @@ export class EmailInboxCategoryService {
 
     return categoryOrder.filter((cat) => {
       if (requestedOther && cat === INBOX_OTHER_CATEGORY_NAME) return true;
+      if (cat === INBOX_PENDING_CATEGORY_NAME) return requestedPending;
       const uuid = categoryUuidByName.get(cat);
       if (uuid) return requestedUuids.has(uuid);
       return namesFromIds.has(cat);
     });
   }
+}
+
+/** The pending bucket always leads the list so new mail being sorted is visible first. */
+function pinPendingBucketFirst(categoryOrder: string[]): void {
+  const pendingIndex = categoryOrder.indexOf(INBOX_PENDING_CATEGORY_NAME);
+  if (pendingIndex <= 0) return;
+  categoryOrder.splice(pendingIndex, 1);
+  categoryOrder.unshift(INBOX_PENDING_CATEGORY_NAME);
 }

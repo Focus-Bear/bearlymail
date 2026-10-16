@@ -254,6 +254,10 @@ export const NODE_NAME_USE = 'USE' as const;
 // Email categories
 export const CATEGORY_OTHER = 'Other' as const;
 export const CATEGORY_DANGEROUS_PHISHING = 'Dangerous / Phishing' as const;
+// Threads the AI is still categorising. Must match the server's
+// INBOX_PENDING_CATEGORY_KEY (summary id / fetch key) and INBOX_PENDING_CATEGORY_NAME.
+export const CATEGORY_KEY_PENDING = 'pending-categorisation' as const;
+export const CATEGORY_PENDING = 'AI deciding category' as const;
 
 // Email providers
 export const PROVIDER_GMAIL = 'gmail' as const;

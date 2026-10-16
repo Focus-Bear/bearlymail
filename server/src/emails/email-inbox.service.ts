@@ -20,6 +20,10 @@ import { EmailFollowUpService } from "./email-follow-up.service";
 import {
   buildSummaryFiltersAndParams,
   buildThreadFilter,
+  INBOX_PENDING_CATEGORY_KEY,
+  INBOX_PENDING_CATEGORY_NAME,
+  isOtherCategoryKey,
+  isSentinelCategoryKey,
   lookupCategoryIdByName,
   RawEmailRow,
   threadHasBlockedLabel,
@@ -27,7 +31,6 @@ import {
 import {
   EmailInboxCategoryService,
   INBOX_OTHER_CATEGORY_NAME,
-  INBOX_UNCATEGORIZED_CATEGORY_KEY,
 } from "./email-inbox-category.service";
 import { EmailInboxDecryptService } from "./email-inbox-decrypt.service";
 import { runInboxQuery } from "./email-inbox-query.helpers";
@@ -147,11 +150,11 @@ export class EmailInboxService {
     if (visibleCategories === null) return { total: 0, categories: [] };
 
     const categories = visibleCategories.map((name) => ({
-      id:
-        name === INBOX_OTHER_CATEGORY_NAME
-          ? null
-          : (categoryUuidByName.get(name) ??
-            lookupCategoryIdByName(name, categoryNameToId)),
+      id: this.resolveSummaryCategoryId(
+        name,
+        categoryUuidByName,
+        categoryNameToId,
+      ),
       name,
       count: categoryCounts[name] || 0,
       ...(filters?.includeThreadIds
@@ -160,6 +163,23 @@ export class EmailInboxService {
     }));
     const total = categories.reduce((sum, cat) => sum + cat.count, 0);
     return { total, categories };
+  }
+
+  /**
+   * Summary id for a bucket: null for "Other", the sentinel key for the
+   * pending bucket, else the category UUID.
+   */
+  private resolveSummaryCategoryId(
+    name: string,
+    categoryUuidByName: Map<string, string>,
+    categoryNameToId: Map<string, string>,
+  ): string | null {
+    if (name === INBOX_OTHER_CATEGORY_NAME) return null;
+    if (name === INBOX_PENDING_CATEGORY_NAME) return INBOX_PENDING_CATEGORY_KEY;
+    return (
+      categoryUuidByName.get(name) ??
+      lookupCategoryIdByName(name, categoryNameToId)
+    );
   }
 
   /**
@@ -192,6 +212,7 @@ export class EmailInboxService {
       latestFrom?: string;
       allLabels?: string[] | null;
       priorityScore?: number | null;
+      isProcessingPriority?: boolean | null;
       sentByAutoResponder?: boolean | null;
       keepInAction?: boolean | null;
       isSnoozed?: boolean | null;
@@ -206,7 +227,8 @@ export class EmailInboxService {
               latest_email."isSnoozed", latest_email."snoozeUntil",
               thread."keepInAction",
               thread_labels."allLabels",
-              thread."priorityScore", thread."threadId"
+              thread."priorityScore", thread."isProcessingPriority",
+              thread."threadId"
        FROM email_threads thread
        ${buildUserCategoryJoinSql("$1")}
        CROSS JOIN LATERAL (
@@ -234,6 +256,7 @@ export class EmailInboxService {
         latestFrom?: string;
         allLabels?: string[] | null;
         priorityScore?: number | null;
+        isProcessingPriority?: boolean | null;
       }[]
     >;
   }
@@ -370,11 +393,7 @@ export class EmailInboxService {
     },
   ): Promise<typeof filters> {
     const requested = filters?.categoryIds ?? [];
-    const realIds = requested.filter(
-      (id) =>
-        id !== INBOX_OTHER_CATEGORY_NAME &&
-        id !== INBOX_UNCATEGORIZED_CATEGORY_KEY,
-    );
+    const realIds = requested.filter((id) => !isSentinelCategoryKey(id));
     if (realIds.length === 0) return filters;
 
     const ctxs = await this.userContextRepository.find({
@@ -510,13 +529,12 @@ export class EmailInboxService {
 
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
       // Client sends "uncategorized" for the null-category bucket; treat as synonym for "Other".
-      const requestedOther =
-        filters.categoryIds.includes(INBOX_OTHER_CATEGORY_NAME) ||
-        filters.categoryIds.includes(INBOX_UNCATEGORIZED_CATEGORY_KEY);
+      const requestedOther = filters.categoryIds.some(isOtherCategoryKey);
+      const requestedPending = filters.categoryIds.includes(
+        INBOX_PENDING_CATEGORY_KEY,
+      );
       const realIds = filters.categoryIds.filter(
-        (id) =>
-          id !== INBOX_OTHER_CATEGORY_NAME &&
-          id !== INBOX_UNCATEGORIZED_CATEGORY_KEY,
+        (id) => !isSentinelCategoryKey(id),
       );
       const requestedUuids = new Set(realIds);
       const ctxs = await this.userContextRepository.find({
@@ -554,6 +572,8 @@ export class EmailInboxService {
         const isOtherThread =
           !emailEntry.categoryId ||
           emailEntry.category === INBOX_OTHER_CATEGORY_NAME;
+        // Pending threads live in their own bucket, never in "Other".
+        if (emailEntry.isCategoryPending) return requestedPending;
         if (requestedOther && isOtherThread) return true;
         if (emailEntry.categoryId && !isOtherThread)
           return requestedUuids.has(emailEntry.categoryId);

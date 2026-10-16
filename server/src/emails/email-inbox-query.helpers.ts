@@ -4,8 +4,8 @@ import { Repository } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import {
   buildThreadFilter,
-  INBOX_OTHER_CATEGORY_NAME,
-  INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  INBOX_PENDING_CATEGORY_KEY,
+  isSentinelCategoryKey,
   RawEmailRow,
 } from "./email-inbox.types";
 import {
@@ -41,15 +41,23 @@ function realCategoryUuidsForNarrowing(
   if (!categoryIds || categoryIds.length === 0) {
     return null;
   }
-  const includesOther = categoryIds.some(
-    (id) =>
-      id === INBOX_OTHER_CATEGORY_NAME ||
-      id === INBOX_UNCATEGORIZED_CATEGORY_KEY,
-  );
-  if (includesOther) {
+  if (categoryIds.some(isSentinelCategoryKey)) {
     return null;
   }
   return categoryIds;
+}
+
+/**
+ * A fetch for ONLY the "AI deciding category" bucket can be narrowed to threads
+ * still being processed (indexed flag); applyPostQueryFilters then drops the
+ * ones that already have a category.
+ */
+function isPendingOnlyRequest(categoryIds: string[] | undefined): boolean {
+  return (
+    categoryIds !== undefined &&
+    categoryIds.length > 0 &&
+    categoryIds.every((id) => id === INBOX_PENDING_CATEGORY_KEY)
+  );
 }
 
 function appendInboxAdditionalFilters(
@@ -67,6 +75,8 @@ function appendInboxAdditionalFilters(
     const placeholders = narrowingUuids.map(() => `$${idx++}`).join(", ");
     additionalFilters += ` AND thread."categoryId" IN (${placeholders})`;
     queryParams.push(...narrowingUuids);
+  } else if (isPendingOnlyRequest(filters?.categoryIds)) {
+    additionalFilters += ` AND thread."isProcessingPriority" = true`;
   }
 
   return { additionalFilters, paramIndex: idx };

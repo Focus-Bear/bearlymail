@@ -9,7 +9,7 @@ function readPrefersReducedMotion(): boolean {
   return window.matchMedia(REDUCED_MOTION_QUERY).matches;
 }
 
-/** Tracks the OS "reduce motion" setting so animated UI can fall back to static feedback. */
+/** Tracks the OS "reduce motion" setting so animated UI (spinners, smooth scrolls, hold fills) can fall back to static feedback. */
 export function usePrefersReducedMotion(): boolean {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(readPrefersReducedMotion);
 

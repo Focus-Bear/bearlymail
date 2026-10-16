@@ -9,6 +9,7 @@ import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
+import { CategorisationProgressService } from "./categorisation-progress.service";
 import { OnboardingController } from "./onboarding.controller";
 import { OnboardingService } from "./onboarding.service";
 import { ScanAnalysisProcessor } from "./scan-analysis.processor";
@@ -24,7 +25,12 @@ import { ScanAnalysisService } from "./scan-analysis.service";
     LLMModule,
   ],
   controllers: [OnboardingController],
-  providers: [OnboardingService, ScanAnalysisService, ScanAnalysisProcessor],
+  providers: [
+    OnboardingService,
+    CategorisationProgressService,
+    ScanAnalysisService,
+    ScanAnalysisProcessor,
+  ],
   exports: [OnboardingService, ScanAnalysisService],
 })
 export class OnboardingModule {}

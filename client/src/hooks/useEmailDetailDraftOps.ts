@@ -4,6 +4,7 @@ import { Email } from 'types/email';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
+import { buildSuggestRepliesRequest, readLastInboxMode } from 'utils/suggestRepliesRequest';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -196,7 +197,7 @@ function useDraftGenerationCallback(
         }
         const response = await axios.post(
           `${API_URL}/llm/suggest-replies`,
-          { originalEmail: { from: email.from, fromName: email.fromName, subject: email.subject, body: email.body } },
+          buildSuggestRepliesRequest(email, { inboxMode: readLastInboxMode() }),
           { signal: controller.signal }
         );
         if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
@@ -254,10 +255,10 @@ function useGenerateFromCustomPromptCallback(
       try {
         const response = await axios.post(
           `${API_URL}/llm/suggest-replies`,
-          {
-            originalEmail: { from: email.from, fromName: email.fromName, subject: email.subject, body: email.body },
+          buildSuggestRepliesRequest(email, {
+            inboxMode: readLastInboxMode(),
             userInstructions: userInstructions.trim(),
-          },
+          }),
           { signal: controller.signal }
         );
         if (controller.signal.aborted) {

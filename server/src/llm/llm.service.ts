@@ -20,7 +20,10 @@ import {
 } from "./llm-discover-user-context";
 import { LLMMiscService } from "./llm-misc.service";
 import { LLMOperation } from "./llm-operations";
-import { LLMReplyService } from "./llm-reply.service";
+import {
+  LLMReplyService,
+  type ReplyOptionsUserContext,
+} from "./llm-reply.service";
 import { LLMSearchService } from "./llm-search.service";
 import { LLMSummarizationService } from "./llm-summarization.service";
 import { LLMToneService } from "./llm-tone.service";
@@ -360,15 +363,7 @@ export class LLMService {
       subject: string;
       body: string;
     },
-    userContext: {
-      tone?: string;
-      writingStyle?: string;
-      userName?: string;
-      userJobTitle?: string;
-      emailExamples?: string[];
-      calendarLink?: string | null;
-      userInstructions?: string;
-    },
+    userContext: ReplyOptionsUserContext,
     provider?: LLMProvider,
     userId?: string,
     threadMessages?: Array<{

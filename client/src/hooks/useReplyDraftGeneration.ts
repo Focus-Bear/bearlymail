@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Email } from 'types/email';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
+import { buildSuggestRepliesRequest, readLastInboxMode } from 'utils/suggestRepliesRequest';
 
 import { API_URL } from 'config/api';
 import { STRING_STALE } from 'constants/strings';
@@ -112,14 +113,7 @@ async function generateRepliesOnDemandImpl(
   try {
     const response = await axios.post(
       `${API_URL}/llm/suggest-replies`,
-      {
-        originalEmail: {
-          from: currentEmail.from,
-          fromName: currentEmail.fromName,
-          subject: currentEmail.subject,
-          body: currentEmail.body,
-        },
-      },
+      buildSuggestRepliesRequest(currentEmail, { inboxMode: readLastInboxMode() }),
       { signal }
     );
     if (response.data && Array.isArray(response.data) && response.data.length > 0) {

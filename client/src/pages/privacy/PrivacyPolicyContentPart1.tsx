@@ -3,6 +3,7 @@ import React from 'react';
 import { LegalList } from 'components/legal/LegalList';
 import { LegalParagraph } from 'components/legal/LegalParagraph';
 import { LegalSection } from 'components/legal/LegalSection';
+import { AiProcessorsContent } from 'pages/privacy/AiProcessorsContent';
 
 const DataSecuritySection: React.FC = () => (
   <LegalSection title="4. Data Security">
@@ -28,7 +29,10 @@ const DataSecuritySection: React.FC = () => (
 );
 
 const ThirdPartyServicesSection: React.FC = () => (
-  <LegalSection title="5. Third-Party Services">
+  <LegalSection
+    title="5. Third-Party Services"
+    subsections={[{ title: '5.1 AI Processors', content: <AiProcessorsContent /> }]}
+  >
     <LegalParagraph>We integrate with the following third-party services:</LegalParagraph>
     <LegalList
       items={[
@@ -39,10 +43,9 @@ const ThirdPartyServicesSection: React.FC = () => (
           <strong>Google Calendar API:</strong> For calendar booking functionality
         </>,
         <>
-          <strong>AI providers (OpenAI, Google Gemini, Amazon Bedrock and TypeSafe):</strong> To analyse, classify,
-          prioritise and summarise your emails. Relevant email content is sent to these providers only to perform these
-          features. You may use your own OpenAI or Anthropic API key, in which case requests that use it go to that
-          provider
+          <strong>AI providers (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock):</strong> To analyse, classify,
+          prioritise and summarise your emails and help you write replies. Section 5.1 explains what each one receives
+          and why
         </>,
         <>
           <strong>PostHog:</strong> For analytics and product insights

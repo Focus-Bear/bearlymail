@@ -3,7 +3,7 @@ import React from 'react';
 import { LegalList } from 'components/legal/LegalList';
 import { LegalParagraph } from 'components/legal/LegalParagraph';
 import { LegalSection } from 'components/legal/LegalSection';
-import { AiProcessorsContent } from 'pages/privacy/AiProcessorsContent';
+import { AiProcessorsContent, OutsideAustraliaContent } from 'pages/privacy/AiProcessorsContent';
 
 const DataSecuritySection: React.FC = () => (
   <LegalSection title="4. Data Security">
@@ -31,7 +31,10 @@ const DataSecuritySection: React.FC = () => (
 const ThirdPartyServicesSection: React.FC = () => (
   <LegalSection
     title="5. Third-Party Services"
-    subsections={[{ title: '5.1 AI Processors', content: <AiProcessorsContent /> }]}
+    subsections={[
+      { title: '5.1 AI Processors', content: <AiProcessorsContent /> },
+      { title: '5.2 Processing Outside Australia', content: <OutsideAustraliaContent /> },
+    ]}
   >
     <LegalParagraph>We integrate with the following third-party services:</LegalParagraph>
     <LegalList

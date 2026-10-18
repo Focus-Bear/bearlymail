@@ -12,7 +12,7 @@ interface AiProcessor {
   terms: Array<{ label: string; url: string }>;
 }
 
-const AI_PROCESSORS: AiProcessor[] = [
+export const AI_PROCESSORS: AiProcessor[] = [
   {
     name: 'TypeSafe AI (Jev)',
     dataSent:
@@ -28,14 +28,14 @@ const AI_PROCESSORS: AiProcessor[] = [
     ],
   },
   {
-    name: 'Google Gemini (Gemini API)',
+    name: 'Google Gemini (paid Gemini API)',
     dataSent:
       'Email content (sender, participants, subject, body and thread) or its AI summary, your drafts and writing samples, the file names (not the contents) of attachments on a draft, your saved preferences and category names, and the questions you ask Ask AI.',
     purposes:
       'Drafting replies and follow-ups, checking a draft’s tone, suggesting categories and rules, search, Ask AI, confirming phishing warnings and learning your preferences. Gemini also takes over categorisation when Jev is unsure, and other AI features when Amazon Bedrock is unavailable.',
     retentionAndTraining:
-      'Under Google’s terms for the paid Gemini API, prompts and responses are not used to improve Google’s products. They are logged for a limited period only to detect abuse and for legally required disclosures.',
-    region: 'Google may process requests in any of its regions; no specific region is guaranteed.',
+      'We use Google’s paid Gemini API tier, not the free tier. Under Google’s terms for the paid tier, prompts and responses are not used to improve Google’s products. They are logged for a limited period only to detect abuse and for legally required disclosures.',
+    region: 'No specific region is guaranteed; Google may process requests in any country where it operates.',
     terms: [{ label: 'Gemini API additional terms', url: 'https://ai.google.dev/gemini-api/terms' }],
   },
   {
@@ -60,7 +60,8 @@ const AI_PROCESSORS: AiProcessor[] = [
       'Email summaries and action items, priority scoring when Jev is unsure or unavailable, deciding which emails need re-prioritising, search, phishing screening, contact classification and learning your preferences.',
     retentionAndTraining:
       'AWS states that Bedrock does not use your prompts or responses to train models and does not share them with model providers. AWS may keep them for a limited period to detect abuse, depending on the retention setting.',
-    region: 'Asia Pacific (Sydney, using Amazon’s Asia Pacific cross-region processing)',
+    region:
+      'Sydney, Australia, with Amazon’s Asia Pacific cross-region processing, which can route requests to other Asia Pacific countries',
     terms: [
       { label: 'Bedrock data protection', url: 'https://docs.aws.amazon.com/bedrock/latest/userguide/data-protection.html' },
       { label: 'Bedrock data retention', url: 'https://docs.aws.amazon.com/bedrock/latest/userguide/data-retention.html' },
@@ -121,6 +122,30 @@ export const AiProcessorsContent: React.FC = () => (
     <LegalParagraph>
       If you add your own OpenAI or Anthropic API key, requests that use it go to that provider under your own account
       and its terms.
+    </LegalParagraph>
+  </>
+);
+
+export const OutsideAustraliaContent: React.FC = () => (
+  <>
+    <LegalParagraph>
+      BearlyMail is run from Australia, but some of your email content is processed outside Australia by the AI
+      providers above. This happens because these providers run their AI services from their own data centres, and the
+      features in section 5.1 cannot work without sending them the relevant email content. Where each provider processes
+      it:
+    </LegalParagraph>
+    <LegalList
+      items={AI_PROCESSORS.map(processor => (
+        <>
+          <strong>{processor.name}:</strong> {processor.region}
+        </>
+      ))}
+    />
+    <LegalParagraph>
+      To protect your information, each provider handles it under its terms for business API customers, including
+      the retention and no-training terms described in section 5.1. We send only what each feature needs, over encrypted
+      connections. By accepting this policy, you acknowledge that your email content may be processed in these
+      countries, where privacy laws may differ from Australia’s.
     </LegalParagraph>
   </>
 );

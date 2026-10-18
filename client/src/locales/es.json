@@ -789,7 +789,13 @@
     "saveError": "No se pudo guardar su consentimiento. Por favor inténtalo de nuevo.",
     "saving": "Ahorro...",
     "termsOfUse": "Condiciones de uso",
-    "welcome": "Bienvenido a Bearly Mail"
+    "welcome": "Bienvenido a Bearly Mail",
+    "updatedTitle": "Hemos actualizado nuestra Política de Privacidad",
+    "updatedDescription": "Revisa los cambios y acepta la Política de Privacidad actualizada para seguir usando BearlyMail.",
+    "whatsChanged": "Qué ha cambiado",
+    "changeSummaries": {
+      "privacy_1_2_0": "Ahora enumeramos cada servicio de IA que procesa tu correo (TypeSafe AI, Google Gemini, OpenAI y Amazon Bedrock), qué recibe cada uno y por qué, y explicamos que parte de este procesamiento se realiza fuera de Australia."
+    }
   },
   "debug": {
     "comparison": {

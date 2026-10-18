@@ -4,7 +4,10 @@ import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
 import { ERROR_MESSAGES } from "../constants/error-messages";
-import { DEFAULT_LEGAL_VERSIONS } from "../constants/legal-versions";
+import {
+  DEFAULT_LEGAL_VERSIONS,
+  PRIVACY_CHANGE_SUMMARY_KEYS,
+} from "../constants/legal-versions";
 import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import {
   DeletedAccount,
@@ -55,6 +58,19 @@ function consentNeeds(
     needsPrivacyAcceptance:
       !user.privacyAcceptedAt || user.privacyVersion !== currentPrivacyVersion,
   };
+}
+
+/**
+ * The change summary to show a user who accepted an earlier Privacy Policy and
+ * must accept the current one; null for first-time acceptance.
+ */
+function privacyChangeSummaryKey(
+  user: User,
+  needsPrivacyAcceptance: boolean,
+  currentPrivacyVersion: string,
+): string | null {
+  if (!needsPrivacyAcceptance || !user.privacyAcceptedAt) return null;
+  return PRIVACY_CHANGE_SUMMARY_KEYS[currentPrivacyVersion] ?? null;
 }
 
 @Injectable()
@@ -422,6 +438,7 @@ export class UsersService {
     hasCompletedOnboarding: boolean;
     needsTermsAcceptance: boolean;
     needsPrivacyAcceptance: boolean;
+    privacyChangeSummaryKey: string | null;
   }> {
     const user = await this.findOne(userId);
     if (!user) {
@@ -440,6 +457,11 @@ export class UsersService {
       hasCompletedOnboarding: user.hasCompletedOnboarding,
       needsTermsAcceptance,
       needsPrivacyAcceptance,
+      privacyChangeSummaryKey: privacyChangeSummaryKey(
+        user,
+        needsPrivacyAcceptance,
+        currentPrivacyVersion,
+      ),
     };
   }
 

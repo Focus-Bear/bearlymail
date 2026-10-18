@@ -3,7 +3,10 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { DEFAULT_LEGAL_VERSIONS } from "../constants/legal-versions";
+import {
+  DEFAULT_LEGAL_VERSIONS,
+  PRIVACY_CHANGE_SUMMARY_KEYS,
+} from "../constants/legal-versions";
 import {
   DeletedAccount,
   DeletionReason,
@@ -606,6 +609,56 @@ describe("UsersService", () => {
 
       expect(result.needsTermsAcceptance).toBe(false);
       expect(result.needsPrivacyAcceptance).toBe(true);
+    });
+  });
+
+  describe("getOnboardingStatus privacy change summary", () => {
+    beforeEach(() => {
+      delete process.env.TERMS_VERSION;
+      delete process.env.PRIVACY_VERSION;
+    });
+
+    it("has a change summary for the current privacy version", () => {
+      expect(
+        PRIVACY_CHANGE_SUMMARY_KEYS[DEFAULT_LEGAL_VERSIONS.PRIVACY],
+      ).toBeDefined();
+    });
+
+    it("shows what changed to users who accepted an earlier version", async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockUser,
+        termsAcceptedAt: new Date(),
+        termsVersion: DEFAULT_LEGAL_VERSIONS.TERMS,
+        privacyAcceptedAt: new Date(),
+        privacyVersion: "1.1.0",
+      });
+
+      const result = await service.getOnboardingStatus("user-1");
+
+      expect(result.needsPrivacyAcceptance).toBe(true);
+      expect(result.privacyChangeSummaryKey).toBe(
+        PRIVACY_CHANGE_SUMMARY_KEYS[DEFAULT_LEGAL_VERSIONS.PRIVACY],
+      );
+    });
+
+    it("shows no change summary on first acceptance or once accepted", async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockUser,
+        privacyAcceptedAt: null,
+        privacyVersion: null,
+      });
+      expect(
+        (await service.getOnboardingStatus("user-1")).privacyChangeSummaryKey,
+      ).toBeNull();
+
+      repository.findOne.mockResolvedValue({
+        ...mockUser,
+        privacyAcceptedAt: new Date(),
+        privacyVersion: DEFAULT_LEGAL_VERSIONS.PRIVACY,
+      });
+      expect(
+        (await service.getOnboardingStatus("user-1")).privacyChangeSummaryKey,
+      ).toBeNull();
     });
   });
 

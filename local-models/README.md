@@ -46,6 +46,13 @@ more learnable locally:
 Full-population priority (no gate): band accuracy 0.755, and a regression
 baseline gives MAE 7.2 against a label standard deviation of 15.0.
 
+> **Status (2026-10-19):** priority is now scored by Jev whenever it is
+> available; the local model only decides priority for deployments without Jev.
+> Live high-priority accuracy was judged far too low to trust. To be reconsidered
+> it must reach **≥ 90% precision and recall on the `high` band**, which the
+> training report now prints as `priority.high_band_full` and
+> `priority.high_band_on_covered` (`python train.py --export emails.json --report-only`).
+
 Read each row as: *"at this gate, the local model answers X% of threads with Y
 accuracy, and the LLM handles the other (100−X)%."* The default thresholds
 (category 0.60/0.15, priority 0.60) sit at a deliberately conservative

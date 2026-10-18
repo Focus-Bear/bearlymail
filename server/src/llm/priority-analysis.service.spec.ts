@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { CategoryShortlistService } from "./category-shortlist.service";
@@ -179,6 +180,25 @@ describe("PriorityAnalysisService", () => {
       // When no pre-computed value is passed, the result is undefined so the caller
       // does not clobber the DB value that was set during the summary step.
       expect(result.sentimentScore).toBeUndefined();
+    });
+
+    it("asks Jev for the priority scores first, with the assigned category", async () => {
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
+
+      await service.analyzePriority({
+        email: mockEmail,
+        userContext: { goals: [{ value: "Close the Series A" }] },
+      });
+
+      const priorityRequest = (
+        mockLLMCoreService.generateText as jest.Mock
+      ).mock.calls
+        .map(([request]) => request)
+        .find((request) => request.operation === "analyze_priority");
+      expect(priorityRequest.jevDecision).toEqual({
+        kind: JEV_DECISION_KINDS.PRIORITY_SCORES,
+        input: { assignedCategoryName: expect.any(String), hasGoals: true },
+      });
     });
 
     it("should use preComputedSentimentScore when provided, ignoring LLM sentiment", async () => {

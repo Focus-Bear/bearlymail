@@ -93,6 +93,9 @@ def test_pipeline_learns_separable_data():
     assert report["category_flat"]["accuracy_full"] > 0.95
     assert report["category_hierarchical"]["family_accuracy_full"] > 0.95
     assert report["priority"]["band_accuracy_full"] > 0.95
+    high_band = report["priority"]["high_band_full"]
+    assert high_band["support"] > 0
+    assert high_band["precision"] > 0.95 and high_band["recall"] > 0.95
 
 
 def test_confident_thread_classified_without_fallback():

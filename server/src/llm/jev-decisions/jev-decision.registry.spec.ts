@@ -175,4 +175,65 @@ describe("JEV_DECISION_REGISTRY", () => {
       urgencyLevel: "low",
     });
   });
+
+  describe("priority scores", () => {
+    const definition =
+      JEV_DECISION_REGISTRY[JEV_DECISION_KINDS.PRIORITY_SCORES];
+    const input = { assignedCategoryName: "Investors", hasGoals: true };
+
+    it("asks for goal alignment only when the user has goals", () => {
+      expect(Object.keys(definition.questions(input))).toEqual([
+        "newsletter",
+        "urgencyScore",
+        "goalAlignmentScore",
+      ]);
+      expect(
+        Object.keys(definition.questions({ ...input, hasGoals: false })),
+      ).toEqual(["newsletter", "urgencyScore"]);
+    });
+
+    it("maps level scores onto 0-100 and echoes the assigned category", () => {
+      const outcome = definition.compose(input, {
+        newsletter: noul(0),
+        urgencyScore: score(2.76),
+        goalAlignmentScore: score(3),
+      });
+      expect(outcome.output).toMatchObject({
+        result: {
+          urgencyScore: 69,
+          goalAlignmentScore: 75,
+          categoryNumber: 1,
+          categoryName: "Investors",
+          urgencyExplanation: expect.stringContaining("High urgency"),
+        },
+      });
+      expect(outcome.usedKeys).toEqual([
+        "newsletter",
+        "urgencyScore",
+        "goalAlignmentScore",
+      ]);
+    });
+
+    it("applies the newsletter rule without gating on the urgency answer", () => {
+      const outcome = definition.compose(input, {
+        newsletter: noul(1),
+        urgencyScore: score(4),
+        goalAlignmentScore: score(4),
+      });
+      expect(outcome.output).toMatchObject({
+        result: { urgencyScore: 0, goalAlignmentScore: 20 },
+      });
+      expect(outcome.usedKeys).not.toContain("urgencyScore");
+    });
+
+    it("scores goal alignment 0 when there are no goals to align with", () => {
+      const outcome = definition.compose(
+        { ...input, hasGoals: false },
+        { newsletter: noul(0), urgencyScore: score(4) },
+      );
+      expect(outcome.output).toMatchObject({
+        result: { urgencyScore: 100, goalAlignmentScore: 0 },
+      });
+    });
+  });
 });

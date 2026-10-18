@@ -31,7 +31,7 @@ from typing import Any
 import joblib
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error
+from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, precision_score, recall_score
 
 from config import DEFAULT_TRAIN_CONFIG, OTHER_CATEGORY, TrainConfig
 from dataset import Thread, apply_recency_decay, load_threads, time_split
@@ -114,6 +114,20 @@ def _coverage_report(fallback: np.ndarray, correct: np.ndarray) -> dict[str, flo
     return {"coverage": coverage, "accuracy_on_covered": acc}
 
 
+HIGH_PRIORITY_BAND = "high"
+
+
+def _high_band_report(truth: list[str], predicted: list[str]) -> dict[str, float | int]:
+    """Precision/recall of the "high" band alone — the decision a priority
+    model must get right (>= 90%) before it can be trusted to replace Jev."""
+    labels = [HIGH_PRIORITY_BAND]
+    return {
+        "support": sum(band == HIGH_PRIORITY_BAND for band in truth),
+        "precision": float(precision_score(truth, predicted, labels=labels, average="micro", zero_division=0)),
+        "recall": float(recall_score(truth, predicted, labels=labels, average="micro", zero_division=0)),
+    }
+
+
 def evaluate(bundle: ModelBundle, test: list[Thread]) -> dict[str, Any]:
     """Full-population and confidence-gated metrics on the held-out test set,
     for the flat category head, the hierarchical category head, and priority."""
@@ -163,6 +177,11 @@ def evaluate(bundle: ModelBundle, test: list[Thread]) -> dict[str, Any]:
             "band_accuracy_full": float(accuracy_score(pri_true, pri_pred)),
             "macro_f1_full": float(f1_score(pri_true, pri_pred, average="macro", zero_division=0)),
             **_coverage_report(pri_fb, pri_correct),
+            "high_band_full": _high_band_report(pri_true, pri_pred),
+            "high_band_on_covered": _high_band_report(
+                [band for band, fb in zip(pri_true, pri_fb) if not fb],
+                [band for band, fb in zip(pri_pred, pri_fb) if not fb],
+            ),
         },
     }
 

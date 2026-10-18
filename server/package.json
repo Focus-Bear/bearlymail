@@ -49,6 +49,7 @@
     "seed:qa:reset": "ts-node -r tsconfig-paths/register scripts/reset-qa-user.ts",
     "promptfoo:test": "node scripts/run-promptfoo-tests.js",
     "promptfoo:view": "promptfoo view promptfoo",
+    "eval:jev-priority": "node promptfoo/run-jev-evaluation.cjs prioritise-email-prompts",
     "security:audit": "ts-node -r tsconfig-paths/register scripts/security-audit.ts",
     "security:audit:no-llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --no-llm",
     "security:audit:diff": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff",

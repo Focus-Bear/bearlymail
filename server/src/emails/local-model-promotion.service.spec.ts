@@ -1,3 +1,5 @@
+import { JEV, JEV_DECISIONS } from "../constants/jev.constants";
+import { ENV_BOOLEAN_STRING } from "../constants/service-constants";
 import { LocalModelPrediction } from "../local-model/local-model.types";
 import { LocalModelPromotionService } from "./local-model-promotion.service";
 
@@ -55,6 +57,8 @@ function makeService(opts: {
   categoryId?: string | null;
   /** Override the user's EMAIL_CATEGORY contexts (for family two-stage tests). */
   contexts?: Array<{ contextId: string; contextValue: string }>;
+  /** Server config (e.g. the Jev key); empty means Jev is unavailable. */
+  config?: Record<string, string>;
 }) {
   const threadUpdate = jest.fn().mockResolvedValue(undefined);
   const predict = jest.fn().mockResolvedValue(opts.prediction ?? null);
@@ -100,6 +104,7 @@ function makeService(opts: {
     cloudWatchService,
     backgroundSummaryQueueService,
     boss,
+    { get: (key: string) => opts.config?.[key] } as never,
   );
   return {
     service,
@@ -113,6 +118,30 @@ function makeService(opts: {
 }
 
 describe("LocalModelPromotionService.tryHandle", () => {
+  it("leaves priority to Jev whenever Jev decisions are available", async () => {
+    const { service, predict, threadUpdate } = makeService({
+      prediction: CONFIDENT,
+      categoryId: "cat-1",
+      config: { [JEV.API_KEY_ENV]: "key" },
+    });
+    expect(await service.tryHandle("u1", EMAIL, THREAD, "w1")).toBe(false);
+    expect(predict).not.toHaveBeenCalled();
+    expect(threadUpdate).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the local model when Jev decisions are switched off", async () => {
+    const { service, predict } = makeService({
+      prediction: CONFIDENT,
+      categoryId: "cat-1",
+      config: {
+        [JEV.API_KEY_ENV]: "key",
+        [JEV_DECISIONS.ENABLED_ENV]: ENV_BOOLEAN_STRING.FALSE,
+      },
+    });
+    expect(await service.tryHandle("u1", EMAIL, THREAD, "w1")).toBe(true);
+    expect(predict).toHaveBeenCalledTimes(1);
+  });
+
   it("does nothing and returns false when live mode is off", async () => {
     const { service, predict } = makeService({
       isLiveEnabled: false,

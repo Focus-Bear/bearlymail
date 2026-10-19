@@ -1,6 +1,6 @@
 # Jev prompt audit
 
-Audited the current prompt files and their output contracts on 2026-09-30. Category selection and the ten decisions in "Production routing" below now use Jev first; the remaining entries describe the intended decomposition, not completed migrations. Fixture-level Jev vs Gemini results are in the evaluation section.
+Audited the current prompt files and their output contracts on 2026-09-30. Category selection and the eleven decisions in "Production routing" below now use Jev first; the remaining entries describe the intended decomposition, not completed migrations. Fixture-level Jev vs Gemini results are in the evaluation section.
 
 Jev returns typed judgments, not generated prose. Existing category selection now uses Jev first, with Gemini fallback on uncertainty or failure. Other remains a valid choice; suggesting a new category is a separate Gemini operation. The same principle applies to the remaining prompts: keep exact lookups, dates, arithmetic and execution in code; use Jev for judgments; keep Gemini for generated text and uncertain judgments.
 
@@ -20,12 +20,12 @@ Call sites attach a typed `jevDecision` to their existing `LLMRequest`. `LLMCore
 | Merge duplicate categories | `identifyDuplicateCategories` | every pair confidently not a duplicate | any duplicate pair (the model picks groups and the canonical name), or >14 categories |
 | Incremental priority | `IncrementalAnalysisService.checkIfRecalcNeeded` | confident recalc verdict, plus a confident urgency change when the recalc is skipped | uncertain |
 | Phishing | `LlmSummarizationService.checkPhishingOnly` (primary check only) | confidently legitimate (threshold 0.9) | phishing or unsure → Nova → Gemini confirmation writes the banner reason |
+| Priority scores | `PriorityAnalysisService.analyzePriority` (`prioritise-email.md`) | confident newsletter verdict, urgency and (when the user has goals) goal alignment; explanations say they are Jev verdicts | any uncertain answer → the prioritise-email prompt. Jev also replaces the local model here (see `local-models/README.md`) |
 
 Thresholds are 0.8 on Jev's documented confidence scale, except phishing clearance at 0.9. Not routed:
 
 - opt-out detection: no production caller
 - batch triage: one fixture
-- priority scoring: user-facing explanations
 - mixed prompts that need generated text
 
 Fixture replay of the ten routed suites with the production definitions (60 cases): Gemini alone 58/60 (median 1.2 s). Cascade at 0.8: 60/60, with 47 cases answered by Jev alone and a median of 0.31 s. Tokens roughly double, so the measured gain is accuracy and latency; cost depends on TypeSafe pricing. The harness now evaluates these suites through the production definitions, so fixture results track what ships. CI's promptfoo job runs `JEV_EVAL_GATE=accepted node promptfoo/run-jev-evaluation.cjs` over these suites. It fails if any answer production would accept from Jev is wrong, and warns when the `TYPESAFE_AI_API_KEY` secret is missing. Locally on 2026-10-04: 47 accepted, all correct; 13 deferred.

@@ -39,6 +39,12 @@ export interface JevDecisionInputs {
   [JEV_DECISION_KINDS.EMAIL_TYPE]: NoInput;
   [JEV_DECISION_KINDS.CUSTOM_EXCLUSION_RULES]: { rules: string[] };
   [JEV_DECISION_KINDS.PHISHING_CLEARANCE]: NoInput;
+  [JEV_DECISION_KINDS.PRIORITY_SCORES]: {
+    /** The category already assigned upstream, echoed back as category 1. */
+    assignedCategoryName: string;
+    /** False when the user has no goals or current work to align with. */
+    hasGoals: boolean;
+  };
 }
 
 export type JevDecisionKind = keyof JevDecisionInputs;

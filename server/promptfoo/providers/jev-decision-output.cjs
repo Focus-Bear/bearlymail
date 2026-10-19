@@ -43,40 +43,6 @@ function compose(plan, answers) {
         })),
       };
       break;
-    case "prioritise-email-prompts": {
-      const newsletter = bool("newsletter");
-      const urgencyScore = newsletter
-        ? 0
-        : Math.round(
-            (read("urgencyScore").score / EVALUATION.SCORE_MAX) *
-              EVALUATION.PERCENT,
-          );
-      const goalAlignmentScore = plan.questions.goalAlignmentScore
-        ? Math.round(
-            (read("goalAlignmentScore").score / EVALUATION.SCORE_MAX) *
-              EVALUATION.PERCENT,
-          )
-        : 0;
-      const categoryName = String(plan.vars.emailCategories).match(
-        /1\.\s*\"([^\"]+)\"/,
-      )?.[1];
-      output = {
-        result: {
-          urgencyScore,
-          goalAlignmentScore: newsletter
-            ? Math.min(20, goalAlignmentScore)
-            : goalAlignmentScore,
-          urgencyExplanation: verdictText("urgency score"),
-          goalAlignmentExplanation: verdictText("goal alignment"),
-          categoryNumber: 1,
-          categoryName,
-          categoryConfidence: "HIGH",
-          categoryExplanation: "Category already assigned upstream.",
-          reasoning: verdictText("priority scores"),
-        },
-      };
-      break;
-    }
     case "sanity-check-category-rule": {
       const verdict = pick("verdict");
       output = {

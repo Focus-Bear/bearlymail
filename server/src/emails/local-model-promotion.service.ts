@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { createHash } from "crypto";
 import type { PgBoss } from "pg-boss";
@@ -14,6 +15,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { isJevDecisionsAvailable } from "../llm/jev-decisions/jev-decision-client";
 import { assignFamily } from "../local-model/category-family";
 import { LocalModelDebugSnapshot } from "../local-model/local-model.types";
 import { LocalModelInferenceService } from "../local-model/local-model-inference.service";
@@ -61,6 +63,11 @@ const HOLDOUT_BUCKETS = 100;
  * still flows through the LLM and the shadow comparison, which is how we keep
  * measuring the model and gather the next round of training failures. Gated by
  * `LOCAL_MODEL_LIVE_ENABLED`; never throws.
+ *
+ * Jev outranks the local model: while Jev decisions are available the local
+ * model never decides, and priority goes to the Jev-first `analyze_priority`
+ * call. Its high-priority accuracy was too low to trust (2026-10-18); it is
+ * only a fallback for deployments without Jev. Shadow comparison still runs.
  */
 @Injectable()
 export class LocalModelPromotionService {
@@ -76,7 +83,14 @@ export class LocalModelPromotionService {
     private readonly cloudWatchService: CloudWatchService,
     private readonly backgroundSummaryQueueService: BackgroundSummaryQueueService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
+    private readonly configService: ConfigService,
   ) {}
+
+  private isJevAvailable(): boolean {
+    return isJevDecisionsAvailable((key) =>
+      this.configService.get<string>(key),
+    );
+  }
 
   /**
    * Decision + apply entry point shared by the single and batch refine paths.
@@ -91,6 +105,7 @@ export class LocalModelPromotionService {
   ): Promise<boolean> {
     if (
       !this.inferenceService.isLiveEnabled ||
+      this.isJevAvailable() ||
       !email.emailThreadId ||
       !thread
     ) {

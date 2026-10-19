@@ -130,5 +130,9 @@ Required env (set on the worker):
 - `LOCAL_MODEL_SHADOW_ENABLED` — `"true"` to turn on shadow logging.
 - `LOCAL_MODEL_LIVE_ENABLED` — `"true"` to let confident predictions skip the
   LLM. Kill switch: `-c localModelLiveEnabled=false` on the CDK deploy.
+  Ignored while Jev decisions are available (`TYPESAFE_AI_API_KEY` set and
+  `JEV_DECISIONS_ENABLED` not `false`): Jev scores priority instead, and the
+  local model is only the fallback for deployments without Jev. Shadow logging
+  keeps comparing it with the authoritative answer.
 - `LOCAL_MODEL_HOLDOUT_SAMPLE_RATE` — `0`–`100`, percent of would-be-applied
   confident threads diverted to the LLM to measure applied accuracy. Default `0`.

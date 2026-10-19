@@ -14,11 +14,16 @@ const {
   EVALUATION_SUITES,
   ROUTED_SUITES,
 } = require("./providers/jev-decision-plan.cjs");
-const { JEV } = require("../src/constants/jev.constants");
+const { JEV, JEV_DECISIONS } = require("../src/constants/jev.constants");
 const {
   caseIndexOf,
   readAcceptedCases,
 } = require("./providers/jev-decision-log.cjs");
+const {
+  PRIORITY_SUITE,
+  formatDetection,
+  highPriorityDetection,
+} = require("./providers/priority-detection-metrics.cjs");
 const ACCEPTANCE_GATE = "accepted";
 const server = path.resolve(__dirname, "..");
 const mode = process.env.JEV_EVAL_MODE || "jev";
@@ -82,6 +87,22 @@ function runPromptfoo(suite, report, decisionLog) {
   }
 }
 
+function reportPriorityDetection(rows, decisionLog) {
+  const accepted = readAcceptedCases(decisionLog);
+  process.stdout.write(
+    formatDetection(`${mode}, every case`, highPriorityDetection(rows)),
+  );
+  if (mode !== "jev") return;
+  process.stdout.write(
+    formatDetection(
+      `jev, cases production accepts (confidence >= ${JEV_DECISIONS.STANDARD_MIN_CONFIDENCE})`,
+      highPriorityDetection(
+        rows.filter((row) => accepted.has(caseIndexOf(row.testCase))),
+      ),
+    ),
+  );
+}
+
 /** Returns true when the suite fails its check. */
 function evaluateSuite(suite) {
   const report = path.join(reportDir, `${suite}.json`);
@@ -91,6 +112,7 @@ function evaluateSuite(suite) {
   const status = runPromptfoo(suite, report, decisionLog);
   const rows = JSON.parse(fs.readFileSync(report, "utf8")).results.results;
   const errors = rows.filter((row) => row.response?.error).length;
+  if (suite === PRIORITY_SUITE) reportPriorityDetection(rows, decisionLog);
   if (!isAcceptanceGate) {
     const passed = rows.filter((row) => row.success).length;
     process.stdout.write(

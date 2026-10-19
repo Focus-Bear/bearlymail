@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import {
   BODY_PREVIEW_LENGTHS,
   PRIORITY_ANALYSIS_FALLBACK,
@@ -214,6 +215,8 @@ export class PriorityAnalysisService {
     prompt: string;
     systemPrompt: string;
     orderedCategoryNames: string[];
+    /** False when the prompt shows "No goals defined" (nothing to align with). */
+    hasGoals: boolean;
   }> {
     const {
       email,
@@ -281,6 +284,9 @@ export class PriorityAnalysisService {
       prompt,
       systemPrompt: promptConfig.systemPrompt || "",
       orderedCategoryNames,
+      hasGoals: !!(
+        contextTexts.goalsContextText || contextTexts.workingOnContextText
+      ),
     };
   }
 
@@ -536,7 +542,7 @@ export class PriorityAnalysisService {
       categoryPreAssigned: categoryPreAssigned === true,
     });
 
-    const { prompt, systemPrompt, orderedCategoryNames } =
+    const { prompt, systemPrompt, orderedCategoryNames, hasGoals } =
       await this.buildPriorityPrompt({
         email,
         userHistory,
@@ -573,6 +579,11 @@ export class PriorityAnalysisService {
         operation: LLM_OP_ANALYZE_PRIORITY,
         jsonMode: true,
         model: priorityRoute.model,
+        // Jev scores first; uncertain or failed answers fall back to this prompt.
+        jevDecision: {
+          kind: JEV_DECISION_KINDS.PRIORITY_SCORES,
+          input: { assignedCategoryName: orderedCategoryNames[0], hasGoals },
+        },
       },
       priorityRoute.provider,
       userId,

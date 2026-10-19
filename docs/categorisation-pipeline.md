@@ -36,7 +36,9 @@ new email persisted (email-lifecycle.service.ts)
         │           → writes categoryId from the rule, prioritySource='rule'
         ▼ (no match)
   2. LOCAL MODEL  local-model-promotion.service.ts
-        │           requires LOCAL_MODEL_LIVE_ENABLED + per-user model
+        │           requires LOCAL_MODEL_LIVE_ENABLED + per-user model, and
+        │            only runs when Jev decisions are unavailable (no
+        │            TYPESAFE_AI_API_KEY, or JEV_DECISIONS_ENABLED=false)
         │           priority head must be confident; category applied when it
         │            resolves, else null — priority still applied and the
         │            thread stays "Other"
@@ -45,7 +47,10 @@ new email persisted (email-lifecycle.service.ts)
         │           → writes categoryId (name→UUID resolve, family narrowing),
         │             band-midpoint priorityScore, prioritySource='local'
         ▼ (not confident / disabled)
-  3. LLM          priority-analysis.service.ts → llm-priority-result.service.ts
+  3. JEV → LLM    priority-analysis.service.ts → llm-priority-result.service.ts
+                    urgency + goal alignment are scored by Jev first
+                    (PRIORITY_SCORES decision, ≥0.8 confidence); uncertain
+                    or failed answers run the prioritise-email prompt
                     categories are presented as `"Name" [id: <categoryKey>]`
                     (shortlisted first by CategoryShortlistService when the
                      list is large); a matching category RULE is injected as a
@@ -95,7 +100,8 @@ Name matching is a *fallback*. Anything that can carry the UUID should carry the
 | `PRIORITY_RULE_SKIP_ENABLED` | on | Stage 1 rule short-circuit |
 | `PRIORITY_RULE_SHADOW_SAMPLE_RATE` | 0.1 | Fraction of rule-matched emails that still run the LLM for comparison |
 | `LOCAL_MODEL_SHADOW_ENABLED` | off | Log local-vs-LLM agreement without writing categories |
-| `LOCAL_MODEL_LIVE_ENABLED` | off | Stage 2 local-model promotion (a confident priority applies even without a confident category) |
+| `LOCAL_MODEL_LIVE_ENABLED` | off | Stage 2 local-model promotion (a confident priority applies even without a confident category). Ignored while Jev decisions are available |
+| `JEV_DECISIONS_ENABLED` | on (needs `TYPESAFE_AI_API_KEY`) | Jev-first priority scores and other typed decisions; `false` hands priority back to the local model / LLM |
 | `LOCAL_MODEL_HOLDOUT_SAMPLE_RATE` | 0 | % of confident local decisions diverted to the LLM for applied-accuracy eval |
 
 ## Known sharp edges

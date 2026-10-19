@@ -92,6 +92,8 @@ export const useContactSearch = ({
         setSearchResults([]);
         setGroupResults([]);
         setSearchedQuery(query ?? '');
+        // An in-flight search for an older query is ignored when it lands, so it can't clear this.
+        setSearching(false);
         return;
       }
 

@@ -356,5 +356,33 @@ describe('useContactSearch', () => {
 
       expect(result.current.searchResults).toEqual(newer);
     });
+
+    it('stops searching when the query is cleared while a search is in flight', async () => {
+      // Contacts and groups are fetched together; hold both until the query is cleared.
+      const pendingRequests: Array<(value: { data: Contact[] }) => void> = [];
+      mockedAxios.get.mockImplementation(
+        () =>
+          new Promise(resolve => {
+            pendingRequests.push(resolve);
+          })
+      );
+      const { result } = renderHook(() => useContactSearch());
+
+      let inFlightSearch: Promise<void> = Promise.resolve();
+      act(() => {
+        inFlightSearch = result.current.searchContacts('andrew');
+      });
+      expect(result.current.searching).toBe(true);
+
+      await act(async () => {
+        await result.current.searchContacts('');
+      });
+      await act(async () => {
+        pendingRequests.forEach(resolve => resolve({ data: [] }));
+        await inFlightSearch;
+      });
+
+      expect(result.current.searching).toBe(false);
+    });
   });
 });

@@ -114,6 +114,12 @@ export interface RawEmailRow {
   categoryId: string | null;
   /** Stored provenance bucket for the thread's category (user/rule/local/priority/summary). */
   categorySource: string | null;
+  /** Stored AI engine for an AI-decided category (see decision-provider.helper.ts). */
+  categoryDecisionProvider: string | null;
+  /** Stored provenance of priorityScore (llm/rule/local). */
+  prioritySource: string | null;
+  /** Stored AI engine for an LLM-scored priority. */
+  priorityDecisionProvider: string | null;
   protoCategoryId: string | null;
   protoCategoryName: string | null;
   protoCategoryDescription: string | null;

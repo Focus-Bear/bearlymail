@@ -154,6 +154,15 @@ export interface GitHubLink {
  */
 export type CategorizationSource = 'user' | 'rule' | 'local' | 'proto' | 'ai';
 
+/**
+ * Which AI engine made a decision: an LLM vendor or TypeSafe AI's Jev. Mirrors
+ * the server's `AiDecisionProvider` (see `ai-decision-provider.constants.ts`).
+ */
+export type AiDecisionProvider = 'openai' | 'gemini' | 'bedrock' | 'anthropic' | 'claude-cli' | 'jev';
+
+/** How `priorityScore` was set. Mirrors the server's `PRIORITY_SCORE_SOURCE`. */
+export type PriorityScoreSource = 'llm' | 'rule' | 'local';
+
 /** Where a tracked open came from (mirrors server OPEN_SOURCE). */
 export type OpenSource = 'direct' | 'gmail_proxy' | 'apple_privacy_proxy';
 
@@ -260,6 +269,11 @@ export interface Email {
   categoryExplanation?: string | null;
   // Which process assigned the category (surfaced as a "Categorised by" line in the popover)
   categorizationSource?: CategorizationSource | null;
+  // AI engine behind an 'ai' categorizationSource; null when unknown (old rows)
+  categorizationProvider?: AiDecisionProvider | null;
+  // How the priority score was set, and the AI engine when it was an LLM/Jev call
+  prioritySource?: PriorityScoreSource | null;
+  priorityProvider?: AiDecisionProvider | null;
   // Proto category ID for emails in "Other" category — lets the inbox promote /
   // delete the proto by ID rather than matching the drift-prone display name.
   protoCategoryId?: string | null;

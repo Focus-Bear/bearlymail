@@ -1,3 +1,4 @@
+import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
 import type { JevDecisionRequest } from "./jev-decisions/jev-decision.types";
 import { LLMOperation } from "./llm-operations";
 
@@ -55,4 +56,10 @@ export interface LLMRequest {
    * and the provider call only runs if Jev is unsure or text is needed.
    */
   jevDecision?: JevDecisionRequest;
+  /**
+   * Called with the engine that actually produced the answer — Jev, the
+   * requested provider, or the provider a failure fell back to — so callers
+   * can record which AI made a decision without changing the return type.
+   */
+  onProviderResolved?: (provider: AiDecisionProvider) => void;
 }

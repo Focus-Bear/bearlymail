@@ -2,11 +2,12 @@ import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { JEV_DECISION_PROVIDER } from "../constants/ai-decision-provider.constants";
 import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { CategoryShortlistService } from "./category-shortlist.service";
-import { LLMProvider } from "./llm.types";
+import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
 import { PriorityAnalysisService } from "./priority-analysis.service";
 import * as prompts from "./prompts";
@@ -166,6 +167,37 @@ describe("PriorityAnalysisService", () => {
   });
 
   describe("analyzePriority", () => {
+    it("records which engine answered the category and the priority calls", async () => {
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
+      const routed = (
+        mockLLMCoreService.generateText as jest.Mock
+      ).getMockImplementation()!;
+      (mockLLMCoreService.generateText as jest.Mock).mockImplementation(
+        (request: LLMRequest) => {
+          request.onProviderResolved?.(
+            request.operation === "categorise_summary"
+              ? LLMProvider.GEMINI
+              : JEV_DECISION_PROVIDER,
+          );
+          return routed(request);
+        },
+      );
+
+      const result = await service.analyzePriority({ email: mockEmail });
+
+      expect(result.categoryDecisionProvider).toBe(LLMProvider.GEMINI);
+      expect(result.priorityDecisionProvider).toBe(JEV_DECISION_PROVIDER);
+    });
+
+    it("leaves the providers null when the LLM layer reports none", async () => {
+      routeLlm(mockLLMCoreService.generateText as jest.Mock);
+
+      const result = await service.analyzePriority({ email: mockEmail });
+
+      expect(result.categoryDecisionProvider).toBeNull();
+      expect(result.priorityDecisionProvider).toBeNull();
+    });
+
     it("should parse a valid JSON response with top-level result key correctly", async () => {
       routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
@@ -199,6 +231,8 @@ describe("PriorityAnalysisService", () => {
         kind: JEV_DECISION_KINDS.PRIORITY_SCORES,
         input: { assignedCategoryName: expect.any(String), hasGoals: true },
       });
+      // The same request reports who answered, so a Jev score is recorded as Jev.
+      expect(priorityRequest.onProviderResolved).toEqual(expect.any(Function));
     });
 
     it("should use preComputedSentimentScore when provided, ignoring LLM sentiment", async () => {

@@ -5,6 +5,7 @@ import * as os from "os";
 import { MILLISECONDS } from "../constants/time-constants";
 import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLM_OP_UNKNOWN } from "./llm-operations";
+import { reportProvider } from "./provider-report.util";
 import { TokenUsageService } from "./token-usage.service";
 
 /**
@@ -175,7 +176,11 @@ export class ClaudeCliClient {
     }
 
     const result = envelope.result ?? "";
-    return request.jsonMode ? stripMarkdownJsonFences(result) : result;
+    return reportProvider(
+      request,
+      LLMProvider.CLAUDE_CLI,
+      request.jsonMode ? stripMarkdownJsonFences(result) : result,
+    );
   }
 
   /**

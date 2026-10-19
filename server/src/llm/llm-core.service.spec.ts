@@ -2,7 +2,12 @@ import { Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter } from "events";
 
-import { JEV, JEV_DECISION_KINDS } from "../constants/jev.constants";
+import { JEV_DECISION_PROVIDER } from "../constants/ai-decision-provider.constants";
+import {
+  JEV,
+  JEV_DECISION_KINDS,
+  JEV_PRIORITY_LEVELS,
+} from "../constants/jev.constants";
 import { UsersService } from "../users/users.service";
 import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -1005,6 +1010,178 @@ describe("LLMCoreService", () => {
 
       expect(out).toBe('{"matches":false}');
       expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports Jev as the provider when Jev answers", async () => {
+      respondFromJev(0.99);
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      await service.generateText(
+        { ...decisionRequest, onProviderResolved },
+        LLMProvider.GEMINI,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledWith(JEV_DECISION_PROVIDER);
+    });
+
+    it("reports the LLM provider when Jev is unsure and the provider answers", async () => {
+      respondFromJev(0.55);
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: '{"matches":false}',
+        usageMetadata: undefined,
+      });
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      await service.generateText(
+        { ...decisionRequest, onProviderResolved },
+        LLMProvider.GEMINI,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledTimes(1);
+      expect(onProviderResolved).toHaveBeenCalledWith(LLMProvider.GEMINI);
+    });
+  });
+
+  describe("Jev priority scores with provider reporting", () => {
+    // The request PriorityAnalysisService sends: Jev first, then the prompt.
+    const priorityRequest = (onProviderResolved: jest.Mock): LLMRequest => ({
+      prompt: "Score this email.",
+      jsonMode: true,
+      operation: "analyze_priority",
+      jevDecision: {
+        kind: JEV_DECISION_KINDS.PRIORITY_SCORES,
+        input: { assignedCategoryName: "Investors", hasGoals: false },
+      },
+      onProviderResolved,
+    });
+    const respondWithPriorityScores = (urgencyConfidence: number) =>
+      jest.spyOn(global, "fetch").mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            model: JEV.DEFAULT_MODEL,
+            answers: {
+              newsletter: { type: "noul", noul: 0.01 },
+              urgencyScore: {
+                type: "score",
+                score: 2,
+                confidence: urgencyConfidence,
+                // One probability per urgency level, keyed by level index.
+                probabilities: Object.fromEntries(
+                  JEV_PRIORITY_LEVELS.URGENCY.map((_, index) => [
+                    String(index),
+                    index === 2 ? urgencyConfidence : 0,
+                  ]),
+                ),
+              },
+            },
+            usage: { input_tokens: 10, output_tokens: 2 },
+          }),
+        ),
+      );
+    afterEach(() => jest.mocked(global.fetch).mockRestore?.());
+
+    it("records TypeSafe AI (Jev) when Jev scores the priority", async () => {
+      respondWithPriorityScores(0.95);
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      const out = await service.generateText(
+        priorityRequest(onProviderResolved),
+        LLMProvider.GEMINI,
+      );
+
+      expect(JSON.parse(out).result.categoryName).toBe("Investors");
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      expect(onProviderResolved).toHaveBeenCalledTimes(1);
+      expect(onProviderResolved).toHaveBeenCalledWith(JEV_DECISION_PROVIDER);
+    });
+
+    it("records the LLM when Jev is unsure and the prompt scores the priority", async () => {
+      respondWithPriorityScores(0.4);
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: '{"result":{"urgencyScore":40}}',
+        usageMetadata: undefined,
+      });
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      await service.generateText(
+        priorityRequest(onProviderResolved),
+        LLMProvider.GEMINI,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledTimes(1);
+      expect(onProviderResolved).toHaveBeenCalledWith(LLMProvider.GEMINI);
+    });
+  });
+
+  describe("provider reporting (onProviderResolved)", () => {
+    it("reports Bedrock when Bedrock answers", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "nova" }] } },
+      });
+      const onProviderResolved = jest.fn();
+      const { service } = makeService();
+
+      await service.generateText(
+        { ...baseRequest, onProviderResolved },
+        LLMProvider.BEDROCK,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledWith(LLMProvider.BEDROCK);
+    });
+
+    it("reports the fallback provider, not the requested one, after a failure", async () => {
+      mockGeminiGenerateContent.mockRejectedValue(new Error("gemini-down"));
+      mockOpenAIChatCreate.mockResolvedValue({
+        choices: [{ message: { content: "from-openai" } }],
+        usage: undefined,
+      });
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      await service.generateText(
+        { ...baseRequest, onProviderResolved },
+        LLMProvider.GEMINI,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledTimes(1);
+      expect(onProviderResolved).toHaveBeenCalledWith(LLMProvider.OPENAI);
+    });
+
+    it("does not report a provider when every provider fails", async () => {
+      mockGeminiGenerateContent.mockRejectedValue(new Error("gemini-down"));
+      mockOpenAIChatCreate.mockRejectedValue(new Error("openai-down"));
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      await expect(
+        service.generateText(
+          { ...baseRequest, onProviderResolved },
+          LLMProvider.GEMINI,
+        ),
+      ).rejects.toThrow();
+      expect(onProviderResolved).not.toHaveBeenCalled();
     });
   });
 

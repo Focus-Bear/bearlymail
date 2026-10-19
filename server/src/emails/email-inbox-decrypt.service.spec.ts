@@ -81,4 +81,30 @@ describe("EmailInboxDecryptService — inbox summary derivation", () => {
     const row = makeRow({ protoCategoryId: null });
     expect(service.decryptRawEmailRow(row).protoCategoryId).toBeNull();
   });
+
+  it("returns which AI engine decided the category and the priority", () => {
+    const row = makeRow({
+      categorySource: "priority",
+      categoryDecisionProvider: "jev",
+      prioritySource: "llm",
+      priorityDecisionProvider: "gemini",
+    });
+    const inboxEmail = service.decryptRawEmailRow(row);
+    expect(inboxEmail.categorizationSource).toBe("ai");
+    expect(inboxEmail.categorizationProvider).toBe("jev");
+    expect(inboxEmail.prioritySource).toBe("llm");
+    expect(inboxEmail.priorityProvider).toBe("gemini");
+  });
+
+  it("returns null providers for rows decided before providers were recorded", () => {
+    const row = makeRow({
+      categorySource: "priority",
+      categoryDecisionProvider: null,
+      prioritySource: "llm",
+      priorityDecisionProvider: null,
+    });
+    const inboxEmail = service.decryptRawEmailRow(row);
+    expect(inboxEmail.categorizationProvider).toBeNull();
+    expect(inboxEmail.priorityProvider).toBeNull();
+  });
 });

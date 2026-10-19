@@ -3,6 +3,7 @@ import type { Repository } from "typeorm";
 
 import type { CategoryRulesService } from "../category-rules/category-rules.service";
 import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
+import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
 import type { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import type { ProtoCategory } from "../database/entities/proto-category.entity";
@@ -364,6 +365,7 @@ async function applyRealSummaryCategory(
     categoryId: string;
     categoryName: string;
     reasoning: string | null;
+    decisionProvider: AiDecisionProvider | null;
   },
 ): Promise<void> {
   const { email, workerId } = args;
@@ -382,6 +384,7 @@ async function applyRealSummaryCategory(
       finalCategory: resolved.categoryName,
       protoCategoryId: null,
       resolvedCategoryExplanation: explanation,
+      decisionProvider: resolved.decisionProvider,
       decisionTrace: incrementalLlmTrace({
         decidedAt,
         email,

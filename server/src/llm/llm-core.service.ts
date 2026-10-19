@@ -45,6 +45,7 @@ import {
   retryLLMOperation,
 } from "./llm-retry-policy";
 import { supportsReasoningEffort } from "./llm-utils";
+import { reportProvider } from "./provider-report.util";
 import { TokenUsageService } from "./token-usage.service";
 
 /** Parameters for a single provider-agnostic tool-calling step. */
@@ -397,7 +398,7 @@ export class LLMCoreService {
         throw new Error("Gemini returned no text content");
       }
       return text;
-    });
+    }).then((text) => reportProvider(request, LLMProvider.GEMINI, text));
   }
 
   /**
@@ -466,7 +467,7 @@ export class LLMCoreService {
           ?.map((block) => ("text" in block ? block.text : ""))
           .join("") || ""
       );
-    });
+    }).then((text) => reportProvider(request, LLMProvider.BEDROCK, text));
   }
 
   private async generateWithOpenAIReasoningModel(options: {
@@ -855,7 +856,7 @@ export class LLMCoreService {
         userId,
         startTime,
       );
-    });
+    }).then((text) => reportProvider(request, LLMProvider.OPENAI, text));
   }
 
   private async generateWithAnthropic(
@@ -954,7 +955,7 @@ export class LLMCoreService {
         throw new Error("Anthropic returned an unexpected content block type");
       }
       return block.text;
-    });
+    }).then((text) => reportProvider(request, LLMProvider.ANTHROPIC, text));
   }
 
   /**

@@ -8,6 +8,11 @@ import { buildDeterministicSummary } from "../llm/email-content-cleaner";
 import { parseCategoryName } from "../utils/category-name.util";
 import { deriveCategorizationSource } from "./category-source.helper";
 import {
+  deriveCategorizationProvider,
+  derivePriorityProvider,
+  toPriorityScoreSource,
+} from "./decision-provider.helper";
+import {
   isThreadCategoryPending,
   RawEmailRow,
   SYSTEM_LABELS,
@@ -67,6 +72,10 @@ export class EmailInboxDecryptService {
       row.githubMetadata as string | undefined,
       `githubMetadata for thread ${row.emailThreadId}`,
     );
+    const categorizationSource = deriveCategorizationSource({
+      categorySource: row.categorySource,
+      protoCategoryId: row.protoCategoryId,
+    });
     return {
       id: row.id,
       userId: row.userId,
@@ -112,9 +121,15 @@ export class EmailInboxDecryptService {
       // Which process assigned the category (surfaced in the everyday popover).
       // Null out when the category UUID was orphaned so we don't attribute a
       // stale "Other" bucket to a process that no longer applies.
-      categorizationSource: deriveCategorizationSource({
-        categorySource: row.categorySource,
-        protoCategoryId: row.protoCategoryId,
+      categorizationSource,
+      categorizationProvider: deriveCategorizationProvider({
+        categorizationSource,
+        categoryDecisionProvider: row.categoryDecisionProvider,
+      }),
+      prioritySource: toPriorityScoreSource(row.prioritySource),
+      priorityProvider: derivePriorityProvider({
+        prioritySource: row.prioritySource,
+        priorityDecisionProvider: row.priorityDecisionProvider,
       }),
       // Plain UUID (unencrypted) — lets the client promote/delete the proto by
       // ID instead of matching the (drift-prone) display name.

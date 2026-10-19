@@ -1,3 +1,4 @@
+import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import type { Email } from "../database/entities/email.entity";
 import type { ProtoCategory } from "../database/entities/proto-category.entity";
@@ -78,6 +79,8 @@ export type IncrementalCategoryVerdict =
       categoryId: string;
       categoryName: string;
       reasoning: string | null;
+      /** AI engine that picked the category; null when unknown. */
+      decisionProvider: AiDecisionProvider | null;
     }
   | { kind: typeof INCREMENTAL_VERDICT_KIND.OTHER; reasoning: string | null }
   | {
@@ -134,5 +137,6 @@ export async function chooseIncrementalCategory(
     categoryId,
     categoryName,
     reasoning,
+    decisionProvider: chosen.categoryFields.categoryDecisionProvider ?? null,
   };
 }

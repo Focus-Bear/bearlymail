@@ -14,9 +14,18 @@ vi.mock('react-i18next', () => ({
   }),
   // Render the i18nKey (so it stays findable) plus any injected component such
   // as the "Deterministic rule" link, so its href/testid can be asserted.
-  Trans: ({ i18nKey, components }: { i18nKey: string; components?: Record<string, React.ReactElement> }) => (
+  Trans: ({
+    i18nKey,
+    values,
+    components,
+  }: {
+    i18nKey: string;
+    values?: { sourceLabel?: string };
+    components?: Record<string, React.ReactElement>;
+  }) => (
     <span>
       {i18nKey}
+      <span data-testid="categorised-by-source-label">{values?.sourceLabel}</span>
       {components?.ruleLink}
     </span>
   ),
@@ -164,6 +173,30 @@ describe('PriorityTooltipCategory', () => {
   it('renders the "Categorised by" line when a categorisationSource is provided', () => {
     renderWithRouter(<PriorityTooltipCategory {...defaultProps} categorizationSource="ai" />);
     expect(screen.getByText('priority.tooltip.categorisedBy.label')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['openai', 'priority.tooltip.aiProvider.openai'],
+    ['gemini', 'priority.tooltip.aiProvider.gemini'],
+    ['bedrock', 'priority.tooltip.aiProvider.bedrock'],
+    ['jev', 'priority.tooltip.aiProvider.jev'],
+  ] as const)('names the AI engine (%s) behind an AI-decided category', (provider, labelKey) => {
+    renderWithRouter(
+      <PriorityTooltipCategory {...defaultProps} categorizationSource="ai" categorizationProvider={provider} />
+    );
+    expect(screen.getByTestId('categorised-by-source-label')).toHaveTextContent(labelKey);
+  });
+
+  it('falls back to the generic AI label when the provider was not recorded', () => {
+    renderWithRouter(<PriorityTooltipCategory {...defaultProps} categorizationSource="ai" />);
+    expect(screen.getByTestId('categorised-by-source-label')).toHaveTextContent('priority.tooltip.aiProvider.unknown');
+  });
+
+  it('keeps the rule label for a rule-decided category even if a provider is present', () => {
+    renderWithRouter(
+      <PriorityTooltipCategory {...defaultProps} categorizationSource="rule" categorizationProvider="gemini" />
+    );
+    expect(screen.getByTestId('categorised-by-source-label')).toHaveTextContent('priority.tooltip.categorisedBy.rule');
   });
 
   it('does not render the "Categorised by" line when categorisationSource is absent', () => {

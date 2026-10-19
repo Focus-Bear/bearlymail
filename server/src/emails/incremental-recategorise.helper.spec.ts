@@ -2,6 +2,7 @@ import type { Logger } from "@nestjs/common";
 import type { Repository } from "typeorm";
 
 import type { CategoryRulesService } from "../category-rules/category-rules.service";
+import { JEV_DECISION_PROVIDER } from "../constants/ai-decision-provider.constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import type { ProtoCategory } from "../database/entities/proto-category.entity";
@@ -330,6 +331,19 @@ describe("recategoriseFromSummary", () => {
         }),
       ]);
       expect(persistTraceOnlyMock).not.toHaveBeenCalled();
+    });
+
+    it("passes on which engine picked the new category", async () => {
+      categoriseMock.mockResolvedValue({
+        ...llmPick("QA passed"),
+        decisionProvider: JEV_DECISION_PROVIDER,
+      });
+
+      await recategoriseFromSummary(deps(), args());
+
+      expect(persistCategoryMock.mock.calls[0][2].decisionProvider).toBe(
+        JEV_DECISION_PROVIDER,
+      );
     });
 
     it("writes a trace-only 'unchanged' record when the model picks the category the thread already has", async () => {

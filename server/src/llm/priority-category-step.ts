@@ -157,6 +157,7 @@ export async function chooseEmailCategory(
     | "categoryExplanation"
     | "categoryConfidence"
     | "protoCategorySuggestion"
+    | "categoryDecisionProvider"
   >;
   instrumentation: CategoryInstrumentation;
   candidateCount: number;
@@ -195,6 +196,7 @@ export async function chooseEmailCategory(
         categoryExplanation: CATEGORY_MODEL_UNAVAILABLE_EXPLANATION,
         categoryConfidence: undefined,
         protoCategorySuggestion: undefined,
+        categoryDecisionProvider: null,
       },
       instrumentation,
       candidateCount: candidates.length,
@@ -212,6 +214,7 @@ export async function chooseEmailCategory(
         chosen.reasoning ?? "No category explanation provided",
       categoryConfidence: chosen.categoryConfidence,
       protoCategorySuggestion: chosen.protoCategorySuggestion,
+      categoryDecisionProvider: chosen.decisionProvider ?? null,
     },
     instrumentation,
     candidateCount: candidates.length,

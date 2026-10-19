@@ -1,5 +1,6 @@
 import { Logger } from "@nestjs/common";
 
+import { JEV_DECISION_PROVIDER } from "../constants/ai-decision-provider.constants";
 import { categoriseWithEscalation } from "./llm-categorise-summary";
 import { LLM_OP_SUGGEST_PROTO_CATEGORY } from "./llm-operations";
 
@@ -38,6 +39,7 @@ describe("category selection and independent enrichment", () => {
     expect(await categoriseWithEscalation(client, logger, PARAMS)).toEqual({
       ...OTHER,
       protoCategorySuggestion: SUGGESTION,
+      decisionProvider: JEV_DECISION_PROVIDER,
     });
     expect(client.generateText).toHaveBeenCalledWith(
       expect.objectContaining({ operation: LLM_OP_SUGGEST_PROTO_CATEGORY }),
@@ -51,9 +53,10 @@ describe("category selection and independent enrichment", () => {
       categoriseWithJev: jest.fn().mockResolvedValue(OTHER),
       generateText: jest.fn().mockRejectedValue(new Error("offline")),
     };
-    expect(await categoriseWithEscalation(client, logger, PARAMS)).toEqual(
-      OTHER,
-    );
+    expect(await categoriseWithEscalation(client, logger, PARAMS)).toEqual({
+      ...OTHER,
+      decisionProvider: JEV_DECISION_PROVIDER,
+    });
   });
 
   it("avoids Gemini when Jev selected an existing category", async () => {
@@ -62,9 +65,10 @@ describe("category selection and independent enrichment", () => {
       categoriseWithJev: jest.fn().mockResolvedValue(choice),
       generateText: jest.fn(),
     };
-    expect(await categoriseWithEscalation(client, logger, PARAMS)).toEqual(
-      choice,
-    );
+    expect(await categoriseWithEscalation(client, logger, PARAMS)).toEqual({
+      ...choice,
+      decisionProvider: JEV_DECISION_PROVIDER,
+    });
     expect(client.generateText).not.toHaveBeenCalled();
   });
 

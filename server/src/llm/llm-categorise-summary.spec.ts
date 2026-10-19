@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 
-import { LLMProvider } from "./llm.types";
+import { JEV_DECISION_PROVIDER } from "../constants/ai-decision-provider.constants";
+import { LLMProvider, LLMRequest } from "./llm.types";
 import {
   categoriseFromSummary,
   categoriseOnlyWithEscalation as categoriseWithEscalation,
@@ -423,5 +424,48 @@ describe("categoriseWithEscalation", () => {
     });
     expect(result).toBeNull();
     expect(generateText).toHaveBeenCalledTimes(2);
+  });
+
+  describe("decisionProvider", () => {
+    it("records the LLM that actually answered the category call", async () => {
+      const generateText = jest.fn((request: LLMRequest): Promise<string> => {
+        // Gemini was requested but the core service fell back to OpenAI.
+        request.onProviderResolved?.(LLMProvider.OPENAI);
+        return Promise.resolve(response(2, "HIGH"));
+      });
+      const result = await categoriseWithEscalation(
+        { generateText },
+        logger,
+        params,
+      );
+      expect(result?.decisionProvider).toBe(LLMProvider.OPENAI);
+    });
+
+    it("records Jev when Jev made the pick, without calling the LLM", async () => {
+      const generateText = jest.fn();
+      const categoriseWithJev = jest.fn().mockResolvedValue({
+        categoryNumber: 2,
+        categoryName: "QA passed",
+        categoryConfidence: "HIGH",
+        reasoning: null,
+      });
+      const result = await categoriseWithEscalation(
+        { generateText, categoriseWithJev },
+        logger,
+        params,
+      );
+      expect(result?.decisionProvider).toBe(JEV_DECISION_PROVIDER);
+      expect(generateText).not.toHaveBeenCalled();
+    });
+
+    it("is null when the LLM path does not report a provider", async () => {
+      const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
+      const result = await categoriseWithEscalation(
+        { generateText },
+        logger,
+        params,
+      );
+      expect(result?.decisionProvider).toBeNull();
+    });
   });
 });

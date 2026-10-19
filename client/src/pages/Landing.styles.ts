@@ -31,7 +31,7 @@ export const LANDING_STYLES = `
   --shadow-card: 0 1px 0 rgba(11,11,11,.04), 0 24px 48px -28px rgba(11,11,11,.18);
   --shadow-soft: 0 1px 0 rgba(11,11,11,.04), 0 8px 24px -12px rgba(11,11,11,.10);
   --font-body: "Lexend", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Bricolage Grotesque", var(--font-body);
+  --font-display: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   --highlight: var(--sun-pale-2);
   font-family: var(--font-body);
   background: var(--cream);
@@ -109,16 +109,14 @@ export const LANDING_STYLES = `
   .bearlymail-landing .hero-grid { grid-template-columns: 1fr; gap: 56px; }
 }
 .bearlymail-landing .eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 12px 6px 8px; border-radius: 999px;
-  background: var(--sun-pale); color: var(--sun-dark);
-  font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
-  border: 1px solid color-mix(in srgb, var(--sun) 20%, transparent);
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); color: var(--ink-2);
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
 }
-.bearlymail-landing .eyebrow .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--sun); box-shadow: 0 0 0 4px color-mix(in srgb, var(--sun) 22%, transparent); }
+.bearlymail-landing .eyebrow::before { content: ""; width: 24px; height: 2px; background: var(--ink); }
 .bearlymail-landing h1.display {
-  font-size: clamp(44px, 5.2vw, 70px);
-  line-height: 1.02; letter-spacing: -0.03em;
+  font-size: clamp(38px, 4.2vw, 56px);
+  line-height: 1.08; letter-spacing: -0.04em;
   font-weight: 700; margin: 24px 0 0;
   text-wrap: balance;
 }
@@ -449,8 +447,8 @@ export const LANDING_STYLES = `
   margin-bottom: 16px;
 }
 .bearlymail-landing h2.section-title {
-  font-size: clamp(32px, 4vw, 48px);
-  line-height: 1.05; letter-spacing: -0.025em;
+  font-size: clamp(28px, 3.3vw, 40px);
+  line-height: 1.12; letter-spacing: -0.035em;
   font-weight: 700; margin: 0;
   text-wrap: balance;
 }
@@ -687,6 +685,10 @@ export const LANDING_STYLES = `
 .bearlymail-landing .compare-note b { font-family: var(--font-display); font-size: 17px; color: var(--ink); }
 .bearlymail-landing .compare-note p { margin: 6px 0 0; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
 
+.bearlymail-landing .why-not-claude-body { max-width: 680px; margin: 0 auto; }
+.bearlymail-landing .why-not-claude-body p { margin: 0 0 18px; font-size: 18px; line-height: 1.65; color: var(--ink-2); text-wrap: pretty; }
+.bearlymail-landing .why-not-claude-body p:last-child { margin-bottom: 0; color: var(--ink); font-weight: 500; }
+
 .bearlymail-landing .founder-band { padding: 120px 0; }
 .bearlymail-landing .founder {
   display: grid; grid-template-columns: 200px 1fr; gap: 56px;
@@ -920,7 +922,7 @@ export const LANDING_STYLES = `
   .bearlymail-landing .brand { font-size: 16px; }
 
   .bearlymail-landing .hero { padding: 36px 0 8px; }
-  .bearlymail-landing h1.display { font-size: clamp(40px, 11vw, 52px); }
+  .bearlymail-landing h1.display { font-size: clamp(32px, 9vw, 42px); }
   .bearlymail-landing h1.display em { font-size: 1em; }
   .bearlymail-landing .lead { font-size: 16.5px; margin: 18px 0 24px; }
   .bearlymail-landing .hero-cta .btn { width: 100%; height: 56px; font-size: 16px; }
@@ -989,7 +991,7 @@ export const LANDING_STYLES = `
 }
 
 @media (max-width: 380px) {
-  .bearlymail-landing h1.display { font-size: 36px; }
+  .bearlymail-landing h1.display { font-size: 30px; }
   .bearlymail-landing .compare-row { grid-template-columns: 1fr; gap: 4px; }
   .bearlymail-landing .compare-row .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
 }

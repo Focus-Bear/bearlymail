@@ -29,10 +29,17 @@ const DEFAULT_CATEGORY_STATE: CategoryFetchState = {
 
 export interface CategorySliceState {
   categories: Record<string, CategoryFetchState>;
+  /**
+   * Category keys whose accordion is currently open. Mirrored from useCategoryFetch so the
+   * background refresh and processing poll (which run earlier in the hook tree) only touch
+   * what the user can actually see.
+   */
+  expandedKeys: string[];
 }
 
 const initialState: CategorySliceState = {
   categories: {},
+  expandedKeys: [],
 };
 
 // Status constants — used inside reducers and selectors to satisfy no-restricted-syntax lint rule.
@@ -93,14 +100,20 @@ const categorySlice = createSlice({
     resetAll: (state) => {
       state.categories = {};
     },
+    setExpandedKeys: (state, action: PayloadAction<string[]>) => {
+      state.expandedKeys = action.payload;
+    },
   },
 });
 
-export const { fetchStart, fetchBudgetWarning, fetchSuccess, fetchError, markExhausted, markStale, resetCategory, resetAll, clearBudgetWarning } = categorySlice.actions;
+export const { fetchStart, fetchBudgetWarning, fetchSuccess, fetchError, markExhausted, markStale, resetCategory, resetAll, clearBudgetWarning, setExpandedKeys } = categorySlice.actions;
 
 export default categorySlice.reducer;
 
 export const selectAllCategoryStates = (state: { category: CategorySliceState }) => state.category.categories;
+
+export const selectExpandedCategoryKeys = (state: { category: CategorySliceState }): string[] =>
+  state.category.expandedKeys;
 
 export const selectCategoryState =
   (key: string) =>

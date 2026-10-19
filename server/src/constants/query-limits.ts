@@ -46,6 +46,8 @@ export const QUERY_LIMITS = {
    */
   INBOX_BATCH_MAX_CATEGORIES: 8,
   THREAD_QUERY: 100,
+  /** Most recent thread messages a suggested reply sees as conversation history. */
+  REPLY_SUGGESTION_THREAD_WINDOW: 5,
   EMAIL_QUERY: 100,
   MAX_CONTACTS: 5000,
   CONTACTS_API_PAGE_SIZE: 1000,

@@ -86,8 +86,8 @@ export interface RawEmailRow {
   senderJobTitle: string | null;
   subject: string | null;
   summary: string | null;
-  // Selected only so the inbox can derive a deterministic preview when summary
-  // is empty; decrypted lazily (only for blank-summary rows) to keep list cost down.
+  // Only populated for blank-summary rows (see INBOX_PREVIEW_BODY_COLUMNS_SQL) so
+  // the inbox can derive a deterministic preview; NULL for every other row.
   body: string | null;
   htmlBody: string | null;
   labels?: string;

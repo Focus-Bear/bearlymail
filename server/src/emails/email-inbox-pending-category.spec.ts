@@ -272,7 +272,7 @@ describe("per-category fetch of the pending bucket", () => {
       "triage",
       allEmails,
       new PerformanceTracker("test"),
-      { categoryIds },
+      { filters: { categoryIds } },
     );
     return emails.map((email) => email.id);
   };

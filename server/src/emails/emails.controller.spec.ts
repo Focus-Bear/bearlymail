@@ -5,6 +5,7 @@ import { AppleMailAccountsService } from "../apple-mail-accounts/apple-mail-acco
 import { AuditService } from "../audit/audit.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { EmailTrackingSummaryService } from "../email-tracking/email-tracking-summary.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
@@ -92,6 +93,16 @@ describe("EmailsController", () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmailsController],
       providers: [
+        {
+          provide: EmailTrackingSummaryService,
+          useValue: {
+            annotateThreadEmails: jest.fn(
+              async (_userId: string, emails: unknown[]) => emails,
+            ),
+            getLatestSummariesByThread: jest.fn(async () => new Map()),
+            getStats: jest.fn(async () => ({})),
+          },
+        },
         {
           provide: EmailsService,
           useValue: mockEmailsService,

@@ -5,7 +5,7 @@ import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_BACK } from 'constants/emojis';
-import { NAVIGATION_SOURCE_SEARCH, ROUTE_SEARCH } from 'constants/strings';
+import { LAST_INBOX_MODE_STORAGE_KEY, NAVIGATION_SOURCE_SEARCH, ROUTE_SEARCH } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface EmailDetailNavigationState {
@@ -24,7 +24,7 @@ export const EmailDetailSidebar: React.FC = () => {
   const { isMobile } = useResponsiveBreakpoints();
   const state = location.state as EmailDetailNavigationState | null;
   const isFromSearch = state?.from === NAVIGATION_SOURCE_SEARCH;
-  const fromMode = state?.fromMode ?? sessionStorage.getItem('bearlymail_lastInboxMode') ?? undefined;
+  const fromMode = state?.fromMode ?? sessionStorage.getItem(LAST_INBOX_MODE_STORAGE_KEY) ?? undefined;
   const fromBasePath = state?.fromBasePath ?? sessionStorage.getItem('bearlymail_lastBasePath') ?? '/inbox';
   const inboxPath = fromMode ? `${fromBasePath}/${fromMode}` : fromBasePath;
   const backPath = isFromSearch ? `${ROUTE_SEARCH}${state?.search ?? ''}` : inboxPath;

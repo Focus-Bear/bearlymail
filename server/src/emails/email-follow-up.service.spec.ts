@@ -7,6 +7,7 @@ import {
   FollowUp,
   FollowUpStatus,
 } from "../database/entities/follow-up.entity";
+import { EmailTrackingSummaryService } from "../email-tracking/email-tracking-summary.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
@@ -38,6 +39,7 @@ function makeEmail(
 
 describe("EmailFollowUpService", () => {
   let service: EmailFollowUpService;
+  let module: TestingModule;
   let mockUsersService: jest.Mocked<Pick<UsersService, "findOne">>;
   let mockEmailThreadService: jest.Mocked<
     Pick<EmailThreadService, "getThreadEmails">
@@ -79,9 +81,19 @@ describe("EmailFollowUpService", () => {
         val === ENCRYPTED_USER_EMAIL ? USER_EMAIL : val,
       );
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         EmailFollowUpService,
+        {
+          provide: EmailTrackingSummaryService,
+          useValue: {
+            annotateThreadEmails: jest.fn(
+              async (_userId: string, emails: unknown[]) => emails,
+            ),
+            getLatestSummariesByThread: jest.fn(async () => new Map()),
+            getStats: jest.fn(async () => ({})),
+          },
+        },
         { provide: UsersService, useValue: mockUsersService },
         { provide: EmailThreadService, useValue: mockEmailThreadService },
         {
@@ -257,6 +269,39 @@ describe("EmailFollowUpService", () => {
         mockPerf,
       );
       expect(result).toContain(email);
+    });
+
+    it("attaches the latest tracked send's open summary to each thread awaiting a reply", async () => {
+      mockQbForFollowUps([]);
+      mockEmailThreadService.getThreadEmails.mockResolvedValue([
+        makeEmail({ from: OTHER_EMAIL }) as never,
+        makeEmail({ from: USER_EMAIL }) as never,
+      ]);
+      const summary = {
+        sentAt: "2026-10-10T09:00:00.000Z",
+        recipientCount: 1,
+        openCount: 3,
+        firstOpenedAt: "2026-10-10T10:00:00.000Z",
+        lastOpenedAt: "2026-10-11T10:00:00.000Z",
+        automaticOpenCount: 0,
+        lastAutomaticOpenAt: null,
+      };
+      const summaryService = module.get(EmailTrackingSummaryService);
+      (
+        summaryService.getLatestSummariesByThread as jest.Mock
+      ).mockResolvedValue(new Map([[THREAD_ID, summary]]));
+
+      const [email] = await service.filterFollowUpModeEmails(
+        USER_ID,
+        [makeInboxEmail({ from: USER_EMAIL })],
+        mockPerf,
+      );
+
+      expect(summaryService.getLatestSummariesByThread).toHaveBeenCalledWith(
+        USER_ID,
+        [THREAD_ID],
+      );
+      expect(email.openTracking).toEqual(summary);
     });
 
     it("includes thread even when AWAITING_REPLY follow-up has future due date (snooze should handle suppression)", async () => {

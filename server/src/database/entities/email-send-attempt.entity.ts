@@ -41,6 +41,8 @@ export interface QueuedNewEmailPayload {
   attachments?: QueuedAttachment[];
   /** Follow-up window the composer asked for; 0/undefined means no follow-up. */
   expectedReplyHours?: number;
+  /** Per-message open-tracking choice; undefined defers to the user setting. */
+  trackOpens?: boolean;
 }
 
 /** Everything `RepliesService.sendReply` needs, minus the Buffers. */
@@ -56,6 +58,8 @@ export interface QueuedReplyPayload {
   forwardAttachmentIds?: string[];
   attachments?: QueuedAttachment[];
   inlineImages?: QueuedInlineImage[];
+  /** Per-message open-tracking choice; undefined defers to the user setting. */
+  trackOpens?: boolean;
 }
 
 export type QueuedSendPayload = QueuedNewEmailPayload | QueuedReplyPayload;

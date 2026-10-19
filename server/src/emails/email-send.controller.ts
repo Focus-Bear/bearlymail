@@ -25,6 +25,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
 import { encodeAttachments } from "../email-send-queue/queued-attachment.helpers";
 import { getJobPriority } from "../queue/job-priorities";
+import { parseOptionalBooleanFlag } from "../replies/reply-upload.helpers";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
 import { resolveExpectedReplyHours } from "../utils/expected-reply.util";
@@ -150,6 +151,7 @@ export class EmailSendController {
           scheduledSendAt,
           userTimezone: body.userTimezone,
           expectedReplyHours,
+          trackOpens: parseOptionalBooleanFlag(body.trackOpens),
         },
       );
 
@@ -178,6 +180,7 @@ export class EmailSendController {
       body: body.body,
       attachments: encodeAttachments(attachments),
       expectedReplyHours,
+      trackOpens: parseOptionalBooleanFlag(body.trackOpens),
     });
 
     return {

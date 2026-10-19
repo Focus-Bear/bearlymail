@@ -94,6 +94,8 @@ export const AI_LIMIT_BANNER_RESHOW_MS = 60000;
 
 // Timeout values (additional)
 export const DEBOUNCE_DELAY_MS = 300;
+/** Editor emissions the rich-text editor remembers while waiting for the parent to echo them back (see richTextEditorSync). */
+export const MAX_PENDING_EDITOR_ECHOES = 50;
 export const LONG_TIMEOUT_MS = 10000;
 export const SHORT_TIMEOUT_MS = 2000;
 /** How long the ✅ "priority calculated" confirmation shows after the spinner resolves. */
@@ -115,6 +117,7 @@ export const DELAY_1_5_SECONDS_MS = 1500; // 1.5 seconds
 export const CALENDAR_DAYS_AHEAD = 90;
 export const CALENDAR_DAYS_BACK = 30;
 export const DAYS_PER_YEAR = 365;
+export const DAYS_PER_WEEK = 7;
 export const DEFAULT_MEETING_DURATION_MINUTES = 30;
 
 // Font sizes (in pixels)
@@ -128,6 +131,13 @@ export const DEFAULT_AVATAR_SIZE_PX = 50;
 export const AVATAR_SIZE_SMALL_PX = 24;
 export const MAX_BULK_SEND_COUNT = 20;
 export const INBOX_FETCH_LIMIT = 500;
+/**
+ * Rows fetched per category page (first load, background refresh, and each "Show more").
+ * Mirrors the server's QUERY_LIMITS.INBOX_PAGE_SIZE, the /emails/inbox-batch default.
+ */
+export const CATEGORY_PAGE_SIZE = 50;
+/** Mirrors the server's QUERY_LIMITS.INBOX_BATCH_MAX_CATEGORIES: keys beyond this are dropped server-side. */
+export const INBOX_BATCH_MAX_CATEGORIES = 8;
 export const DEBOUNCE_DELAY_SHORT_MS = 300;
 
 // Dimensions

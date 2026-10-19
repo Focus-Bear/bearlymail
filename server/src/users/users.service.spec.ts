@@ -591,6 +591,24 @@ describe("UsersService", () => {
       expect(result.needsPrivacyAcceptance).toBe(false);
     });
 
+    it("asks users who accepted the pre-open-tracking privacy policy (1.1.0) to re-accept", async () => {
+      delete process.env.TERMS_VERSION;
+      delete process.env.PRIVACY_VERSION;
+      repository.findOne.mockResolvedValue({
+        ...mockUser,
+        termsAcceptedAt: new Date(),
+        termsVersion: DEFAULT_LEGAL_VERSIONS.TERMS,
+        privacyAcceptedAt: new Date(),
+        privacyVersion: "1.1.0",
+      });
+
+      const result = await service.getConsentStatus("user-1");
+
+      expect(DEFAULT_LEGAL_VERSIONS.PRIVACY).toBe("1.2.0");
+      expect(result.needsPrivacyAcceptance).toBe(true);
+      expect(result.currentPrivacyVersion).toBe("1.2.0");
+    });
+
     it("asks users who accepted the original privacy policy to accept the updated one", async () => {
       delete process.env.TERMS_VERSION;
       delete process.env.PRIVACY_VERSION;

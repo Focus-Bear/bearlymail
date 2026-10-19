@@ -2,6 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { ContactCrmService } from "./contact-crm.service";
@@ -329,7 +330,9 @@ describe("ContactsService", () => {
 
       // DB pulls a generous relevance-ranked pool so the visible-field filter
       // and final slice happen in memory (see CONTACTS_SEARCH_CANDIDATE_POOL).
-      expect(queryBuilder.take).toHaveBeenCalledWith(200);
+      expect(queryBuilder.take).toHaveBeenCalledWith(
+        QUERY_LIMITS.CONTACTS_SEARCH_CANDIDATE_POOL,
+      );
       // The user's `limit` is enforced on the merged, filtered results.
       expect(result).toHaveLength(5);
     });

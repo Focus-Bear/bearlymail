@@ -12,6 +12,11 @@ import {
 } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 import { ContactCrmService } from "./contact-crm.service";
+import {
+  compareContactMatches,
+  evaluateContactQueryMatch,
+  RankableContactMatch,
+} from "./contact-query-match";
 import { RawContact } from "./interfaces/contact-provider.interface";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 import { Office365ContactsProvider } from "./providers/office365-contacts.provider";
@@ -49,6 +54,14 @@ export interface ContactSearchResult {
   phone?: string | null;
   /** True when the contact has a local DB record (UUID id). False for Gmail-only results whose id is a Google People API resource name (e.g. "people/c12345"). */
   isLocal: boolean;
+}
+
+/** Live Gmail / Office 365 matches merged into each local contact search. */
+const PROVIDER_SEARCH_PAGE_SIZE = 10;
+
+/** A search hit plus the signals `compareContactMatches` ranks it by. */
+interface RankedSearchResult extends RankableContactMatch {
+  result: ContactSearchResult;
 }
 
 export interface ContactDetailResult extends ContactSearchResult {
@@ -261,26 +274,89 @@ export class ContactsService {
       return [this.toSearchResult(exactMatch)];
     }
 
-    // Generate query tokens for fuzzy search
     const queryTokens = SearchIndexHelper.generateQueryTokens(query);
     if (queryTokens.length === 0) {
       return [];
     }
 
-    // Blind-index search on the hashed-token column. A contact is a *candidate*
-    // if its stored searchTokens contain ANY of the query token hashes — but a
-    // single shared trigram (e.g. "kos") is enough to match, so a popular query
-    // yields hundreds of weak candidates. We therefore:
-    //   1. Rank by how MANY query tokens each contact matches. An exact name
-    //      match hits every token and must outrank a one-trigram coincidence;
-    //      ordering only by contactFrequency buried zero-frequency exact matches
-    //      below high-frequency incidental ones (#2030).
-    //   2. Fetch a generous relevance-ranked candidate pool and apply the
-    //      visible-field filter BEFORE truncating to `limit`. Truncating first
-    //      (the old `.take(limit)`) dropped genuine matches that ranked below
-    //      the cut even though they were the only true hits.
+    const contacts = await this.fetchSearchCandidates(
+      userId,
+      queryTokens,
+      limit,
+    );
+    const [gmailResults, office365Results] = await Promise.all([
+      this.gmailContactsProvider.searchContacts(
+        userId,
+        query,
+        PROVIDER_SEARCH_PAGE_SIZE,
+      ),
+      this.office365ContactsProvider.searchContacts(
+        userId,
+        query,
+        PROVIDER_SEARCH_PAGE_SIZE,
+      ),
+    ]);
+
+    // Every candidate — local first so the local record (with frequency data)
+    // wins the email dedupe — is matched against its visible fields and only
+    // then ranked and truncated. Truncating before matching dropped genuine
+    // matches that ranked below the cut (#2030).
+    const ranked: RankedSearchResult[] = [];
+    const seenEmails = new Set<string>();
+    for (const contact of contacts) {
+      const match = evaluateContactQueryMatch(contact, query);
+      if (!match.passes) continue;
+      seenEmails.add(contact.email.toLowerCase());
+      ranked.push({
+        result: this.toSearchResult(contact),
+        tier: match.tier,
+        matchedTokenCount: SearchIndexHelper.countMatchedTokens(
+          contact.searchTokens,
+          queryTokens,
+        ),
+        contactFrequency: contact.contactFrequency,
+        isFavorite: contact.isFavorite,
+      });
+    }
+
+    for (const raw of [...gmailResults, ...office365Results]) {
+      const key = raw.email.toLowerCase();
+      if (seenEmails.has(key)) continue;
+      const match = evaluateContactQueryMatch(raw, query);
+      if (!match.passes) continue;
+      seenEmails.add(key);
+      ranked.push({
+        result: this.toProviderSearchResult(raw),
+        tier: match.tier,
+        matchedTokenCount: 0,
+        contactFrequency: 0,
+        isFavorite: false,
+      });
+    }
+
+    return ranked
+      .sort(compareContactMatches)
+      .slice(0, limit)
+      .map((entry) => entry.result);
+  }
+
+  /**
+   * Blind-index search on the hashed-token column. A contact is a candidate if
+   * its stored searchTokens contain ANY query token hash, so a popular query
+   * yields hundreds of weak candidates. Ordering by how MANY tokens match keeps
+   * the strongest candidates if the pool cap is ever reached.
+   */
+  private async fetchSearchCandidates(
+    userId: string,
+    queryTokens: string[],
+    limit: number,
+  ): Promise<Contact[]> {
     const { tokenParams, orClause, matchScoreExpr } =
       SearchIndexHelper.buildTokenMatchSql(queryTokens);
+    const candidateCap = Math.max(
+      limit,
+      QUERY_LIMITS.CONTACTS_SEARCH_CANDIDATE_POOL,
+    );
 
     const contacts = await this.contactRepository
       .createQueryBuilder("contact")
@@ -289,79 +365,36 @@ export class ContactsService {
       .orderBy(matchScoreExpr, "DESC")
       .addOrderBy("contact.contactFrequency", "DESC")
       .addOrderBy("contact.isFavorite", "DESC")
-      .take(Math.max(limit, QUERY_LIMITS.CONTACTS_SEARCH_CANDIDATE_POOL))
+      .take(candidateCap)
       .getMany();
 
-    // Also search directly from Gmail for real-time results
-    const gmailResults = await this.gmailContactsProvider.searchContacts(
-      userId,
-      query,
-      10,
-    );
-
-    // Filter Gmail results to only show contacts where query matches visible fields
-    const filteredGmailResults = gmailResults.filter((contact) =>
-      this.contactMatchesQuery(contact, query),
-    );
-
-    // Merge results, preferring local contacts (they have frequency data)
-    const results = new Map<string, ContactSearchResult>();
-
-    // Add local contacts first, but only if they match visible fields
-    // (searchTokens can match on tokenized internal data we don't display)
-    for (const contact of contacts) {
-      if (this.contactMatchesQuery(contact, query)) {
-        results.set(contact.email.toLowerCase(), this.toSearchResult(contact));
-      }
+    if (contacts.length >= candidateCap) {
+      this.logger.warn(
+        `Contact search candidate cap (${candidateCap}) reached for user ${userId}; weaker token matches were not inspected`,
+      );
     }
+    return contacts;
+  }
 
-    // Add Gmail results that aren't already in local.
-    // These contacts have no local DB record; their id is a Google People API
-    // resource name (e.g. "people/c12345") — not a UUID. Mark them as isLocal: false
-    // so the client can suppress navigation to /crm/contacts/:contactId.
-    for (const raw of filteredGmailResults) {
-      const key = raw.email.toLowerCase();
-      if (!results.has(key)) {
-        results.set(key, {
-          id: raw.providerId,
-          email: raw.email,
-          name: raw.name,
-          firstName: raw.firstName,
-          lastName: raw.lastName,
-          company: raw.company,
-          jobTitle: raw.jobTitle,
-          photoUrl: raw.photoUrl,
-          isFavorite: false,
-          contactFrequency: 0,
-          isLocal: false,
-        });
-      }
-    }
-
-    // Add Office 365 (Outlook) results that aren't already present. Their id is
-    // a Graph contact id (not a UUID), so mark them isLocal: false too.
-    const office365Results =
-      await this.office365ContactsProvider.searchContacts(userId, query, 10);
-    for (const raw of office365Results) {
-      const key = raw.email.toLowerCase();
-      if (!results.has(key) && this.contactMatchesQuery(raw, query)) {
-        results.set(key, {
-          id: raw.providerId,
-          email: raw.email,
-          name: raw.name,
-          firstName: raw.firstName,
-          lastName: raw.lastName,
-          company: raw.company,
-          jobTitle: raw.jobTitle,
-          photoUrl: raw.photoUrl,
-          isFavorite: false,
-          contactFrequency: 0,
-          isLocal: false,
-        });
-      }
-    }
-
-    return Array.from(results.values()).slice(0, limit);
+  /**
+   * Gmail / Office 365 contacts have no local DB record; their id is a provider
+   * resource name (e.g. "people/c12345") — not a UUID — so mark them
+   * isLocal: false and the client suppresses navigation to /crm/contacts/:id.
+   */
+  private toProviderSearchResult(raw: RawContact): ContactSearchResult {
+    return {
+      id: raw.providerId,
+      email: raw.email,
+      name: raw.name,
+      firstName: raw.firstName,
+      lastName: raw.lastName,
+      company: raw.company,
+      jobTitle: raw.jobTitle,
+      photoUrl: raw.photoUrl,
+      isFavorite: false,
+      contactFrequency: 0,
+      isLocal: false,
+    };
   }
 
   /**
@@ -855,33 +888,6 @@ export class ContactsService {
       }
     }
     return result;
-  }
-
-  /**
-   * Check if a contact matches the search query in visible fields
-   * This filters out false positives from Gmail API that match in hidden fields
-   */
-  private contactMatchesQuery(
-    contact: {
-      name?: string;
-      firstName?: string;
-      lastName?: string;
-      email: string;
-    },
-    query: string,
-  ): boolean {
-    const normalizedQuery = query.toLowerCase().trim();
-    const searchableFields = [
-      contact.name,
-      contact.firstName,
-      contact.lastName,
-      contact.email,
-    ];
-
-    return searchableFields.some((field) => {
-      if (!field) return false;
-      return field.toLowerCase().includes(normalizedQuery);
-    });
   }
 
   private toSearchResult(contact: Contact): ContactSearchResult {

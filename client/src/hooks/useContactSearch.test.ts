@@ -289,4 +289,72 @@ describe('useContactSearch', () => {
       expect(result.current.selectedSuggestionIndex).toBe(2);
     });
   });
+
+  describe('filteredContacts (Contacts page)', () => {
+    const allContacts = [
+      { id: 'a', email: 'unrelated@example.com', name: 'Unrelated' },
+    ] as Contact[];
+
+    it('shows the full list when there is no query', () => {
+      const { result } = renderHook(() => useContactSearch());
+
+      expect(result.current.filteredContacts(allContacts)).toBe(allContacts);
+    });
+
+    it('shows no contacts — not the full list — when an active query has no matches', async () => {
+      mockedAxios.get.mockResolvedValue({ data: [] });
+      const { result } = renderHook(() => useContactSearch());
+
+      act(() => {
+        result.current.setSearchQuery('andrew lam');
+      });
+      expect(result.current.hasPendingSearch).toBe(true);
+
+      await act(async () => {
+        vi.advanceTimersByTime(DEBOUNCE_DELAY_200_MS);
+      });
+
+      await waitFor(() => expect(result.current.hasPendingSearch).toBe(false));
+      expect(result.current.filteredContacts(allContacts)).toEqual([]);
+    });
+
+    it('requests the caller-supplied result limit', async () => {
+      mockedAxios.get.mockResolvedValue({ data: [] });
+      const { result } = renderHook(() => useContactSearch({ resultLimit: 50 }));
+
+      await act(async () => {
+        await result.current.searchContacts('andrew');
+      });
+
+      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/contacts/search?q=andrew&limit=50`);
+    });
+
+    it('ignores a slower response for an older query', async () => {
+      const newer = [{ id: 'new', email: 'andrew.lam-po-tang@example.org' }] as Contact[];
+      let resolveOlder: (value: { data: Contact[] }) => void = () => undefined;
+      mockedAxios.get.mockImplementation((url: string) => {
+        if (url.includes('q=andrew&')) {
+          return new Promise(resolve => {
+            resolveOlder = resolve;
+          });
+        }
+        return Promise.resolve({ data: url.includes('/contacts/search') ? newer : [] });
+      });
+      const { result } = renderHook(() => useContactSearch());
+
+      let olderSearch: Promise<void> = Promise.resolve();
+      act(() => {
+        olderSearch = result.current.searchContacts('andrew');
+      });
+      await act(async () => {
+        await result.current.searchContacts('andrew lam');
+      });
+      await act(async () => {
+        resolveOlder({ data: [{ id: 'old', email: 'old@example.com' }] as Contact[] });
+        await olderSearch;
+      });
+
+      expect(result.current.searchResults).toEqual(newer);
+    });
+  });
 });

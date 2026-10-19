@@ -6,6 +6,11 @@ import { Repository } from "typeorm";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Contact } from "../database/entities/contact.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import {
+  compareContactMatches,
+  ContactMatchTier,
+  evaluateContactQueryMatch,
+} from "./contact-query-match";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 import { SearchIndexHelper } from "./search-index.helper";
 
@@ -17,11 +22,11 @@ import { SearchIndexHelper } from "./search-index.helper";
 const SQL_CANDIDATES_RESPONSE_CAP = 50;
 
 /**
- * The production `searchContacts()` call relevance-ranks a candidate pool,
- * applies the visible-field filter, then truncates to the caller's `limit`
- * (the client passes `limit=8`). We surface that number so the diagnostic can
- * report "your target ranked 9th among matching contacts / would not appear in
- * the top 8".
+ * The production `searchContacts()` call matches every candidate against its
+ * visible fields, ranks the matches (`compareContactMatches`), then truncates
+ * to the caller's `limit` (the compose autocomplete passes `limit=8`). We
+ * surface that number so the diagnostic can report "your target ranked 9th
+ * among matching contacts / would not appear in the top 8".
  */
 const PROD_SEARCH_TAKE_LIMIT = 8;
 
@@ -87,8 +92,11 @@ export interface SqlCandidateRow {
   storedTokensPreview: string;
   matchedQueryTokens: AnnotatedToken[];
   passesPostFilter: boolean;
+  /** Why the visible-field match passed, or which query word failed it. */
   postFilterReason: string;
-  /** Zero-based position in the SQL ORDER BY ordering (frequency DESC). */
+  /** Match strength when the post-filter passes (lower ranks higher); null on fail. */
+  matchTier: ContactMatchTier | null;
+  /** Zero-based position in the SQL ORDER BY ordering (token matches DESC, then frequency). */
   positionInSqlOrder: number;
   wouldSurviveTake8: boolean;
 }
@@ -375,20 +383,7 @@ export class ContactsDebugAdminService {
       annotateRow(row, index, queryTokens, query),
     );
 
-    // Production: relevance-rank → post-filter → take(limit). So a candidate
-    // survives iff it passes the post-filter AND its rank *among
-    // post-filter-passing candidates* (in SQL order) is within the limit.
-    // Raw SQL position over-counts rows that rank high but get dropped by the
-    // post-filter and never occupy a result slot.
-    let passingRank = 0;
-    for (const candidate of annotated) {
-      if (candidate.passesPostFilter) {
-        candidate.wouldSurviveTake8 = passingRank < PROD_SEARCH_TAKE_LIMIT;
-        passingRank += 1;
-      } else {
-        candidate.wouldSurviveTake8 = false;
-      }
-    }
+    markProdTopResults(annotated);
 
     const gmailConnected = await this.gmailContactsProvider.isConnected(userId);
     let gmailResults: Array<{
@@ -604,19 +599,12 @@ export class ContactsDebugAdminService {
     const wouldMatchSql = queryTokensInStored.some(
       (token) => token.presentInStored,
     );
-    const postFilter = evaluatePostFilter(row, ctx.query);
+    const postFilter = evaluateContactQueryMatch(row, ctx.query);
     const positionInSqlOrder = ctx.sqlCandidates.findIndex(
       (candidate) => candidate.id === row.id,
     );
-    // Production fetches a relevance-ranked candidate pool, applies the
-    // visible-field filter, THEN truncates to the caller's limit. So the target
-    // is returned iff it passes the post-filter and its rank *among
-    // post-filter-passing candidates* — not its raw SQL position — is within
-    // the limit. (Raw position can be pushed down by higher-relevance rows that
-    // themselves fail the post-filter and never occupy a result slot.)
-    const rankAmongPassing = ctx.sqlCandidates
-      .filter((candidate) => candidate.passesPostFilter)
-      .findIndex((candidate) => candidate.id === row.id);
+    const scannedCandidate =
+      positionInSqlOrder >= 0 ? ctx.sqlCandidates[positionInSqlOrder] : null;
 
     return {
       found: true,
@@ -637,10 +625,7 @@ export class ContactsDebugAdminService {
       passesPostFilter: postFilter.passes,
       postFilterReason: postFilter.reason,
       positionInSqlOrder,
-      wouldSurviveTake8:
-        postFilter.passes &&
-        rankAmongPassing >= 0 &&
-        rankAmongPassing < PROD_SEARCH_TAKE_LIMIT,
+      wouldSurviveTake8: scannedCandidate?.wouldSurviveTake8 ?? false,
       // Distinguishes "ranked beyond the diagnostic's scan cap" from "didn't
       // match the OR clause at all" — both surface as positionInSqlOrder=-1.
       rankedBeyondScanCap:
@@ -712,7 +697,7 @@ function annotateRow(
   const matchedQueryTokens = queryTokens.filter((token) =>
     stored.includes(token.hash),
   );
-  const postFilter = evaluatePostFilter(contact, query);
+  const postFilter = evaluateContactQueryMatch(contact, query);
 
   return {
     id: contact.id,
@@ -732,41 +717,34 @@ function annotateRow(
     matchedQueryTokens,
     passesPostFilter: postFilter.passes,
     postFilterReason: postFilter.reason,
+    matchTier: postFilter.passes ? postFilter.tier : null,
     positionInSqlOrder,
-    // Caller overwrites this after annotating the full list, using the rank
-    // among post-filter-passing candidates (matches production's
-    // rank → post-filter → take order).
+    // `markProdTopResults` sets this once the whole list is annotated.
     wouldSurviveTake8: false,
   };
 }
 
 /**
- * Replicates `ContactsService.contactMatchesQuery` and returns *why* it
- * passed/failed so the diagnostic can be self-explanatory.
+ * Flags the candidates production would return: post-filter passes, ranked by
+ * `compareContactMatches` (same order as `ContactsService.searchContacts`),
+ * then the first `PROD_SEARCH_TAKE_LIMIT`.
  */
-function evaluatePostFilter(
-  contact: Pick<Contact, "email" | "name" | "firstName" | "lastName">,
-  query: string,
-): { passes: boolean; reason: string } {
-  const normalizedQuery = query.toLowerCase().trim();
-  const fields: Array<[string, string | null | undefined]> = [
-    ["name", contact.name],
-    ["firstName", contact.firstName],
-    ["lastName", contact.lastName],
-    ["email", contact.email],
-  ];
-
-  for (const [fieldName, value] of fields) {
-    if (value && value.toLowerCase().includes(normalizedQuery)) {
-      return {
-        passes: true,
-        reason: `${fieldName} contains "${normalizedQuery}"`,
-      };
-    }
+function markProdTopResults(candidates: SqlCandidateRow[]): void {
+  const topIds = new Set(
+    candidates
+      .filter((candidate) => candidate.matchTier !== null)
+      .map((candidate) => ({
+        id: candidate.id,
+        tier: candidate.matchTier as ContactMatchTier,
+        matchedTokenCount: candidate.matchedQueryTokens.length,
+        contactFrequency: candidate.contactFrequency,
+        isFavorite: candidate.isFavorite,
+      }))
+      .sort(compareContactMatches)
+      .slice(0, PROD_SEARCH_TAKE_LIMIT)
+      .map((candidate) => candidate.id),
+  );
+  for (const candidate of candidates) {
+    candidate.wouldSurviveTake8 = topIds.has(candidate.id);
   }
-
-  return {
-    passes: false,
-    reason: `none of name/firstName/lastName/email contains "${normalizedQuery}"`,
-  };
 }

@@ -4,7 +4,7 @@ import { Contact } from 'types/contact';
 import { ContactGroup, RecipientSuggestion } from 'types/contactGroup';
 
 import { API_URL } from 'config/api';
-import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
+import { CONTACT_SEARCH_MIN_QUERY_LENGTH, CONTACT_SUGGESTION_LIMIT, DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
 import { EMAIL_FIELD_CC, EMAIL_FIELD_TO, PROMISE_STATUS_FULFILLED } from 'constants/strings';
 
 export interface UseContactSearchResult {
@@ -29,8 +29,18 @@ export interface UseContactSearchResult {
   // Backward-compat aliases used by Contacts.tsx
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  /** Search results while a query is active (even when empty); `baseContacts` otherwise. */
   filteredContacts: (baseContacts: Contact[]) => Contact[];
+  /** True while the results on screen belong to an older query than the one typed (debounce window). */
+  hasPendingSearch: boolean;
 }
+
+export interface UseContactSearchOptions {
+  /** Max results requested from the server (default: recipient-autocomplete size). */
+  resultLimit?: number;
+}
+
+const isSearchableQuery = (query: string): boolean => query.trim().length >= CONTACT_SEARCH_MIN_QUERY_LENGTH;
 
 function scheduleDebouncedSearch(
   query: string,
@@ -45,7 +55,24 @@ function scheduleDebouncedSearch(
   }, DEBOUNCE_DELAY_200_MS);
 }
 
-export const useContactSearch = (): UseContactSearchResult => {
+async function fetchContactSearch(
+  query: string,
+  resultLimit: number
+): Promise<{ contacts: Contact[]; groups: ContactGroup[] }> {
+  // allSettled never rejects: a failed request just yields an empty list.
+  const [contactsRes, groupsRes] = await Promise.allSettled([
+    axios.get<Contact[]>(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=${resultLimit}`),
+    axios.get<ContactGroup[]>(`${API_URL}/contact-groups/search?q=${encodeURIComponent(query)}`),
+  ]);
+  return {
+    contacts: contactsRes.status === PROMISE_STATUS_FULFILLED ? (contactsRes.value?.data ?? []) : [],
+    groups: groupsRes.status === PROMISE_STATUS_FULFILLED ? (groupsRes.value?.data ?? []) : [],
+  };
+}
+
+export const useContactSearch = ({
+  resultLimit = CONTACT_SUGGESTION_LIMIT,
+}: UseContactSearchOptions = {}): UseContactSearchResult => {
   const [toSearch, setToSearch] = useState('');
   const [ccSearch, setCcSearch] = useState('');
   const [bccSearch, setBccSearch] = useState('');
@@ -54,33 +81,34 @@ export const useContactSearch = (): UseContactSearchResult => {
   const [activeField, setActiveField] = useState<'to' | 'cc' | 'bcc' | null>(null);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
+  const [searchedQuery, setSearchedQuery] = useState('');
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestQueryRef = useRef('');
 
-  const searchContacts = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      setGroupResults([]);
-      return;
-    }
+  const searchContacts = useCallback(
+    async (query: string) => {
+      latestQueryRef.current = query;
+      if (!query || query.length < CONTACT_SEARCH_MIN_QUERY_LENGTH) {
+        setSearchResults([]);
+        setGroupResults([]);
+        setSearchedQuery(query ?? '');
+        return;
+      }
 
-    setSearching(true);
-    try {
-      const [contactsRes, groupsRes] = await Promise.allSettled([
-        axios.get<Contact[]>(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`),
-        axios.get<ContactGroup[]>(`${API_URL}/contact-groups/search?q=${encodeURIComponent(query)}`),
-      ]);
-
-      setSearchResults(contactsRes.status === PROMISE_STATUS_FULFILLED ? contactsRes.value.data : []);
-      setGroupResults(groupsRes.status === PROMISE_STATUS_FULFILLED ? groupsRes.value.data : []);
+      setSearching(true);
+      const { contacts, groups } = await fetchContactSearch(query, resultLimit);
+      // A slower response for an older query must not overwrite a newer one.
+      if (latestQueryRef.current !== query) {
+        return;
+      }
+      setSearchResults(contacts);
+      setGroupResults(groups);
       setSelectedSuggestionIndex(-1);
-    } catch (err) {
-      console.error('Contact search failed:', err);
-      setSearchResults([]);
-      setGroupResults([]);
-    } finally {
+      setSearchedQuery(query);
       setSearching(false);
-    }
-  }, []);
+    },
+    [resultLimit]
+  );
 
   const handleSearchInput = useCallback(
     (value: string, field: 'to' | 'cc' | 'bcc') => {
@@ -128,10 +156,13 @@ export const useContactSearch = (): UseContactSearchResult => {
     [searchContacts]
   );
 
+  // An active query shows only its results — never the full list when nothing
+  // matched, which looked like the search had ignored the query.
   const filteredContacts = useCallback(
-    (baseContacts: Contact[]): Contact[] => (searchResults.length > 0 ? searchResults : baseContacts),
-    [searchResults]
+    (baseContacts: Contact[]): Contact[] => (isSearchableQuery(toSearch) ? searchResults : baseContacts),
+    [searchResults, toSearch]
   );
+  const hasPendingSearch = isSearchableQuery(toSearch) && searchedQuery !== toSearch;
 
   // Merged suggestions: groups first (with distinct kind tag), then contacts
   const recipientSuggestions: RecipientSuggestion[] = [
@@ -161,5 +192,6 @@ export const useContactSearch = (): UseContactSearchResult => {
     searchQuery: toSearch,
     setSearchQuery,
     filteredContacts,
+    hasPendingSearch,
   };
 };

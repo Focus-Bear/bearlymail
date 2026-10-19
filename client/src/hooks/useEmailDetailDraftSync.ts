@@ -231,10 +231,18 @@ function useAutoSaveDraft({
   const replyModeRef = useRef(replyMode);
   const replyRecipientsRef = useRef(replyRecipients);
   const saveDraftFnRef = useRef(saveDraft);
+  const isComposerOpenRef = useRef(showReplyComposer);
+  const threadIdRef = useRef(threadId);
 
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
+  useEffect(() => {
+    isComposerOpenRef.current = showReplyComposer;
+  }, [showReplyComposer]);
+  useEffect(() => {
+    threadIdRef.current = threadId;
+  }, [threadId]);
   useEffect(() => {
     replyModeRef.current = replyMode;
   }, [replyMode]);
@@ -261,6 +269,20 @@ function useAutoSaveDraft({
       clearInterval(autoSaveInterval);
     };
   }, [showReplyComposer, threadId]);
+
+  // The inbox split view remounts the email panel for each email (and unmounts it
+  // on close), so the email-switch save never runs there. Save an open reply on
+  // unmount instead. Closing, sending or discarding clears the draft first, so
+  // this never brings back a reply the user got rid of.
+  useEffect(
+    () => () => {
+      const pendingDraft = draftRef.current;
+      if (isComposerOpenRef.current && threadIdRef.current && pendingDraft && pendingDraft.trim()) {
+        saveDraftFnRef.current(pendingDraft, replyModeRef.current, replyRecipientsRef.current, threadIdRef.current);
+      }
+    },
+    []
+  );
 }
 
 function useAutoGenerateReplies({

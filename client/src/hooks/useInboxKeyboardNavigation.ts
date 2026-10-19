@@ -30,7 +30,9 @@ export function useInboxKeyboardNavigation({
 
 // eslint-disable-next-line complexity,max-statements -- pre-existing: complex keyboard handler with many conditional branches
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === KEY_ESCAPE && splitView.selectedEmailId) {
+      // An Esc already handled inside the email (e.g. closing the reply composer,
+      // which may ask before discarding) must not also close the whole email.
+      if (event.key === KEY_ESCAPE && splitView.selectedEmailId && !event.defaultPrevented) {
         splitView.closeEmail();
         emailListRef.current?.focus();
         return;

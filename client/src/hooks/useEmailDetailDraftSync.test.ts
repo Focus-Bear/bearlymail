@@ -319,3 +319,37 @@ describe('useEmailDetailDraftSync — restoring a saved draft', () => {
     expect(setReplySubject).not.toHaveBeenCalled();
   });
 });
+
+// The inbox split view remounts the email panel per email, so the email-switch
+// save never runs there; the reply must be saved when the panel unmounts.
+describe('useEmailDetailDraftSync — saving an open reply on unmount', () => {
+  it('saves the open reply to its own thread when the email panel unmounts', () => {
+    const saveDraft = vi.fn();
+    const params = makeBaseParams({ draft: 'half-written reply', replyRecipients: 'leah@example.com', saveDraft });
+
+    const { unmount } = renderHook(() => useEmailDetailDraftSync(params));
+    unmount();
+
+    expect(saveDraft).toHaveBeenCalledWith('half-written reply', 'reply', 'leah@example.com', 'thread-1');
+  });
+
+  it('does not save on unmount once the reply has been closed', () => {
+    const saveDraft = vi.fn();
+    const { rerender, unmount } = renderHook(props => useEmailDetailDraftSync(props), {
+      initialProps: makeBaseParams({ draft: 'half-written reply', saveDraft }),
+    });
+
+    rerender(makeBaseParams({ draft: '', showReplyComposer: false, saveDraft }));
+    unmount();
+
+    expect(saveDraft).not.toHaveBeenCalled();
+  });
+
+  it('does not save an empty reply on unmount', () => {
+    const saveDraft = vi.fn();
+    const { unmount } = renderHook(() => useEmailDetailDraftSync(makeBaseParams({ draft: '   ', saveDraft })));
+    unmount();
+
+    expect(saveDraft).not.toHaveBeenCalled();
+  });
+});

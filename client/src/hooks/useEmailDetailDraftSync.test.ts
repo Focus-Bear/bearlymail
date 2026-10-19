@@ -11,7 +11,7 @@
  * - No save fires when the draft is empty / whitespace-only.
  */
 import React from 'react';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
 
@@ -35,6 +35,7 @@ const makeBaseParams = (overrides: Record<string, unknown> = {}) => ({
   fetchDraft: vi.fn().mockResolvedValue(null),
   setDraft: vi.fn(),
   setReplyRecipients: vi.fn(),
+  setReplySubject: vi.fn(),
   setReplyMode: vi.fn(),
   setShowReplyComposer: vi.fn(),
   setReplyOptions: vi.fn(),
@@ -178,5 +179,48 @@ describe('useEmailDetailDraftSync — auto-save behaviour (fix #978)', () => {
 
     // Exactly one save despite 20 re-renders
     expect(saveDraft).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useEmailDetailDraftSync — restoring a saved draft', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fills the subject from the email when a saved reply-all draft is restored', async () => {
+    const setReplySubject = vi.fn();
+    const setReplyRecipients = vi.fn();
+    const params = makeBaseParams({
+      showReplyComposer: false,
+      email: { threadId: 'thread-9', subject: 'Intro to the dev team' },
+      fetchDraft: vi.fn().mockResolvedValue({
+        content: '<p>Great thanks for the intro.</p>',
+        replyMode: 'replyAll',
+        recipients: 'leah@example.com',
+      }),
+      setReplySubject,
+      setReplyRecipients,
+    });
+
+    renderHook(() => useEmailDetailDraftSync(params));
+
+    await waitFor(() => expect(setReplySubject).toHaveBeenCalledWith('Re: Intro to the dev team'));
+    expect(setReplyRecipients).toHaveBeenCalledWith('leah@example.com');
+  });
+
+  it('does not touch the subject when there is no saved draft', async () => {
+    const setReplySubject = vi.fn();
+    const fetchDraft = vi.fn().mockResolvedValue(null);
+    const params = makeBaseParams({
+      showReplyComposer: false,
+      email: { threadId: 'thread-10' },
+      fetchDraft,
+      setReplySubject,
+    });
+
+    renderHook(() => useEmailDetailDraftSync(params));
+
+    await waitFor(() => expect(fetchDraft).toHaveBeenCalled());
+    expect(setReplySubject).not.toHaveBeenCalled();
   });
 });

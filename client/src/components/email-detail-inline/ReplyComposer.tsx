@@ -20,7 +20,12 @@ import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 import { ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
 
+import { DiscardReplyDialog } from './DiscardReplyDialog';
+import { hasUnsentReplyChanges } from './replyDraftContent';
+import { useReplyDiscardGuard } from './useReplyDiscardGuard';
+
 const EMPTY_ATTACHMENTS: EmailAttachment[] = [];
+const NO_OP = (): void => undefined;
 const DRAG_OVERLAY_OPACITY = 0.95;
 
 interface ReplyOption {
@@ -83,6 +88,10 @@ interface ReplyComposerProps {
   onGenerateFromPrompt?: (prompt: string) => void;
   generatingFromPrompt?: boolean;
   onClose: () => void;
+  /** Saves the reply as a draft; offered when closing a reply with unsent changes. */
+  onSaveDraft?: () => Promise<void> | void;
+  /** Deletes the saved draft when the user discards the reply. */
+  onDiscardDraft?: () => Promise<void> | void;
   onSend: (params: {
     files?: File[];
     expectedReplyHours?: number;
@@ -582,6 +591,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onInlineImagesChange,
   onFilesChange,
   onForwardAttachmentIdsChange,
+  onSaveDraft,
+  onDiscardDraft,
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -610,6 +621,17 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   const { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop } = useDragFiles(newFiles =>
     setFiles(prev => [...prev, ...newFiles])
   );
+  const initialDraftRef = useRef(draft);
+  const discardGuard = useReplyDiscardGuard({
+    hasUnsentChanges: hasUnsentReplyChanges({
+      draft,
+      initialDraft: initialDraftRef.current,
+      attachedFileCount: files.length,
+    }),
+    closeComposer: handleClose,
+    saveDraft: onSaveDraft ?? NO_OP,
+    discardDraft: onDiscardDraft ?? NO_OP,
+  });
 
   if (!showReplyComposer) {
     return null;
@@ -661,7 +683,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onFilesChange: setFiles,
     onRemoveForwardAttachment: handleRemoveForwardAttachment,
     onUseRevisedText: handleUseRevisedText,
-    onClose: handleClose,
+    onClose: discardGuard.requestClose,
     onSend: handleSend,
     onSchedule,
     onClearSchedule,
@@ -675,6 +697,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   return (
     <div
       className="animate-fade-in"
+      onKeyDown={discardGuard.handleEscapeKeyDown}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -691,6 +714,12 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     >
       {isDragging && <DragOverlay dropText={t('compose.dropFilesToAttach')} />}
       <ReplyComposerBody {...bodyProps} />
+      <DiscardReplyDialog
+        isOpen={discardGuard.isConfirmOpen}
+        onKeepEditing={discardGuard.keepEditing}
+        onSaveDraft={onSaveDraft ? discardGuard.saveAndLeave : undefined}
+        onDiscard={discardGuard.discardAndLeave}
+      />
     </div>
   );
 };

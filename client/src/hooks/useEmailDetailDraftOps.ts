@@ -4,6 +4,7 @@ import { Email } from 'types/email';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
+import { buildReplySubject } from 'utils/replySubject';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -361,12 +362,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
           setReplyCc(cc);
           setShowCc(true);
         }
-        const rawSubject = targetEmail.subject || '';
-        if (mode === REPLY_MODE_FORWARD) {
-          setReplySubject(rawSubject.toLowerCase().startsWith('fwd:') ? rawSubject : `Fwd: ${rawSubject}`);
-        } else {
-          setReplySubject(rawSubject.toLowerCase().startsWith('re:') ? rawSubject : `Re: ${rawSubject}`);
-        }
+        setReplySubject(buildReplySubject(mode, targetEmail.subject));
       }
 
       // AI draft generation is only meaningful for replies, not forwards

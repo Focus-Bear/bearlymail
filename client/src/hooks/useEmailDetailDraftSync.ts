@@ -1,10 +1,12 @@
 import { RefObject, useEffect, useRef } from 'react';
+import { buildReplySubject } from 'utils/replySubject';
 
 import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
+import { REPLY_MODE_REPLY } from 'constants/strings';
 
 interface UseEmailDetailDraftSyncParams {
   id: string | null | undefined;
-  email: { id?: string; threadId?: string } | null | undefined;
+  email: { id?: string; threadId?: string; subject?: string } | null | undefined;
   draft: string | null;
   replyMode: 'reply' | 'replyAll' | 'forward';
   replyRecipients: string;
@@ -16,6 +18,7 @@ interface UseEmailDetailDraftSyncParams {
   fetchDraft: () => Promise<{ content?: string; replyMode?: string; recipients?: string } | null | undefined>;
   setDraft: (draft: string) => void;
   setReplyRecipients: (recipients: string) => void;
+  setReplySubject: (subject: string) => void;
   setReplyMode: (mode: 'reply' | 'replyAll' | 'forward') => void;
   setShowReplyComposer: (show: boolean) => void;
   setReplyOptions: (options: Array<{ label: string; text: string }> | null) => void;
@@ -37,6 +40,7 @@ export const useEmailDetailDraftSync = ({
   fetchDraft,
   setDraft,
   setReplyRecipients,
+  setReplySubject,
   setReplyMode,
   setShowReplyComposer,
   setReplyOptions,
@@ -87,27 +91,15 @@ export const useEmailDetailDraftSync = ({
     previousRecipientsRef.current = replyRecipients;
   }, [replyRecipients]);
 
-  // Load existing draft when opening an email (once per thread)
-  const lastLoadedThreadIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (email?.threadId && lastLoadedThreadIdRef.current !== email.threadId) {
-      lastLoadedThreadIdRef.current = email.threadId;
-      const loadDraft = async () => {
-        const savedDraft = await fetchDraft();
-        if (savedDraft && savedDraft.content) {
-          setDraft(savedDraft.content);
-          setShowReplyComposer(true);
-          if (savedDraft.replyMode) {
-            setReplyMode(savedDraft.replyMode as 'reply' | 'replyAll');
-          }
-          if (savedDraft.recipients) {
-            setReplyRecipients(savedDraft.recipients);
-          }
-        }
-      };
-      loadDraft();
-    }
-  }, [email?.threadId, fetchDraft, setDraft, setReplyRecipients, setReplyMode]);
+  useRestoreSavedDraft({
+    email,
+    fetchDraft,
+    setDraft,
+    setShowReplyComposer,
+    setReplyRecipients,
+    setReplySubject,
+    setReplyMode,
+  });
 
   useAutoSaveDraft({
     showReplyComposer,
@@ -129,6 +121,55 @@ export const useEmailDetailDraftSync = ({
 
   useAutoGenerateReplies({ autoGenerateReplies, id, email, draft, replyOptions, handleGenerateDraft });
 };
+
+type RestoreSavedDraftParams = Pick<
+  UseEmailDetailDraftSyncParams,
+  | 'email'
+  | 'fetchDraft'
+  | 'setDraft'
+  | 'setShowReplyComposer'
+  | 'setReplyRecipients'
+  | 'setReplySubject'
+  | 'setReplyMode'
+>;
+
+/** Reopens the composer with the thread's saved draft, once per thread. */
+function useRestoreSavedDraft({
+  email,
+  fetchDraft,
+  setDraft,
+  setShowReplyComposer,
+  setReplyRecipients,
+  setReplySubject,
+  setReplyMode,
+}: RestoreSavedDraftParams): void {
+  const lastLoadedThreadIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!email?.threadId || lastLoadedThreadIdRef.current === email.threadId) {
+      return;
+    }
+    lastLoadedThreadIdRef.current = email.threadId;
+    const loadDraft = async () => {
+      const savedDraft = await fetchDraft();
+      if (!savedDraft?.content) {
+        return;
+      }
+      const restoredMode = (savedDraft.replyMode as 'reply' | 'replyAll' | 'forward' | undefined) ?? REPLY_MODE_REPLY;
+      setDraft(savedDraft.content);
+      setShowReplyComposer(true);
+      if (savedDraft.replyMode) {
+        setReplyMode(restoredMode);
+      }
+      if (savedDraft.recipients) {
+        setReplyRecipients(savedDraft.recipients);
+      }
+      // Saved drafts don't store a subject, and only the Reply buttons fill it
+      // in — without this a restored draft showed an empty Subject field.
+      setReplySubject(buildReplySubject(restoredMode, email.subject));
+    };
+    loadDraft();
+  }, [email?.threadId, email?.subject, fetchDraft, setDraft, setShowReplyComposer, setReplyRecipients, setReplySubject, setReplyMode]);
+}
 
 /**
  * Periodically auto-saves the draft to the server while the reply composer is open.

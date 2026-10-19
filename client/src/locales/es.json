@@ -1424,7 +1424,12 @@
       "senderContext": "Contexto del remitente"
     },
     "sendAnywayHold": "Mantén pulsado para enviar de todos modos",
-    "sendAnywayHoldMessage": "Ok, revisa bien que el correo sea apropiado 😅"
+    "sendAnywayHoldMessage": "Ok, revisa bien que el correo sea apropiado 😅",
+    "discardReplyTitle": "¿Descartar este borrador?",
+    "discardReplyMessage": "Tu respuesta no se ha enviado. Guárdala como borrador para terminarla más tarde, o descártala.",
+    "discardReplyKeepEditing": "Seguir editando",
+    "discardReplySaveDraft": "Guardar borrador",
+    "discardReplyDiscard": "Descartar"
   },
   "contacts": {
     "title": "Contactos",

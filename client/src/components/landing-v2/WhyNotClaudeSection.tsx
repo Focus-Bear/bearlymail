@@ -8,7 +8,7 @@ const PARAGRAPH_KEYS = ['trust', 'job', 'value'] as const;
 export const WhyNotClaudeSection: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <section id="why-not-claude">
+    <section id="why-not-claude" className="section-dark">
       <div className="wrap">
         <div className="section-head">
           <span className="kicker">{t(`${WHY_NOT_CLAUDE_PREFIX}.kicker`)}</span>

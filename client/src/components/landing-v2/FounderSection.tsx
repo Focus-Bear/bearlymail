@@ -6,7 +6,7 @@ const FOUNDER_PARAGRAPHS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'] as const;
 export const FounderSection: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <section id="story" className="founder-band">
+    <section id="story" className="founder-band section-dark">
       <div className="wrap">
         <div className="founder">
           <div className="portrait" aria-label={t('landing.v2.founder.name')}>

@@ -9,7 +9,7 @@ import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
 
-import { buildReplyAllRecipients, IsCurrentUserFn } from './buildReplyAllRecipients';
+import { buildReplyAllRecipients, buildReplyToOwnEmailRecipient, IsCurrentUserFn } from './buildReplyAllRecipients';
 import { EmailDetailState } from './useEmailDetailOperations.types';
 import { useEmailDraftCrud } from './useEmailDraftCrud';
 
@@ -47,14 +47,7 @@ function buildReplyRecipientsForMode(
     if (otherPersonEmail) {
       return { recipients: otherPersonEmail.from, cc: null };
     }
-    if (targetEmail.to) {
-      const firstRecipient = targetEmail.to
-        .split(',')
-        .map((recipientStr: string) => recipientStr.trim())
-        .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr))[0];
-      return { recipients: firstRecipient || targetEmail.to, cc: null };
-    }
-    return { recipients: targetEmail.from, cc: null };
+    return { recipients: buildReplyToOwnEmailRecipient(targetEmail, isCurrentUser), cc: null };
   }
   return { recipients: targetEmail.replyTo || targetEmail.from, cc: null };
 }

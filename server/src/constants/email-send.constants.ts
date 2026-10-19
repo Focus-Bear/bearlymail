@@ -74,3 +74,6 @@ export const SEND_SWEEP_BATCH_SIZE = 100;
 
 /** Cron expression for the stalled-send sweeper. */
 export const SEND_SWEEP_CRON = "*/5 * * * *";
+
+/** RFC 5322 address kind for a group ("Team: a@x.com, b@y.com;"), as the email-addresses parser reports it. */
+export const ADDRESS_TYPE_GROUP = "group";

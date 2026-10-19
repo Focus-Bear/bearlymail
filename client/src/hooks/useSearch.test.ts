@@ -133,6 +133,36 @@ describe('useSearch', () => {
       });
     });
 
+    it('ignores a superseded response when the user resubmits mid-search', async () => {
+      const { result } = renderHook(() => useSearch());
+      const staleResults = [{ id: 'stale', subject: 'Old', from: 'old@example.com' }];
+      const freshResults = [{ id: 'fresh', subject: 'New', from: 'new@example.com' }];
+      let resolveStale: (value: { data: typeof staleResults }) => void = () => undefined;
+      mockedAxios.get
+        .mockImplementationOnce(() => new Promise(resolve => (resolveStale = resolve)))
+        .mockResolvedValueOnce({ data: freshResults });
+      const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
+
+      act(() => {
+        result.current.setQuery('invoce');
+      });
+      act(() => {
+        result.current.handleSearch(mockEvent);
+      });
+      act(() => {
+        result.current.setQuery('invoice');
+      });
+      await act(async () => {
+        await result.current.handleSearch(mockEvent);
+      });
+      await act(async () => {
+        resolveStale({ data: staleResults });
+      });
+
+      expect(result.current.searchResults).toEqual(freshResults);
+      expect(result.current.loading).toBe(false);
+    });
+
     it('should show progress steps during search', async () => {
       const { result } = renderHook(() => useSearch());
 

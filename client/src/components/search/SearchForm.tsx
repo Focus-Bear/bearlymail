@@ -14,6 +14,7 @@ interface SearchFormProps {
 
 export const SearchForm: React.FC<SearchFormProps> = ({ query, loading, onQueryChange, onSubmit }) => {
   const { t } = useTranslation();
+  const isQueryEmpty = !query.trim();
 
   return (
     <form onSubmit={onSubmit} style={{ marginBottom: theme.spacing.xl }}>
@@ -39,16 +40,18 @@ export const SearchForm: React.FC<SearchFormProps> = ({ query, loading, onQueryC
           }}
           autoFocus
         />
+        {/* Disabling the submit button while loading would also block Enter (implicit
+            form submission), so a typo fixed mid-search couldn't be resubmitted. */}
         <button
           type="submit"
-          disabled={loading || !query.trim()}
+          disabled={isQueryEmpty}
           style={{
             padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-            backgroundColor: loading || !query.trim() ? theme.colors.text.tertiary : theme.colors.primary.main,
+            backgroundColor: loading || isQueryEmpty ? theme.colors.text.tertiary : theme.colors.primary.main,
             color: COLOR_NAMED_WHITE,
             border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
-            cursor: loading || !query.trim() ? 'not-allowed' : 'pointer',
+            cursor: isQueryEmpty ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.base,
             fontWeight: theme.typography.fontWeight.medium,
           }}

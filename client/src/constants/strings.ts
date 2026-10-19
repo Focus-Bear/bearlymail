@@ -237,6 +237,9 @@ export const EMAIL_FIELD_TO = 'to' as const;
 export const EMAIL_FIELD_CC = 'cc' as const;
 export const EMAIL_FIELD_BCC = 'bcc' as const;
 
+// RFC 5322 address kinds reported by the email-addresses parser
+export const ADDRESS_TYPE_GROUP = 'group' as const;
+
 // Delivery status
 export const DELIVERY_STATUS_OVERDUE = 'overdue' as const;
 

@@ -124,6 +124,34 @@ describe("sanitizeRecipientList", () => {
   it("returns empty for an empty string", () => {
     expect(sanitizeRecipientList("")).toEqual({ sanitized: "", invalid: [] });
   });
+
+  it("flattens a named group to its members", () => {
+    expect(sanitizeRecipientList("Team: a@x.com, Bee <b@y.com>;")).toEqual({
+      sanitized: "a@x.com, Bee <b@y.com>",
+      invalid: [],
+    });
+  });
+
+  it("drops an empty group with any name", () => {
+    expect(
+      sanitizeRecipientList("Recipient list suppressed:;, other@example.com"),
+    ).toEqual({ sanitized: "other@example.com", invalid: [] });
+  });
+
+  it("keeps a plain BCC reply recipient unchanged", () => {
+    expect(
+      sanitizeRecipientList("Coko Eason <coko@2gether-international.org>"),
+    ).toEqual({
+      sanitized: "Coko Eason <coko@2gether-international.org>",
+      invalid: [],
+    });
+  });
+
+  it("drops an empty group alongside an invalid entry and reports only the invalid one", () => {
+    expect(
+      sanitizeRecipientList("undisclosed-recipients:;, a@x.com, bob"),
+    ).toEqual({ sanitized: "a@x.com", invalid: ["bob"] });
+  });
 });
 
 describe("deriveRecipientDisplayName", () => {

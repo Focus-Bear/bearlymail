@@ -18,6 +18,7 @@ import { emailMentionsGitHub } from 'utils/githubUtils';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
+import { resolveReplyInboxMode } from 'utils/suggestRepliesRequest';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { buildToneCheckContext } from 'utils/toneCheckContext';
 
@@ -36,6 +37,7 @@ import {
   ANIMATION_TYPE_PRIORITY,
   ANIMATION_TYPE_SEND,
   GITHUB_ACTION_PREFIX,
+  LAST_INBOX_MODE_STORAGE_KEY,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
@@ -133,7 +135,7 @@ export function useEmailDetailOperations(
   // Falls back to sessionStorage so the correct path is restored after page refreshes.
   const getInboxPath = useCallback(() => {
     const locState = location.state as { fromMode?: string; fromBasePath?: string } | null;
-    const fromMode = locState?.fromMode ?? sessionStorage.getItem('bearlymail_lastInboxMode') ?? undefined;
+    const fromMode = locState?.fromMode ?? sessionStorage.getItem(LAST_INBOX_MODE_STORAGE_KEY) ?? undefined;
     const fromBasePath = locState?.fromBasePath ?? sessionStorage.getItem('bearlymail_lastBasePath') ?? '/inbox';
     return fromMode ? `${fromBasePath}/${fromMode}` : fromBasePath;
   }, [location.state]);
@@ -660,6 +662,7 @@ export function useEmailDetailOperations(
       setReplySubject,
       setShowCc,
       setShowBcc,
+      replyInboxMode: resolveReplyInboxMode(location.pathname, location.state),
     },
     user?.email
   );

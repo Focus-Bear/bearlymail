@@ -65,11 +65,13 @@ describe("LLMController (Integration)", () => {
 
   const mockEmailRepository = {
     findOne: jest.fn().mockResolvedValue(null),
+    find: jest.fn().mockResolvedValue([]),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     mockEmailRepository.findOne.mockResolvedValue(null);
+    mockEmailRepository.find.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LLMController],
@@ -723,6 +725,119 @@ describe("LLMController (Integration)", () => {
       const callArgs = mockLLMService.generateReplyOptions.mock.calls[0];
       expect(callArgs[1]).toHaveProperty("userName", "Test User");
       expect(callArgs[1]).toHaveProperty("userJobTitle", "Engineer");
+    });
+
+    const THREAD_ID = "6f1c2a4e-8b3d-4c5e-9f70-1a2b3c4d5e6f";
+    const userLatestEmail = {
+      id: "user-latest",
+      from: "test@example.com",
+      fromName: "Test User",
+      to: "Wellbeing@mq.edu.au",
+      body: "Just following up on my email below.",
+      receivedAt: new Date("2026-10-14T06:00:00Z"),
+    };
+    const theirEarlierEmail = {
+      id: "their-earlier",
+      from: "wellbeing@mq.edu.au",
+      fromName: "Student Wellbeing",
+      to: "test@example.com",
+      body: "Tell us more.",
+      receivedAt: new Date("2026-10-01T09:00:00Z"),
+    };
+
+    it("asks for follow-ups to the other party when the user sent the latest thread email", async () => {
+      mockEmailRepository.find.mockResolvedValue([
+        userLatestEmail,
+        theirEarlierEmail,
+      ]);
+
+      await request(app.getHttpServer())
+        .post("/llm/suggest-replies")
+        .send({
+          originalEmail: {
+            from: userLatestEmail.from,
+            fromName: userLatestEmail.fromName,
+            to: userLatestEmail.to,
+            subject: "Re: Free assistive technology software",
+            body: userLatestEmail.body,
+          },
+          emailId: userLatestEmail.id,
+          emailThreadId: THREAD_ID,
+        })
+        .expect(201);
+
+      expect(mockEmailRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { emailThreadId: THREAD_ID, userId: "test-user-id" },
+        }),
+      );
+      const [, userContext, , , threadMessages] =
+        mockLLMService.generateReplyOptions.mock.calls[0];
+      expect(userContext.perspective).toEqual({
+        isFollowUp: true,
+        userEmail: "test@example.com",
+        recipientName: "Student Wellbeing",
+        recipientEmail: "wellbeing@mq.edu.au",
+      });
+      expect(threadMessages).toEqual([
+        expect.objectContaining({ from: theirEarlierEmail.from }),
+      ]);
+    });
+
+    it("keeps normal replies when the other party sent the latest email", async () => {
+      await request(app.getHttpServer())
+        .post("/llm/suggest-replies")
+        .send({
+          originalEmail: {
+            from: "sender@example.com",
+            fromName: "Sender",
+            subject: "Test",
+            body: "Test email",
+          },
+        })
+        .expect(201);
+
+      expect(mockEmailRepository.find).not.toHaveBeenCalled();
+      const [, userContext] = mockLLMService.generateReplyOptions.mock.calls[0];
+      expect(userContext.perspective).toEqual({
+        isFollowUp: false,
+        userEmail: "test@example.com",
+        recipientName: "Sender",
+        recipientEmail: "sender@example.com",
+      });
+    });
+
+    it("treats a reply from the Follow-Up inbox as a follow-up", async () => {
+      await request(app.getHttpServer())
+        .post("/llm/suggest-replies")
+        .send({
+          originalEmail: {
+            from: "sender@example.com",
+            subject: "Test",
+            body: "Test email",
+          },
+          inboxMode: "follow-up",
+        })
+        .expect(201);
+
+      const [, userContext] = mockLLMService.generateReplyOptions.mock.calls[0];
+      expect(userContext.perspective.isFollowUp).toBe(true);
+    });
+
+    it("ignores a malformed thread id instead of querying with it", async () => {
+      await request(app.getHttpServer())
+        .post("/llm/suggest-replies")
+        .send({
+          originalEmail: {
+            from: "sender@example.com",
+            subject: "Test",
+            body: "Test email",
+          },
+          emailThreadId: "not-a-uuid",
+        })
+        .expect(201);
+
+      expect(mockEmailRepository.find).not.toHaveBeenCalled();
     });
   });
 

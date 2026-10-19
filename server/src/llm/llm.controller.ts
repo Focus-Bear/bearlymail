@@ -9,10 +9,13 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { isUUID } from "class-validator";
 import { Repository } from "typeorm";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
+import { EncryptionHelper } from "../encryption/encryption.helper";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
 import { UsersService } from "../users/users.service";
 import {
@@ -23,6 +26,28 @@ import {
 import { validateAnthropicKey } from "./anthropic-key-validator";
 import { LLMService } from "./llm.service";
 import type { ToneCheckRecipient } from "./llm-tone.types";
+import {
+  resolveReplyPerspective,
+  toReplyThreadHistory,
+} from "./reply-perspective";
+
+interface SuggestRepliesBody {
+  originalEmail: {
+    from: string;
+    fromName?: string;
+    to?: string;
+    subject: string;
+    body: string;
+  };
+  /** Id of the email being replied to, so history doesn't repeat it. */
+  emailId?: string;
+  /** Lets the server see who sent the latest message in the thread. */
+  emailThreadId?: string;
+  /** Inbox the user is replying from; "follow-up" means awaiting their reply. */
+  inboxMode?: string;
+  context?: { tone?: string; writingStyle?: string };
+  userInstructions?: string;
+}
 
 @Controller("llm")
 @UseGuards(JwtAuthGuard, AiCapacityGuard)
@@ -186,21 +211,9 @@ export class LLMController {
   }
 
   @Post("suggest-replies")
-  async suggestReplies(
-    @Request() req,
-    @Body()
-    body: {
-      originalEmail: {
-        from: string;
-        fromName?: string;
-        subject: string;
-        body: string;
-      };
-      context?: { tone?: string; writingStyle?: string };
-      userInstructions?: string;
-    },
-  ) {
-    const user = await this.usersService.findOne(req.user.userId);
+  async suggestReplies(@Request() req, @Body() body: SuggestRepliesBody) {
+    const { userId } = req.user;
+    const user = await this.usersService.findOne(userId);
     const toneRules = user?.toneSettings?.rules || [];
     const emailExamples = toneRules.filter(
       (rule: string) =>
@@ -209,6 +222,18 @@ export class LLMController {
         !rule.startsWith("Common phrase:"),
     );
 
+    const userEmail = EncryptionHelper.tryDecrypt(user?.email) ?? "";
+    const threadEmails = await this.fetchRecentThreadEmails(
+      userId,
+      body.emailThreadId,
+    );
+    const perspective = resolveReplyPerspective({
+      threadMessages: threadEmails,
+      replyTarget: body.originalEmail,
+      userEmail,
+      inboxMode: body.inboxMode,
+    });
+
     const userContext = {
       tone: body.context?.tone || "professional",
       writingStyle: body.context?.writingStyle,
@@ -216,14 +241,33 @@ export class LLMController {
       userJobTitle: resolveUserJobTitle(user),
       emailExamples,
       userInstructions: body.userInstructions,
+      perspective,
     };
 
     return this.llmService.generateReplyOptions(
       body.originalEmail,
       userContext,
       undefined,
-      req.user.userId,
+      userId,
+      toReplyThreadHistory(threadEmails, body.emailId, userEmail),
     );
+  }
+
+  /**
+   * Newest thread messages, used to tell whether the user sent the latest one
+   * and as conversation history. An unknown or malformed thread id yields none,
+   * so the request falls back to judging the posted email alone.
+   */
+  private async fetchRecentThreadEmails(
+    userId: string,
+    emailThreadId: string | undefined,
+  ): Promise<Email[]> {
+    if (!emailThreadId || !isUUID(emailThreadId)) return [];
+    return this.emailRepository.find({
+      where: { emailThreadId, userId },
+      order: { receivedAt: "DESC" },
+      take: QUERY_LIMITS.REPLY_SUGGESTION_THREAD_WINDOW,
+    });
   }
 
   @Post("dispute-tone-check")

@@ -8,6 +8,7 @@ import { Email } from 'types/email';
 import { takePendingSend } from 'utils/pendingSends';
 
 import { API_URL } from 'config/api';
+import { LAST_INBOX_MODE_STORAGE_KEY, MODE_FOLLOW_UP } from 'constants/strings';
 import inboxDataReducer from 'store/slices/inboxDataSlice';
 import inboxUIReducer from 'store/slices/inboxUISlice';
 
@@ -763,6 +764,43 @@ describe('useEmailDetailOperations', () => {
       });
 
       expect(state.setAutoSendCountdown).toHaveBeenCalledWith(null);
+    });
+  });
+
+  describe('suggest-replies inbox mode', () => {
+    const SUGGEST_REPLIES_URL = `${API_URL}/llm/suggest-replies`;
+
+    const generateCustomReply = async () => {
+      const store = createTestStore([]);
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+      await act(async () => {
+        await result.current.generateFromCustomPrompt('offer a call');
+      });
+      const call = mockedAxios.post.mock.calls.find(([url]) => url === SUGGEST_REPLIES_URL);
+      return call?.[1] as Record<string, unknown> | undefined;
+    };
+
+    afterEach(() => {
+      sessionStorage.clear();
+    });
+
+    it('sends the mode the inbox list opened the email from', async () => {
+      mockLocationState.fromMode = MODE_FOLLOW_UP;
+
+      const body = await generateCustomReply();
+
+      expect(body).toEqual(expect.objectContaining({ inboxMode: MODE_FOLLOW_UP }));
+    });
+
+    it('does not inherit a stale last-visited Follow-Up mode when opened from elsewhere (e.g. search)', async () => {
+      sessionStorage.setItem(LAST_INBOX_MODE_STORAGE_KEY, MODE_FOLLOW_UP);
+
+      const body = await generateCustomReply();
+
+      expect(body).toBeDefined();
+      expect(body).not.toHaveProperty('inboxMode');
     });
   });
 });

@@ -13,7 +13,7 @@
  * polling loop merges enriched results in-place.
  */
 import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { NavigateFunction, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 import {
@@ -354,6 +354,16 @@ async function runPhase3Expansion(
 
 const SEARCH_SLOW_THRESHOLD_MS = 2000;
 
+function reportSearchError(error: unknown, navigate: NavigateFunction): void {
+  console.error('Error searching emails:', error);
+  if (axios.isAxiosError(error) && error.response?.status === HTTP_UNAUTHORIZED) {
+    alert('Please log in again to search emails.');
+    navigate('/login');
+    return;
+  }
+  alert(getAxiosErrorMessage(error, 'Error searching emails. Please try again.'));
+}
+
 async function processSearchResults(options: {
   responseData: Email[];
   query: string;
@@ -499,9 +509,12 @@ export const useSearch = () => {
       const progressInterval = setInterval(() => {
         setProgressStep('Searching for emails...');
       }, 100);
+      const isCurrentSession = () => currentSession === searchSessionRef.current;
       const stopProgress = () => {
         clearInterval(progressInterval);
-        setProgressStep('');
+        if (isCurrentSession()) {
+          setProgressStep('');
+        }
       };
       const stateSetters: SearchStateSetters = {
         setSearchResults,
@@ -517,6 +530,11 @@ export const useSearch = () => {
         const params = buildSearchParams(searchQuery, selectedAccountTypes, connectedAccounts);
         const response = await axios.get(`${API_URL}/emails/search`, { params });
         stopProgress();
+        // The user can resubmit while a search is in flight (e.g. to fix a typo);
+        // a superseded response must not overwrite the newer search's results.
+        if (!isCurrentSession()) {
+          return;
+        }
 
         // -----------------------------------------------------------------------
         // Instant search path: backend returned InstantSearchResponse
@@ -582,14 +600,11 @@ export const useSearch = () => {
         });
       } catch (error: unknown) {
         stopProgress();
-        setLoading(false);
-        console.error('Error searching emails:', error);
-        if (axios.isAxiosError(error) && error.response?.status === HTTP_UNAUTHORIZED) {
-          alert('Please log in again to search emails.');
-          navigate('/login');
-        } else {
-          alert(getAxiosErrorMessage(error, 'Error searching emails. Please try again.'));
+        if (!isCurrentSession()) {
+          return;
         }
+        setLoading(false);
+        reportSearchError(error, navigate);
       }
     },
     [navigate, selectedAccountTypes, connectedAccounts]

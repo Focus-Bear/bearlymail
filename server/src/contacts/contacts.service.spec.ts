@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
@@ -807,6 +807,63 @@ describe("ContactsService", () => {
           email: "ASC",
         },
       });
+    });
+  });
+
+  // Pentest finding (issue #324): any string, including markup, was stored as
+  // the contact type.
+  describe("contact type validation", () => {
+    const userId = "user-123";
+    const existingContact = { id: "contact-1", userId, email: "a@example.com" };
+
+    beforeEach(() => {
+      mockContactCrmService.ensureDefaultContactTypes.mockResolvedValue([
+        { name: "lead" },
+        { name: "customer" },
+      ]);
+      mockRepository.findOne.mockResolvedValue(existingContact);
+      mockRepository.findOneOrFail.mockResolvedValue(existingContact);
+    });
+
+    it("accepts one of the user's contact types", async () => {
+      await service.updateContact(userId, "contact-1", {
+        contactType: "customer",
+      });
+
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        "contact-1",
+        expect.objectContaining({ contactType: "customer" }),
+      );
+    });
+
+    it("clears the type when given null", async () => {
+      await service.updateContact(userId, "contact-1", {
+        contactType: null as unknown as string,
+      });
+
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        "contact-1",
+        expect.objectContaining({ contactType: null }),
+      );
+    });
+
+    it("rejects a type the user doesn't have, without saving", async () => {
+      await expect(
+        service.updateContact(userId, "contact-1", {
+          contactType: "<img src=x onerror=alert(1)>",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unknown type when creating a contact", async () => {
+      await expect(
+        service.createContact(userId, {
+          email: "new@example.com",
+          contactType: "<script>alert(1)</script>",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockRepository.save).not.toHaveBeenCalled();
     });
   });
 });

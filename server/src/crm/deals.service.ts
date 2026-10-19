@@ -20,6 +20,25 @@ import {
 // client-supplied array can't drive an unbounded number of DB writes (CWE-834).
 const MAX_STAGE_REORDER_COUNT = 100;
 
+const DEFAULT_DEAL_CURRENCY = "USD";
+const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
+
+/**
+ * Accepts only a three-letter ISO 4217 code (stored upper-case). Anything else —
+ * e.g. markup injected through the API — was stored verbatim and made the
+ * client's currency formatter throw, blanking the Deals page (issue #324).
+ */
+export function normalizeDealCurrency(currency: unknown): string {
+  const code =
+    typeof currency === "string" ? currency.trim().toUpperCase() : "";
+  if (!CURRENCY_CODE_PATTERN.test(code)) {
+    throw new BadRequestException(
+      "Currency must be a three-letter ISO 4217 code, e.g. USD",
+    );
+  }
+  return code;
+}
+
 export interface DealResponse {
   id: string;
   title: string;
@@ -293,7 +312,9 @@ export class DealsService {
       title: input.title,
       details: input.details || null,
       value: input.value ?? null,
-      currency: input.currency || "USD",
+      currency: input.currency
+        ? normalizeDealCurrency(input.currency)
+        : DEFAULT_DEAL_CURRENCY,
       stageId: stageId || null,
       contactId: input.contactId || null,
       expectedCloseDate: input.expectedCloseDate
@@ -333,7 +354,9 @@ export class DealsService {
     if (input.title !== undefined) deal.title = input.title;
     if (input.details !== undefined) deal.details = input.details;
     if (input.value !== undefined) deal.value = input.value;
-    if (input.currency !== undefined) deal.currency = input.currency;
+    if (input.currency !== undefined) {
+      deal.currency = normalizeDealCurrency(input.currency);
+    }
     if (input.stageId !== undefined) deal.stageId = input.stageId;
     if (input.contactId !== undefined) deal.contactId = input.contactId;
     if (input.expectedCloseDate !== undefined) {

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
+import { StepUpModal } from 'components/auth/StepUpModal';
+import { usePasswordSave } from 'components/settings/usePasswordSave';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
@@ -115,9 +117,16 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
   const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const { save, isSaving, error, setError, stepUpModalProps } = usePasswordSave({
+    password,
+    confirmPassword,
+    onSaved: () => {
+      setPassword('');
+      setConfirmPassword('');
+      onSuccess();
+    },
+  });
 
   const validatePassword = useCallback((): string | null => {
     if (password.length < 8) {
@@ -139,21 +148,7 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
       return;
     }
 
-    setIsSaving(true);
-    try {
-      await axios.put(`${API_URL}/auth/set-password`, { password, confirmPassword });
-      setPassword('');
-      setConfirmPassword('');
-      onSuccess();
-    } catch (err: unknown) {
-      const errorMessage =
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? err.response.data.message
-          : t('settings.setPassword.error');
-      setError(errorMessage);
-    } finally {
-      setIsSaving(false);
-    }
+    await save();
   };
 
   const isFormDisabled = isSaving || !password || !confirmPassword;
@@ -177,43 +172,47 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
   );
 
   return (
-    <form onSubmit={handleSubmit}>
-      <PasswordInput
-        label={passwordLabel}
-        value={password}
-        onChange={setPassword}
-        placeholder={t('settings.setPassword.passwordPlaceholder')}
-        showPassword={showPassword}
-        onToggleShow={() => setShowPassword(!showPassword)}
-        hasError={!!error}
-        disabled={isSaving}
-        hint={t('settings.setPassword.passwordHint')}
-        showToggle
-      />
-      <PasswordInput
-        label={t('settings.setPassword.confirmPasswordLabel')}
-        value={confirmPassword}
-        onChange={setConfirmPassword}
-        placeholder={t('settings.setPassword.confirmPasswordPlaceholder')}
-        showPassword={showPassword}
-        hasError={!!error}
-        disabled={isSaving}
-      />
-      {error && (
-        <p
-          style={{
-            color: theme.colors.error.main,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.md,
-          }}
-        >
-          {error}
-        </p>
-      )}
-      <button type="submit" disabled={isFormDisabled} style={buttonStyle}>
-        {getSubmitButtonText(isSaving, hasPassword, t)}
-      </button>
-    </form>
+    <>
+      <form onSubmit={handleSubmit}>
+        <PasswordInput
+          label={passwordLabel}
+          value={password}
+          onChange={setPassword}
+          placeholder={t('settings.setPassword.passwordPlaceholder')}
+          showPassword={showPassword}
+          onToggleShow={() => setShowPassword(!showPassword)}
+          hasError={!!error}
+          disabled={isSaving}
+          hint={t('settings.setPassword.passwordHint')}
+          showToggle
+        />
+        <PasswordInput
+          label={t('settings.setPassword.confirmPasswordLabel')}
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          placeholder={t('settings.setPassword.confirmPasswordPlaceholder')}
+          showPassword={showPassword}
+          hasError={!!error}
+          disabled={isSaving}
+        />
+        {error && (
+          <p
+            style={{
+              color: theme.colors.error.main,
+              fontSize: theme.typography.fontSize.sm,
+              marginBottom: theme.spacing.md,
+            }}
+          >
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={isFormDisabled} style={buttonStyle}>
+          {getSubmitButtonText(isSaving, hasPassword, t)}
+        </button>
+      </form>
+      {/* Outside the form: the modal has its own <form>, and forms can't nest. */}
+      <StepUpModal {...stepUpModalProps} />
+    </>
   );
 };
 

@@ -1,10 +1,11 @@
+import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
 import { Contact } from "../database/entities/contact.entity";
 import { Deal } from "../database/entities/deal.entity";
 import { DealStage } from "../database/entities/deal-stage.entity";
-import { DealsService } from "./deals.service";
+import { DealsService, normalizeDealCurrency } from "./deals.service";
 
 /**
  * The contacts table is unique on (userId, provider, providerId), NOT on email —
@@ -77,5 +78,53 @@ describe("DealsService.getDealsForContactByEmail", () => {
 
     expect(result).toEqual([]);
     expect(dealRepository.find).not.toHaveBeenCalled();
+  });
+});
+
+describe("normalizeDealCurrency", () => {
+  it("accepts a three-letter code and stores it upper-case", () => {
+    expect(normalizeDealCurrency("AUD")).toBe("AUD");
+    expect(normalizeDealCurrency(" eur ")).toBe("EUR");
+  });
+
+  it.each([
+    ["markup from the pentest", "<img src=x onerror=alert(1)>"],
+    ["a contact type", "Customer"],
+    ["too short", "US"],
+    ["digits", "123"],
+    ["empty", ""],
+    ["not a string", 42],
+  ])("rejects %s", (_label, currency) => {
+    expect(() => normalizeDealCurrency(currency)).toThrow(BadRequestException);
+  });
+});
+
+/** Pentest finding (issue #324): an invalid currency blanked the Deals page. */
+describe("DealsService currency validation", () => {
+  let service: DealsService;
+  const dealRepository = { findOne: jest.fn(), save: jest.fn() };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DealsService,
+        { provide: getRepositoryToken(Deal), useValue: dealRepository },
+        { provide: getRepositoryToken(DealStage), useValue: {} },
+        { provide: getRepositoryToken(Contact), useValue: {} },
+      ],
+    }).compile();
+    service = module.get<DealsService>(DealsService);
+  });
+
+  it("refuses to save a deal update with an invalid currency", async () => {
+    dealRepository.findOne.mockResolvedValue({ id: "d1", currency: "USD" });
+
+    await expect(
+      service.updateDeal("user-1", "d1", {
+        currency: "<img src=x onerror=alert(1)>",
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(dealRepository.save).not.toHaveBeenCalled();
   });
 });

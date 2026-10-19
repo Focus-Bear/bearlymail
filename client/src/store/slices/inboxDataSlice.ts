@@ -16,6 +16,14 @@ export interface CategorySummaryItem {
   threadIds?: string[];
 }
 
+/** Server-reported paging state for one category's row query (`/emails/inbox` or `/emails/inbox-batch`). */
+export interface CategoryPage {
+  /** Rows the category query matches in total — the same query the loaded rows came from. */
+  total: number;
+  /** True when rows beyond those loaded exist (a "Show more" is available). */
+  hasMore: boolean;
+}
+
 export interface InboxDataState {
   emails: Email[];
   hasMore: boolean;
@@ -29,6 +37,8 @@ export interface InboxDataState {
   exhaustedCategoryNames: string[];
   /** Unix timestamp (ms) of the last successful inbox fetch. Used for stale-while-revalidate caching. */
   lastFetchedAt: number | null;
+  /** Per category key: paging state of the rows loaded so far. Absent until the category is fetched. */
+  categoryPagination: Record<string, CategoryPage>;
 }
 
 const initialState: InboxDataState = {
@@ -41,6 +51,7 @@ const initialState: InboxDataState = {
   loadingCategoryNames: [],
   exhaustedCategoryNames: [],
   lastFetchedAt: null,
+  categoryPagination: {},
 };
 
 const inboxDataSlice = createSlice({
@@ -117,6 +128,35 @@ const inboxDataSlice = createSlice({
         return !matchesCategory(event);
       });
       state.emails = [...state.emails, ...stampedEmails];
+    },
+    /**
+     * Append a further page of a category's rows ("Show more"). Rows already present are
+     * skipped, and each row is stamped with the category it was fetched for, matching
+     * updateCategoryEmails.
+     */
+    appendCategoryEmails: (state, action: PayloadAction<{ categoryKey: string; emails: Email[] }>) => {
+      const { categoryKey, emails } = action.payload;
+      const isUncategorized = categoryKey === CATEGORY_KEY_UNCATEGORIZED;
+      const existingIds = new Set(state.emails.map(email => email.id));
+      const newEmails = emails
+        .filter(email => !existingIds.has(email.id))
+        .map(email => ({ ...email, category_id: email.category_id ?? (isUncategorized ? null : categoryKey) }));
+      if (newEmails.length > 0) {
+        state.emails = [...state.emails, ...newEmails];
+      }
+    },
+    setCategoryPagination: (state, action: PayloadAction<{ categoryKey: string } & CategoryPage>) => {
+      const { categoryKey, total, hasMore } = action.payload;
+      state.categoryPagination[categoryKey] = { total, hasMore };
+    },
+    /**
+     * Un-mark categories as loaded while keeping their rows. Used for collapsed accordions the
+     * background refresh skips: their rows may be out of date, so the next expand refetches
+     * them (showing the kept rows meanwhile) instead of trusting them indefinitely.
+     */
+    markCategoriesStale: (state, action: PayloadAction<string[]>) => {
+      const staleKeys = new Set(action.payload);
+      state.loadedCategoryNames = state.loadedCategoryNames.filter(key => !staleKeys.has(key));
     },
     removeEmail: (state, action: PayloadAction<string>) => {
       const emailToRemove = state.emails.find(email => email.id === action.payload);
@@ -247,6 +287,7 @@ const inboxDataSlice = createSlice({
       state.loadedCategoryNames = [];
       state.loadingCategoryNames = [];
       state.exhaustedCategoryNames = [];
+      state.categoryPagination = {};
     },
     decrementCategorySummaryCount: (state, action: PayloadAction<{ categoryKey: string; count: number }>) => {
       const { categoryKey, count } = action.payload;
@@ -379,6 +420,9 @@ const inboxDataSlice = createSlice({
 export const {
   setEmails,
   appendEmails,
+  appendCategoryEmails,
+  setCategoryPagination,
+  markCategoriesStale,
   updateCategoryEmails,
   removeEmail,
   updateEmail,

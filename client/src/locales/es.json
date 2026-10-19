@@ -445,29 +445,59 @@
     "resetPasswordError": "No se pudo restablecer la contraseña. Es posible que el enlace haya caducado.",
     "invalidResetLink": "Este enlace de restablecimiento es inválido o ha caducado.",
     "permissions": {
-      "title": "Permisos explicados",
-      "intro": "BearlyMail necesita los siguientes permisos para ayudarte a gestionar tu correo electrónico de manera efectiva. Nos tomamos tu privacidad en serio y solo solicitamos lo necesario.",
-      "gmail": {
-        "title": "Acceso a Gmail",
-        "description": "Lee y organiza tus correos: prioriza tu bandeja de entrada, archiva, pospone y gestiona etiquetas.",
-        "sendClarification": "BearlyMail solo enviará correos en tu nombre si tú redactas y envías manualmente dentro de BearlyMail, o si activas explícitamente el contestador automático con IA."
+      "eyebrow": "Antes de conectar {{provider}}",
+      "title": "Esto es lo que pediremos a {{provider}} y por qué",
+      "intro": "{{provider}} te mostrará una larga lista de permisos. Aquí tienes cada uno explicado de forma sencilla, para que nada de la siguiente pantalla te sorprenda.",
+      "items": {
+        "mailRead": {
+          "title": "Leer, organizar y archivar tu correo",
+          "description": "Para resumir, priorizar y clasificar tu correo en categorías, y archivarlo, posponerlo o destacarlo por ti. Los cambios se sincronizan con tu buzón."
+        },
+        "mailSend": {
+          "title": "Enviar correos en tu nombre",
+          "description": "Solo cuando pulsas Enviar en BearlyMail, o si activas el contestador automático con IA. Nunca enviamos nada por nuestra cuenta."
+        },
+        "contacts": {
+          "title": "Ver tus contactos",
+          "description": "Para reconocer a las personas que te importan (tus VIP) y autocompletar direcciones cuando escribes."
+        },
+        "otherContacts": {
+          "title": "Ver tus “Otros contactos”",
+          "description": "La lista de Google de personas a las que has escrito pero nunca guardaste. Muchos de tus remitentes más importantes solo están aquí."
+        },
+        "calendarEvents": {
+          "title": "Ver y editar eventos del calendario",
+          "description": "Para sugerir horarios de reunión en las respuestas y añadir la invitación cuando alguien reserva. No cambiamos la configuración de tu calendario."
+        },
+        "availability": {
+          "title": "Ver cuándo estás libre u ocupado",
+          "description": "Permite que las sugerencias de reunión eviten conflictos, sin leer de qué tratan tus eventos."
+        },
+        "stayConnected": {
+          "title": "Mantener la conexión cuando no estás",
+          "description": "Mantiene tu bandeja sincronizada aunque no hayas iniciado sesión, para que tus lotes lleguen a tiempo."
+        },
+        "profile": {
+          "title": "Tu nombre y dirección de correo",
+          "description": "Para crear tu cuenta de BearlyMail y mostrar con qué cuenta has iniciado sesión."
+        }
       },
-      "zoho": {
-        "title": "Acceso a Zoho",
-        "description": "Lee y organiza tus correos: prioriza tu bandeja de entrada, archiva, pospone y gestiona etiquetas.",
-        "sendClarification": "BearlyMail solo enviará correos en tu nombre si tú redactas y envías manualmente dentro de BearlyMail, o si activas explícitamente el contestador automático con IA.",
-        "continue": "continuar con Zoho"
+      "tips": {
+        "title": "Dos cosas en la siguiente pantalla de {{provider}}",
+        "keepTicked": "Deja todas las casillas marcadas. Si desmarcas una, la función que la necesita dejará de funcionar sin avisar.",
+        "ongoingAccess": "Si te pregunta durante cuánto tiempo permitir el acceso, elige acceso continuo en lugar de 6 meses. El acceso temporal caduca y tu bandeja se desconecta sin avisar."
       },
-      "calendar": {
-        "title": "Eventos del calendario",
-        "description": "Ver tu disponibilidad y crear invitaciones de reuniones. BearlyMail solo gestiona eventos de calendario, no tus calendarios en sí."
-      },
-      "contacts": {
-        "title": "Contactos",
-        "description": "Leer tus contactos para identificar personas importantes y personalizar tu experiencia de correo electrónico."
-      },
-      "security": "🔒 Todos tus datos están encriptados y almacenados de forma segura. Nunca compartimos tu información con terceros.",
-      "continue": "Continuar a Google"
+      "security": "🔒 Tu correo se almacena cifrado. Nunca vendemos ni compartimos tus datos con terceros, y puedes desconectarte cuando quieras.",
+      "holdToContinue": "Mantén pulsado para continuar a {{provider}}",
+      "hold": {
+        "hint_one": "Mantén pulsado {{count}} segundo. Es un empujón para que leas la lista primero.",
+        "hint_other": "Mantén pulsado {{count}} segundos. Es un empujón para que leas la lista primero.",
+        "keepHolding_one": "Sigue pulsando… queda {{count}} segundo",
+        "keepHolding_other": "Sigue pulsando… quedan {{count}} segundos",
+        "ariaLabel_one": "{{label}}. Mantén pulsado {{count}} segundo, o mantén Espacio o Intro.",
+        "ariaLabel_other": "{{label}}. Mantén pulsado {{count}} segundos, o mantén Espacio o Intro.",
+        "progressLabel": "Progreso de la pulsación"
+      }
     },
     "errors": {
       "waitlistSubmitted": {
@@ -738,7 +768,9 @@
     "unsavedChangesTitle": "Correo sin enviar",
     "leaveAnyway": "Salir de todos modos",
     "keepEditing": "Seguir editando",
-    "followUpSection": "Seguimiento"
+    "followUpSection": "Seguimiento",
+    "trackOpens": "Registrar aperturas",
+    "trackOpensTooltip": "Añade una imagen invisible para que veas cuándo se abre este correo. Por defecto usa tu ajuste en Configuración → Seguimiento de aperturas."
   },
   "emailSend": {
     "failedNotification": "Tu mensaje no se envió. {{reason}}",
@@ -1881,6 +1913,11 @@
       "message": "Aviso: no estamos sincronizando tus correos antiguos. Solo hemos sincronizado los últimos 7 días de correo.",
       "dismiss": "Descartar"
     },
+    "openTrackingNotice": {
+      "message": "El seguimiento de aperturas está activado: BearlyMail ahora te muestra cuándo se abren los correos que envías.",
+      "manage": "Gestionar en Ajustes",
+      "dismiss": "Descartar"
+    },
     "batchInfo": {
       "changeInSettings": "Cambiar en Configuración",
       "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",
@@ -1909,6 +1946,8 @@
       "customerSupport": "Soporte al cliente",
       "hrAdmin": "Recursos humanos",
       "other": "Otros",
+      "pendingCategorisation": "La IA está decidiendo la categoría…",
+      "pendingCategorisationHint": "Se moverán a su categoría en un momento",
       "selectAll": "Seleccionar todo",
       "deselectAll": "Deseleccionar todo",
       "archiveAll": "Archivar todo",
@@ -1929,6 +1968,8 @@
       "recategorizeNone": "No hay correos para recategorizar en triaje, acción o seguimiento.",
       "recategorizeError": "No se pudo iniciar la recategorización. Por favor, inténtalo de nuevo.",
       "loadingContent": "Cargando correos...",
+      "loadMore": "Mostrar {{count}} más",
+      "loadingMore": "Cargando más…",
       "dangerousPhishing": "PELIGROSO: posible intento de phishing",
       "newsletterBlockTip": "Bloquea remitentes rápidamente: ahorra tiempo en comparación con tener que encontrar la forma de darse de baja.",
       "newsletterBlockTipTitle": "💡 Consejo: Bloquear remitente",
@@ -3100,12 +3141,12 @@
       "title": "Personaliza tu experiencia"
     },
     "tour": {
-      "actionContent": "Destaca un correo electrónico para moverlo aquí. Este es su espacio de trabajo enfocado a los correos electrónicos que necesitan acción.",
+      "actionContent": "Los correos que destacas pasan a esta pestaña. Es tu lista de tareas para los correos que requieren trabajo de verdad.",
       "actionTitle": "Pestaña Acción",
-      "assistantContent": "Abre cualquier correo y aparecerá un panel lateral a la derecha. La pestaña Acciones reúne el resumen, las tareas y las notas, mientras que la pestaña Preguntar a IA (próximamente) te permitirá conversar sobre el correo: redactar respuestas, obtener resúmenes y ver qué necesita tu atención.",
-      "assistantTitle": "Tu panel de asistente con IA",
+      "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y su prioridad. Usa sus botones para archivarlo, posponerlo o destacarlo, o ábrelo para ver el panel lateral de IA con tareas, notas y Preguntar a IA.",
+      "assistantTitle": "Tus correos",
       "back": "Atrás",
-      "deliveryContent": "Los nuevos correos electrónicos se agrupan y entregan cada pocas horas para evitar distracciones. Utilice 'Entregar ahora' si necesita realizar una verificación urgente.",
+      "deliveryContent": "En lugar de llegar a cuentagotas todo el día, los correos nuevos llegan por tandas. Esta barra muestra cuándo llega la próxima; los urgentes siguen llegando al momento.",
       "deliveryTitle": "Entrega programada",
       "finish": "Finalizar",
       "next": "Próximo",
@@ -3113,10 +3154,10 @@
       "processTitle": "Pestaña Proceso",
       "skip": "Saltar",
       "stepProgress": "{{current}} de {{total}}",
-      "triageContent": "Aquí es donde llegan los nuevos correos electrónicos. Decide rápidamente responderlos, archivarlos o posponerlos.",
+      "triageContent": "Los correos nuevos llegan a esta pestaña, con los más importantes primero. Decide qué hacer con cada uno: responder, archivar, posponer o destacarlo para moverlo a Acción.",
       "triageTitle": "Pestaña de clasificación",
       "welcome": "¡Bienvenido a BearlyMail!",
-      "welcomeContent": "Hagamos un recorrido rápido para ayudarle a comenzar con su nueva experiencia de correo electrónico enfocada."
+      "welcomeContent": "Este es un recorrido rápido por tu bandeja de entrada. Iremos resaltando cada parte: usa las flechas para cambiar de paso o Esc para saltarlo."
     }
   },
   "setupWizard": {
@@ -3177,7 +3218,7 @@
       "quietHoursPrefix": "Horas silenciosas",
       "quietHoursTo": "a",
       "quietHoursSuffix": "del día siguiente. Los correos verdaderamente urgentes igual pasan.",
-      "startLearning": "Empezar a aprender",
+      "saveSchedule": "Guardar horario",
       "saveError": "No se pudo guardar tu horario. Por favor, inténtalo de nuevo.",
       "timeAria": "Hora",
       "meridiemAria": "a. m. o p. m."
@@ -3199,16 +3240,58 @@
       "readyTitle": "Estamos listos cuando tú lo estés.",
       "readyDetail": "Tu bandeja está calibrada y el primer lote está en cola.",
       "privacyTitle": "Cómo usamos la IA",
-      "privacyBodyPart1": "Enviamos el contenido del correo a",
-      "privacyOpenAi": "OpenAI",
-      "privacyAnd": "y",
-      "privacyGemini": "Google Gemini",
-      "privacyBodyPart2": "para resumir y priorizar mensajes. Ambos tienen acuerdos firmados que bloquean el entrenamiento con tus datos. Nunca vendemos datos, y puedes",
-      "privacyExport": "exportar",
-      "privacyOr": "o",
-      "privacyDelete": "eliminar",
-      "privacyBodyPart3": "todo en cualquier momento.",
-      "openInbox": "Abrir mi bandeja →"
+      "privacyBody": "Enviamos el contenido del correo a <b>OpenAI</b>, <b>Google Gemini</b>, <b>Amazon Bedrock</b> y <b>TypeSafe AI (Jev)</b> para resumir, priorizar y clasificar tus mensajes. Todos se comprometen a no entrenar sus modelos con tus datos. Nunca vendemos datos, y puedes <b>exportar</b> o <b>eliminar</b> todo en cualquier momento.",
+      "openInbox": "Abrir mi bandeja →",
+      "phaseCategorise": "Clasificando tus correos en categorías",
+      "statusCategorise": "Clasificando tu bandeja en categorías… ({{categorised}} de {{total}}) para que se abra ordenada",
+      "statusCategoriseGeneric": "Clasificando tu bandeja en categorías para que se abra ordenada…",
+      "readyDetailStillSorting": "La mayor parte de tu bandeja ya está ordenada. El resto pasará a sus categorías en los próximos minutos."
+    },
+    "learned": {
+      "title": "Esto es lo que aprendimos",
+      "lede": "Ajusta lo que no encaje. Esto determina cómo se ordena y prioriza tu bandeja.",
+      "loading": "Reuniendo lo que aprendimos…",
+      "loadError": "No pudimos cargar lo que aprendimos. Puedes revisarlo más tarde en Ajustes → Guía nuestra IA.",
+      "saveError": "Ese cambio no se guardó. Inténtalo de nuevo.",
+      "save": "Guardar",
+      "add": "Añadir",
+      "kindLabel": "Tipo",
+      "editLabel": "Editar “{{label}}”",
+      "removeLabel": "Quitar “{{label}}”",
+      "showMore_one": "Mostrar {{count}} más",
+      "showMore_other": "Mostrar {{count}} más",
+      "showLess": "Mostrar menos",
+      "kinds": {
+        "MY_GOALS": "Objetivo",
+        "VIP_CONTACT": "VIP",
+        "URGENT": "Urgente",
+        "WORKING_ON": "Proyecto",
+        "EMAIL_CATEGORY": "Categoría"
+      },
+      "placeholders": {
+        "MY_GOALS": "p. ej. Cerrar la ronda Serie A en junio",
+        "VIP_CONTACT": "p. ej. Sara Chen",
+        "URGENT": "p. ej. Alertas de producción de Sentry",
+        "WORKING_ON": "p. ej. Relanzamiento de la web",
+        "EMAIL_CATEGORY": "p. ej. 💳 Facturas y recibos"
+      },
+      "groups": {
+        "important": {
+          "title": "Lo que te importa",
+          "empty": "Nada todavía. Añade un objetivo, un VIP o el tipo de correo que siempre es urgente.",
+          "add": "Añadir algo importante"
+        },
+        "projects": {
+          "title": "Proyectos actuales",
+          "empty": "Aún no hemos detectado proyectos. Añade en qué trabajas para que esos correos suban arriba.",
+          "add": "Añadir un proyecto"
+        },
+        "categories": {
+          "title": "Categorías de correo clave",
+          "empty": "Aún no hay categorías. Añade los grupos en los que quieres ordenar tu bandeja.",
+          "add": "Añadir una categoría"
+        }
+      }
     }
   },
   "priority": {
@@ -4109,7 +4192,8 @@
       "dataAccount": "Datos y cuenta",
       "dataExport": "Exportar e importar",
       "troubleshooting": "Solución de problemas",
-      "deleteAccount": "Eliminar cuenta"
+      "deleteAccount": "Eliminar cuenta",
+      "emailTracking": "Seguimiento de aperturas"
     },
     "schedulingPreferences": {
       "title": "Preferencias de programación",
@@ -4564,6 +4648,13 @@
       "newFamilyLabel": "Nombre de la nueva familia",
       "newFamilyPlaceholder": "Nombre de la nueva familia…",
       "create": "Crear familia"
+    },
+    "emailTracking": {
+      "title": "Seguimiento de aperturas",
+      "label": "Registrar aperturas de correos",
+      "description": "Añade una imagen invisible de 1×1 a los correos que envías desde BearlyMail para que veas cuándo se abren: en el hilo, en Seguimiento y en Estadísticas. Las respuestas automáticas nunca se rastrean.",
+      "limitations": "Quien bloquee las imágenes no aparecerá como abierto, y Apple Mail puede abrir correos automáticamente (los marcamos como \"puede ser automático\"). También puedes desactivarlo para un solo correo al redactar.",
+      "saveError": "No se pudo actualizar el seguimiento de aperturas. Inténtalo de nuevo."
     }
   },
   "keyboard": {
@@ -4594,7 +4685,22 @@
     "noReplyData": "-",
     "periodDays_one": "{{count}}d",
     "periodDays_other": "{{count}}d",
-    "dateRangeLabel": "Rango de fechas seleccionado"
+    "dateRangeLabel": "Rango de fechas seleccionado",
+    "openTracking": {
+      "title": "Aperturas de correos",
+      "description": "Con qué frecuencia se abrieron los correos que enviaste desde BearlyMail en este periodo.",
+      "openRate": "Tasa de apertura",
+      "openedOfTracked_one": "{{opened}} de {{count}} correo rastreado",
+      "openedOfTracked_other": "{{opened}} de {{count}} correos rastreados",
+      "trackedSent": "Correos rastreados enviados",
+      "medianTimeToOpen": "Mediana hasta la primera apertura",
+      "maybeAutomatic": "Puede ser automático",
+      "maybeAutomaticHint": "Solo aperturas automáticas de Apple Mail",
+      "untrackedNote_one": "{{count}} de {{total}} correos enviados no se rastreó (texto plano, desactivado o enviado desde Apple Mail).",
+      "untrackedNote_other": "{{count}} de {{total}} correos enviados no se rastrearon (texto plano, desactivado o enviados desde Apple Mail).",
+      "empty": "No se enviaron correos rastreados en este periodo.",
+      "manageSetting": "Gestionar el seguimiento de aperturas"
+    }
   },
   "errorBoundary": {
     "title": "¡Vaya! Algo salió mal",
@@ -4751,5 +4857,20 @@
   "toneCheck": {
     "toastChecking": "Verificando tono del correo antes de enviar...",
     "cancelSend": "Cancelar envío"
+  },
+  "openTracking": {
+    "sent": "Enviado",
+    "opened_one": "Abierto · {{time}}",
+    "opened_other": "Abierto {{count}}× · {{time}}",
+    "maybeAutomatic": "¿Abierto? · puede ser automático",
+    "historyTitle": "Historial de aperturas",
+    "notOpenedYet": "Aún no abierto",
+    "sentAt": "Enviado {{time}}",
+    "sourceGmail": "vía Gmail",
+    "sourceAppleAutomatic": "Apple Mail (puede ser automático)",
+    "appleCaveat": "La Protección de Privacidad de Apple Mail carga las imágenes automáticamente al entregar el correo, así que estas aperturas pueden no significar que se haya leído.",
+    "multipleRecipients_one": "Enviado a {{count}} destinatario.",
+    "multipleRecipients_other": "Enviado a {{count}} destinatarios: la apertura puede ser de cualquiera de ellos.",
+    "imagesCaveat": "Las aperturas se detectan con una imagen diminuta. Quien bloquee las imágenes no aparecerá como abierto."
   }
 }

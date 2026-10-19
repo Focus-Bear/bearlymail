@@ -65,3 +65,14 @@ describe("reply follow-up instant in the user's timezone", () => {
     expect((mockedPost.mock.calls[0][1] as Record<string, unknown>).expectedReplyAt).toBeUndefined();
   });
 });
+
+describe('buildSendReplyFormData', () => {
+  it('appends the per-message open-tracking choice', () => {
+    expect(buildSendReplyFormData({ ...basePayload, trackOpens: false }).get('trackOpens')).toBe('false');
+    expect(buildSendReplyFormData({ ...basePayload, trackOpens: true }).get('trackOpens')).toBe('true');
+  });
+
+  it('omits it when the composer made no choice, so the account setting applies', () => {
+    expect(buildSendReplyFormData(basePayload).get('trackOpens')).toBeNull();
+  });
+});

@@ -65,3 +65,14 @@ export function parseBooleanFlag(value: boolean | string | undefined): boolean {
   }
   return !!value;
 }
+
+/**
+ * Like parseBooleanFlag, but keeps "not sent" distinct from false so an absent
+ * per-message flag can defer to the account-level setting.
+ */
+export function parseOptionalBooleanFlag(
+  value: boolean | string | undefined,
+): boolean | undefined {
+  if (value === undefined || value === "") return undefined;
+  return parseBooleanFlag(value);
+}

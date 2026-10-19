@@ -1,9 +1,7 @@
 /**
- * PermissionsExplanation — Issue #1485 / PR #1502
- *
- * Showcases the new 🛡️ callout box added to the Gmail permission item,
- * clarifying that BearlyMail only sends on the user's behalf when explicitly
- * asked. Uses the REAL PermissionsExplanation component.
+ * PermissionsExplanation — shown before the OAuth redirect. Explains each
+ * scope the server requests in plain language and requires a 5-second
+ * press-and-hold to continue. Uses the REAL PermissionsExplanation component.
  */
 import React from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -11,10 +9,8 @@ import type { Meta, StoryObj } from '@storybook/react';
 import i18n from 'i18n';
 
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
+import { PROVIDER_GOOGLE, PROVIDER_MICROSOFT, PROVIDER_ZOHO } from 'constants/strings';
 
-// ---------------------------------------------------------------------------
-// Storybook meta
-// ---------------------------------------------------------------------------
 const meta: Meta<typeof PermissionsExplanation> = {
   title: 'Auth/PermissionsExplanation',
   component: PermissionsExplanation,
@@ -23,11 +19,15 @@ const meta: Meta<typeof PermissionsExplanation> = {
     docs: {
       description: {
         component:
-          'Modal shown before Google OAuth to explain why BearlyMail needs each permission. ' +
-          'PR #1502 adds a 🛡️ callout box under the Gmail item clarifying that emails are ' +
-          "only sent on the user's behalf when they explicitly compose or enable the AI autoresponder.",
+          'Modal shown before the OAuth consent screen. Lists every requested scope with a plain-language reason, ' +
+          'tells Google users to keep every box ticked and choose ongoing access, and makes the user press and hold ' +
+          'the continue button for 5 seconds (keyboard: hold Space/Enter).',
       },
     },
+  },
+  args: {
+    onContinue: () => console.log('[PermissionsExplanation] onContinue fired'),
+    onCancel: () => console.log('[PermissionsExplanation] onCancel fired'),
   },
   decorators: [
     Story => (
@@ -41,33 +41,8 @@ const meta: Meta<typeof PermissionsExplanation> = {
 export default meta;
 type Story = StoryObj<typeof PermissionsExplanation>;
 
-// ---------------------------------------------------------------------------
-// Default — shows the full modal with the new 🛡️ callout
-// ---------------------------------------------------------------------------
-/**
- * Default view of the permissions explanation modal.
- * The new 🛡️ callout box sits below the Gmail permission item and
- * reassures users that BearlyMail won't auto-send emails without consent.
- */
-export const Default: Story = {
-  args: {
-    onContinue: () => alert('Continue clicked'),
-    onCancel: () => alert('Cancel clicked'),
-  },
-  name: 'Default (with 🛡️ callout)',
-};
+export const Google: Story = { args: { provider: PROVIDER_GOOGLE } };
 
-// ---------------------------------------------------------------------------
-// Interactive — handlers log to console
-// ---------------------------------------------------------------------------
-/**
- * Interactive version with console-logged callbacks.
- * Open the Actions panel to observe onContinue / onCancel events.
- */
-export const Interactive: Story = {
-  args: {
-    onContinue: () => console.log('[PermissionsExplanation] onContinue fired'),
-    onCancel: () => console.log('[PermissionsExplanation] onCancel fired'),
-  },
-  name: 'Interactive (console callbacks)',
-};
+export const Microsoft: Story = { args: { provider: PROVIDER_MICROSOFT } };
+
+export const Zoho: Story = { args: { provider: PROVIDER_ZOHO } };

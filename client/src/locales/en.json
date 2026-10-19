@@ -96,29 +96,59 @@
     "resetPasswordError": "Failed to reset password. The link may have expired.",
     "invalidResetLink": "This reset link is invalid or has expired.",
     "permissions": {
-      "title": "Permissions Explained",
-      "intro": "BearlyMail needs the following permissions to help you manage your email effectively. We take your privacy seriously and only request what's necessary.",
-      "gmail": {
-        "title": "Gmail Access",
-        "description": "Read and organize your emails — prioritize your inbox, archive, snooze, and manage labels.",
-        "sendClarification": "BearlyMail will only send emails on your behalf if you manually compose and send within BearlyMail, or if you explicitly enable the AI autoresponder."
+      "eyebrow": "Before you connect {{provider}}",
+      "title": "Here's what we'll ask {{provider}} for, and why",
+      "intro": "{{provider}} is about to show you a long list of permissions. Here's each one in plain English, so nothing on the next screen is a surprise.",
+      "items": {
+        "mailRead": {
+          "title": "Read, organise and archive your email",
+          "description": "So we can summarise, prioritise and sort your email into categories, and archive, snooze or star it for you. Changes sync back to your mailbox."
+        },
+        "mailSend": {
+          "title": "Send email as you",
+          "description": "Only when you press Send in BearlyMail, or if you switch on the AI auto-responder. We never send anything on our own."
+        },
+        "contacts": {
+          "title": "See your contacts",
+          "description": "To recognise the people who matter to you (your VIPs) and autocomplete addresses when you write."
+        },
+        "otherContacts": {
+          "title": "See your “Other contacts”",
+          "description": "Google's list of people you've emailed but never saved. Many of your most important senders only live here."
+        },
+        "calendarEvents": {
+          "title": "View and edit calendar events",
+          "description": "So we can suggest meeting times in replies and add the invite when someone books. We don't change your calendar settings."
+        },
+        "availability": {
+          "title": "See when you're free or busy",
+          "description": "Lets meeting suggestions avoid clashes, without reading what your events are about."
+        },
+        "stayConnected": {
+          "title": "Stay connected while you're away",
+          "description": "Keeps your inbox syncing when you're not signed in, so your batches still arrive on time."
+        },
+        "profile": {
+          "title": "Your name and email address",
+          "description": "To create your BearlyMail account and show who you're signed in as."
+        }
       },
-      "zoho": {
-        "title": "Zoho Access",
-        "description": "Read and organize your emails — prioritize your inbox, archive, snooze, and manage labels.",
-        "sendClarification": "BearlyMail will only send emails on your behalf if you manually compose and send within BearlyMail, or if you explicitly enable the AI autoresponder.",
-        "continue": "continue with Zoho"
+      "tips": {
+        "title": "Two things on {{provider}}'s next screen",
+        "keepTicked": "Leave every box ticked. If you untick one, the feature that needs it quietly stops working.",
+        "ongoingAccess": "If you're asked how long to allow access, choose ongoing access rather than 6 months. Time-limited access expires and your inbox silently disconnects."
       },
-      "calendar": {
-        "title": "Calendar Events",
-        "description": "View your availability and create meeting invitations. BearlyMail only manages calendar events, not your calendars themselves."
-      },
-      "contacts": {
-        "title": "Contacts",
-        "description": "Read your contacts to identify important people and personalize your email experience."
-      },
-      "security": "🔒 All your data is encrypted and stored securely. We never share your information with third parties.",
-      "continue": "Continue to Google"
+      "security": "🔒 Your email is encrypted at rest. We never sell your data or share it with third parties, and you can disconnect any time.",
+      "holdToContinue": "Hold to continue to {{provider}}",
+      "hold": {
+        "hint_one": "Press and hold for {{count}} second. It's a nudge to read the list first.",
+        "hint_other": "Press and hold for {{count}} seconds. It's a nudge to read the list first.",
+        "keepHolding_one": "Keep holding… {{count}} second left",
+        "keepHolding_other": "Keep holding… {{count}} seconds left",
+        "ariaLabel_one": "{{label}}. Press and hold for {{count}} second, or hold Space or Enter.",
+        "ariaLabel_other": "{{label}}. Press and hold for {{count}} seconds, or hold Space or Enter.",
+        "progressLabel": "Hold progress"
+      }
     },
     "errors": {
       "waitlistSubmitted": {
@@ -305,6 +335,11 @@
       "message": "Heads up: we're not syncing your old emails. We've only synced the last 7 days worth.",
       "dismiss": "Dismiss"
     },
+    "openTrackingNotice": {
+      "message": "Open tracking is on: BearlyMail now shows you when people open the emails you send.",
+      "manage": "Manage in Settings",
+      "dismiss": "Dismiss"
+    },
     "batchInfo": {
       "lastUrgentCheck": "Last checked for urgent emails",
       "neverChecked": "never",
@@ -411,6 +446,8 @@
       "customerSupport": "Customer Support",
       "hrAdmin": "HR Admin",
       "other": "Other",
+      "pendingCategorisation": "AI deciding category…",
+      "pendingCategorisationHint": "These will move to their category in a moment",
       "selectAll": "Select All",
       "deselectAll": "Deselect All",
       "archiveAll": "Archive All",
@@ -431,6 +468,8 @@
       "recategorizeNone": "No emails to recategorise in triage, action, or follow-up.",
       "recategorizeError": "Failed to start recategorisation. Please try again.",
       "loadingContent": "Loading emails...",
+      "loadMore": "Show {{count}} more",
+      "loadingMore": "Loading more…",
       "dangerousPhishing": "DANGEROUS: potential phishing attempt",
       "newsletterBlockTip": "Quickly block senders — saves time compared to figuring out how to unsubscribe.",
       "newsletterBlockTipTitle": "💡 Tip: Block sender",
@@ -1178,7 +1217,8 @@
       "dataAccount": "Data & Account",
       "dataExport": "Export & Import",
       "troubleshooting": "Troubleshooting",
-      "deleteAccount": "Delete Account"
+      "deleteAccount": "Delete Account",
+      "emailTracking": "Open tracking"
     },
     "schedulingPreferences": {
       "title": "Scheduling Preferences",
@@ -1797,6 +1837,13 @@
       "newFamilyLabel": "New family name",
       "newFamilyPlaceholder": "New family name…",
       "create": "Create family"
+    },
+    "emailTracking": {
+      "title": "Email Open Tracking",
+      "label": "Track email opens",
+      "description": "Adds an invisible 1×1 image to emails you send from BearlyMail so you can see when they're opened — in the thread, in Follow-Up and on the Stats page. Automated replies are never tracked.",
+      "limitations": "Recipients who block images won't show as opened, and Apple Mail may open emails automatically (we flag those as \"may be automatic\"). You can also turn tracking off for a single email when composing.",
+      "saveError": "Couldn't update open tracking. Please try again."
     }
   },
   "admin": {
@@ -2276,7 +2323,9 @@
     "unsavedChangesTitle": "Unsent email",
     "leaveAnyway": "Leave anyway",
     "keepEditing": "Keep editing",
-    "followUpSection": "Follow-up"
+    "followUpSection": "Follow-up",
+    "trackOpens": "Track opens",
+    "trackOpensTooltip": "Adds an invisible image so you can see when this email is opened. Defaults to your setting in Settings → Open tracking."
   },
   "emailSend": {
     "failedNotification": "Your message was not sent. {{reason}}",
@@ -2428,17 +2477,17 @@
   "onboarding": {
     "tour": {
       "welcome": "Welcome to BearlyMail!",
-      "welcomeContent": "Let's take a quick tour to help you get started with your new focused email experience.",
+      "welcomeContent": "Here's a quick tour of your inbox. We'll highlight each part as we go — use the arrow keys to move between steps, or Esc to skip.",
       "triageTitle": "Triage Tab",
-      "triageContent": "This is where new emails land. Quickly decide to reply, archive, or snooze them.",
+      "triageContent": "New emails land in this tab, most important first. Decide on each one: reply, archive, snooze — or star it to move it to Action.",
       "processTitle": "Process Tab",
       "processContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
       "actionTitle": "Action Tab",
-      "actionContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
+      "actionContent": "Emails you star move to this tab. It's your focused to-do list for the emails that need real work.",
       "deliveryTitle": "Scheduled Delivery",
-      "deliveryContent": "New emails are batched and delivered every few hours to prevent distractions. Use 'Deliver Now' if you need to check urgently.",
-      "assistantTitle": "Your AI Assistant Panel",
-      "assistantContent": "Open any email and a side panel appears on the right. The Actions tab gathers the summary, tasks, and notes, while the Ask AI tab (coming soon) will let you chat about the email — draft replies, get summaries, and spot what needs your attention.",
+      "deliveryContent": "Instead of trickling in all day, new emails arrive in batches. This bar shows when the next batch lands — urgent emails still come straight through.",
+      "assistantTitle": "Your emails",
+      "assistantContent": "Each card shows who it's from, an AI summary and its priority. Use its buttons to archive, snooze or star it — or open it to get the AI side panel with tasks, notes and Ask AI.",
       "skip": "Skip",
       "back": "Back",
       "next": "Next",
@@ -3641,7 +3690,7 @@
       "quietHoursPrefix": "Quiet hours",
       "quietHoursTo": "to",
       "quietHoursSuffix": "next day. Truly urgent emails still break through.",
-      "startLearning": "Start learning",
+      "saveSchedule": "Save schedule",
       "saveError": "Failed to save your schedule. Please try again.",
       "timeAria": "Time",
       "meridiemAria": "AM or PM"
@@ -3663,16 +3712,58 @@
       "readyTitle": "We're ready when you are.",
       "readyDetail": "Your inbox is calibrated and the first batch is queued.",
       "privacyTitle": "How we use AI",
-      "privacyBodyPart1": "We send email content to",
-      "privacyOpenAi": "OpenAI",
-      "privacyAnd": "and",
-      "privacyGemini": "Google Gemini",
-      "privacyBodyPart2": "to summarise and prioritise messages. Both have signed agreements that block training on your data. We never sell data, and you can",
-      "privacyExport": "export",
-      "privacyOr": "or",
-      "privacyDelete": "delete",
-      "privacyBodyPart3": "everything any time.",
-      "openInbox": "Open my inbox →"
+      "privacyBody": "We send email content to <b>OpenAI</b>, <b>Google Gemini</b>, <b>Amazon Bedrock</b> and <b>TypeSafe AI (Jev)</b> to summarise, prioritise and categorise your messages. Every one of them commits not to train its models on your data. We never sell data, and you can <b>export</b> or <b>delete</b> everything any time.",
+      "openInbox": "Open my inbox →",
+      "phaseCategorise": "Sorting your emails into categories",
+      "statusCategorise": "Sorting your inbox into categories… ({{categorised}} of {{total}}) so it opens organised",
+      "statusCategoriseGeneric": "Sorting your inbox into categories so it opens organised…",
+      "readyDetailStillSorting": "Most of your inbox is sorted. The rest will move into their categories over the next few minutes."
+    },
+    "learned": {
+      "title": "Here's what we learned",
+      "lede": "Tweak anything that's off. This shapes how your inbox gets sorted and prioritised.",
+      "loading": "Gathering what we learned…",
+      "loadError": "We couldn't load what we learned. You can review it later in Settings → Guide Our AI.",
+      "saveError": "That change didn't save. Please try again.",
+      "save": "Save",
+      "add": "Add",
+      "kindLabel": "Type",
+      "editLabel": "Edit “{{label}}”",
+      "removeLabel": "Remove “{{label}}”",
+      "showMore_one": "Show {{count}} more",
+      "showMore_other": "Show {{count}} more",
+      "showLess": "Show less",
+      "kinds": {
+        "MY_GOALS": "Goal",
+        "VIP_CONTACT": "VIP",
+        "URGENT": "Urgent",
+        "WORKING_ON": "Project",
+        "EMAIL_CATEGORY": "Category"
+      },
+      "placeholders": {
+        "MY_GOALS": "e.g. Close the Series A by June",
+        "VIP_CONTACT": "e.g. Sarah Chen",
+        "URGENT": "e.g. Production alerts from Sentry",
+        "WORKING_ON": "e.g. Website relaunch",
+        "EMAIL_CATEGORY": "e.g. 💳 Invoices & Receipts"
+      },
+      "groups": {
+        "important": {
+          "title": "What's important to you",
+          "empty": "Nothing yet. Add a goal, a VIP, or the kind of email that's always urgent.",
+          "add": "Add something important"
+        },
+        "projects": {
+          "title": "Current projects",
+          "empty": "No projects spotted yet. Add what you're working on so related emails rise to the top.",
+          "add": "Add a project"
+        },
+        "categories": {
+          "title": "Key email categories",
+          "empty": "No categories yet. Add the buckets you'd like your inbox sorted into.",
+          "add": "Add a category"
+        }
+      }
     }
   },
   "calendar": {
@@ -4591,7 +4682,22 @@
     "noReplyData": "-",
     "periodDays_one": "{{count}}d",
     "periodDays_other": "{{count}}d",
-    "dateRangeLabel": "Selected date range"
+    "dateRangeLabel": "Selected date range",
+    "openTracking": {
+      "title": "Email opens",
+      "description": "How often the emails you sent from BearlyMail were opened in this period.",
+      "openRate": "Open rate",
+      "openedOfTracked_one": "{{opened}} of {{count}} tracked email",
+      "openedOfTracked_other": "{{opened}} of {{count}} tracked emails",
+      "trackedSent": "Tracked emails sent",
+      "medianTimeToOpen": "Median time to first open",
+      "maybeAutomatic": "May be automatic",
+      "maybeAutomaticHint": "Only Apple Mail auto-opens",
+      "untrackedNote_one": "{{count}} of {{total}} sent emails wasn't tracked (plain text, turned off, or sent from Apple Mail).",
+      "untrackedNote_other": "{{count}} of {{total}} sent emails weren't tracked (plain text, turned off, or sent from Apple Mail).",
+      "empty": "No tracked emails were sent in this period.",
+      "manageSetting": "Manage open tracking"
+    }
   },
   "errorBoundary": {
     "title": "Oops! Something went wrong",
@@ -4748,5 +4854,20 @@
   "toneCheck": {
     "toastChecking": "Checking tone of email before sending...",
     "cancelSend": "Cancel send"
+  },
+  "openTracking": {
+    "sent": "Sent",
+    "opened_one": "Opened · {{time}}",
+    "opened_other": "Opened {{count}}× · {{time}}",
+    "maybeAutomatic": "Opened? · may be automatic",
+    "historyTitle": "Open history",
+    "notOpenedYet": "Not opened yet",
+    "sentAt": "Sent {{time}}",
+    "sourceGmail": "via Gmail",
+    "sourceAppleAutomatic": "Apple Mail (may be automatic)",
+    "appleCaveat": "Apple Mail Privacy Protection loads images automatically when mail is delivered, so these opens may not mean the email was read.",
+    "multipleRecipients_one": "Sent to {{count}} recipient.",
+    "multipleRecipients_other": "Sent to {{count}} recipients — an open could be any of them.",
+    "imagesCaveat": "Opens are detected with a tiny image. Recipients who block images won't show as opened."
   }
 }

@@ -40,6 +40,8 @@ export interface SendReplyPayload {
    * no archive).
    */
   keepInAction?: boolean;
+  /** Per-message open-tracking choice; omitted defers to the account setting. */
+  trackOpens?: boolean;
 }
 
 /** The follow-up instant the custom duration resolves to in the user's timezone, if any. */
@@ -76,6 +78,9 @@ export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   }
   if (payload.keepInAction) {
     formData.append('keepInAction', 'true');
+  }
+  if (payload.trackOpens !== undefined) {
+    formData.append('trackOpens', String(payload.trackOpens));
   }
   if (payload.scheduledSendAt) {
     formData.append('scheduledSendAt', payload.scheduledSendAt.toISOString());
@@ -127,6 +132,7 @@ export async function sendReplyRequest(payload: SendReplyPayload): Promise<SendR
     locale: payload.expectedReplyDuration ? i18n.language : undefined,
     scheduledSendAt: payload.scheduledSendAt?.toISOString(),
     keepInAction: payload.keepInAction || undefined,
+    trackOpens: payload.trackOpens,
   });
   return response.data;
 }

@@ -48,10 +48,11 @@ describe('getSettingsNavItems', () => {
     expect(accountGroup.items.map(item => item.id)).toEqual(['set-password', 'mfa']);
   });
 
-  it('returns 4 items in the Email Delivery group', () => {
+  it('returns 5 items in the Email Delivery group, ending with open tracking', () => {
     const items = getSettingsNavItems(translateMock);
     const group = items[1] as SettingsSubNavGroup;
-    expect(group.items).toHaveLength(4);
+    expect(group.items).toHaveLength(5);
+    expect(group.items[4].anchor).toBe('email-tracking');
   });
 
   it('returns 5 items in the Guide Our AI group', () => {

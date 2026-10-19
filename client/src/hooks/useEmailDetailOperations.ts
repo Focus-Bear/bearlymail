@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Email, GitHubLink, PriorityExplanation } from 'types/email';
+import { ReplySendOptions } from 'types/replySend';
 import {
   extractCleanBody,
   extractCleanBodyWithMeta,
@@ -17,6 +18,7 @@ import { emailMentionsGitHub } from 'utils/githubUtils';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
+import { resolveReplyInboxMode } from 'utils/suggestRepliesRequest';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { buildToneCheckContext } from 'utils/toneCheckContext';
 
@@ -35,6 +37,7 @@ import {
   ANIMATION_TYPE_PRIORITY,
   ANIMATION_TYPE_SEND,
   GITHUB_ACTION_PREFIX,
+  LAST_INBOX_MODE_STORAGE_KEY,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
@@ -132,7 +135,7 @@ export function useEmailDetailOperations(
   // Falls back to sessionStorage so the correct path is restored after page refreshes.
   const getInboxPath = useCallback(() => {
     const locState = location.state as { fromMode?: string; fromBasePath?: string } | null;
-    const fromMode = locState?.fromMode ?? sessionStorage.getItem('bearlymail_lastInboxMode') ?? undefined;
+    const fromMode = locState?.fromMode ?? sessionStorage.getItem(LAST_INBOX_MODE_STORAGE_KEY) ?? undefined;
     const fromBasePath = locState?.fromBasePath ?? sessionStorage.getItem('bearlymail_lastBasePath') ?? '/inbox';
     return fromMode ? `${fromBasePath}/${fromMode}` : fromBasePath;
   }, [location.state]);
@@ -659,6 +662,7 @@ export function useEmailDetailOperations(
       setReplySubject,
       setShowCc,
       setShowBcc,
+      replyInboxMode: resolveReplyInboxMode(location.pathname, location.state),
     },
     user?.email
   );
@@ -687,19 +691,7 @@ export function useEmailDetailOperations(
   const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
   const handleSendReply = useCallback(
-    async (
-      sendOptions: {
-        files?: File[];
-        expectedReplyHours?: number;
-        expectedReplyDuration?: string;
-        forwardAttachmentIds?: string[];
-        forwardAttachmentFilenames?: string[];
-        draftOverride?: string;
-        scheduledSendAt?: Date;
-        keepInAction?: boolean;
-        inlineImages?: Map<string, File>;
-      } = {}
-    ) => {
+    async (sendOptions: ReplySendOptions = {}) => {
       const {
         files = [],
         expectedReplyHours,
@@ -710,6 +702,7 @@ export function useEmailDetailOperations(
         scheduledSendAt,
         keepInAction,
         inlineImages,
+        trackOpens,
       } = sendOptions;
       const rawDraft = draftOverride || draft;
       if (!id || !rawDraft) {
@@ -815,6 +808,7 @@ export function useEmailDetailOperations(
           inlineImages,
           forwardAttachmentIds,
           keepInAction,
+          trackOpens,
         };
 
         setSending(true);
@@ -937,6 +931,11 @@ export function useEmailDetailOperations(
     replyForwardAttachmentIdsRef.current = ids;
   }, []);
 
+  const replyTrackOpensRef = useRef<boolean | undefined>(undefined);
+  const setReplyTrackOpens = useCallback((isTracking: boolean) => {
+    replyTrackOpensRef.current = isTracking;
+  }, []);
+
   const cancelToneCheck = useCallback(() => {
     if (toneCheckAbortRef.current) {
       toneCheckAbortRef.current.abort();
@@ -989,6 +988,7 @@ export function useEmailDetailOperations(
         inlineImages: pendingInlineImages,
         files: pendingFiles,
         forwardAttachmentIds: pendingForwardAttachmentIds,
+        trackOpens: replyTrackOpensRef.current,
       });
       setAutoSendCountdown(null);
       return;
@@ -1085,6 +1085,7 @@ export function useEmailDetailOperations(
     setReplyInlineImages,
     setReplyFiles,
     setReplyForwardAttachmentIds,
+    setReplyTrackOpens,
     cancelToneCheck,
     disputeToneCheck,
     cancelAutoSend,

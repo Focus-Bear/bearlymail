@@ -14,6 +14,10 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
 import { LLMService } from "../llm/llm.service";
+import {
+  isFromUserAddress,
+  toReplyThreadHistory,
+} from "../llm/reply-perspective";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
@@ -223,8 +227,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
   private buildReplyContext(user: User, latestEmail: Email): ReplyContext {
     const userEmail =
       EncryptionHelper.tryDecrypt(user.email)?.toLowerCase() ?? "";
-    const lastEmailFrom = latestEmail.from?.toLowerCase() || "";
-    const userSentLast = Boolean(userEmail && lastEmailFrom === userEmail);
+    const userSentLast = isFromUserAddress(latestEmail.from, userEmail);
 
     const toneRules = user?.toneSettings?.rules || [];
     const emailExamples = toneRules.filter(
@@ -262,7 +265,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
 
     // Find the most recent email from the OTHER party — this is what we're following up on.
     const otherPartyEmails = threadEmails.filter(
-      (email) => email.from?.toLowerCase() !== userEmail,
+      (email) => !isFromUserAddress(email.from, userEmail),
     );
     const lastOtherPartyEmail =
       otherPartyEmails.length > 0
@@ -282,8 +285,8 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
 
     // Extract message bodies for the enriched prompt context.
     const lastOtherPartyMessage = lastOtherPartyEmail?.body || "";
-    const userEmails = threadEmails.filter(
-      (email) => email.from?.toLowerCase() === userEmail,
+    const userEmails = threadEmails.filter((email) =>
+      isFromUserAddress(email.from, userEmail),
     );
     const lastUserEmail =
       userEmails.length > 0 ? userEmails[userEmails.length - 1] : null;
@@ -294,7 +297,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
       fromName: emailEntry.fromName || undefined,
       body: emailEntry.body || "",
       receivedAt: emailEntry.receivedAt,
-      isFromUser: emailEntry.from?.toLowerCase() === userEmail,
+      isFromUser: isFromUserAddress(emailEntry.from, userEmail),
     }));
 
     return {
@@ -353,19 +356,14 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     const recentThreadEmails = await this.emailRepository.find({
       where: { emailThreadId: threadId, userId },
       order: { receivedAt: "DESC" },
-      take: 5,
+      take: QUERY_LIMITS.REPLY_SUGGESTION_THREAD_WINDOW,
     });
 
-    const threadMessages = recentThreadEmails
-      .filter((emailEntry) => emailEntry.id !== latestEmail.id)
-      .reverse()
-      .map((emailEntry) => ({
-        from: emailEntry.from || "",
-        fromName: emailEntry.fromName || undefined,
-        body: emailEntry.body || "",
-        receivedAt: emailEntry.receivedAt,
-        isFromUser: emailEntry.from?.toLowerCase() === userEmail,
-      }));
+    const threadMessages = toReplyThreadHistory(
+      recentThreadEmails,
+      latestEmail.id,
+      userEmail,
+    );
 
     return this.llmService.generateReplyOptions(
       {

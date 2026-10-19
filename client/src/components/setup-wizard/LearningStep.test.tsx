@@ -8,6 +8,7 @@ vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 vi.mock('react-i18next', () => ({
+  Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key,

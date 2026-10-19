@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { PgBoss } from "pg-boss";
 
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 
 // Performance budget for batch-status endpoint (ms)
@@ -16,6 +17,21 @@ export const EMAIL_CONTROLLER_DEFAULTS = {
   PRIORITY_SCORE: 50,
   DEFAULT_SIGNATURE: "Sent from BearlyMail (anti inbox overwhelm system)",
 } as const;
+
+/**
+ * Rows per category for /emails/inbox-batch. Defaults to one inbox page and is
+ * clamped to INBOX_TOTAL: the client asks for more only when refreshing a
+ * category the user has paged into, and an unbounded value would let a single
+ * request decrypt and ship every thread in up to INBOX_BATCH_MAX_CATEGORIES
+ * categories.
+ */
+export const resolveInboxBatchLimit = (limitParam?: string): number => {
+  const requested = limitParam ? parseInt(limitParam, 10) : NaN;
+  if (!Number.isFinite(requested) || requested < 1) {
+    return QUERY_LIMITS.INBOX_PAGE_SIZE;
+  }
+  return Math.min(requested, QUERY_LIMITS.INBOX_TOTAL);
+};
 
 /**
  * Appends the user's email signature (or the default BearlyMail signature) to

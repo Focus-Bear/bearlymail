@@ -23,11 +23,23 @@ interface TotalByCategoryEntry {
   total: string;
 }
 
+/** Open-rate figures for the user's own sent mail (server `openTracking`). */
+export interface OpenTrackingStats {
+  sentCount: number;
+  trackedCount: number;
+  openedCount: number;
+  automaticOnlyCount: number;
+  /** 0..1, or null when nothing was tracked. */
+  openRate: number | null;
+  medianMinutesToFirstOpen: number | null;
+}
+
 export interface EmailStats {
   days: number;
   emailsPerDay: EmailsPerDayEntry[];
   replyTimesByCategory: ReplyTimeEntry[];
   totalByCategory: TotalByCategoryEntry[];
+  openTracking?: OpenTrackingStats;
 }
 
 export interface DailyCount {
@@ -51,6 +63,7 @@ export interface ProcessedEmailStats {
   totalEmails: number;
   avgEmailsPerDay: number;
   days: number;
+  openTracking: OpenTrackingStats | null;
 }
 
 function processStats(raw: EmailStats): ProcessedEmailStats {
@@ -107,6 +120,7 @@ function processStats(raw: EmailStats): ProcessedEmailStats {
     totalEmails,
     avgEmailsPerDay: Math.round((totalEmails / activeDays) * 10) / 10,
     days: raw.days,
+    openTracking: raw.openTracking ?? null,
   };
 }
 

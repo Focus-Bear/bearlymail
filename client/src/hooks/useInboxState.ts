@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
 import {
+  LAST_INBOX_MODE_STORAGE_KEY,
   MODE_ACTION,
   MODE_AUTORESPONDED,
   MODE_BLOCKED,
@@ -228,7 +229,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   });
 
   // Tour element refs sub-hook (replaces 6 useRef calls)
-  const { triageTabRef, actionTabRef, followUpTabRef, deliverBtnRef, emailListRef, emailDetailRef } =
+  const { triageTabRef, actionTabRef, followUpTabRef, emailListRef, emailDetailRef } =
     useInboxTourRefs();
 
   // Mode changes hook
@@ -339,7 +340,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // survives page refreshes and direct-URL access (see EmailDetailSidebar, getInboxPath).
   useEffect(() => {
     try {
-      sessionStorage.setItem('bearlymail_lastInboxMode', mode);
+      sessionStorage.setItem(LAST_INBOX_MODE_STORAGE_KEY, mode);
       sessionStorage.setItem('bearlymail_lastBasePath', basePath);
     } catch {
       // sessionStorage unavailable — back navigation falls back to /inbox (no regression)
@@ -503,7 +504,6 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     triageTabRef,
     actionTabRef,
     followUpTabRef,
-    deliverBtnRef,
     emailListRef,
     emailDetailRef,
     // Handlers

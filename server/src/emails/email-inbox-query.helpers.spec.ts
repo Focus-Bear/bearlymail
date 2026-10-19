@@ -5,7 +5,10 @@ import {
   INBOX_OTHER_CATEGORY_NAME,
   INBOX_UNCATEGORIZED_CATEGORY_KEY,
 } from "./email-inbox.types";
-import { runInboxQuery } from "./email-inbox-query.helpers";
+import {
+  INBOX_PREVIEW_BODY_COLUMNS_SQL,
+  runInboxQuery,
+} from "./email-inbox-query.helpers";
 
 /**
  * These tests lock in the performance fix where per-category inbox fetches narrow
@@ -95,5 +98,41 @@ describe("runInboxQuery — SQL category narrowing", () => {
     expect(sql).toContain('COALESCE(thread."priorityScore", 0) >= $2');
     expect(sql).toContain('thread."categoryId" IN ($3)');
     expect(params).toEqual([USER, 50, UUID_A]);
+  });
+});
+
+/**
+ * body / htmlBody are the widest columns by far; the list response never
+ * includes them, so they must only leave Postgres for rows that need the
+ * deterministic preview fallback (no stored summary and none in flight).
+ */
+describe("runInboxQuery — body columns only for the preview fallback", () => {
+  async function inboxSql(): Promise<string> {
+    const query = jest.fn().mockResolvedValue([]);
+    const repo = { query } as unknown as Repository<Email>;
+    await runInboxQuery(repo, "user-1", "triage", {
+      categoryIds: ["11111111-1111-1111-1111-111111111111"],
+    });
+    return query.mock.calls[0][0] as string;
+  }
+
+  it("projects body and htmlBody through the preview-needed CASE", async () => {
+    const sql = await inboxSql();
+
+    expect(sql).toContain(INBOX_PREVIEW_BODY_COLUMNS_SQL);
+    expect(INBOX_PREVIEW_BODY_COLUMNS_SQL).toMatch(
+      /CASE WHEN \(em\.summary IS NULL OR em\.summary = ''\) AND em\."isProcessingSummary" IS NOT TRUE THEN em\.body END AS body/,
+    );
+    expect(INBOX_PREVIEW_BODY_COLUMNS_SQL).toMatch(
+      /THEN em\."htmlBody" END AS "htmlBody"/,
+    );
+  });
+
+  it("never selects the raw email body columns unconditionally", async () => {
+    const sql = await inboxSql();
+
+    // The outer SELECT's e.body / e."htmlBody" read the lateral's CASE output;
+    // the lateral itself must not project the raw columns.
+    expect(sql).not.toMatch(/em\.body,\s*em\."htmlBody"/);
   });
 });

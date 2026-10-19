@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Email } from 'types/email';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
+import { buildSuggestRepliesRequest } from 'utils/suggestRepliesRequest';
 
 import { API_URL } from 'config/api';
 import { STRING_STALE } from 'constants/strings';
@@ -82,6 +83,8 @@ function applyGeneratedOptions(
 
 interface UseReplyDraftGenerationOptions {
   autoGenerate?: boolean;
+  /** Inbox mode the reply is written from, when known (see resolveReplyInboxMode). */
+  inboxMode?: string;
 }
 
 export interface ReplyGenerationDebugInfo {
@@ -107,19 +110,13 @@ async function fetchPreGeneratedRepliesImpl(
 
 async function generateRepliesOnDemandImpl(
   currentEmail: Email,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  inboxMode?: string
 ): Promise<Array<{ label: string; text: string }> | null> {
   try {
     const response = await axios.post(
       `${API_URL}/llm/suggest-replies`,
-      {
-        originalEmail: {
-          from: currentEmail.from,
-          fromName: currentEmail.fromName,
-          subject: currentEmail.subject,
-          body: currentEmail.body,
-        },
-      },
+      buildSuggestRepliesRequest(currentEmail, { inboxMode }),
       { signal }
     );
     if (response.data && Array.isArray(response.data) && response.data.length > 0) {
@@ -201,7 +198,7 @@ export function useReplyDraftGeneration(
   email: Email | null,
   options: UseReplyDraftGenerationOptions = {}
 ) {
-  const { autoGenerate = false } = options;
+  const { autoGenerate = false, inboxMode } = options;
   const {
     replyOptions,
     setReplyOptions,
@@ -250,7 +247,10 @@ export function useReplyDraftGeneration(
   }, [emailId]);
 
   const fetchPreGeneratedReplies = useCallback(fetchPreGeneratedRepliesImpl, []);
-  const generateRepliesOnDemand = useCallback(generateRepliesOnDemandImpl, []);
+  const generateRepliesOnDemand = useCallback(
+    (currentEmail: Email, signal?: AbortSignal) => generateRepliesOnDemandImpl(currentEmail, signal, inboxMode),
+    [inboxMode]
+  );
 
   const handleGenerateDraft = useCallback(async () => {
     if (!emailId || !email) {

@@ -4,8 +4,8 @@ import { Repository } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import {
   buildThreadFilter,
-  INBOX_OTHER_CATEGORY_NAME,
-  INBOX_UNCATEGORIZED_CATEGORY_KEY,
+  INBOX_PENDING_CATEGORY_KEY,
+  isSentinelCategoryKey,
   RawEmailRow,
 } from "./email-inbox.types";
 import {
@@ -41,15 +41,42 @@ function realCategoryUuidsForNarrowing(
   if (!categoryIds || categoryIds.length === 0) {
     return null;
   }
-  const includesOther = categoryIds.some(
-    (id) =>
-      id === INBOX_OTHER_CATEGORY_NAME ||
-      id === INBOX_UNCATEGORIZED_CATEGORY_KEY,
-  );
-  if (includesOther) {
+  if (categoryIds.some(isSentinelCategoryKey)) {
     return null;
   }
   return categoryIds;
+}
+
+/**
+ * True when the inbox row has no stored summary and none is being generated —
+ * the only case where EmailInboxDecryptService.deriveInboxSummary needs the
+ * body to build a deterministic preview. Mirrors that method's condition
+ * (an empty summary is stored as NULL because encrypting "" yields NULL).
+ */
+const NEEDS_BODY_PREVIEW_SQL = `(em.summary IS NULL OR em.summary = '') AND em."isProcessingSummary" IS NOT TRUE`;
+
+/**
+ * body / htmlBody are only projected for rows that need the preview fallback.
+ * They are by far the widest columns (hex-encoded ciphertext, TOASTed, often
+ * tens to hundreds of KB for newsletters), so selecting them for every row made
+ * a 500-thread category fetch ship ~23MB from Postgres and detoast ~7x more
+ * pages, while the response never includes them. NULL here costs nothing: a
+ * CASE branch that isn't taken never detoasts the value.
+ */
+export const INBOX_PREVIEW_BODY_COLUMNS_SQL = `CASE WHEN ${NEEDS_BODY_PREVIEW_SQL} THEN em.body END AS body,
+        CASE WHEN ${NEEDS_BODY_PREVIEW_SQL} THEN em."htmlBody" END AS "htmlBody"`;
+
+/**
+ * A fetch for ONLY the "AI deciding category" bucket can be narrowed to threads
+ * still being processed (indexed flag); applyPostQueryFilters then drops the
+ * ones that already have a category.
+ */
+function isPendingOnlyRequest(categoryIds: string[] | undefined): boolean {
+  return (
+    categoryIds !== undefined &&
+    categoryIds.length > 0 &&
+    categoryIds.every((id) => id === INBOX_PENDING_CATEGORY_KEY)
+  );
 }
 
 function appendInboxAdditionalFilters(
@@ -67,6 +94,8 @@ function appendInboxAdditionalFilters(
     const placeholders = narrowingUuids.map(() => `$${idx++}`).join(", ");
     additionalFilters += ` AND thread."categoryId" IN (${placeholders})`;
     queryParams.push(...narrowingUuids);
+  } else if (isPendingOnlyRequest(filters?.categoryIds)) {
+    additionalFilters += ` AND thread."isProcessingPriority" = true`;
   }
 
   return { additionalFilters, paramIndex: idx };
@@ -129,7 +158,7 @@ export async function runInboxQuery(
         em."from", em."fromName", em."senderJobTitle", em.subject,
         em."googleAccountId", em."office365AccountId", em."zohoAccountId",
         em."isSnoozed", em."snoozeUntil", em."isRead", em.summary, em."isProcessingSummary",
-        em.body, em."htmlBody",
+        ${INBOX_PREVIEW_BODY_COLUMNS_SQL},
         em."phishingConfidence", em."phishingReason",
         em."receivedAt", em.labels, em."to", em."cc", em."senderContactId",
         em."sentByAutoResponder"

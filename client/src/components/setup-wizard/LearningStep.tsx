@@ -1,12 +1,24 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
 import { MS_PER_SECOND, POLLING_INTERVAL_MS, SECONDS_PER_MINUTE } from 'constants/numbers';
-import { type AnalyzeProgress, useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
+import { useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
 
+import { LearnedContextEditor } from './learned-context/LearnedContextEditor';
+import {
+  buildPhaseCount,
+  buildStatusDetail,
+  computeLearningView,
+  hasLearningFinished,
+  type ImportProgress,
+  PHASE_LABEL_KEYS,
+  type RealProgress,
+  type TFn,
+} from './learning-view';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
+import { useCategorisationProgress } from './useCategorisationProgress';
 
 interface LearningStepProps {
   onComplete: () => void;
@@ -14,140 +26,13 @@ interface LearningStepProps {
   isLoading: boolean;
 }
 
-interface ImportProgress {
-  prioritizedCount: number;
-  isReady: boolean;
-}
-
-const IMPORT_TARGET = 100;
 const IMPORT_TIMEOUT_MINUTES = 5;
 const IMPORT_TIMEOUT_MS = IMPORT_TIMEOUT_MINUTES * SECONDS_PER_MINUTE * MS_PER_SECOND;
-const ANALYSIS_WEIGHT = 0.7;
-const IMPORT_WEIGHT = 0.3;
-const PROGRESS_CAP_BEFORE_READY = 0.99;
-const PROGRESS_MAX = 1;
 const PERCENT_MULT = 100;
 const DIM_OPACITY = 0.35;
 const FULL_OPACITY = 1;
 const ACTIVE_WEIGHT = 600;
 const INACTIVE_WEIGHT = 400;
-
-type TFn = (key: string, values?: Record<string, unknown>) => string;
-
-const PHASE_SYNC = 0;
-const PHASE_ANALYZE = 1;
-const PHASE_CALIBRATE = 2;
-
-/**
- * Collapses the analysis backend's real, monotonic status messageKey onto one
- * of the three phases the UI shows. The backend reports
- * starting → fetching → analyzing → finalizing → complete; we group the email
- * fetch with the inbox sync, analysing on its own, and finalising with
- * calibration. Anything unrecognised (or no analysis yet) falls back to the
- * first phase.
- */
-const ANALYSIS_STAGE_PHASE: Record<string, number> = {
-  'settings.analysis.progress.starting': PHASE_SYNC,
-  'settings.analysis.progress.searching': PHASE_SYNC,
-  'settings.analysis.progress.fetching': PHASE_SYNC,
-  'settings.analysis.progress.preparing': PHASE_ANALYZE,
-  'settings.analysis.progress.identifyingVip': PHASE_ANALYZE,
-  'settings.analysis.progress.analyzing': PHASE_ANALYZE,
-  'settings.analysis.progress.analyzingGeneric': PHASE_ANALYZE,
-  'settings.analysis.progress.processingResults': PHASE_CALIBRATE,
-  'settings.analysis.progress.savingInsights': PHASE_CALIBRATE,
-  'settings.analysis.progress.finalizing': PHASE_CALIBRATE,
-  'settings.analysis.progress.complete': PHASE_CALIBRATE,
-  'settings.analysis.progress.completeSimple': PHASE_CALIBRATE,
-};
-
-const PHASE_LABEL_KEYS = [
-  'setupWizard.learning.phaseSync',
-  'setupWizard.learning.phaseAnalyze',
-  'setupWizard.learning.phaseCalibrate',
-];
-
-interface RealProgress {
-  syncedCount: number;
-  threadCount?: number;
-  analyzedCount?: number;
-  vipCount?: number;
-}
-
-function getCurrentPhase(messageKey: string | undefined): number {
-  if (!messageKey) {
-    return PHASE_SYNC;
-  }
-  return ANALYSIS_STAGE_PHASE[messageKey] ?? PHASE_SYNC;
-}
-
-interface LearningView {
-  displayProgress: number;
-  canFinish: boolean;
-  currentPhase: number;
-  realProgress: RealProgress;
-}
-
-/**
- * Derives the real, observable progress shown on the learning screen from the
- * two backend signals: the context-analysis poll (a real 0-100 percentage plus
- * per-stage counts) and the email-import poll (real synced-thread count). The
- * bar blends both; the phase is taken from the analysis stage; counts are the
- * raw numbers the backend reports — nothing is synthesised.
- */
-export function computeLearningView(
-  analyzeProgress: AnalyzeProgress,
-  importProgress: ImportProgress,
-  timedOut: boolean,
-): LearningView {
-  const progress = analyzeProgress.progress;
-  const analysisProgress = progress ? Math.min(PROGRESS_MAX, progress.current / Math.max(1, progress.total)) : 0;
-  const importProgressPct = Math.min(PROGRESS_MAX, importProgress.prioritizedCount / IMPORT_TARGET);
-  const overallProgress = Math.min(PROGRESS_MAX, ANALYSIS_WEIGHT * analysisProgress + IMPORT_WEIGHT * importProgressPct);
-  const canFinish = (importProgress.isReady && analyzeProgress.isComplete) || timedOut;
-  // Once learning is finished the rows and header both read "done", so the bar
-  // must show 100% too. Deriving it from `isReady` alone left it stuck at the
-  // blended value (e.g. 70% when analysis completed but the import poll never
-  // reported ready) even though every other indicator said complete (#294).
-  const displayProgress =
-    importProgress.isReady || canFinish ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, overallProgress);
-  const realProgress: RealProgress = {
-    syncedCount: importProgress.prioritizedCount,
-    threadCount: progress?.threadCount,
-    analyzedCount: progress?.analyzedCount,
-    vipCount: progress?.stats?.vipContactsEvaluated,
-  };
-  // Phase index past the last row once finished, so every row reads as done.
-  const currentPhase = canFinish ? PHASE_LABEL_KEYS.length : getCurrentPhase(progress?.messageKey);
-  return { displayProgress, canFinish, currentPhase, realProgress };
-}
-
-/** Live status line for the active phase, interpolating real counts from the backend. */
-function buildStatusDetail(translate: TFn, phase: number, rp: RealProgress): string {
-  if (phase === PHASE_ANALYZE) {
-    return rp.threadCount
-      ? translate('setupWizard.learning.statusAnalyze', { analyzed: rp.analyzedCount ?? 0, total: rp.threadCount })
-      : translate('setupWizard.learning.statusAnalyzeGeneric');
-  }
-  if (phase === PHASE_CALIBRATE) {
-    return translate('setupWizard.learning.statusCalibrate');
-  }
-  return translate('setupWizard.learning.statusSync', { count: rp.syncedCount });
-}
-
-/** Real count shown on the right of each phase row (empty until the number exists). */
-function buildPhaseCount(translate: TFn, phaseIdx: number, rp: RealProgress): string {
-  if (phaseIdx === PHASE_SYNC) {
-    return translate('setupWizard.learning.countMessages', { count: rp.syncedCount });
-  }
-  if (phaseIdx === PHASE_ANALYZE) {
-    if (rp.threadCount) {
-      return `${rp.analyzedCount ?? 0} / ${rp.threadCount}`;
-    }
-    return rp.analyzedCount ? String(rp.analyzedCount) : '';
-  }
-  return rp.vipCount !== undefined ? translate('setupWizard.learning.countVip', { count: rp.vipCount }) : '';
-}
 
 function pickRowBorderColor(active: boolean, done: boolean): string {
   if (done) {
@@ -197,6 +82,23 @@ function pickCountColor(active: boolean, done: boolean): string {
     return TOK.sunDark;
   }
   return TOK.ink3;
+}
+
+interface HeaderDetailInput {
+  canFinish: boolean;
+  isStillSorting: boolean;
+  currentPhase: number;
+  realProgress: RealProgress;
+}
+
+function pickHeaderDetail(translate: TFn, input: HeaderDetailInput): string {
+  if (input.isStillSorting) {
+    return translate('setupWizard.learning.readyDetailStillSorting');
+  }
+  if (input.canFinish) {
+    return translate('setupWizard.learning.readyDetail');
+  }
+  return buildStatusDetail(translate, input.currentPhase, input.realProgress);
 }
 
 export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, isLoading }) => {
@@ -271,18 +173,18 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
     };
   }, []);
 
-  const { displayProgress, canFinish, currentPhase, realProgress } = computeLearningView(
+  const categorisation = useCategorisationProgress(hasLearningFinished(analyzeProgress, importProgress, timedOut));
+  const { displayProgress, canFinish, isStillSorting, currentPhase, realProgress } = computeLearningView(
     analyzeProgress,
     importProgress,
     timedOut,
+    categorisation,
   );
 
   const headerTitle = canFinish
     ? t('setupWizard.learning.readyTitle')
     : t(PHASE_LABEL_KEYS[Math.min(currentPhase, PHASE_LABEL_KEYS.length - 1)]);
-  const headerDetail = canFinish
-    ? t('setupWizard.learning.readyDetail')
-    : buildStatusDetail(t, currentPhase, realProgress);
+  const headerDetail = pickHeaderDetail(t, { canFinish, isStillSorting, currentPhase, realProgress });
 
   return (
     <section className="onboarding-pane" style={paneStyle}>
@@ -302,24 +204,34 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
 
       <LearningRows currentPhase={currentPhase} canFinish={canFinish} realProgress={realProgress} t={t} />
 
+      <LearnedContextEditor isEnabled={analyzeProgress.isComplete} />
+
       <PrivacyCard t={t} />
 
-      <div style={actionsRowStyle}>
-        <button type="button" onClick={onBack} style={ghostButtonStyle}>
-          ← {t('setupWizard.common.back')}
-        </button>
-        <div style={spacerStyle} />
-        <button
-          onClick={onComplete}
-          disabled={!canFinish || isLoading}
-          style={primaryButtonStyle(canFinish && !isLoading)}
-        >
-          {isLoading ? t('common.loading') : t('setupWizard.learning.openInbox')}
-        </button>
-      </div>
+      <LearningActions canFinish={canFinish} isLoading={isLoading} onBack={onBack} onComplete={onComplete} t={t} />
     </section>
   );
 };
+
+interface LearningActionsProps {
+  canFinish: boolean;
+  isLoading: boolean;
+  onBack: () => void;
+  onComplete: () => void;
+  t: TFn;
+}
+
+const LearningActions: React.FC<LearningActionsProps> = ({ canFinish, isLoading, onBack, onComplete, t }) => (
+  <div style={actionsRowStyle}>
+    <button type="button" onClick={onBack} style={ghostButtonStyle}>
+      ← {t('setupWizard.common.back')}
+    </button>
+    <div style={spacerStyle} />
+    <button onClick={onComplete} disabled={!canFinish || isLoading} style={primaryButtonStyle(canFinish && !isLoading)}>
+      {isLoading ? t('common.loading') : t('setupWizard.learning.openInbox')}
+    </button>
+  </div>
+);
 
 interface LearningHeaderProps {
   canFinish: boolean;
@@ -382,13 +294,7 @@ const PrivacyCard: React.FC<{ t: (key: string) => string }> = ({ t }) => (
     <div>
       <h4 style={privacyTitleStyle}>{t('setupWizard.learning.privacyTitle')}</h4>
       <p style={privacyBodyStyle}>
-        {t('setupWizard.learning.privacyBodyPart1')} <b>{t('setupWizard.learning.privacyOpenAi')}</b>{' '}
-        {t('setupWizard.learning.privacyAnd')} <b>{t('setupWizard.learning.privacyGemini')}</b>{' '}
-        {t('setupWizard.learning.privacyBodyPart2')}{' '}
-        <b>{t('setupWizard.learning.privacyExport')}</b>{' '}
-        {t('setupWizard.learning.privacyOr')}{' '}
-        <b>{t('setupWizard.learning.privacyDelete')}</b>{' '}
-        {t('setupWizard.learning.privacyBodyPart3')}
+        <Trans i18nKey="setupWizard.learning.privacyBody" components={{ b: <b /> }} />
       </p>
     </div>
   </div>

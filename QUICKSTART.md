@@ -125,9 +125,11 @@ OPENAI_REASONING_EFFORT=low
 # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ENCRYPTION_KEY=your-secure-encryption-key-here
 
-# Privacy & Terms Version
-TERMS_VERSION=1.0.0
-PRIVACY_VERSION=1.0.0
+# Privacy & Terms versions (optional). Defaults live in
+# server/src/constants/legal-versions.ts; setting these pins an older version
+# and stops users being asked to re-accept updated policies.
+# TERMS_VERSION=1.0.0
+# PRIVACY_VERSION=1.2.0
 
 # Zoho Cliq Integration (optional - for waitlist notifications)
 # If not provided, waitlist notifications will be skipped

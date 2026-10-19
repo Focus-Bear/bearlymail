@@ -2,12 +2,16 @@ import { Controller, Get, Post, Request, UseGuards } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CategorisationProgressService } from "./categorisation-progress.service";
 import { OnboardingService } from "./onboarding.service";
 
 @Controller("onboarding")
 @UseGuards(JwtAuthGuard)
 export class OnboardingController {
-  constructor(private readonly onboardingService: OnboardingService) {}
+  constructor(
+    private readonly onboardingService: OnboardingService,
+    private readonly categorisationProgressService: CategorisationProgressService,
+  ) {}
 
   @Post("scan")
   async startScan(@Request() req) {
@@ -34,5 +38,11 @@ export class OnboardingController {
   @SkipThrottle()
   async getEmailImportProgress(@Request() req) {
     return this.onboardingService.getEmailImportProgress(req.user.userId);
+  }
+
+  @Get("categorisation-progress")
+  @SkipThrottle()
+  async getCategorisationProgress(@Request() req) {
+    return this.categorisationProgressService.getProgress(req.user.userId);
   }
 }

@@ -5,6 +5,7 @@ import { LessThanOrEqual, Repository } from "typeorm";
 
 import { SCHEDULED_EMAIL_STATUS } from "../constants/domain-statuses";
 import { SCHEDULED_EMAIL_TYPES } from "../constants/domain-types";
+import { TRACKED_SEND_SOURCE } from "../constants/email-tracking.constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { ContactsService } from "../contacts/contacts.service";
 import {
@@ -12,6 +13,7 @@ import {
   EmailRecipient,
   ScheduledEmail,
 } from "../database/entities/scheduled-email.entity";
+import { TrackedEmailSender } from "../email-tracking/tracked-email-sender.service";
 import {
   appendSignature,
   looksLikeHtml,
@@ -46,6 +48,8 @@ export interface CreateScheduledEmailDto {
   userTimezone?: string;
   expectedReplyHours?: number;
   forwardAttachmentIds?: string[];
+  /** Per-message open-tracking choice; undefined defers to the user setting. */
+  trackOpens?: boolean;
 }
 
 @Injectable()
@@ -62,6 +66,7 @@ export class ScheduledEmailsService {
     private readonly userEncryptionService: UserEncryptionService,
     @Inject(forwardRef(() => FollowUpsService))
     private readonly followUpsService: FollowUpsService,
+    private readonly trackedEmailSender: TrackedEmailSender,
   ) {}
 
   /**
@@ -89,6 +94,7 @@ export class ScheduledEmailsService {
       userTimezone: dto.userTimezone || null,
       expectedReplyHours: dto.expectedReplyHours || null,
       forwardAttachmentIds: dto.forwardAttachmentIds || null,
+      trackOpens: dto.trackOpens ?? null,
     });
 
     const saved = await this.scheduledEmailRepository.save(scheduledEmail);
@@ -358,16 +364,24 @@ export class ScheduledEmailsService {
       throw new Error("No recipient email found in scheduled email");
     }
 
-    await provider.sendReply(userId, {
-      threadId: scheduledEmail.threadId,
-      to: recipientEmail,
-      subject: scheduledEmail.subject,
-      body: bodyWithSignature,
-      options: {
-        attachments: allAttachments.length > 0 ? allAttachments : undefined,
-        htmlBody,
+    await this.trackedEmailSender.sendReply(
+      userId,
+      provider,
+      {
+        threadId: scheduledEmail.threadId,
+        to: recipientEmail,
+        subject: scheduledEmail.subject,
+        body: bodyWithSignature,
+        options: {
+          attachments: allAttachments.length > 0 ? allAttachments : undefined,
+          htmlBody,
+        },
       },
-    });
+      {
+        source: TRACKED_SEND_SOURCE.SCHEDULED_REPLY,
+        trackOpens: scheduledEmail.trackOpens ?? undefined,
+      },
+    );
 
     if (scheduledEmail.expectedReplyHours) {
       this.logger.log(
@@ -448,14 +462,22 @@ export class ScheduledEmailsService {
         ? scheduledEmail.bcc
         : undefined;
 
-    await provider.sendEmail(userId, {
-      to: toRecipients,
-      subject: scheduledEmail.subject,
-      body: bodyWithSignature,
-      cc: ccRecipients,
-      bcc: bccRecipients,
-      attachments: allAttachments.length > 0 ? allAttachments : undefined,
-    });
+    await this.trackedEmailSender.sendEmail(
+      userId,
+      provider,
+      {
+        to: toRecipients,
+        subject: scheduledEmail.subject,
+        body: bodyWithSignature,
+        cc: ccRecipients,
+        bcc: bccRecipients,
+        attachments: allAttachments.length > 0 ? allAttachments : undefined,
+      },
+      {
+        source: TRACKED_SEND_SOURCE.SCHEDULED_FORWARD,
+        trackOpens: scheduledEmail.trackOpens ?? undefined,
+      },
+    );
 
     if (scheduledEmail.expectedReplyHours) {
       this.logger.log(
@@ -477,14 +499,22 @@ export class ScheduledEmailsService {
       throw new Error(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
     }
 
-    const sent = await provider.sendEmail(userId, {
-      to: scheduledEmail.to,
-      subject: scheduledEmail.subject,
-      body: bodyWithSignature,
-      cc: scheduledEmail.cc || undefined,
-      bcc: scheduledEmail.bcc || undefined,
-      attachments,
-    });
+    const sent = await this.trackedEmailSender.sendEmail(
+      userId,
+      provider,
+      {
+        to: scheduledEmail.to,
+        subject: scheduledEmail.subject,
+        body: bodyWithSignature,
+        cc: scheduledEmail.cc || undefined,
+        bcc: scheduledEmail.bcc || undefined,
+        attachments,
+      },
+      {
+        source: TRACKED_SEND_SOURCE.SCHEDULED_NEW,
+        trackOpens: scheduledEmail.trackOpens ?? undefined,
+      },
+    );
 
     // Only now does the message have a thread to follow up on, so the window
     // the composer asked for is honoured here rather than at scheduling time.

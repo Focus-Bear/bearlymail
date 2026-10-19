@@ -46,7 +46,7 @@ export const useEmailDetailDraftSync = ({
   // Refs for tracking previous state when switching between emails
   const previousEmailIdRef = useRef<string | null>(null);
   const previousThreadIdRef = useRef<string | null>(null);
-  const previousDraftRef = useRef<string | null>(null);
+  const latestDraftRef = useRef<string | null>(null);
   const previousReplyModeRef = useRef<'reply' | 'replyAll' | 'forward'>('reply');
   const previousRecipientsRef = useRef<string>('');
 
@@ -54,7 +54,7 @@ export const useEmailDetailDraftSync = ({
   useEffect(() => {
     const previousId = previousEmailIdRef.current;
     const previousThreadId = previousThreadIdRef.current;
-    const previousDraft = previousDraftRef.current;
+    const previousDraft = latestDraftRef.current;
     const previousMode = previousReplyModeRef.current;
     const previousRecipients = previousRecipientsRef.current;
 
@@ -71,14 +71,18 @@ export const useEmailDetailDraftSync = ({
     if (previousId !== id) {
       setShowReplyComposer(false);
       setDraft('');
+      // Mirror the reset now rather than on the next render, so the newly opened
+      // thread's draft restore never mistakes the previous email's text for typing.
+      latestDraftRef.current = '';
       setReplyOptions(null);
       setToneCheckResult(null);
     }
   }, [id, email?.threadId, setShowReplyComposer, setDraft, setReplyOptions, setToneCheckResult, saveDraft]);
 
-  // Keep previous-state refs current for the email-switching effect above.
+  // Keep previous-state refs current for the email-switching effect above and the
+  // draft restore below.
   useEffect(() => {
-    previousDraftRef.current = draft;
+    latestDraftRef.current = draft;
   }, [draft]);
   useEffect(() => {
     previousReplyModeRef.current = replyMode;
@@ -87,27 +91,35 @@ export const useEmailDetailDraftSync = ({
     previousRecipientsRef.current = replyRecipients;
   }, [replyRecipients]);
 
-  // Load existing draft when opening an email (once per thread)
+  // Restore the saved draft exactly once per opened thread. From then on the
+  // composer's local state is the source of truth — autosave only ever writes —
+  // so a late response must not overwrite what the user has typed meanwhile, nor
+  // land in a thread they have already left.
   const lastLoadedThreadIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (email?.threadId && lastLoadedThreadIdRef.current !== email.threadId) {
-      lastLoadedThreadIdRef.current = email.threadId;
-      const loadDraft = async () => {
-        const savedDraft = await fetchDraft();
-        if (savedDraft && savedDraft.content) {
-          setDraft(savedDraft.content);
-          setShowReplyComposer(true);
-          if (savedDraft.replyMode) {
-            setReplyMode(savedDraft.replyMode as 'reply' | 'replyAll');
-          }
-          if (savedDraft.recipients) {
-            setReplyRecipients(savedDraft.recipients);
-          }
-        }
-      };
-      loadDraft();
+    const threadId = email?.threadId;
+    if (!threadId || lastLoadedThreadIdRef.current === threadId) {
+      return;
     }
-  }, [email?.threadId, fetchDraft, setDraft, setReplyRecipients, setReplyMode]);
+    lastLoadedThreadIdRef.current = threadId;
+    const restoreSavedDraft = async () => {
+      const savedDraft = await fetchDraft();
+      const isStillOpen = lastLoadedThreadIdRef.current === threadId;
+      const hasTypedSinceOpening = Boolean(latestDraftRef.current?.trim());
+      if (!savedDraft?.content || !isStillOpen || hasTypedSinceOpening) {
+        return;
+      }
+      setDraft(savedDraft.content);
+      setShowReplyComposer(true);
+      if (savedDraft.replyMode) {
+        setReplyMode(savedDraft.replyMode as 'reply' | 'replyAll');
+      }
+      if (savedDraft.recipients) {
+        setReplyRecipients(savedDraft.recipients);
+      }
+    };
+    void restoreSavedDraft();
+  }, [email?.threadId, fetchDraft, setDraft, setShowReplyComposer, setReplyRecipients, setReplyMode]);
 
   useAutoSaveDraft({
     showReplyComposer,

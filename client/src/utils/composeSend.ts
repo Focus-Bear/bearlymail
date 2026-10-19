@@ -16,6 +16,8 @@ export interface ComposeSendArgs {
   expectedReplyDuration?: string;
   /** UI language, so the server parses the duration the way the user typed it. */
   locale: string;
+  /** Per-message open-tracking choice (defaults from the account setting). */
+  trackOpens: boolean;
 }
 
 /**
@@ -34,7 +36,7 @@ export interface ComposeSendResponse {
  */
 export const postComposedEmail = async (args: ComposeSendArgs): Promise<ComposeSendResponse> => {
   const { to, cc, bcc, subject, body, attachments, scheduledSendAtIso, userTimezone } = args;
-  const { expectedReplyDuration, locale } = args;
+  const { expectedReplyDuration, locale, trackOpens } = args;
   const expectedReplyAt = expectedReplyDuration ? resolveDurationInstant(expectedReplyDuration, locale) : undefined;
 
   if (attachments.length === 0) {
@@ -49,6 +51,7 @@ export const postComposedEmail = async (args: ComposeSendArgs): Promise<ComposeS
       expectedReplyDuration,
       expectedReplyAt,
       locale: expectedReplyDuration ? locale : undefined,
+      trackOpens,
     });
     return response.data;
   }
@@ -74,6 +77,7 @@ export const postComposedEmail = async (args: ComposeSendArgs): Promise<ComposeS
   if (expectedReplyAt) {
     formData.append('expectedReplyAt', expectedReplyAt);
   }
+  formData.append('trackOpens', String(trackOpens));
   attachments.forEach(file => formData.append('files', file));
   // Let Axios/the browser set Content-Type with the multipart boundary — an
   // explicit 'multipart/form-data' header omits the boundary and breaks Multer.

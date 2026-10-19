@@ -6,5 +6,6 @@
 export const DEFAULT_LEGAL_VERSIONS = {
   TERMS: "1.0.0",
   // 1.1.0: names every AI provider that processes email content, including TypeSafe.
-  PRIVACY: "1.1.0",
+  // 1.2.0: discloses email open tracking (pixel, open time, IP and user agent).
+  PRIVACY: "1.2.0",
 } as const;

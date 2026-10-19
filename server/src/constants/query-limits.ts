@@ -61,14 +61,15 @@ export const QUERY_LIMITS = {
   CONTACTS_SEARCH_OFFSET: 20,
   CONTACTS_PAGE_SIZE: 20,
   /**
-   * Candidate rows fetched (ranked by token-match relevance) before the
-   * visible-field filter and final truncation to the caller's `limit` in
-   * `ContactsService.searchContacts`. A blind-index LIKE matches on any single
-   * shared trigram, so a popular query yields hundreds of weak candidates;
-   * fetching a generous relevance-ranked pool ensures a genuine exact match
-   * isn't truncated below incidental matches before the filter runs (#2030).
+   * Candidate rows fetched (ranked by token-match relevance) and decrypted
+   * before the visible-field match, in-memory ranking and final truncation to
+   * the caller's `limit` in `ContactsService.searchContacts`. A blind-index
+   * LIKE matches on any single shared trigram, so a two-word query on a large
+   * account yields hundreds of weak candidates (358 for "andrew lam"); the pool
+   * must cover them all or a genuine match can be cut before it is inspected
+   * (#2030). Hitting the cap is logged.
    */
-  CONTACTS_SEARCH_CANDIDATE_POOL: 200,
+  CONTACTS_SEARCH_CANDIDATE_POOL: 500,
   /**
    * Maximum rows the admin contact-search diagnostic will materialise via
    * `.getMany()` for inspection. Keeps memory + per-row KMS decrypt cost

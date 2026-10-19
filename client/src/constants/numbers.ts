@@ -183,6 +183,14 @@ export const PROGRESS_THRESHOLD_95 = 95;
 
 // Additional common numeric values
 export const DEBOUNCE_DELAY_200_MS = 200;
+
+// Contact search (GET /contacts/search)
+/** Shorter queries skip the search; the server returns frequent contacts for them. */
+export const CONTACT_SEARCH_MIN_QUERY_LENGTH = 2;
+/** Recipient autocomplete shows a short suggestion list. */
+export const CONTACT_SUGGESTION_LIMIT = 8;
+/** The CRM Contacts page lists search results; matches the server's CONTACTS_SEARCH_LIMIT cap. */
+export const CONTACTS_PAGE_SEARCH_LIMIT = 50;
 export const TIMEOUT_300_MS = 300;
 export const TIMEOUT_800_MS = 800;
 export const SCROLL_OFFSET_50_PX = 50;

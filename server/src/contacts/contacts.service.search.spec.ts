@@ -8,6 +8,21 @@ import { ContactCrmService } from "./contact-crm.service";
 import { ContactsService } from "./contacts.service";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 import { Office365ContactsProvider } from "./providers/office365-contacts.provider";
+import { SearchIndexHelper } from "./search-index.helper";
+
+/** Real blind-index tokens, generated from the same fields `upsertContacts` indexes. */
+const withProductionTokens = (contact: Contact): Contact => ({
+  ...contact,
+  searchTokens: JSON.stringify(
+    SearchIndexHelper.generateSearchTokens(
+      contact.name,
+      contact.firstName,
+      contact.lastName,
+      SearchIndexHelper.extractEmailLocalPart(contact.email),
+      SearchIndexHelper.extractEmailDomain(contact.email),
+    ),
+  ),
+});
 
 /**
  * Regression tests for the #2030 contact-search ranking bug: a zero-frequency
@@ -152,5 +167,81 @@ describe("ContactsService.searchContacts ranking (#2030)", () => {
     const results = await service.searchContacts("user-1", "casey", 8);
 
     expect(results).toHaveLength(0);
+  });
+
+  describe("nameless contacts matched on email tokens", () => {
+    const lamPoTang = makeContact({
+      id: "lam-po-tang",
+      email: "andrew.lam-po-tang@example.org",
+      name: undefined,
+      firstName: undefined,
+      lastName: undefined,
+      contactFrequency: 0,
+    });
+    const mcdonald = makeContact({
+      id: "mcdonald",
+      email: "andrewmcdonaldcw@example.com",
+      name: undefined,
+      firstName: undefined,
+      lastName: undefined,
+      contactFrequency: 40,
+    });
+    const andrewLin = makeContact({
+      id: "andrew-lin",
+      email: "andrew.lin@example.net",
+      name: "Andrew Lin",
+      firstName: "Andrew",
+      lastName: "Lin",
+      contactFrequency: 25,
+    });
+    const lamOnly = makeContact({
+      id: "lam-only",
+      email: "lam.andrew@example.com",
+      name: undefined,
+      firstName: undefined,
+      lastName: undefined,
+      contactFrequency: 90,
+    });
+
+    it("returns andrew.lam-po-tang for 'andrew lam' even with no name and zero frequency", async () => {
+      qb.getMany.mockResolvedValue(
+        [mcdonald, andrewLin, lamPoTang].map(withProductionTokens),
+      );
+
+      const results = await service.searchContacts("user-1", "andrew lam", 8);
+
+      expect(results.map((result) => result.id)).toEqual(["lam-po-tang"]);
+    });
+
+    it("ranks in-order matches above out-of-order ones regardless of frequency", async () => {
+      // SQL hands the frequent out-of-order match back first; the in-memory
+      // ranking must still put the in-order match on top.
+      qb.getMany.mockResolvedValue(
+        [lamOnly, mcdonald, lamPoTang].map(withProductionTokens),
+      );
+
+      const results = await service.searchContacts("user-1", "andrew lam", 8);
+
+      expect(results.map((result) => result.id)).toEqual([
+        "lam-po-tang",
+        "lam-only",
+      ]);
+    });
+
+    it("ranks by blind-index token overlap, then frequency, for single-word queries", async () => {
+      qb.getMany.mockResolvedValue(
+        [mcdonald, andrewLin, lamPoTang].map(withProductionTokens),
+      );
+
+      const results = await service.searchContacts("user-1", "andrew", 8);
+
+      // Every contact prefix-matches "andrew"; the token counts tie, so
+      // frequency breaks the tie.
+      expect(results.map((result) => result.id)).toEqual([
+        "mcdonald",
+        "andrew-lin",
+        "lam-po-tang",
+      ]);
+    });
   });
 });

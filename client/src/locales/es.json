@@ -1439,7 +1439,7 @@
     "errorSyncing": "Error al sincronizar los contactos. Por favor, inténtalo de nuevo.",
     "noContacts": "Aún no hay contactos",
     "syncToGetStarted": "Sincroniza tus contactos desde una cuenta de correo conectada para comenzar.",
-    "noSearchResults": "No se encontraron contactos",
+    "noSearchResults": "Ningún contacto coincide con “{{query}}”",
     "tryDifferentSearch": "Prueba con un término de búsqueda diferente.",
     "totalContacts": "{{count}} contacto",
     "totalContacts_plural": "{{count}} contactos",

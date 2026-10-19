@@ -174,6 +174,19 @@ export class SearchIndexHelper {
   }
 
   /**
+   * Counts how many query token hashes appear in a contact's stored
+   * `searchTokens` JSON — the in-memory twin of `buildTokenMatchSql`'s
+   * `matchScoreExpr`, using the same `%<hash>%` containment test.
+   */
+  static countMatchedTokens(
+    storedTokens: string | null | undefined,
+    tokenHashes: string[],
+  ): number {
+    if (!storedTokens) return 0;
+    return tokenHashes.filter((hash) => storedTokens.includes(hash)).length;
+  }
+
+  /**
    * Extract email domain for indexing
    */
   static extractEmailDomain(email: string): string | null {

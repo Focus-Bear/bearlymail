@@ -436,6 +436,7 @@ const SqlCandidatesCard: React.FC<{
               </td>
               <td style={tableCell}>
                 <Badge text={candidate.passesPostFilter ? 'pass' : 'fail'} kind={candidate.passesPostFilter ? 'pass' : 'fail'} />
+                <div style={{ color: theme.colors.text.secondary }}>{candidate.postFilterReason}</div>
               </td>
               <td style={tableCell}>
                 <Badge text={candidate.wouldSurviveTake8 ? 'yes' : 'no'} kind={candidate.wouldSurviveTake8 ? 'pass' : 'fail'} />

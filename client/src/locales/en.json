@@ -2347,7 +2347,7 @@
     "errorSyncing": "Failed to sync contacts. Please try again.",
     "noContacts": "No contacts yet",
     "syncToGetStarted": "Sync your contacts from a connected email account to get started.",
-    "noSearchResults": "No contacts found",
+    "noSearchResults": "No contacts match “{{query}}”",
     "tryDifferentSearch": "Try a different search term.",
     "totalContacts": "{{count}} contact",
     "totalContacts_plural": "{{count}} contacts",

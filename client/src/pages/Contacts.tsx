@@ -8,7 +8,7 @@ import { InlineContactSearchDebug } from 'components/admin/InlineContactSearchDe
 import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { EMOJI_MENU } from 'constants/emojis';
-import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { CONTACTS_PAGE_SEARCH_LIMIT, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import {
   STRING_AUTO,
   STRING_CENTER,
@@ -59,7 +59,7 @@ const ContactsEmptyState: React.FC<ContactsEmptyStateProps> = ({ searchQuery, sy
           marginBottom: theme.spacing.sm,
         }}
       >
-        {searchQuery ? t('contacts.noSearchResults') : t('contacts.noContacts')}
+        {searchQuery ? t('contacts.noSearchResults', { query: searchQuery.trim() }) : t('contacts.noContacts')}
       </h3>
       <p
         style={{
@@ -254,8 +254,13 @@ const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
   handleSync,
 }) => {
   const { t } = useTranslation();
-  const { searchQuery, setSearchQuery, searching, filteredContacts } = useContactSearch();
+  const { searchQuery, setSearchQuery, searching, filteredContacts, hasPendingSearch } = useContactSearch({
+    resultLimit: CONTACTS_PAGE_SEARCH_LIMIT,
+  });
   const displayedContacts = filteredContacts(contacts);
+  const isBusy = loading || searching;
+  // Until the debounced search for the typed query settles, "no matches" would be premature.
+  const isAwaitingFirstResults = hasPendingSearch && displayedContacts.length === 0;
 
   return (
     <div style={{ maxWidth: '900px', margin: STRING_AUTO }}>
@@ -324,17 +329,17 @@ const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
 
       <InlineContactSearchDebug query={searchQuery} />
 
-      {(loading || searching) && (
+      {(isBusy || isAwaitingFirstResults) && (
         <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, color: theme.colors.text.secondary }}>
           {t('contacts.loading')}
         </div>
       )}
 
-      {!loading && !searching && displayedContacts.length === 0 && (
+      {!isBusy && !hasPendingSearch && displayedContacts.length === 0 && (
         <ContactsEmptyState searchQuery={searchQuery} syncing={syncing} onSync={handleSync} />
       )}
 
-      {!loading && !searching && displayedContacts.length > 0 && (
+      {!isBusy && displayedContacts.length > 0 && (
         <ContactsList contacts={displayedContacts} getContactTypeConfig={getContactTypeConfig} />
       )}
     </div>

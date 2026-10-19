@@ -11,6 +11,7 @@ import { WaitlistService } from "../waitlist/waitlist.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { StepUpAuthGuard } from "./step-up.guard";
 
 interface MockResponse {
   cookie: jest.Mock;
@@ -103,7 +104,11 @@ describe("AuthController", () => {
         { provide: WaitlistService, useValue: mockWaitlistService },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
       ],
-    }).compile();
+    })
+      // These tests call handlers directly; the guard is covered by step-up.guard.spec.
+      .overrideGuard(StepUpAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
   });
@@ -318,6 +323,18 @@ describe("AuthController", () => {
   describe("setPassword", () => {
     const req = { user: { userId: "user-1" } };
     const validPassword = "a-long-enough-password";
+
+    it("requires a step-up token, so a stolen session alone can't replace the password", () => {
+      const guards = Reflect.getMetadata(
+        "__guards__",
+        AuthController.prototype.setPassword,
+      ) as Array<{ name: string }>;
+
+      expect(guards.map((guard) => guard.name)).toEqual([
+        "JwtAuthGuard",
+        "StepUpAuthGuard",
+      ]);
+    });
 
     it("should set the password using the authenticated user id, not body params", async () => {
       mockAuthService.setPasswordForSsoUser.mockResolvedValue(undefined);

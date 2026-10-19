@@ -37,6 +37,7 @@ import { LocalAuthGuard } from "./local-auth.guard";
 import { isMfaElevationFresh } from "./mfa-elevation";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { parseSignedOAuthState } from "./oauth-state.util";
+import { StepUpAuthGuard } from "./step-up.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
 
 interface ZohoAuthUser {
@@ -179,8 +180,12 @@ export class AuthController {
   /**
    * Set password for an authenticated SSO user.
    * This allows users who logged in via Google/Microsoft/Zoho to also have a password.
+   *
+   * Requires a step-up token: password users re-enter their current password
+   * first, so a stolen session cookie alone can't replace the password and take
+   * over the account (pentest finding, issue #324).
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StepUpAuthGuard)
   @Put("set-password")
   async setPassword(
     @Request() req,

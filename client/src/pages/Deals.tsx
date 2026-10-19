@@ -4,6 +4,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { Deal, KanbanBoard } from 'types/deal';
+import { formatDealAmount } from 'utils/formatDealAmount';
 
 import { DealFormModal } from 'components/crm/DealFormModal';
 import { KanbanColumn } from 'components/crm/KanbanColumn';
@@ -13,14 +14,12 @@ import { EMOJI_MENU } from 'constants/emojis';
 import {
   STRING_AUTO,
   STRING_CENTER,
-  STRING_CURRENCY,
   STRING_EN_US,
   STRING_FIXED,
   STRING_FLEX,
   STRING_HIDDEN,
   STRING_NONE,
   STRING_POINTER,
-  STRING_USD,
   STRING_WHITE,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
@@ -243,12 +242,7 @@ const Deals: React.FC = () => {
   };
 
   const formatCurrency = (value: number, currency?: string | null) =>
-    new Intl.NumberFormat(STRING_EN_US, {
-      style: STRING_CURRENCY,
-      currency: currency || STRING_USD,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+    formatDealAmount(value, currency, STRING_EN_US);
 
   return (
     <div style={{ display: STRING_FLEX, height: '100vh', overflow: STRING_HIDDEN }}>

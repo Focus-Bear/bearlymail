@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
@@ -529,6 +534,10 @@ export class ContactsService {
     },
   ): Promise<Contact> {
     const emailHash = SearchIndexHelper.hashExact(contactData.email);
+    const contactType =
+      contactData.contactType === undefined
+        ? undefined
+        : await this.resolveContactType(userId, contactData.contactType);
 
     const existing = await this.contactRepository.findOne({
       where: { userId, emailHash },
@@ -552,7 +561,7 @@ export class ContactsService {
         company: contactData.company,
         jobTitle: contactData.jobTitle,
         phone: contactData.phone,
-        contactType: contactData.contactType,
+        contactType,
         followUpDate: contactData.followUpDate
           ? new Date(contactData.followUpDate)
           : undefined,
@@ -575,12 +584,33 @@ export class ContactsService {
       company: contactData.company,
       jobTitle: contactData.jobTitle,
       phone: contactData.phone,
-      contactType: contactData.contactType || null,
+      contactType: contactType ?? null,
       followUpDate: contactData.followUpDate
         ? new Date(contactData.followUpDate)
         : null,
       searchTokens: JSON.stringify(searchTokens),
     });
+  }
+
+  /**
+   * A contact's type must be one of the user's own contact types; null or ""
+   * clears it. The API used to store any string verbatim, including markup
+   * (pentest finding, issue #324).
+   */
+  private async resolveContactType(
+    userId: string,
+    contactType: unknown,
+  ): Promise<string | null> {
+    if (contactType === null || contactType === "") return null;
+    const userTypes =
+      await this.contactCrmService.ensureDefaultContactTypes(userId);
+    if (
+      typeof contactType !== "string" ||
+      !userTypes.some((type) => type.name === contactType)
+    ) {
+      throw new BadRequestException("Unknown contact type");
+    }
+    return contactType;
   }
 
   // ─── CRM Delegation Methods ──────────────────────────────────────
@@ -749,7 +779,10 @@ export class ContactsService {
     if (updates.jobTitle !== undefined) partial.jobTitle = updates.jobTitle;
     if (updates.phone !== undefined) partial.phone = updates.phone;
     if (updates.contactType !== undefined) {
-      partial.contactType = updates.contactType;
+      partial.contactType = await this.resolveContactType(
+        userId,
+        updates.contactType,
+      );
       partial.contactTypeAutoDetected = false;
     }
     if (updates.followUpDate !== undefined) {

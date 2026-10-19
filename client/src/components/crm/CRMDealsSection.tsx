@@ -5,12 +5,13 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { Deal, DealStage } from 'types/deal';
+import { formatDealAmount } from 'utils/formatDealAmount';
 
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { DealFormModal } from 'components/crm/DealFormModal';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { STRING_CURRENCY, STRING_EN_US, STRING_ES, STRING_ES_ES, STRING_USD } from 'constants/strings';
+import { STRING_EN_US, STRING_ES, STRING_ES_ES, STRING_USD } from 'constants/strings';
 
 const CRM_ACCENT = '#8B5CF6'; // Purple for CRM
 const CRM_BG = '#F5F3FF'; // Light purple background
@@ -23,18 +24,8 @@ interface CRMDealsSectionProps {
   onDismiss?: () => void;
 }
 
-const formatCurrency = (value: number | null, currency: string | null, locale: string): string | null => {
-  if (value === null) {
-    return null;
-  }
-  const currencyCode = currency || STRING_USD;
-  return new Intl.NumberFormat(locale, {
-    style: STRING_CURRENCY,
-    currency: currencyCode,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
+const formatCurrency = (value: number | null, currency: string | null, locale: string): string | null =>
+  value === null ? null : formatDealAmount(value, currency, locale);
 
 const formatDate = (dateStr: string | null, locale: string): string | null => {
   if (!dateStr) {

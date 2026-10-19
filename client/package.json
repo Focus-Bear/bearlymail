@@ -34,7 +34,7 @@
     "@types/react-dom": "^19.2.3",
     "axios": "^1.20.0",
     "chrono-node": "^2.10.1",
-    "dompurify": "^3.4.14",
+    "dompurify": "^3.4.17",
     "email-addresses": "^5.0.0",
     "emoji-mart": "^5.6.0",
     "i18next": "^26.3.6",

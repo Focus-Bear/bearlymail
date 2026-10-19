@@ -15,6 +15,7 @@ import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { PusherService } from "../pusher/pusher.service";
 import { RepliesService } from "../replies/replies.service";
+import { createPassThroughTrackedEmailSender } from "../test/helpers/tracked-email-sender.mock";
 import { UsersService } from "../users/users.service";
 import { EmailSendProcessor } from "./email-send.processor";
 import {
@@ -112,6 +113,7 @@ describe("EmailSendProcessor", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmailSendProcessor,
+        createPassThroughTrackedEmailSender(),
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
         { provide: EmailSendQueueService, useValue: sendQueueService },
         { provide: RepliesService, useValue: repliesService },

@@ -1,6 +1,8 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 
+import { TrackOpensCheckbox } from 'components/tracking/TrackOpensCheckbox';
+
 import { ActionCheckboxRow } from './ActionCheckboxRow';
 import { ButtonRow } from './ButtonRow';
 import { ExpectedReplyRow } from './ExpectedReplyRow';
@@ -11,7 +13,7 @@ export { getScheduleSuggestions } from './scheduleUtils';
 
 /**
  * Footer for the reply composer: scheduled-time banner, expected-reply selector,
- * keep-in-action checkbox, and cancel/send/schedule buttons.
+ * keep-in-action and track-opens checkboxes, and cancel/send/schedule buttons.
  */
 export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = props => {
   const { onClose, onClearSchedule, scheduledSendAt, sending, checkingTone } = props;
@@ -34,6 +36,14 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = props => 
         checkingTone={checkingTone}
         onChange={event => hook.setKeepInAction(event.target.checked)}
       />
+
+      <div>
+        <TrackOpensCheckbox
+          isTracking={props.isTrackingOpens}
+          disabled={sending || checkingTone}
+          onChange={props.onTrackOpensChange}
+        />
+      </div>
 
       <ButtonRow
         isDisabled={hook.isDisabled}

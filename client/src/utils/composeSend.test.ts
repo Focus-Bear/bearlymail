@@ -21,6 +21,7 @@ const baseArgs: ComposeSendArgs = {
   attachments: [],
   userTimezone: 'Australia/Melbourne',
   locale: 'en',
+  trackOpens: true,
 };
 
 describe('postComposedEmail', () => {
@@ -44,6 +45,12 @@ describe('postComposedEmail', () => {
       const payload = mockedPost.mock.calls[0][1] as Record<string, unknown>;
       expect(payload.expectedReplyDuration).toBeUndefined();
       expect(payload.locale).toBeUndefined();
+    });
+
+    it('sends the per-message open-tracking choice', async () => {
+      await postComposedEmail({ ...baseArgs, trackOpens: false });
+
+      expect(mockedPost.mock.calls[0][1]).toMatchObject({ trackOpens: false });
     });
 
     it('passes a natural-language duration through untouched', async () => {
@@ -72,12 +79,64 @@ describe('postComposedEmail', () => {
       expect(formData.get('locale')).toBe('en');
     });
 
+    it('appends the per-message open-tracking choice', async () => {
+      await postComposedEmail({ ...baseArgs, attachments: [attachment()], trackOpens: false });
+
+      const formData = mockedPost.mock.calls[0][1] as FormData;
+      expect(formData.get('trackOpens')).toBe('false');
+    });
+
     it('appends neither field when the follow-up was cleared', async () => {
       await postComposedEmail({ ...baseArgs, attachments: [attachment()] });
 
       const formData = mockedPost.mock.calls[0][1] as FormData;
       expect(formData.get('expectedReplyDuration')).toBeNull();
       expect(formData.get('locale')).toBeNull();
+    });
+  });
+
+  describe("follow-up instant in the user's timezone", () => {
+    // 10:17am Friday 16 Oct in Melbourne — still Thursday 15 Oct in UTC.
+    const melbourneMorning = new Date('2026-10-15T23:17:00.000Z');
+    // "tomorrow" in Melbourne: Saturday 17 Oct, 8am AEDT. A UTC server parsing
+    // the text itself would follow up at 7pm the same Friday.
+    const melbourneTomorrow8am = '2026-10-16T21:00:00.000Z';
+
+    beforeEach(() => {
+      vi.stubEnv('TZ', 'Australia/Melbourne');
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(melbourneMorning);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllEnvs();
+    });
+
+    it('sends the resolved instant on the JSON path', async () => {
+      await postComposedEmail({ ...baseArgs, expectedReplyDuration: 'tomorrow' });
+
+      expect(mockedPost.mock.calls[0][1]).toMatchObject({
+        expectedReplyDuration: 'tomorrow',
+        expectedReplyAt: melbourneTomorrow8am,
+      });
+    });
+
+    it('appends the resolved instant on the FormData path', async () => {
+      await postComposedEmail({
+        ...baseArgs,
+        attachments: [new File(['data'], 'report.pdf', { type: 'application/pdf' })],
+        expectedReplyDuration: 'tomorrow',
+      });
+
+      const formData = mockedPost.mock.calls[0][1] as FormData;
+      expect(formData.get('expectedReplyAt')).toBe(melbourneTomorrow8am);
+    });
+
+    it('sends no instant when there is no follow-up', async () => {
+      await postComposedEmail(baseArgs);
+
+      expect((mockedPost.mock.calls[0][1] as Record<string, unknown>).expectedReplyAt).toBeUndefined();
     });
   });
 });

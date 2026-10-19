@@ -19,7 +19,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { theme } from 'theme/theme';
 import { clipboardHtmlHasTable } from 'utils/clipboardUtils';
 
-import { decideContentSync } from 'components/rich-text/richTextEditorSync';
+import { createContentSyncTracker } from 'components/rich-text/richTextEditorSync';
 import { RichTextToolbar } from 'components/rich-text/RichTextToolbar';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { TAG_EMPTY_PARAGRAPH } from 'constants/strings';
@@ -208,12 +208,11 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Track blob URLs created for pasted images so we can revoke them on unmount.
   const blobUrlsRef = useRef<string[]>([]);
 
-  // The last HTML the editor emitted upward (via onUpdate → onChange). The
-  // controlled `content` prop echoes this value straight back on the next
-  // render; recognising the echo lets us skip the setContent reconcile that
-  // would otherwise reset the caret to the end of the document on every
-  // keystroke (see decideContentSync + the mobile caret-jump fix).
-  const lastEmittedRef = useRef(content || '');
+  // Tells the parent's echoes of what the editor emitted (often a few keystrokes
+  // stale, because the reply composer debounces its draft state) apart from
+  // genuinely external content, so the user's own typing is never written back
+  // over newer text — see createContentSyncTracker.
+  const [syncTracker] = useState(() => createContentSyncTracker(content));
 
   // Use refs for paste handler callbacks to avoid stale closures.
   // The paste handler is created once at editor init; refs let it always call
@@ -315,38 +314,33 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       const emitted = html === TAG_EMPTY_PARAGRAPH ? '' : html;
       // Record before emitting so the echoed `content` prop is recognised and
       // the reconcile below skips it (no caret reset on the user's own typing).
-      lastEmittedRef.current = emitted;
+      syncTracker.recordEmitted(emitted);
       onChange(emitted);
     },
     editorProps: { handlePaste: stablePasteHandler },
   });
 
-  // Reconcile the editor against the controlled `content` prop, but skip the
-  // echo of the editor's own output (which would reset the caret to the end on
-  // every keystroke) and never write mid-composition (IME / macOS emoji picker),
-  // where replacing the focused text node aborts the composition and drops the
-  // character. Composition re-syncs afterwards on `compositionend`. See
-  // decideContentSync for the full decision + rationale.
+  // Write external changes to the controlled `content` prop into the editor, but
+  // never the editor's own (possibly stale) output coming back, and never
+  // mid-composition (IME / macOS emoji picker), where replacing the focused text
+  // node aborts the composition and drops the character. Composition re-syncs
+  // afterwards on `compositionend`. See createContentSyncTracker for the rationale.
   const syncContentToEditor = useCallback(() => {
     if (!editor || editor.isDestroyed) {
       return;
     }
-    const decision = decideContentSync({
+    const externalContent = syncTracker.takeExternalContent({
       incomingContent: content,
-      lastEmitted: lastEmittedRef.current,
       composing: Boolean(editor.view?.composing),
       getCurrentContent: () => editor.getHTML(),
     });
-    if (!decision.shouldSync) {
+    if (externalContent === null) {
       return;
     }
-    // Record what we're about to apply so the resulting re-render — which echoes
-    // `content` straight back — is recognised as our own output and skipped.
-    lastEmittedRef.current = decision.value;
     // emitUpdate: false — a programmatic sync must not re-fire onUpdate, which
     // would loop back through onChange and re-enter this reconciliation.
-    editor.commands.setContent(decision.value, { emitUpdate: false });
-  }, [content, editor]);
+    editor.commands.setContent(externalContent, { emitUpdate: false });
+  }, [content, editor, syncTracker]);
 
   useEffect(() => {
     syncContentToEditor();

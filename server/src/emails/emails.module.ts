@@ -29,6 +29,7 @@ import { SyncHistoryLog } from "../database/entities/sync-history-log.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { DebugModule } from "../debug/debug.module";
 import { EmailSendQueueModule } from "../email-send-queue/email-send-queue.module";
+import { EmailTrackingModule } from "../email-tracking/email-tracking.module";
 import { GitHubModule } from "../github/github.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { LLMModule } from "../llm/llm.module";
@@ -123,6 +124,7 @@ import { SyncHistoryService } from "./sync-history.service";
 @Module({
   imports: [
     CategoryKeysModule,
+    EmailTrackingModule,
     LocalModelModule,
     TypeOrmModule.forFeature([
       Email,

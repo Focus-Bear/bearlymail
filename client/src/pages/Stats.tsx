@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { formatDurationMinutes } from 'utils/formatDuration';
 
 import { SidebarPageLayout } from 'components/layout/SidebarPageLayout';
+import { OpenTrackingStatsSection } from 'components/stats/OpenTrackingStatsSection';
+import { StatCard } from 'components/stats/StatCard';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import {
   CALENDAR_DAYS_AHEAD,
@@ -19,67 +22,6 @@ import { STRING_NONE, STRING_UPPERCASE } from 'constants/strings';
 import { CategoryStats, ProcessedEmailStats, useEmailStats } from 'hooks/useEmailStats';
 
 const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MINUTES_PER_HOUR, CALENDAR_DAYS_AHEAD] as const;
-
-function formatReplyTime(minutes: number | null): string {
-  if (minutes === null) {
-    return '-';
-  }
-  if (minutes < MINUTES_PER_HOUR) {
-    return `${Math.round(minutes)}m`;
-  }
-  const hours = minutes / MINUTES_PER_HOUR;
-  if (hours < HOURS_PER_DAY) {
-    return `${Math.round(hours * 10) / 10}h`;
-  }
-  const days = hours / HOURS_PER_DAY;
-  return `${Math.round(days * 10) / 10}d`;
-}
-
-const StatCard: React.FC<{
-  label: string;
-  value: string;
-  subtext?: string;
-}> = ({ label, value, subtext }) => (
-  <div
-    style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.lg,
-      border: `1px solid ${theme.colors.border.light}`,
-      textAlign: 'center',
-      flex: '1 1 180px',
-    }}
-  >
-    <div
-      style={{
-        ...theme.typography.heading.h3,
-        color: theme.colors.primary.main,
-      }}
-    >
-      {value}
-    </div>
-    <div
-      style={{
-        ...theme.typography.body.large,
-        color: theme.colors.text.secondary,
-        marginTop: theme.spacing.xs,
-      }}
-    >
-      {label}
-    </div>
-    {subtext && (
-      <div
-        style={{
-          ...theme.typography.body.medium,
-          color: theme.colors.text.tertiary,
-          marginTop: theme.spacing.xs,
-        }}
-      >
-        {subtext}
-      </div>
-    )}
-  </div>
-);
 
 const CategoryRow: React.FC<{
   stat: CategoryStats;
@@ -153,7 +95,7 @@ const CategoryRow: React.FC<{
           flexShrink: 0,
         }}
       >
-        {stat.avgReplyTimeMinutes !== null ? formatReplyTime(stat.avgReplyTimeMinutes) : t('stats.noReplyData')}
+        {stat.avgReplyTimeMinutes !== null ? formatDurationMinutes(stat.avgReplyTimeMinutes) : t('stats.noReplyData')}
       </div>
 
       <div
@@ -396,7 +338,7 @@ const StatsBodyContent: React.FC<StatsBodyContentProps> = ({
           <StatCard label={t('stats.categories')} value={String(stats.categoryStats.length)} />
           <StatCard
             label={t('stats.avgReplyTime')}
-            value={formatReplyTime(
+            value={formatDurationMinutes(
               stats.categoryStats.reduce((sum, category) => {
                 if (category.avgReplyTimeMinutes !== null) {
                   return sum + category.avgReplyTimeMinutes * category.repliedCount;
@@ -410,6 +352,7 @@ const StatsBodyContent: React.FC<StatsBodyContentProps> = ({
             )}
           />
         </div>
+        <OpenTrackingStatsSection stats={stats.openTracking} />
         <div
           style={{
             backgroundColor: theme.colors.background.paper,

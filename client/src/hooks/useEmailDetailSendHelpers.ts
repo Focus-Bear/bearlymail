@@ -6,6 +6,7 @@
  */
 import axios from 'axios';
 import i18n from 'i18next';
+import { resolveDurationInstant } from 'utils/durationInstant';
 
 import { API_URL } from 'config/api';
 import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY } from 'constants/numbers';
@@ -22,7 +23,8 @@ export interface SendReplyPayload {
   expectedReplyHours?: number;
   /**
    * Free-text follow-up window ("3d", "next Monday") typed via the custom
-   * option. Parsed server-side with the same parser as snooze. Takes
+   * option. Sent with the instant it resolves to in the user's timezone
+   * (expectedReplyAt); the server parses the text only as a fallback. Takes
    * precedence over expectedReplyHours when set.
    */
   expectedReplyDuration?: string;
@@ -38,6 +40,13 @@ export interface SendReplyPayload {
    * no archive).
    */
   keepInAction?: boolean;
+  /** Per-message open-tracking choice; omitted defers to the account setting. */
+  trackOpens?: boolean;
+}
+
+/** The follow-up instant the custom duration resolves to in the user's timezone, if any. */
+function resolveExpectedReplyAt(payload: SendReplyPayload): string | undefined {
+  return payload.expectedReplyDuration ? resolveDurationInstant(payload.expectedReplyDuration, i18n.language) : undefined;
 }
 
 export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
@@ -63,8 +72,15 @@ export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
     // Tell the server which language to parse the free-text duration in.
     formData.append('locale', i18n.language);
   }
+  const expectedReplyAt = resolveExpectedReplyAt(payload);
+  if (expectedReplyAt) {
+    formData.append('expectedReplyAt', expectedReplyAt);
+  }
   if (payload.keepInAction) {
     formData.append('keepInAction', 'true');
+  }
+  if (payload.trackOpens !== undefined) {
+    formData.append('trackOpens', String(payload.trackOpens));
   }
   if (payload.scheduledSendAt) {
     formData.append('scheduledSendAt', payload.scheduledSendAt.toISOString());
@@ -111,10 +127,12 @@ export async function sendReplyRequest(payload: SendReplyPayload): Promise<SendR
     forwardAttachmentIds: payload.forwardAttachmentIds?.length ? payload.forwardAttachmentIds : undefined,
     expectedReplyHours: payload.expectedReplyHours,
     expectedReplyDuration: payload.expectedReplyDuration || undefined,
+    expectedReplyAt: resolveExpectedReplyAt(payload),
     // Tell the server which language to parse the free-text duration in.
     locale: payload.expectedReplyDuration ? i18n.language : undefined,
     scheduledSendAt: payload.scheduledSendAt?.toISOString(),
     keepInAction: payload.keepInAction || undefined,
+    trackOpens: payload.trackOpens,
   });
   return response.data;
 }

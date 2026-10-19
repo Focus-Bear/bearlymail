@@ -26,6 +26,8 @@ const RELATIVE_DURATION_REGEX = /^(\d+)\s*(mo|m|min|h|hr|d|w)$/;
 const DAY_OF_MONTH_REGEX =
   /^(?:on\s+)?(?:the\s+(\d{1,2})(?:st|nd|rd|th)?|(\d{1,2})(?:st|nd|rd|th))$/;
 const MIN_DAY_OF_MONTH = 1;
+/** A past or sub-hour follow-up target still schedules a follow-up an hour out. */
+const MIN_FOLLOW_UP_HOURS = 1;
 const MAX_DAY_OF_MONTH = 31;
 /** Months to look ahead for a day that exists (e.g. "31st" typed in April). */
 const DAY_OF_MONTH_LOOKAHEAD_MONTHS = 12;
@@ -243,9 +245,16 @@ export function durationToHours(
   now: Date = new Date(),
   locale = "en",
 ): number {
-  const target = parseDurationToDate(duration, now, locale);
+  return hoursUntil(parseDurationToDate(duration, now, locale), now);
+}
+
+/**
+ * Whole hours from `now` until `target`, rounded up and never below 1 — the
+ * integer-hours contract the reply follow-up pipeline expects.
+ */
+export function hoursUntil(target: Date, now: Date): number {
   const hours = Math.ceil(
     (target.getTime() - now.getTime()) / MILLISECONDS.HOUR,
   );
-  return Math.max(1, hours);
+  return Math.max(MIN_FOLLOW_UP_HOURS, hours);
 }

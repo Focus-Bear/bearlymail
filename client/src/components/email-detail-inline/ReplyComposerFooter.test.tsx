@@ -29,6 +29,8 @@ describe('ReplyComposerFooter', () => {
     sending: false,
     checkingTone: false,
     draft: 'Test reply content',
+    isTrackingOpens: true,
+    onTrackOpensChange: vi.fn(),
     onClose: vi.fn(),
     onSend: vi.fn(),
   };
@@ -63,7 +65,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '48h');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: '48h', draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
 
     it('sends a typed natural-language duration string', () => {
@@ -72,7 +74,7 @@ describe('ReplyComposerFooter', () => {
       fireEvent.change(getInput(), { target: { value: 'next Monday' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, 'next Monday');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: 'next Monday', draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
 
     it('trims the typed duration before sending', () => {
@@ -81,7 +83,7 @@ describe('ReplyComposerFooter', () => {
       fireEvent.change(getInput(), { target: { value: '  3d  ' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '3d');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: '3d', draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
 
     it('sends 0 hours (no follow-up) when the input is cleared', () => {
@@ -91,7 +93,7 @@ describe('ReplyComposerFooter', () => {
       fireEvent.click(screen.getByText('emailDetail.send'));
 
       // Must pass 0 (not a duration) so the archive branch is reached.
-      expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined, false);
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyHours: 0, draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
 
     it('treats a whitespace-only value as no follow-up', () => {
@@ -100,7 +102,7 @@ describe('ReplyComposerFooter', () => {
       fireEvent.change(getInput(), { target: { value: '   ' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined, false);
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyHours: 0, draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
 
     it('renders a clear button when the input has a value', () => {
@@ -132,7 +134,7 @@ describe('ReplyComposerFooter', () => {
       fireEvent.click(screen.getByLabelText('emailDetail.expectedReply.clear'));
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined, false);
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyHours: 0, draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
 
     it('does not show quick option buttons when input is not focused', () => {
@@ -204,7 +206,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '7d');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: '7d', draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
 
     it('does not show quick options when disabled (sending)', () => {
@@ -224,7 +226,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, scheduledTime, false, '48h');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: '48h', draftOverride: undefined, scheduledSendAt: scheduledTime, keepInAction: false });
     });
 
     it('sends undefined for scheduledSendAt when not provided', () => {
@@ -232,7 +234,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '48h');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: '48h', draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
   });
 
@@ -242,17 +244,17 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, false, '48h');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: '48h', draftOverride: undefined, scheduledSendAt: undefined, keepInAction: false });
     });
 
     it('sends keepInAction=true when checkbox is checked', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 
-      const checkbox = screen.getByRole('checkbox');
+      const checkbox = screen.getByRole('checkbox', { name: /emailDetail\.keepInAction/ });
       fireEvent.click(checkbox);
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, undefined, true, '48h');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: '48h', draftOverride: undefined, scheduledSendAt: undefined, keepInAction: true });
     });
 
     it('renders "I still need to take action" label via i18n key', () => {
@@ -322,11 +324,10 @@ describe('ReplyComposerFooter', () => {
   });
 
   describe('info tooltips', () => {
-    it('renders info tooltip triggers for expected reply and keepInAction', () => {
+    it('renders info tooltip triggers for expected reply, keepInAction and track opens', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
       const triggers = screen.getAllByTestId('info-tooltip-trigger');
-      // Two triggers: one for expected reply, one for keepInAction
-      expect(triggers).toHaveLength(2);
+      expect(triggers).toHaveLength(3);
     });
 
     it('shows expected reply tooltip on hover', () => {
@@ -393,7 +394,7 @@ describe('ReplyComposerFooter', () => {
       const suggestionButtons = allButtons.slice(0, -1);
       fireEvent.click(suggestionButtons[0]);
       // onSend should be called with a Date (and the default follow-up duration)
-      expect(defaultProps.onSend).toHaveBeenCalledWith(undefined, undefined, expect.any(Date), false, '48h');
+      expect(defaultProps.onSend).toHaveBeenCalledWith({ expectedReplyDuration: '48h', draftOverride: undefined, scheduledSendAt: expect.any(Date), keepInAction: false });
     });
 
     it('closes popup when Escape is pressed', () => {
@@ -466,6 +467,23 @@ describe('ReplyComposerFooter', () => {
     it('renders "Expect a reply within" label via i18n key', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
       expect(screen.getByText('emailDetail.expectedReply.label')).toBeInTheDocument();
+    });
+  });
+  describe('track opens checkbox', () => {
+    it('reflects the composer\'s choice and reports changes', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      const checkbox = screen.getByTestId('track-opens-checkbox');
+      expect(checkbox).toBeChecked();
+      fireEvent.click(checkbox);
+
+      expect(defaultProps.onTrackOpensChange).toHaveBeenCalledWith(false);
+    });
+
+    it('is disabled while sending', () => {
+      render(<ReplyComposerFooter {...defaultProps} sending />);
+
+      expect(screen.getByTestId('track-opens-checkbox')).toBeDisabled();
     });
   });
 });

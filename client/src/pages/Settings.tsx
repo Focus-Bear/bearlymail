@@ -11,6 +11,7 @@ import { AutoResponderSection } from 'components/settings/auto-responder';
 import { DataExportSection } from 'components/settings/DataExportSection';
 import { EmailDeliverySection } from 'components/settings/EmailDeliverySection';
 import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
+import { EmailTrackingSection } from 'components/settings/EmailTrackingSection';
 import { GuideOurAISection } from 'components/settings/GuideOurAISection';
 import { IntegrationsSection } from 'components/settings/IntegrationsSection';
 import { MCPServersSection } from 'components/settings/mcp';
@@ -218,6 +219,8 @@ const Settings: React.FC = () => {
           onSave={settingsData.handleSaveEmailSignature}
           saving={settingsData.savingSignature}
         />
+
+        <EmailTrackingSection />
 
         <GuideOurAISection
           contexts={settingsData.contexts}

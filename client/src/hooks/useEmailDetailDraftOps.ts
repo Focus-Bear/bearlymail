@@ -5,6 +5,7 @@ import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
 import { buildReplySubject } from 'utils/replySubject';
+import { buildSuggestRepliesRequest } from 'utils/suggestRepliesRequest';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -121,7 +122,10 @@ type DraftOpsState = Pick<
   | 'setReplySubject'
   | 'setShowCc'
   | 'setShowBcc'
->;
+> & {
+  /** Inbox mode the reply is written from, when known (see resolveReplyInboxMode). */
+  replyInboxMode?: string;
+};
 
 // Sub-hook: encapsulates draft generation logic with its own abort-controller refs.
 // Checks pre-generated suggestions first, then falls back to on-demand LLM call.
@@ -131,7 +135,8 @@ function useDraftGenerationCallback(
   setLoadingReplies: (v: boolean) => void,
   setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void,
   setSelectedReplyOption: (i: number) => void,
-  selectedReplyOption: number
+  selectedReplyOption: number,
+  replyInboxMode: string | undefined
 ): () => Promise<void> {
   const draftAbortControllerRef = useRef<AbortController | null>(null);
   const draftGenerationEmailIdRef = useRef<string | null>(null);
@@ -197,7 +202,7 @@ function useDraftGenerationCallback(
         }
         const response = await axios.post(
           `${API_URL}/llm/suggest-replies`,
-          { originalEmail: { from: email.from, fromName: email.fromName, subject: email.subject, body: email.body } },
+          buildSuggestRepliesRequest(email, { inboxMode: replyInboxMode }),
           { signal: controller.signal }
         );
         if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
@@ -228,7 +233,7 @@ function useDraftGenerationCallback(
         setLoadingReplies(false);
       }
     }
-  }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption]);
+  }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption, replyInboxMode]);
 }
 
 // Sub-hook: generates a single reply from a custom user prompt.
@@ -236,7 +241,8 @@ function useGenerateFromCustomPromptCallback(
   id: string | undefined,
   email: Email | null,
   setSelectedReplyOption: (i: number) => void,
-  setDraft: (draft: string) => void
+  setDraft: (draft: string) => void,
+  replyInboxMode: string | undefined
 ): [(prompt: string) => Promise<void>, boolean] {
   const [generating, setGenerating] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -255,10 +261,10 @@ function useGenerateFromCustomPromptCallback(
       try {
         const response = await axios.post(
           `${API_URL}/llm/suggest-replies`,
-          {
-            originalEmail: { from: email.from, fromName: email.fromName, subject: email.subject, body: email.body },
+          buildSuggestRepliesRequest(email, {
+            inboxMode: replyInboxMode,
             userInstructions: userInstructions.trim(),
-          },
+          }),
           { signal: controller.signal }
         );
         if (controller.signal.aborted) {
@@ -283,7 +289,7 @@ function useGenerateFromCustomPromptCallback(
         }
       }
     },
-    [id, email, setSelectedReplyOption, setDraft]
+    [id, email, setSelectedReplyOption, setDraft, replyInboxMode]
   );
 
   return [generate, generating];
@@ -309,6 +315,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
     setReplySubject,
     setShowCc,
     setShowBcc,
+    replyInboxMode,
   } = state;
 
   const draftCrud = useEmailDraftCrud(email?.threadId);
@@ -318,13 +325,15 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
     setLoadingReplies,
     setReplyOptions,
     setSelectedReplyOption,
-    selectedReplyOption
+    selectedReplyOption,
+    replyInboxMode
   );
   const [generateFromCustomPrompt, generatingFromCustomPrompt] = useGenerateFromCustomPromptCallback(
     id,
     email,
     setSelectedReplyOption,
-    setDraft
+    setDraft,
+    replyInboxMode
   );
 
   const handleOpenReplyComposer = useCallback(

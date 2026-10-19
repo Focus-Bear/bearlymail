@@ -111,6 +111,13 @@ export interface SyncEmailsOptions {
  */
 export interface EmailProvider {
   /**
+   * True when the provider sends only the plain-text body and drops any HTML
+   * part (Apple Mail local mode), so nothing HTML-only — like an open-tracking
+   * pixel — survives the send. Omitted means HTML is delivered.
+   */
+  readonly sendsPlainTextOnly?: boolean;
+
+  /**
    * Sync emails from the provider's inbox
    * Should fetch new emails and create/update them in the database
    * @param userId - The user ID to sync emails for

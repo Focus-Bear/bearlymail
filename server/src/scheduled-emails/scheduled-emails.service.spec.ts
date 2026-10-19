@@ -8,6 +8,7 @@ import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
+import { createPassThroughTrackedEmailSender } from "../test/helpers/tracked-email-sender.mock";
 import { UsersService } from "../users/users.service";
 import {
   CreateScheduledEmailDto,
@@ -30,6 +31,7 @@ describe("ScheduledEmailsService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ScheduledEmailsService,
+        createPassThroughTrackedEmailSender(),
         {
           provide: getRepositoryToken(ScheduledEmail),
           useFactory: mockRepository,

@@ -770,18 +770,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               onClose={handleReplyClose}
               onSaveDraft={() => ops.saveDraft(st.draft ?? '', st.replyMode, st.replyRecipients)}
               onDiscardDraft={ops.deleteDraft}
-              onSend={params =>
-                ops.handleSendReply({
-                  files: params.files,
-                  expectedReplyHours: params.expectedReplyHours,
-                  expectedReplyDuration: params.expectedReplyDuration,
-                  forwardAttachmentIds: params.forwardAttachmentIds,
-                  draftOverride: params.draftOverride,
-                  scheduledSendAt: params.scheduledSendAt,
-                  keepInAction: params.keepInAction,
-                  inlineImages: params.inlineImages,
-                })
-              }
+              onSend={ops.handleSendReply}
               onUseRevisedText={(text: string) => {
                 st.setDraft(text);
               }}
@@ -797,6 +786,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               onInlineImagesChange={ops.setReplyInlineImages}
               onFilesChange={ops.setReplyFiles}
               onForwardAttachmentIdsChange={ops.setReplyForwardAttachmentIds}
+              onTrackOpensChange={ops.setReplyTrackOpens}
               onDismissToneCheck={() => st.setToneCheckResult(null)}
               onSchedule={handleOpenTimePicker}
               onClearSchedule={handleClearSchedule}

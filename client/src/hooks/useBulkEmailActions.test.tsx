@@ -37,6 +37,7 @@ const createTestStore = (emails: Email[] = []) => {
         loadingCategoryNames: [] as string[],
         exhaustedCategoryNames: [] as string[],
         lastFetchedAt: null as number | null,
+        categoryPagination: {},
       },
       inboxUI: {
         optimisticallyArchived: [] as string[],
@@ -214,15 +215,28 @@ describe('useBulkEmailActions', () => {
         { wrapper: createWrapper(store) }
       );
 
-      await act(async () => {
-        await result.current.handleBulkSnooze(' tomorrow 9am ');
-      });
+      // Fake only Date so the resolved wake-up time is deterministic.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2026, 9, 16, 10, 17));
+      try {
+        await act(async () => {
+          await result.current.handleBulkSnooze(' tomorrow 9am ');
+        });
+      } finally {
+        vi.useRealTimers();
+      }
 
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
-      expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/snooze/bulk'), {
-        emailIds: ['1', '2'],
-        duration: 'tomorrow 9am',
-      });
+      // Every selected id in one call, with the instant the preview showed (in
+      // the browser's timezone) so the UTC server cannot re-resolve it earlier.
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/snooze/bulk'),
+        expect.objectContaining({
+          emailIds: ['1', '2'],
+          duration: 'tomorrow 9am',
+          snoozeUntil: new Date(2026, 9, 17, 9, 0).toISOString(),
+        })
+      );
       expect(mockedCaptureEvent).toHaveBeenCalledWith('bulk_snooze_confirmed', {
         selected_count: 2,
         snooze_input_length: 'tomorrow 9am'.length,

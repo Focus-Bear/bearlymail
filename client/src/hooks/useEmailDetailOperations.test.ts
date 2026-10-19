@@ -78,6 +78,7 @@ const createTestStore = (emails: Email[] = []) =>
         loadingCategoryNames: [] as string[],
         exhaustedCategoryNames: [] as string[],
         lastFetchedAt: null as number | null,
+        categoryPagination: {},
       },
       inboxUI: {
         optimisticallyArchived: [] as string[],

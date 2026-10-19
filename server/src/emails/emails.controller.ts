@@ -57,6 +57,7 @@ import { EmailAdminService } from "./email-admin.service";
 import {
   BatchStatusPerformanceTracker,
   EMAIL_CONTROLLER_DEFAULTS,
+  resolveInboxBatchLimit,
 } from "./email-controller.helpers";
 import { EmailExportJobService } from "./email-export-job.service";
 import {
@@ -251,8 +252,11 @@ export class EmailsController {
    * keys like "Other"); the server runs the per-category inbox query for each in
    * parallel and returns `{ categories: [{ key, emails, total, hasMore }] }`. The
    * client calls this once on load to hydrate its top accordions instead of
-   * firing one `/emails/inbox` request per category. Capped at
+   * firing one `/emails/inbox` request per category, and again on each
+   * background refresh for the open accordions. Capped at
    * INBOX_BATCH_MAX_CATEGORIES so a request can't fan out unbounded DB work.
+   * `limit` is rows per category (default INBOX_PAGE_SIZE, clamped to
+   * INBOX_TOTAL) so a refresh can cover categories the user has paged into.
    */
   @Get("inbox-batch")
   async getInboxBatch(@Request() req, @Query() query: InboxQuery) {
@@ -262,6 +266,7 @@ export class EmailsController {
       accounts,
       minPriority,
       maxPriority,
+      limit: limitParam,
     } = query;
     const keys = (
       categoryIds ? categoryIds.split(",").filter(Boolean) : []
@@ -290,7 +295,7 @@ export class EmailsController {
         minPriority: minPriorityValue,
         maxPriority: maxPriorityValue,
       },
-      { offset: 0, limit: QUERY_LIMITS.INBOX_PAGE_SIZE },
+      { offset: 0, limit: resolveInboxBatchLimit(limitParam) },
     );
   }
 

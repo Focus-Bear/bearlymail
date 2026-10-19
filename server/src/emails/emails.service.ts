@@ -6,6 +6,7 @@ import {
   type EmailProviderType,
 } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
@@ -30,6 +31,7 @@ function normaliseEmailAttachmentsList(raw: unknown): EmailAttachmentMeta[] {
 }
 import { CreateEmailOptions } from "./email-lifecycle.service";
 import { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interface";
+import { PerformanceTracker } from "./performance-tracker";
 
 export { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interface";
 
@@ -239,6 +241,11 @@ export class EmailsService {
       hasMore: boolean;
     }>;
   }> {
+    const perf = new PerformanceTracker(
+      `getInboxBatch(${mode})`,
+      undefined,
+      PERFORMANCE_BUDGETS.INBOX_BATCH_PRELOAD,
+    );
     const categories = await Promise.all(
       keys.map(async (key) => {
         try {
@@ -266,6 +273,7 @@ export class EmailsService {
         }
       }),
     );
+    perf.finish(mode);
     return { categories };
   }
 

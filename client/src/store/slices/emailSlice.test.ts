@@ -10,9 +10,13 @@ import { selectAnimatingOut, selectVisibleEmails } from 'store/selectors/emailSe
 import { RootState } from 'store/store';
 
 import inboxDataReducer, {
+  appendCategoryEmails,
+  clearCategoryState,
   InboxDataState,
+  markCategoriesStale,
   reconcileCategorySummaryCount,
   removeEmail,
+  setCategoryPagination,
   updateCategoryEmails,
   upsertCategorySummaryCount,
 } from './inboxDataSlice';
@@ -52,6 +56,7 @@ const baseDataState: InboxDataState = {
   loadingCategoryNames: [],
   exhaustedCategoryNames: [],
   lastFetchedAt: null,
+  categoryPagination: {},
 };
 
 const baseUIState: InboxUIState = {
@@ -452,5 +457,32 @@ describe('inboxUISlice – stale optimistic removals (issue #2062)', () => {
     uiState = inboxUIReducer(uiState, fetchStartedAfter(OPTIMISTIC_REMOVAL_GRACE_MS + 1));
     const visible = selectVisibleEmails(makeState({}, uiState) as unknown as RootState);
     expect(visible.map(email => email.id)).toContain('1');
+  });
+});
+
+describe('category paging + staleness (inboxDataSlice)', () => {
+  it('appendCategoryEmails adds only new rows and stamps them with the category', () => {
+    const state = { ...baseDataState, emails: [makeEmail('e1', 'cat-a')] };
+    const incoming = [makeEmail('e1', 'cat-a'), { ...makeEmail('e2'), category_id: undefined } as unknown as Email];
+    const next = inboxDataReducer(state, appendCategoryEmails({ categoryKey: 'cat-a', emails: incoming }));
+    expect(next.emails.map(email => email.id)).toEqual(['e1', 'e2']);
+    expect(next.emails[1].category_id).toBe('cat-a');
+  });
+
+  it('markCategoriesStale un-marks loaded keys but keeps their rows', () => {
+    const state = {
+      ...baseDataState,
+      emails: [makeEmail('e1', 'cat-a')],
+      loadedCategoryNames: ['cat-a', 'cat-b'],
+    };
+    const next = inboxDataReducer(state, markCategoriesStale(['cat-a']));
+    expect(next.loadedCategoryNames).toEqual(['cat-b']);
+    expect(next.emails).toHaveLength(1);
+  });
+
+  it('clearCategoryState drops paging state with the rest of the category state', () => {
+    const paged = inboxDataReducer(baseDataState, setCategoryPagination({ categoryKey: 'cat-a', total: 120, hasMore: true }));
+    expect(paged.categoryPagination['cat-a']).toEqual({ total: 120, hasMore: true });
+    expect(inboxDataReducer(paged, clearCategoryState()).categoryPagination).toEqual({});
   });
 });

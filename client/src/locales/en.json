@@ -463,6 +463,8 @@
       "recategorizeNone": "No emails to recategorise in triage, action, or follow-up.",
       "recategorizeError": "Failed to start recategorisation. Please try again.",
       "loadingContent": "Loading emails...",
+      "loadMore": "Show {{count}} more",
+      "loadingMore": "Loading more…",
       "dangerousPhishing": "DANGEROUS: potential phishing attempt",
       "newsletterBlockTip": "Quickly block senders — saves time compared to figuring out how to unsubscribe.",
       "newsletterBlockTipTitle": "💡 Tip: Block sender",

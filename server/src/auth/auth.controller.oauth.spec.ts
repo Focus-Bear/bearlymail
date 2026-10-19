@@ -12,6 +12,7 @@ import { WaitlistService } from "../waitlist/waitlist.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { StepUpAuthGuard } from "./step-up.guard";
 
 const FRONTEND_URL = "https://app.bearlymail.test";
 
@@ -132,7 +133,11 @@ describe("AuthController OAuth callbacks", () => {
         { provide: WaitlistService, useValue: {} },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
       ],
-    }).compile();
+    })
+      // These tests call handlers directly; the guard is covered by step-up.guard.spec.
+      .overrideGuard(StepUpAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
     mockAuthService.login.mockResolvedValue(loginData);

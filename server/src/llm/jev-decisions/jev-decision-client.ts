@@ -46,6 +46,19 @@ export function withPolicyReference(
   );
 }
 
+type ConfigReader = (key: string) => string | undefined;
+
+/**
+ * True when typed Jev decisions can run: the TypeSafe key is configured and
+ * the `JEV_DECISIONS_ENABLED` kill switch is not off.
+ */
+export function isJevDecisionsAvailable(getConfig: ConfigReader): boolean {
+  return (
+    !!getConfig(JEV.API_KEY_ENV) &&
+    getConfig(JEV_DECISIONS.ENABLED_ENV) !== ENV_BOOLEAN_STRING.FALSE
+  );
+}
+
 /**
  * Tries Jev before an LLM request that carries a `jevDecision`. Returns the
  * JSON text the caller already parses when Jev is confident and no generated
@@ -53,7 +66,7 @@ export function withPolicyReference(
  */
 export class JevDecisionClient {
   constructor(
-    private readonly getConfig: (key: string) => string | undefined,
+    private readonly getConfig: ConfigReader,
     private readonly logger: Pick<Logger, "warn">,
     private readonly tokenUsage: Pick<TokenUsageService, "logUsage">,
   ) {}
@@ -61,11 +74,7 @@ export class JevDecisionClient {
   async decide(request: LLMRequest, userId?: string): Promise<string | null> {
     const decision = request.jevDecision;
     const apiKey = this.getConfig(JEV.API_KEY_ENV);
-    if (
-      !decision ||
-      !apiKey ||
-      this.getConfig(JEV_DECISIONS.ENABLED_ENV) === ENV_BOOLEAN_STRING.FALSE
-    )
+    if (!decision || !apiKey || !isJevDecisionsAvailable(this.getConfig))
       return null;
     try {
       const definition = this.definitionFor(decision);

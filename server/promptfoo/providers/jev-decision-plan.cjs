@@ -41,8 +41,15 @@ function categoryLines(text) {
       return { name: match[1], description: match[2] };
     });
 }
+// The single assigned-category line production renders into the priority prompt.
+const ASSIGNED_CATEGORY_LINE = /1\.\s*"([^"]+)"/;
 // Fixture vars → the typed input each production call site passes.
 const PRODUCTION_INPUTS = {
+  "prioritise-email-prompts": (vars) => ({
+    assignedCategoryName:
+      String(vars.emailCategories).match(ASSIGNED_CATEGORY_LINE)?.[1] ?? "",
+    hasGoals: Boolean(vars.goalsContext || vars.workingOnContext),
+  }),
   "check-custom-exclusion-rules": (vars) => ({ rules: vars.rules }),
   "check-category-duplicate": (vars) => ({
     candidateNames: numberedEntries(vars.categoryList),
@@ -81,14 +88,6 @@ function createPlan(suite, vars, policy) {
       );
     }
   }
-  // With no goals or current work the prompt shows "No goals defined", so there
-  // is nothing to align with; asking Jev anyway yields a flat, uncertain score.
-  if (
-    suite === "prioritise-email-prompts" &&
-    !vars.goalsContext &&
-    !vars.workingOnContext
-  )
-    delete questions.goalAlignmentScore;
   if (suite === "sanity-check-category-rule") {
     questions.betterCategory = {
       type: JEV_QUESTION_TYPES.CHOICE,

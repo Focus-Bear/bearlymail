@@ -7,12 +7,29 @@
  * @module recipientParser
  */
 
+import emailAddresses from 'email-addresses';
+
+import { ADDRESS_TYPE_GROUP } from 'constants/strings';
+
 export interface ParsedRecipient {
   email: string;
   name?: string;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Lenient RFC 5322 options for headers copied from received mail: senders put
+ * unquoted commas and "@" in display names often enough that strict parsing
+ * would throw away real recipients.
+ */
+const ADDRESS_HEADER_PARSE_OPTIONS = {
+  rfc6532: true,
+  atInDisplayName: true,
+  commaInDisplayName: true,
+} as const;
+
+type ParsedAddress = emailAddresses.ParsedMailbox | emailAddresses.ParsedGroup;
 
 /** Characters that force a display-name to be wrapped in a quoted-string. */
 const DISPLAY_NAME_MUST_QUOTE = /[()<>[\]:;@\\,."]/;
@@ -148,3 +165,37 @@ export const parseRecipientString = (raw: string): ParsedRecipient[] => {
 
   return results;
 };
+
+const parseOneHeaderAddress = (token: string): ParsedAddress | null =>
+  emailAddresses.parseOneAddress({ input: token, ...ADDRESS_HEADER_PARSE_OPTIONS });
+
+/**
+ * One malformed entry makes the parser reject the whole list, so fall back to
+ * parsing entry by entry and keep the well-formed ones.
+ */
+const parseHeaderAddressList = (header: string): ParsedAddress[] => {
+  const parsedList = emailAddresses.parseAddressList({ input: header, ...ADDRESS_HEADER_PARSE_OPTIONS });
+  if (parsedList) {
+    return parsedList;
+  }
+  return splitTokens(header)
+    .map(parseOneHeaderAddress)
+    .filter((address): address is ParsedAddress => address !== null);
+};
+
+/** A group contributes its members; an empty group contributes nothing. */
+const toMailboxes = (address: ParsedAddress): emailAddresses.ParsedMailbox[] =>
+  address.type === ADDRESS_TYPE_GROUP ? address.addresses : [address];
+
+const toParsedRecipient = (mailbox: emailAddresses.ParsedMailbox): ParsedRecipient =>
+  mailbox.name ? { email: mailbox.address, name: mailbox.name } : { email: mailbox.address };
+
+/**
+ * Parses an address header from a received email (To, Cc, Reply-To) into its
+ * mailboxes. RFC 5322 groups are flattened to their members, so the empty group
+ * "undisclosed-recipients:;" that BCC'd mail carries yields no recipients, and
+ * "Team: a@x.com, b@y.com;" yields a@x.com and b@y.com. Tokens that are not an
+ * address are dropped.
+ */
+export const parseAddressHeader = (header: string | null | undefined): ParsedRecipient[] =>
+  header ? parseHeaderAddressList(header).flatMap(toMailboxes).map(toParsedRecipient) : [];

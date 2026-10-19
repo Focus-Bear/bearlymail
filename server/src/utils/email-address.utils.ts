@@ -1,3 +1,6 @@
+import emailAddresses from "email-addresses";
+
+import { ADDRESS_TYPE_GROUP } from "../constants/email-send.constants";
 import { EmailRecipient } from "../emails/interfaces/email-provider.interface";
 
 // Address-parsing patterns are length-bounded so adversarial input can't drive
@@ -9,6 +12,17 @@ const NAME_AND_ANGLE_ADDR_RE = /^(.{0,320}?)\s*<([^>]{1,320})>$/;
 // Cap the parse loop so a huge recipient string can't hang the parser
 // (CWE-834 loop bound from untrusted input). Real headers are far shorter.
 const MAX_RECIPIENT_LIST_LENGTH = 100_000;
+// Characters that force a display name into a quoted-string when re-serialised.
+const DISPLAY_NAME_MUST_QUOTE_RE = /[()<>[\]:;@\\,."]/;
+// Lenient RFC 5322 parsing: received headers routinely carry unquoted commas
+// and "@" in display names, and strict parsing would reject real recipients.
+const ADDRESS_LIST_PARSE_OPTIONS = {
+  rfc6532: true,
+  atInDisplayName: true,
+  commaInDisplayName: true,
+} as const;
+
+type ParsedAddress = emailAddresses.ParsedMailbox | emailAddresses.ParsedGroup;
 
 /**
  * Extract the bare email address from a "Name <email>" or raw-address string,
@@ -78,20 +92,30 @@ function isEmptyGroupSyntax(part: string): boolean {
 }
 
 export interface SanitizedRecipientList {
-  /** The list with unroutable entries removed, original formatting preserved. */
+  /** The list with unroutable entries removed and groups flattened to members. */
   sanitized: string;
   /** Entries whose addr-spec has no "@" — likely typos the sender should fix. */
   invalid: string[];
 }
 
+/** A group contributes its members; an empty group contributes nothing. */
+function toMailboxes(address: ParsedAddress): emailAddresses.ParsedMailbox[] {
+  return address.type === ADDRESS_TYPE_GROUP ? address.addresses : [address];
+}
+
+function formatMailbox(mailbox: emailAddresses.ParsedMailbox): string {
+  const { name, address } = mailbox;
+  if (!name) return address;
+  if (!DISPLAY_NAME_MUST_QUOTE_RE.test(name)) return `${name} <${address}>`;
+  return `"${name.replace(/(["\\])/g, "\\$1")}" <${address}>`;
+}
+
 /**
- * Clean a raw comma-separated recipient list before handing it to a provider.
- * Empty-group tokens are dropped silently (they can never receive mail);
- * remaining entries without an "@" in the addr-spec are reported as invalid so
- * callers can reject the send with a clear message instead of surfacing an
- * opaque provider error.
+ * Entry-by-entry fallback for a list the RFC 5322 parser rejected as a whole
+ * (one malformed entry fails the entire list). Well-formed entries are kept,
+ * empty groups dropped, and anything left without an "@" reported as invalid.
  */
-export function sanitizeRecipientList(
+function sanitizeRecipientListByEntry(
   recipientStr: string,
 ): SanitizedRecipientList {
   const kept: string[] = [];
@@ -99,6 +123,14 @@ export function sanitizeRecipientList(
   for (const rawPart of splitAddressList(recipientStr)) {
     const part = rawPart.trim();
     if (!part) continue;
+    const parsed = emailAddresses.parseOneAddress({
+      input: part,
+      ...ADDRESS_LIST_PARSE_OPTIONS,
+    });
+    if (parsed) {
+      kept.push(...toMailboxes(parsed).map(formatMailbox));
+      continue;
+    }
     if (isEmptyGroupSyntax(part)) continue;
     const angleMatch = part.match(OPTIONAL_ANGLE_ADDR_RE);
     const addrSpec = angleMatch ? angleMatch[1] : part;
@@ -109,6 +141,30 @@ export function sanitizeRecipientList(
     kept.push(part);
   }
   return { sanitized: kept.join(", "), invalid };
+}
+
+/**
+ * Clean a raw comma-separated recipient list before handing it to a provider.
+ * RFC 5322 groups are flattened to their members, so empty groups such as
+ * "undisclosed-recipients:;" are dropped silently (they can never receive
+ * mail) and "Team: a@x.com, b@y.com;" becomes "a@x.com, b@y.com". Entries
+ * without an "@" in the addr-spec are reported as invalid so callers can
+ * reject the send with a clear message instead of surfacing an opaque
+ * provider error.
+ */
+export function sanitizeRecipientList(
+  recipientStr: string,
+): SanitizedRecipientList {
+  if (!recipientStr.trim()) return { sanitized: "", invalid: [] };
+  const parsedList = emailAddresses.parseAddressList({
+    input: recipientStr.slice(0, MAX_RECIPIENT_LIST_LENGTH),
+    ...ADDRESS_LIST_PARSE_OPTIONS,
+  });
+  if (!parsedList) return sanitizeRecipientListByEntry(recipientStr);
+  return {
+    sanitized: parsedList.flatMap(toMailboxes).map(formatMailbox).join(", "),
+    invalid: [],
+  };
 }
 
 /**

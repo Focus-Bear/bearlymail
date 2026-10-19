@@ -1,8 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
-import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import {
   BODY_PREVIEW_LENGTHS,
   PRIORITY_ANALYSIS_FALLBACK,
@@ -11,7 +11,6 @@ import {
 } from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import type { CategoryDecisionAnalyzedEmail } from "../emails/category-decision-trace.types";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
 import { resolveLlmCategoryToDisplayName } from "../utils/category-key.util";
@@ -25,7 +24,6 @@ import { formatDateTimeForPrompt } from "../utils/timezone.utils";
 import {
   CategoryItem,
   CategoryShortlistService,
-  ShortlistCandidate,
 } from "./category-shortlist.service";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { LLMProvider } from "./llm.types";
@@ -34,6 +32,12 @@ import {
   LLM_OP_ANALYZE_PRIORITY,
   LLM_OP_BATCH_PRIORITY_TRIAGE,
 } from "./llm-operations";
+import type {
+  BatchPriorityResult,
+  CategoryConfidence,
+  CategoryInstrumentation,
+  PriorityResult,
+} from "./priority-analysis.types";
 import { chooseEmailCategory } from "./priority-category-step";
 import {
   buildUserContextTexts,
@@ -52,68 +56,12 @@ const CATEGORY_PRE_ASSIGNED_PLACEHOLDER: CategoryItem = {
   name: "(category already assigned by a rule — score urgency & goal alignment only)",
 };
 
-export type CategoryConfidence = "HIGH" | "MEDIUM" | "LOW";
-
-/** Category-resolution instrumentation captured per email and attached to the result. */
-export type CategoryInstrumentation = {
-  shortlistedCategoryNames: string[] | null;
-  shortlistCandidates: ShortlistCandidate[] | null;
-  totalCategoryCount: number;
-  protoCategoryCount: number;
-};
-
-export type PriorityResult = {
-  urgencyScore: number;
-  urgencyExplanation: string;
-  sentimentScore: number | undefined;
-  goalAlignmentScore: number;
-  goalAlignmentExplanation: string;
-  category: string;
-  categoryExplanation: string;
-  /** Confidence level the LLM assigned to its category decision. */
-  categoryConfidence?: CategoryConfidence;
-  /** Raw 1-based categoryNumber the LLM returned (0 = Other), before index resolution. Null when the model returned a name instead. Instrumentation only. */
-  categoryNumber?: number | null;
-  reasoning: string;
-  protoCategorySuggestion?: {
-    name: string;
-    description: string;
-    /** The model's justification for a NEW category over an existing one:
-     * names the closest existing categories it considered and why each was not
-     * a fit. Persisted so false "Other"s can be reviewed to tune the prompt. */
-    reasoning?: string;
-  };
-  /** Category names that were shortlisted and passed to the smart model. Null when shortlisting was skipped (category count below threshold). */
-  shortlistedCategoryNames: string[] | null;
-  /** Per-candidate shortlist provenance (embedding score + platform-pinned flag), for instrumentation. Null when shortlisting was skipped. */
-  shortlistCandidates?: ShortlistCandidate[] | null;
-  /** Total categories (real + proto) the user had at decision time. Instrumentation only. */
-  totalCategoryCount?: number;
-  /** Proto categories the user had at decision time. Instrumentation only. */
-  protoCategoryCount?: number;
-  /**
-   * Snapshot of the deterministic-rule step, attached by the single-email
-   * refiner after analysis so it can be persisted for the category-debug view.
-   * Not produced by `analyzePriority` itself.
-   */
-  categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
-  /** What content the LLM saw (AI summary vs cleaned body); attached by the single-email refiner, not by `analyzePriority`. */
-  analyzedContentSource?: CategoryDecisionAnalyzedEmail["contentSource"];
-  /**
-   * The GitHub facts line the category step was given, for the decision trace.
-   * Attached by the single-email refiner, not by `analyzePriority`.
-   */
-  githubFactsTrace?: string;
-  /** Engine (Jev or LLM vendor) that picked the category; null when unknown. */
-  categoryDecisionProvider?: AiDecisionProvider | null;
-  /** Engine (Jev or LLM vendor) that answered the priority prompt; null when unknown. */
-  priorityDecisionProvider?: AiDecisionProvider | null;
-};
-
-export type BatchPriorityResult = PriorityResult & {
-  isFallback: boolean;
-  /** True when triage determined no reanalysis is needed (preserve existing scores). False for LLM analysis failures. */
-  triagePreserved?: boolean;
+// Re-exported so existing imports from this service keep working.
+export type {
+  BatchPriorityResult,
+  CategoryConfidence,
+  CategoryInstrumentation,
+  PriorityResult,
 };
 
 function buildThreadInfoText(threadInfo?: {
@@ -219,6 +167,8 @@ export class PriorityAnalysisService {
     prompt: string;
     systemPrompt: string;
     orderedCategoryNames: string[];
+    /** False when the prompt shows "No goals defined" (nothing to align with). */
+    hasGoals: boolean;
   }> {
     const {
       email,
@@ -286,6 +236,9 @@ export class PriorityAnalysisService {
       prompt,
       systemPrompt: promptConfig.systemPrompt || "",
       orderedCategoryNames,
+      hasGoals: !!(
+        contextTexts.goalsContextText || contextTexts.workingOnContextText
+      ),
     };
   }
 
@@ -541,7 +494,7 @@ export class PriorityAnalysisService {
       categoryPreAssigned: categoryPreAssigned === true,
     });
 
-    const { prompt, systemPrompt, orderedCategoryNames } =
+    const { prompt, systemPrompt, orderedCategoryNames, hasGoals } =
       await this.buildPriorityPrompt({
         email,
         userHistory,
@@ -579,6 +532,11 @@ export class PriorityAnalysisService {
         operation: LLM_OP_ANALYZE_PRIORITY,
         jsonMode: true,
         model: priorityRoute.model,
+        // Jev scores first; uncertain or failed answers fall back to this prompt.
+        jevDecision: {
+          kind: JEV_DECISION_KINDS.PRIORITY_SCORES,
+          input: { assignedCategoryName: orderedCategoryNames[0], hasGoals },
+        },
         onProviderResolved: (resolved) => {
           priorityDecisionProvider = resolved;
         },

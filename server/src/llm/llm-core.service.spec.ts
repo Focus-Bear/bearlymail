@@ -3,7 +3,11 @@ import { ConfigService } from "@nestjs/config";
 import { EventEmitter } from "events";
 
 import { JEV_DECISION_PROVIDER } from "../constants/ai-decision-provider.constants";
-import { JEV, JEV_DECISION_KINDS } from "../constants/jev.constants";
+import {
+  JEV,
+  JEV_DECISION_KINDS,
+  JEV_PRIORITY_LEVELS,
+} from "../constants/jev.constants";
 import { UsersService } from "../users/users.service";
 import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -1038,6 +1042,85 @@ describe("LLMCoreService", () => {
 
       await service.generateText(
         { ...decisionRequest, onProviderResolved },
+        LLMProvider.GEMINI,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledTimes(1);
+      expect(onProviderResolved).toHaveBeenCalledWith(LLMProvider.GEMINI);
+    });
+  });
+
+  describe("Jev priority scores with provider reporting", () => {
+    // The request PriorityAnalysisService sends: Jev first, then the prompt.
+    const priorityRequest = (onProviderResolved: jest.Mock): LLMRequest => ({
+      prompt: "Score this email.",
+      jsonMode: true,
+      operation: "analyze_priority",
+      jevDecision: {
+        kind: JEV_DECISION_KINDS.PRIORITY_SCORES,
+        input: { assignedCategoryName: "Investors", hasGoals: false },
+      },
+      onProviderResolved,
+    });
+    const respondWithPriorityScores = (urgencyConfidence: number) =>
+      jest.spyOn(global, "fetch").mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            model: JEV.DEFAULT_MODEL,
+            answers: {
+              newsletter: { type: "noul", noul: 0.01 },
+              urgencyScore: {
+                type: "score",
+                score: 2,
+                confidence: urgencyConfidence,
+                // One probability per urgency level, keyed by level index.
+                probabilities: Object.fromEntries(
+                  JEV_PRIORITY_LEVELS.URGENCY.map((_, index) => [
+                    String(index),
+                    index === 2 ? urgencyConfidence : 0,
+                  ]),
+                ),
+              },
+            },
+            usage: { input_tokens: 10, output_tokens: 2 },
+          }),
+        ),
+      );
+    afterEach(() => jest.mocked(global.fetch).mockRestore?.());
+
+    it("records TypeSafe AI (Jev) when Jev scores the priority", async () => {
+      respondWithPriorityScores(0.95);
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      const out = await service.generateText(
+        priorityRequest(onProviderResolved),
+        LLMProvider.GEMINI,
+      );
+
+      expect(JSON.parse(out).result.categoryName).toBe("Investors");
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      expect(onProviderResolved).toHaveBeenCalledTimes(1);
+      expect(onProviderResolved).toHaveBeenCalledWith(JEV_DECISION_PROVIDER);
+    });
+
+    it("records the LLM when Jev is unsure and the prompt scores the priority", async () => {
+      respondWithPriorityScores(0.4);
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: '{"result":{"urgencyScore":40}}',
+        usageMetadata: undefined,
+      });
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      await service.generateText(
+        priorityRequest(onProviderResolved),
         LLMProvider.GEMINI,
       );
 

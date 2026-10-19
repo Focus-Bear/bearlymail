@@ -860,7 +860,12 @@
       "senderContext": "Sender Context"
     },
     "sendAnywayHold": "Hold to send anyway",
-    "sendAnywayHoldMessage": "Ok - double check to make sure the email is appropriate 😅"
+    "sendAnywayHoldMessage": "Ok - double check to make sure the email is appropriate 😅",
+    "discardReplyTitle": "Discard this draft?",
+    "discardReplyMessage": "Your reply hasn't been sent. Save it as a draft to finish later, or discard it.",
+    "discardReplyKeepEditing": "Keep editing",
+    "discardReplySaveDraft": "Save draft",
+    "discardReplyDiscard": "Discard"
   },
   "settings": {
     "title": "Settings",

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { theme } from 'theme/theme';
 
 import { ConfirmModalBody, ConfirmModalFooter, ConfirmModalHeader } from 'components/modal';
 import { OPACITY_HALF, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
+import { KEY_ESCAPE } from 'constants/strings';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -14,7 +15,27 @@ interface ConfirmModalProps {
   icon?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Optional third action rendered between cancel and confirm. */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
 }
+
+/** Escape answers the dialog with its cancel action, like clicking the backdrop. */
+const useCancelOnEscape = (isOpen: boolean, onCancel: () => void) => {
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === KEY_ESCAPE) {
+        event.stopPropagation();
+        onCancel();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onCancel]);
+};
 
 /**
  * Confirm modal component
@@ -30,7 +51,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   icon = '⚠️',
   onConfirm,
   onCancel,
+  secondaryLabel,
+  onSecondary,
 }) => {
+  useCancelOnEscape(isOpen, onCancel);
+
   if (!isOpen) {
     return null;
   }
@@ -53,6 +78,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       onClick={onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         style={{
           backgroundColor: theme.colors.background.paper,
           borderRadius: theme.borderRadius.lg,
@@ -72,6 +100,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           confirmColor={confirmColor}
           onConfirm={onConfirm}
           onCancel={onCancel}
+          secondaryLabel={secondaryLabel}
+          onSecondary={onSecondary}
         />
       </div>
 

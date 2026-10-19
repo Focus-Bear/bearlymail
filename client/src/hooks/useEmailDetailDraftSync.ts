@@ -1,10 +1,12 @@
 import { RefObject, useEffect, useRef } from 'react';
+import { buildReplySubject } from 'utils/replySubject';
 
 import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
+import { REPLY_MODE_REPLY } from 'constants/strings';
 
 interface UseEmailDetailDraftSyncParams {
   id: string | null | undefined;
-  email: { id?: string; threadId?: string } | null | undefined;
+  email: { id?: string; threadId?: string; subject?: string } | null | undefined;
   draft: string | null;
   replyMode: 'reply' | 'replyAll' | 'forward';
   replyRecipients: string;
@@ -16,6 +18,7 @@ interface UseEmailDetailDraftSyncParams {
   fetchDraft: () => Promise<{ content?: string; replyMode?: string; recipients?: string } | null | undefined>;
   setDraft: (draft: string) => void;
   setReplyRecipients: (recipients: string) => void;
+  setReplySubject: (subject: string) => void;
   setReplyMode: (mode: 'reply' | 'replyAll' | 'forward') => void;
   setShowReplyComposer: (show: boolean) => void;
   setReplyOptions: (options: Array<{ label: string; text: string }> | null) => void;
@@ -37,6 +40,7 @@ export const useEmailDetailDraftSync = ({
   fetchDraft,
   setDraft,
   setReplyRecipients,
+  setReplySubject,
   setReplyMode,
   setShowReplyComposer,
   setReplyOptions,
@@ -91,35 +95,16 @@ export const useEmailDetailDraftSync = ({
     previousRecipientsRef.current = replyRecipients;
   }, [replyRecipients]);
 
-  // Restore the saved draft exactly once per opened thread. From then on the
-  // composer's local state is the source of truth — autosave only ever writes —
-  // so a late response must not overwrite what the user has typed meanwhile, nor
-  // land in a thread they have already left.
-  const lastLoadedThreadIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    const threadId = email?.threadId;
-    if (!threadId || lastLoadedThreadIdRef.current === threadId) {
-      return;
-    }
-    lastLoadedThreadIdRef.current = threadId;
-    const restoreSavedDraft = async () => {
-      const savedDraft = await fetchDraft();
-      const isStillOpen = lastLoadedThreadIdRef.current === threadId;
-      const hasTypedSinceOpening = Boolean(latestDraftRef.current?.trim());
-      if (!savedDraft?.content || !isStillOpen || hasTypedSinceOpening) {
-        return;
-      }
-      setDraft(savedDraft.content);
-      setShowReplyComposer(true);
-      if (savedDraft.replyMode) {
-        setReplyMode(savedDraft.replyMode as 'reply' | 'replyAll');
-      }
-      if (savedDraft.recipients) {
-        setReplyRecipients(savedDraft.recipients);
-      }
-    };
-    void restoreSavedDraft();
-  }, [email?.threadId, fetchDraft, setDraft, setShowReplyComposer, setReplyRecipients, setReplyMode]);
+  useRestoreSavedDraft({
+    email,
+    latestDraftRef,
+    fetchDraft,
+    setDraft,
+    setShowReplyComposer,
+    setReplyRecipients,
+    setReplySubject,
+    setReplyMode,
+  });
 
   useAutoSaveDraft({
     showReplyComposer,
@@ -141,6 +126,79 @@ export const useEmailDetailDraftSync = ({
 
   useAutoGenerateReplies({ autoGenerateReplies, id, email, draft, replyOptions, handleGenerateDraft });
 };
+
+interface RestoreSavedDraftParams
+  extends Pick<
+    UseEmailDetailDraftSyncParams,
+    | 'email'
+    | 'fetchDraft'
+    | 'setDraft'
+    | 'setShowReplyComposer'
+    | 'setReplyRecipients'
+    | 'setReplySubject'
+    | 'setReplyMode'
+  > {
+  /** The composer's current body, read when the saved draft arrives. */
+  latestDraftRef: RefObject<string | null>;
+}
+
+/**
+ * Restores the saved draft exactly once per opened thread. From then on the
+ * composer's local state is the source of truth — autosave only ever writes —
+ * so a late response must not overwrite what the user has typed meanwhile, nor
+ * land in a thread they have already left.
+ */
+function useRestoreSavedDraft({
+  email,
+  latestDraftRef,
+  fetchDraft,
+  setDraft,
+  setShowReplyComposer,
+  setReplyRecipients,
+  setReplySubject,
+  setReplyMode,
+}: RestoreSavedDraftParams): void {
+  const lastLoadedThreadIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const threadId = email?.threadId;
+    if (!threadId || lastLoadedThreadIdRef.current === threadId) {
+      return;
+    }
+    lastLoadedThreadIdRef.current = threadId;
+    const subject = email?.subject;
+    const restoreSavedDraft = async () => {
+      const savedDraft = await fetchDraft();
+      const isStillOpen = lastLoadedThreadIdRef.current === threadId;
+      const hasTypedSinceOpening = Boolean(latestDraftRef.current?.trim());
+      if (!savedDraft?.content || !isStillOpen || hasTypedSinceOpening) {
+        return;
+      }
+      const restoredMode = (savedDraft.replyMode as 'reply' | 'replyAll' | 'forward' | undefined) ?? REPLY_MODE_REPLY;
+      setDraft(savedDraft.content);
+      setShowReplyComposer(true);
+      if (savedDraft.replyMode) {
+        setReplyMode(restoredMode);
+      }
+      if (savedDraft.recipients) {
+        setReplyRecipients(savedDraft.recipients);
+      }
+      // Saved drafts don't store a subject, and only the Reply buttons fill it
+      // in — without this a restored draft showed an empty Subject field.
+      setReplySubject(buildReplySubject(restoredMode, subject));
+    };
+    void restoreSavedDraft();
+  }, [
+    email?.threadId,
+    email?.subject,
+    latestDraftRef,
+    fetchDraft,
+    setDraft,
+    setShowReplyComposer,
+    setReplyRecipients,
+    setReplySubject,
+    setReplyMode,
+  ]);
+}
 
 /**
  * Periodically auto-saves the draft to the server while the reply composer is open.
@@ -173,10 +231,18 @@ function useAutoSaveDraft({
   const replyModeRef = useRef(replyMode);
   const replyRecipientsRef = useRef(replyRecipients);
   const saveDraftFnRef = useRef(saveDraft);
+  const isComposerOpenRef = useRef(showReplyComposer);
+  const threadIdRef = useRef(threadId);
 
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
+  useEffect(() => {
+    isComposerOpenRef.current = showReplyComposer;
+  }, [showReplyComposer]);
+  useEffect(() => {
+    threadIdRef.current = threadId;
+  }, [threadId]);
   useEffect(() => {
     replyModeRef.current = replyMode;
   }, [replyMode]);
@@ -203,6 +269,20 @@ function useAutoSaveDraft({
       clearInterval(autoSaveInterval);
     };
   }, [showReplyComposer, threadId]);
+
+  // The inbox split view remounts the email panel for each email (and unmounts it
+  // on close), so the email-switch save never runs there. Save an open reply on
+  // unmount instead. Closing, sending or discarding clears the draft first, so
+  // this never brings back a reply the user got rid of.
+  useEffect(
+    () => () => {
+      const pendingDraft = draftRef.current;
+      if (isComposerOpenRef.current && threadIdRef.current && pendingDraft && pendingDraft.trim()) {
+        saveDraftFnRef.current(pendingDraft, replyModeRef.current, replyRecipientsRef.current, threadIdRef.current);
+      }
+    },
+    []
+  );
 }
 
 function useAutoGenerateReplies({

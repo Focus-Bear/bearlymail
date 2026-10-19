@@ -277,6 +277,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       fetchDraft: ops.fetchDraft,
       setDraft: state.setDraft,
       setReplyRecipients: state.setReplyRecipients,
+      setReplySubject: state.setReplySubject,
       setReplyMode: state.setReplyMode,
       setShowReplyComposer: state.setShowReplyComposer,
       setReplyOptions: state.setReplyOptions,
@@ -767,6 +768,8 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               onGenerateFromPrompt={ops.generateFromCustomPrompt}
               generatingFromPrompt={ops.generatingFromCustomPrompt}
               onClose={handleReplyClose}
+              onSaveDraft={() => ops.saveDraft(st.draft ?? '', st.replyMode, st.replyRecipients)}
+              onDiscardDraft={ops.deleteDraft}
               onSend={ops.handleSendReply}
               onUseRevisedText={(text: string) => {
                 st.setDraft(text);

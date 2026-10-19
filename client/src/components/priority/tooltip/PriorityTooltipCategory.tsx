@@ -3,10 +3,11 @@ import { Trans, useTranslation } from 'react-i18next';
 import { FiEdit2, FiRefreshCw } from 'react-icons/fi';
 import { useHref } from 'react-router-dom';
 import { theme } from 'theme/theme';
-import { CategorizationSource } from 'types/email';
+import { AiDecisionProvider, CategorizationSource } from 'types/email';
 
 import { CategoryDebugModal } from 'components/priority/CategoryDebugModal';
 import { CategoryOverrideModal } from 'components/priority/CategoryOverrideModal';
+import { getCategorisationSourceLabelKey } from 'components/priority/tooltip/decisionSourceLabels';
 import { EDIT_RULE_CATEGORY_PARAM, EDIT_RULE_ID_PARAM, GUIDE_OUR_AI_ANCHOR } from 'constants/category-rules';
 import { CATEGORY_OTHER } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
@@ -46,20 +47,13 @@ function buildEditRuleQuery(category: string, matchedRuleId: string | null): str
     : categoryQuery;
 }
 
-/** i18n key (under `priority.tooltip.categorisedBy`) for each provenance kind. */
-const CATEGORISATION_SOURCE_LABEL_KEYS: Record<CategorizationSource, string> = {
-  ai: 'priority.tooltip.categorisedBy.ai',
-  rule: 'priority.tooltip.categorisedBy.rule',
-  local: 'priority.tooltip.categorisedBy.local',
-  proto: 'priority.tooltip.categorisedBy.proto',
-  user: 'priority.tooltip.categorisedBy.user',
-};
-
 interface PriorityTooltipCategoryProps {
   category: string;
   categoryExplanation?: string | null;
   /** Which process assigned this category — rendered as a "Categorised by" line. */
   categorizationSource?: CategorizationSource | null;
+  /** AI engine behind an 'ai' source, so the line names it (e.g. "LLM (Gemini)"). */
+  categorizationProvider?: AiDecisionProvider | null;
   protoCategoryName?: string | null;
   protoCategoryDescription?: string | null;
   emailId: string;
@@ -89,6 +83,16 @@ const iconButtonStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+};
+
+const explanationBoxStyle: React.CSSProperties = {
+  marginTop: theme.spacing.xs,
+  padding: theme.spacing.sm,
+  backgroundColor: theme.colors.background.subtle,
+  borderRadius: theme.borderRadius.sm,
+  fontSize: theme.typography.fontSize.xs,
+  color: theme.colors.text.secondary,
+  lineHeight: '1.4',
 };
 
 const sourceLinkStyle: React.CSSProperties = {
@@ -188,6 +192,7 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
 
 interface CategorisationSourceLineProps {
   source: CategorizationSource;
+  provider?: AiDecisionProvider | null;
   /**
    * Settings deep-link to the matched rule. When present (deterministic-rule
    * source), the "Deterministic rule" label becomes a link; otherwise the
@@ -196,9 +201,9 @@ interface CategorisationSourceLineProps {
   ruleHref: string | null;
 }
 
-const CategorisationSourceLine: React.FC<CategorisationSourceLineProps> = ({ source, ruleHref }) => {
+const CategorisationSourceLine: React.FC<CategorisationSourceLineProps> = ({ source, provider, ruleHref }) => {
   const { t } = useTranslation();
-  const sourceLabel = t(CATEGORISATION_SOURCE_LABEL_KEYS[source]);
+  const sourceLabel = t(getCategorisationSourceLabelKey(source, provider));
 
   const sourceNode =
     source === RULE_CATEGORISATION_SOURCE && ruleHref ? (
@@ -278,6 +283,7 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
   category,
   categoryExplanation,
   categorizationSource,
+  categorizationProvider,
   protoCategoryName,
   protoCategoryDescription,
   emailId,
@@ -346,22 +352,14 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
           editRuleHref={actionRuleHref}
         />
       </div>
-      {categorizationSource && <CategorisationSourceLine source={categorizationSource} ruleHref={sourceRuleHref} />}
-      {showExplanation && categoryExplanation && (
-        <div
-          style={{
-            marginTop: theme.spacing.xs,
-            padding: theme.spacing.sm,
-            backgroundColor: theme.colors.background.subtle,
-            borderRadius: theme.borderRadius.sm,
-            fontSize: theme.typography.fontSize.xs,
-            color: theme.colors.text.secondary,
-            lineHeight: '1.4',
-          }}
-        >
-          {categoryExplanation}
-        </div>
+      {categorizationSource && (
+        <CategorisationSourceLine
+          source={categorizationSource}
+          provider={categorizationProvider}
+          ruleHref={sourceRuleHref}
+        />
       )}
+      {showExplanation && categoryExplanation && <div style={explanationBoxStyle}>{categoryExplanation}</div>}
       {isOtherCategory && protoCategoryName && (
         <ProtoCategorySection
           protoCategoryName={protoCategoryName}

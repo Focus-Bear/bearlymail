@@ -1,3 +1,5 @@
+import type { AiDecisionProvider } from "../../constants/ai-decision-provider.constants";
+import type { PriorityScoreSource } from "../../constants/priority-rule.constants";
 import { Email } from "../../database/entities/email.entity";
 import { CategorizationSourceKind } from "../category-source.helper";
 
@@ -33,6 +35,12 @@ export interface InboxEmail extends Email {
   isCategoryPending: boolean;
   /** Which process assigned the category, for the everyday "Categorised by" line. */
   categorizationSource: CategorizationSourceKind | null;
+  /** AI engine behind an "ai" categorizationSource (e.g. "gemini", "jev"); null otherwise or when unknown. */
+  categorizationProvider: AiDecisionProvider | null;
+  /** How priorityScore was set ("llm" / "rule" / "local"), for the "Priority scored by" line. */
+  prioritySource: PriorityScoreSource | null;
+  /** AI engine behind an "llm" prioritySource; null otherwise or when unknown. */
+  priorityProvider: AiDecisionProvider | null;
   /** Proto-category the thread was bucketed under, so the client can promote it by ID. */
   protoCategoryId: string | null;
   protoCategoryName: string | null;

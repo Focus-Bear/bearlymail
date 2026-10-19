@@ -3573,11 +3573,24 @@
       "suggestedCategory": "Categoría sugerida",
       "categorisedBy": {
         "label": "Clasificado por: <ruleLink>{{sourceLabel}}</ruleLink>",
-        "ai": "Modelo de lenguaje de IA",
         "rule": "Regla determinista",
         "local": "Modelo local",
         "proto": "Categoría sugerida (pendiente de promoción)",
         "user": "Tu elección manual"
+      },
+      "aiProvider": {
+        "openai": "LLM (OpenAI)",
+        "gemini": "LLM (Gemini)",
+        "bedrock": "LLM (Amazon Bedrock)",
+        "anthropic": "LLM (Anthropic)",
+        "claudeCli": "LLM (Claude CLI)",
+        "jev": "TypeSafe AI (Jev)",
+        "unknown": "IA"
+      },
+      "scoredBy": {
+        "label": "Prioridad calculada por: {{sourceLabel}}",
+        "rule": "Regla determinista",
+        "local": "Modelo local"
       },
       "loading": "Cargando explicación de prioridad...",
       "loadError": "No se pudo cargar la explicación de prioridad.",

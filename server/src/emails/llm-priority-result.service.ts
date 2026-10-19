@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
+import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
 import { SUGGESTED_REPLIES } from "../constants/llm-constants";
 import { SENTIMENT_THRESHOLDS } from "../constants/priority-constants";
 import { Email } from "../database/entities/email.entity";
@@ -84,6 +85,10 @@ type PriorityLlmResult = {
   analyzedContentSource?: CategoryDecisionAnalyzedEmail["contentSource"];
   /** The GitHub facts the category step saw, recorded in the decision trace. Set by the single-email refiner. */
   githubFactsTrace?: string;
+  /** Engine (Jev or LLM vendor) that picked the category; null/absent when unknown. */
+  categoryDecisionProvider?: AiDecisionProvider | null;
+  /** Engine (Jev or LLM vendor) that answered the priority prompt; null/absent when unknown. */
+  priorityDecisionProvider?: AiDecisionProvider | null;
 };
 
 // Constants for priority result computation
@@ -232,6 +237,7 @@ export class LLMPriorityResultService {
         priorityExplanation,
         priorityScore: finalScore,
         prioritySource: "llm" as const,
+        priorityDecisionProvider: llmResult.priorityDecisionProvider ?? null,
         isProcessingPriority: false,
         aiProcessingDeferred: false,
         shortlistedCategoryNames: llmResult.shortlistedCategoryNames ?? null,
@@ -251,6 +257,7 @@ export class LLMPriorityResultService {
         protoCategoryId,
         resolvedCategoryExplanation,
         decisionTrace,
+        decisionProvider: llmResult.categoryDecisionProvider ?? null,
       },
     );
 

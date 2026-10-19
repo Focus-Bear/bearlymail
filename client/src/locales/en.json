@@ -3289,11 +3289,24 @@
       "suggestedCategory": "Suggested Category",
       "categorisedBy": {
         "label": "Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>",
-        "ai": "AI language model",
         "rule": "Deterministic rule",
         "local": "Local model",
         "proto": "Suggested category (pending promotion)",
         "user": "Your manual choice"
+      },
+      "aiProvider": {
+        "openai": "LLM (OpenAI)",
+        "gemini": "LLM (Gemini)",
+        "bedrock": "LLM (Amazon Bedrock)",
+        "anthropic": "LLM (Anthropic)",
+        "claudeCli": "LLM (Claude CLI)",
+        "jev": "TypeSafe AI (Jev)",
+        "unknown": "AI"
+      },
+      "scoredBy": {
+        "label": "Priority scored by: {{sourceLabel}}",
+        "rule": "Deterministic rule",
+        "local": "Local model"
       },
       "loading": "Loading priority explanation...",
       "loadError": "Failed to load priority explanation.",

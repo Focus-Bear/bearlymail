@@ -2,9 +2,13 @@ import type { Logger } from "@nestjs/common";
 import type { Repository } from "typeorm";
 
 import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
+import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import type { CategoryDecisionTrace } from "./category-decision-trace.types";
-import { updateThreadCategoryWithPrecedence } from "./category-precedence.helper";
+import {
+  PRIORITY_CATEGORY_SOURCE,
+  updateThreadCategoryWithPrecedence,
+} from "./category-precedence.helper";
 
 /**
  * Builds the conditional category columns for a thread update during priority
@@ -21,17 +25,24 @@ import { updateThreadCategoryWithPrecedence } from "./category-precedence.helper
  * - `categoryRuleTrace`: only written when a snapshot was computed (the
  *   single-email refiner); `undefined` leaves the column untouched so the batch
  *   path can't clobber a previously-captured snapshot with null.
+ * - `categoryDecisionProvider`: the AI engine that picked the category, kept
+ *   only alongside an AI (`priority`) source; a rule or "Other" write clears it
+ *   so a stale provider never outlives the decision it described.
  */
 export function buildCategoryColumnUpdates(
   categoryId: string | null,
   finalCategory: string | null,
   categoryRuleTrace: CategoryRuleTraceSnapshot | null | undefined,
   writerSource: "rule" | "priority" = "priority",
+  decisionProvider: AiDecisionProvider | null = null,
 ): Partial<EmailThread> {
+  const categorySource =
+    finalCategory && finalCategory !== "Other" ? writerSource : null;
   return {
     ...(categoryId !== undefined ? { categoryId } : {}),
-    categorySource:
-      finalCategory && finalCategory !== "Other" ? writerSource : null,
+    categorySource,
+    categoryDecisionProvider:
+      categorySource === PRIORITY_CATEGORY_SOURCE ? decisionProvider : null,
     ...(categoryRuleTrace !== undefined ? { categoryRuleTrace } : {}),
   };
 }
@@ -57,6 +68,8 @@ export async function persistLlmCategoryWithPrecedence(
     protoCategoryId: string | null;
     resolvedCategoryExplanation: string | null;
     decisionTrace: CategoryDecisionTrace;
+    /** AI engine that picked the category; ignored when a rule supplied it. */
+    decisionProvider?: AiDecisionProvider | null;
   },
 ): Promise<void> {
   const { emailThreadId, workerId, categoryId } = args;
@@ -76,6 +89,7 @@ export async function persistLlmCategoryWithPrecedence(
         args.finalCategory,
         args.categoryRuleTrace,
         writerSource,
+        args.decisionProvider ?? null,
       ),
     },
   });

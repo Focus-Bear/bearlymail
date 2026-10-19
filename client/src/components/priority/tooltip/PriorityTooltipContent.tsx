@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { CategorizationSource } from 'types/email';
+import { AiDecisionProvider, CategorizationSource, PriorityScoreSource } from 'types/email';
 
+import { PriorityScoredByLine } from 'components/priority/tooltip/PriorityScoredByLine';
 import { PriorityTooltipActions } from 'components/priority/tooltip/PriorityTooltipActions';
 import { PriorityTooltipBreakdown } from 'components/priority/tooltip/PriorityTooltipBreakdown';
 import { PriorityTooltipCategory } from 'components/priority/tooltip/PriorityTooltipCategory';
@@ -19,6 +20,10 @@ interface PriorityTooltipContentProps {
   category?: string | null;
   categoryExplanation?: string | null;
   categorizationSource?: CategorizationSource | null;
+  categorizationProvider?: AiDecisionProvider | null;
+  /** How the score was set — rendered as a "Priority scored by" line. */
+  prioritySource?: PriorityScoreSource | null;
+  priorityProvider?: AiDecisionProvider | null;
   protoCategoryName?: string | null;
   protoCategoryDescription?: string | null;
   emailId: string;
@@ -36,6 +41,9 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
   category,
   categoryExplanation,
   categorizationSource,
+  categorizationProvider,
+  prioritySource,
+  priorityProvider,
   protoCategoryName,
   protoCategoryDescription,
   emailId,
@@ -60,11 +68,13 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
           onClose={onClose}
           onExpedite={onExpedite}
         />
+        {prioritySource && <PriorityScoredByLine source={prioritySource} provider={priorityProvider} />}
         {category && (
           <PriorityTooltipCategory
             category={category}
             categoryExplanation={categoryExplanation}
             categorizationSource={categorizationSource}
+            categorizationProvider={categorizationProvider}
             protoCategoryName={protoCategoryName}
             protoCategoryDescription={protoCategoryDescription}
             emailId={emailId}

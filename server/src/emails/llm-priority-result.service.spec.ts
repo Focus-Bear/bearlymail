@@ -2,6 +2,10 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import {
+  AiDecisionProvider,
+  JEV_DECISION_PROVIDER,
+} from "../constants/ai-decision-provider.constants";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -155,6 +159,57 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
       expect(
         backgroundSummaryQueue.maybeQueueBackgroundSummary,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("decision provider on the LLM path", () => {
+    const applyWith = (providers: {
+      priorityDecisionProvider?: AiDecisionProvider | null;
+    }) =>
+      service.applyPriorityResult(
+        { id: "email-1", emailThreadId: "thread-1" } as Email,
+        {
+          urgencyScore: 50,
+          urgencyExplanation: "",
+          goalAlignmentScore: 0,
+          goalAlignmentExplanation: "",
+          ...providers,
+        },
+        [],
+        "user-1",
+        "w1",
+      );
+
+    beforeEach(() => {
+      emailThreadRepository.findOne.mockResolvedValue({
+        id: "thread-1",
+        starCount: 0,
+        isBatched: true,
+      } as EmailThread);
+    });
+
+    it("stores which engine answered the priority prompt", async () => {
+      await applyWith({ priorityDecisionProvider: JEV_DECISION_PROVIDER });
+
+      expect(emailThreadRepository.update).toHaveBeenCalledWith(
+        { id: "thread-1" },
+        expect.objectContaining({
+          prioritySource: "llm",
+          priorityDecisionProvider: JEV_DECISION_PROVIDER,
+        }),
+      );
+    });
+
+    it("stores null when the provider is unknown", async () => {
+      await applyWith({});
+
+      expect(emailThreadRepository.update).toHaveBeenCalledWith(
+        { id: "thread-1" },
+        expect.objectContaining({
+          prioritySource: "llm",
+          priorityDecisionProvider: null,
+        }),
+      );
     });
   });
 

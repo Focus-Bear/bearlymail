@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { CategorizationSource, PriorityExplanation } from 'types/email';
+import { AiDecisionProvider, CategorizationSource, PriorityExplanation, PriorityScoreSource } from 'types/email';
 
 import { PriorityTooltipContainer } from 'components/priority/tooltip/PriorityTooltipContainer';
 import { PriorityTooltipContent } from 'components/priority/tooltip/PriorityTooltipContent';
@@ -19,6 +19,11 @@ interface PriorityTooltipProps {
   categoryExplanation?: string | null;
   /** Which process assigned the category — rendered as a "Categorised by" line. */
   categorizationSource?: CategorizationSource | null;
+  /** AI engine behind an 'ai' categorizationSource (e.g. "LLM (Gemini)"). */
+  categorizationProvider?: AiDecisionProvider | null;
+  /** How the score was set, and the AI engine when an LLM/Jev scored it. */
+  prioritySource?: PriorityScoreSource | null;
+  priorityProvider?: AiDecisionProvider | null;
   protoCategoryName?: string | null;
   protoCategoryDescription?: string | null;
   /** UUID of the email's current category — threaded through to CategoryOverrideModal. */
@@ -42,6 +47,9 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   category,
   categoryExplanation,
   categorizationSource,
+  categorizationProvider,
+  prioritySource,
+  priorityProvider,
   protoCategoryName,
   protoCategoryDescription,
   currentCategoryId,
@@ -127,6 +135,9 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
         category={category}
         categoryExplanation={categoryExplanation}
         categorizationSource={categorizationSource}
+        categorizationProvider={categorizationProvider}
+        prioritySource={prioritySource}
+        priorityProvider={priorityProvider}
         protoCategoryName={protoCategoryName}
         protoCategoryDescription={protoCategoryDescription}
         emailId={emailId}

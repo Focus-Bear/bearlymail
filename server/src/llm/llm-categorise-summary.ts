@@ -1,5 +1,9 @@
 import type { Logger } from "@nestjs/common";
 
+import {
+  AiDecisionProvider,
+  JEV_DECISION_PROVIDER,
+} from "../constants/ai-decision-provider.constants";
 import { JEV } from "../constants/jev.constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -55,6 +59,8 @@ export interface CategoriseFromSummaryResult {
   reasoning: string | null;
   /** Proposed new category, only when the pick was "Other". */
   protoCategorySuggestion?: ProtoCategorySuggestion;
+  /** Engine that made the pick (Jev or the LLM that answered); null when unknown. */
+  decisionProvider?: AiDecisionProvider | null;
 }
 
 type GenerateText = (request: {
@@ -209,21 +215,31 @@ export async function categoriseOnlyWithEscalation(
   if (!params.summary?.trim() || !params.categories.length) return null;
   try {
     const jev = await llmCoreService.categoriseWithJev?.(params);
-    if (jev) return jev;
+    if (jev) return { ...jev, decisionProvider: JEV_DECISION_PROVIDER };
   } catch {
     logger.warn("Jev categorisation failed; falling back to Gemini");
   }
-  const runWith = (provider: LLMProvider, model?: string) =>
-    categoriseFromSummary(
+  const runWith = async (provider: LLMProvider, model?: string) => {
+    let answeredBy: AiDecisionProvider | null = null;
+    const result = await categoriseFromSummary(
       (request) =>
         llmCoreService.generateText(
-          { ...request, operation: LLM_OP_CATEGORISE_SUMMARY, model },
+          {
+            ...request,
+            operation: LLM_OP_CATEGORISE_SUMMARY,
+            model,
+            onProviderResolved: (resolved) => {
+              answeredBy = resolved;
+            },
+          },
           provider,
           params.userId,
         ),
       logger,
       params,
     );
+    return result && { ...result, decisionProvider: answeredBy };
+  };
 
   const primary = await runWith(CATEGORY_FALLBACK_PROVIDER);
   const needsEscalation =

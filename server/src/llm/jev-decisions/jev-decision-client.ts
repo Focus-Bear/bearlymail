@@ -1,11 +1,13 @@
 import type { Logger } from "@nestjs/common";
 
+import { JEV_DECISION_PROVIDER } from "../../constants/ai-decision-provider.constants";
 import { JEV, JEV_DECISIONS } from "../../constants/jev.constants";
 import { ENV_BOOLEAN_STRING } from "../../constants/service-constants";
 import type { JevQuestion, JevResponse } from "../jev-system-one";
 import { requestJev } from "../jev-system-one";
 import type { LLMRequest } from "../llm.types";
 import { LLM_OP_UNKNOWN } from "../llm-operations";
+import { reportProvider } from "../provider-report.util";
 import type { TokenUsageService } from "../token-usage.service";
 import { jevAnswerConfidence } from "./jev-answer.helpers";
 import { JEV_DECISION_REGISTRY } from "./jev-decision.registry";
@@ -74,9 +76,11 @@ export class JevDecisionClient {
         userId,
       );
       const outcome = definition.compose(decision.input, response.answers);
-      return this.isAccepted(outcome, response, definition.minConfidence)
-        ? JSON.stringify(outcome.output)
-        : null;
+      if (!this.isAccepted(outcome, response, definition.minConfidence)) {
+        return null;
+      }
+      const output = JSON.stringify(outcome.output);
+      return reportProvider(request, JEV_DECISION_PROVIDER, output);
     } catch {
       // Vendor errors may contain email data; keep fallback logs content-free.
       this.logger.warn(

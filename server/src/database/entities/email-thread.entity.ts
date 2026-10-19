@@ -11,6 +11,7 @@ import {
 } from "typeorm";
 
 import type { CategoryRuleTraceSnapshot } from "../../category-rules/category-rules.types";
+import type { AiDecisionProvider } from "../../constants/ai-decision-provider.constants";
 import type { CategoryDecisionTrace } from "../../emails/category-decision-trace.types";
 import {
   makeEncryptedColumnTransformer,
@@ -292,6 +293,14 @@ export class EmailThread {
   categorySource: "user" | "rule" | "local" | "priority" | "summary" | null;
 
   @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Which AI engine picked the category when categorySource is 'priority': an LLM vendor ('openai', 'gemini', 'bedrock', 'anthropic', 'claude-cli') or 'jev' (TypeSafe AI). Shown as e.g. 'LLM (Gemini)' in the category popover. Null for non-AI sources and for rows decided before this was recorded.",
+  })
+  categoryDecisionProvider: AiDecisionProvider | null;
+
+  @Column({
     type: "text",
     nullable: true,
     transformer: makeEncryptedJsonTransformer("email_threads.localModelDebug"),
@@ -309,6 +318,14 @@ export class EmailThread {
       "How priorityScore was last set: 'llm' (analyze_priority), 'rule' (deterministic priority rule), or 'local' (confident local-model prediction that skipped the LLM). Rule- and local-scored threads are excluded when mining new priority rules to avoid a self-reinforcing feedback loop.",
   })
   prioritySource: "llm" | "rule" | "local" | null;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Which AI engine answered the priority prompt when prioritySource is 'llm': an LLM vendor ('openai', 'gemini', 'bedrock', 'anthropic', 'claude-cli') or 'jev' (TypeSafe AI). Null for rule/local scores and for rows scored before this was recorded.",
+  })
+  priorityDecisionProvider: AiDecisionProvider | null;
 
   @Column({
     type: "uuid",

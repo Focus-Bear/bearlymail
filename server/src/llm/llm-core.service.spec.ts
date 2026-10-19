@@ -2,6 +2,7 @@ import { Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter } from "events";
 
+import { JEV_DECISION_PROVIDER } from "../constants/ai-decision-provider.constants";
 import { JEV, JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { UsersService } from "../users/users.service";
 import { LLMProvider, LLMRequest } from "./llm.types";
@@ -1005,6 +1006,99 @@ describe("LLMCoreService", () => {
 
       expect(out).toBe('{"matches":false}');
       expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports Jev as the provider when Jev answers", async () => {
+      respondFromJev(0.99);
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      await service.generateText(
+        { ...decisionRequest, onProviderResolved },
+        LLMProvider.GEMINI,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledWith(JEV_DECISION_PROVIDER);
+    });
+
+    it("reports the LLM provider when Jev is unsure and the provider answers", async () => {
+      respondFromJev(0.55);
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: '{"matches":false}',
+        usageMetadata: undefined,
+      });
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        [JEV.API_KEY_ENV]: "jev-key",
+      });
+
+      await service.generateText(
+        { ...decisionRequest, onProviderResolved },
+        LLMProvider.GEMINI,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledTimes(1);
+      expect(onProviderResolved).toHaveBeenCalledWith(LLMProvider.GEMINI);
+    });
+  });
+
+  describe("provider reporting (onProviderResolved)", () => {
+    it("reports Bedrock when Bedrock answers", async () => {
+      mockBedrockSend.mockResolvedValue({
+        output: { message: { content: [{ text: "nova" }] } },
+      });
+      const onProviderResolved = jest.fn();
+      const { service } = makeService();
+
+      await service.generateText(
+        { ...baseRequest, onProviderResolved },
+        LLMProvider.BEDROCK,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledWith(LLMProvider.BEDROCK);
+    });
+
+    it("reports the fallback provider, not the requested one, after a failure", async () => {
+      mockGeminiGenerateContent.mockRejectedValue(new Error("gemini-down"));
+      mockOpenAIChatCreate.mockResolvedValue({
+        choices: [{ message: { content: "from-openai" } }],
+        usage: undefined,
+      });
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      await service.generateText(
+        { ...baseRequest, onProviderResolved },
+        LLMProvider.GEMINI,
+      );
+
+      expect(onProviderResolved).toHaveBeenCalledTimes(1);
+      expect(onProviderResolved).toHaveBeenCalledWith(LLMProvider.OPENAI);
+    });
+
+    it("does not report a provider when every provider fails", async () => {
+      mockGeminiGenerateContent.mockRejectedValue(new Error("gemini-down"));
+      mockOpenAIChatCreate.mockRejectedValue(new Error("openai-down"));
+      const onProviderResolved = jest.fn();
+      const { service } = makeService({
+        ...allKeysConfig,
+        OPENAI_MODEL: "gpt-4o-mini",
+      });
+
+      await expect(
+        service.generateText(
+          { ...baseRequest, onProviderResolved },
+          LLMProvider.GEMINI,
+        ),
+      ).rejects.toThrow();
+      expect(onProviderResolved).not.toHaveBeenCalled();
     });
   });
 

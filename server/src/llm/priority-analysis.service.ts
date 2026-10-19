@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
+import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
 import {
   BODY_PREVIEW_LENGTHS,
   PRIORITY_ANALYSIS_FALLBACK,
@@ -103,6 +104,10 @@ export type PriorityResult = {
    * Attached by the single-email refiner, not by `analyzePriority`.
    */
   githubFactsTrace?: string;
+  /** Engine (Jev or LLM vendor) that picked the category; null when unknown. */
+  categoryDecisionProvider?: AiDecisionProvider | null;
+  /** Engine (Jev or LLM vendor) that answered the priority prompt; null when unknown. */
+  priorityDecisionProvider?: AiDecisionProvider | null;
 };
 
 export type BatchPriorityResult = PriorityResult & {
@@ -563,6 +568,7 @@ export class PriorityAnalysisService {
       this.configService,
     );
 
+    let priorityDecisionProvider: AiDecisionProvider | null = null;
     const response = await this.llmCoreService.generateText(
       {
         prompt,
@@ -573,6 +579,9 @@ export class PriorityAnalysisService {
         operation: LLM_OP_ANALYZE_PRIORITY,
         jsonMode: true,
         model: priorityRoute.model,
+        onProviderResolved: (resolved) => {
+          priorityDecisionProvider = resolved;
+        },
       },
       priorityRoute.provider,
       userId,
@@ -599,6 +608,7 @@ export class PriorityAnalysisService {
         return {
           ...this.applyCategoryKeyResolution(withCategory, userContext),
           ...instrumentation,
+          priorityDecisionProvider,
         };
       }
     } catch (error) {

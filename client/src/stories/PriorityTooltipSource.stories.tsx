@@ -1,8 +1,9 @@
 /**
  * Visual stories for the everyday priority/category popover, focused on the new
  * "Categorised by: …" line that tells the user WHICH process assigned the
- * category (AI language model / deterministic rule / local model / suggested
- * category / manual override).
+ * category (the named AI engine, e.g. "LLM (Gemini)" or "TypeSafe AI (Jev)" /
+ * deterministic rule / local model / suggested category / manual override), plus
+ * the "Priority scored by: …" line naming the engine behind the score.
  *
  * Renders the real PriorityTooltipContent so the screenshot reflects the
  * production popover (Priority Score → CATEGORY → SCORE BREAKDOWN). Wrapped with
@@ -13,7 +14,7 @@ import React from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from 'i18next';
-import { CategorizationSource } from 'types/email';
+import { AiDecisionProvider, CategorizationSource, PriorityScoreSource } from 'types/email';
 
 import { PriorityTooltipContent } from 'components/priority/tooltip/PriorityTooltipContent';
 import { AuthContext } from 'contexts/AuthContext';
@@ -38,7 +39,14 @@ tooltipI18n.use(initReactI18next).init({
         'priority.tooltip.editCategoryRule': 'Edit the rule that matched this category',
         'priority.tooltip.suggestedCategory': 'Suggested Category',
         'priority.tooltip.categorisedBy.label': 'Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>',
-        'priority.tooltip.categorisedBy.ai': 'AI language model',
+        'priority.tooltip.aiProvider.openai': 'LLM (OpenAI)',
+        'priority.tooltip.aiProvider.gemini': 'LLM (Gemini)',
+        'priority.tooltip.aiProvider.bedrock': 'LLM (Amazon Bedrock)',
+        'priority.tooltip.aiProvider.jev': 'TypeSafe AI (Jev)',
+        'priority.tooltip.aiProvider.unknown': 'AI',
+        'priority.tooltip.scoredBy.label': 'Priority scored by: {{sourceLabel}}',
+        'priority.tooltip.scoredBy.rule': 'Deterministic rule',
+        'priority.tooltip.scoredBy.local': 'Local model',
         'priority.tooltip.categorisedBy.rule': 'Deterministic rule',
         'priority.tooltip.categorisedBy.local': 'Local model',
         'priority.tooltip.categorisedBy.proto': 'Suggested category (pending promotion)',
@@ -77,8 +85,11 @@ export default meta;
 const Popover: React.FC<{
   category: string;
   categorizationSource: CategorizationSource;
+  categorizationProvider?: AiDecisionProvider | null;
+  prioritySource?: PriorityScoreSource;
+  priorityProvider?: AiDecisionProvider | null;
   categoryExplanation?: string;
-}> = ({ category, categorizationSource, categoryExplanation }) => (
+}> = ({ category, categorizationSource, categorizationProvider, prioritySource, priorityProvider, categoryExplanation }) => (
   <I18nextProvider i18n={tooltipI18n}>
     {/* @ts-expect-error — partial auth mock is sufficient for isolation */}
     <AuthContext.Provider value={mockAuthValue}>
@@ -100,6 +111,9 @@ const Popover: React.FC<{
             category={category}
             categoryExplanation={categoryExplanation}
             categorizationSource={categorizationSource}
+            categorizationProvider={categorizationProvider}
+            prioritySource={prioritySource}
+            priorityProvider={priorityProvider}
             emailId="story-email-1"
             onClose={() => {}}
           />
@@ -110,14 +124,27 @@ const Popover: React.FC<{
 );
 
 export const AiPriorityModel = {
-  name: 'Categorised by — AI language model',
+  name: 'Categorised by — LLM (Gemini), scored by TypeSafe AI (Jev)',
   render: () => (
     <Popover
       category="Customer Support"
       categorizationSource="ai"
+      categorizationProvider="gemini"
+      prioritySource="llm"
+      priorityProvider="jev"
       categoryExplanation="Sender is asking for help resolving a billing issue."
     />
   ),
+};
+
+export const JevCategory = {
+  name: 'Categorised by — TypeSafe AI (Jev)',
+  render: () => <Popover category="Professional Development" categorizationSource="ai" categorizationProvider="jev" />,
+};
+
+export const UnknownAiProvider = {
+  name: 'Categorised by — AI (decided before the provider was recorded)',
+  render: () => <Popover category="Customer Support" categorizationSource="ai" />,
 };
 
 export const DeterministicRule = {
@@ -152,7 +179,13 @@ export const AllVariants = {
   name: 'All source labels',
   render: () => (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
-      <Popover category="Customer Support" categorizationSource="ai" categoryExplanation="Sender is asking for help resolving a billing issue." />
+      <Popover
+        category="Customer Support"
+        categorizationSource="ai"
+        categorizationProvider="openai"
+        categoryExplanation="Sender is asking for help resolving a billing issue."
+      />
+      <Popover category="Professional Development" categorizationSource="ai" categorizationProvider="jev" />
       <Popover category="Newsletters" categorizationSource="rule" />
       <Popover category="Sales & Prospecting" categorizationSource="local" />
       <Popover category="Other" categorizationSource="proto" />

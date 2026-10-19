@@ -177,6 +177,52 @@ tests:
           }
     description: "Should generate context-aware replies when thread history is provided (#885)"
 
-
-
-
+  # Follow-up mode: the user sent the latest email and is waiting on the other
+  # party. Options must chase the recipient, not answer the user's own email
+  # (report 2026-10-15: "Hi Jeremy, Got it, thanks for the follow-up…").
+  - vars:
+      userName: "Jeremy"
+      userEmail: "jeremy@focusbear.io"
+      tone: "friendly"
+      fromName: "Jeremy"
+      isFollowUp: true
+      recipientName: "Wellbeing team"
+      recipientEmail: "wellbeing@mq.edu.au"
+      subject: "Re: Free assistive technology software for autistic/ADHD students"
+      body: "Hi Wellbeing team,\n\nJust following up on my email from last week. Focus Bear is offering free licences of our assistive technology software for autistic and ADHD students at Macquarie. Would you be open to sharing it with students or having a quick chat about it?\n\ncheers,\nJeremy"
+      hasThreadContext: true
+      threadContext: |
+        [Message 1 from You on 10/7/2026]:
+        Hi Wellbeing team, I'm the founder of Focus Bear. We'd love to offer free licences of our assistive technology software to autistic and ADHD students. Could we share it with your students?
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (!parsed.options || parsed.options.length !== 2) {
+            throw new Error(`Expected 2 options, got ${parsed.options?.length || 0}`);
+          }
+          parsed.options.forEach((opt, idx) => {
+            const body = opt.text.replace(/\\n/g, '\n');
+            const greeting = body.split('\n').find(line => line.trim().length > 0) || '';
+            if (/jeremy/i.test(greeting)) {
+              throw new Error(`Option ${idx} greets the user instead of the recipient: "${greeting}"`);
+            }
+            const acknowledgesOwnEmail = /thanks for (the|your) follow[- ]?up|received your (previous |last )?email|(i|we) will (take a look|review)|got it, thanks/i;
+            if (acknowledgesOwnEmail.test(body)) {
+              throw new Error(`Option ${idx} acknowledges the user's own email: ${body.substring(0, 200)}`);
+            }
+          });
+          return true;
+      - type: llm-rubric
+        # Grade with Gemini so the case doesn't depend on an OpenAI key (absent in CI).
+        provider: google:gemini-3.1-flash-lite
+        value: >-
+          Both options are follow-up emails written BY Jeremy TO the Macquarie
+          Wellbeing team, chasing a response to Jeremy's earlier offer of free
+          assistive technology software (e.g. a polite nudge, a reminder of the
+          ask, or an offer of a quick call). Fail if any option is written as if
+          the Wellbeing team or anyone else is replying to Jeremy, greets Jeremy,
+          or thanks someone for following up.
+    description: "Follow-up mode: suggests follow-ups to the recipient instead of replying to the user's own email"

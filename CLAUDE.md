@@ -153,6 +153,7 @@ Need to modify something? Here's where to find it:
 | **Inbox query (triage/action/follow-up)**        | `server/src/emails/emails.service.ts` → `getInbox()`                         |
 | **Priority calculation**                         | `server/src/llm/priority-analysis.service.ts`                                |
 | **Categorisation pipeline (how categoryId is decided)** | [`docs/categorisation-pipeline.md`](docs/categorisation-pipeline.md)  |
+| **Email open tracking (pixel, stats)**           | `server/src/email-tracking/` (`TrackedEmailSender` = the send choke point, `tracking-pixel.controller.ts` = public `/t/o/<token>.gif`) |
 | **Email summarization**                          | `server/src/summarization/summarization.service.ts`                          |
 | **Reply generation**                             | `server/src/replies/replies.service.ts`                                      |
 | **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry) |
@@ -486,6 +487,7 @@ Defined in `server/src/constants/performance-budgets.ts`. Key budgets:
 - Email query: 100ms
 - Decryption: 100ms
 - Batch status: 500ms
+- Category accordion load (`getInboxCategory(mode)`): 500ms (1000ms action); top-accordion batch preload (`getInboxBatch(mode)`): 1000ms
 
 Use `PerformanceTracker` class for enforcement:
 
@@ -847,6 +849,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                    | Yes      | Google OAuth                              |
 | `GOOGLE_REDIRECT_URI`                                         | Yes      | OAuth callback URL                        |
 | `FRONTEND_URL`                                                | Yes      | Frontend URL for CORS                     |
+| `BACKEND_URL`                                                 | No       | Public API origin for absolute URLs (MCP OAuth redirect, open-tracking pixel). Falls back to the `GOOGLE_REDIRECT_URI` origin. Open tracking is skipped when it resolves to localhost |
 | `LLM_PROVIDER`                                                | No       | Default LLM: `gemini`, `openai`, or `claude-cli` (local Claude Code CLI, no API key) |
 | `CLAUDE_CLI_PATH`, `CLAUDE_CLI_MODEL`                         | No       | Claude Code CLI binary path (default `claude`) and model alias (default `sonnet`) for `claude-cli` |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`                              | No       | Google Gemini config                      |
@@ -854,7 +857,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `TYPESAFE_AI_API_KEY`, `TYPESAFE_AI_MODEL`                    | No       | Jev (TypeSafe) typed-decision model       |
 | `JEV_CATEGORISATION_ENABLED`, `JEV_DECISIONS_ENABLED`         | No       | Set `false` to bypass Jev for categorisation / other decisions |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`            | No       | GitHub integration                        |
-| `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Consent tracking versions                 |
+| `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Override consent versions (defaults in `server/src/constants/legal-versions.ts`; bump the default when policy wording changes so users re-accept) |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |
 | `ZOHO_CLIQ_*`                                                 | No       | Zoho Cliq notifications                   |
 | `PUSHER_APP_ID`                                               | No       | Pusher app id (realtime events)           |

@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface ConsentModalHeaderProps {
-  /** i18n key of the policy change summary; absent for first-time acceptance. */
-  changeSummaryKey?: string | null;
+  /** i18n keys of the policy changes since the last acceptance; empty for first-time acceptance. */
+  changeSummaryKeys?: string[];
 }
 
-const ChangeSummary: React.FC<{ summaryKey: string }> = ({ summaryKey }) => {
+const ChangeSummary: React.FC<{ summaryKeys: string[] }> = ({ summaryKeys }) => {
   const { t } = useTranslation();
   return (
     <div
@@ -19,7 +19,11 @@ const ChangeSummary: React.FC<{ summaryKey: string }> = ({ summaryKey }) => {
       }}
     >
       <strong style={{ color: theme.colors.text.primary }}>{t('consent.whatsChanged')}</strong>
-      <p style={{ marginTop: theme.spacing.xs, color: theme.colors.text.secondary }}>{t(summaryKey)}</p>
+      {summaryKeys.map(summaryKey => (
+        <p key={summaryKey} style={{ marginTop: theme.spacing.xs, color: theme.colors.text.secondary }}>
+          {t(summaryKey)}
+        </p>
+      ))}
     </div>
   );
 };
@@ -28,8 +32,9 @@ const ChangeSummary: React.FC<{ summaryKey: string }> = ({ summaryKey }) => {
  * Consent modal header: a welcome for first-time acceptance, or an update
  * notice with what changed when an earlier policy was accepted.
  */
-export const ConsentModalHeader: React.FC<ConsentModalHeaderProps> = ({ changeSummaryKey }) => {
+export const ConsentModalHeader: React.FC<ConsentModalHeaderProps> = ({ changeSummaryKeys = [] }) => {
   const { t } = useTranslation();
+  const isPolicyUpdate = changeSummaryKeys.length > 0;
 
   return (
     <>
@@ -41,7 +46,7 @@ export const ConsentModalHeader: React.FC<ConsentModalHeaderProps> = ({ changeSu
           color: theme.colors.text.primary,
         }}
       >
-        {changeSummaryKey ? t('consent.updatedTitle') : t('consent.welcome')}
+        {isPolicyUpdate ? t('consent.updatedTitle') : t('consent.welcome')}
       </h2>
 
       <p
@@ -51,10 +56,10 @@ export const ConsentModalHeader: React.FC<ConsentModalHeaderProps> = ({ changeSu
           lineHeight: theme.typography.lineHeight.relaxed,
         }}
       >
-        {changeSummaryKey ? t('consent.updatedDescription') : t('consent.description')}
+        {isPolicyUpdate ? t('consent.updatedDescription') : t('consent.description')}
       </p>
 
-      {changeSummaryKey && <ChangeSummary summaryKey={changeSummaryKey} />}
+      {isPolicyUpdate && <ChangeSummary summaryKeys={changeSummaryKeys} />}
     </>
   );
 };

@@ -102,7 +102,19 @@ export const PrivacyPolicyContentPart1: React.FC = () => {
             ),
           },
           {
-            title: '2.3 Usage Data',
+            title: '2.3 Email Open Tracking',
+            content: (
+              <LegalParagraph>
+                If open tracking is turned on (it is by default and can be switched off in Settings, or for an
+                individual email), emails you send from BearlyMail include a small invisible image. When a recipient's
+                email client loads it, we record the time, the IP address and the user agent of the request (both
+                encrypted at rest) so we can show you whether and when your email was opened. We use this only to show
+                you open status and statistics; automated replies are never tracked.
+              </LegalParagraph>
+            ),
+          },
+          {
+            title: '2.4 Usage Data',
             content: (
               <LegalParagraph>
                 We collect information about how you interact with our service, including feature usage, preferences,

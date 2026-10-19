@@ -768,7 +768,9 @@
     "unsavedChangesTitle": "Correo sin enviar",
     "leaveAnyway": "Salir de todos modos",
     "keepEditing": "Seguir editando",
-    "followUpSection": "Seguimiento"
+    "followUpSection": "Seguimiento",
+    "trackOpens": "Registrar aperturas",
+    "trackOpensTooltip": "Añade una imagen invisible para que veas cuándo se abre este correo. Por defecto usa tu ajuste en Configuración → Seguimiento de aperturas."
   },
   "emailSend": {
     "failedNotification": "Tu mensaje no se envió. {{reason}}",
@@ -794,7 +796,8 @@
     "updatedDescription": "Revisa los cambios y acepta la Política de Privacidad actualizada para seguir usando BearlyMail.",
     "whatsChanged": "Qué ha cambiado",
     "changeSummaries": {
-      "privacy_1_2_0": "Ahora enumeramos cada servicio de IA que procesa tu correo (TypeSafe AI, Google Gemini, OpenAI y Amazon Bedrock), qué recibe cada uno y por qué, y explicamos que parte de este procesamiento se realiza fuera de Australia."
+      "privacy_1_2_0": "Ahora explicamos el seguimiento de apertura de correos: los correos que envías pueden incluir una pequeña imagen invisible que registra cuándo se abren, junto con la dirección IP y los datos del dispositivo de quien los abre.",
+      "privacy_1_3_0": "Ahora enumeramos cada servicio de IA que procesa tu correo (TypeSafe AI, Google Gemini, OpenAI y Amazon Bedrock), qué recibe cada uno y por qué, y explicamos que parte de este procesamiento se realiza fuera de Australia."
     }
   },
   "debug": {
@@ -1917,6 +1920,11 @@
       "message": "Aviso: no estamos sincronizando tus correos antiguos. Solo hemos sincronizado los últimos 7 días de correo.",
       "dismiss": "Descartar"
     },
+    "openTrackingNotice": {
+      "message": "El seguimiento de aperturas está activado: BearlyMail ahora te muestra cuándo se abren los correos que envías.",
+      "manage": "Gestionar en Ajustes",
+      "dismiss": "Descartar"
+    },
     "batchInfo": {
       "changeInSettings": "Cambiar en Configuración",
       "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",
@@ -1967,6 +1975,8 @@
       "recategorizeNone": "No hay correos para recategorizar en triaje, acción o seguimiento.",
       "recategorizeError": "No se pudo iniciar la recategorización. Por favor, inténtalo de nuevo.",
       "loadingContent": "Cargando correos...",
+      "loadMore": "Mostrar {{count}} más",
+      "loadingMore": "Cargando más…",
       "dangerousPhishing": "PELIGROSO: posible intento de phishing",
       "newsletterBlockTip": "Bloquea remitentes rápidamente: ahorra tiempo en comparación con tener que encontrar la forma de darse de baja.",
       "newsletterBlockTipTitle": "💡 Consejo: Bloquear remitente",
@@ -4189,7 +4199,8 @@
       "dataAccount": "Datos y cuenta",
       "dataExport": "Exportar e importar",
       "troubleshooting": "Solución de problemas",
-      "deleteAccount": "Eliminar cuenta"
+      "deleteAccount": "Eliminar cuenta",
+      "emailTracking": "Seguimiento de aperturas"
     },
     "schedulingPreferences": {
       "title": "Preferencias de programación",
@@ -4644,6 +4655,13 @@
       "newFamilyLabel": "Nombre de la nueva familia",
       "newFamilyPlaceholder": "Nombre de la nueva familia…",
       "create": "Crear familia"
+    },
+    "emailTracking": {
+      "title": "Seguimiento de aperturas",
+      "label": "Registrar aperturas de correos",
+      "description": "Añade una imagen invisible de 1×1 a los correos que envías desde BearlyMail para que veas cuándo se abren: en el hilo, en Seguimiento y en Estadísticas. Las respuestas automáticas nunca se rastrean.",
+      "limitations": "Quien bloquee las imágenes no aparecerá como abierto, y Apple Mail puede abrir correos automáticamente (los marcamos como \"puede ser automático\"). También puedes desactivarlo para un solo correo al redactar.",
+      "saveError": "No se pudo actualizar el seguimiento de aperturas. Inténtalo de nuevo."
     }
   },
   "keyboard": {
@@ -4674,7 +4692,22 @@
     "noReplyData": "-",
     "periodDays_one": "{{count}}d",
     "periodDays_other": "{{count}}d",
-    "dateRangeLabel": "Rango de fechas seleccionado"
+    "dateRangeLabel": "Rango de fechas seleccionado",
+    "openTracking": {
+      "title": "Aperturas de correos",
+      "description": "Con qué frecuencia se abrieron los correos que enviaste desde BearlyMail en este periodo.",
+      "openRate": "Tasa de apertura",
+      "openedOfTracked_one": "{{opened}} de {{count}} correo rastreado",
+      "openedOfTracked_other": "{{opened}} de {{count}} correos rastreados",
+      "trackedSent": "Correos rastreados enviados",
+      "medianTimeToOpen": "Mediana hasta la primera apertura",
+      "maybeAutomatic": "Puede ser automático",
+      "maybeAutomaticHint": "Solo aperturas automáticas de Apple Mail",
+      "untrackedNote_one": "{{count}} de {{total}} correos enviados no se rastreó (texto plano, desactivado o enviado desde Apple Mail).",
+      "untrackedNote_other": "{{count}} de {{total}} correos enviados no se rastrearon (texto plano, desactivado o enviados desde Apple Mail).",
+      "empty": "No se enviaron correos rastreados en este periodo.",
+      "manageSetting": "Gestionar el seguimiento de aperturas"
+    }
   },
   "errorBoundary": {
     "title": "¡Vaya! Algo salió mal",
@@ -4831,5 +4864,20 @@
   "toneCheck": {
     "toastChecking": "Verificando tono del correo antes de enviar...",
     "cancelSend": "Cancelar envío"
+  },
+  "openTracking": {
+    "sent": "Enviado",
+    "opened_one": "Abierto · {{time}}",
+    "opened_other": "Abierto {{count}}× · {{time}}",
+    "maybeAutomatic": "¿Abierto? · puede ser automático",
+    "historyTitle": "Historial de aperturas",
+    "notOpenedYet": "Aún no abierto",
+    "sentAt": "Enviado {{time}}",
+    "sourceGmail": "vía Gmail",
+    "sourceAppleAutomatic": "Apple Mail (puede ser automático)",
+    "appleCaveat": "La Protección de Privacidad de Apple Mail carga las imágenes automáticamente al entregar el correo, así que estas aperturas pueden no significar que se haya leído.",
+    "multipleRecipients_one": "Enviado a {{count}} destinatario.",
+    "multipleRecipients_other": "Enviado a {{count}} destinatarios: la apertura puede ser de cualquiera de ellos.",
+    "imagesCaveat": "Las aperturas se detectan con una imagen diminuta. Quien bloquee las imágenes no aparecerá como abierto."
   }
 }

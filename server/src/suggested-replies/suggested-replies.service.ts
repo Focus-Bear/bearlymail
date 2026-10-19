@@ -11,6 +11,22 @@ import { Email } from "../database/entities/email.entity";
 import { SuggestedReply } from "../database/entities/suggested-reply.entity";
 import { getJobPriority } from "../queue/job-priorities";
 
+/**
+ * Options are only usable while they were generated for the thread's newest
+ * email. Once the user replies (the thread moves to Follow-Up), older options
+ * answer a message the user has already dealt with.
+ */
+export function hasCurrentOptions(
+  suggestedReply: Pick<SuggestedReply, "options" | "lastEmailId"> | null,
+  latestEmailId: string | null | undefined,
+): boolean {
+  return Boolean(
+    suggestedReply?.options?.length &&
+    latestEmailId &&
+    suggestedReply.lastEmailId === latestEmailId,
+  );
+}
+
 @Injectable()
 export class SuggestedRepliesService {
   private readonly logger = new Logger(SuggestedRepliesService.name);
@@ -135,14 +151,29 @@ export class SuggestedRepliesService {
     return false;
   }
 
+  async findLatestEmailId(
+    userId: string,
+    threadId: string,
+  ): Promise<string | null> {
+    const latestEmail = await this.findLatestEmail(userId, threadId);
+    return latestEmail?.id ?? null;
+  }
+
+  private async findLatestEmail(
+    userId: string,
+    threadId: string,
+  ): Promise<Email | null> {
+    return this.emailRepository.findOne({
+      where: { emailThreadId: threadId, userId },
+      order: { receivedAt: "DESC" },
+    });
+  }
+
   async ensureSuggestedReplies(
     userId: string,
     threadId: string,
   ): Promise<{ queued: boolean; isGenerating: boolean; hasOptions: boolean }> {
-    const latestEmail = await this.emailRepository.findOne({
-      where: { emailThreadId: threadId, userId },
-      order: { receivedAt: "DESC" },
-    });
+    const latestEmail = await this.findLatestEmail(userId, threadId);
 
     if (!latestEmail) {
       this.logger.warn(
@@ -157,11 +188,7 @@ export class SuggestedRepliesService {
       return { queued: false, isGenerating: true, hasOptions: false };
     }
 
-    if (
-      existing?.options &&
-      existing.options.length > 0 &&
-      existing.lastEmailId === latestEmail.id
-    ) {
+    if (hasCurrentOptions(existing, latestEmail.id)) {
       return { queued: false, isGenerating: false, hasOptions: true };
     }
 

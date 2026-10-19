@@ -9,17 +9,22 @@ vi.mock('react-i18next', () => ({
 
 describe('ConsentModalHeader', () => {
   it('welcomes first-time users without a change summary', () => {
-    render(<ConsentModalHeader />);
+    render(<ConsentModalHeader changeSummaryKeys={[]} />);
 
     expect(screen.getByText('consent.welcome')).toBeInTheDocument();
     expect(screen.queryByText('consent.whatsChanged')).not.toBeInTheDocument();
   });
 
   it('shows what changed when an updated policy needs accepting', () => {
-    render(<ConsentModalHeader changeSummaryKey="consent.changeSummaries.privacy_1_2_0" />);
+    render(
+      <ConsentModalHeader
+        changeSummaryKeys={['consent.changeSummaries.privacy_1_2_0', 'consent.changeSummaries.privacy_1_3_0']}
+      />,
+    );
 
     expect(screen.getByText('consent.updatedTitle')).toBeInTheDocument();
     expect(screen.getByText('consent.whatsChanged')).toBeInTheDocument();
     expect(screen.getByText('consent.changeSummaries.privacy_1_2_0')).toBeInTheDocument();
+    expect(screen.getByText('consent.changeSummaries.privacy_1_3_0')).toBeInTheDocument();
   });
 });

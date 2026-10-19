@@ -14,16 +14,22 @@ const CHANGE_SUMMARIES = [
       'Section 5.2 explains that some of this processing happens outside Australia, and where.',
     ],
   },
+  {
+    date: '13 October 2026',
+    changes: ['Section 2.3 explains email open tracking and the data it records.'],
+  },
 ];
-
-const latestChanges = CHANGE_SUMMARIES[0];
 
 export const PrivacyPolicyContent: React.FC = () => {
   return (
     <>
-      <LegalSection title={`Summary of changes (${latestChanges.date})`}>
-        <LegalList items={latestChanges.changes} />
-      </LegalSection>
+      <LegalSection
+        title="Summary of Changes"
+        subsections={CHANGE_SUMMARIES.map(summary => ({
+          title: summary.date,
+          content: <LegalList items={summary.changes} />,
+        }))}
+      />
       <PrivacyPolicyContentPart1 />
       <PrivacyPolicyContentPart2 />
     </>

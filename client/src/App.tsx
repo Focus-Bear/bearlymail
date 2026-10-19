@@ -54,8 +54,8 @@ interface OnboardingStatus {
   hasCompletedOnboarding: boolean;
   needsTermsAcceptance: boolean;
   needsPrivacyAcceptance: boolean;
-  /** i18n key summarising what changed when an earlier policy was accepted. */
-  privacyChangeSummaryKey?: string | null;
+  /** i18n keys summarising each change since the policy the user last accepted. */
+  privacyChangeSummaryKeys?: string[];
 }
 
 const PrivateRouteLoading: React.FC = () => {
@@ -111,7 +111,7 @@ const PrivateRouteContent: React.FC<PrivateRouteContentProps> = ({
         <ConsentModal
           needsTermsAcceptance={onboardingStatus.needsTermsAcceptance}
           needsPrivacyAcceptance={onboardingStatus.needsPrivacyAcceptance}
-          privacyChangeSummaryKey={onboardingStatus.privacyChangeSummaryKey}
+          privacyChangeSummaryKeys={onboardingStatus.privacyChangeSummaryKeys}
           onAccept={async () => {
             await refreshUser();
             const response = await axios.get(`${API_URL}/onboarding/status`);

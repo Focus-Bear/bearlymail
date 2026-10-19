@@ -55,6 +55,7 @@ const createTestStore = (
         loadingCategoryNames: loadingCategoryNames ?? ([] as string[]),
         exhaustedCategoryNames: exhaustedCategoryNames ?? ([] as string[]),
         lastFetchedAt: lastFetchedAt ?? null,
+        categoryPagination: {},
       },
       inboxUI: {
         optimisticallyArchived: uiState.optimisticallyArchived ?? ([] as string[]),

@@ -45,6 +45,20 @@ import { PerformanceTracker } from "./performance-tracker";
 
 export { BLOCKED_MODE_THREAD_FILTER, RawEmailRow } from "./email-inbox.types";
 
+/** Filters for one inbox fetch plus the category names resolved for them. */
+interface InboxCategoryScope {
+  filters?: {
+    accountIds?: string[];
+    categoryIds?: string[];
+    minPriority?: number;
+    maxPriority?: number;
+    /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
+    assigneeId?: string;
+  };
+  /** Context id → decrypted category name; loaded once per category-scoped fetch. */
+  categoryIdToName?: Map<string, string>;
+}
+
 /**
  * Handles inbox queries, filtering, summary, and decryption of raw query results.
  * Extracted from EmailsService (Phase 1 — lowest risk, read-only methods).
@@ -283,12 +297,16 @@ export class EmailInboxService {
       pagination,
       fixStuckCalculatingThreads,
     } = options;
-    const perf = new PerformanceTracker(
-      `getInbox(${mode})`,
-      this.cloudWatchService,
-    );
+    const perf = this.createInboxTracker(mode, filters);
 
     await this.prepareInboxFetch(userId, fixStuckCalculatingThreads);
+
+    const categoryScope = await this.resolveCategoryScope(
+      userId,
+      filters,
+      perf,
+    );
+    const scopedFilters = categoryScope.filters;
 
     const budgetBase =
       mode === INBOX_MODES.ACTION
@@ -297,10 +315,6 @@ export class EmailInboxService {
     const endCombined = perf.startSpan(
       "combined_query",
       budgetBase + PERFORMANCE_BUDGETS.EMAIL_QUERY,
-    );
-    const scopedFilters = await this.expandCategoryFilterToNameSiblings(
-      userId,
-      filters,
     );
     const rawEmails = await this.runInboxQuery(userId, mode, scopedFilters);
     endCombined();
@@ -339,7 +353,7 @@ export class EmailInboxService {
         mode,
         threadRepresentatives,
         perf,
-        scopedFilters,
+        categoryScope,
       );
 
     this.emailInboxDecryptService
@@ -362,6 +376,72 @@ export class EmailInboxService {
     return { emails: finalEmails, total, hasMore };
   }
 
+  /**
+   * Category accordion loads are tracked under their own operation name and
+   * budget so they can be told apart from full inbox loads in CloudWatch and
+   * the "PERF ISSUE" logs.
+   */
+  private createInboxTracker(
+    mode: "triage" | "action" | "follow-up" | "blocked",
+    filters: InboxCategoryScope["filters"],
+  ): PerformanceTracker {
+    if (!filters?.categoryIds?.length) {
+      return new PerformanceTracker(
+        `getInbox(${mode})`,
+        this.cloudWatchService,
+      );
+    }
+    const budget =
+      mode === INBOX_MODES.ACTION
+        ? PERFORMANCE_BUDGETS.INBOX_CATEGORY_FETCH_PROCESS
+        : PERFORMANCE_BUDGETS.INBOX_CATEGORY_FETCH;
+    return new PerformanceTracker(
+      `getInboxCategory(${mode})`,
+      this.cloudWatchService,
+      budget,
+    );
+  }
+
+  /**
+   * For a category-scoped fetch, loads the user's category names once and uses
+   * them for both the SQL scope (name-sibling expansion) and the post-query
+   * category filter, instead of loading and decrypting them twice.
+   */
+  private async resolveCategoryScope(
+    userId: string,
+    filters: InboxCategoryScope["filters"],
+    perf: PerformanceTracker,
+  ): Promise<InboxCategoryScope> {
+    if (!filters?.categoryIds?.length) return { filters };
+    const endScope = perf.startSpan(
+      "category_scope",
+      PERFORMANCE_BUDGETS.CATEGORY_SCOPE_RESOLVE,
+    );
+    const categoryIdToName = await this.loadCategoryIdToName(userId);
+    endScope();
+    return {
+      filters: this.expandCategoryFilterToNameSiblings(
+        filters,
+        categoryIdToName,
+      ),
+      categoryIdToName,
+    };
+  }
+
+  /** Maps each of the user's EMAIL_CATEGORY context ids to its decrypted category name. */
+  private async loadCategoryIdToName(
+    userId: string,
+  ): Promise<Map<string, string>> {
+    const ctxs = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+      select: { contextId: true, contextValue: true },
+    });
+    for (const ctx of ctxs) decryptUserContextEntityForApi(ctx);
+    return new Map(
+      ctxs.map((ctx) => [ctx.contextId, parseCategoryName(ctx.contextValue)]),
+    );
+  }
+
   /** Warms the blocked-sender cache and occasionally repairs stuck priority flags. */
   private async prepareInboxFetch(
     userId: string,
@@ -382,36 +462,22 @@ export class EmailInboxService {
    * therefore include every UUID with the same name, or it returns fewer rows
    * than the header count (issue #2062).
    */
-  private async expandCategoryFilterToNameSiblings(
-    userId: string,
-    filters?: {
-      accountIds?: string[];
-      categoryIds?: string[];
-      minPriority?: number;
-      maxPriority?: number;
-      assigneeId?: string;
-    },
-  ): Promise<typeof filters> {
+  private expandCategoryFilterToNameSiblings(
+    filters: InboxCategoryScope["filters"],
+    idToName: Map<string, string>,
+  ): InboxCategoryScope["filters"] {
     const requested = filters?.categoryIds ?? [];
     const realIds = requested.filter((id) => !isSentinelCategoryKey(id));
     if (realIds.length === 0) return filters;
 
-    const ctxs = await this.userContextRepository.find({
-      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-      select: { contextId: true, contextValue: true },
-    });
-    for (const ctx of ctxs) decryptUserContextEntityForApi(ctx);
-    const idToName = new Map(
-      ctxs.map((ctx) => [ctx.contextId, parseCategoryName(ctx.contextValue)]),
-    );
     const requestedNames = new Set(
       realIds
         .map((id) => idToName.get(id))
         .filter((name): name is string => name !== undefined),
     );
-    const siblings = ctxs
-      .filter((ctx) => requestedNames.has(idToName.get(ctx.contextId) ?? ""))
-      .map((ctx) => ctx.contextId);
+    const siblings = Array.from(idToName)
+      .filter(([, name]) => requestedNames.has(name))
+      .map(([contextId]) => contextId);
     const expanded = Array.from(new Set([...requested, ...siblings]));
     return { ...filters, categoryIds: expanded };
   }
@@ -492,13 +558,9 @@ export class EmailInboxService {
     mode: string,
     emails: InboxEmail[],
     perf: PerformanceTracker,
-    filters?: {
-      accountIds?: string[];
-      categoryIds?: string[];
-      minPriority?: number;
-      maxPriority?: number;
-    },
+    scope?: InboxCategoryScope,
   ): Promise<{ emails: InboxEmail[]; blockedCount: number }> {
+    const filters = scope?.filters;
     const endBlockedFilter = perf.startSpan(
       "blocked_filter",
       QUERY_LIMITS.MAX_RESULTS_DEFAULT,
@@ -537,19 +599,8 @@ export class EmailInboxService {
         (id) => !isSentinelCategoryKey(id),
       );
       const requestedUuids = new Set(realIds);
-      const ctxs = await this.userContextRepository.find({
-        where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
-        select: {
-          contextId: true,
-          contextValue: true,
-        },
-      });
-      for (const ctx of ctxs) {
-        decryptUserContextEntityForApi(ctx);
-      }
-      const idToName = new Map<string, string>();
-      for (const ctx of ctxs)
-        idToName.set(ctx.contextId, parseCategoryName(ctx.contextValue));
+      const idToName =
+        scope?.categoryIdToName ?? (await this.loadCategoryIdToName(userId));
       const requestedNames = new Set(
         realIds
           .map((id) => idToName.get(id))

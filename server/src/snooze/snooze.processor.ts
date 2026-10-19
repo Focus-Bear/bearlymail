@@ -139,18 +139,30 @@ export class SnoozeProcessor implements OnModuleInit {
 
         try {
           tracker.startPhase("snoozeInProvider");
-          const provider =
-            await this.emailProviderManager.getPrimaryProvider(userId);
-          if (!provider) {
+          // Same as the unsnooze worker: getPrimaryProvider reads the user's
+          // encrypted OAuth rows, which a PgBoss job can only do under their key.
+          const isSnoozedInProvider =
+            await this.userEncryptionService.withUserKey(userId, async () => {
+              const provider =
+                await this.emailProviderManager.getPrimaryProvider(userId);
+              if (!provider) {
+                return false;
+              }
+              await provider.snoozeThread(
+                userId,
+                threadId,
+                new Date(snoozeUntil),
+              );
+              return true;
+            });
+          tracker.endPhase("snoozeInProvider");
+          if (!isSnoozedInProvider) {
             this.logger.warn(
               `[Worker ${workerId}] No email provider connected for user ${userId}`,
             );
-            tracker.endPhase("snoozeInProvider");
             tracker.finish();
             return;
           }
-          await provider.snoozeThread(userId, threadId, new Date(snoozeUntil));
-          tracker.endPhase("snoozeInProvider");
 
           tracker.startPhase("updateSyncStatus");
           await this.emailThreadRepository.update(

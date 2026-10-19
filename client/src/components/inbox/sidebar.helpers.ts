@@ -4,6 +4,8 @@
  */
 import { NavigateFunction } from 'react-router-dom';
 
+import { OPEN_TRACKING_SETTINGS_ANCHOR } from 'constants/openTracking';
+
 /** Delay (ms) before scrolling to a settings anchor after navigation. */
 export const SIDEBAR_SCROLL_DELAY_MS = 50;
 
@@ -52,6 +54,11 @@ export function getSettingsNavItems(
         { id: 'email-batching', label: translate('settings.nav.emailBatching'), anchor: 'email-batching' },
         { id: 'blocked-senders', label: translate('settings.nav.blockedSenders'), anchor: 'blocked-senders' },
         { id: 'email-signature', label: translate('settings.nav.emailSignature'), anchor: 'email-signature' },
+        {
+          id: OPEN_TRACKING_SETTINGS_ANCHOR,
+          label: translate('settings.nav.emailTracking'),
+          anchor: OPEN_TRACKING_SETTINGS_ANCHOR,
+        },
       ],
     },
     {

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 
+import { EmailTrackingModule } from "../email-tracking/email-tracking.module";
 import { EmailsModule } from "../emails/emails.module";
 import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { RepliesModule } from "../replies/replies.module";
@@ -17,6 +18,7 @@ import { EmailSendQueueModule } from "./email-send-queue.module";
 @Module({
   imports: [
     EmailSendQueueModule,
+    EmailTrackingModule,
     EmailsModule,
     RepliesModule,
     FollowUpsModule,

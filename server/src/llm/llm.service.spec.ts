@@ -350,6 +350,61 @@ describe("LLMService", () => {
     });
   });
 
+  describe("generateReplyOptions perspective (follow-up mode)", () => {
+    const userSentEmail = {
+      from: "jeremy@focusbear.io",
+      fromName: "Jeremy",
+      subject: "Free assistive technology software",
+      body: "Just following up on my email below.",
+    };
+    const followUpPerspective = {
+      isFollowUp: true,
+      userEmail: "jeremy@focusbear.io",
+      recipientName: "Wellbeing",
+      recipientEmail: "wellbeing@mq.edu.au",
+    };
+
+    async function renderReplyOptionsPrompt(
+      perspective: typeof followUpPerspective,
+    ): Promise<string> {
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
+        JSON.stringify({ options: [{ label: "Nudge", text: "Hi there" }] }),
+      );
+      await service.generateReplyOptions(
+        userSentEmail,
+        { tone: "professional", userName: "Jeremy", perspective },
+        undefined,
+        "test-user-id",
+      );
+      const [[callArgs]] = (mockLLMCoreService.generateText as jest.Mock).mock
+        .calls;
+      return callArgs.prompt as string;
+    }
+
+    it("tells the model the user wrote the latest email and who to chase", async () => {
+      const prompt = await renderReplyOptionsPrompt(followUpPerspective);
+
+      expect(prompt).toContain("Follow-Up Mode");
+      expect(prompt).toContain(
+        "written BY the user, Jeremy <jeremy@focusbear.io>, TO Wellbeing <wellbeing@mq.edu.au>",
+      );
+      expect(prompt).toContain("follow up on it, do NOT reply to it");
+      expect(prompt).not.toContain("the one to reply to");
+      expect(prompt).not.toMatch(/\{\{|\{%/);
+    });
+
+    it("keeps the normal reply prompt when the other party wrote last", async () => {
+      const prompt = await renderReplyOptionsPrompt({
+        ...followUpPerspective,
+        isFollowUp: false,
+      });
+
+      expect(prompt).not.toContain("Follow-Up Mode");
+      expect(prompt).toContain("Latest Email (the one to reply to)");
+      expect(prompt).not.toMatch(/\{\{|\{%/);
+    });
+  });
+
   describe("extractPlainSummary (issue #1156)", () => {
     it("returns plain text unchanged", () => {
       expect(extractPlainSummary("This is a normal summary.")).toBe(

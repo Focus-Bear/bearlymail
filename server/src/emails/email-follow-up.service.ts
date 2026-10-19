@@ -10,6 +10,7 @@ import {
   FollowUp,
   FollowUpStatus,
 } from "../database/entities/follow-up.entity";
+import { EmailTrackingSummaryService } from "../email-tracking/email-tracking-summary.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import { shouldKeepInActionMode } from "./email-inbox-scope.helpers";
@@ -81,6 +82,7 @@ export class EmailFollowUpService {
     private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
+    private emailTrackingSummaryService: EmailTrackingSummaryService,
   ) {}
 
   async filterActionModeEmails(
@@ -130,9 +132,37 @@ export class EmailFollowUpService {
     const end = perf.startSpan("follow_up_filter", QUERY_LIMITS.INBOX_TOTAL);
     try {
       const keep = await this.selectFollowUpThreadIds(userId, emails);
-      return emails.filter((emailItem) => keep.has(emailItem.threadId));
+      const awaitingReply = emails.filter((emailItem) =>
+        keep.has(emailItem.threadId),
+      );
+      await this.attachOpenTracking(userId, awaitingReply);
+      return awaitingReply;
     } finally {
       end();
+    }
+  }
+
+  /**
+   * Annotates each thread awaiting a reply with whether the user's latest
+   * tracked message was opened — one query for the whole page. Best-effort:
+   * a tracking failure must never empty the Follow-Up list.
+   */
+  private async attachOpenTracking(
+    userId: string,
+    emails: InboxEmail[],
+  ): Promise<void> {
+    try {
+      const summaries =
+        await this.emailTrackingSummaryService.getLatestSummariesByThread(
+          userId,
+          emails.map((emailItem) => emailItem.threadId),
+        );
+      for (const emailItem of emails) {
+        const summary = summaries.get(emailItem.threadId);
+        if (summary) emailItem.openTracking = summary;
+      }
+    } catch (error) {
+      this.logger.warn("Failed to attach open tracking to follow-ups:", error);
     }
   }
 

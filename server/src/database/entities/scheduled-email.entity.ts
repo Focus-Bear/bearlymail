@@ -139,6 +139,14 @@ export class ScheduledEmail {
   })
   expectedReplyHours: number | null;
 
+  @Column({
+    type: "boolean",
+    nullable: true,
+    comment:
+      "Per-message open-tracking choice from the composer; null defers to users.trackEmailOpens",
+  })
+  trackOpens: boolean | null;
+
   @Column("text", {
     transformer: makeEncryptedJsonTransformer(
       "scheduled_emails.forwardAttachmentIds",

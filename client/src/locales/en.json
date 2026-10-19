@@ -335,6 +335,11 @@
       "message": "Heads up: we're not syncing your old emails. We've only synced the last 7 days worth.",
       "dismiss": "Dismiss"
     },
+    "openTrackingNotice": {
+      "message": "Open tracking is on: BearlyMail now shows you when people open the emails you send.",
+      "manage": "Manage in Settings",
+      "dismiss": "Dismiss"
+    },
     "batchInfo": {
       "lastUrgentCheck": "Last checked for urgent emails",
       "neverChecked": "never",
@@ -463,6 +468,8 @@
       "recategorizeNone": "No emails to recategorise in triage, action, or follow-up.",
       "recategorizeError": "Failed to start recategorisation. Please try again.",
       "loadingContent": "Loading emails...",
+      "loadMore": "Show {{count}} more",
+      "loadingMore": "Loading more…",
       "dangerousPhishing": "DANGEROUS: potential phishing attempt",
       "newsletterBlockTip": "Quickly block senders — saves time compared to figuring out how to unsubscribe.",
       "newsletterBlockTipTitle": "💡 Tip: Block sender",
@@ -1210,7 +1217,8 @@
       "dataAccount": "Data & Account",
       "dataExport": "Export & Import",
       "troubleshooting": "Troubleshooting",
-      "deleteAccount": "Delete Account"
+      "deleteAccount": "Delete Account",
+      "emailTracking": "Open tracking"
     },
     "schedulingPreferences": {
       "title": "Scheduling Preferences",
@@ -1829,6 +1837,13 @@
       "newFamilyLabel": "New family name",
       "newFamilyPlaceholder": "New family name…",
       "create": "Create family"
+    },
+    "emailTracking": {
+      "title": "Email Open Tracking",
+      "label": "Track email opens",
+      "description": "Adds an invisible 1×1 image to emails you send from BearlyMail so you can see when they're opened — in the thread, in Follow-Up and on the Stats page. Automated replies are never tracked.",
+      "limitations": "Recipients who block images won't show as opened, and Apple Mail may open emails automatically (we flag those as \"may be automatic\"). You can also turn tracking off for a single email when composing.",
+      "saveError": "Couldn't update open tracking. Please try again."
     }
   },
   "admin": {
@@ -2308,7 +2323,9 @@
     "unsavedChangesTitle": "Unsent email",
     "leaveAnyway": "Leave anyway",
     "keepEditing": "Keep editing",
-    "followUpSection": "Follow-up"
+    "followUpSection": "Follow-up",
+    "trackOpens": "Track opens",
+    "trackOpensTooltip": "Adds an invisible image so you can see when this email is opened. Defaults to your setting in Settings → Open tracking."
   },
   "emailSend": {
     "failedNotification": "Your message was not sent. {{reason}}",
@@ -2902,7 +2919,8 @@
     "updatedDescription": "Please review what's changed and accept the updated Privacy Policy to keep using BearlyMail.",
     "whatsChanged": "What's changed",
     "changeSummaries": {
-      "privacy_1_2_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia."
+      "privacy_1_2_0": "We now explain email open tracking: emails you send can include a small invisible image that records when they are opened, with the opener's IP address and device details.",
+      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia."
     }
   },
   "debug": {
@@ -4671,7 +4689,22 @@
     "noReplyData": "-",
     "periodDays_one": "{{count}}d",
     "periodDays_other": "{{count}}d",
-    "dateRangeLabel": "Selected date range"
+    "dateRangeLabel": "Selected date range",
+    "openTracking": {
+      "title": "Email opens",
+      "description": "How often the emails you sent from BearlyMail were opened in this period.",
+      "openRate": "Open rate",
+      "openedOfTracked_one": "{{opened}} of {{count}} tracked email",
+      "openedOfTracked_other": "{{opened}} of {{count}} tracked emails",
+      "trackedSent": "Tracked emails sent",
+      "medianTimeToOpen": "Median time to first open",
+      "maybeAutomatic": "May be automatic",
+      "maybeAutomaticHint": "Only Apple Mail auto-opens",
+      "untrackedNote_one": "{{count}} of {{total}} sent emails wasn't tracked (plain text, turned off, or sent from Apple Mail).",
+      "untrackedNote_other": "{{count}} of {{total}} sent emails weren't tracked (plain text, turned off, or sent from Apple Mail).",
+      "empty": "No tracked emails were sent in this period.",
+      "manageSetting": "Manage open tracking"
+    }
   },
   "errorBoundary": {
     "title": "Oops! Something went wrong",
@@ -4828,5 +4861,20 @@
   "toneCheck": {
     "toastChecking": "Checking tone of email before sending...",
     "cancelSend": "Cancel send"
+  },
+  "openTracking": {
+    "sent": "Sent",
+    "opened_one": "Opened · {{time}}",
+    "opened_other": "Opened {{count}}× · {{time}}",
+    "maybeAutomatic": "Opened? · may be automatic",
+    "historyTitle": "Open history",
+    "notOpenedYet": "Not opened yet",
+    "sentAt": "Sent {{time}}",
+    "sourceGmail": "via Gmail",
+    "sourceAppleAutomatic": "Apple Mail (may be automatic)",
+    "appleCaveat": "Apple Mail Privacy Protection loads images automatically when mail is delivered, so these opens may not mean the email was read.",
+    "multipleRecipients_one": "Sent to {{count}} recipient.",
+    "multipleRecipients_other": "Sent to {{count}} recipients — an open could be any of them.",
+    "imagesCaveat": "Opens are detected with a tiny image. Recipients who block images won't show as opened."
   }
 }

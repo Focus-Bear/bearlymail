@@ -1883,6 +1883,11 @@
       "message": "Aviso: no estamos sincronizando tus correos antiguos. Solo hemos sincronizado los últimos 7 días de correo.",
       "dismiss": "Descartar"
     },
+    "openTrackingNotice": {
+      "message": "El seguimiento de aperturas está activado: BearlyMail ahora te muestra cuándo se abren los correos que envías.",
+      "manage": "Gestionar en Ajustes",
+      "dismiss": "Descartar"
+    },
     "batchInfo": {
       "changeInSettings": "Cambiar en Configuración",
       "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",

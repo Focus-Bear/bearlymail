@@ -19,6 +19,7 @@ import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { InboxPlanStatusBanner } from 'components/inbox/InboxPlanStatusBanner';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
+import { OpenTrackingNoticeBanner } from 'components/inbox/OpenTrackingNoticeBanner';
 import { shouldRevealLowerPriorityTriage } from 'components/inbox/revealLowerPriorityTriage';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { LoadingState, PrioritisationInterstitial } from 'components/inbox/states';
@@ -535,6 +536,13 @@ const InboxView: React.FC = () => {
         ) : (
           <>
             {user && <SyncWindowBanner userId={user.id} syncWindowLimited={user.syncWindowLimited} />}
+            {user && (
+              <OpenTrackingNoticeBanner
+                userId={user.id}
+                trackEmailOpens={user.trackEmailOpens}
+                hasSeenTour={user.hasSeenTour}
+              />
+            )}
             {/* "Analysing priority..." virtual category for remaining unprioritised emails */}
             {priorityCounts && priorityCounts.unprioritised > 0 && (
               <div style={{ padding: `${theme.spacing.sm} ${theme.spacing.md} 0` }}>

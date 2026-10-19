@@ -285,6 +285,13 @@ export class User {
   syncWindowLimited: boolean;
 
   @Column({
+    default: true,
+    comment:
+      "Mailtrack-style open tracking: embed a pixel in the user's outgoing HTML mail. On by default; toggled in Settings.",
+  })
+  trackEmailOpens: boolean;
+
+  @Column({
     type: "text",
     nullable: true,
     transformer: makeGlobalEncryptedJsonTransformer("users.toneSettings"),

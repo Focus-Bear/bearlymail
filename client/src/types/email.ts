@@ -154,6 +154,31 @@ export interface GitHubLink {
  */
 export type CategorizationSource = 'user' | 'rule' | 'local' | 'proto' | 'ai';
 
+/** Where a tracked open came from (mirrors server OPEN_SOURCE). */
+export type OpenSource = 'direct' | 'gmail_proxy' | 'apple_privacy_proxy';
+
+export interface RecentOpen {
+  openedAt: string;
+  openSource: OpenSource;
+  /** Apple Mail Privacy Protection prefetch — not proof the message was read. */
+  isLikelyAutomatic: boolean;
+}
+
+/**
+ * Mailtrack-style open tracking for one message the user sent. Present only on
+ * tracked messages; `recentOpens` is only filled in on the thread view.
+ */
+export interface OpenTrackingSummary {
+  sentAt: string;
+  recipientCount: number;
+  openCount: number;
+  firstOpenedAt: string | null;
+  lastOpenedAt: string | null;
+  automaticOpenCount: number;
+  lastAutomaticOpenAt: string | null;
+  recentOpens?: RecentOpen[];
+}
+
 export interface Email {
   id: string;
   threadId: string;
@@ -192,6 +217,8 @@ export interface Email {
   lastTheirReplyAt?: string;
   lastMyReplyAt?: string;
   followUpDueAt?: string;
+  /** Opens of the user's own tracked message (thread view) or latest tracked send (Follow-Up list). */
+  openTracking?: OpenTrackingSummary;
   urgencyScore?: number; // Thread-level urgency score (0-100)
   urgencyExplanation?: string | null; // Thread-level urgency explanation
   emailThreadId?: string; // Database thread ID for override endpoint

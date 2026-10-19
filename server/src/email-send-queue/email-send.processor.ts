@@ -9,6 +9,7 @@ import {
   STALE_QUEUED_MINUTES,
   STALE_SENDING_MINUTES,
 } from "../constants/email-send.constants";
+import { TRACKED_SEND_SOURCE } from "../constants/email-tracking.constants";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -17,6 +18,7 @@ import {
   QueuedNewEmailPayload,
   QueuedReplyPayload,
 } from "../database/entities/email-send-attempt.entity";
+import { TrackedEmailSender } from "../email-tracking/tracked-email-sender.service";
 import { EmailAdminService } from "../emails/email-admin.service";
 import { appendSignature } from "../emails/email-controller.helpers";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -69,6 +71,7 @@ export class EmailSendProcessor implements OnModuleInit {
     private readonly userEncryptionService: UserEncryptionService,
     private readonly followUpsService: FollowUpsService,
     private readonly pusherService: PusherService,
+    private readonly trackedEmailSender: TrackedEmailSender,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -190,6 +193,7 @@ export class EmailSendProcessor implements OnModuleInit {
         subject: payload.subject,
         isForward: payload.isForward,
         keepInAction: payload.keepInAction,
+        trackOpens: payload.trackOpens,
       },
     );
   }
@@ -205,14 +209,19 @@ export class EmailSendProcessor implements OnModuleInit {
     }
 
     const user = await this.usersService.findOne(userId);
-    const sent = await provider.sendEmail(userId, {
-      to: payload.to,
-      subject: payload.subject,
-      body: appendSignature(payload.body, user?.emailSignature),
-      cc: payload.cc,
-      bcc: payload.bcc,
-      attachments: decodeAttachments(payload.attachments),
-    });
+    const sent = await this.trackedEmailSender.sendEmail(
+      userId,
+      provider,
+      {
+        to: payload.to,
+        subject: payload.subject,
+        body: appendSignature(payload.body, user?.emailSignature),
+        cc: payload.cc,
+        bcc: payload.bcc,
+        attachments: decodeAttachments(payload.attachments),
+      },
+      { source: TRACKED_SEND_SOURCE.NEW, trackOpens: payload.trackOpens },
+    );
 
     const allRecipients = [
       ...payload.to,

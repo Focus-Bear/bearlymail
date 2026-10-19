@@ -28,10 +28,12 @@ import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyCo
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
 import { SidebarPageLayout } from 'components/layout/SidebarPageLayout';
+import { TrackOpensCheckbox } from 'components/tracking/TrackOpensCheckbox';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { EMAIL_FIELD_CC, EMAIL_FIELD_TO } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
@@ -51,6 +53,8 @@ const Compose: React.FC = () => {
     useEmailDetailToneCheck();
   const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
   const followUp = useFollowUpDuration();
+  const { user } = useAuth();
+  const [trackOpens, setTrackOpens] = useState(user?.trackEmailOpens !== false);
 
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
@@ -201,6 +205,7 @@ const Compose: React.FC = () => {
         userTimezone,
         expectedReplyDuration: followUp.expectedReplyDuration,
         locale: i18n.language,
+        trackOpens,
       });
       // The message is only queued at this point, so keep a copy until the
       // outcome event confirms it actually went out (see useEmailSendOutcomes).
@@ -424,6 +429,10 @@ const Compose: React.FC = () => {
             tooltipText={followUp.tooltipText}
             onChange={followUp.setFollowUpDuration}
           />
+
+          <div style={{ marginTop: theme.spacing.md }}>
+            <TrackOpensCheckbox isTracking={trackOpens} disabled={sending || sendSuccess} onChange={setTrackOpens} />
+          </div>
         </div>
 
         <ComposeActions

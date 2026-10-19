@@ -13,6 +13,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { ContactsModule } from "../contacts/contacts.module";
 import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
+import { EmailTrackingModule } from "../email-tracking/email-tracking.module";
 import { EmailsModule } from "../emails/emails.module";
 import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
@@ -27,6 +28,7 @@ import { SendScheduledEmailsProcessor } from "./send-scheduled-emails.processor"
 @Module({
   imports: [
     TypeOrmModule.forFeature([ScheduledEmail]),
+    EmailTrackingModule,
     forwardRef(() => EmailsModule),
     forwardRef(() => FollowUpsModule),
     ContactsModule,

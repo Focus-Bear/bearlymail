@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { ReplyFooterSendRequest, ReplySendOptions } from 'types/replySend';
 
 import { SignaturePreview } from 'components/compose/SignaturePreview';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
@@ -83,18 +84,7 @@ interface ReplyComposerProps {
   onGenerateFromPrompt?: (prompt: string) => void;
   generatingFromPrompt?: boolean;
   onClose: () => void;
-  onSend: (params: {
-    files?: File[];
-    expectedReplyHours?: number;
-    expectedReplyDuration?: string;
-    forwardAttachmentIds?: string[];
-    /** Filenames of the forwarded attachments kept, so the tone check knows they are attached. */
-    forwardAttachmentFilenames?: string[];
-    draftOverride?: string;
-    scheduledSendAt?: Date;
-    keepInAction?: boolean;
-    inlineImages?: Map<string, File>;
-  }) => void;
+  onSend: (options: ReplySendOptions) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
@@ -115,6 +105,8 @@ interface ReplyComposerProps {
   onFilesChange?: (files: File[]) => void;
   /** Called whenever forwarded attachment IDs change so parent can track them for the auto-send countdown */
   onForwardAttachmentIdsChange?: (ids: string[]) => void;
+  /** Called whenever the per-message open-tracking choice changes, for the auto-send countdown */
+  onTrackOpensChange?: (isTracking: boolean) => void;
 }
 
 const useDragFiles = (onFilesAdded: (newFiles: File[]) => void) => {
@@ -161,17 +153,37 @@ const useDragFiles = (onFilesAdded: (newFiles: File[]) => void) => {
   return { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop };
 };
 
-const useReplyComposerState = (
-  initialAttachments: EmailAttachment[],
-  onClose: () => void,
-  onSend: ReplyComposerProps['onSend'],
-  onDraftChange: (draft: string) => void,
-  onUseRevisedText: (text: string) => void,
-  onInlineImagesChange?: (images: Map<string, File>) => void,
-  onFilesChange?: (files: File[]) => void,
-  onForwardAttachmentIdsChange?: (ids: string[]) => void
-) => {
+interface ReplyComposerStateParams
+  extends Pick<
+    ReplyComposerProps,
+    | 'onClose'
+    | 'onSend'
+    | 'onDraftChange'
+    | 'onUseRevisedText'
+    | 'onInlineImagesChange'
+    | 'onFilesChange'
+    | 'onForwardAttachmentIdsChange'
+    | 'onTrackOpensChange'
+  > {
+  initialAttachments: EmailAttachment[];
+  /** Account-level open-tracking default the per-message toggle starts from. */
+  isTrackingOpensByDefault: boolean;
+}
+
+const useReplyComposerState = ({
+  initialAttachments,
+  isTrackingOpensByDefault,
+  onClose,
+  onSend,
+  onDraftChange,
+  onUseRevisedText,
+  onInlineImagesChange,
+  onFilesChange,
+  onForwardAttachmentIdsChange,
+  onTrackOpensChange,
+}: ReplyComposerStateParams) => {
   const [files, setFiles] = useState<File[]>([]);
+  const [isTrackingOpens, setIsTrackingOpens] = useState(isTrackingOpensByDefault);
   const [forwardAttachmentIds, setForwardAttachmentIds] = useState<string[]>([]);
   const [inlineImages, setInlineImages] = useState<Map<string, File>>(new Map());
   const prevAttachmentsRef = useRef<string>('');
@@ -197,6 +209,10 @@ const useReplyComposerState = (
     onForwardAttachmentIdsChange?.(forwardAttachmentIds);
   }, [forwardAttachmentIds, onForwardAttachmentIdsChange]);
 
+  useEffect(() => {
+    onTrackOpensChange?.(isTrackingOpens);
+  }, [isTrackingOpens, onTrackOpensChange]);
+
   const handlePasteFiles = useCallback((pastedFiles: File[]) => {
     setFiles(prev => [...prev, ...pastedFiles]);
   }, []);
@@ -216,13 +232,7 @@ const useReplyComposerState = (
     [onDraftChange]
   );
 
-  const handleSend = (
-    expectedReplyHours?: number,
-    draftOverride?: string,
-    scheduledAt?: Date,
-    keepInAction?: boolean,
-    expectedReplyDuration?: string
-  ) => {
+  const handleSend = (request: ReplyFooterSendRequest = {}) => {
     // Capture the current attachment lists before calling onSend so they are
     // passed by value to the send handler.  Do NOT clear them here — if the
     // tone check blocks the send, the composer stays open and the user would
@@ -232,17 +242,14 @@ const useReplyComposerState = (
     const currentForwardIds = forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined;
     const currentInlineImages = inlineImages.size > 0 ? inlineImages : undefined;
     onSend({
+      ...request,
       files: currentFiles,
-      expectedReplyHours,
-      expectedReplyDuration,
       forwardAttachmentIds: currentForwardIds,
       forwardAttachmentFilenames: initialAttachments
         .filter(attachment => forwardAttachmentIds.includes(attachment.attachmentId))
         .map(attachment => attachment.filename),
-      draftOverride,
-      scheduledSendAt: scheduledAt,
-      keepInAction,
       inlineImages: currentInlineImages,
+      trackOpens: isTrackingOpens,
     });
   };
 
@@ -255,13 +262,15 @@ const useReplyComposerState = (
 
   const handleUseRevisedText = (text: string) => {
     onUseRevisedText(text);
-    handleSend(undefined, text, undefined, false);
+    handleSend({ draftOverride: text, keepInAction: false });
   };
 
   return {
     files,
     setFiles,
     forwardAttachmentIds,
+    isTrackingOpens,
+    setIsTrackingOpens,
     inlineImages,
     handlePasteFiles,
     handleInlineImage,
@@ -362,13 +371,9 @@ interface ReplyComposerBodyProps {
   onRemoveForwardAttachment: (attachmentId: string) => void;
   onUseRevisedText: (text: string) => void;
   onClose: () => void;
-  onSend: (
-    expectedReplyHours?: number,
-    draftOverride?: string,
-    scheduledAt?: Date,
-    keepInAction?: boolean,
-    expectedReplyDuration?: string
-  ) => void;
+  onSend: (request: ReplyFooterSendRequest) => void;
+  isTrackingOpens: boolean;
+  onTrackOpensChange: (isTracking: boolean) => void;
   onSchedule?: () => void;
   onClearSchedule?: () => void;
   onDismissToneCheck?: () => void;
@@ -422,6 +427,8 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
   onUseRevisedText,
   onClose,
   onSend,
+  isTrackingOpens,
+  onTrackOpensChange,
   onSchedule,
   onClearSchedule,
   onDismissToneCheck,
@@ -524,6 +531,8 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
       replyMode={replyMode}
       toneCheckFailed={isToneCheckBlocking(toneCheckResult)}
       scheduledSendAt={scheduledSendAt}
+      isTrackingOpens={isTrackingOpens}
+      onTrackOpensChange={onTrackOpensChange}
       onClose={onClose}
       onSend={onSend}
       onSchedule={onSchedule}
@@ -582,6 +591,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onInlineImagesChange,
   onFilesChange,
   onForwardAttachmentIdsChange,
+  onTrackOpensChange,
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -590,6 +600,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     files,
     setFiles,
     forwardAttachmentIds,
+    isTrackingOpens,
+    setIsTrackingOpens,
     handlePasteFiles,
     handleInlineImage,
     handleRemoveForwardAttachment,
@@ -597,16 +609,18 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     handleSend,
     handleClose,
     handleUseRevisedText,
-  } = useReplyComposerState(
-    attachments,
+  } = useReplyComposerState({
+    initialAttachments: attachments,
+    isTrackingOpensByDefault: user?.trackEmailOpens !== false,
     onClose,
     onSend,
     onDraftChange,
     onUseRevisedText,
     onInlineImagesChange,
     onFilesChange,
-    onForwardAttachmentIdsChange
-  );
+    onForwardAttachmentIdsChange,
+    onTrackOpensChange,
+  });
   const { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop } = useDragFiles(newFiles =>
     setFiles(prev => [...prev, ...newFiles])
   );
@@ -663,6 +677,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onUseRevisedText: handleUseRevisedText,
     onClose: handleClose,
     onSend: handleSend,
+    isTrackingOpens,
+    onTrackOpensChange: setIsTrackingOpens,
     onSchedule,
     onClearSchedule,
     onDismissToneCheck,

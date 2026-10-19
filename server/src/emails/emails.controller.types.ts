@@ -49,4 +49,6 @@ export type SendEmailBody = {
   expectedReplyDuration?: string;
   /** UI language (e.g. "en", "es") used to parse `expectedReplyDuration`. */
   locale?: string;
+  /** Per-message open-tracking choice; omitted defers to the user setting. */
+  trackOpens?: boolean | string;
 };

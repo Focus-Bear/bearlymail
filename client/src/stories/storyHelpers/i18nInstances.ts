@@ -93,6 +93,9 @@ replyComposerI18n.use(initReactI18next).init({
           "If they don't reply within {{count}} days, the email will reappear in your follow-up inbox.",
         'emailDetail.keepInActionTooltip':
           'Helpful if you are just letting the other person know you got their message and still need to take action yourself.',
+        'compose.trackOpens': 'Track opens',
+        'compose.trackOpensTooltip':
+          'Adds an invisible image so you can see when this email is opened. Defaults to your setting in Settings → Open tracking.',
         'emailDetail.scheduleModalTitle': 'Schedule send',
         'emailDetail.scheduleCustom': 'Pick date & time...',
         'emailDetail.scheduleSuggestions.thisAfternoon': 'This afternoon',

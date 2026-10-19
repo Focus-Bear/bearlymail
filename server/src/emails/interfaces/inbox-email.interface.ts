@@ -1,4 +1,5 @@
 import { Email } from "../../database/entities/email.entity";
+import { OpenTrackingSummary } from "../../email-tracking/email-tracking.types";
 import { CategorizationSourceKind } from "../category-source.helper";
 
 /**
@@ -45,4 +46,6 @@ export interface InboxEmail extends Email {
   lastMyReplyAt?: string;
   /** ISO timestamp of when this thread's follow-up becomes due */
   followUpDueAt?: string;
+  /** Opens of the user's latest tracked message in the thread (Follow-Up mode). */
+  openTracking?: OpenTrackingSummary;
 }

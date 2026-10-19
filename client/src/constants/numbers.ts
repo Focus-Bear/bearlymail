@@ -115,6 +115,7 @@ export const DELAY_1_5_SECONDS_MS = 1500; // 1.5 seconds
 export const CALENDAR_DAYS_AHEAD = 90;
 export const CALENDAR_DAYS_BACK = 30;
 export const DAYS_PER_YEAR = 365;
+export const DAYS_PER_WEEK = 7;
 export const DEFAULT_MEETING_DURATION_MINUTES = 30;
 
 // Font sizes (in pixels)

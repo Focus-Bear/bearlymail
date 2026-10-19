@@ -435,6 +435,41 @@ describe('useEmailDetailOperations', () => {
     });
   });
 
+  describe('handleSendReply – per-message open tracking', () => {
+    it('passes the composer\'s "Track opens" choice to /replies/send', async () => {
+      const store = createTestStore([]);
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleSendReply({ files: [], draftOverride: 'Test reply', trackOpens: false });
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        `${API_URL}/replies/send/${TEST_EMAIL_ID}`,
+        expect.objectContaining({ trackOpens: false })
+      );
+    });
+
+    it('carries the choice on scheduled replies too', async () => {
+      const store = createTestStore([]);
+      const scheduledSendAt = new Date('2030-01-01T09:00:00.000Z');
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleSendReply({ draftOverride: 'Test reply', scheduledSendAt, trackOpens: false });
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        `${API_URL}/replies/send/${TEST_EMAIL_ID}`,
+        expect.objectContaining({ trackOpens: false, scheduledSendAt: scheduledSendAt.toISOString() })
+      );
+    });
+  });
+
   describe('handleSendReply – background send bookkeeping', () => {
     it('records the pending send so a later failure can restore the draft', async () => {
       const store = createTestStore([]);

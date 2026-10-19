@@ -1,6 +1,7 @@
 import './sanitizeHooks';
 
 import DOMPurify from 'dompurify';
+import { stripTrackingPixels } from 'utils/trackingPixel';
 
 import {
   BLOCKQUOTE_MIN_POSITION,
@@ -571,7 +572,8 @@ export function sanitizeAndProcessHtml(html: string, attachments?: InlineAttachm
 
   // Step 1: Sanitize the HTML first to prevent XSS attacks
   // DOMPurify removes dangerous content and attributes
-  const sanitized = DOMPurify.sanitize(html, {
+  // Never load our own open-tracking pixel: viewing sent mail must not count as an open.
+  const sanitized = DOMPurify.sanitize(stripTrackingPixels(html), {
     ALLOWED_TAGS: EMAIL_ALLOWED_TAGS,
     ALLOWED_ATTR: EMAIL_ALLOWED_ATTR,
     ALLOW_DATA_ATTR: false,

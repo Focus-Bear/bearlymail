@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Email, GitHubLink, PriorityExplanation } from 'types/email';
+import { ReplySendOptions } from 'types/replySend';
 import {
   extractCleanBody,
   extractCleanBodyWithMeta,
@@ -687,19 +688,7 @@ export function useEmailDetailOperations(
   const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
   const handleSendReply = useCallback(
-    async (
-      sendOptions: {
-        files?: File[];
-        expectedReplyHours?: number;
-        expectedReplyDuration?: string;
-        forwardAttachmentIds?: string[];
-        forwardAttachmentFilenames?: string[];
-        draftOverride?: string;
-        scheduledSendAt?: Date;
-        keepInAction?: boolean;
-        inlineImages?: Map<string, File>;
-      } = {}
-    ) => {
+    async (sendOptions: ReplySendOptions = {}) => {
       const {
         files = [],
         expectedReplyHours,
@@ -710,6 +699,7 @@ export function useEmailDetailOperations(
         scheduledSendAt,
         keepInAction,
         inlineImages,
+        trackOpens,
       } = sendOptions;
       const rawDraft = draftOverride || draft;
       if (!id || !rawDraft) {
@@ -815,6 +805,7 @@ export function useEmailDetailOperations(
           inlineImages,
           forwardAttachmentIds,
           keepInAction,
+          trackOpens,
         };
 
         setSending(true);
@@ -937,6 +928,11 @@ export function useEmailDetailOperations(
     replyForwardAttachmentIdsRef.current = ids;
   }, []);
 
+  const replyTrackOpensRef = useRef<boolean | undefined>(undefined);
+  const setReplyTrackOpens = useCallback((isTracking: boolean) => {
+    replyTrackOpensRef.current = isTracking;
+  }, []);
+
   const cancelToneCheck = useCallback(() => {
     if (toneCheckAbortRef.current) {
       toneCheckAbortRef.current.abort();
@@ -989,6 +985,7 @@ export function useEmailDetailOperations(
         inlineImages: pendingInlineImages,
         files: pendingFiles,
         forwardAttachmentIds: pendingForwardAttachmentIds,
+        trackOpens: replyTrackOpensRef.current,
       });
       setAutoSendCountdown(null);
       return;
@@ -1085,6 +1082,7 @@ export function useEmailDetailOperations(
     setReplyInlineImages,
     setReplyFiles,
     setReplyForwardAttachmentIds,
+    setReplyTrackOpens,
     cancelToneCheck,
     disputeToneCheck,
     cancelAutoSend,

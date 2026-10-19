@@ -1,6 +1,7 @@
 import './sanitizeHooks';
 
 import DOMPurify from 'dompurify';
+import { stripTrackingPixels } from 'utils/trackingPixel';
 
 import { NODE_NAME_ANCHOR } from 'constants/strings';
 
@@ -240,7 +241,8 @@ export const sanitizeAndProcessHtml = (html: string): string => {
   }
 
   // Step 1: Sanitize the HTML first to prevent XSS attacks
-  const sanitized = DOMPurify.sanitize(html, {
+  // Never load our own open-tracking pixel: viewing sent mail must not count as an open.
+  const sanitized = DOMPurify.sanitize(stripTrackingPixels(html), {
     ALLOWED_TAGS: [
       'p',
       'br',

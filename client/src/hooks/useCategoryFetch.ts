@@ -10,6 +10,7 @@ import {
   fetchStart as categoryFetchStart,
   fetchSuccess as categoryFetchSuccess,
   resetAll as categoryResetAll,
+  setExpandedKeys,
 } from 'store/slices/categorySlice';
 import { markCategoryLoaded } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
@@ -76,6 +77,12 @@ export function useCategoryFetch({
   expandedCategoriesRef.current = expandedCategories;
   const stableCategoryOrderRef = useRef(stableCategoryOrder);
   stableCategoryOrderRef.current = stableCategoryOrder;
+
+  // Publish the open accordions so the background refresh / processing poll can limit
+  // themselves to visible categories.
+  useEffect(() => {
+    dispatch(setExpandedKeys([...expandedCategories]));
+  }, [expandedCategories, dispatch]);
 
   // Tracks which category keys have had a fetch dispatched in the current session.
   // This guards against the category expansion effect firing twice for the same key

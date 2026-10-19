@@ -18,7 +18,7 @@ export const FinalCta: React.FC = () => {
             <em>{t('landing.v2.ctaFinal.titleEm')}</em>
           </h2>
           <p>{t('landing.v2.ctaFinal.body')}</p>
-          <div className="form">
+          <div className="cta-final-actions">
             <a
               className="btn btn-sun btn-lg"
               href={SIGNUP_PATH}

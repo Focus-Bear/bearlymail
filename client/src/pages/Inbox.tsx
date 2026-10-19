@@ -10,7 +10,7 @@ import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
 import { DebugPanel } from 'components/inbox/DebugPanel';
 import { DistractionFrictionModal } from 'components/inbox/DistractionFrictionModal';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
-import { navigateAfterSplitViewAction } from 'components/inbox/inboxCategoryHelpers';
+import { hasPendingCategorisation, navigateAfterSplitViewAction } from 'components/inbox/inboxCategoryHelpers';
 import { InboxContent } from 'components/inbox/InboxContent';
 import { InboxFilters } from 'components/inbox/InboxFilters';
 import { InboxHeader } from 'components/inbox/InboxHeader';
@@ -87,7 +87,6 @@ const InboxView: React.FC = () => {
     triageTabRef,
     actionTabRef,
     followUpTabRef,
-    deliverBtnRef,
     emailListRef,
     emailDetailRef,
   } = useInboxUI();
@@ -374,9 +373,6 @@ const InboxView: React.FC = () => {
           onSkipTour={() => onboarding.handleSkipTour()}
           onNextTourStep={() => onboarding.handleNextTourStep(tourSteps.length)}
           onPrevTourStep={onboarding.handlePrevTourStep}
-          triageTabRef={triageTabRef}
-          actionTabRef={actionTabRef}
-          deliverBtnRef={deliverBtnRef}
           showScanModal={onboarding.showScanModal}
           isScanning={onboarding.isScanning}
           onStartScan={onboarding.handleStartScan}
@@ -543,8 +539,9 @@ const InboxView: React.FC = () => {
                 hasSeenTour={user.hasSeenTour}
               />
             )}
-            {/* "Analysing priority..." virtual category for remaining unprioritised emails */}
-            {priorityCounts && priorityCounts.unprioritised > 0 && (
+            {/* "Analysing priority..." banner for unprioritised emails, unless the
+                "AI deciding category" accordion is already listing them */}
+            {priorityCounts && priorityCounts.unprioritised > 0 && !hasPendingCategorisation(categorySummary) && (
               <div style={{ padding: `${theme.spacing.sm} ${theme.spacing.md} 0` }}>
                 <AnalysingPriorityCategory count={priorityCounts.unprioritised} />
               </div>

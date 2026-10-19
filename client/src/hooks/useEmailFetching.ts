@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { unstable_batchedUpdates } from 'react-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
 import { devLog } from 'utils/dev-logger';
@@ -17,8 +17,10 @@ import { getAxiosErrorMessage } from 'utils/errors';
 import { API_URL } from 'config/api';
 import {
   BACKOFF_RETRY_BUFFER_MS,
+  CATEGORY_PAGE_SIZE,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
+  INBOX_BATCH_MAX_CATEGORIES,
   INBOX_FETCH_LIMIT,
   MAX_CATEGORY_FETCH_RETRIES,
   MS_PER_SECOND,
@@ -33,6 +35,7 @@ import {
   MODE_SCHEDULED,
   PARAM_CATEGORY_IDS,
 } from 'constants/strings';
+import { chunkKeys, planCategoryRefresh, refreshLimitFor } from 'hooks/categoryRefresh';
 import { InboxFilter, resolveEffectiveFilters } from 'hooks/useInboxFilters';
 import { BackoffContext, usePollingWithBackoff } from 'hooks/usePollingWithBackoff';
 import {
@@ -64,12 +67,85 @@ import {
   setTotalCount,
   updateCategoryEmails,
 } from 'store/slices/emailSlice';
-import { AppDispatch } from 'store/store';
+import {
+  CategoryPage,
+  markCategoriesStale,
+  setCategoryPagination,
+} from 'store/slices/inboxDataSlice';
+import { AppDispatch, RootState } from 'store/store';
 
 const ABORT_ERROR_NAME = 'AbortError';
 
 /** How long (ms) the inbox cache is considered fresh before a full re-fetch is needed. */
 export const INBOX_CACHE_TTL_MS = 60_000;
+
+/** Offset + limit of one category row request. */
+export interface CategoryPageRequest {
+  offset: number;
+  limit: number;
+}
+
+const FIRST_CATEGORY_PAGE: CategoryPageRequest = { offset: 0, limit: CATEGORY_PAGE_SIZE };
+
+/** Response shape of GET /emails/inbox for a single category. */
+export interface CategoryInboxResponse {
+  emails: Email[];
+  total?: number;
+  hasMore?: boolean;
+}
+
+/** One category's rows as returned by GET /emails/inbox-batch. */
+interface CategoryBatchPage {
+  key: string;
+  emails: Email[];
+  total?: number;
+  hasMore?: boolean;
+}
+
+/** Paging state from a category response, tolerating servers/mocks that omit total/hasMore. */
+export function toCategoryPage(response: { emails?: Email[]; total?: number; hasMore?: boolean }): CategoryPage {
+  const rowCount = response.emails?.length ?? 0;
+  return { total: response.total ?? rowCount, hasMore: response.hasMore ?? false };
+}
+
+/** Record the paging state of a category's freshly loaded first page. */
+function recordCategoryPage(dispatch: AppDispatch, categoryKey: string, response: CategoryInboxResponse): void {
+  dispatch(setCategoryPagination({ categoryKey, ...toCategoryPage(response) }));
+}
+
+/** Count loaded rows per category key, using the same keying the accordion groups by. */
+function countRowsByCategory(emails: Email[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  emails.forEach(email => {
+    const key = getCategoryKey(email.category_id, email.category ?? CATEGORY_OTHER);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+  return counts;
+}
+
+/** Fetch several categories' rows in one /emails/inbox-batch round-trip. */
+async function fetchCategoryBatch({
+  mode,
+  filters,
+  keys,
+  limit,
+  signal,
+}: {
+  mode: InboxMode;
+  filters: InboxFilter | undefined;
+  keys: string[];
+  limit: number;
+  signal?: AbortSignal;
+}): Promise<CategoryBatchPage[]> {
+  const params = buildBatchParamsImpl(mode, filters, keys, limit);
+  const response = await axios.get<{ categories?: CategoryBatchPage[] }>(
+    `${API_URL}/emails/inbox-batch?${params.toString()}`,
+    { signal }
+  );
+  const pagesByKey = new Map((response.data?.categories ?? []).map(page => [page.key, page]));
+  // A key the server didn't return (e.g. dropped past its cap) comes back as an empty page.
+  return keys.map(key => pagesByKey.get(key) ?? { key, emails: [] });
+}
 
 interface UseEmailFetchingProps {
   mode: InboxMode;
@@ -168,6 +244,10 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   // Category keys that already triggered a live-summary reconciliation after an empty fetch.
   // Bounded to one reconciliation per key per fetch session — see reconcileEmptyCategoryWithSummary.
   const summaryReconcileAttemptedRef = useRef<Set<string>>(new Set());
+  // Read lazily inside the background refresh so it sees the latest expanded/loaded state
+  // without subscribing this hook to every store change.
+  const store = useStore<RootState>();
+  const refreshInFlightRef = useRef<{ requestKey: string; promise: Promise<void> } | null>(null);
 
   const buildSummaryParams = useCallback(
     (overrideFilters?: Partial<InboxFilter>) =>
@@ -279,21 +359,22 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       }
       keys.forEach(key => dispatch(markCategoryLoading(key)));
       try {
-        const params = buildBatchParamsImpl(mode, filters, keys);
         dispatch(pruneStaleOptimisticRemovals());
-        const response = await axios.get(`${API_URL}/emails/inbox-batch?${params.toString()}`);
-        const categories = (response.data?.categories ?? []) as Array<{ key: string; emails: Email[] }>;
-        const emailsByKey = new Map(categories.map(cat => [cat.key, cat.emails ?? []]));
+        const pages = await fetchCategoryBatch({ mode, filters, keys, limit: CATEGORY_PAGE_SIZE });
         // Single batched render for all N categories instead of N (see refreshInPlace note).
         unstable_batchedUpdates(() => {
-          keys.forEach(key => {
-            const emails = emailsByKey.get(key) ?? [];
-            dispatch(updateCategoryEmails({ categoryKey: key, emails }));
-            setCachedCategoryEmails(mode, key, emails);
-            dispatch(markCategoryLoaded(key));
-            // Issue #2062: the rows are the truth once loaded. A summary count above the
-            // row count came from an older state; a category with no rows must not render.
-            dispatch(reconcileCategorySummaryCount({ categoryKey: key, loadedCount: emails.length }));
+          pages.forEach(page => {
+            const emails = page.emails ?? [];
+            const categoryPage = toCategoryPage(page);
+            dispatch(updateCategoryEmails({ categoryKey: page.key, emails }));
+            setCachedCategoryEmails(mode, page.key, emails);
+            dispatch(setCategoryPagination({ categoryKey: page.key, ...categoryPage }));
+            dispatch(markCategoryLoaded(page.key));
+            // Issue #2062: the row query is the truth once loaded. A summary count that
+            // disagrees with it came from an older state; a category with no rows must not
+            // render. `total` is that query's full row count (= rows returned when the
+            // category fits on one page), so paging never under-reports the category.
+            dispatch(reconcileCategorySummaryCount({ categoryKey: page.key, loadedCount: categoryPage.total }));
           });
         });
         return { loadedKeys: keys, failedKeys: [] };
@@ -316,31 +397,38 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
     };
   }, [categoryBackoff]); // categoryBackoff.cancelAll is stable (useCallback with []); including it satisfies the rule
 
+  /**
+   * Silent background refresh (processing poll, cache revalidation). While one is in flight
+   * for the same mode + filters, further calls join it instead of stacking another round of
+   * requests on a server that is already slow to answer.
+   */
   const refreshInPlace = useCallback(
-    async (signal?: AbortSignal) => {
-      await refreshInPlaceImpl({
+    (signal?: AbortSignal): Promise<void> => {
+      const requestKey = `${mode}:${JSON.stringify(filters ?? null)}`;
+      const inFlight = refreshInFlightRef.current;
+      if (inFlight && inFlight.requestKey === requestKey) {
+        return inFlight.promise;
+      }
+      const promise = refreshInPlaceImpl({
         mode,
         dispatch,
         filters,
         buildSummaryParams,
-        buildCategoryParams,
         buildAutoRespondedParams,
         buildAutoRespondedSummary,
-        loadedCategoryNamesRef,
+        getState: store.getState,
         // Fix #1571 Bug 1: pass current filters so cache write-back is scoped to filter hash.
         activeFilters: filters,
         signal,
+      }).finally(() => {
+        if (refreshInFlightRef.current?.promise === promise) {
+          refreshInFlightRef.current = null;
+        }
       });
+      refreshInFlightRef.current = { requestKey, promise };
+      return promise;
     },
-    [
-      mode,
-      dispatch,
-      filters,
-      buildSummaryParams,
-      buildCategoryParams,
-      buildAutoRespondedParams,
-      buildAutoRespondedSummary,
-    ]
+    [mode, dispatch, filters, store, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary]
   );
 
   return { fetchEmails, fetchCategoryEmails, fetchCategoryEmailsBatch, refreshInPlace };
@@ -455,7 +543,7 @@ function serveCategoryFromCacheAndRefresh({
   const params = buildCategoryParams(catKey);
   dispatch(pruneStaleOptimisticRemovals());
   axios
-    .get(`${API_URL}/emails/inbox?${params.toString()}`)
+    .get<CategoryInboxResponse>(`${API_URL}/emails/inbox?${params.toString()}`)
     .then(response => {
       if (fetchSessionRef.current !== sessionId) {
         dispatch(markCategoryLoadFailed(catKey)); // allows Effect 2 to schedule a retry
@@ -463,6 +551,7 @@ function serveCategoryFromCacheAndRefresh({
       }
       const freshEmails: Email[] = response.data.emails;
       dispatch(updateCategoryEmails({ categoryKey: catKey, emails: freshEmails }));
+      recordCategoryPage(dispatch, catKey, response.data);
       setCachedCategoryEmails(mode, catKey, freshEmails);
       // Fix #1769: always mark loaded when the background refresh completes, regardless of
       // whether the summary agrees. If the summary is stale (shows count > 0 but API returned 0),
@@ -586,7 +675,7 @@ serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dis
   try {
     const params = buildCategoryParams(catKey);
     dispatch(pruneStaleOptimisticRemovals());
-    const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
+    const response = await axios.get<CategoryInboxResponse>(`${API_URL}/emails/inbox?${params.toString()}`);
     // Emails now include category_id (UUID) from the server, so groupEmailsByCategory
     // keys by UUID directly. No normalization needed.
     const emails: Email[] = response.data.emails;
@@ -642,6 +731,7 @@ serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dis
 
     categoryBackoff.onSuccess(catKey);
     dispatch(updateCategoryEmails({ categoryKey: catKey, emails }));
+    recordCategoryPage(dispatch, catKey, response.data);
     setCachedCategoryEmails(mode, catKey, emails);
 
     // Fix #1769: Always mark loaded after a successful API call, regardless of what the
@@ -669,16 +759,129 @@ serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dis
   }
 }
 
+/** Re-fetch the inbox summary in place. Returns false when it failed (the refresh then stops). */
+async function refreshSummaryInPlace({
+  mode,
+  dispatch,
+  buildSummaryParams,
+  activeFilters,
+  signal,
+}: {
+  mode: InboxMode;
+  dispatch: AppDispatch;
+  buildSummaryParams: () => URLSearchParams;
+  activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
+  signal?: AbortSignal;
+}): Promise<boolean> {
+  // Fix #1571 Bug 1: scope the cache write-back to the active filter hash.
+  const hash = activeFilters ? filterHash(activeFilters) : undefined;
+  try {
+    const summaryParams = buildSummaryParams();
+    dispatch(pruneStaleOptimisticRemovals());
+    const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`, { signal });
+    const freshCategories = summaryResponse.data.categories;
+    dispatch(setCategorySummary(freshCategories));
+    dispatch(setSummaryLoading(false));
+    dispatch(setTotalCount(summaryResponse.data.total));
+    setCachedSummary(mode, freshCategories, hash);
+    return true;
+  } catch (err) {
+    console.warn('[refreshInPlace] Summary fetch failed:', err);
+    return false;
+  }
+}
+
+/** One batch request's outcome during a refresh: the row limit it asked for and the pages it got. */
+interface RefreshBatchResult {
+  limit: number;
+  pages: CategoryBatchPage[];
+}
+
+/**
+ * Refresh the rows of the categories the user can see. Open accordions are refetched through
+ * /emails/inbox-batch (one request per INBOX_BATCH_MAX_CATEGORIES categories rather than one
+ * per category); collapsed ones are only marked stale so they refetch when next opened.
+ */
+async function refreshVisibleCategories({
+  mode,
+  dispatch,
+  filters,
+  getState,
+  signal,
+}: {
+  mode: InboxMode;
+  dispatch: AppDispatch;
+  filters?: InboxFilter;
+  getState: () => RootState;
+  signal?: AbortSignal;
+}): Promise<void> {
+  const state = getState();
+  const plan = planCategoryRefresh({
+    loadedKeys: state.inboxData.loadedCategoryNames,
+    loadingKeys: state.inboxData.loadingCategoryNames,
+    expandedKeys: state.category.expandedKeys,
+  });
+  if (plan.staleKeys.length > 0) {
+    dispatch(markCategoriesStale(plan.staleKeys));
+  }
+  if (plan.refreshKeys.length === 0) {
+    return;
+  }
+
+  const rowCounts = countRowsByCategory(state.inboxData.emails);
+  const results = await Promise.all(
+    chunkKeys(plan.refreshKeys, INBOX_BATCH_MAX_CATEGORIES).map(async (keys): Promise<RefreshBatchResult | null> => {
+      const limit = refreshLimitFor(keys, rowCounts);
+      try {
+        return { limit, pages: await fetchCategoryBatch({ mode, filters, keys, limit, signal }) };
+      } catch (err) {
+        console.warn('[refreshInPlace] Batch category refresh failed:', err);
+        return null;
+      }
+    })
+  );
+  applyRefreshedPages(mode, dispatch, getState, results);
+}
+
+/**
+ * Write refreshed category pages to the store in one render. A category that grew past the
+ * requested limit while the refresh was in flight (a "Show more" landed) is skipped: applying
+ * the shorter page would drop rows the user just loaded. The next tick covers it.
+ */
+function applyRefreshedPages(
+  mode: InboxMode,
+  dispatch: AppDispatch,
+  getState: () => RootState,
+  results: Array<RefreshBatchResult | null>
+): void {
+  const latestRowCounts = countRowsByCategory(getState().inboxData.emails);
+  const freshPages = results.flatMap(result =>
+    result ? result.pages.filter(page => (latestRowCounts.get(page.key) ?? 0) <= result.limit) : []
+  );
+  devLog('[refreshInPlace] batching', freshPages.length, 'updateCategoryEmails dispatches');
+  // Collapses N re-renders into 1: React 18 auto-batching only covers synchronous
+  // dispatches, not ones issued after a resolved Promise.
+  unstable_batchedUpdates(() => {
+    freshPages.forEach(page => {
+      const emails = page.emails ?? [];
+      dispatch(updateCategoryEmails({ categoryKey: page.key, emails }));
+      // Written without a filter hash so fetchCategoryEmailsImpl (which reads without one)
+      // can serve it; category keys are already per-category.
+      setCachedCategoryEmails(mode, page.key, emails);
+      dispatch(setCategoryPagination({ categoryKey: page.key, ...toCategoryPage(page) }));
+    });
+  });
+}
+
 /** Extracted: refresh inbox in-place without clearing state. */
 async function refreshInPlaceImpl({
   mode,
   dispatch,
   filters,
   buildSummaryParams,
-  buildCategoryParams,
   buildAutoRespondedParams,
   buildAutoRespondedSummary,
-  loadedCategoryNamesRef,
+  getState,
   activeFilters,
   signal,
 }: {
@@ -686,10 +889,9 @@ async function refreshInPlaceImpl({
   dispatch: AppDispatch;
   filters?: InboxFilter;
   buildSummaryParams: () => URLSearchParams;
-  buildCategoryParams: (categoryKey: string) => URLSearchParams;
   buildAutoRespondedParams: () => URLSearchParams;
   buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
-  loadedCategoryNamesRef: React.MutableRefObject<string[]>;
+  getState: () => RootState;
   /** Fix #1571 Bug 1: filters used to scope the cache write-back to the filter hash. */
   activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
   signal?: AbortSignal;
@@ -703,57 +905,11 @@ async function refreshInPlaceImpl({
     return;
   }
 
-  // Fix #1571 Bug 1: compute filter hash once for all cache write-backs in this refresh.
-  const hash = activeFilters ? filterHash(activeFilters) : undefined;
-
-  try {
-    const summaryParams = buildSummaryParams();
-    dispatch(pruneStaleOptimisticRemovals());
-    const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`, { signal });
-    const freshCategories = summaryResponse.data.categories;
-    dispatch(setCategorySummary(freshCategories));
-    dispatch(setSummaryLoading(false));
-    dispatch(setTotalCount(summaryResponse.data.total));
-    setCachedSummary(mode, freshCategories, hash);
-  } catch (err) {
-    console.warn('[refreshInPlace] Summary fetch failed:', err);
+  const isSummaryFresh = await refreshSummaryInPlace({ mode, dispatch, buildSummaryParams, activeFilters, signal });
+  if (!isSummaryFresh) {
     return;
   }
-
-  // loadedCategoryNamesRef now stores category keys (UUIDs or names).
-  // buildCategoryParams handles both: UUID keys → categoryIds=, name keys → categories=
-  const loadedCategoryKeys = [...loadedCategoryNamesRef.current];
-  const categoryResults = await Promise.all(
-    loadedCategoryKeys.map(async categoryKey => {
-      try {
-        const catParams = buildCategoryParams(categoryKey);
-        const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`, { signal });
-        // Emails now include category_id (UUID) from the server; no normalization needed.
-        const emails: Email[] = (catResponse.data as { emails: Email[] }).emails;
-        // Write category emails without a filter hash so fetchCategoryEmailsImpl (which reads
-        // without a hash) can serve them. Summary uses the hash to scope to the active filter;
-        // category keys are already per-category so a separate hash scope isn't needed here.
-        setCachedCategoryEmails(mode, categoryKey, emails);
-        return { categoryKey, emails };
-      } catch (err) {
-        console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err); // nosemgrep
-        return null;
-      }
-    })
-  );
-
-  // Dispatch all updateCategoryEmails actions in a single batch → collapses N re-renders into 1.
-  // Without this, each async-resolved dispatch fires its own render cycle (React 18 auto-batching
-  // only covers synchronous dispatches, not resolved Promises).
-  const validResults = categoryResults.filter(
-    (result): result is { categoryKey: string; emails: Email[] } => result !== null
-  );
-  devLog('[refreshInPlace] batching', validResults.length, 'updateCategoryEmails dispatches');
-  unstable_batchedUpdates(() => {
-    validResults.forEach(({ categoryKey, emails }) => {
-      dispatch(updateCategoryEmails({ categoryKey, emails }));
-    });
-  });
+  await refreshVisibleCategories({ mode, dispatch, filters, getState, signal });
 }
 
 export function appendFilterParams(params: URLSearchParams, filters: InboxFilter | undefined): void {
@@ -792,13 +948,14 @@ export function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): 
 export function buildCategoryParamsImpl(
   mode: InboxMode,
   filters: InboxFilter | undefined,
-  categoryKey: string
+  categoryKey: string,
+  page: CategoryPageRequest = FIRST_CATEGORY_PAGE
 ): URLSearchParams {
   const params = new URLSearchParams();
   params.append('mode', mode);
   params.append(PARAM_CATEGORY_IDS, categoryKey);
-  params.append('limit', INBOX_FETCH_LIMIT.toString());
-  params.append('offset', '0');
+  params.append('limit', page.limit.toString());
+  params.append('offset', page.offset.toString());
   // Guided priority filter is Triage-only; drop its bounds for other modes (keep account filter).
   const effectiveFilters = resolveEffectiveFilters(mode, filters);
   if (effectiveFilters) {
@@ -823,12 +980,14 @@ export function buildCategoryParamsImpl(
 export function buildBatchParamsImpl(
   mode: InboxMode,
   filters: InboxFilter | undefined,
-  categoryKeys: string[]
+  categoryKeys: string[],
+  limit: number = CATEGORY_PAGE_SIZE
 ): URLSearchParams {
   const params = new URLSearchParams();
   params.append('mode', mode);
   params.append(PARAM_CATEGORY_IDS, categoryKeys.join(','));
-  // The server applies its own per-category limit for the batch endpoint.
+  // Rows per category; the server clamps it to its own maximum.
+  params.append('limit', limit.toString());
   const effectiveFilters = resolveEffectiveFilters(mode, filters);
   if (effectiveFilters) {
     if (effectiveFilters.accountIds?.length) {

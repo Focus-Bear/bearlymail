@@ -19,6 +19,48 @@ export const INBOX_OTHER_CATEGORY_NAME = "Other";
 export const INBOX_UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
 
 /**
+ * Summary id / category key for threads whose category the AI is still
+ * deciding. Kept apart from "Other" so a brand-new inbox doesn't look like
+ * everything was filed as Other before categorisation has run. Must match the
+ * client's CATEGORY_KEY_PENDING.
+ */
+export const INBOX_PENDING_CATEGORY_KEY = "pending-categorisation";
+
+/**
+ * Display name for the pending bucket. The web client translates it by key;
+ * the English name keeps older clients that render `name` verbatim readable.
+ */
+export const INBOX_PENDING_CATEGORY_NAME = "AI deciding category";
+
+/** True for the request keys that address the null-category bucket ("Other"). */
+export function isOtherCategoryKey(key: string): boolean {
+  return (
+    key === INBOX_OTHER_CATEGORY_NAME ||
+    key === INBOX_UNCATEGORIZED_CATEGORY_KEY
+  );
+}
+
+/** True for any bucket key that is not a real category UUID. */
+export function isSentinelCategoryKey(key: string): boolean {
+  return isOtherCategoryKey(key) || key === INBOX_PENDING_CATEGORY_KEY;
+}
+
+/**
+ * A thread is "pending categorisation" when it has no resolved category yet and
+ * the refine pipeline (rules → local model → LLM) is still running for it.
+ * `isProcessingPriority` is set when the email is persisted for AI processing
+ * and cleared once that pipeline writes the priority + category, so it is the
+ * in-flight signal for categorisation too. A null category with the flag clear
+ * is a settled "Other".
+ */
+export function isThreadCategoryPending(thread: {
+  hasResolvedCategory: boolean;
+  isProcessingPriority: boolean | null | undefined;
+}): boolean {
+  return !thread.hasResolvedCategory && thread.isProcessingPriority === true;
+}
+
+/**
  * Returns the SQL WHERE fragment for thread filtering based on inbox mode.
  */
 export function buildThreadFilter(mode: string): string {
@@ -44,8 +86,8 @@ export interface RawEmailRow {
   senderJobTitle: string | null;
   subject: string | null;
   summary: string | null;
-  // Selected only so the inbox can derive a deterministic preview when summary
-  // is empty; decrypted lazily (only for blank-summary rows) to keep list cost down.
+  // Only populated for blank-summary rows (see INBOX_PREVIEW_BODY_COLUMNS_SQL) so
+  // the inbox can derive a deterministic preview; NULL for every other row.
   body: string | null;
   htmlBody: string | null;
   labels?: string;

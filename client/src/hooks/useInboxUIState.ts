@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Email, InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { INBOX_TOUR_STEPS, TourStep } from 'components/inbox/overlays/tourSteps';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MODE_FOLLOW_UP } from 'constants/strings';
 import { User } from 'contexts/AuthContext';
@@ -62,13 +63,16 @@ export function useInboxUIState({
     }
   }, [user, authLoading, mode]);
 
-  const tourSteps = [
-    { title: t('onboarding.tour.welcome'), content: t('onboarding.tour.welcomeContent') },
-    { title: t('onboarding.tour.triageTitle'), content: t('onboarding.tour.triageContent') },
-    { title: t('onboarding.tour.actionTitle'), content: t('onboarding.tour.actionContent') },
-    { title: t('onboarding.tour.deliveryTitle'), content: t('onboarding.tour.deliveryContent') },
-    { title: t('onboarding.tour.assistantTitle'), content: t('onboarding.tour.assistantContent') },
-  ];
+  const tourSteps = useMemo<TourStep[]>(
+    () =>
+      INBOX_TOUR_STEPS.map(({ titleKey, contentKey, targets, placement }) => ({
+        title: t(titleKey),
+        content: t(contentKey),
+        targets,
+        placement,
+      })),
+    [t]
+  );
 
   return {
     snoozeInput,

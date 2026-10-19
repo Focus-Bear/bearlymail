@@ -27,6 +27,11 @@ export interface InboxEmail extends Email {
   category: string | null;
   categoryExplanation: string | null;
   categoryId: string | null;
+  /**
+   * True while the thread has no category yet and categorisation is still
+   * running — the client shows it under "AI deciding category" instead of Other.
+   */
+  isCategoryPending: boolean;
   /** Which process assigned the category, for the everyday "Categorised by" line. */
   categorizationSource: CategorizationSourceKind | null;
   /** Proto-category the thread was bucketed under, so the client can promote it by ID. */

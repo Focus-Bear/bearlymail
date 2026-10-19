@@ -1,8 +1,14 @@
 import { Email } from 'types/email';
 
-import { LAST_INBOX_MODE_STORAGE_KEY, MODE_FOLLOW_UP } from 'constants/strings';
+import {
+  LAST_INBOX_MODE_STORAGE_KEY,
+  MODE_ACTION,
+  MODE_FOLLOW_UP,
+  MODE_TRIAGE,
+  NAVIGATION_SOURCE_SEARCH,
+} from 'constants/strings';
 
-import { buildSuggestRepliesRequest, readLastInboxMode } from './suggestRepliesRequest';
+import { buildSuggestRepliesRequest, resolveReplyInboxMode } from './suggestRepliesRequest';
 
 const userSentEmail = {
   id: 'email-1',
@@ -46,17 +52,33 @@ describe('buildSuggestRepliesRequest', () => {
   });
 });
 
-describe('readLastInboxMode', () => {
+describe('resolveReplyInboxMode', () => {
   afterEach(() => {
     sessionStorage.clear();
   });
 
-  it('returns the inbox mode the user last viewed', () => {
-    sessionStorage.setItem(LAST_INBOX_MODE_STORAGE_KEY, MODE_FOLLOW_UP);
-    expect(readLastInboxMode()).toBe(MODE_FOLLOW_UP);
+  it('uses the mode in the URL when replying from the inbox split view', () => {
+    expect(resolveReplyInboxMode(`/inbox/${MODE_FOLLOW_UP}/thread-1`, null)).toBe(MODE_FOLLOW_UP);
+    expect(resolveReplyInboxMode(`/focused-inbox/${MODE_ACTION}/thread-1`, null)).toBe(MODE_ACTION);
   });
 
-  it('returns undefined when no mode is stored', () => {
-    expect(readLastInboxMode()).toBeUndefined();
+  it('uses the mode the inbox list passed when opening the email full-page', () => {
+    expect(resolveReplyInboxMode('/email/email-1', { fromMode: MODE_FOLLOW_UP })).toBe(MODE_FOLLOW_UP);
+  });
+
+  it('prefers the URL mode over navigation state', () => {
+    expect(resolveReplyInboxMode(`/inbox/${MODE_TRIAGE}/thread-1`, { fromMode: MODE_FOLLOW_UP })).toBe(MODE_TRIAGE);
+  });
+
+  it('ignores a stale last-visited Follow-Up mode when the email was opened from search', () => {
+    sessionStorage.setItem(LAST_INBOX_MODE_STORAGE_KEY, MODE_FOLLOW_UP);
+
+    expect(resolveReplyInboxMode('/email/email-1', { from: NAVIGATION_SOURCE_SEARCH })).toBeUndefined();
+  });
+
+  it('is unknown for an email opened without inbox context (contact page, direct link)', () => {
+    sessionStorage.setItem(LAST_INBOX_MODE_STORAGE_KEY, MODE_FOLLOW_UP);
+
+    expect(resolveReplyInboxMode('/email/email-1', null)).toBeUndefined();
   });
 });

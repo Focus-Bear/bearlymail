@@ -17,6 +17,7 @@ import { emailMentionsGitHub } from 'utils/githubUtils';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 import { PENDING_SEND_KIND, rememberPendingSend } from 'utils/pendingSends';
 import { captureEvent } from 'utils/posthog';
+import { resolveReplyInboxMode } from 'utils/suggestRepliesRequest';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { buildToneCheckContext } from 'utils/toneCheckContext';
 
@@ -660,6 +661,7 @@ export function useEmailDetailOperations(
       setReplySubject,
       setShowCc,
       setShowBcc,
+      replyInboxMode: resolveReplyInboxMode(location.pathname, location.state),
     },
     user?.email
   );

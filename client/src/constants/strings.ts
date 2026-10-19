@@ -334,6 +334,7 @@ export const PRIORITY_STATUS_CALCULATING = 'Calculating...' as const;
 
 // Route paths
 export const ROUTE_INBOX = '/inbox' as const;
+export const ROUTE_FOCUSED_INBOX = '/focused-inbox' as const;
 export const ROUTE_SEARCH = '/search' as const;
 export const ROUTE_SETTINGS = '/settings' as const;
 export const ROUTE_ADMIN = '/admin' as const;

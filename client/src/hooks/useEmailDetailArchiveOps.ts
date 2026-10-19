@@ -5,6 +5,7 @@ import axios from 'axios';
 import i18n from 'i18next';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
+import { buildSnoozeRequestBody } from 'utils/snoozeRequest';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -43,7 +44,7 @@ async function executeSnoozeRequest(id: string, duration: string, emailToSnooze:
   dispatch(removeEmail(id));
   dispatch(addOptimisticSnooze(id));
   try {
-    await axios.post(`${API_URL}/snooze/${id}`, { duration });
+    await axios.post(`${API_URL}/snooze/${id}`, buildSnoozeRequestBody(duration, i18n.language));
   } catch (error) {
     console.error('Error snoozing email:', error);
     if (emailToSnooze) {
@@ -96,7 +97,7 @@ async function executeSnoozeOp(params: {
     }
   } else {
     navigate(getInboxPath());
-    axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
+    axios.post(`${API_URL}/snooze/${id}`, buildSnoozeRequestBody(duration, i18n.language)).catch(error => {
       console.error('Error snoozing email:', error);
       if (emailToSnooze) {
         dispatch(restoreEmail(emailToSnooze));
@@ -153,7 +154,7 @@ function usePostReplyOps({ id, emails, dispatch, options, navigate, getInboxPath
       } else {
         navigate(getInboxPath());
       }
-      axios.post(`${API_URL}/snooze/${id}`, { duration, locale: i18n.language }).catch(error => {
+      axios.post(`${API_URL}/snooze/${id}`, buildSnoozeRequestBody(duration, i18n.language)).catch(error => {
         console.error('Error snoozing email after reply:', error);
         dispatch(removeOptimisticSnooze(id));
         if (emailToSnooze) {

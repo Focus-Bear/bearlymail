@@ -1,5 +1,6 @@
 import { HOURS_PER_DAY } from "../constants/time-constants";
-import { durationToHours } from "../snooze/parse-duration";
+import { durationToHours, hoursUntil } from "../snooze/parse-duration";
+import { parseFutureInstant } from "./future-instant.util";
 
 /** Minimum follow-up window, in days, for any non-zero expected reply time. */
 const MIN_FOLLOW_UP_DAYS = 1;
@@ -15,6 +16,12 @@ export interface ExpectedReplyInput {
    * same parser as snooze. Takes precedence over `expectedReplyHours`.
    */
   expectedReplyDuration?: string;
+  /**
+   * ISO instant the client resolved `expectedReplyDuration` to in the user's
+   * timezone. Used instead of parsing the duration here, because the API runs
+   * in UTC and would put "tomorrow" or "next Monday" on the wrong calendar day.
+   */
+  expectedReplyAt?: string;
   /** UI language (e.g. "en", "es") used to parse `expectedReplyDuration`. */
   locale?: string;
 }
@@ -32,7 +39,10 @@ export function resolveExpectedReplyHours(
 ): number | undefined {
   const customDuration = input.expectedReplyDuration?.trim();
   if (customDuration) {
-    return durationToHours(customDuration, now, input.locale);
+    const expectedReplyAt = parseFutureInstant(input.expectedReplyAt, now);
+    return expectedReplyAt
+      ? hoursUntil(expectedReplyAt, now)
+      : durationToHours(customDuration, now, input.locale);
   }
   const hours =
     typeof input.expectedReplyHours === "string"

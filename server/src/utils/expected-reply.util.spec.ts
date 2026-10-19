@@ -62,6 +62,67 @@ describe("resolveExpectedReplyHours", () => {
   });
 });
 
+// The server tests run with TZ=UTC, like the deployed API.
+describe("resolveExpectedReplyHours with a client-resolved instant", () => {
+  // 10:17am Friday 16 Oct in Melbourne (AEDT, UTC+11) — still Thursday in UTC.
+  const melbourneMorning = new Date("2026-10-15T23:17:00.000Z");
+  // "tomorrow" in Melbourne: Saturday 17 Oct, 8am AEDT.
+  const melbourneTomorrow8am = "2026-10-16T21:00:00.000Z";
+
+  it("counts hours to the instant the client resolved in the user's timezone", () => {
+    expect(
+      resolveExpectedReplyHours(
+        {
+          expectedReplyDuration: "tomorrow",
+          expectedReplyAt: melbourneTomorrow8am,
+          locale: "en",
+        },
+        melbourneMorning,
+      ),
+    ).toBe(22);
+  });
+
+  it("documents the trap: parsing on the UTC server follows up the same evening", () => {
+    // 8am UTC on the 16th is 7pm Friday in Melbourne: 9 hours, not 22.
+    expect(
+      resolveExpectedReplyHours(
+        { expectedReplyDuration: "tomorrow", locale: "en" },
+        melbourneMorning,
+      ),
+    ).toBe(9);
+  });
+
+  it("falls back to parsing the duration when the instant is in the past", () => {
+    expect(
+      resolveExpectedReplyHours(
+        {
+          expectedReplyDuration: "48h",
+          expectedReplyAt: "2026-10-15T23:00:00.000Z",
+        },
+        melbourneMorning,
+      ),
+    ).toBe(48);
+  });
+
+  it("falls back to parsing the duration when the instant is unparseable", () => {
+    expect(
+      resolveExpectedReplyHours(
+        { expectedReplyDuration: "48h", expectedReplyAt: "not-a-date" },
+        melbourneMorning,
+      ),
+    ).toBe(48);
+  });
+
+  it("ignores the instant when no free-text duration was chosen", () => {
+    expect(
+      resolveExpectedReplyHours(
+        { expectedReplyHours: 12, expectedReplyAt: melbourneTomorrow8am },
+        melbourneMorning,
+      ),
+    ).toBe(12);
+  });
+});
+
 describe("followUpDaysFromHours", () => {
   it("rounds a sub-day window up to one day", () => {
     expect(followUpDaysFromHours(1)).toBe(1);

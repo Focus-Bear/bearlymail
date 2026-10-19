@@ -47,6 +47,8 @@ export type SendEmailBody = {
    * parser as snooze. Takes precedence over `expectedReplyHours`.
    */
   expectedReplyDuration?: string;
+  /** ISO instant the client resolved `expectedReplyDuration` to (user's timezone). */
+  expectedReplyAt?: string;
   /** UI language (e.g. "en", "es") used to parse `expectedReplyDuration`. */
   locale?: string;
   /** Per-message open-tracking choice; omitted defers to the user setting. */

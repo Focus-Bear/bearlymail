@@ -1,8 +1,10 @@
 import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
+import i18n from 'i18next';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { invalidateSummaryCache, removeEmailFromCache } from 'utils/emailCache';
+import { buildSnoozeRequestBody } from 'utils/snoozeRequest';
 
 import { API_URL } from 'config/api';
 import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
@@ -241,7 +243,7 @@ export function useEmailActionsBase({
       onSuggestionRemove?.(emailId);
       adjustTabCount(onTabCountsUpdateOptimistically, mode, -1);
 
-      axios.post(`${API_URL}/snooze/${emailId}`, { duration }).catch(error => {
+      axios.post(`${API_URL}/snooze/${emailId}`, buildSnoozeRequestBody(duration, i18n.language)).catch(error => {
         console.error('[Snooze] API call failed:', error);
         if (emailToSnooze) {
           dispatch(restoreEmail(emailToSnooze));

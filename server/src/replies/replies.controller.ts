@@ -134,6 +134,8 @@ export class RepliesController {
        * expectedReplyHours and is converted to whole hours.
        */
       expectedReplyDuration?: string;
+      /** ISO instant the client resolved expectedReplyDuration to (user's timezone). */
+      expectedReplyAt?: string;
       forwardAttachmentIds?: string | string[];
       scheduledSendAt?: string;
       userTimezone?: string;

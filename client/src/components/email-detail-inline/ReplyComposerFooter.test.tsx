@@ -1,7 +1,13 @@
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
 import { getScheduleSuggestions, ReplyComposerFooter } from './ReplyComposerFooter';
+
+let mockIsEmailTrackingIncluded = true;
+vi.mock('hooks/useIsEmailTrackingIncluded', () => ({
+  useIsEmailTrackingIncluded: () => mockIsEmailTrackingIncluded,
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -484,6 +490,24 @@ describe('ReplyComposerFooter', () => {
       render(<ReplyComposerFooter {...defaultProps} sending />);
 
       expect(screen.getByTestId('track-opens-checkbox')).toBeDisabled();
+    });
+
+    it('is unchecked and locked with an upgrade link when the plan excludes tracking', () => {
+      mockIsEmailTrackingIncluded = false;
+      try {
+        render(
+          <MemoryRouter>
+            <ReplyComposerFooter {...defaultProps} />
+          </MemoryRouter>,
+        );
+
+        const checkbox = screen.getByTestId('track-opens-checkbox');
+        expect(checkbox).not.toBeChecked();
+        expect(checkbox).toBeDisabled();
+        expect(screen.getByTestId('track-opens-upgrade-link')).toHaveAttribute('href', '/settings?plans=open#team-usage');
+      } finally {
+        mockIsEmailTrackingIncluded = true;
+      }
     });
   });
 });

@@ -55,9 +55,9 @@ cardI18n.use(initReactI18next).init({
 });
 
 const DEMO_TIERS = [
-  { id: 'bearlymail_starter', monthlyPriceUsd: 10, emailsPerCycle: 3000 },
-  { id: 'bearlymail_growth', monthlyPriceUsd: 20, emailsPerCycle: 10000 },
-  { id: 'bearlymail_enterprise', monthlyPriceUsd: 50, emailsPerCycle: 30000 },
+  { id: 'bearlymail_starter', monthlyPriceUsd: 10, emailsPerCycle: 3000, seats: 1, includesEmailTracking: false },
+  { id: 'bearlymail_growth', monthlyPriceUsd: 20, emailsPerCycle: 10000, seats: 1, includesEmailTracking: true },
+  { id: 'bearlymail_enterprise', monthlyPriceUsd: 50, emailsPerCycle: 30000, seats: 5, includesEmailTracking: true },
 ];
 
 function buildOrg(overrides: Partial<AdminOrgPlanInfo> = {}): AdminOrgPlanInfo {

@@ -9,6 +9,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { ReplyComposer } from './ReplyComposer';
 
+vi.mock('hooks/useIsEmailTrackingIncluded', () => ({ useIsEmailTrackingIncluded: () => true }));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }));

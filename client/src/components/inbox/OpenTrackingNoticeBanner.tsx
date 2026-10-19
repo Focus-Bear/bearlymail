@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 
 import { EMOJI_CLOSE, EMOJI_INFO } from 'constants/emojis';
 import { OPEN_TRACKING_SETTINGS_ANCHOR } from 'constants/openTracking';
+import { useIsEmailTrackingIncluded } from 'hooks/useIsEmailTrackingIncluded';
 
 export const OPEN_TRACKING_NOTICE_DISMISSED_KEY_PREFIX = 'bearlymail_open_tracking_notice_dismissed_';
 const DISMISSED_VALUE = 'true';
@@ -41,6 +42,8 @@ export const OpenTrackingNoticeBanner: React.FC<OpenTrackingNoticeBannerProps> =
   hasSeenTour,
 }) => {
   const { t } = useTranslation();
+  // Announcing tracking to someone whose plan doesn't include it would be false.
+  const isIncludedInPlan = useIsEmailTrackingIncluded();
   const storageKey = userId ? `${OPEN_TRACKING_NOTICE_DISMISSED_KEY_PREFIX}${userId}` : null;
   const [isDismissed, setIsDismissed] = useState(() => readDismissed(storageKey));
   const [prevStorageKey, setPrevStorageKey] = useState(storageKey);
@@ -63,7 +66,7 @@ export const OpenTrackingNoticeBanner: React.FC<OpenTrackingNoticeBannerProps> =
     setIsDismissed(true);
   }, [storageKey]);
 
-  if (!userId || trackEmailOpens !== true || hasSeenTour !== true || isDismissed) {
+  if (!userId || trackEmailOpens !== true || !isIncludedInPlan || hasSeenTour !== true || isDismissed) {
     return null;
   }
 

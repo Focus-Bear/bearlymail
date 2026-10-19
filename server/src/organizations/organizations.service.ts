@@ -12,7 +12,10 @@ import * as crypto from "crypto";
 import { Repository } from "typeorm";
 
 import { ORG_PLAN_STATUS, OrgPlanStatus } from "../constants/domain-statuses";
-import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
+import {
+  BOOLEAN_STRING_VALUES,
+  SELF_HOSTED_ENV_KEY,
+} from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MEMBER_ROLES, MEMBER_STATUS } from "../constants/member-roles";
 import { Organization } from "../database/entities/organization.entity";
@@ -22,6 +25,7 @@ import {
 } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { orgIncludesEmailTracking } from "../subscriptions/plan-features.util";
 import { TRIAL_EMAIL_LIMIT } from "../subscriptions/volume-tiers.constants";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { InviteMemberDto } from "./dto/invite-member.dto";
@@ -49,6 +53,8 @@ export interface VolumeUsage {
   planStatus: OrgPlanStatus;
   trialEndsAt: Date | null;
   selfHosted: boolean;
+  /** Whether the plan lets members send open-tracked email. */
+  includesEmailTracking: boolean;
 }
 
 @Injectable()
@@ -69,7 +75,7 @@ export class OrganizationsService {
     private readonly configService: ConfigService,
   ) {
     this.isSelfHosted =
-      this.configService.get<string>("SELF_HOSTED") ===
+      this.configService.get<string>(SELF_HOSTED_ENV_KEY) ===
       BOOLEAN_STRING_VALUES.TRUE;
   }
 
@@ -314,6 +320,7 @@ export class OrganizationsService {
       planStatus: org.planStatus ?? ORG_PLAN_STATUS.UNPAID,
       trialEndsAt: org.trialEndsAt ?? null,
       selfHosted: this.isSelfHosted,
+      includesEmailTracking: this.isSelfHosted || orgIncludesEmailTracking(org),
     };
   }
 

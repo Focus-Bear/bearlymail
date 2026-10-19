@@ -32,6 +32,9 @@ pickerI18n.use(initReactI18next).init({
         'team.settings.planPicker.pricePerMonth': '${{price}}/month',
         'team.settings.planPicker.emailsPerCycle_one': '{{count}} AI-processed email per month',
         'team.settings.planPicker.emailsPerCycle_other': '{{count}} AI-processed emails per month',
+        'team.settings.planPicker.includesEmailTracking': 'Email tracking',
+        'team.settings.planPicker.teamMembers_one': '{{count}} team member',
+        'team.settings.planPicker.teamMembers_other': '{{count}} team members',
         'team.settings.planPicker.choosePlan': 'Choose plan',
         'team.settings.planPicker.currentPlan': 'Current plan',
         'team.settings.planPicker.openingCheckout': 'Opening checkout…',
@@ -56,9 +59,9 @@ const demoAuth = {
 };
 
 const DEMO_TIERS = [
-  { id: 'bearlymail_starter', monthlyPriceUsd: 15, emailsPerCycle: 3000 },
-  { id: 'bearlymail_growth', monthlyPriceUsd: 25, emailsPerCycle: 10000 },
-  { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000 },
+  { id: 'bearlymail_starter', monthlyPriceUsd: 5, emailsPerCycle: 3000, seats: 1, includesEmailTracking: false },
+  { id: 'bearlymail_growth', monthlyPriceUsd: 15, emailsPerCycle: 10000, seats: 1, includesEmailTracking: true },
+  { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000, seats: 5, includesEmailTracking: true },
 ];
 
 export type PlanPickerScenario = 'default' | 'currentPlan' | 'member' | 'fallback';

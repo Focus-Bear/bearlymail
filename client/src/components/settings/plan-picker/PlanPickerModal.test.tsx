@@ -26,9 +26,9 @@ vi.mock('react-i18next', () => ({
 }));
 
 const TIERS = [
-  { id: 'bearlymail_starter', monthlyPriceUsd: 15, emailsPerCycle: 3000 },
-  { id: 'bearlymail_growth', monthlyPriceUsd: 25, emailsPerCycle: 10000 },
-  { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000 },
+  { id: 'bearlymail_starter', monthlyPriceUsd: 5, emailsPerCycle: 3000, seats: 1, includesEmailTracking: false },
+  { id: 'bearlymail_growth', monthlyPriceUsd: 15, emailsPerCycle: 10000, seats: 1, includesEmailTracking: true },
+  { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000, seats: 5, includesEmailTracking: true },
 ];
 
 const CHECKOUT_URL = 'https://checkout.stripe.com/c/pay/cs_test_123';
@@ -88,6 +88,24 @@ describe('PlanPickerModal (Stripe Hosted Checkout)', () => {
     expect(screen.getByTestId('plan-tier-card-bearlymail_growth')).toBeInTheDocument();
     expect(screen.getByTestId('plan-tier-card-bearlymail_enterprise')).toBeInTheDocument();
     expect(screen.getAllByText('team.settings.planPicker.choosePlan')).toHaveLength(3);
+  });
+
+  it('shows each tier\'s price and key inclusions', async () => {
+    renderModal();
+
+    expect(await screen.findByTestId('plan-tier-price-bearlymail_starter')).toHaveTextContent('"price":5');
+    expect(screen.getByTestId('plan-tier-price-bearlymail_growth')).toHaveTextContent('"price":15');
+    expect(screen.getByTestId('plan-tier-price-bearlymail_enterprise')).toHaveTextContent('"price":40');
+
+    expect(screen.queryByTestId('plan-tier-email-tracking-bearlymail_starter')).not.toBeInTheDocument();
+    expect(screen.getByTestId('plan-tier-email-tracking-bearlymail_growth')).toBeInTheDocument();
+    expect(screen.getByTestId('plan-tier-email-tracking-bearlymail_enterprise')).toBeInTheDocument();
+
+    expect(screen.queryByTestId('plan-tier-seats-bearlymail_starter')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('plan-tier-seats-bearlymail_growth')).not.toBeInTheDocument();
+    expect(screen.getByTestId('plan-tier-seats-bearlymail_enterprise')).toHaveTextContent(
+      'team.settings.planPicker.teamMembers:{"count":5}',
+    );
   });
 
   it('creates a Stripe checkout session and redirects when a plan is chosen', async () => {

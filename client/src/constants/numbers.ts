@@ -94,6 +94,8 @@ export const AI_LIMIT_BANNER_RESHOW_MS = 60000;
 
 // Timeout values (additional)
 export const DEBOUNCE_DELAY_MS = 300;
+/** Editor emissions the rich-text editor remembers while waiting for the parent to echo them back (see richTextEditorSync). */
+export const MAX_PENDING_EDITOR_ECHOES = 50;
 export const LONG_TIMEOUT_MS = 10000;
 export const SHORT_TIMEOUT_MS = 2000;
 /** How long the ✅ "priority calculated" confirmation shows after the spinner resolves. */

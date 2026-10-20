@@ -485,6 +485,8 @@ export const LANDING_STYLES = `
 }
 .bearlymail-landing .problem-card {
   display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0;
+  /* Cap the column at the card's width; an implicit auto column grew to the widest no-wrap row and pushed the content past the padding. */
+  grid-template-columns: minmax(0, 1fr);
   padding: 28px; background: #fff;
   border: 1px solid var(--line); border-radius: 16px;
 }
@@ -512,7 +514,8 @@ export const LANDING_STYLES = `
   border-bottom: 1px solid var(--line);
 }
 .bearlymail-landing .mini-row:last-child { border-bottom: 0; }
-.bearlymail-landing .mini-subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Wrap rather than ellipsis: on a phone "Pure triage, before any real w…" lost the point of the row. */
+.bearlymail-landing .mini-subject { flex: 1; min-width: 0; padding: 6px 0; line-height: 1.35; overflow-wrap: anywhere; }
 .bearlymail-landing .mini-meta { color: var(--ink-3); font-size: 12.5px; white-space: nowrap; }
 .bearlymail-landing .mini-value { font-weight: 700; color: var(--ink); white-space: nowrap; }
 .bearlymail-landing .mini-row-buried { color: var(--ink-3); }
@@ -965,7 +968,9 @@ export const LANDING_STYLES = `
   .bearlymail-landing .founder { gap: 20px; text-align: left; }
   .bearlymail-landing .founder .portrait { width: 120px; height: 120px; border-radius: 18px; }
   .bearlymail-landing .founder blockquote { font-size: clamp(24px, 7vw, 30px); }
-  .bearlymail-landing .founder .who { gap: 8px 12px; margin-top: 20px; font-size: 13px; }
+  /* Name over role: when the row wrapped, the separator dot hung alone after the name. */
+  .bearlymail-landing .founder .who { flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 20px; font-size: 13px; }
+  .bearlymail-landing .founder .who .sep { display: none; }
   .bearlymail-landing .founder details { margin-top: 24px; padding-top: 18px; }
   .bearlymail-landing .founder details p { font-size: 14px; }
 
@@ -985,6 +990,15 @@ export const LANDING_STYLES = `
 }
 
 @media (max-width: 380px) {
+  /* Logo + "Sign in" + "Get started" ran 14px off a 320px screen. */
+  .bearlymail-landing .wrap { padding: 0 16px; }
+  .bearlymail-landing header.site .row { gap: 8px; }
+  .bearlymail-landing header.site .brand { font-size: 14px; gap: 6px; }
+  .bearlymail-landing header.site .brand-mark img { width: 28px; height: 28px; }
+  .bearlymail-landing .nav-cta { gap: 2px; }
+  .bearlymail-landing .nav-cta .btn { padding: 0 8px; }
+  /* The decorative filter icon got clipped at the demo's right edge. */
+  .bearlymail-landing .demo-tab-filter { display: none; }
   .bearlymail-landing h1.display { font-size: 30px; }
   .bearlymail-landing .compare-row { grid-template-columns: 1fr; gap: 4px; }
   .bearlymail-landing .compare-row .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }

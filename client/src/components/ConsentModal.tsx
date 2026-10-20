@@ -9,6 +9,8 @@ import { OPACITY_DISABLED_ALT, VIEWPORT_HEIGHT_90, Z_INDEX_MODAL_OVERLAY } from 
 interface ConsentModalProps {
   needsTermsAcceptance: boolean;
   needsPrivacyAcceptance: boolean;
+  /** Set when the user accepted an earlier Privacy Policy; shows what changed. */
+  privacyChangeSummaryKeys?: string[];
   onAccept: () => void;
 }
 
@@ -62,6 +64,7 @@ const ConsentCheckbox: React.FC<{ checked: boolean; onChange: (v: boolean) => vo
 export const ConsentModal: React.FC<ConsentModalProps> = ({
   needsTermsAcceptance,
   needsPrivacyAcceptance,
+  privacyChangeSummaryKeys,
   onAccept,
 }) => {
   const { t } = useTranslation();
@@ -117,7 +120,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
           boxShadow: theme.shadows.xl,
         }}
       >
-        <ConsentModalHeader />
+        <ConsentModalHeader changeSummaryKeys={privacyChangeSummaryKeys} />
 
         <ConsentCheckbox checked={consentAccepted} onChange={setConsentAccepted} />
 

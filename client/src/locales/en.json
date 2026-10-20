@@ -2919,7 +2919,14 @@
     "pleaseAcceptBoth": "Please accept the Terms of Use and Privacy Policy to continue.",
     "acceptAndContinue": "Accept and Continue",
     "saving": "Saving...",
-    "saveError": "Failed to save your consent. Please try again."
+    "saveError": "Failed to save your consent. Please try again.",
+    "updatedTitle": "We've updated our Privacy Policy",
+    "updatedDescription": "Please review what's changed and accept the updated Privacy Policy to keep using BearlyMail.",
+    "whatsChanged": "What's changed",
+    "changeSummaries": {
+      "privacy_1_2_0": "We now explain email open tracking: emails you send can include a small invisible image that records when they are opened, with the opener's IP address and device details.",
+      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia."
+    }
   },
   "debug": {
     "panel": {

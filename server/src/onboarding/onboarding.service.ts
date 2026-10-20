@@ -78,6 +78,7 @@ export class OnboardingService {
     hasCompletedOnboarding: boolean;
     needsTermsAcceptance: boolean;
     needsPrivacyAcceptance: boolean;
+    privacyChangeSummaryKeys: string[];
   }> {
     return this.usersService.getOnboardingStatus(userId);
   }

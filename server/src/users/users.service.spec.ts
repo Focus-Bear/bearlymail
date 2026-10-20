@@ -3,7 +3,10 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { DEFAULT_LEGAL_VERSIONS } from "../constants/legal-versions";
+import {
+  DEFAULT_LEGAL_VERSIONS,
+  PRIVACY_CHANGE_SUMMARY_KEYS,
+} from "../constants/legal-versions";
 import {
   DeletedAccount,
   DeletionReason,
@@ -604,9 +607,8 @@ describe("UsersService", () => {
 
       const result = await service.getConsentStatus("user-1");
 
-      expect(DEFAULT_LEGAL_VERSIONS.PRIVACY).toBe("1.2.0");
       expect(result.needsPrivacyAcceptance).toBe(true);
-      expect(result.currentPrivacyVersion).toBe("1.2.0");
+      expect(result.currentPrivacyVersion).toBe(DEFAULT_LEGAL_VERSIONS.PRIVACY);
     });
 
     it("asks users who accepted the original privacy policy to accept the updated one", async () => {
@@ -624,6 +626,63 @@ describe("UsersService", () => {
 
       expect(result.needsTermsAcceptance).toBe(false);
       expect(result.needsPrivacyAcceptance).toBe(true);
+    });
+  });
+
+  describe("getOnboardingStatus privacy change summaries", () => {
+    const acceptedPrivacy = (privacyVersion: string | null) => ({
+      ...mockUser,
+      termsAcceptedAt: new Date(),
+      termsVersion: DEFAULT_LEGAL_VERSIONS.TERMS,
+      privacyAcceptedAt: privacyVersion ? new Date() : null,
+      privacyVersion,
+    });
+
+    beforeEach(() => {
+      delete process.env.TERMS_VERSION;
+      delete process.env.PRIVACY_VERSION;
+    });
+
+    it("has a change summary for the current privacy version", () => {
+      expect(
+        PRIVACY_CHANGE_SUMMARY_KEYS[DEFAULT_LEGAL_VERSIONS.PRIVACY],
+      ).toBeDefined();
+    });
+
+    it("shows only the latest change to users one version behind", async () => {
+      repository.findOne.mockResolvedValue(acceptedPrivacy("1.2.0"));
+
+      const result = await service.getOnboardingStatus("user-1");
+
+      expect(result.needsPrivacyAcceptance).toBe(true);
+      expect(result.privacyChangeSummaryKeys).toEqual([
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.3.0"],
+      ]);
+    });
+
+    it("shows every unaccepted change, oldest first, to users further behind", async () => {
+      repository.findOne.mockResolvedValue(acceptedPrivacy("1.1.0"));
+
+      const result = await service.getOnboardingStatus("user-1");
+
+      expect(result.privacyChangeSummaryKeys).toEqual([
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.2.0"],
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.3.0"],
+      ]);
+    });
+
+    it("shows no change summary on first acceptance or once accepted", async () => {
+      repository.findOne.mockResolvedValue(acceptedPrivacy(null));
+      expect(
+        (await service.getOnboardingStatus("user-1")).privacyChangeSummaryKeys,
+      ).toEqual([]);
+
+      repository.findOne.mockResolvedValue(
+        acceptedPrivacy(DEFAULT_LEGAL_VERSIONS.PRIVACY),
+      );
+      expect(
+        (await service.getOnboardingStatus("user-1")).privacyChangeSummaryKeys,
+      ).toEqual([]);
     });
   });
 

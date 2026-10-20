@@ -4,7 +4,10 @@ import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
 import { ERROR_MESSAGES } from "../constants/error-messages";
-import { DEFAULT_LEGAL_VERSIONS } from "../constants/legal-versions";
+import {
+  DEFAULT_LEGAL_VERSIONS,
+  PRIVACY_CHANGE_SUMMARY_KEYS,
+} from "../constants/legal-versions";
 import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import {
   DeletedAccount,
@@ -55,6 +58,39 @@ function consentNeeds(
     needsPrivacyAcceptance:
       !user.privacyAcceptedAt || user.privacyVersion !== currentPrivacyVersion,
   };
+}
+
+/** Orders "major.minor.patch" versions numerically (1.10.0 after 1.9.0). */
+function compareVersions(first: string, second: string): number {
+  const firstParts = first.split(".").map(Number);
+  const secondParts = second.split(".").map(Number);
+  for (let index = 0; index < firstParts.length; index++) {
+    const difference = firstParts[index] - (secondParts[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+/**
+ * What changed since the Privacy Policy version the user last accepted, oldest
+ * first, so someone several versions behind sees every change they have not
+ * accepted. Empty for first-time acceptance or when nothing needs accepting.
+ */
+function privacyChangeSummaryKeys(
+  user: User,
+  needsPrivacyAcceptance: boolean,
+  currentPrivacyVersion: string,
+): string[] {
+  if (!needsPrivacyAcceptance || !user.privacyAcceptedAt) return [];
+  const acceptedVersion = user.privacyVersion ?? "";
+  return Object.keys(PRIVACY_CHANGE_SUMMARY_KEYS)
+    .filter(
+      (version) =>
+        compareVersions(version, acceptedVersion) > 0 &&
+        compareVersions(version, currentPrivacyVersion) <= 0,
+    )
+    .sort(compareVersions)
+    .map((version) => PRIVACY_CHANGE_SUMMARY_KEYS[version]);
 }
 
 @Injectable()
@@ -422,6 +458,7 @@ export class UsersService {
     hasCompletedOnboarding: boolean;
     needsTermsAcceptance: boolean;
     needsPrivacyAcceptance: boolean;
+    privacyChangeSummaryKeys: string[];
   }> {
     const user = await this.findOne(userId);
     if (!user) {
@@ -440,6 +477,11 @@ export class UsersService {
       hasCompletedOnboarding: user.hasCompletedOnboarding,
       needsTermsAcceptance,
       needsPrivacyAcceptance,
+      privacyChangeSummaryKeys: privacyChangeSummaryKeys(
+        user,
+        needsPrivacyAcceptance,
+        currentPrivacyVersion,
+      ),
     };
   }
 

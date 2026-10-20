@@ -292,6 +292,9 @@ export class EmailThreadService {
       const normalizedStarCount = Math.max(0, Math.min(3, starCount));
       if (thread.starCount !== normalizedStarCount) {
         thread.starCount = normalizedStarCount;
+        if (normalizedStarCount > 0 && !thread.firstStarredAt) {
+          thread.firstStarredAt = new Date();
+        }
         await this.emailThreadRepository.save(thread);
         this.logger.debug(
           `Updated thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... star count to ${normalizedStarCount}`,

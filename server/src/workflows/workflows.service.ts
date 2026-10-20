@@ -4,14 +4,13 @@ import { In, Repository } from "typeorm";
 
 import { WorkflowExecutionLog } from "../database/entities/workflow-execution-log.entity";
 import { WorkflowRule } from "../database/entities/workflow-rule.entity";
-import { matchPattern } from "../summarization/pattern-matcher";
 import {
   CreateWorkflowRuleDto,
   ReorderWorkflowRulesDto,
   UpdateWorkflowRuleDto,
-  WorkflowCondition,
   WorkflowContext,
 } from "./types/workflow.types";
+import { matchesWorkflowCondition } from "./workflow-condition-matcher";
 
 const DEFAULT_PAGE_LIMIT = 50;
 
@@ -116,7 +115,7 @@ export class WorkflowsService {
     const enabled = rules.filter((rule) => rule.enabled);
 
     for (const rule of enabled) {
-      if (this.matchesDeterministic(rule.condition, context)) {
+      if (matchesWorkflowCondition(rule.condition, context)) {
         return rule;
       }
     }
@@ -133,7 +132,7 @@ export class WorkflowsService {
     const rules = await this.findAll(userId);
     return rules.filter(
       (rule) =>
-        rule.enabled && this.matchesDeterministic(rule.condition, context),
+        rule.enabled && matchesWorkflowCondition(rule.condition, context),
     );
   }
 
@@ -163,52 +162,4 @@ export class WorkflowsService {
       take: limit,
     });
   }
-
-  // ── Private helpers ───────────────────────────────────────────────────────────
-
-  private matchesDeterministic(
-    condition: WorkflowCondition,
-    context: WorkflowContext,
-  ): boolean {
-    // fromPatterns: empty = any sender
-    if (
-      condition.fromPatterns.length > 0 &&
-      !matchAny(context.from, condition.fromPatterns)
-    ) {
-      return false;
-    }
-
-    // subjectPatterns: empty = any subject
-    if (
-      condition.subjectPatterns.length > 0 &&
-      !matchAny(context.subject, condition.subjectPatterns)
-    ) {
-      return false;
-    }
-
-    // categories: empty/undefined = any
-    if (
-      condition.categories &&
-      condition.categories.length > 0 &&
-      !condition.categories.includes(context.category)
-    ) {
-      return false;
-    }
-
-    // priorityLevels: empty/undefined = any
-    if (
-      condition.priorityLevels &&
-      condition.priorityLevels.length > 0 &&
-      !condition.priorityLevels.includes(context.priority as never)
-    ) {
-      return false;
-    }
-
-    return true;
-  }
-}
-
-/** Returns true if value matches any pattern in the list */
-function matchAny(value: string, patterns: string[]): boolean {
-  return patterns.some((pattern) => matchPattern(value, pattern));
 }

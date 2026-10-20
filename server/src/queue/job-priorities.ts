@@ -67,6 +67,9 @@ export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
   [JOB_NAMES.SYNC_CONTACTS]: JobPriority.LOW,
   [JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS]: JobPriority.LOW,
   [JOB_NAMES.EVALUATE_WORKFLOWS]: JobPriority.LOW,
+  // Background mining over the user's own history; never competes with sync.
+  [JOB_NAMES.SCHEDULE_AUTO_ARCHIVE_PROPOSALS]: JobPriority.VERY_LOW,
+  [JOB_NAMES.MINE_AUTO_ARCHIVE_PROPOSALS]: JobPriority.VERY_LOW,
   [JOB_NAMES.REENCRYPT_USER_DATA]: JobPriority.VERY_LOW,
   // Bulk historical-label cleanup: must sit well below live refine/summary so it
   // never starves user-facing categorisation.

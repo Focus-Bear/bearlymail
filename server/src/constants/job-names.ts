@@ -142,6 +142,12 @@ export const JOB_NAMES = {
   // Automated email workflows (#1483)
   EVALUATE_WORKFLOWS: "evaluate-workflows",
 
+  // Auto-archive proposals: a daily sweep fans out one per-user job that mines
+  // heavy senders the user ignores into proposed archive rules (never applied
+  // without the user's approval). Also enqueued on demand from Settings.
+  SCHEDULE_AUTO_ARCHIVE_PROPOSALS: "schedule-auto-archive-proposals",
+  MINE_AUTO_ARCHIVE_PROPOSALS: "mine-auto-archive-proposals",
+
   // Data retention
   CLEANUP_INACTIVE_ACCOUNTS: "cleanup-inactive-accounts",
   PRUNE_OLD_DATA: "prune-old-data",

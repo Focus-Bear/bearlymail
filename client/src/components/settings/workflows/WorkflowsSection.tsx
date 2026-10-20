@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
+import { AutoArchiveProposalsPanel } from 'components/settings/auto-archive/AutoArchiveProposalsPanel';
 import { API_URL } from 'config/api';
 
 import { MCPServerConfig, WorkflowExecutionLog, WorkflowRule, WorkflowRuleFormValues } from './types';
@@ -168,6 +169,8 @@ export const WorkflowsSection: React.FC = () => {
           {error}
         </div>
       )}
+
+      <AutoArchiveProposalsPanel onRuleCreated={loadData} />
 
       {loading ? (
         <p style={{ color: theme.colors.text.secondary }}>{t('settings.workflows.section.loadingWorkflows')}</p>

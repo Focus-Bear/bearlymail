@@ -4164,10 +4164,6 @@
             "title": "Prioritised and sorted into categories, automatically.",
             "body": "Every email gets a 0–100 importance score and lands in a category, so the CEO's question sits above the Zoom recording notification without you thinking about it. Mark VIP senders yourself and correct any score — BearlyMail learns from you."
           },
-          "snooze": {
-            "title": "Snoozing that takes one second.",
-            "body": "Type \"2h\" or \"tomorrow\" or \"Mon 9am\". No calendar navigation. No complex scheduling. Snooze and move on, the email comes back at exactly the right moment."
-          },
           "connect": {
             "title": "Connect the email you already use.",
             "body": "Sign in with Google Workspace, Office365 or Zoho. No new address, no migration. BearlyMail becomes a calmer, prioritised view over your existing account."
@@ -4220,23 +4216,6 @@
             "row3Category": "Product",
             "row4Category": "Notifications",
             "row5Category": "Receipts"
-          },
-          "snooze": {
-            "heading": "Snooze with words",
-            "tag": "No calendar needed",
-            "inputLabel": "snooze ›",
-            "inputValue": "next tuesday 9am",
-            "tryAny": "Try any of these:",
-            "suggestions": {
-              "twoHours": "2h",
-              "tomorrow": "tomorrow",
-              "thisFri": "this fri 3pm",
-              "afterStandup": "after standup",
-              "mondayMorning": "monday morning",
-              "inThreeWeeks": "in 3 weeks",
-              "nextQuiet": "next quiet hours"
-            },
-            "footer": "Comes back exactly when you said. No calendar dance."
           },
           "connect": {
             "heading": "Your accounts",

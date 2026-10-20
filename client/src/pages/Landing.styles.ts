@@ -28,6 +28,10 @@ export const LANDING_STYLES = `
   --ribbon-text: #7A3E00;
   --cust: #4A2EAA;
   --prio-red: #B42318;
+  /* Card and panel background; dark sections re-point it so cards stay a step above the section. */
+  --surface: #fff;
+  /* Text on a solid brand-orange fill. Declared here only, so it stays dark inside dark sections. */
+  --on-sun: var(--ink);
   --shadow-card: 0 1px 0 rgba(11,11,11,.04), 0 24px 48px -28px rgba(11,11,11,.18);
   --shadow-soft: 0 1px 0 rgba(11,11,11,.04), 0 8px 24px -12px rgba(11,11,11,.10);
   --font-body: "Lexend", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -182,9 +186,6 @@ export const LANDING_STYLES = `
 .bearlymail-landing .visual-footer { font-size: 12px; color: var(--ink-3); padding-top: 8px; border-top: 1px dashed var(--line); }
 .bearlymail-landing .visual-footer-bold { color: var(--ink); font-weight: 600; }
 .bearlymail-landing .pill-muted { color: var(--ink-4); }
-.bearlymail-landing .snooze-try { font-size: 12px; color: var(--ink-3); }
-.bearlymail-landing .snooze-footer { margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--line); display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-3); }
-.bearlymail-landing .snooze-footer-key { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--sun-pale); color: var(--sun-dark); font-weight: 600; font-family: inherit; font-size: 11px; }
 .bearlymail-landing .compare-recommended { margin-left: auto; padding: 3px 10px; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; background: var(--sun); color: var(--ink); border-radius: 999px; }
 .bearlymail-landing .founder-kicker { display: inline-block; font-size: 12px; font-weight: 600; color: var(--sun-dark); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 16px; }
 .bearlymail-landing .focus-bear-link { color: var(--sun-dark); font-weight: 600; }
@@ -438,7 +439,24 @@ export const LANDING_STYLES = `
 .bearlymail-landing section { padding: 96px 0; }
 @media (max-width: 720px) { .bearlymail-landing section { padding: 64px 0; } }
 .bearlymail-landing .section-band { background: var(--cream-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.bearlymail-landing .section-dark { background: var(--ink); color: var(--cream); }
+.bearlymail-landing .section-dark,
+.bearlymail-landing .cta-final {
+  /* Re-point the light-theme tokens so every component inside reads at WCAG AA on the dark background. */
+  --ink: var(--cream);
+  --ink-2: #E8E0CE;
+  --ink-3: #C8C2B4;
+  --ink-4: #B0A898;
+  --line: #4A3D30;
+  --line-2: #5A4A3A;
+  --surface: var(--dark-2);
+  --cream-2: #45372A;
+  --cream-3: #54443A;
+  --sun-pale: #5A3A1C;
+  --sun-dark: var(--sun-light);
+  --cust: #C9B8FF;
+  background: var(--dark); color: var(--ink);
+}
+.bearlymail-landing .section-dark h2.section-title em { color: var(--sun-light); background: none; }
 
 .bearlymail-landing .section-head { max-width: 740px; margin: 0 auto 56px; text-align: center; }
 .bearlymail-landing .section-head .kicker {
@@ -467,6 +485,8 @@ export const LANDING_STYLES = `
 }
 .bearlymail-landing .problem-card {
   display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0;
+  /* Cap the column at the card's width; an implicit auto column grew to the widest no-wrap row and pushed the content past the padding. */
+  grid-template-columns: minmax(0, 1fr);
   padding: 28px; background: #fff;
   border: 1px solid var(--line); border-radius: 16px;
 }
@@ -494,7 +514,8 @@ export const LANDING_STYLES = `
   border-bottom: 1px solid var(--line);
 }
 .bearlymail-landing .mini-row:last-child { border-bottom: 0; }
-.bearlymail-landing .mini-subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Wrap rather than ellipsis: on a phone "Pure triage, before any real w…" lost the point of the row. */
+.bearlymail-landing .mini-subject { flex: 1; min-width: 0; padding: 6px 0; line-height: 1.35; overflow-wrap: anywhere; }
 .bearlymail-landing .mini-meta { color: var(--ink-3); font-size: 12.5px; white-space: nowrap; }
 .bearlymail-landing .mini-value { font-weight: 700; color: var(--ink); white-space: nowrap; }
 .bearlymail-landing .mini-row-buried { color: var(--ink-3); }
@@ -523,7 +544,7 @@ export const LANDING_STYLES = `
   display: grid; grid-template-columns: 28px 1fr; gap: 18px; align-items: start;
 }
 .bearlymail-landing .step:hover { background: var(--cream-2); }
-.bearlymail-landing .step.active { background: #fff; border-color: var(--line-2); box-shadow: var(--shadow-soft); }
+.bearlymail-landing .step.active { background: var(--surface); border-color: var(--line-2); box-shadow: var(--shadow-soft); }
 .bearlymail-landing .step .n {
   font-size: 13px; font-weight: 700; color: var(--ink-4);
   padding-top: 3px;
@@ -534,7 +555,7 @@ export const LANDING_STYLES = `
 
 .bearlymail-landing .step-visual {
   position: sticky; top: 96px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: 18px;
   padding: 28px;
@@ -567,7 +588,7 @@ export const LANDING_STYLES = `
   font-size: 12px; color: var(--ink-3);
 }
 .bearlymail-landing .schedule-grid .lane.delivered {
-  background: linear-gradient(90deg, var(--sun-pale), color-mix(in srgb, var(--sun-pale) 50%, #fff));
+  background: linear-gradient(90deg, var(--sun-pale), color-mix(in srgb, var(--sun-pale) 50%, var(--surface)));
   border: 1px solid color-mix(in srgb, var(--sun) 25%, transparent);
   color: var(--sun-dark); font-weight: 500;
 }
@@ -585,7 +606,7 @@ export const LANDING_STYLES = `
 .bearlymail-landing .score-row .label small { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--ink-3); font-size: 11.5px; margin-top: 4px; }
 .bearlymail-landing .score-cat {
   padding: 1px 7px; border-radius: 999px;
-  background: color-mix(in srgb, var(--cust) 10%, #fff); color: var(--cust);
+  background: color-mix(in srgb, var(--cust) 10%, var(--surface)); color: var(--cust);
   font-size: 11px; font-weight: 600;
 }
 .bearlymail-landing .score-row .score { font-family: inherit; font-size: 12px; color: var(--ink-2); text-align: right; }
@@ -599,33 +620,11 @@ export const LANDING_STYLES = `
   padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--cream-2);
   font-size: 13px; color: var(--ink-2);
 }
-.bearlymail-landing .urgent-row.match { background: linear-gradient(90deg, var(--sun-pale), #fff); border-color: color-mix(in srgb, var(--sun) 25%, transparent); }
+.bearlymail-landing .urgent-row.match { background: linear-gradient(90deg, var(--sun-pale), var(--surface)); border-color: color-mix(in srgb, var(--sun) 25%, transparent); }
 .bearlymail-landing .urgent-row .ic { width: 20px; height: 20px; border-radius: 6px; background: var(--cream-3); display: grid; place-items: center; font-size: 11px; font-weight: 600; color: var(--ink-3); }
-.bearlymail-landing .urgent-row.match .ic { background: var(--sun); color: #fff; }
+.bearlymail-landing .urgent-row.match .ic { background: var(--sun); color: var(--on-sun); }
 .bearlymail-landing .urgent-row .out { font-family: inherit; font-size: 11px; color: var(--ink-3); }
 .bearlymail-landing .urgent-row.match .out { color: var(--sun-dark); font-weight: 600; }
-
-.bearlymail-landing .snooze-input {
-  display: flex; align-items: center; gap: 0;
-  background: var(--cream-2); border: 1px solid var(--line-2); border-radius: 10px;
-  padding: 4px;
-}
-.bearlymail-landing .snooze-input .label { font-size: 12px; color: var(--ink-3); padding: 0 10px; font-family: inherit; }
-.bearlymail-landing .snooze-input input {
-  flex: 1; height: 36px; border: 0; background: #fff; border-radius: 6px;
-  padding: 0 12px; font: inherit; font-size: 13px; outline: none;
-}
-.bearlymail-landing .snooze-input .key {
-  font-family: inherit; font-size: 11px;
-  background: #fff; border: 1px solid var(--line); padding: 4px 8px; border-radius: 6px; color: var(--ink-3);
-}
-.bearlymail-landing .snooze-suggest { display: flex; gap: 6px; flex-wrap: wrap; }
-.bearlymail-landing .snooze-suggest span {
-  padding: 5px 10px; border-radius: 999px; background: var(--cream-2);
-  border: 1px solid var(--line); font-size: 12px; color: var(--ink-2);
-  font-family: inherit;
-}
-.bearlymail-landing .snooze-suggest span.hi { background: var(--sun-pale); color: var(--sun-dark); border-color: color-mix(in srgb, var(--sun) 25%, transparent); }
 
 .bearlymail-landing .compare-stage {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
@@ -753,7 +752,6 @@ export const LANDING_STYLES = `
 
 .bearlymail-landing .cta-final {
   padding: 96px 0;
-  background: var(--dark); color: var(--cream);
   position: relative; overflow: hidden;
 }
 .bearlymail-landing .cta-final::before {
@@ -769,9 +767,9 @@ export const LANDING_STYLES = `
   margin: 0 0 16px;
 }
 .bearlymail-landing .cta-final h2 em { font-style: normal; color: var(--sun-light); }
-.bearlymail-landing .cta-final p { font-size: 18px; color: #E8E0CE; margin: 0 0 32px; }
+.bearlymail-landing .cta-final p { font-size: 18px; color: var(--ink-2); margin: 0 0 32px; }
 .bearlymail-landing .cta-final-actions { display: flex; justify-content: center; }
-.bearlymail-landing .cta-final .meta { margin-top: 20px; font-size: 13px; color: #C8C2B4; }
+.bearlymail-landing .cta-final .meta { margin-top: 20px; font-size: 13px; color: var(--ink-3); }
 .bearlymail-landing .cta-final .meta b { color: var(--sun-light); font-weight: 600; }
 
 .bearlymail-landing .who-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
@@ -821,7 +819,7 @@ export const LANDING_STYLES = `
 .bearlymail-landing .connect-status { padding: 2px 8px; border-radius: 999px; background: #DCEFE5; color: #17603F; font-size: 12px; font-weight: 700; }
 .bearlymail-landing .connect-result {
   padding: 14px 16px; border-radius: 10px;
-  background: linear-gradient(90deg, var(--sun-pale), #fff);
+  background: linear-gradient(90deg, var(--sun-pale), var(--surface));
   border: 1px solid color-mix(in srgb, var(--sun) 25%, transparent);
   font-size: 14px; line-height: 1.5; color: var(--ink-2);
 }
@@ -830,11 +828,11 @@ export const LANDING_STYLES = `
 .bearlymail-landing .focus-tip {
   display: flex; align-items: flex-start; gap: 14px;
   max-width: 880px; margin: 48px auto 0; padding: 18px 22px;
-  background: #fff; border: 1px solid var(--line-2); border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px;
 }
 .bearlymail-landing .focus-tip-label {
   flex: none; padding: 3px 10px; border-radius: 999px;
-  background: var(--sun); color: var(--ink); font-size: 12px; font-weight: 700;
+  background: var(--sun); color: var(--on-sun); font-size: 12px; font-weight: 700;
 }
 .bearlymail-landing .focus-tip p { margin: 0; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
 
@@ -959,7 +957,6 @@ export const LANDING_STYLES = `
   .bearlymail-landing .score-row { grid-template-columns: 1fr 50px 60px; gap: 8px; }
   .bearlymail-landing .score-row .label { font-size: 12.5px; }
   .bearlymail-landing .score-row .score { font-size: 11px; }
-  .bearlymail-landing .snooze-suggest span { font-size: 11px; padding: 4px 8px; }
 
   .bearlymail-landing .compare-card { padding: 24px 22px; }
   .bearlymail-landing .compare-card .name { font-size: 15px; padding-bottom: 14px; margin-bottom: 14px; }
@@ -971,7 +968,9 @@ export const LANDING_STYLES = `
   .bearlymail-landing .founder { gap: 20px; text-align: left; }
   .bearlymail-landing .founder .portrait { width: 120px; height: 120px; border-radius: 18px; }
   .bearlymail-landing .founder blockquote { font-size: clamp(24px, 7vw, 30px); }
-  .bearlymail-landing .founder .who { gap: 8px 12px; margin-top: 20px; font-size: 13px; }
+  /* Name over role: when the row wrapped, the separator dot hung alone after the name. */
+  .bearlymail-landing .founder .who { flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 20px; font-size: 13px; }
+  .bearlymail-landing .founder .who .sep { display: none; }
   .bearlymail-landing .founder details { margin-top: 24px; padding-top: 18px; }
   .bearlymail-landing .founder details p { font-size: 14px; }
 
@@ -991,6 +990,15 @@ export const LANDING_STYLES = `
 }
 
 @media (max-width: 380px) {
+  /* Logo + "Sign in" + "Get started" ran 14px off a 320px screen. */
+  .bearlymail-landing .wrap { padding: 0 16px; }
+  .bearlymail-landing header.site .row { gap: 8px; }
+  .bearlymail-landing header.site .brand { font-size: 14px; gap: 6px; }
+  .bearlymail-landing header.site .brand-mark img { width: 28px; height: 28px; }
+  .bearlymail-landing .nav-cta { gap: 2px; }
+  .bearlymail-landing .nav-cta .btn { padding: 0 8px; }
+  /* The decorative filter icon got clipped at the demo's right edge. */
+  .bearlymail-landing .demo-tab-filter { display: none; }
   .bearlymail-landing h1.display { font-size: 30px; }
   .bearlymail-landing .compare-row { grid-template-columns: 1fr; gap: 4px; }
   .bearlymail-landing .compare-row .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }

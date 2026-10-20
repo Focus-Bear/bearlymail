@@ -5,7 +5,6 @@ import { FOCUS_BEAR_URL, STEP_AUTOCYCLE_MS } from './constants';
 import { StepConnect } from './steps/StepConnect';
 import { StepRanked } from './steps/StepRanked';
 import { StepSchedule } from './steps/StepSchedule';
-import { StepSnooze } from './steps/StepSnooze';
 import { StepUrgency } from './steps/StepUrgency';
 
 const STEPS: { key: string; Visual: React.FC }[] = [
@@ -13,7 +12,6 @@ const STEPS: { key: string; Visual: React.FC }[] = [
   { key: 'ranked', Visual: StepRanked },
   { key: 'urgent', Visual: StepUrgency },
   { key: 'schedule', Visual: StepSchedule },
-  { key: 'snooze', Visual: StepSnooze },
 ];
 
 export const HowItWorks: React.FC = () => {
@@ -34,7 +32,7 @@ export const HowItWorks: React.FC = () => {
   const ActiveVisual = STEPS[active - 1]?.Visual;
 
   return (
-    <section id="how">
+    <section id="how" className="section-dark">
       <div className="wrap">
         <div className="section-head">
           <span className="kicker">{t('landing.v2.steps.kicker')}</span>

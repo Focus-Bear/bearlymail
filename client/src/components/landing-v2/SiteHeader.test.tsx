@@ -24,4 +24,10 @@ describe('SiteHeader', () => {
     // The old waitlist CTA must no longer be rendered.
     expect(screen.queryByText('landing.v2.header.joinWaitlist')).not.toBeInTheDocument();
   });
+
+  it('links to the pricing section from the nav', () => {
+    render(<SiteHeader />);
+
+    expect(screen.getByText('landing.v2.header.nav.pricing')).toHaveAttribute('href', '#pricing');
+  });
 });

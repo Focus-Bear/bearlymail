@@ -55,3 +55,45 @@ export const PRIO_ROUTES: Record<PrioChoice, { dest: Exclude<DemoTab, 'triage'>;
 /** i18n ids (under <prefix>.skeleton.*) for the static placeholder rows that
  * pad the Action tab so "top of Action" is visually meaningful. */
 export const SKELETON_ROW_IDS = ['first', 'second', 'third'] as const;
+
+/** Anchor id of the pricing section; shared by the section and the header nav link. */
+export const PRICING_SECTION_ID = 'pricing';
+
+export type PricingTierId = 'starter' | 'growth' | 'enterprise';
+
+export interface PricingTier {
+  id: PricingTierId;
+  monthlyPriceUsd: number;
+  emailsPerMonth: number;
+  /** i18n ids under landing.v2.pricing.tiers.<id>.features.* */
+  featureKeys: readonly string[];
+  isRecommended: boolean;
+}
+
+/** Public plan list for the landing page. Prices and email allowances must match
+ * the server's VOLUME_TIERS (server/src/subscriptions/volume-tiers.constants.ts)
+ * and the Stripe/RevenueCat products; the landing page can't fetch them because
+ * GET /subscriptions/tiers requires sign-in. */
+export const PRICING_TIERS: readonly PricingTier[] = [
+  {
+    id: 'starter',
+    monthlyPriceUsd: 5,
+    emailsPerMonth: 3_000,
+    featureKeys: ['prioritised', 'batched', 'providers'],
+    isRecommended: false,
+  },
+  {
+    id: 'growth',
+    monthlyPriceUsd: 15,
+    emailsPerMonth: 10_000,
+    featureKeys: ['everythingInStarter', 'crm', 'tracking'],
+    isRecommended: true,
+  },
+  {
+    id: 'enterprise',
+    monthlyPriceUsd: 40,
+    emailsPerMonth: 30_000,
+    featureKeys: ['everythingInGrowth', 'users'],
+    isRecommended: false,
+  },
+];

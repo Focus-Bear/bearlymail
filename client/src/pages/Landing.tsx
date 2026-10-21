@@ -7,6 +7,7 @@ import {
   FounderSection,
   HeroSection,
   HowItWorks,
+  PricingSection,
   ProblemSection,
   SecuritySection,
   SiteFooter,
@@ -33,6 +34,7 @@ const Landing: React.FC = () => {
       <WhyNotClaudeSection />
       <SecuritySection />
       <FounderSection />
+      <PricingSection />
       <FaqSection />
       <FinalCta />
       <SiteFooter />

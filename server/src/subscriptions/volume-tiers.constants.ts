@@ -19,13 +19,14 @@ export const TRIAL_EMAIL_LIMIT = 3000;
 /** Length of the free org trial, in days. */
 export const TRIAL_DURATION_DAYS = 7;
 
-// Prices mirror the RevenueCat/Stripe products (Starter $15, Growth $25,
-// Enterprise $40 /mo). These are the FALLBACK shown when the RevenueCat
+// Prices mirror the RevenueCat/Stripe products (Starter $5, Growth $15,
+// Enterprise $40 /mo) and the landing page's PRICING_TIERS
+// (client/src/components/landing-v2/constants.ts). These are the FALLBACK shown when the RevenueCat
 // offering can't be fetched (and for users without in-app checkout); the
 // plan picker prefers the live price from the offering. Keep them in sync
 // with the dashboard.
 export const VOLUME_TIERS: Record<string, { limit: number; price: number }> = {
-  bearlymail_starter: { limit: 3000, price: 15 },
-  bearlymail_growth: { limit: 10000, price: 25 },
+  bearlymail_starter: { limit: 3000, price: 5 },
+  bearlymail_growth: { limit: 10000, price: 15 },
   bearlymail_enterprise: { limit: 30000, price: 40 },
 } as const;

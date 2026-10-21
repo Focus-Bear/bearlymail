@@ -4,13 +4,14 @@ import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 
-import { SIGNUP_PATH } from './constants';
+import { PRICING_SECTION_ID, SIGNUP_PATH } from './constants';
 
 const NAV_LINKS = [
   { anchor: '#how', labelKey: 'howItWorks' },
   { anchor: '#who', labelKey: 'whoItsFor' },
   { anchor: '#compare', labelKey: 'compare' },
   { anchor: '#security', labelKey: 'security' },
+  { anchor: `#${PRICING_SECTION_ID}`, labelKey: 'pricing' },
   { anchor: '#faq', labelKey: 'faq' },
 ] as const;
 

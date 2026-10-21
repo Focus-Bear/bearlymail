@@ -2447,7 +2447,8 @@
           "compare": "Compare",
           "faq": "FAQ",
           "whoItsFor": "Para quién es",
-          "security": "Seguridad"
+          "security": "Seguridad",
+          "pricing": "Precios"
         },
         "signIn": "Sign in"
       },
@@ -2975,6 +2976,46 @@
           "control": {
             "title": "Tú tienes el control",
             "body": "Exporta o elimina tus datos cuando quieras. Si desconectas BearlyMail, tu cuenta de correo queda tal como está."
+          }
+        }
+      },
+      "pricing": {
+        "kicker": "Precios",
+        "titlePre": "Planes sencillos, ",
+        "titleEm": "a la medida de tu bandeja.",
+        "sub": "Elige un plan según cuánto correo recibes y lo que necesitas además. Puedes cambiar de plan cuando quieras.",
+        "recommended": "Recomendado",
+        "price": "${{price}}",
+        "perMonth": "USD / mes",
+        "allowance": "{{emails, number}} correos procesados con IA al mes",
+        "cta": "Prueba gratis",
+        "note": "Todos los planes empiezan con una prueba gratuita de 7 días, con priorización y categorización con IA completas.",
+        "tiers": {
+          "starter": {
+            "name": "Starter",
+            "tagline": "Solo correo.",
+            "features": {
+              "prioritised": "Cada correo priorizado y categorizado",
+              "batched": "Entrega por lotes; lo urgente llega al momento",
+              "providers": "Google Workspace, Office365 y Zoho"
+            }
+          },
+          "growth": {
+            "name": "Growth",
+            "tagline": "Correo, más CRM y seguimiento de correos.",
+            "features": {
+              "everythingInStarter": "Todo lo de Starter",
+              "crm": "CRM integrado para contactos y oportunidades",
+              "tracking": "Seguimiento de correos"
+            }
+          },
+          "enterprise": {
+            "name": "Enterprise",
+            "tagline": "Para equipos pequeños.",
+            "features": {
+              "everythingInGrowth": "Todo lo de Growth",
+              "users": "Hasta 5 usuarios"
+            }
           }
         }
       }

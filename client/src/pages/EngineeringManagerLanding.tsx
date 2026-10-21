@@ -8,6 +8,7 @@ import {
   GithubIntegrationSection,
   HeroSection,
   HowItWorks,
+  PricingSection,
   ProblemSection,
   SecuritySection,
   SiteFooter,
@@ -40,6 +41,7 @@ const EngineeringManagerLanding: React.FC = () => {
       <CompareSection />
       <SecuritySection />
       <FounderSection />
+      <PricingSection />
       <FaqSection />
       <FinalCta />
       <SiteFooter />

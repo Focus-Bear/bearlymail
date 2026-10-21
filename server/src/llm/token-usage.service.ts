@@ -11,7 +11,11 @@ import { User } from "../database/entities/user.entity";
 import { DebugService, DuplicateLlmCall } from "../debug/debug.service";
 import { DEBUG_FEATURES } from "../debug/debug-feature-names";
 import { captureLlmCallSite } from "./call-site.util";
-import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
+import {
+  getOperationLabel,
+  LLM_OP_UNKNOWN,
+  LLMOperation,
+} from "./llm-operations";
 import { SUMMARY_PROMPT_IDS } from "./prompts";
 
 const SYSTEM_PROMPT_PREVIEW_LENGTH = 5000;
@@ -48,8 +52,16 @@ export interface PromptExample {
   model: string;
 }
 
+/** A captured prompt example as served to the admin UI. */
+export type LabelledPromptExample = PromptExample & {
+  /** Admin-facing name for `operation` (see LLM_OPERATION_LABELS). */
+  operationLabel: string;
+};
+
 export interface UsageByOperation {
   operation: string;
+  /** Admin-facing name for `operation` (see LLM_OPERATION_LABELS). */
+  operationLabel: string;
   callCount: number;
   totalPromptTokens: number;
   totalCompletionTokens: number;
@@ -62,6 +74,12 @@ export interface UsageByOperation {
    * pricing entry; calls on unpriced models are excluded from the sum.
    */
   estimatedCostUsd: number | null;
+  /**
+   * Calls on models with no LLM_MODEL_PRICING entry. They count
+   * towards tokens but not estimatedCostUsd, so a non-zero value means the
+   * cost is a lower bound.
+   */
+  unpricedCallCount: number;
   /**
    * Distinct model ids the operation's calls ran on, most-used first. Usually a
    * single model; more than one means a fallback or an in-flight model switch.
@@ -77,6 +95,8 @@ export interface UsageSummary {
   avgDurationMs: number | null;
   /** Estimated USD cost across all calls (unpriced models excluded). */
   totalEstimatedCostUsd: number;
+  /** Calls excluded from totalEstimatedCostUsd because their model is unpriced. */
+  unpricedCallCount: number;
 }
 
 export interface DailyUsage {
@@ -263,10 +283,13 @@ export class TokenUsageService implements OnModuleInit {
   /**
    * Get all captured prompt examples
    */
-  getPromptExamples(): PromptExample[] {
-    return Array.from(this.promptExamples.values()).sort(
-      (itemA, itemB) => itemB.promptTokens - itemA.promptTokens,
-    );
+  getPromptExamples(): LabelledPromptExample[] {
+    return Array.from(this.promptExamples.values())
+      .sort((itemA, itemB) => itemB.promptTokens - itemA.promptTokens)
+      .map((example) => ({
+        ...example,
+        operationLabel: getOperationLabel(example.operation),
+      }));
   }
 
   /**
@@ -457,17 +480,7 @@ export class TokenUsageService implements OnModuleInit {
       );
       const existing = byOperation.get(row.operation);
       if (!existing) {
-        byOperation.set(row.operation, {
-          operation: row.operation,
-          callCount: Number(row.callCount) || 0,
-          totalPromptTokens: Number(row.totalPromptTokens) || 0,
-          totalCompletionTokens: Number(row.totalCompletionTokens) || 0,
-          totalTokens: Number(row.totalTokens) || 0,
-          avgDurationMs: row.avgDurationMs,
-          htmlCallCount: Number(row.htmlCallCount) || 0,
-          estimatedCostUsd: cost,
-          models: [],
-        });
+        byOperation.set(row.operation, this.createOperationEntry(row, cost));
         if (row.avgDurationMs != null) {
           durationWeights.set(row.operation, Number(row.callCount) || 0);
         }
@@ -480,6 +493,8 @@ export class TokenUsageService implements OnModuleInit {
       existing.htmlCallCount += Number(row.htmlCallCount) || 0;
       if (cost != null) {
         existing.estimatedCostUsd = (existing.estimatedCostUsd ?? 0) + cost;
+      } else {
+        existing.unpricedCallCount += Number(row.callCount) || 0;
       }
       this.foldWeightedDuration(existing, row, durationWeights);
     }
@@ -493,6 +508,27 @@ export class TokenUsageService implements OnModuleInit {
         (right.estimatedCostUsd ?? -1) - (left.estimatedCostUsd ?? -1) ||
         right.totalTokens - left.totalTokens,
     );
+  }
+
+  /** First (operation, provider, model) group seen for an operation. */
+  private createOperationEntry(
+    row: PerModelUsageRow,
+    cost: number | null,
+  ): UsageByOperation {
+    const callCount = Number(row.callCount) || 0;
+    return {
+      operation: row.operation,
+      operationLabel: getOperationLabel(row.operation),
+      callCount,
+      totalPromptTokens: Number(row.totalPromptTokens) || 0,
+      totalCompletionTokens: Number(row.totalCompletionTokens) || 0,
+      totalTokens: Number(row.totalTokens) || 0,
+      avgDurationMs: row.avgDurationMs,
+      htmlCallCount: Number(row.htmlCallCount) || 0,
+      estimatedCostUsd: cost,
+      unpricedCallCount: cost == null ? callCount : 0,
+      models: [],
+    };
   }
 
   /** Accumulate an operation's call count per model id (empty models ignored). */
@@ -575,6 +611,7 @@ export class TokenUsageService implements OnModuleInit {
     }
 
     const result = await queryBuilder.getRawOne();
+    const costTotals = await this.getCostTotals(options);
     return {
       totalCalls: parseInt(result.totalCalls, 10) || 0,
       totalPromptTokens: parseInt(result.totalPromptTokens, 10) || 0,
@@ -583,18 +620,23 @@ export class TokenUsageService implements OnModuleInit {
       avgDurationMs: result.avgDurationMs
         ? parseInt(result.avgDurationMs, 10)
         : null,
-      totalEstimatedCostUsd: await this.getTotalEstimatedCostUsd(options),
+      totalEstimatedCostUsd: costTotals.estimatedCostUsd,
+      unpricedCallCount: costTotals.unpricedCallCount,
     };
   }
 
-  /** Sum of per-provider/model cost estimates over the same filter window. */
-  private async getTotalEstimatedCostUsd(
+  /**
+   * Sum of per-provider/model cost estimates over the same filter window, plus
+   * how many calls were left out because their model has no pricing entry.
+   */
+  private async getCostTotals(
     options: UsageQueryOptions,
-  ): Promise<number> {
+  ): Promise<{ estimatedCostUsd: number; unpricedCallCount: number }> {
     const queryBuilder = this.tokenUsageRepository
       .createQueryBuilder("tu")
       .select("tu.provider", "provider")
       .addSelect("tu.model", "model")
+      .addSelect("COUNT(*)::int", "callCount")
       .addSelect("COALESCE(SUM(tu.promptTokens), 0)::bigint", "promptTokens")
       .addSelect(
         "COALESCE(SUM(tu.completionTokens), 0)::bigint",
@@ -625,19 +667,26 @@ export class TokenUsageService implements OnModuleInit {
     const rows: Array<{
       provider: string;
       model: string;
+      callCount: string;
       promptTokens: string;
       completionTokens: string;
     }> = await queryBuilder.getRawMany();
     return rows.reduce(
-      (sum, row) =>
-        sum +
-        (estimateCostUsd(
+      (totals, row) => {
+        const cost = estimateCostUsd(
           row.provider,
           row.model,
           Number(row.promptTokens) || 0,
           Number(row.completionTokens) || 0,
-        ) ?? 0),
-      0,
+        );
+        if (cost == null) {
+          totals.unpricedCallCount += Number(row.callCount) || 0;
+        } else {
+          totals.estimatedCostUsd += cost;
+        }
+        return totals;
+      },
+      { estimatedCostUsd: 0, unpricedCallCount: 0 },
     );
   }
 

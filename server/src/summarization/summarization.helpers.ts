@@ -8,6 +8,7 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
 import { cleanEmailForThread } from "../llm/email-content-cleaner";
 import { LLMService } from "../llm/llm.service";
+import { LLM_OP_MATCH_SUMMARIZATION_RULE } from "../llm/llm-operations";
 import { logWarn } from "../utils/logger";
 import {
   extractPhishingSignals,
@@ -151,6 +152,7 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
     },
     undefined,
     userId,
+    LLM_OP_MATCH_SUMMARIZATION_RULE,
   );
 
   const cleanedResponse = response.trim().replace(/[^0-9]/g, "");

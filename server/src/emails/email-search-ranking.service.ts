@@ -8,6 +8,11 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS, MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { LLMService } from "../llm/llm.service";
+import {
+  LLM_OP_SEARCH_ALTERNATIVE_QUERIES,
+  LLM_OP_SEARCH_QUERY_CONVERSION,
+  LLM_OP_SEARCH_RANKING,
+} from "../llm/llm-operations";
 import { searchLogger } from "../utils/search-logger";
 
 export type EmailWithRankingMetadata = Email & {
@@ -68,6 +73,7 @@ export class EmailSearchRankingService {
         },
         undefined,
         userId,
+        LLM_OP_SEARCH_RANKING,
       );
 
       filteredEmails = this.applyRankingResponse(
@@ -136,6 +142,7 @@ Format: ["alternative query 1", "alternative query 2"]`;
         },
         undefined,
         userId,
+        LLM_OP_SEARCH_ALTERNATIVE_QUERIES,
       );
 
       const jsonMatch = response.match(/\[[\s\S]*\]/);
@@ -426,6 +433,7 @@ Return ONLY the Gmail search query, nothing else.`;
         },
         undefined,
         userId,
+        LLM_OP_SEARCH_QUERY_CONVERSION,
       );
       const cleaned = response
         .trim()
@@ -515,6 +523,7 @@ Return ONLY the Gmail search query, nothing else.`;
         },
         undefined,
         userId,
+        LLM_OP_SEARCH_RANKING,
       );
 
       searchLogger.logAIScoringComplete(

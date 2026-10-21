@@ -372,6 +372,126 @@ describe("TokenUsageService - getUsageByOperation cost estimates", () => {
     const result = await service.getUsageByOperation();
 
     expect(result[0].estimatedCostUsd).toBeNull();
+    expect(result[0].unpricedCallCount).toBe(1);
+    // Ids missing from LLM_OPERATION_LABELS fall back to the raw id.
+    expect(result[0].operationLabel).toBe("mystery_op");
+  });
+
+  it("prices Jev calls and counts calls on unpriced models separately instead of as $0", async () => {
+    mockRawRows([
+      {
+        operation: "categorise_summary",
+        provider: "gemini",
+        model: "gemini-3.1-flash-lite",
+        callCount: 10,
+        totalPromptTokens: 1_000_000,
+        totalCompletionTokens: 0,
+        totalTokens: 1_000_000,
+        avgDurationMs: null,
+        htmlCallCount: 0,
+      },
+      {
+        operation: "categorise_summary",
+        provider: "typesafe",
+        model: "jev-1.13.0",
+        callCount: 30,
+        totalPromptTokens: 3_000_000,
+        totalCompletionTokens: 0,
+        totalTokens: 3_000_000,
+        avgDurationMs: null,
+        htmlCallCount: 0,
+      },
+      {
+        operation: "categorise_summary",
+        provider: "gemini",
+        model: "gemini-99-unpriced",
+        callCount: 4,
+        totalPromptTokens: 1_000_000,
+        totalCompletionTokens: 0,
+        totalTokens: 1_000_000,
+        avgDurationMs: null,
+        htmlCallCount: 0,
+      },
+    ]);
+
+    const result = await service.getUsageByOperation();
+
+    expect(result[0].operationLabel).toBe("Categorise From Summary");
+    // $0.25 (1M on flash-lite) + $0.126 (3M input on Jev, output free)
+    expect(result[0].estimatedCostUsd).toBeCloseTo(0.376, 6);
+    expect(result[0].unpricedCallCount).toBe(4);
+  });
+});
+
+describe("TokenUsageService - getUsageSummary and examples", () => {
+  let service: TokenUsageService;
+  let tokenUsageRepo: ReturnType<typeof mockTokenUsageRepository>;
+
+  beforeEach(async () => {
+    tokenUsageRepo = mockTokenUsageRepository();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TokenUsageService,
+        { provide: getRepositoryToken(TokenUsage), useValue: tokenUsageRepo },
+        {
+          provide: getRepositoryToken(PromptExampleEntity),
+          useValue: mockPromptExampleRepository(),
+        },
+        { provide: getRepositoryToken(User), useValue: mockUserRepository() },
+        { provide: DebugService, useValue: mockDebugService() },
+      ],
+    }).compile();
+
+    service = module.get<TokenUsageService>(TokenUsageService);
+  });
+
+  function mockSummaryQueries(totals: unknown, costRows: unknown[]) {
+    const builder = {
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      addGroupBy: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue(totals),
+      getRawMany: jest.fn().mockResolvedValue(costRows),
+    };
+    tokenUsageRepo.createQueryBuilder.mockReturnValue({
+      select: jest.fn().mockReturnValue(builder),
+    });
+  }
+
+  it("reports how many calls the total cost leaves out", async () => {
+    mockSummaryQueries(
+      {
+        totalCalls: "40",
+        totalPromptTokens: "4000000",
+        totalCompletionTokens: "0",
+        totalTokens: "4000000",
+        avgDurationMs: null,
+      },
+      [
+        {
+          provider: "gemini",
+          model: "gemini-3.1-flash-lite",
+          callCount: "10",
+          promptTokens: "1000000",
+          completionTokens: "0",
+        },
+        {
+          provider: "mystery",
+          model: "unpriced-model",
+          callCount: "30",
+          promptTokens: "3000000",
+          completionTokens: "0",
+        },
+      ],
+    );
+
+    const summary = await service.getUsageSummary();
+
+    expect(summary.totalEstimatedCostUsd).toBeCloseTo(0.25, 6);
+    expect(summary.unpricedCallCount).toBe(30);
   });
 });
 

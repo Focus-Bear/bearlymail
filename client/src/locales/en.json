@@ -1848,6 +1848,8 @@
       "label": "Track email opens",
       "description": "Adds an invisible 1×1 image to emails you send from BearlyMail so you can see when they're opened — in the thread, in Follow-Up and on the Stats page. Automated replies are never tracked.",
       "limitations": "Recipients who block images won't show as opened, and Apple Mail may open emails automatically (we flag those as \"may be automatic\"). You can also turn tracking off for a single email when composing.",
+      "notIncluded": "Email tracking is included with the Growth and Enterprise plans.",
+      "viewPlans": "View plans",
       "saveError": "Couldn't update open tracking. Please try again."
     }
   },
@@ -2330,7 +2332,9 @@
     "keepEditing": "Keep editing",
     "followUpSection": "Follow-up",
     "trackOpens": "Track opens",
-    "trackOpensTooltip": "Adds an invisible image so you can see when this email is opened. Defaults to your setting in Settings → Open tracking."
+    "trackOpensTooltip": "Adds an invisible image so you can see when this email is opened. Defaults to your setting in Settings → Open tracking.",
+    "trackOpensNotIncluded": "Email tracking is included with the Growth and Enterprise plans.",
+    "trackOpensUpgrade": "Upgrade"
   },
   "emailSend": {
     "failedNotification": "Your message was not sent. {{reason}}",
@@ -4849,6 +4853,9 @@
         "pricePerMonthFormatted": "{{price}}/month",
         "emailsPerCycle_one": "{{count}} AI-processed email per month",
         "emailsPerCycle_other": "{{count}} AI-processed emails per month",
+        "includesEmailTracking": "Email tracking",
+        "teamMembers_one": "{{count}} team member",
+        "teamMembers_other": "{{count}} team members",
         "choosePlan": "Choose plan",
         "currentPlan": "Current plan",
         "openingCheckout": "Opening checkout…",

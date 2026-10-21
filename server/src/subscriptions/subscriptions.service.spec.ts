@@ -1511,16 +1511,30 @@ describe("SubscriptionsService", () => {
   });
 
   describe("getVolumeTierList", () => {
-    it("should return every volume tier with id, price and email allowance", () => {
+    it("should return every volume tier with id, price, email allowance and inclusions", () => {
       const tiers = service.getVolumeTierList();
 
       expect(tiers).toEqual([
-        { id: "bearlymail_starter", monthlyPriceUsd: 15, emailsPerCycle: 3000 },
-        { id: "bearlymail_growth", monthlyPriceUsd: 25, emailsPerCycle: 10000 },
+        {
+          id: "bearlymail_starter",
+          monthlyPriceUsd: 5,
+          emailsPerCycle: 3000,
+          seats: 1,
+          includesEmailTracking: false,
+        },
+        {
+          id: "bearlymail_growth",
+          monthlyPriceUsd: 15,
+          emailsPerCycle: 10000,
+          seats: 1,
+          includesEmailTracking: true,
+        },
         {
           id: "bearlymail_enterprise",
           monthlyPriceUsd: 40,
           emailsPerCycle: 30000,
+          seats: 5,
+          includesEmailTracking: true,
         },
       ]);
     });
@@ -1748,6 +1762,30 @@ describe("SubscriptionsService", () => {
       expect(result.org.hasRevenueCatSubscription).toBe(false);
     });
 
+    it("should give a complimentary Enterprise plan its 5 seats", async () => {
+      memberRepository.findOne.mockResolvedValue(
+        mockPartial({ organizationId: "org-1" }),
+      );
+      orgRepository.findOne.mockResolvedValue(freshOrg());
+      orgRepository.save.mockImplementation(
+        async (entity) => entity as Organization,
+      );
+
+      await service.adminGrantPlan(
+        "admin-1",
+        "user-1",
+        "bearlymail_enterprise",
+      );
+
+      expect(orgRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          volumeTierProductId: "bearlymail_enterprise",
+          maxSeats: 5,
+          grandfatheredEmailTracking: false,
+        }),
+      );
+    });
+
     it("should provision a personal org via ensurePersonalOrg when the user has none", async () => {
       memberRepository.findOne.mockResolvedValue(null);
       const provisioned = freshOrg();
@@ -1813,6 +1851,7 @@ describe("SubscriptionsService", () => {
           planStatus: "expired",
           volumeTierProductId: null,
           emailVolumeLimit: FREE_TIER_EMAIL_LIMIT,
+          maxSeats: 1,
           trialEndsAt: null,
         }),
       );
@@ -1893,6 +1932,8 @@ describe("SubscriptionsService — Stripe webhooks", () => {
     billingCycleStart: null,
     planStatus: ORG_PLAN_STATUS.UNPAID,
     trialEndsAt: null,
+    grandfatheredEmailTracking: false,
+    revenueCatOrgSubscriptionId: null as string | null,
   });
 
   const evt = (type: string, object: unknown): Stripe.Event =>
@@ -1901,10 +1942,16 @@ describe("SubscriptionsService — Stripe webhooks", () => {
   beforeEach(async () => {
     orgRepo = { findOne: jest.fn(), save: jest.fn(async (org) => org) };
     memberRepo = { find: jest.fn().mockResolvedValue([]) };
+    const tierByPrice: Record<string, string> = {
+      price_growth: "bearlymail_growth",
+      price_enterprise: "bearlymail_enterprise",
+      price_starter_legacy: "bearlymail_starter",
+      price_starter: "bearlymail_starter",
+    };
     const stripeMock = {
       isConfigured: () => true,
-      tierForPriceId: (id: string) =>
-        id === "price_growth" ? "bearlymail_growth" : null,
+      tierForPriceId: (id: string) => tierByPrice[id] ?? null,
+      isLegacyPrice: (id: string) => id === "price_starter_legacy",
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -1942,6 +1989,68 @@ describe("SubscriptionsService — Stripe webhooks", () => {
     expect(saved.billingCycleStart).toBeInstanceOf(Date);
   });
 
+  const subscriptionUpdated = (priceId: string) =>
+    evt("customer.subscription.updated", {
+      id: "sub_1",
+      customer: "cus_1",
+      status: "active",
+      metadata: { orgId: "org-1" },
+      items: { data: [{ price: { id: priceId } }] },
+    });
+
+  it("gives an Enterprise org the plan's 5 seats", async () => {
+    orgRepo.findOne.mockResolvedValue(makeOrg());
+    await service.handleStripeWebhook(subscriptionUpdated("price_enterprise"));
+    const saved = orgRepo.save.mock.calls[0][0];
+    expect(saved.volumeTierProductId).toBe("bearlymail_enterprise");
+    expect(saved.maxSeats).toBe(5);
+  });
+
+  it("lowers seats to the tier's allowance on a downgrade", async () => {
+    orgRepo.findOne.mockResolvedValue({
+      ...makeOrg(),
+      planStatus: ORG_PLAN_STATUS.ACTIVE,
+      volumeTierProductId: "bearlymail_enterprise",
+      maxSeats: 5,
+    });
+    await service.handleStripeWebhook(subscriptionUpdated("price_growth"));
+    expect(orgRepo.save.mock.calls[0][0].maxSeats).toBe(1);
+  });
+
+  it("keeps seats bought through the legacy RevenueCat seat product", async () => {
+    orgRepo.findOne.mockResolvedValue({
+      ...makeOrg(),
+      maxSeats: 8,
+      revenueCatOrgSubscriptionId: "rc-org-1",
+    });
+    await service.handleStripeWebhook(subscriptionUpdated("price_enterprise"));
+    expect(orgRepo.save.mock.calls[0][0].maxSeats).toBe(8);
+  });
+
+  it("keeps a subscriber on the retired Starter price on Starter, with email tracking grandfathered", async () => {
+    orgRepo.findOne.mockResolvedValue(makeOrg());
+    await service.handleStripeWebhook(
+      subscriptionUpdated("price_starter_legacy"),
+    );
+    const saved = orgRepo.save.mock.calls[0][0];
+    expect(saved.volumeTierProductId).toBe("bearlymail_starter");
+    expect(saved.planStatus).toBe(ORG_PLAN_STATUS.ACTIVE);
+    expect(saved.grandfatheredEmailTracking).toBe(true);
+  });
+
+  it("drops the grandfathered feature when the subscription moves to a current price", async () => {
+    orgRepo.findOne.mockResolvedValue({
+      ...makeOrg(),
+      planStatus: ORG_PLAN_STATUS.ACTIVE,
+      volumeTierProductId: "bearlymail_starter",
+      grandfatheredEmailTracking: true,
+    });
+    await service.handleStripeWebhook(subscriptionUpdated("price_starter"));
+    expect(orgRepo.save.mock.calls[0][0].grandfatheredEmailTracking).toBe(
+      false,
+    );
+  });
+
   it("deactivates an org to the free tier on subscription deletion", async () => {
     orgRepo.findOne.mockImplementation(async ({ where }) =>
       where.stripeSubscriptionId === "sub_1"
@@ -1962,6 +2071,8 @@ describe("SubscriptionsService — Stripe webhooks", () => {
     expect(saved.emailVolumeLimit).toBe(FREE_TIER_EMAIL_LIMIT);
     expect(saved.volumeTierProductId).toBeNull();
     expect(saved.stripeSubscriptionId).toBeNull();
+    expect(saved.maxSeats).toBe(1);
+    expect(saved.grandfatheredEmailTracking).toBe(false);
   });
 
   it("resets the usage cycle on a recurring renewal invoice", async () => {

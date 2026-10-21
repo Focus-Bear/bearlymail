@@ -22,6 +22,7 @@ import {
 import {
   BOOLEAN_STRING_VALUES,
   NODE_ENV_VALUES,
+  SELF_HOSTED_ENV_KEY,
 } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MEMBER_STATUS } from "../constants/member-roles";
@@ -43,6 +44,7 @@ import {
 } from "./stripe-billing.constants";
 import {
   FREE_TIER_EMAIL_LIMIT,
+  FREE_TIER_SEATS,
   VOLUME_TIER_NONE,
   VOLUME_TIERS,
 } from "./volume-tiers.constants";
@@ -150,7 +152,7 @@ export class SubscriptionsService {
     this.projectId =
       this.configService.get<string>("REVENUECAT_PROJECT_ID") || null;
     this.isSelfHosted =
-      this.configService.get<string>("SELF_HOSTED") ===
+      this.configService.get<string>(SELF_HOSTED_ENV_KEY) ===
       BOOLEAN_STRING_VALUES.TRUE;
     if (this.isSelfHosted) {
       this.logger.log(
@@ -492,18 +494,22 @@ export class SubscriptionsService {
 
   /**
    * Public listing of the purchasable volume tiers, derived from VOLUME_TIERS
-   * so the client never hardcodes pricing. Tier ids are the RevenueCat
-   * entitlement identifiers used by the org webhook to activate a plan.
+   * so the client never hardcodes pricing or plan inclusions. Tier ids are the
+   * stable slugs the billing webhooks use to activate a plan.
    */
   getVolumeTierList(): Array<{
     id: string;
     monthlyPriceUsd: number;
     emailsPerCycle: number;
+    seats: number;
+    includesEmailTracking: boolean;
   }> {
     return Object.entries(VOLUME_TIERS).map(([id, tier]) => ({
       id,
       monthlyPriceUsd: tier.price,
       emailsPerCycle: tier.limit,
+      seats: tier.seats,
+      includesEmailTracking: tier.includesEmailTracking,
     }));
   }
 
@@ -723,6 +729,8 @@ export class SubscriptionsService {
     org.planStatus = ORG_PLAN_STATUS.ACTIVE;
     org.volumeTierProductId = tier;
     org.emailVolumeLimit = tierConfig.limit;
+    org.maxSeats = tierConfig.seats;
+    org.grandfatheredEmailTracking = false;
     org.trialEndsAt = null;
     await this.orgRepository.save(org);
 
@@ -748,6 +756,8 @@ export class SubscriptionsService {
     org.planStatus = ORG_PLAN_STATUS.EXPIRED;
     org.volumeTierProductId = null;
     org.emailVolumeLimit = FREE_TIER_EMAIL_LIMIT;
+    org.maxSeats = FREE_TIER_SEATS;
+    org.grandfatheredEmailTracking = false;
     org.trialEndsAt = null;
     await this.orgRepository.save(org);
 
@@ -906,9 +916,10 @@ export class SubscriptionsService {
     } else if (eventType === "CANCELLATION" || eventType === "EXPIRATION") {
       // Degrade to the free tier rather than bricking the org: the owner
       // keeps their single seat and the free-tier email allowance.
-      org.maxSeats = 1;
+      org.maxSeats = FREE_TIER_SEATS;
       org.volumeTierProductId = null;
       org.emailVolumeLimit = FREE_TIER_EMAIL_LIMIT;
+      org.grandfatheredEmailTracking = false;
       org.planStatus = ORG_PLAN_STATUS.EXPIRED;
     }
 
@@ -1112,10 +1123,12 @@ export class SubscriptionsService {
       );
       return;
     }
+    // New checkouts are always on a current Price, never a retired one.
     await this.activateOrgStripeTier(org, tierId, {
       subscriptionId,
       customerId,
       resetCycle: true,
+      isLegacyPrice: false,
     });
     this.logger.log(
       `Org ${org.id} activated on tier ${tierId} via Stripe checkout`,
@@ -1159,6 +1172,9 @@ export class SubscriptionsService {
       subscriptionId: subscription.id,
       customerId,
       resetCycle: false,
+      isLegacyPrice: priceId
+        ? this.stripeService.isLegacyPrice(priceId)
+        : false,
     });
   }
 
@@ -1196,10 +1212,15 @@ export class SubscriptionsService {
       subscriptionId: string | null;
       customerId: string | null;
       resetCycle: boolean;
+      /** Billed on a retired Price: keeps the features that Price included. */
+      isLegacyPrice: boolean;
     },
   ): Promise<void> {
+    const tier = VOLUME_TIERS[tierId];
     org.volumeTierProductId = tierId;
-    org.emailVolumeLimit = VOLUME_TIERS[tierId].limit;
+    org.emailVolumeLimit = tier.limit;
+    org.maxSeats = this.seatsForStripeTier(org, tier.seats);
+    org.grandfatheredEmailTracking = opts.isLegacyPrice;
     org.planStatus = ORG_PLAN_STATUS.ACTIVE;
     org.trialEndsAt = null;
     if (opts.customerId) org.stripeCustomerId = opts.customerId;
@@ -1212,9 +1233,20 @@ export class SubscriptionsService {
     await this.syncOrgSeatSubscriptions(org, "INITIAL_PURCHASE");
   }
 
+  /**
+   * Seats come with the tier, so a downgrade lowers them (members already in
+   * stay; only new invites are blocked). Seats an org bought separately
+   * through the legacy RevenueCat seat product are kept.
+   */
+  private seatsForStripeTier(org: Organization, tierSeats: number): number {
+    if (!org.revenueCatOrgSubscriptionId) return tierSeats;
+    return Math.max(org.maxSeats, tierSeats);
+  }
+
   /** Downgrades an org to the free tier when its Stripe plan ends. */
   private async deactivateOrgStripe(org: Organization): Promise<void> {
-    org.maxSeats = 1;
+    org.maxSeats = FREE_TIER_SEATS;
+    org.grandfatheredEmailTracking = false;
     org.volumeTierProductId = null;
     org.emailVolumeLimit = FREE_TIER_EMAIL_LIMIT;
     org.planStatus = ORG_PLAN_STATUS.EXPIRED;

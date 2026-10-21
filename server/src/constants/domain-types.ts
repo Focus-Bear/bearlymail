@@ -316,6 +316,9 @@ export const BOOLEAN_STRING_VALUES = {
 export type BooleanStringValue =
   (typeof BOOLEAN_STRING_VALUES)[keyof typeof BOOLEAN_STRING_VALUES];
 
+/** Env var that turns off all plan enforcement (`npm run local`). */
+export const SELF_HOSTED_ENV_KEY = "SELF_HOSTED";
+
 export const OAUTH_ERROR_CODES = {
   INVALID_GRANT: "invalid_grant",
   INVALID_TOKEN: "invalid_token",

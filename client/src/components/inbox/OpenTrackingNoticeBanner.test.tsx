@@ -6,6 +6,11 @@ import { OPEN_TRACKING_SETTINGS_ANCHOR } from 'constants/openTracking';
 
 import { OPEN_TRACKING_NOTICE_DISMISSED_KEY_PREFIX, OpenTrackingNoticeBanner } from './OpenTrackingNoticeBanner';
 
+let mockIsEmailTrackingIncluded = true;
+vi.mock('hooks/useIsEmailTrackingIncluded', () => ({
+  useIsEmailTrackingIncluded: () => mockIsEmailTrackingIncluded,
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -29,6 +34,7 @@ const renderBanner = (props: Partial<React.ComponentProps<typeof OpenTrackingNot
 describe('OpenTrackingNoticeBanner', () => {
   beforeEach(() => {
     localStorage.clear();
+    mockIsEmailTrackingIncluded = true;
   });
 
   it('tells a user with tracking on, once the tour is done', () => {
@@ -45,6 +51,13 @@ describe('OpenTrackingNoticeBanner', () => {
       'href',
       `/settings#${OPEN_TRACKING_SETTINGS_ANCHOR}`
     );
+  });
+
+  it('stays hidden when the plan does not include tracking', () => {
+    mockIsEmailTrackingIncluded = false;
+    renderBanner();
+
+    expect(screen.queryByTestId(BANNER_TEST_ID)).not.toBeInTheDocument();
   });
 
   it('stays hidden when the user has turned tracking off', () => {

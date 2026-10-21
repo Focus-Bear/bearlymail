@@ -770,7 +770,9 @@
     "keepEditing": "Seguir editando",
     "followUpSection": "Seguimiento",
     "trackOpens": "Registrar aperturas",
-    "trackOpensTooltip": "Añade una imagen invisible para que veas cuándo se abre este correo. Por defecto usa tu ajuste en Configuración → Seguimiento de aperturas."
+    "trackOpensTooltip": "Añade una imagen invisible para que veas cuándo se abre este correo. Por defecto usa tu ajuste en Configuración → Seguimiento de aperturas.",
+    "trackOpensNotIncluded": "El seguimiento de aperturas está incluido en los planes Growth y Enterprise.",
+    "trackOpensUpgrade": "Mejorar plan"
   },
   "emailSend": {
     "failedNotification": "Tu mensaje no se envió. {{reason}}",
@@ -4668,6 +4670,8 @@
       "label": "Registrar aperturas de correos",
       "description": "Añade una imagen invisible de 1×1 a los correos que envías desde BearlyMail para que veas cuándo se abren: en el hilo, en Seguimiento y en Estadísticas. Las respuestas automáticas nunca se rastrean.",
       "limitations": "Quien bloquee las imágenes no aparecerá como abierto, y Apple Mail puede abrir correos automáticamente (los marcamos como \"puede ser automático\"). También puedes desactivarlo para un solo correo al redactar.",
+      "notIncluded": "El seguimiento de aperturas está incluido en los planes Growth y Enterprise.",
+      "viewPlans": "Ver planes",
       "saveError": "No se pudo actualizar el seguimiento de aperturas. Inténtalo de nuevo."
     }
   },
@@ -4852,6 +4856,9 @@
         "pricePerMonthFormatted": "{{price}}/mes",
         "emailsPerCycle_one": "{{count}} correo procesado con IA al mes",
         "emailsPerCycle_other": "{{count}} correos procesados con IA al mes",
+        "includesEmailTracking": "Seguimiento de aperturas",
+        "teamMembers_one": "{{count}} miembro del equipo",
+        "teamMembers_other": "{{count}} miembros del equipo",
         "choosePlan": "Elegir plan",
         "currentPlan": "Plan actual",
         "openingCheckout": "Abriendo el pago…",

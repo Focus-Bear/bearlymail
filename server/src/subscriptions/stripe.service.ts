@@ -8,6 +8,7 @@ import Stripe from "stripe";
 
 import {
   STRIPE_ENV,
+  STRIPE_LEGACY_PRICE_ENV_BY_TIER,
   STRIPE_PRICE_ENV_BY_TIER,
 } from "./stripe-billing.constants";
 
@@ -40,6 +41,7 @@ export class StripeService {
   private readonly webhookSecret: string | null;
   private readonly priceIdByTier: Record<string, string> = {};
   private readonly tierByPriceId: Record<string, string> = {};
+  private readonly legacyPriceIds = new Set<string>();
 
   constructor(private readonly configService: ConfigService) {
     const secretKey =
@@ -48,13 +50,8 @@ export class StripeService {
     this.webhookSecret =
       this.configService.get<string>(STRIPE_ENV.WEBHOOK_SECRET) || null;
 
-    for (const [tier, envKey] of Object.entries(STRIPE_PRICE_ENV_BY_TIER)) {
-      const priceId = this.configService.get<string>(envKey);
-      if (priceId) {
-        this.priceIdByTier[tier] = priceId;
-        this.tierByPriceId[priceId] = tier;
-      }
-    }
+    this.mapCurrentPrices();
+    this.mapLegacyPrices();
 
     if (!this.stripe) {
       this.logger.warn(
@@ -62,12 +59,52 @@ export class StripeService {
       );
     } else {
       this.logger.log(
-        `Stripe initialized (${Object.keys(this.priceIdByTier).length} tier price(s) mapped)`,
+        `Stripe initialized (${Object.keys(this.priceIdByTier).length} tier price(s) mapped, ${this.legacyPriceIds.size} legacy)`,
       );
+      this.warnAboutUnpricedTiers();
     }
     if (!this.webhookSecret) {
       this.logger.warn(
         `${STRIPE_ENV.WEBHOOK_SECRET} not set — Stripe webhook verification is disabled`,
+      );
+    }
+  }
+
+  private mapCurrentPrices(): void {
+    for (const [tier, envKey] of Object.entries(STRIPE_PRICE_ENV_BY_TIER)) {
+      const priceId = this.configService.get<string>(envKey);
+      if (priceId) {
+        this.priceIdByTier[tier] = priceId;
+        this.tierByPriceId[priceId] = tier;
+      }
+    }
+  }
+
+  /**
+   * Retired Prices are recognised by webhooks (so their subscribers keep their
+   * plan) but never offered at checkout. A Price configured as both current
+   * and legacy counts as current.
+   */
+  private mapLegacyPrices(): void {
+    for (const [tier, envKey] of Object.entries(
+      STRIPE_LEGACY_PRICE_ENV_BY_TIER,
+    )) {
+      const priceId = this.configService.get<string>(envKey);
+      if (priceId && !this.tierByPriceId[priceId]) {
+        this.tierByPriceId[priceId] = tier;
+        this.legacyPriceIds.add(priceId);
+      }
+    }
+  }
+
+  /** A tier without a current Price cannot be bought — checkout returns 503. */
+  private warnAboutUnpricedTiers(): void {
+    const missingEnvKeys = Object.entries(STRIPE_PRICE_ENV_BY_TIER)
+      .filter(([tier]) => !this.priceIdByTier[tier])
+      .map(([, envKey]) => envKey);
+    if (missingEnvKeys.length > 0) {
+      this.logger.warn(
+        `No Stripe price configured for ${missingEnvKeys.join(", ")} — those tiers cannot be purchased`,
       );
     }
   }
@@ -82,9 +119,17 @@ export class StripeService {
     return this.priceIdByTier[tierId] ?? null;
   }
 
-  /** The tier slug for a Stripe Price ID, or null if it isn't one of ours. */
+  /**
+   * The tier slug for a Stripe Price ID (current or retired), or null if it
+   * isn't one of ours.
+   */
   tierForPriceId(priceId: string): string | null {
     return this.tierByPriceId[priceId] ?? null;
+  }
+
+  /** Whether a Price ID is a retired Price that only existing subscribers pay. */
+  isLegacyPrice(priceId: string): boolean {
+    return this.legacyPriceIds.has(priceId);
   }
 
   private requireClient(): Stripe {

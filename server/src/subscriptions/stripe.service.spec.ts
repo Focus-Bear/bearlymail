@@ -13,9 +13,12 @@ function configWith(values: Record<string, string>): ConfigService {
 const FULL_ENV = {
   STRIPE_SECRET_KEY: "sk_test_dummy",
   STRIPE_WEBHOOK_SECRET: "whsec_dummy",
-  STRIPE_PRICE_STARTER: "price_starter",
-  STRIPE_PRICE_GROWTH: "price_growth",
+  STRIPE_PRICE_STARTER_V2: "price_starter_5",
+  STRIPE_PRICE_GROWTH_V2: "price_growth_15",
   STRIPE_PRICE_ENTERPRISE: "price_enterprise",
+  // Retired Prices existing subscribers are still billed on.
+  STRIPE_PRICE_STARTER: "price_starter_15",
+  STRIPE_PRICE_GROWTH: "price_growth_25",
 };
 
 describe("StripeService", () => {
@@ -32,20 +35,62 @@ describe("StripeService", () => {
   });
 
   describe("tier <-> price mapping", () => {
-    it("maps each tier slug to its configured Stripe price id", () => {
+    it("checks out each tier on its current Price, never a retired one", () => {
       const service = new StripeService(configWith(FULL_ENV));
       expect(service.priceIdForTier("bearlymail_starter")).toBe(
-        "price_starter",
+        "price_starter_5",
       );
-      expect(service.priceIdForTier("bearlymail_growth")).toBe("price_growth");
+      expect(service.priceIdForTier("bearlymail_growth")).toBe(
+        "price_growth_15",
+      );
       expect(service.priceIdForTier("bearlymail_enterprise")).toBe(
         "price_enterprise",
       );
     });
 
-    it("maps a price id back to its tier slug", () => {
+    it("maps a current price id back to its tier slug", () => {
       const service = new StripeService(configWith(FULL_ENV));
-      expect(service.tierForPriceId("price_growth")).toBe("bearlymail_growth");
+      expect(service.tierForPriceId("price_growth_15")).toBe(
+        "bearlymail_growth",
+      );
+      expect(service.isLegacyPrice("price_growth_15")).toBe(false);
+    });
+
+    it("still maps retired prices to their tier so existing subscribers keep working", () => {
+      const service = new StripeService(configWith(FULL_ENV));
+      expect(service.tierForPriceId("price_starter_15")).toBe(
+        "bearlymail_starter",
+      );
+      expect(service.tierForPriceId("price_growth_25")).toBe(
+        "bearlymail_growth",
+      );
+      expect(service.isLegacyPrice("price_starter_15")).toBe(true);
+      expect(service.isLegacyPrice("price_growth_25")).toBe(true);
+    });
+
+    it("treats a price configured as both current and retired as current", () => {
+      const service = new StripeService(
+        configWith({
+          ...FULL_ENV,
+          STRIPE_PRICE_STARTER_V2: "price_same",
+          STRIPE_PRICE_STARTER: "price_same",
+        }),
+      );
+      expect(service.priceIdForTier("bearlymail_starter")).toBe("price_same");
+      expect(service.isLegacyPrice("price_same")).toBe(false);
+    });
+
+    it("does not offer a retired price at checkout when the new one is unset", () => {
+      const service = new StripeService(
+        configWith({
+          STRIPE_SECRET_KEY: "sk_test_dummy",
+          STRIPE_PRICE_STARTER: "price_starter_15",
+        }),
+      );
+      expect(service.priceIdForTier("bearlymail_starter")).toBeNull();
+      expect(service.tierForPriceId("price_starter_15")).toBe(
+        "bearlymail_starter",
+      );
     });
 
     it("returns null for an unknown tier or price", () => {

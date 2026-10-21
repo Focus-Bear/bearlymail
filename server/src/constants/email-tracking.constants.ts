@@ -98,6 +98,8 @@ export const UNTRACKED_REASON = {
   PROVIDER_PLAIN_TEXT: "provider_plain_text",
   /** Recipients could not reach the pixel (backend on localhost). */
   NO_PUBLIC_URL: "no_public_url",
+  /** The sender's plan doesn't include email tracking (Starter, free). */
+  PLAN_EXCLUDES_TRACKING: "plan_excludes_tracking",
 } as const;
 
 export type UntrackedReason =

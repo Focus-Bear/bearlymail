@@ -36,6 +36,12 @@ describe("estimateCostUsd", () => {
     );
   });
 
+  it("does not price gemini-3.5-flash-lite as gemini-3.5-flash", () => {
+    expect(
+      estimateCostUsd("gemini", "gemini-3.5-flash-lite", 1_000_000, 1_000_000),
+    ).toBeCloseTo(2.8, 6);
+  });
+
   it("prices gemini-3.6-flash separately from gemini-3.5-flash", () => {
     expect(
       estimateCostUsd("gemini", "gemini-3.6-flash", 1_000_000, 1_000_000),

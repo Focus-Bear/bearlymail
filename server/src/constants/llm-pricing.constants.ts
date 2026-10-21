@@ -35,6 +35,10 @@ export const LLM_MODEL_PRICING: Record<string, Record<string, ModelPricing>> = {
     "gemini-3.1-flash": { inputPerMillion: 0.5, outputPerMillion: 3.0 },
     "gemini-3-flash": { inputPerMillion: 0.5, outputPerMillion: 3.0 },
     "gemini-3.5-flash": { inputPerMillion: 1.5, outputPerMillion: 9.0 },
+    // Needs its own entry: without it, longest-prefix matching would price it
+    // as gemini-3.5-flash (5x too high). Successor to 3.1-flash-lite, which
+    // Google shuts down on 2027-05-07.
+    "gemini-3.5-flash-lite": { inputPerMillion: 0.3, outputPerMillion: 2.5 },
     // Launch pricing through 2026-12-31; Google doubles it to $1.50 / $7.50
     // from 2027-01-01.
     "gemini-3.6-flash": { inputPerMillion: 0.75, outputPerMillion: 3.75 },

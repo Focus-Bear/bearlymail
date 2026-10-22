@@ -1948,10 +1948,15 @@ describe("SubscriptionsService — Stripe webhooks", () => {
       price_starter_legacy: "bearlymail_starter",
       price_starter: "bearlymail_starter",
     };
+    const currentPriceByTier: Record<string, string> = {
+      bearlymail_starter: "price_starter",
+      bearlymail_growth: "price_growth",
+      bearlymail_enterprise: "price_enterprise",
+    };
     const stripeMock = {
       isConfigured: () => true,
       tierForPriceId: (id: string) => tierByPrice[id] ?? null,
-      isLegacyPrice: (id: string) => id === "price_starter_legacy",
+      priceIdForTier: (tier: string) => currentPriceByTier[tier] ?? null,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -1989,12 +1994,12 @@ describe("SubscriptionsService — Stripe webhooks", () => {
     expect(saved.billingCycleStart).toBeInstanceOf(Date);
   });
 
-  const subscriptionUpdated = (priceId: string) =>
+  const subscriptionUpdated = (priceId: string, tierId?: string) =>
     evt("customer.subscription.updated", {
       id: "sub_1",
       customer: "cus_1",
       status: "active",
-      metadata: { orgId: "org-1" },
+      metadata: { orgId: "org-1", ...(tierId ? { tierId } : {}) },
       items: { data: [{ price: { id: priceId } }] },
     });
 
@@ -2035,6 +2040,26 @@ describe("SubscriptionsService — Stripe webhooks", () => {
     const saved = orgRepo.save.mock.calls[0][0];
     expect(saved.volumeTierProductId).toBe("bearlymail_starter");
     expect(saved.planStatus).toBe(ORG_PLAN_STATUS.ACTIVE);
+    expect(saved.grandfatheredEmailTracking).toBe(true);
+  });
+
+  // Production sets no *_LEGACY keys, so the retired $15 Starter price is only
+  // recognised through the subscription's tierId metadata.
+  it("keeps email tracking for a retired price that isn't configured at all", async () => {
+    orgRepo.findOne.mockResolvedValue({
+      ...makeOrg(),
+      planStatus: ORG_PLAN_STATUS.ACTIVE,
+      volumeTierProductId: "bearlymail_starter",
+      grandfatheredEmailTracking: true,
+    });
+    await service.handleStripeWebhook(
+      subscriptionUpdated(
+        "price_starter_15_unconfigured",
+        "bearlymail_starter",
+      ),
+    );
+    const saved = orgRepo.save.mock.calls[0][0];
+    expect(saved.volumeTierProductId).toBe("bearlymail_starter");
     expect(saved.grandfatheredEmailTracking).toBe(true);
   });
 

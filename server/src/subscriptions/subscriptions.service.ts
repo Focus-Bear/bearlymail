@@ -1172,9 +1172,11 @@ export class SubscriptionsService {
       subscriptionId: subscription.id,
       customerId,
       resetCycle: false,
-      isLegacyPrice: priceId
-        ? this.stripeService.isLegacyPrice(priceId)
-        : false,
+      // Any Price other than the tier's current one is a retired Price, even
+      // when the optional *_LEGACY keys aren't set; otherwise a $15 Starter
+      // subscriber would lose grandfathered email tracking at renewal.
+      isLegacyPrice:
+        !!priceId && priceId !== this.stripeService.priceIdForTier(tierId),
     });
   }
 

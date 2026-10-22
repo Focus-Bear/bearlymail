@@ -17,11 +17,7 @@ import {
 // ── Condition ─────────────────────────────────────────────────────────────────
 
 export type WorkflowPriorityLevel =
-  | "veryHigh"
-  | "high"
-  | "medium"
-  | "low"
-  | "veryLow";
+  "veryHigh" | "high" | "medium" | "low" | "veryLow";
 
 export interface WorkflowCondition {
   /**
@@ -35,6 +31,13 @@ export interface WorkflowCondition {
    * Empty array = match any subject.
    */
   subjectPatterns: string[];
+
+  /**
+   * Optional: glob, regex, or substring patterns matched against the start of
+   * the email body (the same truncated body the engine evaluates). Empty or
+   * missing = match any body.
+   */
+  bodyPatterns?: string[];
 
   /**
    * Optional: match on category assigned by the triage pipeline.
@@ -113,11 +116,7 @@ export type WorkflowAction =
 // ── Execution log types ───────────────────────────────────────────────────────
 
 export type WorkflowExecutionStatus =
-  | "pending"
-  | "running"
-  | "success"
-  | "partial_failure"
-  | "failed";
+  "pending" | "running" | "success" | "partial_failure" | "failed";
 
 export interface WorkflowActionResult {
   actionIndex: number;
@@ -154,6 +153,11 @@ export class WorkflowConditionDto implements WorkflowCondition {
   @IsArray()
   @IsString({ each: true })
   subjectPatterns!: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  bodyPatterns?: string[];
 
   @IsArray()
   @IsString({ each: true })

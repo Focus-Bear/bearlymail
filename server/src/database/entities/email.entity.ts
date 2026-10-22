@@ -195,6 +195,25 @@ export class Email {
   @Column({ default: false })
   isRead: boolean;
 
+  /**
+   * First time the user opened this email in BearlyMail (the detail view marks
+   * it read). Unlike `isRead` it is never set by archiving, so it is a real
+   * "opened" signal for the auto-archive proposal miner.
+   */
+  @Column({ type: "timestamptz", nullable: true })
+  openedAt: Date | null;
+
+  /** When the user archived or deleted this email in BearlyMail (not a workflow). */
+  @Column({ type: "timestamptz", nullable: true })
+  archivedAt: Date | null;
+
+  /**
+   * True when the user archived/deleted it while it was still unread and
+   * unopened — archiving then marks it read, so this keeps "dismissed unread".
+   */
+  @Column({ default: false })
+  archivedWhileUnread: boolean;
+
   @Column({
     type: "text",
     nullable: true,

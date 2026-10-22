@@ -50,6 +50,7 @@ const mockEmailThreadService = {
 
 const mockEmailReadService = {
   bulkMarkAsRead: jest.fn(),
+  recordUserArchive: jest.fn(),
 };
 
 const mockBoss = {

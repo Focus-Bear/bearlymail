@@ -249,6 +249,14 @@ export class EmailThread {
   })
   lastUserOperationAt: Date | null;
 
+  /**
+   * First time the thread was starred (moved to Action). Archiving resets
+   * `starCount` to 0, so this preserves the engagement signal for the
+   * auto-archive proposal miner.
+   */
+  @Column({ type: "timestamptz", nullable: true })
+  firstStarredAt: Date | null;
+
   @Column({
     type: "varchar",
     default: "synced",

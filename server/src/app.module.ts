@@ -11,6 +11,7 @@ import { AppleMailAccountsModule } from "./apple-mail-accounts/apple-mail-accoun
 import { AskAiModule } from "./ask-ai/ask-ai.module";
 import { AuthModule } from "./auth/auth.module";
 import { UserThrottlerGuard } from "./auth/user-throttler.guard";
+import { AutoArchiveProposalsModule } from "./auto-archive-proposals/auto-archive-proposals.module";
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
@@ -176,6 +177,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     ProtoCategoriesModule,
     WorkflowsModule,
     CategoryWorkflowsModule,
+    AutoArchiveProposalsModule,
     TriageModule,
     MCPModule,
     AskAiModule,

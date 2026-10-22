@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { PatternTagInput } from './PatternTagInput';
 import { WorkflowCondition } from './types';
 
 interface ConditionBuilderProps {
@@ -9,28 +10,57 @@ interface ConditionBuilderProps {
   onChange: (condition: WorkflowCondition) => void;
 }
 
-const ENTER_KEY = 'Enter';
+type PatternField = 'fromPatterns' | 'subjectPatterns' | 'bodyPatterns';
+
+const PATTERN_FIELDS: ReadonlyArray<{
+  field: PatternField;
+  labelKey: string;
+  hintKey: string;
+  placeholderKey: string;
+}> = [
+  {
+    field: 'fromPatterns',
+    labelKey: 'settings.workflows.condition.fromLabel',
+    hintKey: 'settings.workflows.condition.fromHint',
+    placeholderKey: 'settings.workflows.condition.fromPlaceholder',
+  },
+  {
+    field: 'subjectPatterns',
+    labelKey: 'settings.workflows.condition.subjectLabel',
+    hintKey: 'settings.workflows.condition.subjectHint',
+    placeholderKey: 'settings.workflows.condition.subjectPlaceholder',
+  },
+  {
+    field: 'bodyPatterns',
+    labelKey: 'settings.workflows.condition.bodyLabel',
+    hintKey: 'settings.workflows.condition.bodyHint',
+    placeholderKey: 'settings.workflows.condition.bodyPlaceholder',
+  },
+];
+
+const EMPTY_INPUTS: Record<PatternField, string> = { fromPatterns: '', subjectPatterns: '', bodyPatterns: '' };
 
 /**
  * Builds the "When" condition part of a workflow rule.
- * Supports from/subject patterns and optional natural-language condition.
+ * Supports from/subject/body patterns and an optional natural-language condition.
  */
 export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, onChange }) => {
   const { t } = useTranslation();
-  const [fromInput, setFromInput] = useState('');
-  const [subjectInput, setSubjectInput] = useState('');
+  const [inputs, setInputs] = useState(EMPTY_INPUTS);
   const [showAdvanced, setShowAdvanced] = useState(Boolean(condition.naturalLanguageCondition));
 
-  const addPattern = (field: 'fromPatterns' | 'subjectPatterns', value: string, clearInput: () => void) => {
+  const setInput = (field: PatternField, value: string) => setInputs(current => ({ ...current, [field]: value }));
+
+  const addPattern = (field: PatternField, value: string) => {
     const trimmed = value.trim();
     if (!trimmed) {
       return;
     }
     onChange({ ...condition, [field]: [...(condition[field] ?? []), trimmed] });
-    clearInput();
+    setInput(field, '');
   };
 
-  const removePattern = (field: 'fromPatterns' | 'subjectPatterns', index: number) => {
+  const removePattern = (field: PatternField, index: number) => {
     const updated = [...(condition[field] ?? [])];
     updated.splice(index, 1);
     onChange({ ...condition, [field]: updated });
@@ -63,37 +93,22 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, o
           {t('settings.workflows.condition.categoryScopeNote')}
         </p>
       )}
-      {/* From patterns */}
-      <div>
-        <label style={labelStyle}>{t('settings.workflows.condition.fromLabel')}</label>
-        <p style={{ ...theme.typography.body.small, color: theme.colors.text.secondary, marginBottom: 4 }}>
-          {t('settings.workflows.condition.fromHint')}
-        </p>
-        <PatternTagInput
-          patterns={condition.fromPatterns}
-          inputValue={fromInput}
-          onInputChange={setFromInput}
-          onAdd={inputVal => addPattern('fromPatterns', inputVal, () => setFromInput(''))}
-          onRemove={idx => removePattern('fromPatterns', idx)}
-          placeholder={t('settings.workflows.condition.fromPlaceholder')}
-        />
-      </div>
-
-      {/* Subject patterns */}
-      <div>
-        <label style={labelStyle}>{t('settings.workflows.condition.subjectLabel')}</label>
-        <p style={{ ...theme.typography.body.small, color: theme.colors.text.secondary, marginBottom: 4 }}>
-          {t('settings.workflows.condition.subjectHint')}
-        </p>
-        <PatternTagInput
-          patterns={condition.subjectPatterns}
-          inputValue={subjectInput}
-          onInputChange={setSubjectInput}
-          onAdd={inputVal => addPattern('subjectPatterns', inputVal, () => setSubjectInput(''))}
-          onRemove={idx => removePattern('subjectPatterns', idx)}
-          placeholder={t('settings.workflows.condition.subjectPlaceholder')}
-        />
-      </div>
+      {PATTERN_FIELDS.map(({ field, labelKey, hintKey, placeholderKey }) => (
+        <div key={field}>
+          <label style={labelStyle}>{t(labelKey)}</label>
+          <p style={{ ...theme.typography.body.small, color: theme.colors.text.secondary, marginBottom: 4 }}>
+            {t(hintKey)}
+          </p>
+          <PatternTagInput
+            patterns={condition[field] ?? []}
+            inputValue={inputs[field]}
+            onInputChange={value => setInput(field, value)}
+            onAdd={value => addPattern(field, value)}
+            onRemove={index => removePattern(field, index)}
+            placeholder={t(placeholderKey)}
+          />
+        </div>
+      ))}
 
       {/* Advanced: natural language condition */}
       <div>
@@ -138,98 +153,5 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, o
         )}
       </div>
     </div>
-  );
-};
-
-interface PatternTagInputProps {
-  patterns: string[];
-  inputValue: string;
-  onInputChange: (value: string) => void;
-  onAdd: (value: string) => void;
-  onRemove: (index: number) => void;
-  placeholder?: string;
-}
-
-const PatternTagInput: React.FC<PatternTagInputProps> = ({
-  patterns,
-  inputValue,
-  onInputChange,
-  onAdd,
-  onRemove,
-  placeholder,
-}) => {
-  const { t } = useTranslation();
-  return (
-  <div>
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-      {patterns.map((pattern, idx) => (
-        <span
-          key={idx}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            background: theme.colors.background.subtle,
-            border: `1px solid ${theme.colors.border.default}`,
-            borderRadius: 4,
-            padding: '2px 8px',
-            fontSize: 12,
-          }}
-        >
-          <code style={{ fontSize: 12 }}>{pattern}</code>
-          <button
-            type="button"
-            onClick={() => onRemove(idx)}
-            aria-label={t('common.remove')}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: theme.colors.text.secondary,
-              padding: 0,
-              lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
-        </span>
-      ))}
-    </div>
-    <div style={{ display: 'flex', gap: 6 }}>
-      <input
-        type="text"
-        value={inputValue}
-        onChange={evt => onInputChange(evt.target.value)}
-        onKeyDown={evt => {
-          if (evt.key === ENTER_KEY || evt.key === ',') {
-            evt.preventDefault();
-            onAdd(inputValue);
-          }
-        }}
-        placeholder={placeholder}
-        style={{
-          flex: 1,
-          padding: '6px 10px',
-          borderRadius: 6,
-          border: `1px solid ${theme.colors.border.default}`,
-          fontSize: 13,
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => onAdd(inputValue)}
-        style={{
-          padding: '6px 12px',
-          borderRadius: 6,
-          border: `1px solid ${theme.colors.border.default}`,
-          background: theme.colors.background.paper,
-          cursor: 'pointer',
-          fontSize: 13,
-        }}
-      >
-        {t('common.add')}
-      </button>
-    </div>
-  </div>
   );
 };

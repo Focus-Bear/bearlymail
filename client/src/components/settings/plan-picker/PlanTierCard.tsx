@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiCheck } from 'react-icons/fi';
 import { PlanTier } from 'queries/usePlanTiers';
 import { theme } from 'theme/theme';
 
@@ -34,11 +35,37 @@ const priceStyle: React.CSSProperties = {
   color: theme.colors.text.primary,
 };
 
+const inclusionsStyle: React.CSSProperties = {
+  listStyle: 'none',
+  margin: 0,
+  padding: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px',
+  flex: 1,
+};
+
 const allowanceStyle: React.CSSProperties = {
   fontSize: '13px',
   color: theme.colors.text.secondary,
-  flex: 1,
 };
+
+const inclusionStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  fontSize: '13px',
+  fontWeight: 600,
+  color: theme.colors.text.primary,
+};
+
+const inclusionIconStyle: React.CSSProperties = {
+  color: theme.colors.success.main,
+  flexShrink: 0,
+};
+
+/** Seats are only worth calling out when the plan covers more than the owner. */
+const SOLO_SEAT_COUNT = 1;
 
 const currentBadgeStyle: React.CSSProperties = {
   alignSelf: 'flex-start',
@@ -57,10 +84,18 @@ interface PlanTierCardProps {
   action: React.ReactNode;
 }
 
+const PlanInclusion: React.FC<{ label: string; testId: string }> = ({ label, testId }) => (
+  <li style={inclusionStyle} data-testid={testId}>
+    <FiCheck style={inclusionIconStyle} aria-hidden="true" />
+    {label}
+  </li>
+);
+
 /**
  * A single plan card in the plan picker: tier name, monthly price, email
- * allowance, and a caller-supplied action. The org's current tier gets a
- * highlighted border and a "Current plan" badge.
+ * allowance, the plan's key inclusions (email tracking, team members) and a
+ * caller-supplied action. The org's current tier gets a highlighted border and
+ * a "Current plan" badge.
  */
 export const PlanTierCard: React.FC<PlanTierCardProps> = ({ tier, isCurrent, action }) => {
   const { t } = useTranslation();
@@ -73,9 +108,21 @@ export const PlanTierCard: React.FC<PlanTierCardProps> = ({ tier, isCurrent, act
       <div style={priceStyle} data-testid={`plan-tier-price-${tier.id}`}>
         {t('team.settings.planPicker.pricePerMonth', { price: tier.monthlyPriceUsd })}
       </div>
-      <div style={allowanceStyle}>
-        {t('team.settings.planPicker.emailsPerCycle', { count: tier.emailsPerCycle })}
-      </div>
+      <ul style={inclusionsStyle}>
+        <li style={allowanceStyle}>{t('team.settings.planPicker.emailsPerCycle', { count: tier.emailsPerCycle })}</li>
+        {tier.includesEmailTracking && (
+          <PlanInclusion
+            label={t('team.settings.planPicker.includesEmailTracking')}
+            testId={`plan-tier-email-tracking-${tier.id}`}
+          />
+        )}
+        {tier.seats > SOLO_SEAT_COUNT && (
+          <PlanInclusion
+            label={t('team.settings.planPicker.teamMembers', { count: tier.seats })}
+            testId={`plan-tier-seats-${tier.id}`}
+          />
+        )}
+      </ul>
       {action}
     </div>
   );

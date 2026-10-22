@@ -19,14 +19,48 @@ export const TRIAL_EMAIL_LIMIT = 3000;
 /** Length of the free org trial, in days. */
 export const TRIAL_DURATION_DAYS = 7;
 
-// Prices mirror the RevenueCat/Stripe products (Starter $5, Growth $15,
-// Enterprise $40 /mo) and the landing page's PRICING_TIERS
-// (client/src/components/landing-v2/constants.ts). These are the FALLBACK shown when the RevenueCat
-// offering can't be fetched (and for users without in-app checkout); the
-// plan picker prefers the live price from the offering. Keep them in sync
-// with the dashboard.
-export const VOLUME_TIERS: Record<string, { limit: number; price: number }> = {
-  bearlymail_starter: { limit: 3000, price: 5 },
-  bearlymail_growth: { limit: 10000, price: 15 },
-  bearlymail_enterprise: { limit: 30000, price: 40 },
+/** Stable tier slugs (the keys of {@link VOLUME_TIERS}). */
+export const VOLUME_TIER_IDS = {
+  STARTER: "bearlymail_starter",
+  GROWTH: "bearlymail_growth",
+  ENTERPRISE: "bearlymail_enterprise",
+} as const;
+
+/** Seats an org has with no paid plan (the owner alone). */
+export const FREE_TIER_SEATS = 1;
+
+export interface VolumeTierConfig {
+  /** AI-processed emails per billing cycle. */
+  limit: number;
+  /** List price in USD per month, as shown in the plan picker. */
+  price: number;
+  /** Team members (including the owner) the plan pays for. */
+  seats: number;
+  /** Whether outgoing mail can carry an open-tracking pixel. */
+  includesEmailTracking: boolean;
+}
+
+// These list prices are what the plan picker shows, so they must match the
+// amounts of the Stripe Prices new checkouts use (see
+// STRIPE_PRICE_ENV_BY_TIER). Subscribers on an older Price keep paying its
+// amount; only the displayed price for new purchases changes here.
+export const VOLUME_TIERS: Record<string, VolumeTierConfig> = {
+  [VOLUME_TIER_IDS.STARTER]: {
+    limit: 3000,
+    price: 5,
+    seats: FREE_TIER_SEATS,
+    includesEmailTracking: false,
+  },
+  [VOLUME_TIER_IDS.GROWTH]: {
+    limit: 10000,
+    price: 15,
+    seats: FREE_TIER_SEATS,
+    includesEmailTracking: true,
+  },
+  [VOLUME_TIER_IDS.ENTERPRISE]: {
+    limit: 30000,
+    price: 40,
+    seats: 5,
+    includesEmailTracking: true,
+  },
 } as const;

@@ -102,6 +102,14 @@ export class Organization {
   billingCycleStart: Date | null;
 
   @Column({
+    type: "boolean",
+    default: false,
+    comment:
+      "Keeps email tracking for an org still billed on a retired price whose tier no longer includes it",
+  })
+  grandfatheredEmailTracking: boolean;
+
+  @Column({
     type: "varchar",
     default: ORG_PLAN_STATUS.UNPAID,
     comment: "Plan state: unpaid | trial | active | expired",

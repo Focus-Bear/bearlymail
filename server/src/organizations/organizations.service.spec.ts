@@ -600,7 +600,21 @@ describe("OrganizationsService", () => {
         planStatus: "active",
         trialEndsAt: null,
         selfHosted: false,
+        includesEmailTracking: false,
       });
+    });
+
+    it("reports email tracking as included on an active Growth plan", async () => {
+      mockOrgRepo.findOneOrFail.mockResolvedValue(
+        makeOrg({
+          volumeTierProductId: "bearlymail_growth",
+          planStatus: "active",
+        } as Partial<Organization>),
+      );
+
+      const result = await service.getVolumeUsage(ORG_ID);
+
+      expect(result.includesEmailTracking).toBe(true);
     });
 
     it("lazily expires an elapsed trial and reports the free-tier limit", async () => {
@@ -624,6 +638,7 @@ describe("OrganizationsService", () => {
       );
       expect(result.planStatus).toBe("expired");
       expect(result.emailLimit).toBe(100);
+      expect(result.includesEmailTracking).toBe(false);
     });
 
     it("returns tier=none when no volume tier is set", async () => {

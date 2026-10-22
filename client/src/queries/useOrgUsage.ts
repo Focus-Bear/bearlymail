@@ -19,6 +19,8 @@ export interface VolumeUsage {
   trialEndsAt: string | null;
   /** True on self-hosted deployments — plan limits and usage are not enforced. */
   selfHosted?: boolean;
+  /** Whether the plan lets members send open-tracked email (Growth, Enterprise, trial). */
+  includesEmailTracking?: boolean;
 }
 
 async function fetchSeatUsage(): Promise<SeatUsage> {

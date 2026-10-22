@@ -84,6 +84,7 @@ export class EmailArchiveService {
     if (isStarred)
       await this.emailThreadService.updateThreadStarCount(userId, threadId, 0);
 
+    await this.emailReadService.recordUserArchive(userId, [threadId]);
     const threadEmails = await this.emailRepository.find({
       where: { userId, threadId, isRead: false },
       select: {
@@ -174,6 +175,7 @@ export class EmailArchiveService {
       );
     }
 
+    await this.emailReadService.recordUserArchive(userId, threadIds);
     const unreadEmails = await this.emailRepository.find({
       where: { userId, threadId: In(threadIds), isRead: false },
       select: {
@@ -261,6 +263,9 @@ export class EmailArchiveService {
     if (isStarred)
       await this.emailThreadService.updateThreadStarCount(userId, threadId, 0);
 
+    if (!options?.viaWorkflow) {
+      await this.emailReadService.recordUserArchive(userId, [threadId]);
+    }
     const unreadEmails = await this.emailRepository.find({
       where: { userId, threadId, isRead: false },
       select: { id: true },
@@ -311,6 +316,7 @@ export class EmailArchiveService {
       } else {
         throw new Error("No email provider available to delete thread");
       }
+      await this.emailReadService.recordUserArchive(userId, [threadId]);
       await this.emailThreadService.updateThreadArchivedStatus(
         userId,
         threadId,

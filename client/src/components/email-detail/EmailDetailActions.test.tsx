@@ -21,6 +21,8 @@ import { EmailDetailActions } from './EmailDetailActions';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
+vi.mock('hooks/useIsEmailTrackingIncluded', () => ({ useIsEmailTrackingIncluded: () => true }));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,

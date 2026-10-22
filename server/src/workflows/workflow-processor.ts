@@ -11,6 +11,7 @@ import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
 import { registerWorker } from "../queue/register-worker";
 import { WorkflowContext } from "./types/workflow.types";
+import { WORKFLOW_MAX_BODY_CHARS } from "./workflow-condition-matcher";
 import { WorkflowExecutionService } from "./workflow-execution.service";
 import { WorkflowsService } from "./workflows.service";
 
@@ -18,8 +19,6 @@ interface EvaluateWorkflowsJobData {
   userId: string;
   emailThreadId: string;
 }
-
-const MAX_BODY_CHARS = 4000;
 
 /** Priority score thresholds — mirror the scoring rubric in priority.utils.ts */
 const PRIORITY_THRESHOLD_VERY_HIGH = 80;
@@ -140,7 +139,7 @@ export class WorkflowProcessor implements OnModuleInit {
       subject: email.subject ?? "",
       date: email.receivedAt ?? new Date(),
       summary: email.summary ?? "",
-      body: (email.body ?? "").slice(0, MAX_BODY_CHARS),
+      body: (email.body ?? "").slice(0, WORKFLOW_MAX_BODY_CHARS),
       category: thread?.categoryId ?? "",
       priority: thread ? this.mapPriorityScore(thread.priorityScore) : "",
     };

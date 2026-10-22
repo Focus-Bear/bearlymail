@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { AppleMailAccountsModule } from "./apple-mail-accounts/apple-mail-accounts.module";
 import { AuditModule } from "./audit/audit.module";
+import { AutoArchiveProposalsModule } from "./auto-archive-proposals/auto-archive-proposals.module";
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
@@ -88,6 +89,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     ContactsModule,
     ScheduledEmailsModule,
     WorkflowsModule,
+    AutoArchiveProposalsModule,
     MCPModule,
     MaintenanceModule,
   ],

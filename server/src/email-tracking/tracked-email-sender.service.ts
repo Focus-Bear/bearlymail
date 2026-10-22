@@ -1,19 +1,27 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import {
+  BOOLEAN_STRING_VALUES,
+  SELF_HOSTED_ENV_KEY,
+} from "../constants/domain-types";
 import {
   EMAIL_TRACKING_STATUS,
   TrackedSendSource,
   UNTRACKED_REASON,
   UntrackedReason,
 } from "../constants/email-tracking.constants";
+import { MEMBER_STATUS } from "../constants/member-roles";
 import { EmailTracking } from "../database/entities/email-tracking.entity";
+import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
 import {
   EmailProvider,
   EmailRecipient,
 } from "../emails/interfaces/email-provider.interface";
+import { orgIncludesEmailTracking } from "../subscriptions/plan-features.util";
 import { resolveBackendBaseUrl } from "../utils/backend-base-url.util";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
 import {
@@ -92,6 +100,9 @@ export class TrackedEmailSender {
     private readonly trackingRepository: Repository<EmailTracking>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(OrganizationMember)
+    private readonly memberRepository: Repository<OrganizationMember>,
+    private readonly configService: ConfigService,
   ) {}
 
   async sendReply(
@@ -185,6 +196,9 @@ export class TrackedEmailSender {
     options: TrackedSendOptions,
   ): Promise<UntrackedReason | null> {
     if (options.trackOpens === false) return UNTRACKED_REASON.MESSAGE_OPT_OUT;
+    if (!(await this.isTrackingIncludedInPlan(userId))) {
+      return UNTRACKED_REASON.PLAN_EXCLUDES_TRACKING;
+    }
     // An explicit per-message opt-in overrides the account default.
     if (
       options.trackOpens !== true &&
@@ -199,6 +213,25 @@ export class TrackedEmailSender {
       return UNTRACKED_REASON.NO_PUBLIC_URL;
     }
     return null;
+  }
+
+  /**
+   * Self-hosted deployments have no plans, and a user with no org fails open,
+   * as AI metering does (every user is given a personal org at login).
+   */
+  private async isTrackingIncludedInPlan(userId: string): Promise<boolean> {
+    if (
+      this.configService.get<string>(SELF_HOSTED_ENV_KEY) ===
+      BOOLEAN_STRING_VALUES.TRUE
+    ) {
+      return true;
+    }
+    const membership = await this.memberRepository.findOne({
+      where: { userId, status: MEMBER_STATUS.ACTIVE },
+      relations: { organization: true },
+    });
+    if (!membership?.organization) return true;
+    return orgIncludesEmailTracking(membership.organization);
   }
 
   private async isTrackingEnabled(userId: string): Promise<boolean> {

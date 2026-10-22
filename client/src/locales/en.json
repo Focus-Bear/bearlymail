@@ -976,6 +976,61 @@
       "created": "Auto-archive workflow created for {{category}}.",
       "createError": "Couldn't create the workflow. Please try again."
     },
+    "autoArchive": {
+      "title": "Suggested auto-archive rules",
+      "description": "BearlyMail looks at your busiest senders, groups their emails by what they say, and spots the kinds you never open. Nothing is archived until you approve a rule, and you can edit or delete it later under Workflows.",
+      "scanNow": "Check again now",
+      "scanQueued": "Checking — new suggestions appear here soon",
+      "scanError": "Couldn't start a check. Please try again.",
+      "loading": "Loading suggestions…",
+      "loadError": "Couldn't load suggestions. Please refresh.",
+      "empty": "No suggestions right now. BearlyMail checks your busiest senders every day and only suggests a rule when you have ignored a kind of email many times.",
+      "approved": "Rule created. New matching emails will be archived automatically.",
+      "approveError": "Couldn't create the rule. Please try again.",
+      "dismissError": "Couldn't dismiss the suggestion. Please try again.",
+      "ruleName": "Auto-archive: {{sender}} — {{keywords}}",
+      "ruleNameSenderOnly": "Auto-archive: {{sender}}",
+      "rule": {
+        "fromAddress": "Archive new emails from {{pattern}}",
+        "fromDomain": "Archive new emails from any automated address matching {{pattern}}",
+        "subjectContains": "whose subject contains",
+        "bodyContains": "whose body contains",
+        "and": "and",
+        "or": "or",
+        "everything": "— every email from this sender"
+      },
+      "impact": {
+        "matchedLabel": "Would have archived (last {{days}} days)",
+        "matchedValue": "{{count}} of {{total}} emails",
+        "openedLabel": "You opened",
+        "engagedLabel": "Emails you read or replied to that it would have hidden",
+        "engagedNone": "None",
+        "engagedSome_one": "{{count}} ({{replied}} replied)",
+        "engagedSome_other": "{{count}} ({{replied}} replied)"
+      },
+      "card": {
+        "ariaLabel": "Suggested rule for {{sender}}",
+        "holdoutNote_one": "Checked against your {{count}} most recent matching email, which it was not learned from.",
+        "holdoutNote_other": "Checked against your {{count}} most recent matching emails, which it was not learned from.",
+        "showSamples_one": "Show {{count}} example subject",
+        "showSamples_other": "Show {{count}} example subjects",
+        "hideSamples": "Hide examples",
+        "approve": "Approve rule",
+        "approveEdited": "Approve edited rule",
+        "edit": "Edit keywords",
+        "cancelEdit": "Cancel editing",
+        "dismiss": "Don't suggest again"
+      },
+      "editor": {
+        "subjectLabel": "Subject contains any of",
+        "subjectPlaceholder": "e.g. check translations",
+        "bodyLabel": "Body contains any of",
+        "bodyPlaceholder": "e.g. new issue in",
+        "hint": "Leave both empty to archive everything from this sender. Matching ignores upper/lower case.",
+        "checking": "Checking against your recent emails…",
+        "previewError": "Couldn't check these keywords. Please try again."
+      }
+    },
     "emailCategories": {
       "moreActions": "More category actions",
       "recategorize": "Recategorise emails in Inbox",
@@ -1699,7 +1754,10 @@
         "showAdvanced": "▼ Advanced (AI condition)",
         "naturalLanguageLabel": "Natural-language condition (optional)",
         "naturalLanguageHint": "Evaluated by AI after pattern matching. E.g. \"billing summary with line items from a freelancer platform\".",
-        "naturalLanguagePlaceholder": "Describe when this workflow should trigger…"
+        "naturalLanguagePlaceholder": "Describe when this workflow should trigger…",
+        "bodyLabel": "Body patterns",
+        "bodyHint": "Glob, regex, or plain text matched against the start of the email body. Empty = match any body.",
+        "bodyPlaceholder": "some jobs were not successful"
       },
       "editor": {
         "errorNameRequired": "Please enter a name for this workflow.",
@@ -1736,7 +1794,8 @@
         "enable": "Enable",
         "conditionFrom": "From: {{value}}",
         "conditionSubject": "Subject: {{value}}",
-        "conditionAny": "Matches any email"
+        "conditionAny": "Matches any email",
+        "conditionBody": "Body: {{value}}"
       },
       "section": {
         "loadError": "Failed to load workflows. Please refresh.",
@@ -1848,6 +1907,8 @@
       "label": "Track email opens",
       "description": "Adds an invisible 1×1 image to emails you send from BearlyMail so you can see when they're opened — in the thread, in Follow-Up and on the Stats page. Automated replies are never tracked.",
       "limitations": "Recipients who block images won't show as opened, and Apple Mail may open emails automatically (we flag those as \"may be automatic\"). You can also turn tracking off for a single email when composing.",
+      "notIncluded": "Email tracking is included with the Growth and Enterprise plans.",
+      "viewPlans": "View plans",
       "saveError": "Couldn't update open tracking. Please try again."
     }
   },
@@ -2330,7 +2391,9 @@
     "keepEditing": "Keep editing",
     "followUpSection": "Follow-up",
     "trackOpens": "Track opens",
-    "trackOpensTooltip": "Adds an invisible image so you can see when this email is opened. Defaults to your setting in Settings → Open tracking."
+    "trackOpensTooltip": "Adds an invisible image so you can see when this email is opened. Defaults to your setting in Settings → Open tracking.",
+    "trackOpensNotIncluded": "Email tracking is included with the Growth and Enterprise plans.",
+    "trackOpensUpgrade": "Upgrade"
   },
   "emailSend": {
     "failedNotification": "Your message was not sent. {{reason}}",
@@ -4890,6 +4953,9 @@
         "pricePerMonthFormatted": "{{price}}/month",
         "emailsPerCycle_one": "{{count}} AI-processed email per month",
         "emailsPerCycle_other": "{{count}} AI-processed emails per month",
+        "includesEmailTracking": "Email tracking",
+        "teamMembers_one": "{{count}} team member",
+        "teamMembers_other": "{{count}} team members",
         "choosePlan": "Choose plan",
         "currentPlan": "Current plan",
         "openingCheckout": "Opening checkout…",

@@ -96,25 +96,21 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, o
   );
 };
 
-function describeCondition(rule: WorkflowRule, translate: TFunction): string {
-  const parts: string[] = [];
-  const fromPatterns = rule.condition.fromPatterns ?? [];
-  const subjectPatterns = rule.condition.subjectPatterns ?? [];
+const PATTERNS_SHOWN = 2;
 
-  if (fromPatterns.length > 0) {
-    parts.push(
-      translate('settings.workflows.list.conditionFrom', {
-        value: fromPatterns.slice(0, 2).join(', '),
-      }),
-    );
-  }
-  if (subjectPatterns.length > 0) {
-    parts.push(
-      translate('settings.workflows.list.conditionSubject', {
-        value: subjectPatterns.slice(0, 2).join(', '),
-      }),
-    );
-  }
+const CONDITION_LABEL_KEYS = [
+  ['fromPatterns', 'settings.workflows.list.conditionFrom'],
+  ['subjectPatterns', 'settings.workflows.list.conditionSubject'],
+  ['bodyPatterns', 'settings.workflows.list.conditionBody'],
+] as const;
+
+function describeCondition(rule: WorkflowRule, translate: TFunction): string {
+  const parts = CONDITION_LABEL_KEYS.flatMap(([field, labelKey]) => {
+    const patterns = rule.condition[field] ?? [];
+    return patterns.length > 0
+      ? [translate(labelKey, { value: patterns.slice(0, PATTERNS_SHOWN).join(', ') })]
+      : [];
+  });
   if (parts.length === 0) {
     return translate('settings.workflows.list.conditionAny');
   }

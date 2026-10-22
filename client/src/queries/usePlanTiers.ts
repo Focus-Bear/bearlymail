@@ -5,13 +5,16 @@ import { API_URL } from 'config/api';
 
 /**
  * A purchasable volume tier as returned by GET /subscriptions/tiers.
- * `id` is the RevenueCat entitlement slug (e.g. `bearlymail_starter`) —
- * the same key the org webhook uses to activate the plan.
+ * `id` is the stable tier slug (e.g. `bearlymail_starter`) — the same key the
+ * billing webhook uses to activate the plan.
  */
 export interface PlanTier {
   id: string;
   monthlyPriceUsd: number;
   emailsPerCycle: number;
+  /** Team members (including the owner) the plan pays for. */
+  seats: number;
+  includesEmailTracking: boolean;
 }
 
 async function fetchPlanTiers(): Promise<PlanTier[]> {

@@ -208,6 +208,7 @@ Need to modify something? Here's where to find it:
 - `summary` (encrypted), `labels` (encrypted JSON array)
 - `isSnoozed`, `snoozeUntil`, `isBatched`, `batchReleaseAt`, `wasDeliveredEarly`, `batchDecisionReason`
 - `isRead`, `isProcessingSummary`, `sentimentScore`, `timeToReply`
+- Engagement signals: `openedAt` (first open in BearlyMail), `archivedAt` (user archive/delete), `archivedWhileUnread`
 - `userPriorityOverride`, `priorityOverrideReason` (encrypted), `priorityOverrideReasonType`
 - `attachments` (encrypted JSON: `{attachmentId, filename, mimeType, size}[]`)
 - `receivedAt` (CreateDateColumn)
@@ -264,6 +265,8 @@ Need to modify something? Here's where to find it:
 | `AutoResponseLog`         | `auto_response_logs`         | Auto-responder activity log                          |
 | `AutoResponseSuppression` | `auto_response_suppressions` | Auto-response suppression rules                      |
 | `Waitlist`                | `waitlist`                   | Waitlist signups                                     |
+| `AutoArchiveProposal`     | `auto_archive_proposals`     | Mined "sender + keywords → archive" rule proposals (pending/approved/dismissed) with encrypted evidence |
+| `AutoArchiveScanState`    | `auto_archive_scan_states`   | Per-user watermark for incremental proposal mining   |
 
 ---
 
@@ -402,6 +405,8 @@ Jobs are enqueued in the web server and processed by worker processes. Key job t
 | `auto-responder`              | LOW (20)         | Generate and send auto-responses                             |
 | `generate-suggested-replies`  | LOW (20)         | Pre-generate reply suggestions                               |
 | `scan-history`                | MEDIUM (40)      | Historical email scan (onboarding)                           |
+| `schedule-auto-archive-proposals` | VERY_LOW (10) | Daily cron: fans out per-user proposal mining                |
+| `mine-auto-archive-proposals` | VERY_LOW (10)    | Mine one user's heavy senders into auto-archive proposals (`server/src/auto-archive-proposals/`) |
 
 User-triggered jobs get priority boost. See `server/src/queue/job-priorities.ts`.
 

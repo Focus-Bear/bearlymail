@@ -770,7 +770,9 @@
     "keepEditing": "Seguir editando",
     "followUpSection": "Seguimiento",
     "trackOpens": "Registrar aperturas",
-    "trackOpensTooltip": "Añade una imagen invisible para que veas cuándo se abre este correo. Por defecto usa tu ajuste en Configuración → Seguimiento de aperturas."
+    "trackOpensTooltip": "Añade una imagen invisible para que veas cuándo se abre este correo. Por defecto usa tu ajuste en Configuración → Seguimiento de aperturas.",
+    "trackOpensNotIncluded": "El seguimiento de aperturas está incluido en los planes Growth y Enterprise.",
+    "trackOpensUpgrade": "Mejorar plan"
   },
   "emailSend": {
     "failedNotification": "Tu mensaje no se envió. {{reason}}",
@@ -3910,6 +3912,61 @@
       "created": "Se creó el flujo de archivo automático para {{category}}.",
       "createError": "No se pudo crear el flujo. Inténtalo de nuevo."
     },
+    "autoArchive": {
+      "title": "Reglas sugeridas de archivado automático",
+      "description": "BearlyMail revisa tus remitentes más frecuentes, agrupa sus correos según lo que dicen y detecta los tipos que nunca abres. No se archiva nada hasta que apruebes una regla, y luego puedes editarla o eliminarla en Flujos de trabajo.",
+      "scanNow": "Volver a revisar ahora",
+      "scanQueued": "Revisando — pronto aparecerán nuevas sugerencias aquí",
+      "scanError": "No se pudo iniciar la revisión. Inténtalo de nuevo.",
+      "loading": "Cargando sugerencias…",
+      "loadError": "No se pudieron cargar las sugerencias. Actualiza la página.",
+      "empty": "No hay sugerencias por ahora. BearlyMail revisa tus remitentes más frecuentes cada día y solo sugiere una regla cuando has ignorado un tipo de correo muchas veces.",
+      "approved": "Regla creada. Los nuevos correos que coincidan se archivarán automáticamente.",
+      "approveError": "No se pudo crear la regla. Inténtalo de nuevo.",
+      "dismissError": "No se pudo descartar la sugerencia. Inténtalo de nuevo.",
+      "ruleName": "Archivado automático: {{sender}} — {{keywords}}",
+      "ruleNameSenderOnly": "Archivado automático: {{sender}}",
+      "rule": {
+        "fromAddress": "Archivar los nuevos correos de {{pattern}}",
+        "fromDomain": "Archivar los nuevos correos de cualquier dirección automática que coincida con {{pattern}}",
+        "subjectContains": "cuyo asunto contenga",
+        "bodyContains": "cuyo cuerpo contenga",
+        "and": "y",
+        "or": "o",
+        "everything": "— todos los correos de este remitente"
+      },
+      "impact": {
+        "matchedLabel": "Habría archivado (últimos {{days}} días)",
+        "matchedValue": "{{count}} de {{total}} correos",
+        "openedLabel": "Abriste",
+        "engagedLabel": "Correos que leíste o respondiste y que habría ocultado",
+        "engagedNone": "Ninguno",
+        "engagedSome_one": "{{count}} ({{replied}} respondido)",
+        "engagedSome_other": "{{count}} ({{replied}} respondidos)"
+      },
+      "card": {
+        "ariaLabel": "Regla sugerida para {{sender}}",
+        "holdoutNote_one": "Comprobada con tu correo coincidente más reciente, del que no aprendió.",
+        "holdoutNote_other": "Comprobada con tus {{count}} correos coincidentes más recientes, de los que no aprendió.",
+        "showSamples_one": "Mostrar {{count}} asunto de ejemplo",
+        "showSamples_other": "Mostrar {{count}} asuntos de ejemplo",
+        "hideSamples": "Ocultar ejemplos",
+        "approve": "Aprobar regla",
+        "approveEdited": "Aprobar regla editada",
+        "edit": "Editar palabras clave",
+        "cancelEdit": "Cancelar edición",
+        "dismiss": "No volver a sugerir"
+      },
+      "editor": {
+        "subjectLabel": "El asunto contiene alguna de",
+        "subjectPlaceholder": "p. ej. check translations",
+        "bodyLabel": "El cuerpo contiene alguna de",
+        "bodyPlaceholder": "p. ej. new issue in",
+        "hint": "Deja ambos vacíos para archivar todo lo de este remitente. No distingue mayúsculas de minúsculas.",
+        "checking": "Comprobando con tus correos recientes…",
+        "previewError": "No se pudieron comprobar estas palabras clave. Inténtalo de nuevo."
+      }
+    },
     "emailCategories": {
       "moreActions": "Más acciones de categorías",
       "recategorize": "Recategorizar correos en Bandeja",
@@ -4560,7 +4617,10 @@
         "showAdvanced": "▼ Avanzado (condición de IA)",
         "naturalLanguageLabel": "Condición en lenguaje natural (opcional)",
         "naturalLanguageHint": "Evaluada por IA tras la coincidencia de patrones. Ej. «resumen de facturación con partidas de una plataforma para autónomos».",
-        "naturalLanguagePlaceholder": "Describe cuándo debe activarse este flujo de trabajo…"
+        "naturalLanguagePlaceholder": "Describe cuándo debe activarse este flujo de trabajo…",
+        "bodyLabel": "Patrones del cuerpo",
+        "bodyHint": "Glob, regex o texto simple comparado con el inicio del cuerpo del correo. Vacío = cualquier cuerpo.",
+        "bodyPlaceholder": "some jobs were not successful"
       },
       "editor": {
         "errorNameRequired": "Introduce un nombre para este flujo de trabajo.",
@@ -4597,7 +4657,8 @@
         "enable": "Activar",
         "conditionFrom": "De: {{value}}",
         "conditionSubject": "Asunto: {{value}}",
-        "conditionAny": "Coincide con cualquier correo"
+        "conditionAny": "Coincide con cualquier correo",
+        "conditionBody": "Cuerpo: {{value}}"
       },
       "section": {
         "loadError": "No se pudieron cargar los flujos de trabajo. Actualiza la página.",
@@ -4709,6 +4770,8 @@
       "label": "Registrar aperturas de correos",
       "description": "Añade una imagen invisible de 1×1 a los correos que envías desde BearlyMail para que veas cuándo se abren: en el hilo, en Seguimiento y en Estadísticas. Las respuestas automáticas nunca se rastrean.",
       "limitations": "Quien bloquee las imágenes no aparecerá como abierto, y Apple Mail puede abrir correos automáticamente (los marcamos como \"puede ser automático\"). También puedes desactivarlo para un solo correo al redactar.",
+      "notIncluded": "El seguimiento de aperturas está incluido en los planes Growth y Enterprise.",
+      "viewPlans": "Ver planes",
       "saveError": "No se pudo actualizar el seguimiento de aperturas. Inténtalo de nuevo."
     }
   },
@@ -4893,6 +4956,9 @@
         "pricePerMonthFormatted": "{{price}}/mes",
         "emailsPerCycle_one": "{{count}} correo procesado con IA al mes",
         "emailsPerCycle_other": "{{count}} correos procesados con IA al mes",
+        "includesEmailTracking": "Seguimiento de aperturas",
+        "teamMembers_one": "{{count}} miembro del equipo",
+        "teamMembers_other": "{{count}} miembros del equipo",
         "choosePlan": "Elegir plan",
         "currentPlan": "Plan actual",
         "openingCheckout": "Abriendo el pago…",

@@ -27,6 +27,14 @@ export function computeEmailHmac(email: string): string {
 }
 
 /**
+ * HMAC-SHA256 hex fingerprint of an arbitrary (already canonicalised) string —
+ * for deduplicating encrypted records by content without decrypting them.
+ */
+export function computeFingerprintHmac(value: string): string {
+  return createHmac("sha256", HMAC_KEY).update(value).digest("hex");
+}
+
+/**
  * Build the recipient HMAC column value from a raw `to` or `cc` field that
  * may contain multiple comma-separated addresses.
  *

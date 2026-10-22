@@ -10,6 +10,8 @@ export type WorkflowPriorityLevel = 'veryHigh' | 'high' | 'medium' | 'low' | 've
 export interface WorkflowCondition {
   fromPatterns: string[];
   subjectPatterns: string[];
+  /** Plain text/glob/regex matched against the start of the body; empty = any. */
+  bodyPatterns?: string[];
   categories?: string[];
   priorityLevels?: WorkflowPriorityLevel[];
   naturalLanguageCondition?: string | null;

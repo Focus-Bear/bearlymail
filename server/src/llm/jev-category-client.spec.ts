@@ -24,7 +24,7 @@ const response = (choice = "1", confidence = 1) => ({
 
 describe("JevCategoryClient", () => {
   const usage = { logUsage: jest.fn().mockResolvedValue(undefined) };
-  const logger = { warn: jest.fn() };
+  const logger = { warn: jest.fn(), log: jest.fn() };
   const client = new JevCategoryClient(
     (key) => (key === JEV.API_KEY_ENV ? API_KEY : undefined),
     logger,
@@ -54,6 +54,10 @@ describe("JevCategoryClient", () => {
         userId: PARAMS.userId,
       }),
     );
+    // Content-free: decision, confidence and shape only, never names or email text.
+    expect(logger.log).toHaveBeenCalledWith(
+      "[JEV-CONFIDENCE] decision=categorise_summary outcome=accepted confidence=1.00 threshold=0.90 options=2 chose_none=false margin=1.00",
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       JEV.API_URL,
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
@@ -77,6 +81,11 @@ describe("JevCategoryClient", () => {
       );
       expect(await client.categorise(PARAMS)).toBeNull();
       expect(usage.logUsage).toHaveBeenCalledTimes(1);
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `outcome=below_threshold confidence=${confidence.toFixed(2)} threshold=0.90`,
+        ),
+      );
     },
   );
 

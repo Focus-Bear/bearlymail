@@ -3,6 +3,11 @@ import type { Logger } from "@nestjs/common";
 import { JEV_DECISION_PROVIDER } from "../../constants/ai-decision-provider.constants";
 import { JEV, JEV_DECISIONS } from "../../constants/jev.constants";
 import { ENV_BOOLEAN_STRING } from "../../constants/service-constants";
+import {
+  JEV_OUTCOMES,
+  type JevOutcome,
+  logJevConfidence,
+} from "../jev-confidence-log";
 import type { JevQuestion, JevResponse } from "../jev-system-one";
 import { requestJev } from "../jev-system-one";
 import type { LLMRequest } from "../llm.types";
@@ -67,7 +72,7 @@ export function isJevDecisionsAvailable(getConfig: ConfigReader): boolean {
 export class JevDecisionClient {
   constructor(
     private readonly getConfig: ConfigReader,
-    private readonly logger: Pick<Logger, "warn">,
+    private readonly logger: Pick<Logger, "warn" | "log">,
     private readonly tokenUsage: Pick<TokenUsageService, "logUsage">,
   ) {}
 
@@ -85,7 +90,14 @@ export class JevDecisionClient {
         userId,
       );
       const outcome = definition.compose(decision.input, response.answers);
-      if (!this.isAccepted(outcome, response, definition.minConfidence)) {
+      const verdict = this.judge(outcome, response, definition.minConfidence);
+      logJevConfidence(this.logger, {
+        decision: decision.kind,
+        outcome: verdict.outcome,
+        confidence: verdict.confidence,
+        threshold: definition.minConfidence,
+      });
+      if (verdict.outcome !== JEV_OUTCOMES.ACCEPTED) {
         return null;
       }
       const output = JSON.stringify(outcome.output);
@@ -136,16 +148,20 @@ export class JevDecisionClient {
     return response;
   }
 
-  private isAccepted(
+  /** The weakest answer the decision relied on decides whether Jev's result is trusted. */
+  private judge(
     outcome: JevDecisionOutcome,
     response: JevResponse,
     minConfidence: number,
-  ): boolean {
-    return (
-      !outcome.generationRequired &&
-      outcome.usedKeys.every(
-        (key) => jevAnswerConfidence(response.answers[key]) >= minConfidence,
-      )
+  ): { outcome: JevOutcome; confidence: number | null } {
+    const confidences = outcome.usedKeys.map((key) =>
+      jevAnswerConfidence(response.answers[key]),
     );
+    const confidence = confidences.length ? Math.min(...confidences) : null;
+    if (outcome.generationRequired)
+      return { outcome: JEV_OUTCOMES.NEEDS_GENERATION, confidence };
+    if (confidence !== null && confidence < minConfidence)
+      return { outcome: JEV_OUTCOMES.BELOW_THRESHOLD, confidence };
+    return { outcome: JEV_OUTCOMES.ACCEPTED, confidence };
   }
 }

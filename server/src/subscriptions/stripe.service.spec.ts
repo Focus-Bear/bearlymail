@@ -13,12 +13,12 @@ function configWith(values: Record<string, string>): ConfigService {
 const FULL_ENV = {
   STRIPE_SECRET_KEY: "sk_test_dummy",
   STRIPE_WEBHOOK_SECRET: "whsec_dummy",
-  STRIPE_PRICE_STARTER_V2: "price_starter_5",
-  STRIPE_PRICE_GROWTH_V2: "price_growth_15",
+  STRIPE_PRICE_STARTER: "price_starter_5",
+  STRIPE_PRICE_GROWTH: "price_growth_15",
   STRIPE_PRICE_ENTERPRISE: "price_enterprise",
   // Retired Prices existing subscribers are still billed on.
-  STRIPE_PRICE_STARTER: "price_starter_15",
-  STRIPE_PRICE_GROWTH: "price_growth_25",
+  STRIPE_PRICE_STARTER_LEGACY: "price_starter_15",
+  STRIPE_PRICE_GROWTH_LEGACY: "price_growth_25",
 };
 
 describe("StripeService", () => {
@@ -72,8 +72,8 @@ describe("StripeService", () => {
       const service = new StripeService(
         configWith({
           ...FULL_ENV,
-          STRIPE_PRICE_STARTER_V2: "price_same",
           STRIPE_PRICE_STARTER: "price_same",
+          STRIPE_PRICE_STARTER_LEGACY: "price_same",
         }),
       );
       expect(service.priceIdForTier("bearlymail_starter")).toBe("price_same");
@@ -84,7 +84,7 @@ describe("StripeService", () => {
       const service = new StripeService(
         configWith({
           STRIPE_SECRET_KEY: "sk_test_dummy",
-          STRIPE_PRICE_STARTER: "price_starter_15",
+          STRIPE_PRICE_STARTER_LEGACY: "price_starter_15",
         }),
       );
       expect(service.priceIdForTier("bearlymail_starter")).toBeNull();

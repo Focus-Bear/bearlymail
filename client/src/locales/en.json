@@ -4603,10 +4603,9 @@
           },
           "growth": {
             "name": "Growth",
-            "tagline": "Email, plus CRM and email tracking.",
+            "tagline": "Email, plus email tracking.",
             "features": {
               "everythingInStarter": "Everything in Starter",
-              "crm": "Built-in CRM for contacts and deals",
               "tracking": "Email tracking"
             }
           },

@@ -3004,10 +3004,9 @@
           },
           "growth": {
             "name": "Growth",
-            "tagline": "Correo, más CRM y seguimiento de correos.",
+            "tagline": "Correo, más seguimiento de correos.",
             "features": {
               "everythingInStarter": "Todo lo de Starter",
-              "crm": "CRM integrado para contactos y oportunidades",
               "tracking": "Seguimiento de correos"
             }
           },

@@ -86,7 +86,7 @@ export const PRICING_TIERS: readonly PricingTier[] = [
     id: 'growth',
     monthlyPriceUsd: 15,
     emailsPerMonth: 10_000,
-    featureKeys: ['everythingInStarter', 'crm', 'tracking'],
+    featureKeys: ['everythingInStarter', 'tracking'],
     isRecommended: true,
   },
   {

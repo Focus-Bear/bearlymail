@@ -4048,7 +4048,8 @@
           "compare": "Compare",
           "faq": "FAQ",
           "whoItsFor": "Who it's for",
-          "security": "Security"
+          "security": "Security",
+          "pricing": "Pricing"
         },
         "signIn": "Sign in"
       },
@@ -4576,6 +4577,45 @@
           "control": {
             "title": "You stay in control",
             "body": "Export or delete your data any time. Disconnecting BearlyMail leaves your email account exactly where it is."
+          }
+        }
+      },
+      "pricing": {
+        "kicker": "Pricing",
+        "titlePre": "Simple plans, ",
+        "titleEm": "sized to your inbox.",
+        "sub": "Pick a plan by how much email you get and what you need alongside it. You can change plans any time.",
+        "recommended": "Recommended",
+        "price": "${{price}}",
+        "perMonth": "USD / month",
+        "allowance": "{{emails, number}} AI-processed emails a month",
+        "cta": "Start free trial",
+        "note": "Every plan starts with a 7-day free trial, with full AI prioritisation and categorisation.",
+        "tiers": {
+          "starter": {
+            "name": "Starter",
+            "tagline": "Just email.",
+            "features": {
+              "prioritised": "Every email prioritised and categorised",
+              "batched": "Batched delivery; urgent email breaks through",
+              "providers": "Google Workspace, Office365 & Zoho"
+            }
+          },
+          "growth": {
+            "name": "Growth",
+            "tagline": "Email, plus email tracking.",
+            "features": {
+              "everythingInStarter": "Everything in Starter",
+              "tracking": "Email tracking"
+            }
+          },
+          "enterprise": {
+            "name": "Enterprise",
+            "tagline": "For small teams.",
+            "features": {
+              "everythingInGrowth": "Everything in Growth",
+              "users": "Up to 5 users"
+            }
           }
         }
       }

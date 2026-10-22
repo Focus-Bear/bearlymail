@@ -684,6 +684,47 @@ export const LANDING_STYLES = `
 .bearlymail-landing .compare-note b { font-family: var(--font-display); font-size: 17px; color: var(--ink); }
 .bearlymail-landing .compare-note p { margin: 6px 0 0; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
 
+.bearlymail-landing .pricing-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;
+  align-items: stretch; max-width: 1080px; margin: 0 auto;
+}
+@media (max-width: 880px) { .bearlymail-landing .pricing-grid { grid-template-columns: minmax(0, 1fr); max-width: 480px; gap: 20px; } }
+.bearlymail-landing .pricing-card {
+  background: #fff; border: 1px solid var(--line);
+  border-radius: 16px; padding: 28px;
+  display: flex; flex-direction: column;
+}
+.bearlymail-landing .pricing-card.recommended {
+  border: 2px solid var(--sun);
+  transform: translateY(-12px);
+  box-shadow: 0 0 0 6px var(--sun-pale), var(--shadow-card);
+}
+@media (max-width: 880px) { .bearlymail-landing .pricing-card.recommended { transform: none; } }
+.bearlymail-landing .pricing-card .tier-name {
+  display: flex; align-items: center; gap: 10px; margin: 0;
+  font-size: 17px; font-weight: 700; letter-spacing: -0.01em;
+}
+.bearlymail-landing .pricing-card .tier-tagline { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--ink-3); }
+.bearlymail-landing .pricing-card .tier-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin: 24px 0 6px; }
+.bearlymail-landing .pricing-card .tier-price b {
+  font-family: var(--font-display); font-size: 44px; line-height: 1;
+  letter-spacing: -0.03em; color: var(--ink);
+}
+.bearlymail-landing .pricing-card .tier-price span { font-size: 14px; color: var(--ink-3); }
+.bearlymail-landing .pricing-card .tier-allowance {
+  margin: 0; padding-bottom: 20px; border-bottom: 1px solid var(--line);
+  font-size: 14px; font-weight: 600; color: var(--ink-2);
+}
+.bearlymail-landing .pricing-card .tier-features {
+  list-style: none; padding: 0; margin: 20px 0 28px;
+  display: flex; flex-direction: column; gap: 10px;
+  font-size: 14px; line-height: 1.45; color: var(--ink-2);
+}
+.bearlymail-landing .pricing-card .tier-features li { display: grid; grid-template-columns: 18px 1fr; gap: 8px; }
+.bearlymail-landing .pricing-card .tier-features .ck { color: var(--green); font-weight: 700; }
+.bearlymail-landing .pricing-card .btn { margin-top: auto; width: 100%; }
+.bearlymail-landing .pricing-note { max-width: 640px; margin: 40px auto 0; text-align: center; font-size: 14px; line-height: 1.6; color: var(--ink-3); }
+
 .bearlymail-landing .why-not-claude-body { max-width: 680px; margin: 0 auto; }
 .bearlymail-landing .why-not-claude-body p { margin: 0 0 18px; font-size: 18px; line-height: 1.65; color: var(--ink-2); text-wrap: pretty; }
 .bearlymail-landing .why-not-claude-body p:last-child { margin-bottom: 0; color: var(--ink); font-weight: 500; }

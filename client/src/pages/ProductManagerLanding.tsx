@@ -7,6 +7,7 @@ import {
   FounderSection,
   HeroSection,
   HowItWorks,
+  PricingSection,
   ProblemSection,
   SecuritySection,
   SiteFooter,
@@ -37,6 +38,7 @@ const ProductManagerLanding: React.FC = () => {
       <CompareSection />
       <SecuritySection />
       <FounderSection />
+      <PricingSection />
       <FaqSection />
       <FinalCta />
       <SiteFooter />

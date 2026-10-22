@@ -5,6 +5,7 @@ export { FounderSection } from './FounderSection';
 export { GithubIntegrationSection } from './GithubIntegrationSection';
 export { HeroSection } from './HeroSection';
 export { HowItWorks } from './HowItWorks';
+export { PricingSection } from './PricingSection';
 export { ProblemSection } from './ProblemSection';
 export { SecuritySection } from './SecuritySection';
 export { SiteFooter } from './SiteFooter';

@@ -6,6 +6,7 @@ import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import {
   BODY_PREVIEW_LENGTHS,
   PRIORITY_ANALYSIS_FALLBACK,
+  PRIORITY_BATCH_LLM_CONCURRENCY,
   TRIAGE_PRESERVED_CATEGORY,
   TRIAGE_PRESERVED_EXPLANATIONS,
 } from "../constants/llm-constants";
@@ -20,6 +21,7 @@ import {
   resolveResponseCategory,
   rewriteCategoryNumberReferences,
 } from "../utils/category-number.util";
+import { mapWithConcurrency } from "../utils/concurrency.util";
 import { formatDateTimeForPrompt } from "../utils/timezone.utils";
 import {
   CategoryItem,
@@ -94,6 +96,13 @@ type BatchEmailInput = {
   existingUrgencyScore?: number;
   /** Existing category name for the thread, used by the triage prompt to evaluate category shift. */
   existingCategory?: string;
+};
+
+type IndividualAnalysisOptions = {
+  userContext?: UserContextInput;
+  provider?: LLMProvider;
+  userId?: string;
+  userTimezone?: string;
 };
 
 @Injectable()
@@ -835,45 +844,55 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
   /**
    * Phase 2 — Individual analysis: run the full two-step shortlist → smart-prompt pipeline
    * for each email in `emailsToAnalyse` and store results in `results`.
+   *
+   * Emails are independent here (no DB writes; proto-category creation happens
+   * later, serially, in applyBatchResults), so they run with bounded
+   * concurrency. A failed email is logged and left for fillFallbackEntries.
    */
   private async runIndividualAnalysisPhase(
     emailsToAnalyse: BatchEmailInput[],
     results: Map<string, BatchPriorityResult>,
-    opts: {
-      userContext?: UserContextInput;
-      provider?: LLMProvider;
-      userId?: string;
-      userTimezone?: string;
-    },
+    opts: IndividualAnalysisOptions,
+  ): Promise<void> {
+    await mapWithConcurrency(
+      emailsToAnalyse,
+      PRIORITY_BATCH_LLM_CONCURRENCY,
+      (batchEmail) => this.analyzeBatchEmail(batchEmail, results, opts),
+    );
+  }
+
+  /** Analyses one batch email into `results`; a failure is logged, never thrown. */
+  private async analyzeBatchEmail(
+    batchEmail: BatchEmailInput,
+    results: Map<string, BatchPriorityResult>,
+    opts: IndividualAnalysisOptions,
   ): Promise<void> {
     const { userContext, provider, userId, userTimezone } = opts;
-    for (const batchEmail of emailsToAnalyse) {
-      try {
-        const individualResult = await this.analyzePriority({
-          email: {
-            from: batchEmail.from,
-            fromName: batchEmail.fromName,
-            senderJobTitle: batchEmail.senderJobTitle,
-            subject: batchEmail.subject,
-            body: batchEmail.body,
-            receivedAt: batchEmail.receivedAt,
-          },
-          userContext,
-          provider,
-          userId,
-          preComputedSentimentScore: batchEmail.preComputedSentimentScore,
-          userTimezone,
-        });
-        results.set(batchEmail.emailKey, {
-          ...individualResult,
-          isFallback: false,
-        });
-      } catch (individualError) {
-        this.logger.error(
-          `analyzePriorityBatch: Individual analysis failed for email key "${batchEmail.emailKey}"`,
-          individualError,
-        );
-      }
+    try {
+      const individualResult = await this.analyzePriority({
+        email: {
+          from: batchEmail.from,
+          fromName: batchEmail.fromName,
+          senderJobTitle: batchEmail.senderJobTitle,
+          subject: batchEmail.subject,
+          body: batchEmail.body,
+          receivedAt: batchEmail.receivedAt,
+        },
+        userContext,
+        provider,
+        userId,
+        preComputedSentimentScore: batchEmail.preComputedSentimentScore,
+        userTimezone,
+      });
+      results.set(batchEmail.emailKey, {
+        ...individualResult,
+        isFallback: false,
+      });
+    } catch (individualError) {
+      this.logger.error(
+        `analyzePriorityBatch: Individual analysis failed for email key "${batchEmail.emailKey}"`,
+        individualError,
+      );
     }
   }
 

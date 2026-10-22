@@ -8,6 +8,7 @@ import { CategoryRulesService } from "../category-rules/category-rules.service";
 import { CategoryRuleMatch } from "../category-rules/category-rules.types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { PRIORITY_BATCH_LLM_CONCURRENCY } from "../constants/llm-constants";
 import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
 import { ENV_BOOLEAN_STRING } from "../constants/service-constants";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -35,9 +36,11 @@ import { ProtoCategoriesService } from "../proto-categories/proto-categories.ser
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
 import { parseCategoryValue } from "../utils/category-name.util";
+import { mapWithConcurrency } from "../utils/concurrency.util";
 import { buildBatchEmailPayloads } from "./batch-email-payloads.helper";
 import { applyCategoryRuleToResult } from "./category-rule-apply.helper";
 import { EmailsService } from "./emails.service";
+import { groupEmailsByThread } from "./group-emails-by-thread.helper";
 import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
@@ -657,17 +660,11 @@ export class LLMPriorityBatchService {
     },
   ): Promise<void> {
     const { contexts, protoCategories, tracker } = opts;
-    // Refresh each thread's FULL summary to include the latest message BEFORE
-    // building the batch payloads (which embed the summary for the shortlist +
-    // categoriser), so categorisation reflects the newest message. No-op when
-    // already fresh; the later background-summary job then skips.
-    for (const email of emailsNeedingFullAnalysis) {
-      await this.summaryProcessorService.ensureThreadSummaryFresh(
-        email,
-        userId,
-        workerId,
-      );
-    }
+    await this.refreshThreadSummaries(
+      emailsNeedingFullAnalysis,
+      userId,
+      workerId,
+    );
     const threadMapForPayload = await this.loadThreadMapForEmails(
       emailsNeedingFullAnalysis,
     );
@@ -704,6 +701,37 @@ export class LLMPriorityBatchService {
       DEBUG_FEATURES.PRIORITY_ANALYSIS_TRACKING,
       userId,
       this.buildPriorityDebugPayloads(emailsNeedingFullAnalysis),
+    );
+  }
+
+  /**
+   * Refresh each thread's FULL summary to include the latest message BEFORE
+   * building the batch payloads (which embed the summary for the shortlist +
+   * categoriser), so categorisation reflects the newest message. No-op when
+   * already fresh; the later background-summary job then skips.
+   *
+   * Threads run concurrently, but a thread's own emails stay sequential and in
+   * batch order: each refresh overwrites the summary on every email of the
+   * thread, so racing them would make the surviving summary nondeterministic.
+   * ensureThreadSummaryFresh never throws, so one failure can't stop the rest.
+   */
+  private async refreshThreadSummaries(
+    emails: Email[],
+    userId: string,
+    workerId: string,
+  ): Promise<void> {
+    await mapWithConcurrency(
+      groupEmailsByThread(emails),
+      PRIORITY_BATCH_LLM_CONCURRENCY,
+      async (threadEmails) => {
+        for (const email of threadEmails) {
+          await this.summaryProcessorService.ensureThreadSummaryFresh(
+            email,
+            userId,
+            workerId,
+          );
+        }
+      },
     );
   }
 

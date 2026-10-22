@@ -101,6 +101,23 @@ export const LLM_PROCESSOR_CONSTANTS = {
   GOAL_ALIGNMENT_WEIGHT: 0.4,
 } as const;
 
+/**
+ * Max emails of ONE refine-priority-batch job whose LLM work (pre-analysis
+ * summary refresh, category step, priority step) is in flight at once.
+ *
+ * Each email costs ~2-8s of sequential calls (Jev ~0.3s, then Gemini 3.1 Flash
+ * Lite ~1.2s and sometimes a gemini-3.6-flash escalation for the category; Jev
+ * then on-demand Nova Micro for priority), so the old one-at-a-time loop made a
+ * 10-email batch take 10-25s. pg-boss runs one batch job per worker process
+ * (prod: 2), so this caps the burst at ~10 emails in flight. The binding limit
+ * is the on-demand Nova Micro quota in ap-southeast-2 (200 RPM / 200K TPM, not
+ * adjustable), which onboarding bursts have throttled before; at ~1 Nova
+ * priority call per email per few seconds, 10 in flight stays near that budget,
+ * and any overshoot is absorbed by the existing throttle wait-out + Gemini
+ * fallback. Matches the summary worker's 5 parallel calls per batch.
+ */
+export const PRIORITY_BATCH_LLM_CONCURRENCY = 5;
+
 // Thread message limits
 export const THREAD_LIMITS = {
   // Maximum number of messages to include from thread

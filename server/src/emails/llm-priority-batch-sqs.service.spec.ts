@@ -296,6 +296,63 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       expect(mockFinalizer.createRun).not.toHaveBeenCalled();
       expect(mockPriorityAnalysis.analyzePriorityBatch).toHaveBeenCalled();
     });
+
+    it("refreshes summaries for different threads concurrently but one thread's emails in order", async () => {
+      const EMAIL_3 = makeEmail(
+        "email-3",
+        "provider-thread-1",
+        EMAIL_THREAD_ID_1,
+      );
+      const emailsById = new Map([
+        ["email-1", EMAIL_1],
+        ["email-2", EMAIL_2],
+        ["email-3", EMAIL_3],
+      ]);
+      mockEmailsService.getEmailById.mockImplementation(
+        async (_userId: string, emailId: string) =>
+          (emailsById.get(emailId) ?? null) as Email,
+      );
+      jest
+        .spyOn(service, "shouldSkipPriorityRecalculation")
+        .mockResolvedValue(false);
+      const started: string[] = [];
+      const releases = new Map<string, () => void>();
+      const mockSummaryProcessor = {
+        tryIncrementalAnalysis: jest.fn().mockResolvedValue({ handled: false }),
+        ensureThreadSummaryFresh: jest.fn((email: Email) => {
+          started.push(email.id);
+          return new Promise<void>((resolve) =>
+            releases.set(email.id, resolve),
+          );
+        }),
+      };
+      (service as unknown as Record<string, unknown>)[
+        "summaryProcessorService"
+      ] = mockSummaryProcessor;
+      const flushMicrotasks = () =>
+        new Promise((resolve) => setImmediate(resolve));
+
+      const run = service.runBatchRefinement(
+        USER_ID,
+        ["email-1", "email-2", "email-3"],
+        "worker-1",
+        mockTracker,
+      );
+      await flushMicrotasks();
+      // Both threads in flight; email-3 waits behind email-1 on thread 1.
+      expect(started).toEqual(["email-1", "email-2"]);
+
+      releases.get("email-1")!();
+      await flushMicrotasks();
+      expect(started).toEqual(["email-1", "email-2", "email-3"]);
+
+      releases.get("email-2")!();
+      releases.get("email-3")!();
+      await run;
+      expect(mockPriorityAnalysis.analyzePriorityBatch).toHaveBeenCalledTimes(
+        1,
+      );
+    });
   });
 
   describe("runBatchRefinement — early return when all emails handled incrementally", () => {

@@ -5,8 +5,14 @@ import { PERCENTAGES } from "../constants/percentages";
 import { ENV_BOOLEAN_STRING } from "../constants/service-constants";
 import {
   buildJevCategoryRequest,
+  type JevCategoryAnswer,
   requestJevCategory,
 } from "./jev-category-request";
+import {
+  JEV_OUTCOMES,
+  logJevConfidence,
+  runnerUpMargin,
+} from "./jev-confidence-log";
 import type {
   CategoriseFromSummaryParams,
   CategoriseFromSummaryResult,
@@ -17,7 +23,7 @@ import type { TokenUsageService } from "./token-usage.service";
 export class JevCategoryClient {
   constructor(
     private readonly getConfig: (key: string) => string | undefined,
-    private readonly logger: Pick<Logger, "warn">,
+    private readonly logger: Pick<Logger, "warn" | "log">,
     private readonly tokenUsage: Pick<TokenUsageService, "logUsage">,
   ) {}
 
@@ -50,7 +56,9 @@ export class JevCategoryClient {
         durationMs: Date.now() - startedAt,
       });
       const answer = response.answers[JEV.QUESTION_ID];
-      if (answer.confidence < JEV.MIN_ACCEPTED_CONFIDENCE) return null;
+      const isAccepted = answer.confidence >= JEV.MIN_ACCEPTED_CONFIDENCE;
+      this.logConfidence(answer, params.categories.length, isAccepted);
+      if (!isAccepted) return null;
       const categoryNumber = Number(answer.choice);
       const categoryName =
         answer.choice === JEV.OTHER_OPTION
@@ -69,5 +77,24 @@ export class JevCategoryClient {
       );
       return null;
     }
+  }
+
+  private logConfidence(
+    answer: JevCategoryAnswer,
+    categoryCount: number,
+    isAccepted: boolean,
+  ): void {
+    logJevConfidence(this.logger, {
+      decision: LLM_OP_CATEGORISE_SUMMARY,
+      outcome: isAccepted
+        ? JEV_OUTCOMES.ACCEPTED
+        : JEV_OUTCOMES.BELOW_THRESHOLD,
+      confidence: answer.confidence,
+      threshold: JEV.MIN_ACCEPTED_CONFIDENCE,
+      // The listed categories plus Other.
+      optionCount: categoryCount + 1,
+      choseNoneOption: answer.choice === JEV.OTHER_OPTION,
+      runnerUpMargin: runnerUpMargin(answer.probabilities ?? {}),
+    });
   }
 }

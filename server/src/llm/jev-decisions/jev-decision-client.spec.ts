@@ -23,7 +23,7 @@ const jevResponse = (noul: number) => ({
 
 describe("JevDecisionClient", () => {
   const usage = { logUsage: jest.fn().mockResolvedValue(undefined) };
-  const logger = { warn: jest.fn() };
+  const logger = { warn: jest.fn(), log: jest.fn() };
   let config: Record<string, string | undefined>;
   const client = new JevDecisionClient((key) => config[key], logger, usage);
   let fetchMock: jest.SpyInstance;
@@ -48,6 +48,9 @@ describe("JevDecisionClient", () => {
         totalTokens: 205,
       }),
     );
+    expect(logger.log).toHaveBeenCalledWith(
+      "[JEV-CONFIDENCE] decision=evaluate-workflow-condition outcome=accepted confidence=0.98 threshold=0.80",
+    );
   });
 
   it("sends the policy once in state rather than in every question", async () => {
@@ -66,6 +69,9 @@ describe("JevDecisionClient", () => {
   it("falls back when an answer is below the confidence threshold", async () => {
     respondWith(jevResponse(0.6));
     expect(await client.decide(REQUEST)).toBeNull();
+    expect(logger.log).toHaveBeenCalledWith(
+      "[JEV-CONFIDENCE] decision=evaluate-workflow-condition outcome=below_threshold confidence=0.20 threshold=0.80",
+    );
   });
 
   it("falls back when the contract needs generated text", async () => {
@@ -87,6 +93,11 @@ describe("JevDecisionClient", () => {
         jevDecision: { kind: JEV_DECISION_KINDS.PHISHING_CLEARANCE, input: {} },
       }),
     ).toBeNull();
+    expect(logger.log).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "decision=check-phishing-only outcome=needs_generation",
+      ),
+    );
   });
 
   it.each([

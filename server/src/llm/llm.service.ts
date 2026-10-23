@@ -59,14 +59,20 @@ export class LLMService {
 
   // ─── Core ────────────────────────────────────────────────────────────────
 
+  // `operation` is required (hence the explicit `| undefined` params before it)
+  // so every call is attributed on the admin Token Usage dashboard instead of
+  // landing in "Unknown Operation".
   async generateText(
-    request: LLMRequest,
-    provider?: LLMProvider,
-    userId?: string,
-    operation?: LLMOperation,
+    request: Omit<LLMRequest, "operation">,
+    provider: LLMProvider | undefined,
+    userId: string | undefined,
+    operation: LLMOperation,
   ): Promise<string> {
-    const effectiveRequest = operation ? { ...request, operation } : request;
-    return this.llmCoreService.generateText(effectiveRequest, provider, userId);
+    return this.llmCoreService.generateText(
+      { ...request, operation },
+      provider,
+      userId,
+    );
   }
 
   getAvailableProviders(): LLMProvider[] {

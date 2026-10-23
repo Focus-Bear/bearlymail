@@ -8,6 +8,7 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { LLMService } from "../llm/llm.service";
+import { LLM_OP_SUMMARIZE_EMAIL } from "../llm/llm-operations";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
 import { SummarizationService } from "./summarization.service";
@@ -308,6 +309,7 @@ describe("SummarizationService", () => {
         }),
         undefined,
         userId,
+        LLM_OP_SUMMARIZE_EMAIL,
       );
     });
 

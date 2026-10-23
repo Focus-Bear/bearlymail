@@ -170,6 +170,24 @@ export const LLM_OP_ASK_AI_AGENT = "ask_ai_agent";
 // Triage distraction tax: verify the spoken confession phrase to unlock lower-priority emails
 export const LLM_OP_VERIFY_DISTRACTION_PHRASE = "verify_distraction_phrase";
 
+// Search: rank matched emails by relevance to the query
+export const LLM_OP_SEARCH_RANKING = "search_ranking";
+
+// Search: suggest broader queries when a search finds nothing
+export const LLM_OP_SEARCH_ALTERNATIVE_QUERIES = "search_alternative_queries";
+
+// Search: convert a natural-language query to provider search syntax
+export const LLM_OP_SEARCH_QUERY_CONVERSION = "search_query_conversion";
+
+// Follow-ups: clean up a follow-up draft to match the user's tone
+export const LLM_OP_REVIEW_FOLLOW_UP_DRAFT = "review_follow_up_draft";
+
+// Triage suggestions: suggest a star count / archive for an email
+export const LLM_OP_SUGGEST_TRIAGE_ACTION = "suggest_triage_action";
+
+// Summarisation rules: pick which custom summarisation rule an email matches
+export const LLM_OP_MATCH_SUMMARIZATION_RULE = "match_summarization_rule";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -231,6 +249,12 @@ export type LLMOperation =
   | typeof LLM_OP_ASK_AI_EMAIL
   | typeof LLM_OP_ASK_AI_AGENT
   | typeof LLM_OP_VERIFY_DISTRACTION_PHRASE
+  | typeof LLM_OP_SEARCH_RANKING
+  | typeof LLM_OP_SEARCH_ALTERNATIVE_QUERIES
+  | typeof LLM_OP_SEARCH_QUERY_CONVERSION
+  | typeof LLM_OP_REVIEW_FOLLOW_UP_DRAFT
+  | typeof LLM_OP_SUGGEST_TRIAGE_ACTION
+  | typeof LLM_OP_MATCH_SUMMARIZATION_RULE
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -292,5 +316,22 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_ASK_AI_EMAIL]: "Ask AI (Email Assistant)",
   [LLM_OP_ASK_AI_AGENT]: "Ask AI (Agentic Assistant)",
   [LLM_OP_VERIFY_DISTRACTION_PHRASE]: "Verify Distraction Phrase",
+  [LLM_OP_SEARCH_RANKING]: "Search Ranking",
+  [LLM_OP_SEARCH_ALTERNATIVE_QUERIES]: "Search Alternative Queries",
+  [LLM_OP_SEARCH_QUERY_CONVERSION]: "Search Query Conversion",
+  [LLM_OP_REVIEW_FOLLOW_UP_DRAFT]: "Review Follow-up Draft",
+  [LLM_OP_SUGGEST_TRIAGE_ACTION]: "Suggest Triage Action",
+  [LLM_OP_MATCH_SUMMARIZATION_RULE]: "Match Summarization Rule",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };
+
+/**
+ * Admin-facing label for a stored operation id. token_usages can hold ids that
+ * predate (or were renamed out of) LLM_OPERATION_LABELS, so unknown ids fall
+ * back to the raw value rather than being hidden.
+ */
+export function getOperationLabel(operation: string): string {
+  return (
+    (LLM_OPERATION_LABELS as Record<string, string>)[operation] ?? operation
+  );
+}

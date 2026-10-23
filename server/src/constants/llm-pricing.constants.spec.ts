@@ -26,6 +26,34 @@ describe("estimateCostUsd", () => {
     ).toBeCloseTo(0.035, 6);
   });
 
+  it("prices Jev on input tokens only, for every jev version", () => {
+    expect(
+      estimateCostUsd("typesafe", "jev-1.13.0", 1_000_000, 1_000_000),
+    ).toBeCloseTo(0.042, 6);
+    expect(estimateCostUsd("typesafe", "jev-1.14.0", 1_000_000, 0)).toBeCloseTo(
+      0.042,
+      6,
+    );
+  });
+
+  it("does not price gemini-3.5-flash-lite as gemini-3.5-flash", () => {
+    expect(
+      estimateCostUsd("gemini", "gemini-3.5-flash-lite", 1_000_000, 1_000_000),
+    ).toBeCloseTo(2.8, 6);
+  });
+
+  it("prices gemini-3.6-flash separately from gemini-3.5-flash", () => {
+    expect(
+      estimateCostUsd("gemini", "gemini-3.6-flash", 1_000_000, 1_000_000),
+    ).toBeCloseTo(4.5, 6);
+  });
+
+  it("prices the category embedding model", () => {
+    expect(
+      estimateCostUsd("openai", "text-embedding-3-small", 1_000_000, 0),
+    ).toBeCloseTo(0.02, 6);
+  });
+
   it("claude-cli is free regardless of model string", () => {
     expect(estimateCostUsd("claude-cli", "claude-opus-4", 5_000_000, 1)).toBe(
       0,

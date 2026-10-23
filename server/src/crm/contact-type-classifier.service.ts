@@ -78,7 +78,6 @@ export class ContactTypeClassifierService {
           temperature: TEMPERATURE,
           maxTokens: MAX_TOKENS,
           userId,
-          operation: LLM_OP_CLASSIFY_CONTACT_TYPE,
           jsonMode: true,
           jevDecision: { kind: JEV_DECISION_KINDS.CONTACT_TYPE, input: {} },
         },

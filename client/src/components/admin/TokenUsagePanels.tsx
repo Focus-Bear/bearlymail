@@ -7,6 +7,7 @@ import { STRING_NONE } from 'constants/strings';
 
 import { DateRange, PromptExample, UsageByOperation, UsageByUser, UsageSummary } from './TokenUsageSection.types';
 import { formatCostUsd, formatDuration, formatNumber, getOperationLabel } from './tokenUsageUtils';
+import { UnpricedCallsNote } from './UnpricedCallsNote';
 
 interface SummaryCardsProps {
   summary: UsageSummary;
@@ -41,6 +42,7 @@ export const TokenSummaryCards: React.FC<SummaryCardsProps> = ({ summary }) => {
         <div style={valueStyle} title={t('admin.tokenUsage.estimatedCostHint')}>
           {formatCostUsd(summary.totalEstimatedCostUsd, t('admin.tokenUsage.noData'))}
         </div>
+        <UnpricedCallsNote unpricedCallCount={summary.unpricedCallCount} />
       </div>
       <div style={cardStyle}>
         <div style={labelStyle}>{t('admin.tokenUsage.totalCalls')}</div>
@@ -133,7 +135,7 @@ const TokenUsageTableRow: React.FC<UsageTableRowProps> = ({ item, index, noDataL
         borderRight: TD_BORDER_RIGHT,
       }}
     >
-      {getOperationLabel(item.operation)}
+      {getOperationLabel(item)}
     </td>
     <ModelCell models={item.models ?? []} noDataLabel={noDataLabel} />
     <td
@@ -146,6 +148,7 @@ const TokenUsageTableRow: React.FC<UsageTableRowProps> = ({ item, index, noDataL
       }}
     >
       {formatCostUsd(item.estimatedCostUsd, noDataLabel)}
+      <UnpricedCallsNote unpricedCallCount={item.unpricedCallCount} />
     </td>
     <td
       style={{
@@ -460,7 +463,7 @@ const TokenExampleItem: React.FC<ExampleItemProps> = ({ example, isExpanded, onT
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
           <span style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
-            {getOperationLabel(example.operation)}
+            {getOperationLabel(example)}
           </span>
           {example.containsHtml && (
             <span

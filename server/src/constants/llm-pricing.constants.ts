@@ -1,3 +1,5 @@
+import { JEV } from "./jev.constants";
+
 /**
  * USD prices per million tokens for the LLM models we call, used to turn raw
  * token counts into cost estimates on the admin Token Usage dashboard.
@@ -14,7 +16,8 @@
  *
  * Sources (July 2026): ai.google.dev/gemini-api/docs/pricing,
  * developers.openai.com/api/docs/pricing, aws.amazon.com/nova/pricing,
- * anthropic.com/pricing.
+ * anthropic.com/pricing. October 2026: gemini-3.6-flash (same Google page) and
+ * TypeSafe Jev (docs.typesafe.ai/models).
  */
 export interface ModelPricing {
   /** USD per 1M prompt (input) tokens. */
@@ -32,10 +35,19 @@ export const LLM_MODEL_PRICING: Record<string, Record<string, ModelPricing>> = {
     "gemini-3.1-flash": { inputPerMillion: 0.5, outputPerMillion: 3.0 },
     "gemini-3-flash": { inputPerMillion: 0.5, outputPerMillion: 3.0 },
     "gemini-3.5-flash": { inputPerMillion: 1.5, outputPerMillion: 9.0 },
+    // Needs its own entry: without it, longest-prefix matching would price it
+    // as gemini-3.5-flash (5x too high). Successor to 3.1-flash-lite, which
+    // Google shuts down on 2027-05-07.
+    "gemini-3.5-flash-lite": { inputPerMillion: 0.3, outputPerMillion: 2.5 },
+    // Launch pricing through 2026-12-31; Google doubles it to $1.50 / $7.50
+    // from 2027-01-01.
+    "gemini-3.6-flash": { inputPerMillion: 0.75, outputPerMillion: 3.75 },
   },
   openai: {
     "gpt-5.4-mini": { inputPerMillion: 0.75, outputPerMillion: 4.5 },
     "gpt-5.4": { inputPerMillion: 3.0, outputPerMillion: 15.0 },
+    // Category embeddings (EmbeddingService); embeddings have no output tokens.
+    "text-embedding-3-small": { inputPerMillion: 0.02, outputPerMillion: 0 },
   },
   bedrock: {
     "amazon.nova-micro": { inputPerMillion: 0.035, outputPerMillion: 0.14 },
@@ -44,6 +56,11 @@ export const LLM_MODEL_PRICING: Record<string, Record<string, ModelPricing>> = {
   anthropic: {
     "claude-sonnet-4": { inputPerMillion: 3.0, outputPerMillion: 15.0 },
     "claude-haiku-4": { inputPerMillion: 1.0, outputPerMillion: 5.0 },
+  },
+  // TypeSafe AI's Jev bills input tokens only; output tokens are free. Same
+  // price for jev-1.13.0 and jev-1.14.0.
+  [JEV.PROVIDER]: {
+    "jev-": { inputPerMillion: 0.042, outputPerMillion: 0 },
   },
   // The locally installed Claude Code CLI has no per-token API charge.
   "claude-cli": {

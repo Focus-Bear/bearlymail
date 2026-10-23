@@ -20,6 +20,7 @@ import { ContextKey } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
+import { LLM_OP_REVIEW_FOLLOW_UP_DRAFT } from "../llm/llm-operations";
 import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
 import { followUpDaysFromHours } from "../utils/expected-reply.util";
@@ -458,6 +459,7 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
         },
         undefined,
         userId,
+        LLM_OP_REVIEW_FOLLOW_UP_DRAFT,
       );
 
       return reviewedDraft.trim();

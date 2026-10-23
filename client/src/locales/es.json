@@ -291,7 +291,11 @@
         "containsHtml": "CONTIENE HTML",
         "tokens": "tokens",
         "confirmReset": "¿Está seguro de que desea reiniciar todos los ejemplos de prompts capturados?"
-      }
+      },
+      "unpricedCalls_one": "+{{formattedCount}} llamada sin precio",
+      "unpricedCalls_other": "+{{formattedCount}} llamadas sin precio",
+      "unpricedCallsHint_one": "{{formattedCount}} llamada usó un modelo sin precio definido, así que no está incluida en este coste. Tómalo como un mínimo.",
+      "unpricedCallsHint_other": "{{formattedCount}} llamadas usaron modelos sin precio definido, así que no están incluidas en este coste. Tómalo como un mínimo."
     },
     "queueDashboard": {
       "title": "Panel de colas",

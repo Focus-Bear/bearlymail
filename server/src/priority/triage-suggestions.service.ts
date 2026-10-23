@@ -18,6 +18,7 @@ import {
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
+import { LLM_OP_SUGGEST_TRIAGE_ACTION } from "../llm/llm-operations";
 import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 import { PriorityService } from "./priority.service";
@@ -337,6 +338,7 @@ Respond with ONLY a JSON object:
         },
         undefined,
         userId,
+        LLM_OP_SUGGEST_TRIAGE_ACTION,
       );
 
       const jsonMatch = response.match(/\{[\s\S]*\}/);

@@ -12,6 +12,7 @@ import { decryptSummarizationRuleEntityForApi } from "../encryption/entity-api-d
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { LLMProvider, LLMService } from "../llm/llm.service";
+import { LLM_OP_SUMMARIZE_EMAIL } from "../llm/llm-operations";
 import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { getPrompt, SUMMARY_PROMPT_IDS, SUMMARY_TYPES } from "../llm/prompts";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
@@ -128,6 +129,7 @@ export class SummarizationService {
         },
         llmProvider,
         userId,
+        LLM_OP_SUMMARIZE_EMAIL,
       );
     }
 
@@ -290,8 +292,7 @@ export class SummarizationService {
 
   private resolvePhishingSignalFromLLM(
     llmPhishing:
-      | import("./phishing-detection.service").PhishingLLMResult
-      | null,
+      import("./phishing-detection.service").PhishingLLMResult | null,
   ): PhishingSignal | null {
     if (!llmPhishing || !llmPhishing.is_phishing) return null;
     return { confidence: llmPhishing.confidence, reason: llmPhishing.reason };

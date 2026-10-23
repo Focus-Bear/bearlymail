@@ -1,5 +1,7 @@
 export interface UsageByOperation {
   operation: string;
+  /** Server-provided display name. Optional for the same rolling-deploy reason as `models`. */
+  operationLabel?: string;
   callCount: number;
   totalPromptTokens: number;
   totalCompletionTokens: number;
@@ -8,6 +10,8 @@ export interface UsageByOperation {
   htmlCallCount: number;
   /** Estimated USD cost for the operation; null when no model had pricing. */
   estimatedCostUsd: number | null;
+  /** Calls on unpriced models left out of estimatedCostUsd. */
+  unpricedCallCount?: number;
   /**
    * Model ids the operation ran on, most-used first (usually one). Optional so
    * a frontend deployed ahead of the backend (rolling deploy) doesn't crash on
@@ -23,10 +27,14 @@ export interface UsageSummary {
   totalTokens: number;
   avgDurationMs: number | null;
   totalEstimatedCostUsd: number;
+  /** Calls on unpriced models left out of totalEstimatedCostUsd. */
+  unpricedCallCount?: number;
 }
 
 export interface PromptExample {
   operation: string;
+  /** Server-provided display name; optional for rolling deploys. */
+  operationLabel?: string;
   promptTokens: number;
   promptText: string;
   systemPromptText?: string;

@@ -4,6 +4,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 
 import { JEV_DECISION_PROVIDER } from "../constants/ai-decision-provider.constants";
 import { JEV_DECISION_KINDS } from "../constants/jev.constants";
+import { PRIORITY_BATCH_LLM_CONCURRENCY } from "../constants/llm-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { CategoryShortlistService } from "./category-shortlist.service";
@@ -800,6 +801,81 @@ describe("PriorityAnalysisService", () => {
       expect(results.get("new-2")?.triagePreserved).toBeFalsy();
       // 3 LLM calls: 1 triage + (category + priority) for new-2
       expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(3);
+    });
+
+    describe("individual analysis concurrency", () => {
+      const NEW_EMAIL_COUNT = PRIORITY_BATCH_LLM_CONCURRENCY * 2 + 1;
+      const newEmails = Array.from({ length: NEW_EMAIL_COUNT }, (_, index) => ({
+        emailKey: `new-${index}`,
+        from: `sender${index}@example.com`,
+        subject: `New email ${index}`,
+        body: "Body",
+      }));
+      const priorityResult = {
+        urgencyScore: 50,
+        urgencyExplanation: "Moderate urgency",
+        goalAlignmentScore: 40,
+        goalAlignmentExplanation: "Somewhat aligned",
+        category: "Customer Support",
+        categoryExplanation: "Support request",
+        reasoning: "Standard support email",
+        shortlistedCategoryNames: null,
+      };
+
+      /** Lets every already-scheduled continuation run before asserting. */
+      const flushMicrotasks = () =>
+        new Promise((resolve) => setImmediate(resolve));
+
+      it("analyses up to PRIORITY_BATCH_LLM_CONCURRENCY emails at once and settles every one", async () => {
+        const releases: Array<() => void> = [];
+        let inFlight = 0;
+        let maxInFlight = 0;
+        jest.spyOn(service, "analyzePriority").mockImplementation(async () => {
+          inFlight++;
+          maxInFlight = Math.max(maxInFlight, inFlight);
+          await new Promise<void>((resolve) => releases.push(resolve));
+          inFlight--;
+          return priorityResult;
+        });
+
+        const run = service.analyzePriorityBatch(newEmails);
+        await flushMicrotasks();
+        expect(inFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
+
+        while (inFlight > 0) {
+          releases.splice(0).forEach((release) => release());
+          await flushMicrotasks();
+        }
+        const results = await run;
+
+        expect(maxInFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
+        expect(results.size).toBe(NEW_EMAIL_COUNT);
+        newEmails.forEach(({ emailKey }) => {
+          expect(results.get(emailKey)?.isFallback).toBe(false);
+        });
+      });
+
+      it("keeps analysing the other emails when one fails", async () => {
+        const failingKeyIndex = 2;
+        jest
+          .spyOn(service, "analyzePriority")
+          .mockImplementation(async ({ email }) => {
+            if (email.subject === newEmails[failingKeyIndex].subject) {
+              throw new Error("LLM failed");
+            }
+            return priorityResult;
+          });
+
+        const results = await service.analyzePriorityBatch(newEmails);
+
+        expect(service.analyzePriority).toHaveBeenCalledTimes(NEW_EMAIL_COUNT);
+        expect(results.size).toBe(NEW_EMAIL_COUNT);
+        newEmails.forEach(({ emailKey }, index) => {
+          expect(results.get(emailKey)?.isFallback).toBe(
+            index === failingKeyIndex,
+          );
+        });
+      });
     });
   });
 

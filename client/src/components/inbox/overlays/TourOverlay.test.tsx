@@ -107,9 +107,12 @@ describe('TourOverlay', () => {
 
   it('spotlights a target that mounts after the tour opens (e.g. inbox still rendering)', async () => {
     renderTour(1);
-    await screen.findByText('New emails land here');
-
+    // Mount straight after the first render: the target is missing when the tour's
+    // effects run (so it has to be found by polling), but this stays well inside
+    // the 2s search window. Waiting for the tooltip first made the test flaky on
+    // slow CI runners, where the window could close before the target appeared.
     mountTarget(TOUR_TARGETS.TRIAGE_TAB);
+    await screen.findByText('New emails land here');
 
     await waitFor(() => expect(screen.getByTestId('spotlight').querySelectorAll('path')).toHaveLength(2));
   });

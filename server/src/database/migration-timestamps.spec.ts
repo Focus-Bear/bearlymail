@@ -37,6 +37,10 @@ const FROZEN_DUPLICATE_TIMESTAMP_COUNTS = new Map([
   ["1794300000000", 3],
   ["1794400000000", 3],
   ["1794500000000", 2],
+  // AddPlanFeatureEntitlements (#356) and AddAutoArchiveProposals (#357) were
+  // reviewed in parallel and both shipped to production before the collision
+  // was caught. They touch unrelated tables, so their order doesn't matter.
+  ["1797000000000", 2],
 ]);
 
 /** Reads the migrations dir and counts files per timestamp prefix. */

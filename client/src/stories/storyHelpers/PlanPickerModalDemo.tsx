@@ -15,6 +15,7 @@ import { VolumeUsage } from 'queries/useOrgUsage';
 import { PlanPickerModal } from 'components/settings/plan-picker/PlanPickerModal';
 import { AuthContext } from 'contexts/AuthContext';
 import { NotificationProvider } from 'contexts/NotificationContext';
+import englishTranslations from 'locales/en.json';
 
 const pickerI18n = i18n.createInstance();
 pickerI18n.use(initReactI18next).init({
@@ -22,27 +23,7 @@ pickerI18n.use(initReactI18next).init({
   fallbackLng: 'en',
   resources: {
     en: {
-      translation: {
-        'common.close': 'Close',
-        'common.loading': 'Loading...',
-        'team.settings.tierStarter': 'Starter',
-        'team.settings.tierGrowth': 'Growth',
-        'team.settings.tierEnterprise': 'Enterprise',
-        'team.settings.planPicker.title': 'Choose your plan',
-        'team.settings.planPicker.pricePerMonth': '${{price}}/month',
-        'team.settings.planPicker.emailsPerCycle_one': '{{count}} AI-processed email per month',
-        'team.settings.planPicker.emailsPerCycle_other': '{{count}} AI-processed emails per month',
-        'team.settings.planPicker.includesEmailTracking': 'Email tracking',
-        'team.settings.planPicker.teamMembers_one': '{{count}} team member',
-        'team.settings.planPicker.teamMembers_other': '{{count}} team members',
-        'team.settings.planPicker.choosePlan': 'Choose plan',
-        'team.settings.planPicker.currentPlan': 'Current plan',
-        'team.settings.planPicker.openingCheckout': 'Opening checkout…',
-        'team.settings.planPicker.memberNote': 'Ask your organisation owner or an admin to upgrade the plan.',
-        'team.settings.planPicker.contactNote': "In-app checkout isn't available yet — contact us and we'll get you upgraded.",
-        'team.settings.planPicker.contactUs': 'Contact us',
-        'team.settings.planPicker.loadError': "Couldn't load the plans. Please try again later.",
-      },
+      translation: englishTranslations,
     },
   },
   interpolation: { escapeValue: false },

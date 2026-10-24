@@ -4959,7 +4959,7 @@
         "pricePerMonthFormatted": "{{price}}/mes",
         "emailsPerCycle_one": "{{count}} correo procesado con IA al mes",
         "emailsPerCycle_other": "{{count}} correos procesados con IA al mes",
-        "includesEmailTracking": "Seguimiento de aperturas",
+        "includesEmailTracking": "Seguimiento de aperturas de correos: comprueba si la otra persona ha leído tu correo",
         "teamMembers_one": "{{count}} miembro del equipo",
         "teamMembers_other": "{{count}} miembros del equipo",
         "choosePlan": "Elegir plan",

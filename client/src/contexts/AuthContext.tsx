@@ -236,8 +236,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { user } = response.data;
     // JWT is set as an HttpOnly cookie by the server (see login() above)
     setUser(user);
-    // Track registration event and identify user (NO PII)
-    captureEvent(ANALYTICS_EVENTS.USER_REGISTERED);
+    // Track registration event and identify user (NO PII). Google, Microsoft
+    // and Zoho sign-ups are sent by the server when it creates the account.
+    captureEvent(ANALYTICS_EVENTS.USER_REGISTERED, { method: LOGIN_METHOD_EMAIL });
     identifyUser(user.id, {
       isAdmin: user.isAdmin,
     });

@@ -182,8 +182,8 @@ export const JOB_NAMES = {
   SCHEDULE_TRAINING_DATA_EXPORT: "schedule-training-data-export",
   EXPORT_TRAINING_DATA: "export-training-data",
 
-  // Daily PostHog business-metrics snapshot (subscribers by tier, MRR and,
-  // when COST_SNAPSHOT_ENABLED, running costs). See BusinessMetricsProcessor.
+  // Daily PostHog business-metrics snapshot (subscribers by tier, MRR and AI
+  // cost). See BusinessMetricsProcessor.
   BUSINESS_METRICS_SNAPSHOT: "business-metrics-snapshot",
 } as const;
 

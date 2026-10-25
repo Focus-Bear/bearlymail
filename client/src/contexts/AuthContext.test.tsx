@@ -209,7 +209,7 @@ describe('AuthContext', () => {
       expect(localStorage.getItem('token')).toBeNull();
 
       await waitFor(() => {
-        expect(mockedPosthog.captureEvent).toHaveBeenCalledWith('user_registered');
+        expect(mockedPosthog.captureEvent).toHaveBeenCalledWith('user_registered', { method: 'email' });
       });
 
       await waitFor(() => {

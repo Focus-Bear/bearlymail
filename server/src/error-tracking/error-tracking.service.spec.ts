@@ -84,20 +84,21 @@ describe("ErrorTrackingService", () => {
       expect(mockCaptureException).not.toHaveBeenCalled();
     });
   });
+
   describe("captureSystemEvent", () => {
     it("sends under the system distinct ID with person processing off", () => {
       const capture = jest.fn();
       service.posthog = { capture };
 
-      service.captureSystemEvent("cost_snapshot", "system:costs", {
-        total_cost_usd: 12.5,
+      service.captureSystemEvent("ai_cost_snapshot", "system:ai_costs", {
+        ai_cost_usd: 12.5,
       });
 
       expect(capture).toHaveBeenCalledWith({
-        distinctId: "system:costs",
-        event: "cost_snapshot",
+        distinctId: "system:ai_costs",
+        event: "ai_cost_snapshot",
         properties: expect.objectContaining({
-          total_cost_usd: 12.5,
+          ai_cost_usd: 12.5,
           $process_person_profile: false,
           service: "backend",
         }),

@@ -10,11 +10,11 @@ import { JOB_NAMES } from "../constants/job-names";
 import { MILLISECONDS } from "../constants/time-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { registerWorker } from "../queue/register-worker";
+import { AiCostSnapshotService } from "./ai-cost-snapshot.service";
 import {
   BUSINESS_METRICS_SNAPSHOT_CRON,
   utcDateOf,
 } from "./business-metrics.constants";
-import { CostSnapshotService } from "./cost-snapshot.service";
 import { SubscriberSnapshotService } from "./subscriber-snapshot.service";
 
 /** Start (00:00 UTC) of the UTC day before `now`. */
@@ -30,7 +30,7 @@ export function previousUtcDayStart(now: Date): Date {
 /**
  * Daily cron that sends company-level metrics to PostHog under system
  * distinct IDs, so they stay out of per-user analytics: subscriber counts by
- * tier and MRR, and (behind COST_SNAPSHOT_ENABLED) the cost to run.
+ * tier and MRR, and the day's AI cost.
  */
 @Injectable()
 export class BusinessMetricsProcessor implements OnModuleInit {
@@ -39,7 +39,7 @@ export class BusinessMetricsProcessor implements OnModuleInit {
   constructor(
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly subscriberSnapshot: SubscriberSnapshotService,
-    private readonly costSnapshot: CostSnapshotService,
+    private readonly aiCostSnapshot: AiCostSnapshotService,
     private readonly errorTracking: ErrorTrackingService,
   ) {}
 
@@ -77,10 +77,10 @@ export class BusinessMetricsProcessor implements OnModuleInit {
       failures.push(BUSINESS_ANALYTICS_EVENTS.SUBSCRIBER_SNAPSHOT);
     }
     try {
-      await this.sendCostSnapshot(dayStart);
+      await this.sendAiCostSnapshot(dayStart);
     } catch (err) {
-      this.logger.error("Cost snapshot failed", err);
-      failures.push(BUSINESS_ANALYTICS_EVENTS.COST_SNAPSHOT);
+      this.logger.error("AI cost snapshot failed", err);
+      failures.push(BUSINESS_ANALYTICS_EVENTS.AI_COST_SNAPSHOT);
     }
     if (failures.length > 0) {
       throw new Error(
@@ -100,12 +100,11 @@ export class BusinessMetricsProcessor implements OnModuleInit {
     );
   }
 
-  private async sendCostSnapshot(dayStart: Date): Promise<void> {
-    if (!this.costSnapshot.enabled()) return;
-    const properties = await this.costSnapshot.buildSnapshot(dayStart);
+  private async sendAiCostSnapshot(dayStart: Date): Promise<void> {
+    const properties = await this.aiCostSnapshot.buildSnapshot(dayStart);
     this.errorTracking.captureSystemEvent(
-      BUSINESS_ANALYTICS_EVENTS.COST_SNAPSHOT,
-      SYSTEM_DISTINCT_IDS.COSTS,
+      BUSINESS_ANALYTICS_EVENTS.AI_COST_SNAPSHOT,
+      SYSTEM_DISTINCT_IDS.AI_COSTS,
       properties,
     );
   }

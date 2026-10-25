@@ -5,12 +5,12 @@ import { Organization } from "../database/entities/organization.entity";
 import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
 import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
+import { AiCostSnapshotService } from "./ai-cost-snapshot.service";
 import { BusinessMetricsProcessor } from "./business-metrics.processor";
-import { CostSnapshotService } from "./cost-snapshot.service";
 import { SubscriberSnapshotService } from "./subscriber-snapshot.service";
 
 /**
- * Daily company-level PostHog snapshots (subscribers, MRR, running costs).
+ * Daily company-level PostHog snapshots (subscribers, MRR, AI cost).
  * Loaded by the worker so the cron runs there.
  */
 @Module({
@@ -23,7 +23,7 @@ import { SubscriberSnapshotService } from "./subscriber-snapshot.service";
   providers: [
     BusinessMetricsProcessor,
     SubscriberSnapshotService,
-    CostSnapshotService,
+    AiCostSnapshotService,
   ],
 })
 export class BusinessMetricsModule {}

@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  Optional,
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -12,6 +13,11 @@ import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import type { PgBoss } from "pg-boss";
 
+import {
+  BUSINESS_ANALYTICS_EVENTS,
+  REGISTRATION_METHODS,
+  RegistrationMethod,
+} from "../constants/analytics-events";
 import {
   AUTH_CONSTANTS,
   STEP_UP_TOKEN_EXPIRY_MINUTES,
@@ -24,6 +30,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { SECONDS } from "../constants/time-constants";
 import { User } from "../database/entities/user.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
@@ -75,7 +82,26 @@ export class AuthService {
     private emailBacklogService: EmailBacklogService,
     @Inject(forwardRef(() => OrganizationsService))
     private organizationsService: OrganizationsService,
+    // Optional so sign-in never depends on analytics wiring. The module is
+    // global, so the app always has it.
+    @Optional() private readonly errorTracking?: ErrorTrackingService,
   ) {}
+
+  /**
+   * Sends `user_registered` for an OAuth sign-up, under the new user's ID (the
+   * same ID the client identifies with) and with no PII. The client sends the
+   * email sign-ups, so together one event counts every method.
+   */
+  private trackOAuthRegistration(
+    userId: string,
+    method: RegistrationMethod,
+  ): void {
+    this.errorTracking?.captureEvent(
+      BUSINESS_ANALYTICS_EVENTS.USER_REGISTERED,
+      userId,
+      { method },
+    );
+  }
 
   /**
    * Best-effort provisioning of the user's "org of one". Runs on every successful
@@ -160,6 +186,7 @@ export class AuthService {
         refreshToken,
         isJeremy,
       );
+      this.trackOAuthRegistration(user.id, REGISTRATION_METHODS.GOOGLE);
     } else {
       user = await this.updateGoogleUser(
         user,
@@ -421,6 +448,7 @@ export class AuthService {
         isAdmin: isJeremy,
         needsRelogin: false,
       });
+      this.trackOAuthRegistration(user.id, REGISTRATION_METHODS.MICROSOFT);
     } else {
       // Update existing user
       const updates: UserUpdateData = {};
@@ -473,6 +501,7 @@ export class AuthService {
         isAdmin: isJeremy,
         needsRelogin: false,
       });
+      this.trackOAuthRegistration(user.id, REGISTRATION_METHODS.ZOHO);
     } else {
       // Update existing user
       const updates: UserUpdateData = {};

@@ -3,11 +3,13 @@
  * exact values, so never rename a value — only the code references.
  */
 export const BUSINESS_ANALYTICS_EVENTS = {
+  // Same event the client sends for email sign-ups, so one query counts all.
+  USER_REGISTERED: "user_registered",
   SUBSCRIPTION_STARTED: "subscription_started",
   SUBSCRIPTION_PLAN_CHANGED: "subscription_plan_changed",
   SUBSCRIPTION_CANCELLED: "subscription_cancelled",
   SUBSCRIBER_SNAPSHOT: "subscriber_snapshot",
-  COST_SNAPSHOT: "cost_snapshot",
+  AI_COST_SNAPSHOT: "ai_cost_snapshot",
 } as const;
 
 /**
@@ -17,7 +19,7 @@ export const BUSINESS_ANALYTICS_EVENTS = {
  */
 export const SYSTEM_DISTINCT_IDS = {
   SUBSCRIPTIONS: "system:subscriptions",
-  COSTS: "system:costs",
+  AI_COSTS: "system:ai_costs",
 } as const;
 
 export type SystemDistinctId =
@@ -36,3 +38,16 @@ export const SUBSCRIPTION_CANCEL_REASONS = {
   DELETED: "subscription_deleted",
   NOT_LIVE: "subscription_not_live",
 } as const;
+
+/**
+ * Values of the `method` property on `user_registered`. They match the client's
+ * LOGIN_METHODS; the client sends the email sign-ups itself.
+ */
+export const REGISTRATION_METHODS = {
+  GOOGLE: "google",
+  MICROSOFT: "microsoft",
+  ZOHO: "zoho",
+} as const;
+
+export type RegistrationMethod =
+  (typeof REGISTRATION_METHODS)[keyof typeof REGISTRATION_METHODS];

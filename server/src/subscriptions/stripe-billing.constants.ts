@@ -1,3 +1,8 @@
+import {
+  DAYS,
+  MONTHS_PER_YEAR,
+  WEEKS_PER_YEAR,
+} from "../constants/time-constants";
 import { VOLUME_TIER_IDS } from "./volume-tiers.constants";
 
 /**
@@ -59,3 +64,23 @@ export const STRIPE_LIVE_SUB_STATUSES = ["active", "trialing"];
 
 /** Stripe `invoice.billing_reason` value for a recurring renewal (cycle reset). */
 export const STRIPE_BILLING_REASON_CYCLE = "subscription_cycle";
+
+/** Stripe subscription status counted as paying (MRR excludes trials). */
+export const STRIPE_PAYING_SUB_STATUS = "active";
+
+/** Page size for listing subscriptions (Stripe's maximum). */
+export const STRIPE_LIST_PAGE_SIZE = 100;
+
+/** The only currency MRR is summed in; other-currency items are counted, not converted. */
+export const STRIPE_MRR_CURRENCY = "usd";
+
+/** Stripe amounts are in the currency's minor unit (cents for USD). */
+export const STRIPE_MINOR_UNITS_PER_DOLLAR = 100;
+
+/** Months covered by one billing interval of each unit, for normalising to MRR. */
+export const STRIPE_INTERVAL_MONTHS: Record<string, number> = {
+  day: MONTHS_PER_YEAR / DAYS.YEAR,
+  week: MONTHS_PER_YEAR / WEEKS_PER_YEAR,
+  month: 1,
+  year: MONTHS_PER_YEAR,
+};

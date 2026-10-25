@@ -27,6 +27,11 @@ import { SubscriptionsService } from "./subscriptions.service";
     SubscriptionGuard,
     AiCapacityGuard,
   ],
-  exports: [SubscriptionsService, SubscriptionGuard, AiCapacityGuard],
+  exports: [
+    SubscriptionsService,
+    SubscriptionGuard,
+    AiCapacityGuard,
+    StripeService,
+  ],
 })
 export class SubscriptionsModule {}

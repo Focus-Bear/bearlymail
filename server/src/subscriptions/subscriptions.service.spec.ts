@@ -9,6 +9,7 @@ import { ORG_PLAN_STATUS } from "../constants/domain-statuses";
 import { Organization } from "../database/entities/organization.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { StripeService } from "./stripe.service";
@@ -1919,6 +1920,7 @@ describe("SubscriptionsService — Stripe webhooks", () => {
   let service: SubscriptionsService;
   let orgRepo: { findOne: jest.Mock; save: jest.Mock };
   let memberRepo: { find: jest.Mock };
+  let captureEvent: jest.Mock;
 
   const makeOrg = () => ({
     id: "org-1",
@@ -1942,6 +1944,7 @@ describe("SubscriptionsService — Stripe webhooks", () => {
   beforeEach(async () => {
     orgRepo = { findOne: jest.fn(), save: jest.fn(async (org) => org) };
     memberRepo = { find: jest.fn().mockResolvedValue([]) };
+    captureEvent = jest.fn();
     const tierByPrice: Record<string, string> = {
       price_growth: "bearlymail_growth",
       price_enterprise: "bearlymail_enterprise",
@@ -1970,6 +1973,7 @@ describe("SubscriptionsService — Stripe webhooks", () => {
         { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: OrganizationsService, useValue: {} },
         { provide: StripeService, useValue: stripeMock },
+        { provide: ErrorTrackingService, useValue: { captureEvent } },
       ],
     }).compile();
     service = module.get(SubscriptionsService);
@@ -2135,5 +2139,105 @@ describe("SubscriptionsService — Stripe webhooks", () => {
       }),
     );
     expect(orgRepo.save).not.toHaveBeenCalled();
+  });
+
+  describe("PostHog subscription events", () => {
+    const activeOrg = (tierId: string) => ({
+      ...makeOrg(),
+      planStatus: ORG_PLAN_STATUS.ACTIVE,
+      volumeTierProductId: tierId,
+      stripeSubscriptionId: "sub_1",
+    });
+    const checkoutCompleted = evt("checkout.session.completed", {
+      client_reference_id: "org-1",
+      metadata: { orgId: "org-1", tierId: "bearlymail_growth" },
+      customer: "cus_1",
+      subscription: "sub_1",
+    });
+
+    it("emits subscription_started for the org owner on checkout", async () => {
+      orgRepo.findOne.mockResolvedValue(makeOrg());
+      await service.handleStripeWebhook(checkoutCompleted);
+      expect(captureEvent).toHaveBeenCalledWith(
+        "subscription_started",
+        "owner-1",
+        expect.objectContaining({
+          tier: "bearlymail_growth",
+          list_price_usd: VOLUME_TIERS.bearlymail_growth.price,
+          previous_plan_status: ORG_PLAN_STATUS.UNPAID,
+          billing_provider: "stripe",
+          organization_id: "org-1",
+        }),
+      );
+    });
+
+    it("emits nothing when Stripe retries a checkout that already activated the org", async () => {
+      orgRepo.findOne.mockResolvedValue(activeOrg("bearlymail_growth"));
+      await service.handleStripeWebhook(checkoutCompleted);
+      expect(captureEvent).not.toHaveBeenCalled();
+    });
+
+    it("emits subscription_plan_changed when the tier changes", async () => {
+      orgRepo.findOne.mockResolvedValue(activeOrg("bearlymail_starter"));
+      await service.handleStripeWebhook(subscriptionUpdated("price_growth"));
+      expect(captureEvent).toHaveBeenCalledWith(
+        "subscription_plan_changed",
+        "owner-1",
+        expect.objectContaining({
+          tier: "bearlymail_growth",
+          previous_tier: "bearlymail_starter",
+        }),
+      );
+    });
+
+    it("emits nothing for a same-tier update such as a renewal", async () => {
+      orgRepo.findOne.mockResolvedValue(activeOrg("bearlymail_growth"));
+      await service.handleStripeWebhook(subscriptionUpdated("price_growth"));
+      expect(captureEvent).not.toHaveBeenCalled();
+    });
+
+    it("emits subscription_cancelled with the Stripe status when a subscription stops being live", async () => {
+      orgRepo.findOne.mockResolvedValue(activeOrg("bearlymail_growth"));
+      await service.handleStripeWebhook(
+        evt("customer.subscription.updated", {
+          id: "sub_1",
+          customer: "cus_1",
+          status: "past_due",
+          metadata: {},
+          items: { data: [] },
+        }),
+      );
+      expect(captureEvent).toHaveBeenCalledWith(
+        "subscription_cancelled",
+        "owner-1",
+        expect.objectContaining({
+          previous_tier: "bearlymail_growth",
+          reason: "subscription_not_live",
+          stripe_status: "past_due",
+        }),
+      );
+    });
+
+    it("emits one cancellation, not two, when deletion follows a non-live update", async () => {
+      const org = activeOrg("bearlymail_growth");
+      orgRepo.findOne.mockResolvedValue(org);
+      await service.handleStripeWebhook(
+        evt("customer.subscription.updated", {
+          id: "sub_1",
+          customer: "cus_1",
+          status: "canceled",
+          metadata: {},
+          items: { data: [] },
+        }),
+      );
+      await service.handleStripeWebhook(
+        evt("customer.subscription.deleted", {
+          id: "sub_1",
+          customer: "cus_1",
+          status: "canceled",
+        }),
+      );
+      expect(captureEvent).toHaveBeenCalledTimes(1);
+    });
   });
 });

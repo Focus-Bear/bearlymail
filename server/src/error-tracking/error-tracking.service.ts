@@ -1,6 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PostHog } from "posthog-node";
 
+import {
+  POSTHOG_PROCESS_PERSON_PROFILE,
+  SystemDistinctId,
+} from "../constants/analytics-events";
 import { sanitizeLogInput } from "../utils/sanitize-log";
 
 /**
@@ -135,6 +139,22 @@ export class ErrorTrackingService {
     } catch (captureError) {
       this.logger.error("Failed to capture event to PostHog", captureError);
     }
+  }
+
+  /**
+   * Capture a company-level event (a daily snapshot, not a user action) under
+   * a fixed system distinct ID. Person processing is switched off so the
+   * event never becomes a PostHog person or counts as an active user.
+   */
+  captureSystemEvent(
+    eventName: string,
+    systemDistinctId: SystemDistinctId,
+    properties: Record<string, unknown>,
+  ): void {
+    this.captureEvent(eventName, systemDistinctId, {
+      ...properties,
+      [POSTHOG_PROCESS_PERSON_PROFILE]: false,
+    });
   }
 
   /**

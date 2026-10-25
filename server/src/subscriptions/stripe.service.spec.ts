@@ -132,4 +132,69 @@ describe("StripeService", () => {
       ).toThrow(ServiceUnavailableException);
     });
   });
+  describe("getRecurringRevenue", () => {
+    const item = (
+      unitAmount: number | null,
+      interval: string,
+      overrides: { currency?: string; quantity?: number } = {},
+    ) => ({
+      quantity: overrides.quantity ?? 1,
+      price: {
+        currency: overrides.currency ?? "usd",
+        unit_amount: unitAmount,
+        recurring: { interval, interval_count: 1 },
+      },
+    });
+
+    /** Swaps in a fake client whose list() yields the given subscriptions. */
+    function withSubscriptions(subscriptions: unknown[]): {
+      service: StripeService;
+      list: jest.Mock;
+    } {
+      const service = new StripeService(configWith(FULL_ENV));
+      const list = jest.fn(async function* () {
+        yield* subscriptions;
+      });
+      (service as unknown as { stripe: unknown }).stripe = {
+        subscriptions: { list },
+      };
+      return { service, list };
+    }
+
+    it("returns null when Stripe is not configured", async () => {
+      const service = new StripeService(configWith({}));
+      await expect(service.getRecurringRevenue()).resolves.toBeNull();
+    });
+
+    it("normalises yearly prices and quantities to monthly USD", async () => {
+      const { service, list } = withSubscriptions([
+        { items: { data: [item(1500, "month")] } },
+        { items: { data: [item(12000, "year", { quantity: 2 })] } },
+      ]);
+      const revenue = await service.getRecurringRevenue();
+      expect(list).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "active" }),
+      );
+      expect(revenue?.mrrUsd).toBeCloseTo(15 + 20, 6);
+      expect(revenue?.payingSubscriptionCount).toBe(2);
+      expect(revenue?.excludedItemCount).toBe(0);
+    });
+
+    it("counts non-USD and unpriced items instead of guessing their value", async () => {
+      const { service } = withSubscriptions([
+        {
+          items: {
+            data: [
+              item(500, "month"),
+              item(900, "month", { currency: "eur" }),
+              item(null, "month"),
+            ],
+          },
+        },
+      ]);
+      const revenue = await service.getRecurringRevenue();
+      expect(revenue?.mrrUsd).toBeCloseTo(5, 6);
+      expect(revenue?.excludedItemCount).toBe(2);
+    });
+  });
 });

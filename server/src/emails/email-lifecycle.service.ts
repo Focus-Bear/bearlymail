@@ -15,6 +15,12 @@ import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  autoResponderJobKey,
+  dedupeJobOptions,
+  JOB_DEDUPE_WINDOW_SECONDS,
+  workflowEvaluationJobKey,
+} from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
@@ -762,7 +768,10 @@ export class EmailLifecycleService {
           retryLimit: 2,
           retryDelay: 30,
           expireInSeconds: SECONDS.HOUR,
-          singletonKey: `auto-responder-${savedEmail.emailThreadId}`,
+          ...dedupeJobOptions(
+            autoResponderJobKey(savedEmail.emailThreadId),
+            JOB_DEDUPE_WINDOW_SECONDS.AUTO_RESPONDER,
+          ),
         },
       )
       .then((jobId) => {
@@ -789,7 +798,10 @@ export class EmailLifecycleService {
           retryDelay: 30,
           expireInSeconds: SECONDS.HOUR,
           startAfter: 60,
-          singletonKey: `workflow-eval-${savedEmail.emailThreadId}`,
+          ...dedupeJobOptions(
+            workflowEvaluationJobKey(savedEmail.emailThreadId),
+            JOB_DEDUPE_WINDOW_SECONDS.WORKFLOW_EVALUATION,
+          ),
         },
       )
       .then((jobId) => {

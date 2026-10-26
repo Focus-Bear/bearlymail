@@ -505,6 +505,29 @@ describe("EmailLifecycleService", () => {
       expect(githubCall?.[2].singletonSeconds).toBeUndefined();
     });
 
+    it("collapses a thread's burst of workflow evaluations into one job", async () => {
+      const savedEmail = mockPartial({
+        id: "email-5",
+        emailThreadId: "thread-row-1",
+        threadId: "provider-thread-1",
+      });
+      const thread = mockPartial({ id: "thread-row-1", starCount: 0 });
+
+      await service.queuePostSaveJobs("user-1", savedEmail, thread);
+
+      const workflowCall = boss.send.mock.calls.find(
+        (call) => call[0] === JOB_NAMES.EVALUATE_WORKFLOWS,
+      );
+      // A bare singletonKey does not dedupe on a standard-policy pg-boss queue;
+      // it only takes effect alongside singletonSeconds.
+      expect(workflowCall?.[2]).toEqual(
+        expect.objectContaining({
+          singletonKey: "workflow-eval-thread-row-1",
+          singletonSeconds: 60,
+        }),
+      );
+    });
+
     it("does not force a GitHub re-fetch when the thread has no fetched statuses", async () => {
       const savedEmail = mockPartial({
         id: "email-4",

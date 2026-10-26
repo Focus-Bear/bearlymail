@@ -41,6 +41,7 @@ function email(
     receivedAt: signals.receivedAt,
     signals,
     level: classifyEngagement(signals),
+    notificationSubtype: null,
   };
 }
 

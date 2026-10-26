@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-magic-numbers -- fixture data */
 import { AUTO_ARCHIVE_SENDER_SCOPE } from "../../constants/auto-archive-proposal.constants";
+import { resolveNotificationSubtype } from "../../utils/notification-subtype.util";
 import { AnalysedEmail, SenderGroup } from "../auto-archive-proposals.types";
 import { classifyEngagement, EngagementSignals } from "../engagement.helper";
 
@@ -139,14 +140,22 @@ function generate([name, template]: [string, Template]): AnalysedEmail[] {
     idCounter += 1;
     const id = `email-${idCounter}`;
     TEMPLATE_OF.set(id, name);
+    const subject = template.subject();
+    const body = template.body();
     return {
       id,
       from: template.from,
-      subject: template.subject(),
-      body: template.body(),
+      subject,
+      body,
       receivedAt,
       signals,
       level: classifyEngagement(signals),
+      // Resolved exactly as the loader does, so the fixture exercises real sub-streams.
+      notificationSubtype: resolveNotificationSubtype({
+        from: template.from,
+        subject,
+        body,
+      }),
     };
   });
 }

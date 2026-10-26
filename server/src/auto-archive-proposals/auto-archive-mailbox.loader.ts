@@ -6,9 +6,11 @@ import { AUTO_ARCHIVE_PROPOSAL_CONFIG } from "../constants/auto-archive-proposal
 import { GMAIL_LABELS } from "../constants/email-labels";
 import { Email } from "../database/entities/email.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import { WORKFLOW_MAX_BODY_CHARS } from "../workflows/workflow-condition-matcher";
 import { AnalysedEmail } from "./auto-archive-proposals.types";
 import { classifyEngagement, EngagementSignals } from "./engagement.helper";
+import { sampleEvenly } from "./even-sample.helper";
 import {
   planSenderGroups,
   SenderGroupPlan,
@@ -124,9 +126,10 @@ export class AutoArchiveMailboxLoader {
   }
 
   /**
-   * A sender group's received emails in the window (most recent capped),
-   * oldest first, with engagement signals resolved. Threads hidden by a
-   * blocked sender/keyword are excluded — those senders are already handled.
+   * A sender group's received emails in the window (sampled evenly when there
+   * are more than MAX_EMAILS_PER_SENDER), oldest first, with engagement
+   * signals resolved. Threads hidden by a blocked sender/keyword are excluded
+   * — those senders are already handled.
    */
   async loadGroupEmails(
     userId: string,
@@ -134,6 +137,12 @@ export class AutoArchiveMailboxLoader {
     windowStart: Date,
   ): Promise<AnalysedEmail[]> {
     if (memberSenderKeys.length === 0) return [];
+    const sampledIds = await this.sampleGroupEmailIds(
+      userId,
+      memberSenderKeys,
+      windowStart,
+    );
+    if (sampledIds.length === 0) return [];
     const emails = await this.emailRepository
       .createQueryBuilder("email")
       .leftJoin("email.thread", "thread")
@@ -156,18 +165,34 @@ export class AutoArchiveMailboxLoader {
         "thread.hasBlockedLabel",
       ])
       .where("email.userId = :userId", { userId })
+      .andWhere("email.id IN (:...ids)", { ids: sampledIds })
+      .orderBy("email.receivedAt", "ASC")
+      .getMany();
+    const visible = emails.filter((email) => !email.thread?.hasBlockedLabel);
+    const lastSentAt = await this.lastSentAtByThread(userId, visible);
+    return visible.map((email) => this.toAnalysedEmail(email, lastSentAt));
+  }
+
+  /** Ids only (unencrypted, cheap), so sampling never decrypts the whole window. */
+  private async sampleGroupEmailIds(
+    userId: string,
+    memberSenderKeys: string[],
+    windowStart: Date,
+  ): Promise<string[]> {
+    const rows = await this.emailRepository
+      .createQueryBuilder("email")
+      .select("email.id", "id")
+      .where("email.userId = :userId", { userId })
       .andWhere("email.senderEmailHmac IN (:...keys)", {
         keys: memberSenderKeys,
       })
       .andWhere("email.receivedAt >= :windowStart", { windowStart })
-      .orderBy("email.receivedAt", "DESC")
-      .limit(AUTO_ARCHIVE_PROPOSAL_CONFIG.MAX_EMAILS_PER_SENDER)
-      .getMany();
-    const visible = emails.filter((email) => !email.thread?.hasBlockedLabel);
-    const lastSentAt = await this.lastSentAtByThread(userId, visible);
-    return visible
-      .map((email) => this.toAnalysedEmail(email, lastSentAt))
-      .reverse();
+      .orderBy("email.receivedAt", "ASC")
+      .getRawMany<{ id: string }>();
+    return sampleEvenly(
+      rows.map((row) => row.id),
+      AUTO_ARCHIVE_PROPOSAL_CONFIG.MAX_EMAILS_PER_SENDER,
+    );
   }
 
   /** Latest message the user sent in each thread (replies carry the SENT label). */
@@ -221,6 +246,11 @@ export class AutoArchiveMailboxLoader {
       receivedAt: email.receivedAt,
       signals,
       level: classifyEngagement(signals),
+      notificationSubtype: resolveNotificationSubtype({
+        from: email.from ?? "",
+        subject: email.subject ?? "",
+        body: email.body,
+      }),
     };
   }
 }

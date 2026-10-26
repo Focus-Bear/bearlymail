@@ -22,6 +22,13 @@ export interface AnalysedEmail {
   receivedAt: Date;
   signals: EngagementSignals;
   level: EngagementLevel;
+  /**
+   * Notification sub-stream (e.g. `github:ci:run_failed`), or null for mail
+   * that isn't a recognised platform notification. Clustering never mixes
+   * sub-streams, so one sender's CI failures and review requests are judged
+   * separately.
+   */
+  notificationSubtype: string | null;
 }
 
 /** The keyword side of a proposed rule. Sender is matched separately. */

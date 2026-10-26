@@ -62,6 +62,35 @@ export function logJevConfidence(
   logger.log(formatJevConfidenceRecord(record));
 }
 
+/**
+ * Prefix of the one-line, content-free record written when Jev's answer was
+ * below threshold and the LLM fallback then decided: whether the two agreed.
+ * Agreement rate per confidence band is the accuracy estimate for lowering a
+ * threshold. Query with:
+ *   filter @message like "[JEV-SHADOW]"
+ *   | parse @message "decision=* confidence=* agreed=*" as decision, confidence, agreed
+ */
+export const JEV_SHADOW_LOG_TAG = "[JEV-SHADOW]";
+
+export interface JevShadowRecord {
+  decision: string;
+  /** Jev's confidence in the answer it was not trusted with. */
+  confidence: number;
+  /** True when the LLM fallback reached the same answer as Jev. */
+  agreed: boolean;
+}
+
+export function formatJevShadowRecord(record: JevShadowRecord): string {
+  return `${JEV_SHADOW_LOG_TAG} decision=${record.decision} confidence=${formatNumber(record.confidence)} agreed=${record.agreed}`;
+}
+
+export function logJevShadowAgreement(
+  logger: Pick<Logger, "log">,
+  record: JevShadowRecord,
+): void {
+  logger.log(formatJevShadowRecord(record));
+}
+
 /** Gap between the two most probable options (the top probability itself when there is only one). */
 export function runnerUpMargin(probabilities: Record<string, number>): number {
   const [top = 0, second = 0] = Object.values(probabilities).sort(

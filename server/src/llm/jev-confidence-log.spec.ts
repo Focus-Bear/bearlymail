@@ -1,5 +1,6 @@
 import {
   formatJevConfidenceRecord,
+  formatJevShadowRecord,
   JEV_OUTCOMES,
   runnerUpMargin,
 } from "./jev-confidence-log";
@@ -31,6 +32,20 @@ describe("formatJevConfidenceRecord", () => {
       }),
     ).toBe(
       "[JEV-CONFIDENCE] decision=merge-duplicate-categories outcome=accepted confidence=none threshold=0.80",
+    );
+  });
+});
+
+describe("formatJevShadowRecord", () => {
+  it("records confidence and agreement only", () => {
+    expect(
+      formatJevShadowRecord({
+        decision: "categorise_summary",
+        confidence: 0.8449,
+        agreed: false,
+      }),
+    ).toBe(
+      "[JEV-SHADOW] decision=categorise_summary confidence=0.84 agreed=false",
     );
   });
 });

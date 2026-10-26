@@ -367,6 +367,56 @@ describe("categoriseWithEscalation", () => {
 
   const escalationModel = "gemini-strong-test";
 
+  describe("Jev shadow agreement", () => {
+    const declinedJev = (categoryName: string) =>
+      jest.fn((_params, onDeclined) => {
+        onDeclined?.({ categoryName, confidence: 0.84 });
+        return Promise.resolve(null);
+      });
+
+    it("logs agreement when Gemini picks what Jev was not trusted with", async () => {
+      const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
+      await categoriseWithEscalation(
+        { generateText, categoriseWithJev: declinedJev("QA passed") },
+        logger,
+        params,
+      );
+      expect(logger.log).toHaveBeenCalledWith(
+        "[JEV-SHADOW] decision=categorise_summary confidence=0.84 agreed=true",
+      );
+    });
+
+    it("logs disagreement when Gemini picks a different category", async () => {
+      const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
+      await categoriseWithEscalation(
+        { generateText, categoriseWithJev: declinedJev("QA failed") },
+        logger,
+        params,
+      );
+      expect(logger.log).toHaveBeenCalledWith(
+        "[JEV-SHADOW] decision=categorise_summary confidence=0.84 agreed=false",
+      );
+    });
+
+    it("logs nothing when Jev was trusted", async () => {
+      (logger.log as jest.Mock).mockClear();
+      const categoriseWithJev = jest.fn().mockResolvedValue({
+        categoryNumber: 2,
+        categoryName: "QA passed",
+        categoryConfidence: "HIGH",
+        reasoning: null,
+      });
+      await categoriseWithEscalation(
+        { generateText: jest.fn(), categoriseWithJev },
+        logger,
+        params,
+      );
+      expect(logger.log).not.toHaveBeenCalledWith(
+        expect.stringContaining("[JEV-SHADOW]"),
+      );
+    });
+  });
+
   it("returns the flash-lite verdict without escalating when it is confident and not Other", async () => {
     const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
     const result = await categoriseWithEscalation({ generateText }, logger, {

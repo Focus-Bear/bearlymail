@@ -89,6 +89,25 @@ describe("JevCategoryClient", () => {
     },
   );
 
+  it("reports a below-threshold pick so agreement with the fallback can be measured", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(response("1", 0.84))),
+    );
+    const onDeclined = jest.fn();
+    expect(await client.categorise(PARAMS, onDeclined)).toBeNull();
+    expect(onDeclined).toHaveBeenCalledWith({
+      categoryName: "QA passed",
+      confidence: 0.84,
+    });
+  });
+
+  it("does not report a pick it was trusted with", async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(response())));
+    const onDeclined = jest.fn();
+    await client.categorise(PARAMS, onDeclined);
+    expect(onDeclined).not.toHaveBeenCalled();
+  });
+
   it("accepts the threshold boundary", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(response("1", JEV.MIN_ACCEPTED_CONFIDENCE))),

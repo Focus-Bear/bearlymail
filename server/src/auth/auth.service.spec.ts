@@ -9,6 +9,7 @@ import {
 } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
 import { AuthService } from "./auth.service";
@@ -29,6 +30,7 @@ describe("AuthService", () => {
   let boss: jest.Mocked<PgBoss>;
   let emailBacklogService: jest.Mocked<EmailBacklogService>;
   let totpService: jest.Mocked<TotpService>;
+  let captureEvent: jest.Mock;
 
   const mockUser: User = {
     id: "user-1",
@@ -86,6 +88,8 @@ describe("AuthService", () => {
       getMfaStatus: jest.fn(),
     };
 
+    captureEvent = jest.fn();
+
     const mockOrganizationsService = {
       ensurePersonalOrg: jest.fn().mockResolvedValue({ id: "org-1" }),
     };
@@ -117,6 +121,7 @@ describe("AuthService", () => {
           provide: OrganizationsService,
           useValue: mockOrganizationsService,
         },
+        { provide: ErrorTrackingService, useValue: { captureEvent } },
       ],
     }).compile();
 
@@ -467,6 +472,65 @@ describe("AuthService", () => {
           singletonKey: `fetch-user-emails-${mockUser.id}`,
         }),
       );
+    });
+  });
+
+  describe("OAuth sign-up analytics", () => {
+    const googleProfile = {
+      id: "google-id-123",
+      emails: [{ value: "test@example.com" }],
+      displayName: "Test User",
+    };
+    const microsoftProfile = { id: "ms-id-1", mail: "test@example.com" };
+    const zohoProfile = { ZUID: "zuid-1", Email: "test@example.com" };
+
+    const expectRegistered = (method: string) =>
+      expect(captureEvent).toHaveBeenCalledWith(
+        "user_registered",
+        mockUser.id,
+        {
+          method,
+        },
+      );
+
+    beforeEach(() => {
+      usersService.create.mockResolvedValue(mockUser);
+      usersService.update.mockResolvedValue(mockUser);
+      usersService.findOne.mockResolvedValue(mockUser);
+    });
+
+    it("sends user_registered with method google when Google creates the account", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      await service.validateGoogleUser(googleProfile, "access", "refresh");
+      expectRegistered("google");
+    });
+
+    it("sends user_registered with method microsoft when Microsoft creates the account", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      await service.validateMicrosoftUser(
+        microsoftProfile,
+        "access",
+        "refresh",
+      );
+      expectRegistered("microsoft");
+    });
+
+    it("sends user_registered with method zoho when Zoho creates the account", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      await service.validateZohoUser(zohoProfile, "access", "refresh");
+      expectRegistered("zoho");
+    });
+
+    it("sends nothing when an existing user signs in", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      await service.validateGoogleUser(googleProfile, "access", "refresh");
+      await service.validateMicrosoftUser(
+        microsoftProfile,
+        "access",
+        "refresh",
+      );
+      await service.validateZohoUser(zohoProfile, "access", "refresh");
+      expect(captureEvent).not.toHaveBeenCalled();
     });
   });
 

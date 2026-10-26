@@ -7,6 +7,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -15,6 +16,7 @@ import axios from "axios";
 import type Stripe from "stripe";
 import { In, IsNull, LessThan, Repository } from "typeorm";
 
+import { SUBSCRIPTION_CANCEL_REASONS } from "../constants/analytics-events";
 import {
   ORG_PLAN_STATUS,
   SUBSCRIPTION_STATUS,
@@ -32,6 +34,7 @@ import { Organization } from "../database/entities/organization.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
 import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { applyTrialExpiryIfDue } from "../organizations/org-plan-status.util";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ApiError } from "../types/common";
@@ -42,6 +45,12 @@ import {
   STRIPE_LIVE_SUB_STATUSES,
   STRIPE_WEBHOOK_EVENTS,
 } from "./stripe-billing.constants";
+import {
+  captureOrgPlanState,
+  OrgPlanState,
+  PlanEndContext,
+  subscriptionLifecycleEvent,
+} from "./subscription-lifecycle-events";
 import {
   FREE_TIER_EMAIL_LIMIT,
   FREE_TIER_SEATS,
@@ -145,6 +154,9 @@ export class SubscriptionsService {
     @Inject(forwardRef(() => OrganizationsService))
     private organizationsService: OrganizationsService,
     private stripeService: StripeService,
+    // Optional so billing never depends on analytics wiring. The module is
+    // global, so the app and worker always have it.
+    @Optional() private readonly errorTracking?: ErrorTrackingService,
   ) {
     this.apiKey = this.configService.get<string>("REVENUECAT_API_KEY") || null;
     this.webhookSecret =
@@ -1123,6 +1135,7 @@ export class SubscriptionsService {
       );
       return;
     }
+    const before = captureOrgPlanState(org);
     // New checkouts are always on a current Price, never a retired one.
     await this.activateOrgStripeTier(org, tierId, {
       subscriptionId,
@@ -1130,6 +1143,7 @@ export class SubscriptionsService {
       resetCycle: true,
       isLegacyPrice: false,
     });
+    this.trackPlanTransition(org, before);
     this.logger.log(
       `Org ${org.id} activated on tier ${tierId} via Stripe checkout`,
     );
@@ -1150,8 +1164,13 @@ export class SubscriptionsService {
       );
       return;
     }
+    const before = captureOrgPlanState(org);
     if (!STRIPE_LIVE_SUB_STATUSES.includes(subscription.status)) {
       await this.deactivateOrgStripe(org);
+      this.trackPlanTransition(org, before, {
+        reason: SUBSCRIPTION_CANCEL_REASONS.NOT_LIVE,
+        stripeStatus: subscription.status,
+      });
       this.logger.log(
         `Org ${org.id} downgraded (Stripe sub status ${subscription.status})`,
       );
@@ -1178,6 +1197,7 @@ export class SubscriptionsService {
       isLegacyPrice:
         !!priceId && priceId !== this.stripeService.priceIdForTier(tierId),
     });
+    this.trackPlanTransition(org, before);
   }
 
   private async handleStripeSubscriptionDeleted(
@@ -1188,8 +1208,34 @@ export class SubscriptionsService {
       customerId: this.stripeIdOf(subscription.customer),
     });
     if (!org) return;
+    const before = captureOrgPlanState(org);
     await this.deactivateOrgStripe(org);
+    this.trackPlanTransition(org, before, {
+      reason: SUBSCRIPTION_CANCEL_REASONS.DELETED,
+      stripeStatus: subscription.status,
+    });
     this.logger.log(`Org ${org.id} downgraded (Stripe subscription deleted)`);
+  }
+
+  /**
+   * Emits the PostHog subscription event for a billing change, attributed to
+   * the org owner (a UUID — no PII) so it joins that person's funnel.
+   */
+  private trackPlanTransition(
+    org: Organization,
+    before: OrgPlanState,
+    endContext?: PlanEndContext,
+  ): void {
+    const lifecycleEvent = subscriptionLifecycleEvent(
+      before,
+      captureOrgPlanState(org),
+      endContext,
+    );
+    if (!lifecycleEvent) return;
+    this.errorTracking?.captureEvent(lifecycleEvent.event, org.ownerId, {
+      ...lifecycleEvent.properties,
+      organization_id: org.id,
+    });
   }
 
   private async handleStripeInvoicePaid(

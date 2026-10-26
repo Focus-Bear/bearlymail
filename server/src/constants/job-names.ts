@@ -181,6 +181,10 @@ export const JOB_NAMES = {
   // for the Fargate trainer to consume.
   SCHEDULE_TRAINING_DATA_EXPORT: "schedule-training-data-export",
   EXPORT_TRAINING_DATA: "export-training-data",
+
+  // Daily PostHog business-metrics snapshot (subscribers by tier, MRR and AI
+  // cost). See BusinessMetricsProcessor.
+  BUSINESS_METRICS_SNAPSHOT: "business-metrics-snapshot",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

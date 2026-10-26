@@ -9,6 +9,7 @@ import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
+import { BusinessMetricsModule } from "./business-metrics/business-metrics.module";
 import { CategoryRuleIdBackfillModule } from "./category-rules/category-rule-id-backfill.module";
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContextModule } from "./context/context.module";
@@ -92,6 +93,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     AutoArchiveProposalsModule,
     MCPModule,
     MaintenanceModule,
+    BusinessMetricsModule,
   ],
 })
 export class WorkerModule {}

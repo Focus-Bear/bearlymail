@@ -8,7 +8,12 @@ import Stripe from "stripe";
 
 import {
   STRIPE_ENV,
+  STRIPE_INTERVAL_MONTHS,
   STRIPE_LEGACY_PRICE_ENV_BY_TIER,
+  STRIPE_LIST_PAGE_SIZE,
+  STRIPE_MINOR_UNITS_PER_DOLLAR,
+  STRIPE_MRR_CURRENCY,
+  STRIPE_PAYING_SUB_STATUS,
   STRIPE_PRICE_ENV_BY_TIER,
 } from "./stripe-billing.constants";
 
@@ -22,6 +27,15 @@ export interface CreateCheckoutParams {
   customerEmail: string;
   successUrl: string;
   cancelUrl: string;
+}
+
+/** Monthly recurring revenue across all paying Stripe subscriptions. */
+export interface StripeRecurringRevenue {
+  /** List-price MRR in USD, before discounts and tax. */
+  mrrUsd: number;
+  payingSubscriptionCount: number;
+  /** Items left out of mrrUsd: non-USD or non-recurring prices. */
+  excludedItemCount: number;
 }
 
 /**
@@ -184,6 +198,55 @@ export class StripeService {
       return_url: returnUrl,
     });
     return session.url;
+  }
+
+  /**
+   * Sums monthly recurring revenue from every paying (status `active`)
+   * subscription, normalising yearly/weekly prices to a month. Returns null
+   * when Stripe isn't configured. Stripe is the billing source of truth, so
+   * this reads it rather than inferring prices from tiers.
+   */
+  async getRecurringRevenue(): Promise<StripeRecurringRevenue | null> {
+    if (!this.stripe) return null;
+    const revenue: StripeRecurringRevenue = {
+      mrrUsd: 0,
+      payingSubscriptionCount: 0,
+      excludedItemCount: 0,
+    };
+    for await (const subscription of this.stripe.subscriptions.list({
+      status: STRIPE_PAYING_SUB_STATUS,
+      limit: STRIPE_LIST_PAGE_SIZE,
+    })) {
+      revenue.payingSubscriptionCount += 1;
+      for (const item of subscription.items.data) {
+        const monthlyUsd = this.monthlyUsdOf(item);
+        if (monthlyUsd === null) {
+          revenue.excludedItemCount += 1;
+        } else {
+          revenue.mrrUsd += monthlyUsd;
+        }
+      }
+    }
+    return revenue;
+  }
+
+  private monthlyUsdOf(item: Stripe.SubscriptionItem): number | null {
+    const { price } = item;
+    const intervalMonths = price.recurring
+      ? STRIPE_INTERVAL_MONTHS[price.recurring.interval]
+      : undefined;
+    if (
+      price.currency !== STRIPE_MRR_CURRENCY ||
+      price.unit_amount === null ||
+      !intervalMonths ||
+      !price.recurring
+    ) {
+      return null;
+    }
+    const intervalTotalUsd =
+      (price.unit_amount * (item.quantity ?? 1)) /
+      STRIPE_MINOR_UNITS_PER_DOLLAR;
+    return intervalTotalUsd / (intervalMonths * price.recurring.interval_count);
   }
 
   /**

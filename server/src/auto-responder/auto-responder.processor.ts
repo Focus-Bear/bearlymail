@@ -6,6 +6,11 @@ import { JOB_NAMES } from "../constants/job-names";
 import { SECONDS } from "../constants/time-constants";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
+import {
+  autoResponderJobKey,
+  dedupeJobOptions,
+  JOB_DEDUPE_WINDOW_SECONDS,
+} from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { registerWorker } from "../queue/register-worker";
 import { AutoResponderService } from "./auto-responder.service";
@@ -119,7 +124,10 @@ export class AutoResponderProcessor implements OnModuleInit {
           // Expire after 1 hour
           expireInSeconds: SECONDS.HOUR,
           // Prevent duplicate jobs for same thread
-          singletonKey: `auto-responder-${emailThreadId}`,
+          ...dedupeJobOptions(
+            autoResponderJobKey(emailThreadId),
+            JOB_DEDUPE_WINDOW_SECONDS.AUTO_RESPONDER,
+          ),
         },
       );
 

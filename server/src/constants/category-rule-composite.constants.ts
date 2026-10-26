@@ -182,6 +182,15 @@ export const CATEGORY_RULE_COMPOSITE = {
    */
   RULE_MAX_ACCEPTABLE_FP: 0,
   /**
+   * Exception to RULE_MAX_ACCEPTABLE_FP: false positives in the target
+   * category's OWN family (e.g. "PR Merged Notifications" vs "GitHub PR
+   * Updates", both "GitHub / Pull Requests") are tolerated up to this share of
+   * the rule's matches. Near-sibling categories overlap, so a clean-zero gate
+   * never lets a rule form for them; re-filing a few emails within the family
+   * is acceptable, re-filing into another family never is.
+   */
+  RULE_SAME_FAMILY_MAX_FP_SHARE: 0.06,
+  /**
    * Exclusion quality bar (junk-exclusion fix). The LLM that derives
    * `subjectNotContainsAny` / `bodyNotContainsAny` phrases from false-positive
    * samples tends to grasp at brittle fragments ("Type: Feature Request",

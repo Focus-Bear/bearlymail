@@ -630,3 +630,86 @@ describe("isQaCategory / augmentExclusionsForQaTemplates", () => {
     );
   });
 });
+
+describe("deriveExclusionsForCompositeRule — same-family false-positive tolerance", () => {
+  const userId = "user-1";
+  const categoryName = "CI";
+  const SIBLING_CATEGORY_ID = "cat-build-sibling";
+  const familyRows = [
+    { contextId: TARGET_CATEGORY_ID, familyId: "family-builds" },
+    { contextId: SIBLING_CATEGORY_ID, familyId: "family-builds" },
+    { contextId: OTHER_CATEGORY_ID, familyId: "family-newsletters" },
+  ];
+  const siblingRow = (): DecryptedValidationRow => ({
+    ...buildFpRow("Build failed on main", "the pipeline broke"),
+    categoryId: SIBLING_CATEGORY_ID,
+  });
+
+  function buildFamilyDeps(rows: DecryptedValidationRow[]) {
+    return {
+      emailThreadRepository: {
+        manager: {
+          query: jest.fn((sql: string) =>
+            Promise.resolve(sql.includes("user_contexts") ? familyRows : rows),
+          ),
+        },
+      },
+      llmCategoriesService: {
+        deriveExclusionPhrasesFromFalsePositives: jest.fn().mockResolvedValue({
+          subjectNotContainsAny: [],
+          bodyNotContainsAny: [],
+        }),
+      },
+      categoryId: TARGET_CATEGORY_ID,
+      logger: { log: jest.fn() },
+    };
+  }
+
+  async function derive(rows: DecryptedValidationRow[]) {
+    const deps = buildFamilyDeps(rows);
+    const outcome = await deriveExclusionsForCompositeRule({
+      ...(deps as unknown as Parameters<
+        typeof deriveExclusionsForCompositeRule
+      >[0]),
+      normaliseSender: normalise,
+      userId,
+      positiveSpec,
+      categoryName,
+    });
+    return { outcome, deps };
+  }
+
+  it("keeps a rule whose only false positives are same-family and at most 6%", async () => {
+    // 3 sibling-category matches against 47 true positives = 6%.
+    const { outcome, deps } = await derive([
+      ...tpRows(47),
+      siblingRow(),
+      siblingRow(),
+      siblingRow(),
+    ]);
+    expect(outcome.passes).toBe(true);
+    expect(outcome.falsePositives).toBe(3);
+    expect(outcome.finalSpec).toEqual(positiveSpec);
+    expect(
+      deps.llmCategoriesService.deriveExclusionPhrasesFromFalsePositives,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("still requires exclusions when one false positive is in another family", async () => {
+    const { outcome, deps } = await derive([
+      ...tpRows(47),
+      siblingRow(),
+      buildFpRow("Build failed on main", "the pipeline broke"),
+    ]);
+    expect(outcome.passes).toBe(false);
+    expect(
+      deps.llmCategoriesService.deriveExclusionPhrasesFromFalsePositives,
+    ).toHaveBeenCalled();
+  });
+
+  it("still requires exclusions when same-family false positives exceed 6%", async () => {
+    // 1 sibling match against 10 true positives ≈ 9%.
+    const { outcome } = await derive([...tpRows(10), siblingRow()]);
+    expect(outcome.passes).toBe(false);
+  });
+});

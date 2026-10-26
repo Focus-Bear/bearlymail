@@ -41,6 +41,12 @@ export interface NotificationSubtypeBreakdownEntry {
   subtype: string;
   truePositives: number;
   falsePositives: number;
+  /**
+   * False positives that still count against the sub-stream once same-family
+   * ones are tolerated (see countDisqualifyingFalsePositives). Absent means
+   * every false positive counts.
+   */
+  disqualifyingFalsePositives?: number;
 }
 
 /**

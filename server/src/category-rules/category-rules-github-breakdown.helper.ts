@@ -19,6 +19,10 @@ import type { CompositeCategoryRuleSpec } from "../database/entities/category-ru
 import type { GithubCategorySignals } from "../github/github-category-signals.helper";
 import type { GithubFactsBreakdownEntry } from "../llm/llm-rule-sanity";
 import {
+  countDisqualifyingFalsePositives,
+  type FamilyIdByCategoryId,
+} from "./category-rules-fp-tolerance.helper";
+import {
   describeGithubConditions,
   GithubRuleConditions,
 } from "./category-rules-github-conditions.helper";
@@ -36,6 +40,7 @@ export interface GithubFactsBreakdownParams {
   senderPatterns: string[];
   normaliseSender: (raw: string) => string;
   targetCategoryId: string | null;
+  familyIdByCategoryId?: FamilyIdByCategoryId;
   /** The seed email's facts — only conditions it satisfies are candidates. */
   seed: GithubCategorySignals;
 }
@@ -43,6 +48,8 @@ export interface GithubFactsBreakdownParams {
 /** A breakdown row together with the structured condition it probed. */
 export interface GithubFactsBreakdownCandidate extends GithubFactsBreakdownEntry {
   conditions: GithubRuleConditions;
+  /** False positives left once same-family ones are tolerated. */
+  disqualifyingFalsePositives: number;
 }
 
 export interface GithubFactsSelection {
@@ -102,10 +109,10 @@ function conditionKind(conditions: GithubRuleConditions): string {
   return Object.keys(conditions).sort().join(",");
 }
 
-function isClean(entry: GithubFactsBreakdownEntry): boolean {
+function isClean(candidate: GithubFactsBreakdownCandidate): boolean {
   return (
-    entry.truePositives >= MIN_TRUE_POSITIVES_PER_FACT &&
-    entry.falsePositives <= MAX_FALSE_POSITIVES_PER_FACT
+    candidate.truePositives >= MIN_TRUE_POSITIVES_PER_FACT &&
+    candidate.disqualifyingFalsePositives <= MAX_FALSE_POSITIVES_PER_FACT
   );
 }
 
@@ -121,16 +128,22 @@ export function tallyGithubConditions(
     params.normaliseSender,
     params.targetCategoryId,
   ).truePositiveRows.length;
-  const falsePositives = partitionMatchesByCategory(
+  const { falsePositiveRows } = partitionMatchesByCategory(
     params.broadRows,
     spec,
     params.normaliseSender,
     params.targetCategoryId,
-  ).falsePositiveRows.length;
+  );
   return {
     condition: describeGithubConditions(spec).join(CONDITION_SEPARATOR),
     truePositives,
-    falsePositives,
+    falsePositives: falsePositiveRows.length,
+    disqualifyingFalsePositives: countDisqualifyingFalsePositives({
+      falsePositiveCategoryIds: falsePositiveRows.map((row) => row.categoryId),
+      truePositives,
+      targetCategoryId: params.targetCategoryId,
+      familyIdByCategoryId: params.familyIdByCategoryId,
+    }),
     conditions,
   };
 }

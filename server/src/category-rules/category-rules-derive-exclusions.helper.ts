@@ -27,6 +27,11 @@ import {
   LLMCategoriesService,
 } from "../llm/llm-categories.service";
 import {
+  countDisqualifyingFalsePositives,
+  type FamilyIdByCategoryId,
+  fetchFamilyIdByCategoryId,
+} from "./category-rules-fp-tolerance.helper";
+import {
   mergeExclusionsIntoSpec,
   specHasExclusion,
   specHasStructuralConstraint,
@@ -417,6 +422,8 @@ export interface ValidationWindows {
   categoryRows: DecryptedValidationRow[];
   /** A BROAD recent sample of all categorised mail — the false-positive window. */
   broadRows: DecryptedValidationRow[];
+  /** Category → family, so same-family false positives can be tolerated. */
+  familyIdByCategoryId: FamilyIdByCategoryId;
 }
 
 /**
@@ -445,7 +452,51 @@ export async function fetchValidationWindows(
         )
       ).map(decryptValidationRow)
     : [];
-  return { categoryRows, broadRows };
+  const familyIdByCategoryId = await fetchFamilyIdByCategoryId(
+    emailThreadRepository,
+    userId,
+  );
+  return { categoryRows, broadRows, familyIdByCategoryId };
+}
+
+/** True once the refined spec's remaining false positives no longer disqualify it. */
+function hasConverged(params: {
+  spec: CompositeCategoryRuleSpec;
+  falsePositiveRows: DecryptedValidationRow[];
+  categoryRows: DecryptedValidationRow[];
+  normaliseSender: (raw: string) => string;
+  targetCategoryId: string | null;
+  familyIdByCategoryId: FamilyIdByCategoryId | undefined;
+}): boolean {
+  const truePositives = truePositivesOf(
+    params.categoryRows,
+    params.spec,
+    params.normaliseSender,
+    params.targetCategoryId,
+  ).length;
+  return (
+    disqualifyingFalsePositivesOf(
+      params.falsePositiveRows,
+      truePositives,
+      params.targetCategoryId,
+      params.familyIdByCategoryId,
+    ) <= CATEGORY_RULE_COMPOSITE.RULE_MAX_ACCEPTABLE_FP
+  );
+}
+
+/** False positives that still disqualify `spec` once same-family ones are tolerated. */
+function disqualifyingFalsePositivesOf(
+  falsePositiveRows: DecryptedValidationRow[],
+  truePositives: number,
+  targetCategoryId: string | null,
+  familyIdByCategoryId: FamilyIdByCategoryId | undefined,
+): number {
+  return countDisqualifyingFalsePositives({
+    falsePositiveCategoryIds: falsePositiveRows.map((row) => row.categoryId),
+    truePositives,
+    targetCategoryId,
+    familyIdByCategoryId,
+  });
 }
 
 /** Residual true positives of `spec` against the dense category window. */
@@ -525,6 +576,7 @@ interface RefineLoopParams {
   positiveSpec: CompositeCategoryRuleSpec;
   categoryRows: DecryptedValidationRow[];
   broadRows: DecryptedValidationRow[];
+  familyIdByCategoryId?: FamilyIdByCategoryId;
   logLine: (fields: string) => void;
 }
 
@@ -551,6 +603,7 @@ async function refineExclusionsIteratively(
     positiveSpec,
     categoryRows,
     broadRows,
+    familyIdByCategoryId,
     logLine,
   } = params;
 
@@ -600,12 +653,13 @@ async function refineExclusionsIteratively(
       break;
     }
 
-    const nextFpCount = falsePositivesOf(
+    const nextFpRows = falsePositivesOf(
       broadRows,
       nextSpec,
       normaliseSender,
       targetCategoryId,
-    ).length;
+    );
+    const nextFpCount = nextFpRows.length;
     // Exclusions can only ever remove matches, so a round that does not strictly
     // reduce the false-positive count cannot help — stop rather than spin.
     if (nextFpCount >= fpRows.length) {
@@ -621,7 +675,16 @@ async function refineExclusionsIteratively(
     currentSpec = nextSpec;
     round += 1;
 
-    if (nextFpCount <= CATEGORY_RULE_COMPOSITE.RULE_MAX_ACCEPTABLE_FP) {
+    if (
+      hasConverged({
+        spec: nextSpec,
+        falsePositiveRows: nextFpRows,
+        categoryRows,
+        normaliseSender,
+        targetCategoryId,
+        familyIdByCategoryId,
+      })
+    ) {
       stopReason = "converged";
       break;
     }
@@ -631,6 +694,7 @@ async function refineExclusionsIteratively(
     currentSpec,
     categoryRows,
     broadRows,
+    familyIdByCategoryId,
     normaliseSender,
     targetCategoryId,
     stopReason,
@@ -647,6 +711,7 @@ function buildRefineOutcome(params: {
   currentSpec: CompositeCategoryRuleSpec;
   categoryRows: DecryptedValidationRow[];
   broadRows: DecryptedValidationRow[];
+  familyIdByCategoryId?: FamilyIdByCategoryId;
   normaliseSender: (raw: string) => string;
   targetCategoryId: string | null;
   stopReason: string;
@@ -656,6 +721,7 @@ function buildRefineOutcome(params: {
     currentSpec,
     categoryRows,
     broadRows,
+    familyIdByCategoryId,
     normaliseSender,
     targetCategoryId,
     stopReason,
@@ -667,22 +733,29 @@ function buildRefineOutcome(params: {
     normaliseSender,
     targetCategoryId,
   ).length;
-  const finalFp = falsePositivesOf(
+  const finalFpRows = falsePositivesOf(
     broadRows,
     currentSpec,
     normaliseSender,
     targetCategoryId,
-  ).length;
+  );
+  const finalFp = finalFpRows.length;
+  const disqualifyingFp = disqualifyingFalsePositivesOf(
+    finalFpRows,
+    finalTp,
+    targetCategoryId,
+    familyIdByCategoryId,
+  );
   const passes =
     specHasExclusion(currentSpec) &&
     passesValidationMatchGate(
       currentSpec,
       finalTp,
-      finalFp,
+      disqualifyingFp,
       categoryRows.length,
     );
   logLine(
-    `branch=refine-done stopReason=${stopReason} finalTP=${finalTp} finalFP=${finalFp} passes=${passes}`,
+    `branch=refine-done stopReason=${stopReason} finalTP=${finalTp} finalFP=${finalFp} toleratedFP=${finalFp - disqualifyingFp} passes=${passes}`,
   );
   return {
     passes,
@@ -712,7 +785,7 @@ export async function deriveExclusionsForCompositeRule(
     logger,
   } = params;
 
-  const { categoryRows, broadRows } =
+  const { categoryRows, broadRows, familyIdByCategoryId } =
     params.windows ??
     (await fetchValidationWindows(
       emailThreadRepository,
@@ -757,18 +830,24 @@ export async function deriveExclusionsForCompositeRule(
     };
   }
 
-  if (falsePositives <= CATEGORY_RULE_COMPOSITE.RULE_MAX_ACCEPTABLE_FP) {
+  const disqualifyingFp = disqualifyingFalsePositivesOf(
+    falsePositiveRows,
+    truePositives,
+    targetCategoryId,
+    familyIdByCategoryId,
+  );
+  if (disqualifyingFp <= CATEGORY_RULE_COMPOSITE.RULE_MAX_ACCEPTABLE_FP) {
     const passes = passesValidationMatchGate(
       positiveSpec,
       truePositives,
-      falsePositives,
+      disqualifyingFp,
       categoryRows.length,
     );
     // Clean, zero-FP candidate. When this fails it is because the sender+phrase
     // spec matched fewer than `minRequired` threads in the target category —
     // i.e. the TP-count gate, NOT exclusions.
     logLine(
-      `branch=clean-zero-fp preTP=${truePositives} preFP=${falsePositives} passes=${passes}`,
+      `branch=clean-zero-fp preTP=${truePositives} preFP=${falsePositives} toleratedFP=${falsePositives - disqualifyingFp} passes=${passes}`,
     );
     return {
       passes,
@@ -787,6 +866,7 @@ export async function deriveExclusionsForCompositeRule(
     positiveSpec,
     categoryRows,
     broadRows,
+    familyIdByCategoryId,
     logLine,
   });
 }

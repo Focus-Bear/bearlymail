@@ -12,8 +12,10 @@ import { encryptionKeyProvider } from "./encryption/encryption-key-provider";
 import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { AllExceptionsFilter } from "./filters/http-exception.filter";
+import { setPromptsLogger } from "./llm/prompts";
 import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
 import { applyLoadBalancerKeepAlive } from "./utils/http-server-timeouts";
+import { logError, logLog, logWarn } from "./utils/logger";
 import { isDevelopment } from "./utils/logs-dir";
 import { securityHeadersMiddleware } from "./utils/security-headers.middleware";
 
@@ -32,6 +34,7 @@ initializeGlobalErrorTracking();
 setupGlobalErrorHandlers("Server");
 
 async function bootstrap() {
+  setPromptsLogger({ log: logLog, warn: logWarn, error: logError });
   const logger = new Logger("Bootstrap");
   // Log the deployed commit SHA so support/devs can identify the exact build from server logs.
   // COMMIT_HASH and BUILD_TIME are injected as Docker build args in the deploy workflow.

@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { logError, logLog, logWarn } from "../utils/logger";
+import type { LoggerPort } from "../shared/email-intelligence/ports";
 import { renderTemplate } from "./prompt-template-renderer";
 
 interface PromptConfig {
@@ -11,6 +11,24 @@ interface PromptConfig {
 }
 
 let promptsCache: Map<string, PromptConfig> | null = null;
+
+/**
+ * Prompt loading runs in the NestJS processes and in the prioritisation Lambda,
+ * so it can't depend on the Nest logger. The server installs its PostHog-backed
+ * logger at startup (setPromptsLogger); anywhere else falls back to console.
+ */
+let promptsLogger: LoggerPort = {
+  log: (message) => process.stdout.write(`${message}\n`),
+  warn: (message) => console.warn(message),
+  error: (message, error) => console.error(message, error ?? ""),
+};
+
+export function setPromptsLogger(logger: LoggerPort): void {
+  promptsLogger = logger;
+}
+
+/** Overrides where prompts are read from (the Lambda bundles its own copy). */
+export const PROMPTS_DIR_ENV = "PROMPTS_DIR";
 
 /**
  * Named constants for summarisation prompt IDs.
@@ -318,7 +336,9 @@ function loadSharedPartial(promptsDir: string, file: string): string {
     ? fs.readFileSync(partialPath, "utf-8").trim()
     : "";
   if (!text) {
-    logWarn(`Shared prompt partial not found or empty: ${partialPath}`);
+    promptsLogger.warn(
+      `Shared prompt partial not found or empty: ${partialPath}`,
+    );
   }
   sharedPartialCache.set(file, text);
   return text;
@@ -374,14 +394,12 @@ function loadPromptFile(
       systemPrompt: systemPromptText,
     });
     if (critical) {
-      logLog(`✅ Loaded prompt: ${key} from ${file}`);
+      promptsLogger.log(`✅ Loaded prompt: ${key} from ${file}`);
     }
   } else if (critical) {
-    logError(`❌ CRITICAL: ${file} not found at ${filePath}`, undefined, {
-      promptPath: filePath,
-    });
+    promptsLogger.error(`❌ CRITICAL: ${file} not found at ${filePath}`);
   } else {
-    logWarn(`${file} not found at ${filePath}`);
+    promptsLogger.warn(`${file} not found at ${filePath}`);
   }
 }
 
@@ -405,6 +423,10 @@ function findServerDir(): string | null {
 
 function resolvePromptsDir(serverDir: string | null): string | null {
   const possiblePaths: string[] = [];
+  const configuredDir = process.env[PROMPTS_DIR_ENV];
+  if (configuredDir) {
+    possiblePaths.push(configuredDir);
+  }
   if (serverDir) {
     // nosemgrep
     possiblePaths.push(path.join(serverDir, "promptfoo/prompts"));
@@ -422,15 +444,13 @@ function resolvePromptsDir(serverDir: string | null): string | null {
     }
   }
 
-  logError(
+  promptsLogger.error(
     `❌ PROMPTS DIRECTORY NOT FOUND. Tried paths: ${possiblePaths.join(", ")}`,
-    undefined,
-    { __dirname, cwd: process.cwd(), serverDir },
   );
-  logError(
+  promptsLogger.error(
     `Current __dirname: ${__dirname}, process.cwd(): ${process.cwd()}, serverDir: ${serverDir}`,
   );
-  logError(
+  promptsLogger.error(
     `This will cause "prompt not found" errors. Check that promptfoo/prompts/ exists relative to the server directory.`,
   );
   return null;
@@ -450,7 +470,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
     return promptsCache;
   }
 
-  logLog(`✅ Prompts directory found at: ${promptsDir}`);
+  promptsLogger.log(`✅ Prompts directory found at: ${promptsDir}`);
 
   try {
     for (const { file, key, critical } of PROMPT_FILE_MAP) {
@@ -491,7 +511,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
       });
     }
   } catch (error) {
-    logError(
+    promptsLogger.error(
       "Failed to load prompts from markdown files",
       error instanceof Error ? error : new Error(String(error)),
     );

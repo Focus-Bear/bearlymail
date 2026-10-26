@@ -120,7 +120,9 @@ export class ProtoCategoriesService {
 
   /** The strong Gemini model used for duplicate decisions (env-overridable). */
   private get strongDedupModel(): string {
-    return resolveStrongGeminiModel(this.configService);
+    return resolveStrongGeminiModel((key) =>
+      this.configService.get<string>(key),
+    );
   }
 
   /**

@@ -52,7 +52,9 @@ export class CategoryRuleSanityService {
 
   /** The model that produced the verdict, recorded alongside it on the rule. */
   get model(): string {
-    return resolveStrongGeminiModel(this.configService);
+    return resolveStrongGeminiModel((key) =>
+      this.configService.get<string>(key),
+    );
   }
 
   async checkRule(

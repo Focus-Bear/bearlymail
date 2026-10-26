@@ -6,12 +6,11 @@
  * nonsense, whereas the same model on the category-only prompt is reliable.
  * The chosen category is handed to the priority prompt as already assigned.
  */
-import type { Logger } from "@nestjs/common";
-
 import type {
   CategoryItem,
-  CategoryShortlistService,
-} from "./category-shortlist.service";
+  CategoryShortlister,
+} from "../shared/email-intelligence/category.types";
+import type { LoggerPort } from "../shared/email-intelligence/ports";
 import {
   categoriseWithEscalation,
   type CategoryModelClient,
@@ -20,18 +19,15 @@ import {
 import type {
   CategoryInstrumentation,
   PriorityResult,
-} from "./priority-analysis.service";
+} from "./priority-analysis.types";
 import type { UserContextInput } from "./priority-context-texts.helper";
 
 export interface PriorityCategoryStepDeps {
   llmCoreService: CategoryModelClient;
   /** Strong Gemini model for escalating Other/LOW verdicts; omit to skip. */
   escalationModel?: string;
-  categoryShortlistService: Pick<
-    CategoryShortlistService,
-    "isShortlistEnabled" | "getShortlistWithMeta"
-  >;
-  logger: Logger;
+  categoryShortlistService: CategoryShortlister;
+  logger: LoggerPort;
 }
 
 const CATEGORY_MODEL_UNAVAILABLE_EXPLANATION =

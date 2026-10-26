@@ -1,5 +1,3 @@
-import type { Logger } from "@nestjs/common";
-
 import {
   AiDecisionProvider,
   JEV_DECISION_PROVIDER,
@@ -7,18 +5,18 @@ import {
 import { JEV } from "../constants/jev.constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { getErrorMessage } from "../types/common";
+import type { LoggerPort } from "../shared/email-intelligence/ports";
 import {
   buildProtoSuggestionFromResponse,
   hasCategoryNumber,
   resolveResponseCategory,
   rewriteCategoryNumberReferences,
 } from "../utils/category-number.util";
+import { getErrorMessage } from "../utils/error-message.util";
 import type { JevDeclinedPick } from "./jev-category-client";
 import { suggestProtoCategory } from "./jev-category-enrichment";
 import { logJevShadowAgreement } from "./jev-confidence-log";
-import { LLMProvider } from "./llm.types";
-import type { LLMCoreService } from "./llm-core.service";
+import { LLMProvider, type LLMRequest } from "./llm.types";
 import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
 
@@ -94,7 +92,7 @@ function normaliseConfidence(raw: unknown): "HIGH" | "MEDIUM" | "LOW" {
  */
 export async function categoriseFromSummary(
   generateText: GenerateText,
-  logger: Logger,
+  logger: LoggerPort,
   params: CategoriseFromSummaryParams,
 ): Promise<CategoriseFromSummaryResult | null> {
   const { subject, senderName, senderEmail, summary, categories, userId } =
@@ -203,15 +201,26 @@ export async function categoriseFromSummary(
   }
 }
 
-export type CategoryModelClient = Pick<LLMCoreService, "generateText"> &
-  Partial<Pick<LLMCoreService, "categoriseWithJev">>;
+/** The LLM access the categoriser needs; LLMCoreService and the Lambda's client both fit. */
+export interface CategoryModelClient {
+  generateText(
+    request: LLMRequest,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<string>;
+  /** Jev-first selection; absent where Jev isn't configured. */
+  categoriseWithJev?(
+    params: CategoriseFromSummaryParams,
+    onDeclined?: (pick: JevDeclinedPick) => void,
+  ): Promise<CategoriseFromSummaryResult | null>;
+}
 
 export const CATEGORY_FALLBACK_PROVIDER = LLMProvider.GEMINI;
 
 /** Selects a category; new-category generation is a separate enrichment step. */
 export async function categoriseOnlyWithEscalation(
   llmCoreService: CategoryModelClient,
-  logger: Logger,
+  logger: LoggerPort,
   params: CategoriseFromSummaryParams,
 ): Promise<CategoriseFromSummaryResult | null> {
   if (!params.summary?.trim() || !params.categories.length) return null;
@@ -231,7 +240,7 @@ export async function categoriseOnlyWithEscalation(
 
 /** Content-free record of whether Gemini agreed with the pick Jev was not trusted with. */
 function logShadowAgreement(
-  logger: Logger,
+  logger: LoggerPort,
   declinedPick: JevDeclinedPick | null,
   chosen: CategoriseFromSummaryResult | null,
 ): void {
@@ -246,7 +255,7 @@ function logShadowAgreement(
 /** Gemini Flash Lite, escalating to the stronger model on Other / LOW confidence. */
 async function categoriseWithGemini(
   llmCoreService: CategoryModelClient,
-  logger: Logger,
+  logger: LoggerPort,
   params: CategoriseFromSummaryParams,
 ): Promise<CategoriseFromSummaryResult | null> {
   const runWith = async (provider: LLMProvider, model?: string) => {
@@ -299,7 +308,7 @@ async function categoriseWithGemini(
 
 export async function categoriseWithEscalation(
   client: CategoryModelClient,
-  logger: Logger,
+  logger: LoggerPort,
   params: CategoriseFromSummaryParams,
 ): Promise<CategoriseFromSummaryResult | null> {
   const result = await categoriseOnlyWithEscalation(client, logger, params);

@@ -152,6 +152,7 @@ Need to modify something? Here's where to find it:
 | **Email sync logic**                             | `server/src/emails/email-sync.processor.ts`                                  |
 | **Inbox query (triage/action/follow-up)**        | `server/src/emails/emails.service.ts` → `getInbox()`                         |
 | **Priority calculation**                         | `server/src/llm/priority-analysis.service.ts`                                |
+| **Batch categorise + prioritise logic (shared with the Lambda)** | `server/src/shared/email-intelligence/` (framework-free; no NestJS/TypeORM imports, enforced by `email-intelligence.boundary.spec.ts`) |
 | **Categorisation pipeline (how categoryId is decided)** | [`docs/categorisation-pipeline.md`](docs/categorisation-pipeline.md)  |
 | **Email open tracking (pixel, stats)**           | `server/src/email-tracking/` (`TrackedEmailSender` = the send choke point, `tracking-pixel.controller.ts` = public `/t/o/<token>.gif`) |
 | **Email summarization**                          | `server/src/summarization/summarization.service.ts`                          |

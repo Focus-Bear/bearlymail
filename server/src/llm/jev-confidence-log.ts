@@ -1,5 +1,4 @@
-import type { Logger } from "@nestjs/common";
-
+import type { LoggerPort } from "../shared/email-intelligence/ports";
 /**
  * Prefix of the one-line, content-free record written for every Jev answer,
  * accepted or not, so acceptance thresholds can be calibrated from production
@@ -56,7 +55,7 @@ export function formatJevConfidenceRecord(record: JevConfidenceRecord): string {
 }
 
 export function logJevConfidence(
-  logger: Pick<Logger, "log">,
+  logger: Pick<LoggerPort, "log">,
   record: JevConfidenceRecord,
 ): void {
   logger.log(formatJevConfidenceRecord(record));
@@ -85,7 +84,7 @@ export function formatJevShadowRecord(record: JevShadowRecord): string {
 }
 
 export function logJevShadowAgreement(
-  logger: Pick<Logger, "log">,
+  logger: Pick<LoggerPort, "log">,
   record: JevShadowRecord,
 ): void {
   logger.log(formatJevShadowRecord(record));

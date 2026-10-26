@@ -1,5 +1,10 @@
 import { Request } from "express";
 
+// Moved to a framework-free module so shared code can use them without express.
+import { getErrorMessage, isError } from "../utils/error-message.util";
+
+export { getErrorMessage, isError };
+
 /**
  * Common type definitions to replace `any` types throughout the codebase
  */
@@ -188,13 +193,6 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 /**
- * Type guard to check if error is a standard Error
- */
-export function isError(error: unknown): error is Error {
-  return error instanceof Error;
-}
-
-/**
  * Database error type (PostgreSQL/TypeORM errors)
  */
 export interface DatabaseError {
@@ -211,22 +209,6 @@ export function isDatabaseError(error: unknown): error is DatabaseError {
     error !== null &&
     ("code" in error || "message" in error)
   );
-}
-
-/**
- * Safely extract error message from unknown error
- */
-export function getErrorMessage(error: unknown): string {
-  if (isError(error)) {
-    return error.message;
-  }
-  if (isApiError(error)) {
-    return error.message || error.error || "Unknown API error";
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  return "Unknown error";
 }
 
 /**

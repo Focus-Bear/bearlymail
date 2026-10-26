@@ -1,8 +1,10 @@
-import type { Logger } from "@nestjs/common";
-
 import { JEV } from "../constants/jev.constants";
 import { PERCENTAGES } from "../constants/percentages";
 import { ENV_BOOLEAN_STRING } from "../constants/service-constants";
+import type {
+  LoggerPort,
+  TokenUsageSink,
+} from "../shared/email-intelligence/ports";
 import {
   buildJevCategoryRequest,
   type JevCategoryAnswer,
@@ -18,7 +20,6 @@ import type {
   CategoriseFromSummaryResult,
 } from "./llm-categorise-summary";
 import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
-import type { TokenUsageService } from "./token-usage.service";
 
 /** Jev's below-threshold pick, reported only so agreement with the fallback can be measured. */
 export interface JevDeclinedPick {
@@ -29,8 +30,8 @@ export interface JevDeclinedPick {
 export class JevCategoryClient {
   constructor(
     private readonly getConfig: (key: string) => string | undefined,
-    private readonly logger: Pick<Logger, "warn" | "log">,
-    private readonly tokenUsage: Pick<TokenUsageService, "logUsage">,
+    private readonly logger: Pick<LoggerPort, "warn" | "log">,
+    private readonly tokenUsage: TokenUsageSink,
   ) {}
 
   async categorise(

@@ -1,0 +1,957 @@
+/**
+ * Batch categorise + prioritise, framework-free. Phase 1 triages emails that
+ * already have scores on a cheap model; phase 2 runs, per email, the category
+ * step (Jev first, Gemini on uncertainty) and then the priority prompt (Jev
+ * first, Nova on uncertainty). The NestJS worker (PriorityAnalysisService) and
+ * the prioritisation Lambda both run this class, each supplying the ports.
+ */
+import type { AiDecisionProvider } from "../../constants/ai-decision-provider.constants";
+import { JEV_DECISION_KINDS } from "../../constants/jev.constants";
+import {
+  BODY_PREVIEW_LENGTHS,
+  PRIORITY_ANALYSIS_FALLBACK,
+  PRIORITY_BATCH_LLM_CONCURRENCY,
+  TRIAGE_PRESERVED_CATEGORY,
+  TRIAGE_PRESERVED_EXPLANATIONS,
+} from "../../constants/llm-constants";
+import { RATIOS } from "../../constants/percentages";
+import { QUERY_LIMITS } from "../../constants/query-limits";
+import { StructuralError } from "../../errors/structural-error";
+import { cleanEmailContent } from "../../llm/email-content-cleaner";
+import { LLMProvider } from "../../llm/llm.types";
+import type { CategoryModelClient } from "../../llm/llm-categorise-summary";
+import {
+  LLM_OP_ANALYZE_PRIORITY,
+  LLM_OP_BATCH_PRIORITY_TRIAGE,
+} from "../../llm/llm-operations";
+import type {
+  BatchPriorityResult,
+  CategoryConfidence,
+  CategoryInstrumentation,
+  PriorityResult,
+} from "../../llm/priority-analysis.types";
+import { chooseEmailCategory } from "../../llm/priority-category-step";
+import {
+  buildUserContextTexts,
+  UserContextInput,
+} from "../../llm/priority-context-texts.helper";
+import { resolvePriorityProvider } from "../../llm/priority-provider.util";
+import {
+  getPrompt,
+  PRIORITY_PROMPT_IDS,
+  renderPrompt,
+} from "../../llm/prompts";
+import { resolveStrongGeminiModel } from "../../llm/strong-gemini-model.helper";
+import { resolveLlmCategoryToDisplayName } from "../../utils/category-key.util";
+import {
+  buildProtoSuggestionFromResponse,
+  hasCategoryNumber,
+  resolveResponseCategory,
+  rewriteCategoryNumberReferences,
+} from "../../utils/category-number.util";
+import { mapWithConcurrency } from "../../utils/concurrency.util";
+import { formatDateTimeForPrompt } from "../../utils/timezone.utils";
+import type { CategoryItem, CategoryShortlister } from "./category.types";
+import type { ConfigReader, ErrorReporter, LoggerPort } from "./ports";
+
+/** Env var overriding the triage model (Bedrock path). */
+const TRIAGE_MODEL_CONFIG_KEY = "CATEGORY_TRIAGE_MODEL";
+
+/** The LLM access the analyzer needs: the categoriser's client plus the default provider. */
+export interface PriorityModelClient extends CategoryModelClient {
+  getDefaultProvider(): LLMProvider;
+}
+
+export interface PriorityAnalyzerDeps {
+  llm: PriorityModelClient;
+  categoryShortlist: CategoryShortlister;
+  logger: LoggerPort;
+  errorReporter: ErrorReporter;
+  getConfig: ConfigReader;
+}
+
+const DEFAULT_TRIAGE_MODEL = "amazon.nova-micro-v1:0";
+
+// Sent as the assigned category when a deterministic rule already pinned it:
+// the caller overrides the LLM's category downstream, so the prompt only needs
+// one clarifying line. Category selection never happens in the priority prompt.
+const CATEGORY_PRE_ASSIGNED_PLACEHOLDER: CategoryItem = {
+  name: "(category already assigned by a rule — score urgency & goal alignment only)",
+};
+
+function buildThreadInfoText(threadInfo?: {
+  daysSinceLastReply?: number;
+  userShouldReply?: boolean;
+  lastReplyFrom?: string;
+}): string {
+  if (!threadInfo) return "";
+  return `\nThread Information:\n${
+    threadInfo.daysSinceLastReply !== undefined
+      ? `- Days since last reply: ${threadInfo.daysSinceLastReply}`
+      : ""
+  }${
+    threadInfo.userShouldReply !== undefined
+      ? `\n- User should reply: ${threadInfo.userShouldReply ? "Yes" : "No"}`
+      : ""
+  }${threadInfo.lastReplyFrom ? `\n- Last reply from: ${threadInfo.lastReplyFrom}` : ""}`;
+}
+
+export type BatchEmailInput = {
+  emailKey: string;
+  from: string;
+  fromName?: string;
+  senderJobTitle?: string;
+  subject: string;
+  body: string;
+  receivedAt?: Date;
+  preComputedSentimentScore?: number;
+  /** Existing urgency score on the thread (0–100), used by the triage prompt to detect significant changes. */
+  existingUrgencyScore?: number;
+  /** Existing category name for the thread, used by the triage prompt to evaluate category shift. */
+  existingCategory?: string;
+};
+
+export type IndividualAnalysisOptions = {
+  userContext?: UserContextInput;
+  provider?: LLMProvider;
+  userId?: string;
+  userTimezone?: string;
+};
+
+export class PriorityAnalyzer {
+  constructor(private readonly deps: PriorityAnalyzerDeps) {}
+
+  /**
+   * Structured per-call analytics for the analyze_priority prompt shape. Category
+   * shortlisting only runs above SHORTLIST_THRESHOLD (12) categories, so for most
+   * users the FULL list is sent every call — the dominant prompt-token driver.
+   * Logs whether the shortlist fired, how many categories were actually sent, and
+   * a char-count proxy for prompt size, so shortlist coverage is queryable.
+   */
+  private logPromptShape(args: {
+    userId?: string;
+    categoryPreAssigned: boolean;
+    instrumentation: CategoryInstrumentation;
+    effectiveCategoryCount: number;
+    promptChars: number;
+  }): void {
+    this.deps.logger.log(
+      JSON.stringify({
+        event: "analyze_priority_prompt_shape",
+        userId: args.userId,
+        categoryPreAssigned: args.categoryPreAssigned,
+        shortlistApplied:
+          args.instrumentation.shortlistedCategoryNames !== null,
+        effectiveCategoryCount: args.effectiveCategoryCount,
+        totalCategoryCount: args.instrumentation.totalCategoryCount,
+        protoCategoryCount: args.instrumentation.protoCategoryCount,
+        promptChars: args.promptChars,
+      }),
+    );
+  }
+
+  /**
+   * Build the priority prompt for a single email.
+   * Loads the prompt template, formats user context and thread info, and renders the prompt string.
+   * When the category shortlist feature is enabled and category count exceeds the threshold,
+   * a cheap model pre-filters the category list to the top-N most relevant candidates.
+   */
+  private async buildPriorityPrompt(options: {
+    email: {
+      from: string;
+      fromName?: string;
+      senderJobTitle?: string;
+      subject: string;
+      body: string;
+      receivedAt?: Date;
+    };
+    userHistory?: { averageTimeToReply?: number };
+    userContext?: UserContextInput;
+    threadInfo?: {
+      daysSinceLastReply?: number;
+      userShouldReply?: boolean;
+      lastReplyFrom?: string;
+    };
+    userId?: string;
+    userTimezone?: string;
+    /** The category already chosen for this email (by a rule or the categoriser). */
+    assignedCategory: CategoryItem;
+    cleanedBody: string;
+  }): Promise<{
+    prompt: string;
+    systemPrompt: string;
+    orderedCategoryNames: string[];
+    /** False when the prompt shows "No goals defined" (nothing to align with). */
+    hasGoals: boolean;
+  }> {
+    const {
+      email,
+      userHistory,
+      userContext,
+      threadInfo,
+      userId,
+      userTimezone,
+      assignedCategory,
+      cleanedBody,
+    } = options;
+    const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
+    if (!promptConfig) {
+      const error = new StructuralError(
+        "Prompt template not found: analyze_priority. Expected file: prioritise-email.md in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.",
+      );
+      this.deps.logger.error("analyze_priority prompt not found", error);
+      this.deps.errorReporter.captureException(error, userId, {
+        operation: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
+        promptId: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
+      });
+      throw error;
+    }
+
+    // Date AND time (in the user's timezone) so the model can score deadline
+    // proximity correctly — e.g. an event cancellation received at 10:44 PM the
+    // night before the event is time-critical, not "reschedule whenever".
+    const currentDateStr = formatDateTimeForPrompt(new Date(), userTimezone);
+    const receivedAtStr = email.receivedAt
+      ? formatDateTimeForPrompt(email.receivedAt, userTimezone)
+      : "";
+
+    // The priority prompt only ever sees the one assigned category; it scores
+    // urgency and goal alignment and echoes the category back as number 1.
+    const effectiveCategories = [assignedCategory];
+    const orderedCategoryNames = effectiveCategories.map((cat) => cat.name);
+
+    const effectiveUserContext: UserContextInput = {
+      ...(userContext ?? {}),
+      emailCategories: effectiveCategories,
+      protoCategories: [],
+    };
+
+    const contextTexts = buildUserContextTexts(effectiveUserContext);
+
+    const prompt = renderPrompt(promptConfig.prompt, {
+      from: email.fromName || email.from,
+      fromName: email.fromName || email.from,
+      senderJobTitle: email.senderJobTitle || "",
+      subject: email.subject,
+      body: cleanedBody,
+      averageTimeToReply: userHistory?.averageTimeToReply,
+      currentDate: currentDateStr,
+      receivedAt: receivedAtStr,
+      urgentContext: contextTexts.urgentContextText,
+      notUrgentContext: contextTexts.notUrgentContextText,
+      goalsContext: contextTexts.goalsContextText,
+      workingOnContext: contextTexts.workingOnContextText,
+      dontCareContext: contextTexts.dontCareContextText,
+      emailCategories: contextTexts.emailCategoriesText,
+      threadInfo: buildThreadInfoText(threadInfo),
+    });
+
+    return {
+      prompt,
+      systemPrompt: promptConfig.systemPrompt || "",
+      orderedCategoryNames,
+      hasGoals: !!(
+        contextTexts.goalsContextText || contextTexts.workingOnContextText
+      ),
+    };
+  }
+
+  /**
+   * Parse a successful LLM priority response JSON into a PriorityResult.
+   * Returns null if the JSON doesn't contain a valid priority object.
+   */
+  private applyCategoryKeyResolution(
+    result: PriorityResult,
+    userContext?: UserContextInput,
+  ): PriorityResult {
+    const emailCats = userContext?.emailCategories ?? [];
+    const protoCats = userContext?.protoCategories ?? [];
+    if (emailCats.length === 0 && protoCats.length === 0) {
+      return result;
+    }
+    const resolved = resolveLlmCategoryToDisplayName(
+      result.category,
+      emailCats,
+      protoCats,
+    );
+    if (resolved === result.category) {
+      return result;
+    }
+    return { ...result, category: resolved };
+  }
+
+  private parsePriorityResponse(
+    response: string,
+    preComputedSentimentScore: number | undefined,
+    emailSubject: string,
+    userId: string | undefined,
+    orderedCategoryNames: string[] = [],
+  ): PriorityResult | null {
+    const responsePreview = response.substring(
+      0,
+      QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
+    );
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      this.deps.logger.error(
+        `analyzePriority: LLM returned a non-JSON response - falling back to heuristics. Email subject: "${emailSubject}". Response preview: "${responsePreview}"`,
+      );
+      this.deps.errorReporter.captureException(
+        new Error(
+          `LLM priority response contained no JSON object. Response preview: ${responsePreview}`,
+        ),
+        userId,
+        { operation: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY, responsePreview },
+      );
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const analysisResult =
+      parsed.result && typeof parsed.result === "object"
+        ? parsed.result
+        : parsed;
+    // The LLM reports its pick twice — categoryName and categoryNumber — and
+    // resolveResponseCategory reconciles them: an exact categoryName match wins
+    // (weak models reliably name the right category but miscount its position),
+    // otherwise it falls back to categoryNumber (1-based index, 0 = Other), then
+    // a legacy `category` name for older response shapes. Matching is always
+    // exact — never fuzzy — so a fabricated name can't mis-route.
+    const category = resolveResponseCategory(
+      analysisResult,
+      orderedCategoryNames,
+    );
+
+    return {
+      urgencyScore: Math.max(
+        0,
+        Math.min(100, analysisResult.urgencyScore || 0),
+      ),
+      urgencyExplanation:
+        analysisResult.urgencyExplanation || "No urgency explanation provided",
+      sentimentScore:
+        preComputedSentimentScore !== undefined
+          ? preComputedSentimentScore
+          : undefined,
+      goalAlignmentScore: Math.max(
+        0,
+        Math.min(100, analysisResult.goalAlignmentScore || 0),
+      ),
+      goalAlignmentExplanation:
+        analysisResult.goalAlignmentExplanation ||
+        "No goal alignment explanation provided",
+      category,
+      // Mirror resolveResponseCategory's tolerance for stringified numbers so
+      // the logged instrumentation matches what actually resolved the category.
+      categoryNumber: hasCategoryNumber(analysisResult.categoryNumber)
+        ? Number(analysisResult.categoryNumber)
+        : null,
+      // The prompt bans positional refs, but models still write "category 1" —
+      // rewrite to real names since the user never sees the numbered list.
+      categoryExplanation: rewriteCategoryNumberReferences(
+        analysisResult.categoryExplanation ||
+          "No category explanation provided",
+        orderedCategoryNames,
+      ),
+      categoryConfidence:
+        analysisResult.categoryConfidence === "HIGH" ||
+        analysisResult.categoryConfidence === "MEDIUM" ||
+        analysisResult.categoryConfidence === "LOW"
+          ? (analysisResult.categoryConfidence as CategoryConfidence)
+          : undefined,
+      reasoning: rewriteCategoryNumberReferences(
+        analysisResult.reasoning || "No reasoning provided",
+        orderedCategoryNames,
+      ),
+      protoCategorySuggestion: buildProtoSuggestionFromResponse(
+        analysisResult,
+        category,
+        orderedCategoryNames,
+      ),
+      // Placeholder — overridden by analyzePriority after buildPriorityPrompt runs the shortlist
+      shortlistedCategoryNames: null,
+    };
+  }
+
+  /**
+   * Build a keyword-based fallback PriorityResult when LLM parsing fails.
+   */
+  private buildFallbackPriorityResult(
+    response: string,
+    preComputedSentimentScore: number | undefined,
+  ): PriorityResult {
+    const urgencyKeywords = /urgent|asap|critical|emergency/i.test(response);
+    const urgencyScore = urgencyKeywords
+      ? PRIORITY_ANALYSIS_FALLBACK.URGENCY_KEYWORDS_DETECTED
+      : PRIORITY_ANALYSIS_FALLBACK.URGENCY_NO_KEYWORDS;
+
+    return {
+      urgencyScore,
+      urgencyExplanation: urgencyKeywords
+        ? "Contains urgent keywords"
+        : "No urgent indicators detected",
+      sentimentScore: preComputedSentimentScore,
+      goalAlignmentScore: 0,
+      goalAlignmentExplanation: "No goal alignment detected",
+      category: "Other",
+      categoryExplanation: "Unable to categorize - fallback response",
+      reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
+      shortlistedCategoryNames: null,
+    };
+  }
+
+  /**
+   * Runs the category step unless a deterministic rule already pinned the
+   * category, in which case only the count instrumentation is produced.
+   */
+  private async runCategoryStep(options: {
+    email: { from: string; fromName?: string; subject: string };
+    userContext?: UserContextInput;
+    cleanedBody: string;
+    githubFacts?: string | null;
+    userId?: string;
+    categoryPreAssigned: boolean;
+  }): Promise<{
+    chosen: Awaited<ReturnType<typeof chooseEmailCategory>> | null;
+    instrumentation: CategoryInstrumentation;
+  }> {
+    const {
+      email,
+      userContext,
+      cleanedBody,
+      githubFacts,
+      userId,
+      categoryPreAssigned,
+    } = options;
+    if (!categoryPreAssigned) {
+      const chosen = await chooseEmailCategory(
+        {
+          llmCoreService: this.deps.llm,
+          categoryShortlistService: this.deps.categoryShortlist,
+          logger: this.deps.logger,
+          escalationModel: resolveStrongGeminiModel(this.deps.getConfig),
+        },
+        { email, userContext, cleanedBody, githubFacts, userId },
+      );
+      return { chosen, instrumentation: chosen.instrumentation };
+    }
+    const protoCategoryCount = userContext?.protoCategories?.length ?? 0;
+    return {
+      chosen: null,
+      instrumentation: {
+        shortlistedCategoryNames: null,
+        shortlistCandidates: null,
+        totalCategoryCount:
+          (userContext?.emailCategories?.length ?? 0) + protoCategoryCount,
+        protoCategoryCount,
+      },
+    };
+  }
+
+  // eslint-disable-next-line max-lines-per-function
+  async analyzePriority(options: {
+    email: {
+      from: string;
+      fromName?: string;
+      senderJobTitle?: string;
+      subject: string;
+      body: string;
+      receivedAt?: Date;
+    };
+    userHistory?: {
+      averageTimeToReply?: number;
+      similarEmailsReplyTime?: number;
+    };
+    provider?: LLMProvider;
+    userId?: string;
+    userContext?: UserContextInput;
+    threadInfo?: {
+      daysSinceLastReply?: number;
+      userShouldReply?: boolean;
+      lastReplyFrom?: string;
+    };
+    preComputedSentimentScore?: number;
+    /** IANA timezone used to render current/received times in the prompt. Falls back to UTC. */
+    userTimezone?: string;
+    /** True when a deterministic rule already assigned the category — skips the
+     * category list + shortlist in the prompt (the LLM's category is discarded). */
+    categoryPreAssigned?: boolean;
+    /** Authoritative GitHub facts line handed to the category step, when any. */
+    githubFacts?: string | null;
+  }): Promise<PriorityResult> {
+    const {
+      email,
+      userHistory,
+      provider,
+      userId,
+      userContext,
+      threadInfo,
+      preComputedSentimentScore,
+      userTimezone,
+      categoryPreAssigned,
+      githubFacts,
+    } = options;
+    const cleanedBody = cleanEmailContent(
+      email.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
+
+    // Category first, always via the category-only prompt (unless a rule
+    // already pinned it); the priority prompt then scores the assigned category.
+    const { chosen, instrumentation } = await this.runCategoryStep({
+      email,
+      userContext,
+      cleanedBody,
+      githubFacts,
+      userId,
+      categoryPreAssigned: categoryPreAssigned === true,
+    });
+
+    const { prompt, systemPrompt, orderedCategoryNames, hasGoals } =
+      await this.buildPriorityPrompt({
+        email,
+        userHistory,
+        userContext,
+        threadInfo,
+        userId,
+        userTimezone,
+        assignedCategory:
+          chosen?.assignedCategory ?? CATEGORY_PRE_ASSIGNED_PLACEHOLDER,
+        cleanedBody,
+      });
+
+    this.logPromptShape({
+      userId,
+      categoryPreAssigned: categoryPreAssigned === true,
+      instrumentation,
+      effectiveCategoryCount: chosen?.candidateCount ?? 0,
+      promptChars: prompt.length + systemPrompt.length,
+    });
+
+    const priorityRoute = resolvePriorityProvider(
+      provider,
+      this.deps.llm.getDefaultProvider(),
+      this.deps.getConfig,
+    );
+
+    let priorityDecisionProvider: AiDecisionProvider | null = null;
+    const response = await this.deps.llm.generateText(
+      {
+        prompt,
+        systemPrompt,
+        temperature: RATIOS.ZERO,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        userId,
+        operation: LLM_OP_ANALYZE_PRIORITY,
+        jsonMode: true,
+        model: priorityRoute.model,
+        // Jev scores first; uncertain or failed answers fall back to this prompt.
+        jevDecision: {
+          kind: JEV_DECISION_KINDS.PRIORITY_SCORES,
+          input: { assignedCategoryName: orderedCategoryNames[0], hasGoals },
+        },
+        onProviderResolved: (resolved) => {
+          priorityDecisionProvider = resolved;
+        },
+      },
+      priorityRoute.provider,
+      userId,
+    );
+
+    const responsePreview = response.substring(
+      0,
+      QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
+    );
+
+    try {
+      const parsed = this.parsePriorityResponse(
+        response,
+        preComputedSentimentScore,
+        email.subject,
+        userId,
+        orderedCategoryNames,
+      );
+      if (parsed) {
+        // The category came from the categoriser, not from this response.
+        const withCategory = chosen
+          ? { ...parsed, ...chosen.categoryFields }
+          : parsed;
+        return {
+          ...this.applyCategoryKeyResolution(withCategory, userContext),
+          ...instrumentation,
+          priorityDecisionProvider,
+        };
+      }
+    } catch (error) {
+      this.deps.logger.error(
+        `analyzePriority: Failed to parse LLM priority response as JSON - falling back to heuristics. Email subject: "${email.subject}". Response preview: "${responsePreview}"`,
+        error,
+      );
+      this.deps.errorReporter.captureException(error as Error, userId, {
+        operation: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
+        responsePreview,
+      });
+    }
+
+    return {
+      ...this.buildFallbackPriorityResult(response, preComputedSentimentScore),
+      ...(chosen?.categoryFields ?? {}),
+      ...instrumentation,
+    };
+  }
+
+  /**
+   * Build the batch triage prompt using the `batch-priority-triage.md` template.
+   *
+   * The triage step is lightweight: it only flags whether each email needs a full
+   * re-analysis (needsReanalysis: true/false). It does NOT choose categories or
+   * compute scores. Emails flagged for reanalysis are then passed individually
+   * through the two-step shortlist → smart-prompt pipeline.
+   */
+  private buildBatchTriagePrompt(
+    emails: BatchEmailInput[],
+    userId: string | undefined,
+  ): { prompt: string; systemPrompt: string } {
+    const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.BATCH_PRIORITY_TRIAGE);
+    if (!promptConfig) {
+      const error = new StructuralError(
+        "Prompt template not found: batch_priority_triage. Expected file: batch-priority-triage.md in server/promptfoo/prompts/ directory.",
+      );
+      this.deps.logger.error("batch_priority_triage prompt not found", error);
+      this.deps.errorReporter.captureException(error, userId, {
+        operation: LLM_OP_BATCH_PRIORITY_TRIAGE,
+        promptId: PRIORITY_PROMPT_IDS.BATCH_PRIORITY_TRIAGE,
+      });
+      throw error;
+    }
+
+    const emailList = emails
+      .map((email, index) => {
+        const cleanedBody = cleanEmailContent(
+          email.body,
+          null,
+          BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
+        );
+        const categoryHint = `\nExisting category: ${email.existingCategory ?? "unassigned"}`;
+        const urgencyHint =
+          email.existingUrgencyScore !== undefined
+            ? `\nExisting urgency score: ${email.existingUrgencyScore}/100`
+            : "";
+        return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
+From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
+Subject: ${email.subject}
+Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
+      })
+      .join("\n\n");
+
+    const prompt = renderPrompt(promptConfig.prompt, { emailList });
+    return { prompt, systemPrompt: promptConfig.systemPrompt || "" };
+  }
+
+  /**
+   * Parse the triage LLM response into a set of email keys that need reanalysis.
+   *
+   * Accepts `{ "results": [{ "key": "...", "needsReanalysis": true/false }] }`.
+   * On any parse failure, returns null (caller should fall back to analysing all emails).
+   */
+  private parseTriageResponse(
+    response: string,
+    emails: BatchEmailInput[],
+  ): Set<string> | null {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        this.deps.logger.warn(
+          "[analyzePriorityBatch] Triage response contained no JSON object — will reanalyse all emails",
+        );
+        return null;
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      if (!parsed || !Array.isArray(parsed["results"])) {
+        this.deps.logger.warn(
+          "[analyzePriorityBatch] Triage response missing `results` array — will reanalyse all emails",
+        );
+        return null;
+      }
+
+      const needsReanalysis = new Set<string>();
+      const validKeys = new Set(emails.map((email) => email.emailKey));
+      const mentionedKeys = new Set<string>();
+
+      for (const item of parsed["results"] as unknown[]) {
+        const entry = item as Record<string, unknown>;
+        const key = entry["key"] as string | undefined;
+        if (key && validKeys.has(key)) {
+          mentionedKeys.add(key);
+          if (entry["needsReanalysis"] === true) {
+            needsReanalysis.add(key);
+          }
+        }
+      }
+
+      // Fail-open: keys omitted from the triage response must be reanalysed
+      for (const email of emails) {
+        if (!mentionedKeys.has(email.emailKey)) {
+          this.deps.logger.warn(
+            `[analyzePriorityBatch] Triage response omitted key "${email.emailKey}" — forcing reanalysis`,
+          );
+          needsReanalysis.add(email.emailKey);
+        }
+      }
+
+      return needsReanalysis;
+    } catch (error) {
+      this.deps.logger.error(
+        "[analyzePriorityBatch] Failed to parse triage response — will reanalyse all emails",
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Fill in sentinel fallback entries for any emails missing from the batch results.
+   * Callers MUST check isFallback and skip DB writes to avoid overwriting valid scores.
+   */
+  private fillFallbackEntries(
+    results: Map<string, BatchPriorityResult>,
+    emails: BatchEmailInput[],
+  ): void {
+    const missingEmailKeys: string[] = [];
+    for (const email of emails) {
+      if (!results.has(email.emailKey)) {
+        missingEmailKeys.push(email.emailKey);
+        results.set(email.emailKey, {
+          urgencyScore: 0,
+          urgencyExplanation: "Batch analysis failed for this email",
+          sentimentScore: undefined,
+          goalAlignmentScore: 0,
+          goalAlignmentExplanation: "Batch analysis failed for this email",
+          category: "Other",
+          categoryExplanation: "Batch analysis failed",
+          reasoning: "Batch analysis did not return results for this email",
+          shortlistedCategoryNames: null,
+          isFallback: true,
+        });
+      }
+    }
+
+    if (missingEmailKeys.length > 0) {
+      this.deps.logger.error(
+        `analyzePriorityBatch: ${missingEmailKeys.length} of ${emails.length} emails were missing from LLM batch response and received fallback values. Missing email keys: [${missingEmailKeys.join(", ")}]`,
+      );
+    }
+  }
+
+  /**
+   * Phase 1 — Triage: run the cheap triage model against emails that already have scores.
+   * Marks triage-preserved emails in `results` and returns the set of emails needing full
+   * reanalysis (new emails always included; existing emails only if triage flags them).
+   * Falls back to returning all emails if the triage call or parse fails.
+   */
+  private async runTriagePhase(
+    emails: BatchEmailInput[],
+    emailsNeedingTriage: BatchEmailInput[],
+    emailsWithoutAnalysis: BatchEmailInput[],
+    results: Map<string, BatchPriorityResult>,
+    userId: string | undefined,
+  ): Promise<BatchEmailInput[]> {
+    if (emailsNeedingTriage.length === 0) {
+      this.deps.logger.log(
+        `analyzePriorityBatch: no emails with existing analysis — skipping triage, analysing all ${emails.length} emails individually`,
+      );
+      return emails;
+    }
+    try {
+      const { prompt: triagePrompt, systemPrompt: triageSystemPrompt } =
+        this.buildBatchTriagePrompt(emailsNeedingTriage, userId);
+      // Triage runs on the cheap/fast Nova Micro (Bedrock) path in the cloud,
+      // but a local (claude-cli) install has no Bedrock access — use the
+      // configured default there instead of forcing Bedrock.
+      const useClaudeCli =
+        this.deps.llm.getDefaultProvider() === LLMProvider.CLAUDE_CLI;
+      const triageProvider = useClaudeCli
+        ? LLMProvider.CLAUDE_CLI
+        : LLMProvider.BEDROCK;
+      // claude-cli resolves its own model, so leave it unset there (a Nova model
+      // id would be meaningless to it); the Bedrock path uses Nova Micro.
+      const configuredTriageModel = this.deps.getConfig(
+        TRIAGE_MODEL_CONFIG_KEY,
+      );
+      const triageModel = useClaudeCli
+        ? configuredTriageModel
+        : (configuredTriageModel ?? DEFAULT_TRIAGE_MODEL);
+      const triageResponse = await this.deps.llm.generateText(
+        {
+          prompt: triagePrompt,
+          systemPrompt: triageSystemPrompt,
+          temperature: 0,
+          maxTokens:
+            emailsNeedingTriage.length *
+            QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
+          userId,
+          operation: LLM_OP_BATCH_PRIORITY_TRIAGE,
+          jsonMode: true,
+          model: triageModel,
+        },
+        triageProvider,
+        userId,
+      );
+      const flaggedKeys = this.parseTriageResponse(
+        triageResponse,
+        emailsNeedingTriage,
+      );
+      if (flaggedKeys !== null) {
+        for (const email of emailsNeedingTriage) {
+          if (!flaggedKeys.has(email.emailKey)) {
+            results.set(email.emailKey, {
+              urgencyScore: -1,
+              urgencyExplanation: TRIAGE_PRESERVED_EXPLANATIONS.URGENCY,
+              sentimentScore: email.preComputedSentimentScore,
+              goalAlignmentScore: -1,
+              goalAlignmentExplanation:
+                TRIAGE_PRESERVED_EXPLANATIONS.GOAL_ALIGNMENT,
+              category: TRIAGE_PRESERVED_CATEGORY,
+              categoryExplanation: TRIAGE_PRESERVED_EXPLANATIONS.CATEGORY,
+              reasoning: TRIAGE_PRESERVED_EXPLANATIONS.REASONING,
+              shortlistedCategoryNames: null,
+              isFallback: false,
+              triagePreserved: true,
+            });
+          }
+        }
+        const flaggedFromTriage = emailsNeedingTriage.filter((email) =>
+          flaggedKeys.has(email.emailKey),
+        );
+        const emailsToAnalyse = [
+          ...emailsWithoutAnalysis,
+          ...flaggedFromTriage,
+        ];
+        this.deps.logger.log(
+          `analyzePriorityBatch: triage flagged ${flaggedFromTriage.length}/${emailsNeedingTriage.length} existing + ${emailsWithoutAnalysis.length} new = ${emailsToAnalyse.length}/${emails.length} total for reanalysis`,
+        );
+        return emailsToAnalyse;
+      }
+      this.deps.logger.warn(
+        "analyzePriorityBatch: triage parse failed — reanalysing all emails",
+      );
+    } catch (error) {
+      this.deps.logger.error(
+        `analyzePriorityBatch: Triage LLM call failed for ${emailsNeedingTriage.length} emails — reanalysing all`,
+        error,
+      );
+    }
+    return emails;
+  }
+
+  /**
+   * Phase 2 — Individual analysis: run the full two-step shortlist → smart-prompt pipeline
+   * for each email in `emailsToAnalyse` and store results in `results`.
+   *
+   * Emails are independent here (no DB writes; proto-category creation happens
+   * later, serially, in applyBatchResults), so they run with bounded
+   * concurrency. A failed email is logged and left for fillFallbackEntries.
+   */
+  private async runIndividualAnalysisPhase(
+    emailsToAnalyse: BatchEmailInput[],
+    results: Map<string, BatchPriorityResult>,
+    opts: IndividualAnalysisOptions,
+  ): Promise<void> {
+    await mapWithConcurrency(
+      emailsToAnalyse,
+      PRIORITY_BATCH_LLM_CONCURRENCY,
+      (batchEmail) => this.analyzeBatchEmail(batchEmail, results, opts),
+    );
+  }
+
+  /** Analyses one batch email into `results`; a failure is logged, never thrown. */
+  private async analyzeBatchEmail(
+    batchEmail: BatchEmailInput,
+    results: Map<string, BatchPriorityResult>,
+    opts: IndividualAnalysisOptions,
+  ): Promise<void> {
+    const { userContext, provider, userId, userTimezone } = opts;
+    try {
+      const individualResult = await this.analyzePriority({
+        email: {
+          from: batchEmail.from,
+          fromName: batchEmail.fromName,
+          senderJobTitle: batchEmail.senderJobTitle,
+          subject: batchEmail.subject,
+          body: batchEmail.body,
+          receivedAt: batchEmail.receivedAt,
+        },
+        userContext,
+        provider,
+        userId,
+        preComputedSentimentScore: batchEmail.preComputedSentimentScore,
+        userTimezone,
+      });
+      results.set(batchEmail.emailKey, {
+        ...individualResult,
+        isFallback: false,
+      });
+    } catch (individualError) {
+      this.deps.logger.error(
+        `analyzePriorityBatch: Individual analysis failed for email key "${batchEmail.emailKey}"`,
+        individualError,
+      );
+    }
+  }
+
+  /**
+   * Analyze priority for a batch of emails using a two-phase approach:
+   *
+   * Phase 1 — Triage (cheap model): run `batch-priority-triage.md` to flag which emails
+   *   need a fresh category/priority analysis (`needsReanalysis: true`).
+   *
+   * Phase 2 — Individual analysis: for each flagged email, run the full two-step pipeline:
+   *   Step 1 (shortlist) → Step 2 (smart prompt with shortlisted candidates).
+   *
+   * Emails NOT flagged by triage return `isFallback: false` with `triagePreserved: true` so the
+   * caller (applyBatchResults) skips the DB write and preserves the existing priority scores.
+   *
+   * If the triage LLM call fails, falls back to analysing all emails individually.
+   */
+  async analyzePriorityBatch(
+    emails: BatchEmailInput[],
+    userContext?: UserContextInput,
+    provider?: LLMProvider,
+    userId?: string,
+    userTimezone?: string,
+  ): Promise<Map<string, BatchPriorityResult>> {
+    const results = new Map<string, BatchPriorityResult>();
+    if (emails.length === 0) return results;
+
+    const emailsNeedingTriage = emails.filter(
+      (email) =>
+        email.existingCategory !== undefined ||
+        email.existingUrgencyScore !== undefined,
+    );
+    const emailsWithoutAnalysis = emails.filter(
+      (email) =>
+        email.existingCategory === undefined &&
+        email.existingUrgencyScore === undefined,
+    );
+
+    const emailsToAnalyse = await this.runTriagePhase(
+      emails,
+      emailsNeedingTriage,
+      emailsWithoutAnalysis,
+      results,
+      userId,
+    );
+
+    await this.runIndividualAnalysisPhase(emailsToAnalyse, results, {
+      userContext,
+      provider,
+      userId,
+      userTimezone,
+    });
+
+    this.fillFallbackEntries(results, emails);
+    return results;
+  }
+}

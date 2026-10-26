@@ -14,7 +14,9 @@ import {
   resolveResponseCategory,
   rewriteCategoryNumberReferences,
 } from "../utils/category-number.util";
+import type { JevDeclinedPick } from "./jev-category-client";
 import { suggestProtoCategory } from "./jev-category-enrichment";
+import { logJevShadowAgreement } from "./jev-confidence-log";
 import { LLMProvider } from "./llm.types";
 import type { LLMCoreService } from "./llm-core.service";
 import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
@@ -213,12 +215,40 @@ export async function categoriseOnlyWithEscalation(
   params: CategoriseFromSummaryParams,
 ): Promise<CategoriseFromSummaryResult | null> {
   if (!params.summary?.trim() || !params.categories.length) return null;
+  let declinedPick: JevDeclinedPick | null = null;
   try {
-    const jev = await llmCoreService.categoriseWithJev?.(params);
+    const jev = await llmCoreService.categoriseWithJev?.(params, (pick) => {
+      declinedPick = pick;
+    });
     if (jev) return { ...jev, decisionProvider: JEV_DECISION_PROVIDER };
   } catch {
     logger.warn("Jev categorisation failed; falling back to Gemini");
   }
+  const chosen = await categoriseWithGemini(llmCoreService, logger, params);
+  logShadowAgreement(logger, declinedPick, chosen);
+  return chosen;
+}
+
+/** Content-free record of whether Gemini agreed with the pick Jev was not trusted with. */
+function logShadowAgreement(
+  logger: Logger,
+  declinedPick: JevDeclinedPick | null,
+  chosen: CategoriseFromSummaryResult | null,
+): void {
+  if (!declinedPick || !chosen) return;
+  logJevShadowAgreement(logger, {
+    decision: LLM_OP_CATEGORISE_SUMMARY,
+    confidence: declinedPick.confidence,
+    agreed: declinedPick.categoryName === chosen.categoryName,
+  });
+}
+
+/** Gemini Flash Lite, escalating to the stronger model on Other / LOW confidence. */
+async function categoriseWithGemini(
+  llmCoreService: CategoryModelClient,
+  logger: Logger,
+  params: CategoriseFromSummaryParams,
+): Promise<CategoriseFromSummaryResult | null> {
   const runWith = async (provider: LLMProvider, model?: string) => {
     let answeredBy: AiDecisionProvider | null = null;
     const result = await categoriseFromSummary(

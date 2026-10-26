@@ -20,6 +20,12 @@ import type {
 import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
 import type { TokenUsageService } from "./token-usage.service";
 
+/** Jev's below-threshold pick, reported only so agreement with the fallback can be measured. */
+export interface JevDeclinedPick {
+  categoryName: string;
+  confidence: number;
+}
+
 export class JevCategoryClient {
   constructor(
     private readonly getConfig: (key: string) => string | undefined,
@@ -29,6 +35,7 @@ export class JevCategoryClient {
 
   async categorise(
     params: CategoriseFromSummaryParams,
+    onDeclined?: (pick: JevDeclinedPick) => void,
   ): Promise<CategoriseFromSummaryResult | null> {
     const apiKey = this.getConfig(JEV.API_KEY_ENV);
     if (
@@ -58,12 +65,14 @@ export class JevCategoryClient {
       const answer = response.answers[JEV.QUESTION_ID];
       const isAccepted = answer.confidence >= JEV.MIN_ACCEPTED_CONFIDENCE;
       this.logConfidence(answer, params.categories.length, isAccepted);
-      if (!isAccepted) return null;
       const categoryNumber = Number(answer.choice);
-      const categoryName =
-        answer.choice === JEV.OTHER_OPTION
-          ? JEV.OTHER_CATEGORY
-          : params.categories[categoryNumber - 1].name;
+      const categoryName = categoryNameForChoice(answer.choice, params);
+      if (!isAccepted) {
+        if (categoryName)
+          onDeclined?.({ categoryName, confidence: answer.confidence });
+        return null;
+      }
+      if (!categoryName) throw new Error("Jev chose an unknown category");
       return {
         categoryNumber,
         categoryName,
@@ -97,4 +106,13 @@ export class JevCategoryClient {
       runnerUpMargin: runnerUpMargin(answer.probabilities ?? {}),
     });
   }
+}
+
+/** The category a Jev choice names; null when the choice is outside the list. */
+function categoryNameForChoice(
+  choice: string,
+  params: CategoriseFromSummaryParams,
+): string | null {
+  if (choice === JEV.OTHER_OPTION) return JEV.OTHER_CATEGORY;
+  return params.categories[Number(choice) - 1]?.name ?? null;
 }

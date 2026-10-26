@@ -35,7 +35,6 @@ import { buildGeminiGenerationConfig } from "./gemini-request.helper";
 import { JevCategoryClient } from "./jev-category-client";
 import { JevDecisionClient } from "./jev-decisions/jev-decision-client";
 import { LLMProvider, LLMRequest } from "./llm.types";
-import type { CategoriseFromSummaryParams } from "./llm-categorise-summary";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
 import {
   HTTP_FORBIDDEN,
@@ -147,8 +146,8 @@ export class LLMCoreService {
     }
   }
 
-  categoriseWithJev(params: CategoriseFromSummaryParams) {
-    return this.jevCategories.categorise(params);
+  categoriseWithJev(...args: Parameters<JevCategoryClient["categorise"]>) {
+    return this.jevCategories.categorise(...args);
   }
 
   private initializeClients() {

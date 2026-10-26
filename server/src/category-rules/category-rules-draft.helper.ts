@@ -467,6 +467,7 @@ async function draftStructuralSubtypeRule(
     senderPatterns: [sender],
     normaliseSender: deps.normaliseSender,
     targetCategoryId: categoryId,
+    familyIdByCategoryId: windows.familyIdByCategoryId,
   });
   const subtypes = selectCleanSubtypes(breakdown, seedSubtype);
   const structuralSpec = buildStructuralSpec(
@@ -538,6 +539,7 @@ async function draftGithubFactsRule(
     senderPatterns: [sender],
     normaliseSender: deps.normaliseSender,
     targetCategoryId: categoryId,
+    familyIdByCategoryId: windows.familyIdByCategoryId,
     seed,
   });
   const factsSpec = conditions

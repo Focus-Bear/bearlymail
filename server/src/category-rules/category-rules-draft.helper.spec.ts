@@ -141,13 +141,25 @@ describe("buildDraftCompositeSpec — structural-first path for GitHub seeds", (
         ]),
       }),
     );
+    // No family data in these windows, so every false positive disqualifies.
     expect(draft?.subtypeBreakdown).toEqual([
-      { subtype: "github:pr:comment:bot", truePositives: 2, falsePositives: 0 },
-      { subtype: "github:pr:push:bot", truePositives: 1, falsePositives: 0 },
+      {
+        subtype: "github:pr:comment:bot",
+        truePositives: 2,
+        falsePositives: 0,
+        disqualifyingFalsePositives: 0,
+      },
+      {
+        subtype: "github:pr:push:bot",
+        truePositives: 1,
+        falsePositives: 0,
+        disqualifyingFalsePositives: 0,
+      },
       {
         subtype: "github:pr:comment:human",
         truePositives: 0,
         falsePositives: 2,
+        disqualifyingFalsePositives: 2,
       },
     ]);
     expect(draft?.exclusionsDerived).toBe(true);
@@ -216,7 +228,12 @@ describe("buildDraftCompositeSpec — structural-first path for GitHub seeds", (
       }),
     );
     expect(draft?.subtypeBreakdown).toEqual([
-      { subtype: "github:pr:comment:bot", truePositives: 1, falsePositives: 1 },
+      {
+        subtype: "github:pr:comment:bot",
+        truePositives: 1,
+        falsePositives: 1,
+        disqualifyingFalsePositives: 1,
+      },
     ]);
   });
 
@@ -234,8 +251,8 @@ describe("buildDraftCompositeSpec — structural-first path for GitHub seeds", (
       autoOptions,
     );
 
-    // One broad + one category query, shared by both draft paths.
-    expect(query).toHaveBeenCalledTimes(2);
+    // One broad + one category + one family-map query, shared by both draft paths.
+    expect(query).toHaveBeenCalledTimes(3);
   });
 
   it("skips the structural path for user drafts (phrases only round-trip to the review UI)", async () => {

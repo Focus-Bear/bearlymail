@@ -14,6 +14,10 @@ import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.co
 import type { NotificationSubtypeBreakdownEntry } from "../llm/llm-rule-sanity";
 import { resolveNotificationSubtype } from "../utils/notification-subtype.util";
 import { senderMatchesPattern } from "./category-rules-auto-composite.helper";
+import {
+  countDisqualifyingFalsePositives,
+  type FamilyIdByCategoryId,
+} from "./category-rules-fp-tolerance.helper";
 import type { DecryptedValidationRow } from "./category-rules-validate.helper";
 
 export interface SubtypeBreakdownParams {
@@ -25,6 +29,7 @@ export interface SubtypeBreakdownParams {
   senderPatterns: string[];
   normaliseSender: (raw: string) => string;
   targetCategoryId: string | null;
+  familyIdByCategoryId?: FamilyIdByCategoryId;
 }
 
 /** Minimum true positives a sub-stream needs to be pinned by the drafted rule. */
@@ -70,6 +75,7 @@ export function buildNotificationSubtypeBreakdown(
     targetCategoryId,
   } = params;
   const entries = new Map<string, NotificationSubtypeBreakdownEntry>();
+  const falsePositiveCategoryIds = new Map<string, Array<string | null>>();
   const entryFor = (subtype: string): NotificationSubtypeBreakdownEntry => {
     const existing = entries.get(subtype);
     if (existing) return existing;
@@ -92,19 +98,42 @@ export function buildNotificationSubtypeBreakdown(
       const subtype = rowSubtype(row);
       if (!subtype) continue;
       const entry = entryFor(subtype);
-      if (isTruePositive) entry.truePositives += 1;
-      else entry.falsePositives += 1;
+      if (isTruePositive) {
+        entry.truePositives += 1;
+        continue;
+      }
+      entry.falsePositives += 1;
+      const categoryIds = falsePositiveCategoryIds.get(subtype) ?? [];
+      categoryIds.push(row.categoryId);
+      falsePositiveCategoryIds.set(subtype, categoryIds);
     }
   };
 
   tally(categoryRows, true, (row) => row.categoryId === targetCategoryId);
   tally(broadRows, false, (row) => row.categoryId !== targetCategoryId);
 
+  const { familyIdByCategoryId } = params;
+  if (familyIdByCategoryId) {
+    for (const entry of entries.values()) {
+      entry.disqualifyingFalsePositives = countDisqualifyingFalsePositives({
+        falsePositiveCategoryIds:
+          falsePositiveCategoryIds.get(entry.subtype) ?? [],
+        truePositives: entry.truePositives,
+        targetCategoryId,
+        familyIdByCategoryId,
+      });
+    }
+  }
+
   return [...entries.values()].sort(
     (left, right) =>
       right.truePositives - left.truePositives ||
       left.subtype.localeCompare(right.subtype),
   );
+}
+
+function disqualifyingCount(entry: NotificationSubtypeBreakdownEntry): number {
+  return entry.disqualifyingFalsePositives ?? entry.falsePositives;
 }
 
 /**
@@ -123,12 +152,13 @@ export function selectCleanSubtypes(
     .filter(
       (entry) =>
         entry.truePositives >= MIN_TRUE_POSITIVES_PER_SUBTYPE &&
-        entry.falsePositives <= MAX_FALSE_POSITIVES_PER_SUBTYPE,
+        disqualifyingCount(entry) <= MAX_FALSE_POSITIVES_PER_SUBTYPE,
     )
     .map((entry) => entry.subtype);
   const seedEntry = breakdown.find((entry) => entry.subtype === seedSubtype);
   const seedIsClean =
-    !seedEntry || seedEntry.falsePositives <= MAX_FALSE_POSITIVES_PER_SUBTYPE;
+    !seedEntry ||
+    disqualifyingCount(seedEntry) <= MAX_FALSE_POSITIVES_PER_SUBTYPE;
   if (seedIsClean && !clean.includes(seedSubtype)) {
     clean.unshift(seedSubtype);
   }

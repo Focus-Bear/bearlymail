@@ -39,9 +39,18 @@ export interface ProposalEvidence {
   lastMatchedAt: string;
 }
 
+/** Mirrors the server's AUTO_ARCHIVE_PROPOSAL_STATUS. */
+export const AUTO_ARCHIVE_PROPOSAL_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  DISMISSED: 'dismissed',
+} as const;
+
+export type AutoArchiveProposalStatus = (typeof AUTO_ARCHIVE_PROPOSAL_STATUS)[keyof typeof AUTO_ARCHIVE_PROPOSAL_STATUS];
+
 export interface AutoArchiveProposal {
   id: string;
-  status: string;
+  status: AutoArchiveProposalStatus;
   scope: 'address' | 'domain';
   senderDisplay: string;
   condition: ArchiveRuleCondition;

@@ -19,6 +19,7 @@ export const settingsKeys = {
   batchStatus: ['batch-status'] as const,
   onboardingStatus: ['onboarding-status'] as const,
   userProfile: ['user-profile'] as const,
+  autoArchiveProposals: ['auto-archive-proposals'] as const,
 } as const;
 
 export const emailKeys = {

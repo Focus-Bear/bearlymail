@@ -1,4 +1,5 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
@@ -61,6 +62,13 @@ const proposal: AutoArchiveProposal = {
   updatedAt: '2026-10-20T00:00:00Z',
 };
 
+const renderPanel = (props: React.ComponentProps<typeof AutoArchiveProposalsPanel> = {}) =>
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <AutoArchiveProposalsPanel {...props} />
+    </QueryClientProvider>
+  );
+
 describe('AutoArchiveProposalsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,7 +77,7 @@ describe('AutoArchiveProposalsPanel', () => {
   });
 
   it('shows the proposed rule, its evidence and the precision safeguard', async () => {
-    render(<AutoArchiveProposalsPanel />);
+    renderPanel();
 
     expect(await screen.findByText('GitHub <notifications@github.com>')).toBeInTheDocument();
     expect(screen.getByText('check translations')).toBeInTheDocument();
@@ -79,7 +87,7 @@ describe('AutoArchiveProposalsPanel', () => {
 
   it('approving creates the rule, removes the card and refreshes workflows', async () => {
     const onRuleCreated = vi.fn();
-    render(<AutoArchiveProposalsPanel onRuleCreated={onRuleCreated} />);
+    renderPanel({ onRuleCreated });
 
     await userEvent.click(await screen.findByText('settings.autoArchive.card.approve'));
 
@@ -96,7 +104,7 @@ describe('AutoArchiveProposalsPanel', () => {
 
   it('dismissing is remembered server-side and creates nothing', async () => {
     const onRuleCreated = vi.fn();
-    render(<AutoArchiveProposalsPanel onRuleCreated={onRuleCreated} />);
+    renderPanel({ onRuleCreated });
 
     await userEvent.click(await screen.findByText('settings.autoArchive.card.dismiss'));
 
@@ -114,7 +122,7 @@ describe('AutoArchiveProposalsPanel', () => {
         ? { data: { condition: proposal.condition, senderTotal: 132, window: stats({ matched: 75, engaged: 33, replied: 9 }), sampleSubjects: [] } }
         : { data: { ...proposal, status: 'approved' } }
     );
-    render(<AutoArchiveProposalsPanel />);
+    renderPanel();
 
     await userEvent.click(await screen.findByText('settings.autoArchive.card.edit'));
     await userEvent.click(screen.getByLabelText('common.remove'));
@@ -144,14 +152,14 @@ describe('AutoArchiveProposalsPanel', () => {
 
   it('shows an empty state when there is nothing to suggest', async () => {
     mockedAxios.get.mockResolvedValue({ data: [] });
-    render(<AutoArchiveProposalsPanel />);
+    renderPanel();
 
     expect(await screen.findByText('settings.autoArchive.empty')).toBeInTheDocument();
   });
 
   it('queues a fresh check on request', async () => {
     mockedAxios.post.mockResolvedValue({ data: { queued: true } });
-    render(<AutoArchiveProposalsPanel />);
+    renderPanel();
 
     await userEvent.click(await screen.findByText('settings.autoArchive.scanNow'));
 

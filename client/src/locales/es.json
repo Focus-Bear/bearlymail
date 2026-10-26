@@ -1936,6 +1936,12 @@
       "manage": "Gestionar en Ajustes",
       "dismiss": "Descartar"
     },
+    "autoArchiveNotice": {
+      "message_one": "BearlyMail encontró {{count}} tipo de correo que nunca abres: revisa la sugerencia de archivado automático.",
+      "message_other": "BearlyMail encontró {{count}} tipos de correo que nunca abres: revisa las sugerencias de archivado automático.",
+      "review": "Revisar",
+      "dismiss": "Descartar el aviso de sugerencias de archivado automático"
+    },
     "batchInfo": {
       "changeInSettings": "Cambiar en Configuración",
       "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",

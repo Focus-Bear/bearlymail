@@ -340,6 +340,12 @@
       "manage": "Manage in Settings",
       "dismiss": "Dismiss"
     },
+    "autoArchiveNotice": {
+      "message_one": "BearlyMail found {{count}} kind of email you never open — review the auto-archive suggestion.",
+      "message_other": "BearlyMail found {{count}} kinds of email you never open — review the auto-archive suggestions.",
+      "review": "Review",
+      "dismiss": "Dismiss auto-archive suggestions notice"
+    },
     "batchInfo": {
       "lastUrgentCheck": "Last checked for urgent emails",
       "neverChecked": "never",

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { settingsKeys } from 'queries/queryKeys';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -37,6 +39,7 @@ export function useAutoArchiveProposals(onApproved?: () => void): AutoArchivePro
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [isScanQueued, setIsScanQueued] = useState(false);
+  const queryClient = useQueryClient();
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -54,7 +57,15 @@ export function useAutoArchiveProposals(onApproved?: () => void): AutoArchivePro
     void load();
   }, [load]);
 
-  const removeProposal = (id: string) => setProposals(current => current.filter(proposal => proposal.id !== id));
+  // The inbox notice reads the same list through TanStack Query; refresh it so
+  // it doesn't keep counting a proposal the user just resolved here.
+  const removeProposal = useCallback(
+    (id: string) => {
+      setProposals(current => current.filter(proposal => proposal.id !== id));
+      void queryClient.invalidateQueries({ queryKey: settingsKeys.autoArchiveProposals });
+    },
+    [queryClient]
+  );
 
   const approve = useCallback(
     async (proposal: AutoArchiveProposal, name: string, keywords?: ArchiveRuleKeywords) => {
@@ -67,14 +78,14 @@ export function useAutoArchiveProposals(onApproved?: () => void): AutoArchivePro
       removeProposal(proposal.id);
       onApproved?.();
     },
-    [onApproved]
+    [onApproved, removeProposal]
   );
 
   const dismiss = useCallback(async (proposal: AutoArchiveProposal) => {
     await dismissAutoArchiveProposal(proposal.id);
     captureEvent(ANALYTICS_EVENTS.AUTO_ARCHIVE_PROPOSAL_DISMISSED, { scope: proposal.scope });
     removeProposal(proposal.id);
-  }, []);
+  }, [removeProposal]);
 
   const scan = useCallback(async () => {
     await requestAutoArchiveScan();

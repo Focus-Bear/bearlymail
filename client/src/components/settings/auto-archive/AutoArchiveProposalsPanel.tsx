@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { AUTO_ARCHIVE_PROPOSALS_SETTINGS_ANCHOR } from 'constants/autoArchive';
 import { useNotifications } from 'contexts/NotificationContext';
 
 import { AutoArchiveProposalCard } from './AutoArchiveProposalCard';
@@ -59,7 +60,10 @@ export const AutoArchiveProposalsPanel: React.FC<AutoArchiveProposalsPanelProps>
   };
 
   return (
-    <section aria-labelledby="auto-archive-proposals-title" style={{ marginBottom: theme.spacing.xl }}>
+    <section
+      id={AUTO_ARCHIVE_PROPOSALS_SETTINGS_ANCHOR}
+      aria-labelledby="auto-archive-proposals-title"
+      style={{ marginBottom: theme.spacing.xl }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 320px' }}>
           <h3 id="auto-archive-proposals-title" style={{ ...theme.typography.heading.h5, margin: 0 }}>

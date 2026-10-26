@@ -6,6 +6,7 @@ import { CategoryArchiveSuggestion } from 'utils/categoryArchiveWorkflow';
 
 import { AnalysingPriorityCategory } from 'components/inbox/AnalysingPriorityCategory';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
+import { AutoArchiveSuggestionsNotice } from 'components/inbox/auto-archive-notice/AutoArchiveSuggestionsNotice';
 import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
 import { DebugPanel } from 'components/inbox/DebugPanel';
 import { DistractionFrictionModal } from 'components/inbox/DistractionFrictionModal';
@@ -533,11 +534,14 @@ const InboxView: React.FC = () => {
           <>
             {user && <SyncWindowBanner userId={user.id} syncWindowLimited={user.syncWindowLimited} />}
             {user && (
-              <OpenTrackingNoticeBanner
-                userId={user.id}
-                trackEmailOpens={user.trackEmailOpens}
-                hasSeenTour={user.hasSeenTour}
-              />
+              <>
+                <OpenTrackingNoticeBanner
+                  userId={user.id}
+                  trackEmailOpens={user.trackEmailOpens}
+                  hasSeenTour={user.hasSeenTour}
+                />
+                <AutoArchiveSuggestionsNotice userId={user.id} hasSeenTour={user.hasSeenTour} />
+              </>
             )}
             {/* "Analysing priority..." banner for unprioritised emails, unless the
                 "AI deciding category" accordion is already listing them */}

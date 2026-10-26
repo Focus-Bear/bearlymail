@@ -282,6 +282,15 @@ export class EmailThread {
   })
   lastAutoRespondedAt: Date | null;
 
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    comment:
+      "When an auto-responder job claimed this thread, just before sending. Set " +
+      "only while NULL, so two concurrent jobs can't both reply to one thread.",
+  })
+  autoResponseClaimedAt: Date | null;
+
   @Column("text", {
     nullable: true,
     transformer: makeEncryptedColumnTransformer(

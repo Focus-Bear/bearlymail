@@ -1,7 +1,7 @@
 /* eslint-disable max-lines -- orchestration surface; incremental extraction preferred */
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { IsNull, Repository } from "typeorm";
 
 import { PRIORITY_LEVELS } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
@@ -731,14 +731,7 @@ export class AutoResponderService {
       prepared,
     } = options;
     const userId = user.id;
-    const {
-      templateUsed,
-      priorityLevel,
-      qaResult,
-      responseBody,
-      responseSubject,
-      responseHtmlBody,
-    } = prepared;
+    const { templateUsed, priorityLevel, qaResult } = prepared;
     try {
       const provider =
         await this.emailProviderManager.getPrimaryProvider(userId);
@@ -756,14 +749,23 @@ export class AutoResponderService {
         return { sent: false, reason };
       }
 
+      if (!(await this.claimThreadForAutoResponse(userId, emailThreadId))) {
+        return this.skipAlreadyClaimedThread(logContext);
+      }
+
       const replyToAddress = latestEmail.replyTo || latestEmail.from;
-      const sentResult = await provider.sendReply(userId, {
-        threadId: thread.threadId,
-        to: replyToAddress,
-        subject: responseSubject,
-        body: responseBody,
-        options: { htmlBody: responseHtmlBody },
-      });
+      const sentResult = await this.releaseClaimIfSendFails(
+        userId,
+        emailThreadId,
+        () =>
+          provider.sendReply(userId, {
+            threadId: thread.threadId,
+            to: replyToAddress,
+            subject: prepared.responseSubject,
+            body: prepared.responseBody,
+            options: { htmlBody: prepared.responseHtmlBody },
+          }),
+      );
 
       await this.persistAutoResponseRecord({
         userId,
@@ -806,6 +808,57 @@ export class AutoResponderService {
         sent: false,
         reason: `Send failed: ${(error as Error).message}`,
       };
+    }
+  }
+
+  /**
+   * Atomically claims the thread for one auto-response. The "already sent"
+   * check runs long before the send (classification, Q&A), so two concurrent
+   * jobs can both pass it; only the one whose UPDATE finds the claim still
+   * empty may send.
+   */
+  private async claimThreadForAutoResponse(
+    userId: string,
+    emailThreadId: string,
+  ): Promise<boolean> {
+    const result = await this.emailThreadRepository.update(
+      { id: emailThreadId, userId, autoResponseClaimedAt: IsNull() },
+      { autoResponseClaimedAt: new Date() },
+    );
+    return result.affected === 1;
+  }
+
+  private skipAlreadyClaimedThread(logContext: AutoresponderDecisionContext): {
+    sent: boolean;
+    reason: string;
+  } {
+    const reason = "Auto-response already claimed for this thread";
+    autoresponderLogger.logDecision(logContext, { decision: "SKIP", reason });
+    return { sent: false, reason };
+  }
+
+  /**
+   * Runs the send; if it throws, nothing went out, so the claim is cleared and
+   * a later email in the thread can still get a reply. Once the send succeeds
+   * the claim stays, even if saving the log afterwards fails.
+   */
+  private async releaseClaimIfSendFails<T>(
+    userId: string,
+    emailThreadId: string,
+    send: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await send();
+    } catch (error) {
+      await this.emailThreadRepository
+        .update({ id: emailThreadId, userId }, { autoResponseClaimedAt: null })
+        .catch((releaseError: unknown) =>
+          this.logger.error(
+            `Failed to release auto-response claim for thread ${emailThreadId}`,
+            releaseError,
+          ),
+        );
+      throw error;
     }
   }
 

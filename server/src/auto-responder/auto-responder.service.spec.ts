@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { IsNull, Repository } from "typeorm";
 
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
@@ -85,7 +85,8 @@ describe("AutoResponderService", () => {
           provide: getRepositoryToken(EmailThread),
           useValue: {
             findOne: jest.fn(),
-            update: jest.fn().mockResolvedValue({}),
+            // affected: 1 lets the send-time claim on the thread succeed.
+            update: jest.fn().mockResolvedValue({ affected: 1 }),
           },
         },
         {
@@ -574,7 +575,9 @@ describe("AutoResponderService", () => {
         },
       });
       emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
-      emailThreadRepository.update = jest.fn().mockResolvedValue({});
+      emailThreadRepository.update = jest
+        .fn()
+        .mockResolvedValue({ affected: 1 });
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -600,7 +603,9 @@ describe("AutoResponderService", () => {
           enabled: false,
         },
       });
-      emailThreadRepository.update = jest.fn().mockResolvedValue({});
+      emailThreadRepository.update = jest
+        .fn()
+        .mockResolvedValue({ affected: 1 });
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -612,6 +617,115 @@ describe("AutoResponderService", () => {
         expect.anything(),
         expect.objectContaining({ lastAutoRespondedAt: expect.any(Date) }),
       );
+    });
+
+    describe("send-time thread claim (no double reply from concurrent jobs)", () => {
+      const enableAutoResponder = () =>
+        userRepository.findOne.mockResolvedValue({
+          ...mockUser,
+          autoResponderSettings: {
+            ...DEFAULT_AUTO_RESPONDER_CONFIG,
+            enabled: true,
+          },
+        });
+      const claimCall = [
+        {
+          id: "thread-1",
+          userId: "user-1",
+          autoResponseClaimedAt: IsNull(),
+        },
+        { autoResponseClaimedAt: expect.any(Date) },
+      ];
+      const releaseCall = [
+        { id: "thread-1", userId: "user-1" },
+        { autoResponseClaimedAt: null },
+      ];
+
+      it("claims the thread only while unclaimed, before sending", async () => {
+        const mockProvider = { sendReply: jest.fn().mockResolvedValue({}) };
+        enableAutoResponder();
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+        const result = await service.processEmailForAutoResponse(
+          "user-1",
+          "thread-1",
+        );
+
+        expect(result.sent).toBe(true);
+        expect(emailThreadRepository.update).toHaveBeenCalledWith(...claimCall);
+        const claimOrder =
+          emailThreadRepository.update.mock.invocationCallOrder[0];
+        expect(claimOrder).toBeLessThan(
+          mockProvider.sendReply.mock.invocationCallOrder[0],
+        );
+      });
+
+      it("skips without sending when another job already claimed the thread", async () => {
+        const mockProvider = { sendReply: jest.fn().mockResolvedValue({}) };
+        enableAutoResponder();
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+        emailThreadRepository.update.mockResolvedValueOnce({
+          affected: 0,
+          raw: [],
+          generatedMaps: [],
+        });
+
+        const result = await service.processEmailForAutoResponse(
+          "user-1",
+          "thread-1",
+        );
+
+        expect(result).toEqual({
+          sent: false,
+          reason: "Auto-response already claimed for this thread",
+        });
+        expect(mockProvider.sendReply).not.toHaveBeenCalled();
+      });
+
+      it("releases the claim when the send fails, so a later email can still get a reply", async () => {
+        const mockProvider = {
+          sendReply: jest.fn().mockRejectedValue(new Error("Gmail 500")),
+        };
+        enableAutoResponder();
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+        const result = await service.processEmailForAutoResponse(
+          "user-1",
+          "thread-1",
+        );
+
+        expect(result).toEqual({
+          sent: false,
+          reason: "Send failed: Gmail 500",
+        });
+        expect(emailThreadRepository.update).toHaveBeenCalledWith(
+          ...releaseCall,
+        );
+      });
+
+      it("keeps the claim when the reply went out but saving it afterwards failed", async () => {
+        const mockProvider = {
+          sendReply: jest
+            .fn()
+            .mockResolvedValue({ messageId: "msg-1", threadId: "thread-1" }),
+        };
+        enableAutoResponder();
+        emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+        module
+          .get(getRepositoryToken(Email))
+          .save.mockRejectedValueOnce(new Error("db down"));
+
+        const result = await service.processEmailForAutoResponse(
+          "user-1",
+          "thread-1",
+        );
+
+        expect(mockProvider.sendReply).toHaveBeenCalled();
+        expect(result.sent).toBe(false);
+        expect(emailThreadRepository.update).not.toHaveBeenCalledWith(
+          ...releaseCall,
+        );
+      });
     });
 
     it("should not send auto-response for emails older than 24 hours", async () => {

@@ -7,8 +7,11 @@ import { theme } from 'theme/theme';
 import { TIER_NAME_KEYS } from 'components/settings/plan-picker/planPicker.constants';
 
 const cardStyle: React.CSSProperties = {
+  position: 'relative',
   flex: '1 1 160px',
   minWidth: '160px',
+  // Room for the "Current plan" badge that sits on the top border.
+  marginTop: '10px',
   border: `1px solid ${theme.colors.border.light}`,
   borderRadius: '8px',
   padding: '16px',
@@ -18,9 +21,12 @@ const cardStyle: React.CSSProperties = {
   backgroundColor: theme.colors.background.paper,
 };
 
+// A 1px border plus a 1px ring, so the highlight doesn't shift this card's
+// content out of line with the others the way a 2px border would.
 const currentCardStyle: React.CSSProperties = {
   ...cardStyle,
-  border: `2px solid ${theme.colors.primary.main}`,
+  border: `1px solid ${theme.colors.primary.main}`,
+  boxShadow: `0 0 0 1px ${theme.colors.primary.main}`,
 };
 
 const tierNameStyle: React.CSSProperties = {
@@ -52,23 +58,42 @@ const allowanceStyle: React.CSSProperties = {
 
 const inclusionStyle: React.CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'flex-start',
   gap: '6px',
   fontSize: '13px',
-  fontWeight: 600,
+  lineHeight: 1.4,
   color: theme.colors.text.primary,
 };
 
 const inclusionIconStyle: React.CSSProperties = {
   color: theme.colors.success.main,
   flexShrink: 0,
+  // Line the tick up with the first line of a wrapped label.
+  marginTop: '2px',
+};
+
+const inclusionTitleStyle: React.CSSProperties = {
+  display: 'block',
+  fontWeight: 600,
+};
+
+const inclusionDescriptionStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '12px',
+  color: theme.colors.text.secondary,
 };
 
 /** Seats are only worth calling out when the plan covers more than the owner. */
 const SOLO_SEAT_COUNT = 1;
 
+// Sits on the card's top border, so the current card's content lines up with
+// the cards beside it instead of being pushed down.
 const currentBadgeStyle: React.CSSProperties = {
-  alignSelf: 'flex-start',
+  position: 'absolute',
+  top: '-10px',
+  left: '14px',
+  lineHeight: '16px',
+  whiteSpace: 'nowrap',
   backgroundColor: theme.colors.primary.main,
   color: theme.colors.common.white,
   borderRadius: '10px',
@@ -84,10 +109,17 @@ interface PlanTierCardProps {
   action: React.ReactNode;
 }
 
-const PlanInclusion: React.FC<{ label: string; testId: string }> = ({ label, testId }) => (
+const PlanInclusion: React.FC<{ label: string; description?: string; testId: string }> = ({
+  label,
+  description,
+  testId,
+}) => (
   <li style={inclusionStyle} data-testid={testId}>
     <FiCheck style={inclusionIconStyle} aria-hidden="true" />
-    {label}
+    <span>
+      <span style={inclusionTitleStyle}>{label}</span>
+      {description && <span style={inclusionDescriptionStyle}>{description}</span>}
+    </span>
   </li>
 );
 
@@ -113,6 +145,7 @@ export const PlanTierCard: React.FC<PlanTierCardProps> = ({ tier, isCurrent, act
         {tier.includesEmailTracking && (
           <PlanInclusion
             label={t('team.settings.planPicker.includesEmailTracking')}
+            description={t('team.settings.planPicker.includesEmailTrackingDescription')}
             testId={`plan-tier-email-tracking-${tier.id}`}
           />
         )}

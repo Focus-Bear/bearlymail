@@ -14,7 +14,12 @@ export const AUTO_ARCHIVE_PROPOSAL_CONFIG = {
   MIN_DOMAIN_MEMBER_VOLUME: 3,
   /** Domain groups with more distinct addresses than this look like people, not a notifier. */
   MAX_DOMAIN_GROUP_ADDRESSES: 8,
-  /** Most-recent emails analysed per sender group (bounds CPU and decryption). */
+  /**
+   * Emails analysed per sender (bounds CPU and decryption). Sampled evenly
+   * across the window, not the newest N: a heavy sender like GitHub fills 600
+   * in a few days, which hid weeks of engagement history and the variety of
+   * its notification types.
+   */
   MAX_EMAILS_PER_SENDER: 600,
   /** Body characters used for clustering and body-keyword candidates. */
   BODY_HEAD_CHARS: 400,

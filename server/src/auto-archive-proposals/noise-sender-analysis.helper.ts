@@ -58,11 +58,22 @@ function conditionKey(condition: ArchiveRuleCondition): string {
   ]);
 }
 
-/** The whole sender as one candidate, when the sender itself is noise. */
+/** Distinct notification sub-streams among `emails` (unrecognised mail counts as one). */
+function notificationSubtypeCount(emails: AnalysedEmail[]): number {
+  return new Set(emails.map((email) => email.notificationSubtype)).size;
+}
+
+/**
+ * The whole sender as one candidate, when the sender itself is noise. Never
+ * for a sender that sends several kinds of notification: "archive everything
+ * from GitHub" would also hide review requests and mentions the sample merely
+ * happened not to contain, so those senders get one keyword rule per kind.
+ */
 function senderWideCandidate(
   senderPattern: string,
   training: AnalysedEmail[],
 ): CandidateCondition | null {
+  if (notificationSubtypeCount(training) > 1) return null;
   if (!isLowEngagement(tallyEngagement(training))) return null;
   return {
     condition: { senderPattern, subjectPatterns: [], bodyPatterns: [] },
@@ -117,19 +128,38 @@ function collectClusterCandidates(
   }
 }
 
-/** Keyword conditions mined from the training slice's low-engagement clusters. */
+/** Emails grouped by notification sub-stream, first-seen order. */
+function partitionBySubtype(emails: AnalysedEmail[]): AnalysedEmail[][] {
+  const partitions = new Map<string | null, AnalysedEmail[]>();
+  for (const email of emails) {
+    const partition = partitions.get(email.notificationSubtype) ?? [];
+    partition.push(email);
+    partitions.set(email.notificationSubtype, partition);
+  }
+  return [...partitions.values()];
+}
+
+/**
+ * Keyword conditions mined from the training slice's low-engagement clusters.
+ * Clusters are formed within each notification sub-stream, so a noisy kind
+ * (CI failures) is never averaged with a kind the user reads (review
+ * requests). Phrases are still scored against ALL the sender's mail, so the
+ * chosen keyword separates the kind from everything else the sender sends.
+ */
 export function mineClusterCandidates(
   senderPattern: string,
   training: AnalysedEmail[],
 ): CandidateCondition[] {
   const candidates = new Map<string, CandidateCondition>();
-  collectClusterCandidates(
-    training,
-    training,
-    senderPattern,
-    AUTO_ARCHIVE_PROPOSAL_CONFIG.CLUSTER_SIMILARITY_THRESHOLD,
-    candidates,
-  );
+  for (const partition of partitionBySubtype(training)) {
+    collectClusterCandidates(
+      partition,
+      training,
+      senderPattern,
+      AUTO_ARCHIVE_PROPOSAL_CONFIG.CLUSTER_SIMILARITY_THRESHOLD,
+      candidates,
+    );
+  }
   return [...candidates.values()];
 }
 

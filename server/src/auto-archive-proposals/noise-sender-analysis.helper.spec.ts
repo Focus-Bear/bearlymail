@@ -131,6 +131,47 @@ describe("analyseSenderGroup — realistic mailbox", () => {
     });
   });
 
+  it("never proposes archiving all of a sender that sends several kinds of notification", () => {
+    // Prod regression: 600 GitHub emails with zero engagement in the sample
+    // produced "archive everything from notifications@github.com".
+    const ignoredEverywhere: SenderGroup = {
+      ...mailbox.github,
+      emails: mailbox.github.emails.map((email) => ({
+        ...email,
+        signals: {
+          ...email.signals,
+          isRead: false,
+          openedAt: null,
+          replied: false,
+          starred: false,
+        },
+        level: ENGAGEMENT_LEVEL.IGNORED,
+      })),
+    };
+    const kinds = new Set(
+      ignoredEverywhere.emails.map((email) => email.notificationSubtype),
+    );
+    expect(kinds.size).toBeGreaterThan(1);
+
+    const drafts = analyseSenderGroup(ignoredEverywhere);
+
+    expect(drafts.length).toBeGreaterThan(0);
+    for (const draft of drafts) {
+      const keywords =
+        draft.condition.subjectPatterns.length +
+        draft.condition.bodyPatterns.length;
+      expect(keywords).toBeGreaterThan(0);
+    }
+  });
+
+  it("forms clusters within one notification kind, never across kinds", () => {
+    for (const draft of analyseSenderGroup(mailbox.github)) {
+      const { matched } = simulateRule(draft.condition, mailbox.github.emails);
+      const kinds = new Set(matched.map((email) => email.notificationSubtype));
+      expect(kinds.size).toBe(1);
+    }
+  });
+
   it("stays quiet about a cluster once a dismissed proposal or an archive rule covers it", () => {
     const [translation] = analyseSenderGroup(mailbox.github);
     const dismissed: WorkflowCondition = toWorkflowCondition(

@@ -2,10 +2,10 @@
  * Unit tests for the Lambda/SQS dispatch path in LLMPriorityBatchService.
  *
  * Focuses on the USE_LAMBDA_PRIORITISATION=true branch: verifies that
- * - dispatchViaSqs builds the correct payload
- * - PrioritySqsDispatchService.enqueueAllBatchesViaSqs is called with one batch
+ * - the batch is dispatched as an ids-only v2 message (no email content on SQS)
  * - PriorityAnalysisFinalizerService.createRun is called with the right threadIds
- * - The existing PgBoss path is used when the flag is false
+ * - a failed dispatch falls back to in-process analysis
+ * - the in-process path is used when the flag is false
  */
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
@@ -28,6 +28,7 @@ import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
+import { PRIORITY_BATCH_MESSAGE_VERSION } from "./priority-batch-lambda-message";
 import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 
 function makeEmail(
@@ -59,6 +60,10 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
   let mockEmailRepository: jest.Mocked<Repository<Email>>;
   let mockThreadRepository: jest.Mocked<Repository<EmailThread>>;
   let mockTracker: jest.Mocked<JobPerformanceTracker>;
+  let mockSummaryProcessor: {
+    tryIncrementalAnalysis: jest.Mock;
+    ensureThreadSummaryFresh: jest.Mock;
+  };
 
   const USER_ID = "user-uuid-1";
   const EMAIL_THREAD_ID_1 = "eth-1";
@@ -68,7 +73,7 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
 
   beforeEach(async () => {
     mockSqsDispatch = {
-      enqueueAllBatchesViaSqs: jest.fn().mockResolvedValue([]),
+      dispatchBatch: jest.fn().mockResolvedValue("sqs-message-id"),
     } as unknown as jest.Mocked<PrioritySqsDispatchService>;
 
     mockFinalizer = {
@@ -126,10 +131,10 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       logBatch: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<DebugService>;
 
-    const mockSummaryProcessor = {
+    mockSummaryProcessor = {
       tryIncrementalAnalysis: jest.fn().mockResolvedValue({ handled: false }),
       ensureThreadSummaryFresh: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<LLMSummaryProcessorService>;
+    };
 
     const mockPriorityCache = {
       getUserContexts: jest.fn().mockResolvedValue([]),
@@ -208,8 +213,7 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       process.env.USE_LAMBDA_PRIORITISATION = "true";
     });
 
-    it("calls enqueueAllBatchesViaSqs with one batch containing all emails", async () => {
-      // prepareBatchEmails returns both emails (shouldSkipPriorityRecalculation=false)
+    it("dispatches one ids-only message for the whole batch", async () => {
       jest
         .spyOn(service, "shouldSkipPriorityRecalculation")
         .mockResolvedValue(false);
@@ -221,22 +225,33 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
         mockTracker,
       );
 
-      expect(mockSqsDispatch.enqueueAllBatchesViaSqs).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({
-            batchNum: 0,
-            batchPayload: expect.arrayContaining([
-              expect.objectContaining({ emailKey: "email-1" }),
-              expect.objectContaining({ emailKey: "email-2" }),
-            ]),
-          }),
-        ],
-        expect.objectContaining({
-          userId: USER_ID,
-          totalBatches: 1,
-        }),
-        expect.any(Array),
+      expect(mockSqsDispatch.dispatchBatch).toHaveBeenCalledTimes(1);
+      const [message] = mockSqsDispatch.dispatchBatch.mock.calls[0];
+      expect(message).toEqual({
+        version: PRIORITY_BATCH_MESSAGE_VERSION,
+        userId: USER_ID,
+        analysisId: expect.any(String),
+        emailIds: ["email-1", "email-2"],
+      });
+      expect(mockFinalizer.createRun).toHaveBeenCalledWith(
+        expect.objectContaining({ analysisId: message.analysisId }),
       );
+    });
+
+    it("falls back to in-process analysis when the dispatch fails", async () => {
+      jest
+        .spyOn(service, "shouldSkipPriorityRecalculation")
+        .mockResolvedValue(false);
+      mockSqsDispatch.dispatchBatch.mockResolvedValue(null);
+
+      await service.runBatchRefinement(
+        USER_ID,
+        ["email-1"],
+        "worker-1",
+        mockTracker,
+      );
+
+      expect(mockPriorityAnalysis.analyzePriorityBatch).toHaveBeenCalled();
     });
 
     it("creates a run record with both thread IDs", async () => {
@@ -292,7 +307,7 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
         mockTracker,
       );
 
-      expect(mockSqsDispatch.enqueueAllBatchesViaSqs).not.toHaveBeenCalled();
+      expect(mockSqsDispatch.dispatchBatch).not.toHaveBeenCalled();
       expect(mockFinalizer.createRun).not.toHaveBeenCalled();
       expect(mockPriorityAnalysis.analyzePriorityBatch).toHaveBeenCalled();
     });
@@ -317,18 +332,14 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
         .mockResolvedValue(false);
       const started: string[] = [];
       const releases = new Map<string, () => void>();
-      const mockSummaryProcessor = {
-        tryIncrementalAnalysis: jest.fn().mockResolvedValue({ handled: false }),
-        ensureThreadSummaryFresh: jest.fn((email: Email) => {
+      mockSummaryProcessor.ensureThreadSummaryFresh.mockImplementation(
+        (email: Email) => {
           started.push(email.id);
           return new Promise<void>((resolve) =>
             releases.set(email.id, resolve),
           );
-        }),
-      };
-      (service as unknown as Record<string, unknown>)[
-        "summaryProcessorService"
-      ] = mockSummaryProcessor;
+        },
+      );
       const flushMicrotasks = () =>
         new Promise((resolve) => setImmediate(resolve));
 
@@ -361,14 +372,9 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       jest
         .spyOn(service, "shouldSkipPriorityRecalculation")
         .mockResolvedValue(false);
-      // Incremental analysis handles everything
-      const mockSummaryProcessor = {
-        tryIncrementalAnalysis: jest.fn().mockResolvedValue({ handled: true }),
-      };
-      // Re-inject via private access for this specific test
-      (service as unknown as Record<string, unknown>)[
-        "summaryProcessorService"
-      ] = mockSummaryProcessor;
+      mockSummaryProcessor.tryIncrementalAnalysis.mockResolvedValue({
+        handled: true,
+      });
 
       await service.runBatchRefinement(
         USER_ID,
@@ -377,7 +383,7 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
         mockTracker,
       );
 
-      expect(mockSqsDispatch.enqueueAllBatchesViaSqs).not.toHaveBeenCalled();
+      expect(mockSqsDispatch.dispatchBatch).not.toHaveBeenCalled();
       expect(mockFinalizer.createRun).not.toHaveBeenCalled();
     });
   });

@@ -4,6 +4,7 @@ import type { PgBoss } from "pg-boss";
 
 import { authLogger } from "../../auth/auth-logger";
 import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
+import { RELOGIN_REASONS } from "../../constants/auth-constants";
 import { SYNC_STATUS } from "../../constants/domain-statuses";
 import { OAUTH_ERROR_CODES } from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
@@ -42,6 +43,7 @@ import { parseGmailMessage } from "./gmail/gmail-message-parser";
 import {
   getExistingThreadUpdates,
   isGmailAuthError,
+  isGmailInsufficientScopeError,
   isThreadStarred,
 } from "./gmail/gmail-sync";
 import {
@@ -53,6 +55,19 @@ import {
   olderMailExistsBeyondWindow,
 } from "./gmail-sync.thread-list";
 import { verifyInboxStatusForUser } from "./gmail-sync.verify-inbox";
+
+/**
+ * True when both snapshots hold the same Google refresh token. Every Google
+ * login re-consents (prompt=consent) and stores a freshly minted refresh token,
+ * so a mismatch means the user reconnected while this sync was in flight and
+ * the failure belongs to the superseded grant — not one worth flagging.
+ */
+function isSameGoogleGrant(before: User | null, after: User | null): boolean {
+  return (
+    !!before?.googleCalendarRefreshToken &&
+    before.googleCalendarRefreshToken === after?.googleCalendarRefreshToken
+  );
+}
 
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
 const GMAIL_INBOX_QUERY =
@@ -113,8 +128,7 @@ export class GmailSyncService {
   private isInvalidTokenError(error: unknown): boolean {
     const errAsGaxios = error as Record<string, unknown>;
     const errResponse = errAsGaxios?.response as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const responseData = errResponse?.data as { error?: string } | undefined;
     if (responseData?.error) {
       const code = responseData.error.toLowerCase();
@@ -588,33 +602,58 @@ export class GmailSyncService {
       "GmailProvider",
     );
 
-    if (isGmailAuthError(error)) {
-      const currentUser = await this.usersService
-        .findOneWithTokens(userId)
-        .catch(() => user);
-      const isRecentLogin = this.isWithinGracePeriod(currentUser);
-      this.logger.warn(
-        `[NEEDS_RELOGIN] syncEmails: Gmail API auth error for user ${userId} ` +
-          `(gracePeriodActive=${isRecentLogin}, willFlag=${!isRecentLogin}) — detail: ${formattedError}`,
-      );
-      authLogger.logAuthFailure(
-        userId,
-        currentUser?.email || null,
-        "syncEmails-gmailApi",
-        error,
-        { isRecentLogin, gracePeriodActive: isRecentLogin },
-      );
-      if (!isRecentLogin)
-        await this.usersService.markNeedsRelogin(
-          userId,
-          "gmail_sync_auth_error",
-        );
-    } else {
+    if (!isGmailAuthError(error)) {
       this.logger.warn(
         `syncEmails: non-auth error for user ${userId} — NOT flagging relogin: ${formattedError}`,
       );
+      throw error;
     }
+    await this.flagSyncAuthFailure(userId, user, error, formattedError);
     throw error;
+  }
+
+  /**
+   * Decide whether a Gmail auth failure during sync flags the user for
+   * re-login. Generic auth errors respect the post-login grace period (a stale
+   * token can race a fresh login). A missing-scope 403 bypasses it: retrying
+   * can never succeed, and the grace window — keyed off `updatedAt`, which any
+   * user-row write re-arms — otherwise strands the user with a sync that fails
+   * every cycle and no reconnect prompt.
+   */
+  private async flagSyncAuthFailure(
+    userId: string,
+    userAtSyncStart: User | null,
+    error: unknown,
+    formattedError: string,
+  ): Promise<void> {
+    const currentUser = await this.usersService
+      .findOneWithTokens(userId)
+      .catch(() => userAtSyncStart);
+    const isRecentLogin = this.isWithinGracePeriod(currentUser);
+    const isPermanentScopeFailure =
+      isGmailInsufficientScopeError(error) &&
+      isSameGoogleGrant(userAtSyncStart, currentUser);
+    const willFlag = isPermanentScopeFailure || !isRecentLogin;
+    this.logger.warn(
+      `[NEEDS_RELOGIN] syncEmails: Gmail API auth error for user ${userId} ` +
+        `(gracePeriodActive=${isRecentLogin}, insufficientScope=${isPermanentScopeFailure}, ` +
+        `willFlag=${willFlag}) — detail: ${formattedError}`,
+    );
+    authLogger.logAuthFailure(
+      userId,
+      currentUser?.email || null,
+      "syncEmails-gmailApi",
+      error,
+      { isRecentLogin, gracePeriodActive: isRecentLogin },
+    );
+    if (!willFlag) return;
+    await this.usersService.markNeedsRelogin(
+      userId,
+      isPermanentScopeFailure
+        ? RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE
+        : RELOGIN_REASONS.GMAIL_SYNC_AUTH_ERROR,
+      { bypassGracePeriod: isPermanentScopeFailure },
+    );
   }
 
   // ── Verify / Scan ─────────────────────────────────────────────────────────

@@ -1,9 +1,4 @@
-import {
-  getSettingsNavItems,
-  makeScrollToSection,
-  SettingsSubNavGroup,
-  SIDEBAR_SCROLL_DELAY_MS,
-} from './sidebar.helpers';
+import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup } from './sidebar.helpers';
 
 const translateMock = (key: string): string => key;
 
@@ -114,15 +109,6 @@ describe('getSettingsNavItems', () => {
 });
 
 describe('makeScrollToSection', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
-
   it('calls navigate with the correct /settings# path', () => {
     const navigate = vi.fn();
     const scrollTo = makeScrollToSection(navigate);
@@ -130,46 +116,12 @@ describe('makeScrollToSection', () => {
     expect(navigate).toHaveBeenCalledWith('/settings#email-batching', { replace: true });
   });
 
-  it('does not navigate a second time after the delay', () => {
+  it('leaves scrolling to the Settings page instead of scrolling itself', () => {
+    const getElementByIdSpy = vi.spyOn(document, 'getElementById');
     const navigate = vi.fn();
-    const scrollTo = makeScrollToSection(navigate);
-    scrollTo('context');
-    vi.runAllTimers();
+    makeScrollToSection(navigate)('api-key');
     expect(navigate).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls scrollIntoView on the matched element after the delay', () => {
-    const scrollIntoView = vi.fn();
-    const element = { scrollIntoView } as unknown as HTMLElement;
-    vi.spyOn(document, 'getElementById').mockReturnValue(element);
-
-    const navigate = vi.fn();
-    const scrollTo = makeScrollToSection(navigate);
-    scrollTo('blocked-senders');
-
-    // scrollIntoView not called yet — timeout still pending
-    expect(scrollIntoView).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(SIDEBAR_SCROLL_DELAY_MS);
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
-  });
-
-  it('does not throw when the anchor element is not found in the DOM', () => {
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const navigate = vi.fn();
-    const scrollTo = makeScrollToSection(navigate);
-    expect(() => {
-      scrollTo('non-existent-anchor');
-      vi.runAllTimers();
-    }).not.toThrow();
-  });
-
-  it('passes the correct anchor to getElementById', () => {
-    const getElementByIdSpy = vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const navigate = vi.fn();
-    const scrollTo = makeScrollToSection(navigate);
-    scrollTo('api-key');
-    vi.runAllTimers();
-    expect(getElementByIdSpy).toHaveBeenCalledWith('api-key');
+    expect(getElementByIdSpy).not.toHaveBeenCalled();
+    getElementByIdSpy.mockRestore();
   });
 });

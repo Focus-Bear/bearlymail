@@ -33,6 +33,8 @@ export interface CategoryOption {
 // Must not appear in user-defined category names.
 const CONTEXT_VALUE_DELIMITER = ' - ';
 
+const CATEGORY_CONTEXT_QUERY_KEY = ['category-context'] as const;
+
 async function fetchCategoryContext(): Promise<CategoryOption[]> {
   const response = await axios.get<UserContextItem[]>(`${API_URL}/context`);
   return (
@@ -45,10 +47,18 @@ async function fetchCategoryContext(): Promise<CategoryOption[]> {
       }))
       // Remove blank names (malformed entries)
       .filter(cat => cat.name !== '')
-      // Deduplicate by name
-      .filter((cat, index, all) => all.findIndex(other => other.name === cat.name) === index)
-      .sort((catA, catB) => catA.name.localeCompare(catB.name))
   );
+}
+
+function toUniqueSortedOptions(categories: CategoryOption[]): CategoryOption[] {
+  return categories
+    .filter((cat, index, all) => all.findIndex(other => other.name === cat.name) === index)
+    .sort((catA, catB) => catA.name.localeCompare(catB.name));
+}
+
+/** Keeps every id, duplicate names included, so any stored category id resolves. */
+function toNamesById(categories: CategoryOption[]): Record<string, string> {
+  return Object.fromEntries(categories.map(cat => [cat.id, cat.name]));
 }
 
 /**
@@ -57,8 +67,23 @@ async function fetchCategoryContext(): Promise<CategoryOption[]> {
  */
 export function useCategoryContextQuery() {
   return useQuery({
-    queryKey: ['category-context'] as const,
+    queryKey: CATEGORY_CONTEXT_QUERY_KEY,
     queryFn: fetchCategoryContext,
     staleTime: STALE_TIME_5_MIN,
+    select: toUniqueSortedOptions,
+  });
+}
+
+/**
+ * Category display names keyed by category (UserContext) id, for describing
+ * things that store category ids such as category-scoped workflows. Shares the
+ * cached GET /context response with `useCategoryContextQuery`.
+ */
+export function useCategoryNamesByIdQuery() {
+  return useQuery({
+    queryKey: CATEGORY_CONTEXT_QUERY_KEY,
+    queryFn: fetchCategoryContext,
+    staleTime: STALE_TIME_5_MIN,
+    select: toNamesById,
   });
 }

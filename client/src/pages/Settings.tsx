@@ -26,9 +26,11 @@ import { VersionFooter } from 'components/settings/VersionFooter';
 import { WorkflowsSection } from 'components/settings/workflows';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
+import { SETTINGS_AUTO_ANALYZE_PARAM } from 'constants/settingsAnchors';
 import { useAuth } from 'contexts/AuthContext';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSettingsAnchorScroll } from 'hooks/useSettingsAnchorScroll';
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useSidebarState } from 'hooks/useSidebarState';
 import { useUnsavedChangesGuard } from 'hooks/useUnsavedChangesGuard';
@@ -76,7 +78,7 @@ const Settings: React.FC = () => {
     }
 
     const params = new URLSearchParams(window.location.search);
-    const autoAnalyze = params.get('autoAnalyze');
+    const autoAnalyze = params.get(SETTINGS_AUTO_ANALYZE_PARAM);
 
     if (autoAnalyze === AUTO_ANALYZE_QUERY_VALUE) {
       hasTriggeredAutoAnalyze.current = true;
@@ -92,24 +94,7 @@ const Settings: React.FC = () => {
     }
   }, [settingsLoading, handleAnalyzeContext, refreshUser]);
 
-  // Handle anchor scrolling when navigating with hash (from sidebar navigation)
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash && !settingsData.loading) {
-        setTimeout(() => {
-          const element = document.getElementById(hash.substring(1));
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 100);
-      }
-    };
-
-    handleHashChange();
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [settingsData.loading]);
+  useSettingsAnchorScroll(!settingsData.loading);
 
   const sidebar = (
     <Sidebar

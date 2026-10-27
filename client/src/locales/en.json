@@ -1749,7 +1749,7 @@
         "bodyTemplateLabel": "Body template (JSON with {{variable}} substitution)"
       },
       "condition": {
-        "categoryScopeNote": "This workflow only runs on emails in a specific category (set when it was created from the category menu).",
+        "categoryScopeNote": "This workflow runs on any email in {{category}}. It was set when the workflow was created from the category menu.",
         "fromLabel": "From (sender patterns)",
         "fromHint": "Glob (*@upwork.com), regex (/billing/i), or plain text. Empty = match any sender.",
         "fromPlaceholder": "*@upwork.com",
@@ -1801,6 +1801,10 @@
         "conditionFrom": "From: {{value}}",
         "conditionSubject": "Subject: {{value}}",
         "conditionAny": "Matches any email",
+        "conditionCategory": "Any email in {{category}}",
+        "conditionInCategory": "In {{category}}",
+        "conditionAi": "AI check: {{value}}",
+        "unknownCategory": "a specific category",
         "conditionBody": "Body: {{value}}"
       },
       "section": {

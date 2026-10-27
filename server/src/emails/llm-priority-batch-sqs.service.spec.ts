@@ -312,14 +312,16 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       expect(mockPriorityAnalysis.analyzePriorityBatch).toHaveBeenCalled();
     });
 
-    it("refreshes summaries for different threads concurrently but one thread's emails in order", async () => {
-      const EMAIL_3 = makeEmail(
-        "email-3",
-        "provider-thread-1",
-        EMAIL_THREAD_ID_1,
-      );
-      const emailsById = new Map([
-        ["email-1", EMAIL_1],
+    it("refreshes each thread's summary once, from its newest email, and shares it with siblings", async () => {
+      const EMAIL_3 = {
+        ...makeEmail("email-3", "provider-thread-1", EMAIL_THREAD_ID_1),
+        receivedAt: new Date("2026-10-02T00:00:00Z"),
+      };
+      const emailsById = new Map<string, Partial<Email>>([
+        [
+          "email-1",
+          { ...EMAIL_1, receivedAt: new Date("2026-10-01T00:00:00Z") },
+        ],
         ["email-2", EMAIL_2],
         ["email-3", EMAIL_3],
       ]);
@@ -330,38 +332,33 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       jest
         .spyOn(service, "shouldSkipPriorityRecalculation")
         .mockResolvedValue(false);
-      const started: string[] = [];
-      const releases = new Map<string, () => void>();
       mockSummaryProcessor.ensureThreadSummaryFresh.mockImplementation(
-        (email: Email) => {
-          started.push(email.id);
-          return new Promise<void>((resolve) =>
-            releases.set(email.id, resolve),
-          );
+        async (email: Email) => {
+          email.summary = `fresh summary of ${email.emailThreadId}`;
         },
       );
-      const flushMicrotasks = () =>
-        new Promise((resolve) => setImmediate(resolve));
 
-      const run = service.runBatchRefinement(
+      await service.runBatchRefinement(
         USER_ID,
         ["email-1", "email-2", "email-3"],
         "worker-1",
         mockTracker,
       );
-      await flushMicrotasks();
-      // Both threads in flight; email-3 waits behind email-1 on thread 1.
-      expect(started).toEqual(["email-1", "email-2"]);
 
-      releases.get("email-1")!();
-      await flushMicrotasks();
-      expect(started).toEqual(["email-1", "email-2", "email-3"]);
-
-      releases.get("email-2")!();
-      releases.get("email-3")!();
-      await run;
-      expect(mockPriorityAnalysis.analyzePriorityBatch).toHaveBeenCalledTimes(
-        1,
+      const refreshedIds =
+        mockSummaryProcessor.ensureThreadSummaryFresh.mock.calls
+          .map(([email]: [Email]) => email.id)
+          .sort();
+      expect(refreshedIds).toEqual(["email-2", "email-3"]);
+      const [payloads] =
+        mockPriorityAnalysis.analyzePriorityBatch.mock.calls[0];
+      const summaryOf = (emailId: string) =>
+        payloads.find((payload) => payload.emailKey === emailId)?.body;
+      expect(summaryOf("email-1")).toBe(
+        `fresh summary of ${EMAIL_THREAD_ID_1}`,
+      );
+      expect(summaryOf("email-3")).toBe(
+        `fresh summary of ${EMAIL_THREAD_ID_1}`,
       );
     });
   });

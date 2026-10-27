@@ -82,6 +82,17 @@ export interface PriorityBatchAnalysisRunnerDeps {
   serialiseApply?: ApplySerialiser;
 }
 
+function receivedAtMs(email: Email): number {
+  return email.receivedAt ? new Date(email.receivedAt).getTime() : 0;
+}
+
+/** Latest by receivedAt; batch order breaks ties (and covers missing dates). */
+function pickNewestEmail(threadEmails: Email[]): Email {
+  return threadEmails.reduce((newest, email) =>
+    receivedAtMs(email) >= receivedAtMs(newest) ? email : newest,
+  );
+}
+
 /**
  * The slow half of a refine-priority batch: refresh thread summaries, run the
  * categorise + prioritise analysis, and apply the results (category rules,
@@ -215,9 +226,10 @@ export class PriorityBatchAnalysisRunner {
    * categoriser), so categorisation reflects the newest message. No-op when
    * already fresh; the later background-summary job then skips.
    *
-   * Threads run concurrently, but a thread's own emails stay sequential and in
-   * batch order: each refresh overwrites the summary on every email of the
-   * thread, so racing them would make the surviving summary nondeterministic.
+   * One refresh per thread, from its newest batch email: the summary covers the
+   * whole thread and is written to every email in it, so refreshing per email
+   * re-summarised the same thread once per message (12× for one onboarding
+   * thread). Siblings get the fresh summary in memory for their payloads.
    * ensureThreadSummaryFresh never throws, so one failure can't stop the rest.
    */
   private async refreshThreadSummaries(
@@ -229,13 +241,14 @@ export class PriorityBatchAnalysisRunner {
       groupEmailsByThread(emails),
       PRIORITY_BATCH_LLM_CONCURRENCY,
       async (threadEmails) => {
-        for (const email of threadEmails) {
-          await this.summaryProcessorService.ensureThreadSummaryFresh(
-            email,
-            userId,
-            workerId,
-          );
-        }
+        const newest = pickNewestEmail(threadEmails);
+        await this.summaryProcessorService.ensureThreadSummaryFresh(
+          newest,
+          userId,
+          workerId,
+        );
+        if (!newest.summary) return;
+        for (const sibling of threadEmails) sibling.summary = newest.summary;
       },
     );
   }

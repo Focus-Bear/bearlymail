@@ -5,6 +5,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "../auth/auth.module";
 import { AwsModule } from "../aws/aws.module";
 import { CategoryKeysModule } from "../category-keys/category-keys.module";
+import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { CategoryConsolidationRun } from "../database/entities/category-consolidation-run.entity";
 import { CategoryFamily } from "../database/entities/category-family.entity";
 import { CategoryRule } from "../database/entities/category-rule.entity";
@@ -51,6 +52,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     SubscriptionsModule,
     CategoryKeysModule,
     TypeOrmModule.forFeature([
+      AutoResponseLog,
       UserContext,
       Email,
       EmailThread,

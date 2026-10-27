@@ -1,34 +1,43 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
-import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { QA_EXTRACTION } from "../constants/llm-constants";
 import { DISPLAY_CONSTANTS } from "../constants/service-constants";
+import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
+import { Email } from "../database/entities/email.entity";
 import {
   ContextKey,
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
+import {
+  decryptEmailEntityForApi,
+  decryptUserContextEntityForApi,
+} from "../encryption/entity-api-decrypt.util";
 import { LLMService } from "../llm/llm.service";
+import { extractEmailAddress } from "../utils/email-address.utils";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { SentEmailData } from "./context-gmail-data.service";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
+import {
+  buildQaCandidatePairs,
+  countDistinctAskers,
+  formatQaPairsForPrompt,
+  type QaCandidatePair,
+  type QaInboundMessage,
+  type VerifiedFaq,
+  verifyQaClusters,
+} from "./qa-candidates.helpers";
+
+const QA_VALUE_PATTERN = /^Q:\s*(.+?)\s*\|\s*A:\s*(.+)$/;
 
 /**
- * Minimum number of times a question must recur (per the LLM's self-reported
- * `frequency`) before we keep it as a learned Q&A pair. Set to 2 rather than 3
- * so that lower-volume mailboxes still surface drafts — requiring the same
- * inbound question three times produced almost nothing for most users. All
- * pairs land as UNAPPROVED and require explicit user approval before use, so a
- * slightly lower bar only affects what appears for review, not what is trusted.
- */
-const MIN_QA_FREQUENCY = 2;
-
-/**
- * Service for extracting Q&A pairs from user's sent emails.
- * Analyzes what questions the user is answering in their outbound emails.
+ * Learns FAQs from the user's mail: the questions different people keep asking
+ * and how the user answers them. Each of the user's replies is paired with the
+ * message it answered, so the model sees the real question instead of guessing
+ * it from the answer. Machine mail and one-offs are dropped, and the model's
+ * proposals pass a quality gate before anything is saved for review.
  */
 @Injectable()
 export class ContextQaExtractionService {
@@ -37,102 +46,142 @@ export class ContextQaExtractionService {
   constructor(
     @InjectRepository(UserContext)
     private contextRepository: Repository<UserContext>,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
+    @InjectRepository(AutoResponseLog)
+    private autoResponseLogRepository: Repository<AutoResponseLog>,
     private llmService: LLMService,
     private piiRedactionService: ContextPiiRedactionService,
   ) {}
 
   /**
-   * Extract common Q&A pairs from user's sent emails
+   * Extracts recurring Q&A pairs from the user's sent replies and saves them
+   * as UNAPPROVED suggestions.
    */
   async extractQAndAFromSentEmails(
     userId: string,
     sentEmailsData: SentEmailData[],
+    userEmail: string,
   ): Promise<void> {
-    this.logger.log(
-      `[CONTEXT-ANALYSIS-QA] extractQAndAFromSentEmails called with userId=${userId}, sentEmailsData.length=${sentEmailsData?.length || 0}`,
-    );
-    writeAnalysisLog(
-      `[QA] extractQAndAFromSentEmails called with userId=${userId}, sentEmailsData.length=${sentEmailsData?.length || 0}`,
-      "log",
-    );
-    this.logger.log(
-      `[CONTEXT-ANALYSIS-QA] Services: llmService=${!!this.llmService}, piiRedactionService=${!!this.piiRedactionService}, contextRepository=${!!this.contextRepository}`,
-    );
-    writeAnalysisLog(
-      `[QA] Services: llmService=${!!this.llmService}, piiRedactionService=${!!this.piiRedactionService}, contextRepository=${!!this.contextRepository}`,
-      "debug",
-    );
-    try {
-      if (!sentEmailsData || sentEmailsData.length === 0) {
-        this.logger.log(
-          "[CONTEXT-ANALYSIS-QA] No sent emails found for Q&A extraction",
-        );
-        return;
-      }
+    if (!sentEmailsData || sentEmailsData.length === 0) {
       this.logger.log(
-        `[CONTEXT-ANALYSIS-QA] Analyzing ${sentEmailsData.length} sent emails for common Q&A patterns...`,
+        "[CONTEXT-ANALYSIS-QA] No sent emails found for Q&A extraction",
       );
-      const qaPayload = sentEmailsData.map((email) => ({
-        subject: email.subject,
-        body: cleanEmailContent(
-          email.body,
-          email.htmlBody,
-          PERFORMANCE_BUDGETS.PRIORITY_EXPLANATION,
-        ),
-        receivedAt: email.receivedAt.toISOString(),
-      }));
-      const qaAnalysis = await this.llmService.extractQAndA(qaPayload, userId);
-      if (qaAnalysis && qaAnalysis.length > 0) {
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] Found ${qaAnalysis.length} common Q&A pairs`,
-        );
-        // Use repository.find() (not createQueryBuilder) to ensure TypeORM
-        // column transformers run correctly and decrypt contextValue/explanation.
-        const existingQAs = await this.contextRepository.find({
-          where: { userId, contextKey: ContextKey.Q_AND_A },
-        });
-        // Belt-and-suspenders: force-decrypt in case of hydration edge cases.
-        for (const qa of existingQAs) {
-          decryptUserContextEntityForApi(qa);
-        }
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] Found ${existingQAs.length} existing Q&A pairs in database for deduplication`,
-        );
-        await this.deduplicateAndSaveQAs(userId, qaAnalysis, existingQAs);
-      }
+      return;
+    }
+    try {
+      const pairs = await this.loadCandidatePairs(
+        userId,
+        sentEmailsData,
+        userEmail,
+      );
+      const askerCount = countDistinctAskers(pairs);
       this.logger.log(
-        "[CONTEXT-ANALYSIS-QA] Q&A extraction completed successfully",
+        `[CONTEXT-ANALYSIS-QA] ${pairs.length} question/reply pairs from ${askerCount} people in ${sentEmailsData.length} sent emails`,
+      );
+      // Too few people asked anything for a question to recur: skip the LLM call.
+      if (askerCount < QA_EXTRACTION.MIN_DISTINCT_ASKERS) return;
+
+      const clusters = await this.llmService.extractQAndA(
+        formatQaPairsForPrompt(pairs),
+        userId,
+      );
+      const faqs = verifyQaClusters(clusters, pairs);
+      this.logger.log(
+        `[CONTEXT-ANALYSIS-QA] ${faqs.length} of ${clusters.length} proposed FAQs passed the quality check`,
+      );
+      if (faqs.length === 0) return;
+
+      await this.deduplicateAndSaveQAs(
+        userId,
+        faqs,
+        await this.findExistingQAs(userId),
       );
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
         `[CONTEXT-ANALYSIS-QA] Error extracting Q&A from replies: ${errorMessage}`,
       );
       writeAnalysisLog(`[QA] Error extracting Q&A: ${errorMessage}`, "error");
-      this.logger.error(
-        `[CONTEXT-ANALYSIS-QA] Error stack: ${errorStack || "No stack trace"}`,
-      );
-      writeAnalysisLog(
-        `[QA] Error stack: ${errorStack || "No stack trace"}`,
-        "error",
-      );
       throw error;
     }
   }
 
+  /** Pairs each sent reply with the synced message it answered. */
+  private async loadCandidatePairs(
+    userId: string,
+    sentEmailsData: SentEmailData[],
+    userEmail: string,
+  ): Promise<QaCandidatePair[]> {
+    const threadIds = [
+      ...new Set(sentEmailsData.map((email) => email.threadId)),
+    ].filter(Boolean);
+    if (threadIds.length === 0) return [];
+
+    const inboundEmails = await this.emailRepository.find({
+      where: { userId, threadId: In(threadIds) },
+    });
+    for (const email of inboundEmails) {
+      decryptEmailEntityForApi(email);
+    }
+
+    return buildQaCandidatePairs({
+      sentReplies: sentEmailsData,
+      inboundMessages: inboundEmails.map(toInboundMessage),
+      userAddresses: collectUserAddresses(sentEmailsData, userEmail),
+      automatedReplyThreadIds: await this.findAutoRepliedThreadIds(
+        userId,
+        inboundEmails,
+      ),
+    });
+  }
+
+  /** Provider thread ids of threads the auto-responder has replied in. */
+  private async findAutoRepliedThreadIds(
+    userId: string,
+    inboundEmails: Email[],
+  ): Promise<Set<string>> {
+    const threadIdByEmailThreadId = new Map(
+      inboundEmails
+        .filter((email) => Boolean(email.emailThreadId))
+        .map((email) => [email.emailThreadId, email.threadId]),
+    );
+    if (threadIdByEmailThreadId.size === 0) return new Set();
+
+    const logs = await this.autoResponseLogRepository.find({
+      select: { emailThreadId: true },
+      where: { userId, emailThreadId: In([...threadIdByEmailThreadId.keys()]) },
+    });
+    return new Set(
+      logs
+        .map((log) => threadIdByEmailThreadId.get(log.emailThreadId ?? ""))
+        .filter((threadId): threadId is string => Boolean(threadId)),
+    );
+  }
+
+  private async findExistingQAs(userId: string): Promise<UserContext[]> {
+    // Use repository.find() (not createQueryBuilder) to ensure TypeORM
+    // column transformers run correctly and decrypt contextValue/explanation.
+    const existingQAs = await this.contextRepository.find({
+      where: { userId, contextKey: ContextKey.Q_AND_A },
+    });
+    // Belt-and-suspenders: force-decrypt in case of hydration edge cases.
+    for (const qa of existingQAs) {
+      decryptUserContextEntityForApi(qa);
+    }
+    return existingQAs;
+  }
+
   private async deduplicateAndSaveQAs(
     userId: string,
-    qaAnalysis: Array<{ question: string; answer: string; frequency: number }>,
+    faqs: VerifiedFaq[],
     existingQAs: UserContext[],
   ): Promise<void> {
     const existingQuestions = new Set<string>();
     const existingAnswers = new Set<string>();
     for (const existingQA of existingQAs) {
-      const qaMatch = existingQA.contextValue.match(
-        /^Q:\s*(.+?)\s*\|\s*A:\s*(.+)$/,
-      );
+      const qaMatch = existingQA.contextValue.match(QA_VALUE_PATTERN);
       if (qaMatch) {
         existingQuestions.add(qaMatch[1].toLowerCase().trim());
         existingAnswers.add(qaMatch[2].toLowerCase().trim());
@@ -142,9 +191,7 @@ export class ContextQaExtractionService {
     const seenQuestions = new Set<string>();
     const seenAnswers = new Set<string>();
 
-    for (const qa of qaAnalysis) {
-      if (!qa.question || !qa.answer || qa.frequency < MIN_QA_FREQUENCY)
-        continue;
+    for (const qa of faqs) {
       const normalizedQuestion = qa.question.toLowerCase().trim();
       const normalizedAnswer = qa.answer.toLowerCase().trim();
       if (
@@ -167,9 +214,7 @@ export class ContextQaExtractionService {
       // Find matching existing entity (already decrypted) so saveQAPair can
       // update it without a broken findOne on an encrypted column.
       const matchedExisting = existingQAs.find((existing) => {
-        const parsed = existing.contextValue.match(
-          /^Q:\s*(.+?)\s*\|\s*A:\s*(.+)$/,
-        );
+        const parsed = existing.contextValue.match(QA_VALUE_PATTERN);
         if (!parsed) return false;
         return (
           parsed[1].toLowerCase().trim() === normalizedQuestion &&
@@ -210,13 +255,11 @@ export class ContextQaExtractionService {
 
   private async saveQAPair(
     userId: string,
-    qa: { question: string; answer: string; frequency: number },
+    qa: VerifiedFaq,
     existingEntity?: UserContext,
   ): Promise<void> {
     const qaValue = `Q: ${qa.question} | A: ${qa.answer}`;
-    const explanation = qa.frequency
-      ? `Appeared ${qa.frequency} times in your replies`
-      : undefined;
+    const explanation = `Asked by ${qa.askerCount} different people in your recent emails`;
     // Do NOT use findOne({ where: { contextValue: qaValue } }) — AES-GCM uses
     // random IVs so the same plaintext produces different ciphertext each time,
     // meaning a WHERE comparison against the encrypted column always fails.
@@ -238,4 +281,27 @@ export class ContextQaExtractionService {
       `[CONTEXT-ANALYSIS] Added Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
     );
   }
+}
+
+function toInboundMessage(email: Email): QaInboundMessage {
+  return {
+    threadId: email.threadId,
+    from: email.from,
+    subject: email.subject,
+    body: email.body,
+    htmlBody: email.htmlBody ?? undefined,
+    receivedAt: email.receivedAt,
+  };
+}
+
+/** The user's login address plus every address their Sent folder used (aliases). */
+function collectUserAddresses(
+  sentEmailsData: SentEmailData[],
+  userEmail: string,
+): Set<string> {
+  return new Set(
+    [userEmail, ...sentEmailsData.map((email) => email.from)]
+      .map(extractEmailAddress)
+      .filter(Boolean),
+  );
 }

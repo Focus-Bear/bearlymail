@@ -6,7 +6,9 @@ import os from "os";
 import { NODE_ENV_VALUES } from "./constants/domain-types";
 import { encryptionKeyProvider } from "./encryption/encryption-key-provider";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
+import { setPromptsLogger } from "./llm/prompts";
 import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
+import { logError, logLog, logWarn } from "./utils/logger";
 import { WorkerModule } from "./worker.module";
 
 const logger = new Logger("Worker");
@@ -30,6 +32,7 @@ const WORKER_COUNT = parseInt(
 );
 
 async function bootstrapWorker(workerId: number) {
+  setPromptsLogger({ log: logLog, warn: logWarn, error: logError });
   logger.log(`[Worker ${workerId}] Starting worker process...`);
 
   // Must be called before NestJS bootstraps so TypeORM column transformers

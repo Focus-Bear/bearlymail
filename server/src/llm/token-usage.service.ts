@@ -10,6 +10,7 @@ import { TokenUsage } from "../database/entities/token-usage.entity";
 import { User } from "../database/entities/user.entity";
 import { DebugService, DuplicateLlmCall } from "../debug/debug.service";
 import { DEBUG_FEATURES } from "../debug/debug-feature-names";
+import type { TokenUsageLogData } from "../shared/email-intelligence/ports";
 import { captureLlmCallSite } from "./call-site.util";
 import {
   getOperationLabel,
@@ -20,23 +21,8 @@ import { SUMMARY_PROMPT_IDS } from "./prompts";
 
 const SYSTEM_PROMPT_PREVIEW_LENGTH = 5000;
 
-export interface TokenUsageLogData {
-  userId?: string | null;
-  operation: LLMOperation;
-  provider: string;
-  model: string;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-  durationMs?: number | null;
-  // Optional: full prompt text for example capture
-  promptText?: string;
-  systemPromptText?: string;
-  // Whether the input prompt contained HTML (auto-detected if promptText provided)
-  containsHtml?: boolean;
-  // Email IDs processed in this LLM call (for tracking duplicate summarizations)
-  emailIds?: string[];
-}
+// Defined with the email-intelligence ports so the Lambda can log usage too.
+export type { TokenUsageLogData };
 
 /**
  * Represents a captured example of the longest prompt for an operation

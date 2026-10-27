@@ -1,5 +1,4 @@
-import { ConfigService } from "@nestjs/config";
-
+import type { ConfigReader } from "../shared/email-intelligence/ports";
 import { LLMProvider } from "./llm.types";
 
 const DEFAULT_ANALYZE_PRIORITY_MODEL = "amazon.nova-micro-v1:0";
@@ -7,7 +6,7 @@ const DEFAULT_ANALYZE_PRIORITY_MODEL = "amazon.nova-micro-v1:0";
 export function resolvePriorityProvider(
   requested: LLMProvider | undefined,
   defaultProvider: LLMProvider,
-  config: ConfigService,
+  getConfig: ConfigReader,
 ): { provider: LLMProvider; model?: string } {
   const provider =
     requested ??
@@ -16,8 +15,7 @@ export function resolvePriorityProvider(
       : LLMProvider.BEDROCK);
   const model =
     provider === LLMProvider.BEDROCK
-      ? (config.get<string>("ANALYZE_PRIORITY_MODEL") ??
-        DEFAULT_ANALYZE_PRIORITY_MODEL)
+      ? (getConfig("ANALYZE_PRIORITY_MODEL") ?? DEFAULT_ANALYZE_PRIORITY_MODEL)
       : undefined;
   return { provider, model };
 }

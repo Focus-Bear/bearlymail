@@ -1,7 +1,6 @@
-import type { Logger } from "@nestjs/common";
-
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import type { LoggerPort } from "../shared/email-intelligence/ports";
 import { rewriteCategoryNumberReferences } from "../utils/category-number.util";
 import { LLMProvider } from "./llm.types";
 import type {
@@ -18,7 +17,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export async function suggestProtoCategory(
   client: CategoryModelClient,
-  logger: Pick<Logger, "warn">,
+  logger: Pick<LoggerPort, "warn">,
   params: CategoriseFromSummaryParams,
 ): Promise<ProtoCategorySuggestion | undefined> {
   const config = getPrompt(UTILITY_PROMPT_IDS.SUGGEST_PROTO_CATEGORY);

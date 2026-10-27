@@ -1,7 +1,7 @@
-import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
+import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rule-trace.types";
 import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
 import type { CategoryDecisionAnalyzedEmail } from "../emails/category-decision-trace.types";
-import type { ShortlistCandidate } from "./category-shortlist.service";
+import type { ShortlistCandidate } from "../shared/email-intelligence/category.types";
 
 export type CategoryConfidence = "HIGH" | "MEDIUM" | "LOW";
 

@@ -7,6 +7,7 @@ import { JEV_DECISION_KINDS } from "../constants/jev.constants";
 import { PRIORITY_BATCH_LLM_CONCURRENCY } from "../constants/llm-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { PriorityAnalyzer } from "../shared/email-intelligence/priority-analyzer";
 import { CategoryShortlistService } from "./category-shortlist.service";
 import { LLMProvider, LLMRequest } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -826,17 +827,23 @@ describe("PriorityAnalysisService", () => {
       const flushMicrotasks = () =>
         new Promise((resolve) => setImmediate(resolve));
 
+      // These spy on the shared analyzer's prototype, which outlives the
+      // per-test service instance, so restore it before the next test.
+      afterEach(() => jest.restoreAllMocks());
+
       it("analyses up to PRIORITY_BATCH_LLM_CONCURRENCY emails at once and settles every one", async () => {
         const releases: Array<() => void> = [];
         let inFlight = 0;
         let maxInFlight = 0;
-        jest.spyOn(service, "analyzePriority").mockImplementation(async () => {
-          inFlight++;
-          maxInFlight = Math.max(maxInFlight, inFlight);
-          await new Promise<void>((resolve) => releases.push(resolve));
-          inFlight--;
-          return priorityResult;
-        });
+        jest
+          .spyOn(PriorityAnalyzer.prototype, "analyzePriority")
+          .mockImplementation(async () => {
+            inFlight++;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            await new Promise<void>((resolve) => releases.push(resolve));
+            inFlight--;
+            return priorityResult;
+          });
 
         const run = service.analyzePriorityBatch(newEmails);
         await flushMicrotasks();
@@ -857,8 +864,8 @@ describe("PriorityAnalysisService", () => {
 
       it("keeps analysing the other emails when one fails", async () => {
         const failingKeyIndex = 2;
-        jest
-          .spyOn(service, "analyzePriority")
+        const analyzePrioritySpy = jest
+          .spyOn(PriorityAnalyzer.prototype, "analyzePriority")
           .mockImplementation(async ({ email }) => {
             if (email.subject === newEmails[failingKeyIndex].subject) {
               throw new Error("LLM failed");
@@ -868,7 +875,7 @@ describe("PriorityAnalysisService", () => {
 
         const results = await service.analyzePriorityBatch(newEmails);
 
-        expect(service.analyzePriority).toHaveBeenCalledTimes(NEW_EMAIL_COUNT);
+        expect(analyzePrioritySpy).toHaveBeenCalledTimes(NEW_EMAIL_COUNT);
         expect(results.size).toBe(NEW_EMAIL_COUNT);
         newEmails.forEach(({ emailKey }, index) => {
           expect(results.get(emailKey)?.isFallback).toBe(

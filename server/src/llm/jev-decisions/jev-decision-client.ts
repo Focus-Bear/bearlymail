@@ -1,8 +1,10 @@
-import type { Logger } from "@nestjs/common";
-
 import { JEV_DECISION_PROVIDER } from "../../constants/ai-decision-provider.constants";
 import { JEV, JEV_DECISIONS } from "../../constants/jev.constants";
 import { ENV_BOOLEAN_STRING } from "../../constants/service-constants";
+import type {
+  LoggerPort,
+  TokenUsageSink,
+} from "../../shared/email-intelligence/ports";
 import {
   JEV_OUTCOMES,
   type JevOutcome,
@@ -13,7 +15,6 @@ import { requestJev } from "../jev-system-one";
 import type { LLMRequest } from "../llm.types";
 import { LLM_OP_UNKNOWN } from "../llm-operations";
 import { reportProvider } from "../provider-report.util";
-import type { TokenUsageService } from "../token-usage.service";
 import { jevAnswerConfidence } from "./jev-answer.helpers";
 import { JEV_DECISION_REGISTRY } from "./jev-decision.registry";
 import type {
@@ -72,8 +73,8 @@ export function isJevDecisionsAvailable(getConfig: ConfigReader): boolean {
 export class JevDecisionClient {
   constructor(
     private readonly getConfig: ConfigReader,
-    private readonly logger: Pick<Logger, "warn" | "log">,
-    private readonly tokenUsage: Pick<TokenUsageService, "logUsage">,
+    private readonly logger: Pick<LoggerPort, "warn" | "log">,
+    private readonly tokenUsage: TokenUsageSink,
   ) {}
 
   async decide(request: LLMRequest, userId?: string): Promise<string | null> {

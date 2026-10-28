@@ -1,6 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { GMAIL_ACCESS_ISSUE } from "../constants/domain-statuses";
 import { DataExportService } from "./data-export.service";
 import { DataImportService } from "./data-import.service";
 import { UsersController } from "./users.controller";
@@ -93,6 +94,21 @@ describe("UsersController", () => {
       expect(result.id).toBe(userId);
       expect(result.email).toBe("test@example.com");
       expect(usersService.findOne).toHaveBeenCalledWith(userId);
+    });
+
+    it("exposes the Gmail access issue so the inbox can explain an empty mailbox", async () => {
+      mockUsersService.findOne.mockResolvedValue({
+        id: "user-123",
+        email: "test@example.com",
+        gmailAccessIssue: GMAIL_ACCESS_ISSUE.MISSING,
+        needsRelogin: true,
+      });
+
+      const result = await controller.getProfile({
+        user: { userId: "user-123" },
+      });
+
+      expect(result.gmailAccessIssue).toBe(GMAIL_ACCESS_ISSUE.MISSING);
     });
   });
 

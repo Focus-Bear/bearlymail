@@ -9,6 +9,7 @@ import {
 } from "typeorm";
 
 import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.types";
+import { GmailAccessIssue } from "../../constants/domain-statuses";
 import {
   makeGlobalEmailTransformer,
   makeGlobalEncryptedColumnTransformer,
@@ -283,6 +284,21 @@ export class User {
       "True when the initial sync skipped older mail (500-email cap / 7-day window). Drives the client 'old emails not synced' banner.",
   })
   syncWindowLimited: boolean;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Why the last Gmail fetch couldn't read mail (gmail_access_missing / gmail_access_revoked); null once a fetch succeeds. Drives the client reconnect banner.",
+  })
+  gmailAccessIssue: GmailAccessIssue | null;
+
+  @Column({
+    type: "timestamptz",
+    nullable: true,
+    comment: "When gmailAccessIssue was first recorded.",
+  })
+  gmailAccessIssueAt: Date | null;
 
   @Column({
     default: true,

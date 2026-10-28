@@ -1,6 +1,10 @@
 import { Logger } from "@nestjs/common";
 import { gmail_v1 } from "googleapis";
 
+import {
+  GMAIL_ACCESS_ISSUE,
+  GmailAccessIssue,
+} from "../../../constants/domain-statuses";
 import { HTTP_STATUS } from "../../../constants/http-status";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { ApiError, isApiError, isError } from "../../../types/common";
@@ -278,21 +282,36 @@ function isInsufficientScopeError(
 }
 
 /**
- * Check if error is an auth error
+ * Classifies a Gmail API failure the user can only fix by reconnecting Google:
+ * a 403 for missing scopes, or a 401 / `invalid_grant` for a dead grant.
+ * Returns null for everything else, including transient rate-limit 403s.
  */
-export function isGmailAuthError(error: unknown): boolean {
+export function classifyGmailAccessIssue(
+  error: unknown,
+): GmailAccessIssue | null {
   const apiError = isApiError(error) ? error : null;
   const errorMsg = isError(error) ? error.message : apiError?.message || "";
   const status = getHttpStatus(apiError);
 
-  if (status === HTTP_STATUS.UNAUTHORIZED) return true;
-  if (errorMsg && errorMsg.includes("invalid_grant")) return true;
+  if (status === HTTP_STATUS.UNAUTHORIZED) return GMAIL_ACCESS_ISSUE.REVOKED;
+  if (errorMsg && errorMsg.includes("invalid_grant"))
+    return GMAIL_ACCESS_ISSUE.REVOKED;
 
   // 403s are ambiguous: missing scopes (auth — must reconnect) vs. rate limits
   // (transient — do NOT flag the user for relogin). Only the former counts.
-  if (status === HTTP_STATUS.FORBIDDEN) {
-    return isInsufficientScopeError(apiError, errorMsg);
+  if (
+    status === HTTP_STATUS.FORBIDDEN &&
+    isInsufficientScopeError(apiError, errorMsg)
+  ) {
+    return GMAIL_ACCESS_ISSUE.MISSING;
   }
 
-  return false;
+  return null;
+}
+
+/**
+ * Check if error is an auth error
+ */
+export function isGmailAuthError(error: unknown): boolean {
+  return classifyGmailAccessIssue(error) !== null;
 }

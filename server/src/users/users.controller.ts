@@ -22,6 +22,7 @@ import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 import { DataExportService } from "./data-export.service";
 import { DataImportService, ImportOptions } from "./data-import.service";
+import { resolveGmailAccessIssue } from "./gmail-access-issue";
 import { UsersService } from "./users.service";
 
 // Performance budgets for consent-status
@@ -106,6 +107,7 @@ export class UsersController {
     return {
       ...result,
       hasAnthropicKey: !!user.anthropicApiKey,
+      gmailAccessIssue: resolveGmailAccessIssue(user),
     };
   }
 

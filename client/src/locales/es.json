@@ -1654,7 +1654,10 @@
     "connectButton": "Conectar Gmail",
     "connectDescription": "Para comenzar con BearlyMail, conecte su cuenta de Gmail. Sincronizaremos sus correos electrónicos de forma segura y lo ayudaremos a administrarlos de manera más efectiva.",
     "connectMultipleHint": "Puedes conectar varias cuentas de Gmail más adelante en la configuración.",
-    "connectTitle": "Conecte su cuenta de Gmail"
+    "connectTitle": "Conecte su cuenta de Gmail",
+    "accessIssueTitle": "BearlyMail no puede leer tu Gmail",
+    "accessIssueMessage": "Cuando iniciaste sesión, no se permitió el acceso a Gmail (o se desactivó). Vuelve a conectar Google y marca las casillas de Gmail para ver tu correo.",
+    "reconnectGoogle": "Volver a conectar Google"
   },
   "help": {
     "articleNotFound": "Artículo no encontrado",

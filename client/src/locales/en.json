@@ -2653,7 +2653,10 @@
     "connectTitle": "Connect Your Gmail Account",
     "connectDescription": "To get started with BearlyMail, please connect your Gmail account. We'll sync your emails securely and help you manage them more effectively.",
     "connectButton": "Connect Gmail",
-    "connectMultipleHint": "You can connect multiple Gmail accounts later in settings."
+    "connectMultipleHint": "You can connect multiple Gmail accounts later in settings.",
+    "accessIssueTitle": "BearlyMail can't read your Gmail",
+    "accessIssueMessage": "When you signed in, Gmail access wasn't allowed (or it was turned off). Reconnect Google and tick the Gmail boxes to see your email.",
+    "reconnectGoogle": "Reconnect Google"
   },
   "help": {
     "title": "Help",

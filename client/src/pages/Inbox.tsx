@@ -391,6 +391,7 @@ const InboxView: React.FC = () => {
           onDismissUrgent={urgentNotification.hideUrgentNotification}
           needsRelogin={user?.needsRelogin}
           onLogout={logout}
+          gmailAccessIssue={user?.gmailAccessIssue}
         />
         <InboxHeader
           mode={mode}

@@ -78,6 +78,21 @@ export const WORKFLOW_RESULT_STATUS = {
 export type WorkflowResultStatus =
   (typeof WORKFLOW_RESULT_STATUS)[keyof typeof WORKFLOW_RESULT_STATUS];
 
+/**
+ * Why BearlyMail can't read a user's Gmail. Stored on `users.gmailAccessIssue`
+ * and shown to the user as a reconnect banner; the values are part of the API
+ * contract with the client (client/src/constants/strings.ts).
+ */
+export const GMAIL_ACCESS_ISSUE = {
+  /** The grant lacks the Gmail scopes (unticked on Google's consent screen). */
+  MISSING: "gmail_access_missing",
+  /** The refresh token was revoked, expired or never issued. */
+  REVOKED: "gmail_access_revoked",
+} as const;
+
+export type GmailAccessIssue =
+  (typeof GMAIL_ACCESS_ISSUE)[keyof typeof GMAIL_ACCESS_ISSUE];
+
 export const QUEUE_JOB_STATE = {
   CREATED: "created",
   ACTIVE: "active",

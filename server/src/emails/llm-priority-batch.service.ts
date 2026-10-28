@@ -49,6 +49,7 @@ import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.
 import { shouldSkipPriorityRecalculation } from "./priority-recalc-skip.helper";
 import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
+import { StaleRuleCategoryService } from "./stale-rule-category.service";
 
 /** Delay in seconds before re-queuing a fallback email for retry. */
 const PRIORITY_RETRY_DELAY_SECONDS = 60;
@@ -89,6 +90,7 @@ export class LLMPriorityBatchService {
     private readonly deterministicPriorityService: LLMDeterministicPriorityService,
     private readonly priorityRulesService: PriorityRulesService,
     private readonly categoryRulesService: CategoryRulesService,
+    private readonly staleRuleCategoryService: StaleRuleCategoryService,
     // Optional: confident local-model predictions skip the LLM batch. No-op
     // unless LOCAL_MODEL_LIVE_ENABLED is set; never throws.
     @Optional()
@@ -128,6 +130,8 @@ export class LLMPriorityBatchService {
     emailsToProcess: Email[];
     contexts: UserContext[];
     protoCategories: ProtoCategory[];
+    /** Emails whose thread's stale rule label was released — they skip triage. */
+    staleRuleReleasedEmailIds: Set<string>;
   }> {
     const [emailResults, contexts, protoCategories] = await Promise.all([
       Promise.all(
@@ -155,6 +159,7 @@ export class LLMPriorityBatchService {
         : [];
     const threadMap = new Map(threads.map((thread) => [thread.id, thread]));
     const preload = await this.deterministicPriorityService.loadPreload(userId);
+    const staleRuleReleasedEmailIds = new Set<string>();
 
     const emailsToProcess = (
       await Promise.all(
@@ -175,6 +180,14 @@ export class LLMPriorityBatchService {
               email.id,
             );
             if (shouldSkip) return null;
+            const released = await this.staleRuleCategoryService.release({
+              userId,
+              email,
+              thread,
+              workerId,
+              preloadedRules: preload?.categoryRules,
+            });
+            if (released) staleRuleReleasedEmailIds.add(email.id);
             // Deterministic skip: a sender with a learned priority rule (and a
             // category rule) is scored in code and excluded from the LLM batch.
             const handledByRule =
@@ -211,6 +224,7 @@ export class LLMPriorityBatchService {
       emailsToProcess,
       contexts: contexts as UserContext[],
       protoCategories,
+      staleRuleReleasedEmailIds,
     };
   }
 
@@ -511,8 +525,12 @@ export class LLMPriorityBatchService {
     tracker: JobPerformanceTracker,
   ): Promise<string[]> {
     tracker.startPhase("dataFetch");
-    const { emailsToProcess, contexts, protoCategories } =
-      await this.prepareBatchEmails(userId, emailIds, workerId);
+    const {
+      emailsToProcess,
+      contexts,
+      protoCategories,
+      staleRuleReleasedEmailIds,
+    } = await this.prepareBatchEmails(userId, emailIds, workerId);
 
     if (emailsToProcess.length === 0) {
       this.logger.log(`[Worker ${workerId}] No emails to process in batch`);
@@ -554,6 +572,7 @@ export class LLMPriorityBatchService {
       await this.dispatchViaSqs(workerId, userId, emailsNeedingFullAnalysis, {
         contexts,
         protoCategories,
+        forceFullAnalysisEmailIds: staleRuleReleasedEmailIds,
       });
     } else {
       await this.runLlmAnalysisAndApply(
@@ -564,6 +583,7 @@ export class LLMPriorityBatchService {
           contexts,
           protoCategories,
           tracker,
+          forceFullAnalysisEmailIds: staleRuleReleasedEmailIds,
         },
       );
     }
@@ -586,7 +606,11 @@ export class LLMPriorityBatchService {
     workerId: string,
     userId: string,
     emails: Email[],
-    opts: { contexts: UserContext[]; protoCategories: ProtoCategory[] },
+    opts: {
+      contexts: UserContext[];
+      protoCategories: ProtoCategory[];
+      forceFullAnalysisEmailIds?: Set<string>;
+    },
   ): Promise<void> {
     const { contexts, protoCategories } = opts;
     const analysisId = randomUUID();
@@ -596,6 +620,7 @@ export class LLMPriorityBatchService {
       emails,
       threadMap,
       this.buildCategoryIdNameMap(contexts),
+      opts.forceFullAnalysisEmailIds,
     );
     const userContext = this.buildUserContext(contexts, protoCategories);
     const userTimezone =
@@ -657,6 +682,7 @@ export class LLMPriorityBatchService {
       contexts: UserContext[];
       protoCategories: ProtoCategoryInput;
       tracker: JobPerformanceTracker;
+      forceFullAnalysisEmailIds?: Set<string>;
     },
   ): Promise<void> {
     const { contexts, protoCategories, tracker } = opts;
@@ -672,6 +698,7 @@ export class LLMPriorityBatchService {
       emailsNeedingFullAnalysis,
       threadMapForPayload,
       this.buildCategoryIdNameMap(contexts),
+      opts.forceFullAnalysisEmailIds,
     );
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");

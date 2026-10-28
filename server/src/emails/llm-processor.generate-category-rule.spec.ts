@@ -21,6 +21,7 @@ import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMProcessor } from "./llm-processor";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
+import { StaleRuleCategoryService } from "./stale-rule-category.service";
 
 /**
  * Unit tests for the `generate-category-rule` job handler enqueued by the batch
@@ -69,6 +70,10 @@ describe("LLMProcessor — handleGenerateCategoryRuleJob", () => {
         { provide: LLMPriorityBatchService, useValue: {} },
         { provide: LLMSummaryProcessorService, useValue: {} },
         { provide: DebugService, useValue: { log: jest.fn() } },
+        {
+          provide: StaleRuleCategoryService,
+          useValue: { release: jest.fn().mockResolvedValue(false) },
+        },
         {
           provide: CategoryRulesService,
           useValue: { generateCompositeRuleFromEmail },

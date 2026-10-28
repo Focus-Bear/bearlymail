@@ -1,4 +1,5 @@
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   buildBatchEmailPayloads,
   shouldBypassSummaryForPriority,
@@ -84,5 +85,46 @@ describe("buildBatchEmailPayloads", () => {
     } as unknown as Email;
     const [payload] = buildBatchEmailPayloads([ordinary]);
     expect(payload.body).toBe("Short summary.");
+  });
+
+  describe("triage inputs", () => {
+    const threadEmail = {
+      ...baseEmail,
+      emailThreadId: "thread-1",
+    } as unknown as Email;
+    const threadMap = new Map([
+      [
+        "thread-1",
+        {
+          id: "thread-1",
+          urgencyScore: 40,
+          categoryId: "category-1",
+        } as unknown as EmailThread,
+      ],
+    ]);
+    const categoryMap = new Map([
+      ["category-1", "Meeting Reschedule Requests"],
+    ]);
+
+    it("carries the thread's existing analysis so triage can preserve it", () => {
+      const [payload] = buildBatchEmailPayloads(
+        [threadEmail],
+        threadMap,
+        categoryMap,
+      );
+      expect(payload.existingUrgencyScore).toBe(40);
+      expect(payload.existingCategory).toBe("Meeting Reschedule Requests");
+    });
+
+    it("omits it for emails forced to full analysis (stale rule label released)", () => {
+      const [payload] = buildBatchEmailPayloads(
+        [threadEmail],
+        threadMap,
+        categoryMap,
+        new Set(["email-1"]),
+      );
+      expect(payload.existingUrgencyScore).toBeUndefined();
+      expect(payload.existingCategory).toBeUndefined();
+    });
   });
 });

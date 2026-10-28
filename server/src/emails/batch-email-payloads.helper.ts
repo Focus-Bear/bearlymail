@@ -45,11 +45,17 @@ export function shouldBypassSummaryForPriority(
  * Builds the per-email payloads sent to the batch priority LLM. QA-related and
  * time-critical emails always use the raw body so the model sees the actual
  * verdict / event date — summaries may strip them.
+ *
+ * Emails in `forceFullAnalysisEmailIds` are sent WITHOUT the thread's existing
+ * urgency/category, so the analyser skips its cheap triage pass for them and
+ * runs the full analysis. Triage would otherwise "preserve" a thread whose
+ * stale rule label was just released, leaving the wrong category in place.
  */
 export function buildBatchEmailPayloads(
   emailsToProcess: Email[],
   threadMap?: Map<string, EmailThread>,
   categoryMap?: Map<string, string>,
+  forceFullAnalysisEmailIds?: ReadonlySet<string>,
 ): BatchEmailPayload[] {
   return emailsToProcess.map((email) => {
     const bodyForBatch =
@@ -62,7 +68,9 @@ export function buildBatchEmailPayloads(
             BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
           );
     const thread =
-      threadMap && email.emailThreadId
+      threadMap &&
+      email.emailThreadId &&
+      !forceFullAnalysisEmailIds?.has(email.id)
         ? threadMap.get(email.emailThreadId)
         : undefined;
     return {

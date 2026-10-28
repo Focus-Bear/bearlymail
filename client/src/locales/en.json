@@ -163,6 +163,10 @@
         "title": "Join the Waitlist",
         "description": "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."
       },
+      "missingGmailPermission": {
+        "title": "BearlyMail needs access to your Gmail",
+        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\")."
+      },
       "generic": {
         "title": "Authentication Error"
       }

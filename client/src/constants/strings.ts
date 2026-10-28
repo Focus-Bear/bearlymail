@@ -371,6 +371,7 @@ export const SCROLL_BLOCK_START = 'start' as const;
 // Auth Error Types
 export const ERROR_TYPE_PENDING_APPROVAL = 'pending_approval' as const;
 export const ERROR_TYPE_NOT_ON_WAITLIST = 'not_on_waitlist' as const;
+export const ERROR_TYPE_MISSING_GMAIL_PERMISSION = 'missing_gmail_permission' as const;
 export const ERROR_TYPE_AUTH_ERROR = 'auth_error' as const;
 
 // Deletion reasons (must match server DeletionReason enum)

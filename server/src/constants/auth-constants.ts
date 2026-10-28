@@ -33,6 +33,17 @@ export const AUTH_CONSTANTS = {
   MFA_ELEVATION_TTL_MS: HOURS.EIGHT * MILLISECONDS.HOUR,
 } as const;
 
+/**
+ * `type` query param on the /auth-error redirect. The client's AuthError page
+ * switches on these exact values (client/src/constants/strings.ts).
+ */
+export const OAUTH_ERROR_TYPES = {
+  PENDING_APPROVAL: "pending_approval",
+  NOT_ON_WAITLIST: "not_on_waitlist",
+  MISSING_GMAIL_PERMISSION: "missing_gmail_permission",
+  AUTH_ERROR: "auth_error",
+} as const;
+
 // Number of random bytes for password reset token generation
 export const TOKEN_BYTES = 32;
 

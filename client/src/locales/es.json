@@ -516,6 +516,10 @@
         "title": "Unirse a la lista de espera",
         "description": "Necesitas unirte a nuestra lista de espera primero antes de poder iniciar sesión. Regístrate a continuación para obtener acceso anticipado a BearlyMail."
       },
+      "missingGmailPermission": {
+        "title": "BearlyMail necesita acceso a tu Gmail",
+        "description": "La pantalla de permisos de Google te dejó iniciar sesión sin permitir el acceso a Gmail, así que BearlyMail no puede ver tu bandeja de entrada. Vuelve a iniciar sesión y, en la pantalla de Google, marca las casillas para leer, redactar y enviar correos (o elige \"Seleccionar todo\")."
+      },
       "generic": {
         "title": "Error de autenticación"
       }

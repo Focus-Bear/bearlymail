@@ -38,6 +38,7 @@ import { getJobPriority } from "../queue/job-priorities";
 import { parseCategoryValue } from "../utils/category-name.util";
 import { mapWithConcurrency } from "../utils/concurrency.util";
 import { buildBatchEmailPayloads } from "./batch-email-payloads.helper";
+import { buildBatchPriorityDebugPayloads } from "./batch-priority-debug-payloads.helper";
 import { applyCategoryRuleToResult } from "./category-rule-apply.helper";
 import { EmailsService } from "./emails.service";
 import { groupEmailsByThread } from "./group-emails-by-thread.helper";
@@ -214,6 +215,13 @@ export class LLMPriorityBatchService {
     };
   }
 
+  /**
+   * Writes each batch result. Results that are skipped (missing, fallback,
+   * triage-preserved) or fail to write never reach the writer that clears
+   * `isProcessingPriority`, so their threads are unlocked here in one query —
+   * otherwise they stay "processing" (and onboarding's categorisation progress
+   * stalls) until the stuck-priority cron frees them.
+   */
   async applyBatchResults(
     workerId: string,
     userId: string,
@@ -221,80 +229,129 @@ export class LLMPriorityBatchService {
     batchResults: Map<string, BatchPriorityResult>,
     contexts: Array<{ contextKey: string; contextValue: string }>,
   ): Promise<void> {
+    const unwrittenThreadIds = new Set<string>();
     for (const email of emailsToProcess) {
       const llmResult = batchResults.get(email.id);
-      if (!llmResult) {
-        this.logger.warn(
-          `[Worker ${workerId}] No batch LLM result for email ${email.id} — skipping DB write to preserve existing priority`,
-        );
-        continue;
-      }
-      if (llmResult.isFallback || llmResult.triagePreserved) {
-        this.logger.warn(
-          `[Worker ${workerId}] Skipping ${llmResult.triagePreserved ? "triage-preserved" : "fallback"} result for email ${email.id} — preserving existing priority score`,
-        );
-        continue;
-      }
-      try {
-        // Apply deterministic category rules and capture the rule-trace snapshot
-        // here too — the single-email path does this in `resolveCategoryHint`,
-        // but the batch path (which handles most inbox emails) previously did
-        // neither, so category rules were silently ignored and `categoryRuleTrace`
-        // was never recorded for batched threads.
-        const { match: categoryRuleMatch, snapshot: ruleTraceSnapshot } =
-          await this.categoryRulesService.findMatchingRuleWithTrace(
-            userId,
-            buildRuleEmailMetadata(email),
-          );
-        applyCategoryRuleToResult(
+      const isWritten =
+        this.isWritableBatchResult(workerId, email, llmResult) &&
+        (await this.applySingleBatchResult(workerId, userId, email, {
           llmResult,
-          categoryRuleMatch,
-          ruleTraceSnapshot,
-        );
-        const finalScore = await this.priorityResultService.applyPriorityResult(
-          email,
-          llmResult as Parameters<
-            LLMPriorityResultService["applyPriorityResult"]
-          >[1],
           contexts,
-          userId,
-          workerId,
-        );
-        // Feed batch-scored emails into shadow comparison + rule mining, same
-        // as the single refine path.
-        await this.priorityRulesService.shadowAndMine(
-          userId,
-          email,
-          finalScore,
-          workerId,
-        );
-        // Record the local-model snapshot for batch-scored threads too (was
-        // single-path only → "hasn't scored this thread yet"). Never throws.
-        await this.localModelInferenceService?.shadowCompareEmail(
-          userId,
-          email,
-          llmResult.category ?? null,
-          finalScore,
-        );
-        // Bring the (dominant) batch path to parity with the single-email path:
-        // when the LLM was HIGH-confident and no deterministic rule already
-        // matched, enqueue a low-priority job to author a composite category
-        // rule so future emails skip the LLM category step. Rule generation is
-        // deliberately NOT run inline here — it stays off the batch hot path.
-        await this.enqueueCategoryRuleGeneration(
-          workerId,
-          userId,
-          email,
-          llmResult,
-          categoryRuleMatch,
-        );
-      } catch (updateError) {
-        this.logger.error(
-          `[Worker ${workerId}] Failed to update priority for email ${email.id}:`,
-          updateError,
-        );
+        }));
+      if (!isWritten && email.emailThreadId) {
+        unwrittenThreadIds.add(email.emailThreadId);
       }
     }
+    await this.unlockUnwrittenThreads(workerId, unwrittenThreadIds);
+  }
+
+  /** False (with a log line) when a result must not overwrite stored scores. */
+  private isWritableBatchResult(
+    workerId: string,
+    email: Email,
+    llmResult: BatchPriorityResult | undefined,
+  ): llmResult is BatchPriorityResult {
+    if (!llmResult) {
+      this.logger.warn(
+        `[Worker ${workerId}] No batch LLM result for email ${email.id} — skipping DB write to preserve existing priority`,
+      );
+      return false;
+    }
+    if (llmResult.isFallback || llmResult.triagePreserved) {
+      this.logger.warn(
+        `[Worker ${workerId}] Skipping ${llmResult.triagePreserved ? "triage-preserved" : "fallback"} result for email ${email.id} — preserving existing priority score`,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /** Returns true once the result is persisted (which also unlocks the thread). */
+  private async applySingleBatchResult(
+    workerId: string,
+    userId: string,
+    email: Email,
+    options: {
+      llmResult: BatchPriorityResult;
+      contexts: Array<{ contextKey: string; contextValue: string }>;
+    },
+  ): Promise<boolean> {
+    const { llmResult, contexts } = options;
+    try {
+      // Apply deterministic category rules and capture the rule-trace snapshot
+      // here too — the single-email path does this in `resolveCategoryHint`,
+      // but the batch path (which handles most inbox emails) previously did
+      // neither, so category rules were silently ignored and `categoryRuleTrace`
+      // was never recorded for batched threads.
+      const { match: categoryRuleMatch, snapshot: ruleTraceSnapshot } =
+        await this.categoryRulesService.findMatchingRuleWithTrace(
+          userId,
+          buildRuleEmailMetadata(email),
+        );
+      applyCategoryRuleToResult(
+        llmResult,
+        categoryRuleMatch,
+        ruleTraceSnapshot,
+      );
+      const finalScore = await this.priorityResultService.applyPriorityResult(
+        email,
+        llmResult as Parameters<
+          LLMPriorityResultService["applyPriorityResult"]
+        >[1],
+        contexts,
+        userId,
+        workerId,
+      );
+      // Feed batch-scored emails into shadow comparison + rule mining, same
+      // as the single refine path.
+      await this.priorityRulesService.shadowAndMine(
+        userId,
+        email,
+        finalScore,
+        workerId,
+      );
+      // Record the local-model snapshot for batch-scored threads too (was
+      // single-path only → "hasn't scored this thread yet"). Never throws.
+      await this.localModelInferenceService?.shadowCompareEmail(
+        userId,
+        email,
+        llmResult.category ?? null,
+        finalScore,
+      );
+      // Bring the (dominant) batch path to parity with the single-email path:
+      // when the LLM was HIGH-confident and no deterministic rule already
+      // matched, enqueue a low-priority job to author a composite category
+      // rule so future emails skip the LLM category step. Rule generation is
+      // deliberately NOT run inline here — it stays off the batch hot path.
+      await this.enqueueCategoryRuleGeneration(
+        workerId,
+        userId,
+        email,
+        llmResult,
+        categoryRuleMatch,
+      );
+      return true;
+    } catch (updateError) {
+      this.logger.error(
+        `[Worker ${workerId}] Failed to update priority for email ${email.id}:`,
+        updateError,
+      );
+      return false;
+    }
+  }
+
+  private async unlockUnwrittenThreads(
+    workerId: string,
+    threadIds: Set<string>,
+  ): Promise<void> {
+    if (threadIds.size === 0) return;
+    await this.emailThreadRepository.update(
+      { id: In([...threadIds]) },
+      { isProcessingPriority: false },
+    );
+    this.logger.log(
+      `[Worker ${workerId}] Unlocked ${threadIds.size} thread(s) whose batch result was not written`,
+    );
   }
 
   /**
@@ -700,7 +757,7 @@ export class LLMPriorityBatchService {
     await this.debugService.logBatch(
       DEBUG_FEATURES.PRIORITY_ANALYSIS_TRACKING,
       userId,
-      this.buildPriorityDebugPayloads(emailsNeedingFullAnalysis),
+      buildBatchPriorityDebugPayloads(emailsNeedingFullAnalysis),
     );
   }
 
@@ -774,35 +831,6 @@ export class LLMPriorityBatchService {
         { isProcessingPriority: true },
       );
     }
-  }
-
-  private buildPriorityDebugPayloads(emails: Email[]): Array<{
-    threadId: string | null;
-    emailCount: number;
-    caller: string;
-    callerFile: string;
-    emailId: string;
-    jobType: string;
-  }> {
-    const threadEmailCountMap = new Map<string, number>();
-    for (const email of emails) {
-      if (email.threadId) {
-        threadEmailCountMap.set(
-          email.threadId,
-          (threadEmailCountMap.get(email.threadId) ?? 0) + 1,
-        );
-      }
-    }
-    return emails.map((email) => ({
-      threadId: email.threadId ?? null,
-      emailCount: email.threadId
-        ? (threadEmailCountMap.get(email.threadId) ?? 1)
-        : 1,
-      caller: "runBatchRefinement",
-      callerFile: "llm-priority-batch.service.ts",
-      emailId: email.id,
-      jobType: "REFINE_PRIORITY_BATCH",
-    }));
   }
 
   /**

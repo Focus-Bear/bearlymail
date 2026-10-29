@@ -66,6 +66,10 @@ server/src/
 │   ├── token-usage.service.ts # Token usage tracking per operation
 │   └── token-usage.controller.ts # Admin endpoint for usage stats
 │
+├── lambda/
+│   └── prioritisation/        # SQS Lambda for refine-priority batches: hand-wires the worker's
+│                              # services over a plain DataSource (no Nest container); bundled by
+│                              # scripts/bundle-prioritisation-lambda.mjs
 ├── queue/                     # PgBoss job queue infrastructure
 │   ├── queue.module.ts        # PgBoss provider setup
 │   ├── job-priorities.ts      # Priority levels (HIGH=80, MEDIUM=40, LOW=20)

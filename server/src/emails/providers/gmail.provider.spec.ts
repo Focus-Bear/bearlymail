@@ -136,6 +136,19 @@ describe("GmailProvider — validateToken", () => {
       // Proceeded past the skip into token validation.
       expect(mockGetAccessToken).toHaveBeenCalled();
     });
+
+    it("skips even inside the grace period when flagged for a missing Gmail scope", async () => {
+      usersService.findOneWithTokens = jest.fn().mockResolvedValue({
+        ...mockUser,
+        needsRelogin: true,
+        lastLogoutReason: "gmail_insufficient_scope",
+        updatedAt: new Date(),
+      });
+
+      await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
+
+      expect(mockGetAccessToken).not.toHaveBeenCalled();
+    });
   });
 
   describe("invalid token — irrecoverable path", () => {

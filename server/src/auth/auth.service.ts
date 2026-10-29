@@ -155,6 +155,7 @@ export class AuthService {
       return null;
     }
 
+    await this.provisionPersonalOrg(user.id);
     const { password: _password, ...result } = user;
     return result;
   }
@@ -683,6 +684,8 @@ export class AuthService {
       throw new Error("Failed to create account");
     }
 
+    // Without an org the user can't open the plan picker or start Stripe Checkout.
+    await this.provisionPersonalOrg(user.id);
     this.logger.log(`[REGISTER] Created active account for user ${user.id}`);
     return this.login(user);
   }

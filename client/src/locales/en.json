@@ -1753,7 +1753,7 @@
         "bodyTemplateLabel": "Body template (JSON with {{variable}} substitution)"
       },
       "condition": {
-        "categoryScopeNote": "This workflow only runs on emails in a specific category (set when it was created from the category menu).",
+        "categoryScopeNote": "This workflow runs on any email in {{category}}. It was set when the workflow was created from the category menu.",
         "fromLabel": "From (sender patterns)",
         "fromHint": "Glob (*@upwork.com), regex (/billing/i), or plain text. Empty = match any sender.",
         "fromPlaceholder": "*@upwork.com",
@@ -1805,6 +1805,10 @@
         "conditionFrom": "From: {{value}}",
         "conditionSubject": "Subject: {{value}}",
         "conditionAny": "Matches any email",
+        "conditionCategory": "Any email in {{category}}",
+        "conditionInCategory": "In {{category}}",
+        "conditionAi": "AI check: {{value}}",
+        "unknownCategory": "a specific category",
         "conditionBody": "Body: {{value}}"
       },
       "section": {
@@ -4401,85 +4405,101 @@
         "kicker": "Common questions",
         "title": "A few things you might be wondering.",
         "items": {
-          "timeSensitive": {
-            "q": "What if I miss something genuinely time-sensitive?",
-            "a": "Truly urgent emails break through immediately. The model learns what \"urgent\" means for you by watching how quickly you reply, who you prioritise, and what you archive without reading. The bar for breaking through is high by design, so only things that genuinely interrupt your flow get through."
-          },
-          "priorityScore": {
-            "q": "How is the priority score calculated?",
-            "a": "It's learned from your context, not a generic formula. The score weighs who's sending — including the VIP senders you mark yourself — the projects and goals you're currently working on, deadlines, and urgency signals in the message. If a score looks wrong, you can correct it, and BearlyMail learns from every correction."
-          },
-          "lowScore": {
-            "q": "What if something important gets a low score?",
-            "a": "There are safety nets. You can mark important senders as VIPs so they're never buried, urgent-detection lets time-critical email bypass batching entirely, and nothing is ever hidden — you can always see every email and sort by time in the app."
-          },
-          "vip": {
-            "q": "Can I mark important senders myself?",
-            "a": "Yes. VIP senders are fully user-editable — add or remove anyone at any time. BearlyMail also learns VIPs automatically from how you star and reply, but you always have the final say."
-          },
-          "manualTriage": {
-            "q": "Why do I still triage manually if emails already have scores?",
-            "a": "Scores tell you what's likely to matter; triage tells BearlyMail what actually needs action from you. Starring an email moves it to your Action list, ordered by priority so the most important work sits on top — and the system learns from every choice you make."
-          },
-          "colleagues": {
-            "q": "Will my colleagues notice I’m slower to reply?",
-            "a": "Probably not. Most replies that feel \"instant\" are really under an hour, which still happens with 3× daily delivery. For people you always want to hear from immediately, mark them as VIPs and their email skips the batch."
+          "whatItDoes": {
+            "q": "What does BearlyMail actually do?",
+            "a": "It sits on top of your existing email account. It gives every email a priority score from 0 to 100, sorts it into a category, and holds non-urgent email until the delivery times you choose. When you're ready to deal with an email, it summarises the thread and drafts a reply for you to edit and send."
           },
           "providers": {
-            "q": "Which email providers does it work with?",
-            "a": "Google Workspace and Gmail, Office365 and Outlook, and Zoho Mail. BearlyMail sits on top of your existing account: no migration, no new email address."
+            "q": "Which email accounts does it work with?",
+            "a": "Gmail and Google Workspace, Microsoft 365 and Outlook, and Zoho Mail. You can connect more than one account. You keep your email address and nothing is migrated."
           },
-          "calendar": {
-            "q": "Does it work with my calendar?",
-            "a": "Yes. BearlyMail integrates with Google Calendar for meeting scheduling, so when an email turns into a meeting it can check your availability and help you schedule it without leaving your inbox."
+          "setup": {
+            "q": "What happens when I sign up?",
+            "a": "You connect your account and pick 2, 3 or 4 delivery times a day. BearlyMail then reads your most recent emails (up to 500) to learn your categories, the people who matter to you and what you're working on. That takes about a minute. You can then check what it learned and fix anything that's off."
           },
-          "peek": {
-            "q": "Can I peek at what’s being held?",
-            "a": "Technically yes, by opening Gmail or Outlook directly. We recommend blocking those sites and apps during focus time using <focusBear>Focus Bear</focusBear> so the temptation doesn't pull you back in."
+          "stillInMailbox": {
+            "q": "Is my email still in Gmail or Outlook?",
+            "a": "Yes. Held email is still in your normal mailbox, so you can always find it there. When you archive, snooze or star in BearlyMail, the change syncs back to your mailbox. If opening Gmail during focus time is the problem, <focusBear>Focus Bear</focusBear> can block it."
           },
-          "gmailImportant": {
-            "q": "How is this different from Gmail’s \"Important\" or Snooze?",
-            "a": "Gmail's Important label still shows you everything immediately, just sorted differently. Snooze still relies on you to triage every email first. BearlyMail flips the default: nothing arrives unless you've decided to be interrupted, or unless it's actually urgent."
+          "delivery": {
+            "q": "When will I see new email?",
+            "a": "At your delivery times. You choose them during setup and can change the times and days any time in Settings, under Email Batching. Between deliveries, non-urgent email waits quietly. It doesn't vanish."
           },
-          "price": {
-            "q": "What does it cost?",
-            "a": "From $5 USD / month, depending on how much email you get."
+          "urgent": {
+            "q": "What if something urgent arrives between deliveries?",
+            "a": "It comes through straight away. Any email that scores 75 or more skips the wait, and so do new replies on threads you've starred. You can turn urgent delivery off if you'd rather nothing interrupts you."
           },
-          "cancel": {
-            "q": "What happens if I cancel?",
-            "a": "Nothing is lost. BearlyMail sits on top of your existing Google, Microsoft or Zoho account, so every email is still there. Cancel any time and simply go back to your old inbox."
+          "vip": {
+            "q": "Do emails from my VIPs skip the wait?",
+            "a": "Not automatically. Marking someone as a VIP adds a big boost to the score of every email they send, which often takes it past the urgent bar, but not always. Give an email from someone the top star rating (\"Oh sh$t\") twice and BearlyMail adds them as a VIP for you. You can add or remove VIPs yourself in Settings."
+          },
+          "priorityScore": {
+            "q": "How does BearlyMail decide what's important?",
+            "a": "The AI scores each email on how urgent it is and how closely it relates to the goals and projects you've told it about. VIPs and senior senders get a boost, and newsletters get a lower score. To change what counts, edit your projects, goals and urgent topics in Settings, under Guide Our AI."
+          },
+          "wrongScore": {
+            "q": "What if it gets an email wrong?",
+            "a": "Change the score or the category on any email, and BearlyMail takes your correction into account. Nothing is deleted for scoring low. In Triage, lower-priority email sits behind \"Show all emails\", so the important email comes first."
+          },
+          "triageTabs": {
+            "q": "What are Triage, Action and Follow Up?",
+            "a": "Triage is new email you haven't dealt with yet. Star an email (\"Can wait\", \"Get on it\" or \"Oh sh$t\") to move it to Action, where your to-dos are sorted by priority. Once you've replied and are waiting on the other person, the thread moves to Follow Up until they answer."
           },
           "categories": {
-            "q": "How does BearlyMail decide categories?",
-            "a": "When you connect, BearlyMail looks at your recent email to suggest categories that fit your work — clients, projects, notifications, receipts and so on. New email is sorted into them automatically. You can rename, merge or add categories and move any email, and BearlyMail learns from every correction."
+            "q": "Where do the categories come from?",
+            "a": "During setup, BearlyMail suggests categories from a sample of your recent email, such as clients, receipts or notifications. You can add, rename or delete categories, move any email to a different one, and group categories into families. If you want a category to clear itself, you can auto-archive it."
+          },
+          "aiActions": {
+            "q": "Will it ever send or archive email without me?",
+            "a": "Only if you switch that on. Drafted replies are only sent when you press send. The auto-responder is off by default. When it's on, it replies at most once per sender every 7 days and skips newsletters, no-reply addresses and cold outreach. Email is only archived automatically by a rule you created or approved, including the auto-archive rules BearlyMail suggests, or because you blocked the sender."
           },
           "aiProviders": {
-            "q": "Which AI providers process my email, and for what?",
-            "a": "We use OpenAI, Google Gemini and Amazon Bedrock (Amazon Nova models) to summarise emails, score priority, sort email into categories and draft replies. Quick yes/no and multiple-choice decisions — such as which category an email belongs in, or whether it looks like phishing — go first to Jev, a small classification model from TypeSafe AI (hosted in the US). Every one of these providers commits not to train its models on your email."
+            "q": "Which AI services see my email, and do they train on it?",
+            "a": "Google Gemini, OpenAI, Amazon Bedrock (Amazon Nova models, run in Sydney) and TypeSafe AI's Jev classifier (in the US) summarise, score, categorise and draft replies. None of them train their models on your email, and we never sell your data. Our Privacy page lists what each one receives and where it runs."
           },
           "aiData": {
             "q": "What exactly is sent to the AI?",
-            "a": "Only what the task needs — for example, the email being summarised or the thread you are replying to, plus the priorities and categories you have set. Facts BearlyMail saves to learn your preferences have personal details such as phone numbers, addresses and bank details stripped out first."
+            "a": "Only what the task needs. That might be the email being summarised or scored, the thread you're replying to, and your saved goals and category names. Before BearlyMail saves anything it learns about you, it removes personal details such as phone numbers, addresses and bank details."
           },
-          "aiTraining": {
-            "q": "Is my email used to train AI models?",
-            "a": "No. Every AI provider we use — OpenAI, Google Gemini, Amazon Bedrock and TypeSafe AI (Jev) — commits not to train its models on your data, and we never sell it. You can export or delete everything at any time."
-          },
-          "aiActions": {
-            "q": "Will the AI send or archive email without me?",
-            "a": "Not unless you switch it on. Reply drafts are only sent when you send them. The auto-responder is off by default and only replies to the kinds of email you choose. Auto-archive rules only run for categories you have opted into."
-          },
-          "aiLearning": {
-            "q": "How does it learn my priorities?",
-            "a": "From what you do: who you reply to quickly, what you star, what you archive without reading, and every score or category you correct. You can also tell it directly by marking VIP senders and listing what you are working on."
+          "security": {
+            "q": "Where is my data stored, and how is it protected?",
+            "a": "On Amazon Web Services in Sydney, Australia. Your email and settings are encrypted at rest with AES-256-GCM, using encryption keys that are separate for each user. BearlyMail keeps an encrypted copy of the email it syncs until you delete your account."
           },
           "ownKey": {
             "q": "Can I use my own AI API key?",
-            "a": "Yes. Add your own OpenAI or Anthropic API key in Settings and BearlyMail will use it for your requests instead of ours."
+            "a": "Yes. You can add an OpenAI or Anthropic API key in Settings. BearlyMail then uses your key for any request it sends to that provider. Requests to Gemini, Amazon Bedrock and Jev still use BearlyMail's keys."
+          },
+          "calendar": {
+            "q": "Does it work with my calendar?",
+            "a": "With Google Calendar, yes. When an email asks for a meeting, BearlyMail checks your availability and can suggest times. It can also RSVP to invitations and give people a booking link for your free time. Outlook calendars aren't supported yet."
+          },
+          "price": {
+            "q": "How much does it cost?",
+            "a": "Plans are priced in US dollars by how many emails BearlyMail processes with AI each month. Starter is $5 a month for 3,000 emails. Growth is $15 a month for 10,000 emails and adds email open tracking. Enterprise is $40 a month for 30,000 emails and up to 5 people. You can change plans any time."
           },
           "trial": {
-            "q": "Is there a free trial?",
-            "a": "Yes. Every new account starts with a 7-day free trial with full AI prioritisation and categorisation, so you can see the difference in your own inbox before you pay."
+            "q": "Is there a free trial? Do I need a card?",
+            "a": "Every new account gets a 7-day free trial with 3,000 AI-processed emails and email open tracking. You don't need a card to start. If you don't choose a plan when the trial ends, your account keeps working, but only the first 100 emails each month are processed with AI."
+          },
+          "overLimit": {
+            "q": "What happens if I go over my plan's email limit?",
+            "a": "Your email still syncs and still arrives at your delivery times. Emails over the limit just don't get AI processing, so they have no score, category or summary, until your next billing month starts or you move to a bigger plan."
+          },
+          "team": {
+            "q": "Can my team use BearlyMail?",
+            "a": "Yes. The Enterprise plan covers up to 5 people. Invite them from Settings, under Team & Plan. Each person connects their own mailbox. There's no shared inbox."
+          },
+          "gmailImportant": {
+            "q": "How is this different from Gmail's Important label or Priority Inbox?",
+            "a": "Gmail sorts your email, but everything still arrives the moment it's sent. BearlyMail holds anything that isn't urgent until your next delivery time, tells you how important each email is, and drafts your replies."
+          },
+          "mobile": {
+            "q": "Is there a phone app?",
+            "a": "Not yet. BearlyMail runs in your browser and works on a phone, and you can add it to your home screen."
+          },
+          "cancel": {
+            "q": "What happens if I cancel or stop using it?",
+            "a": "Your mailbox isn't affected. All your email stays in Gmail, Outlook or Zoho. You can export your BearlyMail settings, rules and learned context, and delete your account, from Settings at any time. If an account isn't used for 30 days, it's deleted automatically, along with BearlyMail's copy of your email."
           }
         }
       },

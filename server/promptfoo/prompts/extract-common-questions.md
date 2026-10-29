@@ -1,62 +1,24 @@
-You are an advanced email analyst. Analyze the user's email replies to extract common questions FROM OTHER PEOPLE that the user answers, and the user's typical responses.
+You find the questions people repeatedly ask the user, and how the user answers them. The result becomes an FAQ that an auto-responder may use to reply to real people, so a wrong or vague entry is worse than no entry.
 
-CRITICAL REQUIREMENTS:
-- Questions MUST be SPECIFIC and CONCRETE - actual questions people ask, not vague abstractions
-- Questions should be questions FROM OTHER PEOPLE TO THE USER (not questions the user asks)
-- Answers should be the USER'S responses (what the user typically says when answering these questions)
-- Only extract Q&A pairs that appear 2+ times (indicating they're recurring patterns, not one-offs)
-- Questions must be DISTINCT - avoid repetitive or overlapping questions
-- Answers must be SPECIFIC and ACTIONABLE - describe what the user actually says/does
+Below are numbered pairs. Each pair is a message someone sent the user ("Question") and the user's actual reply to it ("User's reply"). "Asked by" tells you which person sent it; the same label means the same person.
 
-Return your response as a JSON object with exactly this structure:
-{ "qa_pairs": [ { "question": "...", "answer": "...", "frequency": 3 } ] }
-The top-level key MUST be exactly `qa_pairs`. If no patterns are found, use an empty array: { "qa_pairs": [] }
+Group pairs that ask the SAME specific question, then write one FAQ entry per group.
 
-Example entry:
-{
-  "qa_pairs": [
-    {
-      "question": "A SPECIFIC, CONCRETE question that people actually ask the user (preserve actual wording when possible, but remove names/dates)",
-      "answer": "What the user typically says or does when answering this question (be SPECIFIC and concrete)",
-      "frequency": 3
-    }
-  ]
-}
+Rules:
+- Only include a group if at least two DIFFERENT people asked it (different "Asked by" labels). One person asking twice is not an FAQ.
+- The question must be a real question a person asked, not a notification, newsletter, receipt, meeting invite or status update. Skip anything that isn't asking the user for information or for something to be done.
+- An FAQ is a question whose answer would help the NEXT person who asks it. Questions about one particular event, meeting, order, document or email ("Are you coming on Friday?", "Did you get my email?", "Can you make Tuesday's call?") are never FAQs, even when several people ask something similar.
+- Write the question the way an asker would phrase it: one short, specific question, ending with "?", at most 15 words. Remove names, dates and order numbers. Never combine two topics ("pricing or refunds") in one question.
+- The answer must contain only facts the user actually stated in their replies in that group: prices, links, steps, policies, times. Write it in the user's voice, as a reply to the asker ("Yes, we offer 20% off for teams of 10 or more."). No greeting, sign-off or names. Do not describe what the user does ("Confirm the meeting"), do not add facts, and do not generalise.
+- If the user's replies in a group disagree with each other, or only say things like "thanks", "sounds good" or "I'll get back to you", skip the group.
+- Include `pairIds`: the ids of every pair in the group.
+- Include `confidence` from 0 to 1: how sure you are that the group is one genuine, recurring question AND that the answer is fully supported by the replies. Use 0.9 or above only when both are clearly true.
+- Most mailboxes have few or no FAQs. Returning an empty list is normal and correct.
 
-IMPORTANT: The top-level response MUST be a JSON object with key `qa_pairs`, NOT a bare array.
+Return only JSON in exactly this shape:
+{ "qa_pairs": [ { "question": "...", "answer": "...", "pairIds": [1, 4], "confidence": 0.9 } ] }
+With nothing to report, return { "qa_pairs": [] }
 
-Question format examples:
-- GOOD: "Did you receive my invitation?" (specific, concrete)
-- GOOD: "Can you upgrade my account access?" (specific, concrete)
-- GOOD: "What's the status of my performance review?" (specific, concrete)
-- GOOD: "How do I access the recording?" (specific, concrete)
-- BAD: "Can you confirm receipt or access to resources, invitations, or upgrades?" (too vague, combines multiple questions)
-- BAD: "Can you clarify or explain technical issues or app functionality?" (too broad, not specific)
-- BAD: "What is the status or progress update on tasks, issues, or performance?" (too vague, not concrete)
+Pairs:
 
-Answer format examples:
-- GOOD: "Confirm attendance and mention any dietary requirements"
-- GOOD: "Provide a specific date and time, asking about location details"
-- GOOD: "Send a detailed weekly performance check-in with scores and projected marks"
-- BAD: "I inform recipients about flexible scheduling" (includes "I" prefix)
-- BAD: "I respond with scheduling information" (includes "I" prefix)
-- BAD: "Inform recipients about flexible scheduling" (too vague)
-- BAD: "Respond with scheduling information" (not specific enough)
-
-IMPORTANT: Answers should be direct responses without first-person prefixes like "I reply...", "I confirm...", "I explain...". Start with the action directly (e.g., "Confirm attendance" not "I confirm attendance").
-
-IMPORTANT:
-- Extract questions that are SPECIFIC enough that someone reading them would understand exactly what is being asked
-- If a question is too broad or vague, break it into multiple specific questions OR skip it
-- Only include Q&A pairs that appear 2 or more times
-- Ensure questions are distinct - if two questions are very similar, choose the more specific one
-- Remove names and dates from questions, but keep the question structure and wording specific
-
-Analyze these user email replies to find SPECIFIC, CONCRETE questions FROM OTHER PEOPLE that the user answers, and what the user typically says in response.
-
-IMPORTANT: Extract questions that are specific enough to be actionable. Avoid vague, abstract questions that combine multiple topics. If you see a pattern like "Can you confirm receipt or access to resources, invitations, or upgrades?", break it into separate specific questions like "Did you receive my invitation?" and "Can you upgrade my account access?" instead.
-
-Focus on finding actual questions people ask, not generalized abstractions:
-
-{{repliesText}}
-
+{{pairsText}}

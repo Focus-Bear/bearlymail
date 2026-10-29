@@ -1,3 +1,4 @@
+import { RELOGIN_REASONS } from "../constants/auth-constants";
 import { GMAIL_ACCESS_ISSUE } from "../constants/domain-statuses";
 import { resolveGmailAccessIssue } from "./gmail-access-issue";
 
@@ -20,6 +21,16 @@ describe("resolveGmailAccessIssue", () => {
         lastLogoutReason: "gmail_sync_auth_error",
       }),
     ).toBe(GMAIL_ACCESS_ISSUE.REVOKED);
+  });
+
+  it("treats an account flagged for a missing Gmail scope as missing access", () => {
+    expect(
+      resolveGmailAccessIssue({
+        gmailAccessIssue: null,
+        needsRelogin: true,
+        lastLogoutReason: RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE,
+      }),
+    ).toBe(GMAIL_ACCESS_ISSUE.MISSING);
   });
 
   it("ignores a stale Gmail logout reason once the user has signed back in", () => {

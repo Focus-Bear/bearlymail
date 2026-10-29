@@ -223,6 +223,54 @@ describe("UsersService", () => {
       expect(saved.lastLogoutAt!.getTime()).toBeGreaterThanOrEqual(before);
       expect(saved.lastLogoutAt!.getTime()).toBeLessThanOrEqual(after);
     });
+
+    describe("inside the post-login grace period", () => {
+      const recentlyUpdatedUser = (): User => ({
+        ...mockUser,
+        needsRelogin: false,
+        updatedAt: new Date(),
+      });
+
+      it("does not flag by default", async () => {
+        jest
+          .spyOn(service, "findOneLightweight")
+          .mockResolvedValue(recentlyUpdatedUser());
+
+        await service.markNeedsRelogin("user-1", "gmail_sync_auth_error");
+
+        expect(repository.save).not.toHaveBeenCalled();
+      });
+
+      it("flags when bypassGracePeriod is set", async () => {
+        const existingUser = recentlyUpdatedUser();
+        jest
+          .spyOn(service, "findOneLightweight")
+          .mockResolvedValue(existingUser);
+        repository.findOne.mockResolvedValue(existingUser);
+        repository.save.mockImplementation(async (user) => user as User);
+
+        await service.markNeedsRelogin("user-1", "gmail_insufficient_scope", {
+          bypassGracePeriod: true,
+        });
+
+        expect(repository.save).toHaveBeenCalledTimes(1);
+        const saved = repository.save.mock.calls[0][0] as User;
+        expect(saved.needsRelogin).toBe(true);
+        expect(saved.lastLogoutReason).toBe("gmail_insufficient_scope");
+      });
+    });
+
+    it("does not rewrite an already-flagged user even when bypassing the grace period", async () => {
+      jest
+        .spyOn(service, "findOneLightweight")
+        .mockResolvedValue({ ...mockUser, needsRelogin: true });
+
+      await service.markNeedsRelogin("user-1", "gmail_insufficient_scope", {
+        bypassGracePeriod: true,
+      });
+
+      expect(repository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe("markSyncWindowLimited", () => {

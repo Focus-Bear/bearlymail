@@ -52,3 +52,13 @@ export const TOKEN_EXPIRY_MS = 10 * MILLISECONDS.MINUTE;
 
 // Step-up token validity: 15 minutes (OWASP ASVS req 4.2.1)
 export const STEP_UP_TOKEN_EXPIRY_MINUTES = 15;
+
+/**
+ * Machine codes stored in `users.lastLogoutReason` when an account is flagged
+ * for re-login. Values are persisted and shown in the admin dashboard, so never
+ * rename them — only the keys.
+ */
+export const RELOGIN_REASONS = {
+  GMAIL_SYNC_AUTH_ERROR: "gmail_sync_auth_error",
+  GMAIL_INSUFFICIENT_SCOPE: "gmail_insufficient_scope",
+} as const;

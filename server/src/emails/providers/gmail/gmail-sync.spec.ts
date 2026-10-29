@@ -4,6 +4,7 @@ import { GMAIL_ACCESS_ISSUE } from "../../../constants/domain-statuses";
 import {
   classifyGmailAccessIssue,
   isGmailAuthError,
+  isGmailInsufficientScopeError,
   isThreadStarred,
   verifyThreadStatusesInGmail,
 } from "./gmail-sync";
@@ -95,6 +96,35 @@ describe("gmail-sync helpers", () => {
           errors: [{ reason: "userRateLimitExceeded" }],
         }),
       ).toBeNull();
+    });
+  });
+
+  describe("isGmailInsufficientScopeError", () => {
+    it("returns true for the 403 'insufficient authentication scopes' shape", () => {
+      const error = {
+        code: 403,
+        message: "Request had insufficient authentication scopes.",
+        errors: [{ reason: "insufficientPermissions" }],
+      };
+      expect(isGmailInsufficientScopeError(error)).toBe(true);
+    });
+
+    it("returns false for a 401 or invalid_grant (auth errors, but not scope failures)", () => {
+      expect(
+        isGmailInsufficientScopeError({ code: 401, message: "Unauthorized" }),
+      ).toBe(false);
+      expect(
+        isGmailInsufficientScopeError(new Error("invalid_grant: Bad Request")),
+      ).toBe(false);
+    });
+
+    it("returns false for a transient 403 rate limit", () => {
+      const error = {
+        code: 403,
+        message: "Rate Limit Exceeded",
+        errors: [{ reason: "userRateLimitExceeded" }],
+      };
+      expect(isGmailInsufficientScopeError(error)).toBe(false);
     });
   });
 

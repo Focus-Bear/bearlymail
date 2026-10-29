@@ -104,6 +104,41 @@ function routeLlm(
   });
 }
 
+type AnalyzePriority = PriorityAnalyzer["analyzePriority"];
+type PriorityResult = Awaited<ReturnType<AnalyzePriority>>;
+
+/**
+ * analyzePriority stub that parks every call until released, recording how
+ * many run at once. Module-level so the concurrency tests stay within the
+ * max-nested-callbacks limit.
+ */
+function createGatedAnalyzer(result: PriorityResult) {
+  const state = { inFlight: 0, maxInFlight: 0 };
+  const pending: Array<() => void> = [];
+  const analyzePriority: AnalyzePriority = async () => {
+    state.inFlight++;
+    state.maxInFlight = Math.max(state.maxInFlight, state.inFlight);
+    await new Promise<void>((resolve) => pending.push(resolve));
+    state.inFlight--;
+    return result;
+  };
+  const releaseAll = () => {
+    for (const release of pending.splice(0)) release();
+  };
+  return { state, analyzePriority, releaseAll };
+}
+
+/** analyzePriority stub that throws for one subject and succeeds otherwise. */
+function failForSubject(
+  failingSubject: string,
+  result: PriorityResult,
+): AnalyzePriority {
+  return async ({ email }) => {
+    if (email.subject === failingSubject) throw new Error("LLM failed");
+    return result;
+  };
+}
+
 describe("PriorityAnalysisService", () => {
   let service: PriorityAnalysisService;
   let mockLLMCoreService: jest.Mocked<Partial<LLMCoreService>>;
@@ -832,56 +867,45 @@ describe("PriorityAnalysisService", () => {
       afterEach(() => jest.restoreAllMocks());
 
       it("analyses up to PRIORITY_BATCH_LLM_CONCURRENCY emails at once and settles every one", async () => {
-        const releases: Array<() => void> = [];
-        let inFlight = 0;
-        let maxInFlight = 0;
+        const gate = createGatedAnalyzer(priorityResult);
         jest
           .spyOn(PriorityAnalyzer.prototype, "analyzePriority")
-          .mockImplementation(async () => {
-            inFlight++;
-            maxInFlight = Math.max(maxInFlight, inFlight);
-            await new Promise<void>((resolve) => releases.push(resolve));
-            inFlight--;
-            return priorityResult;
-          });
+          .mockImplementation(gate.analyzePriority);
 
         const run = service.analyzePriorityBatch(newEmails);
         await flushMicrotasks();
-        expect(inFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
+        expect(gate.state.inFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
 
-        while (inFlight > 0) {
-          releases.splice(0).forEach((release) => release());
+        while (gate.state.inFlight > 0) {
+          gate.releaseAll();
           await flushMicrotasks();
         }
         const results = await run;
 
-        expect(maxInFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
+        expect(gate.state.maxInFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
         expect(results.size).toBe(NEW_EMAIL_COUNT);
-        newEmails.forEach(({ emailKey }) => {
+        for (const { emailKey } of newEmails) {
           expect(results.get(emailKey)?.isFallback).toBe(false);
-        });
+        }
       });
 
       it("keeps analysing the other emails when one fails", async () => {
         const failingKeyIndex = 2;
         const analyzePrioritySpy = jest
           .spyOn(PriorityAnalyzer.prototype, "analyzePriority")
-          .mockImplementation(async ({ email }) => {
-            if (email.subject === newEmails[failingKeyIndex].subject) {
-              throw new Error("LLM failed");
-            }
-            return priorityResult;
-          });
+          .mockImplementation(
+            failForSubject(newEmails[failingKeyIndex].subject, priorityResult),
+          );
 
         const results = await service.analyzePriorityBatch(newEmails);
 
         expect(analyzePrioritySpy).toHaveBeenCalledTimes(NEW_EMAIL_COUNT);
         expect(results.size).toBe(NEW_EMAIL_COUNT);
-        newEmails.forEach(({ emailKey }, index) => {
+        for (const [index, { emailKey }] of newEmails.entries()) {
           expect(results.get(emailKey)?.isFallback).toBe(
             index === failingKeyIndex,
           );
-        });
+        }
       });
     });
   });

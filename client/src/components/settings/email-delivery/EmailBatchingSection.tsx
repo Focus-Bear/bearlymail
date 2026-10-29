@@ -6,6 +6,7 @@ import { DeliveryDaysSelector } from 'components/settings/email-delivery/Deliver
 import { DeliveryTimesManager } from 'components/settings/email-delivery/DeliveryTimesManager';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { STRING_NONE } from 'constants/strings';
 
 const TimezoneSelectorSection: React.FC<{ timezone: string; onChange: (tz: string) => void }> = ({
@@ -134,7 +135,7 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
 
   return (
     <div
-      id="email-batching"
+      id={SETTINGS_ANCHORS.EMAIL_BATCHING}
       style={{
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,

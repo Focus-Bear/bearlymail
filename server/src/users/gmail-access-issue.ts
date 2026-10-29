@@ -1,3 +1,4 @@
+import { RELOGIN_REASONS } from "../constants/auth-constants";
 import {
   GMAIL_ACCESS_ISSUE,
   GmailAccessIssue,
@@ -20,5 +21,9 @@ export function resolveGmailAccessIssue(
   const isFlaggedForGmail =
     user.needsRelogin &&
     !!user.lastLogoutReason?.startsWith(GMAIL_RELOGIN_REASON_PREFIX);
-  return isFlaggedForGmail ? GMAIL_ACCESS_ISSUE.REVOKED : null;
+  if (!isFlaggedForGmail) return null;
+  // Flagged because the grant lacks the Gmail scopes (not a dead token).
+  return user.lastLogoutReason === RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE
+    ? GMAIL_ACCESS_ISSUE.MISSING
+    : GMAIL_ACCESS_ISSUE.REVOKED;
 }

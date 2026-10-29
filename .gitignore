@@ -10,6 +10,7 @@ client/node_modules
 
 # Build outputs
 server/dist/
+server/dist-lambda/
 client/build/
 lambda/batch-analyzer/dist/
 lambda/email-prioritiser/dist/

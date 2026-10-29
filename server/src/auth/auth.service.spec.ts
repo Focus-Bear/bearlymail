@@ -31,6 +31,7 @@ describe("AuthService", () => {
   let emailBacklogService: jest.Mocked<EmailBacklogService>;
   let totpService: jest.Mocked<TotpService>;
   let captureEvent: jest.Mock;
+  let ensurePersonalOrg: jest.Mock;
 
   const mockUser: User = {
     id: "user-1",
@@ -90,9 +91,8 @@ describe("AuthService", () => {
 
     captureEvent = jest.fn();
 
-    const mockOrganizationsService = {
-      ensurePersonalOrg: jest.fn().mockResolvedValue({ id: "org-1" }),
-    };
+    ensurePersonalOrg = jest.fn().mockResolvedValue({ id: "org-1" });
+    const mockOrganizationsService = { ensurePersonalOrg };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -157,6 +157,24 @@ describe("AuthService", () => {
         "password",
         "hashed-password",
       );
+    });
+
+    it("should provision a personal org on a successful password login", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await service.validateUser("test@example.com", "password");
+
+      expect(ensurePersonalOrg).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    it("should not provision an org when the password is wrong", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await service.validateUser("test@example.com", "wrong");
+
+      expect(ensurePersonalOrg).not.toHaveBeenCalled();
     });
 
     it("should return null when user is not found and no deleted account record", async () => {
@@ -638,6 +656,23 @@ describe("AuthService", () => {
       );
       expect(result.access_token).toBe("jwt-token");
       expect(result.user.id).toBe("new-user");
+      expect(ensurePersonalOrg).toHaveBeenCalledWith("new-user");
+    });
+
+    it("should still sign the user in when org provisioning fails", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      const createdUser = { ...mockUser, id: "new-user", isApproved: true };
+      usersService.create.mockResolvedValue(createdUser);
+      usersService.findOne.mockResolvedValue(createdUser);
+      jwtService.sign.mockReturnValue("jwt-token");
+      ensurePersonalOrg.mockRejectedValueOnce(new Error("db down"));
+
+      const result = await service.register(
+        "new@example.com",
+        "a-strong-password",
+      );
+
+      expect(result.access_token).toBe("jwt-token");
     });
 
     it("should reject a password shorter than the minimum length", async () => {

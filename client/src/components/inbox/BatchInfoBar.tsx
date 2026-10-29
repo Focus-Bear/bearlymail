@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { EMOJI_INFO } from 'constants/emojis';
+import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 import { TOUR_TARGETS } from 'constants/tour';
 
 import { getLastCheckText, getNextDeliveryText } from './batchInfoBar.helpers';
@@ -86,7 +87,7 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({ nextDelivery, lastUr
           </span>
           <BatchInfoTooltip width={TOOLTIP_WIDTH_NARROW}>
             {t('inbox.batchInfo.deliveryTooltip')}{' '}
-            <Link to="/settings#email-batching" style={{ color: theme.colors.primary.main }}>
+            <Link to={settingsAnchorPath(SETTINGS_ANCHORS.EMAIL_BATCHING)} style={{ color: theme.colors.primary.main }}>
               {t('inbox.batchInfo.changeInSettings')}
             </Link>
           </BatchInfoTooltip>

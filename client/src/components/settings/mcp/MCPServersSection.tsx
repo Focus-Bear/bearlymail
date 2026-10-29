@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 
 import { MCPServerConfig, MCPServerPurpose } from 'components/settings/workflows/types';
 import { API_URL } from 'config/api';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 
 import { MCPServerManager } from './MCPServerManager';
 
@@ -124,7 +125,7 @@ export const MCPServersSection: React.FC = () => {
 
   return (
     <div
-      id="connected-apps"
+      id={SETTINGS_ANCHORS.CONNECTED_APPS}
       style={{
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,

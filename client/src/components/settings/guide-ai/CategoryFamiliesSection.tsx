@@ -7,6 +7,7 @@ import {
   COLOR_GREY_LIGHT,
   COLOR_GREY_MID,
 } from 'constants/colors';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { CategoryFamily, useCategoryFamilies } from 'hooks/useCategoryFamilies';
 
 const OTHER_OPTION_VALUE = '__other__';
@@ -114,7 +115,7 @@ export const CategoryFamiliesSection: React.FC = () => {
   };
 
   return (
-    <section id="email-categories" aria-labelledby="category-families-heading" style={{ marginTop: 24 }}>
+    <section id={SETTINGS_ANCHORS.CATEGORY_FAMILIES} aria-labelledby="category-families-heading" style={{ marginTop: 24 }}>
       <h3 id="category-families-heading">{t('settings.categoryFamilies.title')}</h3>
       <p style={{ color: COLOR_GREY_MID }}>{t('settings.categoryFamilies.description')}</p>
 

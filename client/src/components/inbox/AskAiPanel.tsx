@@ -13,6 +13,7 @@ import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { MAX_TEXTAREA_HEIGHT_PX } from 'constants/numbers';
+import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 import { ASK_AI_ROLE_USER, AskAiMessage, AskAiToolActivity, useAskAi } from 'hooks/useAskAi';
 
@@ -180,7 +181,7 @@ const AskAiConversation: React.FC<AskAiConversationProps> = ({
             ))}
           </div>
           <Link
-            to="/settings#workflows"
+            to={settingsAnchorPath(SETTINGS_ANCHORS.CONNECTED_APPS)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

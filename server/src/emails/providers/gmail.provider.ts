@@ -8,8 +8,10 @@ import {
 import { gmail_v1, google } from "googleapis";
 
 import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
+import { RELOGIN_REASONS } from "../../constants/auth-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { MILLISECONDS, MINUTES } from "../../constants/time-constants";
+import { User } from "../../database/entities/user.entity";
 import { formatGaxiosError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { InvalidTokenError } from "../../utils/errors";
@@ -51,6 +53,11 @@ import { GmailSyncService } from "./gmail-sync.service";
 export { parseRecipientsFromString } from "../../utils/email-address.utils";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { parseRecipientsFromString } from "../../utils/email-address.utils";
+
+/** True when the user was flagged because their Google grant lacks a Gmail scope. */
+function isAwaitingScopeReconsent(user: User): boolean {
+  return user.lastLogoutReason === RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE;
+}
 
 /**
  * Strips HTML tags and decodes common HTML entities to produce a plain-text
@@ -298,7 +305,13 @@ export class GmailProvider implements EmailProvider {
     // needsRelogin. Respect the grace period so a just-logged-in user whose
     // flag hasn't been cleared yet isn't skipped. Logged at debug so this
     // steady-state skip itself adds no production log volume. See #2218.
-    if (user.needsRelogin && !isRecentLogin) {
+    // A missing-scope flag skips even inside the grace window: that window is
+    // keyed off `updatedAt`, which unrelated user-row writes keep re-arming,
+    // and the stored grant can never succeed until the user re-consents.
+    if (
+      user.needsRelogin &&
+      (!isRecentLogin || isAwaitingScopeReconsent(user))
+    ) {
       this.logger.debug(
         `[GmailProvider] Skipping sync for user ${userId} — needsRelogin set (awaiting re-auth)`,
       );

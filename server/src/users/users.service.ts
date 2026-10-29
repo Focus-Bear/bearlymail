@@ -22,6 +22,11 @@ const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
 const USERS_TABLE = "users";
 const RECENT_LOGIN_GRACE_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
 
+export interface MarkNeedsReloginOptions {
+  /** Flag even inside the post-login grace window (see `markNeedsRelogin`). */
+  bypassGracePeriod?: boolean;
+}
+
 /**
  * Stack-frame window captured for `[NEEDS_RELOGIN]` diagnostics. We skip the
  * first two frames (the Error constructor + `logNeedsReloginFlip` itself) and
@@ -146,17 +151,26 @@ export class UsersService {
    *   - skip if `needsRelogin` is already true — avoids redundant DB writes
    *     and `[NEEDS_RELOGIN]` log spam
    *
+   * `bypassGracePeriod` is for failures retrying can never fix (a grant that is
+   * missing a required scope). The grace window is keyed off `updatedAt`, which
+   * any write to the user row re-arms, so honouring it for such failures can
+   * strand the user forever with no reconnect prompt.
+   *
    * Emits a WARN line (visible in CloudWatch) — file-based debug logging is a
    * no-op in production, so console logging is the only reliable signal there.
    */
-  async markNeedsRelogin(userId: string, reason: string): Promise<void> {
+  async markNeedsRelogin(
+    userId: string,
+    reason: string,
+    options: MarkNeedsReloginOptions = {},
+  ): Promise<void> {
     const user = await this.findOneLightweight(userId);
-    if (!user) return;
+    if (!user || user.needsRelogin) return;
 
     const recentLoginCutoff = new Date(Date.now() - RECENT_LOGIN_GRACE_MS);
     const isRecentLogin =
       !!user.updatedAt && user.updatedAt > recentLoginCutoff;
-    if (isRecentLogin || user.needsRelogin) return;
+    if (isRecentLogin && !options.bypassGracePeriod) return;
 
     this.logger.warn(`[NEEDS_RELOGIN] user=${userId} reason=${reason}`);
     await this.update(userId, {
@@ -284,6 +298,7 @@ export class UsersService {
         "user.lastEmailSyncAt",
         "user.updatedAt",
         "user.needsRelogin",
+        "user.lastLogoutReason",
       ])
       .where("user.id = :id", { id })
       .getOne();

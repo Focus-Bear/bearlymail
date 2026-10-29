@@ -86,8 +86,8 @@ export class EmailService {
       .replace(/\{\{expiry\}\}/g, token("expiry"))
       .replace(/\{\{footer\}\}/g, token("footer", { year }));
 
-    // Convert MJML to HTML
-    const { html, errors } = mjml(mjmlTemplate, {
+    // Convert MJML to HTML (mjml v5 is async)
+    const { html, errors } = await mjml(mjmlTemplate, {
       validationLevel: "soft",
     });
 
@@ -131,7 +131,7 @@ ${token("footer", { year })}
     const nextSteps = translate("nextSteps");
     const footer = translate("footer", { year });
 
-    const html = this.renderNotificationHtml({
+    const html = await this.renderNotificationHtml({
       previewText: message,
       greeting,
       message,
@@ -211,7 +211,7 @@ ${token("footer", { year })}
     });
     const lines = this.buildBookingDetailLines(details, language);
 
-    const html = this.renderNotificationHtml({
+    const html = await this.renderNotificationHtml({
       previewText: message,
       greeting,
       message,
@@ -252,13 +252,13 @@ ${token("footer", { year })}
    * Renders the shared notification template, HTML-escaping every variable
    * except `details`, which may carry pre-escaped content with <br /> breaks.
    */
-  private renderNotificationHtml(vars: {
+  private async renderNotificationHtml(vars: {
     previewText: string;
     greeting: string;
     message: string;
     details: string;
     footer: string;
-  }): string {
+  }): Promise<string> {
     const templatePath = path.join(__dirname, "templates", "notification.mjml");
     let mjmlTemplate = loadTemplate(templatePath);
 
@@ -271,7 +271,9 @@ ${token("footer", { year })}
       );
     }
 
-    const { html, errors } = mjml(mjmlTemplate, { validationLevel: "soft" });
+    const { html, errors } = await mjml(mjmlTemplate, {
+      validationLevel: "soft",
+    });
     if (errors && errors.length > 0) {
       this.logger.warn("MJML conversion warnings:", errors);
     }
@@ -324,8 +326,8 @@ ${token("footer", { year })}
       .replace(/\{\{expiry\}\}/g, translate("expiry"))
       .replace(/\{\{footer\}\}/g, translate("footer", { year }));
 
-    // Convert MJML to HTML
-    const { html, errors } = mjml(mjmlTemplate, {
+    // Convert MJML to HTML (mjml v5 is async)
+    const { html, errors } = await mjml(mjmlTemplate, {
       validationLevel: "soft",
     });
 

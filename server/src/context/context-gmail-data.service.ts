@@ -106,7 +106,7 @@ export class ContextEmailDataService {
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
     if (!provider) {
       throw new Error(
-        "No email provider connected - please connect Gmail, Office365, or Zoho",
+        "No email provider connected - please connect Gmail, Office365, Zoho, or an IMAP mailbox",
       );
     }
     return provider;

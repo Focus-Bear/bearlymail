@@ -199,6 +199,7 @@ const Settings: React.FC = () => {
           office365Accounts={settingsData.office365Accounts}
           zohoAccounts={settingsData.zohoAccounts}
           appleMailAccounts={settingsData.appleMailAccounts}
+          imapAccounts={settingsData.imapAccounts}
           appleMailAvailable={settingsData.appleMailAvailable}
           batchSchedule={settingsData.batchSchedule}
           blockedSenders={settingsData.blockedSenders}

@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { ImapConnectModal } from 'components/settings/email-delivery/imap/ImapConnectModal';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
+/**
+ * Shown when the user has no mailbox connected. Gmail connects via OAuth;
+ * any other host (Crazy Domains, cPanel, Fastmail...) via IMAP + password.
+ */
 export const GmailConnectionScreen: React.FC = () => {
   const { t } = useTranslation();
+  const [isImapFormOpen, setIsImapFormOpen] = useState(false);
 
   return (
     <div
@@ -68,6 +74,22 @@ export const GmailConnectionScreen: React.FC = () => {
         >
           {t('gmail.connectButton')}
         </button>
+        <div>
+          <button
+            onClick={() => setIsImapFormOpen(true)}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+              backgroundColor: theme.colors.common.transparent,
+              color: theme.colors.primary.main,
+              border: `1px solid ${theme.colors.primary.main}`,
+              borderRadius: theme.borderRadius.md,
+              fontSize: theme.typography.fontSize.sm,
+              cursor: 'pointer',
+            }}
+          >
+            {t('gmail.connectOtherProvider')}
+          </button>
+        </div>
         <p
           style={{
             fontSize: theme.typography.fontSize.sm,
@@ -78,6 +100,12 @@ export const GmailConnectionScreen: React.FC = () => {
           {t('gmail.connectMultipleHint')}
         </p>
       </div>
+      <ImapConnectModal
+        isOpen={isImapFormOpen}
+        onClose={() => setIsImapFormOpen(false)}
+        // The inbox only loads once a mailbox exists, so start it fresh.
+        onConnected={() => window.location.reload()}
+      />
     </div>
   );
 };

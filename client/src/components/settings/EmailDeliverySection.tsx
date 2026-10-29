@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import type { ImapAccountSummary } from 'types/imap-account.types';
 
 import { BlockedKeywordsSection } from 'components/settings/email-delivery/BlockedKeywordsSection';
 import { BlockedSendersSection } from 'components/settings/email-delivery/BlockedSendersSection';
@@ -36,6 +37,7 @@ interface EmailDeliverySectionProps {
   office365Accounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
   zohoAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
   appleMailAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
+  imapAccounts: ImapAccountSummary[];
   appleMailAvailable: boolean;
   batchSchedule: BatchSchedule;
   blockedSenders: BlockedSender[];
@@ -55,6 +57,7 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
   office365Accounts,
   zohoAccounts,
   appleMailAccounts,
+  imapAccounts,
   appleMailAvailable,
   batchSchedule,
   blockedSenders,
@@ -87,6 +90,7 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
         office365Accounts={office365Accounts}
         zohoAccounts={zohoAccounts}
         appleMailAccounts={appleMailAccounts}
+        imapAccounts={imapAccounts}
         appleMailAvailable={appleMailAvailable}
         onFetchData={onFetchData}
       />

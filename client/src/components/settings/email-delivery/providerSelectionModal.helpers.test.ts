@@ -7,8 +7,16 @@ import { getProviderOptions } from './providerSelectionModal.helpers';
 const tFunc = (key: string): string => key;
 
 describe('getProviderOptions', () => {
-  it('returns exactly 3 options', () => {
-    expect(getProviderOptions(tFunc)).toHaveLength(3);
+  it('returns the three OAuth providers plus IMAP', () => {
+    expect(getProviderOptions(tFunc).map(opt => opt.id)).toEqual(['gmail', 'office365', 'zoho', 'imap']);
+  });
+
+  it('offers IMAP last, for hosts without OAuth (Crazy Domains, cPanel)', () => {
+    const options = getProviderOptions(tFunc, true);
+    const imap = options[options.length - 1];
+    expect(imap.id).toBe('imap');
+    expect(imap.name).toBe('settings.emailAccounts.providers.imap.name');
+    expect(imap.description).toBe('settings.emailAccounts.providers.imap.description');
   });
 
   it('first option is Gmail with correct id', () => {
@@ -48,9 +56,9 @@ describe('getProviderOptions', () => {
     expect(options.map(opt => opt.id)).not.toContain('apple-mail');
   });
 
-  it('includes Apple Mail as the last option when includeAppleMail is true', () => {
+  it('includes Apple Mail after the OAuth providers when includeAppleMail is true', () => {
     const options = getProviderOptions(tFunc, true);
-    expect(options).toHaveLength(4);
+    expect(options).toHaveLength(5);
     expect(options[3].id).toBe('apple-mail');
     expect(options[3].name).toBe('Apple Mail');
     expect(options[3].description).toBe('settings.emailAccounts.providers.appleMail.description');

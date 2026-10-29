@@ -1551,6 +1551,10 @@
         },
         "appleMail": {
           "description": "Pull email from the Mail app on this Mac — no cloud account needed"
+        },
+        "imap": {
+          "name": "Other email (IMAP)",
+          "description": "Any mailbox with an email address and password: Crazy Domains, cPanel, Fastmail, iCloud and more"
         }
       },
       "selectProvider": "Select Email Provider"
@@ -1583,6 +1587,42 @@
     "appleMail": {
       "confirmDisconnect": "Are you sure you want to disconnect this Apple Mail account?",
       "connectError": "Failed to connect Apple Mail. Please try again."
+    },
+    "imap": {
+      "title": "Connect your email",
+      "reconnectTitle": "Reconnect your email",
+      "description": "For email hosted with Crazy Domains, cPanel and most web hosts, Fastmail, iCloud and others. BearlyMail reads mail over IMAP and sends it over SMTP.",
+      "email": "Email address",
+      "password": "Email password",
+      "passwordHint": "The password for this mailbox, not your hosting account login. iCloud, Yahoo and Fastmail need an app-specific password.",
+      "name": "Your name (shown on emails you send)",
+      "serverSummary": "Server: {{host}}.",
+      "showAdvanced": "Change server settings",
+      "hideAdvanced": "Hide server settings",
+      "incomingServer": "Incoming mail (IMAP)",
+      "outgoingServer": "Outgoing mail (SMTP)",
+      "host": "Server",
+      "port": "Port",
+      "security": "Security",
+      "securitySsl": "SSL/TLS",
+      "securityStartTls": "STARTTLS",
+      "username": "Username (if different from your email address)",
+      "test": "Test connection",
+      "testSucceeded": "Connected. Your mailbox is ready to add.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "confirmDisconnect": "Are you sure you want to disconnect this mailbox? BearlyMail forgets its password.",
+      "needsRelogin": "The server rejected the saved password.",
+      "reconnect": "Reconnect",
+      "errors": {
+        "auth_failed_imap": "The mail server rejected that email address or password. Check the mailbox password (not your hosting account login).",
+        "auth_failed_smtp": "Reading mail works, but the outgoing (SMTP) server rejected the login. Check the SMTP username and password under server settings.",
+        "invalid_server": "That mail server can't be used. Check the server name and port under server settings.",
+        "connection_failed": "Couldn't reach the mail server. Check the server name, port and security under server settings.",
+        "certificate_mismatch": "The server's security certificate is for a different name. Many hosts (including Crazy Domains) need the hosting server's own name instead of mail.yourdomain — find it in your hosting control panel's email settings.",
+        "tls_failed": "Couldn't make a secure connection. Try switching between SSL/TLS and STARTTLS under server settings.",
+        "unknown": "Something went wrong connecting to your mailbox. Please try again."
+      }
     },
     "blockedSenders": {
       "title": "Blocked Senders",
@@ -2649,6 +2689,7 @@
     "connectTitle": "Connect Your Gmail Account",
     "connectDescription": "To get started with BearlyMail, please connect your Gmail account. We'll sync your emails securely and help you manage them more effectively.",
     "connectButton": "Connect Gmail",
+    "connectOtherProvider": "Use another email provider",
     "connectMultipleHint": "You can connect multiple Gmail accounts later in settings."
   },
   "help": {

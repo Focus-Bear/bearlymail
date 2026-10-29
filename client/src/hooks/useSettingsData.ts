@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import type { ImapAccountSummary } from 'types/imap-account.types';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { IMAP_ENDPOINTS } from 'constants/imap';
 import { AnalyzeProgress, useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
 import { useApiKeys } from 'hooks/settings/useApiKeys';
 import { BatchSchedule, useBatchSchedule } from 'hooks/settings/useBatchSchedule';
@@ -30,6 +32,7 @@ interface AccountSetters {
   setOffice365Accounts: (v: Office365Account[]) => void;
   setZohoAccounts: (v: ZohoAccount[]) => void;
   setAppleMailAccounts: (v: AppleMailAccount[]) => void;
+  setImapAccounts: (v: ImapAccountSummary[]) => void;
   setAppleMailAvailable: (v: boolean) => void;
   setDisplayName: (v: string | undefined) => void;
   setJobTitle: (v: string | undefined) => void;
@@ -38,15 +41,23 @@ interface AccountSetters {
 }
 
 async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
-  const [userRes, googleResOrNull, office365ResOrNull, zohoResOrNull, appleMailResOrNull, appleMailAvailabilityRes] =
-    await Promise.all([
-      axios.get(`${API_URL}/users/me`),
-      axios.get(`${API_URL}/google-accounts`).catch(() => null),
-      axios.get(`${API_URL}/office365-accounts`).catch(() => null),
-      axios.get(`${API_URL}/zoho-accounts`).catch(() => null),
-      axios.get(`${API_URL}/apple-mail-accounts`).catch(() => null),
-      axios.get(`${API_URL}/apple-mail-accounts/availability`).catch(() => null),
-    ]);
+  const [
+    userRes,
+    googleResOrNull,
+    office365ResOrNull,
+    zohoResOrNull,
+    appleMailResOrNull,
+    appleMailAvailabilityRes,
+    imapResOrNull,
+  ] = await Promise.all([
+    axios.get(`${API_URL}/users/me`),
+    axios.get(`${API_URL}/google-accounts`).catch(() => null),
+    axios.get(`${API_URL}/office365-accounts`).catch(() => null),
+    axios.get(`${API_URL}/zoho-accounts`).catch(() => null),
+    axios.get(`${API_URL}/apple-mail-accounts`).catch(() => null),
+    axios.get(`${API_URL}/apple-mail-accounts/availability`).catch(() => null),
+    axios.get<ImapAccountSummary[]>(`${API_URL}${IMAP_ENDPOINTS.LIST}`).catch(() => null),
+  ]);
   const user = userRes.data;
   setters.setDisplayName(user.displayName);
   setters.setJobTitle(user.jobTitle);
@@ -64,6 +75,7 @@ async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
   setters.setOffice365Accounts(office365ResOrNull?.data ?? []);
   setters.setZohoAccounts(zohoResOrNull?.data ?? []);
   setters.setAppleMailAccounts(appleMailResOrNull?.data ?? []);
+  setters.setImapAccounts(imapResOrNull?.data ?? []);
   setters.setAppleMailAvailable(appleMailAvailabilityRes?.data?.available ?? false);
 }
 
@@ -76,6 +88,7 @@ function useAccountsList() {
   const [office365Accounts, setOffice365Accounts] = useState<Office365Account[]>([]);
   const [zohoAccounts, setZohoAccounts] = useState<ZohoAccount[]>([]);
   const [appleMailAccounts, setAppleMailAccounts] = useState<AppleMailAccount[]>([]);
+  const [imapAccounts, setImapAccounts] = useState<ImapAccountSummary[]>([]);
   const [appleMailAvailable, setAppleMailAvailable] = useState(false);
   return {
     googleAccounts,
@@ -86,6 +99,8 @@ function useAccountsList() {
     setZohoAccounts,
     appleMailAccounts,
     setAppleMailAccounts,
+    imapAccounts,
+    setImapAccounts,
     appleMailAvailable,
     setAppleMailAvailable,
   };
@@ -159,8 +174,14 @@ function useAccountAndProfileSetters(
   accounts: ReturnType<typeof useAccountsList>,
   profile: ReturnType<typeof useUserProfile>
 ): AccountSetters {
-  const { setGoogleAccounts, setOffice365Accounts, setZohoAccounts, setAppleMailAccounts, setAppleMailAvailable } =
-    accounts;
+  const {
+    setGoogleAccounts,
+    setOffice365Accounts,
+    setZohoAccounts,
+    setAppleMailAccounts,
+    setImapAccounts,
+    setAppleMailAvailable,
+  } = accounts;
   const { setDisplayName, setJobTitle, setCalendarBookingUrl, setEmailSignature } = profile;
   return useMemo(
     () => ({
@@ -168,6 +189,7 @@ function useAccountAndProfileSetters(
       setOffice365Accounts,
       setZohoAccounts,
       setAppleMailAccounts,
+      setImapAccounts,
       setAppleMailAvailable,
       setDisplayName,
       setJobTitle,
@@ -179,6 +201,7 @@ function useAccountAndProfileSetters(
       setOffice365Accounts,
       setZohoAccounts,
       setAppleMailAccounts,
+      setImapAccounts,
       setAppleMailAvailable,
       setDisplayName,
       setJobTitle,

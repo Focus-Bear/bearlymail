@@ -6,20 +6,20 @@ import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED_ALT, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 import { KEY_ESCAPE } from 'constants/strings';
 
-import { getProviderOptions, type ProviderOption } from './providerSelectionModal.helpers';
+import { getProviderOptions, type ProviderOption, type ProviderOptionId } from './providerSelectionModal.helpers';
 
 export type { ProviderOption } from './providerSelectionModal.helpers';
 
 interface ProviderSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectProvider: (provider: 'gmail' | 'office365' | 'zoho' | 'apple-mail') => void;
+  onSelectProvider: (provider: ProviderOptionId) => void;
   appleMailAvailable?: boolean;
 }
 
 interface ProviderOptionCardProps {
   provider: ProviderOption;
-  onSelect: (id: 'gmail' | 'office365' | 'zoho' | 'apple-mail') => void;
+  onSelect: (id: ProviderOptionId) => void;
 }
 
 const ProviderOptionCard: React.FC<ProviderOptionCardProps> = ({ provider, onSelect }) => (
@@ -98,7 +98,7 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
 
   const providers = getProviderOptions(t, appleMailAvailable);
 
-  const handleProviderClick = (providerId: 'gmail' | 'office365' | 'zoho' | 'apple-mail') => {
+  const handleProviderClick = (providerId: ProviderOptionId) => {
     onSelectProvider(providerId);
     onClose();
   };

@@ -118,7 +118,7 @@ export class EmailsService {
     Array<{
       id: string;
       email: string;
-      provider: "gmail" | "office365" | "zoho";
+      provider: EmailProviderType;
       isPrimary: boolean;
       isActive: boolean;
     }>
@@ -129,7 +129,7 @@ export class EmailsService {
   }
 
   /**
-   * Provider types ("gmail" | "office365" | "zoho") the user actually searches
+   * Provider types (EMAIL_PROVIDER_TYPES) the user actually searches
    * across — resolved via the same EmailProviderManager source the search uses
    * (provider.isConnected), NOT the google_accounts/office365_accounts tables.
    *
@@ -138,10 +138,11 @@ export class EmailsService {
    * with isConnected for SSO-login / token-only connections.
    */
   async getConnectedProviderTypes(userId: string): Promise<string[]> {
-    const providerTypes = [
+    const providerTypes: EmailProviderType[] = [
       EMAIL_PROVIDER_TYPES.GMAIL,
       EMAIL_PROVIDER_TYPES.OFFICE365,
       EMAIL_PROVIDER_TYPES.ZOHO,
+      EMAIL_PROVIDER_TYPES.IMAP,
     ];
     const results = await Promise.all(
       providerTypes.map(async (type) => {

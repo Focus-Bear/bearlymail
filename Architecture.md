@@ -39,7 +39,9 @@ server/src/
 │   ├── providers/
 │   │   ├── gmail.provider.ts      # Gmail API implementation
 │   │   ├── office365.provider.ts  # Microsoft Graph API implementation
-│   │   └── zoho.provider.ts       # Zoho Mail API implementation
+│   │   ├── zoho.provider.ts       # Zoho Mail API implementation
+│   │   └── imap.provider.ts       # IMAP (read) + SMTP (send) for password mailboxes;
+│   │                              # threads from References, messages found by Message-ID
 │   └── interfaces/
 │       └── email-provider.interface.ts # Unified provider interface
 │
@@ -101,6 +103,7 @@ server/src/
 ├── google-accounts/           # Google OAuth account management
 ├── office365-accounts/        # Microsoft OAuth account management
 ├── zoho-accounts/             # Zoho OAuth account management
+├── imap-accounts/             # IMAP/SMTP accounts: connect/test, SSRF-safe host resolution, SMTP send
 ├── proto-categories/          # Proto-category suggestions for "Other" emails
 ├── scheduling-preferences/    # User scheduling preferences
 ├── pusher/                    # Real-time push notifications

@@ -53,9 +53,7 @@ export function isGuidedPriorityFilterSuppressed(
   mode: InboxMode,
   filters?: Pick<InboxFilter, 'priorityFilterSource'> | null
 ): boolean {
-  return (
-    !!filters && filters.priorityFilterSource === PRIORITY_FILTER_SOURCE.GUIDED && mode !== MODE_TRIAGE
-  );
+  return !!filters && filters.priorityFilterSource === PRIORITY_FILTER_SOURCE.GUIDED && mode !== MODE_TRIAGE;
 }
 
 /**
@@ -82,7 +80,7 @@ export function isPriorityFilterActiveForMode(mode: InboxMode, filters: InboxFil
 export interface ConnectedAccount {
   id: string;
   email: string;
-  provider: 'gmail' | 'office365' | 'zoho' | 'apple-mail';
+  provider: 'gmail' | 'office365' | 'zoho' | 'apple-mail' | 'imap';
   isPrimary: boolean;
   isActive: boolean;
 }

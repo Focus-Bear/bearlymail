@@ -4,7 +4,9 @@ import {
   failureFromError,
   failureMessageKey,
   fallbackServersFor,
+  oauthProviderFor,
   portForSecurity,
+  shouldOfferManualSettings,
   toConnectionSettings,
 } from './imapConnectForm.helpers';
 
@@ -27,22 +29,39 @@ describe('imapConnectForm helpers', () => {
     expect(portForSecurity(1143, true, ports)).toBe(1143);
   });
 
-  it('trims fields and drops empty optional ones', () => {
-    expect(
-      toConnectionSettings({
-        email: ' friend@crazy.test ',
-        password: ' secret ',
-        name: '  ',
-        username: '',
-        servers: fallbackServersFor('friend@crazy.test'),
-      })
-    ).toMatchObject({
+  it('sends only the address and password unless servers were entered by hand', () => {
+    const values = {
+      email: ' friend@crazy.test ',
+      password: ' secret ',
+      name: '  ',
+      username: '',
+      servers: fallbackServersFor('friend@crazy.test'),
+    };
+    expect(toConnectionSettings(values, false)).toEqual({
       email: 'friend@crazy.test',
       password: ' secret ',
       name: undefined,
       username: undefined,
-      imapHost: 'mail.crazy.test',
     });
+    expect(toConnectionSettings(values, true)).toMatchObject({ imapHost: 'mail.crazy.test', smtpPort: 465 });
+  });
+
+  it('maps "hosted by Google/Microsoft/Zoho" to the right sign-in', () => {
+    expect(oauthProviderFor({ protocol: 'imap', code: IMAP_CONNECTION_ERROR_CODES.USE_OFFICE365, detail: '' })).toBe(
+      'office365'
+    );
+    expect(
+      oauthProviderFor({ protocol: 'imap', code: IMAP_CONNECTION_ERROR_CODES.AUTH_FAILED, detail: '' })
+    ).toBeNull();
+  });
+
+  it('suggests typing the servers only when they could not be found', () => {
+    expect(
+      shouldOfferManualSettings({ protocol: 'imap', code: IMAP_CONNECTION_ERROR_CODES.SERVER_NOT_FOUND, detail: '' })
+    ).toBe(true);
+    expect(
+      shouldOfferManualSettings({ protocol: 'imap', code: IMAP_CONNECTION_ERROR_CODES.AUTH_FAILED, detail: '' })
+    ).toBe(false);
   });
 
   it('says which login was rejected', () => {

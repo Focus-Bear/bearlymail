@@ -16,6 +16,10 @@ jest.mock("./imap-session", () => ({
   withImapSession: jest.fn(),
 }));
 jest.mock("./smtp-sender", () => ({ verifySmtpSettings: jest.fn() }));
+jest.mock("dns/promises", () => ({
+  ...jest.requireActual("dns/promises"),
+  resolveMx: jest.fn().mockResolvedValue([]),
+}));
 
 const mockSession = withImapSession as jest.Mock;
 const mockVerifySmtp = verifySmtpSettings as jest.Mock;
@@ -90,6 +94,14 @@ describe("ImapAccountsService", () => {
     const result = await buildService().testConnection(DTO);
     expect(result).toEqual({
       ok: true,
+      servers: {
+        imapHost: "mail.crazy.test",
+        imapPort: 993,
+        imapSecure: true,
+        smtpHost: "mail.crazy.test",
+        smtpPort: 465,
+        smtpSecure: true,
+      },
       mailboxes: { archive: null, sent: "INBOX.Sent", trash: "INBOX.Trash" },
     });
     expect(client.mailboxCreate).not.toHaveBeenCalled();
@@ -172,5 +184,33 @@ describe("ImapAccountsService", () => {
       BadRequestException,
     );
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it("finds the servers itself when only an email and password are given", async () => {
+    mockSession.mockImplementation(async (settings, _options, work) => {
+      if (settings.host !== "mail.crazy.test" || settings.port !== 993) {
+        throw Object.assign(new Error("refused"), { code: "ECONNREFUSED" });
+      }
+      return work(client as unknown as ImapFlow);
+    });
+    const summary = await buildService().connect("user-1", {
+      email: "friend@crazy.test",
+      password: "correct-horse",
+    });
+
+    expect(summary.imapHost).toBe("mail.crazy.test");
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imapHost: "mail.crazy.test",
+        imapPort: 993,
+        smtpHost: "mail.crazy.test",
+        smtpPort: 465,
+        archiveMailbox: "INBOX.Archive",
+      }),
+    );
+    // Discovery probes fail fast so a dead candidate can't stall the form.
+    expect(mockSession.mock.calls[0][1]).toMatchObject({
+      timeoutMs: expect.any(Number),
+    });
   });
 });

@@ -8,6 +8,7 @@ import type { Decorator, Meta, StoryObj } from '@storybook/react';
 import axios from 'axios';
 import i18n from 'i18next';
 
+import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
 import { EmailAccountsSection } from 'components/settings/email-delivery/EmailAccountsSection';
 import { ImapConnectModal } from 'components/settings/email-delivery/imap/ImapConnectModal';
 import { ProviderSelectionModal } from 'components/settings/email-delivery/ProviderSelectionModal';
@@ -20,22 +21,23 @@ storyI18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
-const CERTIFICATE_MISMATCH = {
-  ok: false,
-  failure: {
-    protocol: 'imap',
-    code: 'certificate_mismatch',
-    detail:
-      "Hostname/IP does not match certificate's altnames: Host: mail.mybusiness.com.au. is not in the cert's altnames: DNS:s123.crazydomains.com",
-  },
-};
+type ConnectOutcome = { ok: true } | { failureCode: string; detail?: string };
 
-/** Stubs the IMAP endpoints so the form can be exercised without a server. */
-function withStubbedApi(testResult: unknown): Decorator {
+/** Stubs the connect endpoint so each story shows one outcome. */
+function withStubbedApi(outcome: ConnectOutcome): Decorator {
   return Story => {
-    axios.get = (async () => ({ data: { servers: null } })) as typeof axios.get;
-    axios.post = (async (url: string) =>
-      url.includes('/imap-accounts/test') ? { data: testResult } : { data: { ok: true } }) as typeof axios.post;
+    axios.post = (async () => {
+      if ('ok' in outcome) {
+        return { data: { account: { id: 'i1' } } };
+      }
+      throw {
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: { failure: { protocol: 'imap', code: outcome.failureCode, detail: outcome.detail ?? '' } },
+        },
+      };
+    }) as typeof axios.post;
     return (
       <I18nextProvider i18n={storyI18n}>
         <Story />
@@ -51,16 +53,38 @@ const meta: Meta = {
 export default meta;
 type Story = StoryObj;
 
+const Modal: React.FC = () => (
+  <ImapConnectModal isOpen onClose={() => {}} onConnected={() => {}} onUseProvider={() => {}} />
+);
+
 export const ConnectForm: Story = {
   name: 'Connect form',
-  decorators: [withStubbedApi({ ok: true, mailboxes: { archive: 'INBOX.Archive', sent: 'INBOX.Sent', trash: null } })],
-  render: () => <ImapConnectModal isOpen onClose={() => {}} onConnected={() => {}} />,
+  decorators: [withStubbedApi({ ok: true })],
+  render: () => <Modal />,
 };
 
-export const CertificateMismatch: Story = {
-  name: 'Connect form: certificate for another host',
-  decorators: [withStubbedApi(CERTIFICATE_MISMATCH)],
-  render: () => <ImapConnectModal isOpen onClose={() => {}} onConnected={() => {}} />,
+export const WrongPassword: Story = {
+  name: 'Wrong password',
+  decorators: [withStubbedApi({ failureCode: 'auth_failed', detail: 'AUTHENTICATIONFAILED Authentication failed.' })],
+  render: () => <Modal />,
+};
+
+export const GoogleMail: Story = {
+  name: 'Address is Google mail',
+  decorators: [withStubbedApi({ failureCode: 'use_gmail' })],
+  render: () => <Modal />,
+};
+
+export const SettingsNotFound: Story = {
+  name: 'Settings not found',
+  decorators: [withStubbedApi({ failureCode: 'server_not_found', detail: 'connect ECONNREFUSED' })],
+  render: () => <Modal />,
+};
+
+export const NoMailboxScreen: Story = {
+  name: 'No mailbox connected yet',
+  decorators: [withStubbedApi({ ok: true })],
+  render: () => <GmailConnectionScreen />,
 };
 
 export const ProviderPicker: Story = {

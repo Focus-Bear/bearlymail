@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { ImapConnectModal } from 'components/settings/email-delivery/imap/ImapConnectModal';
+import { startOAuthConnect } from 'components/settings/email-delivery/startOAuthConnect';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
@@ -103,6 +104,7 @@ export const GmailConnectionScreen: React.FC = () => {
       <ImapConnectModal
         isOpen={isImapFormOpen}
         onClose={() => setIsImapFormOpen(false)}
+        onUseProvider={provider => void startOAuthConnect(provider)}
         // The inbox only loads once a mailbox exists, so start it fresh.
         onConnected={() => window.location.reload()}
       />

@@ -44,7 +44,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   [PROVIDER_OFFICE365]: 'Office 365',
   [PROVIDER_ZOHO]: 'Zoho Mail',
   [PROVIDER_APPLE_MAIL]: 'Apple Mail',
-  [PROVIDER_IMAP]: 'IMAP',
+  [PROVIDER_IMAP]: 'Email',
 };
 
 export function getProviderColor(provider: string): string {

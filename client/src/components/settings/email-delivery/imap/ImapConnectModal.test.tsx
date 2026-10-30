@@ -5,79 +5,89 @@ import axios from 'axios';
 import { ImapConnectModal } from './ImapConnectModal';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, values?: Record<string, string>) => (values?.host ? `${key}:${values.host}` : key),
-  }),
+  useTranslation: () => ({ t: (key: string) => key }),
 }));
 
 vi.mock('axios', () => ({
-  default: { get: vi.fn(), post: vi.fn(), isAxiosError: vi.fn() },
+  default: { post: vi.fn(), isAxiosError: vi.fn() },
 }));
 const mockedAxios = axios as unknown as {
-  get: ReturnType<typeof vi.fn>;
   post: ReturnType<typeof vi.fn>;
   isAxiosError: ReturnType<typeof vi.fn>;
 };
 
+function rejectWith(code: string, detail = 'server said no') {
+  mockedAxios.isAxiosError.mockReturnValue(true);
+  mockedAxios.post.mockRejectedValue({
+    response: { status: 400, data: { failure: { protocol: 'imap', code, detail } } },
+  });
+}
+
 function fillCredentials() {
-  fireEvent.change(screen.getByLabelText('settings.imap.email'), { target: { value: 'friend@crazy.test' } });
-  fireEvent.blur(screen.getByLabelText('settings.imap.email'));
+  fireEvent.change(screen.getByLabelText('settings.imap.email'), { target: { value: 'hello@mybusiness.com.au' } });
   fireEvent.change(screen.getByLabelText('settings.imap.password'), { target: { value: 'correct-horse' } });
 }
 
 describe('ImapConnectModal', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockedAxios.get.mockResolvedValue({ data: { servers: null } });
-  });
+  beforeEach(() => vi.clearAllMocks());
 
-  it('suggests mail.<domain> from the address and connects with it', async () => {
+  it('connects with just an email address and password (no server settings sent)', async () => {
     const onConnected = vi.fn();
-    mockedAxios.post.mockResolvedValue({ data: { account: { id: 'i1', email: 'friend@crazy.test' } } });
+    mockedAxios.post.mockResolvedValue({ data: { account: { id: 'i1' } } });
     render(<ImapConnectModal isOpen onClose={vi.fn()} onConnected={onConnected} />);
 
+    expect(screen.queryByLabelText('settings.imap.host')).not.toBeInTheDocument();
     fillCredentials();
-    await waitFor(() => expect(screen.getByText('settings.imap.serverSummary:mail.crazy.test')).toBeInTheDocument());
     fireEvent.click(screen.getByText('settings.imap.connect'));
 
     await waitFor(() => expect(onConnected).toHaveBeenCalled());
-    expect(mockedAxios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/imap-accounts/connect'),
-      expect.objectContaining({
-        email: 'friend@crazy.test',
-        password: 'correct-horse',
-        imapHost: 'mail.crazy.test',
-        imapPort: 993,
-        smtpPort: 465,
-      })
-    );
+    const [, payload] = mockedAxios.post.mock.calls[0];
+    expect(payload).toEqual({ email: 'hello@mybusiness.com.au', password: 'correct-horse' });
   });
 
-  it('explains a rejected password from a failed test', async () => {
-    mockedAxios.post.mockResolvedValue({
-      data: { ok: false, failure: { protocol: 'imap', code: 'auth_failed', detail: 'AUTHENTICATIONFAILED' } },
-    });
+  it('explains a wrong password in plain words, with details tucked away', async () => {
+    rejectWith('auth_failed', 'AUTHENTICATIONFAILED');
     render(<ImapConnectModal isOpen onClose={vi.fn()} onConnected={vi.fn()} />);
-
     fillCredentials();
-    fireEvent.click(screen.getByText('settings.imap.test'));
+    fireEvent.click(screen.getByText('settings.imap.connect'));
 
     expect(await screen.findByText('settings.imap.errors.auth_failed_imap')).toBeInTheDocument();
+    expect(screen.queryByText('AUTHENTICATIONFAILED')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('settings.imap.showDetails'));
     expect(screen.getByText('AUTHENTICATIONFAILED')).toBeInTheDocument();
   });
 
-  it('keeps hand-edited server settings instead of re-suggesting them', async () => {
-    render(<ImapConnectModal isOpen onClose={vi.fn()} onConnected={vi.fn()} />);
-    fireEvent.click(screen.getByText('settings.imap.showAdvanced'));
-    fireEvent.change(screen.getAllByLabelText('settings.imap.host')[0], { target: { value: 's123.crazydomains.com' } });
-
+  it('offers the Google sign-in when the address is Google mail', async () => {
+    rejectWith('use_gmail');
+    const onUseProvider = vi.fn();
+    render(<ImapConnectModal isOpen onClose={vi.fn()} onConnected={vi.fn()} onUseProvider={onUseProvider} />);
     fillCredentials();
+    fireEvent.click(screen.getByText('settings.imap.connect'));
 
-    expect(mockedAxios.get).not.toHaveBeenCalled();
-    expect(screen.getAllByLabelText('settings.imap.host')[0]).toHaveValue('s123.crazydomains.com');
+    fireEvent.click(await screen.findByText('settings.imap.useProvider.gmail'));
+    expect(onUseProvider).toHaveBeenCalledWith('gmail');
   });
 
-  it('disables connecting until an address, password and servers are filled in', () => {
+  it('lets the user type the server settings when they can not be found', async () => {
+    rejectWith('server_not_found');
+    mockedAxios.post.mockRejectedValueOnce({
+      response: { status: 400, data: { failure: { protocol: 'imap', code: 'server_not_found', detail: '' } } },
+    });
+    render(<ImapConnectModal isOpen onClose={vi.fn()} onConnected={vi.fn()} />);
+    fillCredentials();
+    fireEvent.click(screen.getByText('settings.imap.connect'));
+    expect(await screen.findByText('settings.imap.errors.server_not_found')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('settings.imap.enterManually'));
+    expect(screen.getAllByLabelText('settings.imap.host')[0]).toHaveValue('mail.mybusiness.com.au');
+    mockedAxios.post.mockResolvedValue({ data: { account: { id: 'i1' } } });
+    fireEvent.click(screen.getByText('settings.imap.connect'));
+    await waitFor(() =>
+      expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ imapHost: 'mail.mybusiness.com.au', imapPort: 993 })
+    );
+  });
+
+  it('disables Connect until an address and password are filled in', () => {
     render(<ImapConnectModal isOpen onClose={vi.fn()} onConnected={vi.fn()} />);
     expect(screen.getByText('settings.imap.connect')).toBeDisabled();
   });

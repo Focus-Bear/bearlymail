@@ -51,6 +51,8 @@ export interface SpecialMailboxes {
 export interface ImapSessionOptions {
   /** Self-hosted deployments may legitimately use localhost bridges. */
   allowPrivateHosts: boolean;
+  /** Overrides the connect/greeting timeouts, e.g. while probing candidate hosts. */
+  timeoutMs?: number;
 }
 
 async function openImapSession(
@@ -71,8 +73,8 @@ async function openImapSession(
     auth: { user: settings.username, pass: settings.password },
     logger: false,
     disableAutoIdle: true,
-    connectionTimeout: IMAP_TIMEOUTS.CONNECTION,
-    greetingTimeout: IMAP_TIMEOUTS.GREETING,
+    connectionTimeout: options.timeoutMs ?? IMAP_TIMEOUTS.CONNECTION,
+    greetingTimeout: options.timeoutMs ?? IMAP_TIMEOUTS.GREETING,
     socketTimeout: IMAP_TIMEOUTS.SOCKET,
   });
   await client.connect();

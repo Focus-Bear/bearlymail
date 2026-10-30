@@ -8,6 +8,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from "class-validator";
 
 const MAX_HOSTNAME_LENGTH = 253;
@@ -16,7 +17,14 @@ const MAX_DISPLAY_NAME_LENGTH = 200;
 const MIN_PORT = 1;
 const MAX_PORT = 65535;
 
-/** Everything needed to log in to a mailbox over IMAP and SMTP. */
+/** Server fields are entered by hand only when automatic discovery can't help. */
+const hasManualServers = (dto: ImapAccountSettingsDto) =>
+  dto.imapHost !== undefined || dto.smtpHost !== undefined;
+
+/**
+ * Logging in to a mailbox. Most users send only email + password and the
+ * servers are discovered; the server fields come as a complete set or not at all.
+ */
 export class ImapAccountSettingsDto {
   @IsEmail()
   email: string;
@@ -37,30 +45,36 @@ export class ImapAccountSettingsDto {
   @MaxLength(MAX_CREDENTIAL_LENGTH)
   password: string;
 
+  @ValidateIf(hasManualServers)
   @IsString()
   @IsNotEmpty()
   @MaxLength(MAX_HOSTNAME_LENGTH)
-  imapHost: string;
+  imapHost?: string;
 
+  @ValidateIf(hasManualServers)
   /** Range only: which ports are allowed depends on the deployment. */
   @IsInt()
   @Min(MIN_PORT)
   @Max(MAX_PORT)
-  imapPort: number;
+  imapPort?: number;
 
+  @ValidateIf(hasManualServers)
   @IsBoolean()
-  imapSecure: boolean;
+  imapSecure?: boolean;
 
+  @ValidateIf(hasManualServers)
   @IsString()
   @IsNotEmpty()
   @MaxLength(MAX_HOSTNAME_LENGTH)
-  smtpHost: string;
+  smtpHost?: string;
 
+  @ValidateIf(hasManualServers)
   @IsInt()
   @Min(MIN_PORT)
   @Max(MAX_PORT)
-  smtpPort: number;
+  smtpPort?: number;
 
+  @ValidateIf(hasManualServers)
   @IsBoolean()
-  smtpSecure: boolean;
+  smtpSecure?: boolean;
 }

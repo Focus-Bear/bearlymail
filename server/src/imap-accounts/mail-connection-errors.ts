@@ -7,6 +7,12 @@ export const MAIL_CONNECTION_ERROR_CODES = {
   CONNECTION_FAILED: "connection_failed",
   CERTIFICATE_MISMATCH: "certificate_mismatch",
   TLS_FAILED: "tls_failed",
+  /** Automatic discovery tried the usual servers and none answered. */
+  SERVER_NOT_FOUND: "server_not_found",
+  /** The domain's mail is hosted by a provider we connect with OAuth. */
+  USE_GMAIL: "use_gmail",
+  USE_OFFICE365: "use_office365",
+  USE_ZOHO: "use_zoho",
   UNKNOWN: "unknown",
 } as const;
 
@@ -39,6 +45,8 @@ const CONNECTION_ERROR_CODES = new Set([
  * shared server's certificate, so the fix is to use that server's hostname.
  */
 const CERTIFICATE_MISMATCH_CODES = new Set(["ERR_TLS_CERT_ALTNAME_INVALID"]);
+/** nodemailer reports the same TLS failure as a generic ESOCKET; the message is specific. */
+const CERTIFICATE_MISMATCH_MESSAGE = /certificate's altnames/i;
 const TLS_ERROR_CODES = new Set([
   "CERT_HAS_EXPIRED",
   "DEPTH_ZERO_SELF_SIGNED_CERT",
@@ -67,7 +75,9 @@ function errorCodes(error: ErrorLike): string[] {
   return [error.code, cause.code].filter((code): code is string => !!code);
 }
 
-function classify(error: unknown): MailConnectionErrorCode {
+export function classifyMailConnectionError(
+  error: unknown,
+): MailConnectionErrorCode {
   if (error instanceof MailServerAddressError) {
     return MAIL_CONNECTION_ERROR_CODES.INVALID_SERVER;
   }
@@ -76,7 +86,10 @@ function classify(error: unknown): MailConnectionErrorCode {
   if (errorLike.authenticationFailed || codes.includes(SMTP_AUTH_ERROR_CODE)) {
     return MAIL_CONNECTION_ERROR_CODES.AUTH_FAILED;
   }
-  if (codes.some((code) => CERTIFICATE_MISMATCH_CODES.has(code))) {
+  if (
+    codes.some((code) => CERTIFICATE_MISMATCH_CODES.has(code)) ||
+    CERTIFICATE_MISMATCH_MESSAGE.test(errorLike.message ?? "")
+  ) {
     return MAIL_CONNECTION_ERROR_CODES.CERTIFICATE_MISMATCH;
   }
   if (codes.some((code) => TLS_ERROR_CODES.has(code))) {
@@ -95,11 +108,14 @@ export function describeMailConnectionError(
   const errorLike = asErrorLike(error);
   return {
     protocol,
-    code: classify(error),
+    code: classifyMailConnectionError(error),
     detail: errorLike.message || String(error),
   };
 }
 
 export function isMailAuthFailure(error: unknown): boolean {
-  return classify(error) === MAIL_CONNECTION_ERROR_CODES.AUTH_FAILED;
+  return (
+    classifyMailConnectionError(error) ===
+    MAIL_CONNECTION_ERROR_CODES.AUTH_FAILED
+  );
 }

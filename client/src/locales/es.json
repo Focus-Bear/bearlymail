@@ -1648,10 +1648,10 @@
   },
   "gmail": {
     "connectButton": "Conectar Gmail",
-    "connectDescription": "Para comenzar con BearlyMail, conecte su cuenta de Gmail. Sincronizaremos sus correos electrónicos de forma segura y lo ayudaremos a administrarlos de manera más efectiva.",
-    "connectOtherProvider": "Usar otro proveedor de correo",
-    "connectMultipleHint": "Puedes conectar varias cuentas de Gmail más adelante en la configuración.",
-    "connectTitle": "Conecte su cuenta de Gmail"
+    "connectDescription": "Para empezar, conecta la cuenta de correo que quieres que BearlyMail gestione. Sincronizamos tus correos de forma segura y te ayudamos a mantenerlos al día.",
+    "connectOtherProvider": "Usar otro correo (p. ej. Crazy Domains)",
+    "connectMultipleHint": "Puedes conectar más cuentas de correo más adelante en Ajustes.",
+    "connectTitle": "Conecta tu correo"
   },
   "help": {
     "articleNotFound": "Artículo no encontrado",
@@ -4192,8 +4192,8 @@
           "description": "Recibe el correo desde la app Mail de este Mac — sin necesidad de una cuenta en la nube"
         },
         "imap": {
-          "name": "Otro correo (IMAP)",
-          "description": "Cualquier buzón con dirección y contraseña: Crazy Domains, cPanel, Fastmail, iCloud y más"
+          "name": "Otro correo",
+          "description": "Correo del trabajo o de tu sitio web, como Crazy Domains. Solo tu dirección de correo y tu contraseña."
         }
       },
       "selectProvider": "Seleccione proveedor de correo electrónico",
@@ -4556,38 +4556,47 @@
     },
     "imap": {
       "title": "Conecta tu correo",
-      "reconnectTitle": "Vuelve a conectar tu correo",
-      "description": "Para correo alojado en Crazy Domains, cPanel y la mayoría de los proveedores de hosting, Fastmail, iCloud y otros. BearlyMail lee el correo por IMAP y lo envía por SMTP.",
+      "reconnectTitle": "Vuelve a iniciar sesión en tu correo",
+      "description": "Escribe la dirección y la contraseña que usas para leer tu correo. Nosotros encontraremos la configuración correcta.",
       "email": "Dirección de correo",
       "password": "Contraseña del correo",
-      "passwordHint": "La contraseña de este buzón, no la de tu cuenta de hosting. iCloud, Yahoo y Fastmail requieren una contraseña de aplicación.",
-      "name": "Tu nombre (aparece en los correos que envías)",
-      "serverSummary": "Servidor: {{host}}.",
-      "showAdvanced": "Cambiar la configuración del servidor",
-      "hideAdvanced": "Ocultar la configuración del servidor",
-      "incomingServer": "Correo entrante (IMAP)",
-      "outgoingServer": "Correo saliente (SMTP)",
+      "passwordHint": "La contraseña que usas para leer este correo, por ejemplo en el webmail. No la contraseña de tu cuenta de Crazy Domains o de tu sitio web.",
+      "name": "Tu nombre (opcional, aparece en los correos que envías)",
+      "finding": "Conectando con tu correo… puede tardar hasta un minuto.",
+      "connect": "Conectar",
+      "connecting": "Conectando…",
+      "enterManually": "Introducir la configuración del servidor yo mismo",
+      "useAutomatic": "Buscar la configuración automáticamente",
+      "showDetails": "Mostrar detalles técnicos",
+      "hideDetails": "Ocultar detalles técnicos",
+      "incomingServer": "Servidor de correo entrante (IMAP)",
+      "outgoingServer": "Servidor de correo saliente (SMTP)",
       "host": "Servidor",
       "port": "Puerto",
       "security": "Seguridad",
       "securitySsl": "SSL/TLS",
       "securityStartTls": "STARTTLS",
-      "username": "Usuario (si es distinto de tu dirección de correo)",
-      "test": "Probar conexión",
-      "testSucceeded": "Conectado. Tu buzón está listo para añadirse.",
-      "connect": "Conectar",
-      "connecting": "Conectando…",
-      "confirmDisconnect": "¿Seguro que quieres desconectar este buzón? BearlyMail olvidará su contraseña.",
-      "needsRelogin": "El servidor rechazó la contraseña guardada.",
-      "reconnect": "Volver a conectar",
+      "username": "Usuario (solo si es distinto de tu dirección de correo)",
+      "confirmDisconnect": "¿Desconectar este correo? BearlyMail olvidará su contraseña.",
+      "needsRelogin": "La contraseña de tu correo ha cambiado.",
+      "reconnect": "Volver a iniciar sesión",
+      "useProvider": {
+        "gmail": "Conectar con Google",
+        "office365": "Conectar con Microsoft",
+        "zoho": "Conectar con Zoho"
+      },
       "errors": {
-        "auth_failed_imap": "El servidor de correo rechazó esa dirección o contraseña. Revisa la contraseña del buzón (no la de tu cuenta de hosting).",
-        "auth_failed_smtp": "La lectura del correo funciona, pero el servidor saliente (SMTP) rechazó el inicio de sesión. Revisa el usuario y la contraseña SMTP en la configuración del servidor.",
-        "invalid_server": "No se puede usar ese servidor de correo. Revisa el nombre del servidor y el puerto en la configuración del servidor.",
-        "connection_failed": "No se pudo contactar con el servidor de correo. Revisa el nombre del servidor, el puerto y la seguridad en la configuración del servidor.",
-        "certificate_mismatch": "El certificado de seguridad del servidor es para otro nombre. Muchos proveedores (incluido Crazy Domains) requieren el nombre del propio servidor de hosting en lugar de mail.tudominio; lo encontrarás en la configuración de correo de tu panel de hosting.",
-        "tls_failed": "No se pudo establecer una conexión segura. Prueba a cambiar entre SSL/TLS y STARTTLS en la configuración del servidor.",
-        "unknown": "Algo salió mal al conectar con tu buzón. Inténtalo de nuevo."
+        "auth_failed_imap": "Esa dirección y contraseña no funcionaron. Comprueba que sea la contraseña con la que lees tu correo, no la de tu cuenta de Crazy Domains o de tu sitio web.",
+        "auth_failed_smtp": "Podemos leer tu correo, pero no iniciar sesión para enviarlo. Tu proveedor puede usar otro usuario o contraseña para enviar. Pulsa \"Introducir la configuración del servidor yo mismo\" para añadirlo.",
+        "server_not_found": "No pudimos encontrar la configuración de tu correo automáticamente. Las páginas de ayuda de tu proveedor la indican (busca \"IMAP\" y \"SMTP\"). Pulsa \"Introducir la configuración del servidor yo mismo\" para añadirla.",
+        "use_gmail": "Esta dirección la gestiona Google, así que se conecta con tu inicio de sesión de Google en lugar de una contraseña.",
+        "use_office365": "Esta dirección la gestiona Microsoft, así que se conecta con tu inicio de sesión de Microsoft en lugar de una contraseña.",
+        "use_zoho": "Esta dirección la gestiona Zoho, así que se conecta con tu inicio de sesión de Zoho en lugar de una contraseña.",
+        "invalid_server": "Ese nombre de servidor no parece correcto. Compruébalo con la configuración de tu proveedor de correo.",
+        "connection_failed": "No pudimos contactar con ese servidor de correo. Comprueba el nombre del servidor y el puerto.",
+        "certificate_mismatch": "Ese nombre de servidor no coincide con el certificado de seguridad del servidor. Muchos proveedores (incluido Crazy Domains) requieren el nombre del propio servidor de hosting en lugar de mail.tudominio. Lo encontrarás en la configuración de correo de tu cuenta de hosting.",
+        "tls_failed": "No pudimos establecer una conexión segura. Prueba a cambiar la seguridad entre SSL/TLS y STARTTLS.",
+        "unknown": "Algo salió mal al conectar con tu correo. Inténtalo de nuevo."
       }
     },
     "debugMode": {

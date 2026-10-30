@@ -32,6 +32,16 @@ describe("describeMailConnectionError", () => {
       MAIL_CONNECTION_ERROR_CODES.TLS_FAILED,
     ],
     [
+      "certificate mismatch reported by nodemailer as ESOCKET",
+      Object.assign(
+        new Error(
+          "Hostname/IP does not match certificate's altnames: Host: mail.x.com. is not in the cert's altnames: DNS:s1.host.com",
+        ),
+        { code: "ESOCKET" },
+      ),
+      MAIL_CONNECTION_ERROR_CODES.CERTIFICATE_MISMATCH,
+    ],
+    [
       "refused",
       errorWith({ code: "ECONNREFUSED" }),
       MAIL_CONNECTION_ERROR_CODES.CONNECTION_FAILED,

@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
+import { resolveMx } from "dns/promises";
 import type { ImapFlow } from "imapflow";
 import type { PgBoss } from "pg-boss";
 import { Repository } from "typeorm";
@@ -17,10 +18,19 @@ import {
 } from "../constants/domain-types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { MAIL_DISCOVERY_TIMEOUT_MS } from "../constants/mail-server.constants";
 import { ImapAccount } from "../database/entities/imap-account.entity";
 import { getJobPriority } from "../queue/job-priorities";
 import { ImapAccountSettingsDto } from "./dto/imap-account-settings.dto";
-import { smtpServerFilesSentMail } from "./imap-server-presets";
+import {
+  type ConnectionProbe,
+  discoverMailServers,
+  type ServerEndpoint,
+} from "./imap-server-discovery";
+import {
+  type MailServerPreset,
+  smtpServerFilesSentMail,
+} from "./imap-server-presets";
 import {
   archiveMailboxPathFor,
   detectSpecialMailboxes,
@@ -36,7 +46,7 @@ import {
 import { type SmtpServerSettings, verifySmtpSettings } from "./smtp-sender";
 
 export type ConnectionTestResult =
-  | { ok: true; mailboxes: SpecialMailboxes }
+  | { ok: true; servers: MailServerPreset; mailboxes: SpecialMailboxes }
   | { ok: false; failure: MailConnectionFailure };
 
 /** What the client may see about an account: never the credentials. */
@@ -71,27 +81,28 @@ export function smtpServerSettingsOf(account: ImapAccount): SmtpServerSettings {
   };
 }
 
-function settingsFromDto(dto: ImapAccountSettingsDto): {
-  imap: ImapServerSettings;
-  smtp: SmtpServerSettings;
-} {
-  const username = dto.username?.trim() || dto.email.trim();
+function usernameOf(dto: ImapAccountSettingsDto): string {
+  return dto.username?.trim() || dto.email.trim();
+}
+
+/** The servers the user typed in, or null when they asked us to find them. */
+function manualServersOf(dto: ImapAccountSettingsDto): MailServerPreset | null {
+  if (dto.imapHost === undefined || dto.smtpHost === undefined) return null;
   return {
-    imap: {
-      host: dto.imapHost,
-      port: dto.imapPort,
-      secure: dto.imapSecure,
-      username,
-      password: dto.password,
-    },
-    smtp: {
-      host: dto.smtpHost,
-      port: dto.smtpPort,
-      secure: dto.smtpSecure,
-      username,
-      password: dto.password,
-    },
+    imapHost: dto.imapHost.trim().toLowerCase(),
+    imapPort: dto.imapPort as number,
+    imapSecure: dto.imapSecure as boolean,
+    smtpHost: dto.smtpHost.trim().toLowerCase(),
+    smtpPort: dto.smtpPort as number,
+    smtpSecure: dto.smtpSecure as boolean,
   };
+}
+
+function loginTo(
+  endpoint: ServerEndpoint,
+  dto: ImapAccountSettingsDto,
+): ImapServerSettings & SmtpServerSettings {
+  return { ...endpoint, username: usernameOf(dto), password: dto.password };
 }
 
 function toSummary(account: ImapAccount): ImapAccountSummary {
@@ -132,25 +143,64 @@ export class ImapAccountsService {
     return this.verifyConnection(dto, { createMissingArchive: false });
   }
 
+  /**
+   * Logs in with the user's servers, or — for the usual email + password
+   * form — finds the servers first. Either way both logins are verified.
+   */
   private async verifyConnection(
     dto: ImapAccountSettingsDto,
     options: { createMissingArchive: boolean },
   ): Promise<ConnectionTestResult> {
-    const { imap, smtp } = settingsFromDto(dto);
+    const manual = manualServersOf(dto);
+    if (manual) return this.verifyManualServers(dto, manual, options);
+    return discoverMailServers(
+      dto.email,
+      this.probeFor(dto, options, MAIL_DISCOVERY_TIMEOUT_MS),
+      resolveMx,
+    );
+  }
+
+  private probeFor(
+    dto: ImapAccountSettingsDto,
+    options: { createMissingArchive: boolean },
+    timeoutMs?: number,
+  ): ConnectionProbe {
+    const session = { ...this.sessionOptions, timeoutMs };
+    return {
+      imap: (endpoint) =>
+        withImapSession(loginTo(endpoint, dto), session, (client) =>
+          this.findMailboxes(client, options),
+        ),
+      smtp: (endpoint) => verifySmtpSettings(loginTo(endpoint, dto), session),
+    };
+  }
+
+  private async verifyManualServers(
+    dto: ImapAccountSettingsDto,
+    servers: MailServerPreset,
+    options: { createMissingArchive: boolean },
+  ): Promise<ConnectionTestResult> {
+    const probe = this.probeFor(dto, options);
     let mailboxes: SpecialMailboxes;
     try {
-      mailboxes = await withImapSession(imap, this.sessionOptions, (client) =>
-        this.findMailboxes(client, options),
-      );
+      mailboxes = await probe.imap({
+        host: servers.imapHost,
+        port: servers.imapPort,
+        secure: servers.imapSecure,
+      });
     } catch (error) {
       return { ok: false, failure: describeMailConnectionError("imap", error) };
     }
     try {
-      await verifySmtpSettings(smtp, this.sessionOptions);
+      await probe.smtp({
+        host: servers.smtpHost,
+        port: servers.smtpPort,
+        secure: servers.smtpSecure,
+      });
     } catch (error) {
       return { ok: false, failure: describeMailConnectionError("smtp", error) };
     }
-    return { ok: true, mailboxes };
+    return { ok: true, servers, mailboxes };
   }
 
   /**
@@ -188,7 +238,7 @@ export class ImapAccountsService {
       });
     }
 
-    const { imap } = settingsFromDto(dto);
+    const { servers, mailboxes } = test;
     const email = dto.email.trim().toLowerCase();
     const existing = await this.findActiveAccounts(userId);
     const match = existing.find((account) => account.email === email);
@@ -196,19 +246,14 @@ export class ImapAccountsService {
       match ?? this.imapAccountRepository.create({ userId, email });
     Object.assign(account, {
       name: dto.name?.trim() || match?.name || null,
-      username: imap.username,
+      username: usernameOf(dto),
       password: dto.password,
-      imapHost: dto.imapHost.trim().toLowerCase(),
-      imapPort: dto.imapPort,
-      imapSecure: dto.imapSecure,
-      smtpHost: dto.smtpHost.trim().toLowerCase(),
-      smtpPort: dto.smtpPort,
-      smtpSecure: dto.smtpSecure,
-      archiveMailbox: test.mailboxes.archive,
-      sentMailbox: smtpServerFilesSentMail(dto.smtpHost)
+      ...servers,
+      archiveMailbox: mailboxes.archive,
+      sentMailbox: smtpServerFilesSentMail(servers.smtpHost)
         ? null
-        : test.mailboxes.sent,
-      trashMailbox: test.mailboxes.trash,
+        : mailboxes.sent,
+      trashMailbox: mailboxes.trash,
       isActive: true,
       isPrimary: match?.isPrimary ?? existing.length === 0,
       needsRelogin: false,

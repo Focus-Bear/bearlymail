@@ -1553,8 +1553,8 @@
           "description": "Pull email from the Mail app on this Mac — no cloud account needed"
         },
         "imap": {
-          "name": "Other email (IMAP)",
-          "description": "Any mailbox with an email address and password: Crazy Domains, cPanel, Fastmail, iCloud and more"
+          "name": "Other email",
+          "description": "Work or website email, like Crazy Domains. Just your email address and password."
         }
       },
       "selectProvider": "Select Email Provider"
@@ -1590,38 +1590,47 @@
     },
     "imap": {
       "title": "Connect your email",
-      "reconnectTitle": "Reconnect your email",
-      "description": "For email hosted with Crazy Domains, cPanel and most web hosts, Fastmail, iCloud and others. BearlyMail reads mail over IMAP and sends it over SMTP.",
+      "reconnectTitle": "Sign in to your email again",
+      "description": "Enter the email address and password you use to check your email. We'll find the right settings for you.",
       "email": "Email address",
       "password": "Email password",
-      "passwordHint": "The password for this mailbox, not your hosting account login. iCloud, Yahoo and Fastmail need an app-specific password.",
-      "name": "Your name (shown on emails you send)",
-      "serverSummary": "Server: {{host}}.",
-      "showAdvanced": "Change server settings",
-      "hideAdvanced": "Hide server settings",
-      "incomingServer": "Incoming mail (IMAP)",
-      "outgoingServer": "Outgoing mail (SMTP)",
+      "passwordHint": "The password you use to check this email, for example in webmail. Not the password for your Crazy Domains or website account.",
+      "name": "Your name (optional, shown on emails you send)",
+      "finding": "Connecting to your email… this can take up to a minute.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "enterManually": "Enter server settings myself",
+      "useAutomatic": "Find my settings automatically",
+      "showDetails": "Show technical details",
+      "hideDetails": "Hide technical details",
+      "incomingServer": "Incoming mail server (IMAP)",
+      "outgoingServer": "Outgoing mail server (SMTP)",
       "host": "Server",
       "port": "Port",
       "security": "Security",
       "securitySsl": "SSL/TLS",
       "securityStartTls": "STARTTLS",
-      "username": "Username (if different from your email address)",
-      "test": "Test connection",
-      "testSucceeded": "Connected. Your mailbox is ready to add.",
-      "connect": "Connect",
-      "connecting": "Connecting…",
-      "confirmDisconnect": "Are you sure you want to disconnect this mailbox? BearlyMail forgets its password.",
-      "needsRelogin": "The server rejected the saved password.",
-      "reconnect": "Reconnect",
+      "username": "Username (only if it's different from your email address)",
+      "confirmDisconnect": "Disconnect this email? BearlyMail will forget its password.",
+      "needsRelogin": "Your email password has changed.",
+      "reconnect": "Sign in again",
+      "useProvider": {
+        "gmail": "Connect with Google instead",
+        "office365": "Connect with Microsoft instead",
+        "zoho": "Connect with Zoho instead"
+      },
       "errors": {
-        "auth_failed_imap": "The mail server rejected that email address or password. Check the mailbox password (not your hosting account login).",
-        "auth_failed_smtp": "Reading mail works, but the outgoing (SMTP) server rejected the login. Check the SMTP username and password under server settings.",
-        "invalid_server": "That mail server can't be used. Check the server name and port under server settings.",
-        "connection_failed": "Couldn't reach the mail server. Check the server name, port and security under server settings.",
-        "certificate_mismatch": "The server's security certificate is for a different name. Many hosts (including Crazy Domains) need the hosting server's own name instead of mail.yourdomain — find it in your hosting control panel's email settings.",
-        "tls_failed": "Couldn't make a secure connection. Try switching between SSL/TLS and STARTTLS under server settings.",
-        "unknown": "Something went wrong connecting to your mailbox. Please try again."
+        "auth_failed_imap": "That email address and password didn't work. Check it's the password you use to check your email, not your Crazy Domains or website account password.",
+        "auth_failed_smtp": "We can read your email, but couldn't sign in to send it. Your email provider may use a different username or password for sending. Click \"Enter server settings myself\" to add it.",
+        "server_not_found": "We couldn't find your email settings automatically. Your email provider's help pages will list them (look for \"IMAP\" and \"SMTP\"). Click \"Enter server settings myself\" to add them.",
+        "use_gmail": "This email address is run by Google, so it connects with your Google sign-in instead of a password.",
+        "use_office365": "This email address is run by Microsoft, so it connects with your Microsoft sign-in instead of a password.",
+        "use_zoho": "This email address is run by Zoho, so it connects with your Zoho sign-in instead of a password.",
+        "invalid_server": "That server name doesn't look right. Check it against your email provider's settings.",
+        "connection_failed": "We couldn't reach that email server. Check the server name and port.",
+        "certificate_mismatch": "That server name doesn't match the server's security certificate. Many hosts (including Crazy Domains) want the hosting server's own name instead of mail.yourdomain. You'll find it in your hosting account's email settings.",
+        "tls_failed": "We couldn't make a secure connection. Try switching the security setting between SSL/TLS and STARTTLS.",
+        "unknown": "Something went wrong connecting to your email. Please try again."
       }
     },
     "blockedSenders": {
@@ -2686,11 +2695,11 @@
     "prLabel": "PR"
   },
   "gmail": {
-    "connectTitle": "Connect Your Gmail Account",
-    "connectDescription": "To get started with BearlyMail, please connect your Gmail account. We'll sync your emails securely and help you manage them more effectively.",
+    "connectTitle": "Connect your email",
+    "connectDescription": "To get started, connect the email account you want BearlyMail to look after. We sync your emails securely and help you stay on top of them.",
     "connectButton": "Connect Gmail",
-    "connectOtherProvider": "Use another email provider",
-    "connectMultipleHint": "You can connect multiple Gmail accounts later in settings."
+    "connectOtherProvider": "Use a different email (e.g. Crazy Domains)",
+    "connectMultipleHint": "You can connect more email accounts later in Settings."
   },
   "help": {
     "title": "Help",

@@ -21,6 +21,7 @@ import {
 } from './emailAccounts.helpers';
 import { ImapConnectModal } from './imap/ImapConnectModal';
 import { ProviderSelectionModal } from './ProviderSelectionModal';
+import { startOAuthConnect } from './startOAuthConnect';
 
 export type { EmailAccount } from './emailAccounts.helpers';
 
@@ -314,10 +315,7 @@ function useEmailAccountHandlers({ onFetchData, t, onConnectImap }: UseConnectHa
       return;
     }
     try {
-      const response = await axios.get(
-        `${API_URL}/${provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider}-accounts/connect-url`
-      );
-      window.location.href = response.data.url;
+      await startOAuthConnect(provider);
     } catch (error) {
       console.error(`Error connecting ${provider} account:`, error); // nosemgrep
       alert(`Failed to connect ${provider} account. Please try again.`);
@@ -480,6 +478,10 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
         isOpen={imapForm.isOpen}
         initialEmail={imapForm.initialEmail}
         onClose={() => setImapForm({ isOpen: false })}
+        onUseProvider={provider => {
+          setImapForm({ isOpen: false });
+          void handleConnectProvider(provider);
+        }}
         onConnected={() => {
           setImapForm({ isOpen: false });
           void onFetchData();

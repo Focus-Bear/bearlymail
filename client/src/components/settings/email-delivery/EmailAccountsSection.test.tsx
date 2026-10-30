@@ -133,7 +133,7 @@ describe('EmailAccountsSection IMAP accounts', () => {
     render(<EmailAccountsSection {...baseProps} imapAccounts={[IMAP_ACCOUNT]} />);
 
     expect(screen.getByText('friend@crazy.test')).toBeInTheDocument();
-    expect(screen.getByText('IMAP')).toBeInTheDocument();
+    expect(screen.getByText('Email')).toBeInTheDocument();
     expect(screen.queryByText('settings.imap.needsRelogin')).not.toBeInTheDocument();
   });
 

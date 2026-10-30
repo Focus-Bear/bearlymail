@@ -8,6 +8,8 @@ export const SMTP_ALTERNATE_SUBMISSION_PORT = 2525;
 
 export const MAIL_CONNECTION_TIMEOUT_MS = 15_000;
 export const MAIL_GREETING_TIMEOUT_MS = 15_000;
+/** Automatic discovery tries several hosts, so dead ones must fail fast. */
+export const MAIL_DISCOVERY_TIMEOUT_MS = 8_000;
 export const IMAP_SOCKET_TIMEOUT_MS = 120_000;
 export const SMTP_SOCKET_TIMEOUT_MS = 60_000;
 

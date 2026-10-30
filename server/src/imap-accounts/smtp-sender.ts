@@ -27,6 +27,12 @@ export interface SmtpServerSettings {
   password: string;
 }
 
+export interface SmtpConnectOptions {
+  allowPrivateHosts: boolean;
+  /** Overrides the connect/greeting timeouts, e.g. while probing candidate hosts. */
+  timeoutMs?: number;
+}
+
 export interface OutgoingMessage {
   from: { email: string; name?: string };
   to: string[];
@@ -109,7 +115,7 @@ export async function composeMessage(
 
 async function createSmtpTransport(
   settings: SmtpServerSettings,
-  options: { allowPrivateHosts: boolean },
+  options: SmtpConnectOptions,
 ) {
   const server = await resolveMailServer(settings.host, settings.port, {
     allowedPorts: ALLOWED_SMTP_PORTS,
@@ -125,15 +131,15 @@ async function createSmtpTransport(
     requireTLS: !settings.secure,
     tls: { servername: server.hostname },
     auth: { user: settings.username, pass: settings.password },
-    connectionTimeout: SMTP_TIMEOUTS.CONNECTION,
-    greetingTimeout: SMTP_TIMEOUTS.GREETING,
+    connectionTimeout: options.timeoutMs ?? SMTP_TIMEOUTS.CONNECTION,
+    greetingTimeout: options.timeoutMs ?? SMTP_TIMEOUTS.GREETING,
     socketTimeout: SMTP_TIMEOUTS.SOCKET,
   });
 }
 
 export async function sendComposedMessage(
   settings: SmtpServerSettings,
-  options: { allowPrivateHosts: boolean },
+  options: SmtpConnectOptions,
   fromEmail: string,
   composed: ComposedMessage,
 ): Promise<void> {
@@ -151,7 +157,7 @@ export async function sendComposedMessage(
 /** Logs in to the SMTP server without sending, to validate settings. */
 export async function verifySmtpSettings(
   settings: SmtpServerSettings,
-  options: { allowPrivateHosts: boolean },
+  options: SmtpConnectOptions,
 ): Promise<void> {
   const transport = await createSmtpTransport(settings, options);
   try {

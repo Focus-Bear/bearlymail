@@ -7,7 +7,6 @@ import {
   HttpStatus,
   Param,
   Post,
-  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -19,7 +18,6 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { AuthenticatedRequest } from "../types/common";
 import { ImapAccountSettingsDto } from "./dto/imap-account-settings.dto";
 import { ImapAccountsService } from "./imap-accounts.service";
-import { suggestMailServers } from "./imap-server-presets";
 
 /**
  * Each test/connect opens outbound IMAP + SMTP logins, so they're throttled
@@ -33,11 +31,6 @@ const CONNECTION_ATTEMPT_LIMIT = {
 @UseGuards(JwtAuthGuard)
 export class ImapAccountsController {
   constructor(private readonly imapAccountsService: ImapAccountsService) {}
-
-  @Get("suggest")
-  suggest(@Query("email") email: string) {
-    return { servers: suggestMailServers(email || "") };
-  }
 
   @Post("test")
   @HttpCode(HttpStatus.OK)

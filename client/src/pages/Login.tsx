@@ -19,13 +19,13 @@ import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { SessionExpiredBanner } from 'components/auth/SessionExpiredBanner';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { PROVIDER_GOOGLE, PROVIDER_MICROSOFT, PROVIDER_ZOHO } from 'constants/strings';
+import { GOOGLE_OAUTH_START_PATH, PROVIDER_GOOGLE, PROVIDER_MICROSOFT, PROVIDER_ZOHO } from 'constants/strings';
 import { DeletedAccountError, OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
 
 const OAUTH_START_PATHS: Record<OAuthProvider, string> = {
-  [PROVIDER_GOOGLE]: '/auth/google',
+  [PROVIDER_GOOGLE]: GOOGLE_OAUTH_START_PATH,
   [PROVIDER_MICROSOFT]: '/auth/microsoft',
   [PROVIDER_ZOHO]: '/auth/zoho',
 };

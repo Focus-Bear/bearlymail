@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import type { PgBoss } from "pg-boss";
 
+import { GMAIL_ACCESS_ISSUE } from "../../constants/domain-statuses";
 import { User } from "../../database/entities/user.entity";
 import { UsersService } from "../../users/users.service";
 import { EmailsService } from "../emails.service";
@@ -44,6 +45,7 @@ describe("GmailSyncService.handleSyncError — relogin flagging", () => {
   let usersService: {
     findOneWithTokens: jest.Mock;
     markNeedsRelogin: jest.Mock;
+    recordGmailAccessIssue: jest.Mock;
   };
   let service: GmailSyncService;
 
@@ -55,6 +57,7 @@ describe("GmailSyncService.handleSyncError — relogin flagging", () => {
     usersService = {
       findOneWithTokens: jest.fn(),
       markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
+      recordGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
     };
     service = new GmailSyncService(
       usersService as unknown as UsersService,
@@ -85,6 +88,10 @@ describe("GmailSyncService.handleSyncError — relogin flagging", () => {
       "gmail_insufficient_scope",
       { bypassGracePeriod: true },
     );
+    expect(usersService.recordGmailAccessIssue).toHaveBeenCalledWith(
+      USER_ID,
+      GMAIL_ACCESS_ISSUE.MISSING,
+    );
   });
 
   it("does NOT flag a transient auth error inside the grace period", async () => {
@@ -96,6 +103,11 @@ describe("GmailSyncService.handleSyncError — relogin flagging", () => {
     ).rejects.toBe(unauthorizedError);
 
     expect(usersService.markNeedsRelogin).not.toHaveBeenCalled();
+    // The access issue is still recorded so the inbox can explain itself.
+    expect(usersService.recordGmailAccessIssue).toHaveBeenCalledWith(
+      USER_ID,
+      GMAIL_ACCESS_ISSUE.REVOKED,
+    );
   });
 
   it("still flags a generic auth error outside the grace period (unchanged behaviour)", async () => {
@@ -143,5 +155,6 @@ describe("GmailSyncService.handleSyncError — relogin flagging", () => {
 
     expect(usersService.findOneWithTokens).not.toHaveBeenCalled();
     expect(usersService.markNeedsRelogin).not.toHaveBeenCalled();
+    expect(usersService.recordGmailAccessIssue).not.toHaveBeenCalled();
   });
 });

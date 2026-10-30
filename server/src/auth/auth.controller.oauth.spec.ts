@@ -2,7 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { createHmac } from "crypto";
 import { Response } from "express";
 
-import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import { AUTH_CONSTANTS, OAUTH_ERROR_TYPES } from "../constants/auth-constants";
+import { MISSING_GMAIL_PERMISSION_MESSAGE } from "../constants/google-oauth-scopes";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
@@ -187,6 +188,27 @@ describe("AuthController OAuth callbacks", () => {
         expectedErrorRedirect(
           "Your account is pending approval.",
           "pending_approval",
+        ),
+      );
+    });
+
+    it("should send a user who declined Gmail access to the grant-permission explanation", async () => {
+      const res = createMockResponse();
+
+      await controller.googleAuthRedirect(
+        {
+          authError: new Error(MISSING_GMAIL_PERMISSION_MESSAGE),
+          user: { authFailed: true },
+        },
+        asResponse(res),
+        undefined,
+      );
+
+      expect(mockAuthService.login).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith(
+        expectedErrorRedirect(
+          MISSING_GMAIL_PERMISSION_MESSAGE,
+          OAUTH_ERROR_TYPES.MISSING_GMAIL_PERMISSION,
         ),
       );
     });

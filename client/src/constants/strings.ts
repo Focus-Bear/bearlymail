@@ -371,7 +371,16 @@ export const SCROLL_BLOCK_START = 'start' as const;
 // Auth Error Types
 export const ERROR_TYPE_PENDING_APPROVAL = 'pending_approval' as const;
 export const ERROR_TYPE_NOT_ON_WAITLIST = 'not_on_waitlist' as const;
+export const ERROR_TYPE_MISSING_GMAIL_PERMISSION = 'missing_gmail_permission' as const;
 export const ERROR_TYPE_AUTH_ERROR = 'auth_error' as const;
+
+// Why the server can't read the user's Gmail (server GMAIL_ACCESS_ISSUE values)
+export const GMAIL_ACCESS_ISSUE_MISSING = 'gmail_access_missing' as const;
+export const GMAIL_ACCESS_ISSUE_REVOKED = 'gmail_access_revoked' as const;
+export type GmailAccessIssue = typeof GMAIL_ACCESS_ISSUE_MISSING | typeof GMAIL_ACCESS_ISSUE_REVOKED;
+
+// Server path that starts Google sign-in (always with the consent screen forced)
+export const GOOGLE_OAUTH_START_PATH = '/auth/google';
 
 // Deletion reasons (must match server DeletionReason enum)
 export const DELETION_REASON_INACTIVITY = 'inactivity' as const;

@@ -33,6 +33,9 @@ export async function processPriorityBatchMessage(
         message.userId,
         message.emailIds,
         tracker,
+        message.forceFullAnalysisEmailIds
+          ? new Set(message.forceFullAnalysisEmailIds)
+          : undefined,
       ),
     );
     await markRunBatchComplete(runtime.dataSource, message.analysisId);

@@ -65,8 +65,10 @@ export interface RealProgress {
 
 export interface LearningView {
   displayProgress: number;
-  /** Sync + context analysis have finished (or timed out). */
+  /** Sync + context analysis have finished (or the import timed out after analysis completed). */
   isLearningDone: boolean;
+  /** Analysis failed or overran the max wait: the user must retry or skip rather than watch a frozen bar. */
+  isStalled: boolean;
   /** The user may open the inbox: learning is done and the inbox is sorted, or we stopped waiting. */
   canFinish: boolean;
   /** Let in by the max-wait timeout while some threads are still being sorted. */
@@ -75,13 +77,30 @@ export interface LearningView {
   realProgress: RealProgress;
 }
 
-/** Sync + context analysis have finished, or we stopped waiting for them. */
+/**
+ * Context analysis has finished and the email sync is ready, or the sync poll
+ * overran the max wait after analysis completed. A timeout alone no longer
+ * counts: an analysis that never finishes is a stall the user must see.
+ */
 export function hasLearningFinished(
   analyzeProgress: AnalyzeProgress,
   importProgress: ImportProgress,
   timedOut: boolean
 ): boolean {
-  return (importProgress.isReady && analyzeProgress.isComplete) || timedOut;
+  return analyzeProgress.isComplete && (importProgress.isReady || timedOut);
+}
+
+/**
+ * The analysis errored (e.g. it was superseded by a newer run, or failed to
+ * start) or is still unfinished at the max wait. Either way no further progress
+ * is coming without the user's action, so the screen must say so instead of
+ * holding a frozen bar on "Reading your recent emails".
+ */
+export function isAnalysisStalled(analyzeProgress: AnalyzeProgress, timedOut: boolean): boolean {
+  if (analyzeProgress.isComplete) {
+    return false;
+  }
+  return Boolean(analyzeProgress.error) || timedOut;
 }
 
 function getAnalysisPhase(messageKey: string | undefined): number {
@@ -129,6 +148,7 @@ export function computeLearningView(
   categorisation: CategorisationState
 ): LearningView {
   const isLearningDone = hasLearningFinished(analyzeProgress, importProgress, timedOut);
+  const isStalled = isAnalysisStalled(analyzeProgress, timedOut);
   const isSorted = isCategorisationComplete(categorisation.progress);
   const canFinish = isLearningDone && (isSorted || categorisation.timedOut);
   const learningFraction = isLearningDone ? PROGRESS_MAX : computeLearningFraction(analyzeProgress, importProgress);
@@ -138,6 +158,7 @@ export function computeLearningView(
     // Once finished every indicator reads "done", so the bar must show 100% too (#294).
     displayProgress: canFinish ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, blended),
     isLearningDone,
+    isStalled,
     canFinish,
     isStillSorting: canFinish && !isSorted,
     currentPhase: pickCurrentPhase(canFinish, isLearningDone, progress?.messageKey),
@@ -178,6 +199,15 @@ function buildFraction(done: number | undefined, total: number | undefined): str
     return `${done ?? 0} / ${total}`;
   }
   return done ? String(done) : '';
+}
+
+/**
+ * Count shown on the right of a phase row. A phase that hasn't started shows
+ * nothing: a dimmed "Sorting" row reading "204 / 250" beside an active
+ * "Reading your recent emails" row looked like the steps were running out of order.
+ */
+export function buildRowCount(translate: TFn, phaseIdx: number, isStarted: boolean, rp: RealProgress): string {
+  return isStarted ? buildPhaseCount(translate, phaseIdx, rp) : '';
 }
 
 /** Real count shown on the right of each phase row (empty until the number exists). */

@@ -3819,7 +3819,12 @@
       "phaseCategorise": "Sorting your emails into categories",
       "statusCategorise": "Sorting your inbox into categories… ({{categorised}} of {{total}}) so it opens organised",
       "statusCategoriseGeneric": "Sorting your inbox into categories so it opens organised…",
-      "readyDetailStillSorting": "Most of your inbox is sorted. The rest will move into their categories over the next few minutes."
+      "readyDetailStillSorting": "Most of your inbox is sorted. The rest will move into their categories over the next few minutes.",
+      "stalledTitle": "Learning from your emails has stalled",
+      "stalledDetailError": "We couldn't finish learning from your emails. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",
+      "stalledDetailTimeout": "This still hasn't finished after {{minutes}} minutes. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",
+      "retry": "Try again",
+      "skipToInbox": "Open my inbox anyway →"
     },
     "learned": {
       "title": "Here's what we learned",

@@ -3,6 +3,11 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { Strategy } from "passport-google-oauth20";
 
+import {
+  findMissingRequiredGoogleScopes,
+  GOOGLE_OAUTH_SCOPES,
+  MISSING_GMAIL_PERMISSION_MESSAGE,
+} from "../constants/google-oauth-scopes";
 import { User } from "../database/entities/user.entity";
 import { AuthService } from "./auth.service";
 import { writeDebugLog } from "./auth-logger";
@@ -26,6 +31,14 @@ interface GoogleProfileForValidation {
   displayName?: string;
 }
 
+/**
+ * Raw token-response fields passport-oauth2 hands to `validate` (only when the
+ * strategy is registered with a callback arity that includes them).
+ */
+interface GoogleTokenParams {
+  scope?: string;
+}
+
 interface UserWithGoogleData extends Omit<User, "password" | "googleId"> {
   googleProfile?: GoogleOAuthProfile;
   googleAccessToken?: string;
@@ -33,8 +46,10 @@ interface UserWithGoogleData extends Omit<User, "password" | "googleId"> {
   googleId?: string;
 }
 
+// Arity `true` makes passport-oauth2 pass the token response (`params`) to
+// validate, which is the only place Google reports which scopes were granted.
 @Injectable()
-export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
+export class GoogleStrategy extends PassportStrategy(Strategy, "google", true) {
   private readonly logger = new Logger(GoogleStrategy.name);
 
   constructor(
@@ -49,21 +64,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       clientID: clientID || "placeholder-client-id",
       clientSecret: clientSecret || "placeholder-client-secret",
       callbackURL: callbackURL || "http://localhost:3001/auth/google/callback",
-      scope: [
-        "email",
-        "profile",
-        // Free/busy only (required for booking page availability via freebusy.query)
-        "https://www.googleapis.com/auth/calendar.freebusy",
-        // Manage calendar events (create/edit/delete bookings)
-        "https://www.googleapis.com/auth/calendar.events",
-        // Includes read + modify (labels, etc.)
-        "https://www.googleapis.com/auth/gmail.modify",
-        "https://www.googleapis.com/auth/gmail.send",
-        // Required for contacts sync via People API (explicit contacts)
-        "https://www.googleapis.com/auth/contacts.readonly",
-        // Required for "Other contacts" sync (auto-created from interactions)
-        "https://www.googleapis.com/auth/contacts.other.readonly",
-      ],
+      scope: GOOGLE_OAUTH_SCOPES,
       // These need to be in authorizationParams, not here
     });
 
@@ -99,6 +100,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
   async validate(
     accessToken: string,
     refreshToken: string,
+    params: GoogleTokenParams,
     profile: GoogleOAuthProfile,
   ): Promise<UserWithGoogleData> {
     // NestJS Passport pattern: return user on success, throw error on failure
@@ -114,6 +116,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     writeDebugLog(
       `[GoogleStrategy] OAuth callback - accessToken: ${accessToken ? "PRESENT" : "NULL"}, refreshToken: ${refreshToken ? "PRESENT" : "NULL"}`,
     );
+
+    // Reject before validateGoogleUser so a token that can't read mail never
+    // creates the account or replaces a previously complete grant.
+    const missingScopes = findMissingRequiredGoogleScopes(params?.scope);
+    if (missingScopes.length > 0) {
+      this.logger.warn(
+        `[GoogleStrategy] Sign-in for profile ${profile.id} declined required scopes: ${missingScopes.join(", ")}`,
+      );
+      throw new Error(MISSING_GMAIL_PERMISSION_MESSAGE);
+    }
 
     try {
       // Validate that profile has required emails before calling validateGoogleUser

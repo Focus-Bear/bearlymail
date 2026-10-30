@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
+import { GmailAccessIssue } from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import {
   DEFAULT_LEGAL_VERSIONS,
@@ -21,6 +22,11 @@ const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
 /** Table every user-owned row ultimately hangs off, for FK discovery. */
 const USERS_TABLE = "users";
 const RECENT_LOGIN_GRACE_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
+
+export interface MarkNeedsReloginOptions {
+  /** Flag even inside the post-login grace window (see `markNeedsRelogin`). */
+  bypassGracePeriod?: boolean;
+}
 
 /**
  * Stack-frame window captured for `[NEEDS_RELOGIN]` diagnostics. We skip the
@@ -146,17 +152,26 @@ export class UsersService {
    *   - skip if `needsRelogin` is already true — avoids redundant DB writes
    *     and `[NEEDS_RELOGIN]` log spam
    *
+   * `bypassGracePeriod` is for failures retrying can never fix (a grant that is
+   * missing a required scope). The grace window is keyed off `updatedAt`, which
+   * any write to the user row re-arms, so honouring it for such failures can
+   * strand the user forever with no reconnect prompt.
+   *
    * Emits a WARN line (visible in CloudWatch) — file-based debug logging is a
    * no-op in production, so console logging is the only reliable signal there.
    */
-  async markNeedsRelogin(userId: string, reason: string): Promise<void> {
+  async markNeedsRelogin(
+    userId: string,
+    reason: string,
+    options: MarkNeedsReloginOptions = {},
+  ): Promise<void> {
     const user = await this.findOneLightweight(userId);
-    if (!user) return;
+    if (!user || user.needsRelogin) return;
 
     const recentLoginCutoff = new Date(Date.now() - RECENT_LOGIN_GRACE_MS);
     const isRecentLogin =
       !!user.updatedAt && user.updatedAt > recentLoginCutoff;
-    if (isRecentLogin || user.needsRelogin) return;
+    if (isRecentLogin && !options.bypassGracePeriod) return;
 
     this.logger.warn(`[NEEDS_RELOGIN] user=${userId} reason=${reason}`);
     await this.update(userId, {
@@ -176,6 +191,40 @@ export class UsersService {
       `[SYNC_WINDOW] user=${userId} initial sync skipped older mail — setting syncWindowLimited`,
     );
     await this.update(userId, { syncWindowLimited: true });
+  }
+
+  /**
+   * Records why Gmail can't be read. Writes only when the issue changes, so a
+   * failure repeated every sync cycle neither logs nor touches the row again.
+   */
+  async recordGmailAccessIssue(
+    userId: string,
+    issue: GmailAccessIssue,
+  ): Promise<void> {
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ gmailAccessIssue: issue, gmailAccessIssueAt: new Date() })
+      .where("id = :userId", { userId })
+      .andWhere('"gmailAccessIssue" IS DISTINCT FROM :issue', { issue })
+      .execute();
+    if (result.affected) {
+      this.logger.warn(`[GMAIL_ACCESS] user=${userId} issue=${issue}`);
+    }
+  }
+
+  /** Clears a recorded Gmail access issue after a fetch succeeds. */
+  async clearGmailAccessIssue(userId: string): Promise<void> {
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ gmailAccessIssue: null, gmailAccessIssueAt: null })
+      .where("id = :userId", { userId })
+      .andWhere('"gmailAccessIssue" IS NOT NULL')
+      .execute();
+    if (result.affected) {
+      this.logger.log(`[GMAIL_ACCESS] user=${userId} issue cleared`);
+    }
   }
 
   async create(userData: Partial<User>): Promise<User> {
@@ -216,6 +265,9 @@ export class UsersService {
         "user.subscriptionExpiresAt",
         "user.trialStartedAt",
         "user.lastEmailSyncAt",
+        "user.lastLogoutReason",
+        "user.gmailAccessIssue",
+        "user.gmailAccessIssueAt",
         "user.createdAt",
         "user.updatedAt",
       ])
@@ -284,6 +336,7 @@ export class UsersService {
         "user.lastEmailSyncAt",
         "user.updatedAt",
         "user.needsRelogin",
+        "user.lastLogoutReason",
       ])
       .where("user.id = :id", { id })
       .getOne();

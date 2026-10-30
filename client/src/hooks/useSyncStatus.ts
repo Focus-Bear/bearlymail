@@ -4,10 +4,18 @@ import { devLog } from 'utils/dev-logger';
 
 import { API_URL } from 'config/api';
 import { SYNC_STATUS_IDLE_POLL_LIMIT, SYNC_STATUS_POLL_INTERVAL_MS } from 'constants/numbers';
+import { GmailAccessIssue } from 'constants/strings';
 
 interface SyncStatusResponse {
   isSyncing: boolean;
   lastSyncAt: string | null;
+  gmailAccessIssue?: GmailAccessIssue | null;
+}
+
+interface SyncStatus {
+  isSyncing: boolean;
+  /** Undefined until the first poll answers; null once the server reports Gmail is readable. */
+  gmailAccessIssue: GmailAccessIssue | null | undefined;
 }
 
 interface UseSyncStatusProps {
@@ -27,8 +35,9 @@ interface UseSyncStatusProps {
  * Network errors are treated as "not syncing" so a transient failure never
  * strands the UI in a syncing state.
  */
-export function useSyncStatus({ enabled, onSyncComplete }: UseSyncStatusProps): { isSyncing: boolean } {
+export function useSyncStatus({ enabled, onSyncComplete }: UseSyncStatusProps): SyncStatus {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [gmailAccessIssue, setGmailAccessIssue] = useState<GmailAccessIssue | null | undefined>(undefined);
 
   // Ref-based callback so the interval always calls the latest onSyncComplete
   // without being a dependency (which would restart the interval each render).
@@ -50,6 +59,9 @@ export function useSyncStatus({ enabled, onSyncComplete }: UseSyncStatusProps): 
       try {
         const response = await axios.get<SyncStatusResponse>(`${API_URL}/emails/sync-status`);
         syncing = !!response.data?.isSyncing;
+        if (!cancelled) {
+          setGmailAccessIssue(response.data?.gmailAccessIssue ?? null);
+        }
       } catch {
         // Treat a failed probe as "not syncing" — never strand the UI.
         syncing = false;
@@ -91,5 +103,5 @@ export function useSyncStatus({ enabled, onSyncComplete }: UseSyncStatusProps): 
     };
   }, [enabled]);
 
-  return { isSyncing };
+  return { isSyncing, gmailAccessIssue };
 }

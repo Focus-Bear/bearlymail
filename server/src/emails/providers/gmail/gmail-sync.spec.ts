@@ -1,7 +1,10 @@
 import { gmail_v1 } from "googleapis";
 
+import { GMAIL_ACCESS_ISSUE } from "../../../constants/domain-statuses";
 import {
+  classifyGmailAccessIssue,
   isGmailAuthError,
+  isGmailInsufficientScopeError,
   isThreadStarred,
   verifyThreadStatusesInGmail,
 } from "./gmail-sync";
@@ -62,6 +65,66 @@ describe("gmail-sync helpers", () => {
       ];
 
       expect(isThreadStarred(messages)).toBe(false);
+    });
+  });
+
+  describe("classifyGmailAccessIssue", () => {
+    it("classifies an insufficient-scope 403 as missing access", () => {
+      expect(
+        classifyGmailAccessIssue({
+          code: 403,
+          message: "Request had insufficient authentication scopes.",
+          errors: [{ reason: "insufficientPermissions" }],
+        }),
+      ).toBe(GMAIL_ACCESS_ISSUE.MISSING);
+    });
+
+    it("classifies a 401 and invalid_grant as revoked access", () => {
+      expect(classifyGmailAccessIssue({ code: 401, message: "x" })).toBe(
+        GMAIL_ACCESS_ISSUE.REVOKED,
+      );
+      expect(
+        classifyGmailAccessIssue(new Error("invalid_grant: Bad Request")),
+      ).toBe(GMAIL_ACCESS_ISSUE.REVOKED);
+    });
+
+    it("does not classify a rate-limit 403", () => {
+      expect(
+        classifyGmailAccessIssue({
+          code: 403,
+          message: "Rate Limit Exceeded",
+          errors: [{ reason: "userRateLimitExceeded" }],
+        }),
+      ).toBeNull();
+    });
+  });
+
+  describe("isGmailInsufficientScopeError", () => {
+    it("returns true for the 403 'insufficient authentication scopes' shape", () => {
+      const error = {
+        code: 403,
+        message: "Request had insufficient authentication scopes.",
+        errors: [{ reason: "insufficientPermissions" }],
+      };
+      expect(isGmailInsufficientScopeError(error)).toBe(true);
+    });
+
+    it("returns false for a 401 or invalid_grant (auth errors, but not scope failures)", () => {
+      expect(
+        isGmailInsufficientScopeError({ code: 401, message: "Unauthorized" }),
+      ).toBe(false);
+      expect(
+        isGmailInsufficientScopeError(new Error("invalid_grant: Bad Request")),
+      ).toBe(false);
+    });
+
+    it("returns false for a transient 403 rate limit", () => {
+      const error = {
+        code: 403,
+        message: "Rate Limit Exceeded",
+        errors: [{ reason: "userRateLimitExceeded" }],
+      };
+      expect(isGmailInsufficientScopeError(error)).toBe(false);
     });
   });
 

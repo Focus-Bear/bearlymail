@@ -1,7 +1,9 @@
 import React from 'react';
 
+import { GMAIL_ACCESS_ALERT_LAYOUT, GmailAccessAlert } from 'components/gmail-access/GmailAccessAlert';
 import { ReloginBanner, ScanModal, ScanNotification, TourOverlay, UrgentNotification } from 'components/inbox/overlays';
 import { TourStep } from 'components/inbox/overlays/tourSteps';
+import { GmailAccessIssue } from 'constants/strings';
 
 interface ScanProgress {
   current: number;
@@ -38,6 +40,8 @@ interface InboxOverlaysProps {
   // Re-login banner props
   needsRelogin?: boolean;
   onLogout: () => void;
+  /** Supersedes the generic re-login banner: says why and offers the fix. */
+  gmailAccessIssue?: GmailAccessIssue | null;
 }
 
 /**
@@ -59,6 +63,7 @@ export const InboxOverlays: React.FC<InboxOverlaysProps> = ({
   onDismissUrgent,
   needsRelogin,
   onLogout,
+  gmailAccessIssue,
 }) => {
   return (
     <>
@@ -84,7 +89,11 @@ export const InboxOverlays: React.FC<InboxOverlaysProps> = ({
         />
       )}
 
-      {needsRelogin && <ReloginBanner onLogout={onLogout} />}
+      {gmailAccessIssue ? (
+        <GmailAccessAlert layout={GMAIL_ACCESS_ALERT_LAYOUT.BANNER} />
+      ) : (
+        needsRelogin && <ReloginBanner onLogout={onLogout} />
+      )}
     </>
   );
 };

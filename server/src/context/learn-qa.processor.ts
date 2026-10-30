@@ -16,8 +16,8 @@ import { ContextQaExtractionService } from "./context-qa-extraction.service";
 
 // How far back to look, and how many sent emails to sample, when learning Q&A
 // from recent activity. Kept modest because this runs on a per-user debounce
-// (at most once per window) triggered by real sends — enough history for the
-// frequency signal to mean something without a large per-run LLM cost.
+// (at most once per window) triggered by real sends. Each reply is paired with
+// the synced message it answered; see ContextQaExtractionService.
 const QA_LOOKBACK_DAYS = DAYS.MONTH;
 const QA_MAX_SENT_EMAILS = 40;
 
@@ -99,6 +99,7 @@ export class LearnQaProcessor implements OnModuleInit {
     await this.qaExtractionService.extractQAndAFromSentEmails(
       userId,
       sentEmails,
+      userEmail,
     );
   }
 }

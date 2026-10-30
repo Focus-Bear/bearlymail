@@ -2,6 +2,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   buildBatchEmailPayloads,
+  hasPriorityAnalysis,
   shouldBypassSummaryForPriority,
 } from "./batch-email-payloads.helper";
 
@@ -87,44 +88,112 @@ describe("buildBatchEmailPayloads", () => {
     expect(payload.body).toBe("Short summary.");
   });
 
-  describe("triage inputs", () => {
-    const threadEmail = {
+  describe("existing-analysis fields (gate batch triage)", () => {
+    const EMAIL_THREAD_ID = "eth-1";
+    const CATEGORY_ID = "cat-1";
+    const CATEGORY_NAME = "Newsletters";
+    const EXISTING_URGENCY = 42;
+    const categoryMap = new Map([[CATEGORY_ID, CATEGORY_NAME]]);
+    const emailInThread = {
       ...baseEmail,
-      emailThreadId: "thread-1",
+      emailThreadId: EMAIL_THREAD_ID,
     } as unknown as Email;
-    const threadMap = new Map([
-      [
-        "thread-1",
-        {
-          id: "thread-1",
-          urgencyScore: 40,
-          categoryId: "category-1",
-        } as unknown as EmailThread,
-      ],
-    ]);
-    const categoryMap = new Map([
-      ["category-1", "Meeting Reschedule Requests"],
-    ]);
 
-    it("carries the thread's existing analysis so triage can preserve it", () => {
+    function makeThread(overrides: Partial<EmailThread>): EmailThread {
+      // Entity column defaults for a freshly-synced, never-analysed thread.
+      return {
+        id: EMAIL_THREAD_ID,
+        urgencyScore: 0,
+        priorityScore: 0,
+        priorityExplanation: null,
+        prioritySource: null,
+        categoryId: null,
+        ...overrides,
+      } as EmailThread;
+    }
+
+    function payloadFor(thread: EmailThread) {
       const [payload] = buildBatchEmailPayloads(
-        [threadEmail],
-        threadMap,
+        [emailInThread],
+        new Map([[EMAIL_THREAD_ID, thread]]),
         categoryMap,
       );
-      expect(payload.existingUrgencyScore).toBe(40);
-      expect(payload.existingCategory).toBe("Meeting Reschedule Requests");
+      return payload;
+    }
+
+    it("omits existing fields for a brand-new thread despite urgencyScore defaulting to 0", () => {
+      const payload = payloadFor(makeThread({}));
+      expect(payload.existingUrgencyScore).toBeUndefined();
+      expect(payload.existingCategory).toBeUndefined();
     });
 
-    it("omits it for emails forced to full analysis (stale rule label released)", () => {
+    it("omits existing fields when only a pre-sync category is set", () => {
+      const payload = payloadFor(makeThread({ categoryId: CATEGORY_ID }));
+      expect(payload.existingUrgencyScore).toBeUndefined();
+      expect(payload.existingCategory).toBeUndefined();
+    });
+
+    it("omits existing fields for a persisted 'Calculating...' placeholder explanation", () => {
+      const placeholder = {
+        score: 0,
+        dimensions: {},
+        breakdown: [
+          { factor: "Urgency", value: 0, description: "Calculating..." },
+        ],
+      } as unknown as EmailThread["priorityExplanation"];
+      const payload = payloadFor(
+        makeThread({ priorityExplanation: placeholder }),
+      );
+      expect(payload.existingUrgencyScore).toBeUndefined();
+    });
+
+    it("keeps existing fields for a thread scored by a priority writer", () => {
+      const payload = payloadFor(
+        makeThread({
+          prioritySource: "llm",
+          urgencyScore: EXISTING_URGENCY,
+          categoryId: CATEGORY_ID,
+        }),
+      );
+      expect(payload.existingUrgencyScore).toBe(EXISTING_URGENCY);
+      expect(payload.existingCategory).toBe(CATEGORY_NAME);
+    });
+
+    it("keeps existing fields for a legacy/Lambda-scored thread with only calculatedAt", () => {
+      const scoredExplanation = {
+        score: EXISTING_URGENCY,
+        breakdown: [],
+        calculatedAt: "2026-10-01T00:00:00.000Z",
+      } as unknown as EmailThread["priorityExplanation"];
+      const payload = payloadFor(
+        makeThread({
+          priorityExplanation: scoredExplanation,
+          urgencyScore: EXISTING_URGENCY,
+        }),
+      );
+      expect(payload.existingUrgencyScore).toBe(EXISTING_URGENCY);
+    });
+
+    it("omits existing fields for an email forced to full analysis (stale rule label released)", () => {
+      const scoredThread = makeThread({
+        prioritySource: "llm",
+        urgencyScore: EXISTING_URGENCY,
+        categoryId: CATEGORY_ID,
+      });
       const [payload] = buildBatchEmailPayloads(
-        [threadEmail],
-        threadMap,
+        [emailInThread],
+        new Map([[EMAIL_THREAD_ID, scoredThread]]),
         categoryMap,
-        new Set(["email-1"]),
+        new Set([emailInThread.id]),
       );
       expect(payload.existingUrgencyScore).toBeUndefined();
       expect(payload.existingCategory).toBeUndefined();
     });
+  });
+});
+
+describe("hasPriorityAnalysis", () => {
+  it("is false without a thread", () => {
+    expect(hasPriorityAnalysis(undefined)).toBe(false);
   });
 });

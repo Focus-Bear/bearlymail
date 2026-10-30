@@ -7,6 +7,7 @@ import { theme } from 'theme/theme';
 import { WaitlistForm } from 'components/landing/WaitlistForm';
 import {
   ERROR_TYPE_AUTH_ERROR,
+  ERROR_TYPE_MISSING_GMAIL_PERMISSION,
   ERROR_TYPE_NOT_ON_WAITLIST,
   ERROR_TYPE_PENDING_APPROVAL,
   STRING_MESSAGE,
@@ -17,7 +18,11 @@ import {
   STRING_WHITE,
 } from 'constants/strings';
 
-type ErrorType = typeof ERROR_TYPE_PENDING_APPROVAL | typeof ERROR_TYPE_NOT_ON_WAITLIST | typeof ERROR_TYPE_AUTH_ERROR;
+type ErrorType =
+  | typeof ERROR_TYPE_PENDING_APPROVAL
+  | typeof ERROR_TYPE_NOT_ON_WAITLIST
+  | typeof ERROR_TYPE_MISSING_GMAIL_PERMISSION
+  | typeof ERROR_TYPE_AUTH_ERROR;
 
 interface ErrorContent {
   title: string;
@@ -64,6 +69,16 @@ function getErrorContent(
         ),
         showWaitlistButton: true,
         showLoginButton: false,
+      };
+    case ERROR_TYPE_MISSING_GMAIL_PERMISSION:
+      return {
+        title: tFunc('auth.errors.missingGmailPermission.title', 'BearlyMail needs access to your Gmail'),
+        description: tFunc(
+          'auth.errors.missingGmailPermission.description',
+          "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\")."
+        ),
+        showWaitlistButton: false,
+        showLoginButton: true,
       };
     default:
       if (errorMessage.includes(STRING_WAITLIST)) {

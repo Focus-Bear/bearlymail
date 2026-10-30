@@ -12,6 +12,7 @@ import { QAndASection } from 'components/settings/guide-ai/QAndASection';
 import { RecategorizeProgressBar } from 'components/settings/RecategorizeProgressBar';
 import { API_URL } from 'config/api';
 import { OPACITY_DISABLED } from 'constants/numbers';
+import { SETTINGS_ANCHORS, SETTINGS_CATEGORY_QUERY_PARAM } from 'constants/settingsAnchors';
 import { CONTEXT_KEY_EMAIL_CATEGORY, CONTEXT_KEY_Q_AND_A, STRING_NONE } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
 import { RecategorizeProgressState, useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
@@ -148,7 +149,7 @@ const CONTEXT_SECTIONS: ContextSectionConfig[] = [
     contextKey: 'EMAIL_CATEGORY',
     addLabelKey: 'settings.addContext.emailCategories',
     tooltipKey: 'settings.contextTypes.tooltip.emailCategories',
-    anchorId: 'email-categories',
+    anchorId: SETTINGS_ANCHORS.EMAIL_CATEGORIES,
   },
   {
     titleKey: 'settings.contextSections.vip',
@@ -626,7 +627,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
 
   // Deep link from the inbox category ⚙️ button (?category=…).
   const [searchParams] = useSearchParams();
-  useScrollToDeepLinkedCategory(searchParams.get('category'));
+  useScrollToDeepLinkedCategory(searchParams.get(SETTINGS_CATEGORY_QUERY_PARAM));
 
   const commonProps = {
     contexts,

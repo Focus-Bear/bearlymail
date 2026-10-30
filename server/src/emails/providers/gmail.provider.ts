@@ -8,8 +8,10 @@ import {
 import { gmail_v1, google } from "googleapis";
 
 import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
+import { RELOGIN_REASONS } from "../../constants/auth-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { MILLISECONDS, MINUTES } from "../../constants/time-constants";
+import { User } from "../../database/entities/user.entity";
 import { formatGaxiosError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { InvalidTokenError } from "../../utils/errors";
@@ -21,6 +23,7 @@ import {
   EmailRecipient,
   RawEmailMessage,
   SendReplyOptions,
+  SyncEmailsOptions,
 } from "../interfaces/email-provider.interface";
 import {
   buildGmailUrlIdsToTry,
@@ -44,13 +47,18 @@ import {
   unsnoozeThreadInGmail,
 } from "./gmail/gmail-operations";
 import { buildEmailContent, encodeEmailForGmail } from "./gmail/gmail-send";
-import { isGmailAuthError } from "./gmail/gmail-sync";
+import { classifyGmailAccessIssue, isGmailAuthError } from "./gmail/gmail-sync";
 import { GmailSyncService } from "./gmail-sync.service";
 
 // Canonical implementation lives in email-address.utils.ts; re-exported for backward compatibility.
 export { parseRecipientsFromString } from "../../utils/email-address.utils";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { parseRecipientsFromString } from "../../utils/email-address.utils";
+
+/** True when the user was flagged because their Google grant lacks a Gmail scope. */
+function isAwaitingScopeReconsent(user: User): boolean {
+  return user.lastLogoutReason === RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE;
+}
 
 /**
  * Strips HTML tags and decodes common HTML entities to produce a plain-text
@@ -87,6 +95,30 @@ function stripHtmlTags(html: string): string {
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
 const GMAIL_INBOX_QUERY =
   "in:inbox -label:SnoozedBearlyMail -label:VA-to-action";
+
+/** Normalises syncEmails' legacy number-or-options argument for performSync. */
+function parseGmailSyncOptions(
+  syncWindowHoursOrOptions?: number | SyncEmailsOptions,
+): {
+  syncWindowHours?: number;
+  providedThreadIds?: string[];
+  isContinuation: boolean;
+  noDateFilter: boolean;
+} {
+  if (typeof syncWindowHoursOrOptions === "number") {
+    return {
+      syncWindowHours: syncWindowHoursOrOptions,
+      isContinuation: false,
+      noDateFilter: false,
+    };
+  }
+  return {
+    syncWindowHours: syncWindowHoursOrOptions?.syncWindowHours,
+    providedThreadIds: syncWindowHoursOrOptions?.threadIds,
+    isContinuation: syncWindowHoursOrOptions?.isContinuation || false,
+    noDateFilter: syncWindowHoursOrOptions?.noDateFilter || false,
+  };
+}
 
 @Injectable()
 export class GmailProvider implements EmailProvider {
@@ -241,8 +273,10 @@ export class GmailProvider implements EmailProvider {
     context: string,
     error: unknown,
   ): Promise<void> {
-    if (isGmailAuthError(error)) {
+    const accessIssue = classifyGmailAccessIssue(error);
+    if (accessIssue) {
       try {
+        await this.usersService.recordGmailAccessIssue(userId, accessIssue);
         const user = await this.usersService.findOneLightweight(userId);
         if (user && !user.needsRelogin) {
           await this.usersService.markNeedsRelogin(
@@ -268,23 +302,9 @@ export class GmailProvider implements EmailProvider {
 
   async syncEmails(
     userId: string,
-    syncWindowHoursOrOptions?:
-      | number
-      | import("../interfaces/email-provider.interface").SyncEmailsOptions,
+    syncWindowHoursOrOptions?: number | SyncEmailsOptions,
   ): Promise<void> {
-    let syncWindowHours: number | undefined;
-    let providedThreadIds: string[] | undefined;
-    let isContinuation = false;
-    let noDateFilter = false;
-
-    if (typeof syncWindowHoursOrOptions === "number") {
-      syncWindowHours = syncWindowHoursOrOptions;
-    } else if (syncWindowHoursOrOptions) {
-      ({ syncWindowHours, threadIds: providedThreadIds } =
-        syncWindowHoursOrOptions);
-      isContinuation = syncWindowHoursOrOptions.isContinuation || false;
-      noDateFilter = syncWindowHoursOrOptions.noDateFilter || false;
-    }
+    const syncOptions = parseGmailSyncOptions(syncWindowHoursOrOptions);
 
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) return;
@@ -298,7 +318,13 @@ export class GmailProvider implements EmailProvider {
     // needsRelogin. Respect the grace period so a just-logged-in user whose
     // flag hasn't been cleared yet isn't skipped. Logged at debug so this
     // steady-state skip itself adds no production log volume. See #2218.
-    if (user.needsRelogin && !isRecentLogin) {
+    // A missing-scope flag skips even inside the grace window: that window is
+    // keyed off `updatedAt`, which unrelated user-row writes keep re-arming,
+    // and the stored grant can never succeed until the user re-consents.
+    if (
+      user.needsRelogin &&
+      (!isRecentLogin || isAwaitingScopeReconsent(user))
+    ) {
       this.logger.debug(
         `[GmailProvider] Skipping sync for user ${userId} — needsRelogin set (awaiting re-auth)`,
       );
@@ -331,12 +357,13 @@ export class GmailProvider implements EmailProvider {
 
     try {
       const isInitialSync = !user.lastEmailSyncAt;
-      await this.gmailSyncService.performSync(userId, gmail, isInitialSync, {
-        syncWindowHours,
-        providedThreadIds,
-        isContinuation,
-        noDateFilter,
-      });
+      await this.gmailSyncService.performSync(
+        userId,
+        gmail,
+        isInitialSync,
+        syncOptions,
+      );
+      await this.usersService.clearGmailAccessIssue(userId);
     } catch (error) {
       await this.gmailSyncService.handleSyncError(userId, user, error);
     } finally {

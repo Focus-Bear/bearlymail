@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { GMAIL_ACCESS_ISSUE } from "../constants/domain-statuses";
 import {
   DEFAULT_LEGAL_VERSIONS,
   PRIVACY_CHANGE_SUMMARY_KEYS,
@@ -222,6 +223,54 @@ describe("UsersService", () => {
       expect(saved.lastLogoutAt!.getTime()).toBeGreaterThanOrEqual(before);
       expect(saved.lastLogoutAt!.getTime()).toBeLessThanOrEqual(after);
     });
+
+    describe("inside the post-login grace period", () => {
+      const recentlyUpdatedUser = (): User => ({
+        ...mockUser,
+        needsRelogin: false,
+        updatedAt: new Date(),
+      });
+
+      it("does not flag by default", async () => {
+        jest
+          .spyOn(service, "findOneLightweight")
+          .mockResolvedValue(recentlyUpdatedUser());
+
+        await service.markNeedsRelogin("user-1", "gmail_sync_auth_error");
+
+        expect(repository.save).not.toHaveBeenCalled();
+      });
+
+      it("flags when bypassGracePeriod is set", async () => {
+        const existingUser = recentlyUpdatedUser();
+        jest
+          .spyOn(service, "findOneLightweight")
+          .mockResolvedValue(existingUser);
+        repository.findOne.mockResolvedValue(existingUser);
+        repository.save.mockImplementation(async (user) => user as User);
+
+        await service.markNeedsRelogin("user-1", "gmail_insufficient_scope", {
+          bypassGracePeriod: true,
+        });
+
+        expect(repository.save).toHaveBeenCalledTimes(1);
+        const saved = repository.save.mock.calls[0][0] as User;
+        expect(saved.needsRelogin).toBe(true);
+        expect(saved.lastLogoutReason).toBe("gmail_insufficient_scope");
+      });
+    });
+
+    it("does not rewrite an already-flagged user even when bypassing the grace period", async () => {
+      jest
+        .spyOn(service, "findOneLightweight")
+        .mockResolvedValue({ ...mockUser, needsRelogin: true });
+
+      await service.markNeedsRelogin("user-1", "gmail_insufficient_scope", {
+        bypassGracePeriod: true,
+      });
+
+      expect(repository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe("markSyncWindowLimited", () => {
@@ -238,6 +287,54 @@ describe("UsersService", () => {
       expect(repository.save).toHaveBeenCalledTimes(1);
       const saved = repository.save.mock.calls[0][0] as User;
       expect(saved.syncWindowLimited).toBe(true);
+    });
+  });
+
+  describe("Gmail access issue", () => {
+    function mockUpdateBuilder(affected: number) {
+      const builder = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected }),
+      };
+      (
+        repository as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder = jest.fn().mockReturnValue(builder);
+      return builder;
+    }
+
+    it("records the issue with a timestamp, only when it changes", async () => {
+      const builder = mockUpdateBuilder(1);
+
+      await service.recordGmailAccessIssue(
+        "user-1",
+        GMAIL_ACCESS_ISSUE.MISSING,
+      );
+
+      expect(builder.set).toHaveBeenCalledWith({
+        gmailAccessIssue: GMAIL_ACCESS_ISSUE.MISSING,
+        gmailAccessIssueAt: expect.any(Date),
+      });
+      expect(builder.andWhere).toHaveBeenCalledWith(
+        '"gmailAccessIssue" IS DISTINCT FROM :issue',
+        { issue: GMAIL_ACCESS_ISSUE.MISSING },
+      );
+    });
+
+    it("clears the issue and its timestamp only when one is set", async () => {
+      const builder = mockUpdateBuilder(1);
+
+      await service.clearGmailAccessIssue("user-1");
+
+      expect(builder.set).toHaveBeenCalledWith({
+        gmailAccessIssue: null,
+        gmailAccessIssueAt: null,
+      });
+      expect(builder.andWhere).toHaveBeenCalledWith(
+        '"gmailAccessIssue" IS NOT NULL',
+      );
     });
   });
 

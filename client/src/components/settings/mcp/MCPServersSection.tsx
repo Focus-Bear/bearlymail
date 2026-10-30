@@ -3,8 +3,11 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
+import { GMAIL_ACCESS_ALERT_LAYOUT, GmailAccessAlert } from 'components/gmail-access/GmailAccessAlert';
 import { MCPServerConfig, MCPServerPurpose } from 'components/settings/workflows/types';
 import { API_URL } from 'config/api';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
+import { useAuth } from 'contexts/AuthContext';
 
 import { MCPServerManager } from './MCPServerManager';
 
@@ -20,6 +23,7 @@ const OAUTH_RESULT_SUCCESS = 'success';
  */
 export const MCPServersSection: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [servers, setServers] = useState<MCPServerConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +128,7 @@ export const MCPServersSection: React.FC = () => {
 
   return (
     <div
-      id="connected-apps"
+      id={SETTINGS_ANCHORS.CONNECTED_APPS}
       style={{
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,
@@ -139,6 +143,8 @@ export const MCPServersSection: React.FC = () => {
           {t('settings.mcp.section.description')}
         </p>
       </div>
+
+      {user?.gmailAccessIssue && <GmailAccessAlert layout={GMAIL_ACCESS_ALERT_LAYOUT.PANEL} />}
 
       {notice && (
         <div

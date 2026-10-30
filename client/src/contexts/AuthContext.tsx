@@ -9,7 +9,7 @@ import { LOGIN_METHOD_EMAIL, markSessionExpired, SESSION_EXPIRED_REASON, setLast
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_WHITE } from 'constants/colors';
-import { AUTH_ERROR_ACCOUNT_DELETED, AUTH_ERROR_OAUTH_ONLY } from 'constants/strings';
+import { AUTH_ERROR_ACCOUNT_DELETED, AUTH_ERROR_OAUTH_ONLY, GmailAccessIssue } from 'constants/strings';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
 
 /**
@@ -43,6 +43,8 @@ export interface User {
   hasScannedHistory?: boolean;
   /** True when the initial sync skipped older mail (cap/window) — shows the inbox banner. */
   syncWindowLimited?: boolean;
+  /** Set while the server can't read the user's Gmail — shows the reconnect banner. */
+  gmailAccessIssue?: GmailAccessIssue | null;
   /** Mailtrack-style open tracking for outgoing mail; on unless the user turned it off. */
   trackEmailOpens?: boolean;
   isAdmin?: boolean;

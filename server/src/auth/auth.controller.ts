@@ -36,6 +36,7 @@ import { jwtCookieOptions } from "./jwt-cookie.util";
 import { LocalAuthGuard } from "./local-auth.guard";
 import { isMfaElevationFresh } from "./mfa-elevation";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
+import { determineOAuthErrorType } from "./oauth-error-type";
 import { parseSignedOAuthState } from "./oauth-state.util";
 import { StepUpAuthGuard } from "./step-up.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
@@ -521,17 +522,6 @@ export class AuthController {
     res.redirect(`${frontendUrl}/inbox`);
   }
 
-  private determineOAuthErrorType(errorMessage: string): string {
-    if (errorMessage.includes("pending approval")) return "pending_approval";
-    if (
-      errorMessage.includes("waitlist") ||
-      errorMessage.includes("join the waitlist")
-    ) {
-      return "not_on_waitlist";
-    }
-    return "auth_error";
-  }
-
   /**
    * A connect-account flow failed after we already knew the user's intent was
    * CONNECT (missing fields or a persistence error). Surface it on /auth-error
@@ -562,7 +552,7 @@ export class AuthController {
   ) {
     const errorMessage = error?.message || "Authentication failed";
     this.logger.warn(`${providerName} auth error: ${errorMessage}`);
-    const errorType = this.determineOAuthErrorType(errorMessage);
+    const errorType = determineOAuthErrorType(errorMessage);
     const errorParams = new URLSearchParams({
       error: "auth_failed",
       message: errorMessage,

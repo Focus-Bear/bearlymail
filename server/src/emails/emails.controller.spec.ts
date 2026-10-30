@@ -7,6 +7,7 @@ import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { EmailTrackingSummaryService } from "../email-tracking/email-tracking-summary.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { ImapAccountsService } from "../imap-accounts/imap-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
@@ -70,6 +71,9 @@ describe("EmailsController", () => {
   const mockAppleMailAccountsService = {
     hasConnectedAppleMail: jest.fn().mockResolvedValue(false),
   };
+  const mockImapAccountsService = {
+    hasConnectedImap: jest.fn().mockResolvedValue(false),
+  };
 
   const mockUsersService = {
     findOneWithTokens: jest
@@ -130,6 +134,10 @@ describe("EmailsController", () => {
         {
           provide: AppleMailAccountsService,
           useValue: mockAppleMailAccountsService,
+        },
+        {
+          provide: ImapAccountsService,
+          useValue: mockImapAccountsService,
         },
         {
           provide: UsersService,

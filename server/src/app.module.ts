@@ -39,6 +39,7 @@ import { FeedbackModule } from "./feedback/feedback.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { GitHubModule } from "./github/github.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
+import { ImapAccountsModule } from "./imap-accounts/imap-accounts.module";
 import { LLMModule } from "./llm/llm.module";
 import { MCPModule } from "./mcp/mcp.module";
 import { NotesModule } from "./notes/notes.module";
@@ -167,6 +168,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     Office365AccountsModule,
     ZohoAccountsModule,
     AppleMailAccountsModule,
+    ImapAccountsModule,
     GitHubModule,
     SuggestedActionsModule,
     AutoResponderModule,

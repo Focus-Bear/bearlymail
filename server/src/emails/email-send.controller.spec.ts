@@ -5,6 +5,7 @@ import { AppleMailAccountsService } from "../apple-mail-accounts/apple-mail-acco
 import { EMAIL_SEND_STATUS } from "../constants/email-send.constants";
 import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { ImapAccountsService } from "../imap-accounts/imap-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
@@ -70,6 +71,9 @@ describe("EmailSendController", () => {
   const mockAppleMailAccountsService = {
     hasConnectedAppleMail: jest.fn().mockResolvedValue(false),
   };
+  const mockImapAccountsService = {
+    hasConnectedImap: jest.fn().mockResolvedValue(false),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -118,6 +122,10 @@ describe("EmailSendController", () => {
         {
           provide: AppleMailAccountsService,
           useValue: mockAppleMailAccountsService,
+        },
+        {
+          provide: ImapAccountsService,
+          useValue: mockImapAccountsService,
         },
       ],
     })

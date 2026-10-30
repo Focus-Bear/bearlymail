@@ -21,6 +21,7 @@ import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { GitHubModule } from "./github/github.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
+import { ImapAccountsModule } from "./imap-accounts/imap-accounts.module";
 import { LLMModule } from "./llm/llm.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { MCPModule } from "./mcp/mcp.module";
@@ -81,6 +82,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     Office365AccountsModule,
     ZohoAccountsModule,
     AppleMailAccountsModule,
+    ImapAccountsModule,
     BlockedSendersModule,
     BlockedKeywordsModule,
     NotesModule,

@@ -17,6 +17,7 @@ import { EmailTrackingModule } from "../email-tracking/email-tracking.module";
 import { EmailsModule } from "../emails/emails.module";
 import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
+import { ImapAccountsModule } from "../imap-accounts/imap-accounts.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { registerWorker } from "../queue/register-worker";
 import { UsersModule } from "../users/users.module";
@@ -37,6 +38,7 @@ import { SendScheduledEmailsProcessor } from "./send-scheduled-emails.processor"
     Office365AccountsModule,
     ZohoAccountsModule,
     forwardRef(() => AppleMailAccountsModule),
+    forwardRef(() => ImapAccountsModule),
   ],
   controllers: [ScheduledEmailsController],
   providers: [ScheduledEmailsService, SendScheduledEmailsProcessor],

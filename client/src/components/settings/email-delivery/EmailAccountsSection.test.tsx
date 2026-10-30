@@ -32,8 +32,19 @@ const baseProps = {
   office365Accounts: [],
   zohoAccounts: [],
   appleMailAccounts: [],
+  imapAccounts: [],
   appleMailAvailable: false,
   onFetchData: vi.fn().mockResolvedValue(undefined),
+};
+
+const IMAP_ACCOUNT = {
+  id: 'i1',
+  email: 'friend@crazy.test',
+  imapHost: 'mail.crazy.test',
+  smtpHost: 'mail.crazy.test',
+  isPrimary: true,
+  needsRelogin: false,
+  lastError: null,
 };
 
 describe('EmailAccountsSection disconnect availability', () => {
@@ -97,10 +108,9 @@ describe('EmailAccountsSection disconnect step-up flow (issue #257)', () => {
     await waitFor(() => expect(mockedAxios.delete).toHaveBeenCalled());
 
     expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/auth/step-up'), {});
-    expect(mockedAxios.delete).toHaveBeenCalledWith(
-      expect.stringContaining('/zoho-accounts/z2'),
-      { headers: { 'X-Step-Up-Token': 'tok-123' } }
-    );
+    expect(mockedAxios.delete).toHaveBeenCalledWith(expect.stringContaining('/zoho-accounts/z2'), {
+      headers: { 'X-Step-Up-Token': 'tok-123' },
+    });
     await waitFor(() => expect(twoAccountProps.onFetchData).toHaveBeenCalled());
   });
 
@@ -115,5 +125,24 @@ describe('EmailAccountsSection disconnect step-up flow (issue #257)', () => {
     // The step-up modal renders its confirm button; DELETE must not fire yet.
     await waitFor(() => expect(screen.getByText('stepUp.confirm')).toBeInTheDocument());
     expect(mockedAxios.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('EmailAccountsSection IMAP accounts', () => {
+  it('lists an IMAP mailbox like any other account', () => {
+    render(<EmailAccountsSection {...baseProps} imapAccounts={[IMAP_ACCOUNT]} />);
+
+    expect(screen.getByText('friend@crazy.test')).toBeInTheDocument();
+    expect(screen.getByText('Email')).toBeInTheDocument();
+    expect(screen.queryByText('settings.imap.needsRelogin')).not.toBeInTheDocument();
+  });
+
+  it('offers to reconnect when the server rejected the saved password', () => {
+    render(<EmailAccountsSection {...baseProps} imapAccounts={[{ ...IMAP_ACCOUNT, needsRelogin: true }]} />);
+
+    expect(screen.getByText('settings.imap.needsRelogin')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('settings.imap.reconnect'));
+    expect(screen.getByText('settings.imap.reconnectTitle')).toBeInTheDocument();
+    expect(screen.getByLabelText('settings.imap.email')).toHaveValue('friend@crazy.test');
   });
 });

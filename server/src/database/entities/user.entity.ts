@@ -19,6 +19,7 @@ import { ActionItem } from "./action-item.entity";
 import { AppleMailAccount } from "./apple-mail-account.entity";
 import { Email } from "./email.entity";
 import { GoogleAccount } from "./google-account.entity";
+import { ImapAccount } from "./imap-account.entity";
 import { Office365Account } from "./office365-account.entity";
 import { PrivateNote } from "./private-note.entity";
 import { SummarizationRule } from "./summarization-rule.entity";
@@ -417,4 +418,7 @@ export class User {
 
   @OneToMany(() => AppleMailAccount, (account) => account.user)
   appleMailAccounts: AppleMailAccount[];
+
+  @OneToMany(() => ImapAccount, (account) => account.user)
+  imapAccounts: ImapAccount[];
 }

@@ -4,6 +4,7 @@ import { ActionItem } from "../../database/entities/action-item.entity";
 import { Email } from "../../database/entities/email.entity";
 import { EmailThread } from "../../database/entities/email-thread.entity";
 import { GoogleAccount } from "../../database/entities/google-account.entity";
+import { ImapAccount } from "../../database/entities/imap-account.entity";
 import { Office365Account } from "../../database/entities/office365-account.entity";
 import { PrivateNote } from "../../database/entities/private-note.entity";
 import { ProtoCategory } from "../../database/entities/proto-category.entity";
@@ -290,6 +291,7 @@ describe("entity @Column transformer captures (issue #1700)", () => {
     { name: "GoogleAccount", entity: GoogleAccount },
     { name: "Office365Account", entity: Office365Account },
     { name: "ZohoAccount", entity: ZohoAccount },
+    { name: "ImapAccount", entity: ImapAccount },
   ];
 
   it.each(cases)(

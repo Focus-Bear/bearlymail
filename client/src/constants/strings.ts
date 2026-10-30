@@ -270,6 +270,7 @@ export const PROVIDER_GMAIL = 'gmail' as const;
 export const PROVIDER_OFFICE365 = 'office365' as const;
 export const PROVIDER_ZOHO = 'zoho' as const;
 export const PROVIDER_APPLE_MAIL = 'apple-mail' as const;
+export const PROVIDER_IMAP = 'imap' as const;
 export const PROVIDER_OUTLOOK = 'outlook' as const;
 export const PROVIDER_GOOGLE = 'google' as const;
 export const PROVIDER_MICROSOFT = 'microsoft' as const;

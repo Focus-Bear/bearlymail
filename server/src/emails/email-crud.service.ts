@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
 import { Email } from "../database/entities/email.entity";
 
@@ -27,6 +27,25 @@ export class EmailCrudService {
     return this.emailRepository.findOne({
       where: { messageId, userId },
     });
+  }
+
+  /**
+   * Read state of already-stored emails, keyed by message ID. One indexed
+   * query instead of a lookup per message, for providers that re-list their
+   * whole inbox on every sync (IMAP).
+   */
+  async getReadStatesByMessageIds(
+    userId: string,
+    messageIds: string[],
+  ): Promise<Map<string, { id: string; isRead: boolean }>> {
+    if (messageIds.length === 0) return new Map();
+    const rows = await this.emailRepository.find({
+      where: { userId, messageId: In(messageIds) },
+      select: { id: true, messageId: true, isRead: true },
+    });
+    return new Map(
+      rows.map((row) => [row.messageId, { id: row.id, isRead: row.isRead }]),
+    );
   }
 
   /**

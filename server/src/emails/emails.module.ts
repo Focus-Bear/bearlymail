@@ -32,6 +32,7 @@ import { EmailSendQueueModule } from "../email-send-queue/email-send-queue.modul
 import { EmailTrackingModule } from "../email-tracking/email-tracking.module";
 import { GitHubModule } from "../github/github.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
+import { ImapAccountsModule } from "../imap-accounts/imap-accounts.module";
 import { LLMModule } from "../llm/llm.module";
 import { LocalModelModule } from "../local-model/local-model.module";
 import { LocalModelTrainingDataProcessor } from "../local-model/local-model-training-data.processor";
@@ -111,6 +112,8 @@ import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 import { AppleMailProvider } from "./providers/apple-mail.provider";
 import { GmailProvider } from "./providers/gmail.provider";
 import { GmailSyncService } from "./providers/gmail-sync.service";
+import { ImapProvider } from "./providers/imap.provider";
+import { ImapSyncService } from "./providers/imap/imap-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
 import { RuleLabelReCategoriseController } from "./rule-label-recategorise.controller";
@@ -159,6 +162,7 @@ import { SyncHistoryService } from "./sync-history.service";
     forwardRef(() => Office365AccountsModule),
     forwardRef(() => ZohoAccountsModule),
     forwardRef(() => AppleMailAccountsModule),
+    forwardRef(() => ImapAccountsModule),
     forwardRef(() => GitHubModule),
     forwardRef(() => SuggestedRepliesModule),
     ProtoCategoriesModule,
@@ -303,6 +307,8 @@ import { SyncHistoryService } from "./sync-history.service";
     Office365Provider,
     ZohoProvider,
     AppleMailProvider,
+    ImapProvider,
+    ImapSyncService,
     EmailSyncProcessor,
     LLMProcessor,
     BackgroundSummaryQueueService,

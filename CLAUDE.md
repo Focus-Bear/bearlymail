@@ -162,6 +162,7 @@ Need to modify something? Here's where to find it:
 | **Gmail provider implementation**                | `server/src/emails/providers/gmail.provider.ts`                              |
 | **Office365 provider implementation**            | `server/src/emails/providers/office365.provider.ts`                          |
 | **Zoho provider implementation**                 | `server/src/emails/providers/zoho.provider.ts`                               |
+| **IMAP/SMTP provider (password mailboxes)**      | `server/src/emails/providers/imap.provider.ts` + `providers/imap/`; accounts in `server/src/imap-accounts/` |
 | **Apple Mail (local) provider implementation**   | `server/src/emails/providers/apple-mail.provider.ts` + `server/src/apple-mail-accounts/` (JXA scripts, account + message-ref services) |
 | **Provider routing logic**                       | `server/src/emails/email-provider-manager.service.ts`                        |
 | **LLM prompts (all prompts)**                    | `server/promptfoo/prompts/*.md`                                              |
@@ -245,6 +246,7 @@ Need to modify something? Here's where to find it:
 | `GoogleAccount`           | `google_accounts`            | OAuth tokens for Gmail                               |
 | `Office365Account`        | `office365_accounts`         | OAuth tokens for Microsoft                           |
 | `ZohoAccount`             | `zoho_accounts`              | OAuth tokens for Zoho Mail                           |
+| `ImapAccount`             | `imap_accounts`              | IMAP/SMTP servers + encrypted password (Crazy Domains, cPanel, ...) |
 | `ContextAnalysis`         | `context_analyses`           | Tracks progress of background analysis jobs (0-100%) |
 | `BatchSchedule`           | `batch_schedules`            | Per-user email batching schedule                     |
 | `BlockedSender`           | `blocked_senders`            | Blocked email addresses                              |

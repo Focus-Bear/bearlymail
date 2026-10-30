@@ -3,8 +3,10 @@
  * Issue #769 — backfill unit tests for frontend business logic helpers
  */
 
+export type ProviderOptionId = 'gmail' | 'office365' | 'zoho' | 'apple-mail' | 'imap';
+
 export interface ProviderOption {
-  id: 'gmail' | 'office365' | 'zoho' | 'apple-mail';
+  id: ProviderOptionId;
   name: string;
   description: string;
   color: string;
@@ -14,6 +16,7 @@ const COLOR_ERROR_GOOGLE = '#EA4335';
 const COLOR_INFO_BLUE = '#0078D4';
 const COLOR_ERROR_DARK_ALT = '#C8202F';
 const COLOR_APPLE_BLUE = '#0070C9';
+const COLOR_IMAP_SLATE = '#475569';
 
 export function getProviderOptions(tFunc: (key: string) => string, includeAppleMail = false): ProviderOption[] {
   const options: ProviderOption[] = [
@@ -44,5 +47,12 @@ export function getProviderOptions(tFunc: (key: string) => string, includeAppleM
       color: COLOR_APPLE_BLUE,
     });
   }
+  // Last: the catch-all for hosts without an OAuth API (Crazy Domains, cPanel, ...).
+  options.push({
+    id: 'imap' as const,
+    name: tFunc('settings.emailAccounts.providers.imap.name'),
+    description: tFunc('settings.emailAccounts.providers.imap.description'),
+    color: COLOR_IMAP_SLATE,
+  });
   return options;
 }

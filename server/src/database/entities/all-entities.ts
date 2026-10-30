@@ -44,6 +44,7 @@ import { Feedback } from "./feedback.entity";
 import { FollowUp } from "./follow-up.entity";
 import { GitHubRepoMapping } from "./github-repo-mapping.entity";
 import { GoogleAccount } from "./google-account.entity";
+import { ImapAccount } from "./imap-account.entity";
 import { LocalModelSupervision } from "./local-model-supervision.entity";
 import { MCPSenderContextCache } from "./mcp-sender-context-cache.entity";
 import { MCPServerConfig } from "./mcp-server-config.entity";
@@ -112,6 +113,7 @@ export const ALL_ENTITIES = [
   FollowUp,
   GitHubRepoMapping,
   GoogleAccount,
+  ImapAccount,
   LocalModelSupervision,
   MCPSenderContextCache,
   MCPServerConfig,

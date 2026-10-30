@@ -56,6 +56,7 @@ export const EMAIL_PROVIDER_TYPES = {
   GMAIL: "gmail",
   OFFICE365: "office365",
   ZOHO: "zoho",
+  IMAP: "imap",
 } as const;
 
 export type EmailProviderType =

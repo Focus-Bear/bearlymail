@@ -6,10 +6,8 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * the next successful fetch. GET /users/me and GET /emails/sync-status expose
  * it so the inbox can explain an empty mailbox instead of showing nothing.
  */
-export class AddGmailAccessIssueToUsers1797200000000
-  implements MigrationInterface
-{
-  name = "AddGmailAccessIssueToUsers1797200000000";
+export class AddGmailAccessIssueToUsers1797300000000 implements MigrationInterface {
+  name = "AddGmailAccessIssueToUsers1797300000000";
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

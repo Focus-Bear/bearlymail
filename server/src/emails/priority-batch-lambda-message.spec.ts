@@ -33,6 +33,20 @@ describe("parsePriorityBatchLambdaMessage", () => {
     ).toThrow("missing userId/analysisId/emailIds");
   });
 
+  it("keeps the ids of emails forced to full analysis", () => {
+    const message = { ...VALID, forceFullAnalysisEmailIds: ["email-1"] };
+    expect(parsePriorityBatchLambdaMessage(JSON.stringify(message))).toEqual(
+      message,
+    );
+  });
+
+  it("rejects a non-string-array forceFullAnalysisEmailIds", () => {
+    const message = { ...VALID, forceFullAnalysisEmailIds: "email-1" };
+    expect(() =>
+      parsePriorityBatchLambdaMessage(JSON.stringify(message)),
+    ).toThrow("invalid forceFullAnalysisEmailIds");
+  });
+
   it("rejects a non-object body", () => {
     expect(() => parsePriorityBatchLambdaMessage("null")).toThrow(
       "not an object",

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
+import { GmailAccessIssue } from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import {
   DEFAULT_LEGAL_VERSIONS,
@@ -192,6 +193,40 @@ export class UsersService {
     await this.update(userId, { syncWindowLimited: true });
   }
 
+  /**
+   * Records why Gmail can't be read. Writes only when the issue changes, so a
+   * failure repeated every sync cycle neither logs nor touches the row again.
+   */
+  async recordGmailAccessIssue(
+    userId: string,
+    issue: GmailAccessIssue,
+  ): Promise<void> {
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ gmailAccessIssue: issue, gmailAccessIssueAt: new Date() })
+      .where("id = :userId", { userId })
+      .andWhere('"gmailAccessIssue" IS DISTINCT FROM :issue', { issue })
+      .execute();
+    if (result.affected) {
+      this.logger.warn(`[GMAIL_ACCESS] user=${userId} issue=${issue}`);
+    }
+  }
+
+  /** Clears a recorded Gmail access issue after a fetch succeeds. */
+  async clearGmailAccessIssue(userId: string): Promise<void> {
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ gmailAccessIssue: null, gmailAccessIssueAt: null })
+      .where("id = :userId", { userId })
+      .andWhere('"gmailAccessIssue" IS NOT NULL')
+      .execute();
+    if (result.affected) {
+      this.logger.log(`[GMAIL_ACCESS] user=${userId} issue cleared`);
+    }
+  }
+
   async create(userData: Partial<User>): Promise<User> {
     // Generate email hash if email is provided
     if (userData.email && !userData.emailHash) {
@@ -230,6 +265,9 @@ export class UsersService {
         "user.subscriptionExpiresAt",
         "user.trialStartedAt",
         "user.lastEmailSyncAt",
+        "user.lastLogoutReason",
+        "user.gmailAccessIssue",
+        "user.gmailAccessIssueAt",
         "user.createdAt",
         "user.updatedAt",
       ])

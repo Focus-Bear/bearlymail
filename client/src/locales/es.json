@@ -516,6 +516,10 @@
         "title": "Unirse a la lista de espera",
         "description": "Necesitas unirte a nuestra lista de espera primero antes de poder iniciar sesión. Regístrate a continuación para obtener acceso anticipado a BearlyMail."
       },
+      "missingGmailPermission": {
+        "title": "BearlyMail necesita acceso a tu Gmail",
+        "description": "La pantalla de permisos de Google te dejó iniciar sesión sin permitir el acceso a Gmail, así que BearlyMail no puede ver tu bandeja de entrada. Vuelve a iniciar sesión y, en la pantalla de Google, marca las casillas para leer, redactar y enviar correos (o elige \"Seleccionar todo\")."
+      },
       "generic": {
         "title": "Error de autenticación"
       }
@@ -1651,7 +1655,10 @@
     "connectDescription": "Para empezar, conecta la cuenta de correo que quieres que BearlyMail gestione. Sincronizamos tus correos de forma segura y te ayudamos a mantenerlos al día.",
     "connectOtherProvider": "Usar otro correo (p. ej. Crazy Domains)",
     "connectMultipleHint": "Puedes conectar más cuentas de correo más adelante en Ajustes.",
-    "connectTitle": "Conecta tu correo"
+    "connectTitle": "Conecta tu correo",
+    "accessIssueTitle": "BearlyMail no puede leer tu Gmail",
+    "accessIssueMessage": "Cuando iniciaste sesión, no se permitió el acceso a Gmail (o se desactivó). Vuelve a conectar Google y marca las casillas de Gmail para ver tu correo.",
+    "reconnectGoogle": "Volver a conectar Google"
   },
   "help": {
     "articleNotFound": "Artículo no encontrado",

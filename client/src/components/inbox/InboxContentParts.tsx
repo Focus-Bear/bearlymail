@@ -893,10 +893,13 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
   // Poll the mailbox sync status only while the inbox is genuinely empty after
   // an initial load — so a first sync surfaces a "Syncing…" state and refetches
   // on completion, without polling forever on a populated inbox.
-  const { isSyncing } = useSyncStatus({
+  const { isSyncing, gmailAccessIssue: polledGmailAccessIssue } = useSyncStatus({
     enabled: hasInitiallyLoaded && emailsEmpty && !loading && !loadingModeSwitch && !fetchError,
     onSyncComplete: onRetry,
   });
+  const { user } = useAuth();
+  // A live poll beats the profile loaded at sign-in, which goes stale once a fetch clears the issue.
+  const gmailAccessIssue = polledGmailAccessIssue !== undefined ? polledGmailAccessIssue : user?.gmailAccessIssue;
 
   const renderItem = (email: Email, emailIndex: number) => (
     <InboxEmailItem
@@ -1012,6 +1015,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
           emailsEmpty={emailsEmpty}
           mode={mode}
           isSyncing={isSyncing}
+          gmailAccessIssue={gmailAccessIssue}
           onRetry={onRetry}
           minPriority={minPriority}
           maxPriority={maxPriority}

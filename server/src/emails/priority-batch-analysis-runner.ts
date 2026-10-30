@@ -147,6 +147,7 @@ export class PriorityBatchAnalysisRunner {
     userId: string,
     emailIds: string[],
     tracker: JobPerformanceTracker,
+    forceFullAnalysisEmailIds?: ReadonlySet<string>,
   ): Promise<void> {
     const [emails, contexts, protoCategories] = await Promise.all([
       this.emailRepository.find({ where: { id: In(emailIds), userId } }),
@@ -163,6 +164,7 @@ export class PriorityBatchAnalysisRunner {
       contexts: contexts as UserContext[],
       protoCategories,
       tracker,
+      forceFullAnalysisEmailIds,
     });
   }
 
@@ -174,6 +176,8 @@ export class PriorityBatchAnalysisRunner {
       contexts: UserContext[];
       protoCategories: ProtoCategoryInput;
       tracker: JobPerformanceTracker;
+      /** Emails whose stale rule label was released — they skip triage. */
+      forceFullAnalysisEmailIds?: ReadonlySet<string>;
     },
   ): Promise<void> {
     const { contexts, protoCategories, tracker } = opts;
@@ -189,6 +193,7 @@ export class PriorityBatchAnalysisRunner {
       emailsNeedingFullAnalysis,
       threadMapForPayload,
       this.buildCategoryIdNameMap(contexts),
+      opts.forceFullAnalysisEmailIds,
     );
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");

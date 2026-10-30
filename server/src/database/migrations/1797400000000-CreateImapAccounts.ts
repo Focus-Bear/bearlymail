@@ -3,8 +3,8 @@ import { MigrationInterface, QueryRunner, Table, TableIndex } from "typeorm";
 const TABLE = "imap_accounts";
 const USER_INDEX = "IDX_imap_accounts_userId";
 
-export class CreateImapAccounts1797200000000 implements MigrationInterface {
-  name = "CreateImapAccounts1797200000000";
+export class CreateImapAccounts1797400000000 implements MigrationInterface {
+  name = "CreateImapAccounts1797400000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     if (await queryRunner.hasTable(TABLE)) return;

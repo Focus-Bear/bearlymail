@@ -1,3 +1,11 @@
+import {
+  GMAIL_FORWARD_HTML,
+  GMAIL_SHORT_REPLY_HTML,
+  GMAIL_WRAPPED_ATTRIBUTION_PLAIN,
+  OUTLOOK_BARE_FORWARD_PLAIN,
+  OUTLOOK_REPLY_HTML,
+  OUTLOOK_REPLY_PLAIN,
+} from "../category-rules/__fixtures__/quoted-reply.fixture";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import {
   buildDeterministicSummary,
@@ -66,6 +74,65 @@ describe("buildRuleMatchText", () => {
     expect(buildRuleMatchText("", "<div>Only in HTML</div>")).toContain(
       "Only in HTML",
     );
+  });
+
+  describe("quoted earlier messages", () => {
+    it("drops the quoted message from an Outlook reply (plain + HTML parts, Cc in the header)", () => {
+      const result = buildRuleMatchText(
+        OUTLOOK_REPLY_PLAIN,
+        OUTLOOK_REPLY_HTML,
+      ).toLowerCase();
+      expect(result).toContain("thanks so much for sending this through");
+      expect(result).not.toContain("sorry");
+      expect(result).not.toContain("jeremy@focusbear.io");
+    });
+
+    it("drops the HTML part's quote even when only the HTML part carries it", () => {
+      const result = buildRuleMatchText("", OUTLOOK_REPLY_HTML).toLowerCase();
+      expect(result).toContain("thanks so much");
+      expect(result).not.toContain("sorry");
+    });
+
+    it("drops a Gmail quote under a reply too short for the LLM cleaner's cut", () => {
+      expect(buildRuleMatchText("", GMAIL_SHORT_REPLY_HTML)).toBe("Thanks!");
+    });
+
+    it("drops a quote whose Gmail attribution wrapped onto two lines", () => {
+      expect(buildRuleMatchText(GMAIL_WRAPPED_ATTRIBUTION_PLAIN, null)).toBe(
+        "Thanks!",
+      );
+    });
+
+    it("keeps forwarded content, which is the substance of a forward", () => {
+      expect(buildRuleMatchText("", GMAIL_FORWARD_HTML)).toContain(
+        "Your invoice 1234 is now overdue.",
+      );
+    });
+
+    it("keeps a bare Outlook forward whose header block opens the body", () => {
+      expect(buildRuleMatchText(OUTLOOK_BARE_FORWARD_PLAIN, null)).toContain(
+        "Your invoice 1234 is now overdue.",
+      );
+    });
+
+    it("keeps notification bodies that merely contain From/Date lines", () => {
+      const formNotification = [
+        "You have a new contact form submission.",
+        "From: Jane Doe",
+        "Date: 23 October 2026",
+        "Subject: Pricing",
+        "Message: Please send pricing for 40 seats.",
+      ].join("\n");
+      expect(buildRuleMatchText(formNotification, null)).toContain(
+        "Please send pricing for 40 seats.",
+      );
+    });
+
+    it("leaves the LLM cleaner's short-reply behaviour unchanged (quote kept for context)", () => {
+      expect(cleanEmailContent("", GMAIL_SHORT_REPLY_HTML)).toContain(
+        "sorry for the slow reply",
+      );
+    });
   });
 });
 

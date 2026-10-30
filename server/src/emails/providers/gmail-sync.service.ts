@@ -5,7 +5,10 @@ import type { PgBoss } from "pg-boss";
 import { authLogger } from "../../auth/auth-logger";
 import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
 import { RELOGIN_REASONS } from "../../constants/auth-constants";
-import { SYNC_STATUS } from "../../constants/domain-statuses";
+import {
+  GMAIL_ACCESS_ISSUE,
+  SYNC_STATUS,
+} from "../../constants/domain-statuses";
 import { OAUTH_ERROR_CODES } from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
@@ -41,6 +44,7 @@ import {
 import { GmailProvider } from "./gmail.provider";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
 import {
+  classifyGmailAccessIssue,
   getExistingThreadUpdates,
   isGmailAuthError,
   isGmailInsufficientScopeError,
@@ -122,6 +126,10 @@ export class GmailSyncService {
       userId,
       "gmail_missing_refresh_token",
     );
+    await this.usersService.recordGmailAccessIssue(
+      userId,
+      GMAIL_ACCESS_ISSUE.REVOKED,
+    );
     throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
   }
 
@@ -162,6 +170,10 @@ export class GmailSyncService {
             `(this is the usual cause of "logged out") — detail: ${formatGaxiosError(error)}`,
         );
         await this.usersService.markNeedsRelogin(userId, "gmail_invalid_token");
+        await this.usersService.recordGmailAccessIssue(
+          userId,
+          GMAIL_ACCESS_ISSUE.REVOKED,
+        );
         throw new InvalidTokenError(ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED);
       }
       // Transient/non-auth failure (network, 5xx, rate limit): do NOT flag for
@@ -602,12 +614,16 @@ export class GmailSyncService {
       "GmailProvider",
     );
 
-    if (!isGmailAuthError(error)) {
+    const accessIssue = classifyGmailAccessIssue(error);
+    if (!accessIssue) {
       this.logger.warn(
         `syncEmails: non-auth error for user ${userId} — NOT flagging relogin: ${formattedError}`,
       );
       throw error;
     }
+    // Recorded regardless of the relogin grace period: the token in hand
+    // genuinely can't read mail, and the next successful fetch clears it.
+    await this.usersService.recordGmailAccessIssue(userId, accessIssue);
     await this.flagSyncAuthFailure(userId, user, error, formattedError);
     throw error;
   }

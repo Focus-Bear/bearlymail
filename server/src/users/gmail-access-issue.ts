@@ -1,0 +1,29 @@
+import { RELOGIN_REASONS } from "../constants/auth-constants";
+import {
+  GMAIL_ACCESS_ISSUE,
+  GmailAccessIssue,
+} from "../constants/domain-statuses";
+import { User } from "../database/entities/user.entity";
+
+/** Every Gmail path that flags needsRelogin uses a `gmail_…` reason code. */
+const GMAIL_RELOGIN_REASON_PREFIX = "gmail_";
+
+/**
+ * The Gmail access problem to show the user, if any. A recorded issue wins.
+ * Accounts flagged for re-login before `gmailAccessIssue` existed never get
+ * one recorded — needsRelogin skips their fetches — so a Gmail logout reason
+ * stands in for it; the client copy covers both causes.
+ */
+export function resolveGmailAccessIssue(
+  user: Pick<User, "gmailAccessIssue" | "needsRelogin" | "lastLogoutReason">,
+): GmailAccessIssue | null {
+  if (user.gmailAccessIssue) return user.gmailAccessIssue;
+  const isFlaggedForGmail =
+    user.needsRelogin &&
+    !!user.lastLogoutReason?.startsWith(GMAIL_RELOGIN_REASON_PREFIX);
+  if (!isFlaggedForGmail) return null;
+  // Flagged because the grant lacks the Gmail scopes (not a dead token).
+  return user.lastLogoutReason === RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE
+    ? GMAIL_ACCESS_ISSUE.MISSING
+    : GMAIL_ACCESS_ISSUE.REVOKED;
+}

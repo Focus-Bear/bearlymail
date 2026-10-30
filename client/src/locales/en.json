@@ -163,6 +163,10 @@
         "title": "Join the Waitlist",
         "description": "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."
       },
+      "missingGmailPermission": {
+        "title": "BearlyMail needs access to your Gmail",
+        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\")."
+      },
       "generic": {
         "title": "Authentication Error"
       }
@@ -2703,7 +2707,10 @@
     "connectDescription": "To get started, connect the email account you want BearlyMail to look after. We sync your emails securely and help you stay on top of them.",
     "connectButton": "Connect Gmail",
     "connectOtherProvider": "Use a different email (e.g. Crazy Domains)",
-    "connectMultipleHint": "You can connect more email accounts later in Settings."
+    "connectMultipleHint": "You can connect more email accounts later in Settings.",
+    "accessIssueTitle": "BearlyMail can't read your Gmail",
+    "accessIssueMessage": "When you signed in, Gmail access wasn't allowed (or it was turned off). Reconnect Google and tick the Gmail boxes to see your email.",
+    "reconnectGoogle": "Reconnect Google"
   },
   "help": {
     "title": "Help",

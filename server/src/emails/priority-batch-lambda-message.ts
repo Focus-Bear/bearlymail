@@ -11,6 +11,12 @@ export interface PriorityBatchLambdaMessage {
   /** PriorityAnalysisRun id; the Lambda marks it complete when done. */
   analysisId: string;
   emailIds: string[];
+  /**
+   * Emails whose thread's stale rule label the worker just released. They must
+   * skip triage, or it would "preserve" the old category. Optional, so
+   * messages without it stay valid.
+   */
+  forceFullAnalysisEmailIds?: string[];
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -43,10 +49,18 @@ export function parsePriorityBatchLambdaMessage(
       "Priority batch message is missing userId/analysisId/emailIds",
     );
   }
+  const rawForceFull = candidate.forceFullAnalysisEmailIds;
+  if (rawForceFull !== undefined && !isStringArray(rawForceFull)) {
+    throw new Error(
+      "Priority batch message has an invalid forceFullAnalysisEmailIds",
+    );
+  }
+  const forceFull = rawForceFull as string[] | undefined;
   return {
     version: PRIORITY_BATCH_MESSAGE_VERSION,
     userId: candidate.userId,
     analysisId: candidate.analysisId,
     emailIds: candidate.emailIds,
+    ...(forceFull?.length ? { forceFullAnalysisEmailIds: forceFull } : {}),
   };
 }

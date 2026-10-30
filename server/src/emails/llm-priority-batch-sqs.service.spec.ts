@@ -30,6 +30,7 @@ import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
 import { PRIORITY_BATCH_MESSAGE_VERSION } from "./priority-batch-lambda-message";
 import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
+import { StaleRuleCategoryService } from "./stale-rule-category.service";
 
 function makeEmail(
   id: string,
@@ -60,6 +61,7 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
   let mockEmailRepository: jest.Mocked<Repository<Email>>;
   let mockThreadRepository: jest.Mocked<Repository<EmailThread>>;
   let mockTracker: jest.Mocked<JobPerformanceTracker>;
+  let mockStaleRuleRelease: jest.Mock;
   let mockSummaryProcessor: {
     tryIncrementalAnalysis: jest.Mock;
     ensureThreadSummaryFresh: jest.Mock;
@@ -116,6 +118,8 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       increment: jest.fn().mockResolvedValue({ affected: 1 }),
     } as unknown as jest.Mocked<Repository<EmailThread>>;
 
+    mockStaleRuleRelease = jest.fn().mockResolvedValue(false);
+
     mockTracker = {
       startPhase: jest.fn(),
       endPhase: jest.fn(),
@@ -165,6 +169,10 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
         { provide: LLMSummaryProcessorService, useValue: mockSummaryProcessor },
         { provide: ProtoCategoriesService, useValue: mockProtoCategories },
         { provide: DebugService, useValue: mockDebug },
+        {
+          provide: StaleRuleCategoryService,
+          useValue: { release: mockStaleRuleRelease },
+        },
         { provide: PrioritySqsDispatchService, useValue: mockSqsDispatch },
         {
           provide: PriorityAnalysisFinalizerService,
@@ -360,6 +368,72 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
       expect(summaryOf("email-3")).toBe(
         `fresh summary of ${EMAIL_THREAD_ID_1}`,
       );
+    });
+  });
+
+  describe("runBatchRefinement — stale rule label on a thread with a new email", () => {
+    it("sends an email whose stale rule label was released to full analysis (no triage), leaving other threads' triage inputs intact", async () => {
+      jest
+        .spyOn(service, "shouldSkipPriorityRecalculation")
+        .mockResolvedValue(false);
+      // Both threads were scored before, so without the release both would
+      // carry triage inputs.
+      mockThreadRepository.find.mockResolvedValue([
+        {
+          id: EMAIL_THREAD_ID_1,
+          categorySource: "rule",
+          prioritySource: "llm",
+          urgencyScore: 40,
+        },
+        {
+          id: EMAIL_THREAD_ID_2,
+          categorySource: "priority",
+          prioritySource: "llm",
+          urgencyScore: 30,
+        },
+      ] as unknown as EmailThread[]);
+      mockStaleRuleRelease.mockImplementation(
+        async ({ email }: { email: Email }) => email.id === "email-1",
+      );
+
+      await service.runBatchRefinement(
+        USER_ID,
+        ["email-1", "email-2"],
+        "worker-1",
+        mockTracker,
+      );
+
+      expect(mockStaleRuleRelease).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: USER_ID, workerId: "worker-1" }),
+      );
+      const [batchEmails] =
+        mockPriorityAnalysis.analyzePriorityBatch.mock.calls[0];
+      const byKey = new Map(
+        batchEmails.map((email) => [email.emailKey, email]),
+      );
+      expect(byKey.get("email-1")?.existingUrgencyScore).toBeUndefined();
+      expect(byKey.get("email-2")?.existingUrgencyScore).toBe(30);
+    });
+
+    it("passes the released email ids to the Lambda so it skips triage for them too", async () => {
+      process.env.USE_LAMBDA_PRIORITISATION = "true";
+      jest
+        .spyOn(service, "shouldSkipPriorityRecalculation")
+        .mockResolvedValue(false);
+      mockStaleRuleRelease.mockImplementation(
+        async ({ email }: { email: Email }) => email.id === "email-1",
+      );
+
+      await service.runBatchRefinement(
+        USER_ID,
+        ["email-1", "email-2"],
+        "worker-1",
+        mockTracker,
+      );
+
+      const [message] = mockSqsDispatch.dispatchBatch.mock.calls[0];
+      expect(message.emailIds).toEqual(["email-1", "email-2"]);
+      expect(message.forceFullAnalysisEmailIds).toEqual(["email-1"]);
     });
   });
 

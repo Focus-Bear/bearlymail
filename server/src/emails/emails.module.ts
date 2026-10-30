@@ -118,6 +118,7 @@ import { RuleLabelReCategoriseProcessor } from "./rule-label-recategorise.proces
 import { RuleLabelReCategoriseService } from "./rule-label-recategorise.service";
 import { ScanEmailService } from "./scan-email.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
+import { StaleRuleCategoryService } from "./stale-rule-category.service";
 import { StuckPriorityDetectionService } from "./stuck-priority-detection.service";
 import { SyncHistoryService } from "./sync-history.service";
 
@@ -310,6 +311,7 @@ import { SyncHistoryService } from "./sync-history.service";
     LocalModelPromotionService,
     PriorityRuleMiningCron,
     LLMPriorityBatchService,
+    StaleRuleCategoryService,
     IncrementalSummaryHelperService,
     LLMSummaryProcessorService,
     ArchiveEmailProcessor,

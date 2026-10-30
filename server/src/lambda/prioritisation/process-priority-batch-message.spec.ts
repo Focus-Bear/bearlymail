@@ -45,10 +45,28 @@ describe("processPriorityBatchMessage", () => {
       "user-1",
       ["email-1", "email-2"],
       expect.anything(),
+      undefined,
     );
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining("UPDATE priority_analysis_runs"),
       ["analysis-1"],
+    );
+  });
+
+  it("passes emails forced to full analysis to the runner", async () => {
+    const { runtime, analyseAndApplyByIds } = makeRuntime();
+
+    await processPriorityBatchMessage(
+      runtime,
+      JSON.stringify({ ...MESSAGE, forceFullAnalysisEmailIds: ["email-2"] }),
+    );
+
+    expect(analyseAndApplyByIds).toHaveBeenCalledWith(
+      expect.any(String),
+      "user-1",
+      ["email-1", "email-2"],
+      expect.anything(),
+      new Set(["email-2"]),
     );
   });
 

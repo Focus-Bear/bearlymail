@@ -173,6 +173,22 @@ describe("buildBatchEmailPayloads", () => {
       );
       expect(payload.existingUrgencyScore).toBe(EXISTING_URGENCY);
     });
+
+    it("omits existing fields for an email forced to full analysis (stale rule label released)", () => {
+      const scoredThread = makeThread({
+        prioritySource: "llm",
+        urgencyScore: EXISTING_URGENCY,
+        categoryId: CATEGORY_ID,
+      });
+      const [payload] = buildBatchEmailPayloads(
+        [emailInThread],
+        new Map([[EMAIL_THREAD_ID, scoredThread]]),
+        categoryMap,
+        new Set([emailInThread.id]),
+      );
+      expect(payload.existingUrgencyScore).toBeUndefined();
+      expect(payload.existingCategory).toBeUndefined();
+    });
   });
 });
 

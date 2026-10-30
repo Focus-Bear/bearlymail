@@ -104,6 +104,12 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
   const cancelledRef = useRef(false);
   const progressHighWaterMark = useRef(0); // Track highest progress to prevent going backwards
   const messageKeyHighWaterMark = useRef<string | null>(null); // Track highest stage to prevent message going backwards
+  // Set once this hook starts its own analysis. Starting supersedes (fails) any
+  // older running analysis on the server, so a mount-resume result that lands
+  // afterwards would point polling at a dead run and surface "Superseded by new
+  // analysis" — which froze onboarding for a user re-entering after an
+  // unfinished earlier sign-up.
+  const hasStartedAnalysisRef = useRef(false);
   // Backoff circuit breaker for 429 handling — uses a single synthetic key since there is
   // only one analysis-progress polling loop. Stored in refs so it never triggers re-renders.
   const backoff = usePollingWithBackoff({ maxRetries: MAX_POLL_RETRIES_429 });
@@ -123,7 +129,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     const resumeIfInProgress = async () => {
       try {
         const response = await axios.get(`${API_URL}/context/analyze-progress`);
-        if (cancelled) {
+        if (cancelled || hasStartedAnalysisRef.current) {
           return;
         }
 
@@ -164,6 +170,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     devDebug('Setting analyzing state to true');
 
     // Reset cancellation flag, high water marks, and backoff state when starting new analysis
+    hasStartedAnalysisRef.current = true;
     cancelledRef.current = false;
     progressHighWaterMark.current = 0;
     messageKeyHighWaterMark.current = null;

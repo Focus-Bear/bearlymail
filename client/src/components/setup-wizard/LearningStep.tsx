@@ -8,7 +8,7 @@ import { useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
 
 import { LearnedContextEditor } from './learned-context/LearnedContextEditor';
 import {
-  buildPhaseCount,
+  buildRowCount,
   buildStatusDetail,
   computeLearningView,
   hasLearningFinished,
@@ -28,6 +28,9 @@ interface LearningStepProps {
 
 const IMPORT_TIMEOUT_MINUTES = 5;
 const IMPORT_TIMEOUT_MS = IMPORT_TIMEOUT_MINUTES * SECONDS_PER_MINUTE * MS_PER_SECOND;
+const HEADER_STATE_WORKING = 'working';
+const HEADER_STATE_STALLED = 'stalled';
+const HEADER_STATE_COMPLETE = 'complete';
 const PERCENT_MULT = 100;
 const DIM_OPACITY = 0.35;
 const FULL_OPACITY = 1;
@@ -86,12 +89,34 @@ function pickCountColor(active: boolean, done: boolean): string {
 
 interface HeaderDetailInput {
   canFinish: boolean;
+  isStalled: boolean;
+  hasAnalysisError: boolean;
   isStillSorting: boolean;
   currentPhase: number;
   realProgress: RealProgress;
 }
 
+function pickStalledDetail(translate: TFn, hasAnalysisError: boolean): string {
+  if (hasAnalysisError) {
+    return translate('setupWizard.learning.stalledDetailError');
+  }
+  return translate('setupWizard.learning.stalledDetailTimeout', { minutes: IMPORT_TIMEOUT_MINUTES });
+}
+
+function pickHeaderTitle(translate: TFn, canFinish: boolean, isStalled: boolean, currentPhase: number): string {
+  if (canFinish) {
+    return translate('setupWizard.learning.readyTitle');
+  }
+  if (isStalled) {
+    return translate('setupWizard.learning.stalledTitle');
+  }
+  return translate(PHASE_LABEL_KEYS[Math.min(currentPhase, PHASE_LABEL_KEYS.length - 1)]);
+}
+
 function pickHeaderDetail(translate: TFn, input: HeaderDetailInput): string {
+  if (input.isStalled && !input.canFinish) {
+    return pickStalledDetail(translate, input.hasAnalysisError);
+  }
   if (input.isStillSorting) {
     return translate('setupWizard.learning.readyDetailStillSorting');
   }
@@ -101,10 +126,28 @@ function pickHeaderDetail(translate: TFn, input: HeaderDetailInput): string {
   return buildStatusDetail(translate, input.currentPhase, input.realProgress);
 }
 
+/** Flips `timedOut` after `waitMs`; `restartTimeout` clears it and starts a fresh full wait (used on retry). */
+function useMaxWaitTimeout(waitMs: number): { timedOut: boolean; restartTimeout: () => void } {
+  const [timedOut, setTimedOut] = useState(false);
+  const [epoch, setEpoch] = useState(0);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setTimedOut(true), waitMs);
+    return () => clearTimeout(timeoutId);
+  }, [epoch, waitMs]);
+
+  const restartTimeout = useCallback(() => {
+    setTimedOut(false);
+    setEpoch(current => current + 1);
+  }, []);
+
+  return { timedOut, restartTimeout };
+}
+
 export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, isLoading }) => {
   const { t } = useTranslation();
   const [importProgress, setImportProgress] = useState<ImportProgress>({ prioritizedCount: 0, isReady: false });
-  const [timedOut, setTimedOut] = useState(false);
+  const { timedOut, restartTimeout } = useMaxWaitTimeout(IMPORT_TIMEOUT_MS);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasStartedAnalysisRef = useRef(false);
   const isReadyRef = useRef(false);
@@ -162,29 +205,22 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
 
   useEffect(() => {
     mountedRef.current = true;
-    const timeoutId = setTimeout(() => {
-      if (mountedRef.current) {
-        setTimedOut(true);
-      }
-    }, IMPORT_TIMEOUT_MS);
     return () => {
       mountedRef.current = false;
-      clearTimeout(timeoutId);
     };
   }, []);
 
-  const categorisation = useCategorisationProgress(hasLearningFinished(analyzeProgress, importProgress, timedOut));
-  const { displayProgress, canFinish, isStillSorting, currentPhase, realProgress } = computeLearningView(
-    analyzeProgress,
-    importProgress,
-    timedOut,
-    categorisation,
-  );
+  const retryAnalysis = useCallback(() => {
+    restartTimeout();
+    startAnalysis();
+  }, [restartTimeout, startAnalysis]);
 
-  const headerTitle = canFinish
-    ? t('setupWizard.learning.readyTitle')
-    : t(PHASE_LABEL_KEYS[Math.min(currentPhase, PHASE_LABEL_KEYS.length - 1)]);
-  const headerDetail = pickHeaderDetail(t, { canFinish, isStillSorting, currentPhase, realProgress });
+  const categorisation = useCategorisationProgress(hasLearningFinished(analyzeProgress, importProgress, timedOut));
+  const view = computeLearningView(analyzeProgress, importProgress, timedOut, categorisation);
+  const { displayProgress, canFinish, isStalled, currentPhase, realProgress } = view;
+  const headerTitle = pickHeaderTitle(t, canFinish, isStalled, currentPhase);
+  const headerDetail = pickHeaderDetail(t, { ...view, hasAnalysisError: Boolean(analyzeProgress.error) });
+  const headerState = pickHeaderState(canFinish, isStalled);
 
   return (
     <section className="onboarding-pane" style={paneStyle}>
@@ -196,7 +232,7 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
       </p>
 
       <LearningHeader
-        canFinish={canFinish}
+        headerState={headerState}
         headerTitle={headerTitle}
         headerDetail={headerDetail}
         displayProgress={displayProgress}
@@ -208,7 +244,11 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
 
       <PrivacyCard t={t} />
 
-      <LearningActions canFinish={canFinish} isLoading={isLoading} onBack={onBack} onComplete={onComplete} t={t} />
+      {headerState === HEADER_STATE_STALLED ? (
+        <StalledActions isLoading={isLoading} onBack={onBack} onRetry={retryAnalysis} onSkip={onComplete} t={t} />
+      ) : (
+        <LearningActions canFinish={canFinish} isLoading={isLoading} onBack={onBack} onComplete={onComplete} t={t} />
+      )}
     </section>
   );
 };
@@ -233,22 +273,72 @@ const LearningActions: React.FC<LearningActionsProps> = ({ canFinish, isLoading,
   </div>
 );
 
+interface StalledActionsProps {
+  isLoading: boolean;
+  onBack: () => void;
+  onRetry: () => void;
+  onSkip: () => void;
+  t: TFn;
+}
+
+// Skipping goes straight to the inbox: categorisation keeps running server-side,
+// and holding someone who just escaped a stall for another sorting wait would
+// recreate the problem.
+const StalledActions: React.FC<StalledActionsProps> = ({ isLoading, onBack, onRetry, onSkip, t }) => (
+  <div style={actionsRowStyle}>
+    <button type="button" onClick={onBack} style={ghostButtonStyle}>
+      ← {t('setupWizard.common.back')}
+    </button>
+    <div style={spacerStyle} />
+    <button type="button" onClick={onRetry} disabled={isLoading} style={secondaryButtonStyle}>
+      {t('setupWizard.learning.retry')}
+    </button>
+    <button type="button" onClick={onSkip} disabled={isLoading} style={primaryButtonStyle(!isLoading)}>
+      {isLoading ? t('common.loading') : t('setupWizard.learning.skipToInbox')}
+    </button>
+  </div>
+);
+
+type HeaderState = typeof HEADER_STATE_WORKING | typeof HEADER_STATE_STALLED | typeof HEADER_STATE_COMPLETE;
+
+function pickHeaderState(canFinish: boolean, isStalled: boolean): HeaderState {
+  if (canFinish) {
+    return HEADER_STATE_COMPLETE;
+  }
+  return isStalled ? HEADER_STATE_STALLED : HEADER_STATE_WORKING;
+}
+
+const HeaderIndicator: React.FC<{ headerState: HeaderState }> = ({ headerState }) => {
+  if (headerState === HEADER_STATE_COMPLETE) {
+    return (
+      <div style={completeBadgeStyle} data-testid="learning-complete" aria-hidden>
+        {'✓'}
+      </div>
+    );
+  }
+  if (headerState === HEADER_STATE_STALLED) {
+    return (
+      <div style={stalledBadgeStyle} data-testid="learning-stalled" aria-hidden>
+        {'!'}
+      </div>
+    );
+  }
+  return <div style={spinnerStyle} data-testid="learning-spinner" />;
+};
+
 interface LearningHeaderProps {
-  canFinish: boolean;
+  headerState: HeaderState;
   headerTitle: string;
   headerDetail: string;
   displayProgress: number;
 }
 
-const LearningHeader: React.FC<LearningHeaderProps> = ({ canFinish, headerTitle, headerDetail, displayProgress }) => (
-  <div style={learnHeadStyle}>
-    {canFinish ? (
-      <div style={completeBadgeStyle} data-testid="learning-complete" aria-hidden>
-        {'✓'}
-      </div>
-    ) : (
-      <div style={spinnerStyle} data-testid="learning-spinner" />
-    )}
+const LearningHeader: React.FC<LearningHeaderProps> = ({ headerState, headerTitle, headerDetail, displayProgress }) => (
+  <div
+    style={headerState === HEADER_STATE_STALLED ? stalledHeadStyle : learnHeadStyle}
+    role={headerState === HEADER_STATE_STALLED ? 'alert' : undefined}
+  >
+    <HeaderIndicator headerState={headerState} />
     <div style={headerTextWrapStyle}>
       <div style={learnHeadTitleStyle}>{headerTitle}</div>
       <div style={learnHeadSubStyle}>{headerDetail}</div>
@@ -274,7 +364,7 @@ const LearningRows: React.FC<LearningRowsProps> = ({ currentPhase, canFinish, re
     {PHASE_LABEL_KEYS.map((labelKey, idx) => {
       const isActive = idx === currentPhase && !canFinish;
       const isDone = idx < currentPhase || canFinish;
-      const count = buildPhaseCount(t, idx, realProgress);
+      const count = buildRowCount(t, idx, isActive || isDone, realProgress);
       return (
         <div key={labelKey} style={learnRowStyle(isActive, isDone)}>
           <span style={learnNumStyle(isActive, isDone)}>{isDone ? '✓' : idx + 1}</span>
@@ -320,7 +410,9 @@ const LockIcon: React.FC = () => (
 const lockIconStyle: React.CSSProperties = { color: TOK.ink3 };
 const paneStyle: React.CSSProperties = { display: 'block' };
 const spacerStyle: React.CSSProperties = { flex: 1 };
-const headerTextWrapStyle: React.CSSProperties = { minWidth: 0 };
+// Grow into the free space so a long status line wraps inside the text column;
+// without a flex basis it claimed a full row and pushed the meter onto its own line.
+const headerTextWrapStyle: React.CSSProperties = { flex: '1 1 220px', minWidth: 0 };
 
 const h1Style: React.CSSProperties = {
   fontSize: '32px',
@@ -372,6 +464,18 @@ const completeBadgeStyle: React.CSSProperties = {
   fontSize: '15px',
   fontWeight: ACTIVE_WEIGHT,
   flexShrink: 0,
+};
+
+const stalledHeadStyle: React.CSSProperties = {
+  ...learnHeadStyle,
+  background: TOK.sunPale,
+  border: `1px solid ${TOK.sunPale2}`,
+};
+
+const stalledBadgeStyle: React.CSSProperties = {
+  ...completeBadgeStyle,
+  background: TOK.sunDark,
+  fontFamily: TOK.fontMono,
 };
 
 const learnHeadTitleStyle: React.CSSProperties = {
@@ -513,6 +617,13 @@ const ghostButtonStyle: React.CSSProperties = {
   color: TOK.ink2,
   border: '1.5px solid transparent',
   cursor: 'pointer',
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  ...ghostButtonStyle,
+  background: '#fff',
+  border: `1.5px solid ${TOK.line2}`,
+  color: TOK.ink,
 };
 
 const primaryButtonStyle = (enabled: boolean): React.CSSProperties => ({

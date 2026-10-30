@@ -3322,7 +3322,12 @@
       "phaseCategorise": "Clasificando tus correos en categorías",
       "statusCategorise": "Clasificando tu bandeja en categorías… ({{categorised}} de {{total}}) para que se abra ordenada",
       "statusCategoriseGeneric": "Clasificando tu bandeja en categorías para que se abra ordenada…",
-      "readyDetailStillSorting": "La mayor parte de tu bandeja ya está ordenada. El resto pasará a sus categorías en los próximos minutos."
+      "readyDetailStillSorting": "La mayor parte de tu bandeja ya está ordenada. El resto pasará a sus categorías en los próximos minutos.",
+      "stalledTitle": "El aprendizaje a partir de tus correos se ha detenido",
+      "stalledDetailError": "No pudimos terminar de aprender de tus correos. Inténtalo de nuevo, o abre tu bandeja ahora y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA.",
+      "stalledDetailTimeout": "Esto aún no ha terminado después de {{minutes}} minutos. Inténtalo de nuevo, o abre tu bandeja ahora y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA.",
+      "retry": "Intentar de nuevo",
+      "skipToInbox": "Abrir mi bandeja de todos modos →"
     },
     "learned": {
       "title": "Esto es lo que aprendimos",

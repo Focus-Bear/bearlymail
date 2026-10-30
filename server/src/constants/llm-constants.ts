@@ -17,10 +17,20 @@ export const RECENCY_THRESHOLDS = {
   RECENT_DAYS: 7,
 } as const;
 
-// Q&A extraction constants
+// Q&A (FAQ) extraction from the user's replies. A learned FAQ is fed to the
+// auto-responder as fact, so every threshold here errs towards saving nothing.
 export const QA_EXTRACTION = {
-  // Minimum frequency for a Q&A pattern to be extracted
-  MIN_FREQUENCY: 3,
+  // Different people must have asked it; one long conversation is not an FAQ.
+  MIN_DISTINCT_ASKERS: 2,
+  // The model's own confidence that the cluster is one real, answerable question.
+  MIN_CONFIDENCE: 0.7,
+  MAX_QUESTION_CHARS: 140,
+  MAX_ANSWER_CHARS: 400,
+  // A reply shorter than this ("Thanks!", "Sounds good") has nothing to learn from.
+  MIN_REPLY_WORDS: 8,
+  // Characters of each side of a question/reply pair shown to the model.
+  PAIR_PREVIEW_CHARS: 700,
+  MAX_PAIRS_PER_RUN: 40,
 } as const;
 
 // QA keyword scanning constants

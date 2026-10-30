@@ -6,6 +6,7 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "build": "npm run type-check && nest build",
+    "build:lambda:prioritisation": "nest build && node scripts/bundle-prioritisation-lambda.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 nest start --watch",
@@ -67,6 +68,7 @@
     "@aws-sdk/client-kms": "^3.1149.0",
     "@aws-sdk/client-lambda": "^3.1079.0",
     "@aws-sdk/client-s3": "^3.1057.0",
+    "@aws-sdk/client-secrets-manager": "^3.1156.0",
     "@aws-sdk/client-ses": "^3.1131.0",
     "@aws-sdk/client-sqs": "^3.1127.0",
     "@aws-sdk/lib-storage": "^3.1101.0",
@@ -145,6 +147,7 @@
     "@typescript-eslint/parser": "^8.65.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "cross-env": "^10.1.0",
+    "esbuild": "0.28.1",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-better-max-params": "^1.0.0",

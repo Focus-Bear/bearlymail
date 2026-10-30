@@ -51,6 +51,10 @@ export interface ThreadData {
 
 export interface SentEmailData {
   id: string;
+  /** Provider thread id; pairs a reply with the message it answered. */
+  threadId: string;
+  /** The user's sending address (or alias) for this message. */
+  from: string;
   body: string;
   htmlBody?: string;
   subject: string;
@@ -1048,6 +1052,8 @@ export class ContextEmailDataService {
     }
     const limitedSentEmails = filtered.slice(0, limit).map((msg) => ({
       id: msg.messageId,
+      threadId: msg.threadId,
+      from: msg.from,
       body: msg.body,
       htmlBody: msg.htmlBody,
       subject: msg.subject,

@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { useCategoryNamesByIdQuery } from 'queries/useCategoryContextQuery';
 import { theme } from 'theme/theme';
 
 import { AutoArchiveProposalsPanel } from 'components/settings/auto-archive/AutoArchiveProposalsPanel';
 import { API_URL } from 'config/api';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 
+import { CategoryNamesById } from './describeWorkflowCondition';
 import { MCPServerConfig, WorkflowExecutionLog, WorkflowRule, WorkflowRuleFormValues } from './types';
 import { WorkflowEditor } from './WorkflowEditor';
 import { WorkflowExecutionHistory } from './WorkflowExecutionHistory';
 import { WorkflowsList } from './WorkflowsList';
+
+const NO_CATEGORY_NAMES: CategoryNamesById = {};
 
 /**
  * Main settings section for automated email workflows.
@@ -27,6 +32,7 @@ export const WorkflowsSection: React.FC = () => {
   const [editingRule, setEditingRule] = useState<WorkflowRule | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { data: categoryNamesById = NO_CATEGORY_NAMES } = useCategoryNamesByIdQuery();
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -112,7 +118,7 @@ export const WorkflowsSection: React.FC = () => {
 
   return (
     <div
-      id="workflows"
+      id={SETTINGS_ANCHORS.WORKFLOWS}
       style={{
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,
@@ -175,7 +181,10 @@ export const WorkflowsSection: React.FC = () => {
       {loading ? (
         <p style={{ color: theme.colors.text.secondary }}>{t('settings.workflows.section.loadingWorkflows')}</p>
       ) : (
-        <WorkflowsList rules={rules} onToggle={handleToggle} onEdit={handleEdit} onDelete={handleDelete} />
+        <WorkflowsList
+          rules={rules}
+          categoryNamesById={categoryNamesById}
+          onToggle={handleToggle} onEdit={handleEdit} onDelete={handleDelete} />
       )}
 
       {/* Execution history */}
@@ -207,6 +216,7 @@ export const WorkflowsSection: React.FC = () => {
         <WorkflowEditor
           rule={editingRule}
           mcpServers={mcpServers}
+          categoryNamesById={categoryNamesById}
           onSave={handleSave}
           onCancel={() => {
             setEditorOpen(false);

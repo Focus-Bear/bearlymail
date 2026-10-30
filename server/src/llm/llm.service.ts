@@ -29,6 +29,7 @@ import { LLMSummarizationService } from "./llm-summarization.service";
 import { LLMToneService } from "./llm-tone.service";
 import type { ToneCheckOptions, ToneCheckResult } from "./llm-tone.types";
 import { SummaryType } from "./prompts";
+import type { ExtractedQaCluster } from "./qa-extraction-response";
 
 // Re-export for backward compatibility with existing callers
 export { LLMProvider };
@@ -644,15 +645,11 @@ export class LLMService {
   }
 
   async extractQAndA(
-    userReplies: Array<{
-      subject: string;
-      body: string;
-      receivedAt: string;
-    }>,
+    pairsText: string,
     userId?: string,
     provider?: LLMProvider,
-  ): Promise<Array<{ question: string; answer: string; frequency: number }>> {
-    return this.llmMiscService.extractQAndA(userReplies, userId, provider);
+  ): Promise<ExtractedQaCluster[]> {
+    return this.llmMiscService.extractQAndA(pairsText, userId, provider);
   }
 
   async compressUserContext(

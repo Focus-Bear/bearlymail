@@ -5,9 +5,7 @@
 import { NavigateFunction } from 'react-router-dom';
 
 import { OPEN_TRACKING_SETTINGS_ANCHOR } from 'constants/openTracking';
-
-/** Delay (ms) before scrolling to a settings anchor after navigation. */
-export const SIDEBAR_SCROLL_DELAY_MS = 50;
+import { settingsAnchorPath } from 'constants/settingsAnchors';
 
 export interface SettingsSubNavItem {
   id: string;
@@ -138,20 +136,15 @@ export function getSettingsNavItems(
 /**
  * Returns a scroll-to-section handler bound to the given `navigate` function.
  *
- * Navigates to `/settings#<anchor>` and then, after a short delay, scrolls
- * the matching DOM element into view.
+ * Only navigates to `/settings#<anchor>`: the Settings page scrolls to and
+ * highlights the section itself (`useSettingsAnchorScroll`), waiting for it to
+ * render and keeping it in place while the sections above it load.
  *
  * @param navigate - React Router `navigate` function from `useNavigate()`.
- * @returns A function that accepts an anchor string and performs the scroll.
+ * @returns A function that accepts an anchor string and navigates to it.
  */
 export function makeScrollToSection(navigate: NavigateFunction): (anchor: string) => void {
   return (anchor: string) => {
-    navigate(`/settings#${anchor}`, { replace: true });
-    setTimeout(() => {
-      const element = document.getElementById(anchor);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, SIDEBAR_SCROLL_DELAY_MS);
+    navigate(settingsAnchorPath(anchor), { replace: true });
   };
 }

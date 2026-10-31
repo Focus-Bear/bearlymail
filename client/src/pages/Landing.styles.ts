@@ -1,4 +1,6 @@
 /* eslint-disable max-lines */
+const HEADER_NAV_WRAP_BREAKPOINT_PX = 1200;
+
 export const LANDING_STYLES = `
 .bearlymail-landing {
   --cream: #FFFCF6;
@@ -75,8 +77,14 @@ export const LANDING_STYLES = `
   border-bottom: 1px solid var(--line);
 }
 .bearlymail-landing header.site .row {
-  height: 68px;
-  display: flex; align-items: center; justify-content: space-between;
+  min-height: 68px; padding-top: 12px; padding-bottom: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+}
+.bearlymail-landing header.site .brand,
+.bearlymail-landing header.site .nav-cta { flex-shrink: 0; white-space: nowrap; }
+.bearlymail-landing header.site .nav a { white-space: nowrap; }
+@media (max-width: ${HEADER_NAV_WRAP_BREAKPOINT_PX}px) {
+  .bearlymail-landing header.site .nav { order: 1; flex-basis: 100%; flex-wrap: wrap; justify-content: center; gap: 12px 24px; }
 }
 .bearlymail-landing .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; font-size: 17px; }
 .bearlymail-landing .brand-mark {
@@ -954,7 +962,7 @@ export const LANDING_STYLES = `
 }
 
 @media (max-width: 640px) {
-  .bearlymail-landing header.site .row { height: 60px; }
+  .bearlymail-landing header.site .row { min-height: 60px; padding-top: 8px; padding-bottom: 8px; }
   .bearlymail-landing header.site .nav { display: none; }
   .bearlymail-landing .nav-cta { gap: 8px; }
   .bearlymail-landing .nav-cta .btn { height: 44px; padding: 0 12px; font-size: 13px; white-space: nowrap; }

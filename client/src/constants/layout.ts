@@ -36,3 +36,7 @@ export const TOAST_WIDTH_BOUNDS = overlayWidthBounds(OVERLAY_MIN_W, TOAST_MAX_W)
 export const TONE_CHECK_TOAST_WIDTH_BOUNDS = overlayWidthBounds(OVERLAY_MIN_W, TONE_TOAST_MAX_W);
 export const URGENT_NOTIFICATION_WIDTH_BOUNDS = overlayWidthBounds(OVERLAY_MIN_W_WIDE, TOAST_MAX_W);
 export const ANALYSIS_MODAL_WIDTH_BOUNDS = overlayWidthBounds(OVERLAY_MIN_W, PROGRESS_MODAL_MAX_W);
+
+// Reserve readable text before trailing header controls wrap in split-view columns.
+export const INBOX_HEADER_TEXT_MIN_WIDTH_PX = 240;
+export const INBOX_SENDER_PREFERRED_WIDTH_PX = 140;

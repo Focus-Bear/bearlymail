@@ -97,3 +97,14 @@ export const MobileStackedHeader = {
     </div>
   ),
 };
+
+export const NarrowSplitViewHeader = {
+  name: 'Narrow split-view column in a desktop window',
+  render: () => (
+    <div style={{ width: 280 }}>
+      <Wrap>
+        <StatefulAccordion category="Team project updates" count={12} family="Work" />
+      </Wrap>
+    </div>
+  ),
+};

@@ -11,6 +11,7 @@ import { OverflowMenu, OverflowMenuItem } from 'components/common/OverflowMenu';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { PendingCategoryHint } from 'components/inbox/PendingCategoryHint';
+import { INBOX_HEADER_TEXT_MIN_WIDTH_PX } from 'constants/layout';
 import {
   CATEGORY_DANGEROUS_PHISHING,
   CATEGORY_KEY_PENDING,
@@ -61,7 +62,6 @@ interface CategoryAccordionProps {
    * synthetic "Other" family and when unknown. */
   family?: string;
 }
-
 
 const EDIT_ICON = '⚙️';
 const REANALYSE_ICON = '🔄';
@@ -183,6 +183,25 @@ interface CategoryHeaderLeftProps {
   t: (tKey: string) => string;
 }
 
+const categoryHeaderIdentityStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing.md,
+  minWidth: `min(100%, ${INBOX_HEADER_TEXT_MIN_WIDTH_PX}px)`,
+  flex: 1,
+};
+
+const categoryHeaderActionsStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing.sm,
+  flexShrink: 0,
+  flexWrap: 'wrap',
+  maxWidth: '100%',
+  marginLeft: 'auto',
+  justifyContent: 'flex-end',
+};
+
 const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
   category,
   family,
@@ -219,7 +238,7 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
     minWidth: 0,
   };
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, minWidth: 0, flex: 1 }}>
+    <div style={categoryHeaderIdentityStyle}>
       <span
         style={{
           transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
@@ -302,7 +321,8 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
   const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
   // On mobile the name, count, Archive All and overflow menu can't all fit on
   // one row without the category name being truncated to nothing. Stack the
-  // actions onto a line BELOW the name; keep the single row on tablet/desktop.
+  // actions below the name. Wider windows can still have narrow split-view columns,
+  // so the header also wraps according to its available width.
   const { isMobile } = useResponsiveBreakpoints();
   const showArchiveAll = hasArchiveAll && emailCount > 0;
   const hasActions = showArchiveAll || overflowItems.length > 0;
@@ -350,6 +370,7 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
       style={{
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
+        flexWrap: 'wrap',
         alignItems: isMobile ? 'stretch' : 'center',
         justifyContent: 'space-between',
         gap: theme.spacing.sm,
@@ -374,16 +395,7 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
         t={t}
       />
       {hasActions && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-            flexShrink: 0,
-            // Right-align the action row beneath the name on mobile; inline on desktop.
-            justifyContent: isMobile ? 'flex-end' : undefined,
-          }}
-        >
+        <div style={categoryHeaderActionsStyle}>
           {actions}
         </div>
       )}
@@ -631,7 +643,11 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
         }}
       >
         <div style={{ minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
-          <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')} isNearBudget={isNearBudget}>
+          <CategoryAccordionContent
+            isLoadingContent={isLoadingContent}
+            loadingLabel={t('inbox.category.loadingContent')}
+            isNearBudget={isNearBudget}
+          >
             {isNewsletterCategory && <NewsletterBlockTip isExpanded={isExpanded} />}
             {children}
           </CategoryAccordionContent>

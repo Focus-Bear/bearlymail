@@ -35,3 +35,8 @@ export const FollowUpWithDraft: Story = {
   name: 'Follow-up — with draft (narrow)',
   args: { mode: 'follow-up', followUpData: DRAFTED_FOLLOWUP_DATA, maxWidth: 520 },
 };
+
+export const NarrowActionColumn: Story = {
+  name: 'Action — narrow split-view column',
+  args: { mode: 'action', isSelected: true, maxWidth: 280 },
+};

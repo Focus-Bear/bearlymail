@@ -11,7 +11,7 @@ export interface TourStepDefinition {
   contentKey: string;
   /**
    * Anchors to spotlight, in preference order — the first one rendered on screen
-   * wins. Empty for the welcome card, which is intentionally centred.
+   * wins. Missing targets fall back to a centred card.
    */
   targets: TourTarget[];
   placement?: Placement;
@@ -26,7 +26,6 @@ export interface TourStep {
 }
 
 export const INBOX_TOUR_STEPS: TourStepDefinition[] = [
-  { titleKey: 'onboarding.tour.welcome', contentKey: 'onboarding.tour.welcomeContent', targets: [] },
   {
     titleKey: 'onboarding.tour.triageTitle',
     contentKey: 'onboarding.tour.triageContent',

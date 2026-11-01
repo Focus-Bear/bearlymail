@@ -101,9 +101,6 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
         >
           {t('onboarding.tour.stepProgress', { current: tourStep + 1, total: tourSteps.length })}
         </span>
-        <button type="button" onClick={onSkipTour} style={secondaryButtonStyle}>
-          {t('onboarding.tour.skip')}
-        </button>
         {!isFirstStep && (
           <button type="button" onClick={onPrevTourStep} style={secondaryButtonStyle}>
             {t('onboarding.tour.back')}
@@ -125,6 +122,19 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
           }}
         >
           {isLastStep ? t('onboarding.tour.finish') : t('onboarding.tour.next')}
+        </button>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: theme.spacing.sm }}>
+        <button
+          type="button"
+          onClick={onSkipTour}
+          style={{
+            ...secondaryButtonStyle,
+            border: STRING_NONE,
+            textDecoration: 'underline',
+          }}
+        >
+          {t('onboarding.tour.skip')}
         </button>
       </div>
     </div>

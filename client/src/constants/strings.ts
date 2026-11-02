@@ -331,6 +331,10 @@ export const SUMMARY_SOURCE_DETERMINISTIC = 'deterministic' as const;
 
 // DOM events
 export const EVENT_CLICK = 'click' as const;
+export const EVENT_LOAD = 'load' as const;
+export const EVENT_ERROR = 'error' as const;
+/** `FontFaceSet` event fired when a batch of web fonts finishes loading. */
+export const EVENT_FONTS_LOADING_DONE = 'loadingdone' as const;
 
 // Priority levels
 export const PRIORITY_LEVEL_HIGH = 'high' as const;

@@ -2,12 +2,19 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import { STRING_NONE } from 'constants/strings';
+import { EVENT_ERROR, EVENT_FONTS_LOADING_DONE, EVENT_LOAD, STRING_NONE } from 'constants/strings';
 
 interface EmailBodyIframeProps {
   html: string;
   minHeight?: number;
 }
+
+/** `document.URL` of a document loaded from an iframe's `srcdoc` (the initial document is `about:blank`). */
+const SRCDOC_DOCUMENT_URL = 'about:srcdoc';
+const DOCUMENT_READY_STATE_LOADING: DocumentReadyState = 'loading';
+
+/** Extra space below the content so sub-pixel rounding never shows a scrollbar. */
+const HEIGHT_BUFFER_PX = 10;
 
 /**
  * Renders email HTML content inside an iframe for complete CSS isolation.
@@ -21,80 +28,31 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({ html, minHeigh
   const fullDocument = buildIframeDocument(html);
 
   // Resize iframe to match content dimensions (height and natural width)
-  const updateHeight = useCallback(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) {
-      return;
-    }
+  const measureContent = useCallback(
+    (doc: Document) => {
+      const { scrollHeight, scrollWidth } = doc.body;
+      setHeight(currentHeight => nextIframeHeight(scrollHeight, currentHeight, minHeight));
+      // Track natural content width to enable horizontal scrolling for wide emails
+      setContentWidth(scrollWidth > 0 ? scrollWidth : null);
+    },
+    [minHeight],
+  );
 
-    try {
-      const doc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (doc && doc.body) {
-        // Get the full scroll height of the content
-        const contentHeight = doc.body.scrollHeight;
-        // Add small buffer to prevent any scrollbar flickering
-        const newHeight = Math.max(contentHeight + 10, minHeight);
-        setHeight(newHeight);
-
-        // Track natural content width to enable horizontal scrolling for wide emails
-        const naturalWidth = doc.body.scrollWidth;
-        setContentWidth(naturalWidth > 0 ? naturalWidth : null);
-      }
-    } catch {
-      // Cross-origin access error - should not happen with srcdoc
-      console.warn('Could not access iframe content for height calculation');
-    }
-  }, [minHeight]);
-
-  // Update height when iframe loads and when content changes
+  // `html` is a dependency because the iframe is keyed on it: a new body mounts a new iframe.
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) {
-      return;
+      return undefined;
     }
-
-    const handleLoad = () => {
-      // Initial height update
-      updateHeight();
-
-      // Set up ResizeObserver to watch for content changes
-      try {
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (doc && doc.body) {
-          const resizeObserver = new ResizeObserver(() => {
-            updateHeight();
-          });
-          resizeObserver.observe(doc.body);
-
-          // Also watch for images loading which can change height
-          const images = doc.querySelectorAll('img');
-          images.forEach(img => {
-            if (!img.complete) {
-              img.addEventListener('load', updateHeight);
-              img.addEventListener('error', updateHeight);
-            }
-          });
-
-          return () => {
-            resizeObserver.disconnect();
-            images.forEach(img => {
-              img.removeEventListener('load', updateHeight);
-              img.removeEventListener('error', updateHeight);
-            });
-          };
-        }
-      } catch {
-        // Ignore cross-origin errors
-      }
-    };
-
-    iframe.addEventListener('load', handleLoad);
-    return () => iframe.removeEventListener('load', handleLoad);
-  }, [html, updateHeight]);
+    return watchEmailDocumentSize(iframe, measureContent);
+  }, [html, measureContent]);
 
   return (
     <div style={{ overflowX: 'auto', width: '100%' }}>
       <iframe
+        // A fresh iframe per body, so the size watcher can never latch onto the previous
+        // body's document while the new srcdoc is still loading.
+        key={html}
         ref={iframeRef}
         srcDoc={fullDocument}
         title="Email content"
@@ -111,6 +69,103 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({ html, minHeigh
     </div>
   );
 };
+
+/**
+ * The iframe height for `contentHeight` of email content. Grows whenever the content would
+ * overflow, but shrinks only when the content is clearly smaller: an email that pins its body to
+ * the viewport (`html, body { height: 100% }`) reports the iframe's own height as its content
+ * height, and always adding the buffer to that would grow the iframe on every resize, forever.
+ */
+export function nextIframeHeight(contentHeight: number, currentHeight: number, minHeight: number): number {
+  const fittedHeight = Math.max(contentHeight + HEIGHT_BUFFER_PX, minHeight);
+  if (contentHeight > currentHeight) {
+    return fittedHeight;
+  }
+  if (currentHeight - fittedHeight > HEIGHT_BUFFER_PX) {
+    return fittedHeight;
+  }
+  return currentHeight;
+}
+
+/** The iframe's srcdoc document once it is parsed, or null while it is still loading. */
+function parsedEmailDocument(iframe: HTMLIFrameElement): Document | null {
+  const doc = iframe.contentDocument;
+  if (!doc || doc.URL !== SRCDOC_DOCUMENT_URL || doc.readyState === DOCUMENT_READY_STATE_LOADING || !doc.body) {
+    return null;
+  }
+  return doc;
+}
+
+/**
+ * Keeps the iframe sized to its email from the moment the email is parsed, rather than from the
+ * iframe's `load` event. `load` waits for every image, and some newsletters embed a tracking pixel
+ * that deliberately holds its connection open for half a minute to time how long the email is
+ * read (HubSpot's duration tracking) — the email sat in a small box with its own scrollbar until
+ * then. Images, fonts and layout changes that arrive later re-measure, at most once per frame.
+ * Returns a cleanup that stops watching.
+ */
+function watchEmailDocumentSize(iframe: HTMLIFrameElement, measure: (doc: Document) => void): () => void {
+  let pollFrame: number | null = null;
+  let measureFrame: number | null = null;
+  let stopObserving: (() => void) | null = null;
+
+  const scheduleMeasure = (doc: Document) => {
+    if (measureFrame !== null) {
+      return;
+    }
+    measureFrame = requestAnimationFrame(() => {
+      measureFrame = null;
+      measure(doc);
+    });
+  };
+
+  const attachWhenParsed = () => {
+    const doc = parsedEmailDocument(iframe);
+    if (!doc) {
+      pollFrame = requestAnimationFrame(attachWhenParsed);
+      return;
+    }
+    pollFrame = null;
+    stopObserving = observeDocumentSize(doc, () => scheduleMeasure(doc));
+    measure(doc);
+  };
+
+  attachWhenParsed();
+
+  return () => {
+    if (pollFrame !== null) {
+      cancelAnimationFrame(pollFrame);
+    }
+    if (measureFrame !== null) {
+      cancelAnimationFrame(measureFrame);
+    }
+    stopObserving?.();
+  };
+}
+
+/**
+ * Calls `onChange` whenever the email's layout may have changed size: the document resizing,
+ * any image (or other subresource) finishing or failing to load — including images added after
+ * parsing — and web fonts arriving. Returns a cleanup that removes every listener.
+ */
+function observeDocumentSize(doc: Document, onChange: () => void): () => void {
+  // jsdom (tests) has no ResizeObserver or FontFaceSet; the load listeners still cover images there.
+  const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onChange);
+  resizeObserver?.observe(doc.documentElement);
+  resizeObserver?.observe(doc.body);
+  // Subresource load/error events do not bubble, so listen in the capture phase.
+  doc.addEventListener(EVENT_LOAD, onChange, true);
+  doc.addEventListener(EVENT_ERROR, onChange, true);
+  const fonts: FontFaceSet | undefined = doc.fonts;
+  fonts?.addEventListener(EVENT_FONTS_LOADING_DONE, onChange);
+
+  return () => {
+    resizeObserver?.disconnect();
+    doc.removeEventListener(EVENT_LOAD, onChange, true);
+    doc.removeEventListener(EVENT_ERROR, onChange, true);
+    fonts?.removeEventListener(EVENT_FONTS_LOADING_DONE, onChange);
+  };
+}
 
 /** Strip any cid: image tags that slipped through sanitization before they reach the iframe. */
 function stripRemainingCidImages(html: string): string {

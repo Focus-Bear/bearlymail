@@ -165,7 +165,8 @@
       },
       "missingGmailPermission": {
         "title": "BearlyMail needs access to your Gmail",
-        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\")."
+        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\").",
+        "grantButton": "Allow Gmail access"
       },
       "generic": {
         "title": "Authentication Error"
@@ -3822,6 +3823,17 @@
       "prop3Title": "We train an AI on your inbox",
       "prop3Body": "We summarise your most recent emails and build rules from how you actually behave: who you reply to fast, what you archive, what you star. The bar for urgent is high by design.",
       "doneTag": "Done",
+      "permissions": {
+        "gmailTitle": "BearlyMail can't reach your Gmail yet",
+        "gmailBody": "On Google's permission screen, the boxes that let BearlyMail read, organise and send your email were left unticked. Until you allow them, your inbox stays empty: nothing gets batched, summarised or sent.",
+        "gmailBodyRevoked": "Google has stopped letting BearlyMail into your mailbox — the access was removed or has expired. Until you allow it again, your inbox stays empty: nothing gets batched, summarised or sent.",
+        "gmailButton": "Allow Gmail access",
+        "optionalTitle": "Some optional permissions were skipped",
+        "optionalBody": "Your inbox works without these, but a few features won't:",
+        "optionalCalendar": "Calendar: your booking page can't check when you're free or add meetings to your calendar.",
+        "optionalContacts": "Contacts: recipient suggestions and your contacts list won't include people from your Google contacts.",
+        "optionalButton": "Grant these permissions"
+      },
       "iAcceptThe": "I accept the",
       "termsOfUse": "Terms of Use",
       "and": "and",

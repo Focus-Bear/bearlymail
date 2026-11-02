@@ -518,7 +518,8 @@
       },
       "missingGmailPermission": {
         "title": "BearlyMail necesita acceso a tu Gmail",
-        "description": "La pantalla de permisos de Google te dejó iniciar sesión sin permitir el acceso a Gmail, así que BearlyMail no puede ver tu bandeja de entrada. Vuelve a iniciar sesión y, en la pantalla de Google, marca las casillas para leer, redactar y enviar correos (o elige \"Seleccionar todo\")."
+        "description": "La pantalla de permisos de Google te dejó iniciar sesión sin permitir el acceso a Gmail, así que BearlyMail no puede ver tu bandeja de entrada. Vuelve a iniciar sesión y, en la pantalla de Google, marca las casillas para leer, redactar y enviar correos (o elige \"Seleccionar todo\").",
+        "grantButton": "Permitir acceso a Gmail"
       },
       "generic": {
         "title": "Error de autenticación"
@@ -3267,6 +3268,17 @@
       "prop3Title": "Entrenamos una IA con tu bandeja",
       "prop3Body": "Resumimos tus correos más recientes y creamos reglas a partir de cómo actúas: a quién respondes rápido, qué archivas, qué destacas. El umbral de urgente es alto a propósito.",
       "doneTag": "Listo",
+      "permissions": {
+        "gmailTitle": "BearlyMail todavía no puede acceder a tu Gmail",
+        "gmailBody": "En la pantalla de permisos de Google quedaron sin marcar las casillas que permiten a BearlyMail leer, organizar y enviar tus correos. Hasta que las permitas, tu bandeja seguirá vacía: no se agrupará, resumirá ni enviará nada.",
+        "gmailBodyRevoked": "Google ya no deja que BearlyMail acceda a tu buzón: el acceso se eliminó o caducó. Hasta que lo vuelvas a permitir, tu bandeja seguirá vacía: no se agrupará, resumirá ni enviará nada.",
+        "gmailButton": "Permitir acceso a Gmail",
+        "optionalTitle": "Omitiste algunos permisos opcionales",
+        "optionalBody": "Tu bandeja funciona sin ellos, pero algunas funciones no:",
+        "optionalCalendar": "Calendario: tu página de reservas no puede ver cuándo estás libre ni añadir reuniones a tu calendario.",
+        "optionalContacts": "Contactos: las sugerencias de destinatarios y tu lista de contactos no incluirán a las personas de tus contactos de Google.",
+        "optionalButton": "Conceder estos permisos"
+      },
       "iAcceptThe": "Acepto los",
       "termsOfUse": "Términos de uso",
       "and": "y la",

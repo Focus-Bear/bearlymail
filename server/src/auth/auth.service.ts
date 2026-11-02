@@ -60,13 +60,46 @@ function guessNameFromEmail(email: string): string {
 
 type UserWithoutPassword = Omit<User, "password">;
 
-interface UserUpdateData {
+interface UserUpdateData extends GoogleGrantUpdates {
   googleId?: string;
   googleCalendarAccessToken?: string;
   googleCalendarRefreshToken?: string;
   needsRelogin?: boolean;
   isApproved?: boolean;
   isAdmin?: boolean;
+}
+
+interface GoogleSignInGrant {
+  accessToken: string;
+  refreshToken: string;
+  isJeremy: boolean;
+  grantUpdates: GoogleGrantUpdates;
+}
+
+type GoogleGrantUpdates = Partial<
+  Pick<User, "googleGrantedScopes" | "gmailAccessIssue" | "gmailAccessIssueAt">
+>;
+
+/**
+ * Columns a fresh Google grant updates besides the tokens. Scopes are only
+ * recorded when Google reports them, so an omitted field never erases a
+ * known grant. A grant that came with a refresh token has just been through
+ * Google's consent screen with the Gmail boxes ticked (GoogleStrategy rejects
+ * one without), so a recorded Gmail access issue is stale: clearing it here
+ * lets onboarding show the fix at once instead of after the next sync.
+ */
+function buildGoogleGrantUpdates(
+  refreshToken: string,
+  grantedScopes: string | undefined,
+): GoogleGrantUpdates {
+  return {
+    ...(grantedScopes !== undefined
+      ? { googleGrantedScopes: grantedScopes }
+      : {}),
+    ...(refreshToken
+      ? { gmailAccessIssue: null, gmailAccessIssueAt: null }
+      : {}),
+  };
 }
 
 @Injectable()
@@ -164,6 +197,7 @@ export class AuthService {
     profile: GoogleProfile,
     accessToken: string,
     refreshToken: string,
+    grantedScopes?: string,
   ): Promise<UserWithoutPassword> {
     const email = profile.emails[0].value;
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
@@ -179,23 +213,22 @@ export class AuthService {
       refreshToken,
     });
 
+    const grantUpdates = buildGoogleGrantUpdates(refreshToken, grantedScopes);
     if (!user) {
-      user = await this.createGoogleUser(
-        email,
-        profile,
+      user = await this.createGoogleUser(email, profile, {
         accessToken,
         refreshToken,
         isJeremy,
-      );
+        grantUpdates,
+      });
       this.trackOAuthRegistration(user.id, REGISTRATION_METHODS.GOOGLE);
     } else {
-      user = await this.updateGoogleUser(
-        user,
-        profile,
+      user = await this.updateGoogleUser(user, profile, {
         accessToken,
         refreshToken,
         isJeremy,
-      );
+        grantUpdates,
+      });
     }
 
     user = await this.ensureApproved(user);
@@ -275,10 +308,9 @@ export class AuthService {
   private async createGoogleUser(
     email: string,
     profile: GoogleProfile,
-    accessToken: string,
-    refreshToken: string,
-    isJeremy: boolean,
+    grant: GoogleSignInGrant,
   ): Promise<User> {
+    const { accessToken, refreshToken, isJeremy, grantUpdates } = grant;
     if (!refreshToken) {
       throw new Error(
         "Google OAuth did not provide a refresh token. Please try logging in again. If the issue persists, you may need to revoke app access at https://myaccount.google.com/permissions and try again.",
@@ -296,17 +328,18 @@ export class AuthService {
       isApproved: true,
       isAdmin: isJeremy,
       needsRelogin: false,
+      ...grantUpdates,
     });
   }
 
   private async updateGoogleUser(
     user: User,
     profile: GoogleProfile,
-    accessToken: string,
-    refreshToken: string,
-    isJeremy: boolean,
+    grant: GoogleSignInGrant,
   ): Promise<User> {
+    const { accessToken, refreshToken, isJeremy, grantUpdates } = grant;
     const updates: UserUpdateData = {
+      ...grantUpdates,
       googleId: profile.id,
       googleCalendarAccessToken: accessToken,
       ...(refreshToken ? { googleCalendarRefreshToken: refreshToken } : {}),

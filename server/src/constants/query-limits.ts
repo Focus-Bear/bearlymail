@@ -125,6 +125,11 @@ export const QUERY_LIMITS = {
   DISCOVERY_MAX_CATEGORIES_PER_BATCH: 15,
   DISCOVERY_MAX_VIPS_PER_BATCH: 5,
   DISCOVERY_MAX_HINTS_PER_BATCH: 3,
+  // Current projects (WORKING_ON) per discovery batch, and across all batches
+  // of one analysis — every project boosts matching emails, so a long list
+  // dilutes the boost and crowds the onboarding "Current projects" group.
+  DISCOVERY_MAX_PROJECTS_PER_BATCH: 5,
+  DISCOVERY_MAX_PROJECTS: 8,
   // Writing style sample size
   WRITING_STYLE_SAMPLE: 20,
   // Email address preview length for message IDs

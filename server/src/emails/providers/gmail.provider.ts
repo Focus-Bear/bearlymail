@@ -22,6 +22,7 @@ import {
   EmailProvider,
   EmailRecipient,
   RawEmailMessage,
+  ReadStatusTarget,
   SendReplyOptions,
   SyncEmailsOptions,
 } from "../interfaces/email-provider.interface";
@@ -39,8 +40,9 @@ import {
 import {
   archiveThreadInGmail,
   ensureLabelExists,
+  markMessageUnreadInGmail,
+  markThreadReadInGmail,
   snoozeThreadInGmail,
-  syncReadStatusToGmail as syncReadToGmail,
   syncStarStatusToGmail as syncStarToGmail,
   trashThreadInGmail,
   unarchiveThreadInGmail,
@@ -729,14 +731,18 @@ export class GmailProvider implements EmailProvider {
     await syncStarToGmail(userId, threadId, starCount, gmail);
   }
 
-  async syncReadStatusToGmail(
+  async syncReadStatus(
     userId: string,
-    messageId: string,
+    target: ReadStatusTarget,
     isRead: boolean,
   ): Promise<void> {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
-    await syncReadToGmail(userId, messageId, isRead, gmail);
+    if (isRead) {
+      await markThreadReadInGmail(target.threadId, gmail);
+      return;
+    }
+    await markMessageUnreadInGmail(target.messageId, gmail);
   }
 
   async snoozeThread(

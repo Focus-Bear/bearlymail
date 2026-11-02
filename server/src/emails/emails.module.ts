@@ -116,6 +116,8 @@ import { ImapProvider } from "./providers/imap.provider";
 import { ImapSyncService } from "./providers/imap/imap-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
+import { ReadStatusSyncProcessor } from "./read-status-sync.processor";
+import { ReadStatusSyncService } from "./read-status-sync.service";
 import { RuleLabelReCategoriseController } from "./rule-label-recategorise.controller";
 import { RuleLabelReCategoriseProcessor } from "./rule-label-recategorise.processor";
 import { RuleLabelReCategoriseService } from "./rule-label-recategorise.service";
@@ -321,6 +323,8 @@ import { SyncHistoryService } from "./sync-history.service";
     IncrementalSummaryHelperService,
     LLMSummaryProcessorService,
     ArchiveEmailProcessor,
+    ReadStatusSyncService,
+    ReadStatusSyncProcessor,
     EmailAdminService,
     EmailExportService,
     EmailExportStorageService,

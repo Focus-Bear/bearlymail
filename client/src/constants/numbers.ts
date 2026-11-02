@@ -88,6 +88,7 @@ export const VIEWPORT_HEIGHT_75 = '75vh';
 export const HTTP_UNAUTHORIZED = 401;
 export const HTTP_PAYMENT_REQUIRED = 402;
 export const HTTP_FORBIDDEN = 403;
+export const HTTP_NOT_IMPLEMENTED = 501;
 
 /** Minimum gap between showings of the AI-limit banner (measured from when it last appeared), so repeat 402s after a dismissal don't nag. */
 export const AI_LIMIT_BANNER_RESHOW_MS = 60000;

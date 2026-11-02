@@ -290,4 +290,12 @@ export interface EmailProvider {
     mimeType: string;
     size: number;
   }>;
+
+  /**
+   * The message's original RFC 822 source — every header plus the full MIME
+   * body — exactly as the provider stores it. Optional: a provider that cannot
+   * fetch it leaves this out, and callers report it as unsupported rather than
+   * rebuilding a lookalike message from stored fields.
+   */
+  getRawMessage?(userId: string, messageId: string): Promise<Buffer>;
 }

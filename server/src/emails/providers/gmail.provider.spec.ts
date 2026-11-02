@@ -1,4 +1,4 @@
-import { Logger } from "@nestjs/common";
+import { Logger, UnauthorizedException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { GMAIL_ACCESS_ISSUE } from "../../constants/domain-statuses";
@@ -759,5 +759,84 @@ describe("GmailProvider — lastEmailSyncAt advances after every sync attempt (b
     expect(usersService.update).toHaveBeenCalledWith("user-123", {
       lastEmailSyncAt: expect.any(Date),
     });
+  });
+});
+
+describe("GmailProvider — getRawMessage (.eml download)", () => {
+  let usersService: jest.Mocked<UsersService>;
+
+  function buildProviderWithMessagesGet(
+    messagesGet: jest.Mock,
+  ): Promise<GmailProvider> {
+    const { google } = jest.requireMock("googleapis");
+    (google.gmail as jest.Mock).mockReturnValue({
+      users: { messages: { get: messagesGet } },
+    });
+    return Test.createTestingModule({
+      providers: [
+        GmailProvider,
+        GmailSyncService,
+        { provide: UsersService, useValue: usersService },
+        { provide: EmailsService, useValue: {} },
+        { provide: ScanEmailService, useValue: {} },
+        { provide: SyncHistoryService, useValue: {} },
+        { provide: "PG_BOSS", useValue: { send: jest.fn() } },
+      ],
+    })
+      .compile()
+      .then((module) => module.get<GmailProvider>(GmailProvider));
+  }
+
+  beforeEach(() => {
+    usersService = {
+      findOneWithTokens: jest.fn().mockResolvedValue({
+        id: "user-123",
+        googleCalendarAccessToken: "access-token",
+        googleCalendarRefreshToken: "refresh-token",
+        updatedAt: new Date(),
+      }),
+      markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<UsersService>;
+    jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("requests format=raw and returns the decoded RFC 822 bytes", async () => {
+    const source = Buffer.from(
+      "Received: by mx.google.com\r\nMessage-ID: <m@x>\r\nSubject: Hi\r\n\r\nBody",
+    );
+    const messagesGet = jest
+      .fn()
+      .mockResolvedValue({ data: { raw: source.toString("base64url") } });
+    const provider = await buildProviderWithMessagesGet(messagesGet);
+
+    const raw = await provider.getRawMessage("user-123", "msg-1");
+
+    expect(raw.equals(source)).toBe(true);
+    expect(messagesGet).toHaveBeenCalledWith({
+      userId: "me",
+      id: "msg-1",
+      format: "raw",
+    });
+  });
+
+  it("flags relogin and answers 401 on a revoked grant", async () => {
+    const revoked = Object.assign(new Error("invalid_grant"), {
+      code: 401,
+      response: { status: 401 },
+    });
+    const provider = await buildProviderWithMessagesGet(
+      jest.fn().mockRejectedValue(revoked),
+    );
+
+    await expect(
+      provider.getRawMessage("user-123", "msg-1"),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(usersService.markNeedsRelogin).toHaveBeenCalledWith(
+      "user-123",
+      "gmail_raw_message_auth_error",
+    );
   });
 });

@@ -798,6 +798,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | GET    | `/emails/:id/thread`                           | Get all emails in thread                    |
 | GET    | `/emails/:id/priority-explanation`             | Get priority breakdown                      |
 | GET    | `/emails/:id/attachments/:attachmentId`        | Get attachment data                         |
+| GET    | `/emails/:id/eml`                              | Download original message as `.eml` (Gmail/O365/IMAP; 501 otherwise) |
 | PUT    | `/emails/:id/archive`                          | Archive single email                        |
 | PUT    | `/emails/:id/star-count`                       | Set star count (0-3)                        |
 | PUT    | `/emails/:id/read`                             | Mark as read                                |

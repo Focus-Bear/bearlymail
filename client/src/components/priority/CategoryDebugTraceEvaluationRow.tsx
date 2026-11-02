@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
+import { categoryRuleSettingsPath } from 'utils/categoryRuleLinks';
 
 import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
 
@@ -150,7 +151,7 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
         <>
           {' · '}
           <Link
-            to={`/settings?openEditRuleId=${encodeURIComponent(ev.id)}`}
+            to={categoryRuleSettingsPath(ev.id)}
             style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.primary.main }}
           >
             {translate('priority.categoryDebug.traceEditRule')}

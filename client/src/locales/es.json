@@ -3661,6 +3661,7 @@
       "category": "Categoría",
       "showCategoryExplanation": "Mostrar por qué se eligió esta categoría",
       "editCategoryRule": "Editar la regla que coincidió con esta categoría",
+      "openCategoryRulesList": "Abrir tus reglas de categoría (este correo no registró qué regla coincidió)",
       "suggestedCategory": "Categoría sugerida",
       "categorisedBy": {
         "label": "Clasificado por: <ruleLink>{{sourceLabel}}</ruleLink>",
@@ -4092,8 +4093,8 @@
       "deleteSuccess": "Regla eliminada",
       "deleteError": "No se pudo eliminar la regla",
       "deepLink": {
-        "ruleUpdated": "Esa regla se actualizó, así que abrimos la regla actual de esta categoría.",
-        "ruleNotFound": "No pudimos encontrar esa regla; es posible que se haya eliminado o fusionado con otra."
+        "pickRuleFromList": "Este enlace no indica qué regla abrir; elígela en la lista de abajo.",
+        "ruleNotFound": "No pudimos encontrar esa regla; es posible que se haya eliminado o fusionado con otra. Elige la regla en la lista de abajo."
       },
       "legacyWeakWarning": "Esta regla coincide con criterios limitados y puede producir falsos positivos. Considera crear una regla compuesta.",
       "upgradeToComposite": "Actualizar a regla compuesta",

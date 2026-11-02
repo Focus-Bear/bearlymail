@@ -10,6 +10,7 @@ export const SETTINGS_ANCHORS = {
   EMAIL_BATCHING: 'email-batching',
   EMAIL_CATEGORIES: 'email-categories',
   CATEGORY_FAMILIES: 'category-families',
+  CATEGORY_RULES: 'category-rules',
   CONNECTED_APPS: 'connected-apps',
   WORKFLOWS: 'workflows',
 } as const;

@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { DataSource } from "typeorm";
 
+import { withRuleIdMarker } from "../category-rules/category-rule-explanation.helper";
 import { CategoryRulesService } from "../category-rules/category-rules.service";
 import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
@@ -584,7 +585,10 @@ export class EmailDebugCategoryService {
         const kindOrType = winningRule.ruleType ?? winningRule.ruleKind;
         return {
           category: winningRule.categoryName,
-          categoryExplanation: `Matched deterministic rule (${kindOrType}): category="${winningRule.categoryName}"`,
+          categoryExplanation: withRuleIdMarker(
+            `Matched deterministic rule (${kindOrType}): category="${winningRule.categoryName}"`,
+            winningRule.ruleId,
+          ),
           llmCategoryBeforeRuleOverride: result.category,
           llmExplanationBeforeRuleOverride: result.categoryExplanation,
         };

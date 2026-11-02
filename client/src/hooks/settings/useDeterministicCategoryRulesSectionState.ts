@@ -6,8 +6,8 @@ import type { CategoryRuleDto, CategoryRuleSuggestion } from 'types/category-rul
 import {
   COMPOSITE_RULE_FORM_MODE_ADD,
   COMPOSITE_RULE_FORM_MODE_EDIT,
-  EDIT_RULE_CATEGORY_PARAM,
   EDIT_RULE_ID_PARAM,
+  LEGACY_EDIT_RULE_CATEGORY_PARAM,
 } from 'constants/category-rules';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useCategoryRuleCompositeFormSubmit } from 'hooks/settings/useCategoryRuleCompositeFormSubmit';
@@ -157,41 +157,27 @@ export function useDeterministicCategoryRulesSectionState() {
     }
 
     const params = new URLSearchParams(window.location.search);
-    // Issue #1789: prefer rule ID — opens the SPECIFIC rule that fired, even
-    // when multiple rules share a category. Fall back to category name for
-    // older deep links.
-    const openEditRuleIdParam = params.get(EDIT_RULE_ID_PARAM);
-    const openEditRuleParam = params.get(EDIT_RULE_CATEGORY_PARAM);
-    if (!openEditRuleIdParam && !openEditRuleParam) {
+    const requestedRuleId = params.get(EDIT_RULE_ID_PARAM);
+    const hasLegacyCategoryParam = params.has(LEGACY_EDIT_RULE_CATEGORY_PARAM);
+    if (!requestedRuleId && !hasLegacyCategoryParam) {
       return;
     }
 
     hasHandledOpenEditRule.current = true;
 
-    // Prefer the exact rule ID (the specific rule that fired), then fall back to
-    // the category name. The ID goes stale when sibling merges / regeneration
-    // delete the original rule but leave its ID in the thread's stored
-    // `categoryExplanation`, so an ID lookup alone would silently find nothing.
-    const ruleById = openEditRuleIdParam
-      ? rules.find(rule => rule.id === openEditRuleIdParam)
-      : undefined;
-    const ruleByName = openEditRuleParam
-      ? rules.find(rule => rule.categoryName === openEditRuleParam)
-      : undefined;
-    const matchingRule = ruleById ?? ruleByName;
-
-    if (matchingRule) {
-      openEdit(matchingRule);
-      // The requested rule was gone but its category still has a rule — let the
-      // user know we opened that instead of a rule that no longer exists.
-      if (openEditRuleIdParam && !ruleById) {
-        showInfo(t('settings.deterministicCategoryRules.deepLink.ruleUpdated'));
-      }
-    } else {
+    // Open by rule ID only. A category name is never used to pick a rule:
+    // several rules can share one, so it could open the wrong rule. When the ID
+    // is missing or stale (rule deleted / merged), the user picks from the list.
+    const requestedRule = requestedRuleId ? rules.find(rule => rule.id === requestedRuleId) : undefined;
+    if (requestedRule) {
+      openEdit(requestedRule);
+    } else if (requestedRuleId) {
       showWarning(t('settings.deterministicCategoryRules.deepLink.ruleNotFound'));
+    } else {
+      showInfo(t('settings.deterministicCategoryRules.deepLink.pickRuleFromList'));
     }
 
-    params.delete(EDIT_RULE_CATEGORY_PARAM);
+    params.delete(LEGACY_EDIT_RULE_CATEGORY_PARAM);
     params.delete(EDIT_RULE_ID_PARAM);
     const newSearch = params.toString();
     const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`;

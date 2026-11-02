@@ -6,11 +6,14 @@ export const COMPOSITE_RULE_FORM_MODE_ADD = 'add' as const;
 export const COMPOSITE_RULE_FORM_MODE_EDIT = 'edit' as const;
 
 /**
- * Deep-link query params + anchor used by the priority/category popover to open
- * a specific deterministic rule in Settings (read by
- * `useDeterministicCategoryRulesSectionState`). Prefer the rule ID param; fall
- * back to the category-name param for older links (issue #1789).
+ * Deep-link query param that opens one deterministic rule in Settings (read by
+ * `useDeterministicCategoryRulesSectionState`). Links identify the rule by ID
+ * only: several rules can share a category name, and names change.
  */
 export const EDIT_RULE_ID_PARAM = 'openEditRuleId' as const;
-export const EDIT_RULE_CATEGORY_PARAM = 'openEditRule' as const;
-export const GUIDE_OUR_AI_ANCHOR = 'guide-our-ai' as const;
+/**
+ * Older links named the rule's category instead. Settings no longer opens a
+ * rule from it (it could be the wrong one); it only strips it and asks the user
+ * to pick the rule from the list.
+ */
+export const LEGACY_EDIT_RULE_CATEGORY_PARAM = 'openEditRule' as const;

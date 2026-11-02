@@ -21,6 +21,7 @@ import {
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { buildCategoryDecisionTrace } from "../emails/category-decision-trace.helper";
 import { updateThreadCategoryWithPrecedence } from "../emails/category-precedence.helper";
+import { withRuleIdMarker } from "./category-rule-explanation.helper";
 import { evaluateComposite } from "./category-rules-auto-composite.helper";
 import {
   decryptValidationRow,
@@ -180,7 +181,10 @@ export async function retroApplyCompositeRuleToRecentThreads(
         set: {
           categoryId: args.categoryId,
           categorySource: "rule" as const,
-          categoryExplanation: `Deterministic rule (category "${args.categoryName}") applied retroactively — the rule was created or updated after this thread was last processed.`,
+          categoryExplanation: withRuleIdMarker(
+            `Deterministic rule (category "${args.categoryName}") applied retroactively — the rule was created or updated after this thread was last processed.`,
+            args.ruleId,
+          ),
           // The thread is no longer "Other", so it must not keep a proto link.
           protoCategoryId: null,
           categoryDecisionTrace: buildCategoryDecisionTrace({

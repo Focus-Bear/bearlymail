@@ -1128,8 +1128,8 @@
       "deleteSuccess": "Rule deleted",
       "deleteError": "Could not delete the rule",
       "deepLink": {
-        "ruleUpdated": "That rule was updated, so we opened the current rule for this category.",
-        "ruleNotFound": "We couldn't find that rule — it may have been removed or merged into another."
+        "pickRuleFromList": "This link doesn't say which rule to open, so pick it from the list below.",
+        "ruleNotFound": "We couldn't find that rule — it may have been removed or merged into another. Pick the rule from the list below."
       },
       "legacyWeakWarning": "This rule matches on limited criteria and may produce false positives. Consider creating a composite rule.",
       "upgradeToComposite": "Upgrade to composite rule",
@@ -3449,6 +3449,7 @@
       "category": "Category",
       "showCategoryExplanation": "Show why this category was chosen",
       "editCategoryRule": "Edit the rule that matched this category",
+      "openCategoryRulesList": "Open your category rules (this email didn't record which rule matched)",
       "suggestedCategory": "Suggested Category",
       "categorisedBy": {
         "label": "Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>",

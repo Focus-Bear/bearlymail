@@ -40,7 +40,8 @@ describe("applyCategoryRuleToResult", () => {
 
     expect(result.category).toBe("GitHub");
     expect(result.categoryExplanation).toContain("Matched deterministic rule");
-    expect(result.categoryExplanation).toContain("(rule:rule-1)");
+    // The marker must END the explanation: the client parses it end-anchored.
+    expect(result.categoryExplanation).toMatch(/\(rule:rule-1\)$/);
     expect(result.categoryRuleTrace?.winningRuleId).toBe("rule-1");
     // The rule's authoritative categoryId is carried through so resolution can
     // use it directly instead of re-resolving the (possibly drifted) name.

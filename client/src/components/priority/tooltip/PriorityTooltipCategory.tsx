@@ -4,48 +4,16 @@ import { FiEdit2, FiRefreshCw } from 'react-icons/fi';
 import { useHref } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { AiDecisionProvider, CategorizationSource } from 'types/email';
+import { categoryRuleSettingsPath, extractMatchedRuleId } from 'utils/categoryRuleLinks';
 
 import { CategoryDebugModal } from 'components/priority/CategoryDebugModal';
 import { CategoryOverrideModal } from 'components/priority/CategoryOverrideModal';
 import { getCategorisationSourceLabelKey } from 'components/priority/tooltip/decisionSourceLabels';
-import { EDIT_RULE_CATEGORY_PARAM, EDIT_RULE_ID_PARAM, GUIDE_OUR_AI_ANCHOR } from 'constants/category-rules';
 import { CATEGORY_OTHER } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 
-const DETERMINISTIC_RULE_PREFIX = 'Matched deterministic rule';
-
 /** The provenance kind whose "Categorised by" label links to the matched rule. */
 const RULE_CATEGORISATION_SOURCE: CategorizationSource = 'rule';
-
-/**
- * Issue #1789: the backend appends `(rule:<uuid>)` to `categoryExplanation`
- * for deterministic-rule matches so the tooltip can navigate to the SPECIFIC
- * matched rule (multiple rules can share a category).
- */
-const RULE_ID_MARKER_RE = /\(rule:([0-9a-f-]+)\)\s*$/i;
-
-function extractMatchedRuleId(explanation: string | null | undefined): string | null {
-  if (!explanation) {
-    return null;
-  }
-  const match = RULE_ID_MARKER_RE.exec(explanation);
-  return match ? match[1] : null;
-}
-
-/**
- * Builds the Settings deep-link query that opens the matched deterministic rule.
- * Prefers the rule ID (opens the SPECIFIC rule that fired) but always carries
- * the category name too, so Settings can fall back to it when the stored ID is
- * stale — sibling merges / rule regeneration delete the original rule while
- * leaving its ID in the thread's `categoryExplanation`, so an ID-only link
- * would silently open nothing.
- */
-function buildEditRuleQuery(category: string, matchedRuleId: string | null): string {
-  const categoryQuery = `${EDIT_RULE_CATEGORY_PARAM}=${encodeURIComponent(category)}`;
-  return matchedRuleId
-    ? `${EDIT_RULE_ID_PARAM}=${matchedRuleId}&${categoryQuery}`
-    : categoryQuery;
-}
 
 interface PriorityTooltipCategoryProps {
   category: string;
@@ -194,36 +162,41 @@ interface CategorisationSourceLineProps {
   source: CategorizationSource;
   provider?: AiDecisionProvider | null;
   /**
-   * Settings deep-link to the matched rule. When present (deterministic-rule
-   * source), the "Deterministic rule" label becomes a link; otherwise the
-   * label stays plain text.
+   * Settings deep-link for a rule-decided category: the matched rule, or the
+   * rules list when the thread never recorded which rule matched. Null for
+   * other sources, whose label stays plain text.
    */
   ruleHref: string | null;
+  ruleLinkTitle: string;
 }
 
-const CategorisationSourceLine: React.FC<CategorisationSourceLineProps> = ({ source, provider, ruleHref }) => {
+const CategorisationSourceLine: React.FC<CategorisationSourceLineProps> = ({
+  source,
+  provider,
+  ruleHref,
+  ruleLinkTitle,
+}) => {
   const { t } = useTranslation();
   const sourceLabel = t(getCategorisationSourceLabelKey(source, provider));
 
-  const sourceNode =
-    source === RULE_CATEGORISATION_SOURCE && ruleHref ? (
-      <a
-        href={ruleHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={event => {
-          // Keep the user's place in the inbox — open the rule in a new tab
-          // (issue #2057) rather than navigating this view away.
-          event.preventDefault();
-          openEditRuleInNewTab(ruleHref);
-        }}
-        style={sourceLinkStyle}
-        title={t('priority.tooltip.editCategoryRule')}
-        data-testid="categorised-by-rule-link"
-      />
-    ) : (
-      <span />
-    );
+  const sourceNode = ruleHref ? (
+    <a
+      href={ruleHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={event => {
+        // Keep the user's place in the inbox — open the rule in a new tab
+        // (issue #2057) rather than navigating this view away.
+        event.preventDefault();
+        openEditRuleInNewTab(ruleHref);
+      }}
+      style={sourceLinkStyle}
+      title={ruleLinkTitle}
+      data-testid="categorised-by-rule-link"
+    />
+  ) : (
+    <span />
+  );
 
   return (
     <div
@@ -299,17 +272,17 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
   const isAdmin = user?.isAdmin === true;
 
   const matchedRuleId = extractMatchedRuleId(categoryExplanation);
-  const isDeterministicRuleMatch = categoryExplanation?.startsWith(DETERMINISTIC_RULE_PREFIX) ?? false;
   // useHref applies the router's basename so the URL is correct if the app is
   // ever mounted under a subpath (e.g. `/app/`). Hooks must run unconditionally.
-  const editRuleHref = useHref(`/settings?${buildEditRuleQuery(category, matchedRuleId)}#${GUIDE_OUR_AI_ANCHOR}`);
-  // The ⚙️ button appears for explicit deterministic-rule explanations.
-  const actionRuleHref = isDeterministicRuleMatch ? editRuleHref : null;
-  // The "Categorised by: Deterministic rule" link appears only when the source
-  // is a rule AND the rule is resolvable (explicit rule ID, or a concrete
-  // category name to match against — never "Other").
-  const canResolveRule = !!matchedRuleId || !isOtherCategory;
-  const sourceRuleHref = categorizationSource === RULE_CATEGORISATION_SOURCE && canResolveRule ? editRuleHref : null;
+  const ruleSettingsHref = useHref(categoryRuleSettingsPath(matchedRuleId));
+  // The ⚙️ button edits the exact rule, so it needs the recorded rule ID.
+  const actionRuleHref = matchedRuleId ? ruleSettingsHref : null;
+  // Threads filed before the rule ID was recorded link to the rules list
+  // instead: guessing the rule from the category name could open the wrong one.
+  const sourceRuleHref = categorizationSource === RULE_CATEGORISATION_SOURCE ? ruleSettingsHref : null;
+  const sourceRuleLinkTitle = matchedRuleId
+    ? t('priority.tooltip.editCategoryRule')
+    : t('priority.tooltip.openCategoryRulesList');
 
   return (
     <div style={{ marginBottom: theme.spacing.sm }}>
@@ -357,6 +330,7 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
           source={categorizationSource}
           provider={categorizationProvider}
           ruleHref={sourceRuleHref}
+          ruleLinkTitle={sourceRuleLinkTitle}
         />
       )}
       {showExplanation && categoryExplanation && <div style={explanationBoxStyle}>{categoryExplanation}</div>}

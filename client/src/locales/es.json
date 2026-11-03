@@ -1561,7 +1561,21 @@
     "closedWon": "Ganado",
     "closedLost": "Perdido",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar este negocio?",
-    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar."
+    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar.",
+    "notes": {
+      "title": "Notas",
+      "placeholder": "Añade una nota sobre este negocio…",
+      "add": "Añadir nota",
+      "edit": "Editar",
+      "editLabel": "Editar nota",
+      "edited": "Última edición: {{time}}",
+      "empty": "Todavía no hay notas.",
+      "loading": "Cargando notas…",
+      "loadError": "No se pudieron cargar las notas de este negocio.",
+      "saveError": "No se pudo guardar la nota. Inténtalo de nuevo.",
+      "deleteError": "No se pudo eliminar la nota. Inténtalo de nuevo.",
+      "deleteConfirm": "¿Eliminar esta nota?"
+    }
   },
   "contactTypes": {
     "lead": "Prospecto",

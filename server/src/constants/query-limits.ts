@@ -16,6 +16,9 @@ export const INBOX_MODES = {
 
 export type InboxMode = (typeof INBOX_MODES)[keyof typeof INBOX_MODES];
 
+/** Onboarding proposes the category set from this many of the most recent threads. */
+const DISCOVERY_CATEGORY_PROPOSAL_THREADS = 100;
+
 export const QUERY_LIMITS = {
   INBOX_TOTAL: 500,
   /**
@@ -116,13 +119,22 @@ export const QUERY_LIMITS = {
   // Slim context discovery (onboarding / "Analyze"): how many recent received
   // threads to sample, how many thread stubs go into one LLM call, and how far
   // back to look. 100 stubs of from/subject/snippet is plenty to name the
-  // user's category set and VIPs; the per-email pipeline does the rest.
-  DISCOVERY_SAMPLE_THREADS: 100,
-  DISCOVERY_BATCH_SIZE: 20,
+  // user's category set and VIPs; the per-email pipeline (Jev) files the rest.
+  DISCOVERY_SAMPLE_THREADS: DISCOVERY_CATEGORY_PROPOSAL_THREADS,
+  // The category set is proposed from ONE call over the first 100 threads:
+  // separate smaller batches each saw a slice and the merge collapsed them
+  // into a few broad buckets.
+  DISCOVERY_BATCH_SIZE: DISCOVERY_CATEGORY_PROPOSAL_THREADS,
   DISCOVERY_LOOKBACK_DAYS: 30,
+  // The proposal should be granular: at least this many categories for a full
+  // 100-thread sample (fewer for small samples, see DISCOVERY_THREADS_PER_CATEGORY).
+  DISCOVERY_MIN_PROPOSED_CATEGORIES: 15,
+  // A small sample earns one category per this many threads, so a 20-thread
+  // inbox is asked for 4, not padded to 15.
+  DISCOVERY_THREADS_PER_CATEGORY: 5,
   // Upper bound on categories a single discovery batch may return — anything
   // beyond this is a sign the model is inventing per-sender buckets.
-  DISCOVERY_MAX_CATEGORIES_PER_BATCH: 15,
+  DISCOVERY_MAX_CATEGORIES_PER_BATCH: 25,
   DISCOVERY_MAX_VIPS_PER_BATCH: 5,
   DISCOVERY_MAX_HINTS_PER_BATCH: 3,
   // Current projects (WORKING_ON) per discovery batch, and across all batches

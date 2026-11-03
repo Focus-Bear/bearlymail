@@ -4,6 +4,7 @@ import {
   getOldestAllowedStarredSyncDate,
   getOldestAllowedSyncDate,
   INCREMENTAL_SYNC_OVERLAP_HOURS,
+  resolveInboxSyncFloor,
   resolveMaxFetchResults,
   resolveSyncWindowStart,
   shouldFlagSyncWindowLimited,
@@ -113,33 +114,28 @@ describe("sync-window-policy", () => {
     });
   });
 
+  describe("resolveInboxSyncFloor", () => {
+    it("has no date floor on the initial sync — the fetch cap bounds it instead", () => {
+      expect(resolveInboxSyncFloor(true, now)).toBeNull();
+    });
+
+    it("keeps ongoing syncs inside the ongoing window", () => {
+      expect(resolveInboxSyncFloor(false, now)).toEqual(oldestAllowed);
+    });
+  });
+
   describe("shouldFlagSyncWindowLimited", () => {
     it("flags when the initial sync hit the fetch cap", () => {
       expect(
-        shouldFlagSyncWindowLimited({
-          isInitialSync: true,
-          hitFetchCap: true,
-          olderMailExists: false,
-        }),
+        shouldFlagSyncWindowLimited({ isInitialSync: true, hitFetchCap: true }),
       ).toBe(true);
     });
 
-    it("flags when older mail exists beyond the window", () => {
+    it("does not flag a mailbox that fits inside the cap", () => {
       expect(
         shouldFlagSyncWindowLimited({
           isInitialSync: true,
           hitFetchCap: false,
-          olderMailExists: true,
-        }),
-      ).toBe(true);
-    });
-
-    it("does not flag a small mailbox that fits the cap and window", () => {
-      expect(
-        shouldFlagSyncWindowLimited({
-          isInitialSync: true,
-          hitFetchCap: false,
-          olderMailExists: false,
         }),
       ).toBe(false);
     });
@@ -149,7 +145,6 @@ describe("sync-window-policy", () => {
         shouldFlagSyncWindowLimited({
           isInitialSync: false,
           hitFetchCap: true,
-          olderMailExists: true,
         }),
       ).toBe(false);
     });

@@ -1936,7 +1936,7 @@
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
     "syncWindowBanner": {
-      "message": "Aviso: no estamos sincronizando tus correos antiguos. Solo hemos sincronizado los últimos 7 días de correo.",
+      "message": "Aviso: hemos importado tus {{count}} conversaciones más recientes. Los correos más antiguos no se sincronizan con BearlyMail.",
       "dismiss": "Descartar"
     },
     "openTrackingNotice": {

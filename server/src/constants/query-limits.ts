@@ -20,7 +20,10 @@ export const QUERY_LIMITS = {
   INBOX_TOTAL: 500,
   /**
    * Sync-window policy (see emails/sync-window-policy.ts): the initial sync
-   * caps at this many most-recent emails.
+   * imports this many most-recent inbox threads, with no date floor (Gmail
+   * lists threads; providers that list messages cap messages instead). Every
+   * imported thread goes through the per-email AI pipeline, so this is also
+   * the onboarding categorisation budget.
    */
   INITIAL_SYNC_MAX_EMAILS: 500,
   /**

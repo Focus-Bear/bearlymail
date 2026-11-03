@@ -138,34 +138,3 @@ export async function fetchAllThreadsWithPagination(
   }
   return { threadIds: allThreadIds, hasMore };
 }
-
-/**
- * Cheap probe (one threads.list page of size 1) for any inbox mail older than
- * the sync window. Used during the initial sync to decide whether the
- * cap/window skipped older mail. Failures are swallowed — the probe must
- * never break the sync itself.
- */
-export async function olderMailExistsBeyondWindow(
-  logger: Logger,
-  gmail: gmail_v1.Gmail,
-  syncWindowStart: Date,
-): Promise<boolean> {
-  try {
-    const beforeTimestamp = Math.floor(
-      syncWindowStart.getTime() / MS_PER_SECOND,
-    );
-    const response = await fetchThreadsPageWithRetry(logger, {
-      gmail,
-      query: `in:inbox before:${beforeTimestamp}`,
-      maxResultsForPage: 1,
-      pageToken: undefined,
-      pageCount: 0,
-    });
-    return (response?.threads?.length ?? 0) > 0;
-  } catch (error) {
-    logger.warn(
-      `[GmailSync] older-mail probe failed — skipping syncWindowLimited check: ${formatGaxiosError(error)}`,
-    );
-    return false;
-  }
-}

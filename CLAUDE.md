@@ -478,7 +478,6 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 | `search-relevance-explanation.md`   | `search-relevance-explanation`   | Explain search result relevance                               |
 | `search-query-conversion.md`        | N/A (promptfoo test only)        | Convert natural language to search query                      |
 | `search-ranking.md`                 | N/A (promptfoo test only)        | Rank search results                                           |
-| `consolidate-email-categories.md`   | `consolidate_categories`         | Merge duplicate/overlapping categories                        |
 | `generate-categories-from-other.md` | `generate_categories_from_other` | Suggest new categories from "Other" emails                    |
 | `check-category-duplicate.md`       | `check_category_duplicate`       | Determine if two category names are duplicates                |
 

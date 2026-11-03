@@ -747,13 +747,13 @@ describe("UsersService", () => {
     });
 
     it("shows only the latest change to users one version behind", async () => {
-      repository.findOne.mockResolvedValue(acceptedPrivacy("1.2.0"));
+      repository.findOne.mockResolvedValue(acceptedPrivacy("1.3.0"));
 
       const result = await service.getOnboardingStatus("user-1");
 
       expect(result.needsPrivacyAcceptance).toBe(true);
       expect(result.privacyChangeSummaryKeys).toEqual([
-        PRIVACY_CHANGE_SUMMARY_KEYS["1.3.0"],
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.4.0"],
       ]);
     });
 
@@ -765,6 +765,7 @@ describe("UsersService", () => {
       expect(result.privacyChangeSummaryKeys).toEqual([
         PRIVACY_CHANGE_SUMMARY_KEYS["1.2.0"],
         PRIVACY_CHANGE_SUMMARY_KEYS["1.3.0"],
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.4.0"],
       ]);
     });
 

@@ -3059,7 +3059,8 @@
     "whatsChanged": "What's changed",
     "changeSummaries": {
       "privacy_1_2_0": "We now explain email open tracking: emails you send can include a small invisible image that records when they are opened, with the opener's IP address and device details.",
-      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia."
+      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia.",
+      "privacy_1_4_0": "We now explain which decisions about your email our programs and AI make or help with, and how to ask a person to review one; that we may train a small model for your account only, from your own email; that we follow Google's Limited Use requirements; and your rights and regulators in Australia, the EU and UK, New Zealand and the US."
     }
   },
   "debug": {

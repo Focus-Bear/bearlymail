@@ -8,7 +8,8 @@ export const DEFAULT_LEGAL_VERSIONS = {
   // 1.1.0: names every AI provider that processes email content, including TypeSafe.
   // 1.2.0: discloses email open tracking (pixel, open time, IP and user agent).
   // 1.3.0: describes each AI processor and the processing done outside Australia.
-  PRIVACY: "1.3.0",
+  // 1.4.0: automated decisions (APP 1.8), the per-account model, Google API Limited Use, rights by region, 16+.
+  PRIVACY: "1.4.0",
 } as const;
 
 /**
@@ -19,4 +20,5 @@ export const DEFAULT_LEGAL_VERSIONS = {
 export const PRIVACY_CHANGE_SUMMARY_KEYS: Readonly<Record<string, string>> = {
   "1.2.0": "consent.changeSummaries.privacy_1_2_0",
   "1.3.0": "consent.changeSummaries.privacy_1_3_0",
+  "1.4.0": "consent.changeSummaries.privacy_1_4_0",
 };

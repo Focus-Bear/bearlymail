@@ -8,6 +8,15 @@ import { PrivacyPolicyContentPart2 } from 'pages/privacy/PrivacyPolicyContentPar
 // Newest first; add an entry with every policy version bump.
 const CHANGE_SUMMARIES = [
   {
+    date: '3 November 2026',
+    changes: [
+      'Section 3.1 explains which decisions about your email computer programs make on their own, which they help you make, what information they use, and how to ask a person to review one.',
+      'Section 3.2 explains that we may train a small model for your account only, from your own email.',
+      'Section 5.3 confirms that we follow Google’s API Services User Data Policy, including its Limited Use requirements.',
+      'Section 7 explains how to use your rights and adds the rights and regulators for Australia, the EU and UK, New Zealand and the United States.',
+    ],
+  },
+  {
     date: '19 October 2026',
     changes: [
       'Section 5.1 lists each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives, why, and its retention and training terms.',

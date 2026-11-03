@@ -3884,6 +3884,17 @@
       "retry": "Try again",
       "skipToInbox": "Open my inbox anyway →"
     },
+    "recategorise": {
+      "button": "Re-categorise",
+      "running": "Re-categorising…",
+      "runningTitle": "Re-sorting your inbox with your categories",
+      "doneTitle": "Here's where your emails landed",
+      "progress": "{{done}} of {{total}} emails re-sorted",
+      "other": "Other",
+      "emailCount_one": "{{count}} email",
+      "emailCount_other": "{{count}} emails",
+      "error": "We couldn't re-sort your inbox. Try again, or open your inbox; new mail will use your categories."
+    },
     "learned": {
       "title": "Here's what we learned",
       "lede": "Tweak anything that's off. This shapes how your inbox gets sorted and prioritised.",

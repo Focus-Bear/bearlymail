@@ -455,7 +455,7 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 | Prompt File                         | Prompt ID                        | Purpose                                                       |
 | ----------------------------------- | -------------------------------- | ------------------------------------------------------------- |
 | `prioritise-email.md`               | `analyze_priority`               | Score email importance (0-100)                                |
-| `discover-user-context.md`          | `discover_user_context`          | Slim onboarding discovery: initial categories + VIP contacts from thread stubs (Nova → Gemini) |
+| `discover-user-context.md`          | `discover_user_context`          | Slim onboarding discovery: initial categories, VIP contacts and current projects from thread stubs (Nova → Gemini) |
 | `analyze-priority-feedback.md`      | `analyze_priority_feedback`      | Learn from user priority overrides                            |
 | `generate-reply.md`                 | `generate_reply`                 | Generate single reply draft                                   |
 | `generate-multiple-replies.md`      | `generate_multiple_replies`      | Generate 3-5 reply options                                    |
@@ -734,7 +734,7 @@ Other Features
 | Task                              | Prompt File                    | Prompt ID                   |
 | --------------------------------- | ------------------------------ | --------------------------- |
 | Score email importance            | `prioritise-email.md`          | `analyze_priority`          |
-| Discover categories + VIP contacts | `discover-user-context.md`     | `discover_user_context`     |
+| Discover categories, VIPs, projects | `discover-user-context.md`     | `discover_user_context`     |
 | Generate single reply             | `generate-reply.md`            | `generate_reply`            |
 | Generate multiple reply options   | `generate-multiple-replies.md` | `generate_multiple_replies` |
 | Generate meeting scheduling reply | `generate-meeting-reply.md`    | `generate_meeting_reply`    |

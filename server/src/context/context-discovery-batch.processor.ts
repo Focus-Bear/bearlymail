@@ -34,7 +34,7 @@ const DISCOVERY_FAILED_MESSAGE =
 
 /**
  * Worker for one slim-discovery batch: a single cheap LLM call over ~20 thread
- * stubs that proposes categories and VIPs, persisted onto the analysis record
+ * stubs that proposes categories, VIPs and current projects, persisted onto the analysis record
  * for the finalizer to merge. A batch that fails after Nova → Gemini escalation
  * is recorded as failed (never retried in a loop) so finalization still
  * completes with whatever the other batches found.
@@ -105,6 +105,7 @@ export class ContextDiscoveryBatchProcessor implements OnModuleInit {
           userEmail: jobData.userEmail ?? null,
           existingCategories: jobData.existingCategories ?? [],
           existingVipContacts: jobData.existingVipContacts ?? [],
+          existingProjects: jobData.existingProjects ?? [],
           userId,
         });
         if (!discovery) {
@@ -118,7 +119,7 @@ export class ContextDiscoveryBatchProcessor implements OnModuleInit {
         );
         await this.updateUserProgress(userId, batchResults, totalBatches);
         this.logger.log(
-          `[Worker ${workerId}] ✅ Batch ${batchIndex + 1}/${totalBatches}: ${discovery.categories.length} categories, ${discovery.vipContacts.length} VIPs`,
+          `[Worker ${workerId}] ✅ Batch ${batchIndex + 1}/${totalBatches}: ${discovery.categories.length} categories, ${discovery.vipContacts.length} VIPs, ${discovery.projects.length} projects`,
         );
         tracker.finish();
       } catch (error) {
@@ -149,6 +150,7 @@ export class ContextDiscoveryBatchProcessor implements OnModuleInit {
     return {
       categories: discovery.categories,
       vipContacts: discovery.vipContacts,
+      projects: discovery.projects,
       urgentHints: discovery.urgentHints,
       notUrgentHints: discovery.notUrgentHints,
       threadIds: jobData.threads.map((thread) => thread.threadId),

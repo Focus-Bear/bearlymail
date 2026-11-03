@@ -74,6 +74,7 @@ import {
 } from "./emails.controller.types";
 import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
+import { ReadStatusSyncService } from "./read-status-sync.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
 
 /**
@@ -100,6 +101,7 @@ export class EmailsController {
     private readonly auditService: AuditService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly emailTrackingSummaryService: EmailTrackingSummaryService,
+    private readonly readStatusSyncService: ReadStatusSyncService,
     private readonly emailEmlDownloadService: EmailEmlDownloadService,
   ) {}
 
@@ -832,25 +834,39 @@ export class EmailsController {
     return this.emailsService.createEmail(req.user.userId, emailData);
   }
 
+  // The four read/unread endpoints are the only callers of the provider read
+  // sync: they are the user's own actions, unlike sync/archive/triage writes.
   @Put(":id/read")
   async markAsRead(@Request() req, @Param("id") id: string) {
-    return this.emailsService.markAsRead(req.user.userId, id);
+    const email = await this.emailsService.markAsRead(req.user.userId, id);
+    this.readStatusSyncService.queueProviderSync(req.user.userId, [id]);
+    return email;
   }
 
   @Put(":id/unread")
   async markAsUnread(@Request() req, @Param("id") id: string) {
-    return this.emailsService.markAsUnread(req.user.userId, id);
+    const email = await this.emailsService.markAsUnread(req.user.userId, id);
+    this.readStatusSyncService.queueProviderSync(req.user.userId, [id]);
+    return email;
   }
 
   @Post("bulk/read")
   async bulkMarkAsRead(@Request() req, @Body() body: { emailIds: string[] }) {
     await this.emailsService.bulkMarkAsRead(req.user.userId, body.emailIds);
+    this.readStatusSyncService.queueProviderSync(
+      req.user.userId,
+      body.emailIds,
+    );
     return { message: "Emails marked as read" };
   }
 
   @Post("bulk/unread")
   async bulkMarkAsUnread(@Request() req, @Body() body: { emailIds: string[] }) {
     await this.emailsService.bulkMarkAsUnread(req.user.userId, body.emailIds);
+    this.readStatusSyncService.queueProviderSync(
+      req.user.userId,
+      body.emailIds,
+    );
     return { message: "Emails marked as unread" };
   }
 

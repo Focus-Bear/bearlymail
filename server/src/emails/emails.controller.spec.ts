@@ -4,6 +4,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AppleMailAccountsService } from "../apple-mail-accounts/apple-mail-accounts.service";
 import { AuditService } from "../audit/audit.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { EmailTrackingSummaryService } from "../email-tracking/email-tracking-summary.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
@@ -17,6 +18,7 @@ import { EmailExportJobService } from "./email-export-job.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
+import { ReadStatusSyncService } from "./read-status-sync.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
 
 describe("EmailsController", () => {
@@ -54,7 +56,7 @@ describe("EmailsController", () => {
   };
 
   const mockBoss = {
-    send: jest.fn(),
+    send: jest.fn().mockResolvedValue(null),
   };
 
   const mockGoogleAccountsService = {
@@ -176,6 +178,7 @@ describe("EmailsController", () => {
           provide: AuditService,
           useValue: mockAuditService,
         },
+        ReadStatusSyncService,
         {
           provide: EmailEmlDownloadService,
           useValue: mockEmlDownloadService,
@@ -193,6 +196,72 @@ describe("EmailsController", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("read status endpoints", () => {
+    const userId = "user-123";
+    const mockRequest = { user: { userId } };
+    const readSyncJob = (emailId: string) => [
+      JOB_NAMES.READ_STATUS_PROVIDER_SYNC,
+      { userId, emailId },
+      expect.any(Object),
+    ];
+
+    it("opening an email queues a provider read sync", async () => {
+      mockEmailsService.markAsRead.mockResolvedValue({
+        id: "e1",
+        isRead: true,
+      });
+
+      const result = await controller.markAsRead(mockRequest, "e1");
+
+      expect(result).toEqual({ id: "e1", isRead: true });
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e1"));
+    });
+
+    it("marking an email unread queues a provider read sync", async () => {
+      mockEmailsService.markAsUnread.mockResolvedValue({
+        id: "e1",
+        isRead: false,
+      });
+
+      await controller.markAsUnread(mockRequest, "e1");
+
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e1"));
+    });
+
+    it("bulk read and unread queue a sync per email", async () => {
+      await controller.bulkMarkAsRead(mockRequest, { emailIds: ["e1", "e2"] });
+      await controller.bulkMarkAsUnread(mockRequest, { emailIds: ["e3"] });
+
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e1"));
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e2"));
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e3"));
+    });
+
+    it("still answers the read request when queueing the provider sync fails", async () => {
+      mockEmailsService.markAsRead.mockResolvedValue({
+        id: "e1",
+        isRead: true,
+      });
+      mockBoss.send.mockRejectedValueOnce(new Error("boss down"));
+
+      await expect(controller.markAsRead(mockRequest, "e1")).resolves.toEqual({
+        id: "e1",
+        isRead: true,
+      });
+    });
+
+    it("does not queue a sync when the read update itself fails", async () => {
+      mockEmailsService.markAsRead.mockRejectedValueOnce(
+        new Error("not found"),
+      );
+
+      await expect(controller.markAsRead(mockRequest, "e1")).rejects.toThrow(
+        "not found",
+      );
+      expect(mockBoss.send).not.toHaveBeenCalled();
+    });
   });
 
   describe("getInbox", () => {

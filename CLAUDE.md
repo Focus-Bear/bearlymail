@@ -375,6 +375,7 @@ interface EmailProvider {
   unarchiveThread(userId, threadId): Promise<void>;
   syncStarStatusToGmail(userId, threadId, starCount): Promise<void>;
   snoozeThread(userId, threadId, snoozeUntil): Promise<void>;
+  syncReadStatus?(userId, { threadId, messageId }, isRead): Promise<void>; // optional; Gmail only today
   searchEmails(userId, query, maxResults?): Promise<RawEmailMessage[]>;
   getAttachment(
     userId,
@@ -405,6 +406,7 @@ Jobs are enqueued in the web server and processed by worker processes. Key job t
 | `learn-from-star`             | VERY_LOW (10)    | Update context from user starring behavior                   |
 | `learn-qa-from-sent`          | VERY_LOW (10)    | Debounced per-user: extract Q&A from recent sent emails       |
 | `archive-email-provider-sync` | HIGH (80)        | Sync archive to Gmail/Office365/Zoho                         |
+| `read-status-provider-sync`   | HIGH (80)        | Mirror the user's read/unread action to the provider (Gmail). Queued only by the read/unread endpoints, never by sync/archive/triage |
 | `auto-responder`              | LOW (20)         | Generate and send auto-responses                             |
 | `generate-suggested-replies`  | LOW (20)         | Pre-generate reply suggestions                               |
 | `scan-history`                | MEDIUM (40)      | Historical email scan (onboarding)                           |

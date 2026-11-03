@@ -41,6 +41,14 @@ export interface RawEmailMessage {
 }
 
 /**
+ * The provider message a read-status change applies to, plus its thread.
+ */
+export interface ReadStatusTarget {
+  threadId: string;
+  messageId: string;
+}
+
+/**
  * Email recipient with optional name
  */
 export interface EmailRecipient {
@@ -233,6 +241,18 @@ export interface EmailProvider {
     userId: string,
     threadId: string,
     starCount: number,
+  ): Promise<void>;
+
+  /**
+   * Mirror the user's read/unread action to the provider. Marking read applies
+   * to the whole thread (opening a conversation reads all of it); marking
+   * unread flags only `target.messageId`. Optional: providers without it are
+   * skipped. Throws on failure so the queued job retries.
+   */
+  syncReadStatus?(
+    userId: string,
+    target: ReadStatusTarget,
+    isRead: boolean,
   ): Promise<void>;
 
   /**

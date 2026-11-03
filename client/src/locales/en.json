@@ -2538,7 +2538,14 @@
     "createDeal": "Create Deal",
     "errorLoadingDeals": "Error loading deals",
     "errorCreatingDeal": "Could not create the deal. Please try again.",
-    "expectedClose": "Expected close"
+    "expectedClose": "Expected close",
+    "locked": "Upgrade to use the CRM",
+    "upgrade": {
+      "title": "The CRM comes with Growth and Enterprise",
+      "description": "Track deals through your pipeline, keep notes and custom fields on your contacts, and see every conversation with a contact in one place.",
+      "planNote": "Available from the {{plan}} plan at ${{price}}/month.",
+      "viewPlans": "View plans"
+    }
   },
   "senderContext": {
     "title": "Sender Context",
@@ -5047,6 +5054,8 @@
         "emailsPerCycle_other": "{{count, number}} AI-processed emails per month",
         "includesEmailTracking": "Email open tracking",
         "includesEmailTrackingDescription": "See if the other person read your email",
+        "includesCrm": "CRM",
+        "includesCrmDescription": "Deals pipeline, contact notes and custom fields",
         "teamMembers_one": "{{count}} team member",
         "teamMembers_other": "{{count}} team members",
         "choosePlan": "Choose plan",

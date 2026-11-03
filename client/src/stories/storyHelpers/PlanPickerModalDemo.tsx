@@ -40,9 +40,9 @@ const demoAuth = {
 };
 
 const DEMO_TIERS = [
-  { id: 'bearlymail_starter', monthlyPriceUsd: 5, emailsPerCycle: 3000, seats: 1, includesEmailTracking: false },
-  { id: 'bearlymail_growth', monthlyPriceUsd: 15, emailsPerCycle: 10000, seats: 1, includesEmailTracking: true },
-  { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000, seats: 5, includesEmailTracking: true },
+  { id: 'bearlymail_starter', monthlyPriceUsd: 5, emailsPerCycle: 3000, seats: 1, includesEmailTracking: false, includesCrm: false },
+  { id: 'bearlymail_growth', monthlyPriceUsd: 15, emailsPerCycle: 10000, seats: 1, includesEmailTracking: true, includesCrm: true },
+  { id: 'bearlymail_enterprise', monthlyPriceUsd: 40, emailsPerCycle: 30000, seats: 5, includesEmailTracking: true, includesCrm: true },
 ];
 
 export type PlanPickerScenario = 'default' | 'currentPlan' | 'member' | 'fallback';

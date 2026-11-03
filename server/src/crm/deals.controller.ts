@@ -11,10 +11,11 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CrmPlanGuard } from "../subscriptions/crm-plan.guard";
 import { DealsService } from "./deals.service";
 
 @Controller("deals")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CrmPlanGuard)
 export class DealsController {
   constructor(private readonly dealsService: DealsService) {}
 

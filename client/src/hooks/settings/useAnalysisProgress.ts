@@ -165,7 +165,9 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     // Run once on mount only
   }, []);
 
-  const startAnalysis = useCallback(async () => {
+  // `attachToExisting` joins the user's running or finished analysis instead of
+  // superseding it: onboarding starts one in the background at mailbox connect.
+  const beginAnalysis = useCallback(async (attachToExisting: boolean) => {
     devLog('===== Starting Context Analysis =====');
     devDebug('Setting analyzing state to true');
 
@@ -188,6 +190,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
       devLog(`Making POST request to ${API_URL}/context/analyze`);
       const response = await axios.post(`${API_URL}/context/analyze`, {
         isNewUserOnboarding: hookOptions?.isNewUserOnboarding ?? false,
+        attachToExisting,
       });
       devLog('POST request successful', response.data);
 
@@ -218,6 +221,11 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing
   }, []);
+
+  /** Starts a fresh analysis, superseding any run in progress (manual re-analysis, retry). */
+  const startAnalysis = useCallback(() => beginAnalysis(false), [beginAnalysis]);
+  /** Joins the analysis already running or finished for this user, starting one only if there is none. */
+  const joinOrStartAnalysis = useCallback(() => beginAnalysis(true), [beginAnalysis]);
 
   useEffect(() => {
     // Don't start polling until BOTH analyzing is true AND analysisId is set
@@ -498,6 +506,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     setAnalyzing,
     setAnalyzeProgress,
     startAnalysis,
+    joinOrStartAnalysis,
     dismissProgress,
   };
 };

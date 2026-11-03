@@ -13,6 +13,7 @@ import { Office365AccountsService } from "../office365-accounts/office365-accoun
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
+import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportJobService } from "./email-export-job.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
@@ -95,6 +96,10 @@ describe("EmailsController", () => {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockEmlDownloadService = {
+    getEmlDownload: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmailsController],
@@ -174,6 +179,10 @@ describe("EmailsController", () => {
           useValue: mockAuditService,
         },
         ReadStatusSyncService,
+        {
+          provide: EmailEmlDownloadService,
+          useValue: mockEmlDownloadService,
+        },
       ],
     }).compile();
 
@@ -1272,6 +1281,68 @@ describe("EmailsController", () => {
           userAgent: null,
         }),
       );
+    });
+  });
+
+  describe("downloadEml", () => {
+    const emailId = "33333333-3333-4333-8333-333333333333";
+    const rawMessage = Buffer.from("Message-ID: <a@b>\r\n\r\nBody");
+    const contentDisposition =
+      "attachment; filename=\"Hi.eml\"; filename*=UTF-8''Hi.eml";
+
+    function buildResponse() {
+      return { set: jest.fn(), send: jest.fn() };
+    }
+
+    it("sends the raw message as message/rfc822 with a download filename and audits it", async () => {
+      mockEmlDownloadService.getEmlDownload.mockResolvedValue({
+        content: rawMessage,
+        contentDisposition,
+      });
+      const res = buildResponse();
+      const mockRequest = {
+        user: { userId: "user-123" },
+        ip: "10.0.0.5",
+        headers: { "user-agent": "Test-UA/1.0" },
+      };
+
+      await controller.downloadEml(mockRequest, emailId, res as never);
+
+      expect(mockEmlDownloadService.getEmlDownload).toHaveBeenCalledWith(
+        "user-123",
+        emailId,
+      );
+      expect(res.set).toHaveBeenCalledWith({
+        "Content-Type": "message/rfc822",
+        "Content-Disposition": contentDisposition,
+        "Content-Length": String(rawMessage.length),
+      });
+      expect(res.send).toHaveBeenCalledWith(rawMessage);
+      expect(mockAuditService.log).toHaveBeenCalledWith({
+        userId: "user-123",
+        action: "EMAIL_RAW_DOWNLOAD",
+        targetType: "email",
+        targetId: emailId,
+        ipAddress: "10.0.0.5",
+        userAgent: "Test-UA/1.0",
+      });
+    });
+
+    it("sends nothing and audits nothing when the email is not the user's", async () => {
+      mockEmlDownloadService.getEmlDownload.mockRejectedValue(
+        new NotFoundException("Email not found"),
+      );
+      const res = buildResponse();
+
+      await expect(
+        controller.downloadEml(
+          { user: { userId: "user-456" } },
+          emailId,
+          res as never,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(res.send).not.toHaveBeenCalled();
+      expect(mockAuditService.log).not.toHaveBeenCalled();
     });
   });
 

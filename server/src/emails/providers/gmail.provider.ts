@@ -48,6 +48,10 @@ import {
   unarchiveThreadInGmail,
   unsnoozeThreadInGmail,
 } from "./gmail/gmail-operations";
+import {
+  decodeGmailRawMessage,
+  GMAIL_RAW_MESSAGE_FORMAT,
+} from "./gmail/gmail-raw-message";
 import { buildEmailContent, encodeEmailForGmail } from "./gmail/gmail-send";
 import { classifyGmailAccessIssue, isGmailAuthError } from "./gmail/gmail-sync";
 import { GmailSyncService } from "./gmail-sync.service";
@@ -804,23 +808,62 @@ export class GmailProvider implements EmailProvider {
         size: attachmentMetadata?.size || attachmentBuffer.length,
       };
     } catch (error) {
-      if (isGmailAuthError(error)) {
-        await this.usersService.markNeedsRelogin(
-          userId,
-          "gmail_attachment_auth_error",
-        );
-        this.logger.warn(
-          `getAttachment auth failure — flagged user ${userId} as needsRelogin: ${formatGaxiosError(error)}`,
-        );
-        throw new UnauthorizedException(
-          ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED,
-        );
-      }
-      this.logger.error(
-        `getAttachment failed for user ${userId} message ${messageId}: ${formatGaxiosError(error)}`,
-      );
-      throw error;
+      return this.rethrowMessageReadFailure(error, {
+        userId,
+        messageId,
+        operation: "getAttachment",
+        reloginReason: RELOGIN_REASONS.GMAIL_ATTACHMENT_AUTH_ERROR,
+      });
     }
+  }
+
+  async getRawMessage(userId: string, messageId: string): Promise<Buffer> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+
+    try {
+      const response = await gmail.users.messages.get({
+        userId: "me",
+        id: messageId,
+        format: GMAIL_RAW_MESSAGE_FORMAT,
+      });
+      return decodeGmailRawMessage(response.data.raw);
+    } catch (error) {
+      return this.rethrowMessageReadFailure(error, {
+        userId,
+        messageId,
+        operation: "getRawMessage",
+        reloginReason: RELOGIN_REASONS.GMAIL_RAW_MESSAGE_AUTH_ERROR,
+      });
+    }
+  }
+
+  /**
+   * A dead or under-scoped grant can only be fixed by reconnecting, so flag the
+   * user for relogin and surface a 401; anything else is rethrown as-is. Logs
+   * only ids and the API error — never message content.
+   */
+  private async rethrowMessageReadFailure(
+    error: unknown,
+    context: {
+      userId: string;
+      messageId: string;
+      operation: string;
+      reloginReason: string;
+    },
+  ): Promise<never> {
+    const { userId, messageId, operation, reloginReason } = context;
+    if (isGmailAuthError(error)) {
+      await this.usersService.markNeedsRelogin(userId, reloginReason);
+      this.logger.warn(
+        `${operation} auth failure — flagged user ${userId} as needsRelogin: ${formatGaxiosError(error)}`,
+      );
+      throw new UnauthorizedException(ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED);
+    }
+    this.logger.error(
+      `${operation} failed for user ${userId} message ${messageId}: ${formatGaxiosError(error)}`,
+    );
+    throw error;
   }
 
   async lookupByGmailUrlId(

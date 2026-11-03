@@ -51,6 +51,34 @@ describe('LearnedContextEditor', () => {
     expect(within(projects).getByRole('button', { name: /groups\.projects\.add/ })).toBeInTheDocument();
   });
 
+  it('shows why a VIP was picked on hover and keyboard focus, and Escape dismisses it', async () => {
+    const reason = 'Client the user replies to about the Acme rollout';
+    await renderLoaded([
+      { contextId: 'vip-1', contextKey: 'VIP_CONTACT', contextValue: 'Sarah Chen', explanation: reason },
+      { contextId: 'vip-2', contextKey: 'VIP_CONTACT', contextValue: 'Tom Becker', explanation: null },
+    ]);
+
+    const label = screen.getByText('Sarah Chen');
+    const tooltip = screen.getByRole('tooltip', { hidden: true });
+    expect(tooltip).toHaveTextContent(reason);
+    expect(label).toHaveAttribute('aria-describedby', tooltip.id);
+    expect(tooltip).not.toBeVisible();
+
+    fireEvent.mouseEnter(label.closest('li')!);
+    expect(tooltip).toBeVisible();
+    fireEvent.mouseLeave(label.closest('li')!);
+    expect(tooltip).not.toBeVisible();
+
+    fireEvent.focus(label);
+    expect(tooltip).toBeVisible();
+    fireEvent.keyDown(label, { key: 'Escape' });
+    expect(tooltip).not.toBeVisible();
+
+    // No recorded reason: no tooltip, and the plain label is not a focus stop.
+    expect(screen.getByText('Tom Becker')).not.toHaveAttribute('tabindex');
+    expect(screen.getAllByRole('tooltip', { hidden: true })).toHaveLength(1);
+  });
+
   it('renames a category inline, keeping its description, via PUT /context/:id', async () => {
     await renderLoaded();
 

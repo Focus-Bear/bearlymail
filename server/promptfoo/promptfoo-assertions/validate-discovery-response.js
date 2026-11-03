@@ -92,6 +92,9 @@ module.exports = (output, context) => {
     if (!vip || typeof vip.name !== 'string' || !vip.name.trim()) {
       throw new Error('Every VIP needs a non-empty string name: ' + JSON.stringify(vip));
     }
+    if (typeof vip.reason !== 'string' || !vip.reason.trim()) {
+      throw new Error(`VIP "${vip.name}" needs a reason — it is shown when the user hovers the VIP`);
+    }
   }
   if (config.maxVips !== undefined && vipContacts.length > config.maxVips) {
     throw new Error(`Expected at most ${config.maxVips} VIPs, got ${vipContacts.length}`);

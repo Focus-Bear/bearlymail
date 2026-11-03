@@ -24,6 +24,7 @@ VIP CONTACT RULES
 - A VIP is a real human (never a bot, notification system, no-reply or team mailbox, newsletter or company name) whose emails clearly matter to the user: the user replied to them (UserReplied: yes), they write to the user personally about the user's work, or they are an obvious manager, client or close collaborator.
 - A human relayed by a platform (e.g. "Marco Vitale (via GitHub)" from notifications@github.com) may be a VIP by name, but leave "email" empty rather than recording the platform's address.
 - Never list the user themselves ({{userEmail}}) and never repeat anyone in the existing VIP list.
+- reason: one line, at most 15 words, saying why this person matters to the user (e.g. "Client you reply to about the Acme rollout"). The user sees it when they hover the VIP, so never leave it empty.
 - Return at most 5. When unsure, leave the person out.
 
 HINTS (optional — return [] when nothing is clear; at most 3 each; each at most 12 words)

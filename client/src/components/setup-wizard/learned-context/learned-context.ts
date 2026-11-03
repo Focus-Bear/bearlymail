@@ -11,6 +11,8 @@ export interface LearnedContextItem {
   contextKey: string;
   contextValue: string;
   source?: string;
+  /** Why onboarding learned this item (e.g. why a contact is a VIP); null when none was recorded. */
+  explanation?: string | null;
   /** Stable React key for items added in this session, so swapping in the server id doesn't remount them. */
   clientKey?: string;
 }

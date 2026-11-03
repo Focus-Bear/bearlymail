@@ -3,7 +3,10 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
-import { GmailAccessIssue } from "../constants/domain-statuses";
+import {
+  GMAIL_WRITE_NOTICE,
+  GmailAccessIssue,
+} from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import {
   DEFAULT_LEGAL_VERSIONS,
@@ -227,6 +230,33 @@ export class UsersService {
     }
   }
 
+  /**
+   * Records that a background job skipped a Gmail write because the grant is
+   * read-only, so the app shows its notice. Only the first skip arms it: a
+   * dismissed notice stays dismissed.
+   */
+  async recordSkippedGmailWrite(userId: string): Promise<void> {
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ gmailWriteNotice: GMAIL_WRITE_NOTICE.PENDING })
+      .where("id = :userId", { userId })
+      .andWhere('"gmailWriteNotice" IS NULL')
+      .execute();
+    if (result.affected) {
+      this.logger.log(
+        `[GMAIL_WRITE] user=${userId} first Gmail write skipped (read-only grant)`,
+      );
+    }
+  }
+
+  async dismissGmailWriteNotice(userId: string): Promise<void> {
+    await this.userRepository.update(
+      { id: userId },
+      { gmailWriteNotice: GMAIL_WRITE_NOTICE.DISMISSED },
+    );
+  }
+
   async create(userData: Partial<User>): Promise<User> {
     // Generate email hash if email is provided
     if (userData.email && !userData.emailHash) {
@@ -337,6 +367,7 @@ export class UsersService {
         "user.updatedAt",
         "user.needsRelogin",
         "user.lastLogoutReason",
+        "user.googleGrantedScopes",
       ])
       .where("user.id = :id", { id })
       .getOne();

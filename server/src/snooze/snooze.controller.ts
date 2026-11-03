@@ -8,7 +8,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 
+import { RequireGooglePermission } from "../auth/google-permission.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import {
+  GMAIL_WRITE_ACTION,
+  GOOGLE_PERMISSION_GROUP,
+} from "../constants/google-oauth-scopes";
 import { BulkSnoozeResult, SnoozeService } from "./snooze.service";
 
 interface SnoozeRequestBody {
@@ -25,6 +30,10 @@ export class SnoozeController {
 
   // Declared before @Post(":id") so "bulk" is not matched as an email id.
   @Post("bulk")
+  @RequireGooglePermission(
+    GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+    GMAIL_WRITE_ACTION.SNOOZE,
+  )
   async bulkSnoozeEmails(
     @Request() req,
     @Body() body: SnoozeRequestBody & { emailIds: string[] },
@@ -39,6 +48,10 @@ export class SnoozeController {
   }
 
   @Post(":id")
+  @RequireGooglePermission(
+    GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+    GMAIL_WRITE_ACTION.SNOOZE,
+  )
   async snoozeEmail(
     @Request() req,
     @Param("id") id: string,
@@ -53,6 +66,8 @@ export class SnoozeController {
     );
   }
 
+  // Not gated: without the grant the snooze never reached Gmail, so ending it
+  // needs no Gmail write (GmailProvider skips it).
   @Delete(":id")
   async unsnoozeEmail(
     @Request() req,

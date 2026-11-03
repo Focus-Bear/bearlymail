@@ -1,7 +1,10 @@
 import React from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
+import { replayPendingAction, takePendingAction } from 'utils/googlePermissionRequired';
 
+import { API_URL } from 'config/api';
+import { GOOGLE_PERMISSION_GMAIL_MANAGE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 
 import { GooglePermissionResultListener } from './GooglePermissionResultListener';
@@ -12,7 +15,20 @@ const showSuccess = vi.fn();
 const showError = vi.fn();
 vi.mock('contexts/NotificationContext', () => ({ useNotifications: () => ({ showSuccess, showError }) }));
 
+vi.mock('utils/googlePermissionRequired', async importOriginal => ({
+  ...(await importOriginal<typeof import('utils/googlePermissionRequired')>()),
+  takePendingAction: vi.fn(),
+  replayPendingAction: vi.fn(),
+}));
+
 const refreshUser = vi.fn().mockResolvedValue(undefined);
+const pendingArchive = {
+  permission: GOOGLE_PERMISSION_GMAIL_MANAGE,
+  method: 'put',
+  url: `${API_URL}/emails/email-1/archive`,
+  params: {},
+  savedAt: Date.now(),
+};
 
 const CurrentUrl: React.FC = () => {
   const location = useLocation();
@@ -31,7 +47,44 @@ const renderAt = (url: string) =>
 
 describe('GooglePermissionResultListener', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(useAuth).mockReturnValue({ refreshUser } as never);
+    vi.mocked(takePendingAction).mockReturnValue(null);
+    vi.mocked(replayPendingAction).mockResolvedValue(undefined);
+  });
+
+  it('retries the action that needed the permission, then refreshes open views', async () => {
+    vi.mocked(takePendingAction).mockReturnValue(pendingArchive);
+    const onRetried = vi.fn();
+    window.addEventListener('bearlymail:google-permission-action-retried', onRetried);
+
+    renderAt('/inbox?googlePermission=granted');
+
+    await waitFor(() => expect(showSuccess).toHaveBeenCalledWith('googlePermissions.result.grantedAndRetried'));
+    expect(replayPendingAction).toHaveBeenCalledWith(pendingArchive);
+    expect(onRetried).toHaveBeenCalledTimes(1);
+    expect(refreshUser).toHaveBeenCalled();
+    window.removeEventListener('bearlymail:google-permission-action-retried', onRetried);
+  });
+
+  it('says so when the retried action fails', async () => {
+    vi.mocked(takePendingAction).mockReturnValue(pendingArchive);
+    vi.mocked(replayPendingAction).mockRejectedValue(new Error('500'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    renderAt('/inbox?googlePermission=granted');
+
+    await waitFor(() => expect(showError).toHaveBeenCalledWith('googlePermissions.result.retryFailed'));
+  });
+
+  it('drops the waiting action when Google comes back without the permission', async () => {
+    vi.mocked(takePendingAction).mockReturnValue(pendingArchive);
+
+    renderAt('/inbox?googlePermission=declined');
+
+    await waitFor(() => expect(showError).toHaveBeenCalledWith('googlePermissions.result.declined'));
+    expect(takePendingAction).toHaveBeenCalled();
+    expect(replayPendingAction).not.toHaveBeenCalled();
   });
 
   it('confirms a grant, reloads the user and cleans the URL', async () => {

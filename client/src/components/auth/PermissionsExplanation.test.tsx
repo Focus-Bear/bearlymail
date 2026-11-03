@@ -32,7 +32,9 @@ describe('PermissionsExplanation', () => {
     render(<PermissionsExplanation provider={PROVIDER_GOOGLE} onContinue={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(OAUTH_PERMISSIONS[PROVIDER_GOOGLE].length);
-    expect(screen.getByText('auth.permissions.items.mailRead.title')).toBeInTheDocument();
+    expect(screen.getByText('auth.permissions.items.mailReadOnly.title')).toBeInTheDocument();
+    expect(screen.queryByText('auth.permissions.items.mailSend.title')).not.toBeInTheDocument();
+    expect(screen.getByTestId('permissions-ask-later')).toHaveTextContent('auth.permissions.askLater');
     expect(screen.queryByText('auth.permissions.items.contacts.title')).not.toBeInTheDocument();
     expect(screen.getByText('auth.permissions.tips.ongoingAccess')).toBeInTheDocument();
   });
@@ -41,6 +43,7 @@ describe('PermissionsExplanation', () => {
     render(<PermissionsExplanation provider={provider} onContinue={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.queryByTestId('consent-screen-tips')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('permissions-ask-later')).not.toBeInTheDocument();
   });
 
   it('only continues after the hold completes', () => {

@@ -1,10 +1,14 @@
 import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
-import { GMAIL_ACCESS_ISSUE } from "../constants/domain-statuses";
+import {
+  GMAIL_ACCESS_ISSUE,
+  GMAIL_WRITE_NOTICE,
+} from "../constants/domain-statuses";
 import {
   GOOGLE_PERMISSION_GROUP,
   REQUIRED_GOOGLE_SCOPES,
+  scopesForGooglePermissionGroup,
 } from "../constants/google-oauth-scopes";
 import { DataExportService } from "./data-export.service";
 import { DataImportService } from "./data-import.service";
@@ -20,6 +24,7 @@ describe("UsersController", () => {
     getConsentStatus: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
+    dismissGmailWriteNotice: jest.fn(),
     acceptConsent: jest.fn(),
   };
 
@@ -127,10 +132,64 @@ describe("UsersController", () => {
       });
 
       expect(result.missingGooglePermissions).toEqual([
+        GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+        GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
         GOOGLE_PERMISSION_GROUP.CALENDAR,
         GOOGLE_PERMISSION_GROUP.CONTACTS,
       ]);
+      expect(result.missingGooglePermissions).not.toContain(
+        GOOGLE_PERMISSION_GROUP.GMAIL,
+      );
     });
+
+    it("shows the Gmail write notice after a skipped write while the grant is read-only", async () => {
+      mockUsersService.findOne.mockResolvedValue({
+        id: "user-123",
+        googleGrantedScopes: ["email", ...REQUIRED_GOOGLE_SCOPES].join(" "),
+        gmailWriteNotice: GMAIL_WRITE_NOTICE.PENDING,
+      });
+
+      const result = await controller.getProfile({
+        user: { userId: "user-123" },
+      });
+
+      expect(result.showGmailWriteNotice).toBe(true);
+    });
+
+    it.each([
+      [
+        "dismissed",
+        ["email", ...REQUIRED_GOOGLE_SCOPES].join(" "),
+        GMAIL_WRITE_NOTICE.DISMISSED,
+      ],
+      [
+        "granted since",
+        [
+          "email",
+          ...REQUIRED_GOOGLE_SCOPES,
+          ...scopesForGooglePermissionGroup(
+            GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+          ),
+        ].join(" "),
+        GMAIL_WRITE_NOTICE.PENDING,
+      ],
+      ["never skipped", ["email", ...REQUIRED_GOOGLE_SCOPES].join(" "), null],
+    ])(
+      "hides the Gmail write notice when %s",
+      async (_case, googleGrantedScopes, gmailWriteNotice) => {
+        mockUsersService.findOne.mockResolvedValue({
+          id: "user-123",
+          googleGrantedScopes,
+          gmailWriteNotice,
+        });
+
+        const result = await controller.getProfile({
+          user: { userId: "user-123" },
+        });
+
+        expect(result.showGmailWriteNotice).toBe(false);
+      },
+    );
 
     it("reports no missing Google permissions when the grant was never recorded", async () => {
       mockUsersService.findOne.mockResolvedValue({
@@ -144,6 +203,18 @@ describe("UsersController", () => {
       });
 
       expect(result.missingGooglePermissions).toEqual([]);
+    });
+  });
+
+  describe("dismissGmailWriteNotice", () => {
+    it("records the dismissal so the notice doesn't come back", async () => {
+      await expect(
+        controller.dismissGmailWriteNotice({ user: { userId: "user-123" } }),
+      ).resolves.toEqual({ success: true });
+
+      expect(mockUsersService.dismissGmailWriteNotice).toHaveBeenCalledWith(
+        "user-123",
+      );
     });
   });
 

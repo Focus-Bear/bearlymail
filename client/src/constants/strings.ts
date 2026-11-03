@@ -386,18 +386,46 @@ export type GmailAccessIssue = typeof GMAIL_ACCESS_ISSUE_MISSING | typeof GMAIL_
 
 // Checkbox groups on Google's consent screen (server GOOGLE_PERMISSION_GROUP values)
 export const GOOGLE_PERMISSION_GMAIL = 'gmail' as const;
+export const GOOGLE_PERMISSION_GMAIL_MANAGE = 'gmail_manage' as const;
+export const GOOGLE_PERMISSION_GMAIL_SEND = 'gmail_send' as const;
 export const GOOGLE_PERMISSION_CALENDAR = 'calendar' as const;
 export const GOOGLE_PERMISSION_CONTACTS = 'contacts' as const;
 export type GooglePermissionGroup =
   | typeof GOOGLE_PERMISSION_GMAIL
+  | typeof GOOGLE_PERMISSION_GMAIL_MANAGE
+  | typeof GOOGLE_PERMISSION_GMAIL_SEND
   | typeof GOOGLE_PERMISSION_CALENDAR
   | typeof GOOGLE_PERMISSION_CONTACTS;
 
 // Server path that starts Google sign-in (always with the consent screen forced)
 export const GOOGLE_OAUTH_START_PATH = '/auth/google';
 
-// Sign-in only asks for Gmail; these are granted later, from the feature that needs them
-export type IncrementalGooglePermissionGroup = typeof GOOGLE_PERMISSION_CALENDAR | typeof GOOGLE_PERMISSION_CONTACTS;
+// Sign-in only asks to read Gmail; these are granted later, from the feature or action that needs them
+export type IncrementalGooglePermissionGroup =
+  | typeof GOOGLE_PERMISSION_GMAIL_MANAGE
+  | typeof GOOGLE_PERMISSION_GMAIL_SEND
+  | typeof GOOGLE_PERMISSION_CALENDAR
+  | typeof GOOGLE_PERMISSION_CONTACTS;
+// 403 code the server returns when an action needs a Google permission not granted yet
+export const GOOGLE_PERMISSION_REQUIRED_CODE = 'GOOGLE_PERMISSION_REQUIRED';
+// The action behind that 403 (server GMAIL_WRITE_ACTION values), so the explainer can name it
+export const GMAIL_WRITE_ACTION_ARCHIVE = 'archive' as const;
+export const GMAIL_WRITE_ACTION_DELETE = 'delete' as const;
+export const GMAIL_WRITE_ACTION_STAR = 'star' as const;
+export const GMAIL_WRITE_ACTION_SNOOZE = 'snooze' as const;
+export const GMAIL_WRITE_ACTION_BLOCK_SENDER = 'block_sender' as const;
+export const GMAIL_WRITE_ACTION_SEND = 'send' as const;
+export type GmailWriteAction =
+  | typeof GMAIL_WRITE_ACTION_ARCHIVE
+  | typeof GMAIL_WRITE_ACTION_DELETE
+  | typeof GMAIL_WRITE_ACTION_STAR
+  | typeof GMAIL_WRITE_ACTION_SNOOZE
+  | typeof GMAIL_WRITE_ACTION_BLOCK_SENDER
+  | typeof GMAIL_WRITE_ACTION_SEND;
+// Closes the one-time "allow BearlyMail to manage Gmail" notice
+export const GMAIL_WRITE_NOTICE_DISMISS_PATH = '/users/me/gmail-write-notice/dismiss';
+// sessionStorage key holding the action to retry once Google grants the permission
+export const PENDING_GOOGLE_PERMISSION_ACTION_KEY = 'bearlymail.pendingGooglePermissionAction';
 // Server path returning the Google consent URL for one more permission group
 export const GOOGLE_PERMISSION_URL_PATH = '/auth/google/permission-url';
 // Query parameter (and values) the server adds when a grant returns to the app

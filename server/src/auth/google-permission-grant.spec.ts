@@ -1,4 +1,7 @@
-import { GOOGLE_PERMISSION_GROUP } from "../constants/google-oauth-scopes";
+import {
+  GOOGLE_PERMISSION_GROUP,
+  IncrementalGooglePermissionGroup,
+} from "../constants/google-oauth-scopes";
 import {
   buildGooglePermissionGrantUrl,
   buildGrantReturnUrl,
@@ -41,7 +44,9 @@ describe("buildGooglePermissionGrantUrl", () => {
     process.env = originalEnv;
   });
 
-  const grantUrl = (permission = GOOGLE_PERMISSION_GROUP.CONTACTS) =>
+  const grantUrl = (
+    permission: IncrementalGooglePermissionGroup = GOOGLE_PERMISSION_GROUP.CONTACTS,
+  ) =>
     new URL(
       buildGooglePermissionGrantUrl({
         userId: "user-1",
@@ -64,6 +69,26 @@ describe("buildGooglePermissionGrantUrl", () => {
       "https://api.test/auth/google/callback",
     );
   });
+
+  it.each([
+    [
+      GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+      "https://www.googleapis.com/auth/gmail.modify",
+    ],
+    [
+      GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
+      "https://www.googleapis.com/auth/gmail.send",
+    ],
+  ])(
+    "escalates %s to just its one Gmail scope",
+    (permission, expectedScope) => {
+      const url = grantUrl(permission);
+      expect(url.searchParams.get("scope")?.split(" ")).toEqual([
+        expectedScope,
+      ]);
+      expect(url.searchParams.get("include_granted_scopes")).toBe("true");
+    },
+  );
 
   it("signs the user, permission and a safe return path into the state", () => {
     const state = parseSignedOAuthState(

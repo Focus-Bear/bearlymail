@@ -3,6 +3,10 @@
  * without, and the optional groups granted later on demand.
  */
 
+// Read messages, threads, labels, history and attachments; changes nothing.
+const GOOGLE_SCOPE_GMAIL_READONLY =
+  "https://www.googleapis.com/auth/gmail.readonly";
+// Archive, snooze, star, label, mark read and trash (and, per Google, read and send)
 const GOOGLE_SCOPE_GMAIL_MODIFY =
   "https://www.googleapis.com/auth/gmail.modify";
 const GOOGLE_SCOPE_GMAIL_SEND = "https://www.googleapis.com/auth/gmail.send";
@@ -20,36 +24,53 @@ const GOOGLE_SCOPE_OTHER_CONTACTS =
   "https://www.googleapis.com/auth/contacts.other.readonly";
 
 /**
- * Asked for at sign-in: just the mailbox and who the user is. Calendar and
- * contacts are requested later, from the feature that needs them (incremental
- * authorization), so the first consent screen isn't a wall of permissions.
+ * Asked for at sign-in: read-only Gmail and who the user is. Changing the
+ * mailbox (archive, snooze, star…), sending, calendar and contacts are each
+ * requested later, from the action that needs them (incremental
+ * authorization), so the first consent screen asks for as little as possible.
  */
 export const GOOGLE_SIGN_IN_SCOPES = [
   "email",
   "profile",
-  // Includes read + modify (labels, etc.)
-  GOOGLE_SCOPE_GMAIL_MODIFY,
-  GOOGLE_SCOPE_GMAIL_SEND,
+  GOOGLE_SCOPE_GMAIL_READONLY,
 ];
 
 /**
  * Google's granular consent screen lets the user untick individual scopes and
- * still finish signing in. Without these two the account has no mailbox: every
- * sync 403s with insufficientPermissions and the inbox stays empty. Calendar
- * and contacts are optional and granted later — those features degrade on
- * their own.
+ * still finish signing in. Without Gmail read access the account has no
+ * mailbox: every sync 403s with insufficientPermissions and the inbox stays
+ * empty. Everything else is optional and granted later — those features
+ * degrade on their own.
  */
-export const REQUIRED_GOOGLE_SCOPES = [
-  GOOGLE_SCOPE_GMAIL_MODIFY,
-  GOOGLE_SCOPE_GMAIL_SEND,
-];
+export const REQUIRED_GOOGLE_SCOPES = [GOOGLE_SCOPE_GMAIL_READONLY];
+
+/**
+ * Broader scopes that Google accepts wherever the key scope is required.
+ * Users who signed up before read-only sign-in hold gmail.modify (+ send) and
+ * no gmail.readonly; they must not look as if they had lost Gmail access.
+ */
+const GOOGLE_SCOPES_IMPLIED_BY: Readonly<Record<string, readonly string[]>> = {
+  [GOOGLE_SCOPE_GMAIL_READONLY]: [GOOGLE_SCOPE_GMAIL_MODIFY],
+  [GOOGLE_SCOPE_GMAIL_SEND]: [GOOGLE_SCOPE_GMAIL_MODIFY],
+};
+
+function isGoogleScopeGranted(granted: Set<string>, scope: string): boolean {
+  if (granted.has(scope)) return true;
+  return (GOOGLE_SCOPES_IMPLIED_BY[scope] ?? []).some((broader) =>
+    granted.has(broader),
+  );
+}
+
+function parseGrantedScopes(grantedScope: string): Set<string> {
+  return new Set(grantedScope.split(" "));
+}
 
 /**
  * Matched by AuthController.determineOAuthErrorType to route the user to the
  * "grant Gmail access" explanation instead of a generic auth error.
  */
 export const MISSING_GMAIL_PERMISSION_MESSAGE =
-  "BearlyMail needs permission to read and send your Gmail. Please sign in again and allow Gmail access.";
+  "BearlyMail needs permission to read your Gmail. Please sign in again and allow Gmail access.";
 
 /**
  * Returns the required scopes absent from Google's space-separated `scope`
@@ -60,8 +81,10 @@ export function findMissingRequiredGoogleScopes(
   grantedScope: string | undefined,
 ): string[] {
   if (grantedScope === undefined) return [];
-  const granted = new Set(grantedScope.split(" "));
-  return REQUIRED_GOOGLE_SCOPES.filter((scope) => !granted.has(scope));
+  const granted = parseGrantedScopes(grantedScope);
+  return REQUIRED_GOOGLE_SCOPES.filter(
+    (scope) => !isGoogleScopeGranted(granted, scope),
+  );
 }
 
 /**
@@ -70,7 +93,12 @@ export function findMissingRequiredGoogleScopes(
  * which names what stops working when one is missing.
  */
 export const GOOGLE_PERMISSION_GROUP = {
+  /** Reading the mailbox: the one permission BearlyMail can't work without. */
   GMAIL: "gmail",
+  /** Archive, snooze, star, label, mark read, trash. */
+  GMAIL_MANAGE: "gmail_manage",
+  /** Send, reply and scheduled send. */
+  GMAIL_SEND: "gmail_send",
   CALENDAR: "calendar",
   CONTACTS: "contacts",
 } as const;
@@ -81,6 +109,8 @@ export type GooglePermissionGroup =
 const GOOGLE_PERMISSION_GROUP_SCOPES: Record<GooglePermissionGroup, string[]> =
   {
     [GOOGLE_PERMISSION_GROUP.GMAIL]: REQUIRED_GOOGLE_SCOPES,
+    [GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE]: [GOOGLE_SCOPE_GMAIL_MODIFY],
+    [GOOGLE_PERMISSION_GROUP.GMAIL_SEND]: [GOOGLE_SCOPE_GMAIL_SEND],
     [GOOGLE_PERMISSION_GROUP.CALENDAR]: [
       GOOGLE_SCOPE_CALENDAR_FREEBUSY,
       GOOGLE_SCOPE_CALENDAR_EVENTS,
@@ -101,16 +131,20 @@ export function findMissingGooglePermissionGroups(
   grantedScope: string | null | undefined,
 ): GooglePermissionGroup[] {
   if (!grantedScope) return [];
-  const granted = new Set(grantedScope.split(" "));
+  const granted = parseGrantedScopes(grantedScope);
   return (
     Object.keys(GOOGLE_PERMISSION_GROUP_SCOPES) as GooglePermissionGroup[]
   ).filter((group) =>
-    GOOGLE_PERMISSION_GROUP_SCOPES[group].some((scope) => !granted.has(scope)),
+    GOOGLE_PERMISSION_GROUP_SCOPES[group].some(
+      (scope) => !isGoogleScopeGranted(granted, scope),
+    ),
   );
 }
 
-/** Groups asked for after sign-in, from the feature that needs them. */
+/** Groups asked for after sign-in, from the feature or action that needs them. */
 export const INCREMENTAL_GOOGLE_PERMISSION_GROUPS = [
+  GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+  GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
   GOOGLE_PERMISSION_GROUP.CALENDAR,
   GOOGLE_PERMISSION_GROUP.CONTACTS,
 ] as const;
@@ -135,16 +169,33 @@ export function scopesForGooglePermissionGroup(
 /**
  * Whether the recorded grant covers every scope of a group. An unknown grant
  * counts as granted: those are Google sign-ins from before scopes were
- * recorded, when sign-in still asked for calendar and contacts, and failing
- * the call is how they find out otherwise.
+ * recorded, when sign-in still asked for everything, and failing the call is
+ * how they find out otherwise.
  */
 export function hasGooglePermission(
   grantedScope: string | null | undefined,
   group: GooglePermissionGroup,
 ): boolean {
   if (!grantedScope) return true;
-  const granted = new Set(grantedScope.split(" "));
+  const granted = parseGrantedScopes(grantedScope);
   return GOOGLE_PERMISSION_GROUP_SCOPES[group].every((scope) =>
-    granted.has(scope),
+    isGoogleScopeGranted(granted, scope),
   );
 }
+
+/**
+ * The user action that needed a Gmail permission the grant lacks. Sent with
+ * the 403 so the client's explainer can name it ("To archive in Gmail…");
+ * the values are part of the API contract with client/src/constants/strings.ts.
+ */
+export const GMAIL_WRITE_ACTION = {
+  ARCHIVE: "archive",
+  DELETE: "delete",
+  STAR: "star",
+  SNOOZE: "snooze",
+  BLOCK_SENDER: "block_sender",
+  SEND: "send",
+} as const;
+
+export type GmailWriteAction =
+  (typeof GMAIL_WRITE_ACTION)[keyof typeof GMAIL_WRITE_ACTION];

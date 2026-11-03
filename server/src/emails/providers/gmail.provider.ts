@@ -7,8 +7,14 @@ import {
 } from "@nestjs/common";
 import { gmail_v1, google } from "googleapis";
 
+import { GooglePermissionRequiredException } from "../../auth/exceptions/google-permission-required.exception";
 import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
 import { RELOGIN_REASONS } from "../../constants/auth-constants";
+import {
+  GMAIL_WRITE_ACTION,
+  GOOGLE_PERMISSION_GROUP,
+  hasGooglePermission,
+} from "../../constants/google-oauth-scopes";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { MILLISECONDS, MINUTES } from "../../constants/time-constants";
 import { User } from "../../database/entities/user.entity";
@@ -240,15 +246,76 @@ export class GmailProvider implements EmailProvider {
       );
       return null;
     }
+    return this.buildGmailClient(userId, user);
+  }
 
+  private buildGmailClient(
+    userId: string,
+    user: Pick<
+      User,
+      "googleCalendarAccessToken" | "googleCalendarRefreshToken"
+    >,
+  ): gmail_v1.Gmail {
     const oauth2Client = createUserGoogleOAuthClient(
       this.usersService,
       userId,
       user.googleCalendarAccessToken,
       user.googleCalendarRefreshToken,
     );
-
     return google.gmail({ version: "v1", auth: oauth2Client });
+  }
+
+  /**
+   * A client for changing the mailbox (archive, label, star, read, snooze,
+   * trash), or null when the grant is read-only. Interactive endpoints ask for
+   * the permission before getting here (RequireGooglePermission), so a null
+   * means a background job: the caller skips the Gmail side and keeps
+   * BearlyMail's own state, and the user gets a one-time notice instead of a
+   * 403 that would flag the account for re-login.
+   */
+  private async createGmailManageClient(
+    userId: string,
+  ): Promise<gmail_v1.Gmail | null> {
+    const user = await this.usersService.findOneWithTokens(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    }
+    if (
+      !hasGooglePermission(
+        user.googleGrantedScopes,
+        GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+      )
+    ) {
+      this.logger.debug(
+        `[GmailProvider] Skipping Gmail write for user ${userId}: grant has no gmail.modify`,
+      );
+      await this.usersService.recordSkippedGmailWrite(userId);
+      return null;
+    }
+    return this.buildGmailClient(userId, user);
+  }
+
+  /**
+   * Unlike a skipped archive, a skipped send would lose the user's message, so
+   * a grant without send permission fails the send with a structured 403.
+   */
+  private async createGmailSendClient(userId: string): Promise<gmail_v1.Gmail> {
+    const user = await this.usersService.findOneWithTokens(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    }
+    if (
+      !hasGooglePermission(
+        user.googleGrantedScopes,
+        GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
+      )
+    ) {
+      throw new GooglePermissionRequiredException(
+        GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
+        GMAIL_WRITE_ACTION.SEND,
+      );
+    }
+    return this.buildGmailClient(userId, user);
   }
 
   /**
@@ -399,8 +466,7 @@ export class GmailProvider implements EmailProvider {
   ): Promise<{ messageId: string; threadId: string }> {
     const { threadId, to, subject, body, options } = params;
     const { attachments, htmlBody, cc, bcc } = options ?? {};
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("Gmail account not connected.");
+    const gmail = await this.createGmailSendClient(userId);
 
     const toRecipients = parseRecipientsFromString(to);
     const ccRecipients = cc ? parseRecipientsFromString(cc) : undefined;
@@ -455,8 +521,7 @@ export class GmailProvider implements EmailProvider {
     },
   ): Promise<{ messageId: string; threadId: string }> {
     const { to, subject, body, htmlBody, cc, bcc, attachments } = params;
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("Gmail account not connected.");
+    const gmail = await this.createGmailSendClient(userId);
 
     const emailContent = buildEmailContent({
       to,
@@ -680,8 +745,8 @@ export class GmailProvider implements EmailProvider {
     threadId: string,
     labelName: string,
   ): Promise<void> {
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    const gmail = await this.createGmailManageClient(userId);
+    if (!gmail) return;
     const labelId = await ensureLabelExists(
       gmail,
       labelName,
@@ -702,20 +767,20 @@ export class GmailProvider implements EmailProvider {
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    const gmail = await this.createGmailManageClient(userId);
+    if (!gmail) return;
     await archiveThreadInGmail(userId, threadId, gmail);
   }
 
   async unarchiveThread(userId: string, threadId: string): Promise<void> {
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    const gmail = await this.createGmailManageClient(userId);
+    if (!gmail) return;
     await unarchiveThreadInGmail(userId, threadId, gmail);
   }
 
   async trashThread(userId: string, threadId: string): Promise<void> {
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    const gmail = await this.createGmailManageClient(userId);
+    if (!gmail) return;
     await trashThreadInGmail(userId, threadId, gmail);
   }
 
@@ -724,8 +789,8 @@ export class GmailProvider implements EmailProvider {
     threadId: string,
     starCount: number,
   ): Promise<void> {
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    const gmail = await this.createGmailManageClient(userId);
+    if (!gmail) return;
     await syncStarToGmail(userId, threadId, starCount, gmail);
   }
 
@@ -734,8 +799,8 @@ export class GmailProvider implements EmailProvider {
     messageId: string,
     isRead: boolean,
   ): Promise<void> {
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    const gmail = await this.createGmailManageClient(userId);
+    if (!gmail) return;
     await syncReadToGmail(userId, messageId, isRead, gmail);
   }
 
@@ -744,8 +809,8 @@ export class GmailProvider implements EmailProvider {
     threadId: string,
     _snoozeUntil: Date,
   ): Promise<void> {
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    const gmail = await this.createGmailManageClient(userId);
+    if (!gmail) return;
     const snoozeLabelId = await ensureLabelExists(
       gmail,
       "SnoozedBearlyMail",
@@ -757,8 +822,8 @@ export class GmailProvider implements EmailProvider {
   }
 
   async unsnoozeThread(userId: string, threadId: string): Promise<void> {
-    const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+    const gmail = await this.createGmailManageClient(userId);
+    if (!gmail) return;
     const snoozeLabelId = await ensureLabelExists(
       gmail,
       "SnoozedBearlyMail",

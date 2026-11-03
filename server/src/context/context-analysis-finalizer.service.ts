@@ -28,6 +28,7 @@ import {
   StoredBatchResult,
 } from "./context-discovery.types";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
+import { OnboardingCategorySortService } from "./onboarding-category-sort.service";
 
 type AnalysisStatsInput = {
   totalThreads: number;
@@ -73,6 +74,7 @@ export class ContextAnalysisFinalizerService {
     private crudService: ContextCrudService,
     private compressionService: ContextCompressionService,
     private piiRedactionService: ContextPiiRedactionService,
+    private onboardingCategorySortService: OnboardingCategorySortService,
   ) {}
 
   async finalizeContextAnalysis(options: {
@@ -147,6 +149,14 @@ export class ContextAnalysisFinalizerService {
     this.logger.log(
       `[CONTEXT-DISCOVERY] Completed for user ${userId}: ${categories.length} categories, ${merged.vipContacts.length} VIPs from ${totalThreads} threads`,
     );
+
+    if (categories.length > 0) {
+      // Threads the first sync triaged before these categories existed sit in
+      // "Other"; sort them now so step 3 hands over an organised inbox.
+      await this.onboardingCategorySortService.sortOnboardingThreadsIntoCategories(
+        userId,
+      );
+    }
 
     await this.compressionService.enqueueContextCompressionIfNeeded(userId);
     setTimeout(async () => {

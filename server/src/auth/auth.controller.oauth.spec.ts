@@ -3,7 +3,11 @@ import { createHmac } from "crypto";
 import { Response } from "express";
 
 import { AUTH_CONSTANTS, OAUTH_ERROR_TYPES } from "../constants/auth-constants";
-import { MISSING_GMAIL_PERMISSION_MESSAGE } from "../constants/google-oauth-scopes";
+import { AUTH_ACTION_TYPES } from "../constants/domain-types";
+import {
+  GOOGLE_PERMISSION_GROUP,
+  MISSING_GMAIL_PERMISSION_MESSAGE,
+} from "../constants/google-oauth-scopes";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
@@ -13,6 +17,7 @@ import { WaitlistService } from "../waitlist/waitlist.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { GooglePermissionGrantService } from "./google-permission-grant.service";
 import { StepUpAuthGuard } from "./step-up.guard";
 
 const FRONTEND_URL = "https://app.bearlymail.test";
@@ -102,6 +107,8 @@ describe("AuthController OAuth callbacks", () => {
     create: jest.fn(),
   };
 
+  const mockGooglePermissionGrantService = { completeGrant: jest.fn() };
+
   const mockBoss = {
     send: jest.fn(),
   };
@@ -133,6 +140,10 @@ describe("AuthController OAuth callbacks", () => {
         { provide: UserEncryptionService, useValue: mockUserEncryptionService },
         { provide: WaitlistService, useValue: {} },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
+        {
+          provide: GooglePermissionGrantService,
+          useValue: mockGooglePermissionGrantService,
+        },
       ],
     })
       // These tests call handlers directly; the guard is covered by step-up.guard.spec.
@@ -317,6 +328,62 @@ describe("AuthController OAuth callbacks", () => {
       expect(mockGoogleAccountsService.findAllByUser).not.toHaveBeenCalled();
       expect(mockAuthService.login).toHaveBeenCalledWith(googleUser);
       expect(res.redirect).toHaveBeenCalledWith(`${FRONTEND_URL}/inbox`);
+    });
+
+    describe("incremental Google permission grant", () => {
+      const grantState = encodeState({
+        action: AUTH_ACTION_TYPES.GRANT_GOOGLE_PERMISSION,
+        userId: "user-1",
+        permission: GOOGLE_PERMISSION_GROUP.CALENDAR,
+        returnTo: "/email/abc",
+      });
+
+      it("completes the grant and returns to the app without re-logging in", async () => {
+        mockGooglePermissionGrantService.completeGrant.mockResolvedValue(
+          `${FRONTEND_URL}/email/abc?googlePermission=granted`,
+        );
+        const res = createMockResponse();
+
+        await controller.googleAuthRedirect(
+          { user: googleUser },
+          asResponse(res),
+          grantState,
+        );
+
+        expect(
+          mockGooglePermissionGrantService.completeGrant,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: "user-1",
+            permission: GOOGLE_PERMISSION_GROUP.CALENDAR,
+          }),
+          googleUser,
+          FRONTEND_URL,
+        );
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(res.cookie).not.toHaveBeenCalled();
+        expect(res.redirect).toHaveBeenCalledWith(
+          `${FRONTEND_URL}/email/abc?googlePermission=granted`,
+        );
+      });
+
+      it("reports the outcome when the grant did not land", async () => {
+        mockGooglePermissionGrantService.completeGrant.mockResolvedValue(
+          `${FRONTEND_URL}/email/abc?googlePermission=wrong_account`,
+        );
+        const res = createMockResponse();
+
+        await controller.googleAuthRedirect(
+          { user: { id: "someone-else" } },
+          asResponse(res),
+          grantState,
+        );
+
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(res.redirect).toHaveBeenCalledWith(
+          `${FRONTEND_URL}/email/abc?googlePermission=wrong_account`,
+        );
+      });
     });
   });
 

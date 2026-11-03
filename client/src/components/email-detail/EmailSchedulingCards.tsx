@@ -6,7 +6,8 @@
  * sidebar (compact view). Renders at most one card, chosen deterministically:
  *
  *   1. ICS attachment present        → IcsInviteCard
- *   2. AI-detected scheduling request → SchedulingRequestCard (Create Calendar Invite)
+ *   2. AI-detected scheduling request → SchedulingRequestCard (Create Calendar Invite),
+ *      led by a "Connect your calendar" prompt when calendar isn't granted yet
  *   3. Plain calendar invitation      → CalendarInviteActions (Accept / Decline)
  *
  * Returns null when none apply, so callers can render it unconditionally.
@@ -18,6 +19,7 @@ import { hasIcsAttachment, isCalendarInvitation } from 'utils/calendarUtils';
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
 import { IcsInviteCard } from 'components/email-detail/IcsInviteCard';
 import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
+import { ConnectCalendarPrompt } from 'components/google-permissions/ConnectCalendarPrompt';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ACTION_TYPE_CALENDAR_CREATE_INVITE, ACTION_TYPE_SCHEDULING_REQUEST } from 'constants/strings';
 
@@ -64,7 +66,12 @@ export const EmailSchedulingCards: React.FC<EmailSchedulingCardsProps> = ({
   }
 
   if (hasSchedulingRequest) {
-    return <SchedulingRequestCard email={email} onDraftReply={onDraftReply} schedulingActions={schedulingActions} />;
+    return (
+      <>
+        <ConnectCalendarPrompt />
+        <SchedulingRequestCard email={email} onDraftReply={onDraftReply} schedulingActions={schedulingActions} />
+      </>
+    );
   }
 
   if (!loadingSchedulingActions && isInvitation && onRespondToInvitation) {

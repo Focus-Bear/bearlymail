@@ -73,6 +73,7 @@ describe("AuthController OAuth connect-flow error handling", () => {
       zohoAccountsService as never,
       userEncryptionService as never,
       boss as never,
+      {} as never,
     );
     return { controller, authService, zohoAccountsService };
   };

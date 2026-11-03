@@ -465,18 +465,6 @@
           "title": "Ver tus contactos",
           "description": "Para reconocer a las personas que te importan (tus VIP) y autocompletar direcciones cuando escribes."
         },
-        "otherContacts": {
-          "title": "Ver tus “Otros contactos”",
-          "description": "La lista de Google de personas a las que has escrito pero nunca guardaste. Muchos de tus remitentes más importantes solo están aquí."
-        },
-        "calendarEvents": {
-          "title": "Ver y editar eventos del calendario",
-          "description": "Para sugerir horarios de reunión en las respuestas y añadir la invitación cuando alguien reserva. No cambiamos la configuración de tu calendario."
-        },
-        "availability": {
-          "title": "Ver cuándo estás libre u ocupado",
-          "description": "Permite que las sugerencias de reunión eviten conflictos, sin leer de qué tratan tus eventos."
-        },
         "stayConnected": {
           "title": "Mantener la conexión cuando no estás",
           "description": "Mantiene tu bandeja sincronizada aunque no hayas iniciado sesión, para que tus lotes lleguen a tiempo."
@@ -3272,12 +3260,7 @@
         "gmailTitle": "BearlyMail todavía no puede acceder a tu Gmail",
         "gmailBody": "En la pantalla de permisos de Google quedaron sin marcar las casillas que permiten a BearlyMail leer, organizar y enviar tus correos. Hasta que las permitas, tu bandeja seguirá vacía: no se agrupará, resumirá ni enviará nada.",
         "gmailBodyRevoked": "Google ya no deja que BearlyMail acceda a tu buzón: el acceso se eliminó o caducó. Hasta que lo vuelvas a permitir, tu bandeja seguirá vacía: no se agrupará, resumirá ni enviará nada.",
-        "gmailButton": "Permitir acceso a Gmail",
-        "optionalTitle": "Omitiste algunos permisos opcionales",
-        "optionalBody": "Tu bandeja funciona sin ellos, pero algunas funciones no:",
-        "optionalCalendar": "Calendario: tu página de reservas no puede ver cuándo estás libre ni añadir reuniones a tu calendario.",
-        "optionalContacts": "Contactos: las sugerencias de destinatarios y tu lista de contactos no incluirán a las personas de tus contactos de Google.",
-        "optionalButton": "Conceder estos permisos"
+        "gmailButton": "Permitir acceso a Gmail"
       },
       "iAcceptThe": "Acepto los",
       "termsOfUse": "Términos de uso",
@@ -5098,5 +5081,21 @@
     "multipleRecipients_one": "Enviado a {{count}} destinatario.",
     "multipleRecipients_other": "Enviado a {{count}} destinatarios: la apertura puede ser de cualquiera de ellos.",
     "imagesCaveat": "Las aperturas se detectan con una imagen diminuta. Quien bloquee las imágenes no aparecerá como abierto."
+  },
+  "googlePermissions": {
+    "startError": "No se pudo abrir Google. Inténtalo de nuevo.",
+    "calendar": {
+      "message": "Conecta tu Google Calendar para que BearlyMail pueda ver cuándo estás libre y añadir la reunión por ti.",
+      "action": "Conectar tu calendario"
+    },
+    "contacts": {
+      "message": "Solo tenemos los contactos de tus correos.",
+      "action": "Importar todos tus contactos de Gmail"
+    },
+    "result": {
+      "granted": "Listo. BearlyMail ya puede usarlo.",
+      "declined": "Google no le dio ese permiso a BearlyMail. Marca su casilla en la pantalla de Google para permitirlo.",
+      "wrongAccount": "Esa era otra cuenta de Google. Elige la cuenta con la que iniciaste sesión en BearlyMail."
+    }
   }
 }

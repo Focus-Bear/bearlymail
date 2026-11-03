@@ -11,6 +11,7 @@ import { WaitlistService } from "../waitlist/waitlist.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { GooglePermissionGrantService } from "./google-permission-grant.service";
 import { StepUpAuthGuard } from "./step-up.guard";
 
 interface MockResponse {
@@ -77,6 +78,8 @@ describe("AuthController", () => {
 
   const mockWaitlistService = {};
 
+  const mockGooglePermissionGrantService = { completeGrant: jest.fn() };
+
   const mockBoss = {
     send: jest.fn().mockResolvedValue("job-id"),
   };
@@ -103,6 +106,10 @@ describe("AuthController", () => {
         },
         { provide: WaitlistService, useValue: mockWaitlistService },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
+        {
+          provide: GooglePermissionGrantService,
+          useValue: mockGooglePermissionGrantService,
+        },
       ],
     })
       // These tests call handlers directly; the guard is covered by step-up.guard.spec.

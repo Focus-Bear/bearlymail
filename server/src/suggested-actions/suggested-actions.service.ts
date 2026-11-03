@@ -4,6 +4,7 @@ import { IsNull, Not, Repository } from "typeorm";
 
 import { ActionItemsService } from "../action-items/action-items.service";
 import { CalendarService } from "../calendar/calendar.service";
+import { hasGoogleCalendarAccess } from "../calendar/google-calendar-access.util";
 import {
   GITHUB_ACTION_TYPES,
   GITHUB_LINK_TYPES,
@@ -198,7 +199,7 @@ export class SuggestedActionsService {
       }
       const user = await this.usersService.findOne(userId);
       const hasGithubToken = !!user?.githubToken;
-      const hasCalendarToken = !!user?.googleCalendarAccessToken;
+      const hasCalendarToken = hasGoogleCalendarAccess(user);
       const githubLinks = this.githubService.parseGitHubLinks(
         email.body || "",
         email.htmlBody || undefined,

@@ -12,6 +12,7 @@ import { theme } from 'theme/theme';
 
 import { AdminMfaProvider } from 'components/admin/AdminMfaGate';
 import { ConsentModal } from 'components/ConsentModal';
+import { GooglePermissionResultListener } from 'components/google-permissions/GooglePermissionResultListener';
 import { ENGINEERING_MANAGER_LANDING_PATH, PRODUCT_MANAGER_LANDING_PATH } from 'components/landing-v2/constants';
 import { AiLimitBanner } from 'components/notifications/AiLimitBanner';
 import { EmailSendOutcomeListener } from 'components/notifications/EmailSendOutcomeListener';
@@ -359,6 +360,8 @@ function App() {
                   {/* Background sends report their real outcome after the user
                       has left the composer, so this listens app-wide. */}
                   <EmailSendOutcomeListener />
+                  {/* Google sends the user back here after granting calendar or contacts. */}
+                  <GooglePermissionResultListener />
                   <AppRoutes />
                 </div>
               </AdminMfaProvider>

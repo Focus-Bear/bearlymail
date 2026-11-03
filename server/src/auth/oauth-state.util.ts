@@ -21,6 +21,17 @@ interface OAuthStatePayload {
   userId: string;
   action: string;
   iat: number;
+  /** Google permission group being granted (GRANT_GOOGLE_PERMISSION only). */
+  permission?: string;
+  /** App path to return to once the grant completes (GRANT_GOOGLE_PERMISSION only). */
+  returnTo?: string;
+}
+
+export interface ParsedOAuthState {
+  action: string;
+  userId: string;
+  permission?: string;
+  returnTo?: string;
 }
 
 /**
@@ -42,26 +53,49 @@ function sign(payloadJson: string): string {
     .digest("base64url");
 }
 
-/** Builds a signed, timestamped connect-state for the given user. */
-export function createConnectState(userId: string): string {
-  const payload: OAuthStatePayload = {
-    userId,
-    action: AUTH_ACTION_TYPES.CONNECT,
-    iat: Date.now(),
-  };
+function encodeSignedState(payload: OAuthStatePayload): string {
   const payloadJson = JSON.stringify(payload);
   const body = Buffer.from(payloadJson).toString("base64url");
   return `${body}.${sign(payloadJson)}`;
 }
+
+/** Builds a signed, timestamped connect-state for the given user. */
+export function createConnectState(userId: string): string {
+  return encodeSignedState({
+    userId,
+    action: AUTH_ACTION_TYPES.CONNECT,
+    iat: Date.now(),
+  });
+}
+
+/**
+ * Builds the signed state for an incremental Google grant. Signing matters
+ * here too: the callback trusts `userId` to decide whose grant was extended
+ * and `returnTo` to decide where to send the browser.
+ */
+export function createGooglePermissionState(
+  userId: string,
+  permission: string,
+  returnTo: string,
+): string {
+  return encodeSignedState({
+    userId,
+    action: AUTH_ACTION_TYPES.GRANT_GOOGLE_PERMISSION,
+    iat: Date.now(),
+    permission,
+    returnTo,
+  });
+}
+
+const optionalString = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
 
 /**
  * Verifies and decodes a signed connect-state. Returns null on any tampering,
  * signature mismatch, expiry, or malformed input — callers must treat null as
  * "reject this callback".
  */
-export function parseSignedOAuthState(
-  state: string,
-): { action: string; userId: string } | null {
+export function parseSignedOAuthState(state: string): ParsedOAuthState | null {
   try {
     // Exactly two parts — reject `body.sig.extra` so trailing data can't be
     // smuggled past a valid signature.
@@ -93,7 +127,14 @@ export function parseSignedOAuthState(
       return null;
     }
 
-    return { action: payload.action, userId: payload.userId };
+    const permission = optionalString(payload.permission);
+    const returnTo = optionalString(payload.returnTo);
+    return {
+      action: payload.action,
+      userId: payload.userId,
+      ...(permission !== undefined ? { permission } : {}),
+      ...(returnTo !== undefined ? { returnTo } : {}),
+    };
   } catch {
     return null;
   }

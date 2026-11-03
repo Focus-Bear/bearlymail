@@ -396,6 +396,16 @@ export type GooglePermissionGroup =
 // Server path that starts Google sign-in (always with the consent screen forced)
 export const GOOGLE_OAUTH_START_PATH = '/auth/google';
 
+// Sign-in only asks for Gmail; these are granted later, from the feature that needs them
+export type IncrementalGooglePermissionGroup = typeof GOOGLE_PERMISSION_CALENDAR | typeof GOOGLE_PERMISSION_CONTACTS;
+// Server path returning the Google consent URL for one more permission group
+export const GOOGLE_PERMISSION_URL_PATH = '/auth/google/permission-url';
+// Query parameter (and values) the server adds when a grant returns to the app
+export const GOOGLE_PERMISSION_RESULT_PARAM = 'googlePermission';
+export const GOOGLE_PERMISSION_RESULT_GRANTED = 'granted' as const;
+export const GOOGLE_PERMISSION_RESULT_DECLINED = 'declined' as const;
+export const GOOGLE_PERMISSION_RESULT_WRONG_ACCOUNT = 'wrong_account' as const;
+
 // Deletion reasons (must match server DeletionReason enum)
 export const DELETION_REASON_INACTIVITY = 'inactivity' as const;
 export const DELETION_REASON_MANUAL = 'manual' as const;

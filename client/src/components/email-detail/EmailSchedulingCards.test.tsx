@@ -24,6 +24,9 @@ vi.mock('./SchedulingRequestCard', () => ({
 vi.mock('./CalendarInviteActions', () => ({
   CalendarInviteActions: () => <div data-testid="calendar-invite-actions" />,
 }));
+vi.mock('components/google-permissions/ConnectCalendarPrompt', () => ({
+  ConnectCalendarPrompt: () => <div data-testid="connect-calendar-prompt" />,
+}));
 
 function makeEmail(overrides: Partial<Email> = {}): Email {
   return {
@@ -69,5 +72,18 @@ describe('EmailSchedulingCards', () => {
     expect(screen.queryByTestId('ics-invite-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('scheduling-request-card')).not.toBeInTheDocument();
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('leads a scheduling request with the connect-your-calendar prompt', () => {
+    render(<EmailSchedulingCards email={makeEmail({ attachments: [] })} schedulingActions={[schedulingAction]} />);
+
+    expect(screen.getByTestId('connect-calendar-prompt')).toBeInTheDocument();
+    expect(screen.getByTestId('scheduling-request-card')).toBeInTheDocument();
+  });
+
+  it('does not offer calendar access for an ICS invite', () => {
+    render(<EmailSchedulingCards email={makeEmail()} />);
+
+    expect(screen.queryByTestId('connect-calendar-prompt')).not.toBeInTheDocument();
   });
 });

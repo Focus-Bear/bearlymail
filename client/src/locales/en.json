@@ -814,6 +814,10 @@
     "cc": "CC",
     "saveAsPdf": "Save as PDF",
     "moreOptions": "More options",
+    "downloadEml": "Download .eml",
+    "messageOptions": "Message options",
+    "downloadEmlFailed": "Couldn’t download the email. Please try again.",
+    "downloadEmlUnsupported": "Downloading the original email isn’t supported for your email provider yet.",
     "icsInvite": {
       "loading": "Loading calendar invite...",
       "title": "Calendar Invite",

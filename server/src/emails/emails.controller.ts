@@ -28,9 +28,11 @@ import {
   Put,
   Query,
   Request,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import type { Response } from "express";
 import type { PgBoss } from "pg-boss";
 
 import { AuditService } from "../audit/audit.service";
@@ -42,7 +44,9 @@ import {
   BOOLEAN_STRING_VALUES,
   EMAIL_PROVIDER_TYPES,
 } from "../constants/domain-types";
+import { EML_DOWNLOAD } from "../constants/eml-download.constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { HTTP_HEADERS } from "../constants/http-headers";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -60,6 +64,7 @@ import {
   EMAIL_CONTROLLER_DEFAULTS,
   resolveInboxBatchLimit,
 } from "./email-controller.helpers";
+import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportJobService } from "./email-export-job.service";
 import {
   CategoryOverrideBody,
@@ -95,6 +100,7 @@ export class EmailsController {
     private readonly auditService: AuditService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly emailTrackingSummaryService: EmailTrackingSummaryService,
+    private readonly emailEmlDownloadService: EmailEmlDownloadService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -779,6 +785,46 @@ export class EmailsController {
       mimeType: attachment.mimeType,
       size: attachment.size,
     };
+  }
+
+  /**
+   * Downloads one message as a `.eml` file: the provider's original RFC 822
+   * source with every header. 404 for an email the user doesn't own, 501 when
+   * their provider can't supply the raw message.
+   */
+  @Get(":id/eml")
+  @Throttle({
+    default: {
+      limit: EML_DOWNLOAD.RATE_LIMIT,
+      ttl: EML_DOWNLOAD.RATE_WINDOW_MS,
+    },
+  })
+  async downloadEml(
+    @Request() req,
+    @Param("id") id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { userId } = req.user;
+    const download = await this.emailEmlDownloadService.getEmlDownload(
+      userId,
+      id,
+    );
+    // A complete raw message is personal data leaving the system, so it is
+    // audited like the bulk export. AuditService swallows its own errors.
+    await this.auditService.log({
+      userId,
+      action: EML_DOWNLOAD.AUDIT_ACTION,
+      targetType: EML_DOWNLOAD.AUDIT_TARGET_TYPE,
+      targetId: id,
+      ipAddress: req.ip ?? null,
+      userAgent: req.headers?.["user-agent"] ?? null,
+    });
+    res.set({
+      [HTTP_HEADERS.CONTENT_TYPE]: EML_DOWNLOAD.CONTENT_TYPE,
+      [HTTP_HEADERS.CONTENT_DISPOSITION]: download.contentDisposition,
+      [HTTP_HEADERS.CONTENT_LENGTH]: String(download.content.length),
+    });
+    res.send(download.content);
   }
 
   @Post()

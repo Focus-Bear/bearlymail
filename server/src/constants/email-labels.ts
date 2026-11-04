@@ -12,6 +12,8 @@ export const GMAIL_LABELS = {
   TRASH: "TRASH",
   SPAM: "SPAM",
   DRAFT: "DRAFT",
+  /** Gmail's own importance marker, learned from how the user treats each sender. */
+  IMPORTANT: "IMPORTANT",
 } as const;
 
 export type GmailLabel = (typeof GMAIL_LABELS)[keyof typeof GMAIL_LABELS];

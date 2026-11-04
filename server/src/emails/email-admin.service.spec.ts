@@ -152,6 +152,10 @@ describe("EmailAdminService", () => {
         expect.objectContaining({ emailId: "email-follow-up-1" }),
         expect.any(Object),
       );
+      // A singleton slot would make pg-boss drop a re-run in the same minute.
+      const jobOptions = mockBoss.send.mock.calls[0][2];
+      expect(jobOptions).not.toHaveProperty("singletonKey");
+      expect(jobOptions).not.toHaveProperty("singletonSeconds");
     });
 
     it("returns the running onboarding sort instead of queuing a second run", async () => {
@@ -197,7 +201,7 @@ describe("EmailAdminService", () => {
           forceRecalculate: true,
           recategorizeBatchId: result.batchId,
         },
-        expect.objectContaining({ singletonKey: "recategorize-email-1" }),
+        expect.not.objectContaining({ singletonKey: expect.anything() }),
       );
     });
   });

@@ -86,7 +86,7 @@ describe("OnboardingCategorySortService", () => {
       recategorizeBatchId: expect.any(String),
       recategorizeTrigger: RECATEGORIZE_TRIGGER.ONBOARDING_CATEGORIES_SAVED,
     });
-    expect(options).toMatchObject({ singletonKey: "recategorize-email-a" });
+    expect(options).not.toHaveProperty("singletonKey");
     const batchIds = mocks.send.mock.calls.map(
       ([, jobData]) => jobData.recategorizeBatchId,
     );

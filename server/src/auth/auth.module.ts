@@ -21,6 +21,8 @@ import { AuthService } from "./auth.service";
 import { EmailProviderRequiredGuard } from "./email-provider-required.guard";
 import { EmailAccountRequiredGuard } from "./gmail-required.guard";
 import { GoogleStrategy } from "./google.strategy";
+import { GooglePermissionGrantService } from "./google-permission-grant.service";
+import { GooglePermissionsController } from "./google-permissions.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { LocalStrategy } from "./local.strategy";
 import { MicrosoftStrategy } from "./microsoft.strategy";
@@ -58,6 +60,7 @@ import { ZohoStrategy } from "./zoho.strategy";
     JwtStrategy,
     LocalStrategy,
     GoogleStrategy,
+    GooglePermissionGrantService,
     MicrosoftStrategy,
     ZohoStrategy,
     AdminGuard,
@@ -66,7 +69,11 @@ import { ZohoStrategy } from "./zoho.strategy";
     StepUpAuthGuard,
     EmailProviderRequiredGuard,
   ],
-  controllers: [AuthController, AppleMailLocalAuthController],
+  controllers: [
+    AuthController,
+    AppleMailLocalAuthController,
+    GooglePermissionsController,
+  ],
   exports: [
     AuthService,
     TotpService,

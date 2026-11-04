@@ -2,7 +2,6 @@ import type { PgBoss } from "pg-boss";
 
 import { QUEUE_JOB_STATE } from "../constants/domain-statuses";
 import { JOB_NAMES } from "../constants/job-names";
-import { SECONDS } from "../constants/time-constants";
 import { getJobPriority } from "../queue/job-priorities";
 import { getBossDb } from "./email-controller.helpers";
 
@@ -44,8 +43,10 @@ interface InFlightBatchRow {
  * GET /emails/recategorize-progress can report on the batch. Every
  * re-categorisation goes through here so the Settings button, onboarding's
  * Re-categorise and the automatic onboarding sort run the same pipeline (Jev,
- * constrained to the user's categories). The per-email singleton key stops two
- * paths queuing the same email within a minute of each other.
+ * constrained to the user's categories). No singleton options: pg-boss would
+ * drop a re-run started in the same minute, so changes made since the last run
+ * would never be applied. Overlapping onboarding sorts are prevented by
+ * findInFlightRecategorizationBatch instead.
  */
 export async function enqueueRecategorizationJobs(
   boss: PgBoss,
@@ -68,8 +69,6 @@ export async function enqueueRecategorizationJobs(
     };
     const jobId = await boss.send(JOB_NAMES.REFINE_PRIORITY, jobData, {
       priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true),
-      singletonKey: `recategorize-${emailId}`,
-      singletonSeconds: SECONDS.MINUTE,
     });
     if (jobId != null) queued++;
   }

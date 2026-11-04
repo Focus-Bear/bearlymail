@@ -35,6 +35,7 @@ describe("LLMProcessor — deterministic skip flow", () => {
   const checkAiCapacity = jest.fn();
   const threadUpdate = jest.fn();
   const releaseStaleRuleLabel = jest.fn();
+  const invalidateUserContexts = jest.fn();
   const email = { id: "email-1", emailThreadId: "thread-1" } as Email;
   const thread = { id: "thread-1" } as EmailThread;
 
@@ -59,7 +60,10 @@ describe("LLMProcessor — deterministic skip flow", () => {
           useValue: { getEmailById: jest.fn().mockResolvedValue(email) },
         },
         { provide: PriorityService, useValue: {} },
-        { provide: PriorityCacheService, useValue: {} },
+        {
+          provide: PriorityCacheService,
+          useValue: { invalidateUserContexts },
+        },
         { provide: PriorityAnalysisService, useValue: { analyzePriority } },
         {
           provide: CloudWatchService,
@@ -110,15 +114,27 @@ describe("LLMProcessor — deterministic skip flow", () => {
     processor = module.get(LLMProcessor);
   });
 
-  const runJob = () =>
+  const runJob = (forceRecalculate?: boolean) =>
     (
       processor as unknown as {
         handleRefinePriorityJob: (job: unknown) => Promise<void>;
       }
     ).handleRefinePriorityJob({
       id: "job-1",
-      data: { userId: "user-1", emailId: "email-1" },
+      data: { userId: "user-1", emailId: "email-1", forceRecalculate },
     });
+
+  it("drops the cached contexts on a forced run, so a re-sort sees categories the user just changed", async () => {
+    tryHandle.mockResolvedValue(true);
+    await runJob(true);
+    expect(invalidateUserContexts).toHaveBeenCalledWith("user-1");
+  });
+
+  it("keeps the cached contexts on a normal run", async () => {
+    tryHandle.mockResolvedValue(true);
+    await runJob();
+    expect(invalidateUserContexts).not.toHaveBeenCalled();
+  });
 
   it("skips the LLM when a rule handles the email", async () => {
     tryHandle.mockResolvedValue(true);

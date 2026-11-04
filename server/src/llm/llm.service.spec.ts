@@ -232,7 +232,6 @@ describe("LLMService", () => {
         "redact_names",
         "validate_writing_example",
         "dispute_tone_check",
-        "consolidate_categories",
         "generate_categories_from_other",
         "search_relevance_explanation",
       ];

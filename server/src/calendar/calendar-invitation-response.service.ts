@@ -13,6 +13,7 @@ import {
   ConflictingEvent,
   listConflictingEvents,
 } from "./calendar-conflicting-events.helper";
+import { hasGoogleCalendarAccess } from "./google-calendar-access.util";
 import { findExistingScheduledEvent } from "./scheduled-event-lookup.helper";
 
 const proposalLog = createLogger("CalendarMeetingProposal");
@@ -238,7 +239,7 @@ export async function respondToInvitation(
   response: "accepted" | "declined" | "tentative",
 ): Promise<void> {
   const user = await service.usersService.findOne(userId);
-  if (!user?.googleCalendarAccessToken) {
+  if (!hasGoogleCalendarAccess(user)) {
     throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
   }
 
@@ -781,7 +782,7 @@ export async function checkMeetingProposal(
   }
 
   const user = await service.usersService.findOne(userId);
-  if (!user?.googleCalendarAccessToken) {
+  if (!hasGoogleCalendarAccess(user)) {
     // A date-only proposal needs calendar access to suggest a time; without it there's nothing
     // concrete to show, so degrade to "no proposal" and let the generic scheduling actions render.
     if (!proposal.proposedTime) {
@@ -869,7 +870,7 @@ export async function checkTimeAvailability(
   conflictingEvents: ConflictingEvent[];
 }> {
   const user = await service.usersService.findOne(userId);
-  if (!user?.googleCalendarAccessToken) {
+  if (!hasGoogleCalendarAccess(user)) {
     return {
       isAvailable: null,
       suggestedTime: null,
@@ -913,7 +914,7 @@ export async function rsvpByEventId(
   htmlLink?: string;
 }> {
   const user = await service.usersService.findOne(userId);
-  if (!user?.googleCalendarAccessToken) {
+  if (!hasGoogleCalendarAccess(user)) {
     throw new BadRequestException(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
   }
 

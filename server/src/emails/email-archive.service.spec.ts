@@ -142,6 +142,22 @@ describe("EmailArchiveService", () => {
       ).toHaveBeenCalledWith("user-1", "provider-thread-1", true, true);
     });
 
+    it("marks unread emails read without queueing a provider read sync", async () => {
+      mockEmailRepository.find.mockResolvedValue([{ id: "email-1" }]);
+
+      await service.archiveThreadById("user-1", "thread-uuid");
+
+      expect(mockEmailReadService.bulkMarkAsRead).toHaveBeenCalledWith(
+        "user-1",
+        ["email-1"],
+      );
+      expect(mockBoss.send).not.toHaveBeenCalledWith(
+        JOB_NAMES.READ_STATUS_PROVIDER_SYNC,
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
     it("does not set archivedByWorkflow for a plain archive", async () => {
       await service.archiveThreadById("user-1", "thread-uuid");
 

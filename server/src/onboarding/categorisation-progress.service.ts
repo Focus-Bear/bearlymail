@@ -12,7 +12,7 @@ import {
 } from "../emails/recategorize-jobs.helper";
 import { getErrorMessage } from "../types/common";
 
-const SETTLED_THREAD_PREDICATE = `"aiProcessingDeferred" = true
+export const SETTLED_THREAD_PREDICATE = `"aiProcessingDeferred" = true
   OR ("isProcessingPriority" = false
       AND ("prioritySource" IS NOT NULL OR "categorySource" IS NOT NULL))`;
 

@@ -15,8 +15,8 @@ import { AskAiToolService } from "./ask-ai-tools.service";
  * AskAiModule — the agentic "Ask AI" email assistant.
  *
  * Depends only on LLMModule (tool-calling), MCPModule (connected tools) and the
- * Email/MCPServerConfig repositories. Nothing imports this module, so it adds no
- * circular dependencies.
+ * Email/MCPServerConfig repositories. Only McpServerModule imports it (for the
+ * email search tool), so it adds no circular dependencies.
  */
 @Module({
   imports: [
@@ -28,6 +28,6 @@ import { AskAiToolService } from "./ask-ai-tools.service";
   ],
   controllers: [AskAiController],
   providers: [AskAiAgentService, AskAiToolService],
-  exports: [AskAiAgentService],
+  exports: [AskAiAgentService, AskAiToolService],
 })
 export class AskAiModule {}

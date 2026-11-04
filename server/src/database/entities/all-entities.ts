@@ -51,6 +51,7 @@ import { MCPServerConfig } from "./mcp-server-config.entity";
 import { Office365Account } from "./office365-account.entity";
 import { Organization } from "./organization.entity";
 import { OrganizationMember } from "./organization-member.entity";
+import { PersonalAccessToken } from "./personal-access-token.entity";
 import { PriorityAnalysisRun } from "./priority-analysis-run.entity";
 import { PriorityOverride } from "./priority-override.entity";
 import { PriorityRule } from "./priority-rule.entity";
@@ -120,6 +121,7 @@ export const ALL_ENTITIES = [
   Office365Account,
   Organization,
   OrganizationMember,
+  PersonalAccessToken,
   PriorityAnalysisRun,
   PriorityOverride,
   PriorityRule,

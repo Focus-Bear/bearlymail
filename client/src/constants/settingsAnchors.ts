@@ -11,6 +11,7 @@ export const SETTINGS_ANCHORS = {
   EMAIL_CATEGORIES: 'email-categories',
   CATEGORY_FAMILIES: 'category-families',
   CATEGORY_RULES: 'category-rules',
+  CLAUDE_ACCESS: 'connect-claude',
   CONNECTED_APPS: 'connected-apps',
   WORKFLOWS: 'workflows',
 } as const;

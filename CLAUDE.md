@@ -158,6 +158,7 @@ Need to modify something? Here's where to find it:
 | **Email summarization**                          | `server/src/summarization/summarization.service.ts`                          |
 | **Reply generation**                             | `server/src/replies/replies.service.ts`                                      |
 | **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry) |
+| **MCP server for Claude (`POST /mcp`)**          | `server/src/mcp-server/` (tools in `mcp-server-tool-definitions.ts`); auth = personal access tokens in `server/src/personal-access-tokens/`. Not `src/mcp/` (that is BearlyMail as an MCP *client*). See [`docs/connect-claude.md`](docs/connect-claude.md) |
 | **Context analysis (VIP detection, categories)** | `server/src/context/context.service.ts`                                      |
 | **Gmail provider implementation**                | `server/src/emails/providers/gmail.provider.ts`                              |
 | **Office365 provider implementation**            | `server/src/emails/providers/office365.provider.ts`                          |
@@ -270,6 +271,7 @@ Need to modify something? Here's where to find it:
 | `Waitlist`                | `waitlist`                   | Waitlist signups                                     |
 | `AutoArchiveProposal`     | `auto_archive_proposals`     | Mined "sender + keywords → archive" rule proposals (pending/approved/dismissed) with encrypted evidence |
 | `AutoArchiveScanState`    | `auto_archive_scan_states`   | Per-user watermark for incremental proposal mining   |
+| `PersonalAccessToken`     | `personal_access_tokens`     | Scoped (`mail:read` / `mail:send`) bearer tokens for `/mcp`; only the SHA-256 hash is stored |
 
 ---
 
@@ -842,6 +844,8 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 - `/follow-ups/*` - Follow-up drafts and bulk send
 - `/batch-schedule/*` - Email batching schedule
 - `/github/*` - GitHub integration settings
+- `/personal-access-tokens` - Create/list/revoke tokens for Claude (JWT only; a token can never mint tokens)
+- `POST /mcp` - MCP server (Streamable HTTP, stateless JSON-RPC); authenticated by `Authorization: Bearer bm_pat_...` only, never the session cookie
 
 ---
 

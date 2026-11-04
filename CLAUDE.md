@@ -375,6 +375,7 @@ interface EmailProvider {
   unarchiveThread(userId, threadId): Promise<void>;
   syncStarStatusToGmail(userId, threadId, starCount): Promise<void>;
   snoozeThread(userId, threadId, snoozeUntil): Promise<void>;
+  syncReadStatus?(userId, { threadId, messageId }, isRead): Promise<void>; // optional; Gmail only today
   searchEmails(userId, query, maxResults?): Promise<RawEmailMessage[]>;
   getAttachment(
     userId,
@@ -405,6 +406,7 @@ Jobs are enqueued in the web server and processed by worker processes. Key job t
 | `learn-from-star`             | VERY_LOW (10)    | Update context from user starring behavior                   |
 | `learn-qa-from-sent`          | VERY_LOW (10)    | Debounced per-user: extract Q&A from recent sent emails       |
 | `archive-email-provider-sync` | HIGH (80)        | Sync archive to Gmail/Office365/Zoho                         |
+| `read-status-provider-sync`   | HIGH (80)        | Mirror the user's read/unread action to the provider (Gmail). Queued only by the read/unread endpoints, never by sync/archive/triage |
 | `auto-responder`              | LOW (20)         | Generate and send auto-responses                             |
 | `generate-suggested-replies`  | LOW (20)         | Pre-generate reply suggestions                               |
 | `scan-history`                | MEDIUM (40)      | Historical email scan (onboarding)                           |
@@ -455,7 +457,7 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 | Prompt File                         | Prompt ID                        | Purpose                                                       |
 | ----------------------------------- | -------------------------------- | ------------------------------------------------------------- |
 | `prioritise-email.md`               | `analyze_priority`               | Score email importance (0-100)                                |
-| `discover-user-context.md`          | `discover_user_context`          | Slim onboarding discovery: initial categories + VIP contacts from thread stubs (Nova → Gemini) |
+| `discover-user-context.md`          | `discover_user_context`          | Slim onboarding discovery: initial categories, VIP contacts and current projects from thread stubs (Nova → Gemini) |
 | `analyze-priority-feedback.md`      | `analyze_priority_feedback`      | Learn from user priority overrides                            |
 | `generate-reply.md`                 | `generate_reply`                 | Generate single reply draft                                   |
 | `generate-multiple-replies.md`      | `generate_multiple_replies`      | Generate 3-5 reply options                                    |
@@ -734,7 +736,7 @@ Other Features
 | Task                              | Prompt File                    | Prompt ID                   |
 | --------------------------------- | ------------------------------ | --------------------------- |
 | Score email importance            | `prioritise-email.md`          | `analyze_priority`          |
-| Discover categories + VIP contacts | `discover-user-context.md`     | `discover_user_context`     |
+| Discover categories, VIPs, projects | `discover-user-context.md`     | `discover_user_context`     |
 | Generate single reply             | `generate-reply.md`            | `generate_reply`            |
 | Generate multiple reply options   | `generate-multiple-replies.md` | `generate_multiple_replies` |
 | Generate meeting scheduling reply | `generate-meeting-reply.md`    | `generate_meeting_reply`    |
@@ -798,6 +800,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | GET    | `/emails/:id/thread`                           | Get all emails in thread                    |
 | GET    | `/emails/:id/priority-explanation`             | Get priority breakdown                      |
 | GET    | `/emails/:id/attachments/:attachmentId`        | Get attachment data                         |
+| GET    | `/emails/:id/eml`                              | Download original message as `.eml` (Gmail/O365/IMAP; 501 otherwise) |
 | PUT    | `/emails/:id/archive`                          | Archive single email                        |
 | PUT    | `/emails/:id/star-count`                       | Set star count (0-3)                        |
 | PUT    | `/emails/:id/read`                             | Mark as read                                |

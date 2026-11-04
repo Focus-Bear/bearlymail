@@ -29,6 +29,9 @@ vi.mock('./ResolvedEmailBody', () => ({
 vi.mock('./EmailAttachments', () => ({
   EmailAttachments: () => <div data-testid="EmailAttachments" />,
 }));
+vi.mock('hooks/useEmlDownload', () => ({
+  useEmlDownload: () => vi.fn(),
+}));
 vi.mock('./ExpandCollapseButton', () => ({
   ExpandCollapseButton: () => <div data-testid="ExpandCollapseButton" />,
 }));

@@ -1387,6 +1387,10 @@
     "keepOriginal": "Mantener original",
     "saveAsPdf": "Guardar como PDF",
     "moreOptions": "Más opciones",
+    "downloadEml": "Descargar .eml",
+    "messageOptions": "Opciones del mensaje",
+    "downloadEmlFailed": "No se pudo descargar el correo. Inténtalo de nuevo.",
+    "downloadEmlUnsupported": "Tu proveedor de correo todavía no permite descargar el mensaje original.",
     "icsInvite": {
       "loading": "Cargando invitación de calendario...",
       "title": "Invitación de Calendario",

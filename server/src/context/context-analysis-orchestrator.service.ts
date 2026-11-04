@@ -45,10 +45,10 @@ const FINALIZATION_DELAY_MS = 5 * MILLISECONDS.SECOND;
 /**
  * Slim context discovery — the single path behind onboarding's AI-training
  * step and the manual "Analyze" action. Samples the user's recent received
- * threads, fans them out as cheap Nova discovery batches (categories + VIPs
- * only) and queues finalization. Everything else the retired mega prompt used
- * to do inline — priority habits, writing style, Q&A — now comes from the
- * per-email pipeline or low-priority background jobs.
+ * threads, fans them out as cheap Nova discovery batches (categories, VIPs
+ * and current projects) and queues finalization. Everything else the retired
+ * mega prompt used to do inline — priority habits, writing style, Q&A — now
+ * comes from the per-email pipeline or low-priority background jobs.
  */
 @Injectable()
 export class ContextAnalysisOrchestratorService {
@@ -140,7 +140,7 @@ export class ContextAnalysisOrchestratorService {
     }
 
     await this.resetStatsForAnalysis(analysisRecord, threadIds.length);
-    const { existingCategories, existingVipContacts } =
+    const { existingCategories, existingVipContacts, existingProjects } =
       await this.loadExistingContextNames(userId);
 
     const { batches, jobResults, enqueueErrors } =
@@ -151,6 +151,7 @@ export class ContextAnalysisOrchestratorService {
         userEmail,
         existingCategories,
         existingVipContacts,
+        existingProjects,
         batchSize: QUERY_LIMITS.DISCOVERY_BATCH_SIZE,
       });
     if (enqueueErrors.length > 0) {
@@ -223,6 +224,7 @@ export class ContextAnalysisOrchestratorService {
   private async loadExistingContextNames(userId: string): Promise<{
     existingCategories: string[];
     existingVipContacts: string[];
+    existingProjects: string[];
   }> {
     const existingContext = await this.crudService.getUserContext(userId);
     return {
@@ -231,6 +233,9 @@ export class ContextAnalysisOrchestratorService {
         .map((ctx) => parseCategoryName(ctx.contextValue)),
       existingVipContacts: existingContext
         .filter((ctx) => ctx.contextKey === ContextKey.VIP_CONTACT)
+        .map((ctx) => ctx.contextValue),
+      existingProjects: existingContext
+        .filter((ctx) => ctx.contextKey === ContextKey.WORKING_ON)
         .map((ctx) => ctx.contextValue),
     };
   }

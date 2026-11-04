@@ -1,5 +1,6 @@
 import { Logger } from "@nestjs/common";
 
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { LLMProvider } from "./llm.types";
 import {
   discoverUserContextWithEscalation,
@@ -120,6 +121,45 @@ describe("parseDiscoveryResponse", () => {
     expect(result?.urgentHints).toEqual([]);
     expect(result?.notUrgentHints).toEqual([]);
   });
+
+  it("returns no projects when the model omits them", () => {
+    expect(parseDiscoveryResponse(goodResponse, null)?.projects).toEqual([]);
+  });
+
+  it("reads current projects, dropping blanks, duplicates and ones the user already has", () => {
+    const result = parseDiscoveryResponse(
+      JSON.stringify({
+        categories: [],
+        projects: [
+          { name: "Northwind onboarding rollout", reason: "Agreeing dates" },
+          { name: "northwind onboarding rollout!", reason: "dup" },
+          { name: "  ", reason: "blank" },
+          { name: "Landing page redesign" },
+          "not an object",
+        ],
+      }),
+      null,
+      [],
+      ["LANDING PAGE REDESIGN"],
+    );
+    expect(result?.projects).toEqual([
+      { name: "Northwind onboarding rollout", reason: "Agreeing dates" },
+    ]);
+  });
+
+  it("caps the projects one batch may return", () => {
+    const projects = Array.from(
+      { length: QUERY_LIMITS.DISCOVERY_MAX_PROJECTS_PER_BATCH + 3 },
+      (_, index) => ({ name: `Project ${index}` }),
+    );
+    const result = parseDiscoveryResponse(
+      JSON.stringify({ categories: [], projects }),
+      null,
+    );
+    expect(result?.projects).toHaveLength(
+      QUERY_LIMITS.DISCOVERY_MAX_PROJECTS_PER_BATCH,
+    );
+  });
 });
 
 describe("discoverUserContextWithEscalation", () => {
@@ -183,6 +223,22 @@ describe("discoverUserContextWithEscalation", () => {
     );
     expect(result?.categories).toEqual([]);
     expect(generateText).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the model for projects and lists the user's existing ones so they are not re-proposed", async () => {
+    const generateText = jest.fn().mockResolvedValue(goodResponse);
+    await discoverUserContextWithEscalation({ generateText }, silentLogger, {
+      ...params,
+      existingProjects: ["Landing page redesign"],
+    });
+    const request = generateText.mock.calls[0][0] as {
+      prompt: string;
+      systemPrompt: string;
+    };
+    expect(request.systemPrompt).toContain('"projects"');
+    expect(request.prompt).toMatch(
+      /Existing projects[^\n]*\n- Landing page redesign/,
+    );
   });
 
   it("does not call the model for an empty batch", async () => {

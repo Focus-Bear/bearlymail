@@ -5,16 +5,20 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { createHash, randomBytes } from "crypto";
 import { IsNull, Repository } from "typeorm";
 
+import { MCP_OAUTH } from "../constants/mcp-oauth.constants";
 import {
+  ACCESS_TOKEN_KINDS,
+  AccessTokenKind,
   ALL_PAT_SCOPES,
   PatScope,
   PERSONAL_ACCESS_TOKENS,
 } from "../constants/personal-access-tokens.constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { PersonalAccessToken } from "../database/entities/personal-access-token.entity";
+import { liveTokenConditions } from "./live-token-conditions";
+import { generateTokenSecret, hashTokenSecret } from "./token-secrets";
 
 /** Who a valid token acts as, and what it may do. */
 export interface PatPrincipal {
@@ -26,9 +30,11 @@ export interface PatPrincipal {
 /** A token as listed in Settings: never includes the secret or its hash. */
 export interface PersonalAccessTokenSummary {
   id: string;
+  kind: AccessTokenKind;
   name: string;
   tokenPrefix: string;
   scopes: PatScope[];
+  /** For an OAuth connection: when it lapses unless the client refreshes. */
   expiresAt: Date | null;
   lastUsedAt: Date | null;
   createdAt: Date;
@@ -46,21 +52,30 @@ export interface CreatedPersonalAccessToken {
   summary: PersonalAccessTokenSummary;
 }
 
-export function hashPersonalAccessToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+/** Bearer prefixes that resolve through `authenticate` (never refresh tokens). */
+const AUTHENTICATABLE_PREFIXES: readonly string[] = [
+  PERSONAL_ACCESS_TOKENS.TOKEN_PREFIX,
+  MCP_OAUTH.ACCESS_TOKEN_PREFIX,
+];
+
+/** True for strings shaped like a personal or OAuth access token. */
+export function hasBearlyMailTokenPrefix(token: string): boolean {
+  return AUTHENTICATABLE_PREFIXES.some((prefix) => token.startsWith(prefix));
 }
 
-function isPatScope(value: string): value is PatScope {
+export function isPatScope(value: string): value is PatScope {
   return (ALL_PAT_SCOPES as readonly string[]).includes(value);
 }
 
 function toSummary(row: PersonalAccessToken): PersonalAccessTokenSummary {
+  const isOAuth = row.kind === ACCESS_TOKEN_KINDS.OAUTH;
   return {
     id: row.id,
+    kind: row.kind,
     name: row.name,
     tokenPrefix: row.tokenPrefix,
     scopes: row.scopes.filter(isPatScope),
-    expiresAt: row.expiresAt,
+    expiresAt: isOAuth ? row.refreshTokenExpiresAt : row.expiresAt,
     lastUsedAt: row.lastUsedAt,
     createdAt: row.createdAt,
   };
@@ -68,8 +83,9 @@ function toSummary(row: PersonalAccessToken): PersonalAccessTokenSummary {
 
 /**
  * Issues, lists, revokes and authenticates personal access tokens — the
- * long-lived scoped credentials external clients (Claude over `/mcp`) use
- * instead of the 7-day browser session JWT.
+ * scoped credentials external clients (Claude over `/mcp`) use instead of the
+ * 7-day browser session JWT. OAuth connections share the table and are issued
+ * by OAuthGrantsService; list, revoke and authenticate cover both kinds.
  */
 @Injectable()
 export class PersonalAccessTokensService {
@@ -89,20 +105,9 @@ export class PersonalAccessTokensService {
     if (!name) {
       throw new BadRequestException("Token name is required");
     }
-    const activeCount = await this.tokenRepository.count({
-      where: { userId, revokedAt: IsNull() },
-    });
-    if (activeCount >= PERSONAL_ACCESS_TOKENS.MAX_ACTIVE_TOKENS_PER_USER) {
-      throw new BadRequestException(
-        `You can have at most ${PERSONAL_ACCESS_TOKENS.MAX_ACTIVE_TOKENS_PER_USER} active tokens. Revoke one first.`,
-      );
-    }
+    await this.assertBelowTokenLimit(userId, now);
 
-    const token =
-      PERSONAL_ACCESS_TOKENS.TOKEN_PREFIX +
-      randomBytes(PERSONAL_ACCESS_TOKENS.TOKEN_RANDOM_BYTES).toString(
-        "base64url",
-      );
+    const token = generateTokenSecret(PERSONAL_ACCESS_TOKENS.TOKEN_PREFIX);
     const expiresAt = input.expiresInDays
       ? new Date(now.getTime() + input.expiresInDays * MILLISECONDS.DAY)
       : null;
@@ -110,8 +115,9 @@ export class PersonalAccessTokensService {
     const saved = await this.tokenRepository.save(
       this.tokenRepository.create({
         userId,
+        kind: ACCESS_TOKEN_KINDS.PERSONAL,
         name,
-        tokenHash: hashPersonalAccessToken(token),
+        tokenHash: hashTokenSecret(token),
         tokenPrefix: token.slice(
           0,
           PERSONAL_ACCESS_TOKENS.DISPLAY_PREFIX_LENGTH,
@@ -125,9 +131,27 @@ export class PersonalAccessTokensService {
     return { token, summary: toSummary(saved) };
   }
 
-  async list(userId: string): Promise<PersonalAccessTokenSummary[]> {
+  /**
+   * Throws when the user already has the maximum number of live tokens and
+   * connections, so a new one can't be added until they revoke one.
+   */
+  async assertBelowTokenLimit(userId: string, now: Date): Promise<void> {
+    const activeCount = await this.tokenRepository.count({
+      where: liveTokenConditions(userId, now),
+    });
+    if (activeCount >= PERSONAL_ACCESS_TOKENS.MAX_ACTIVE_TOKENS_PER_USER) {
+      throw new BadRequestException(
+        `You can have at most ${PERSONAL_ACCESS_TOKENS.MAX_ACTIVE_TOKENS_PER_USER} active tokens and connections. Revoke one first.`,
+      );
+    }
+  }
+
+  async list(
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<PersonalAccessTokenSummary[]> {
     const rows = await this.tokenRepository.find({
-      where: { userId, revokedAt: IsNull() },
+      where: liveTokenConditions(userId, now),
       order: { createdAt: "DESC" },
     });
     return rows.map(toSummary);
@@ -148,19 +172,18 @@ export class PersonalAccessTokensService {
   }
 
   /**
-   * Resolves a raw bearer string to the principal it acts as, or null when it
-   * is not a live token (wrong format, unknown, revoked or expired).
+   * Resolves a raw bearer string (a personal token or an OAuth access token)
+   * to the principal it acts as, or null when it is not a live token (wrong
+   * format, unknown, revoked or expired).
    */
   async authenticate(
     rawToken: string,
     now: Date = new Date(),
   ): Promise<PatPrincipal | null> {
-    if (!rawToken.startsWith(PERSONAL_ACCESS_TOKENS.TOKEN_PREFIX)) {
-      return null;
-    }
+    if (!hasBearlyMailTokenPrefix(rawToken)) return null;
     const row = await this.tokenRepository.findOne({
       where: {
-        tokenHash: hashPersonalAccessToken(rawToken),
+        tokenHash: hashTokenSecret(rawToken),
         revokedAt: IsNull(),
       },
     });

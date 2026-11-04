@@ -14,6 +14,19 @@ export type PatScope = (typeof PAT_SCOPES)[keyof typeof PAT_SCOPES];
 
 export const ALL_PAT_SCOPES: readonly PatScope[] = Object.values(PAT_SCOPES);
 
+/**
+ * Rows in `personal_access_tokens`: a token the user created by hand, or a
+ * connection granted to an OAuth client (claude.ai) on the consent screen.
+ * Both resolve to the same principal, so `/mcp` treats them identically.
+ */
+export const ACCESS_TOKEN_KINDS = {
+  PERSONAL: "personal",
+  OAUTH: "oauth",
+} as const;
+
+export type AccessTokenKind =
+  (typeof ACCESS_TOKEN_KINDS)[keyof typeof ACCESS_TOKEN_KINDS];
+
 export const PERSONAL_ACCESS_TOKENS = {
   /**
    * Prefix on every issued token. Makes tokens recognisable to secret scanners

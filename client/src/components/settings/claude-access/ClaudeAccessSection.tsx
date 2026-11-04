@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { ACCESS_TOKEN_KINDS } from 'constants/claudeAccess';
 import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { useNotifications } from 'contexts/NotificationContext';
 
 import { AccessTokenCreateForm } from './AccessTokenCreateForm';
 import { AccessTokenList } from './AccessTokenList';
+import { ClaudeConnectorSetup } from './ClaudeConnectorSetup';
 import { NewTokenPanel } from './NewTokenPanel';
 import { CreatePersonalAccessTokenInput, PersonalAccessToken } from './types';
 import { usePersonalAccessTokens } from './usePersonalAccessTokens';
@@ -19,8 +21,9 @@ const subheadingStyle: React.CSSProperties = {
 };
 
 /**
- * Settings → "Connect Claude": create the personal access tokens Claude uses
- * to reach BearlyMail's MCP endpoint, and revoke them.
+ * Settings → "Connect Claude": how to add BearlyMail to claude.ai (a URL paste
+ * that signs in through OAuth), personal access tokens for clients that need
+ * one, and the list of connections and tokens with a revoke button each.
  */
 export const ClaudeAccessSection: React.FC = () => {
   const { t } = useTranslation();
@@ -44,9 +47,11 @@ export const ClaudeAccessSection: React.FC = () => {
   };
 
   const handleRevoke = async (token: PersonalAccessToken) => {
-    if (!window.confirm(t('settings.claudeAccess.revokeConfirm', { name: token.name }))) {
-return;
-}
+    const isConnection = token.kind === ACCESS_TOKEN_KINDS.OAUTH;
+    const confirmKey = isConnection ? 'settings.claudeAccess.disconnectConfirm' : 'settings.claudeAccess.revokeConfirm';
+    if (!window.confirm(t(confirmKey, { name: token.name }))) {
+      return;
+    }
     setRevokingId(token.id);
     try {
       await revokeToken(token.id);
@@ -92,6 +97,19 @@ return;
         }}
       >
         {t('settings.claudeAccess.safetyNote')}
+      </p>
+
+      <ClaudeConnectorSetup />
+
+      <h3 style={subheadingStyle}>{t('settings.claudeAccess.tokenSectionTitle')}</h3>
+      <p
+        style={{
+          margin: `0 0 ${theme.spacing.md}`,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+        }}
+      >
+        {t('settings.claudeAccess.tokenSectionHint')}
       </p>
 
       {newToken && <NewTokenPanel token={newToken} onDismiss={() => setNewToken(null)} />}

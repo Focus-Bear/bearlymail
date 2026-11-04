@@ -14,6 +14,10 @@ describe('claudeSetupSnippets', () => {
     );
   });
 
+  it('builds a token-free Claude Code command that signs in with OAuth', () => {
+    expect(claudeCodeCommand()).toBe('claude mcp add --transport http bearlymail https://api.bearlymail.test/mcp');
+  });
+
   it('builds a Claude Desktop config that bridges through mcp-remote', () => {
     const config = JSON.parse(claudeDesktopConfig('bm_pat_abc'));
     expect(config.mcpServers.bearlymail).toEqual({

@@ -1,11 +1,13 @@
-import { PatScope } from 'constants/claudeAccess';
+import { AccessTokenKind, PatScope } from 'constants/claudeAccess';
 
 /** A token as `GET /personal-access-tokens` lists it (never includes the secret). */
 export interface PersonalAccessToken {
   id: string;
+  kind: AccessTokenKind;
   name: string;
   tokenPrefix: string;
   scopes: PatScope[];
+  /** For an OAuth connection: when it lapses unless Claude keeps using it. */
   expiresAt: string | null;
   lastUsedAt: string | null;
   createdAt: string;

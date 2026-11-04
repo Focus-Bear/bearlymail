@@ -22,6 +22,7 @@ import {
   THROTTLE_TIERS,
 } from "../constants/throttle-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { bearerTokenThrottleKey } from "../personal-access-tokens/personal-access-token.guard";
 
 const MS_PER_SECOND = 1000;
 
@@ -71,7 +72,12 @@ export class UserThrottlerGuard extends ThrottlerGuard {
 
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
     const user = req.user as { userId?: string } | undefined;
-    return user?.userId ?? String(req.ip ?? "unknown");
+    if (user?.userId) return user.userId;
+    const headers = req.headers as { authorization?: string } | undefined;
+    return (
+      bearerTokenThrottleKey(headers?.authorization) ??
+      String(req.ip ?? "unknown")
+    );
   }
 
   /**

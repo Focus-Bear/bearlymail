@@ -1,12 +1,21 @@
 import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
 
 import { PAT_SCOPES } from "../constants/personal-access-tokens.constants";
-import { PersonalAccessTokenGuard } from "./personal-access-token.guard";
+import {
+  bearerTokenThrottleKey,
+  PersonalAccessTokenGuard,
+} from "./personal-access-token.guard";
 import { PersonalAccessTokensService } from "./personal-access-tokens.service";
 
-function contextFor(request: Record<string, unknown>): ExecutionContext {
+function contextFor(
+  request: Record<string, unknown>,
+  response: { setHeader: jest.Mock } = { setHeader: jest.fn() },
+): ExecutionContext {
   return {
-    switchToHttp: () => ({ getRequest: () => request }),
+    switchToHttp: () => ({
+      getRequest: () => request,
+      getResponse: () => response,
+    }),
   } as unknown as ExecutionContext;
 }
 
@@ -50,6 +59,33 @@ describe("PersonalAccessTokenGuard", () => {
     expect(authenticate).toHaveBeenCalledWith("bm_pat_nope");
   });
 
+  it("challenges with the protected-resource metadata so clients can sign in", async () => {
+    const response = { setHeader: jest.fn() };
+    await expect(
+      guard.canActivate(contextFor({ headers: {} }, response)),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    const [name, value] = response.setHeader.mock.calls[0];
+    expect(name).toBe("WWW-Authenticate");
+    expect(value).toMatch(
+      /^Bearer resource_metadata="http:\/\/[^"]+\/\.well-known\/oauth-protected-resource\/mcp", scope="mail:read mail:send"$/,
+    );
+  });
+
+  it("marks a rejected token as invalid_token in the challenge", async () => {
+    const response = { setHeader: jest.fn() };
+    await expect(
+      guard.canActivate(
+        contextFor(
+          { headers: { authorization: "Bearer bm_oat_nope" } },
+          response,
+        ),
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(response.setHeader.mock.calls[0][1]).toContain(
+      'error="invalid_token"',
+    );
+  });
+
   it("sets req.user to the principal for a valid token", async () => {
     authenticate.mockResolvedValue(principal);
     const request: Record<string, unknown> = {
@@ -57,5 +93,19 @@ describe("PersonalAccessTokenGuard", () => {
     };
     await expect(guard.canActivate(contextFor(request))).resolves.toBe(true);
     expect(request.user).toEqual(principal);
+  });
+});
+
+describe("bearerTokenThrottleKey", () => {
+  it("keys BearlyMail tokens by hash, never by the raw secret", () => {
+    const key = bearerTokenThrottleKey("Bearer bm_oat_secret");
+    expect(key).toMatch(/^token:[0-9a-f]{64}$/);
+    expect(key).not.toContain("secret");
+    expect(bearerTokenThrottleKey("Bearer bm_pat_other")).not.toBe(key);
+  });
+
+  it("ignores missing headers and other bearer strings (JWTs)", () => {
+    expect(bearerTokenThrottleKey(undefined)).toBeNull();
+    expect(bearerTokenThrottleKey("Bearer eyJhbGciOi.jwt")).toBeNull();
   });
 });

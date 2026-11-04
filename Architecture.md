@@ -109,6 +109,7 @@ server/src/
 ├── zoho-accounts/             # Zoho OAuth account management
 ├── imap-accounts/             # IMAP/SMTP accounts: connect/test, SSRF-safe host resolution, SMTP send
 ├── mcp-server/                # BearlyMail AS an MCP server (POST /mcp) so Claude can read/send mail
+├── mcp-oauth/                 # OAuth 2.1 authorization server for /mcp (claude.ai custom connectors)
 ├── personal-access-tokens/    # Scoped bearer tokens for /mcp (hash-only storage, guard, settings API)
 ├── proto-categories/          # Proto-category suggestions for "Other" emails
 ├── scheduling-preferences/    # User scheduling preferences

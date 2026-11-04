@@ -53,6 +53,15 @@ describe("formatDiscoveryThreads", () => {
     expect(lines[1]).toContain("2. From: priya@northwind.io");
     expect(lines[1]).toContain("UserReplied: no");
   });
+
+  it("marks threads Gmail flagged Important, and only those", () => {
+    const [flagged, plain] = formatDiscoveryThreads([
+      stub({ markedImportantByGmail: true }),
+      stub({ threadId: "t2" }),
+    ]).split("\n");
+    expect(flagged).toContain("UserReplied: yes | GmailImportant: yes |");
+    expect(plain).not.toContain("GmailImportant");
+  });
 });
 
 describe("parseDiscoveryResponse", () => {

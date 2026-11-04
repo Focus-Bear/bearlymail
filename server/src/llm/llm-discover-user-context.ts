@@ -25,6 +25,12 @@ export interface DiscoveryThreadStub {
   receivedAt: string;
   /** True when any message in the thread was sent by the user. */
   userReplied: boolean;
+  /**
+   * True when Gmail marked a received message in the thread Important. Only
+   * Gmail has this label, so it is left unset for other providers rather than
+   * reported as "not important".
+   */
+  markedImportantByGmail?: boolean;
 }
 
 export interface DiscoveredCategory {
@@ -75,6 +81,7 @@ type GenerateText = (request: {
 const NONE_PLACEHOLDER = "(none)";
 const USER_REPLIED_YES = "yes";
 const USER_REPLIED_NO = "no";
+const GMAIL_IMPORTANT_FIELD = " | GmailImportant: yes";
 
 /**
  * How many categories a sample should yield: one per few threads, capped at
@@ -100,7 +107,12 @@ export function formatDiscoveryThreads(threads: DiscoveryThreadStub[]): string {
         ? `${thread.fromName} <${thread.from}>`
         : thread.from;
       const replied = thread.userReplied ? USER_REPLIED_YES : USER_REPLIED_NO;
-      return `${index + 1}. From: ${sender} | Subject: ${thread.subject || "(no subject)"} | UserReplied: ${replied} | Snippet: ${thread.snippet}`;
+      // Only flagged threads carry the field, so non-Gmail inboxes (which
+      // have no Important label) read exactly as they did before.
+      const important = thread.markedImportantByGmail
+        ? GMAIL_IMPORTANT_FIELD
+        : "";
+      return `${index + 1}. From: ${sender} | Subject: ${thread.subject || "(no subject)"} | UserReplied: ${replied}${important} | Snippet: ${thread.snippet}`;
     })
     .join("\n");
 }

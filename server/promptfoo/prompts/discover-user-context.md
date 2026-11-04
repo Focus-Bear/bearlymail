@@ -27,6 +27,7 @@ CATEGORY RULES
 VIP CONTACT RULES
 - A VIP is a real human (never a bot, notification system, no-reply or team mailbox, newsletter or company name) whose emails clearly matter to the user: the user replied to them (UserReplied: yes), they write to the user personally about the user's work, or they are an obvious manager, client or close collaborator.
 - A human relayed by a platform (e.g. "Marco Vitale (via GitHub)" from notifications@github.com) may be a VIP by name, but leave "email" empty rather than recording the platform's address.
+- GmailImportant: yes means Gmail itself marked the thread Important from how the user treats that sender. Count it as evidence the sender matters, strongest when combined with UserReplied: yes. It only appears for Gmail inboxes; its absence means nothing.
 - Never list the user themselves ({{userEmail}}) and never repeat anyone in the existing VIP list.
 - Return at most 5. When unsure, leave the person out.
 
@@ -40,7 +41,7 @@ PROJECT RULES
 - Return at most 5, most active first. Return [] when nothing is clear.
 
 HINTS (optional — return [] when nothing is clear; at most 3 each; each at most 12 words)
-- urgentHints: kinds of email the sample shows are time-critical for this user.
+- urgentHints: kinds of email the sample shows are time-critical for this user (GmailImportant: yes threads are a good guide).
 - notUrgentHints: kinds of email the user evidently ignores or that never need a reply.
 ---SYSTEM---
 User email: {{userEmail}}

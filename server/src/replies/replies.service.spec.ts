@@ -542,6 +542,25 @@ describe("RepliesService", () => {
       });
     });
 
+    it("stores the sent copy with its HTML part, so the thread shows the reply's blockquote", async () => {
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+      await service.sendReply(userId, emailId, "<p>Thanks Priya.</p>");
+
+      const sentHtml = mockProvider.sendReply.mock.calls[0][1].options.htmlBody;
+      expect(emailRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: "sent-msg-1",
+          labels: ["SENT"],
+          htmlBody: sentHtml,
+        }),
+      );
+      expect(sentHtml).toContain("<blockquote");
+    });
+
     it("preserves multiline signature line breaks (as <br> in HTML, \\n in plain)", async () => {
       usersService.findOne.mockResolvedValue(
         mockPartial({

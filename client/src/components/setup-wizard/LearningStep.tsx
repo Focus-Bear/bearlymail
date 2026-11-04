@@ -155,16 +155,19 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
 
   const handleAnalysisComplete = useCallback(async () => undefined, []);
 
-  const { analyzing, analyzeProgress, startAnalysis } = useAnalysisProgress(handleAnalysisComplete, {
-    isNewUserOnboarding: true,
-  });
+  const { analyzing, analyzeProgress, startAnalysis, joinOrStartAnalysis } = useAnalysisProgress(
+    handleAnalysisComplete,
+    { isNewUserOnboarding: true }
+  );
 
+  // The analysis normally started in the background when the mailbox was
+  // connected, so join it (often already finished) rather than restarting it.
   useEffect(() => {
     if (!analyzing && !analyzeProgress.isComplete && !hasStartedAnalysisRef.current) {
       hasStartedAnalysisRef.current = true;
-      startAnalysis();
+      joinOrStartAnalysis();
     }
-  }, [analyzing, analyzeProgress.isComplete, startAnalysis]);
+  }, [analyzing, analyzeProgress.isComplete, joinOrStartAnalysis]);
 
   const fetchImportProgress = useCallback(async () => {
     try {

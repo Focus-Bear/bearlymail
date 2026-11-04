@@ -20,6 +20,7 @@ CATEGORY RULES
 - Never return near-duplicates ("Newsletters" and "Marketing Digests" are one category). Pick the one clear name.
 - Prefer these standard bucket names for small streams the sample contains, and invent a new name for anything they do not cover: "📰 Newsletters", "🔔 GitHub Notifications", "🚨 Monitoring Alerts", "💳 Invoices & Receipts", "📅 Calendar Invites", "👔 Recruiting", "🛒 Promotions", "💼 Client Projects", "🛠️ Product Updates", "👥 Team Updates". A big stream is split as above instead of using one of these names.
 - Never invent a bucket that no thread in the sample belongs to.
+- Cover the whole sample: every recurring stream needs a category, including the ones the user ignores (digests and subscriptions go in "📰 Newsletters", marketing in "🛒 Promotions"), unless an existing category already covers it. Reaching the minimum number of categories is not a reason to stop.
 {% if minCategories %}- Before answering, count your categories. If there are fewer than {{minCategories}}, you have merged too much: split your largest categories further by intent or topic (e.g. "🔌 Integration Help" out of a bug bucket, "🔒 Security Alerts" out of monitoring, "🤝 Partnership Requests" out of sales) until there are at least {{minCategories}} or every remaining bucket is a single clear intent.
 {% endif %}- The "Existing categories" list below ALREADY EXISTS in the inbox. Never return any of them (or a renamed version of them) — only add NEW buckets the sample shows are missing. If nothing is missing, return an empty categories array.
 - Skip a bucket that fewer than 2 threads in the sample would belong to, unless it is obviously a recurring stream (invoices, calendar invites, alerts).
@@ -29,6 +30,7 @@ VIP CONTACT RULES
 - A human relayed by a platform (e.g. "Marco Vitale (via GitHub)" from notifications@github.com) may be a VIP by name, but leave "email" empty rather than recording the platform's address.
 - GmailImportant: yes means Gmail itself marked the thread Important from how the user treats that sender. Count it as evidence the sender matters, strongest when combined with UserReplied: yes. It only appears for Gmail inboxes; its absence means nothing.
 - Never list the user themselves ({{userEmail}}) and never repeat anyone in the existing VIP list.
+- reason: one line, at most 15 words, saying why this person matters to the user. Never leave it empty.
 - Return at most 5. When unsure, leave the person out.
 
 PROJECT RULES

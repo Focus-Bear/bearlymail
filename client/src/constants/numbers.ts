@@ -88,6 +88,7 @@ export const VIEWPORT_HEIGHT_75 = '75vh';
 export const HTTP_UNAUTHORIZED = 401;
 export const HTTP_PAYMENT_REQUIRED = 402;
 export const HTTP_FORBIDDEN = 403;
+export const HTTP_NOT_IMPLEMENTED = 501;
 
 /** Minimum gap between showings of the AI-limit banner (measured from when it last appeared), so repeat 402s after a dismissal don't nag. */
 export const AI_LIMIT_BANNER_RESHOW_MS = 60000;
@@ -136,6 +137,8 @@ export const INBOX_FETCH_LIMIT = 500;
  * Mirrors the server's QUERY_LIMITS.INBOX_PAGE_SIZE, the /emails/inbox-batch default.
  */
 export const CATEGORY_PAGE_SIZE = 50;
+/** Mirrors the server's QUERY_LIMITS.INITIAL_SYNC_MAX_EMAILS: how many recent threads the first sync imports. */
+export const INITIAL_SYNC_MAX_THREADS = 500;
 /** Mirrors the server's QUERY_LIMITS.INBOX_BATCH_MAX_CATEGORIES: keys beyond this are dropped server-side. */
 export const INBOX_BATCH_MAX_CATEGORIES = 8;
 export const DEBOUNCE_DELAY_SHORT_MS = 300;

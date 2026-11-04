@@ -372,19 +372,19 @@ export class AuthController {
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const grantRedirect =
+      await this.googlePermissionGrantService.getCallbackRedirect(
+        state,
+        req,
+        frontendUrl,
+      );
+    if (grantRedirect) return res.redirect(grantRedirect);
     if (req.authError || req.user?.authFailed) {
       return this.redirectWithAuthError(
         req.authError as Error,
         frontendUrl,
         res,
         "Google",
-      );
-    }
-    const grantState = state ? this.parseOAuthState(state) : null;
-    if (grantState?.action === AUTH_ACTION_TYPES.GRANT_GOOGLE_PERMISSION) {
-      const grantService = this.googlePermissionGrantService;
-      return res.redirect(
-        await grantService.completeGrant(grantState, req.user, frontendUrl),
       );
     }
     if (state) {

@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import type { PgBoss } from "pg-boss";
@@ -13,6 +19,7 @@ import {
   MS_PER_SECOND,
   SECONDS,
 } from "../constants/time-constants";
+import { OnboardingAnalysisStartService } from "../context/onboarding-analysis-start.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
@@ -36,6 +43,9 @@ export class EmailSyncProcessor implements OnModuleInit {
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,
     private readonly userEncryptionService: UserEncryptionService,
+    // EmailsModule and ContextModule import each other.
+    @Inject(forwardRef(() => OnboardingAnalysisStartService))
+    private readonly onboardingAnalysisStartService: OnboardingAnalysisStartService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -223,6 +233,7 @@ export class EmailSyncProcessor implements OnModuleInit {
                 syncWindowHours,
               });
             } else {
+              await this.startOnboardingAnalysisIfConnected(userId);
               // Normal sync - use provider manager for all connected providers
               await this.emailProviderManager.syncAllProviders(
                 userId,
@@ -254,6 +265,24 @@ export class EmailSyncProcessor implements OnModuleInit {
           }
         });
       },
+    );
+  }
+
+  /**
+   * A new user's first sync is the moment their mailbox is connected, so
+   * start the onboarding analysis now, in parallel with the import, rather
+   * than when the setup wizard reaches its learning step. The service only
+   * acts for users still onboarding whose first import hasn't run, and never
+   * throws. The connect flow's earlier login sync has no mailbox yet, so the
+   * provider check keeps it from starting an analysis of an empty inbox.
+   */
+  private async startOnboardingAnalysisIfConnected(
+    userId: string,
+  ): Promise<void> {
+    await this.onboardingAnalysisStartService.startForNewMailbox(
+      userId,
+      async () =>
+        (await this.emailProviderManager.getPrimaryProvider(userId)) !== null,
     );
   }
 

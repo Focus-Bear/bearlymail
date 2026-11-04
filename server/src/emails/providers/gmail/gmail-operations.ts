@@ -1,8 +1,9 @@
 import { Logger } from "@nestjs/common";
 import { gmail_v1 } from "googleapis";
 
+import { GMAIL_LABELS } from "../../../constants/email-labels";
 import { HTTP_STATUS } from "../../../constants/http-status";
-import { formatGaxiosError, isApiError, isError } from "../../../types/common";
+import { formatGaxiosError, isApiError } from "../../../types/common";
 import { logErrorToFile } from "../../../utils/error-logger";
 
 const logger = new Logger("GmailOperations");
@@ -158,43 +159,33 @@ export async function syncStarStatusToGmail(
 }
 
 /**
- * Sync read status to Gmail
+ * Mark every message in a thread read, as opening a conversation does in Gmail.
+ * Throws on failure so the queued job that calls it retries.
  */
-export async function syncReadStatusToGmail(
-  userId: string,
-  messageId: string,
-  isRead: boolean,
+export async function markThreadReadInGmail(
+  threadId: string,
   gmail: gmail_v1.Gmail,
 ): Promise<void> {
-  try {
-    await gmail.users.messages.modify({
-      userId: "me",
-      id: messageId,
-      requestBody: {
-        addLabelIds: isRead ? [] : ["UNREAD"],
-        removeLabelIds: isRead ? ["UNREAD"] : [],
-      },
-    });
-  } catch (error: unknown) {
-    const apiError = isApiError(error) ? error : null;
-    const errorMsg = isError(error) ? error.message : apiError?.message || "";
-    const isPermissionError =
-      apiError?.code === HTTP_STATUS.FORBIDDEN ||
-      (apiError?.response &&
-        apiError.response.status === HTTP_STATUS.FORBIDDEN) ||
-      errorMsg?.includes("Insufficient Permission");
+  await gmail.users.threads.modify({
+    userId: "me",
+    id: threadId,
+    requestBody: { removeLabelIds: [GMAIL_LABELS.UNREAD] },
+  });
+}
 
-    if (isPermissionError) {
-      logger.warn(
-        `Permission denied syncing read status to Gmail for message ${messageId}.`,
-      );
-    } else {
-      logger.error(
-        `Error syncing read status to Gmail for message ${messageId}: ${formatGaxiosError(error)}`,
-      );
-    }
-    // Don't throw - allow operation to continue
-  }
+/**
+ * Mark a single message unread, as Gmail's "Mark as unread" does inside a
+ * conversation. Throws on failure so the queued job that calls it retries.
+ */
+export async function markMessageUnreadInGmail(
+  messageId: string,
+  gmail: gmail_v1.Gmail,
+): Promise<void> {
+  await gmail.users.messages.modify({
+    userId: "me",
+    id: messageId,
+    requestBody: { addLabelIds: [GMAIL_LABELS.UNREAD] },
+  });
 }
 
 /**

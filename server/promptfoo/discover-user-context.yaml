@@ -1,4 +1,4 @@
-description: "Slim onboarding discovery prompt (discover_user_context): initial category set + VIP contacts from a sample of thread stubs. Production primary is Nova Micro (run locally with --providers bedrock:amazon.nova-micro-v1:0); CI runs the Gemini escalation model, which must always be correct."
+description: "Slim onboarding discovery prompt (discover_user_context): granular initial category set (15+ for a 100-thread sample) + VIP contacts + current projects from a sample of thread stubs. Production primary is Gemini Flash Lite, which CI runs; Jev then files later emails into the proposed set."
 
 providers:
   - id: google:gemini-3.1-flash-lite
@@ -13,19 +13,25 @@ defaultTest:
     userEmail: "jeremy@focusbear.io"
     existingCategories: "(none)"
     existingVipContacts: "(none)"
+    existingProjects: "(none)"
+    # Mirrors QUERY_LIMITS.DISCOVERY_MAX_CATEGORIES_PER_BATCH and
+    # minimumProposedCategories(threadCount, existing) in llm-discover-user-context.ts.
+    maxCategories: 25
 
 tests:
   # Test 1: realistic 100-thread inbox sample → sensible category set, humans-only VIPs
-  - description: "100-thread sample: 7-15 emoji-prefixed categories, no per-sender newsletter variants, VIPs are replied-to humans not bots"
+  - description: "100-thread sample: 15-25 granular emoji-prefixed categories, none over half the sample, no per-sender newsletter variants, VIPs are replied-to humans not bots"
     vars:
       threadCount: 100
+      minCategories: 15
       threads: file://fixtures/discovery-threads-100.txt
     assert:
       - type: javascript
         value: file://promptfoo-assertions/validate-discovery-response.js
         config:
-          minCategories: 7
-          maxCategories: 15
+          minCategories: 15
+          maxCategories: 25
+          maxCategoryShare: 0.5
           # Per-sender variants of a generic bucket are the failure mode we care about most.
           forbiddenCategoryTerms:
             - "morning brew"
@@ -59,18 +65,35 @@ tests:
           expectedVipTerms:
             - "priya"
           maxVips: 5
+          # The Northwind rollout has three replied-to threads; streams are never projects.
+          minProjects: 1
+          maxProjects: 5
+          expectedProjectTerms:
+            - "northwind"
+          forbiddenProjectTerms:
+            - "newsletter"
+            - "notification"
+            - "invoice"
+            - "promotion"
 
   # Test 2: production-sized 20-thread batch → a handful of categories, valid JSON
-  - description: "20-thread batch: 3-8 categories, valid structure"
+  - description: "20-thread inbox: 3-10 categories, the replied-to landing page redesign is a project"
     vars:
       threadCount: 20
+      minCategories: 4
       threads: file://fixtures/discovery-threads-20.txt
     assert:
       - type: javascript
         value: file://promptfoo-assertions/validate-discovery-response.js
         config:
           minCategories: 3
-          maxCategories: 8
+          maxCategories: 10
+          expectedProjectTerms:
+            - "landing"
+          forbiddenProjectTerms:
+            - "newsletter"
+            - "intercom"
+            - "dependabot"
           forbiddenVipTerms:
             - "github-actions"
             - "dependabot"
@@ -84,6 +107,7 @@ tests:
   - description: "Existing categories are not duplicated; only missing buckets are added"
     vars:
       threadCount: 20
+      minCategories: 1
       threads: file://fixtures/discovery-threads-20.txt
       existingCategories: |
         - 📰 Newsletters
@@ -93,16 +117,17 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-discovery-response.js
         config:
-          maxCategories: 8
+          maxCategories: 10
           forbiddenCategoryTerms:
             - "newsletter"
             - "github"
             - "monitoring"
 
   # Test 4: near-duplicate senders collapse into one bucket, nothing invented for a tiny sample
-  - description: "Small homogeneous sample: newsletters from five senders collapse into a single category, no VIPs"
+  - description: "Small homogeneous sample: newsletters from five senders collapse into a single category, no VIPs, no projects"
     vars:
       threadCount: 5
+      minCategories: 1
       threads: |
         1. From: Morning Brew <crew@morningbrew.com> | Subject: ☕ Fed holds rates | UserReplied: no | Snippet: Good morning. The Fed held rates steady yesterday...
         2. From: TLDR Newsletter <dan@tldrnewsletter.com> | Subject: TLDR 2026-08-28 | UserReplied: no | Snippet: Big Tech & Startups: OpenAI announced a new batch pricing tier...
@@ -122,3 +147,44 @@ tests:
             - "hustle"
             - "dense discovery"
           maxVips: 0
+          maxProjects: 0
+
+  # Test 5: existing projects are not re-proposed (manual re-analyze path)
+  - description: "Existing projects are not duplicated"
+    vars:
+      threadCount: 20
+      minCategories: 4
+      threads: file://fixtures/discovery-threads-20.txt
+      existingProjects: |
+        - Landing page redesign
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-discovery-response.js
+        config:
+          forbiddenProjectTerms:
+            - "landing"
+
+  # Test 6: a support-only inbox (the reported onboarding case) is split by
+  # intent, never one "Customer Support" bucket holding every thread.
+  - description: "Support-only 100-thread inbox: 8+ intent categories (login, billing, bugs, features...), none over half the sample, no catch-all support bucket"
+    vars:
+      threadCount: 100
+      minCategories: 15
+      threads: file://fixtures/discovery-threads-support-100.txt
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-discovery-response.js
+        config:
+          minCategories: 8
+          maxCategories: 25
+          maxCategoryShare: 0.5
+          forbiddenCategoryNames:
+            - "customer support"
+            - "support"
+            - "support requests"
+            - "customer inquiries"
+          expectedCategoryTerms:
+            - "login"
+            - "refund"
+            - "bug"
+            - "feature"

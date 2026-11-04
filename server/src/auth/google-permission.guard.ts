@@ -10,6 +10,7 @@ import { Reflector } from "@nestjs/core";
 
 import {
   GmailWriteAction,
+  GOOGLE_PERMISSION_GROUP,
   hasGooglePermission,
   IncrementalGooglePermissionGroup,
 } from "../constants/google-oauth-scopes";
@@ -40,6 +41,10 @@ export const RequireGooglePermission = (
     } satisfies RequiredGooglePermission),
     UseGuards(GooglePermissionGuard),
   );
+
+/** RequireGooglePermission for the Gmail writes that need gmail.modify. */
+export const RequireGmailManagePermission = (action: GmailWriteAction) =>
+  RequireGooglePermission(GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE, action);
 
 /**
  * Throws GooglePermissionRequiredException when the user's Gmail grant lacks

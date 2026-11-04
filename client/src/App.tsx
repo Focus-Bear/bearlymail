@@ -12,6 +12,7 @@ import { theme } from 'theme/theme';
 
 import { AdminMfaProvider } from 'components/admin/AdminMfaGate';
 import { ConsentModal } from 'components/ConsentModal';
+import { CrmPlanGate } from 'components/crm/CrmPlanGate';
 import { GmailWriteNoticeBanner } from 'components/google-permissions/GmailWriteNoticeBanner';
 import { GooglePermissionExplainer } from 'components/google-permissions/GooglePermissionExplainer';
 import { GooglePermissionResultListener } from 'components/google-permissions/GooglePermissionResultListener';
@@ -265,7 +266,9 @@ const AppRoutes: React.FC = () => (
       path="/crm/contacts"
       element={
         <PrivateRoute>
-          <Contacts />
+          <CrmPlanGate>
+            <Contacts />
+          </CrmPlanGate>
         </PrivateRoute>
       }
     />
@@ -273,7 +276,9 @@ const AppRoutes: React.FC = () => (
       path="/crm/contacts/:contactId"
       element={
         <PrivateRoute>
-          <ContactDetail />
+          <CrmPlanGate>
+            <ContactDetail />
+          </CrmPlanGate>
         </PrivateRoute>
       }
     />
@@ -281,7 +286,9 @@ const AppRoutes: React.FC = () => (
       path="/crm/contact-groups"
       element={
         <PrivateRoute>
-          <ContactGroups />
+          <CrmPlanGate>
+            <ContactGroups />
+          </CrmPlanGate>
         </PrivateRoute>
       }
     />
@@ -289,7 +296,9 @@ const AppRoutes: React.FC = () => (
       path="/crm/deals"
       element={
         <PrivateRoute>
-          <Deals />
+          <CrmPlanGate>
+            <Deals />
+          </CrmPlanGate>
         </PrivateRoute>
       }
     />

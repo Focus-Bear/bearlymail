@@ -5,7 +5,7 @@ import { Repository } from "typeorm";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
 
-const SETTLED_THREAD_PREDICATE = `"aiProcessingDeferred" = true
+export const SETTLED_THREAD_PREDICATE = `"aiProcessingDeferred" = true
   OR ("isProcessingPriority" = false
       AND ("prioritySource" IS NOT NULL OR "categorySource" IS NOT NULL))`;
 

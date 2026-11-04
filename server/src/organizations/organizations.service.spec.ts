@@ -601,10 +601,11 @@ describe("OrganizationsService", () => {
         trialEndsAt: null,
         selfHosted: false,
         includesEmailTracking: false,
+        includesCrm: false,
       });
     });
 
-    it("reports email tracking as included on an active Growth plan", async () => {
+    it("reports email tracking and the CRM as included on an active Growth plan", async () => {
       mockOrgRepo.findOneOrFail.mockResolvedValue(
         makeOrg({
           volumeTierProductId: "bearlymail_growth",
@@ -615,6 +616,7 @@ describe("OrganizationsService", () => {
       const result = await service.getVolumeUsage(ORG_ID);
 
       expect(result.includesEmailTracking).toBe(true);
+      expect(result.includesCrm).toBe(true);
     });
 
     it("lazily expires an elapsed trial and reports the free-tier limit", async () => {

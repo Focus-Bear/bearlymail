@@ -86,7 +86,12 @@ const BACKGROUND_WRITES: Array<[string, WriteCall]> = [
   ["star sync", (gmail) => gmail.syncStarStatusToGmail(USER_ID, THREAD_ID, 0)],
   [
     "read-status sync",
-    (gmail) => gmail.syncReadStatusToGmail(USER_ID, "msg-1", true),
+    (gmail) =>
+      gmail.syncReadStatus(
+        USER_ID,
+        { threadId: THREAD_ID, messageId: "msg-1" },
+        true,
+      ),
   ],
   ["snooze", (gmail) => gmail.snoozeThread(USER_ID, THREAD_ID, new Date())],
   ["snooze return", (gmail) => gmail.unsnoozeThread(USER_ID, THREAD_ID)],

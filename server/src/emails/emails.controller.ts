@@ -28,14 +28,16 @@ import {
   Put,
   Query,
   Request,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import type { Response } from "express";
 import type { PgBoss } from "pg-boss";
 
 import { AuditService } from "../audit/audit.service";
 import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
-import { RequireGooglePermission } from "../auth/google-permission.guard";
+import { RequireGmailManagePermission } from "../auth/google-permission.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { isUuid } from "../common/uuid.utils";
@@ -43,11 +45,10 @@ import {
   BOOLEAN_STRING_VALUES,
   EMAIL_PROVIDER_TYPES,
 } from "../constants/domain-types";
+import { EML_DOWNLOAD } from "../constants/eml-download.constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
-import {
-  GMAIL_WRITE_ACTION,
-  GOOGLE_PERMISSION_GROUP,
-} from "../constants/google-oauth-scopes";
+import { GMAIL_WRITE_ACTION } from "../constants/google-oauth-scopes";
+import { HTTP_HEADERS } from "../constants/http-headers";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -65,6 +66,7 @@ import {
   EMAIL_CONTROLLER_DEFAULTS,
   resolveInboxBatchLimit,
 } from "./email-controller.helpers";
+import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportJobService } from "./email-export-job.service";
 import {
   CategoryOverrideBody,
@@ -74,6 +76,7 @@ import {
 } from "./emails.controller.types";
 import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
+import { ReadStatusSyncService } from "./read-status-sync.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
 
 /**
@@ -100,6 +103,8 @@ export class EmailsController {
     private readonly auditService: AuditService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly emailTrackingSummaryService: EmailTrackingSummaryService,
+    private readonly readStatusSyncService: ReadStatusSyncService,
+    private readonly emailEmlDownloadService: EmailEmlDownloadService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -786,38 +791,89 @@ export class EmailsController {
     };
   }
 
+  /**
+   * Downloads one message as a `.eml` file: the provider's original RFC 822
+   * source with every header. 404 for an email the user doesn't own, 501 when
+   * their provider can't supply the raw message.
+   */
+  @Get(":id/eml")
+  @Throttle({
+    default: {
+      limit: EML_DOWNLOAD.RATE_LIMIT,
+      ttl: EML_DOWNLOAD.RATE_WINDOW_MS,
+    },
+  })
+  async downloadEml(
+    @Request() req,
+    @Param("id") id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { userId } = req.user;
+    const download = await this.emailEmlDownloadService.getEmlDownload(
+      userId,
+      id,
+    );
+    // A complete raw message is personal data leaving the system, so it is
+    // audited like the bulk export. AuditService swallows its own errors.
+    await this.auditService.log({
+      userId,
+      action: EML_DOWNLOAD.AUDIT_ACTION,
+      targetType: EML_DOWNLOAD.AUDIT_TARGET_TYPE,
+      targetId: id,
+      ipAddress: req.ip ?? null,
+      userAgent: req.headers?.["user-agent"] ?? null,
+    });
+    res.set({
+      [HTTP_HEADERS.CONTENT_TYPE]: EML_DOWNLOAD.CONTENT_TYPE,
+      [HTTP_HEADERS.CONTENT_DISPOSITION]: download.contentDisposition,
+      [HTTP_HEADERS.CONTENT_LENGTH]: String(download.content.length),
+    });
+    res.send(download.content);
+  }
+
   @Post()
   async createEmail(@Request() req, @Body() emailData: Partial<Email>) {
     return this.emailsService.createEmail(req.user.userId, emailData);
   }
 
+  // The four read/unread endpoints are the only callers of the provider read
+  // sync: they are the user's own actions, unlike sync/archive/triage writes.
   @Put(":id/read")
   async markAsRead(@Request() req, @Param("id") id: string) {
-    return this.emailsService.markAsRead(req.user.userId, id);
+    const email = await this.emailsService.markAsRead(req.user.userId, id);
+    this.readStatusSyncService.queueProviderSync(req.user.userId, [id]);
+    return email;
   }
 
   @Put(":id/unread")
   async markAsUnread(@Request() req, @Param("id") id: string) {
-    return this.emailsService.markAsUnread(req.user.userId, id);
+    const email = await this.emailsService.markAsUnread(req.user.userId, id);
+    this.readStatusSyncService.queueProviderSync(req.user.userId, [id]);
+    return email;
   }
 
   @Post("bulk/read")
   async bulkMarkAsRead(@Request() req, @Body() body: { emailIds: string[] }) {
     await this.emailsService.bulkMarkAsRead(req.user.userId, body.emailIds);
+    this.readStatusSyncService.queueProviderSync(
+      req.user.userId,
+      body.emailIds,
+    );
     return { message: "Emails marked as read" };
   }
 
   @Post("bulk/unread")
   async bulkMarkAsUnread(@Request() req, @Body() body: { emailIds: string[] }) {
     await this.emailsService.bulkMarkAsUnread(req.user.userId, body.emailIds);
+    this.readStatusSyncService.queueProviderSync(
+      req.user.userId,
+      body.emailIds,
+    );
     return { message: "Emails marked as unread" };
   }
 
   @Post("bulk/archive")
-  @RequireGooglePermission(
-    GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
-    GMAIL_WRITE_ACTION.ARCHIVE,
-  )
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.ARCHIVE)
   async bulkArchive(@Request() req, @Body() body: { emailIds: string[] }) {
     this.logger.log(
       `[Archive] Bulk archive request received for ${body.emailIds.length} emails, userId: ${req.user.userId}`,
@@ -841,10 +897,7 @@ export class EmailsController {
   }
 
   @Put(":id/archive")
-  @RequireGooglePermission(
-    GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
-    GMAIL_WRITE_ACTION.ARCHIVE,
-  )
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.ARCHIVE)
   async archiveEmail(@Request() req, @Param("id") id: string) {
     this.logger.log(
       `[Archive] Archive request received for emailId: ${id}, userId: ${req.user.userId}`,
@@ -865,29 +918,20 @@ export class EmailsController {
   }
 
   @Delete(":id")
-  @RequireGooglePermission(
-    GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
-    GMAIL_WRITE_ACTION.DELETE,
-  )
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.DELETE)
   async deleteEmail(@Request() req, @Param("id") id: string) {
     await this.emailsService.deleteEmail(req.user.userId, id);
     return { message: "Email deleted" };
   }
 
   @Put(":id/star")
-  @RequireGooglePermission(
-    GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
-    GMAIL_WRITE_ACTION.STAR,
-  )
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.STAR)
   async toggleStar(@Request() req, @Param("id") id: string) {
     return this.emailsService.toggleStar(req.user.userId, id);
   }
 
   @Put(":id/star-count")
-  @RequireGooglePermission(
-    GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
-    GMAIL_WRITE_ACTION.STAR,
-  )
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.STAR)
   async setStarCount(
     @Request() req,
     @Param("id") id: string,
@@ -897,10 +941,7 @@ export class EmailsController {
   }
 
   @Post(":id/block-sender")
-  @RequireGooglePermission(
-    GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
-    GMAIL_WRITE_ACTION.BLOCK_SENDER,
-  )
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.BLOCK_SENDER)
   async blockSender(
     @Request() req,
     @Param("id") id: string,

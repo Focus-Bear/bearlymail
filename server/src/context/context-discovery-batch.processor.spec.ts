@@ -52,6 +52,7 @@ describe("ContextDiscoveryBatchProcessor", () => {
       discoverUserContext: jest.fn().mockResolvedValue({
         categories: [{ name: "📰 Newsletters", description: "digests" }],
         vipContacts: [{ name: "Priya Raman" }],
+        projects: [{ name: "Northwind rollout", reason: "dates" }],
         urgentHints: [],
         notUrgentHints: [],
       }),
@@ -97,6 +98,7 @@ describe("ContextDiscoveryBatchProcessor", () => {
     expect(stored).toMatchObject({
       categories: [{ name: "📰 Newsletters", description: "digests" }],
       vipContacts: [{ name: "Priya Raman" }],
+      projects: [{ name: "Northwind rollout", reason: "dates" }],
       threadIds: ["t1"],
     });
     expect(record.analyzedCount).toBe(1);

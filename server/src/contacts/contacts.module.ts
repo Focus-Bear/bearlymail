@@ -12,6 +12,7 @@ import { GoogleAccountsModule } from "../google-accounts/google-accounts.module"
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { QueueModule } from "../queue/queue.module";
+import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { UsersModule } from "../users/users.module";
 import { ContactCrmService } from "./contact-crm.service";
 import { ContactSearchTokenBackfillProcessor } from "./contact-search-token-backfill.processor";
@@ -40,6 +41,7 @@ import { Office365ContactsProvider } from "./providers/office365-contacts.provid
     GoogleAccountsModule,
     Office365AccountsModule,
     QueueModule,
+    SubscriptionsModule,
     // Provides AdminGuard + JwtAuthGuard for ContactsDebugAdminController.
     forwardRef(() => AuthModule),
   ],

@@ -33,7 +33,7 @@ import {
 } from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import {
-  getOldestAllowedSyncDate,
+  resolveInboxSyncFloor,
   resolveMaxFetchResults,
   shouldFlagSyncWindowLimited,
 } from "../sync-window-policy";
@@ -46,6 +46,8 @@ import {
 const DETAIL_CHUNK_SIZE = 20;
 const SEARCH_SCAN_LIMIT = 500;
 const SCAN_HISTORY_LIMIT = 300;
+/** `sinceMs` value that lists the whole inbox (every received date is after it). */
+const NO_DATE_FLOOR_MS = 0;
 
 /**
  * EmailProvider backed by the local Mail.app via AppleScript/JXA. Only
@@ -144,7 +146,8 @@ export class AppleMailProvider implements EmailProvider {
     const fetchLimit = resolveMaxFetchResults(isInitialSync);
     const summaries = await this.appleMailScriptService.fetchInboxSummaries({
       accountNames,
-      sinceMs: getOldestAllowedSyncDate().getTime(),
+      sinceMs:
+        resolveInboxSyncFloor(isInitialSync)?.getTime() ?? NO_DATE_FLOOR_MS,
       maxMessages: fetchLimit,
     });
     this.logger.debug(
@@ -152,13 +155,7 @@ export class AppleMailProvider implements EmailProvider {
     );
 
     const hitFetchCap = summaries.length >= fetchLimit;
-    if (
-      shouldFlagSyncWindowLimited({
-        isInitialSync,
-        hitFetchCap,
-        olderMailExists: hitFetchCap,
-      })
-    ) {
+    if (shouldFlagSyncWindowLimited({ isInitialSync, hitFetchCap })) {
       await this.usersService.markSyncWindowLimited(userId);
     }
 
@@ -554,7 +551,7 @@ export class AppleMailProvider implements EmailProvider {
 
     const summaries = await this.appleMailScriptService.fetchInboxSummaries({
       accountNames,
-      sinceMs: 0,
+      sinceMs: NO_DATE_FLOOR_MS,
       maxMessages: SEARCH_SCAN_LIMIT,
     });
 

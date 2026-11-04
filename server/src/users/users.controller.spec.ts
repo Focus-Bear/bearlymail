@@ -2,6 +2,10 @@ import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { GMAIL_ACCESS_ISSUE } from "../constants/domain-statuses";
+import {
+  GOOGLE_PERMISSION_GROUP,
+  REQUIRED_GOOGLE_SCOPES,
+} from "../constants/google-oauth-scopes";
 import { DataExportService } from "./data-export.service";
 import { DataImportService } from "./data-import.service";
 import { UsersController } from "./users.controller";
@@ -109,6 +113,37 @@ describe("UsersController", () => {
       });
 
       expect(result.gmailAccessIssue).toBe(GMAIL_ACCESS_ISSUE.MISSING);
+    });
+
+    it("lists the Google permissions the last sign-in declined so onboarding can warn", async () => {
+      mockUsersService.findOne.mockResolvedValue({
+        id: "user-123",
+        email: "test@example.com",
+        googleGrantedScopes: ["email", ...REQUIRED_GOOGLE_SCOPES].join(" "),
+      });
+
+      const result = await controller.getProfile({
+        user: { userId: "user-123" },
+      });
+
+      expect(result.missingGooglePermissions).toEqual([
+        GOOGLE_PERMISSION_GROUP.CALENDAR,
+        GOOGLE_PERMISSION_GROUP.CONTACTS,
+      ]);
+    });
+
+    it("reports no missing Google permissions when the grant was never recorded", async () => {
+      mockUsersService.findOne.mockResolvedValue({
+        id: "user-123",
+        email: "test@example.com",
+        googleGrantedScopes: null,
+      });
+
+      const result = await controller.getProfile({
+        user: { userId: "user-123" },
+      });
+
+      expect(result.missingGooglePermissions).toEqual([]);
     });
   });
 

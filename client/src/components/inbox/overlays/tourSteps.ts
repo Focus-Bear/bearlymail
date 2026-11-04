@@ -25,6 +25,13 @@ export interface TourStep {
   placement?: Placement;
 }
 
+/**
+ * The first email card, else its category header when every accordion is
+ * collapsed. The per-control steps fall back to these when the control isn't
+ * on screen (no emails yet, or a layout that hides it), then to a centred card.
+ */
+const EMAIL_CARD_TARGETS: TourTarget[] = [TOUR_TARGETS.EMAIL_ROW, TOUR_TARGETS.CATEGORY_ACCORDION];
+
 export const INBOX_TOUR_STEPS: TourStepDefinition[] = [
   {
     titleKey: 'onboarding.tour.triageTitle',
@@ -47,9 +54,26 @@ export const INBOX_TOUR_STEPS: TourStepDefinition[] = [
   {
     titleKey: 'onboarding.tour.assistantTitle',
     contentKey: 'onboarding.tour.assistantContent',
-    // Falls back to the category header when every accordion is collapsed.
-    targets: [TOUR_TARGETS.EMAIL_ROW, TOUR_TARGETS.CATEGORY_ACCORDION],
+    targets: EMAIL_CARD_TARGETS,
     placement: 'bottom',
+  },
+  {
+    titleKey: 'onboarding.tour.prioritiseTitle',
+    contentKey: 'onboarding.tour.prioritiseContent',
+    targets: [TOUR_TARGETS.EMAIL_PRIORITY, ...EMAIL_CARD_TARGETS],
+    placement: 'top-start',
+  },
+  {
+    titleKey: 'onboarding.tour.archiveTitle',
+    contentKey: 'onboarding.tour.archiveContent',
+    targets: [TOUR_TARGETS.EMAIL_ARCHIVE, ...EMAIL_CARD_TARGETS],
+    placement: 'top',
+  },
+  {
+    titleKey: 'onboarding.tour.blockTitle',
+    contentKey: 'onboarding.tour.blockContent',
+    targets: [TOUR_TARGETS.EMAIL_MORE_ACTIONS, ...EMAIL_CARD_TARGETS],
+    placement: 'top-end',
   },
 ];
 
@@ -58,12 +82,17 @@ function isRendered(element: HTMLElement): boolean {
   return rect.width > 0 && rect.height > 0;
 }
 
-/** The first of the step's anchors that is actually laid out on screen, if any. */
+/**
+ * The first of the step's anchors that is actually laid out on screen, if any.
+ * Per-email anchors repeat on every card, so the first visible copy wins — the
+ * first in the DOM may sit in a collapsed category.
+ */
 export function findTourTarget(targets: TourTarget[], root: ParentNode = document): HTMLElement | null {
   for (const target of targets) {
-    const element = root.querySelector<HTMLElement>(tourTargetSelector(target));
-    if (element && isRendered(element)) {
-      return element;
+    const elements = Array.from(root.querySelectorAll<HTMLElement>(tourTargetSelector(target)));
+    const rendered = elements.find(isRendered);
+    if (rendered) {
+      return rendered;
     }
   }
   return null;

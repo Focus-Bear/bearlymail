@@ -14,6 +14,7 @@ import { TOAST_DURATION_MS } from 'components/inbox/constants';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { MODE_TRIAGE } from 'constants/strings';
+import { TOUR_TARGETS } from 'constants/tour';
 
 const EVENT_TYPE_CLICK = 'click';
 
@@ -43,6 +44,7 @@ const ArchiveButton: React.FC<{
 }> = ({ email, keyboardHint, t, pulse, onArchive }) => (
   <button
     type="button"
+    data-tour={TOUR_TARGETS.EMAIL_ARCHIVE}
     className={pulse ? 'animate-recommended-pulse' : undefined}
     title={t('inbox.archive')}
     style={ghostActionStyle}
@@ -59,6 +61,26 @@ const ArchiveButton: React.FC<{
     <span className="email-action-label">{t('inbox.archive')}</span>
   </button>
 );
+
+const priorityBoxStyle: React.CSSProperties = {
+  // Hug the PRIORITY + pills content (no flex-grow) so the box doesn't leave empty
+  // space after "Oh sh$t"; actions sit at the far right and wrap below on narrow rows.
+  flex: '0 1 auto',
+  backgroundColor: theme.colors.background.paper,
+  border: `1px solid ${theme.colors.border.light}`,
+  borderRadius: theme.borderRadius.md,
+  padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+};
+
+const actionsGroupStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexShrink: 0,
+  marginLeft: 'auto',
+  // Centre the action icons on the priority pills line (box border + padding + pill),
+  // not on the whole box, whose caption line makes it taller.
+  height: '36px',
+};
 
 interface EmailActionsRowProps {
   email: Email;
@@ -150,17 +172,7 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
         {/* Gaps live in the .email-actions-row / .email-actions-group CSS (App.css) rather than
             inline styles so the container query can tighten them on narrow cards. */}
         <div className="email-actions-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <div
-            style={{
-              // Hug the PRIORITY + pills content (no flex-grow) so the box doesn't leave empty
-              // space after "Oh sh$t"; actions sit at the far right and wrap below on narrow rows.
-              flex: '0 1 auto',
-              backgroundColor: theme.colors.background.paper,
-              border: `1px solid ${theme.colors.border.light}`,
-              borderRadius: theme.borderRadius.md,
-              padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            }}
-          >
+          <div data-tour={TOUR_TARGETS.EMAIL_PRIORITY} style={priorityBoxStyle}>
             <PrioritySlider
               email={email}
               onSetStarCount={onSetStarCount}
@@ -169,18 +181,7 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
             />
           </div>
 
-          <div
-            className="email-actions-group"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              flexShrink: 0,
-              marginLeft: 'auto',
-              // Centre the action icons on the priority pills line (box border + padding + pill),
-              // not on the whole box, whose caption line makes it taller.
-              height: '36px',
-            }}
-          >
+          <div className="email-actions-group" style={actionsGroupStyle}>
             {!isSnoozeInputVisible && <SnoozeButton email={email} onShowSnooze={snoozeInput.showSnooze} />}
             <ArchiveButton
               email={email}
@@ -189,7 +190,10 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
               pulse={activeSuggestion?.suggestedArchive === true}
               onArchive={onArchive}
             />
-            <OverflowMenu items={overflowItems} aria-label={t('emailDetail.moreOptions')} />
+            {/* The tour's "Block a sender" step points here — Block sender lives in this menu. */}
+            <span data-tour={TOUR_TARGETS.EMAIL_MORE_ACTIONS} style={{ display: 'inline-flex' }}>
+              <OverflowMenu items={overflowItems} aria-label={t('emailDetail.moreOptions')} />
+            </span>
           </div>
         </div>
 

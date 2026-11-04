@@ -8,6 +8,9 @@ export const TOUR_TARGETS = {
   ACTION_TAB: 'action-tab',
   BATCH_DELIVERY: 'batch-delivery',
   EMAIL_ROW: 'email-row',
+  EMAIL_PRIORITY: 'email-priority',
+  EMAIL_ARCHIVE: 'email-archive',
+  EMAIL_MORE_ACTIONS: 'email-more-actions',
   CATEGORY_ACCORDION: 'category-accordion',
 } as const;
 

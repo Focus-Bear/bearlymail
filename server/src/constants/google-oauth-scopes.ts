@@ -6,21 +6,29 @@
 const GOOGLE_SCOPE_GMAIL_MODIFY =
   "https://www.googleapis.com/auth/gmail.modify";
 const GOOGLE_SCOPE_GMAIL_SEND = "https://www.googleapis.com/auth/gmail.send";
+// Free/busy only (required for booking page availability via freebusy.query)
+const GOOGLE_SCOPE_CALENDAR_FREEBUSY =
+  "https://www.googleapis.com/auth/calendar.freebusy";
+// Manage calendar events (create/edit/delete bookings)
+const GOOGLE_SCOPE_CALENDAR_EVENTS =
+  "https://www.googleapis.com/auth/calendar.events";
+// Required for contacts sync via People API (explicit contacts)
+const GOOGLE_SCOPE_CONTACTS =
+  "https://www.googleapis.com/auth/contacts.readonly";
+// Required for "Other contacts" sync (auto-created from interactions)
+const GOOGLE_SCOPE_OTHER_CONTACTS =
+  "https://www.googleapis.com/auth/contacts.other.readonly";
 
 export const GOOGLE_OAUTH_SCOPES = [
   "email",
   "profile",
-  // Free/busy only (required for booking page availability via freebusy.query)
-  "https://www.googleapis.com/auth/calendar.freebusy",
-  // Manage calendar events (create/edit/delete bookings)
-  "https://www.googleapis.com/auth/calendar.events",
+  GOOGLE_SCOPE_CALENDAR_FREEBUSY,
+  GOOGLE_SCOPE_CALENDAR_EVENTS,
   // Includes read + modify (labels, etc.)
   GOOGLE_SCOPE_GMAIL_MODIFY,
   GOOGLE_SCOPE_GMAIL_SEND,
-  // Required for contacts sync via People API (explicit contacts)
-  "https://www.googleapis.com/auth/contacts.readonly",
-  // Required for "Other contacts" sync (auto-created from interactions)
-  "https://www.googleapis.com/auth/contacts.other.readonly",
+  GOOGLE_SCOPE_CONTACTS,
+  GOOGLE_SCOPE_OTHER_CONTACTS,
 ];
 
 /**
@@ -52,4 +60,49 @@ export function findMissingRequiredGoogleScopes(
   if (grantedScope === undefined) return [];
   const granted = new Set(grantedScope.split(" "));
   return REQUIRED_GOOGLE_SCOPES.filter((scope) => !granted.has(scope));
+}
+
+/**
+ * The features behind the checkboxes on Google's consent screen. The values
+ * are part of the API contract with the client (client/src/constants/strings.ts),
+ * which names what stops working when one is missing.
+ */
+export const GOOGLE_PERMISSION_GROUP = {
+  GMAIL: "gmail",
+  CALENDAR: "calendar",
+  CONTACTS: "contacts",
+} as const;
+
+export type GooglePermissionGroup =
+  (typeof GOOGLE_PERMISSION_GROUP)[keyof typeof GOOGLE_PERMISSION_GROUP];
+
+const GOOGLE_PERMISSION_GROUP_SCOPES: Record<GooglePermissionGroup, string[]> =
+  {
+    [GOOGLE_PERMISSION_GROUP.GMAIL]: REQUIRED_GOOGLE_SCOPES,
+    [GOOGLE_PERMISSION_GROUP.CALENDAR]: [
+      GOOGLE_SCOPE_CALENDAR_FREEBUSY,
+      GOOGLE_SCOPE_CALENDAR_EVENTS,
+    ],
+    [GOOGLE_PERMISSION_GROUP.CONTACTS]: [
+      GOOGLE_SCOPE_CONTACTS,
+      GOOGLE_SCOPE_OTHER_CONTACTS,
+    ],
+  };
+
+/**
+ * The permission groups with at least one scope absent from the grant
+ * recorded at the last Google sign-in. An unknown grant (non-Google accounts,
+ * and Google sign-ins from before scopes were recorded) reports none, so no
+ * one is warned about a permission they may well have given.
+ */
+export function findMissingGooglePermissionGroups(
+  grantedScope: string | null | undefined,
+): GooglePermissionGroup[] {
+  if (!grantedScope) return [];
+  const granted = new Set(grantedScope.split(" "));
+  return (
+    Object.keys(GOOGLE_PERMISSION_GROUP_SCOPES) as GooglePermissionGroup[]
+  ).filter((group) =>
+    GOOGLE_PERMISSION_GROUP_SCOPES[group].some((scope) => !granted.has(scope)),
+  );
 }

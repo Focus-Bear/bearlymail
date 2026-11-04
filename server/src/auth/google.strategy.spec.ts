@@ -130,6 +130,7 @@ describe("GoogleStrategy", () => {
         mockProfile,
         mockAccessToken,
         mockRefreshToken,
+        fullGrant.scope,
       );
       expect(result).toEqual({
         ...mockUser,

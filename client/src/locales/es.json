@@ -4898,6 +4898,7 @@
     "keyEsc": "Esc"
   },
   "sidebar": {
+    "goToInbox": "Ir a la bandeja de entrada",
     "collapse": "Contraer barra lateral",
     "expand": "Expandir barra lateral"
   },

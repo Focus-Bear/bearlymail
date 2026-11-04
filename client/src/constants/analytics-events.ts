@@ -95,6 +95,7 @@ export const ANALYTICS_EVENTS = {
   SIDEBAR_COLLAPSE_CLICKED: 'sidebar_collapse_clicked',
   SIDEBAR_EXPAND_CLICKED: 'sidebar_expand_clicked',
   SIDEBAR_FOCUSBEAR_LINK_CLICKED: 'sidebar_focusbear_link_clicked',
+  SIDEBAR_LOGO_CLICKED: 'sidebar_logo_clicked',
   SIDEBAR_LOGOUT_CLICKED: 'sidebar_logout_clicked',
   TONE_CHECK_DISMISSED: 'tone_check_dismissed',
   TONE_CHECK_DISPUTE_FORM_OPENED: 'tone_check_dispute_form_opened',

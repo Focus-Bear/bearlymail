@@ -4895,6 +4895,7 @@
     "keyEsc": "Esc"
   },
   "sidebar": {
+    "goToInbox": "Go to inbox",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar"
   },

@@ -434,6 +434,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isCollapsed={effectiveIsCollapsed}
           canToggleCollapse={canToggleCollapse && !isNarrow}
           onToggleCollapse={onToggleCollapse}
+          onLogoClick={() => handleNavigationClick(ROUTE_INBOX)}
         />
         <SidebarNav
           translate={t}

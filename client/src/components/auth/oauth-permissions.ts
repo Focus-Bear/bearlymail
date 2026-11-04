@@ -12,9 +12,6 @@ export const OAUTH_PROVIDER_DISPLAY_NAMES: Record<OAuthProvider, string> = {
 const PERMISSION_MAIL_READ = 'mailRead';
 const PERMISSION_MAIL_SEND = 'mailSend';
 const PERMISSION_CONTACTS = 'contacts';
-const PERMISSION_OTHER_CONTACTS = 'otherContacts';
-const PERMISSION_CALENDAR_EVENTS = 'calendarEvents';
-const PERMISSION_AVAILABILITY = 'availability';
 const PERMISSION_STAY_CONNECTED = 'stayConnected';
 const PERMISSION_PROFILE = 'profile';
 
@@ -30,13 +27,11 @@ export interface OAuthPermission {
   scopes: readonly string[];
 }
 
+// Calendar and contacts aren't asked for at sign-in; the scheduling card and
+// the CRM ask Google for them when they're needed.
 const GOOGLE_PERMISSIONS: readonly OAuthPermission[] = [
   { id: PERMISSION_MAIL_READ, icon: '📥', scopes: ['https://www.googleapis.com/auth/gmail.modify'] },
   { id: PERMISSION_MAIL_SEND, icon: '📤', scopes: ['https://www.googleapis.com/auth/gmail.send'] },
-  { id: PERMISSION_CONTACTS, icon: '👥', scopes: ['https://www.googleapis.com/auth/contacts.readonly'] },
-  { id: PERMISSION_OTHER_CONTACTS, icon: '🗂️', scopes: ['https://www.googleapis.com/auth/contacts.other.readonly'] },
-  { id: PERMISSION_CALENDAR_EVENTS, icon: '📅', scopes: ['https://www.googleapis.com/auth/calendar.events'] },
-  { id: PERMISSION_AVAILABILITY, icon: '🕒', scopes: ['https://www.googleapis.com/auth/calendar.freebusy'] },
   { id: PERMISSION_PROFILE, icon: '🙂', scopes: ['email', 'profile'] },
 ];
 

@@ -6,6 +6,7 @@ import { Contact, ContactTypeConfig } from 'types/contact';
 
 import { InlineContactSearchDebug } from 'components/admin/InlineContactSearchDebug';
 import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
+import { ImportGoogleContactsBadge } from 'components/google-permissions/ImportGoogleContactsBadge';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { EMOJI_MENU } from 'constants/emojis';
 import { CONTACTS_PAGE_SEARCH_LIMIT, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
@@ -294,6 +295,8 @@ const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
           {syncing ? t('contacts.syncing') : t('contacts.syncContacts')}
         </button>
       </div>
+
+      <ImportGoogleContactsBadge />
 
       <div style={{ marginBottom: theme.spacing.lg }}>
         <input

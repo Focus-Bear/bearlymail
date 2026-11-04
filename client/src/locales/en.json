@@ -112,18 +112,6 @@
           "title": "See your contacts",
           "description": "To recognise the people who matter to you (your VIPs) and autocomplete addresses when you write."
         },
-        "otherContacts": {
-          "title": "See your “Other contacts”",
-          "description": "Google's list of people you've emailed but never saved. Many of your most important senders only live here."
-        },
-        "calendarEvents": {
-          "title": "View and edit calendar events",
-          "description": "So we can suggest meeting times in replies and add the invite when someone books. We don't change your calendar settings."
-        },
-        "availability": {
-          "title": "See when you're free or busy",
-          "description": "Lets meeting suggestions avoid clashes, without reading what your events are about."
-        },
         "stayConnected": {
           "title": "Stay connected while you're away",
           "description": "Keeps your inbox syncing when you're not signed in, so your batches still arrive on time."
@@ -3858,12 +3846,7 @@
         "gmailTitle": "BearlyMail can't reach your Gmail yet",
         "gmailBody": "On Google's permission screen, the boxes that let BearlyMail read, organise and send your email were left unticked. Until you allow them, your inbox stays empty: nothing gets batched, summarised or sent.",
         "gmailBodyRevoked": "Google has stopped letting BearlyMail into your mailbox — the access was removed or has expired. Until you allow it again, your inbox stays empty: nothing gets batched, summarised or sent.",
-        "gmailButton": "Allow Gmail access",
-        "optionalTitle": "Some optional permissions were skipped",
-        "optionalBody": "Your inbox works without these, but a few features won't:",
-        "optionalCalendar": "Calendar: your booking page can't check when you're free or add meetings to your calendar.",
-        "optionalContacts": "Contacts: recipient suggestions and your contacts list won't include people from your Google contacts.",
-        "optionalButton": "Grant these permissions"
+        "gmailButton": "Allow Gmail access"
       },
       "iAcceptThe": "I accept the",
       "termsOfUse": "Terms of Use",
@@ -5141,5 +5124,21 @@
     "multipleRecipients_one": "Sent to {{count}} recipient.",
     "multipleRecipients_other": "Sent to {{count}} recipients — an open could be any of them.",
     "imagesCaveat": "Opens are detected with a tiny image. Recipients who block images won't show as opened."
+  },
+  "googlePermissions": {
+    "startError": "Couldn't open Google. Please try again.",
+    "calendar": {
+      "message": "Connect your Google Calendar so BearlyMail can check when you're free and add the meeting for you.",
+      "action": "Connect your calendar"
+    },
+    "contacts": {
+      "message": "We've only got contacts from your emails.",
+      "action": "Import all your Gmail contacts"
+    },
+    "result": {
+      "granted": "Done. BearlyMail can now use it.",
+      "declined": "Google didn't give BearlyMail that permission. Tick its box on Google's screen to allow it.",
+      "wrongAccount": "That was a different Google account. Choose the account you signed in to BearlyMail with."
+    }
   }
 }

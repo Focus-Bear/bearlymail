@@ -32,7 +32,8 @@ describe('PermissionsExplanation', () => {
     render(<PermissionsExplanation provider={PROVIDER_GOOGLE} onContinue={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(OAUTH_PERMISSIONS[PROVIDER_GOOGLE].length);
-    expect(screen.getByText('auth.permissions.items.otherContacts.title')).toBeInTheDocument();
+    expect(screen.getByText('auth.permissions.items.mailRead.title')).toBeInTheDocument();
+    expect(screen.queryByText('auth.permissions.items.contacts.title')).not.toBeInTheDocument();
     expect(screen.getByText('auth.permissions.tips.ongoingAccess')).toBeInTheDocument();
   });
 

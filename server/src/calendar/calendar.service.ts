@@ -42,6 +42,7 @@ import {
   respondToInvitation,
   rsvpByEventId,
 } from "./calendar-invitation-response.service";
+import { hasGoogleCalendarAccess } from "./google-calendar-access.util";
 import { IcsEventData, IcsInfoResponse } from "./ics-event.types";
 
 const BOOKING_TOKEN_BYTES = 32;
@@ -144,7 +145,7 @@ export class CalendarService {
     if (!user) {
       throw new Error("User not found");
     }
-    if (!user.googleCalendarAccessToken) {
+    if (!hasGoogleCalendarAccess(user)) {
       throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
@@ -262,7 +263,7 @@ export class CalendarService {
       additionalGuests = [],
     } = options;
     const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    if (!hasGoogleCalendarAccess(user)) {
       throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
@@ -402,7 +403,7 @@ Manage this booking:
     }
 
     const user = await this.usersService.findOne(booking.userId);
-    if (!user?.googleCalendarAccessToken) {
+    if (!hasGoogleCalendarAccess(user)) {
       throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
@@ -460,7 +461,7 @@ Manage this booking:
     }
 
     const user = await this.usersService.findOne(booking.userId);
-    if (!user?.googleCalendarAccessToken) {
+    if (!hasGoogleCalendarAccess(user)) {
       throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
@@ -515,7 +516,7 @@ Manage this booking:
     }>
   > {
     const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    if (!hasGoogleCalendarAccess(user)) {
       throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 

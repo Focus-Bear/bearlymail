@@ -13,6 +13,7 @@ import { WaitlistService } from "../waitlist/waitlist.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { GooglePermissionGrantService } from "./google-permission-grant.service";
 import { StepUpAuthGuard } from "./step-up.guard";
 
 const FRONTEND_URL = "https://app.bearlymail.test";
@@ -102,6 +103,8 @@ describe("AuthController OAuth callbacks", () => {
     create: jest.fn(),
   };
 
+  const mockGooglePermissionGrantService = { getCallbackRedirect: jest.fn() };
+
   const mockBoss = {
     send: jest.fn(),
   };
@@ -133,6 +136,10 @@ describe("AuthController OAuth callbacks", () => {
         { provide: UserEncryptionService, useValue: mockUserEncryptionService },
         { provide: WaitlistService, useValue: {} },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
+        {
+          provide: GooglePermissionGrantService,
+          useValue: mockGooglePermissionGrantService,
+        },
       ],
     })
       // These tests call handlers directly; the guard is covered by step-up.guard.spec.
@@ -317,6 +324,49 @@ describe("AuthController OAuth callbacks", () => {
       expect(mockGoogleAccountsService.findAllByUser).not.toHaveBeenCalled();
       expect(mockAuthService.login).toHaveBeenCalledWith(googleUser);
       expect(res.redirect).toHaveBeenCalledWith(`${FRONTEND_URL}/inbox`);
+    });
+
+    describe("incremental Google permission grant", () => {
+      const grantRequest = { user: googleUser };
+      const grantUrl = `${FRONTEND_URL}/email/abc?googlePermission=granted`;
+
+      it("follows the grant's redirect without logging in", async () => {
+        mockGooglePermissionGrantService.getCallbackRedirect.mockResolvedValue(
+          grantUrl,
+        );
+        const res = createMockResponse();
+
+        await controller.googleAuthRedirect(
+          grantRequest,
+          asResponse(res),
+          "signed-state",
+        );
+
+        expect(
+          mockGooglePermissionGrantService.getCallbackRedirect,
+        ).toHaveBeenCalledWith("signed-state", grantRequest, FRONTEND_URL);
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(res.cookie).not.toHaveBeenCalled();
+        expect(res.redirect).toHaveBeenCalledWith(grantUrl);
+      });
+
+      it("returns a cancelled grant to the app, not the sign-in error page", async () => {
+        mockGooglePermissionGrantService.getCallbackRedirect.mockResolvedValue(
+          `${FRONTEND_URL}/email/abc?googlePermission=declined`,
+        );
+        const res = createMockResponse();
+
+        await controller.googleAuthRedirect(
+          { authError: new Error("denied"), user: { authFailed: true } },
+          asResponse(res),
+          "signed-state",
+        );
+
+        expect(res.redirect).toHaveBeenCalledTimes(1);
+        expect(res.redirect).toHaveBeenCalledWith(
+          `${FRONTEND_URL}/email/abc?googlePermission=declined`,
+        );
+      });
     });
   });
 

@@ -217,6 +217,8 @@ export type PhishingConfidence =
 export const AUTH_ACTION_TYPES = {
   CONNECT: "connect",
   DISCONNECT: "disconnect",
+  /** Incremental Google authorization: add calendar or contacts to a signed-in user's grant. */
+  GRANT_GOOGLE_PERMISSION: "grant_google_permission",
 } as const;
 
 export type AuthActionType =

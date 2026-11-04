@@ -104,7 +104,6 @@ export const UTILITY_PROMPT_IDS = {
   REDACT_NAMES: "redact_names",
   VALIDATE_WRITING_EXAMPLE: "validate_writing_example",
   DISPUTE_TONE_CHECK: "dispute_tone_check",
-  CONSOLIDATE_CATEGORIES: "consolidate_categories",
   MERGE_DUPLICATE_CATEGORIES: "merge_duplicate_categories",
   GENERATE_CATEGORIES_FROM_OTHER: "generate_categories_from_other",
   DETECT_OPT_OUT: "detect_opt_out",
@@ -209,10 +208,6 @@ const PROMPT_FILE_MAP: Array<{
     key: UTILITY_PROMPT_IDS.VALIDATE_WRITING_EXAMPLE,
   },
   { file: "dispute-tone-check.md", key: UTILITY_PROMPT_IDS.DISPUTE_TONE_CHECK },
-  {
-    file: "consolidate-email-categories.md",
-    key: UTILITY_PROMPT_IDS.CONSOLIDATE_CATEGORIES,
-  },
   {
     file: "merge-duplicate-categories.md",
     key: UTILITY_PROMPT_IDS.MERGE_DUPLICATE_CATEGORIES,

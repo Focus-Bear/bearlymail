@@ -12,12 +12,13 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CrmPlanGuard } from "../subscriptions/crm-plan.guard";
 import { DealNotesService } from "./deal-notes.service";
 import { DealsService } from "./deals.service";
 import { DealNoteContentDto } from "./dto/deal-note-content.dto";
 
 @Controller("deals")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CrmPlanGuard)
 export class DealsController {
   constructor(
     private readonly dealsService: DealsService,

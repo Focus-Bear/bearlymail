@@ -54,10 +54,7 @@ import {
   refreshAttachmentsFromGmailForThread,
   refreshAttachmentsFromGmailForUser,
 } from "./gmail-sync.refresh-attachments";
-import {
-  fetchAllThreadsWithPagination,
-  olderMailExistsBeyondWindow,
-} from "./gmail-sync.thread-list";
+import { fetchAllThreadsWithPagination } from "./gmail-sync.thread-list";
 import { verifyInboxStatusForUser } from "./gmail-sync.verify-inbox";
 
 /**
@@ -237,10 +234,11 @@ export class GmailSyncService {
     }
     const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
 
-    // Sync-window policy: every fetch is clamped to the ongoing window — the
-    // extended (noDateFilter) sync gets the full window instead of no filter.
-    // Starred threads are fetched separately below with the wider starred
-    // window.
+    // Sync-window policy: the initial inbox listing has no date floor (it is
+    // capped by count instead); every other fetch is clamped to the ongoing
+    // window — the extended (noDateFilter) sync gets the full window instead
+    // of no filter. Starred threads are fetched separately below with the
+    // wider starred window.
     const syncWindowStart = resolveSyncWindowStart({
       lastEmailSyncAt: user.lastEmailSyncAt,
       syncWindowHours,
@@ -250,7 +248,9 @@ export class GmailSyncService {
       syncWindowStart.getTime() / MS_PER_SECOND,
     );
     const afterQuery = `after:${syncWindowTimestamp}`;
-    const inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
+    const inboxQuery = params.isInitialSync
+      ? `in:inbox ${baseQuery}`
+      : `in:inbox ${baseQuery} ${afterQuery}`;
     const sentQuery = noDateFilter
       ? `in:sent ${baseQuery} newer_than:2d`
       : `in:sent ${baseQuery} ${afterQuery}`;
@@ -333,25 +333,13 @@ export class GmailSyncService {
           isInitialSync,
         }));
 
-      if (isInitialSync) {
-        // Hitting the fetch cap already flags the sync window as limited, so
-        // the older-mail network probe is only needed when the cap wasn't hit.
-        const olderMailExists = inboxHasMore
-          ? false
-          : await olderMailExistsBeyondWindow(
-              this.logger,
-              gmail,
-              syncWindowStart,
-            );
-        if (
-          shouldFlagSyncWindowLimited({
-            isInitialSync,
-            hitFetchCap: inboxHasMore,
-            olderMailExists,
-          })
-        ) {
-          await this.usersService.markSyncWindowLimited(userId);
-        }
+      if (
+        shouldFlagSyncWindowLimited({
+          isInitialSync,
+          hitFetchCap: inboxHasMore,
+        })
+      ) {
+        await this.usersService.markSyncWindowLimited(userId);
       }
     }
 

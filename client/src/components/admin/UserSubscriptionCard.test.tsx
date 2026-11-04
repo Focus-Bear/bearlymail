@@ -16,9 +16,9 @@ vi.mock('react-i18next', () => ({
 vi.mock('queries/usePlanTiers', () => ({
   usePlanTiers: () => ({
     data: [
-      { id: 'bearlymail_starter', monthlyPriceUsd: 10, emailsPerCycle: 3000, seats: 1, includesEmailTracking: false },
-      { id: 'bearlymail_growth', monthlyPriceUsd: 20, emailsPerCycle: 10000, seats: 1, includesEmailTracking: true },
-      { id: 'bearlymail_enterprise', monthlyPriceUsd: 50, emailsPerCycle: 30000, seats: 5, includesEmailTracking: true },
+      { id: 'bearlymail_starter', monthlyPriceUsd: 10, emailsPerCycle: 3000, seats: 1, includesEmailTracking: false, includesCrm: false },
+      { id: 'bearlymail_growth', monthlyPriceUsd: 20, emailsPerCycle: 10000, seats: 1, includesEmailTracking: true, includesCrm: true },
+      { id: 'bearlymail_enterprise', monthlyPriceUsd: 50, emailsPerCycle: 30000, seats: 5, includesEmailTracking: true, includesCrm: true },
     ],
   }),
 }));

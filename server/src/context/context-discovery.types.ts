@@ -1,5 +1,6 @@
 import type {
   DiscoveredCategory,
+  DiscoveredProject,
   DiscoveredVipContact,
   DiscoveryThreadStub,
 } from "../llm/llm-discover-user-context";
@@ -19,12 +20,16 @@ export interface DiscoveryBatchJob {
   userEmail?: string;
   existingCategories: string[];
   existingVipContacts: string[];
+  /** Optional so batch jobs queued before projects were discovered still parse. */
+  existingProjects?: string[];
 }
 
 /** Stored under `ContextAnalysis.stats.batchResults[batchIndex]` on success. */
 export interface DiscoveryBatchResult {
   categories: DiscoveredCategory[];
   vipContacts: DiscoveredVipContact[];
+  /** Optional so results stored before projects were discovered still merge. */
+  projects?: DiscoveredProject[];
   urgentHints: string[];
   notUrgentHints: string[];
   threadIds: string[];

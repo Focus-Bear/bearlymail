@@ -38,6 +38,8 @@ export interface VolumeTierConfig {
   seats: number;
   /** Whether outgoing mail can carry an open-tracking pixel. */
   includesEmailTracking: boolean;
+  /** Whether the CRM (contacts records, deals, notes) is available: $15/mo plans and up. */
+  includesCrm: boolean;
 }
 
 // These list prices are what the plan picker shows, so they must match the
@@ -50,17 +52,20 @@ export const VOLUME_TIERS: Record<string, VolumeTierConfig> = {
     price: 5,
     seats: FREE_TIER_SEATS,
     includesEmailTracking: false,
+    includesCrm: false,
   },
   [VOLUME_TIER_IDS.GROWTH]: {
     limit: 10000,
     price: 15,
     seats: FREE_TIER_SEATS,
     includesEmailTracking: true,
+    includesCrm: true,
   },
   [VOLUME_TIER_IDS.ENTERPRISE]: {
     limit: 30000,
     price: 40,
     seats: 5,
     includesEmailTracking: true,
+    includesCrm: true,
   },
 } as const;

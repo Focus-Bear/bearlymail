@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
 import { BOOLEAN_STRING_VALUES } from "./constants/domain-types";
+import { HTTP_HEADERS } from "./constants/http-headers";
 import bootstrapDataSource from "./data-source";
 import {
   verifyEncryptionRoundTrip,
@@ -85,6 +86,9 @@ async function bootstrap() {
       origin:
         uniqueOrigins.length > 0 ? uniqueOrigins : "http://localhost:3000",
       credentials: true,
+      // Cross-origin JS can only read the download filename (e.g. .eml
+      // downloads) when the header is explicitly exposed.
+      exposedHeaders: [HTTP_HEADERS.CONTENT_DISPOSITION],
     });
 
     // Global validation pipe

@@ -15,6 +15,7 @@ export interface PlanTier {
   /** Team members (including the owner) the plan pays for. */
   seats: number;
   includesEmailTracking: boolean;
+  includesCrm: boolean;
 }
 
 async function fetchPlanTiers(): Promise<PlanTier[]> {

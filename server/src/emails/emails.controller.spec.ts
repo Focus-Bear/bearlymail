@@ -4,6 +4,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AppleMailAccountsService } from "../apple-mail-accounts/apple-mail-accounts.service";
 import { AuditService } from "../audit/audit.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { EmailTrackingSummaryService } from "../email-tracking/email-tracking-summary.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
@@ -12,10 +13,12 @@ import { Office365AccountsService } from "../office365-accounts/office365-accoun
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
+import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportJobService } from "./email-export-job.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
+import { ReadStatusSyncService } from "./read-status-sync.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
 
 describe("EmailsController", () => {
@@ -53,7 +56,7 @@ describe("EmailsController", () => {
   };
 
   const mockBoss = {
-    send: jest.fn(),
+    send: jest.fn().mockResolvedValue(null),
   };
 
   const mockGoogleAccountsService = {
@@ -91,6 +94,10 @@ describe("EmailsController", () => {
 
   const mockAuditService = {
     log: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockEmlDownloadService = {
+    getEmlDownload: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -171,6 +178,11 @@ describe("EmailsController", () => {
           provide: AuditService,
           useValue: mockAuditService,
         },
+        ReadStatusSyncService,
+        {
+          provide: EmailEmlDownloadService,
+          useValue: mockEmlDownloadService,
+        },
       ],
     }).compile();
 
@@ -184,6 +196,72 @@ describe("EmailsController", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("read status endpoints", () => {
+    const userId = "user-123";
+    const mockRequest = { user: { userId } };
+    const readSyncJob = (emailId: string) => [
+      JOB_NAMES.READ_STATUS_PROVIDER_SYNC,
+      { userId, emailId },
+      expect.any(Object),
+    ];
+
+    it("opening an email queues a provider read sync", async () => {
+      mockEmailsService.markAsRead.mockResolvedValue({
+        id: "e1",
+        isRead: true,
+      });
+
+      const result = await controller.markAsRead(mockRequest, "e1");
+
+      expect(result).toEqual({ id: "e1", isRead: true });
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e1"));
+    });
+
+    it("marking an email unread queues a provider read sync", async () => {
+      mockEmailsService.markAsUnread.mockResolvedValue({
+        id: "e1",
+        isRead: false,
+      });
+
+      await controller.markAsUnread(mockRequest, "e1");
+
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e1"));
+    });
+
+    it("bulk read and unread queue a sync per email", async () => {
+      await controller.bulkMarkAsRead(mockRequest, { emailIds: ["e1", "e2"] });
+      await controller.bulkMarkAsUnread(mockRequest, { emailIds: ["e3"] });
+
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e1"));
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e2"));
+      expect(mockBoss.send).toHaveBeenCalledWith(...readSyncJob("e3"));
+    });
+
+    it("still answers the read request when queueing the provider sync fails", async () => {
+      mockEmailsService.markAsRead.mockResolvedValue({
+        id: "e1",
+        isRead: true,
+      });
+      mockBoss.send.mockRejectedValueOnce(new Error("boss down"));
+
+      await expect(controller.markAsRead(mockRequest, "e1")).resolves.toEqual({
+        id: "e1",
+        isRead: true,
+      });
+    });
+
+    it("does not queue a sync when the read update itself fails", async () => {
+      mockEmailsService.markAsRead.mockRejectedValueOnce(
+        new Error("not found"),
+      );
+
+      await expect(controller.markAsRead(mockRequest, "e1")).rejects.toThrow(
+        "not found",
+      );
+      expect(mockBoss.send).not.toHaveBeenCalled();
+    });
   });
 
   describe("getInbox", () => {
@@ -1203,6 +1281,68 @@ describe("EmailsController", () => {
           userAgent: null,
         }),
       );
+    });
+  });
+
+  describe("downloadEml", () => {
+    const emailId = "33333333-3333-4333-8333-333333333333";
+    const rawMessage = Buffer.from("Message-ID: <a@b>\r\n\r\nBody");
+    const contentDisposition =
+      "attachment; filename=\"Hi.eml\"; filename*=UTF-8''Hi.eml";
+
+    function buildResponse() {
+      return { set: jest.fn(), send: jest.fn() };
+    }
+
+    it("sends the raw message as message/rfc822 with a download filename and audits it", async () => {
+      mockEmlDownloadService.getEmlDownload.mockResolvedValue({
+        content: rawMessage,
+        contentDisposition,
+      });
+      const res = buildResponse();
+      const mockRequest = {
+        user: { userId: "user-123" },
+        ip: "10.0.0.5",
+        headers: { "user-agent": "Test-UA/1.0" },
+      };
+
+      await controller.downloadEml(mockRequest, emailId, res as never);
+
+      expect(mockEmlDownloadService.getEmlDownload).toHaveBeenCalledWith(
+        "user-123",
+        emailId,
+      );
+      expect(res.set).toHaveBeenCalledWith({
+        "Content-Type": "message/rfc822",
+        "Content-Disposition": contentDisposition,
+        "Content-Length": String(rawMessage.length),
+      });
+      expect(res.send).toHaveBeenCalledWith(rawMessage);
+      expect(mockAuditService.log).toHaveBeenCalledWith({
+        userId: "user-123",
+        action: "EMAIL_RAW_DOWNLOAD",
+        targetType: "email",
+        targetId: emailId,
+        ipAddress: "10.0.0.5",
+        userAgent: "Test-UA/1.0",
+      });
+    });
+
+    it("sends nothing and audits nothing when the email is not the user's", async () => {
+      mockEmlDownloadService.getEmlDownload.mockRejectedValue(
+        new NotFoundException("Email not found"),
+      );
+      const res = buildResponse();
+
+      await expect(
+        controller.downloadEml(
+          { user: { userId: "user-456" } },
+          emailId,
+          res as never,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(res.send).not.toHaveBeenCalled();
+      expect(mockAuditService.log).not.toHaveBeenCalled();
     });
   });
 

@@ -17,6 +17,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { findMissingGooglePermissionGroups } from "../constants/google-oauth-scopes";
 import { User } from "../database/entities/user.entity";
 import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
@@ -108,6 +109,9 @@ export class UsersController {
       ...result,
       hasAnthropicKey: !!user.anthropicApiKey,
       gmailAccessIssue: resolveGmailAccessIssue(user),
+      missingGooglePermissions: findMissingGooglePermissionGroups(
+        user.googleGrantedScopes,
+      ),
     };
   }
 

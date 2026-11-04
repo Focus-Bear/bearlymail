@@ -403,6 +403,61 @@ describe("AuthService", () => {
       expect(result).toBeDefined();
     });
 
+    it("records the granted scopes and clears a stale Gmail access issue on a fresh grant", async () => {
+      const grantedScopes = "email profile gmail-scopes";
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      usersService.update.mockResolvedValue(mockUser);
+      usersService.findOne.mockResolvedValue(mockUser);
+
+      await service.validateGoogleUser(
+        mockProfile,
+        "access-token",
+        "refresh-token",
+        grantedScopes,
+      );
+
+      expect(usersService.update).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.objectContaining({
+          googleGrantedScopes: grantedScopes,
+          gmailAccessIssue: null,
+          gmailAccessIssueAt: null,
+        }),
+      );
+    });
+
+    it("records the granted scopes on a new Google account", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.create.mockResolvedValue(mockUser);
+
+      await service.validateGoogleUser(
+        mockProfile,
+        "access-token",
+        "refresh-token",
+        "email profile",
+      );
+
+      expect(usersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ googleGrantedScopes: "email profile" }),
+      );
+    });
+
+    it("keeps the known grant and Gmail access issue when Google sends neither scopes nor a refresh token", async () => {
+      const userWithToken = {
+        ...mockUser,
+        googleCalendarRefreshToken: "existing-refresh-token",
+      };
+      usersService.findByEmail.mockResolvedValue(userWithToken);
+      usersService.update.mockResolvedValue(userWithToken);
+      usersService.findOne.mockResolvedValue(userWithToken);
+
+      await service.validateGoogleUser(mockProfile, "access-token", "");
+
+      const updates = usersService.update.mock.calls[0][1];
+      expect(updates).not.toHaveProperty("googleGrantedScopes");
+      expect(updates).not.toHaveProperty("gmailAccessIssue");
+    });
+
     it("should preserve existing refresh token when new one is not provided", async () => {
       const userWithToken = {
         ...mockUser,

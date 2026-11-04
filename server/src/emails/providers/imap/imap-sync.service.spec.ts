@@ -1,6 +1,7 @@
 import type { ImapFlow } from "imapflow";
 import type { PgBoss } from "pg-boss";
 
+import { QUERY_LIMITS } from "../../../constants/query-limits";
 import type { ImapAccount } from "../../../database/entities/imap-account.entity";
 import type { UsersService } from "../../../users/users.service";
 import type { EmailCrudService } from "../../email-crud.service";
@@ -103,6 +104,23 @@ describe("ImapSyncService.syncInbox", () => {
     });
     await service.syncInbox(CLIENT, ACCOUNT, true);
     expect(users.markSyncWindowLimited).toHaveBeenCalledWith("user-1");
+  });
+
+  it("lists the whole inbox (no date floor) on the first sync, capped by count", async () => {
+    await service.syncInbox(CLIENT, ACCOUNT, true);
+    expect(listInboxSnapshot).toHaveBeenCalledWith(
+      CLIENT,
+      expect.objectContaining({
+        since: null,
+        limit: QUERY_LIMITS.INITIAL_SYNC_MAX_EMAILS,
+      }),
+    );
+  });
+
+  it("keeps later syncs inside the ongoing window", async () => {
+    await service.syncInbox(CLIENT, ACCOUNT, false);
+    const { since } = (listInboxSnapshot as jest.Mock).mock.calls[0][1];
+    expect(since).toBeInstanceOf(Date);
   });
 
   it("archives IMAP threads that left INBOX elsewhere, and never judges other providers' threads", async () => {

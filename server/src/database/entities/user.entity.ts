@@ -302,6 +302,14 @@ export class User {
   gmailAccessIssueAt: Date | null;
 
   @Column({
+    type: "text",
+    nullable: true,
+    comment:
+      "Space-separated OAuth scopes Google reported at the last Google sign-in; null when unknown. Drives the onboarding missing-permissions warning.",
+  })
+  googleGrantedScopes: string | null;
+
+  @Column({
     default: true,
     comment:
       "Mailtrack-style open tracking: embed a pixel in the user's outgoing HTML mail. On by default; toggled in Settings.",

@@ -91,9 +91,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google", true) {
     type StrategyWithAuthParams = typeof this & {
       authorizationParams?: (options: unknown) => Record<string, string>;
     };
+    // include_granted_scopes: re-running sign-in to grant a permission the
+    // user unticked shows Google's checkboxes only for what is still missing,
+    // and the token response then reports the full grant.
     (this as StrategyWithAuthParams).authorizationParams = () => ({
       access_type: "offline",
       prompt: "consent",
+      include_granted_scopes: "true",
     });
   }
 
@@ -142,6 +146,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google", true) {
         profileForValidation,
         accessToken,
         refreshToken,
+        params?.scope,
       );
 
       // Attach raw Google data for connection flows

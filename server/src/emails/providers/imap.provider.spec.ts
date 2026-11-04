@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import type { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 
@@ -223,6 +224,29 @@ describe("ImapProvider", () => {
       messageId: "invoice@supplier.test",
       mailboxes: ["INBOX", "INBOX.Archive", "INBOX.Sent"],
     });
+  });
+
+  it("serves a message's raw RFC 822 source unchanged for .eml download", async () => {
+    const source = Buffer.from(
+      "Received: from mx.supplier.test\r\nMessage-ID: <invoice@supplier.test>\r\nSubject: Invoice\r\n\r\nBody",
+    );
+    (downloadMessageSource as jest.Mock).mockResolvedValue(source);
+
+    const raw = await provider.getRawMessage("user-1", "invoice@supplier.test");
+
+    expect(raw.equals(source)).toBe(true);
+    expect(downloadMessageSource).toHaveBeenCalledWith(expect.anything(), {
+      messageId: "invoice@supplier.test",
+      mailboxes: ["INBOX", "INBOX.Archive", "INBOX.Sent"],
+    });
+  });
+
+  it("reports a raw message missing from every mailbox as not found", async () => {
+    (downloadMessageSource as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      provider.getRawMessage("user-1", "gone@supplier.test"),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("fetches threads it never synced (e.g. archived mail) from the server", async () => {

@@ -41,6 +41,14 @@ export interface RawEmailMessage {
 }
 
 /**
+ * The provider message a read-status change applies to, plus its thread.
+ */
+export interface ReadStatusTarget {
+  threadId: string;
+  messageId: string;
+}
+
+/**
  * Email recipient with optional name
  */
 export interface EmailRecipient {
@@ -236,6 +244,18 @@ export interface EmailProvider {
   ): Promise<void>;
 
   /**
+   * Mirror the user's read/unread action to the provider. Marking read applies
+   * to the whole thread (opening a conversation reads all of it); marking
+   * unread flags only `target.messageId`. Optional: providers without it are
+   * skipped. Throws on failure so the queued job retries.
+   */
+  syncReadStatus?(
+    userId: string,
+    target: ReadStatusTarget,
+    isRead: boolean,
+  ): Promise<void>;
+
+  /**
    * Delete/trash a thread (move to trash folder)
    */
   trashThread(userId: string, threadId: string): Promise<void>;
@@ -290,4 +310,12 @@ export interface EmailProvider {
     mimeType: string;
     size: number;
   }>;
+
+  /**
+   * The message's original RFC 822 source — every header plus the full MIME
+   * body — exactly as the provider stores it. Optional: a provider that cannot
+   * fetch it leaves this out, and callers report it as unsupported rather than
+   * rebuilding a lookalike message from stored fields.
+   */
+  getRawMessage?(userId: string, messageId: string): Promise<Buffer>;
 }

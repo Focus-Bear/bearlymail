@@ -1,5 +1,9 @@
 import { ORG_PLAN_STATUS } from "../constants/domain-statuses";
-import { orgIncludesEmailTracking, PlanFeatureOrg } from "./plan-features.util";
+import {
+  orgIncludesCrm,
+  orgIncludesEmailTracking,
+  PlanFeatureOrg,
+} from "./plan-features.util";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -73,6 +77,50 @@ describe("orgIncludesEmailTracking", () => {
     (planStatus) => {
       expect(
         orgIncludesEmailTracking(
+          org({ planStatus, volumeTierProductId: "bearlymail_growth" }),
+        ),
+      ).toBe(false);
+    },
+  );
+});
+
+describe("orgIncludesCrm", () => {
+  it.each([
+    ["bearlymail_starter", false],
+    ["bearlymail_growth", true],
+    ["bearlymail_enterprise", true],
+    ["unknown_tier", false],
+  ])("on an active %s plan → %s", (tier, expected) => {
+    expect(orgIncludesCrm(org({ volumeTierProductId: tier }))).toBe(expected);
+  });
+
+  it("keeps the CRM for a Starter org still billed at the retired $15 price", () => {
+    expect(
+      orgIncludesCrm(
+        org({
+          volumeTierProductId: "bearlymail_starter",
+          grandfatheredEmailTracking: true,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("includes the CRM during a running trial", () => {
+    expect(
+      orgIncludesCrm(
+        org({
+          planStatus: ORG_PLAN_STATUS.TRIAL,
+          trialEndsAt: new Date(Date.now() + HOUR_MS),
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it.each([ORG_PLAN_STATUS.UNPAID, ORG_PLAN_STATUS.EXPIRED])(
+    "excludes the CRM on a %s org",
+    (planStatus) => {
+      expect(
+        orgIncludesCrm(
           org({ planStatus, volumeTierProductId: "bearlymail_growth" }),
         ),
       ).toBe(false);

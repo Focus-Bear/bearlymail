@@ -18,8 +18,15 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { SECONDS } from "../constants/time-constants";
+import { CrmPlanGuard } from "../subscriptions/crm-plan.guard";
 import { ContactSearchResult, ContactsService } from "./contacts.service";
 
+/**
+ * Contact records are part of the CRM, so their endpoints carry CrmPlanGuard.
+ * The address-book reads that compose autocomplete, contact sync and the inbox
+ * contact-type badges rely on (search, frequent, sync, types, types-by-emails)
+ * stay available on every plan.
+ */
 @Controller("contacts")
 @UseGuards(JwtAuthGuard)
 export class ContactsController {
@@ -66,6 +73,7 @@ export class ContactsController {
   }
 
   @Post("types")
+  @UseGuards(CrmPlanGuard)
   async createContactType(
     @Request() req,
     @Body()
@@ -75,6 +83,7 @@ export class ContactsController {
   }
 
   @Put("types/:id")
+  @UseGuards(CrmPlanGuard)
   async updateContactType(
     @Request() req,
     @Param("id") id: string,
@@ -84,17 +93,20 @@ export class ContactsController {
   }
 
   @Delete("types/:id")
+  @UseGuards(CrmPlanGuard)
   async deleteContactType(@Request() req, @Param("id") id: string) {
     await this.contactsService.deleteContactType(req.user.userId, id);
     return { success: true };
   }
 
   @Get("custom-fields")
+  @UseGuards(CrmPlanGuard)
   async getCustomFields(@Request() req) {
     return this.contactsService.getCustomFieldDefinitions(req.user.userId);
   }
 
   @Post("custom-fields")
+  @UseGuards(CrmPlanGuard)
   async createCustomField(
     @Request() req,
     @Body()
@@ -104,6 +116,7 @@ export class ContactsController {
   }
 
   @Put("custom-fields/:id")
+  @UseGuards(CrmPlanGuard)
   async updateCustomField(
     @Request() req,
     @Param("id") id: string,
@@ -114,6 +127,7 @@ export class ContactsController {
   }
 
   @Delete("custom-fields/:id")
+  @UseGuards(CrmPlanGuard)
   async deleteCustomField(@Request() req, @Param("id") id: string) {
     await this.contactsService.deleteCustomField(req.user.userId, id);
     return { success: true };
@@ -134,6 +148,7 @@ export class ContactsController {
   }
 
   @Get(":id")
+  @UseGuards(CrmPlanGuard)
   async getContactDetail(@Request() req, @Param("id") id: string) {
     return this.contactsService.getContactDetail(req.user.userId, id);
   }
@@ -143,11 +158,13 @@ export class ContactsController {
    * recipient, or CC). Used by the contact detail page thread list.
    */
   @Get(":id/threads")
+  @UseGuards(CrmPlanGuard)
   async getContactThreads(@Request() req, @Param("id") id: string) {
     return this.contactsService.getContactThreads(req.user.userId, id);
   }
 
   @Put(":id")
+  @UseGuards(CrmPlanGuard)
   async updateContact(
     @Request() req,
     @Param("id") id: string,
@@ -167,6 +184,7 @@ export class ContactsController {
   }
 
   @Post(":id/notes")
+  @UseGuards(CrmPlanGuard)
   async addNote(
     @Request() req,
     @Param("id") id: string,
@@ -180,6 +198,7 @@ export class ContactsController {
   }
 
   @Put(":id/notes/:noteId")
+  @UseGuards(CrmPlanGuard)
   async updateNote(
     @Request() req,
     @Param("id") id: string,
@@ -195,6 +214,7 @@ export class ContactsController {
   }
 
   @Delete(":id/notes/:noteId")
+  @UseGuards(CrmPlanGuard)
   async deleteNote(
     @Request() req,
     @Param("id") id: string,
@@ -205,6 +225,7 @@ export class ContactsController {
   }
 
   @Put(":id/custom-fields/:fieldId")
+  @UseGuards(CrmPlanGuard)
   async setCustomFieldValue(
     @Request() req,
     @Param("id") id: string,
@@ -221,6 +242,7 @@ export class ContactsController {
   }
 
   @Get()
+  @UseGuards(CrmPlanGuard)
   async getAllContacts(@Request() req): Promise<ContactSearchResult[]> {
     return this.contactsService.getAllContacts(req.user.userId);
   }
@@ -239,6 +261,7 @@ export class ContactsController {
   }
 
   @Post()
+  @UseGuards(CrmPlanGuard)
   async createContact(
     @Request() req,
     @Body()
@@ -258,11 +281,13 @@ export class ContactsController {
   }
 
   @Put(":id/favorite")
+  @UseGuards(CrmPlanGuard)
   async toggleFavorite(@Request() req, @Param("id") id: string) {
     return this.contactsService.toggleFavorite(req.user.userId, id);
   }
 
   @Delete(":id")
+  @UseGuards(CrmPlanGuard)
   async deleteContact(@Request() req, @Param("id") id: string) {
     await this.contactsService.deleteContact(req.user.userId, id);
     return { success: true };

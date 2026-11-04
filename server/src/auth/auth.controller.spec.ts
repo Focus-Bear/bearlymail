@@ -78,7 +78,7 @@ describe("AuthController", () => {
 
   const mockWaitlistService = {};
 
-  const mockGooglePermissionGrantService = { completeGrant: jest.fn() };
+  const mockGooglePermissionGrantService = { getCallbackRedirect: jest.fn() };
 
   const mockBoss = {
     send: jest.fn().mockResolvedValue("job-id"),

@@ -214,6 +214,8 @@ export const CONTEXT_KEY_Q_AND_A = 'Q_AND_A' as const;
 
 // Context explanation keys
 export const CONTEXT_EXPLANATION_VIP_CONTACT_STARRED = 'vipContactStarredExplanation' as const;
+/** Saved by onboarding discovery when it has no real reason. Marks the source; never shown as a reason. */
+export const CONTEXT_EXPLANATION_EMAIL_ANALYSIS = 'email_analysis' as const;
 
 // Context source additional values
 export const CONTEXT_SOURCE_USER_EDITED = 'USER_EDITED' as const;

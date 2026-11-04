@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { downloadBlob } from 'utils/downloadBlob';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -82,17 +83,6 @@ async function performExport(): Promise<Blob> {
     throw new Error('Export failed');
   }
   return response.blob();
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
 }
 
 // Email export is built asynchronously in a background worker (it used to 504 at

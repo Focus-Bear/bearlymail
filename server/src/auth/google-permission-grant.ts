@@ -10,6 +10,7 @@ import { createGooglePermissionState } from "./oauth-state.util";
 export const DEFAULT_GRANT_RETURN_PATH = "/inbox";
 
 const MAX_RETURN_PATH_LENGTH = 512;
+const RETURN_PATH_BASE = "https://bearlymail.invalid";
 
 /** Query parameter the app reads after a grant to say how it went. */
 export const GOOGLE_PERMISSION_RESULT_PARAM = "googlePermission";
@@ -26,9 +27,22 @@ export type GooglePermissionResult =
   (typeof GOOGLE_PERMISSION_RESULT)[keyof typeof GOOGLE_PERMISSION_RESULT];
 
 /**
+ * URL parsing drops tabs and newlines, so `/<tab>/evil.com` reads as `//evil.com`
+ * and leaves the app. Resolving the path is the only check that sees that.
+ */
+function resolvesInsideApp(path: string): boolean {
+  try {
+    return new URL(path, RETURN_PATH_BASE).origin === RETURN_PATH_BASE;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Only an in-app path is accepted, so the signed state can't be turned into an
- * open redirect: it must start with one slash (not `//host`) and carry no
- * backslashes, which some browsers treat as slashes.
+ * open redirect: it must start with one slash (not `//host`), carry no
+ * backslashes, which some browsers treat as slashes, and still resolve to the
+ * app once parsed.
  */
 export function sanitizeReturnPath(rawPath: unknown): string {
   if (
@@ -36,7 +50,8 @@ export function sanitizeReturnPath(rawPath: unknown): string {
     rawPath.length > MAX_RETURN_PATH_LENGTH ||
     !rawPath.startsWith("/") ||
     rawPath.startsWith("//") ||
-    rawPath.includes("\\")
+    rawPath.includes("\\") ||
+    !resolvesInsideApp(rawPath)
   ) {
     return DEFAULT_GRANT_RETURN_PATH;
   }

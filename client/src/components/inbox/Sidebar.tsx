@@ -24,6 +24,7 @@ import {
   STRING_NONE,
 } from 'constants/strings';
 import { User } from 'contexts/AuthContext';
+import { useCrmPlanAccess } from 'hooks/useCrmPlanAccess';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup, SettingsSubNavItem } from './sidebar.helpers';
@@ -37,7 +38,11 @@ interface SidebarItemProps {
   onNavigationClick?: (path: string) => void;
   badge?: number;
   prominent?: boolean;
+  /** Shown with a lock and an upgrade tooltip when the plan doesn't include the page. */
+  lockedTooltip?: string;
 }
+
+const LOCK_ICON = '🔒';
 
 const SIDEBAR_ROUTE_EVENTS: Record<string, string> = {
   [ROUTE_INBOX]: ANALYTICS_EVENTS.SIDEBAR_INBOX_CLICKED,
@@ -85,6 +90,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   onNavigationClick,
   badge,
   prominent,
+  lockedTooltip,
 }) => {
   const handleClick = () => {
     const eventName = SIDEBAR_ROUTE_EVENTS[path];
@@ -105,7 +111,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
     <Link
       to={path}
       onClick={handleClick}
-      title={isCollapsed ? label : undefined}
+      title={lockedTooltip ?? (isCollapsed ? label : undefined)}
       style={{
         width: '100%',
         padding: isCollapsed ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.md}`,
@@ -153,6 +159,11 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       )}
       {!isCollapsed && <span style={{ flex: 1 }}>{label}</span>}
       {badge !== undefined && badge > 0 && <SidebarBadge count={badge} isCollapsed={isCollapsed} />}
+      {lockedTooltip && !isCollapsed && (
+        <span aria-hidden data-testid="sidebar-item-lock">
+          {LOCK_ICON}
+        </span>
+      )}
     </Link>
   );
 };
@@ -284,6 +295,7 @@ interface SidebarNavProps {
   effectiveIsCollapsed: boolean;
   isSettingsPage: boolean;
   isAdmin?: boolean;
+  isCrmLocked: boolean;
   handleNavigationClick: (path: string) => void;
 }
 
@@ -294,6 +306,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
   effectiveIsCollapsed,
   isSettingsPage,
   isAdmin,
+  isCrmLocked,
   handleNavigationClick,
 }) => (
   <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingRight: theme.spacing.xs }}>
@@ -327,14 +340,17 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       icon="💼"
       active={location.pathname.startsWith('/crm')}
       isCollapsed={effectiveIsCollapsed}
-      onNavigationClick={isCollapsed ? handleNavigationClick : undefined}
+      onNavigationClick={isCollapsed || isCrmLocked ? handleNavigationClick : undefined}
+      lockedTooltip={isCrmLocked ? translate('crm.locked') : undefined}
     />
-    <CrmSubNav
-      pathname={location.pathname}
-      isCollapsed={isCollapsed}
-      translate={translate}
-      onNavigationClick={handleNavigationClick}
-    />
+    {!isCrmLocked && (
+      <CrmSubNav
+        pathname={location.pathname}
+        isCollapsed={isCollapsed}
+        translate={translate}
+        onNavigationClick={handleNavigationClick}
+      />
+    )}
     <SidebarItem
       label={translate('stats.title')}
       path={ROUTE_STATS}
@@ -381,6 +397,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useTranslation();
   const location = useLocation();
   const isSettingsPage = location.pathname === ROUTE_SETTINGS;
+  const { isCrmIncluded } = useCrmPlanAccess();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
 
@@ -434,6 +451,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isCollapsed={effectiveIsCollapsed}
           canToggleCollapse={canToggleCollapse && !isNarrow}
           onToggleCollapse={onToggleCollapse}
+          onLogoClick={() => handleNavigationClick(ROUTE_INBOX)}
         />
         <SidebarNav
           translate={t}
@@ -442,6 +460,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           effectiveIsCollapsed={effectiveIsCollapsed}
           isSettingsPage={isSettingsPage}
           isAdmin={user?.isAdmin}
+          isCrmLocked={!isCrmIncluded}
           handleNavigationClick={handleNavigationClick}
         />
         <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={effectiveIsCollapsed} />

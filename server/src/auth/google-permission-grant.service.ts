@@ -1,10 +1,12 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import type { PgBoss } from "pg-boss";
 
+import { AUTH_ACTION_TYPES } from "../constants/domain-types";
 import {
   GOOGLE_PERMISSION_GROUP,
   hasGooglePermission,
   isIncrementalGooglePermissionGroup,
+  MISSING_GMAIL_PERMISSION_MESSAGE,
 } from "../constants/google-oauth-scopes";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -15,7 +17,7 @@ import {
   GOOGLE_PERMISSION_RESULT,
   GooglePermissionResult,
 } from "./google-permission-grant";
-import { ParsedOAuthState } from "./oauth-state.util";
+import { ParsedOAuthState, parseSignedOAuthState } from "./oauth-state.util";
 
 /** What GoogleStrategy.validate hands the callback after a grant. */
 export interface GoogleGrantCallbackUser {
@@ -24,6 +26,12 @@ export interface GoogleGrantCallbackUser {
   googleId?: string;
   googleAccessToken?: string;
   googleRefreshToken?: string;
+}
+
+/** The parts of the callback request the grant needs; GoogleAuthGuard sets both. */
+interface GoogleGrantCallback {
+  user: GoogleGrantCallbackUser & { authFailed?: boolean };
+  authError?: Error;
 }
 
 /**
@@ -43,6 +51,25 @@ export class GooglePermissionGrantService {
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
+  /**
+   * Where the Google callback should send the browser if it belongs to a grant,
+   * or null when it's a normal sign-in or connect, which AuthController handles.
+   */
+  async getCallbackRedirect(
+    rawState: string | undefined,
+    callback: GoogleGrantCallback,
+    frontendUrl: string,
+  ): Promise<string | null> {
+    const state = rawState ? parseSignedOAuthState(rawState) : null;
+    if (state?.action !== AUTH_ACTION_TYPES.GRANT_GOOGLE_PERMISSION) {
+      return null;
+    }
+    if (callback.authError || callback.user.authFailed) {
+      return this.getFailedGrantUrl(state, callback.authError, frontendUrl);
+    }
+    return this.completeGrant(state, callback.user, frontendUrl);
+  }
+
   /** Returns the app URL to send the browser back to, tagged with the outcome. */
   async completeGrant(
     state: ParsedOAuthState,
@@ -50,6 +77,23 @@ export class GooglePermissionGrantService {
     frontendUrl: string,
   ): Promise<string> {
     const result = await this.applyGrant(state, googleUser);
+    return buildGrantReturnUrl(frontendUrl, state.returnTo, result);
+  }
+
+  /**
+   * Google came back without a usable grant, e.g. the user pressed Cancel. They
+   * are still signed in, so they go back to the app, not the sign-in error page.
+   * A missing Gmail grant means they picked an account BearlyMail never had.
+   */
+  private getFailedGrantUrl(
+    state: ParsedOAuthState,
+    authError: Error | undefined,
+    frontendUrl: string,
+  ): string {
+    const result =
+      authError?.message === MISSING_GMAIL_PERMISSION_MESSAGE
+        ? GOOGLE_PERMISSION_RESULT.WRONG_ACCOUNT
+        : GOOGLE_PERMISSION_RESULT.DECLINED;
     return buildGrantReturnUrl(frontendUrl, state.returnTo, result);
   }
 

@@ -2,6 +2,7 @@ import { AUTH_ACTION_TYPES } from "../constants/domain-types";
 import {
   GOOGLE_PERMISSION_GROUP,
   GOOGLE_SIGN_IN_SCOPES,
+  MISSING_GMAIL_PERMISSION_MESSAGE,
   scopesForGooglePermissionGroup,
 } from "../constants/google-oauth-scopes";
 import { JOB_NAMES } from "../constants/job-names";
@@ -10,6 +11,10 @@ import {
   GOOGLE_PERMISSION_RESULT_PARAM,
 } from "./google-permission-grant";
 import { GooglePermissionGrantService } from "./google-permission-grant.service";
+import {
+  createConnectState,
+  createGooglePermissionState,
+} from "./oauth-state.util";
 
 const USER_ID = "user-1";
 const GOOGLE_ID = "google-1";
@@ -124,6 +129,75 @@ describe("GooglePermissionGrantService", () => {
     );
 
     expect(resultOf(result)).toBe(GOOGLE_PERMISSION_RESULT.DECLINED);
+  });
+});
+
+describe("GooglePermissionGrantService.getCallbackRedirect", () => {
+  const originalSecret = process.env.JWT_SECRET;
+  beforeAll(() => {
+    process.env.JWT_SECRET = "unit-test-secret-1234567890-strong-32";
+  });
+  afterAll(() => {
+    process.env.JWT_SECRET = originalSecret;
+  });
+
+  const boss = { send: jest.fn().mockResolvedValue("job-1") };
+  const service = new GooglePermissionGrantService(
+    {} as never,
+    {} as never,
+    boss as never,
+  );
+  const failed = (message: string) => ({
+    authError: new Error(message),
+    user: { authFailed: true },
+  });
+  const grantState = () =>
+    createGooglePermissionState(USER_ID, "calendar", "/email/abc");
+
+  it("returns a cancelled grant to the page that asked, as declined", async () => {
+    const url = await service.getCallbackRedirect(
+      grantState(),
+      failed("denied"),
+      FRONTEND_URL,
+    );
+
+    expect(url).toBe(
+      `${FRONTEND_URL}/email/abc?${GOOGLE_PERMISSION_RESULT_PARAM}=declined`,
+    );
+  });
+
+  it("reports an account without Gmail access as the wrong account", async () => {
+    const url = await service.getCallbackRedirect(
+      grantState(),
+      failed(MISSING_GMAIL_PERMISSION_MESSAGE),
+      FRONTEND_URL,
+    );
+
+    expect(resultOf(url as string)).toBe(
+      GOOGLE_PERMISSION_RESULT.WRONG_ACCOUNT,
+    );
+  });
+
+  it("finishes a grant Google completed", async () => {
+    const url = await service.getCallbackRedirect(
+      grantState(),
+      { user: { id: "someone-else" } },
+      FRONTEND_URL,
+    );
+
+    expect(resultOf(url as string)).toBe(
+      GOOGLE_PERMISSION_RESULT.WRONG_ACCOUNT,
+    );
+  });
+
+  it.each([
+    ["a sign-in with no state", () => undefined],
+    ["a connect flow", () => createConnectState(USER_ID)],
+    ["a tampered state", () => `${grantState()}x`],
+  ])("leaves %s to AuthController", async (_label, buildState) => {
+    await expect(
+      service.getCallbackRedirect(buildState(), failed("denied"), FRONTEND_URL),
+    ).resolves.toBeNull();
   });
 });
 

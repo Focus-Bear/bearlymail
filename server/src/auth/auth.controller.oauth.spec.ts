@@ -3,11 +3,7 @@ import { createHmac } from "crypto";
 import { Response } from "express";
 
 import { AUTH_CONSTANTS, OAUTH_ERROR_TYPES } from "../constants/auth-constants";
-import { AUTH_ACTION_TYPES } from "../constants/domain-types";
-import {
-  GOOGLE_PERMISSION_GROUP,
-  MISSING_GMAIL_PERMISSION_MESSAGE,
-} from "../constants/google-oauth-scopes";
+import { MISSING_GMAIL_PERMISSION_MESSAGE } from "../constants/google-oauth-scopes";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
@@ -107,7 +103,7 @@ describe("AuthController OAuth callbacks", () => {
     create: jest.fn(),
   };
 
-  const mockGooglePermissionGrantService = { completeGrant: jest.fn() };
+  const mockGooglePermissionGrantService = { getCallbackRedirect: jest.fn() };
 
   const mockBoss = {
     send: jest.fn(),
@@ -331,57 +327,44 @@ describe("AuthController OAuth callbacks", () => {
     });
 
     describe("incremental Google permission grant", () => {
-      const grantState = encodeState({
-        action: AUTH_ACTION_TYPES.GRANT_GOOGLE_PERMISSION,
-        userId: "user-1",
-        permission: GOOGLE_PERMISSION_GROUP.CALENDAR,
-        returnTo: "/email/abc",
-      });
+      const grantRequest = { user: googleUser };
+      const grantUrl = `${FRONTEND_URL}/email/abc?googlePermission=granted`;
 
-      it("completes the grant and returns to the app without re-logging in", async () => {
-        mockGooglePermissionGrantService.completeGrant.mockResolvedValue(
-          `${FRONTEND_URL}/email/abc?googlePermission=granted`,
+      it("follows the grant's redirect without logging in", async () => {
+        mockGooglePermissionGrantService.getCallbackRedirect.mockResolvedValue(
+          grantUrl,
         );
         const res = createMockResponse();
 
         await controller.googleAuthRedirect(
-          { user: googleUser },
+          grantRequest,
           asResponse(res),
-          grantState,
+          "signed-state",
         );
 
         expect(
-          mockGooglePermissionGrantService.completeGrant,
-        ).toHaveBeenCalledWith(
-          expect.objectContaining({
-            userId: "user-1",
-            permission: GOOGLE_PERMISSION_GROUP.CALENDAR,
-          }),
-          googleUser,
-          FRONTEND_URL,
-        );
+          mockGooglePermissionGrantService.getCallbackRedirect,
+        ).toHaveBeenCalledWith("signed-state", grantRequest, FRONTEND_URL);
         expect(mockAuthService.login).not.toHaveBeenCalled();
         expect(res.cookie).not.toHaveBeenCalled();
-        expect(res.redirect).toHaveBeenCalledWith(
-          `${FRONTEND_URL}/email/abc?googlePermission=granted`,
-        );
+        expect(res.redirect).toHaveBeenCalledWith(grantUrl);
       });
 
-      it("reports the outcome when the grant did not land", async () => {
-        mockGooglePermissionGrantService.completeGrant.mockResolvedValue(
-          `${FRONTEND_URL}/email/abc?googlePermission=wrong_account`,
+      it("returns a cancelled grant to the app, not the sign-in error page", async () => {
+        mockGooglePermissionGrantService.getCallbackRedirect.mockResolvedValue(
+          `${FRONTEND_URL}/email/abc?googlePermission=declined`,
         );
         const res = createMockResponse();
 
         await controller.googleAuthRedirect(
-          { user: { id: "someone-else" } },
+          { authError: new Error("denied"), user: { authFailed: true } },
           asResponse(res),
-          grantState,
+          "signed-state",
         );
 
-        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(res.redirect).toHaveBeenCalledTimes(1);
         expect(res.redirect).toHaveBeenCalledWith(
-          `${FRONTEND_URL}/email/abc?googlePermission=wrong_account`,
+          `${FRONTEND_URL}/email/abc?googlePermission=declined`,
         );
       });
     });

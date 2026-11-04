@@ -34,43 +34,20 @@ const CATEGORY_MODEL_UNAVAILABLE_EXPLANATION =
   "Category model unavailable — left as Other";
 
 /**
- * Starter categories offered to the categoriser when the user has none yet, so
- * a brand-new account still gets sensible buckets instead of everything landing
- * in "Other".
+ * Why a thread stays in "Other" when the user has no categories yet (onboarding
+ * saves them after the first sync starts). The categoriser is not called: any
+ * name it picked could not be filed, so it used to land in "Other" with a
+ * misleading "not found in your category list" note.
  */
-const DEFAULT_CATEGORIES: CategoryItem[] = [
-  {
-    name: "Newsletters",
-    description:
-      "Marketing emails, digests, promotional content, automated updates",
-  },
-  {
-    name: "Sales",
-    description:
-      "Sales discussions, potential customer inquiries, pricing requests, demos",
-  },
-  {
-    name: "Partnerships",
-    description:
-      "Partnership proposals, collaboration requests, business development",
-  },
-  {
-    name: "Customer Support",
-    description:
-      "Support requests, bug reports, customer issues, help requests",
-  },
-  {
-    name: "HR Admin",
-    description:
-      "HR communications, admin tasks, internal company matters, policies",
-  },
-];
+export const NO_USER_CATEGORIES_EXPLANATION =
+  "No categories set up yet — left in Other until your categories are saved";
 
 /**
- * The category list the categoriser chooses from: the user's real + proto
- * categories, narrowed by the embedding shortlist when there are enough of
- * them to warrant it, or the starter set when the user has none yet.
- * `shortlistedCategoryNames` is null when shortlisting was skipped.
+ * The category list the categoriser chooses from: exactly the user's real +
+ * proto categories, narrowed by the embedding shortlist when there are enough
+ * of them to warrant it. Never a generic starter list — a pick from a list the
+ * user does not have cannot be filed. `shortlistedCategoryNames` is null when
+ * shortlisting was skipped.
  */
 async function resolveCategoryCandidates(
   deps: PriorityCategoryStepDeps,
@@ -88,17 +65,10 @@ async function resolveCategoryCandidates(
     totalCategoryCount: allCategories.length,
     protoCategoryCount: protoCategories.length,
   };
-  if (allCategories.length === 0) {
-    return {
-      candidates: DEFAULT_CATEGORIES,
-      instrumentation: {
-        shortlistedCategoryNames: null,
-        shortlistCandidates: null,
-        ...counts,
-      },
-    };
-  }
-  if (!deps.categoryShortlistService.isShortlistEnabled(allCategories.length)) {
+  if (
+    allCategories.length === 0 ||
+    !deps.categoryShortlistService.isShortlistEnabled(allCategories.length)
+  ) {
     return {
       candidates: allCategories,
       instrumentation: {
@@ -128,6 +98,45 @@ async function resolveCategoryCandidates(
   };
 }
 
+export interface EmailCategoryChoice {
+  assignedCategory: CategoryItem;
+  categoryFields: Pick<
+    PriorityResult,
+    | "category"
+    | "categoryNumber"
+    | "categoryExplanation"
+    | "categoryConfidence"
+    | "protoCategorySuggestion"
+    | "categoryDecisionProvider"
+  >;
+  instrumentation: CategoryInstrumentation;
+  candidateCount: number;
+  /** True when every categoriser call failed, so "Other" is a fallback, not a verdict. */
+  modelUnavailable: boolean;
+}
+
+/** An "Other" choice made without a categoriser verdict (nothing to choose from, or every call failed). */
+function otherWithoutVerdict(
+  explanation: string,
+  instrumentation: CategoryInstrumentation,
+  modelUnavailable: boolean,
+): EmailCategoryChoice {
+  return {
+    assignedCategory: { name: OTHER_CATEGORY_NAME },
+    categoryFields: {
+      category: OTHER_CATEGORY_NAME,
+      categoryNumber: null,
+      categoryExplanation: explanation,
+      categoryConfidence: undefined,
+      protoCategorySuggestion: undefined,
+      categoryDecisionProvider: null,
+    },
+    instrumentation,
+    candidateCount: 0,
+    modelUnavailable,
+  };
+}
+
 /**
  * Chooses the email's category with Jev (Gemini on uncertainty/failure) BEFORE priority scoring runs.
  * Category selection never happens inside the priority prompt: a weak model
@@ -144,22 +153,7 @@ export async function chooseEmailCategory(
     githubFacts?: string | null;
     userId?: string;
   },
-): Promise<{
-  assignedCategory: CategoryItem;
-  categoryFields: Pick<
-    PriorityResult,
-    | "category"
-    | "categoryNumber"
-    | "categoryExplanation"
-    | "categoryConfidence"
-    | "protoCategorySuggestion"
-    | "categoryDecisionProvider"
-  >;
-  instrumentation: CategoryInstrumentation;
-  candidateCount: number;
-  /** True when every categoriser call failed, so "Other" is a fallback, not a verdict. */
-  modelUnavailable: boolean;
-}> {
+): Promise<EmailCategoryChoice> {
   const { email, userContext, cleanedBody, githubFacts, userId } = options;
   const { candidates, instrumentation } = await resolveCategoryCandidates(
     deps,
@@ -167,6 +161,13 @@ export async function chooseEmailCategory(
     userContext,
     cleanedBody,
   );
+  if (candidates.length === 0) {
+    return otherWithoutVerdict(
+      NO_USER_CATEGORIES_EXPLANATION,
+      instrumentation,
+      false,
+    );
+  }
 
   const chosen = await categoriseWithEscalation(
     deps.llmCoreService,
@@ -185,18 +186,12 @@ export async function chooseEmailCategory(
 
   if (!chosen) {
     return {
-      assignedCategory: { name: OTHER_CATEGORY_NAME },
-      categoryFields: {
-        category: OTHER_CATEGORY_NAME,
-        categoryNumber: null,
-        categoryExplanation: CATEGORY_MODEL_UNAVAILABLE_EXPLANATION,
-        categoryConfidence: undefined,
-        protoCategorySuggestion: undefined,
-        categoryDecisionProvider: null,
-      },
-      instrumentation,
+      ...otherWithoutVerdict(
+        CATEGORY_MODEL_UNAVAILABLE_EXPLANATION,
+        instrumentation,
+        true,
+      ),
       candidateCount: candidates.length,
-      modelUnavailable: true,
     };
   }
 

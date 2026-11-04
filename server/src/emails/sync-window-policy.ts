@@ -4,14 +4,16 @@ import { MILLISECONDS } from "../constants/time-constants";
 /**
  * Sync-window policy (product decision, #sync-window-limits):
  *
- * 1. The initial sync caps at the `INITIAL_SYNC_MAX_EMAILS` most recent emails.
+ * 1. The initial sync imports the `INITIAL_SYNC_MAX_EMAILS` most recent inbox
+ *    threads, however old they are — onboarding needs enough mail to learn
+ *    from, and a quiet mailbox only has a handful in the last week.
  * 2. After the initial sync, ongoing syncs only fetch emails at most
  *    `ONGOING_SYNC_WINDOW_DAYS` old. Starred emails are fetched separately
  *    by each provider with the wider `STARRED_SYNC_WINDOW_DAYS` window — a
  *    starred thread whose newest message is older than that is not imported
  *    until the thread receives a new message.
- * 3. When the cap/window means older mail is being skipped during the initial
- *    sync, `User.syncWindowLimited` is set so the client can show a
+ * 3. When the cap means older mail is being skipped during the initial sync,
+ *    `User.syncWindowLimited` is set so the client can show a
  *    "we're not syncing your old emails" banner.
  *
  * These helpers are pure so the decision logic can be unit-tested without
@@ -29,6 +31,18 @@ export function getOldestAllowedSyncDate(now: Date = new Date()): Date {
   return new Date(
     now.getTime() - QUERY_LIMITS.ONGOING_SYNC_WINDOW_DAYS * MILLISECONDS.DAY,
   );
+}
+
+/**
+ * Oldest `receivedAt` an inbox listing may reach back to, or null for no
+ * floor: the initial sync is bounded by the fetch cap alone, every later sync
+ * by the ongoing window.
+ */
+export function resolveInboxSyncFloor(
+  isInitialSync: boolean,
+  now: Date = new Date(),
+): Date | null {
+  return isInitialSync ? null : getOldestAllowedSyncDate(now);
 }
 
 /**
@@ -87,7 +101,7 @@ export function resolveSyncWindowStart(params: {
   return start.getTime() < oldestAllowed.getTime() ? oldestAllowed : start;
 }
 
-/** Maximum messages/threads to list: the initial sync caps at the 500 most recent. */
+/** Maximum messages/threads to list: the initial sync caps at INITIAL_SYNC_MAX_EMAILS. */
 export function resolveMaxFetchResults(isInitialSync: boolean): number {
   return isInitialSync
     ? QUERY_LIMITS.INITIAL_SYNC_MAX_EMAILS
@@ -95,17 +109,14 @@ export function resolveMaxFetchResults(isInitialSync: boolean): number {
 }
 
 /**
- * True when the initial sync skipped older mail — either the listing hit the
- * fetch cap with more results remaining, or the mailbox holds mail older than
- * the sync window. Ongoing syncs never (re-)flag; the banner is about what the
- * initial import left behind.
+ * True when the initial sync skipped older mail: the listing hit the fetch cap
+ * with more results remaining. The initial sync has no date floor, so the cap
+ * is the only thing that can leave mail behind. Ongoing syncs never
+ * (re-)flag; the banner is about what the initial import left behind.
  */
 export function shouldFlagSyncWindowLimited(params: {
   isInitialSync: boolean;
   hitFetchCap: boolean;
-  olderMailExists?: boolean;
 }): boolean {
-  return (
-    params.isInitialSync && (params.hitFetchCap || !!params.olderMailExists)
-  );
+  return params.isInitialSync && params.hitFetchCap;
 }

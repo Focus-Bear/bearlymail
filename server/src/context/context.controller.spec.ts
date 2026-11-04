@@ -10,6 +10,7 @@ import { UsersService } from "../users/users.service";
 import { CategoryConsolidationRunService } from "./category-consolidation-run.service";
 import { ContextController } from "./context.controller";
 import { ContextService } from "./context.service";
+import { OnboardingAnalysisStartService } from "./onboarding-analysis-start.service";
 
 describe("ContextController", () => {
   let controller: ContextController;
@@ -25,6 +26,11 @@ describe("ContextController", () => {
     approveQA: jest.fn(),
     rejectQA: jest.fn(),
     approveAllQA: jest.fn(),
+    startAnalysis: jest.fn(),
+  };
+
+  const mockOnboardingAnalysisStartService = {
+    joinOrStartAnalysis: jest.fn(),
   };
 
   const mockUsersService = {
@@ -78,6 +84,10 @@ describe("ContextController", () => {
           useValue: mockConsolidationRunService,
         },
         {
+          provide: OnboardingAnalysisStartService,
+          useValue: mockOnboardingAnalysisStartService,
+        },
+        {
           provide: "PG_BOSS",
           useValue: mockBoss,
         },
@@ -109,6 +119,36 @@ describe("ContextController", () => {
     mockQueryBuilder.take.mockReturnThis();
     mockQueryBuilder.where.mockReturnThis();
     mockQueryBuilder.getMany.mockResolvedValue([]);
+  });
+
+  describe("analyzeEmails", () => {
+    const req = { user: { userId: "user-1" } };
+
+    it("starts a fresh run by default (manual re-analysis and retries)", async () => {
+      mockContextService.startAnalysis.mockResolvedValue({
+        analysisId: "fresh",
+      });
+
+      const result = await controller.analyzeEmails(req, {});
+
+      expect(result.analysisId).toBe("fresh");
+      expect(
+        mockOnboardingAnalysisStartService.joinOrStartAnalysis,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("joins the in-flight onboarding run when asked to attach", async () => {
+      mockOnboardingAnalysisStartService.joinOrStartAnalysis.mockResolvedValue({
+        analysisId: "background-run",
+      });
+
+      const result = await controller.analyzeEmails(req, {
+        attachToExisting: true,
+      });
+
+      expect(result.analysisId).toBe("background-run");
+      expect(mockContextService.startAnalysis).not.toHaveBeenCalled();
+    });
   });
 
   describe("getContext", () => {

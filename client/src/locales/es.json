@@ -1376,6 +1376,10 @@
     "keepOriginal": "Mantener original",
     "saveAsPdf": "Guardar como PDF",
     "moreOptions": "Más opciones",
+    "downloadEml": "Descargar .eml",
+    "messageOptions": "Opciones del mensaje",
+    "downloadEmlFailed": "No se pudo descargar el correo. Inténtalo de nuevo.",
+    "downloadEmlUnsupported": "Tu proveedor de correo todavía no permite descargar el mensaje original.",
     "icsInvite": {
       "loading": "Cargando invitación de calendario...",
       "title": "Invitación de Calendario",
@@ -1506,7 +1510,14 @@
     "createDeal": "Crear Negocio",
     "errorLoadingDeals": "Error al cargar negocios",
     "errorCreatingDeal": "No se pudo crear el negocio. Inténtalo de nuevo.",
-    "expectedClose": "Cierre esperado"
+    "expectedClose": "Cierre esperado",
+    "locked": "Mejora tu plan para usar el CRM",
+    "upgrade": {
+      "title": "El CRM está incluido en Growth y Enterprise",
+      "description": "Sigue tus negocios a lo largo del embudo, guarda notas y campos personalizados en tus contactos y consulta todas las conversaciones con un contacto en un solo lugar.",
+      "planNote": "Disponible desde el plan {{plan}} por ${{price}} al mes.",
+      "viewPlans": "Ver planes"
+    }
   },
   "senderContext": {
     "title": "Contexto del remitente",
@@ -1550,7 +1561,21 @@
     "closedWon": "Ganado",
     "closedLost": "Perdido",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar este negocio?",
-    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar."
+    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar.",
+    "notes": {
+      "title": "Notas",
+      "placeholder": "Añade una nota sobre este negocio…",
+      "add": "Añadir nota",
+      "edit": "Editar",
+      "editLabel": "Editar nota",
+      "edited": "Última edición: {{time}}",
+      "empty": "Todavía no hay notas.",
+      "loading": "Cargando notas…",
+      "loadError": "No se pudieron cargar las notas de este negocio.",
+      "saveError": "No se pudo guardar la nota. Inténtalo de nuevo.",
+      "deleteError": "No se pudo eliminar la nota. Inténtalo de nuevo.",
+      "deleteConfirm": "¿Eliminar esta nota?"
+    }
   },
   "contactTypes": {
     "lead": "Prospecto",
@@ -1925,7 +1950,7 @@
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
     "syncWindowBanner": {
-      "message": "Aviso: no estamos sincronizando tus correos antiguos. Solo hemos sincronizado los últimos 7 días de correo.",
+      "message": "Aviso: hemos importado tus {{count}} conversaciones más recientes. Los correos más antiguos no se sincronizan con BearlyMail.",
       "dismiss": "Descartar"
     },
     "openTrackingNotice": {
@@ -3209,14 +3234,20 @@
     "tour": {
       "actionContent": "Los correos que priorizas pasan a esta pestaña. Es tu lista de tareas para los correos que requieren trabajo de verdad.",
       "actionTitle": "Pestaña Acción",
-      "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y su prioridad. Usa sus botones para archivarlo, posponerlo o priorizarlo, o ábrelo para ver el panel lateral de IA con tareas, notas y Preguntar a IA.",
+      "archiveContent": "¿Ya terminaste con él o nunca lo necesitaste? Archivar lo quita de tu lista y también lo archiva en Gmail u Outlook. No se borra nada: puedes encontrarlo en Todos los correos. Atajo: pulsa Supr.",
+      "archiveTitle": "Archívalo",
+      "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y lo urgente que creemos que es. Ábrela para ver el panel lateral de IA con tareas, notas y Preguntar a IA. Los siguientes pasos muestran qué hacen sus botones.",
       "assistantTitle": "Tus correos",
       "back": "Atrás",
+      "blockContent": "¿No quieres volver a saber de alguien? Abre este menú ⋮ y elige Bloquear remitente. Cuando lo confirmes, todos sus correos futuros se archivarán automáticamente. Puedes desbloquearlo cuando quieras en Configuración. (En los boletines, el menú ofrece Darse de baja.)",
+      "blockTitle": "Bloquea a un remitente",
       "deliveryContent": "En lugar de llegar a cuentagotas todo el día, los correos nuevos llegan por tandas. Esta barra muestra cuándo llega la próxima; los urgentes siguen llegando al momento.",
       "deliveryTitle": "Entrega programada",
       "finish": "Finalizar",
       "next": "Próximo",
       "processContent": "Prioriza un correo electrónico para moverlo aquí. Este es su espacio de trabajo enfocado a los correos electrónicos que necesitan acción.",
+      "prioritiseContent": "¿Hay que hacer algo? Elige lo urgente que es para ti: Puede esperar, Ponte a ello u Oh mierda Al elegir uno, el correo pasa a la pestaña Acción, donde tus tareas se ordenan por prioridad.",
+      "prioritiseTitle": "Priorízalo",
       "processTitle": "Pestaña Proceso",
       "skip": "Saltar",
       "stepProgress": "{{current}} de {{total}}",
@@ -3323,6 +3354,18 @@
       "stalledDetailTimeout": "Esto aún no ha terminado después de {{minutes}} minutos. Inténtalo de nuevo, o abre tu bandeja ahora y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA.",
       "retry": "Intentar de nuevo",
       "skipToInbox": "Abrir mi bandeja de todos modos →"
+    },
+    "recategorise": {
+      "button": "Recategorizar",
+      "running": "Recategorizando…",
+      "runningTitle": "Reordenando tu bandeja con tus categorías",
+      "stillRunningTitle": "Seguimos reordenando tu bandeja en segundo plano",
+      "doneTitle": "Así quedaron repartidos tus correos",
+      "progress": "{{done}} de {{total}} correos reordenados",
+      "other": "Otros",
+      "emailCount_one": "{{count}} correo",
+      "emailCount_other": "{{count}} correos",
+      "error": "No pudimos reordenar tu bandeja. Inténtalo de nuevo o abre tu bandeja; el correo nuevo usará tus categorías."
     },
     "learned": {
       "title": "Esto es lo que aprendimos",
@@ -4871,6 +4914,7 @@
     "keyEsc": "Esc"
   },
   "sidebar": {
+    "goToInbox": "Ir a la bandeja de entrada",
     "collapse": "Contraer barra lateral",
     "expand": "Expandir barra lateral"
   },
@@ -5045,6 +5089,8 @@
         "emailsPerCycle_other": "{{count, number}} correos procesados con IA al mes",
         "includesEmailTracking": "Seguimiento de aperturas de correos",
         "includesEmailTrackingDescription": "Comprueba si la otra persona ha leído tu correo",
+        "includesCrm": "CRM",
+        "includesCrmDescription": "Embudo de negocios, notas y campos personalizados en contactos",
         "teamMembers_one": "{{count}} miembro del equipo",
         "teamMembers_other": "{{count}} miembros del equipo",
         "choosePlan": "Elegir plan",

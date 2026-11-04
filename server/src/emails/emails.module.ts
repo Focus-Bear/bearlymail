@@ -64,6 +64,7 @@ import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailDebugPhishingService } from "./email-debug-phishing.service";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
+import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportProcessor } from "./email-export.processor";
 import { EmailExportService } from "./email-export.service";
 import { EmailExportJobService } from "./email-export-job.service";
@@ -116,6 +117,8 @@ import { ImapProvider } from "./providers/imap.provider";
 import { ImapSyncService } from "./providers/imap/imap-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
+import { ReadStatusSyncProcessor } from "./read-status-sync.processor";
+import { ReadStatusSyncService } from "./read-status-sync.service";
 import { RuleLabelReCategoriseController } from "./rule-label-recategorise.controller";
 import { RuleLabelReCategoriseProcessor } from "./rule-label-recategorise.processor";
 import { RuleLabelReCategoriseService } from "./rule-label-recategorise.service";
@@ -188,6 +191,7 @@ import { SyncHistoryService } from "./sync-history.service";
   ],
   providers: [
     SyncHistoryService,
+    EmailEmlDownloadService,
     CategoryDedupService,
     EmailBacklogService,
     EmailAssignmentService,
@@ -321,6 +325,8 @@ import { SyncHistoryService } from "./sync-history.service";
     IncrementalSummaryHelperService,
     LLMSummaryProcessorService,
     ArchiveEmailProcessor,
+    ReadStatusSyncService,
+    ReadStatusSyncProcessor,
     EmailAdminService,
     EmailExportService,
     EmailExportStorageService,

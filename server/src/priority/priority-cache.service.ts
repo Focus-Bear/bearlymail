@@ -5,7 +5,10 @@ import { Repository } from "typeorm";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { User } from "../database/entities/user.entity";
-import { UserContext } from "../database/entities/user-context.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { FALLBACK_TIMEZONE, mapToIANATimezone } from "../utils/timezone.utils";
 
@@ -62,7 +65,11 @@ export class PriorityCacheService {
   }
 
   /**
-   * Get user contexts with caching
+   * Get user contexts with caching. A list with no email categories is never
+   * cached: onboarding saves the first categories moments after the initial
+   * sync starts analysing, and this cache is per-process (nothing elsewhere can
+   * invalidate it), so a cached empty list would keep the categoriser blind to
+   * the new categories for the whole TTL.
    */
   async getUserContexts(userId: string): Promise<UserContext[]> {
     const cached = this.contextsCache.get(userId);
@@ -82,11 +89,12 @@ export class PriorityCacheService {
       decryptUserContextEntityForApi(ctx);
     }
 
-    // Update cache
-    this.contextsCache.set(userId, {
-      cachedValue: contexts,
-      timestamp: now,
-    });
+    if (hasEmailCategory(contexts)) {
+      this.contextsCache.set(userId, {
+        cachedValue: contexts,
+        timestamp: now,
+      });
+    }
 
     return contexts;
   }
@@ -161,4 +169,10 @@ export class PriorityCacheService {
     this.timezoneCache.clear();
     this.logger.debug("Cleared all priority caches");
   }
+}
+
+function hasEmailCategory(contexts: UserContext[]): boolean {
+  return contexts.some(
+    (context) => context.contextKey === ContextKey.EMAIL_CATEGORY,
+  );
 }

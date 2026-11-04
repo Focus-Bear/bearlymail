@@ -7,6 +7,23 @@ import type { DiscoveryThreadStub } from "../llm/llm-discover-user-context";
 import { ThreadData, ThreadEmail } from "./context-gmail-data.service";
 
 /**
+ * Gmail labels a message IMPORTANT from the user's own history with the
+ * sender (opens, replies, stars), so a received message carrying it is a free
+ * importance signal. The user's own messages are ignored: Gmail marks most
+ * sent mail Important, which says nothing about the sender.
+ */
+function isMarkedImportantByGmail(
+  emails: ThreadEmail[],
+  isFromUser: (email: ThreadEmail) => boolean,
+): boolean {
+  return emails.some(
+    (email) =>
+      !isFromUser(email) &&
+      (email.labelIds?.includes(GMAIL_LABELS.IMPORTANT) ?? false),
+  );
+}
+
+/**
  * Turns fetched provider threads into the tiny stubs the discovery prompt
  * consumes. Only the first message from someone OTHER than the user
  * represents a thread (a thread the user started is not "received"), and
@@ -72,6 +89,9 @@ export class ContextBatchPayloadService {
         .trim(),
       receivedAt: firstReceived.receivedAt.toISOString(),
       userReplied: emails.some(isFromUser),
+      ...(isMarkedImportantByGmail(emails, isFromUser) && {
+        markedImportantByGmail: true,
+      }),
     };
   }
 }

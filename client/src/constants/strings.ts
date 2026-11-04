@@ -386,6 +386,15 @@ export const GMAIL_ACCESS_ISSUE_MISSING = 'gmail_access_missing' as const;
 export const GMAIL_ACCESS_ISSUE_REVOKED = 'gmail_access_revoked' as const;
 export type GmailAccessIssue = typeof GMAIL_ACCESS_ISSUE_MISSING | typeof GMAIL_ACCESS_ISSUE_REVOKED;
 
+// Checkbox groups on Google's consent screen (server GOOGLE_PERMISSION_GROUP values)
+export const GOOGLE_PERMISSION_GMAIL = 'gmail' as const;
+export const GOOGLE_PERMISSION_CALENDAR = 'calendar' as const;
+export const GOOGLE_PERMISSION_CONTACTS = 'contacts' as const;
+export type GooglePermissionGroup =
+  | typeof GOOGLE_PERMISSION_GMAIL
+  | typeof GOOGLE_PERMISSION_CALENDAR
+  | typeof GOOGLE_PERMISSION_CONTACTS;
+
 // Server path that starts Google sign-in (always with the consent screen forced)
 export const GOOGLE_OAUTH_START_PATH = '/auth/google';
 

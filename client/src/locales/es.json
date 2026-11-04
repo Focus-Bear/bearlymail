@@ -1522,7 +1522,14 @@
     "createDeal": "Crear Negocio",
     "errorLoadingDeals": "Error al cargar negocios",
     "errorCreatingDeal": "No se pudo crear el negocio. Inténtalo de nuevo.",
-    "expectedClose": "Cierre esperado"
+    "expectedClose": "Cierre esperado",
+    "locked": "Mejora tu plan para usar el CRM",
+    "upgrade": {
+      "title": "El CRM está incluido en Growth y Enterprise",
+      "description": "Sigue tus negocios a lo largo del embudo, guarda notas y campos personalizados en tus contactos y consulta todas las conversaciones con un contacto en un solo lugar.",
+      "planNote": "Disponible desde el plan {{plan}} por ${{price}} al mes.",
+      "viewPlans": "Ver planes"
+    }
   },
   "senderContext": {
     "title": "Contexto del remitente",
@@ -5073,6 +5080,8 @@
         "emailsPerCycle_other": "{{count, number}} correos procesados con IA al mes",
         "includesEmailTracking": "Seguimiento de aperturas de correos",
         "includesEmailTrackingDescription": "Comprueba si la otra persona ha leído tu correo",
+        "includesCrm": "CRM",
+        "includesCrmDescription": "Embudo de negocios, notas y campos personalizados en contactos",
         "teamMembers_one": "{{count}} miembro del equipo",
         "teamMembers_other": "{{count}} miembros del equipo",
         "choosePlan": "Elegir plan",

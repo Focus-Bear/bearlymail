@@ -39,6 +39,8 @@ export const ANALYTICS_EVENTS = {
   COMPOSE_VIEWED: 'compose_viewed',
   CONTACTS_SYNC_CLICKED: 'contacts_sync_clicked',
   CONTACTS_VIEWED: 'contacts_viewed',
+  CRM_UPGRADE_PROMPT_VIEWED: 'crm_upgrade_prompt_viewed',
+  CRM_UPGRADE_VIEW_PLANS_CLICKED: 'crm_upgrade_view_plans_clicked',
   CONTEXT_DELETED: 'context_deleted',
   CONTEXT_EDIT_CLICKED: 'context_edit_clicked',
   CONTEXT_ADD_MATCHING_RULE_CLICKED: 'context_add_matching_rule_clicked',

@@ -10,7 +10,6 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { LLMService } from "../llm/llm.service";
 import {
   type DiscoveredCategory,
   type DiscoveredProject,
@@ -19,10 +18,6 @@ import {
 } from "../llm/llm-discover-user-context";
 import { getErrorMessage } from "../types/common";
 import { UsersService } from "../users/users.service";
-import {
-  normalizeCategoryNameForDedup,
-  parseCategoryValue,
-} from "../utils/category-name.util";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { ContextCompressionService } from "./context-compression.service";
 import {
@@ -51,7 +46,6 @@ export interface MergedDiscovery {
   projects: DiscoveredProject[];
   urgentHints: string[];
   notUrgentHints: string[];
-  threadIds: string[];
 }
 
 const DISCOVERY_SOURCE_EXPLANATION = "email_analysis";
@@ -85,10 +79,12 @@ function mergeUnique<T>(
 }
 
 /**
- * Merges the per-batch discovery results, runs the existing category
- * consolidation step, and persists categories, VIP contacts, current projects
- * and urgency hints into user_contexts. Pure-string dedup happens here; the semantic merge is the
- * consolidation LLM call that has always closed out an analysis.
+ * Merges the per-batch discovery results and persists categories, VIP
+ * contacts, current projects and urgency hints into user_contexts. The
+ * category set comes from the single category-proposal batch (the first 100
+ * threads) as-is: the old LLM consolidation pass capped it at 10 and merged
+ * every support-like bucket into one "Customer Support", undoing the granular
+ * proposal.
  */
 @Injectable()
 export class ContextAnalysisFinalizerService {
@@ -99,7 +95,6 @@ export class ContextAnalysisFinalizerService {
     private contextAnalysisRepository: Repository<ContextAnalysis>,
     @InjectRepository(UserContext)
     private contextRepository: Repository<UserContext>,
-    private llmService: LLMService,
     private usersService: UsersService,
     private crudService: ContextCrudService,
     private compressionService: ContextCompressionService,
@@ -142,11 +137,8 @@ export class ContextAnalysisFinalizerService {
       scanTotal: 100,
     });
 
-    const categories = await this.consolidateCategories(
-      userId,
-      merged.categories,
-    );
-    await this.saveCategories(userId, categories, merged.threadIds);
+    const { categories } = merged;
+    await this.saveCategories(userId, categories);
     await this.usersService.update(userId, {
       scanProgress: PROGRESS_CATEGORIES_SAVED,
       scanTotal: 100,
@@ -190,8 +182,10 @@ export class ContextAnalysisFinalizerService {
   }
 
   /**
-   * Combine batch outputs, skipping failed batches and collapsing categories,
-   * VIPs and projects that differ only by emoji/punctuation/case.
+   * Combine batch outputs, skipping failed batches. Categories come from the
+   * first completed batch — the category-proposal batch over the most recent
+   * threads — never a union of slices; VIPs and projects that differ only by
+   * emoji/punctuation/case are collapsed.
    */
   mergeBatchResults(
     batchResults: Record<string, StoredBatchResult>,
@@ -199,10 +193,7 @@ export class ContextAnalysisFinalizerService {
   ): MergedDiscovery {
     const completed = this.collectCompletedBatches(batchResults, totalBatches);
     return {
-      categories: mergeUnique(
-        completed.map((result) => result.categories ?? []),
-        (category) => normalizeCategoryNameForDedup(category.name),
-      ),
+      categories: completed[0]?.categories ?? [],
       vipContacts: mergeUnique(
         completed.map((result) => result.vipContacts ?? []),
         (contact) => (contact.email || contact.name).toLowerCase(),
@@ -216,7 +207,6 @@ export class ContextAnalysisFinalizerService {
       notUrgentHints: completed.flatMap(
         (result) => result.notUrgentHints ?? [],
       ),
-      threadIds: completed.flatMap((result) => result.threadIds ?? []),
     };
   }
 
@@ -245,55 +235,9 @@ export class ContextAnalysisFinalizerService {
     return completed;
   }
 
-  /**
-   * The existing semantic consolidation pass (LLM): merges overlapping
-   * auto-generated categories and preserves user-added ones. Falls back to the
-   * raw list when the call fails so a flaky LLM never drops the whole set.
-   */
-  private async consolidateCategories(
-    userId: string,
-    discovered: DiscoveredCategory[],
-  ): Promise<DiscoveredCategory[]> {
-    if (discovered.length === 0) return discovered;
-
-    const userAddedCategories = (
-      await this.contextRepository.find({
-        where: {
-          userId,
-          contextKey: ContextKey.EMAIL_CATEGORY,
-          source: Source.USER_EDITED,
-        },
-      })
-    ).map((ctx) => {
-      const { name, description } = parseCategoryValue(ctx.contextValue);
-      return { name, description: description ?? "" };
-    });
-
-    try {
-      const consolidated = await this.llmService.consolidateEmailCategories(
-        discovered,
-        userAddedCategories,
-        undefined,
-        userId,
-      );
-      return consolidated
-        .filter((category) => !category.isUserAdded)
-        .map((category) => ({
-          name: category.name,
-          description: category.description,
-        }));
-    } catch (consolidateError) {
-      this.logger.warn(
-        `[CONTEXT-DISCOVERY] Category consolidation failed, keeping discovered list: ${getErrorMessage(consolidateError)}`,
-      );
-      return discovered;
-    }
-  }
-
   private async saveCategories(
     userId: string,
     categories: DiscoveredCategory[],
-    sourceThreadIds: string[],
   ): Promise<void> {
     let added = 0;
     for (const category of categories) {
@@ -304,7 +248,7 @@ export class ContextAnalysisFinalizerService {
         userId,
         ContextKey.EMAIL_CATEGORY,
         value,
-        { sourceThreadIds },
+        { sourceThreadIds: category.sourceThreadIds ?? [] },
       );
       if (saved) added++;
     }

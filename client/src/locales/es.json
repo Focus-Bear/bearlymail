@@ -3372,6 +3372,18 @@
       "retry": "Intentar de nuevo",
       "skipToInbox": "Abrir mi bandeja de todos modos →"
     },
+    "recategorise": {
+      "button": "Recategorizar",
+      "running": "Recategorizando…",
+      "runningTitle": "Reordenando tu bandeja con tus categorías",
+      "stillRunningTitle": "Seguimos reordenando tu bandeja en segundo plano",
+      "doneTitle": "Así quedaron repartidos tus correos",
+      "progress": "{{done}} de {{total}} correos reordenados",
+      "other": "Otros",
+      "emailCount_one": "{{count}} correo",
+      "emailCount_other": "{{count}} correos",
+      "error": "No pudimos reordenar tu bandeja. Inténtalo de nuevo o abre tu bandeja; el correo nuevo usará tus categorías."
+    },
     "learned": {
       "title": "Esto es lo que aprendimos",
       "lede": "Ajusta lo que no encaje. Esto determina cómo se ordena y prioriza tu bandeja.",

@@ -1,11 +1,13 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 
+import { INITIAL_SYNC_MAX_THREADS } from 'constants/numbers';
+
 import { SYNC_WINDOW_BANNER_DISMISSED_KEY_PREFIX, SyncWindowBanner } from './SyncWindowBanner';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, values?: { count?: number }) => (values?.count === undefined ? key : `${key}:${values.count}`),
   }),
 }));
 
@@ -35,6 +37,12 @@ describe('SyncWindowBanner', () => {
 
     expect(screen.getByTestId('sync-window-banner')).toBeInTheDocument();
     expect(screen.getByText(/inbox\.syncWindowBanner\.message/)).toBeInTheDocument();
+  });
+
+  it('says how many recent conversations were imported', () => {
+    render(<SyncWindowBanner userId={userId} syncWindowLimited />);
+
+    expect(screen.getByText(new RegExp(`inbox\\.syncWindowBanner\\.message:${INITIAL_SYNC_MAX_THREADS}`))).toBeInTheDocument();
   });
 
   it('renders nothing when syncWindowLimited is false', () => {

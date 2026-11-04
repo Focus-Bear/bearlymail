@@ -108,13 +108,19 @@ async function fetchSnapshotEntries(
   return messages.map((message) => toSnapshotEntry(message, uidValidity, host));
 }
 
-/** The newest `limit` inbox messages received since `since`, cheaply. */
+/**
+ * The newest `limit` inbox messages, cheaply — received since `since`, or
+ * from the whole inbox when `since` is null.
+ */
 export async function listInboxSnapshot(
   client: ImapFlow,
-  options: { since: Date; limit: number; host: string },
+  options: { since: Date | null; limit: number; host: string },
 ): Promise<InboxSnapshot> {
   return withMailbox(client, INBOX_MAILBOX, async () => {
-    const uids = await searchUids(client, { since: options.since });
+    const uids = await searchUids(
+      client,
+      options.since ? { since: options.since } : { all: true },
+    );
     const newest = uids
       .sort((left, right) => right - left)
       .slice(0, options.limit);

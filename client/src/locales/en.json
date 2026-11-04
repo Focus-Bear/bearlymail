@@ -337,7 +337,7 @@
     "unsubscribe": "Unsubscribe",
     "nextBatch": "Next batch",
     "syncWindowBanner": {
-      "message": "Heads up: we're not syncing your old emails. We've only synced the last 7 days worth.",
+      "message": "Heads up: we've imported your {{count}} most recent conversations. Older emails aren't synced into BearlyMail.",
       "dismiss": "Dismiss"
     },
     "openTrackingNotice": {

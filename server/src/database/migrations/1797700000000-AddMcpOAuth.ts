@@ -19,8 +19,8 @@ const CODES_CREATED_AT_INDEX = "IDX_oauth_authorization_codes_createdAt";
  * hashes), dynamically registered clients in `oauth_clients`, and in-flight
  * authorizations / codes in `oauth_authorization_codes`.
  */
-export class AddMcpOAuth1797600000000 implements MigrationInterface {
-  name = "AddMcpOAuth1797600000000";
+export class AddMcpOAuth1797700000000 implements MigrationInterface {
+  name = "AddMcpOAuth1797700000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await this.addTokenColumns(queryRunner);

@@ -1,4 +1,7 @@
+import { type Translate, translateContextExplanation } from 'utils/contextExplanation';
+
 import {
+  CONTEXT_EXPLANATION_EMAIL_ANALYSIS,
   CONTEXT_KEY_EMAIL_CATEGORY,
   CONTEXT_KEY_MY_GOALS,
   CONTEXT_KEY_URGENT,
@@ -15,6 +18,18 @@ export interface LearnedContextItem {
   explanation?: string | null;
   /** Stable React key for items added in this session, so swapping in the server id doesn't remount them. */
   clientKey?: string;
+}
+
+/**
+ * The item's reason as display text, or null when there is nothing worth showing.
+ * Discovery saves `email_analysis` for anything without a real reason (categories, hints).
+ */
+export function getLearnedReason(item: Pick<LearnedContextItem, 'explanation'>, translate: Translate): string | null {
+  const { explanation } = item;
+  if (!explanation || explanation === CONTEXT_EXPLANATION_EMAIL_ANALYSIS) {
+    return null;
+  }
+  return translateContextExplanation(explanation, translate);
 }
 
 export const LEARNED_GROUP_IMPORTANT = 'important';

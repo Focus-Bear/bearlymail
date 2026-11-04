@@ -1,6 +1,6 @@
 import { CONTEXT_EXPLANATION_VIP_CONTACT_STARRED } from 'constants/strings';
 
-type Translate = (key: string, opts?: Record<string, unknown>) => string;
+export type Translate = (key: string, opts?: Record<string, unknown>) => string;
 
 const EXPLANATION_PARAM_SEPARATOR = ':';
 

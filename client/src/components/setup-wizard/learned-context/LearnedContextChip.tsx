@@ -1,8 +1,7 @@
 import React, { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { translateContextExplanation } from 'utils/contextExplanation';
 
-import { joinContextValue, type LearnedContextItem, splitContextValue } from './learned-context';
+import { getLearnedReason, joinContextValue, type LearnedContextItem, splitContextValue } from './learned-context';
 import * as styles from './learned-context.styles';
 import { isPendingContextId } from './useLearnedContext';
 
@@ -24,7 +23,7 @@ export const LearnedContextChip: React.FC<LearnedContextChipProps> = ({ item, sh
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(label);
   const isPending = isPendingContextId(item.contextId);
-  const reason = item.explanation ? translateContextExplanation(item.explanation, t) : null;
+  const reason = getLearnedReason(item, t);
   const reasonTooltip = useReasonTooltip();
 
   const startEditing = () => {

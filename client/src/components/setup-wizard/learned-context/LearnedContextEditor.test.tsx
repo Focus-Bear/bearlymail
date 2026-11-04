@@ -79,6 +79,24 @@ describe('LearnedContextEditor', () => {
     expect(screen.getAllByRole('tooltip', { hidden: true })).toHaveLength(1);
   });
 
+  it('treats the email_analysis placeholder as no reason, keeping the chip plain', async () => {
+    await renderLoaded([
+      {
+        contextId: 'cat-1',
+        contextKey: 'EMAIL_CATEGORY',
+        contextValue: '📰 Newsletters - Digests',
+        explanation: 'email_analysis',
+      },
+      { contextId: 'hint-1', contextKey: 'URGENT', contextValue: 'Production alerts', explanation: 'email_analysis' },
+      { contextId: 'vip-1', contextKey: 'VIP_CONTACT', contextValue: 'Sarah Chen', explanation: 'email_analysis' },
+    ]);
+
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
+    expect(screen.queryByText('email_analysis')).not.toBeInTheDocument();
+    expect(screen.getByText('📰 Newsletters').closest('li')).toHaveAttribute('title', '📰 Newsletters — Digests');
+    expect(screen.getByText('Sarah Chen')).not.toHaveAttribute('tabindex');
+  });
+
   it('renames a category inline, keeping its description, via PUT /context/:id', async () => {
     await renderLoaded();
 

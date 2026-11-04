@@ -4,6 +4,7 @@ export const ANALYTICS_EVENTS = {
   ACCOUNT_DELETION_INITIATED: 'account_deletion_initiated',
   ACTION_ITEM_ADDED: 'action_item_added',
   ACTION_ITEM_DELETED: 'action_item_deleted',
+  ACTION_ITEM_SAVED_TO_FOCUS_BEAR: 'action_item_saved_to_focus_bear',
   ACTION_ITEM_TOGGLED: 'action_item_toggled',
   ACTION_ITEMS_EXTRACT_CLICKED: 'action_items_extract_clicked',
   ACTION_ITEMS_REGENERATE_CLICKED: 'action_items_regenerate_clicked',

@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { hasIcsAttachment } from 'utils/calendarUtils';
 import { extractEmailAddress, getCorrespondent } from 'utils/emailUtils';
+import { focusBearTaskSourceFor } from 'utils/focusBearTaskLink';
 import { captureEvent } from 'utils/posthog';
 
 import { CRMDealsSection } from 'components/crm/CRMDealsSection';
@@ -582,6 +583,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
       onExtractActions={ops.handleExtractActions}
       onRegenerateActionItems={ops.handleRegenerateActionItems}
       onDismiss={() => hideCard('actionItems')}
+      focusBearTaskSource={st.email ? focusBearTaskSourceFor(st.email, window.location.origin) : undefined}
     />
   ) : null;
 

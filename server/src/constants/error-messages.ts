@@ -4,6 +4,7 @@ export const ERROR_MESSAGES = {
   THREAD_NOT_FOUND: "Thread not found",
   CONTACT_NOT_FOUND: "Contact not found",
   DEAL_NOT_FOUND: "Deal not found",
+  DEAL_NOTE_NOT_FOUND: "Deal note not found",
   FOLLOW_UP_NOT_FOUND: "Follow-up not found",
   GOOGLE_ACCOUNT_NOT_FOUND: "Google account not found",
   OFFICE365_ACCOUNT_NOT_FOUND: "Office 365 account not found",

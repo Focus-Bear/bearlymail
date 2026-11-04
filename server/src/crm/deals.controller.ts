@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
   Request,
@@ -12,12 +13,17 @@ import {
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CrmPlanGuard } from "../subscriptions/crm-plan.guard";
+import { DealNotesService } from "./deal-notes.service";
 import { DealsService } from "./deals.service";
+import { DealNoteContentDto } from "./dto/deal-note-content.dto";
 
 @Controller("deals")
 @UseGuards(JwtAuthGuard, CrmPlanGuard)
 export class DealsController {
-  constructor(private readonly dealsService: DealsService) {}
+  constructor(
+    private readonly dealsService: DealsService,
+    private readonly dealNotesService: DealNotesService,
+  ) {}
 
   @Get("kanban")
   async getKanbanBoard(@Request() req) {
@@ -84,6 +90,45 @@ export class DealsController {
     @Param("email") email: string,
   ) {
     return this.dealsService.getDealsForContactByEmail(req.user.userId, email);
+  }
+
+  @Get(":id/notes")
+  async getDealNotes(@Request() req, @Param("id", ParseUUIDPipe) id: string) {
+    return this.dealNotesService.listNotes(req.user.userId, id);
+  }
+
+  @Post(":id/notes")
+  async addDealNote(
+    @Request() req,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: DealNoteContentDto,
+  ) {
+    return this.dealNotesService.addNote(req.user.userId, id, body.content);
+  }
+
+  @Put(":id/notes/:noteId")
+  async updateDealNote(
+    @Request() req,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("noteId", ParseUUIDPipe) noteId: string,
+    @Body() body: DealNoteContentDto,
+  ) {
+    return this.dealNotesService.updateNote(
+      req.user.userId,
+      id,
+      noteId,
+      body.content,
+    );
+  }
+
+  @Delete(":id/notes/:noteId")
+  async deleteDealNote(
+    @Request() req,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("noteId", ParseUUIDPipe) noteId: string,
+  ) {
+    await this.dealNotesService.deleteNote(req.user.userId, id, noteId);
+    return { success: true };
   }
 
   @Get(":id")

@@ -9,6 +9,11 @@ const PERCENT_MULT = 100;
 const ACTIVE_WEIGHT = 600;
 /** React key for the "Other" row, whose categoryId is null. */
 const OTHER_KEY = 'other';
+const TITLE_KEYS = {
+  [RECATEGORISE_STATUS.RUNNING]: 'setupWizard.recategorise.runningTitle',
+  [RECATEGORISE_STATUS.STILL_RUNNING]: 'setupWizard.recategorise.stillRunningTitle',
+  [RECATEGORISE_STATUS.DONE]: 'setupWizard.recategorise.doneTitle',
+};
 
 interface CategoryCountsPanelProps {
   status: RecategoriseStatus;
@@ -29,16 +34,14 @@ export const CategoryCountsPanel: React.FC<CategoryCountsPanelProps> = ({ status
       </p>
     );
   }
-  const isRunning = status === RECATEGORISE_STATUS.RUNNING;
+  const isFinished = status === RECATEGORISE_STATUS.DONE;
   const largest = Math.max(1, ...counts.map(entry => entry.count));
 
   return (
     <section style={panelStyle} aria-live="polite" data-testid="recategorise-panel">
       <div style={headerStyle}>
-        <h3 style={titleStyle}>
-          {isRunning ? t('setupWizard.recategorise.runningTitle') : t('setupWizard.recategorise.doneTitle')}
-        </h3>
-        {isRunning && progress && (
+        <h3 style={titleStyle}>{t(TITLE_KEYS[status])}</h3>
+        {!isFinished && progress && (
           <span style={progressTextStyle}>
             {t('setupWizard.recategorise.progress', {
               done: progress.completed + progress.failed,

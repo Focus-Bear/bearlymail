@@ -1,7 +1,14 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import type { ImapFlow, SearchObject } from "imapflow";
 import { simpleParser } from "mailparser";
 
+import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { Email } from "../../database/entities/email.entity";
 import { ImapAccount } from "../../database/entities/imap-account.entity";
@@ -534,12 +541,7 @@ export class ImapProvider implements EmailProvider {
     mimeType: string;
     size: number;
   }> {
-    const source = await this.withAccountSession(userId, (client, account) =>
-      downloadMessageSource(client, {
-        messageId,
-        mailboxes: this.searchMailboxesFor(account, IMAP_SEARCH_SCOPE.ALL),
-      }),
-    );
+    const source = await this.downloadSource(userId, messageId);
     if (!source) {
       throw new Error(`Message ${messageId} not found on the IMAP server`);
     }
@@ -571,5 +573,26 @@ export class ImapProvider implements EmailProvider {
         DEFAULT_ATTACHMENT_MIME,
       size: attachment.size,
     };
+  }
+
+  async getRawMessage(userId: string, messageId: string): Promise<Buffer> {
+    const source = await this.downloadSource(userId, messageId);
+    if (!source) {
+      throw new NotFoundException(ERROR_MESSAGES.RAW_MESSAGE_NOT_FOUND);
+    }
+    return source;
+  }
+
+  /** RFC 822 source of the message from any mailbox it may have been filed to. */
+  private async downloadSource(
+    userId: string,
+    messageId: string,
+  ): Promise<Buffer | null> {
+    return this.withAccountSession(userId, (client, account) =>
+      downloadMessageSource(client, {
+        messageId,
+        mailboxes: this.searchMailboxesFor(account, IMAP_SEARCH_SCOPE.ALL),
+      }),
+    );
   }
 }

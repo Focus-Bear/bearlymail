@@ -1,10 +1,13 @@
 import { Logger } from "@nestjs/common";
 
+import { STRONG_GEMINI_MODEL } from "../constants/llm-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { LLMProvider } from "./llm.types";
 import {
   discoverUserContextWithEscalation,
   DiscoveryThreadStub,
   formatDiscoveryThreads,
+  minimumProposedCategories,
   parseDiscoveryResponse,
 } from "./llm-discover-user-context";
 
@@ -50,6 +53,15 @@ describe("formatDiscoveryThreads", () => {
     expect(lines[1]).toContain("2. From: priya@northwind.io");
     expect(lines[1]).toContain("UserReplied: no");
   });
+
+  it("marks threads Gmail flagged Important, and only those", () => {
+    const [flagged, plain] = formatDiscoveryThreads([
+      stub({ markedImportantByGmail: true }),
+      stub({ threadId: "t2" }),
+    ]).split("\n");
+    expect(flagged).toContain("UserReplied: yes | GmailImportant: yes |");
+    expect(plain).not.toContain("GmailImportant");
+  });
 });
 
 describe("parseDiscoveryResponse", () => {
@@ -65,6 +77,37 @@ describe("parseDiscoveryResponse", () => {
       reason: "client",
     });
     expect(result?.urgentHints).toEqual(["Production alerts from Sentry"]);
+  });
+
+  it("resolves each category's thread numbers to the sample's thread ids", () => {
+    const result = parseDiscoveryResponse(
+      JSON.stringify({
+        categories: [
+          {
+            name: "🔐 Login & Access Issues",
+            description: "Can't sign in",
+            threadNumbers: [1, 3, 3, 99, "x"],
+          },
+          { name: "💳 Billing & Refunds", description: "Charges" },
+        ],
+      }),
+      null,
+      [],
+      [],
+      ["t1", "t2", "t3"],
+    );
+    expect(result?.categories).toEqual([
+      {
+        name: "🔐 Login & Access Issues",
+        description: "Can't sign in",
+        sourceThreadIds: ["t1", "t3"],
+      },
+      {
+        name: "💳 Billing & Refunds",
+        description: "Charges",
+        sourceThreadIds: [],
+      },
+    ]);
   });
 
   it("returns null for non-JSON output", () => {
@@ -111,6 +154,63 @@ describe("parseDiscoveryResponse", () => {
     expect(result?.urgentHints).toEqual([]);
     expect(result?.notUrgentHints).toEqual([]);
   });
+
+  it("returns no projects when the model omits them", () => {
+    expect(parseDiscoveryResponse(goodResponse, null)?.projects).toEqual([]);
+  });
+
+  it("reads current projects, dropping blanks, duplicates and ones the user already has", () => {
+    const result = parseDiscoveryResponse(
+      JSON.stringify({
+        categories: [],
+        projects: [
+          { name: "Northwind onboarding rollout", reason: "Agreeing dates" },
+          { name: "northwind onboarding rollout!", reason: "dup" },
+          { name: "  ", reason: "blank" },
+          { name: "Landing page redesign" },
+          "not an object",
+        ],
+      }),
+      null,
+      [],
+      ["LANDING PAGE REDESIGN"],
+    );
+    expect(result?.projects).toEqual([
+      { name: "Northwind onboarding rollout", reason: "Agreeing dates" },
+    ]);
+  });
+
+  it("caps the projects one batch may return", () => {
+    const projects = Array.from(
+      { length: QUERY_LIMITS.DISCOVERY_MAX_PROJECTS_PER_BATCH + 3 },
+      (_, index) => ({ name: `Project ${index}` }),
+    );
+    const result = parseDiscoveryResponse(
+      JSON.stringify({ categories: [], projects }),
+      null,
+    );
+    expect(result?.projects).toHaveLength(
+      QUERY_LIMITS.DISCOVERY_MAX_PROJECTS_PER_BATCH,
+    );
+  });
+});
+
+describe("minimumProposedCategories", () => {
+  it("asks a full 100-thread sample for the granular target", () => {
+    expect(minimumProposedCategories(100, 0)).toBe(
+      QUERY_LIMITS.DISCOVERY_MIN_PROPOSED_CATEGORIES,
+    );
+  });
+
+  it("scales the minimum down for a small sample instead of padding it", () => {
+    expect(minimumProposedCategories(20, 0)).toBe(4);
+    expect(minimumProposedCategories(3, 0)).toBe(0);
+  });
+
+  it("counts the user's existing categories toward the minimum", () => {
+    expect(minimumProposedCategories(100, 12)).toBe(3);
+    expect(minimumProposedCategories(100, 40)).toBe(0);
+  });
 });
 
 describe("discoverUserContextWithEscalation", () => {
@@ -122,7 +222,7 @@ describe("discoverUserContextWithEscalation", () => {
     userId: "user-1",
   };
 
-  it("uses Nova only when it returns categories", async () => {
+  it("uses Gemini Flash Lite (the default Gemini model) only when it returns categories", async () => {
     const generateText = jest.fn().mockResolvedValue(goodResponse);
     const result = await discoverUserContextWithEscalation(
       { generateText },
@@ -131,10 +231,26 @@ describe("discoverUserContextWithEscalation", () => {
     );
     expect(result?.categories).toHaveLength(2);
     expect(generateText).toHaveBeenCalledTimes(1);
-    expect(generateText.mock.calls[0][1]).toBe(LLMProvider.BEDROCK);
+    expect(generateText.mock.calls[0][1]).toBe(LLMProvider.GEMINI);
+    expect(generateText.mock.calls[0][0].model).toBeUndefined();
   });
 
-  it("escalates to Gemini when Nova returns no categories", async () => {
+  it("asks for the granular minimum and allows thread numbers in the answer", async () => {
+    const generateText = jest.fn().mockResolvedValue(goodResponse);
+    await discoverUserContextWithEscalation({ generateText }, silentLogger, {
+      ...params,
+      threads: Array.from({ length: 100 }, (_, index) =>
+        stub({ threadId: `t${index}` }),
+      ),
+    });
+    const request = generateText.mock.calls[0][0] as { systemPrompt: string };
+    expect(request.systemPrompt).toContain(
+      `Return at least ${QUERY_LIMITS.DISCOVERY_MIN_PROPOSED_CATEGORIES} categories`,
+    );
+    expect(request.systemPrompt).toContain('"threadNumbers"');
+  });
+
+  it("escalates to the strong Gemini model when Flash Lite returns no categories", async () => {
     const generateText = jest
       .fn()
       .mockResolvedValueOnce(JSON.stringify({ categories: [] }))
@@ -147,12 +263,13 @@ describe("discoverUserContextWithEscalation", () => {
     expect(result?.categories).toHaveLength(2);
     expect(generateText).toHaveBeenCalledTimes(2);
     expect(generateText.mock.calls[1][1]).toBe(LLMProvider.GEMINI);
+    expect(generateText.mock.calls[1][0].model).toBe(STRONG_GEMINI_MODEL);
   });
 
-  it("escalates when Nova throws and returns null if both fail", async () => {
+  it("escalates when Flash Lite throws and returns null if both fail", async () => {
     const generateText = jest
       .fn()
-      .mockRejectedValueOnce(new Error("bedrock down"))
+      .mockRejectedValueOnce(new Error("gemini down"))
       .mockResolvedValueOnce("not json");
     const result = await discoverUserContextWithEscalation(
       { generateText },
@@ -174,6 +291,22 @@ describe("discoverUserContextWithEscalation", () => {
     );
     expect(result?.categories).toEqual([]);
     expect(generateText).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the model for projects and lists the user's existing ones so they are not re-proposed", async () => {
+    const generateText = jest.fn().mockResolvedValue(goodResponse);
+    await discoverUserContextWithEscalation({ generateText }, silentLogger, {
+      ...params,
+      existingProjects: ["Landing page redesign"],
+    });
+    const request = generateText.mock.calls[0][0] as {
+      prompt: string;
+      systemPrompt: string;
+    };
+    expect(request.systemPrompt).toContain('"projects"');
+    expect(request.prompt).toMatch(
+      /Existing projects[^\n]*\n- Landing page redesign/,
+    );
   });
 
   it("does not call the model for an empty batch", async () => {

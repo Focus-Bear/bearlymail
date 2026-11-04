@@ -33,7 +33,7 @@ import {
 import { ScanEmailService } from "../scan-email.service";
 import {
   getOldestAllowedStarredSyncDate,
-  getOldestAllowedSyncDate,
+  resolveInboxSyncFloor,
   resolveMaxFetchResults,
   shouldFlagSyncWindowLimited,
 } from "../sync-window-policy";
@@ -313,7 +313,7 @@ export class ZohoProvider implements EmailProvider {
     this.logger.debug(`[performSync] inboxFolderId: ${inboxFolderId}`);
 
     // Single inbox fetch — sortorder and importance not supported by Zoho AU.
-    // Sync-window policy: the initial sync caps at INITIAL_SYNC_MAX_EMAILS.
+    // Sync-window policy: the initial sync takes the INITIAL_SYNC_MAX_EMAILS most recent.
     const fetchLimit = resolveMaxFetchResults(isInitialSync);
     const inboxResponse = await zohoClient.get(
       `accounts/${zohoAccountId}/messages/view`,
@@ -327,26 +327,26 @@ export class ZohoProvider implements EmailProvider {
     const allInboxMessages: ZohoMailMessage[] = inboxResponse.data.data || [];
 
     // Zoho's list endpoint has no date-filter parameter, so the sync windows
-    // are applied here. High-importance ("starred") messages get the wider
-    // starred window, matching the policy.
-    const syncWindowStart = getOldestAllowedSyncDate();
+    // are applied here. The initial sync has no date floor (the fetch cap
+    // bounds it); later syncs keep the ongoing window, with the wider starred
+    // window for high-importance ("starred") messages, matching the policy.
+    const syncFloor = resolveInboxSyncFloor(isInitialSync);
     const starredWindowStart = getOldestAllowedStarredSyncDate();
-    const inboxMessages = allInboxMessages.filter((message) => {
-      const receivedAtMs = parseReceivedTimeMs(message.receivedTime);
-      const windowStart =
-        message.importance === EMAIL_IMPORTANCE.HIGH
-          ? starredWindowStart
-          : syncWindowStart;
-      return receivedAtMs >= windowStart.getTime();
-    });
+    const inboxMessages = syncFloor
+      ? allInboxMessages.filter((message) => {
+          const receivedAtMs = parseReceivedTimeMs(message.receivedTime);
+          const windowStart =
+            message.importance === EMAIL_IMPORTANCE.HIGH
+              ? starredWindowStart
+              : syncFloor;
+          return receivedAtMs >= windowStart.getTime();
+        })
+      : allInboxMessages;
 
-    // Initial-sync overflow: a full page means the mailbox holds more mail
-    // than the cap imported; window-filtered messages were skipped too.
     if (
       shouldFlagSyncWindowLimited({
         isInitialSync,
         hitFetchCap: allInboxMessages.length >= fetchLimit,
-        olderMailExists: inboxMessages.length < allInboxMessages.length,
       })
     ) {
       await this.usersService.markSyncWindowLimited(userId);

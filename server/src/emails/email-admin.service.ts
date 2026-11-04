@@ -9,12 +9,7 @@ import { QUEUE_JOB_STATE } from "../constants/domain-statuses";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { INBOX_MODES } from "../constants/query-limits";
-import {
-  DAYS,
-  HOURS,
-  HOURS_PER_DAY,
-  SECONDS,
-} from "../constants/time-constants";
+import { DAYS, HOURS, HOURS_PER_DAY } from "../constants/time-constants";
 import { ContactsService } from "../contacts/contacts.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { decryptContextValue } from "../encryption/encryption.helper";
@@ -352,6 +347,8 @@ export class EmailAdminService {
     const batchId = crypto.randomUUID();
     let queued = 0;
     for (const email of allEmails) {
+      // No singleton options: pg-boss would drop a re-run started in the same
+      // minute, so changes made since the last run would never be applied.
       const jobId = await this.boss.send(
         JOB_NAMES.REFINE_PRIORITY,
         {
@@ -360,11 +357,7 @@ export class EmailAdminService {
           forceRecalculate: true,
           recategorizeBatchId: batchId,
         },
-        {
-          priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true),
-          singletonKey: `recategorize-${email.id}`,
-          singletonSeconds: SECONDS.MINUTE,
-        },
+        { priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true) },
       );
       if (jobId != null) queued++;
     }

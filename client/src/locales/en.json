@@ -165,7 +165,8 @@
       },
       "missingGmailPermission": {
         "title": "BearlyMail needs access to your Gmail",
-        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\")."
+        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\").",
+        "grantButton": "Allow Gmail access"
       },
       "generic": {
         "title": "Authentication Error"
@@ -336,7 +337,7 @@
     "unsubscribe": "Unsubscribe",
     "nextBatch": "Next batch",
     "syncWindowBanner": {
-      "message": "Heads up: we're not syncing your old emails. We've only synced the last 7 days worth.",
+      "message": "Heads up: we've imported your {{count}} most recent conversations. Older emails aren't synced into BearlyMail.",
       "dismiss": "Dismiss"
     },
     "openTrackingNotice": {
@@ -814,6 +815,10 @@
     "cc": "CC",
     "saveAsPdf": "Save as PDF",
     "moreOptions": "More options",
+    "downloadEml": "Download .eml",
+    "messageOptions": "Message options",
+    "downloadEmlFailed": "Couldn’t download the email. Please try again.",
+    "downloadEmlUnsupported": "Downloading the original email isn’t supported for your email provider yet.",
     "icsInvite": {
       "loading": "Loading calendar invite...",
       "title": "Calendar Invite",
@@ -2538,7 +2543,14 @@
     "createDeal": "Create Deal",
     "errorLoadingDeals": "Error loading deals",
     "errorCreatingDeal": "Could not create the deal. Please try again.",
-    "expectedClose": "Expected close"
+    "expectedClose": "Expected close",
+    "locked": "Upgrade to use the CRM",
+    "upgrade": {
+      "title": "The CRM comes with Growth and Enterprise",
+      "description": "Track deals through your pipeline, keep notes and custom fields on your contacts, and see every conversation with a contact in one place.",
+      "planNote": "Available from the {{plan}} plan at ${{price}}/month.",
+      "viewPlans": "View plans"
+    }
   },
   "senderContext": {
     "title": "Sender Context",
@@ -2582,7 +2594,21 @@
     "closedWon": "Won",
     "closedLost": "Lost",
     "deleteConfirm": "Are you sure you want to delete this deal?",
-    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned."
+    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned.",
+    "notes": {
+      "title": "Notes",
+      "placeholder": "Add a note about this deal…",
+      "add": "Add note",
+      "edit": "Edit",
+      "editLabel": "Edit note",
+      "edited": "Last edited: {{time}}",
+      "empty": "No notes yet.",
+      "loading": "Loading notes…",
+      "loadError": "Couldn't load the notes for this deal.",
+      "saveError": "Couldn't save the note. Please try again.",
+      "deleteError": "Couldn't delete the note. Please try again.",
+      "deleteConfirm": "Delete this note?"
+    }
   },
   "contactTypes": {
     "lead": "Lead",
@@ -2622,7 +2648,13 @@
       "deliveryTitle": "Scheduled Delivery",
       "deliveryContent": "Instead of trickling in all day, new emails arrive in batches. This bar shows when the next batch lands — urgent emails still come straight through.",
       "assistantTitle": "Your emails",
-      "assistantContent": "Each card shows who it's from, an AI summary and its priority. Use its buttons to archive, snooze or prioritise it — or open it to get the AI side panel with tasks, notes and Ask AI.",
+      "assistantContent": "Each card shows who it's from, an AI summary and how urgent we think it is. Open one to get the AI side panel with tasks, notes and Ask AI. The next few steps show what its buttons do.",
+      "prioritiseTitle": "Prioritise it",
+      "prioritiseContent": "Needs doing? Pick how urgent it is for you: Can wait, Get on it or Oh sh$t. Picking one moves the email to the Action tab, where your to-dos are sorted by priority.",
+      "archiveTitle": "Archive it",
+      "archiveContent": "Done with it, or never needed it? Archive clears it from your list and archives it in Gmail or Outlook too. Nothing is deleted: you can still find it in All Mail. Shortcut: press Delete.",
+      "blockTitle": "Block a sender",
+      "blockContent": "Never want to hear from someone again? Open this ⋮ menu and choose Block sender. Once you confirm, every future email from them is archived automatically. You can unblock them any time in Settings. (For newsletters, the menu offers Unsubscribe instead.)",
       "skip": "Skip",
       "back": "Back",
       "next": "Next",
@@ -3822,6 +3854,17 @@
       "prop3Title": "We train an AI on your inbox",
       "prop3Body": "We summarise your most recent emails and build rules from how you actually behave: who you reply to fast, what you archive, what you star. The bar for urgent is high by design.",
       "doneTag": "Done",
+      "permissions": {
+        "gmailTitle": "BearlyMail can't reach your Gmail yet",
+        "gmailBody": "On Google's permission screen, the boxes that let BearlyMail read, organise and send your email were left unticked. Until you allow them, your inbox stays empty: nothing gets batched, summarised or sent.",
+        "gmailBodyRevoked": "Google has stopped letting BearlyMail into your mailbox — the access was removed or has expired. Until you allow it again, your inbox stays empty: nothing gets batched, summarised or sent.",
+        "gmailButton": "Allow Gmail access",
+        "optionalTitle": "Some optional permissions were skipped",
+        "optionalBody": "Your inbox works without these, but a few features won't:",
+        "optionalCalendar": "Calendar: your booking page can't check when you're free or add meetings to your calendar.",
+        "optionalContacts": "Contacts: recipient suggestions and your contacts list won't include people from your Google contacts.",
+        "optionalButton": "Grant these permissions"
+      },
       "iAcceptThe": "I accept the",
       "termsOfUse": "Terms of Use",
       "and": "and",
@@ -3888,6 +3931,7 @@
       "button": "Re-categorise",
       "running": "Re-categorising…",
       "runningTitle": "Re-sorting your inbox with your categories",
+      "stillRunningTitle": "Still re-sorting your inbox in the background",
       "doneTitle": "Here's where your emails landed",
       "progress": "{{done}} of {{total}} emails re-sorted",
       "other": "Other",
@@ -4884,6 +4928,7 @@
     "keyEsc": "Esc"
   },
   "sidebar": {
+    "goToInbox": "Go to inbox",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar"
   },
@@ -5058,6 +5103,8 @@
         "emailsPerCycle_other": "{{count, number}} AI-processed emails per month",
         "includesEmailTracking": "Email open tracking",
         "includesEmailTrackingDescription": "See if the other person read your email",
+        "includesCrm": "CRM",
+        "includesCrmDescription": "Deals pipeline, contact notes and custom fields",
         "teamMembers_one": "{{count}} team member",
         "teamMembers_other": "{{count}} team members",
         "choosePlan": "Choose plan",

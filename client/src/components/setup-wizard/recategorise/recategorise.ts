@@ -1,6 +1,8 @@
 export const RECATEGORISE_STATUS = {
   IDLE: 'idle',
   RUNNING: 'running',
+  /** Past the max wait: the user may go, while the jobs finish server-side. */
+  STILL_RUNNING: 'stillRunning',
   DONE: 'done',
   ERROR: 'error',
 } as const;

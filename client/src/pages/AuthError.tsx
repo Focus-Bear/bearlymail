@@ -4,6 +4,7 @@ import { NavigateFunction, useNavigate, useSearchParams } from 'react-router-dom
 import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
+import { startGoogleReconnect } from 'components/gmail-access/GmailAccessAlert';
 import { WaitlistForm } from 'components/landing/WaitlistForm';
 import {
   ERROR_TYPE_AUTH_ERROR,
@@ -29,6 +30,8 @@ interface ErrorContent {
   description: string;
   showWaitlistButton: boolean;
   showLoginButton: boolean;
+  /** Offers to go straight back to Google's consent screen to tick Gmail. */
+  showGrantGmailButton?: boolean;
 }
 
 function getErrorContent(
@@ -79,6 +82,7 @@ function getErrorContent(
         ),
         showWaitlistButton: false,
         showLoginButton: true,
+        showGrantGmailButton: true,
       };
     default:
       if (errorMessage.includes(STRING_WAITLIST)) {
@@ -111,6 +115,26 @@ interface AuthErrorContentProps {
   t: TFunction;
 }
 
+/** Goes straight back to Google's consent screen so the Gmail boxes can be ticked. */
+const GrantGmailButton: React.FC<{ label: string }> = ({ label }) => (
+  <button
+    onClick={startGoogleReconnect}
+    style={{
+      width: '100%',
+      padding: theme.spacing.md,
+      backgroundColor: theme.colors.primary.main,
+      color: STRING_WHITE,
+      border: STRING_NONE,
+      borderRadius: theme.borderRadius.md,
+      fontSize: theme.typography.fontSize.base,
+      fontWeight: theme.typography.fontWeight.semibold,
+      cursor: 'pointer',
+    }}
+  >
+    {label}
+  </button>
+);
+
 const AuthErrorContent: React.FC<AuthErrorContentProps> = ({
   showWaitlistForm,
   setShowWaitlistForm,
@@ -120,6 +144,7 @@ const AuthErrorContent: React.FC<AuthErrorContentProps> = ({
   handleWaitlistSuccess,
   t,
 }) => {
+  const isLoginSecondary = content.showWaitlistButton || !!content.showGrantGmailButton;
   if (showWaitlistForm) {
     return (
       <div
@@ -264,15 +289,17 @@ const AuthErrorContent: React.FC<AuthErrorContentProps> = ({
             </button>
           )}
 
+          {content.showGrantGmailButton && <GrantGmailButton label={t('auth.errors.missingGmailPermission.grantButton', 'Allow Gmail access')} />}
+
           {content.showLoginButton && (
             <button
               onClick={() => navigate('/login')}
               style={{
                 width: '100%',
                 padding: theme.spacing.md,
-                backgroundColor: content.showWaitlistButton ? STRING_TRANSPARENT : theme.colors.primary.main,
-                color: content.showWaitlistButton ? theme.colors.text.secondary : STRING_WHITE,
-                border: content.showWaitlistButton ? `1px solid ${theme.colors.border.medium}` : STRING_NONE,
+                backgroundColor: isLoginSecondary ? STRING_TRANSPARENT : theme.colors.primary.main,
+                color: isLoginSecondary ? theme.colors.text.secondary : STRING_WHITE,
+                border: isLoginSecondary ? `1px solid ${theme.colors.border.medium}` : STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 fontSize: theme.typography.fontSize.base,
                 fontWeight: theme.typography.fontWeight.medium,

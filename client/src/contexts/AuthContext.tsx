@@ -9,7 +9,12 @@ import { LOGIN_METHOD_EMAIL, markSessionExpired, SESSION_EXPIRED_REASON, setLast
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_WHITE } from 'constants/colors';
-import { AUTH_ERROR_ACCOUNT_DELETED, AUTH_ERROR_OAUTH_ONLY, GmailAccessIssue } from 'constants/strings';
+import {
+  AUTH_ERROR_ACCOUNT_DELETED,
+  AUTH_ERROR_OAUTH_ONLY,
+  GmailAccessIssue,
+  GooglePermissionGroup,
+} from 'constants/strings';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
 
 /**
@@ -45,6 +50,8 @@ export interface User {
   syncWindowLimited?: boolean;
   /** Set while the server can't read the user's Gmail — shows the reconnect banner. */
   gmailAccessIssue?: GmailAccessIssue | null;
+  /** Google consent-screen permissions the last Google sign-in left unticked. */
+  missingGooglePermissions?: GooglePermissionGroup[];
   /** Mailtrack-style open tracking for outgoing mail; on unless the user turned it off. */
   trackEmailOpens?: boolean;
   isAdmin?: boolean;

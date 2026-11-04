@@ -1,3 +1,4 @@
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { ContextKey, Source } from "../database/entities/user-context.entity";
 import { ContextAnalysisFinalizerService } from "./context-analysis-finalizer.service";
 import type { StoredBatchResult } from "./context-discovery.types";
@@ -17,7 +18,6 @@ const completed = (
 describe("ContextAnalysisFinalizerService", () => {
   let contextAnalysisRepository: { findOne: jest.Mock; save: jest.Mock };
   let contextRepository: { find: jest.Mock };
-  let llmService: { consolidateEmailCategories: jest.Mock };
   let usersService: { update: jest.Mock };
   let crudService: {
     createOrUpdateContext: jest.Mock;
@@ -34,12 +34,6 @@ describe("ContextAnalysisFinalizerService", () => {
       save: jest.fn().mockResolvedValue(undefined),
     };
     contextRepository = { find: jest.fn().mockResolvedValue([]) };
-    llmService = {
-      consolidateEmailCategories: jest.fn(
-        async (categories: Array<{ name: string; description: string }>) =>
-          categories.map((category) => ({ ...category, isUserAdded: false })),
-      ),
-    };
     usersService = { update: jest.fn().mockResolvedValue(undefined) };
     crudService = {
       createOrUpdateContext: jest.fn().mockResolvedValue(undefined),
@@ -52,7 +46,6 @@ describe("ContextAnalysisFinalizerService", () => {
     service = new ContextAnalysisFinalizerService(
       contextAnalysisRepository as never,
       contextRepository as never,
-      llmService as never,
       usersService as never,
       crudService as never,
       compressionService as never,
@@ -65,7 +58,7 @@ describe("ContextAnalysisFinalizerService", () => {
   });
 
   describe("mergeBatchResults", () => {
-    it("merges categories across batches, skipping failed batches and near-duplicate names", () => {
+    it("takes categories from the first completed (category-proposal) batch and merges VIPs across batches", () => {
       const merged = service.mergeBatchResults(
         {
           "0": completed({
@@ -100,14 +93,69 @@ describe("ContextAnalysisFinalizerService", () => {
       expect(merged.categories.map((category) => category.name)).toEqual([
         "📰 Newsletters",
         "🔔 GitHub Notifications",
-        "💸 Invoices & Receipts",
       ]);
       expect(merged.vipContacts.map((contact) => contact.name)).toEqual([
         "Priya Raman",
         "Tom Becker",
       ]);
       expect(merged.urgentHints).toEqual(["Sentry alerts"]);
-      expect(merged.threadIds).toEqual(["a", "b", "c"]);
+    });
+
+    it("falls back to the next completed batch's categories when the proposal batch failed", () => {
+      const merged = service.mergeBatchResults(
+        {
+          "0": {
+            error: "boom",
+            failedAt: "2026-09-01T00:00:00.000Z",
+            correlationId: "c",
+            errorType: "unknown",
+          },
+          "1": completed({
+            categories: [{ name: "🐞 Bug Reports", description: "bugs" }],
+          }),
+        },
+        2,
+      );
+      expect(merged.categories.map((category) => category.name)).toEqual([
+        "🐞 Bug Reports",
+      ]);
+    });
+
+    it("merges projects across batches, collapsing near-duplicates", () => {
+      const merged = service.mergeBatchResults(
+        {
+          "0": completed({
+            projects: [{ name: "Northwind rollout", reason: "dates" }],
+          }),
+          // Stored before discovery returned projects.
+          "1": completed({}),
+          "2": completed({
+            projects: [
+              { name: "northwind rollout" },
+              { name: "Lumen Health pilot" },
+            ],
+          }),
+        },
+        3,
+      );
+      expect(merged.projects).toEqual([
+        { name: "Northwind rollout", reason: "dates" },
+        { name: "Lumen Health pilot" },
+      ]);
+    });
+
+    it("caps the merged projects for one analysis", () => {
+      const batchResults: Record<string, StoredBatchResult> = {};
+      for (let batch = 0; batch < 3; batch++) {
+        batchResults[String(batch)] = completed({
+          projects: Array.from(
+            { length: QUERY_LIMITS.DISCOVERY_MAX_PROJECTS_PER_BATCH },
+            (_, index) => ({ name: `Project ${batch}-${index}` }),
+          ),
+        });
+      }
+      const merged = service.mergeBatchResults(batchResults, 3);
+      expect(merged.projects).toHaveLength(QUERY_LIMITS.DISCOVERY_MAX_PROJECTS);
     });
   });
 
@@ -127,15 +175,24 @@ describe("ContextAnalysisFinalizerService", () => {
       },
     };
 
-    it("consolidates categories, then persists categories, VIPs and hints and completes the record", async () => {
+    it("persists the proposed categories as-is (no consolidation), then VIPs and hints, and completes the record", async () => {
       const record = {
         id: "analysis-1",
         analyzedCount: 20,
         stats: {
           batchResults: {
             "0": completed({
-              categories: [{ name: "📰 Newsletters", description: "digests" }],
+              categories: [
+                {
+                  name: "📰 Newsletters",
+                  description: "digests",
+                  sourceThreadIds: ["a"],
+                },
+              ],
               vipContacts: [{ name: "Priya Raman", reason: "client" }],
+              projects: [
+                { name: "Northwind onboarding rollout", reason: "dates" },
+              ],
               urgentHints: ["Production alerts"],
               notUrgentHints: ["Retail promotions"],
               threadIds: ["a"],
@@ -148,23 +205,31 @@ describe("ContextAnalysisFinalizerService", () => {
 
       await service.finalizeContextAnalysis(options);
 
-      expect(llmService.consolidateEmailCategories).toHaveBeenCalledWith(
-        [{ name: "📰 Newsletters", description: "digests" }],
-        [],
-        undefined,
-        "user-1",
-      );
       const writes = crudService.createOrUpdateContext.mock.calls.map(
         ([, key, value]) => [key, value],
       );
       expect(writes).toEqual([
         [ContextKey.EMAIL_CATEGORY, "📰 Newsletters - digests"],
         [ContextKey.VIP_CONTACT, "Priya Raman"],
+        [ContextKey.WORKING_ON, "Northwind onboarding rollout"],
         [ContextKey.URGENT, "Production alerts"],
         [ContextKey.NOT_IMPORTANT, "Retail promotions"],
       ]);
       expect(crudService.createOrUpdateContext.mock.calls[0][3]).toBe(
         Source.AUTOGENERATED,
+      );
+      // Each category links to the sample threads the model filed in it.
+      expect(crudService.createOrUpdateContext.mock.calls[0][4]).toEqual(
+        expect.objectContaining({ sourceThreadIds: ["a"] }),
+      );
+      // The onboarding "Current projects" group lists WORKING_ON rows; a
+      // discovered project lands there at medium priority with its reason.
+      expect(crudService.createOrUpdateContext).toHaveBeenCalledWith(
+        "user-1",
+        ContextKey.WORKING_ON,
+        "Northwind onboarding rollout",
+        Source.AUTOGENERATED,
+        expect.objectContaining({ priority: 2, explanation: "dates" }),
       );
       expect(record).toMatchObject({
         status: "completed",
@@ -200,32 +265,6 @@ describe("ContextAnalysisFinalizerService", () => {
       await service.finalizeContextAnalysis(options);
 
       expect(crudService.createOrUpdateContext).not.toHaveBeenCalled();
-    });
-
-    it("keeps the discovered list when consolidation fails", async () => {
-      contextAnalysisRepository.findOne.mockResolvedValue({
-        id: "analysis-1",
-        stats: {
-          batchResults: {
-            "0": completed({
-              categories: [{ name: "📰 Newsletters", description: "digests" }],
-            }),
-          },
-        },
-      });
-      llmService.consolidateEmailCategories.mockRejectedValue(
-        new Error("llm down"),
-      );
-
-      await service.finalizeContextAnalysis(options);
-
-      expect(crudService.createOrUpdateContext).toHaveBeenCalledWith(
-        "user-1",
-        ContextKey.EMAIL_CATEGORY,
-        "📰 Newsletters - digests",
-        Source.AUTOGENERATED,
-        expect.anything(),
-      );
     });
   });
 });

@@ -153,8 +153,10 @@ export class OrganizationsController {
           planStatus: ORG_PLAN_STATUS.UNPAID,
           trialEndsAt: null,
           selfHosted: this.organizationsService.isSelfHostedMode(),
-          // Matches TrackedEmailSender, which fails open for a user with no org.
+          // Matches TrackedEmailSender and CrmPlanGuard, which fail open for a
+          // user with no org.
           includesEmailTracking: true,
+          includesCrm: true,
         };
       }
       throw err;

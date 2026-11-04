@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import axios from 'axios';
 
 import { LearningStep, pickPrimaryAction } from './LearningStep';
+import { CategoryCountsPanel } from './recategorise/CategoryCountsPanel';
+import { RECATEGORISE_STATUS } from './recategorise/recategorise';
 
 vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -100,6 +102,31 @@ describe('LearningStep — re-categorise after changing categories', () => {
 
     fireEvent.click(screen.getByTestId(PRIMARY));
     expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Re-categorise so the user can try again when the re-sort fails to start', async () => {
+    mockedAxios.post.mockImplementation(async (url: string) => {
+      if (url.includes('/emails/recategorize-triage')) {
+        throw new Error('boom');
+      }
+      return { data: { contextId: 'cat-new' } };
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<LearningStep onComplete={() => undefined} onBack={() => undefined} isLoading={false} />);
+
+    await addCategory(NEW_CATEGORY);
+    fireEvent.click(screen.getByTestId(PRIMARY));
+
+    await screen.findByText('setupWizard.recategorise.error');
+    expect(screen.getByTestId(PRIMARY)).toHaveTextContent('setupWizard.recategorise.button');
+    expect(screen.getByTestId(PRIMARY)).toBeEnabled();
+  });
+
+  it('says the re-sort is still going, not finished, once the max wait has passed', () => {
+    render(<CategoryCountsPanel status={RECATEGORISE_STATUS.STILL_RUNNING} progress={null} counts={COUNTS} />);
+
+    expect(screen.getByText('setupWizard.recategorise.stillRunningTitle')).toBeInTheDocument();
+    expect(screen.queryByText('setupWizard.recategorise.doneTitle')).not.toBeInTheDocument();
   });
 
   it('leaves the button alone when only non-category items change', async () => {

@@ -92,6 +92,8 @@ export function useRecategorise(): RecategoriseState {
       setBatchId(response.data.batchId);
     } catch (error) {
       console.error('Failed to start re-categorisation:', error);
+      // Nothing was re-sorted, so the changes are still unsorted and the user can try again.
+      setHasUnsortedCategoryChanges(true);
       setStatus(RECATEGORISE_STATUS.ERROR);
     }
   }, [refreshCounts]);
@@ -117,7 +119,7 @@ function useBatchPolling(batchId: string | null, status: RecategoriseStatus, dep
       return undefined;
     }
     let pollTimer: ReturnType<typeof setTimeout> | undefined;
-    const giveUpTimer = setTimeout(() => setStatus(RECATEGORISE_STATUS.DONE), RECATEGORISE_MAX_WAIT_MS);
+    const giveUpTimer = setTimeout(() => setStatus(RECATEGORISE_STATUS.STILL_RUNNING), RECATEGORISE_MAX_WAIT_MS);
 
     const poll = async () => {
       try {

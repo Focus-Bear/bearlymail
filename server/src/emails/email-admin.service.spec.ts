@@ -144,6 +144,10 @@ describe("EmailAdminService", () => {
         expect.objectContaining({ emailId: "email-follow-up-1" }),
         expect.any(Object),
       );
+      // A singleton slot would make pg-boss drop a re-run in the same minute.
+      const jobOptions = mockBoss.send.mock.calls[0][2];
+      expect(jobOptions).not.toHaveProperty("singletonKey");
+      expect(jobOptions).not.toHaveProperty("singletonSeconds");
     });
   });
 

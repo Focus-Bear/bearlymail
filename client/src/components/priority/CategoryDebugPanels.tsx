@@ -1,10 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useHref } from 'react-router-dom';
 import { theme } from 'theme/theme';
+import { categoryRuleSettingsPath } from 'utils/categoryRuleLinks';
 
 import { CATEGORY_DEBUG_OPAQUE_HEX_MIN_LEN, CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS } from 'constants/numbers';
 
-import { CategoryDebugData } from './CategoryDebugModal.types';
+import { CategoryDebugData, CURRENT_RULE_RECORDED_BY, RULE_CATEGORY_SOURCE } from './CategoryDebugModal.types';
 
 const sectionHeaderStyle: React.CSSProperties = {
   fontSize: '11px',
@@ -57,8 +59,7 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ email }) => {
         </div>
         {email.receivedAt ? (
           <div>
-            <strong>{t('priority.categoryDebug.receivedAt')}:</strong>{' '}
-            {new Date(email.receivedAt).toLocaleString()}
+            <strong>{t('priority.categoryDebug.receivedAt')}:</strong> {new Date(email.receivedAt).toLocaleString()}
           </div>
         ) : null}
         <div style={{ marginTop: theme.spacing.xs }}>
@@ -81,6 +82,31 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ email }) => {
 };
 
 // --- CategorySection ---
+
+const CurrentRuleRow: React.FC<{ rule: CategoryDebugData['thread']['currentRule'] }> = ({ rule }) => {
+  const { t } = useTranslation();
+  const ruleHref = useHref(categoryRuleSettingsPath(rule?.ruleId ?? null));
+  const noteStyle = { color: theme.colors.text.secondary };
+  return (
+    <div style={{ marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs }}>
+      <strong>{t('priority.categoryDebug.currentRuleLabel')}:</strong>{' '}
+      {rule ? (
+        <>
+          {rule.categoryName ?? <span style={noteStyle}>{t('priority.categoryDebug.currentRuleDeleted')}</span>}{' '}
+          <code>{rule.ruleId}</code>{' '}
+          <a href={ruleHref} target="_blank" rel="noopener noreferrer">
+            {t('priority.categoryDebug.currentRuleEdit')}
+          </a>
+          {rule.recordedBy === CURRENT_RULE_RECORDED_BY.LIVE_MATCH && (
+            <div style={noteStyle}>{t('priority.categoryDebug.currentRuleLiveMatch')}</div>
+          )}
+        </>
+      ) : (
+        <span style={noteStyle}>{t('priority.categoryDebug.currentRuleUnknown')}</span>
+      )}
+    </div>
+  );
+};
 
 interface CategorySectionProps {
   thread: CategoryDebugData['thread'];
@@ -115,6 +141,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({ thread }) => {
             </div>
           </div>
         )}
+        {thread.categorySource === RULE_CATEGORY_SOURCE && <CurrentRuleRow rule={thread.currentRule ?? null} />}
         <div style={{ marginTop: theme.spacing.sm }}>
           <strong>{t('priority.categoryDebug.shortlistedCategoriesLabel')}:</strong>
           {thread.shortlistedCategoryNames === null ? (

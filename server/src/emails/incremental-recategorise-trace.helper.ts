@@ -50,6 +50,7 @@ export function incrementalRuleTrace(args: {
   email: Pick<Email, "id" | "receivedAt">;
   categoryName: string;
   categoryId: string;
+  ruleId: string;
 }): CategoryDecisionTrace {
   return buildCategoryDecisionTrace({
     decidedAt: args.decidedAt,
@@ -65,6 +66,7 @@ export function incrementalRuleTrace(args: {
         outcome: "applied",
         category: args.categoryName,
         categoryId: args.categoryId,
+        ruleId: args.ruleId,
         detail:
           "Deterministic rule matched the new email during incremental re-categorisation (LLM not consulted).",
       },

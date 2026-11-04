@@ -200,6 +200,7 @@ export async function retroApplyCompositeRuleToRecentThreads(
                 outcome: "applied",
                 category: args.categoryName,
                 categoryId: args.categoryId,
+                ruleId: args.ruleId,
                 detail: `Rule ${args.ruleId} applied retroactively on create/update: it matched this thread's most recent email, which was processed before the rule existed.`,
               },
             ],

@@ -5,6 +5,7 @@ import { withRuleIdMarker } from "../category-rules/category-rule-explanation.he
 import { CategoryRulesService } from "../category-rules/category-rules.service";
 import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
+import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
@@ -23,6 +24,10 @@ import {
   parseCategoryValue,
   resolveCategoryName,
 } from "../utils/category-name.util";
+import {
+  type CurrentCategoryRule,
+  resolveCurrentCategoryRule,
+} from "./category-debug-current-rule.helper";
 import type { CategoryDecisionTrace } from "./category-decision-trace.types";
 import { cachedGithubSignalsForEmail } from "./email-github-signals.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
@@ -69,6 +74,12 @@ export interface CategoryDebugData {
     localModelDebug: LocalModelDebugSnapshot | null;
     /** Ordered record of every step that produced a category candidate and whether it was applied or suppressed (e.g. a GitHub override re-routing a confident category). Null for threads categorised before this existed. */
     categoryDecisionTrace: CategoryDecisionTrace | null;
+    /**
+     * The rule that set the CURRENT category (rule-decided threads only).
+     * `categoryRuleTrace` can be older: it is only rewritten by paths that
+     * re-run the full rule trace, so it may describe an earlier decision.
+     */
+    currentRule: CurrentCategoryRule | null;
   };
   emailCategories: Array<{
     id: string;
@@ -251,8 +262,10 @@ export class EmailDebugCategoryService {
   private buildThreadDebugSection(
     thread: EmailThread | null,
     categoryName: string | null,
+    currentRule: CurrentCategoryRule | null,
   ): CategoryDebugData["thread"] {
     return {
+      currentRule,
       category: categoryName,
       categoryExplanation: thread?.categoryExplanation || null,
       categorySource: thread?.categorySource || null,
@@ -318,7 +331,21 @@ export class EmailDebugCategoryService {
         receivedAt: email.receivedAt ? email.receivedAt.toISOString() : null,
       },
       threadEmails: await this.buildThreadEmailsTimeline(userId, email),
-      thread: this.buildThreadDebugSection(thread, categoryName),
+      thread: this.buildThreadDebugSection(
+        thread,
+        categoryName,
+        await resolveCurrentCategoryRule(
+          {
+            categoryRuleRepository: this.dataSource.getRepository(CategoryRule),
+            emailRepository: this.emailRepository,
+            categoryRulesService: this.categoryRulesService,
+            githubSignalsFor: (threadEmail) =>
+              this.cachedGithubSignals(threadEmail),
+          },
+          userId,
+          thread,
+        ),
+      ),
       emailCategories,
       protoCategories,
       userContext,

@@ -29,11 +29,7 @@ export type CategoryDecisionStepName =
   | 'github-override'
   | 'proto-promotion';
 
-export type CategoryDecisionOutcome =
-  | 'applied'
-  | 'considered'
-  | 'suppressed'
-  | 'skipped';
+export type CategoryDecisionOutcome = 'applied' | 'considered' | 'suppressed' | 'skipped';
 
 export interface CategoryDecisionStep {
   step: CategoryDecisionStepName;
@@ -130,6 +126,27 @@ export interface CategoryRuleEvaluationDebug {
  * category was last set during priority processing. Lets the debug view show
  * the ORIGINAL outcome next to a live re-run.
  */
+/** `thread.categorySource` when a deterministic rule set the category. */
+export const RULE_CATEGORY_SOURCE = 'rule';
+
+/** Where the server learned which rule set the current category (server `CURRENT_RULE_RECORDED_BY`). */
+export const CURRENT_RULE_RECORDED_BY = {
+  EXPLANATION: 'explanation',
+  DECISION_TRACE: 'decision-trace',
+  /** Nothing recorded the rule; the rules were re-run on the newest email and this one matches it. */
+  LIVE_MATCH: 'live-match',
+} as const;
+
+export type CurrentRuleRecordedBy = (typeof CURRENT_RULE_RECORDED_BY)[keyof typeof CURRENT_RULE_RECORDED_BY];
+
+/** The deterministic rule behind the thread's current category. */
+export interface CurrentCategoryRule {
+  ruleId: string;
+  /** The rule's category name now, or null when the rule has since been deleted. */
+  categoryName: string | null;
+  recordedBy: CurrentRuleRecordedBy;
+}
+
 export interface CategoryRuleTraceSnapshot {
   evaluatedAt: string;
   ruleStepRan: boolean;
@@ -215,6 +232,8 @@ export interface CategoryDebugData {
     localModelDebug?: LocalModelDebugSnapshot | null;
     /** Ordered record of every step that produced a category candidate and whether it was applied or suppressed (e.g. a GitHub override re-routing a confident category). Null for threads categorised before this existed. */
     categoryDecisionTrace?: CategoryDecisionTrace | null;
+    /** The rule that set the CURRENT category; `categoryRuleTrace` may describe an earlier decision. */
+    currentRule?: CurrentCategoryRule | null;
   };
   emailCategories: Array<{
     id: string;

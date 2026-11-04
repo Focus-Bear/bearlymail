@@ -37,9 +37,16 @@ export interface DiscoveredVipContact {
   reason?: string;
 }
 
+/** A current piece of work the user is involved in, saved as WORKING_ON. */
+export interface DiscoveredProject {
+  name: string;
+  reason?: string;
+}
+
 export interface DiscoveryResult {
   categories: DiscoveredCategory[];
   vipContacts: DiscoveredVipContact[];
+  projects: DiscoveredProject[];
   urgentHints: string[];
   notUrgentHints: string[];
 }
@@ -49,6 +56,7 @@ export interface DiscoverUserContextParams {
   userEmail: string | null;
   existingCategories: string[];
   existingVipContacts: string[];
+  existingProjects?: string[];
   userId?: string;
 }
 
@@ -150,17 +158,52 @@ function readVipContacts(
   return contacts;
 }
 
+/**
+ * Projects come back name+reason; drop blanks, ones the user already has and
+ * duplicates within one response.
+ */
+function readProjects(
+  value: unknown,
+  existingProjects: string[],
+): DiscoveredProject[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>(
+    existingProjects.map((name) => normalizeProjectName(name)).filter(Boolean),
+  );
+  const projects: DiscoveredProject[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") continue;
+    const record = raw as Record<string, unknown>;
+    const name = readString(record.name);
+    const key = normalizeProjectName(name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    projects.push({ name, reason: readString(record.reason) || undefined });
+    if (projects.length >= QUERY_LIMITS.DISCOVERY_MAX_PROJECTS_PER_BATCH) {
+      break;
+    }
+  }
+  return projects;
+}
+
+/** Case- and punctuation-insensitive key for de-duplicating project names. */
+export function normalizeProjectName(name: string): string {
+  return normalizeCategoryNameForDedup(name);
+}
+
 /** Narrow a raw model response into a DiscoveryResult; null when unparseable. */
 export function parseDiscoveryResponse(
   raw: string,
   userEmail: string | null,
   existingCategories: string[] = [],
+  existingProjects: string[] = [],
 ): DiscoveryResult | null {
   const parsed = tryParseJsonObjectFromLlmResponse(raw);
   if (!parsed) return null;
   return {
     categories: readCategories(parsed.categories, existingCategories),
     vipContacts: readVipContacts(parsed.vipContacts, userEmail),
+    projects: readProjects(parsed.projects, existingProjects),
     urgentHints: readStringList(
       parsed.urgentHints,
       QUERY_LIMITS.DISCOVERY_MAX_HINTS_PER_BATCH,
@@ -183,6 +226,7 @@ export async function discoverUserContext(
 ): Promise<DiscoveryResult | null> {
   const { threads, userEmail, existingCategories, existingVipContacts } =
     params;
+  const existingProjects = params.existingProjects ?? [];
   if (threads.length === 0) return null;
 
   const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.DISCOVER_USER_CONTEXT);
@@ -195,6 +239,7 @@ export async function discoverUserContext(
     userEmail: userEmail || "",
     existingCategories: formatList(existingCategories),
     existingVipContacts: formatList(existingVipContacts),
+    existingProjects: formatList(existingProjects),
     threadCount: threads.length,
     threads: formatDiscoveryThreads(threads),
   };
@@ -217,6 +262,7 @@ export async function discoverUserContext(
       response,
       userEmail,
       existingCategories,
+      existingProjects,
     );
     if (!result) {
       logger.warn("[DISCOVER-CONTEXT] No JSON object in response");

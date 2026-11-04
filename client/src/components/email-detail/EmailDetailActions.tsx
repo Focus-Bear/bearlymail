@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight, FiPrinter } from 'react-icons/fi';
+import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight, FiDownload, FiPrinter } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
@@ -24,6 +24,7 @@ import {
   REPLY_MODE_FORWARD,
   STRING_NONE,
 } from 'constants/strings';
+import { useEmlDownload } from 'hooks/useEmlDownload';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface EmailDetailActionsProps {
@@ -59,6 +60,8 @@ interface EmailDetailActionsProps {
    *  hoisted above the email in the main column instead (avoids duplicate cards). */
   excludeIcsCard?: boolean;
 }
+
+const OVERFLOW_ICON_SIZE = 14;
 
 // ── Shared button-style helper ─────────────────────────────────────────────
 
@@ -152,16 +155,23 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const { isMobile } = useResponsiveBreakpoints();
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
   const [snoozeValue, setSnoozeValue] = useState('');
+  const downloadEml = useEmlDownload();
   const overflowMenuItems = useMemo(
     () => [
       {
         key: 'saveAsPdf',
         label: t('emailDetail.saveAsPdf'),
-        icon: <FiPrinter size={14} />,
+        icon: <FiPrinter size={OVERFLOW_ICON_SIZE} />,
         onClick: () => window.print(),
       },
+      {
+        key: 'downloadEml',
+        label: t('emailDetail.downloadEml'),
+        icon: <FiDownload size={OVERFLOW_ICON_SIZE} />,
+        onClick: () => void downloadEml(email.id),
+      },
     ],
-    [t]
+    [t, downloadEml, email.id]
   );
   const starCount = email?.starCount ?? 0;
 

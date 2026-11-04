@@ -11,6 +11,9 @@
  *   expectedVipTerms              — lowercase substrings; each must match a VIP name
  *   forbiddenVipEmails            — lowercase substrings no VIP email may contain
  *   maxVips                       — upper bound on vipContacts.length
+ *   minProjects / maxProjects     — bounds on projects.length
+ *   expectedProjectTerms          — lowercase substrings; each must match a project name
+ *   forbiddenProjectTerms         — lowercase substrings no project name may contain
  *
  * @param {string|object} output - The LLM output
  * @param {object} context - Test context with config
@@ -31,10 +34,11 @@ module.exports = (output, context) => {
   }
 
   const config = context.config || {};
-  const { categories, vipContacts, urgentHints, notUrgentHints } = parsed;
+  const { categories, vipContacts, projects, urgentHints, notUrgentHints } = parsed;
 
   if (!Array.isArray(categories)) throw new Error('categories must be an array');
   if (!Array.isArray(vipContacts)) throw new Error('vipContacts must be an array');
+  if (!Array.isArray(projects)) throw new Error('projects must be an array');
   if (!Array.isArray(urgentHints)) throw new Error('urgentHints must be an array');
   if (!Array.isArray(notUrgentHints)) throw new Error('notUrgentHints must be an array');
 
@@ -109,6 +113,28 @@ module.exports = (output, context) => {
   for (const term of config.expectedVipTerms || []) {
     if (!vipNames.some((name) => name.includes(term.toLowerCase()))) {
       throw new Error(`Expected VIP matching "${term}". Got: ${vipNames.join(', ') || '(none)'}`);
+    }
+  }
+
+  for (const project of projects) {
+    if (!project || typeof project.name !== 'string' || !project.name.trim()) {
+      throw new Error('Every project needs a non-empty string name: ' + JSON.stringify(project));
+    }
+  }
+  if (config.minProjects !== undefined && projects.length < config.minProjects) {
+    throw new Error(`Expected at least ${config.minProjects} projects, got ${projects.length}`);
+  }
+  if (config.maxProjects !== undefined && projects.length > config.maxProjects) {
+    throw new Error(`Expected at most ${config.maxProjects} projects, got ${projects.length}: ${projects.map((p) => p.name).join(', ')}`);
+  }
+  const projectNames = projects.map((project) => project.name.toLowerCase());
+  for (const term of config.forbiddenProjectTerms || []) {
+    const hit = projectNames.find((name) => name.includes(term.toLowerCase()));
+    if (hit) throw new Error(`Project "${hit}" must not be listed (matches "${term}")`);
+  }
+  for (const term of config.expectedProjectTerms || []) {
+    if (!projectNames.some((name) => name.includes(term.toLowerCase()))) {
+      throw new Error(`Expected a project matching "${term}". Got: ${projectNames.join(', ') || '(none)'}`);
     }
   }
 

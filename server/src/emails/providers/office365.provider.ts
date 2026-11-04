@@ -59,6 +59,7 @@ import {
   parseOffice365Message,
 } from "./office365/office365-message-parser";
 import { isAuthError } from "./office365/office365-operations";
+import { getRawMessage as getRawMessageFromGraph } from "./office365/office365-raw-message";
 import {
   getExistingThreadUpdates,
   verifyThreadStatusesInOffice365,
@@ -845,6 +846,10 @@ export class Office365Provider implements EmailProvider {
       attachmentId,
       attachmentMetadata,
     );
+  }
+
+  async getRawMessage(userId: string, messageId: string): Promise<Buffer> {
+    return getRawMessageFromGraph(this, userId, messageId);
   }
 
   async addLabelToThread(

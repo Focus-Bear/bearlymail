@@ -61,4 +61,6 @@ export const STEP_UP_TOKEN_EXPIRY_MINUTES = 15;
 export const RELOGIN_REASONS = {
   GMAIL_SYNC_AUTH_ERROR: "gmail_sync_auth_error",
   GMAIL_INSUFFICIENT_SCOPE: "gmail_insufficient_scope",
+  GMAIL_ATTACHMENT_AUTH_ERROR: "gmail_attachment_auth_error",
+  GMAIL_RAW_MESSAGE_AUTH_ERROR: "gmail_raw_message_auth_error",
 } as const;

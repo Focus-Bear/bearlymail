@@ -28,6 +28,26 @@ import { WorkflowVariableResolver } from "./workflow-variable-resolver";
 
 const WEBHOOK_TIMEOUT_MS = 15_000;
 const MAX_NL_BODY_CHARS = 2000;
+const NL_VERDICT_MAX_TOKENS = 64;
+/** The JSON key the condition-evaluation prompt asks the LLM to answer with. */
+const NL_VERDICT_KEY = "matches";
+
+/**
+ * Reads the boolean verdict from the LLM's JSON reply. Returns null for
+ * anything that is not a JSON object with a real boolean verdict — a quoted
+ * "true"/"false" or a missing key is not a decision the caller can trust.
+ */
+function parseNaturalLanguageVerdict(response: string): boolean | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(response);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const verdict: unknown = (parsed as Record<string, unknown>)[NL_VERDICT_KEY];
+  return typeof verdict === "boolean" ? verdict : null;
+}
 
 /**
  * Executes a matched workflow rule: resolves variables, invokes actions,
@@ -132,6 +152,11 @@ export class WorkflowExecutionService {
   /**
    * Evaluate a rule's naturalLanguageCondition via LLM.
    * Returns true if the condition matches (or if there is no NL condition).
+   *
+   * Fails closed: a failed LLM call or an unparseable verdict counts as "not
+   * matched". Workflow actions mutate the user's mailbox (archive removes
+   * INBOX and marks read in Gmail), so an outage must never run them on mail
+   * the condition was meant to exclude.
    */
   async evaluateNaturalLanguageCondition(
     rule: WorkflowRule,
@@ -150,27 +175,36 @@ export class WorkflowExecutionService {
       `SUMMARY: ${context.summary}`,
       `BODY (truncated): ${context.body.slice(0, MAX_NL_BODY_CHARS)}`,
       "",
-      'Reply with a JSON object: {"matches": true} or {"matches": false}',
+      `Reply with a JSON object: {"${NL_VERDICT_KEY}": true} or {"${NL_VERDICT_KEY}": false}`,
     ].join("\n");
 
+    let response: string;
     try {
-      const response = await this.llmCoreService.generateText({
+      response = await this.llmCoreService.generateText({
         prompt,
         operation: LLM_OP_EVALUATE_WORKFLOW_CONDITION,
         jevDecision: { kind: JEV_DECISION_KINDS.WORKFLOW_CONDITION, input: {} },
-        maxTokens: 64,
+        maxTokens: NL_VERDICT_MAX_TOKENS,
         jsonMode: true,
         userId: context.userId,
       });
-      const parsed = JSON.parse(response);
-      return Boolean(parsed?.matches);
     } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
       this.logger.warn(
-        `NL condition evaluation failed for rule ${rule.id}: ${(err as Error).message}. Defaulting to match.`,
+        `NL condition evaluation failed for workflow ${rule.id}: ${reason}. Treating as not matched; no actions will run.`,
       );
-      // Default to match on LLM failure to avoid silently dropping workflows
-      return true;
+      return false;
     }
+
+    const verdict = parseNaturalLanguageVerdict(response);
+    if (verdict === null) {
+      // The response text is not logged: the model may echo email content.
+      this.logger.warn(
+        `NL condition evaluation for workflow ${rule.id} returned no usable verdict. Treating as not matched; no actions will run.`,
+      );
+      return false;
+    }
+    return verdict;
   }
 
   // ── Private action executors ──────────────────────────────────────────────────

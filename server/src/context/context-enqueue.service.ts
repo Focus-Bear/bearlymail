@@ -20,6 +20,7 @@ export type DiscoveryEnqueueArgs = {
   userEmail: string | null;
   existingCategories: string[];
   existingVipContacts: string[];
+  existingProjects: string[];
   batchSize: number;
 };
 
@@ -103,6 +104,7 @@ export class ContextEnqueueService {
       userEmail: args.userEmail ?? undefined,
       existingCategories: args.existingCategories,
       existingVipContacts: args.existingVipContacts,
+      existingProjects: args.existingProjects,
     };
   }
 

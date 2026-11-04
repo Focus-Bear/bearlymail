@@ -24,6 +24,10 @@ export const ERROR_MESSAGES = {
   FAILED_TO_SEND_EMAIL: "Failed to send email",
   GMAIL_RECONNECT_REQUIRED:
     "Gmail authorisation has expired. Please reconnect your account.",
+  RAW_MESSAGE_UNSUPPORTED:
+    "Downloading the original message isn't supported for this email provider yet",
+  RAW_MESSAGE_NOT_FOUND:
+    "The original message is no longer available from your email provider",
 } as const;
 
 export type ErrorMessage = (typeof ERROR_MESSAGES)[keyof typeof ERROR_MESSAGES];

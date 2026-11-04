@@ -38,6 +38,15 @@ const makeRule = (overrides: Partial<WorkflowRule> = {}): WorkflowRule => ({
   ...overrides,
 });
 
+const makeNlRule = (): WorkflowRule =>
+  makeRule({
+    condition: {
+      fromPatterns: [],
+      subjectPatterns: [],
+      naturalLanguageCondition: "some condition",
+    },
+  });
+
 describe("WorkflowExecutionService", () => {
   let service: WorkflowExecutionService;
   let mcpClient: jest.Mocked<MCPClientManagerService>;
@@ -272,22 +281,42 @@ describe("WorkflowExecutionService", () => {
       expect(result).toBe(true);
     });
 
-    it("defaults to true when LLM fails", async () => {
+    it("fails closed when the LLM call fails", async () => {
       jest
         .spyOn(service["llmCoreService"], "generateText")
         .mockRejectedValue(new Error("timeout"));
-      const rule = makeRule({
-        condition: {
-          fromPatterns: [],
-          subjectPatterns: [],
-          naturalLanguageCondition: "some condition",
-        },
-      });
       const result = await service.evaluateNaturalLanguageCondition(
-        rule,
+        makeNlRule(),
         mockContext,
       );
-      expect(result).toBe(true);
+      expect(result).toBe(false);
+    });
+
+    it.each([
+      ["unparseable JSON", "not json"],
+      ["a non-object JSON value", "true"],
+      ["a missing verdict", "{}"],
+      ["a quoted boolean verdict", '{"matches": "true"}'],
+    ])("fails closed on %s", async (_label, response) => {
+      jest
+        .spyOn(service["llmCoreService"], "generateText")
+        .mockResolvedValue(response);
+      const result = await service.evaluateNaturalLanguageCondition(
+        makeNlRule(),
+        mockContext,
+      );
+      expect(result).toBe(false);
+    });
+
+    it("returns false when the LLM says the condition does not match", async () => {
+      jest
+        .spyOn(service["llmCoreService"], "generateText")
+        .mockResolvedValue('{"matches": false}');
+      const result = await service.evaluateNaturalLanguageCondition(
+        makeNlRule(),
+        mockContext,
+      );
+      expect(result).toBe(false);
     });
   });
 });

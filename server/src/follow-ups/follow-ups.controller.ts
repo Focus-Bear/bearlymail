@@ -13,8 +13,13 @@ import {
 import { Inject } from "@nestjs/common";
 import type { PgBoss } from "pg-boss";
 
+import { RequireGooglePermission } from "../auth/google-permission.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import {
+  GMAIL_WRITE_ACTION,
+  GOOGLE_PERMISSION_GROUP,
+} from "../constants/google-oauth-scopes";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -154,6 +159,10 @@ export class FollowUpsController {
    * Bulk send follow-ups (max 20)
    */
   @Post("bulk-send")
+  @RequireGooglePermission(
+    GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
+    GMAIL_WRITE_ACTION.SEND,
+  )
   @UseGuards(AiCapacityGuard)
   async bulkSend(@Request() req, @Body() body: { followUpIds: string[] }) {
     if (!body.followUpIds || !Array.isArray(body.followUpIds)) {

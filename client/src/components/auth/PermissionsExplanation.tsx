@@ -2,6 +2,7 @@ import React, { useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
+  asksForMailChangesLater,
   hasConsentScreenTips,
   OAUTH_PERMISSIONS,
   OAUTH_PROVIDER_DISPLAY_NAMES,
@@ -62,6 +63,12 @@ export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({ 
             <PermissionRow key={permission.id} permission={permission} />
           ))}
         </ul>
+
+        {asksForMailChangesLater(provider) && (
+          <p style={styles.ledeStyle} data-testid="permissions-ask-later">
+            {t('auth.permissions.askLater')}
+          </p>
+        )}
 
         {hasConsentScreenTips(provider) && <ConsentScreenTips providerName={providerName} />}
 

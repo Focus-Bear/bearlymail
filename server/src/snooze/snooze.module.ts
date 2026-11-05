@@ -6,6 +6,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailsModule } from "../emails/emails.module";
 import { QueueModule } from "../queue/queue.module";
+import { UsersModule } from "../users/users.module";
 import { SnoozeController } from "./snooze.controller";
 import { SnoozeProcessor } from "./snooze.processor";
 import { SnoozeService } from "./snooze.service";
@@ -16,6 +17,7 @@ import { SnoozeService } from "./snooze.service";
     forwardRef(() => EmailsModule),
     QueueModule,
     AwsModule,
+    UsersModule,
   ],
   controllers: [SnoozeController],
   providers: [SnoozeService, SnoozeProcessor],

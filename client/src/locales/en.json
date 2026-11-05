@@ -104,6 +104,10 @@
           "title": "Read, organise and archive your email",
           "description": "So we can summarise, prioritise and sort your email into categories, and archive, snooze or star it for you. Changes sync back to your mailbox."
         },
+        "mailReadOnly": {
+          "title": "Read your email",
+          "description": "So we can summarise, prioritise and sort your email into categories. Read-only: nothing in your Gmail changes and nothing is sent."
+        },
         "mailSend": {
           "title": "Send email as you",
           "description": "Only when you press Send in BearlyMail, or if you switch on the AI auto-responder. We never send anything on our own."
@@ -121,6 +125,7 @@
           "description": "To create your BearlyMail account and show who you're signed in as."
         }
       },
+      "askLater": "That's all for now. If you archive, snooze, star or reply from BearlyMail, we'll explain why and ask Google for that permission the first time you do it.",
       "tips": {
         "title": "Two things on {{provider}}'s next screen",
         "keepTicked": "Leave every box ticked. If you untick one, the feature that needs it quietly stops working.",
@@ -153,7 +158,7 @@
       },
       "missingGmailPermission": {
         "title": "BearlyMail needs access to your Gmail",
-        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\").",
+        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the box to read your email.",
         "grantButton": "Allow Gmail access"
       },
       "generic": {
@@ -2729,7 +2734,7 @@
     "connectOtherProvider": "Use a different email (e.g. Crazy Domains)",
     "connectMultipleHint": "You can connect more email accounts later in Settings.",
     "accessIssueTitle": "BearlyMail can't read your Gmail",
-    "accessIssueMessage": "When you signed in, Gmail access wasn't allowed (or it was turned off). Reconnect Google and tick the Gmail boxes to see your email.",
+    "accessIssueMessage": "When you signed in, Gmail access wasn't allowed (or it was turned off). Reconnect Google and tick the Gmail box to see your email.",
     "reconnectGoogle": "Reconnect Google"
   },
   "help": {
@@ -3838,6 +3843,7 @@
       "prop1Title": "Your inbox is connected",
       "prop1Body": "Gmail or Outlook. Nothing moves, no new address. You can keep using it directly any time.",
       "prop1BodyAppleMail": "Apple Mail on this Mac. Nothing moves, no new address. You can keep using Mail.app directly any time.",
+      "prop1BodyGmailReadOnly": "Gmail, read-only for now: BearlyMail can see your email but can't change or send anything. The first time you archive, snooze or reply, we'll ask Google for that permission.",
       "prop2Title": "Choose when email arrives",
       "prop2Body": "Pick 2, 3, or 4 batch times that fit your day. Everything outside those times is automatically quiet.",
       "prop3Title": "We train an AI on your inbox",
@@ -3845,7 +3851,7 @@
       "doneTag": "Done",
       "permissions": {
         "gmailTitle": "BearlyMail can't reach your Gmail yet",
-        "gmailBody": "On Google's permission screen, the boxes that let BearlyMail read, organise and send your email were left unticked. Until you allow them, your inbox stays empty: nothing gets batched, summarised or sent.",
+        "gmailBody": "On Google's permission screen, the box that lets BearlyMail read your email was left unticked. Until you allow it, your inbox stays empty: nothing gets batched or summarised.",
         "gmailBodyRevoked": "Google has stopped letting BearlyMail into your mailbox — the access was removed or has expired. Until you allow it again, your inbox stays empty: nothing gets batched, summarised or sent.",
         "gmailButton": "Allow Gmail access"
       },
@@ -5136,10 +5142,50 @@
       "message": "We've only got contacts from your emails.",
       "action": "Import all your Gmail contacts"
     },
+    "explainer": {
+      "gmail_manage": {
+        "title": "Let BearlyMail manage your Gmail?",
+        "reason": "BearlyMail needs permission to manage your email to do this in Gmail.",
+        "reassurance": "Nothing changes until you choose an action: BearlyMail only archives, snoozes, stars or deletes when you ask it to (or when a rule you set up does)."
+      },
+      "gmail_send": {
+        "title": "Let BearlyMail send email for you?",
+        "reason": "BearlyMail needs permission to send email from your Gmail.",
+        "reassurance": "Nothing is sent until you press Send, schedule a message, or switch on the auto-responder."
+      },
+      "calendar": {
+        "title": "Connect your Google Calendar?",
+        "reason": "BearlyMail needs permission to use your calendar to do this.",
+        "reassurance": "BearlyMail only adds events when you ask it to."
+      },
+      "contacts": {
+        "title": "Import your Google contacts?",
+        "reason": "BearlyMail needs permission to read your contacts to do this.",
+        "reassurance": "BearlyMail only reads them; it never changes your contacts."
+      },
+      "actions": {
+        "archive": "To archive in Gmail, BearlyMail needs permission to manage your email.",
+        "delete": "To move email to the Gmail bin, BearlyMail needs permission to manage your email.",
+        "star": "To star email in Gmail, BearlyMail needs permission to manage your email.",
+        "snooze": "To snooze email in Gmail, BearlyMail needs permission to manage your email.",
+        "block_sender": "To block a sender and archive their email in Gmail, BearlyMail needs permission to manage your email.",
+        "send": "To send from your Gmail address, BearlyMail needs permission to send email as you."
+      },
+      "afterwardsRetry": "Google will show its permission screen next. When you come back, we'll finish what you started.",
+      "afterwardsTryAgain": "Google will show its permission screen next. When you come back, try again.",
+      "continue": "Continue to Google",
+      "redirecting": "Opening Google…"
+    },
     "result": {
       "granted": "Done. BearlyMail can now use it.",
+      "grantedAndRetried": "Done. BearlyMail has the permission and finished what you started.",
+      "retryFailed": "BearlyMail has the permission now, but couldn't finish what you started. Please try again.",
       "declined": "Google didn't give BearlyMail that permission. Tick its box on Google's screen to allow it.",
       "wrongAccount": "That was a different Google account. Choose the account you signed in to BearlyMail with."
+    },
+    "writeNotice": {
+      "message": "Allow BearlyMail to manage Gmail so archiving also happens in Gmail. Until then, changes stay in BearlyMail only.",
+      "allow": "Allow"
     }
   }
 }

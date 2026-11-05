@@ -1,6 +1,12 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  GOOGLE_PERMISSION_ACTION_RETRIED_EVENT,
+  PendingGooglePermissionAction,
+  replayPendingAction,
+  takePendingAction,
+} from 'utils/googlePermissionRequired';
 
 import {
   GOOGLE_PERMISSION_RESULT_DECLINED,
@@ -18,9 +24,10 @@ const RESULT_MESSAGE_KEYS: Record<string, string> = {
 };
 
 /**
- * Renders nothing. When Google sends the user back from granting calendar or
- * contacts, says how it went, reloads the user so the prompts disappear, and
- * removes the result from the URL so a reload doesn't repeat it.
+ * Renders nothing. When Google sends the user back from granting a permission,
+ * says how it went, reloads the user so the prompts disappear, retries the
+ * action that needed the permission (archive, send…), and removes the result
+ * from the URL so a reload doesn't repeat it.
  */
 export const GooglePermissionResultListener: React.FC = () => {
   const { t } = useTranslation();
@@ -30,6 +37,17 @@ export const GooglePermissionResultListener: React.FC = () => {
   const { showSuccess, showError } = useNotifications();
 
   useEffect(() => {
+    const retryPendingAction = async (pendingAction: PendingGooglePermissionAction) => {
+      try {
+        await replayPendingAction(pendingAction);
+        window.dispatchEvent(new Event(GOOGLE_PERMISSION_ACTION_RETRIED_EVENT));
+        showSuccess(t('googlePermissions.result.grantedAndRetried'));
+      } catch (err: unknown) {
+        console.error('Retrying the action after the Google grant failed:', err);
+        showError(t('googlePermissions.result.retryFailed'));
+      }
+    };
+
     const params = new URLSearchParams(location.search);
     const result = params.get(GOOGLE_PERMISSION_RESULT_PARAM);
     if (!result) {
@@ -45,12 +63,18 @@ export const GooglePermissionResultListener: React.FC = () => {
     if (!messageKey) {
       return;
     }
-    if (result === GOOGLE_PERMISSION_RESULT_GRANTED) {
-      void refreshUser();
-      showSuccess(t(messageKey));
+    // Taken on every outcome so a declined grant never retries later.
+    const pendingAction = takePendingAction();
+    if (result !== GOOGLE_PERMISSION_RESULT_GRANTED) {
+      showError(t(messageKey));
       return;
     }
-    showError(t(messageKey));
+    void refreshUser();
+    if (pendingAction) {
+      void retryPendingAction(pendingAction);
+      return;
+    }
+    showSuccess(t(messageKey));
   }, [location.search, location.pathname, location.hash, navigate, refreshUser, showSuccess, showError, t]);
 
   return null;

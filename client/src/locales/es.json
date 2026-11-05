@@ -457,6 +457,10 @@
           "title": "Leer, organizar y archivar tu correo",
           "description": "Para resumir, priorizar y clasificar tu correo en categorías, y archivarlo, posponerlo o destacarlo por ti. Los cambios se sincronizan con tu buzón."
         },
+        "mailReadOnly": {
+          "title": "Leer tu correo",
+          "description": "Para resumir, priorizar y clasificar tu correo en categorías. Solo lectura: nada cambia en tu Gmail y no se envía nada."
+        },
         "mailSend": {
           "title": "Enviar correos en tu nombre",
           "description": "Solo cuando pulsas Enviar en BearlyMail, o si activas el contestador automático con IA. Nunca enviamos nada por nuestra cuenta."
@@ -474,6 +478,7 @@
           "description": "Para crear tu cuenta de BearlyMail y mostrar con qué cuenta has iniciado sesión."
         }
       },
+      "askLater": "Eso es todo por ahora. Si archivas, pospones, destacas o respondes desde BearlyMail, te explicaremos por qué y pediremos ese permiso a Google la primera vez que lo hagas.",
       "tips": {
         "title": "Dos cosas en la siguiente pantalla de {{provider}}",
         "keepTicked": "Deja todas las casillas marcadas. Si desmarcas una, la función que la necesita dejará de funcionar sin avisar.",
@@ -506,7 +511,7 @@
       },
       "missingGmailPermission": {
         "title": "BearlyMail necesita acceso a tu Gmail",
-        "description": "La pantalla de permisos de Google te dejó iniciar sesión sin permitir el acceso a Gmail, así que BearlyMail no puede ver tu bandeja de entrada. Vuelve a iniciar sesión y, en la pantalla de Google, marca las casillas para leer, redactar y enviar correos (o elige \"Seleccionar todo\").",
+        "description": "La pantalla de permisos de Google te dejó iniciar sesión sin permitir el acceso a Gmail, así que BearlyMail no puede ver tu bandeja. Vuelve a iniciar sesión y, en la pantalla de Google, marca la casilla para leer tu correo.",
         "grantButton": "Permitir acceso a Gmail"
       },
       "generic": {
@@ -1672,7 +1677,7 @@
     "connectMultipleHint": "Puedes conectar más cuentas de correo más adelante en Ajustes.",
     "connectTitle": "Conecta tu correo",
     "accessIssueTitle": "BearlyMail no puede leer tu Gmail",
-    "accessIssueMessage": "Cuando iniciaste sesión, no se permitió el acceso a Gmail (o se desactivó). Vuelve a conectar Google y marca las casillas de Gmail para ver tu correo.",
+    "accessIssueMessage": "Al iniciar sesión no se permitió el acceso a Gmail (o se desactivó). Vuelve a conectar Google y marca la casilla de Gmail para ver tu correo.",
     "reconnectGoogle": "Volver a conectar Google"
   },
   "help": {
@@ -3283,6 +3288,7 @@
       "prop1Title": "Tu bandeja de entrada está conectada",
       "prop1Body": "Gmail u Outlook. Nada se mueve, sin nueva dirección. Puedes seguir usándola directamente en cualquier momento.",
       "prop1BodyAppleMail": "Apple Mail en este Mac. Nada se mueve, sin nueva dirección. Puedes seguir usando Mail.app directamente cuando quieras.",
+      "prop1BodyGmailReadOnly": "Gmail, de momento solo lectura: BearlyMail puede ver tu correo pero no cambiar ni enviar nada. La primera vez que archives, pospongas o respondas, pediremos ese permiso a Google.",
       "prop2Title": "Elige cuándo llegan los correos",
       "prop2Body": "Elige 2, 3 o 4 horarios de entrega que se ajusten a tu día. Todo lo que esté fuera de esos horarios está automáticamente en silencio.",
       "prop3Title": "Entrenamos una IA con tu bandeja",
@@ -3290,7 +3296,7 @@
       "doneTag": "Listo",
       "permissions": {
         "gmailTitle": "BearlyMail todavía no puede acceder a tu Gmail",
-        "gmailBody": "En la pantalla de permisos de Google quedaron sin marcar las casillas que permiten a BearlyMail leer, organizar y enviar tus correos. Hasta que las permitas, tu bandeja seguirá vacía: no se agrupará, resumirá ni enviará nada.",
+        "gmailBody": "En la pantalla de permisos de Google quedó sin marcar la casilla que permite a BearlyMail leer tu correo. Hasta que la permitas, tu bandeja seguirá vacía: no se agrupará ni resumirá nada.",
         "gmailBodyRevoked": "Google ya no deja que BearlyMail acceda a tu buzón: el acceso se eliminó o caducó. Hasta que lo vuelvas a permitir, tu bandeja seguirá vacía: no se agrupará, resumirá ni enviará nada.",
         "gmailButton": "Permitir acceso a Gmail"
       },
@@ -5139,10 +5145,50 @@
       "message": "Solo tenemos los contactos de tus correos.",
       "action": "Importar todos tus contactos de Gmail"
     },
+    "explainer": {
+      "gmail_manage": {
+        "title": "¿Dejar que BearlyMail gestione tu Gmail?",
+        "reason": "BearlyMail necesita permiso para gestionar tu correo para hacer esto en Gmail.",
+        "reassurance": "Nada cambia hasta que elijas una acción: BearlyMail solo archiva, pospone, destaca o elimina cuando se lo pides (o cuando lo hace una regla que configuraste)."
+      },
+      "gmail_send": {
+        "title": "¿Dejar que BearlyMail envíe correo por ti?",
+        "reason": "BearlyMail necesita permiso para enviar correo desde tu Gmail.",
+        "reassurance": "No se envía nada hasta que pulses Enviar, programes un mensaje o actives la respuesta automática."
+      },
+      "calendar": {
+        "title": "¿Conectar tu Google Calendar?",
+        "reason": "BearlyMail necesita permiso para usar tu calendario para hacer esto.",
+        "reassurance": "BearlyMail solo añade eventos cuando se lo pides."
+      },
+      "contacts": {
+        "title": "¿Importar tus contactos de Google?",
+        "reason": "BearlyMail necesita permiso para leer tus contactos para hacer esto.",
+        "reassurance": "BearlyMail solo los lee; nunca cambia tus contactos."
+      },
+      "actions": {
+        "archive": "Para archivar en Gmail, BearlyMail necesita permiso para gestionar tu correo.",
+        "delete": "Para mover correo a la papelera de Gmail, BearlyMail necesita permiso para gestionar tu correo.",
+        "star": "Para destacar correo en Gmail, BearlyMail necesita permiso para gestionar tu correo.",
+        "snooze": "Para posponer correo en Gmail, BearlyMail necesita permiso para gestionar tu correo.",
+        "block_sender": "Para bloquear un remitente y archivar su correo en Gmail, BearlyMail necesita permiso para gestionar tu correo.",
+        "send": "Para enviar desde tu dirección de Gmail, BearlyMail necesita permiso para enviar correo en tu nombre."
+      },
+      "afterwardsRetry": "A continuación Google mostrará su pantalla de permisos. Cuando vuelvas, terminaremos lo que empezaste.",
+      "afterwardsTryAgain": "A continuación Google mostrará su pantalla de permisos. Cuando vuelvas, inténtalo de nuevo.",
+      "continue": "Continuar a Google",
+      "redirecting": "Abriendo Google…"
+    },
     "result": {
       "granted": "Listo. BearlyMail ya puede usarlo.",
+      "grantedAndRetried": "Listo. BearlyMail ya tiene el permiso y terminó lo que empezaste.",
+      "retryFailed": "BearlyMail ya tiene el permiso, pero no pudo terminar lo que empezaste. Inténtalo de nuevo.",
       "declined": "Google no le dio ese permiso a BearlyMail. Marca su casilla en la pantalla de Google para permitirlo.",
       "wrongAccount": "Esa era otra cuenta de Google. Elige la cuenta con la que iniciaste sesión en BearlyMail."
+    },
+    "writeNotice": {
+      "message": "Permite que BearlyMail gestione Gmail para que lo que archives también se archive en Gmail. Hasta entonces, los cambios solo quedan en BearlyMail.",
+      "allow": "Permitir"
     }
   }
 }

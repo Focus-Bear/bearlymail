@@ -299,3 +299,7 @@ export const BYTES_PER_KB = 1024;
 export const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB;
 
 export const CATEGORY_FETCH_RETRY_DELAY_MS = 5_000; // default retry delay for category fetch errors
+
+// An action waiting on a Google consent screen is retried only if the user comes back within this window
+const PENDING_GOOGLE_PERMISSION_ACTION_MAX_AGE_MINUTES = 15;
+export const PENDING_GOOGLE_PERMISSION_ACTION_MAX_AGE_MS = PENDING_GOOGLE_PERMISSION_ACTION_MAX_AGE_MINUTES * MS_PER_MINUTE;

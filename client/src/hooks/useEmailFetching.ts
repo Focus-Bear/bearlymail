@@ -38,6 +38,7 @@ import {
 import { chunkKeys, planCategoryRefresh, refreshLimitFor } from 'hooks/categoryRefresh';
 import { InboxFilter, resolveEffectiveFilters } from 'hooks/useInboxFilters';
 import { BackoffContext, usePollingWithBackoff } from 'hooks/usePollingWithBackoff';
+import { useRefreshAfterRetriedGoogleAction } from 'hooks/useRefreshAfterRetriedGoogleAction';
 import {
   selectCategorySummary,
   selectLoadedCategoryNames,
@@ -430,6 +431,8 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
     },
     [mode, dispatch, filters, store, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary]
   );
+
+  useRefreshAfterRetriedGoogleAction(refreshInPlace);
 
   return { fetchEmails, fetchCategoryEmails, fetchCategoryEmailsBatch, refreshInPlace };
 }

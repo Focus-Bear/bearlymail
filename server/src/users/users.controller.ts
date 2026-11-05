@@ -17,7 +17,12 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { findMissingGooglePermissionGroups } from "../constants/google-oauth-scopes";
+import { GMAIL_WRITE_NOTICE } from "../constants/domain-statuses";
+import {
+  findMissingGooglePermissionGroups,
+  GOOGLE_PERMISSION_GROUP,
+  hasGooglePermission,
+} from "../constants/google-oauth-scopes";
 import { User } from "../database/entities/user.entity";
 import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
@@ -25,6 +30,22 @@ import { DataExportService } from "./data-export.service";
 import { DataImportService, ImportOptions } from "./data-import.service";
 import { resolveGmailAccessIssue } from "./gmail-access-issue";
 import { UsersService } from "./users.service";
+
+/**
+ * A background job skipped a Gmail write and the grant still can't make one.
+ * Granting gmail.modify hides it without a dismiss.
+ */
+function shouldShowGmailWriteNotice(
+  user: Pick<User, "gmailWriteNotice" | "googleGrantedScopes">,
+): boolean {
+  return (
+    user.gmailWriteNotice === GMAIL_WRITE_NOTICE.PENDING &&
+    !hasGooglePermission(
+      user.googleGrantedScopes,
+      GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+    )
+  );
+}
 
 // Performance budgets for consent-status
 // 200ms - should be very fast (just a user lookup)
@@ -112,7 +133,15 @@ export class UsersController {
       missingGooglePermissions: findMissingGooglePermissionGroups(
         user.googleGrantedScopes,
       ),
+      showGmailWriteNotice: shouldShowGmailWriteNotice(user),
     };
+  }
+
+  /** The user closed the "allow BearlyMail to manage Gmail" notice. */
+  @Post("me/gmail-write-notice/dismiss")
+  async dismissGmailWriteNotice(@Request() req): Promise<{ success: true }> {
+    await this.usersService.dismissGmailWriteNotice(req.user.userId);
+    return { success: true };
   }
 
   @Put("me")

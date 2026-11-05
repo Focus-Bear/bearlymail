@@ -18,8 +18,13 @@ import { FilesInterceptor } from "@nestjs/platform-express";
 import type { PgBoss } from "pg-boss";
 
 import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
+import { RequireGooglePermission } from "../auth/google-permission.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import {
+  GMAIL_WRITE_ACTION,
+  GOOGLE_PERMISSION_GROUP,
+} from "../constants/google-oauth-scopes";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
@@ -108,6 +113,10 @@ export class EmailSendController {
    * outcome from the `email-send-succeeded` / `email-send-failed` Pusher event.
    */
   @Post("send")
+  @RequireGooglePermission(
+    GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
+    GMAIL_WRITE_ACTION.SEND,
+  )
   @HttpCode(HttpStatus.ACCEPTED)
   @UseInterceptors(FilesInterceptor("files", 10))
   async sendEmail(

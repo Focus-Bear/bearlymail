@@ -9,6 +9,8 @@ import {
   GOOGLE_PERMISSION_CALENDAR,
   GOOGLE_PERMISSION_CONTACTS,
   GOOGLE_PERMISSION_GMAIL,
+  GOOGLE_PERMISSION_GMAIL_MANAGE,
+  GOOGLE_PERMISSION_GMAIL_SEND,
 } from 'constants/strings';
 import { useAuth,User } from 'contexts/AuthContext';
 
@@ -46,6 +48,28 @@ describe('WelcomeStep — Google permissions', () => {
     expect(screen.getByText(CONNECTED_TITLE)).toBeInTheDocument();
     expect(screen.getByText('setupWizard.welcome.doneTag')).toBeInTheDocument();
     expect(screen.queryByText(GMAIL_TITLE)).not.toBeInTheDocument();
+  });
+
+  it('shows a read-only Gmail grant as connected, not as missing Gmail', () => {
+    renderWithUser({
+      missingGooglePermissions: [
+        GOOGLE_PERMISSION_GMAIL_MANAGE,
+        GOOGLE_PERMISSION_GMAIL_SEND,
+        GOOGLE_PERMISSION_CALENDAR,
+        GOOGLE_PERMISSION_CONTACTS,
+      ],
+    });
+
+    expect(screen.getByText(CONNECTED_TITLE)).toBeInTheDocument();
+    expect(screen.getByText('setupWizard.welcome.prop1BodyGmailReadOnly')).toBeInTheDocument();
+    expect(screen.queryByText(GMAIL_TITLE)).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps the usual copy for an existing user who already allowed changes', () => {
+    renderWithUser({ missingGooglePermissions: [GOOGLE_PERMISSION_CALENDAR, GOOGLE_PERMISSION_CONTACTS] });
+
+    expect(screen.getByText('setupWizard.welcome.prop1Body')).toBeInTheDocument();
   });
 
   it('replaces "Your inbox is connected" with a warning when Gmail was left unticked', () => {

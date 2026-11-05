@@ -394,6 +394,7 @@ ${closing}`;
     sentMessage: { messageId: string };
     replySubject: string;
     bodyWithSignature: string;
+    htmlBodyWithSignature: string;
     userEmail: string;
     replyToAddress: string;
     cc?: string;
@@ -405,6 +406,7 @@ ${closing}`;
       sentMessage,
       replySubject,
       bodyWithSignature,
+      htmlBodyWithSignature,
       userEmail,
       replyToAddress,
       cc,
@@ -428,6 +430,10 @@ ${closing}`;
         cc: cc || undefined,
         subject: replySubject,
         body: bodyWithSignature,
+        // Without the HTML part the thread renders `body` (the plain-text
+        // part, which carries the composer's <p> markup) as HTML: its quote
+        // loses its line breaks and the reply's <blockquote> is gone.
+        htmlBody: htmlBodyWithSignature,
         isRead: true,
         receivedAt: new Date(),
         labels: ["SENT"],
@@ -801,6 +807,7 @@ ${closing}`;
       sentMessage,
       replySubject: payload.replySubject,
       bodyWithSignature: payload.bodyWithSignature,
+      htmlBodyWithSignature: payload.htmlBodyWithSignature,
       userEmail,
       replyToAddress: payload.replyToAddress,
       cc,

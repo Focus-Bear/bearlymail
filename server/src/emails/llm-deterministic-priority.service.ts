@@ -189,6 +189,7 @@ export class LLMDeterministicPriorityService {
       categoryName: categoryMatch.categoryName,
       ruleCategoryId: categoryMatch.categoryId,
       finalCategoryId: categoryId,
+      ruleId: categoryMatch.ruleId,
       analyzedEmail: analyzedEmailFromEmail(email, "email-metadata"),
     });
 

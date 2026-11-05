@@ -139,7 +139,7 @@ const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId, onClos
     if (!debugInfo) {
       return;
     }
-    const text = formatForGithubIssue(debugInfo);
+    const text = formatForGithubIssue(debugInfo, window.location.origin);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);

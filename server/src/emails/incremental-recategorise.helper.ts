@@ -229,6 +229,7 @@ async function applyRuleCategory(
         email,
         categoryName: rule.categoryName,
         categoryId: rule.categoryId,
+        ruleId: rule.ruleId,
       }),
     },
   );

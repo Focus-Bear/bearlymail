@@ -133,6 +133,8 @@ export function deterministicRuleDecisionTrace(args: {
   categoryName: string;
   ruleCategoryId: string | null;
   finalCategoryId: string | null;
+  /** The rule that matched, so the debug report can name and link it. */
+  ruleId?: string;
   /** The GitHub facts the rule matcher saw, appended to the step detail. */
   githubFacts?: string;
   trigger?: CategoryDecisionTrigger;
@@ -152,6 +154,7 @@ export function deterministicRuleDecisionTrace(args: {
         outcome: "applied",
         category: args.categoryName,
         categoryId: args.ruleCategoryId,
+        ...(args.ruleId ? { ruleId: args.ruleId } : {}),
         detail: withGithubFacts(
           `Learned deterministic rule matched category "${args.categoryName}".`,
           args.githubFacts,

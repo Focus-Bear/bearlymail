@@ -11,6 +11,10 @@ import {
 } from "../../constants/domain-statuses";
 import { OAUTH_ERROR_CODES } from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
+import {
+  GOOGLE_PERMISSION_GROUP,
+  hasGooglePermission,
+} from "../../constants/google-oauth-scopes";
 import { HTTP_STATUS } from "../../constants/http-status";
 import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
@@ -381,6 +385,7 @@ export class GmailSyncService {
     message: gmail_v1.Schema$Message,
     starCount: number,
     isInitialSync: boolean,
+    canWriteToGmail: boolean,
   ): Promise<void> {
     const rawEmail = parseGmailMessage(message);
     if (!rawEmail) return;
@@ -395,7 +400,11 @@ export class GmailSyncService {
         Array.isArray(existing.attachments) && existing.attachments.length > 0;
       const parsedAttachments = rawEmail.attachments;
       const updates: { isRead?: boolean; attachments?: EmailAttachment[] } = {};
-      if (existing.isRead !== isReadInGmail) {
+      // A read-only grant can't mark the email read in Gmail, so Gmail's UNREAD
+      // says nothing about what the user has already read in BearlyMail.
+      const keepReadInBearlyMail =
+        !canWriteToGmail && existing.isRead && !isReadInGmail;
+      if (existing.isRead !== isReadInGmail && !keepReadInBearlyMail) {
         updates.isRead = isReadInGmail;
       }
       if (!hasStoredAttachments && parsedAttachments?.length) {
@@ -438,6 +447,11 @@ export class GmailSyncService {
   }> {
     const starUpdates: { threadId: string; starCount: number }[] = [];
     const archivedUpdates: { threadId: string; isArchived: boolean }[] = [];
+    const user = await this.usersService.findOneWithTokens(userId);
+    const canWriteToGmail = hasGooglePermission(
+      user?.googleGrantedScopes,
+      GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+    );
     const BATCH_SIZE = 5;
     const MAX_THREADS = QUERY_LIMITS.INBOX_TOTAL;
 
@@ -480,6 +494,7 @@ export class GmailSyncService {
                 message,
                 starCount,
                 isInitialSync,
+                canWriteToGmail,
               );
             }
           } catch (error) {

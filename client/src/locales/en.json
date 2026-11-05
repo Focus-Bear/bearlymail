@@ -3084,7 +3084,8 @@
     "whatsChanged": "What's changed",
     "changeSummaries": {
       "privacy_1_2_0": "We now explain email open tracking: emails you send can include a small invisible image that records when they are opened, with the opener's IP address and device details.",
-      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia."
+      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia.",
+      "privacy_1_4_0": "We now explain which decisions about your email our programs and AI make or help with, and how to ask a person to review one; that we may train a small model for your account only, from your own email; that we follow Google's Limited Use requirements; and your rights and regulators in Australia, the EU and UK, New Zealand and the US. You also now need to be at least 16 to use BearlyMail, and our Terms of Use have changed to match."
     }
   },
   "debug": {
@@ -4708,8 +4709,8 @@
             "body": "We make money from subscriptions, not your data. We never sell it or use it for advertising."
           },
           "noTraining": {
-            "title": "Not used to train AI",
-            "body": "Every AI provider we use commits not to train its models on your email."
+            "title": "Not used to train shared AI",
+            "body": "Every AI provider we use commits not to train its models on your email. Any model we train from it is for your account only."
           },
           "control": {
             "title": "You stay in control",

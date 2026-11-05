@@ -19,6 +19,8 @@ import {
 } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { LocalModelUserDataService } from "../local-model/local-model-user-data.service";
+import { logErrorToFile } from "../utils/error-logger";
 
 const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
 
@@ -111,6 +113,7 @@ export class UsersService {
     private userRepository: Repository<User>,
     @InjectRepository(DeletedAccount)
     private deletedAccountRepository: Repository<DeletedAccount>,
+    private readonly localModelUserDataService: LocalModelUserDataService,
   ) {}
 
   /**
@@ -652,6 +655,15 @@ export class UsersService {
    * activity was never recorded) falls outside the given retention window.
    * Used by the data-retention cleanup job to find accounts eligible for deletion.
    */
+  /** Which of these ids still have an account. */
+  async findExistingUserIds(userIds: string[]): Promise<Set<string>> {
+    const rows: { id: string }[] = await this.userRepository.query(
+      `SELECT id FROM users WHERE id = ANY($1::uuid[])`,
+      [userIds],
+    );
+    return new Set(rows.map((row) => row.id));
+  }
+
   async findUsersForDeletion(thresholdDays: number): Promise<string[]> {
     const HOURS_PER_DAY = 24;
     const MINUTES_PER_HOUR = 60;
@@ -720,8 +732,32 @@ export class UsersService {
       await manager.getRepository(User).delete(userId);
     });
 
+    await this.deleteLocalModelData(userId);
+
     const completedMsg = `[UsersService.deleteAccount] Successfully deleted account for user ${userId}`;
     writeDebugLog(completedMsg);
+  }
+
+  /**
+   * The training export holds the user's email in plaintext, so it must not
+   * outlive the account. Runs after the DB transaction commits: S3 isn't
+   * transactional, and a storage failure shouldn't resurrect a half-deleted
+   * account, so it's logged loudly for follow-up instead of rethrown.
+   */
+  private async deleteLocalModelData(userId: string): Promise<void> {
+    try {
+      await this.localModelUserDataService.deleteUserData(userId);
+    } catch (error: unknown) {
+      this.logger.error(
+        `[UsersService.deleteAccount] Failed to delete local-model data for user ${userId}`,
+        error,
+      );
+      logErrorToFile(
+        `Failed to delete local-model data (userId: ${userId})`,
+        error,
+        "UsersService",
+      );
+    }
   }
 
   /**

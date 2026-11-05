@@ -16,6 +16,27 @@ import { logErrorToFile } from "../utils/error-logger";
 
 const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
 
+/**
+ * The fields of a structured error the client acts on, such as the code that
+ * opens the Google permission prompt. Listed by name so nothing else an
+ * exception carries reaches the browser, and only kept for client errors.
+ */
+const CLIENT_ERROR_DETAIL_FIELDS = ["code", "permission", "action"] as const;
+
+function pickClientErrorDetails(
+  status: number,
+  message: unknown,
+): Record<string, unknown> {
+  if (status >= HttpStatus.INTERNAL_SERVER_ERROR) return {};
+  if (typeof message !== "object" || message === null) return {};
+  const body = message as Record<string, unknown>;
+  return Object.fromEntries(
+    CLIENT_ERROR_DETAIL_FIELDS.filter((field) => body[field] !== undefined).map(
+      (field) => [field, body[field]],
+    ),
+  );
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -130,6 +151,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       path: request.url,
       message: sanitizedMessage,
       ...(errorCode ? { error: errorCode } : {}),
+      ...pickClientErrorDetails(status, message),
     });
   }
 }

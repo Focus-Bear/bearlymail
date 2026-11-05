@@ -35,7 +35,7 @@ export const MCP_ENDPOINT_PATH = '/mcp';
 /** Name the setup snippets register the server under in Claude. */
 export const MCP_CLIENT_SERVER_NAME = 'bearlymail';
 
-export const DEFAULT_TOKEN_NAME = 'Claude';
+export const DEFAULT_TOKEN_NAME = 'AI app';
 
 /** Expiry choices; must be a subset of the server's ALLOWED_EXPIRY_DAYS. `null` = never expires. */
 export const TOKEN_EXPIRY_OPTIONS: readonly (number | null)[] = [

@@ -41,6 +41,15 @@ export const ClaudeConnectorSetup: React.FC = () => {
       >
         {t('settings.claudeAccess.connectorTitle')}
       </h3>
+      <p
+        style={{
+          margin: `0 0 ${theme.spacing.sm}`,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+        }}
+      >
+        {t('settings.claudeAccess.connectorSubtitle')}
+      </p>
       <ol style={{ margin: 0, paddingLeft: theme.spacing.lg }}>
         <li style={stepStyle}>
           {t('settings.claudeAccess.connectorStepOpen')}{' '}

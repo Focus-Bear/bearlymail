@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { claudeCodeCommand, claudeDesktopConfig } from './claudeSetupSnippets';
+import { authorizationHeaderValue, mcpClientConfig, mcpEndpointUrl } from './claudeSetupSnippets';
 import { CopyableBlock } from './CopyableBlock';
 
 interface NewTokenPanelProps {
@@ -10,7 +10,7 @@ interface NewTokenPanelProps {
   onDismiss: () => void;
 }
 
-/** Shows a freshly created token once, with ready-to-paste setup for Claude. */
+/** Shows a freshly created token once, with what any MCP app needs to use it. */
 export const NewTokenPanel: React.FC<NewTokenPanelProps> = ({ token, onDismiss }) => {
   const { t } = useTranslation();
   return (
@@ -30,14 +30,19 @@ export const NewTokenPanel: React.FC<NewTokenPanelProps> = ({ token, onDismiss }
       </p>
       <CopyableBlock label={t('settings.claudeAccess.tokenLabel')} value={token} testId="new-access-token-value" />
       <CopyableBlock
-        label={t('settings.claudeAccess.claudeCodeLabel')}
-        value={claudeCodeCommand(token)}
-        testId="claude-code-command"
+        label={t('settings.claudeAccess.serverUrlLabel')}
+        value={mcpEndpointUrl()}
+        testId="mcp-server-url"
       />
       <CopyableBlock
-        label={t('settings.claudeAccess.claudeDesktopLabel')}
-        value={claudeDesktopConfig(token)}
-        testId="claude-desktop-config"
+        label={t('settings.claudeAccess.authHeaderLabel')}
+        value={authorizationHeaderValue(token)}
+        testId="mcp-auth-header"
+      />
+      <CopyableBlock
+        label={t('settings.claudeAccess.configFileLabel')}
+        value={mcpClientConfig(token)}
+        testId="mcp-client-config"
       />
       <button
         type="button"

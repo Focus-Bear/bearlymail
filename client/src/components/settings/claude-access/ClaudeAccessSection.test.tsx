@@ -57,7 +57,9 @@ function passwordChallenge() {
 describe('ClaudeAccessSection', () => {
   beforeEach(() => {
     vi.mocked(axios.isAxiosError).mockReset().mockReturnValue(true);
-    vi.mocked(axios.get).mockReset().mockResolvedValue({ data: [EXISTING_TOKEN] });
+    vi.mocked(axios.get)
+      .mockReset()
+      .mockResolvedValue({ data: [EXISTING_TOKEN] });
     vi.mocked(axios.post).mockReset();
     vi.mocked(axios.delete).mockReset().mockResolvedValue({ data: undefined });
     mockShowError.mockReset();
@@ -96,9 +98,30 @@ describe('ClaudeAccessSection', () => {
     await waitFor(() => expect(screen.queryByText('Claude (claude.ai)')).not.toBeInTheDocument());
   });
 
+  it('recommends the Claude connector and keeps tokens out of the way until asked for', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: [CLAUDE_CONNECTION] });
+    render(<ClaudeAccessSection />);
+    await screen.findByText('Claude (claude.ai)');
+
+    expect(screen.getByTestId('claude-connector-setup')).toBeInTheDocument();
+    expect(screen.queryByTestId('access-token-create-form')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('settings.claudeAccess.tokenSectionToggle'));
+    expect(screen.getByTestId('access-token-create-form')).toBeInTheDocument();
+  });
+
+  it('shows the token section straight away for someone who already uses tokens', async () => {
+    render(<ClaudeAccessSection />);
+    await screen.findByText('Laptop');
+    expect(screen.getByTestId('access-token-create-form')).toBeInTheDocument();
+    expect(screen.queryByText('settings.claudeAccess.tokenSectionToggle')).not.toBeInTheDocument();
+  });
+
   it('creates a read-only 90-day token by default and shows the setup snippets once', async () => {
     mockPosts({
-      data: { token: 'bm_pat_SECRET', summary: { ...EXISTING_TOKEN, id: 'token-2', name: 'Claude', scopes: ['mail:read'] } },
+      data: {
+        token: 'bm_pat_SECRET',
+        summary: { ...EXISTING_TOKEN, id: 'token-2', name: 'Claude', scopes: ['mail:read'] },
+      },
     });
     render(<ClaudeAccessSection />);
     await screen.findByText('Laptop');
@@ -108,14 +131,14 @@ describe('ClaudeAccessSection', () => {
     await waitFor(() =>
       expect(axios.post).toHaveBeenCalledWith(
         TOKENS_URL,
-        { name: 'Claude', scopes: ['mail:read'], expiresInDays: 90 },
+        { name: 'AI app', scopes: ['mail:read'], expiresInDays: 90 },
         STEP_UP_HEADERS
       )
     );
     expect(await screen.findByTestId('new-access-token-value')).toHaveTextContent('bm_pat_SECRET');
-    expect(screen.getByTestId('claude-code-command')).toHaveTextContent(
-      'claude mcp add --transport http bearlymail http://api.test/mcp --header "Authorization: Bearer bm_pat_SECRET"'
-    );
+    expect(screen.getByTestId('mcp-server-url')).toHaveTextContent('http://api.test/mcp');
+    expect(screen.getByTestId('mcp-auth-header')).toHaveTextContent('Bearer bm_pat_SECRET');
+    expect(screen.getByTestId('mcp-client-config')).toHaveTextContent('mcp-remote');
 
     fireEvent.click(screen.getByText('settings.claudeAccess.dismiss'));
     expect(screen.queryByTestId('new-access-token-panel')).not.toBeInTheDocument();

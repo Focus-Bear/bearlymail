@@ -22,10 +22,49 @@ const subheadingStyle: React.CSSProperties = {
   margin: `${theme.spacing.lg} 0 ${theme.spacing.sm}`,
 };
 
+const toggleStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  margin: `${theme.spacing.sm} 0`,
+  color: theme.colors.primary.main,
+  cursor: 'pointer',
+  fontSize: theme.typography.fontSize.sm,
+};
+
+interface TokenSectionProps {
+  newToken: string | null;
+  isCreating: boolean;
+  onCreate: React.ComponentProps<typeof AccessTokenCreateForm>['onCreate'];
+  onDismissToken: () => void;
+}
+
+/** Access tokens: for other AI apps and scripts that can't sign in themselves. */
+const TokenSection: React.FC<TokenSectionProps> = ({ newToken, isCreating, onCreate, onDismissToken }) => {
+  const { t } = useTranslation();
+  return (
+    <div data-testid="access-token-section">
+      <h3 style={subheadingStyle}>{t('settings.claudeAccess.tokenSectionTitle')}</h3>
+      <p
+        style={{
+          margin: `0 0 ${theme.spacing.md}`,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+        }}
+      >
+        {t('settings.claudeAccess.tokenSectionHint')}
+      </p>
+      {newToken && <NewTokenPanel token={newToken} onDismiss={onDismissToken} />}
+      <AccessTokenCreateForm isSubmitting={isCreating} onCreate={onCreate} />
+    </div>
+  );
+};
+
 /**
- * Settings → "Connect Claude": how to add BearlyMail to claude.ai (a URL paste
- * that signs in through OAuth), personal access tokens for clients that need
- * one, and the list of connections and tokens with a revoke button each.
+ * Settings → "Connect Claude". The Claude connector (a URL paste that signs in
+ * through OAuth, and then works in Claude's web, desktop and mobile apps) is
+ * the recommended path; personal access tokens are tucked away for other AI
+ * apps. Below both, the connections and tokens with a revoke button each.
  */
 export const ClaudeAccessSection: React.FC = () => {
   const { t } = useTranslation();
@@ -33,6 +72,10 @@ export const ClaudeAccessSection: React.FC = () => {
   const { tokens, isLoading, hasLoadError, createToken, revokeToken } = usePersonalAccessTokens();
   const [newToken, setNewToken] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [isTokenSectionOpen, setIsTokenSectionOpen] = useState(false);
+  // Someone who already uses tokens shouldn't have to hunt for them.
+  const hasPersonalTokens = tokens.some(token => token.kind === ACCESS_TOKEN_KINDS.PERSONAL);
+  const showTokenSection = isTokenSectionOpen || hasPersonalTokens || newToken !== null;
   const { isCreating, handleCreate, stepUpModalProps } = useCreateTokenWithStepUp({
     createToken,
     onCreated: created => setNewToken(created.token),
@@ -97,20 +140,18 @@ export const ClaudeAccessSection: React.FC = () => {
 
       <ClaudeConnectorSetup />
 
-      <h3 style={subheadingStyle}>{t('settings.claudeAccess.tokenSectionTitle')}</h3>
-      <p
-        style={{
-          margin: `0 0 ${theme.spacing.md}`,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-        }}
-      >
-        {t('settings.claudeAccess.tokenSectionHint')}
-      </p>
-
-      {newToken && <NewTokenPanel token={newToken} onDismiss={() => setNewToken(null)} />}
-
-      <AccessTokenCreateForm isSubmitting={isCreating} onCreate={handleCreate} />
+      {showTokenSection ? (
+        <TokenSection
+          newToken={newToken}
+          isCreating={isCreating}
+          onCreate={handleCreate}
+          onDismissToken={() => setNewToken(null)}
+        />
+      ) : (
+        <button type="button" style={toggleStyle} onClick={() => setIsTokenSectionOpen(true)}>
+          {t('settings.claudeAccess.tokenSectionToggle')}
+        </button>
+      )}
       <StepUpModal {...stepUpModalProps} />
 
       <h3 style={subheadingStyle}>{t('settings.claudeAccess.activeTokens')}</h3>

@@ -1,13 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
-
-import { API_URL } from 'config/api';
-import { HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { isPasswordChallenge, isWrongPassword, requestStepUpToken } from 'utils/stepUpRequest';
 
 import { CreatedPersonalAccessToken, CreatePersonalAccessTokenInput } from './types';
-
-const STEP_UP_URL = `${API_URL}/auth/step-up`;
 
 type CreateToken = (input: CreatePersonalAccessTokenInput, stepUpToken: string) => Promise<CreatedPersonalAccessToken>;
 
@@ -15,23 +10,6 @@ interface UseCreateTokenWithStepUpParams {
   createToken: CreateToken;
   onCreated: (created: CreatedPersonalAccessToken) => void;
   onError: (error: unknown) => void;
-}
-
-async function requestStepUpToken(password?: string): Promise<string> {
-  const response = await axios.post<{ step_up_token: string }>(STEP_UP_URL, password ? { password } : {});
-  return response.data.step_up_token;
-}
-
-function isPasswordChallenge(error: unknown): boolean {
-  return (
-    axios.isAxiosError(error) &&
-    error.response?.status === HTTP_UNAUTHORIZED &&
-    Boolean((error.response.data as { requiresPassword?: boolean } | undefined)?.requiresPassword)
-  );
-}
-
-function isWrongPassword(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === HTTP_UNAUTHORIZED;
 }
 
 /**

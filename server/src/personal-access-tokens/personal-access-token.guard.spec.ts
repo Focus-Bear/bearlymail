@@ -1,12 +1,20 @@
 import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
 
 import { PAT_SCOPES } from "../constants/personal-access-tokens.constants";
-import { PersonalAccessTokenGuard } from "./personal-access-token.guard";
+import {
+  PersonalAccessTokenGuard,
+} from "./personal-access-token.guard";
 import { PersonalAccessTokensService } from "./personal-access-tokens.service";
 
-function contextFor(request: Record<string, unknown>): ExecutionContext {
+function contextFor(
+  request: Record<string, unknown>,
+  response: { setHeader: jest.Mock } = { setHeader: jest.fn() },
+): ExecutionContext {
   return {
-    switchToHttp: () => ({ getRequest: () => request }),
+    switchToHttp: () => ({
+      getRequest: () => request,
+      getResponse: () => response,
+    }),
   } as unknown as ExecutionContext;
 }
 
@@ -50,6 +58,33 @@ describe("PersonalAccessTokenGuard", () => {
     expect(authenticate).toHaveBeenCalledWith("bm_pat_nope");
   });
 
+  it("challenges with the protected-resource metadata so clients can sign in", async () => {
+    const response = { setHeader: jest.fn() };
+    await expect(
+      guard.canActivate(contextFor({ headers: {} }, response)),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    const [name, value] = response.setHeader.mock.calls[0];
+    expect(name).toBe("WWW-Authenticate");
+    expect(value).toMatch(
+      /^Bearer resource_metadata="http:\/\/[^"]+\/\.well-known\/oauth-protected-resource\/mcp", scope="mail:read mail:send"$/,
+    );
+  });
+
+  it("marks a rejected token as invalid_token in the challenge", async () => {
+    const response = { setHeader: jest.fn() };
+    await expect(
+      guard.canActivate(
+        contextFor(
+          { headers: { authorization: "Bearer bm_oat_nope" } },
+          response,
+        ),
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(response.setHeader.mock.calls[0][1]).toContain(
+      'error="invalid_token"',
+    );
+  });
+
   it("sets req.user to the principal for a valid token", async () => {
     authenticate.mockResolvedValue(principal);
     const request: Record<string, unknown> = {
@@ -59,3 +94,4 @@ describe("PersonalAccessTokenGuard", () => {
     expect(request.user).toEqual(principal);
   });
 });
+

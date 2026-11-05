@@ -20,12 +20,24 @@ vi.mock('contexts/NotificationContext', () => ({
 
 const EXISTING_TOKEN = {
   id: 'token-1',
+  kind: 'personal',
   name: 'Laptop',
   tokenPrefix: 'bm_pat_abcde',
   scopes: ['mail:read', 'mail:send'],
   expiresAt: null,
   lastUsedAt: null,
   createdAt: '2026-11-01T00:00:00Z',
+};
+
+const CLAUDE_CONNECTION = {
+  id: 'token-9',
+  kind: 'oauth',
+  name: 'Claude (claude.ai)',
+  tokenPrefix: 'bm_oat_zzzzz',
+  scopes: ['mail:read'],
+  expiresAt: '2026-12-04T00:00:00Z',
+  lastUsedAt: '2026-11-04T00:00:00Z',
+  createdAt: '2026-11-04T00:00:00Z',
 };
 
 const TOKENS_URL = 'http://api.test/personal-access-tokens';
@@ -58,6 +70,30 @@ describe('ClaudeAccessSection', () => {
     expect(await screen.findByText('Laptop')).toBeInTheDocument();
     expect(screen.getByText(/settings.claudeAccess.scopeReadSend/)).toBeInTheDocument();
     expect(axios.get).toHaveBeenCalledWith('http://api.test/personal-access-tokens');
+  });
+
+  it('offers the connector URL for claude.ai and a token-free Claude Code command', async () => {
+    render(<ClaudeAccessSection />);
+    await screen.findByText('Laptop');
+    expect(screen.getByTestId('claude-connector-url')).toHaveTextContent('http://api.test/mcp');
+    expect(screen.getByTestId('claude-code-oauth-command')).toHaveTextContent(
+      'claude mcp add --transport http bearlymail http://api.test/mcp'
+    );
+    expect(screen.getByTestId('claude-code-oauth-command')).not.toHaveTextContent('Authorization');
+  });
+
+  it('lists a claude.ai connection without its token prefix and disconnects it', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: [CLAUDE_CONNECTION, EXISTING_TOKEN] });
+    render(<ClaudeAccessSection />);
+    expect(await screen.findByText('Claude (claude.ai)')).toBeInTheDocument();
+    expect(screen.getByText('settings.claudeAccess.connectedApp')).toBeInTheDocument();
+    expect(screen.queryByText(/bm_oat_zzzzz/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('settings.claudeAccess.disconnectAria:Claude (claude.ai)'));
+
+    expect(window.confirm).toHaveBeenCalledWith('settings.claudeAccess.disconnectConfirm:Claude (claude.ai)');
+    await waitFor(() => expect(axios.delete).toHaveBeenCalledWith('http://api.test/personal-access-tokens/token-9'));
+    await waitFor(() => expect(screen.queryByText('Claude (claude.ai)')).not.toBeInTheDocument());
   });
 
   it('creates a read-only 90-day token by default and shows the setup snippets once', async () => {

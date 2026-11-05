@@ -1,16 +1,16 @@
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Repository } from "typeorm";
 
+import { MCP_OAUTH } from "../constants/mcp-oauth.constants";
 import {
+  ACCESS_TOKEN_KINDS,
   PAT_SCOPES,
   PERSONAL_ACCESS_TOKENS,
 } from "../constants/personal-access-tokens.constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { PersonalAccessToken } from "../database/entities/personal-access-token.entity";
-import {
-  hashPersonalAccessToken,
-  PersonalAccessTokensService,
-} from "./personal-access-tokens.service";
+import { PersonalAccessTokensService } from "./personal-access-tokens.service";
+import { hashTokenSecret } from "./token-secrets";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const NOW = new Date("2026-11-04T00:00:00Z");
@@ -21,6 +21,7 @@ function makeRow(
   return {
     id: "token-1",
     userId: USER_ID,
+    kind: ACCESS_TOKEN_KINDS.PERSONAL,
     name: "Claude",
     tokenHash: "hash",
     tokenPrefix: "bm_pat_abcde",
@@ -28,6 +29,9 @@ function makeRow(
     expiresAt: null,
     lastUsedAt: null,
     revokedAt: null,
+    oauthClientId: null,
+    refreshTokenHash: null,
+    refreshTokenExpiresAt: null,
     createdAt: NOW,
     ...overrides,
   } as PersonalAccessToken;
@@ -71,7 +75,7 @@ describe("PersonalAccessTokensService", () => {
       ).toBe(true);
       const stored = repository.create.mock.calls[0][0] as PersonalAccessToken;
       expect(stored.name).toBe("Claude Desktop");
-      expect(stored.tokenHash).toBe(hashPersonalAccessToken(created.token));
+      expect(stored.tokenHash).toBe(hashTokenSecret(created.token));
       expect(stored.tokenHash).not.toContain(created.token);
       expect(stored.tokenPrefix).toBe(
         created.token.slice(0, PERSONAL_ACCESS_TOKENS.DISPLAY_PREFIX_LENGTH),
@@ -139,7 +143,7 @@ describe("PersonalAccessTokensService", () => {
       await expect(service.authenticate("bm_pat_unknown")).resolves.toBeNull();
       expect(repository.findOne).toHaveBeenCalledWith({
         where: expect.objectContaining({
-          tokenHash: hashPersonalAccessToken("bm_pat_unknown"),
+          tokenHash: hashTokenSecret("bm_pat_unknown"),
         }),
       });
     });
@@ -172,6 +176,58 @@ describe("PersonalAccessTokensService", () => {
       );
       await service.authenticate("bm_pat_x", NOW);
       expect(repository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("OAuth connections", () => {
+    it("authenticates an OAuth access token to the same principal shape", async () => {
+      repository.findOne.mockResolvedValue(
+        makeRow({ kind: ACCESS_TOKEN_KINDS.OAUTH, lastUsedAt: NOW }),
+      );
+      await expect(
+        service.authenticate(`${MCP_OAUTH.ACCESS_TOKEN_PREFIX}abc`, NOW),
+      ).resolves.toEqual({
+        userId: USER_ID,
+        tokenId: "token-1",
+        scopes: [PAT_SCOPES.MAIL_READ],
+      });
+    });
+
+    it("never accepts a refresh token as a bearer token", async () => {
+      await expect(
+        service.authenticate(`${MCP_OAUTH.REFRESH_TOKEN_PREFIX}abc`, NOW),
+      ).resolves.toBeNull();
+      expect(repository.findOne).not.toHaveBeenCalled();
+    });
+
+    it("lists a connection with its refresh expiry, not the 1h access expiry", async () => {
+      const refreshExpiry = new Date(NOW.getTime() + 30 * MILLISECONDS.DAY);
+      repository.find.mockResolvedValue([
+        makeRow({
+          kind: ACCESS_TOKEN_KINDS.OAUTH,
+          expiresAt: new Date(NOW.getTime() + MILLISECONDS.HOUR),
+          refreshTokenExpiresAt: refreshExpiry,
+          refreshTokenHash: "secret-hash",
+        }),
+      ]);
+      const [summary] = await service.list(USER_ID, NOW);
+      expect(summary).toMatchObject({
+        kind: ACCESS_TOKEN_KINDS.OAUTH,
+        expiresAt: refreshExpiry,
+      });
+      expect(summary).not.toHaveProperty("refreshTokenHash");
+    });
+
+    it("leaves lapsed connections out of the list and the cap", async () => {
+      await service.list(USER_ID, NOW);
+      const where = repository.find.mock.calls[0][0]?.where;
+      expect(where).toEqual([
+        expect.objectContaining({ kind: ACCESS_TOKEN_KINDS.PERSONAL }),
+        expect.objectContaining({
+          kind: ACCESS_TOKEN_KINDS.OAUTH,
+          refreshTokenExpiresAt: expect.anything(),
+        }),
+      ]);
     });
   });
 

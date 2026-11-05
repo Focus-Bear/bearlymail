@@ -42,6 +42,7 @@ import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
 import { ImapAccountsModule } from "./imap-accounts/imap-accounts.module";
 import { LLMModule } from "./llm/llm.module";
 import { MCPModule } from "./mcp/mcp.module";
+import { McpOAuthModule } from "./mcp-oauth/mcp-oauth.module";
 import { McpServerModule } from "./mcp-server/mcp-server.module";
 import { NotesModule } from "./notes/notes.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
@@ -185,6 +186,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     TriageModule,
     MCPModule,
     McpServerModule,
+    McpOAuthModule,
     PersonalAccessTokensModule,
     AskAiModule,
     SeedTestDataModule,

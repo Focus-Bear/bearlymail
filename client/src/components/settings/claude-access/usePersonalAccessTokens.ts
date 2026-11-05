@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { STEP_UP_TOKEN_HEADER } from 'utils/stepUpRequest';
 
 import { API_URL } from 'config/api';
 import { PERSONAL_ACCESS_TOKENS_ENDPOINT } from 'constants/claudeAccess';
@@ -7,7 +8,6 @@ import { PERSONAL_ACCESS_TOKENS_ENDPOINT } from 'constants/claudeAccess';
 import { CreatedPersonalAccessToken, CreatePersonalAccessTokenInput, PersonalAccessToken } from './types';
 
 const TOKENS_URL = `${API_URL}${PERSONAL_ACCESS_TOKENS_ENDPOINT}`;
-const STEP_UP_TOKEN_HEADER = 'X-Step-Up-Token';
 
 /**
  * Lists, creates and revokes the user's personal access tokens. Create and

@@ -11,6 +11,22 @@ export const PAT_SCOPES = {
 
 export type PatScope = (typeof PAT_SCOPES)[keyof typeof PAT_SCOPES];
 
+/** Must match the server's ACCESS_TOKEN_KINDS: a hand-made token or an OAuth connection (claude.ai). */
+export const ACCESS_TOKEN_KINDS = {
+  PERSONAL: 'personal',
+  OAUTH: 'oauth',
+} as const;
+
+export type AccessTokenKind = (typeof ACCESS_TOKEN_KINDS)[keyof typeof ACCESS_TOKEN_KINDS];
+
+/** Where claude.ai users add a custom connector. */
+export const CLAUDE_CONNECTORS_URL = 'https://claude.ai/customize/connectors';
+
+/** Web-app route the server's /oauth/authorize sends the browser to; must match MCP_OAUTH.CONSENT_PAGE_PATH. */
+export const OAUTH_CONSENT_PATH = '/oauth/consent';
+export const OAUTH_CONSENT_REQUEST_PARAM = 'request';
+export const OAUTH_CONSENT_REQUESTS_ENDPOINT = '/oauth/consent-requests';
+
 export const PERSONAL_ACCESS_TOKENS_ENDPOINT = '/personal-access-tokens';
 
 /** BearlyMail's MCP endpoint path on the API origin. */

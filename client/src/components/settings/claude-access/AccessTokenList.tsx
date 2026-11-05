@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
-import { PAT_SCOPES } from 'constants/claudeAccess';
+import { ACCESS_TOKEN_KINDS, PAT_SCOPES } from 'constants/claudeAccess';
 
 import { PersonalAccessToken } from './types';
 
@@ -16,7 +17,24 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-/** Active tokens with what each may do, when it was last used, and a revoke button. */
+/** Expiry line: an OAuth connection lapses when unused; a token expires on a fixed date. */
+function expiryLabel(token: PersonalAccessToken, translate: TFunction): string {
+  if (!token.expiresAt) {
+    return translate('settings.claudeAccess.neverExpires');
+  }
+  const key =
+    token.kind === ACCESS_TOKEN_KINDS.OAUTH ? 'settings.claudeAccess.connectionLapses' : 'settings.claudeAccess.expires';
+  return translate(key, { date: formatDate(token.expiresAt) });
+}
+
+function revokeButtonLabel(isRevoking: boolean, isConnection: boolean, translate: TFunction): string {
+  if (isRevoking) {
+    return translate('settings.claudeAccess.revoking');
+  }
+  return translate(isConnection ? 'settings.claudeAccess.disconnect' : 'settings.claudeAccess.revoke');
+}
+
+/** Active tokens and OAuth connections with what each may do, when it was last used, and a revoke button. */
 export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revokingId, onRevoke }) => {
   const { t } = useTranslation();
 
@@ -32,6 +50,7 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
     <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} data-testid="access-token-list">
       {tokens.map((token) => {
         const canSend = token.scopes.includes(PAT_SCOPES.MAIL_SEND);
+        const isConnection = token.kind === ACCESS_TOKEN_KINDS.OAUTH;
         return (
           <li
             key={token.id}
@@ -54,7 +73,13 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
                 }}
               >
                 {token.name}{' '}
-                <code style={{ fontWeight: 'normal', color: theme.colors.text.secondary }}>{token.tokenPrefix}…</code>
+                {isConnection ? (
+                  <span style={{ fontWeight: 'normal', color: theme.colors.text.secondary }}>
+                    {t('settings.claudeAccess.connectedApp')}
+                  </span>
+                ) : (
+                  <code style={{ fontWeight: 'normal', color: theme.colors.text.secondary }}>{token.tokenPrefix}…</code>
+                )}
               </div>
               <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
                 {canSend ? t('settings.claudeAccess.scopeReadSend') : t('settings.claudeAccess.scopeRead')}
@@ -63,16 +88,16 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
                   ? t('settings.claudeAccess.lastUsed', { date: formatDate(token.lastUsedAt) })
                   : t('settings.claudeAccess.neverUsed')}
                 {' · '}
-                {token.expiresAt
-                  ? t('settings.claudeAccess.expires', { date: formatDate(token.expiresAt) })
-                  : t('settings.claudeAccess.neverExpires')}
+                {expiryLabel(token, t)}
               </div>
             </div>
             <button
               type="button"
               onClick={() => onRevoke(token)}
               disabled={revokingId === token.id}
-              aria-label={t('settings.claudeAccess.revokeAria', { name: token.name })}
+              aria-label={t(isConnection ? 'settings.claudeAccess.disconnectAria' : 'settings.claudeAccess.revokeAria', {
+                name: token.name,
+              })}
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                 border: `1px solid ${theme.colors.error.main}`,
@@ -83,7 +108,7 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
                 cursor: 'pointer',
               }}
             >
-              {revokingId === token.id ? t('settings.claudeAccess.revoking') : t('settings.claudeAccess.revoke')}
+              {revokeButtonLabel(revokingId === token.id, isConnection, t)}
             </button>
           </li>
         );

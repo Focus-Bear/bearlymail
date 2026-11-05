@@ -4,8 +4,10 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-import { Request } from "express";
+import { Request, Response } from "express";
 
+import { HTTP_HEADERS } from "../constants/http-headers";
+import { mcpBearerChallenge } from "../mcp-oauth/mcp-oauth-urls";
 import {
   PatPrincipal,
   PersonalAccessTokensService,
@@ -13,31 +15,49 @@ import {
 
 const BEARER_PATTERN = /^Bearer\s+(\S+)$/i;
 
+/** The bearer credential in an Authorization header, if there is one. */
+export function extractBearerToken(
+  authorization: string | undefined,
+): string | null {
+  return BEARER_PATTERN.exec(authorization ?? "")?.[1] ?? null;
+}
+
 export interface PatAuthenticatedRequest extends Request {
   user: PatPrincipal;
 }
 
 /**
- * Authenticates a request by personal access token in the Authorization header.
+ * Authenticates a request by bearer token in the Authorization header: a
+ * personal access token or an OAuth access token issued to Claude.
  *
- * Deliberately ignores the session cookie: a PAT-only route cannot be driven
+ * Deliberately ignores the session cookie: a token-only route cannot be driven
  * by a logged-in browser tab, so it needs no CSRF protection. Sets `req.user`
  * with `userId`, which is what the per-user encryption interceptor keys on.
+ * Every 401 carries the RFC 9728 `WWW-Authenticate` challenge, which is how an
+ * MCP client (claude.ai) discovers where to sign the user in.
  */
 @Injectable()
 export class PersonalAccessTokenGuard implements CanActivate {
   constructor(private readonly tokensService: PersonalAccessTokensService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context
-      .switchToHttp()
-      .getRequest<PatAuthenticatedRequest>();
-    const match = BEARER_PATTERN.exec(request.headers.authorization ?? "");
-    if (!match) {
+    const http = context.switchToHttp();
+    const request = http.getRequest<PatAuthenticatedRequest>();
+    const response = http.getResponse<Response>();
+    const token = extractBearerToken(request.headers.authorization);
+    if (!token) {
+      response.setHeader(
+        HTTP_HEADERS.WWW_AUTHENTICATE,
+        mcpBearerChallenge(false),
+      );
       throw new UnauthorizedException("Missing bearer token");
     }
-    const principal = await this.tokensService.authenticate(match[1]);
+    const principal = await this.tokensService.authenticate(token);
     if (!principal) {
+      response.setHeader(
+        HTTP_HEADERS.WWW_AUTHENTICATE,
+        mcpBearerChallenge(true),
+      );
       throw new UnauthorizedException("Invalid, expired or revoked token");
     }
     request.user = principal;

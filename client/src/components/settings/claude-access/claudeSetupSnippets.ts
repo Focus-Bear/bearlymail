@@ -7,9 +7,10 @@ export function mcpEndpointUrl(apiUrl: string = API_URL): string {
   return `${apiUrl.replace(/\/+$/, '')}${MCP_ENDPOINT_PATH}`;
 }
 
-/** One-line `claude mcp add` for Claude Code. */
-export function claudeCodeCommand(token: string, apiUrl?: string): string {
-  return `claude mcp add --transport http ${MCP_CLIENT_SERVER_NAME} ${mcpEndpointUrl(apiUrl)} --header "Authorization: Bearer ${token}"`;
+/** One-line `claude mcp add` for Claude Code, with a token or (without one) signing in through OAuth. */
+export function claudeCodeCommand(token?: string, apiUrl?: string): string {
+  const command = `claude mcp add --transport http ${MCP_CLIENT_SERVER_NAME} ${mcpEndpointUrl(apiUrl)}`;
+  return token ? `${command} --header "Authorization: Bearer ${token}"` : command;
 }
 
 /**

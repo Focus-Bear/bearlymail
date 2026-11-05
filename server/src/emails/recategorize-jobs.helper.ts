@@ -45,7 +45,8 @@ interface InFlightBatchRow {
  * Re-categorise and the automatic onboarding sort run the same pipeline (Jev,
  * constrained to the user's categories). No singleton options: pg-boss would
  * drop a re-run started in the same minute, so changes made since the last run
- * would never be applied.
+ * would never be applied. Overlapping onboarding sorts are prevented by
+ * findInFlightRecategorizationBatch instead.
  */
 export async function enqueueRecategorizationJobs(
   boss: PgBoss,

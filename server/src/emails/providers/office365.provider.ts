@@ -31,8 +31,9 @@ import {
 } from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import {
-  getOldestAllowedSyncDate,
+  resolveInboxSyncFloor,
   resolveMaxFetchResults,
+  shouldFlagSyncWindowLimited,
 } from "../sync-window-policy";
 import {
   archiveThread,
@@ -59,11 +60,11 @@ import {
   parseOffice365Message,
 } from "./office365/office365-message-parser";
 import { isAuthError } from "./office365/office365-operations";
+import { getRawMessage as getRawMessageFromGraph } from "./office365/office365-raw-message";
 import {
   getExistingThreadUpdates,
   verifyThreadStatusesInOffice365,
 } from "./office365/office365-sync";
-import { flagSyncWindowLimitedIfNeeded } from "./office365/office365-sync-window";
 
 @Injectable()
 export class Office365Provider implements EmailProvider {
@@ -229,16 +230,19 @@ export class Office365Provider implements EmailProvider {
     graphClient: AxiosInstance,
     isInitialSync: boolean,
   ): Promise<void> {
-    // Sync-window policy: every fetch is limited to the ongoing window, and
-    // the initial sync caps at the most recent INITIAL_SYNC_MAX_EMAILS.
-    const since = getOldestAllowedSyncDate().toISOString();
+    // Sync-window policy: the initial sync takes the most recent
+    // INITIAL_SYNC_MAX_EMAILS with no date floor; later syncs are limited to
+    // the ongoing window.
+    const syncFloor = resolveInboxSyncFloor(isInitialSync);
     const maxResults = resolveMaxFetchResults(isInitialSync);
 
     const inboxResponse = await graphClient.get(
       "/me/mailFolders/inbox/messages",
       {
         params: {
-          $filter: `receivedDateTime ge ${since}`,
+          ...(syncFloor && {
+            $filter: `receivedDateTime ge ${syncFloor.toISOString()}`,
+          }),
           $orderby: "receivedDateTime desc",
           $top: maxResults,
           $select:
@@ -250,16 +254,13 @@ export class Office365Provider implements EmailProvider {
     const inboxMessages = inboxResponse.data.value || [];
     const importantMessages: MicrosoftGraphMessage[] = [];
 
-    if (isInitialSync) {
-      await flagSyncWindowLimitedIfNeeded(
-        { usersService: this.usersService, logger: this.logger },
-        {
-          userId,
-          graphClient,
-          since,
-          hitFetchCap: inboxMessages.length >= maxResults,
-        },
-      );
+    if (
+      shouldFlagSyncWindowLimited({
+        isInitialSync,
+        hitFetchCap: inboxMessages.length >= maxResults,
+      })
+    ) {
+      await this.usersService.markSyncWindowLimited(userId);
     }
 
     const conversationMap = new Map<string, MicrosoftGraphMessage[]>();
@@ -845,6 +846,10 @@ export class Office365Provider implements EmailProvider {
       attachmentId,
       attachmentMetadata,
     );
+  }
+
+  async getRawMessage(userId: string, messageId: string): Promise<Buffer> {
+    return getRawMessageFromGraph(this, userId, messageId);
   }
 
   async addLabelToThread(

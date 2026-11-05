@@ -5,7 +5,7 @@ import { Strategy } from "passport-google-oauth20";
 
 import {
   findMissingRequiredGoogleScopes,
-  GOOGLE_OAUTH_SCOPES,
+  GOOGLE_SIGN_IN_SCOPES,
   MISSING_GMAIL_PERMISSION_MESSAGE,
 } from "../constants/google-oauth-scopes";
 import { User } from "../database/entities/user.entity";
@@ -64,7 +64,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google", true) {
       clientID: clientID || "placeholder-client-id",
       clientSecret: clientSecret || "placeholder-client-secret",
       callbackURL: callbackURL || "http://localhost:3001/auth/google/callback",
-      scope: GOOGLE_OAUTH_SCOPES,
+      scope: GOOGLE_SIGN_IN_SCOPES,
       // These need to be in authorizationParams, not here
     });
 
@@ -91,9 +91,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google", true) {
     type StrategyWithAuthParams = typeof this & {
       authorizationParams?: (options: unknown) => Record<string, string>;
     };
+    // include_granted_scopes: re-running sign-in to grant a permission the
+    // user unticked shows Google's checkboxes only for what is still missing,
+    // and the token response then reports the full grant.
     (this as StrategyWithAuthParams).authorizationParams = () => ({
       access_type: "offline",
       prompt: "consent",
+      include_granted_scopes: "true",
     });
   }
 
@@ -142,6 +146,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google", true) {
         profileForValidation,
         accessToken,
         refreshToken,
+        params?.scope,
       );
 
       // Attach raw Google data for connection flows

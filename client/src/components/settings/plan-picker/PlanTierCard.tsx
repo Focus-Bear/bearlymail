@@ -149,6 +149,13 @@ export const PlanTierCard: React.FC<PlanTierCardProps> = ({ tier, isCurrent, act
             testId={`plan-tier-email-tracking-${tier.id}`}
           />
         )}
+        {tier.includesCrm && (
+          <PlanInclusion
+            label={t('team.settings.planPicker.includesCrm')}
+            description={t('team.settings.planPicker.includesCrmDescription')}
+            testId={`plan-tier-crm-${tier.id}`}
+          />
+        )}
         {tier.seats > SOLO_SEAT_COUNT && (
           <PlanInclusion
             label={t('team.settings.planPicker.teamMembers', { count: tier.seats })}

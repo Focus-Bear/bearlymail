@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { Deal, DealStage } from 'types/deal';
 
+import { DealNotesSection } from 'components/crm/deal-notes/DealNotesSection';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_FULL, OPACITY_HALF } from 'constants/numbers';
 import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
@@ -694,6 +695,7 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
           <DealFormFields {...formState} stages={stages} contacts={contacts} t={t} />
           <DealFormActions onClose={onClose} canSubmit={Boolean(title.trim())} t={t} />
         </form>
+        {deal && <DealNotesSection dealId={deal.id} />}
       </div>
     </div>
   );

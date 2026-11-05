@@ -21,6 +21,8 @@ export interface VolumeUsage {
   selfHosted?: boolean;
   /** Whether the plan lets members send open-tracked email (Growth, Enterprise, trial). */
   includesEmailTracking?: boolean;
+  /** Whether the plan includes the CRM (Growth and up, or a trial). */
+  includesCrm?: boolean;
 }
 
 async function fetchSeatUsage(): Promise<SeatUsage> {

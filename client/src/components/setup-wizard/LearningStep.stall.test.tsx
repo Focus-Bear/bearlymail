@@ -15,6 +15,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 const startAnalysis = vi.fn();
+const joinOrStartAnalysis = vi.fn();
 let analyzeProgress = {
   show: true,
   progress: null as { current: number; total: number } | null,
@@ -23,7 +24,7 @@ let analyzeProgress = {
 };
 
 vi.mock('hooks/settings/useAnalysisProgress', () => ({
-  useAnalysisProgress: () => ({ analyzing: false, analyzeProgress, startAnalysis }),
+  useAnalysisProgress: () => ({ analyzing: false, analyzeProgress, startAnalysis, joinOrStartAnalysis }),
 }));
 
 const IMPORT_TIMEOUT_MS = 5 * 60_000;
@@ -55,6 +56,15 @@ describe('LearningStep — stalled analysis', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('joins the background analysis on arrival instead of starting a competing one', async () => {
+    analyzeProgress = { show: true, progress: null, error: null, isComplete: false };
+    render(<LearningStep onComplete={() => undefined} onBack={() => undefined} isLoading={false} />);
+    await flush();
+
+    expect(joinOrStartAnalysis).toHaveBeenCalledTimes(1);
+    expect(startAnalysis).not.toHaveBeenCalled();
   });
 
   it('shows a stalled message with retry and skip as soon as the analysis errors', async () => {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { EMOJI_CLOSE, EMOJI_INFO } from 'constants/emojis';
+import { INITIAL_SYNC_MAX_THREADS } from 'constants/numbers';
 
 export const SYNC_WINDOW_BANNER_DISMISSED_KEY_PREFIX = 'bearlymail_sync_window_banner_dismissed_';
 const DISMISSED_VALUE = 'true';
@@ -10,7 +11,7 @@ const DISMISSED_VALUE = 'true';
 interface SyncWindowBannerProps {
   /** Current user id — dismissal is persisted per user in localStorage. */
   userId?: string;
-  /** Server flag: the initial sync skipped older mail (500-email cap / 7-day window). */
+  /** Server flag: the initial sync skipped older mail (it imports the most recent INITIAL_SYNC_MAX_THREADS). */
   syncWindowLimited?: boolean;
 }
 
@@ -27,8 +28,8 @@ function readDismissed(storageKey: string | null): boolean {
 
 /**
  * Dismissible inbox banner telling the user that older mail isn't being synced
- * (sync-window policy: 500 most recent on the initial sync, then a 7-day
- * window plus starred). Shown while `user.syncWindowLimited` is set and the
+ * (sync-window policy: the INITIAL_SYNC_MAX_THREADS most recent threads on the
+ * initial sync, whatever their age, then new mail as it arrives). Shown while `user.syncWindowLimited` is set and the
  * user hasn't dismissed it; dismissal persists per user in localStorage.
  */
 export const SyncWindowBanner: React.FC<SyncWindowBannerProps> = ({ userId, syncWindowLimited }) => {
@@ -79,7 +80,7 @@ export const SyncWindowBanner: React.FC<SyncWindowBannerProps> = ({ userId, sync
       }}
     >
       <span>
-        {EMOJI_INFO} {t('inbox.syncWindowBanner.message')}
+        {EMOJI_INFO} {t('inbox.syncWindowBanner.message', { count: INITIAL_SYNC_MAX_THREADS })}
       </span>
       <button
         onClick={dismiss}

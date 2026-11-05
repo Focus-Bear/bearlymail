@@ -11,7 +11,7 @@ const SERVER_SRC_DIR = path.resolve(__dirname, '../../../../server/src');
 const SCOPE_SOURCES: Record<OAuthProvider, { file: string; arrayPattern: RegExp }> = {
   [PROVIDER_GOOGLE]: {
     file: 'constants/google-oauth-scopes.ts',
-    arrayPattern: /GOOGLE_OAUTH_SCOPES\s*=\s*\[([\s\S]*?)\]/,
+    arrayPattern: /GOOGLE_SIGN_IN_SCOPES\s*=\s*\[([\s\S]*?)\]/,
   },
   [PROVIDER_MICROSOFT]: { file: 'auth/microsoft.strategy.ts', arrayPattern: /scope:\s*\[([\s\S]*?)\]/ },
   [PROVIDER_ZOHO]: { file: 'auth/zoho.strategy.ts', arrayPattern: /scope:\s*\[([\s\S]*?)\]/ },

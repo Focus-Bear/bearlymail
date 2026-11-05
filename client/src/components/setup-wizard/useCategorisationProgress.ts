@@ -36,12 +36,16 @@ export function isCategorisationComplete(progress: CategorisationProgress | null
  * Polls how many inbox threads have been categorised so onboarding can keep
  * the user out of a still-unsorted inbox. Polling stops once learning is done
  * and everything is sorted; the max-wait clock starts when learning finishes,
- * so a stuck job can never trap the user.
+ * so a stuck job can never trap the user. A count from before learning finished
+ * isn't trusted: the sort into the saved categories hadn't been queued yet, so
+ * the inbox can look sorted when it isn't.
  */
 export function useCategorisationProgress(isLearningDone: boolean): CategorisationState {
   const [progress, setProgress] = useState<CategorisationProgress | null>(null);
   const [timedOut, setTimedOut] = useState(false);
-  const isSettled = isLearningDone && isCategorisationComplete(progress);
+  const [isProgressCurrent, setIsProgressCurrent] = useState(false);
+  const currentProgress = !isLearningDone || isProgressCurrent ? progress : null;
+  const isSettled = isLearningDone && isCategorisationComplete(currentProgress);
 
   useEffect(() => {
     if (isSettled) {
@@ -54,6 +58,7 @@ export function useCategorisationProgress(isLearningDone: boolean): Categorisati
         const response = await axios.get<unknown>(`${API_URL}${CATEGORISATION_PROGRESS_PATH}`);
         if (!isCancelled && isCategorisationProgress(response.data)) {
           setProgress(response.data);
+          setIsProgressCurrent(isLearningDone);
         }
       } catch (error) {
         console.error('Failed to fetch categorisation progress:', error);
@@ -67,7 +72,7 @@ export function useCategorisationProgress(isLearningDone: boolean): Categorisati
       isCancelled = true;
       clearTimeout(pollTimer);
     };
-  }, [isSettled]);
+  }, [isSettled, isLearningDone]);
 
   useEffect(() => {
     if (!isLearningDone) {
@@ -77,5 +82,5 @@ export function useCategorisationProgress(isLearningDone: boolean): Categorisati
     return () => clearTimeout(timeoutId);
   }, [isLearningDone]);
 
-  return { progress, timedOut };
+  return { progress: currentProgress, timedOut };
 }

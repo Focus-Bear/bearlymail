@@ -214,6 +214,8 @@ export const CONTEXT_KEY_Q_AND_A = 'Q_AND_A' as const;
 
 // Context explanation keys
 export const CONTEXT_EXPLANATION_VIP_CONTACT_STARRED = 'vipContactStarredExplanation' as const;
+/** Saved by onboarding discovery when it has no real reason. Marks the source; never shown as a reason. */
+export const CONTEXT_EXPLANATION_EMAIL_ANALYSIS = 'email_analysis' as const;
 
 // Context source additional values
 export const CONTEXT_SOURCE_USER_EDITED = 'USER_EDITED' as const;
@@ -384,8 +386,27 @@ export const GMAIL_ACCESS_ISSUE_MISSING = 'gmail_access_missing' as const;
 export const GMAIL_ACCESS_ISSUE_REVOKED = 'gmail_access_revoked' as const;
 export type GmailAccessIssue = typeof GMAIL_ACCESS_ISSUE_MISSING | typeof GMAIL_ACCESS_ISSUE_REVOKED;
 
+// Checkbox groups on Google's consent screen (server GOOGLE_PERMISSION_GROUP values)
+export const GOOGLE_PERMISSION_GMAIL = 'gmail' as const;
+export const GOOGLE_PERMISSION_CALENDAR = 'calendar' as const;
+export const GOOGLE_PERMISSION_CONTACTS = 'contacts' as const;
+export type GooglePermissionGroup =
+  | typeof GOOGLE_PERMISSION_GMAIL
+  | typeof GOOGLE_PERMISSION_CALENDAR
+  | typeof GOOGLE_PERMISSION_CONTACTS;
+
 // Server path that starts Google sign-in (always with the consent screen forced)
 export const GOOGLE_OAUTH_START_PATH = '/auth/google';
+
+// Sign-in only asks for Gmail; these are granted later, from the feature that needs them
+export type IncrementalGooglePermissionGroup = typeof GOOGLE_PERMISSION_CALENDAR | typeof GOOGLE_PERMISSION_CONTACTS;
+// Server path returning the Google consent URL for one more permission group
+export const GOOGLE_PERMISSION_URL_PATH = '/auth/google/permission-url';
+// Query parameter (and values) the server adds when a grant returns to the app
+export const GOOGLE_PERMISSION_RESULT_PARAM = 'googlePermission';
+export const GOOGLE_PERMISSION_RESULT_GRANTED = 'granted' as const;
+export const GOOGLE_PERMISSION_RESULT_DECLINED = 'declined' as const;
+export const GOOGLE_PERMISSION_RESULT_WRONG_ACCOUNT = 'wrong_account' as const;
 
 // Deletion reasons (must match server DeletionReason enum)
 export const DELETION_REASON_INACTIVITY = 'inactivity' as const;

@@ -11,6 +11,7 @@ import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY, REPLY_MODE_REPLY_ALL } from 'cons
 import { EmailAttachments } from './EmailAttachments';
 import { ExpandCollapseButton } from './ExpandCollapseButton';
 import { ResolvedEmailBody } from './ResolvedEmailBody';
+import { ThreadMessageMenu } from './ThreadMessageMenu';
 
 type ReplyMode = typeof REPLY_MODE_REPLY | typeof REPLY_MODE_REPLY_ALL | typeof REPLY_MODE_FORWARD;
 
@@ -264,16 +265,19 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
                       </div>
                     )}
                   </div>
-                  <div
-                    style={{
-                      fontSize: theme.typography.fontSize.sm,
-                      color: theme.colors.text.secondary,
-                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      backgroundColor: theme.colors.background.paper,
-                      borderRadius: theme.borderRadius.md,
-                    }}
-                  >
-                    {isExpanded ? '▼' : '▶'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
+                    <ThreadMessageMenu emailId={threadEmail.id} />
+                    <div
+                      style={{
+                        fontSize: theme.typography.fontSize.sm,
+                        color: theme.colors.text.secondary,
+                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                        backgroundColor: theme.colors.background.paper,
+                        borderRadius: theme.borderRadius.md,
+                      }}
+                    >
+                      {isExpanded ? '▼' : '▶'}
+                    </div>
                   </div>
                 </div>
 

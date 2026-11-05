@@ -46,6 +46,7 @@ import {
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { CardType, useCardVisibilityPreferences } from 'hooks/useCardVisibilityPreferences';
+import { useCrmPlanAccess } from 'hooks/useCrmPlanAccess';
 import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 import { useEmailDetailDraftHandlers } from 'hooks/useEmailDetailDraftHandlers';
 import { useEmailDetailDraftSync } from 'hooks/useEmailDetailDraftSync';
@@ -464,6 +465,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   const assistantInPanel = isCompact || isMobile;
 
   const { hiddenCards, hideCard, showCard } = useCardVisibilityPreferences();
+  const { isCrmIncluded } = useCrmPlanAccess();
   const [showCardSettings, setShowCardSettings] = useState(false);
 
   const { handleDraftChange, handleReplyOptionSelect, handleReplyClose } = useEmailDetailDraftHandlers({
@@ -639,7 +641,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           />
         </div>
       )}
-      {!hiddenCards.has('crm') && (
+      {isCrmIncluded && !hiddenCards.has('crm') && (
         <div style={{ marginBottom: theme.spacing.xl }}>
           <CRMDealsSection
             senderEmail={extractEmailAddress(st.email?.from)}

@@ -83,6 +83,8 @@ export const chipListStyle: React.CSSProperties = {
 };
 
 export const chipStyle = (isPending: boolean): React.CSSProperties => ({
+  // Anchors the reason tooltip.
+  position: 'relative',
   display: 'inline-flex',
   alignItems: 'center',
   gap: '6px',
@@ -101,6 +103,32 @@ export const chipLabelStyle: React.CSSProperties = {
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
   minWidth: 0,
+};
+
+/** A label that has a reason behind it: focusable, with a dotted underline hinting at the tooltip. */
+export const chipReasonLabelStyle: React.CSSProperties = {
+  ...chipLabelStyle,
+  cursor: 'help',
+  textDecoration: 'underline dotted',
+  textUnderlineOffset: '3px',
+};
+
+export const reasonTooltipStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 'calc(100% + 6px)',
+  left: 0,
+  zIndex: 10,
+  width: 'max-content',
+  maxWidth: 'min(280px, 80vw)',
+  padding: '8px 10px',
+  borderRadius: '8px',
+  background: TOK.ink,
+  color: '#fff',
+  fontSize: '12.5px',
+  lineHeight: 1.4,
+  whiteSpace: 'normal',
+  boxShadow: TOK.shadowCard,
+  pointerEvents: 'none',
 };
 
 export const kindTagStyle: React.CSSProperties = {

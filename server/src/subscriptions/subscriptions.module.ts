@@ -8,6 +8,7 @@ import { User } from "../database/entities/user.entity";
 import { OrganizationsModule } from "../organizations/organizations.module";
 import { UsersModule } from "../users/users.module";
 import { AiCapacityGuard } from "./ai-capacity.guard";
+import { CrmPlanGuard } from "./crm-plan.guard";
 import { StripeService } from "./stripe.service";
 import { SubscriptionGuard } from "./subscription.guard";
 import { SubscriptionsController } from "./subscriptions.controller";
@@ -26,11 +27,13 @@ import { SubscriptionsService } from "./subscriptions.service";
     StripeService,
     SubscriptionGuard,
     AiCapacityGuard,
+    CrmPlanGuard,
   ],
   exports: [
     SubscriptionsService,
     SubscriptionGuard,
     AiCapacityGuard,
+    CrmPlanGuard,
     StripeService,
   ],
 })

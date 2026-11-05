@@ -328,7 +328,13 @@ export class EmailAdminService {
   async queueBulkRecategorization(
     userId: string,
     modesParam?: string,
-  ): Promise<{ message: string; queued: number; batchId: string | null }> {
+  ): Promise<{
+    message: string;
+    queued: number;
+    batchId: string | null;
+    /** True when this joined a sort that started before the user's latest change. */
+    joinedRunningSort?: boolean;
+  }> {
     const onboardingSort = await this.findInFlightOnboardingSort(userId);
     if (onboardingSort) {
       this.logger.log(
@@ -338,6 +344,7 @@ export class EmailAdminService {
         message: `Already recategorizing ${onboardingSort.pending} emails`,
         queued: onboardingSort.pending,
         batchId: onboardingSort.batchId,
+        joinedRunningSort: true,
       };
     }
 

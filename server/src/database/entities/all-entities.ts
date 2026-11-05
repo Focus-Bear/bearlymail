@@ -49,9 +49,12 @@ import { ImapAccount } from "./imap-account.entity";
 import { LocalModelSupervision } from "./local-model-supervision.entity";
 import { MCPSenderContextCache } from "./mcp-sender-context-cache.entity";
 import { MCPServerConfig } from "./mcp-server-config.entity";
+import { OAuthAuthorizationCode } from "./oauth-authorization-code.entity";
+import { OAuthClient } from "./oauth-client.entity";
 import { Office365Account } from "./office365-account.entity";
 import { Organization } from "./organization.entity";
 import { OrganizationMember } from "./organization-member.entity";
+import { PersonalAccessToken } from "./personal-access-token.entity";
 import { PriorityAnalysisRun } from "./priority-analysis-run.entity";
 import { PriorityOverride } from "./priority-override.entity";
 import { PriorityRule } from "./priority-rule.entity";
@@ -119,9 +122,12 @@ export const ALL_ENTITIES = [
   LocalModelSupervision,
   MCPSenderContextCache,
   MCPServerConfig,
+  OAuthAuthorizationCode,
+  OAuthClient,
   Office365Account,
   Organization,
   OrganizationMember,
+  PersonalAccessToken,
   PriorityAnalysisRun,
   PriorityOverride,
   PriorityRule,

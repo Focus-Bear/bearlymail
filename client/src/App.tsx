@@ -9,6 +9,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-d
 import axios from 'axios';
 import { QueryProvider } from 'providers/QueryProvider';
 import { theme } from 'theme/theme';
+import { peekPostLoginPath } from 'utils/postLoginRedirect';
 
 import { AdminMfaProvider } from 'components/admin/AdminMfaGate';
 import { ConsentModal } from 'components/ConsentModal';
@@ -19,6 +20,7 @@ import { AiLimitBanner } from 'components/notifications/AiLimitBanner';
 import { EmailSendOutcomeListener } from 'components/notifications/EmailSendOutcomeListener';
 import { SetupWizard } from 'components/setup-wizard';
 import { API_URL } from 'config/api';
+import { OAUTH_CONSENT_PATH } from 'constants/claudeAccess';
 import { AuthProvider, useAuth } from 'contexts/AuthContext';
 import { NotificationProvider } from 'contexts/NotificationContext';
 import AcceptInvite from 'pages/AcceptInvite';
@@ -42,6 +44,7 @@ import Inbox from 'pages/Inbox';
 import Landing from 'pages/Landing';
 import Login from 'pages/Login';
 import NotFound from 'pages/NotFound';
+import OAuthConsent from 'pages/OAuthConsent';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
 import ProductManagerLanding from 'pages/ProductManagerLanding';
 import ResetPassword from 'pages/ResetPassword';
@@ -161,6 +164,12 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     return <Navigate to="/login" />;
   }
 
+  // OAuth/SSO logins land on /inbox; resume the page that sent the user to log in.
+  const postLoginPath = peekPostLoginPath();
+  if (postLoginPath) {
+    return <Navigate to={postLoginPath} replace />;
+  }
+
   return (
     <PrivateRouteContent
       onboardingStatus={onboardingStatus}
@@ -188,6 +197,7 @@ const AppRoutes: React.FC = () => (
     <Route path={ENGINEERING_MANAGER_LANDING_PATH} element={<EngineeringManagerLanding />} />
     <Route path={PRODUCT_MANAGER_LANDING_PATH} element={<ProductManagerLanding />} />
     <Route path="/login" element={<Login />} />
+    <Route path={OAUTH_CONSENT_PATH} element={<OAuthConsent />} />
     <Route path="/auth-error" element={<AuthError />} />
     <Route path="/setup-password" element={<SetupPassword />} />
     <Route path="/forgot-password" element={<ForgotPassword />} />

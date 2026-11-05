@@ -1,4 +1,29 @@
 {
+  "oauthConsent": {
+    "brand": "BearlyMail",
+    "title": "¿Permitir que {{client}} use tu BearlyMail?",
+    "verifiedClient": "Lo solicita una app publicada en {{host}}.",
+    "selfDescribedClient": "La app eligió este nombre por sí misma, así que comprueba adónde te enviará.",
+    "redirectTo": "Cuando respondas, se te enviará a",
+    "signedInAs": "Sesión iniciada como {{email}}.",
+    "loopbackWarning": "Esta app se ejecuta en tu ordenador. Continúa solo si acabas de empezar a conectar desde Claude Code u otra app de este dispositivo.",
+    "scopeLegend": "Qué puede hacer",
+    "scopeReadTitle": "Solo lectura",
+    "scopeReadDescription": "Leer y buscar tus correos importantes, hilos y seguimientos.",
+    "scopeSendTitle": "Lectura y envío",
+    "scopeSendDescription": "También responder y enviar correos nuevos desde tu buzón. Claude te pregunta antes de cada envío.",
+    "scopeSendNotRequested": "Esta app no pidió enviar correos.",
+    "safetyNote": "Los correos los escriben otras personas y pueden contener instrucciones dirigidas a asistentes de IA. Puedes desconectar en cualquier momento en Ajustes → Conectar Claude.",
+    "submitError": "Algo salió mal. Inténtalo de nuevo.",
+    "deny": "Denegar",
+    "allow": "Permitir",
+    "allowing": "Permitiendo…",
+    "loading": "Cargando…",
+    "framed": "Por tu seguridad, esta página no se puede mostrar dentro de otro sitio. Ábrela en su propia pestaña.",
+    "invalidLink": "A este enlace le falta la solicitud de inicio de sesión. Vuelve a empezar la conexión desde Claude.",
+    "expired": "Esta solicitud de inicio de sesión caducó o ya se respondió. Vuelve a empezar la conexión desde Claude.",
+    "redirecting": "Volviendo a {{client}}…"
+  },
   "admin": {
     "dashboard": {
       "allUsers": "Todos los usuarios",
@@ -796,7 +821,8 @@
     "whatsChanged": "Qué ha cambiado",
     "changeSummaries": {
       "privacy_1_2_0": "Ahora explicamos el seguimiento de apertura de correos: los correos que envías pueden incluir una pequeña imagen invisible que registra cuándo se abren, junto con la dirección IP y los datos del dispositivo de quien los abre.",
-      "privacy_1_3_0": "Ahora enumeramos cada servicio de IA que procesa tu correo (TypeSafe AI, Google Gemini, OpenAI y Amazon Bedrock), qué recibe cada uno y por qué, y explicamos que parte de este procesamiento se realiza fuera de Australia."
+      "privacy_1_3_0": "Ahora enumeramos cada servicio de IA que procesa tu correo (TypeSafe AI, Google Gemini, OpenAI y Amazon Bedrock), qué recibe cada uno y por qué, y explicamos que parte de este procesamiento se realiza fuera de Australia.",
+      "privacy_1_4_0": "Ahora explicamos qué decisiones sobre tu correo toman o ayudan a tomar nuestros programas y la IA, y cómo pedir que una persona revise una; que podemos entrenar un modelo pequeño solo para tu cuenta, a partir de tu propio correo; que cumplimos los requisitos de Uso Limitado de Google; y tus derechos y autoridades de control en Australia, la UE y el Reino Unido, Nueva Zelanda y EE. UU. Además, ahora debes tener al menos 16 años para usar BearlyMail, y hemos actualizado nuestras Condiciones de uso en consecuencia."
     }
   },
   "debug": {
@@ -3020,8 +3046,8 @@
             "body": "Ganamos dinero con las suscripciones, no con tus datos. Nunca los vendemos ni los usamos para publicidad."
           },
           "noTraining": {
-            "title": "No se usan para entrenar IA",
-            "body": "Todos los proveedores de IA que usamos se comprometen a no entrenar sus modelos con tu correo."
+            "title": "No se usan para entrenar IA compartida",
+            "body": "Todos los proveedores de IA que usamos se comprometen a no entrenar sus modelos con tu correo. Cualquier modelo que entrenemos con él es solo para tu cuenta."
           },
           "control": {
             "title": "Tú tienes el control",
@@ -4903,6 +4929,58 @@
       "notIncluded": "El seguimiento de aperturas está incluido en los planes Growth y Enterprise.",
       "viewPlans": "Ver planes",
       "saveError": "No se pudo actualizar el seguimiento de aperturas. Inténtalo de nuevo."
+    },
+    "claudeAccess": {
+      "title": "Conectar Claude",
+      "description": "Permite que Claude lea tus correos importantes, responda y envíe correos nuevos a través de BearlyMail, con seguimiento de aperturas y recordatorios de seguimiento. Añade BearlyMail a Claude con una URL o crea un token de acceso para los clientes que lo necesiten.",
+      "safetyNote": "Los correos los escriben otras personas y pueden contener instrucciones dirigidas a asistentes de IA. Los tokens son de solo lectura salvo que permitas el envío, Claude pide confirmación antes de enviar y cada mensaje enviado así queda registrado.",
+      "nameLabel": "Nombre del token",
+      "expiryLabel": "Caduca",
+      "expiryDays_one": "En {{count}} día",
+      "expiryDays_other": "En {{count}} días",
+      "neverExpires": "No caduca",
+      "allowSendLabel": "Permitir enviar correos",
+      "allowSendHint": "Permite que Claude envíe respuestas y correos nuevos desde tu buzón. Déjalo desactivado para un token de solo lectura.",
+      "createButton": "Crear token",
+      "creating": "Creando…",
+      "createError": "No se pudo crear el token. Inténtalo de nuevo.",
+      "newTokenTitle": "Copia tu token ahora.",
+      "newTokenWarning": "No podrás volver a verlo. Cualquiera que lo tenga puede actuar sobre tu buzón, así que mantenlo en secreto.",
+      "tokenLabel": "Token de acceso",
+      "claudeCodeLabel": "Claude Code: ejecútalo en una terminal",
+      "claudeDesktopLabel": "Claude Desktop: añádelo a claude_desktop_config.json",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "dismiss": "Listo",
+      "activeTokens": "Apps conectadas y tokens",
+      "loading": "Cargando…",
+      "loadError": "No se pudieron cargar tus conexiones y tokens.",
+      "noTokens": "Todavía no hay nada conectado.",
+      "scopeRead": "Solo lectura",
+      "scopeReadSend": "Lectura y envío",
+      "lastUsed": "Último uso: {{date}}",
+      "neverUsed": "Nunca usado",
+      "expires": "Caduca el {{date}}",
+      "revoke": "Revocar",
+      "revoking": "Revocando…",
+      "revokeAria": "Revocar el token {{name}}",
+      "revokeConfirm": "¿Revocar \"{{name}}\"? Todo lo que lo use perderá el acceso de inmediato.",
+      "revoked": "Se revocó \"{{name}}\".",
+      "revokeError": "No se pudo revocar el token. Inténtalo de nuevo.",
+      "connectorTitle": "Añadir a Claude (web, escritorio y móvil)",
+      "connectorStepOpen": "En Claude, ve a Personalizar → Conectores y elige Añadir conector personalizado.",
+      "connectorOpenLink": "Abrir conectores de Claude",
+      "connectorStepPaste": "Pega la URL de abajo y haz clic en Añadir.",
+      "connectorStepApprove": "Haz clic en Conectar, inicia sesión en BearlyMail y elige solo lectura o lectura y envío.",
+      "connectorUrlLabel": "URL del conector",
+      "claudeCodeOAuthLabel": "Claude Code: ejecútalo en una terminal y luego usa /mcp para iniciar sesión",
+      "tokenSectionTitle": "O usa un token de acceso",
+      "tokenSectionHint": "Para el archivo de configuración de Claude Desktop, scripts y clientes MCP que no pueden iniciar sesión con OAuth.",
+      "connectedApp": "App conectada",
+      "connectionLapses": "Se desconecta si no se usa antes del {{date}}",
+      "disconnect": "Desconectar",
+      "disconnectAria": "Desconectar {{name}}",
+      "disconnectConfirm": "¿Desconectar \"{{name}}\"? Perderá el acceso de inmediato y tendrás que volver a conectarla para usarla."
     }
   },
   "keyboard": {

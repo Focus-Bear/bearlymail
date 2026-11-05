@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 
 import { MS_PER_MINUTE } from 'constants/numbers';
@@ -52,6 +52,42 @@ describe('useRecategorise', () => {
     });
 
     expect(result.current.hasUnsortedCategoryChanges).toBe(true);
+  });
+
+  it('brings Re-categorise back after a press that only joined the running sort', async () => {
+    mockedAxios.post.mockResolvedValue({ data: { batchId: 'sort-1', queued: 40, joinedRunningSort: true } });
+    mockedAxios.get.mockImplementation(async (url: string) =>
+      url.includes('recategorize-progress')
+        ? { data: { total: 100, completed: 100, failed: 0, pending: 0 } }
+        : { data: COUNTS }
+    );
+    const { result } = renderHook(() => useRecategorise());
+
+    act(() => result.current.markCategoriesChanged());
+    await act(async () => {
+      await result.current.start();
+    });
+
+    await waitFor(() => expect(result.current.status).toBe(RECATEGORISE_STATUS.DONE));
+    expect(result.current.hasUnsortedCategoryChanges).toBe(true);
+  });
+
+  it('stays finished after a full re-sort', async () => {
+    mockedAxios.post.mockResolvedValue({ data: { batchId: 'run-1', queued: 100 } });
+    mockedAxios.get.mockImplementation(async (url: string) =>
+      url.includes('recategorize-progress')
+        ? { data: { total: 100, completed: 100, failed: 0, pending: 0 } }
+        : { data: COUNTS }
+    );
+    const { result } = renderHook(() => useRecategorise());
+
+    act(() => result.current.markCategoriesChanged());
+    await act(async () => {
+      await result.current.start();
+    });
+
+    await waitFor(() => expect(result.current.status).toBe(RECATEGORISE_STATUS.DONE));
+    expect(result.current.hasUnsortedCategoryChanges).toBe(false);
   });
 
   it('reports "still running", not done, when the max wait passes with jobs unfinished', async () => {

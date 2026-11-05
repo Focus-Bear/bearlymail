@@ -6,6 +6,7 @@ import { theme } from 'theme/theme';
 import { devLog } from 'utils/dev-logger';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
+import { peekPostLoginPath } from 'utils/postLoginRedirect';
 import {
   consumeSessionExpired,
   getLastLoginMethod,
@@ -19,7 +20,7 @@ import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { SessionExpiredBanner } from 'components/auth/SessionExpiredBanner';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { GOOGLE_OAUTH_START_PATH, PROVIDER_GOOGLE, PROVIDER_MICROSOFT, PROVIDER_ZOHO } from 'constants/strings';
+import { GOOGLE_OAUTH_START_PATH, PROVIDER_GOOGLE, PROVIDER_MICROSOFT, PROVIDER_ZOHO, ROUTE_INBOX } from 'constants/strings';
 import { DeletedAccountError, OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
@@ -87,7 +88,7 @@ const Login: React.FC = () => {
     // If user is already authenticated (cookie still valid), redirect to inbox
     if (!loading && user) {
       devLog('User already authenticated, redirecting to inbox');
-      navigate('/inbox');
+      navigate(peekPostLoginPath() ?? ROUTE_INBOX);
     }
   }, [user, loading, navigate]);
 
@@ -99,7 +100,7 @@ const Login: React.FC = () => {
 
     try {
       await login(email, password);
-      navigate('/inbox');
+      navigate(peekPostLoginPath() ?? ROUTE_INBOX);
     } catch (err: unknown) {
       if (err instanceof OAuthOnlyAccountError) {
         setIsOAuthOnlyError(true);
@@ -121,7 +122,7 @@ const Login: React.FC = () => {
 
     try {
       await loginWithAppleMail();
-      navigate('/inbox');
+      navigate(peekPostLoginPath() ?? ROUTE_INBOX);
     } catch (err: unknown) {
       setError(getAxiosErrorMessage(err, t('auth.authenticationFailed')));
     }

@@ -3,6 +3,7 @@ import React from 'react';
 import { LegalList } from 'components/legal/LegalList';
 import { LegalParagraph } from 'components/legal/LegalParagraph';
 import { LegalSection } from 'components/legal/LegalSection';
+import { MINIMUM_USER_AGE } from 'constants/legal';
 
 export const TermsOfUseContentPart1: React.FC = () => {
   return (
@@ -34,7 +35,7 @@ export const TermsOfUseContentPart1: React.FC = () => {
         <LegalParagraph>To use the Service, you must:</LegalParagraph>
         <LegalList
           items={[
-            'Be at least 13 years old',
+            `Be at least ${MINIMUM_USER_AGE} years old`,
             'Provide accurate and complete registration information',
             'Maintain the security of your account credentials',
             'Notify us immediately of any unauthorized access',

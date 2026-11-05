@@ -14,6 +14,7 @@ import { ContactsService } from "../contacts/contacts.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { decryptContextValue } from "../encryption/encryption.helper";
 import { getJobPriority } from "../queue/job-priorities";
+import { getErrorMessage } from "../types/common";
 import {
   BossDb,
   EMAIL_CONTROLLER_DEFAULTS,
@@ -21,6 +22,12 @@ import {
 } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
+import {
+  enqueueRecategorizationJobs,
+  findInFlightRecategorizationBatch,
+  type InFlightRecategorizeBatch,
+  RECATEGORIZE_TRIGGER,
+} from "./recategorize-jobs.helper";
 
 type ValidMode =
   | typeof INBOX_MODES.TRIAGE
@@ -321,7 +328,26 @@ export class EmailAdminService {
   async queueBulkRecategorization(
     userId: string,
     modesParam?: string,
-  ): Promise<{ message: string; queued: number; batchId: string | null }> {
+  ): Promise<{
+    message: string;
+    queued: number;
+    batchId: string | null;
+    /** True when this joined a sort that started before the user's latest change. */
+    joinedRunningSort?: boolean;
+  }> {
+    const onboardingSort = await this.findInFlightOnboardingSort(userId);
+    if (onboardingSort) {
+      this.logger.log(
+        `[Recategorize] Onboarding sort ${onboardingSort.batchId} still running for userId: ${userId} (${onboardingSort.pending} pending) — returning it instead of queuing a second run`,
+      );
+      return {
+        message: `Already recategorizing ${onboardingSort.pending} emails`,
+        queued: onboardingSort.pending,
+        batchId: onboardingSort.batchId,
+        joinedRunningSort: true,
+      };
+    }
+
     const modes = this.parseModes(modesParam);
     const allEmails = [];
     const seenIds = new Set<string>();
@@ -345,22 +371,11 @@ export class EmailAdminService {
     }
 
     const batchId = crypto.randomUUID();
-    let queued = 0;
-    for (const email of allEmails) {
-      // No singleton options: pg-boss would drop a re-run started in the same
-      // minute, so changes made since the last run would never be applied.
-      const jobId = await this.boss.send(
-        JOB_NAMES.REFINE_PRIORITY,
-        {
-          userId,
-          emailId: email.id,
-          forceRecalculate: true,
-          recategorizeBatchId: batchId,
-        },
-        { priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true) },
-      );
-      if (jobId != null) queued++;
-    }
+    const queued = await enqueueRecategorizationJobs(this.boss, {
+      userId,
+      emailIds: allEmails.map((email) => email.id),
+      batchId,
+    });
 
     this.logger.log(
       `[Recategorize] Queued ${queued} recategorization jobs for userId: ${userId}, batchId: ${batchId}`,
@@ -371,6 +386,28 @@ export class EmailAdminService {
       queued,
       batchId,
     };
+  }
+
+  /**
+   * The automatic sort onboarding queues once the user's categories are saved.
+   * While it runs, pressing Re-categorise attaches to it rather than putting
+   * every thread through Jev twice. A failed lookup never blocks the button.
+   */
+  private async findInFlightOnboardingSort(
+    userId: string,
+  ): Promise<InFlightRecategorizeBatch | null> {
+    try {
+      return await findInFlightRecategorizationBatch(
+        this.boss,
+        userId,
+        RECATEGORIZE_TRIGGER.ONBOARDING_CATEGORIES_SAVED,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `[Recategorize] Could not check for a running onboarding sort for userId: ${userId}: ${getErrorMessage(error)}`,
+      );
+      return null;
+    }
   }
 
   async getRecategorizationProgress(

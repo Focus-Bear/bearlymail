@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { DeletedAccount } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
+import { LocalModelUserDataService } from "../local-model/local-model-user-data.service";
 import { UsersService } from "./users.service";
 
 jest.mock("../encryption/encryption.helper", () => {
@@ -56,6 +57,10 @@ describe("UsersService — inactivity tracking", () => {
             findOne: jest.fn(),
             upsert: jest.fn().mockResolvedValue(undefined),
           },
+        },
+        {
+          provide: LocalModelUserDataService,
+          useValue: { deleteUserData: jest.fn() },
         },
       ],
     }).compile();

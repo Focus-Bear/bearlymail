@@ -220,17 +220,20 @@ export interface CleanBodyResult {
 
 /**
  * The "On <date>, <name> wrote:" line a mail client puts above a quoted reply,
- * in the shapes real clients write: Gmail/Apple day-first and US month-first,
- * BearlyMail's own "On Mon, 26 Oct 2026 02:52:50 GMT, Name <a@b> wrote:", and
- * the Spanish, German and French Gmail forms. The attribution may wrap onto a
+ * in the shapes real clients write: Gmail day-first and US month-first, Apple's
+ * forms without a weekday, numeric dates, BearlyMail's own
+ * "On Mon, 26 Oct 2026 02:52:50 GMT, Name <a@b> wrote:", and the Spanish,
+ * German and French Gmail forms. The attribution may wrap onto a
  * second line ("Name <\na@b> wrote:"), but no further, so a sentence that
  * merely starts "On Monday…" and says "wrote:" much later is not a boundary.
  */
 const ATTRIBUTION_TAIL = String.raw`[^\n]{0,250}(?:\n[^\n]{0,250})?`;
 const DAY_OR_MONTH = String.raw`[^\s,]+`;
+const OPTIONAL_WEEKDAY = String.raw`(?:${DAY_OR_MONTH},\s+)?`;
 const REPLY_ATTRIBUTION_PATTERNS = [
-  new RegExp(String.raw`On\s+${DAY_OR_MONTH},\s+\d{1,2}\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}wrote:`, 'i'),
-  new RegExp(String.raw`On\s+${DAY_OR_MONTH},\s+${DAY_OR_MONTH}\s+\d{1,2},\s+\d{4}${ATTRIBUTION_TAIL}wrote:`, 'i'),
+  new RegExp(String.raw`On\s+${OPTIONAL_WEEKDAY}\d{1,2}\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}wrote:`, 'i'),
+  new RegExp(String.raw`On\s+${OPTIONAL_WEEKDAY}${DAY_OR_MONTH}\s+\d{1,2},\s+\d{4}${ATTRIBUTION_TAIL}wrote:`, 'i'),
+  new RegExp(String.raw`On\s+\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}${ATTRIBUTION_TAIL}wrote:`, 'i'),
   new RegExp(String.raw`El\s+${DAY_OR_MONTH},\s+\d{1,2}\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}escribió:`, 'i'),
   new RegExp(String.raw`Am\s+${DAY_OR_MONTH},\s+\d{1,2}\.\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}schrieb${ATTRIBUTION_TAIL}:`, 'i'),
   new RegExp(String.raw`Le\s+${DAY_OR_MONTH}\s+\d{1,2}\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}a\s+écrit\s*:`, 'i'),
@@ -261,11 +264,17 @@ function earliestMatch(text: string, patterns: RegExp[], isAcceptable: (index: n
 /**
  * Where the quoted earlier mail starts in `text`, or -1. A reply attribution
  * only needs some words above it, because "Thanks Sujith." is a complete
- * reply; a forward header needs MIN_CONTENT_BEFORE_BOUNDARY characters.
+ * reply; a forward header needs MIN_CONTENT_BEFORE_BOUNDARY characters of
+ * text. Blank lines don't count, as they leave the reader nothing to see.
  */
 export function findQuoteBoundary(text: string): number {
-  const attribution = earliestMatch(text, REPLY_ATTRIBUTION_PATTERNS, index => text.slice(0, index).trim() !== '');
-  const forwardHeader = earliestMatch(text, FORWARD_HEADER_PATTERNS, index => index > MIN_CONTENT_BEFORE_BOUNDARY);
+  const textLengthBefore = (index: number) => text.slice(0, index).trim().length;
+  const attribution = earliestMatch(text, REPLY_ATTRIBUTION_PATTERNS, index => textLengthBefore(index) > 0);
+  const forwardHeader = earliestMatch(
+    text,
+    FORWARD_HEADER_PATTERNS,
+    index => textLengthBefore(index) > MIN_CONTENT_BEFORE_BOUNDARY
+  );
   if (attribution < 0) {
     return forwardHeader;
   }
@@ -281,14 +290,12 @@ function hasVisibleText(htmlFragment: string): boolean {
 const HTML_SEARCH_STEP = 10;
 
 /**
- * Lengths of the pre-boundary text's tail to look for in the HTML: from
- * HTML_CUT_POINT_OFFSET_50 down in steps of HTML_SEARCH_STEP, and the whole
- * text when it is shorter than one step ("Thanks!").
+ * Lengths of the pre-boundary text's tail to look for in the HTML, from
+ * HTML_CUT_POINT_OFFSET_50 down in steps of HTML_SEARCH_STEP. Never shorter:
+ * "no" also matches "text-decoration:none" in a style block, and cutting there
+ * hides the reply. A reply that short is cut at the boundary text instead.
  */
 function htmlSearchLengths(textLength: number): number[] {
-  if (textLength < HTML_SEARCH_STEP) {
-    return textLength > 0 ? [textLength] : [];
-  }
   const lengths: number[] = [];
   for (let length = Math.min(HTML_CUT_POINT_OFFSET_50, textLength); length >= HTML_SEARCH_STEP; length -= HTML_SEARCH_STEP) {
     lengths.push(length);

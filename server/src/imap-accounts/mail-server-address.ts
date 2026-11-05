@@ -85,7 +85,7 @@ function preferIpv4(addresses: Array<{ address: string }>): string {
 
 const IPV4_MAPPED_PREFIX = "::ffff:";
 
-function isBlockedAddress(address: string): boolean {
+export function isBlockedAddress(address: string): boolean {
   // "::ffff:10.0.0.1" reaches the IPv4 host, so judge it as IPv4. (Listing
   // ::ffff:0:0/96 as a blocked range instead would block every IPv4 address:
   // BlockList matches IPv4 addresses against IPv4-mapped ranges.)

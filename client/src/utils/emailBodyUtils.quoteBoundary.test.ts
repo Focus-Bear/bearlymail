@@ -51,6 +51,22 @@ describe('quoted-reply collapsing for a short reply', () => {
     expect(result.html).not.toContain('wrote:');
   });
 
+  it.each([
+    ['a style block', 'no', '<html><head><style>a{text-decoration:none}</style></head><body><div>no</div>'],
+    ['a style block in the body', 'ok', '<style>.ok{color:red}</style><div>ok</div>'],
+    ['the page title', 'Thanks', '<html><head><title>Thanks</title></head><body><p>Thanks</p>'],
+    ['an attribute', 'ok', '<table data-x="book"><tr><td>ok</td></tr></table>'],
+  ])('keeps a very short reply visible when its text also appears in %s', (_place, reply, htmlBeforeQuote) => {
+    const result = extractCleanHtmlBodyWithMeta(
+      `${htmlBeforeQuote}<div>${ATTRIBUTION}</div><blockquote>${QUOTED_TEXT}</blockquote>`
+    );
+
+    const visibleText = new DOMParser().parseFromString(result.html, 'text/html').body.textContent;
+    expect(result.wasTruncated).toBe(true);
+    expect(visibleText).toContain(reply);
+    expect(visibleText).not.toContain(QUOTED_TEXT);
+  });
+
   it('leaves a message that is only a quote alone', () => {
     const quoteOnly = `${ATTRIBUTION.replace(/&lt;|&gt;/g, '')}\n> ${QUOTED_TEXT}`;
 
@@ -65,6 +81,10 @@ describe('findQuoteBoundary attribution shapes', () => {
   it.each([
     ['Gmail day-first', 'On Mon, 26 Oct 2026 at 12:20, Sam Lee <sam@example.com> wrote:'],
     ['Gmail US month-first', 'On Mon, Oct 26, 2026 at 12:20 PM Sam Lee <sam@example.com> wrote:'],
+    ['Apple day-first', 'On 26 Oct 2026, at 12:20, Sam Lee <sam@example.com> wrote:'],
+    ['Apple month-first', 'On Oct 26, 2026, at 12:20 PM, Sam Lee <sam@example.com> wrote:'],
+    ['numeric date', 'On 26/10/2026 12:20 pm, Sam Lee wrote:'],
+    ['numeric short year', 'On 26/10/26 12:20, Sam Lee wrote:'],
     ['BearlyMail UTC', 'On Mon, 26 Oct 2026 02:52:50 GMT, Sam Lee <sam@example.com> wrote:'],
     ['wrapped onto two lines', 'On Mon, 26 Oct 2026 at 12:20, Sam Lee <\nsam@example.com> wrote:'],
     ['Spanish Gmail', 'El lun, 26 oct 2026 a las 12:20, Sam Lee (<sam@example.com>) escribió:'],
@@ -83,5 +103,13 @@ describe('findQuoteBoundary attribution shapes', () => {
   it('still needs real content above a forwarded header', () => {
     expect(findQuoteBoundary('FYI\n\n-----Original Message-----\nFrom: Sam')).toBe(-1);
     expect(findQuoteBoundary('Please see the thread below, thanks.\n\n-----Original Message-----')).toBeGreaterThan(0);
+  });
+
+  it('does not count blank lines as content above a forwarded header', () => {
+    const forwarded = '-----Original Message-----\nFrom: Sam\nThe forwarded message';
+
+    expect(findQuoteBoundary(`${'\n'.repeat(25)}${forwarded}`)).toBe(-1);
+    expect(findQuoteBoundary(`FYI${'\r\n'.repeat(15)}${forwarded}`)).toBe(-1);
+    expect(extractCleanBodyWithMeta(`${' '.repeat(30)}\n${forwarded}`).text).toContain('The forwarded message');
   });
 });

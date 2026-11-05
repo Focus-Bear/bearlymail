@@ -1,8 +1,9 @@
 import React from 'react';
 
-import { LegalList } from 'components/legal/LegalList';
 import { LegalParagraph } from 'components/legal/LegalParagraph';
 import { LegalSection } from 'components/legal/LegalSection';
+import { MINIMUM_USER_AGE, PRIVACY_CONTACT_EMAIL } from 'constants/legal';
+import { YourRightsSection } from 'pages/privacy/YourRightsContent';
 
 export const PrivacyPolicyContentPart2: React.FC = () => {
   return (
@@ -14,24 +15,12 @@ export const PrivacyPolicyContentPart2: React.FC = () => {
         </LegalParagraph>
       </LegalSection>
 
-      <LegalSection title="7. Your Rights">
-        <LegalParagraph>You have the right to:</LegalParagraph>
-        <LegalList
-          items={[
-            'Access your personal data',
-            'Correct inaccurate data',
-            'Request deletion of your data',
-            'Export your data',
-            'Withdraw consent at any time',
-            'Object to processing of your data',
-          ]}
-        />
-      </LegalSection>
+      <YourRightsSection />
 
       <LegalSection title="8. Children's Privacy">
         <LegalParagraph>
-          Our service is not intended for users under the age of 13. We do not knowingly collect information from
-          children under 13.
+          Our service is not intended for users under the age of {MINIMUM_USER_AGE}. We do not knowingly collect
+          information from children under {MINIMUM_USER_AGE}.
         </LegalParagraph>
       </LegalSection>
 
@@ -45,7 +34,7 @@ export const PrivacyPolicyContentPart2: React.FC = () => {
       <LegalSection title="10. Contact Us">
         <LegalParagraph>If you have questions about this Privacy Policy, please contact us at:</LegalParagraph>
         <LegalParagraph>
-          Email: privacy@bearlymail.com
+          Email: {PRIVACY_CONTACT_EMAIL}
           <br />
           Made by Focus Bear
         </LegalParagraph>

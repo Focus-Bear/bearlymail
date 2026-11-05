@@ -624,6 +624,15 @@ export class UsersService {
    * activity was never recorded) falls outside the given retention window.
    * Used by the data-retention cleanup job to find accounts eligible for deletion.
    */
+  /** Which of these ids still have an account. */
+  async findExistingUserIds(userIds: string[]): Promise<Set<string>> {
+    const rows: { id: string }[] = await this.userRepository.query(
+      `SELECT id FROM users WHERE id = ANY($1::uuid[])`,
+      [userIds],
+    );
+    return new Set(rows.map((row) => row.id));
+  }
+
   async findUsersForDeletion(thresholdDays: number): Promise<string[]> {
     const HOURS_PER_DAY = 24;
     const MINUTES_PER_HOUR = 60;

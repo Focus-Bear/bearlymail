@@ -3007,8 +3007,8 @@
             "body": "Ganamos dinero con las suscripciones, no con tus datos. Nunca los vendemos ni los usamos para publicidad."
           },
           "noTraining": {
-            "title": "No se usan para entrenar IA",
-            "body": "Todos los proveedores de IA que usamos se comprometen a no entrenar sus modelos con tu correo."
+            "title": "No se usan para entrenar IA compartida",
+            "body": "Todos los proveedores de IA que usamos se comprometen a no entrenar sus modelos con tu correo. Cualquier modelo que entrenemos con él es solo para tu cuenta."
           },
           "control": {
             "title": "Tú tienes el control",

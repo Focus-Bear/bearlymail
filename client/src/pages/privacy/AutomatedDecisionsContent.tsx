@@ -15,7 +15,8 @@ const INFORMATION_USED = [
 const DECISIONS_MADE_AUTOMATICALLY = [
   'Which category each email goes into and how urgent it is, which sets the order and grouping of your inbox',
   'Whether an email looks like phishing, and what type of email or contact it is',
-  'Whether the rules and workflows you have set up apply to an email',
+  'If you use email batching, whether a high-priority email skips your schedule and reaches you straight away',
+  'Whether a rule or workflow applies to an email, including rules BearlyMail creates automatically from your email',
   'If you turn on auto-replies (they are off by default), whether an incoming email gets one',
 ];
 
@@ -36,8 +37,8 @@ export const AutomatedDecisionsContent: React.FC = () => (
     <LegalParagraph>Decisions these programs make on their own:</LegalParagraph>
     <LegalList items={DECISIONS_MADE_AUTOMATICALLY} />
     <LegalParagraph>
-      Things these programs produce to help you decide, which you can use, change or ignore. Apart from auto-replies you
-      turn on and emails you schedule, BearlyMail does not send email without you sending it:
+      Things these programs produce to help you decide, which you can use, change or ignore. BearlyMail sends email only
+      when you send or schedule it, or when an auto-reply or workflow you have set up does so:
     </LegalParagraph>
     <LegalList items={DECISIONS_PROGRAMS_HELP_WITH} />
     <LegalParagraph>

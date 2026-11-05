@@ -4665,8 +4665,8 @@
             "body": "We make money from subscriptions, not your data. We never sell it or use it for advertising."
           },
           "noTraining": {
-            "title": "Not used to train AI",
-            "body": "Every AI provider we use commits not to train its models on your email."
+            "title": "Not used to train shared AI",
+            "body": "Every AI provider we use commits not to train its models on your email. Any model we train from it is for your account only."
           },
           "control": {
             "title": "You stay in control",

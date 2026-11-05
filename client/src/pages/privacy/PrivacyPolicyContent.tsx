@@ -8,7 +8,7 @@ import { PrivacyPolicyContentPart2 } from 'pages/privacy/PrivacyPolicyContentPar
 // Newest first; add an entry with every policy version bump.
 const CHANGE_SUMMARIES = [
   {
-    date: '3 November 2026',
+    date: '5 November 2026',
     changes: [
       'Section 3.1 explains which decisions about your email computer programs make on their own, which they help you make, what information they use, and how to ask a person to review one.',
       'Section 3.2 explains that we may train a small model for your account only, from your own email.',

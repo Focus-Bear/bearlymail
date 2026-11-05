@@ -8,7 +8,7 @@ export const DEFAULT_LEGAL_VERSIONS = {
   // 1.1.0: names every AI provider that processes email content, including TypeSafe.
   // 1.2.0: discloses email open tracking (pixel, open time, IP and user agent).
   // 1.3.0: describes each AI processor and the processing done outside Australia.
-  // 1.4.0: automated decisions (APP 1.8), the per-account model, Google API Limited Use, rights by region, 16+.
+  // 1.4.0: automated decisions (APP 1.8), the per-account model, Google API Limited Use, rights by region.
   PRIVACY: "1.4.0",
 } as const;
 

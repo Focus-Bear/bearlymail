@@ -13,6 +13,19 @@ describe('PrivacyPolicyContent', () => {
     expect(screen.getByText(/ask for a person to review it/)).toBeInTheDocument();
   });
 
+  it('names every way BearlyMail can send email without the user pressing send', () => {
+    render(<PrivacyPolicyContent />);
+
+    expect(screen.getByText(/when an auto-reply or workflow you have set up does so/)).toBeInTheDocument();
+  });
+
+  it('discloses that high-priority emails can skip the batch schedule and that rules can be automatic', () => {
+    render(<PrivacyPolicyContent />);
+
+    expect(screen.getByText(/skips your schedule and reaches you straight away/)).toBeInTheDocument();
+    expect(screen.getByText(/rules BearlyMail creates automatically from your email/)).toBeInTheDocument();
+  });
+
   it('states the Google API Services Limited Use commitment with a link to the policy', () => {
     render(<PrivacyPolicyContent />);
 

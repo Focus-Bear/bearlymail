@@ -39,6 +39,7 @@ import { applyTrialExpiryIfDue } from "../organizations/org-plan-status.util";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ApiError } from "../types/common";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
+import { orgIncludesCrm } from "./plan-features.util";
 import { StripeService } from "./stripe.service";
 import {
   STRIPE_BILLING_REASON_CYCLE,
@@ -515,6 +516,7 @@ export class SubscriptionsService {
     emailsPerCycle: number;
     seats: number;
     includesEmailTracking: boolean;
+    includesCrm: boolean;
   }> {
     return Object.entries(VOLUME_TIERS).map(([id, tier]) => ({
       id,
@@ -522,6 +524,7 @@ export class SubscriptionsService {
       emailsPerCycle: tier.limit,
       seats: tier.seats,
       includesEmailTracking: tier.includesEmailTracking,
+      includesCrm: tier.includesCrm,
     }));
   }
 
@@ -1407,6 +1410,21 @@ export class SubscriptionsService {
     });
     if (!membership) return null;
     return this.trackEmailProcessed(membership.organizationId);
+  }
+
+  /**
+   * Whether the user's plan includes the CRM. Self-hosted deployments and a
+   * user with no org fail open, as email tracking and AI metering do (every
+   * user is given a personal org at login).
+   */
+  async hasCrmAccess(userId: string): Promise<boolean> {
+    if (this.isSelfHosted) return true;
+    const membership = await this.memberRepository.findOne({
+      where: { userId, status: MEMBER_STATUS.ACTIVE },
+      relations: { organization: true },
+    });
+    if (!membership?.organization) return true;
+    return orgIncludesCrm(membership.organization);
   }
 
   /**

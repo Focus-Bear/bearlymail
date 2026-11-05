@@ -6,6 +6,9 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 
+import { EmailExportService } from "../emails/email-export.service";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { LocalModelTrainingDataService } from "./local-model-training-data.service";
 import { LocalModelUserDataService } from "./local-model-user-data.service";
 
 const USER_ID = "user-1";
@@ -70,6 +73,54 @@ describe("LocalModelUserDataService", () => {
       "models/user-1.joblib",
       "models/user-1/20261101T000000Z.joblib",
       "models/user-1/current.json",
+    ]);
+  });
+
+  it("uses the cleanup bucket on the web task, which has no LOCAL_MODELS_BUCKET", async () => {
+    const send = jest.fn(async () => ({ Contents: [] }));
+    const service = await makeService(
+      { LOCAL_MODELS_CLEANUP_BUCKET: "cleanup-bucket" },
+      send,
+    );
+
+    await service.deleteUserData(USER_ID);
+
+    const buckets = send.mock.calls.map(
+      ([command]) => (command as DeleteObjectsCommand).input.Bucket,
+    );
+    expect(buckets.length).toBeGreaterThan(0);
+    expect(new Set(buckets)).toEqual(new Set(["cleanup-bucket"]));
+  });
+
+  it("keeps the training export off when only the cleanup bucket is set", async () => {
+    const config = {
+      get: (key: string) =>
+        key === "LOCAL_MODELS_CLEANUP_BUCKET" ? "cleanup-bucket" : undefined,
+    };
+    const trainingData = new LocalModelTrainingDataService(
+      config as unknown as ConfigService,
+      {} as EmailExportService,
+      {} as UserEncryptionService,
+    );
+
+    expect(trainingData.isConfigured()).toBe(false);
+  });
+
+  it("still deletes the plaintext export when listing the model bundles fails", async () => {
+    const send = jest.fn(async (command: unknown) => {
+      if (command instanceof ListObjectsV2Command) {
+        throw new Error("AccessDenied");
+      }
+      return {};
+    });
+    const service = await makeService({ LOCAL_MODELS_BUCKET: "bucket" }, send);
+
+    await expect(service.deleteUserData(USER_ID)).rejects.toThrow(
+      "AccessDenied",
+    );
+    expect(deletedKeys(send)).toEqual([
+      "training-data/user-1.json",
+      "models/user-1.joblib",
     ]);
   });
 

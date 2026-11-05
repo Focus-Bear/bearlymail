@@ -31,13 +31,14 @@ import { logError } from "../utils/logger";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthService } from "./auth.service";
 import { GoogleAuthGuard } from "./google-auth.guard";
+import { GooglePermissionGrantService } from "./google-permission-grant.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { jwtCookieOptions } from "./jwt-cookie.util";
 import { LocalAuthGuard } from "./local-auth.guard";
 import { isMfaElevationFresh } from "./mfa-elevation";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { determineOAuthErrorType } from "./oauth-error-type";
-import { parseSignedOAuthState } from "./oauth-state.util";
+import { ParsedOAuthState, parseSignedOAuthState } from "./oauth-state.util";
 import { StepUpAuthGuard } from "./step-up.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
 
@@ -69,6 +70,7 @@ export class AuthController {
     private zohoAccountsService: ZohoAccountsService,
     private userEncryptionService: UserEncryptionService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
+    private googlePermissionGrantService: GooglePermissionGrantService,
   ) {}
 
   /**
@@ -370,6 +372,13 @@ export class AuthController {
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const grantRedirect =
+      await this.googlePermissionGrantService.getCallbackRedirect(
+        state,
+        req,
+        frontendUrl,
+      );
+    if (grantRedirect) return res.redirect(grantRedirect);
     if (req.authError || req.user?.authFailed) {
       return this.redirectWithAuthError(
         req.authError as Error,
@@ -561,9 +570,7 @@ export class AuthController {
     return res.redirect(`${frontendUrl}/auth-error?${errorParams.toString()}`);
   }
 
-  private parseOAuthState(
-    state: string,
-  ): { action: string; userId: string } | null {
+  private parseOAuthState(state: string): ParsedOAuthState | null {
     return parseSignedOAuthState(state);
   }
 

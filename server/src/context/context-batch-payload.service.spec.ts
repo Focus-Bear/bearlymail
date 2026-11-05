@@ -74,6 +74,41 @@ describe("ContextBatchPayloadService (discovery stubs)", () => {
     expect(stub?.userReplied).toBe(false);
   });
 
+  it("flags a thread Gmail marked Important on a received message", () => {
+    const stub = service.buildDiscoveryStub(
+      thread("t5", [
+        email("boss@example.com", "2026-09-01T10:00:00Z", {
+          labelIds: [GMAIL_LABELS.INBOX, GMAIL_LABELS.IMPORTANT],
+        }),
+      ]),
+      userEmail,
+    );
+    expect(stub?.markedImportantByGmail).toBe(true);
+  });
+
+  it("ignores Important on the user's own messages (Gmail marks most sent mail Important)", () => {
+    const stub = service.buildDiscoveryStub(
+      thread("t6", [
+        email("news@example.com", "2026-09-01T10:00:00Z", {
+          labelIds: [GMAIL_LABELS.INBOX],
+        }),
+        email(userEmail, "2026-09-01T11:00:00Z", {
+          labelIds: [GMAIL_LABELS.SENT, GMAIL_LABELS.IMPORTANT],
+        }),
+      ]),
+      userEmail,
+    );
+    expect(stub).not.toHaveProperty("markedImportantByGmail");
+  });
+
+  it("leaves the flag unset for providers without labels", () => {
+    const stub = service.buildDiscoveryStub(
+      thread("t7", [email("client@example.com", "2026-09-01T10:00:00Z")]),
+      userEmail,
+    );
+    expect(stub).not.toHaveProperty("markedImportantByGmail");
+  });
+
   it("splits stubs into batches of the requested size", () => {
     const threads = Array.from({ length: 45 }, (_, index) =>
       thread(`t${index}`, [

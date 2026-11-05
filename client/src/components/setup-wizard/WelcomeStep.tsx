@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
+import { useAuth } from 'contexts/AuthContext';
 
+import { resolveGooglePermissions } from './google-permissions';
+import { GmailPermissionWarning } from './GooglePermissionNotices';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 interface WelcomeStepProps {
@@ -35,6 +38,8 @@ function pickIconColor(variant: PropVariant): string {
 
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUser }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { gmailProblem } = resolveGooglePermissions(user);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // Tailor the "your inbox is connected" copy to the actual provider — a local
@@ -87,17 +92,17 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
       </p>
 
       <div style={propsGridStyle}>
-        <PropCard
-          variant={VARIANT_DONE}
-          icon={<CheckIconLarge />}
-          title={t('setupWizard.welcome.prop1Title')}
-          body={t(
-            isAppleMail
-              ? 'setupWizard.welcome.prop1BodyAppleMail'
-              : 'setupWizard.welcome.prop1Body',
-          )}
-          doneLabel={t('setupWizard.welcome.doneTag')}
-        />
+        {gmailProblem ? (
+          <GmailPermissionWarning problem={gmailProblem} />
+        ) : (
+          <PropCard
+            variant={VARIANT_DONE}
+            icon={<CheckIconLarge />}
+            title={t('setupWizard.welcome.prop1Title')}
+            body={t(isAppleMail ? 'setupWizard.welcome.prop1BodyAppleMail' : 'setupWizard.welcome.prop1Body')}
+            doneLabel={t('setupWizard.welcome.doneTag')}
+          />
+        )}
         <PropCard
           variant={VARIANT_GREEN}
           icon={<ClockIcon />}

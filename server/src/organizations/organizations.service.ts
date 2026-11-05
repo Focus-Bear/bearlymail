@@ -25,7 +25,10 @@ import {
 } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
-import { orgIncludesEmailTracking } from "../subscriptions/plan-features.util";
+import {
+  orgIncludesCrm,
+  orgIncludesEmailTracking,
+} from "../subscriptions/plan-features.util";
 import { TRIAL_EMAIL_LIMIT } from "../subscriptions/volume-tiers.constants";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { InviteMemberDto } from "./dto/invite-member.dto";
@@ -55,6 +58,8 @@ export interface VolumeUsage {
   selfHosted: boolean;
   /** Whether the plan lets members send open-tracked email. */
   includesEmailTracking: boolean;
+  /** Whether the plan includes the CRM (Growth $15/mo and up). */
+  includesCrm: boolean;
 }
 
 @Injectable()
@@ -321,6 +326,7 @@ export class OrganizationsService {
       trialEndsAt: org.trialEndsAt ?? null,
       selfHosted: this.isSelfHosted,
       includesEmailTracking: this.isSelfHosted || orgIncludesEmailTracking(org),
+      includesCrm: this.isSelfHosted || orgIncludesCrm(org),
     };
   }
 

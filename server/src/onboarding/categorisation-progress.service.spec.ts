@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { CategorisationProgressService } from "./categorisation-progress.service";
@@ -8,15 +9,21 @@ import { CategorisationProgressService } from "./categorisation-progress.service
 describe("CategorisationProgressService", () => {
   let service: CategorisationProgressService;
   let emailThreadRepository: { query: jest.Mock };
+  let executeSql: jest.Mock;
 
   beforeEach(async () => {
     emailThreadRepository = { query: jest.fn() };
+    executeSql = jest.fn().mockResolvedValue({ rows: [] });
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CategorisationProgressService,
         {
           provide: getRepositoryToken(EmailThread),
           useValue: emailThreadRepository,
+        },
+        {
+          provide: INJECT_TOKENS.PG_BOSS,
+          useValue: { getDb: () => ({ executeSql }) },
         },
       ],
     }).compile();
@@ -83,6 +90,32 @@ describe("CategorisationProgressService", () => {
     await expect(service.getProgress("user-1")).resolves.toEqual({
       total: 0,
       categorised: 0,
+    });
+  });
+
+  it("holds back the threads the onboarding sort still has queued", async () => {
+    emailThreadRepository.query.mockResolvedValue([
+      { total: 120, categorised: 120 },
+    ]);
+    executeSql.mockResolvedValue({
+      rows: [{ batchId: "onboarding-batch", pending: 45 }],
+    });
+
+    await expect(service.getProgress("user-1")).resolves.toEqual({
+      total: 120,
+      categorised: 75,
+    });
+  });
+
+  it("reports the settled count when the sort lookup fails", async () => {
+    emailThreadRepository.query.mockResolvedValue([
+      { total: 10, categorised: 8 },
+    ]);
+    executeSql.mockRejectedValue(new Error("db down"));
+
+    await expect(service.getProgress("user-1")).resolves.toEqual({
+      total: 10,
+      categorised: 8,
     });
   });
 });

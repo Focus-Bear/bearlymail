@@ -10,6 +10,7 @@ import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
 import { CategorisationProgressService } from "./categorisation-progress.service";
+import { CategoryCountsService } from "./category-counts.service";
 import { OnboardingController } from "./onboarding.controller";
 import { OnboardingService } from "./onboarding.service";
 import { ScanAnalysisProcessor } from "./scan-analysis.processor";
@@ -28,6 +29,7 @@ import { ScanAnalysisService } from "./scan-analysis.service";
   providers: [
     OnboardingService,
     CategorisationProgressService,
+    CategoryCountsService,
     ScanAnalysisService,
     ScanAnalysisProcessor,
   ],

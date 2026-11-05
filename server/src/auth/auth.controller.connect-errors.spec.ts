@@ -73,6 +73,7 @@ describe("AuthController OAuth connect-flow error handling", () => {
       zohoAccountsService as never,
       userEncryptionService as never,
       boss as never,
+      { getCallbackRedirect: async () => null } as never,
     );
     return { controller, authService, zohoAccountsService };
   };

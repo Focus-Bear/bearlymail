@@ -17,6 +17,7 @@ import { EmailsService } from "../emails/emails.service";
 import { UsersService } from "../users/users.service";
 import { normalizeTimezone } from "../utils/timezone.utils";
 import { parseIcsStringSafe } from "./calendar-ics-parser";
+import { hasGoogleCalendarAccess } from "./google-calendar-access.util";
 import { IcsEventData, IcsInfoResponse } from "./ics-event.types";
 
 const ICS_METHOD_COUNTER = "COUNTER";
@@ -151,7 +152,7 @@ export class CalendarIcsService {
     currentEndAt?: string;
   }> {
     const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    if (!hasGoogleCalendarAccess(user)) {
       return { exists: false };
     }
 
@@ -311,7 +312,7 @@ export class CalendarIcsService {
     eventData: IcsEventData,
   ): Promise<{ success: boolean; eventLink?: string }> {
     const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    if (!hasGoogleCalendarAccess(user)) {
       throw new BadRequestException(
         ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED,
       );
@@ -490,7 +491,7 @@ export class CalendarIcsService {
     htmlLink?: string;
   }> {
     const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    if (!hasGoogleCalendarAccess(user)) {
       throw new BadRequestException(
         ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED,
       );

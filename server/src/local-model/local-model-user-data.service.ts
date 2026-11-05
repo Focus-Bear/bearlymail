@@ -21,6 +21,10 @@ import {
  * user's email doesn't outlive their account in the models bucket. The bucket
  * is versioned, so old versions expire under its noncurrent-version lifecycle
  * rule.
+ *
+ * The web task sets LOCAL_MODELS_CLEANUP_BUCKET instead of LOCAL_MODELS_BUCKET,
+ * because LOCAL_MODELS_BUCKET also switches on the training export, which
+ * belongs on the worker. Account deletion runs on both.
  */
 @Injectable()
 export class LocalModelUserDataService {
@@ -31,22 +35,29 @@ export class LocalModelUserDataService {
   constructor(configService: ConfigService) {
     const region = configService.get<string>("AWS_REGION") || "ap-southeast-2";
     this.s3 = new S3Client({ region });
-    this.bucket = configService.get<string>("LOCAL_MODELS_BUCKET");
+    this.bucket =
+      configService.get<string>("LOCAL_MODELS_CLEANUP_BUCKET") ||
+      configService.get<string>("LOCAL_MODELS_BUCKET");
   }
 
   async deleteUserData(userId: string): Promise<number> {
     if (!this.bucket) return 0;
 
-    const keys = [
+    // The known keys go first: the export holds the user's email in plaintext,
+    // so a failure listing the model bundles must not leave it behind.
+    const knownKeys = [
       `${TRAINING_DATA_PREFIX}${userId}${TRAINING_DATA_EXTENSION}`,
       `${MODELS_PREFIX}${userId}${LEGACY_MODEL_EXTENSION}`,
-      ...(await this.listKeys(`${MODELS_PREFIX}${userId}/`)),
     ];
-    await this.deleteKeys(this.bucket, keys);
+    await this.deleteKeys(this.bucket, knownKeys);
+    const bundleKeys = await this.listKeys(`${MODELS_PREFIX}${userId}/`);
+    await this.deleteKeys(this.bucket, bundleKeys);
+
+    const deletedCount = knownKeys.length + bundleKeys.length;
     this.logger.log(
-      `Deleted ${keys.length} local-model objects for user ${userId}`,
+      `Deleted ${deletedCount} local-model objects for user ${userId}`,
     );
-    return keys.length;
+    return deletedCount;
   }
 
   private async listKeys(prefix: string): Promise<string[]> {

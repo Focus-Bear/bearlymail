@@ -37,6 +37,7 @@ import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
 import { UsersService } from "../users/users.service";
 import { CategoryConsolidationRunService } from "./category-consolidation-run.service";
 import { ContextService } from "./context.service";
+import { OnboardingAnalysisStartService } from "./onboarding-analysis-start.service";
 
 type ProgressStage =
   | "starting"
@@ -44,6 +45,16 @@ type ProgressStage =
   | "analyzing"
   | "summarizing"
   | "complete";
+
+interface StartAnalysisBody {
+  /**
+   * Join the user's running or finished analysis instead of superseding it —
+   * onboarding's learning step, whose analysis usually started in the
+   * background when the mailbox was connected. A retry omits it to force a
+   * fresh run.
+   */
+  attachToExisting?: boolean;
+}
 
 interface ProgressInfo {
   status?: string;
@@ -67,6 +78,7 @@ export class ContextController {
     private readonly contextService: ContextService,
     private readonly usersService: UsersService,
     private readonly consolidationRunService: CategoryConsolidationRunService,
+    private readonly onboardingAnalysisStartService: OnboardingAnalysisStartService,
     @InjectRepository(ContextAnalysis)
     private readonly contextAnalysisRepository: Repository<ContextAnalysis>,
     @InjectRepository(User)
@@ -384,11 +396,14 @@ export class ContextController {
   @UseGuards(AiCapacityGuard)
   async analyzeEmails(
     @Request() req: { user: { userId: string } },
-    @Body() _body: Record<string, unknown> = {},
+    @Body() body: StartAnalysisBody = {},
   ) {
     const { userId } = req.user;
     this.logger.log(`POST /context/analyze received for user ${userId}`);
-    const { analysisId } = await this.contextService.startAnalysis(userId);
+    const { analysisId } =
+      body.attachToExisting === true
+        ? await this.onboardingAnalysisStartService.joinOrStartAnalysis(userId)
+        : await this.contextService.startAnalysis(userId);
     return { message: "Analysis started", analysisId };
   }
 

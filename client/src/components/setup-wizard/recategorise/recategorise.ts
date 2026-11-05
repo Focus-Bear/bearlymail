@@ -30,6 +30,8 @@ export interface RecategoriseJobProgress {
 export interface RecategoriseStartResponse {
   batchId: string | null;
   queued: number;
+  /** The press joined a sort that started before the user's latest category change. */
+  joinedRunningSort?: boolean;
 }
 
 /** Every queued job has finished (failed ones included: they keep their old category). */

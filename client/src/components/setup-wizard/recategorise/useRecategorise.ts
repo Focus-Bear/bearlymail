@@ -60,6 +60,7 @@ export function useRecategorise(): RecategoriseState {
   const [batchId, setBatchId] = useState<string | null>(null);
   const [hasUnsortedCategoryChanges, setHasUnsortedCategoryChanges] = useState(false);
   const isMountedRef = useRef(true);
+  const joinedRunningSortRef = useRef(false);
   const markCategoriesChanged = useCallback(() => setHasUnsortedCategoryChanges(true), []);
 
   useEffect(() => {
@@ -68,6 +69,15 @@ export function useRecategorise(): RecategoriseState {
       isMountedRef.current = false;
     };
   }, []);
+
+  // A sort that was already running never saw the latest change for the threads
+  // it had done, so Re-categorise comes back to run the full re-sort.
+  useEffect(() => {
+    if (status !== RECATEGORISE_STATUS.RUNNING && joinedRunningSortRef.current) {
+      joinedRunningSortRef.current = false;
+      setHasUnsortedCategoryChanges(true);
+    }
+  }, [status]);
 
   const refreshCounts = useCallback(async () => {
     const latest = await fetchCounts();
@@ -89,6 +99,7 @@ export function useRecategorise(): RecategoriseState {
         setStatus(RECATEGORISE_STATUS.DONE);
         return;
       }
+      joinedRunningSortRef.current = Boolean(response.data.joinedRunningSort);
       setBatchId(response.data.batchId);
     } catch (error) {
       console.error('Failed to start re-categorisation:', error);

@@ -796,7 +796,8 @@
     "whatsChanged": "Qué ha cambiado",
     "changeSummaries": {
       "privacy_1_2_0": "Ahora explicamos el seguimiento de apertura de correos: los correos que envías pueden incluir una pequeña imagen invisible que registra cuándo se abren, junto con la dirección IP y los datos del dispositivo de quien los abre.",
-      "privacy_1_3_0": "Ahora enumeramos cada servicio de IA que procesa tu correo (TypeSafe AI, Google Gemini, OpenAI y Amazon Bedrock), qué recibe cada uno y por qué, y explicamos que parte de este procesamiento se realiza fuera de Australia."
+      "privacy_1_3_0": "Ahora enumeramos cada servicio de IA que procesa tu correo (TypeSafe AI, Google Gemini, OpenAI y Amazon Bedrock), qué recibe cada uno y por qué, y explicamos que parte de este procesamiento se realiza fuera de Australia.",
+      "privacy_1_4_0": "Ahora explicamos qué decisiones sobre tu correo toman o ayudan a tomar nuestros programas y la IA, y cómo pedir que una persona revise una; que podemos entrenar un modelo pequeño solo para tu cuenta, a partir de tu propio correo; que cumplimos los requisitos de Uso Limitado de Google; y tus derechos y autoridades de control en Australia, la UE y el Reino Unido, Nueva Zelanda y EE. UU. Además, ahora debes tener al menos 16 años para usar BearlyMail, y hemos actualizado nuestras Condiciones de uso en consecuencia."
     }
   },
   "debug": {
@@ -3020,8 +3021,8 @@
             "body": "Ganamos dinero con las suscripciones, no con tus datos. Nunca los vendemos ni los usamos para publicidad."
           },
           "noTraining": {
-            "title": "No se usan para entrenar IA",
-            "body": "Todos los proveedores de IA que usamos se comprometen a no entrenar sus modelos con tu correo."
+            "title": "No se usan para entrenar IA compartida",
+            "body": "Todos los proveedores de IA que usamos se comprometen a no entrenar sus modelos con tu correo. Cualquier modelo que entrenemos con él es solo para tu cuenta."
           },
           "control": {
             "title": "Tú tienes el control",

@@ -9,6 +9,7 @@ import { DeletedAccount } from "../database/entities/deleted-account.entity";
 import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { User } from "../database/entities/user.entity";
 import { UserContext } from "../database/entities/user-context.entity";
+import { LocalModelUserDataService } from "../local-model/local-model-user-data.service";
 import { AccountDeletionProcessor } from "./account-deletion.processor";
 import { DataExportService } from "./data-export.service";
 import { DataImportService } from "./data-import.service";
@@ -33,6 +34,7 @@ import { UsersService } from "./users.service";
     DataExportService,
     DataImportService,
     AccountDeletionProcessor,
+    LocalModelUserDataService,
   ],
   controllers: [UsersController],
   exports: [UsersService],

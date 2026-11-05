@@ -1693,7 +1693,7 @@
   "gmail": {
     "connectButton": "Conectar Gmail",
     "connectDescription": "Para empezar, conecta la cuenta de correo que quieres que BearlyMail gestione. Sincronizamos tus correos de forma segura y te ayudamos a mantenerlos al día.",
-    "connectOtherProvider": "Usar otro correo (p. ej. Crazy Domains)",
+    "connectOtherProvider": "Usar otro correo (del trabajo, de tu sitio web u otro proveedor)",
     "connectMultipleHint": "Puedes conectar más cuentas de correo más adelante en Ajustes.",
     "connectTitle": "Conecta tu correo",
     "accessIssueTitle": "BearlyMail no puede leer tu Gmail",
@@ -4286,7 +4286,7 @@
         },
         "imap": {
           "name": "Otro correo",
-          "description": "Correo del trabajo o de tu sitio web, como Crazy Domains. Solo tu dirección de correo y tu contraseña."
+          "description": "Correo de tu proveedor de hosting, del trabajo o de cualquier otro proveedor. Solo tu dirección de correo y tu contraseña."
         }
       },
       "selectProvider": "Seleccione proveedor de correo electrónico",
@@ -4653,7 +4653,7 @@
       "description": "Escribe la dirección y la contraseña que usas para leer tu correo. Nosotros encontraremos la configuración correcta.",
       "email": "Dirección de correo",
       "password": "Contraseña del correo",
-      "passwordHint": "La contraseña que usas para leer este correo, por ejemplo en el webmail. No la contraseña de tu cuenta de Crazy Domains o de tu sitio web.",
+      "passwordHint": "La contraseña que usas para leer este correo, por ejemplo en el webmail. No la contraseña de tu cuenta de hosting o de tu sitio web.",
       "name": "Tu nombre (opcional, aparece en los correos que envías)",
       "finding": "Conectando con tu correo… puede tardar hasta un minuto.",
       "connect": "Conectar",
@@ -4679,7 +4679,7 @@
         "zoho": "Conectar con Zoho"
       },
       "errors": {
-        "auth_failed_imap": "Esa dirección y contraseña no funcionaron. Comprueba que sea la contraseña con la que lees tu correo, no la de tu cuenta de Crazy Domains o de tu sitio web.",
+        "auth_failed_imap": "Esa dirección y contraseña no funcionaron. Comprueba que sea la contraseña con la que lees tu correo, no la de tu cuenta de hosting o de tu sitio web.",
         "auth_failed_smtp": "Podemos leer tu correo, pero no iniciar sesión para enviarlo. Tu proveedor puede usar otro usuario o contraseña para enviar. Pulsa \"Introducir la configuración del servidor yo mismo\" para añadirlo.",
         "server_not_found": "No pudimos encontrar la configuración de tu correo automáticamente. Las páginas de ayuda de tu proveedor la indican (busca \"IMAP\" y \"SMTP\"). Pulsa \"Introducir la configuración del servidor yo mismo\" para añadirla.",
         "use_gmail": "Esta dirección la gestiona Google, así que se conecta con tu inicio de sesión de Google en lugar de una contraseña.",
@@ -4687,7 +4687,7 @@
         "use_zoho": "Esta dirección la gestiona Zoho, así que se conecta con tu inicio de sesión de Zoho en lugar de una contraseña.",
         "invalid_server": "Ese nombre de servidor no parece correcto. Compruébalo con la configuración de tu proveedor de correo.",
         "connection_failed": "No pudimos contactar con ese servidor de correo. Comprueba el nombre del servidor y el puerto.",
-        "certificate_mismatch": "Ese nombre de servidor no coincide con el certificado de seguridad del servidor. Muchos proveedores (incluido Crazy Domains) requieren el nombre del propio servidor de hosting en lugar de mail.tudominio. Lo encontrarás en la configuración de correo de tu cuenta de hosting.",
+        "certificate_mismatch": "Ese nombre de servidor no coincide con el certificado de seguridad del servidor. Muchos proveedores de hosting requieren el nombre del propio servidor de hosting en lugar de mail.tudominio. Lo encontrarás en la configuración de correo de tu cuenta de hosting.",
         "tls_failed": "No pudimos establecer una conexión segura. Prueba a cambiar la seguridad entre SSL/TLS y STARTTLS.",
         "unknown": "Algo salió mal al conectar con tu correo. Inténtalo de nuevo."
       }

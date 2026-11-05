@@ -11,6 +11,7 @@ import {
 } from "../constants/mcp-oauth.constants";
 import { MS_PER_SECOND } from "../constants/time-constants";
 import { OAuthClient } from "../database/entities/oauth-client.entity";
+import { getErrorMessage } from "../types/common";
 import {
   ClientMetadataError,
   fetchClientMetadataJson,
@@ -138,6 +139,7 @@ export class OAuthClientRegistryService {
         redirectUris,
       }),
     );
+    await this.pruneUnusedClients();
     return {
       client_id: saved.id,
       client_id_issued_at: Math.floor(
@@ -149,6 +151,33 @@ export class OAuthClientRegistryService {
       response_types: [MCP_OAUTH.RESPONSE_TYPE_CODE],
       token_endpoint_auth_method: MCP_OAUTH.TOKEN_ENDPOINT_AUTH_METHOD_NONE,
     };
+  }
+
+  /**
+   * Registration needs no login, so old registrations are removed here rather
+   * than left to pile up. A client that comes back simply registers again.
+   * Best-effort: a failure must not fail the registration it runs after.
+   */
+  private async pruneUnusedClients(now: Date = new Date()): Promise<void> {
+    const cutoff = new Date(
+      now.getTime() - MCP_OAUTH.UNUSED_CLIENT_RETENTION_MS,
+    );
+    try {
+      await this.clientRepository.query(
+        `DELETE FROM oauth_clients client
+         WHERE client."createdAt" < $1
+           AND NOT EXISTS (
+             SELECT 1 FROM personal_access_tokens token
+             WHERE token."oauthClientId" = client.id
+               AND token."revokedAt" IS NULL
+           )`,
+        [cutoff],
+      );
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Could not prune unused OAuth clients: ${getErrorMessage(error)}`,
+      );
+    }
   }
 
   private async resolveMetadataDocument(

@@ -44,6 +44,8 @@ import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
 import { LearnQaProcessor } from "./learn-qa.processor";
+import { OnboardingAnalysisStartService } from "./onboarding-analysis-start.service";
+import { OnboardingCategorySortService } from "./onboarding-category-sort.service";
 import { WritingStyleLearningProcessor } from "./writing-style-learning.processor";
 import { WritingStyleLearningService } from "./writing-style-learning.service";
 
@@ -86,6 +88,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextCategoryService,
     ContextCompressionService,
     ContextAnalysisProgressService,
+    OnboardingAnalysisStartService,
     ContextPiiRedactionService,
     ContextGmailDataService,
     ContextQaExtractionService,
@@ -94,6 +97,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextDiscoveryBatchProcessor,
     ContextFinalizationProcessor,
     ContextAnalysisCleanupService,
+    OnboardingCategorySortService,
     WritingStyleLearningService,
     WritingStyleLearningProcessor,
   ],
@@ -103,6 +107,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextCategoryService,
     CategoryFamilyService,
     ContextAnalysisProgressService,
+    OnboardingAnalysisStartService,
     WritingStyleLearningService,
   ],
 })

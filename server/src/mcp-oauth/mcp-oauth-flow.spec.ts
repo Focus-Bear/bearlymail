@@ -582,6 +582,57 @@ describe("MCP OAuth flow", () => {
       expect(harness.tokenRepository.rows).toHaveLength(1);
     });
 
+    describe("when an old refresh token is used again", () => {
+      async function refreshOnce(harness: Harness) {
+        const { clientId, tokens } = await connect(harness);
+        const refreshed = await harness.tokenEndpoint.exchange({
+          grant_type: "refresh_token",
+          refresh_token: tokens.refresh_token,
+          client_id: clientId,
+        });
+        const reuseOldToken = (now: Date) =>
+          harness.tokenEndpoint.exchange(
+            {
+              grant_type: "refresh_token",
+              refresh_token: tokens.refresh_token,
+              client_id: clientId,
+            },
+            now,
+          );
+        return { refreshed, reuseOldToken };
+      }
+
+      it("ends the connection, as the token has probably leaked", async () => {
+        const harness = setup();
+        const { refreshed, reuseOldToken } = await refreshOnce(harness);
+        const later = new Date(
+          Date.now() + MCP_OAUTH.REFRESH_REUSE_GRACE_MS + 1000,
+        );
+
+        await expectOAuthError(reuseOldToken(later), "invalid_grant");
+
+        await expect(
+          harness.tokensService.authenticate(refreshed.access_token),
+        ).resolves.toBeNull();
+        expect(harness.audit.log).toHaveBeenCalledWith(
+          expect.objectContaining({
+            action: MCP_OAUTH.AUDIT_ACTIONS.REFRESH_REPLAYED,
+          }),
+        );
+      });
+
+      it("treats an immediate repeat as a retry and keeps the connection", async () => {
+        const harness = setup();
+        const { refreshed, reuseOldToken } = await refreshOnce(harness);
+
+        await expectOAuthError(reuseOldToken(new Date()), "invalid_grant");
+
+        await expect(
+          harness.tokensService.authenticate(refreshed.access_token),
+        ).resolves.not.toBeNull();
+      });
+    });
+
     it("lets only one of two concurrent refreshes win", async () => {
       const harness = setup();
       const { clientId, tokens } = await connect(harness);

@@ -4,6 +4,7 @@ import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { clearPostLoginPath, rememberPostLoginPath } from 'utils/postLoginRedirect';
 
+import { StepUpModal } from 'components/auth/StepUpModal';
 import { ConsentPageShell } from 'components/oauth-consent/ConsentPageShell';
 import { OAuthConsentCard } from 'components/oauth-consent/OAuthConsentCard';
 import { useOAuthConsentRequest } from 'components/oauth-consent/useOAuthConsentRequest';
@@ -46,7 +47,7 @@ const OAuthConsent: React.FC = () => {
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get(OAUTH_CONSENT_REQUEST_PARAM);
   const isEmbedded = isFramed();
-  const { request, loadError, submitError, isSubmitting, isRedirecting, decide } = useOAuthConsentRequest(
+  const { request, loadError, submitError, isSubmitting, isRedirecting, decide, stepUpModalProps } = useOAuthConsentRequest(
     requestId,
     !!user && !isEmbedded
   );
@@ -69,7 +70,12 @@ const OAuthConsent: React.FC = () => {
     return <Navigate to={LOGIN_PATH} replace />;
   }
 
-  return <ConsentPageShell>{renderBody()}</ConsentPageShell>;
+  return (
+    <ConsentPageShell>
+      {renderBody()}
+      <StepUpModal {...stepUpModalProps} />
+    </ConsentPageShell>
+  );
 
   function renderBody(): React.ReactNode {
     if (isEmbedded) {

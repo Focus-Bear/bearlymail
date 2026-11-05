@@ -75,6 +75,11 @@ export class InMemoryRepository<T extends object> {
     return { affected: targets.length };
   }
 
+  /** Raw SQL isn't simulated; a statement simply affects nothing. */
+  async query(): Promise<unknown[]> {
+    return [];
+  }
+
   async delete(where: Where): Promise<{ affected: number }> {
     const before = this.rows.length;
     const kept = this.rows.filter((row) => !matches(row as Row, where));

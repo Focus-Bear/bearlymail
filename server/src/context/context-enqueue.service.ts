@@ -34,7 +34,7 @@ export type DiscoveryEnqueueResult = {
 /**
  * Fetches the sampled threads, turns them into discovery stubs and enqueues
  * one PgBoss ANALYZE_CONTEXT_BATCH job per batch for the in-process worker.
- * Discovery is a handful of tiny Nova calls, so it no longer fans out to the
+ * Discovery is a handful of cheap Gemini Flash Lite calls, so it no longer fans out to the
  * SQS → Lambda batch analyzer that the retired mega prompt needed.
  */
 @Injectable()

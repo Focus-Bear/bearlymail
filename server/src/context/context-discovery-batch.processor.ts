@@ -33,9 +33,9 @@ const DISCOVERY_FAILED_MESSAGE =
   "Discovery model returned nothing usable for this batch";
 
 /**
- * Worker for one slim-discovery batch: a single cheap LLM call over ~20 thread
- * stubs that proposes categories, VIPs and current projects, persisted onto the analysis record
- * for the finalizer to merge. A batch that fails after Nova → Gemini escalation
+ * Worker for one slim-discovery batch: a single cheap LLM call over up to 100
+ * thread stubs that proposes categories, VIPs and current projects, persisted onto the analysis record
+ * for the finalizer to merge. A batch that fails after Flash Lite → strong Gemini escalation
  * is recorded as failed (never retried in a loop) so finalization still
  * completes with whatever the other batches found.
  */

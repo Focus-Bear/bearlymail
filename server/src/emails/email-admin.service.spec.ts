@@ -9,19 +9,26 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailsService } from "./emails.service";
 
+/** pg-boss raw-SQL handle with no running jobs. */
+const idleBossDb = () => ({
+  executeSql: jest.fn().mockResolvedValue({ rows: [] }),
+});
+
 describe("EmailAdminService", () => {
   let service: EmailAdminService;
   let mockEmailsService: jest.Mocked<Partial<EmailsService>>;
+  let mockBoss: { send: jest.Mock; getDb: jest.Mock };
 
   beforeEach(async () => {
     mockEmailsService = {
       getInbox: jest.fn().mockResolvedValue({ emails: [] }),
     };
+    mockBoss = { send: jest.fn(), getDb: jest.fn(idleBossDb) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmailAdminService,
-        { provide: "PG_BOSS", useValue: { send: jest.fn() } },
+        { provide: "PG_BOSS", useValue: mockBoss },
         { provide: EmailsService, useValue: mockEmailsService },
         {
           provide: getRepositoryToken(EmailThread),
@@ -93,6 +100,7 @@ describe("EmailAdminService", () => {
     it("should queue follow-up emails when present", async () => {
       const mockBoss = {
         send: jest.fn().mockResolvedValue("mock-pgboss-job-id"),
+        getDb: idleBossDb,
       };
 
       // Re-create with boss that we can check
@@ -143,6 +151,58 @@ describe("EmailAdminService", () => {
         "refine-priority",
         expect.objectContaining({ emailId: "email-follow-up-1" }),
         expect.any(Object),
+      );
+      // A singleton slot would make pg-boss drop a re-run in the same minute.
+      const jobOptions = mockBoss.send.mock.calls[0][2];
+      expect(jobOptions).not.toHaveProperty("singletonKey");
+      expect(jobOptions).not.toHaveProperty("singletonSeconds");
+    });
+
+    it("returns the running onboarding sort instead of queuing a second run", async () => {
+      mockBoss.getDb.mockReturnValue({
+        executeSql: jest.fn().mockResolvedValue({
+          rows: [{ batchId: "onboarding-batch", pending: "37" }],
+        }),
+      });
+      mockEmailsService.getInbox = jest
+        .fn()
+        .mockResolvedValue({ emails: [{ id: "email-1" }] });
+
+      const result = await service.queueBulkRecategorization("user-1");
+
+      expect(result).toMatchObject({
+        batchId: "onboarding-batch",
+        queued: 37,
+        joinedRunningSort: true,
+      });
+      expect(mockBoss.send).not.toHaveBeenCalled();
+      expect(mockEmailsService.getInbox).not.toHaveBeenCalled();
+    });
+
+    it("still queues when the running-sort lookup fails", async () => {
+      mockBoss.getDb.mockReturnValue({
+        executeSql: jest.fn().mockRejectedValue(new Error("db down")),
+      });
+      mockBoss.send.mockResolvedValue("job-id");
+      mockEmailsService.getInbox = jest
+        .fn()
+        .mockResolvedValue({ emails: [{ id: "email-1" }] });
+
+      const result = await service.queueBulkRecategorization(
+        "user-1",
+        INBOX_MODES.TRIAGE,
+      );
+
+      expect(result.queued).toBe(1);
+      expect(mockBoss.send).toHaveBeenCalledWith(
+        "refine-priority",
+        {
+          userId: "user-1",
+          emailId: "email-1",
+          forceRecalculate: true,
+          recategorizeBatchId: result.batchId,
+        },
+        expect.not.objectContaining({ singletonKey: expect.anything() }),
       );
     });
   });

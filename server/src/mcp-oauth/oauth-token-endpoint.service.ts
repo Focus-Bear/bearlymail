@@ -155,9 +155,33 @@ export class OAuthTokenEndpointService {
       now,
     );
     if (!tokens) {
+      await this.handleReusedRefreshToken(refreshToken, clientId, now);
       throw invalidGrant("Refresh token is invalid, expired or revoked");
     }
     return tokens;
+  }
+
+  private async handleReusedRefreshToken(
+    refreshToken: string,
+    clientId: string,
+    now: Date,
+  ): Promise<void> {
+    const revoked = await this.grantsService.revokeIfRefreshTokenReused(
+      refreshToken,
+      clientId,
+      now,
+    );
+    if (!revoked) return;
+    this.logger.warn(
+      `Refresh token reused for client ${clientId}; revoked connection ${revoked.id}`,
+    );
+    await this.auditService.log({
+      userId: revoked.userId,
+      action: MCP_OAUTH.AUDIT_ACTIONS.REFRESH_REPLAYED,
+      targetType: MCP_OAUTH.AUDIT_TARGET_TYPE,
+      targetId: clientId,
+      metadata: { tokenId: revoked.id },
+    });
   }
 
   /**

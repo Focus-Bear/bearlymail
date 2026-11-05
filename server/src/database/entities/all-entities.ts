@@ -30,6 +30,7 @@ import { ContactNote } from "./contact-note.entity";
 import { ContactType } from "./contact-type.entity";
 import { ContextAnalysis } from "./context-analysis.entity";
 import { Deal } from "./deal.entity";
+import { DealNote } from "./deal-note.entity";
 import { DealStage } from "./deal-stage.entity";
 import { DebugConfig } from "./debug-config.entity";
 import { DebugData } from "./debug-data.entity";
@@ -102,6 +103,7 @@ export const ALL_ENTITIES = [
   ContactType,
   ContextAnalysis,
   Deal,
+  DealNote,
   DealStage,
   DebugConfig,
   DebugData,

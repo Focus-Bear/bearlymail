@@ -45,7 +45,7 @@ const FINALIZATION_DELAY_MS = 5 * MILLISECONDS.SECOND;
 /**
  * Slim context discovery — the single path behind onboarding's AI-training
  * step and the manual "Analyze" action. Samples the user's recent received
- * threads, fans them out as cheap Nova discovery batches (categories, VIPs
+ * threads, fans them out as Gemini Flash Lite discovery batches (categories, VIPs
  * and current projects) and queues finalization. Everything else the retired
  * mega prompt used to do inline — priority habits, writing style, Q&A — now
  * comes from the per-email pipeline or low-priority background jobs.

@@ -3,7 +3,6 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { isUUID } from "class-validator";
 import { In, MoreThan, Repository } from "typeorm";
 
-import { AuditService } from "../audit/audit.service";
 import { MCP_SERVER } from "../constants/mcp-server.constants";
 import { HOURS_PER_DAY } from "../constants/time-constants";
 import { AuditLog } from "../database/entities/audit-log.entity";
@@ -22,6 +21,11 @@ import {
 
 const UUID_MAX_LENGTH = 36;
 const MCP_SEND_AUDIT_ACTIONS = Object.values(MCP_SERVER.AUDIT_ACTIONS);
+
+interface QueuedSend {
+  sendId: string;
+  status: string;
+}
 
 interface SendOptions {
   trackOpens?: boolean;
@@ -46,10 +50,7 @@ function expectedReplyHours(options: SendOptions): number | undefined {
     : undefined;
 }
 
-function queuedResult(
-  queued: { sendId: string; status: string },
-  options: SendOptions,
-) {
+function queuedResult(queued: QueuedSend, options: SendOptions) {
   return {
     status: queued.status,
     sendId: queued.sendId,
@@ -63,7 +64,9 @@ function queuedResult(
  * The MCP tools that send mail. Both go through the same background send
  * queue as the web app, so signatures, open tracking, follow-up reminders and
  * failure retries behave identically. Every send is audited, and the audit
- * trail doubles as the per-user hourly send cap.
+ * trail doubles as the per-user hourly send cap: it is checked and written
+ * under one lock, so sends arriving together can't all pass it, and a send
+ * that can't be counted doesn't report success.
  */
 @Injectable()
 export class McpSendToolsService {
@@ -71,7 +74,6 @@ export class McpSendToolsService {
     private readonly emailsService: EmailsService,
     private readonly emailProviderManager: EmailProviderManager,
     private readonly emailSendQueueService: EmailSendQueueService,
-    private readonly auditService: AuditService,
     @InjectRepository(AuditLog)
     private readonly auditLogRepository: Repository<AuditLog>,
   ) {}
@@ -92,31 +94,26 @@ export class McpSendToolsService {
     if (!email) {
       throw new McpToolInputError(`No email found with id ${emailId}`);
     }
-    await this.assertWithinSendLimit(userId);
 
-    const queued = await this.emailSendQueueService.queueReply(
-      userId,
-      emailId,
-      {
-        body,
-        recipients: to?.join(", "),
-        cc: cc?.join(", "),
-        bcc: bcc?.join(", "),
-        isForward: false,
-        keepInAction: false,
-        expectedReplyHours: expectedReplyHours(options),
-        trackOpens: options.trackOpens,
-      },
-    );
-    await this.audit(
+    const queued = await this.sendWithinLimit(
       context,
       MCP_SERVER.AUDIT_ACTIONS.SEND_REPLY,
-      queued.sendId,
       {
         repliedToEmailId: emailId,
         recipientCount:
           (to?.length ?? 0) + (cc?.length ?? 0) + (bcc?.length ?? 0),
       },
+      () =>
+        this.emailSendQueueService.queueReply(userId, emailId, {
+          body,
+          recipients: to?.join(", "),
+          cc: cc?.join(", "),
+          bcc: bcc?.join(", "),
+          isForward: false,
+          keepInAction: false,
+          expectedReplyHours: expectedReplyHours(options),
+          trackOpens: options.trackOpens,
+        }),
     );
     return queuedResult(queued, options);
   }
@@ -143,61 +140,72 @@ export class McpSendToolsService {
         "The user has no email account connected to BearlyMail",
       );
     }
-    await this.assertWithinSendLimit(userId);
 
     const toRecipients = (addresses: string[] | undefined) =>
       addresses?.map((email) => ({ email }));
-    const queued = await this.emailSendQueueService.queueNewEmail(userId, {
-      to: toRecipients(to) ?? [],
-      cc: toRecipients(cc),
-      bcc: toRecipients(bcc),
-      subject,
-      body,
-      expectedReplyHours: expectedReplyHours(options),
-      trackOpens: options.trackOpens,
-    });
-    await this.audit(
+    const queued = await this.sendWithinLimit(
       context,
       MCP_SERVER.AUDIT_ACTIONS.SEND_EMAIL,
-      queued.sendId,
-      {
-        recipientCount: to.length + (cc?.length ?? 0) + (bcc?.length ?? 0),
-      },
+      { recipientCount: to.length + (cc?.length ?? 0) + (bcc?.length ?? 0) },
+      () =>
+        this.emailSendQueueService.queueNewEmail(userId, {
+          to: toRecipients(to) ?? [],
+          cc: toRecipients(cc),
+          bcc: toRecipients(bcc),
+          subject,
+          body,
+          expectedReplyHours: expectedReplyHours(options),
+          trackOpens: options.trackOpens,
+        }),
     );
     return queuedResult(queued, options);
   }
 
-  private async assertWithinSendLimit(userId: string, now: Date = new Date()) {
-    const sentInWindow = await this.auditLogRepository.count({
-      where: {
-        userId,
-        action: In(MCP_SEND_AUDIT_ACTIONS),
-        createdAt: MoreThan(
-          new Date(now.getTime() - MCP_SERVER.SEND_LIMIT_WINDOW_MS),
-        ),
-      },
-    });
-    if (sentInWindow >= MCP_SERVER.SEND_LIMIT_PER_HOUR) {
-      throw new McpToolInputError(
-        `Send limit reached: at most ${MCP_SERVER.SEND_LIMIT_PER_HOUR} messages per hour can be sent through BearlyMail's MCP connection. Try again later or send from the BearlyMail app.`,
-      );
-    }
-  }
-
-  private audit(
+  /**
+   * Holds a per-user lock while it counts, queues and audits, so the count
+   * always includes every send before it. The lock is released with the
+   * transaction, and works across web tasks because it lives in Postgres.
+   */
+  private sendWithinLimit(
     context: McpCallContext,
     action: string,
-    sendId: string,
     metadata: Record<string, unknown>,
-  ): Promise<void> {
-    return this.auditService.log({
-      userId: context.principal.userId,
-      action,
-      targetType: MCP_SERVER.AUDIT_TARGET_TYPE,
-      targetId: sendId,
-      metadata: { tokenId: context.principal.tokenId, ...metadata },
-      ipAddress: context.ipAddress,
-      userAgent: context.userAgent,
+    queueSend: () => Promise<QueuedSend>,
+  ): Promise<QueuedSend> {
+    const { userId, tokenId } = context.principal;
+    return this.auditLogRepository.manager.transaction(async (manager) => {
+      await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        `${MCP_SERVER.SEND_LOCK_PREFIX}${userId}`,
+      ]);
+      const auditLogs = manager.getRepository(AuditLog);
+      const sentInWindow = await auditLogs.count({
+        where: {
+          userId,
+          action: In(MCP_SEND_AUDIT_ACTIONS),
+          createdAt: MoreThan(
+            new Date(Date.now() - MCP_SERVER.SEND_LIMIT_WINDOW_MS),
+          ),
+        },
+      });
+      if (sentInWindow >= MCP_SERVER.SEND_LIMIT_PER_HOUR) {
+        throw new McpToolInputError(
+          `Send limit reached: at most ${MCP_SERVER.SEND_LIMIT_PER_HOUR} messages per hour can be sent through this connection. Try again later.`,
+        );
+      }
+
+      const queued = await queueSend();
+      await auditLogs.save(
+        auditLogs.create({
+          userId,
+          action,
+          targetType: MCP_SERVER.AUDIT_TARGET_TYPE,
+          targetId: queued.sendId,
+          metadata: { tokenId, ...metadata },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        }),
+      );
+      return queued;
     });
   }
 }

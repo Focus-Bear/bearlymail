@@ -6,7 +6,7 @@ import { peekPostLoginPath } from 'utils/postLoginRedirect';
 
 import OAuthConsent from './OAuthConsent';
 
-vi.mock('axios', () => ({ default: { get: vi.fn(), post: vi.fn(), isAxiosError: () => false } }));
+vi.mock('axios', () => ({ default: { get: vi.fn(), post: vi.fn(), isAxiosError: vi.fn() } }));
 vi.mock('config/api', () => ({ API_URL: 'http://api.test' }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -29,6 +29,14 @@ const CONSENT_REQUEST = {
   expiresAt: '2026-11-04T01:00:00Z',
 };
 
+const DECISION_URL = `http://api.test/oauth/consent-requests/${REQUEST_ID}/decision`;
+const STEP_UP_URL = 'http://api.test/auth/step-up';
+const REDIRECT = { data: { redirectUrl: 'https://claude.ai/api/mcp/auth_callback?code=x' } };
+
+function unauthorized(data: unknown) {
+  return Object.assign(new Error('401'), { response: { status: 401, data } });
+}
+
 function renderAt(url: string) {
   return render(
     <MemoryRouter initialEntries={[url]}>
@@ -47,7 +55,10 @@ describe('OAuthConsent', () => {
     sessionStorage.clear();
     mockUseAuth.mockReturnValue({ user: { id: 'u1', email: 'me@example.com' }, loading: false });
     vi.mocked(axios.get).mockReset().mockResolvedValue({ data: CONSENT_REQUEST });
-    vi.mocked(axios.post).mockReset().mockResolvedValue({ data: { redirectUrl: 'https://claude.ai/api/mcp/auth_callback?code=x' } });
+    vi.mocked(axios.isAxiosError).mockReset().mockReturnValue(true);
+    vi.mocked(axios.post)
+      .mockReset()
+      .mockImplementation(async (url: string) => (url === STEP_UP_URL ? { data: { step_up_token: 'step-up-1' } } : REDIRECT));
     assign.mockReset();
     Object.defineProperty(window, 'location', { configurable: true, value: { ...window.location, assign } });
   });
@@ -74,10 +85,11 @@ describe('OAuthConsent', () => {
     fireEvent.click(await screen.findByTestId('oauth-consent-scope-send'));
     fireEvent.click(screen.getByTestId('oauth-consent-allow'));
     await waitFor(() =>
-      expect(axios.post).toHaveBeenCalledWith(`http://api.test/oauth/consent-requests/${REQUEST_ID}/decision`, {
-        approve: true,
-        allowSend: true,
-      })
+      expect(axios.post).toHaveBeenCalledWith(
+        DECISION_URL,
+        { approve: true, allowSend: true },
+        { headers: { 'X-Step-Up-Token': 'step-up-1' } }
+      )
     );
     expect(assign).toHaveBeenCalledWith('https://claude.ai/api/mcp/auth_callback?code=x');
   });
@@ -86,8 +98,61 @@ describe('OAuthConsent', () => {
     renderAt(`/oauth/consent?request=${REQUEST_ID}`);
     fireEvent.click(await screen.findByTestId('oauth-consent-deny'));
     await waitFor(() =>
-      expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/decision'), { approve: false, allowSend: false })
+      expect(axios.post).toHaveBeenCalledWith(DECISION_URL, { approve: false, allowSend: false }, { headers: {} })
     );
+    expect(axios.post).not.toHaveBeenCalledWith(STEP_UP_URL, expect.anything());
+  });
+
+  describe('for a password user', () => {
+    function challengeUntilPassword(correctPassword: string) {
+      vi.mocked(axios.post).mockImplementation(async (url: string, body?: unknown) => {
+        if (url !== STEP_UP_URL) {
+          return REDIRECT;
+        }
+        const { password } = body as { password?: string };
+        if (!password) {
+          throw unauthorized({ requiresPassword: true });
+        }
+        if (password !== correctPassword) {
+          throw unauthorized({});
+        }
+        return { data: { step_up_token: 'step-up-2' } };
+      });
+    }
+
+    async function enterPassword(password: string) {
+      const dialog = await screen.findByRole('dialog');
+      const input = dialog.querySelector('input') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: password } });
+      fireEvent.submit(input.closest('form') as HTMLFormElement);
+    }
+
+    it('confirms the password before approving', async () => {
+      challengeUntilPassword('hunter2');
+      renderAt(`/oauth/consent?request=${REQUEST_ID}`);
+      fireEvent.click(await screen.findByTestId('oauth-consent-allow'));
+
+      await enterPassword('hunter2');
+
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(DECISION_URL, expect.objectContaining({ approve: true }), {
+          headers: { 'X-Step-Up-Token': 'step-up-2' },
+        })
+      );
+      expect(assign).toHaveBeenCalledWith('https://claude.ai/api/mcp/auth_callback?code=x');
+    });
+
+    it('shows an error on a wrong password and approves nothing', async () => {
+      challengeUntilPassword('hunter2');
+      renderAt(`/oauth/consent?request=${REQUEST_ID}`);
+      fireEvent.click(await screen.findByTestId('oauth-consent-allow'));
+
+      await enterPassword('wrong');
+
+      expect(await screen.findByText('stepUp.invalidPassword')).toBeInTheDocument();
+      expect(axios.post).not.toHaveBeenCalledWith(DECISION_URL, expect.anything(), expect.anything());
+      expect(assign).not.toHaveBeenCalled();
+    });
   });
 
   it('warns about loopback redirects and disables send when it was not requested', async () => {

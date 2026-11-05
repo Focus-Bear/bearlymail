@@ -416,6 +416,7 @@ Jobs are enqueued in the web server and processed by worker processes. Key job t
 | `scan-history`                | MEDIUM (40)      | Historical email scan (onboarding)                           |
 | `schedule-auto-archive-proposals` | VERY_LOW (10) | Daily cron: fans out per-user proposal mining                |
 | `mine-auto-archive-proposals` | VERY_LOW (10)    | Mine one user's heavy senders into auto-archive proposals (`server/src/auto-archive-proposals/`) |
+| `cleanup-orphaned-local-model-data` | Default | Daily on the worker: finds local-model S3 data whose account is gone. Only reports until `LOCAL_MODEL_ORPHAN_CLEANUP_DELETE=true` |
 
 User-triggered jobs get priority boost. See `server/src/queue/job-priorities.ts`.
 
@@ -484,7 +485,6 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 | `search-relevance-explanation.md`   | `search-relevance-explanation`   | Explain search result relevance                               |
 | `search-query-conversion.md`        | N/A (promptfoo test only)        | Convert natural language to search query                      |
 | `search-ranking.md`                 | N/A (promptfoo test only)        | Rank search results                                           |
-| `consolidate-email-categories.md`   | `consolidate_categories`         | Merge duplicate/overlapping categories                        |
 | `generate-categories-from-other.md` | `generate_categories_from_other` | Suggest new categories from "Other" emails                    |
 | `check-category-duplicate.md`       | `check_category_duplicate`       | Determine if two category names are duplicates                |
 

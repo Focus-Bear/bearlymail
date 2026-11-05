@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { STEP_UP_TOKEN_HEADER } from 'utils/stepUpRequest';
 
 import { API_URL } from 'config/api';
 import { PERSONAL_ACCESS_TOKENS_ENDPOINT } from 'constants/claudeAccess';
@@ -36,8 +37,10 @@ export function usePersonalAccessTokens() {
   }, [loadTokens]);
 
   const createToken = useCallback(
-    async (input: CreatePersonalAccessTokenInput): Promise<CreatedPersonalAccessToken> => {
-      const res = await axios.post<CreatedPersonalAccessToken>(TOKENS_URL, input);
+    async (input: CreatePersonalAccessTokenInput, stepUpToken: string): Promise<CreatedPersonalAccessToken> => {
+      const res = await axios.post<CreatedPersonalAccessToken>(TOKENS_URL, input, {
+        headers: { [STEP_UP_TOKEN_HEADER]: stepUpToken },
+      });
       setTokens((previous) => [res.data.summary, ...previous]);
       return res.data;
     },

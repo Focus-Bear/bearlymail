@@ -10,6 +10,8 @@ const TOKENS_TABLE = "personal_access_tokens";
 const CLIENTS_TABLE = "oauth_clients";
 const CODES_TABLE = "oauth_authorization_codes";
 const REFRESH_HASH_INDEX = "IDX_personal_access_tokens_refreshTokenHash";
+const PREVIOUS_REFRESH_HASH_INDEX =
+  "IDX_personal_access_tokens_previousRefreshTokenHash";
 const CODE_HASH_INDEX = "IDX_oauth_authorization_codes_codeHash";
 const CODES_CREATED_AT_INDEX = "IDX_oauth_authorization_codes_createdAt";
 
@@ -24,6 +26,7 @@ export class AddMcpOAuth1797700000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await this.addTokenColumns(queryRunner);
+    await this.createPreviousRefreshHashIndex(queryRunner);
     await this.createClientsTable(queryRunner);
     await this.createCodesTable(queryRunner);
   }
@@ -32,7 +35,12 @@ export class AddMcpOAuth1797700000000 implements MigrationInterface {
     await queryRunner.dropTable(CODES_TABLE, true);
     await queryRunner.dropTable(CLIENTS_TABLE, true);
     await queryRunner.query(`DROP INDEX IF EXISTS "${REFRESH_HASH_INDEX}"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "${PREVIOUS_REFRESH_HASH_INDEX}"`,
+    );
     for (const column of [
+      "refreshRotatedAt",
+      "previousRefreshTokenHash",
       "refreshTokenExpiresAt",
       "refreshTokenHash",
       "oauthClientId",
@@ -66,6 +74,16 @@ export class AddMcpOAuth1797700000000 implements MigrationInterface {
         type: "timestamptz",
         isNullable: true,
       }),
+      new TableColumn({
+        name: "previousRefreshTokenHash",
+        type: "varchar",
+        isNullable: true,
+      }),
+      new TableColumn({
+        name: "refreshRotatedAt",
+        type: "timestamptz",
+        isNullable: true,
+      }),
     ];
     for (const column of columns) {
       if (!(await queryRunner.hasColumn(TOKENS_TABLE, column.name))) {
@@ -74,6 +92,14 @@ export class AddMcpOAuth1797700000000 implements MigrationInterface {
     }
     await queryRunner.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS "${REFRESH_HASH_INDEX}" ON "${TOKENS_TABLE}" ("refreshTokenHash")`,
+    );
+  }
+
+  private async createPreviousRefreshHashIndex(
+    queryRunner: QueryRunner,
+  ): Promise<void> {
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "${PREVIOUS_REFRESH_HASH_INDEX}" ON "${TOKENS_TABLE}" ("previousRefreshTokenHash")`,
     );
   }
 

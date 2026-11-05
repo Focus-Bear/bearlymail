@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { StepUpModal } from 'components/auth/StepUpModal';
 import { ACCESS_TOKEN_KINDS } from 'constants/claudeAccess';
 import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { useNotifications } from 'contexts/NotificationContext';
@@ -10,7 +11,8 @@ import { AccessTokenCreateForm } from './AccessTokenCreateForm';
 import { AccessTokenList } from './AccessTokenList';
 import { ClaudeConnectorSetup } from './ClaudeConnectorSetup';
 import { NewTokenPanel } from './NewTokenPanel';
-import { CreatePersonalAccessTokenInput, PersonalAccessToken } from './types';
+import { PersonalAccessToken } from './types';
+import { useCreateTokenWithStepUp } from './useCreateTokenWithStepUp';
 import { usePersonalAccessTokens } from './usePersonalAccessTokens';
 
 const subheadingStyle: React.CSSProperties = {
@@ -30,21 +32,15 @@ export const ClaudeAccessSection: React.FC = () => {
   const { showError, showSuccess } = useNotifications();
   const { tokens, isLoading, hasLoadError, createToken, revokeToken } = usePersonalAccessTokens();
   const [newToken, setNewToken] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
-
-  const handleCreate = async (input: CreatePersonalAccessTokenInput) => {
-    setIsCreating(true);
-    try {
-      const created = await createToken(input);
-      setNewToken(created.token);
-    } catch (err: unknown) {
+  const { isCreating, handleCreate, stepUpModalProps } = useCreateTokenWithStepUp({
+    createToken,
+    onCreated: created => setNewToken(created.token),
+    onError: err => {
       console.error('Failed to create access token:', err);
       showError(t('settings.claudeAccess.createError'));
-    } finally {
-      setIsCreating(false);
-    }
-  };
+    },
+  });
 
   const handleRevoke = async (token: PersonalAccessToken) => {
     const isConnection = token.kind === ACCESS_TOKEN_KINDS.OAUTH;
@@ -115,6 +111,7 @@ export const ClaudeAccessSection: React.FC = () => {
       {newToken && <NewTokenPanel token={newToken} onDismiss={() => setNewToken(null)} />}
 
       <AccessTokenCreateForm isSubmitting={isCreating} onCreate={handleCreate} />
+      <StepUpModal {...stepUpModalProps} />
 
       <h3 style={subheadingStyle}>{t('settings.claudeAccess.activeTokens')}</h3>
       {isLoading && (

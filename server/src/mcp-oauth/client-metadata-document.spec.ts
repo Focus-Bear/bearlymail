@@ -1,3 +1,6 @@
+import type { AddressInfo } from "net";
+import { createServer } from "net";
+
 import {
   ClientMetadataError,
   fetchClientMetadataJson,
@@ -20,8 +23,35 @@ describe("isClientMetadataDocumentUrl", () => {
     ["http://claude.ai/client.json", false],
     ["https://claude.ai/a/../client.json", false],
     ["bm_client_abc", false],
+    ["https://127.0.0.1/client.json", false],
+    ["https://10.0.0.5/client.json", false],
+    ["https://169.254.169.254/latest/meta-data", false],
+    ["https://[::1]/client.json", false],
+    ["https://2130706433/client.json", false],
+    ["https://0x7f.0.0.1/client.json", false],
   ])("%s → %s", (clientId, expected) => {
     expect(isClientMetadataDocumentUrl(clientId)).toBe(expected);
+  });
+});
+
+describe("fetchClientMetadataJson", () => {
+  it("never connects to a client_id that is an IP address", async () => {
+    let connections = 0;
+    const server = createServer((socket) => {
+      connections += 1;
+      socket.destroy();
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", () => resolve()),
+    );
+    const { port } = server.address() as AddressInfo;
+
+    await expect(
+      fetchClientMetadataJson(`https://127.0.0.1:${port}/client.json`),
+    ).rejects.toThrow("not a valid metadata URL");
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    expect(connections).toBe(0);
   });
 });
 

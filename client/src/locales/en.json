@@ -112,18 +112,6 @@
           "title": "See your contacts",
           "description": "To recognise the people who matter to you (your VIPs) and autocomplete addresses when you write."
         },
-        "otherContacts": {
-          "title": "See your “Other contacts”",
-          "description": "Google's list of people you've emailed but never saved. Many of your most important senders only live here."
-        },
-        "calendarEvents": {
-          "title": "View and edit calendar events",
-          "description": "So we can suggest meeting times in replies and add the invite when someone books. We don't change your calendar settings."
-        },
-        "availability": {
-          "title": "See when you're free or busy",
-          "description": "Lets meeting suggestions avoid clashes, without reading what your events are about."
-        },
         "stayConnected": {
           "title": "Stay connected while you're away",
           "description": "Keeps your inbox syncing when you're not signed in, so your batches still arrive on time."
@@ -337,7 +325,7 @@
     "unsubscribe": "Unsubscribe",
     "nextBatch": "Next batch",
     "syncWindowBanner": {
-      "message": "Heads up: we're not syncing your old emails. We've only synced the last 7 days worth.",
+      "message": "Heads up: we've imported your {{count}} most recent conversations. Older emails aren't synced into BearlyMail.",
       "dismiss": "Dismiss"
     },
     "openTrackingNotice": {
@@ -2620,7 +2608,14 @@
     "createDeal": "Create Deal",
     "errorLoadingDeals": "Error loading deals",
     "errorCreatingDeal": "Could not create the deal. Please try again.",
-    "expectedClose": "Expected close"
+    "expectedClose": "Expected close",
+    "locked": "Upgrade to use the CRM",
+    "upgrade": {
+      "title": "The CRM comes with Growth and Enterprise",
+      "description": "Track deals through your pipeline, keep notes and custom fields on your contacts, and see every conversation with a contact in one place.",
+      "planNote": "Available from the {{plan}} plan at ${{price}}/month.",
+      "viewPlans": "View plans"
+    }
   },
   "senderContext": {
     "title": "Sender Context",
@@ -2664,7 +2659,21 @@
     "closedWon": "Won",
     "closedLost": "Lost",
     "deleteConfirm": "Are you sure you want to delete this deal?",
-    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned."
+    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned.",
+    "notes": {
+      "title": "Notes",
+      "placeholder": "Add a note about this deal…",
+      "add": "Add note",
+      "edit": "Edit",
+      "editLabel": "Edit note",
+      "edited": "Last edited: {{time}}",
+      "empty": "No notes yet.",
+      "loading": "Loading notes…",
+      "loadError": "Couldn't load the notes for this deal.",
+      "saveError": "Couldn't save the note. Please try again.",
+      "deleteError": "Couldn't delete the note. Please try again.",
+      "deleteConfirm": "Delete this note?"
+    }
   },
   "contactTypes": {
     "lead": "Lead",
@@ -3147,7 +3156,8 @@
     "whatsChanged": "What's changed",
     "changeSummaries": {
       "privacy_1_2_0": "We now explain email open tracking: emails you send can include a small invisible image that records when they are opened, with the opener's IP address and device details.",
-      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia."
+      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia.",
+      "privacy_1_4_0": "We now explain which decisions about your email our programs and AI make or help with, and how to ask a person to review one; that we may train a small model for your account only, from your own email; that we follow Google's Limited Use requirements; and your rights and regulators in Australia, the EU and UK, New Zealand and the US. You also now need to be at least 16 to use BearlyMail, and our Terms of Use have changed to match."
     }
   },
   "debug": {
@@ -3914,12 +3924,7 @@
         "gmailTitle": "BearlyMail can't reach your Gmail yet",
         "gmailBody": "On Google's permission screen, the boxes that let BearlyMail read, organise and send your email were left unticked. Until you allow them, your inbox stays empty: nothing gets batched, summarised or sent.",
         "gmailBodyRevoked": "Google has stopped letting BearlyMail into your mailbox — the access was removed or has expired. Until you allow it again, your inbox stays empty: nothing gets batched, summarised or sent.",
-        "gmailButton": "Allow Gmail access",
-        "optionalTitle": "Some optional permissions were skipped",
-        "optionalBody": "Your inbox works without these, but a few features won't:",
-        "optionalCalendar": "Calendar: your booking page can't check when you're free or add meetings to your calendar.",
-        "optionalContacts": "Contacts: recipient suggestions and your contacts list won't include people from your Google contacts.",
-        "optionalButton": "Grant these permissions"
+        "gmailButton": "Allow Gmail access"
       },
       "iAcceptThe": "I accept the",
       "termsOfUse": "Terms of Use",
@@ -3982,6 +3987,18 @@
       "stalledDetailTimeout": "This still hasn't finished after {{minutes}} minutes. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",
       "retry": "Try again",
       "skipToInbox": "Open my inbox anyway →"
+    },
+    "recategorise": {
+      "button": "Re-categorise",
+      "running": "Re-categorising…",
+      "runningTitle": "Re-sorting your inbox with your categories",
+      "stillRunningTitle": "Still re-sorting your inbox in the background",
+      "doneTitle": "Here's where your emails landed",
+      "progress": "{{done}} of {{total}} emails re-sorted",
+      "other": "Other",
+      "emailCount_one": "{{count}} email",
+      "emailCount_other": "{{count}} emails",
+      "error": "We couldn't re-sort your inbox. Try again, or open your inbox; new mail will use your categories."
     },
     "learned": {
       "title": "Here's what we learned",
@@ -4763,8 +4780,8 @@
             "body": "We make money from subscriptions, not your data. We never sell it or use it for advertising."
           },
           "noTraining": {
-            "title": "Not used to train AI",
-            "body": "Every AI provider we use commits not to train its models on your email."
+            "title": "Not used to train shared AI",
+            "body": "Every AI provider we use commits not to train its models on your email. Any model we train from it is for your account only."
           },
           "control": {
             "title": "You stay in control",
@@ -5147,6 +5164,8 @@
         "emailsPerCycle_other": "{{count, number}} AI-processed emails per month",
         "includesEmailTracking": "Email open tracking",
         "includesEmailTrackingDescription": "See if the other person read your email",
+        "includesCrm": "CRM",
+        "includesCrmDescription": "Deals pipeline, contact notes and custom fields",
         "teamMembers_one": "{{count}} team member",
         "teamMembers_other": "{{count}} team members",
         "choosePlan": "Choose plan",
@@ -5183,5 +5202,21 @@
     "multipleRecipients_one": "Sent to {{count}} recipient.",
     "multipleRecipients_other": "Sent to {{count}} recipients — an open could be any of them.",
     "imagesCaveat": "Opens are detected with a tiny image. Recipients who block images won't show as opened."
+  },
+  "googlePermissions": {
+    "startError": "Couldn't open Google. Please try again.",
+    "calendar": {
+      "message": "Connect your Google Calendar so BearlyMail can check when you're free and add the meeting for you.",
+      "action": "Connect your calendar"
+    },
+    "contacts": {
+      "message": "We've only got contacts from your emails.",
+      "action": "Import all your Gmail contacts"
+    },
+    "result": {
+      "granted": "Done. BearlyMail can now use it.",
+      "declined": "Google didn't give BearlyMail that permission. Tick its box on Google's screen to allow it.",
+      "wrongAccount": "That was a different Google account. Choose the account you signed in to BearlyMail with."
+    }
   }
 }

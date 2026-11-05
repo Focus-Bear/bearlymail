@@ -1,6 +1,6 @@
 /**
- * Google OAuth scopes requested at sign-in, and the subset BearlyMail cannot
- * work without.
+ * Google OAuth scopes requested at sign-in, the subset BearlyMail cannot work
+ * without, and the optional groups granted later on demand.
  */
 
 const GOOGLE_SCOPE_GMAIL_MODIFY =
@@ -19,23 +19,25 @@ const GOOGLE_SCOPE_CONTACTS =
 const GOOGLE_SCOPE_OTHER_CONTACTS =
   "https://www.googleapis.com/auth/contacts.other.readonly";
 
-export const GOOGLE_OAUTH_SCOPES = [
+/**
+ * Asked for at sign-in: just the mailbox and who the user is. Calendar and
+ * contacts are requested later, from the feature that needs them (incremental
+ * authorization), so the first consent screen isn't a wall of permissions.
+ */
+export const GOOGLE_SIGN_IN_SCOPES = [
   "email",
   "profile",
-  GOOGLE_SCOPE_CALENDAR_FREEBUSY,
-  GOOGLE_SCOPE_CALENDAR_EVENTS,
   // Includes read + modify (labels, etc.)
   GOOGLE_SCOPE_GMAIL_MODIFY,
   GOOGLE_SCOPE_GMAIL_SEND,
-  GOOGLE_SCOPE_CONTACTS,
-  GOOGLE_SCOPE_OTHER_CONTACTS,
 ];
 
 /**
  * Google's granular consent screen lets the user untick individual scopes and
  * still finish signing in. Without these two the account has no mailbox: every
  * sync 403s with insufficientPermissions and the inbox stays empty. Calendar
- * and contacts scopes stay optional — those features degrade on their own.
+ * and contacts are optional and granted later — those features degrade on
+ * their own.
  */
 export const REQUIRED_GOOGLE_SCOPES = [
   GOOGLE_SCOPE_GMAIL_MODIFY,
@@ -104,5 +106,45 @@ export function findMissingGooglePermissionGroups(
     Object.keys(GOOGLE_PERMISSION_GROUP_SCOPES) as GooglePermissionGroup[]
   ).filter((group) =>
     GOOGLE_PERMISSION_GROUP_SCOPES[group].some((scope) => !granted.has(scope)),
+  );
+}
+
+/** Groups asked for after sign-in, from the feature that needs them. */
+export const INCREMENTAL_GOOGLE_PERMISSION_GROUPS = [
+  GOOGLE_PERMISSION_GROUP.CALENDAR,
+  GOOGLE_PERMISSION_GROUP.CONTACTS,
+] as const;
+
+export type IncrementalGooglePermissionGroup =
+  (typeof INCREMENTAL_GOOGLE_PERMISSION_GROUPS)[number];
+
+export function isIncrementalGooglePermissionGroup(
+  value: unknown,
+): value is IncrementalGooglePermissionGroup {
+  return (INCREMENTAL_GOOGLE_PERMISSION_GROUPS as readonly unknown[]).includes(
+    value,
+  );
+}
+
+export function scopesForGooglePermissionGroup(
+  group: GooglePermissionGroup,
+): string[] {
+  return GOOGLE_PERMISSION_GROUP_SCOPES[group];
+}
+
+/**
+ * Whether the recorded grant covers every scope of a group. An unknown grant
+ * counts as granted: those are Google sign-ins from before scopes were
+ * recorded, when sign-in still asked for calendar and contacts, and failing
+ * the call is how they find out otherwise.
+ */
+export function hasGooglePermission(
+  grantedScope: string | null | undefined,
+  group: GooglePermissionGroup,
+): boolean {
+  if (!grantedScope) return true;
+  const granted = new Set(grantedScope.split(" "));
+  return GOOGLE_PERMISSION_GROUP_SCOPES[group].every((scope) =>
+    granted.has(scope),
   );
 }

@@ -1,6 +1,6 @@
 import { lookup as dnsLookup, LookupAddress } from "dns";
 import { get as httpsGet } from "https";
-import { LookupFunction } from "net";
+import { isIP, LookupFunction } from "net";
 
 import { HTTP_HEADERS } from "../constants/http-headers";
 import { MCP_OAUTH } from "../constants/mcp-oauth.constants";
@@ -12,6 +12,7 @@ const HTTP_OK = 200;
 const JSON_MEDIA_TYPE = "application/json";
 /** `new URL` resolves dot segments away, so they're checked on the raw string. */
 const DOT_SEGMENT_PATTERN = /\/\.\.?(?:[/?#]|$)/;
+const IPV6_BRACKETS_PATTERN = /^\[|\]$/g;
 
 /** A validated Client ID Metadata Document (draft-ietf-oauth-client-id-metadata-document). */
 export interface ClientMetadataDocument {
@@ -22,11 +23,20 @@ export interface ClientMetadataDocument {
 
 export class ClientMetadataError extends Error {}
 
+/**
+ * Node skips the socket's `lookup` for an IP address, so publicOnlyLookup never
+ * sees one. Real clients are named by domain, so a bare IP is simply refused.
+ */
+function hasIpAddressHost(url: URL): boolean {
+  return isIP(url.hostname.replace(IPV6_BRACKETS_PATTERN, "")) !== 0;
+}
+
 function parseClientIdUrl(clientId: string): URL | null {
   try {
     const url = new URL(clientId);
     const isValid =
       url.protocol === HTTPS_PROTOCOL &&
+      !hasIpAddressHost(url) &&
       !url.hash &&
       !url.username &&
       !url.password &&

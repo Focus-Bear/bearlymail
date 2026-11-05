@@ -1,9 +1,11 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
+import { AuthModule } from "../auth/auth.module";
 import { OAuthAuthorizationCode } from "../database/entities/oauth-authorization-code.entity";
 import { OAuthClient } from "../database/entities/oauth-client.entity";
 import { PersonalAccessTokensModule } from "../personal-access-tokens/personal-access-tokens.module";
+import { ConsentStepUpGuard } from "./consent-step-up.guard";
 import { OAuthController } from "./oauth.controller";
 import { OAuthAuthorizationService } from "./oauth-authorization.service";
 import { OAuthClientRegistryService } from "./oauth-client-registry.service";
@@ -21,6 +23,7 @@ import { OAuthTokenEndpointService } from "./oauth-token-endpoint.service";
   imports: [
     TypeOrmModule.forFeature([OAuthClient, OAuthAuthorizationCode]),
     PersonalAccessTokensModule,
+    AuthModule,
   ],
   controllers: [
     OAuthMetadataController,
@@ -28,6 +31,7 @@ import { OAuthTokenEndpointService } from "./oauth-token-endpoint.service";
     OAuthConsentController,
   ],
   providers: [
+    ConsentStepUpGuard,
     OAuthClientRegistryService,
     OAuthAuthorizationService,
     OAuthTokenEndpointService,

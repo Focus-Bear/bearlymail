@@ -5,7 +5,7 @@ import { Strategy } from "passport-google-oauth20";
 
 import {
   findMissingRequiredGoogleScopes,
-  GOOGLE_OAUTH_SCOPES,
+  GOOGLE_SIGN_IN_SCOPES,
   MISSING_GMAIL_PERMISSION_MESSAGE,
 } from "../constants/google-oauth-scopes";
 import { User } from "../database/entities/user.entity";
@@ -64,7 +64,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google", true) {
       clientID: clientID || "placeholder-client-id",
       clientSecret: clientSecret || "placeholder-client-secret",
       callbackURL: callbackURL || "http://localhost:3001/auth/google/callback",
-      scope: GOOGLE_OAUTH_SCOPES,
+      scope: GOOGLE_SIGN_IN_SCOPES,
       // These need to be in authorizationParams, not here
     });
 

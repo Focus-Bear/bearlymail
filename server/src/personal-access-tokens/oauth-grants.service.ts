@@ -151,10 +151,41 @@ export class OAuthGrantsService {
     // token can't both succeed.
     const result = await this.tokenRepository.update(
       { id: row.id, refreshTokenHash: previousHash, revokedAt: IsNull() },
-      secrets.columns,
+      {
+        ...secrets.columns,
+        previousRefreshTokenHash: previousHash,
+        refreshRotatedAt: now,
+      },
     );
     if (!result.affected) return null;
     return toTokenSet(row.id, secrets, row.scopes.filter(isPatScope));
+  }
+
+  /**
+   * A refresh token that was already rotated away has probably leaked, so the
+   * whole connection ends (OAuth 2.1 §6.1). A repeat within a few seconds is
+   * more likely a client retrying a lost response, so that's only refused.
+   * Returns the connection it revoked, if any.
+   */
+  async revokeIfRefreshTokenReused(
+    refreshToken: string,
+    clientId: string,
+    now: Date = new Date(),
+  ): Promise<PersonalAccessToken | null> {
+    const rotated = await this.tokenRepository.findOne({
+      where: {
+        previousRefreshTokenHash: hashTokenSecret(refreshToken),
+        kind: ACCESS_TOKEN_KINDS.OAUTH,
+        revokedAt: IsNull(),
+      },
+    });
+    if (!rotated || rotated.oauthClientId !== clientId) return null;
+    const rotatedAt = rotated.refreshRotatedAt?.getTime() ?? 0;
+    if (now.getTime() - rotatedAt < MCP_OAUTH.REFRESH_REUSE_GRACE_MS) {
+      return null;
+    }
+    await this.revokeById(rotated.id, now);
+    return rotated;
   }
 
   /**

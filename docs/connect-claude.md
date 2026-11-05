@@ -52,7 +52,7 @@ Bodies are plain text; the user's signature (and, for replies, the quoted messag
 - `/mcp` accepts **only** a bearer token: a personal access token (`bm_pat_…`) or an OAuth access token (`bm_oat_…`). It ignores the session cookie, so a logged-in browser tab can't drive it and it needs no CSRF protection. Tokens can't create or revoke tokens (those endpoints are JWT-only).
 - Only the SHA-256 hash of each 256-bit secret (tokens, refresh tokens, authorization codes) is stored.
 - Each MCP send is written to `audit_logs` (`MCP_SEND_REPLY` / `MCP_SEND_EMAIL`, with token id and recipient count, never content). That trail also enforces a cap of 30 MCP sends per user per hour.
-- `/mcp` is throttled at 120 requests per minute per token. The throttler keys bearer-token requests by the token's hash, because `req.ip` is the load balancer and claude.ai traffic all comes from Anthropic's IP range. Token creation and revocation are audited too, as are OAuth grants and denials (`MCP_OAUTH_GRANTED` / `MCP_OAUTH_DENIED`).
+- `/mcp` allows 120 requests per minute per user, counted after the token is checked. Creating a token or approving a connection asks for the password again (declining doesn't). Token creation and revocation are audited too.
 
 ## Protocol notes
 
@@ -68,7 +68,7 @@ BearlyMail is its own OAuth 2.1 authorization server for `/mcp`, following the [
 | `GET /.well-known/oauth-protected-resource[/mcp]` | RFC 9728: `resource` = `<api-origin>/mcp`, `authorization_servers` = `[<api-origin>]` |
 | `GET /.well-known/oauth-authorization-server` | RFC 8414, with `client_id_metadata_document_supported: true` and `token_endpoint_auth_methods_supported: ["none"]`. Claude needs both before it will use CIMD |
 | `GET /oauth/authorize` | Validates the client, redirect URI, S256 PKCE, `resource` (RFC 8707) and scope. Parks the request, then 302s to the web app's `/oauth/consent?request=…` |
-| `GET/POST /oauth/consent-requests/:id[/decision]` | JWT (session) endpoints behind the consent page. The decision returns the redirect back to the client with `code`, `state` and `iss` (RFC 9207) |
+| `GET/POST /oauth/consent-requests/:id[/decision]` | JWT (session) endpoints behind the consent page. Approving also needs a step-up token. The decision returns the redirect back to the client with `code`, `state` and `iss` (RFC 9207) |
 | `POST /oauth/token` | Form-encoded. `authorization_code` (PKCE) and `refresh_token`. Public clients only |
 | `POST /oauth/register` | RFC 7591 dynamic registration (fallback). Always registers a public client |
 | `POST /oauth/revoke` | RFC 7009. Revoking either token ends the connection |

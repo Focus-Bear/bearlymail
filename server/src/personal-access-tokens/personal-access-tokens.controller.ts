@@ -14,6 +14,7 @@ import {
 
 import { AuditService } from "../audit/audit.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { StepUpAuthGuard } from "../auth/step-up.guard";
 import { PERSONAL_ACCESS_TOKENS } from "../constants/personal-access-tokens.constants";
 import { CreatePersonalAccessTokenDto } from "./dto/create-personal-access-token.dto";
 import { PersonalAccessTokensService } from "./personal-access-tokens.service";
@@ -41,7 +42,9 @@ export class PersonalAccessTokensController {
     return this.tokensService.list(req.user.userId);
   }
 
+  /** A token can read and send mail, so this asks for the password again. */
   @Post()
+  @UseGuards(StepUpAuthGuard)
   async create(
     @Request() req: JwtRequest,
     @Body() body: CreatePersonalAccessTokenDto,

@@ -120,6 +120,16 @@ async function expectDiscoveryChallenge() {
 }
 
 /** What the browser + consent page do: follow /oauth/authorize, answer as the user. */
+async function requestStepUpToken(auth) {
+  const response = await fetch(`${API_URL}/auth/step-up`, {
+    method: 'POST',
+    headers: auth,
+    body: JSON.stringify({ password: localCredentials().password }),
+  });
+  assert.ok(response.ok, `step-up failed: ${response.status}`);
+  return (await response.json()).step_up_token;
+}
+
 async function approveInBrowser(authorizationUrl, jwt, allowSend) {
   const authorize = await fetch(authorizationUrl, { redirect: 'manual' });
   assert.equal(authorize.status, 302, `authorize: ${authorize.status} ${await authorize.text()}`);
@@ -133,7 +143,7 @@ async function approveInBrowser(authorizationUrl, jwt, allowSend) {
 
   const decision = await fetch(`${API_URL}/oauth/consent-requests/${requestId}/decision`, {
     method: 'POST',
-    headers: auth,
+    headers: { ...auth, 'X-Step-Up-Token': await requestStepUpToken(auth) },
     body: JSON.stringify({ approve: true, allowSend }),
   });
   assert.equal(decision.status, 200);

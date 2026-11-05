@@ -12,6 +12,7 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ConsentStepUpGuard } from "./consent-step-up.guard";
 import { ConsentDecisionDto } from "./dto/consent-decision.dto";
 import {
   ConsentRequestView,
@@ -43,6 +44,7 @@ export class OAuthConsentController {
 
   /** Returns the URL to send the browser to (the client's redirect URI). */
   @Post(":id/decision")
+  @UseGuards(ConsentStepUpGuard)
   @HttpCode(HttpStatus.OK)
   async decide(
     @Request() req: JwtRequest,

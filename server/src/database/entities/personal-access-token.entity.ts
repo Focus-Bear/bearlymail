@@ -65,6 +65,15 @@ export class PersonalAccessToken {
   @Column({ type: "varchar", nullable: true })
   refreshTokenHash: string | null;
 
+  /** OAuth only: the refresh token just replaced, to spot it being reused. */
+  @Index("IDX_personal_access_tokens_previousRefreshTokenHash")
+  @Column({ type: "varchar", nullable: true })
+  previousRefreshTokenHash: string | null;
+
+  /** OAuth only: when the refresh token last rotated. */
+  @Column({ type: "timestamptz", nullable: true })
+  refreshRotatedAt: Date | null;
+
   /** OAuth only: the connection lapses if not refreshed by then. */
   @Column({ type: "timestamptz", nullable: true })
   refreshTokenExpiresAt: Date | null;

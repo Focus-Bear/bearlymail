@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { joinContextValue, type LearnedContextItem, splitContextValue } from './learned-context';
+import { getLearnedReason, joinContextValue, type LearnedContextItem, splitContextValue } from './learned-context';
 import * as styles from './learned-context.styles';
 import { isPendingContextId } from './useLearnedContext';
 
@@ -23,6 +23,8 @@ export const LearnedContextChip: React.FC<LearnedContextChipProps> = ({ item, sh
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(label);
   const isPending = isPendingContextId(item.contextId);
+  const reason = getLearnedReason(item, t);
+  const reasonTooltip = useReasonTooltip();
 
   const startEditing = () => {
     setDraft(label);
@@ -68,9 +70,38 @@ export const LearnedContextChip: React.FC<LearnedContextChipProps> = ({ item, sh
   }
 
   return (
-    <li style={styles.chipStyle(isPending)} title={detail ? `${label} — ${detail}` : label}>
+    <li
+      style={styles.chipStyle(isPending)}
+      // The reason tooltip replaces the native title, which would show the same chip twice.
+      title={reason ? undefined : nativeTitle(label, detail)}
+      onMouseEnter={reasonTooltip.show}
+      onMouseLeave={reasonTooltip.hide}
+    >
       {showKind && <span style={styles.kindTagStyle}>{t(`setupWizard.learned.kinds.${item.contextKey}`)}</span>}
-      <span style={styles.chipLabelStyle}>{label}</span>
+      {reason ? (
+        <>
+          <span
+            tabIndex={0}
+            aria-describedby={reasonTooltip.id}
+            onFocus={reasonTooltip.show}
+            onBlur={reasonTooltip.hide}
+            onKeyDown={reasonTooltip.hideOnEscape}
+            style={styles.chipReasonLabelStyle}
+          >
+            {label}
+          </span>
+          <span
+            role="tooltip"
+            id={reasonTooltip.id}
+            hidden={!reasonTooltip.isVisible}
+            style={styles.reasonTooltipStyle}
+          >
+            {reason}
+          </span>
+        </>
+      ) : (
+        <span style={styles.chipLabelStyle}>{label}</span>
+      )}
       <button
         type="button"
         onClick={startEditing}
@@ -92,6 +123,31 @@ export const LearnedContextChip: React.FC<LearnedContextChipProps> = ({ item, sh
     </li>
   );
 };
+
+function nativeTitle(label: string, detail: string | null): string {
+  return detail ? `${label} — ${detail}` : label;
+}
+
+/**
+ * Hover/focus state for a chip's "why" tooltip. Escape dismisses it without
+ * moving focus (WCAG 1.4.13); the tooltip stays in the DOM while hidden so
+ * aria-describedby always resolves.
+ */
+function useReasonTooltip() {
+  const id = useId();
+  const [isVisible, setIsVisible] = useState(false);
+  return {
+    id,
+    isVisible,
+    show: () => setIsVisible(true),
+    hide: () => setIsVisible(false),
+    hideOnEscape: (event: React.KeyboardEvent) => {
+      if (event.key === KEY_ESCAPE) {
+        setIsVisible(false);
+      }
+    },
+  };
+}
 
 const PencilIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

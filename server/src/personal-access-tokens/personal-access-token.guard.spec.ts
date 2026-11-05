@@ -2,7 +2,6 @@ import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
 
 import { PAT_SCOPES } from "../constants/personal-access-tokens.constants";
 import {
-  bearerTokenThrottleKey,
   PersonalAccessTokenGuard,
 } from "./personal-access-token.guard";
 import { PersonalAccessTokensService } from "./personal-access-tokens.service";
@@ -96,16 +95,3 @@ describe("PersonalAccessTokenGuard", () => {
   });
 });
 
-describe("bearerTokenThrottleKey", () => {
-  it("keys BearlyMail tokens by hash, never by the raw secret", () => {
-    const key = bearerTokenThrottleKey("Bearer bm_oat_secret");
-    expect(key).toMatch(/^token:[0-9a-f]{64}$/);
-    expect(key).not.toContain("secret");
-    expect(bearerTokenThrottleKey("Bearer bm_pat_other")).not.toBe(key);
-  });
-
-  it("ignores missing headers and other bearer strings (JWTs)", () => {
-    expect(bearerTokenThrottleKey(undefined)).toBeNull();
-    expect(bearerTokenThrottleKey("Bearer eyJhbGciOi.jwt")).toBeNull();
-  });
-});

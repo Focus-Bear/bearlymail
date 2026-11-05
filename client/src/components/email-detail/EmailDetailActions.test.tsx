@@ -54,6 +54,10 @@ vi.mock('components/email-detail/SchedulingRequestCard', () => ({
   SchedulingRequestCard: () => <div data-testid="SchedulingRequestCard" />,
 }));
 
+vi.mock('components/google-permissions/ConnectCalendarPrompt', () => ({
+  ConnectCalendarPrompt: () => null,
+}));
+
 vi.mock('components/email-detail/QuickActionsSection', () => ({
   QuickActionsSection: ({ suggestedActions }: { suggestedActions: SuggestedAction[] }) => (
     <div data-testid="QuickActionsSection" data-count={suggestedActions.length} />

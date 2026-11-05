@@ -13,12 +13,14 @@ export const MCP_SERVER = {
   /** Newest first; the first entry is offered when the client's is unknown. */
   SUPPORTED_PROTOCOL_VERSIONS: ["2025-06-18", "2025-03-26", "2024-11-05"],
   JSONRPC_VERSION: "2.0",
-  /** Requests per token per window, across all MCP methods. */
+  /** Requests per user per window, across all MCP methods and tokens. */
   RATE_LIMIT: 120,
   RATE_WINDOW_MS: MILLISECONDS.MINUTE,
   /** Hard cap on messages sent through MCP per user per hour. */
   SEND_LIMIT_PER_HOUR: 30,
   SEND_LIMIT_WINDOW_MS: MILLISECONDS.HOUR,
+  /** Advisory lock name; holds one user's MCP sends to one at a time. */
+  SEND_LOCK_PREFIX: "mcp-send:",
   DEFAULT_LIST_LIMIT: 20,
   MAX_LIST_LIMIT: 50,
   MAX_THREAD_EMAILS: 20,

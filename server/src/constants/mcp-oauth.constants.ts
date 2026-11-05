@@ -33,11 +33,15 @@ export const MCP_OAUTH = {
   ACCESS_TOKEN_TTL_SECONDS: SECONDS.HOUR,
   /** Idle lifetime: every refresh rotates the token and restarts this window. */
   REFRESH_TOKEN_TTL_MS: DAYS.MONTH * MILLISECONDS.DAY,
+  /** A client retrying a refresh this soon is a retry, not a stolen token. */
+  REFRESH_REUSE_GRACE_MS: MILLISECONDS.THIRTY_SECONDS,
   /** How long the user has to log in and answer the consent screen. */
   AUTHORIZATION_REQUEST_TTL_MS: SECONDS.FIFTEEN_MINUTES * MS_PER_SECOND,
   AUTHORIZATION_CODE_TTL_MS: MILLISECONDS.MINUTE,
   /** Finished or abandoned requests are kept this long, then pruned. */
   AUTHORIZATION_ROW_RETENTION_MS: MILLISECONDS.DAY,
+  /** A registered client with no live connection is removed after this long. */
+  UNUSED_CLIENT_RETENTION_MS: DAYS.MONTH * MILLISECONDS.DAY,
 
   CODE_CHALLENGE_METHOD_S256: "S256",
   /** RFC 7636 §4.1: the verifier is 43–128 unreserved characters. */
@@ -77,6 +81,7 @@ export const MCP_OAUTH = {
     GRANTED: "MCP_OAUTH_GRANTED",
     DENIED: "MCP_OAUTH_DENIED",
     CODE_REPLAYED: "MCP_OAUTH_CODE_REPLAYED",
+    REFRESH_REPLAYED: "MCP_OAUTH_REFRESH_REPLAYED",
   },
   AUDIT_TARGET_TYPE: "oauth_client",
 } as const;

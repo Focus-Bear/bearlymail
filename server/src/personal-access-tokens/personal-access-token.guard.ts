@@ -9,34 +9,17 @@ import { Request, Response } from "express";
 import { HTTP_HEADERS } from "../constants/http-headers";
 import { mcpBearerChallenge } from "../mcp-oauth/mcp-oauth-urls";
 import {
-  hasBearlyMailTokenPrefix,
   PatPrincipal,
   PersonalAccessTokensService,
 } from "./personal-access-tokens.service";
-import { hashTokenSecret } from "./token-secrets";
 
 const BEARER_PATTERN = /^Bearer\s+(\S+)$/i;
-const THROTTLE_KEY_PREFIX = "token:";
 
 /** The bearer credential in an Authorization header, if there is one. */
 export function extractBearerToken(
   authorization: string | undefined,
 ): string | null {
   return BEARER_PATTERN.exec(authorization ?? "")?.[1] ?? null;
-}
-
-/**
- * Rate-limit key for a request carrying a BearlyMail token. Token routes run
- * the throttler before the guard sets `req.user`, and `req.ip` is the load
- * balancer (no `trust proxy`), so without this every MCP client — all of
- * claude.ai included — would share one bucket.
- */
-export function bearerTokenThrottleKey(
-  authorization: string | undefined,
-): string | null {
-  const token = extractBearerToken(authorization);
-  if (!token || !hasBearlyMailTokenPrefix(token)) return null;
-  return THROTTLE_KEY_PREFIX + hashTokenSecret(token);
 }
 
 export interface PatAuthenticatedRequest extends Request {

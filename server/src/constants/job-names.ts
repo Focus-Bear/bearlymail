@@ -155,6 +155,7 @@ export const JOB_NAMES = {
 
   // Data retention
   CLEANUP_INACTIVE_ACCOUNTS: "cleanup-inactive-accounts",
+  CLEANUP_ORPHANED_LOCAL_MODEL_DATA: "cleanup-orphaned-local-model-data",
   PRUNE_OLD_DATA: "prune-old-data",
 
   // Encryption migration (admin-triggered, idempotent)

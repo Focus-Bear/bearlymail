@@ -243,6 +243,11 @@ export class LLMProcessor implements OnModuleInit {
     tracker: JobPerformanceTracker,
   ): Promise<{ email: Email; thread: EmailThread | null } | null> {
     tracker.startPhase("dataFetch");
+    // A forced run applies something the user just changed, such as their
+    // categories. The cache is per-process, so the web server can't clear it.
+    if (forceRecalculate) {
+      this.priorityCacheService.invalidateUserContexts(userId);
+    }
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
       this.logger.warn(`Email ${emailId} not found`);

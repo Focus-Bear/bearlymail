@@ -11,8 +11,6 @@ export type GmailPermissionProblem = (typeof GMAIL_PERMISSION_PROBLEM)[keyof typ
 
 export interface GooglePermissionsState {
   gmailProblem: GmailPermissionProblem | null;
-  /** Calendar / contacts: features degrade without them, the inbox still works. */
-  missingOptional: GooglePermissionGroup[];
 }
 
 type GooglePermissionFields = Pick<User, 'gmailAccessIssue' | 'missingGooglePermissions'>;
@@ -30,15 +28,13 @@ function resolveGmailProblem(user: GooglePermissionFields, missing: GooglePermis
 /**
  * What the onboarding welcome screen should warn about. Combines the grant
  * recorded at sign-in with the access issue a failed Gmail sync records, so
- * a mailbox BearlyMail can't read is never shown as "connected".
+ * a mailbox BearlyMail can't read is never shown as "connected". Calendar and
+ * contacts aren't asked for at sign-in, so they are never warned about here;
+ * the scheduling card and the CRM offer them when they're needed.
  */
 export function resolveGooglePermissions(user: GooglePermissionFields | null): GooglePermissionsState {
   if (!user) {
-    return { gmailProblem: null, missingOptional: [] };
+    return { gmailProblem: null };
   }
-  const missing = user.missingGooglePermissions ?? [];
-  return {
-    gmailProblem: resolveGmailProblem(user, missing),
-    missingOptional: missing.filter(group => group !== GOOGLE_PERMISSION_GMAIL),
-  };
+  return { gmailProblem: resolveGmailProblem(user, user.missingGooglePermissions ?? []) };
 }

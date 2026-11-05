@@ -28,7 +28,6 @@ const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
 
 const CONNECTED_TITLE = 'setupWizard.welcome.prop1Title';
 const GMAIL_TITLE = 'setupWizard.welcome.permissions.gmailTitle';
-const OPTIONAL_TITLE = 'setupWizard.welcome.permissions.optionalTitle';
 
 function renderWithUser(user: Partial<User>) {
   mockedUseAuth.mockReturnValue({ user: { id: 'user-1', email: 'a@example.com', ...user } });
@@ -47,7 +46,6 @@ describe('WelcomeStep — Google permissions', () => {
     expect(screen.getByText(CONNECTED_TITLE)).toBeInTheDocument();
     expect(screen.getByText('setupWizard.welcome.doneTag')).toBeInTheDocument();
     expect(screen.queryByText(GMAIL_TITLE)).not.toBeInTheDocument();
-    expect(screen.queryByText(OPTIONAL_TITLE)).not.toBeInTheDocument();
   });
 
   it('replaces "Your inbox is connected" with a warning when Gmail was left unticked', () => {
@@ -80,22 +78,12 @@ describe('WelcomeStep — Google permissions', () => {
     expect(startGoogleReconnect).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the inbox connected but notes skipped calendar and contacts access', () => {
+  it('keeps the inbox connected without mentioning calendar or contacts, which are asked for later', () => {
     renderWithUser({ missingGooglePermissions: [GOOGLE_PERMISSION_CALENDAR, GOOGLE_PERMISSION_CONTACTS] });
 
     expect(screen.getByText(CONNECTED_TITLE)).toBeInTheDocument();
-    expect(screen.getByText(OPTIONAL_TITLE)).toBeInTheDocument();
-    expect(screen.getByText('setupWizard.welcome.permissions.optionalCalendar')).toBeInTheDocument();
-    expect(screen.getByText('setupWizard.welcome.permissions.optionalContacts')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('setupWizard.welcome.permissions.optionalButton'));
-    expect(startGoogleReconnect).toHaveBeenCalledTimes(1);
-  });
-
-  it('lists only the optional permission that was skipped', () => {
-    renderWithUser({ missingGooglePermissions: [GOOGLE_PERMISSION_CONTACTS] });
-
-    expect(screen.getByText('setupWizard.welcome.permissions.optionalContacts')).toBeInTheDocument();
-    expect(screen.queryByText('setupWizard.welcome.permissions.optionalCalendar')).not.toBeInTheDocument();
+    expect(screen.getByText('setupWizard.welcome.doneTag')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /permission/i })).not.toBeInTheDocument();
   });
 });

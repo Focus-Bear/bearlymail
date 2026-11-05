@@ -4,7 +4,7 @@ import axios from 'axios';
 
 import { ClaudeAccessSection } from './ClaudeAccessSection';
 
-vi.mock('axios', () => ({ default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
+vi.mock('axios', () => ({ default: { get: vi.fn(), post: vi.fn(), delete: vi.fn(), isAxiosError: vi.fn() } }));
 vi.mock('config/api', () => ({ API_URL: 'http://api.test' }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -28,8 +28,23 @@ const EXISTING_TOKEN = {
   createdAt: '2026-11-01T00:00:00Z',
 };
 
+const TOKENS_URL = 'http://api.test/personal-access-tokens';
+const STEP_UP_URL = 'http://api.test/auth/step-up';
+const STEP_UP_HEADERS = { headers: { 'X-Step-Up-Token': 'step-up-1' } };
+
+function mockPosts(createResponse: unknown) {
+  vi.mocked(axios.post).mockImplementation(async (url: string) =>
+    url === STEP_UP_URL ? { data: { step_up_token: 'step-up-1' } } : createResponse
+  );
+}
+
+function passwordChallenge() {
+  return Object.assign(new Error('step up'), { response: { status: 401, data: { requiresPassword: true } } });
+}
+
 describe('ClaudeAccessSection', () => {
   beforeEach(() => {
+    vi.mocked(axios.isAxiosError).mockReset().mockReturnValue(true);
     vi.mocked(axios.get).mockReset().mockResolvedValue({ data: [EXISTING_TOKEN] });
     vi.mocked(axios.post).mockReset();
     vi.mocked(axios.delete).mockReset().mockResolvedValue({ data: undefined });
@@ -46,7 +61,7 @@ describe('ClaudeAccessSection', () => {
   });
 
   it('creates a read-only 90-day token by default and shows the setup snippets once', async () => {
-    vi.mocked(axios.post).mockResolvedValue({
+    mockPosts({
       data: { token: 'bm_pat_SECRET', summary: { ...EXISTING_TOKEN, id: 'token-2', name: 'Claude', scopes: ['mail:read'] } },
     });
     render(<ClaudeAccessSection />);
@@ -55,11 +70,11 @@ describe('ClaudeAccessSection', () => {
     fireEvent.submit(screen.getByTestId('access-token-create-form'));
 
     await waitFor(() =>
-      expect(axios.post).toHaveBeenCalledWith('http://api.test/personal-access-tokens', {
-        name: 'Claude',
-        scopes: ['mail:read'],
-        expiresInDays: 90,
-      })
+      expect(axios.post).toHaveBeenCalledWith(
+        TOKENS_URL,
+        { name: 'Claude', scopes: ['mail:read'], expiresInDays: 90 },
+        STEP_UP_HEADERS
+      )
     );
     expect(await screen.findByTestId('new-access-token-value')).toHaveTextContent('bm_pat_SECRET');
     expect(screen.getByTestId('claude-code-command')).toHaveTextContent(
@@ -71,7 +86,7 @@ describe('ClaudeAccessSection', () => {
   });
 
   it('adds the send scope when sending is allowed', async () => {
-    vi.mocked(axios.post).mockResolvedValue({ data: { token: 'bm_pat_X', summary: EXISTING_TOKEN } });
+    mockPosts({ data: { token: 'bm_pat_X', summary: EXISTING_TOKEN } });
     render(<ClaudeAccessSection />);
     await screen.findByText('Laptop');
 
@@ -80,10 +95,48 @@ describe('ClaudeAccessSection', () => {
 
     await waitFor(() =>
       expect(axios.post).toHaveBeenCalledWith(
-        'http://api.test/personal-access-tokens',
-        expect.objectContaining({ scopes: ['mail:read', 'mail:send'] })
+        TOKENS_URL,
+        expect.objectContaining({ scopes: ['mail:read', 'mail:send'] }),
+        STEP_UP_HEADERS
       )
     );
+  });
+
+  it('asks password users to confirm before creating a token', async () => {
+    vi.mocked(axios.post).mockImplementation(async (url: string, body?: unknown) => {
+      if (url === STEP_UP_URL && !(body as { password?: string }).password) {
+        throw passwordChallenge();
+      }
+      if (url === STEP_UP_URL) {
+        return { data: { step_up_token: 'step-up-1' } };
+      }
+      return { data: { token: 'bm_pat_SECRET', summary: EXISTING_TOKEN } };
+    });
+    render(<ClaudeAccessSection />);
+    await screen.findByText('Laptop');
+
+    fireEvent.submit(screen.getByTestId('access-token-create-form'));
+    const dialog = await screen.findByRole('dialog');
+    const passwordInput = dialog.querySelector('input') as HTMLInputElement;
+    fireEvent.change(passwordInput, { target: { value: 'hunter2' } });
+    fireEvent.submit(passwordInput.closest('form') as HTMLFormElement);
+
+    expect(await screen.findByTestId('new-access-token-value')).toHaveTextContent('bm_pat_SECRET');
+    expect(axios.post).toHaveBeenCalledWith(STEP_UP_URL, { password: 'hunter2' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('creates nothing when the password check is cancelled', async () => {
+    vi.mocked(axios.post).mockRejectedValue(passwordChallenge());
+    render(<ClaudeAccessSection />);
+    await screen.findByText('Laptop');
+
+    fireEvent.submit(screen.getByTestId('access-token-create-form'));
+    await screen.findByRole('dialog');
+    fireEvent.click(screen.getByRole('dialog'));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(axios.post).not.toHaveBeenCalledWith(TOKENS_URL, expect.anything(), expect.anything());
   });
 
   it('revokes a token after confirmation', async () => {
@@ -108,6 +161,7 @@ describe('ClaudeAccessSection', () => {
   });
 
   it('shows an error when creating fails', async () => {
+    vi.mocked(axios.isAxiosError).mockReturnValue(false);
     vi.mocked(axios.post).mockRejectedValue(new Error('nope'));
     render(<ClaudeAccessSection />);
     await screen.findByText('Laptop');

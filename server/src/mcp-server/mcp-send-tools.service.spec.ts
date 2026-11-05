@@ -1,6 +1,5 @@
 import { Repository } from "typeorm";
 
-import { AuditService } from "../audit/audit.service";
 import { MCP_SERVER } from "../constants/mcp-server.constants";
 import { PAT_SCOPES } from "../constants/personal-access-tokens.constants";
 import { AuditLog } from "../database/entities/audit-log.entity";
@@ -27,8 +26,10 @@ describe("McpSendToolsService", () => {
   let emailsService: { getEmailById: jest.Mock };
   let providerManager: { getPrimaryProvider: jest.Mock };
   let sendQueue: { queueReply: jest.Mock; queueNewEmail: jest.Mock };
-  let auditService: { log: jest.Mock };
-  let auditLogRepository: { count: jest.Mock };
+  let savedAudits: Record<string, unknown>[];
+  let auditLogs: { count: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let lockQuery: jest.Mock;
+  let auditLogRepository: { manager: { transaction: jest.Mock } };
   let service: McpSendToolsService;
 
   beforeEach(() => {
@@ -40,13 +41,33 @@ describe("McpSendToolsService", () => {
       queueReply: jest.fn().mockResolvedValue(QUEUED),
       queueNewEmail: jest.fn().mockResolvedValue(QUEUED),
     };
-    auditService = { log: jest.fn().mockResolvedValue(undefined) };
-    auditLogRepository = { count: jest.fn().mockResolvedValue(0) };
+    savedAudits = [];
+    auditLogs = {
+      count: jest.fn(async () => savedAudits.length),
+      create: jest.fn((row: Record<string, unknown>) => row),
+      save: jest.fn(async (row: Record<string, unknown>) => {
+        savedAudits.push(row);
+        return row;
+      }),
+    };
+    lockQuery = jest.fn().mockResolvedValue([]);
+    // Runs one transaction at a time, as the advisory lock does.
+    let lockHeld: Promise<unknown> = Promise.resolve();
+    auditLogRepository = {
+      manager: {
+        transaction: jest.fn((work: (manager: unknown) => Promise<unknown>) => {
+          const run = lockHeld.then(() =>
+            work({ query: lockQuery, getRepository: () => auditLogs }),
+          );
+          lockHeld = run.catch(() => undefined);
+          return run;
+        }),
+      },
+    };
     service = new McpSendToolsService(
       emailsService as unknown as EmailsService,
       providerManager as unknown as EmailProviderManager,
       sendQueue as unknown as EmailSendQueueService,
-      auditService as unknown as AuditService,
       auditLogRepository as unknown as Repository<AuditLog>,
     );
   });
@@ -84,7 +105,7 @@ describe("McpSendToolsService", () => {
         emailId: EMAIL_ID,
         body: "secret plans",
       });
-      expect(auditService.log).toHaveBeenCalledWith(
+      expect(savedAudits).toEqual([
         expect.objectContaining({
           userId: "user-1",
           action: MCP_SERVER.AUDIT_ACTIONS.SEND_REPLY,
@@ -92,10 +113,37 @@ describe("McpSendToolsService", () => {
           ipAddress: "203.0.113.9",
           metadata: expect.objectContaining({ tokenId: "token-1" }),
         }),
+      ]);
+      expect(JSON.stringify(savedAudits[0])).not.toContain("secret plans");
+    });
+
+    it("takes the user's lock before counting", async () => {
+      await service.sendReply(CONTEXT, { emailId: EMAIL_ID, body: "hi" });
+
+      expect(lockQuery).toHaveBeenCalledWith(
+        expect.stringContaining("pg_advisory_xact_lock"),
+        ["mcp-send:user-1"],
       );
-      expect(JSON.stringify(auditService.log.mock.calls[0][0])).not.toContain(
-        "secret plans",
+      expect(lockQuery.mock.invocationCallOrder[0]).toBeLessThan(
+        auditLogs.count.mock.invocationCallOrder[0],
       );
+    });
+
+    it("doesn't report success when the send can't be audited", async () => {
+      auditLogs.save.mockRejectedValue(new Error("audit table down"));
+
+      await expect(
+        service.sendReply(CONTEXT, { emailId: EMAIL_ID, body: "hi" }),
+      ).rejects.toThrow("audit table down");
+    });
+
+    it("sends nothing when the lock or count fails", async () => {
+      auditLogs.count.mockRejectedValue(new Error("database down"));
+
+      await expect(
+        service.sendReply(CONTEXT, { emailId: EMAIL_ID, body: "hi" }),
+      ).rejects.toThrow("database down");
+      expect(sendQueue.queueReply).not.toHaveBeenCalled();
     });
 
     it("leaves tracking and follow-up to the account defaults when omitted", async () => {
@@ -136,9 +184,7 @@ describe("McpSendToolsService", () => {
     });
 
     it("stops at the hourly send cap", async () => {
-      auditLogRepository.count.mockResolvedValue(
-        MCP_SERVER.SEND_LIMIT_PER_HOUR,
-      );
+      auditLogs.count.mockResolvedValue(MCP_SERVER.SEND_LIMIT_PER_HOUR);
       await expect(
         service.sendReply(CONTEXT, { emailId: EMAIL_ID, body: "hi" }),
       ).rejects.toThrow(/Send limit reached/);
@@ -164,11 +210,32 @@ describe("McpSendToolsService", () => {
         expectedReplyHours: 168,
         trackOpens: false,
       });
-      expect(auditService.log).toHaveBeenCalledWith(
+      expect(savedAudits).toEqual([
         expect.objectContaining({
           action: MCP_SERVER.AUDIT_ACTIONS.SEND_EMAIL,
         }),
+      ]);
+    });
+
+    it("holds the cap when many sends arrive at once", async () => {
+      const attempts = Array.from(
+        { length: MCP_SERVER.SEND_LIMIT_PER_HOUR + 10 },
+        () =>
+          service.sendEmail(CONTEXT, {
+            to: ["a@example.com"],
+            subject: "s",
+            body: "b",
+          }),
       );
+
+      const results = await Promise.allSettled(attempts);
+
+      expect(sendQueue.queueNewEmail).toHaveBeenCalledTimes(
+        MCP_SERVER.SEND_LIMIT_PER_HOUR,
+      );
+      expect(
+        results.filter((result) => result.status === "rejected"),
+      ).toHaveLength(10);
     });
 
     it("requires at least one recipient", async () => {

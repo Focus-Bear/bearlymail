@@ -10,7 +10,7 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
-import { Throttle } from "@nestjs/throttler";
+import { SkipThrottle } from "@nestjs/throttler";
 import { Response } from "express";
 
 import { MCP_SERVER } from "../constants/mcp-server.constants";
@@ -18,6 +18,7 @@ import {
   PatAuthenticatedRequest,
   PersonalAccessTokenGuard,
 } from "../personal-access-tokens/personal-access-token.guard";
+import { McpRateLimitGuard } from "./mcp-rate-limit.guard";
 import { JsonRpcResponse } from "./mcp-server.types";
 import { McpServerProtocolService } from "./mcp-server-protocol.service";
 
@@ -29,10 +30,8 @@ const ALLOWED_METHODS = "POST";
  * created in Settings: `Authorization: Bearer bm_pat_...`.
  */
 @Controller(MCP_SERVER.ROUTE)
-@UseGuards(PersonalAccessTokenGuard)
-@Throttle({
-  default: { limit: MCP_SERVER.RATE_LIMIT, ttl: MCP_SERVER.RATE_WINDOW_MS },
-})
+@UseGuards(PersonalAccessTokenGuard, McpRateLimitGuard)
+@SkipThrottle({ default: true, feedback: true, polling: true })
 export class McpServerController {
   constructor(private readonly protocolService: McpServerProtocolService) {}
 

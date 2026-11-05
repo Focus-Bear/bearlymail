@@ -37,7 +37,7 @@ Bodies are plain text; the user's signature (and, for replies, the quoted messag
 - `/mcp` accepts **only** `Authorization: Bearer bm_pat_…`. It ignores the session cookie, so a logged-in browser tab can't drive it and it needs no CSRF protection. Tokens can't create or revoke tokens (those endpoints are JWT-only).
 - Only the SHA-256 hash of each 256-bit token is stored.
 - Each MCP send is written to `audit_logs` (`MCP_SEND_REPLY` / `MCP_SEND_EMAIL`, with token id and recipient count, never content). That trail also enforces a cap of 30 MCP sends per user per hour.
-- `/mcp` is throttled at 120 requests per minute. Token creation and revocation are audited too.
+- `/mcp` allows 120 requests per minute per user, counted after the token is checked. Creating a token asks for the password again. Token creation and revocation are audited too.
 
 ## Protocol notes
 

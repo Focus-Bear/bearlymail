@@ -3,6 +3,7 @@ import { SkipThrottle } from "@nestjs/throttler";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CategorisationProgressService } from "./categorisation-progress.service";
+import { CategoryCountsService } from "./category-counts.service";
 import { OnboardingService } from "./onboarding.service";
 
 @Controller("onboarding")
@@ -11,6 +12,7 @@ export class OnboardingController {
   constructor(
     private readonly onboardingService: OnboardingService,
     private readonly categorisationProgressService: CategorisationProgressService,
+    private readonly categoryCountsService: CategoryCountsService,
   ) {}
 
   @Post("scan")
@@ -44,5 +46,12 @@ export class OnboardingController {
   @SkipThrottle()
   async getCategorisationProgress(@Request() req) {
     return this.categorisationProgressService.getProgress(req.user.userId);
+  }
+
+  /** Live per-category counts while onboarding re-sorts the inbox. */
+  @Get("category-counts")
+  @SkipThrottle()
+  async getCategoryCounts(@Request() req) {
+    return this.categoryCountsService.getCategoryCounts(req.user.userId);
   }
 }

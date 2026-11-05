@@ -1,5 +1,6 @@
 import type { Logger } from "@nestjs/common";
 
+import { STRONG_GEMINI_MODEL } from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { getErrorMessage } from "../types/common";
@@ -24,11 +25,19 @@ export interface DiscoveryThreadStub {
   receivedAt: string;
   /** True when any message in the thread was sent by the user. */
   userReplied: boolean;
+  /**
+   * True when Gmail marked a received message in the thread Important. Only
+   * Gmail has this label, so it is left unset for other providers rather than
+   * reported as "not important".
+   */
+  markedImportantByGmail?: boolean;
 }
 
 export interface DiscoveredCategory {
   name: string;
   description: string;
+  /** Sample threads the model filed in this category (its evidence). */
+  sourceThreadIds?: string[];
 }
 
 export interface DiscoveredVipContact {
@@ -72,6 +81,23 @@ type GenerateText = (request: {
 const NONE_PLACEHOLDER = "(none)";
 const USER_REPLIED_YES = "yes";
 const USER_REPLIED_NO = "no";
+const GMAIL_IMPORTANT_FIELD = " | GmailImportant: yes";
+
+/**
+ * How many categories a sample should yield: one per few threads, capped at
+ * the granular target, so a 100-thread inbox gets 15+ but a 5-thread one is
+ * not padded. On a re-analysis the existing categories count toward it.
+ */
+export function minimumProposedCategories(
+  threadCount: number,
+  existingCategoryCount: number,
+): number {
+  const target = Math.min(
+    QUERY_LIMITS.DISCOVERY_MIN_PROPOSED_CATEGORIES,
+    Math.floor(threadCount / QUERY_LIMITS.DISCOVERY_THREADS_PER_CATEGORY),
+  );
+  return Math.max(0, target - existingCategoryCount);
+}
 
 /** One line per thread — the only representation the model ever sees. */
 export function formatDiscoveryThreads(threads: DiscoveryThreadStub[]): string {
@@ -81,7 +107,12 @@ export function formatDiscoveryThreads(threads: DiscoveryThreadStub[]): string {
         ? `${thread.fromName} <${thread.from}>`
         : thread.from;
       const replied = thread.userReplied ? USER_REPLIED_YES : USER_REPLIED_NO;
-      return `${index + 1}. From: ${sender} | Subject: ${thread.subject || "(no subject)"} | UserReplied: ${replied} | Snippet: ${thread.snippet}`;
+      // Only flagged threads carry the field, so non-Gmail inboxes (which
+      // have no Important label) read exactly as they did before.
+      const important = thread.markedImportantByGmail
+        ? GMAIL_IMPORTANT_FIELD
+        : "";
+      return `${index + 1}. From: ${sender} | Subject: ${thread.subject || "(no subject)"} | UserReplied: ${replied}${important} | Snippet: ${thread.snippet}`;
     })
     .join("\n");
 }
@@ -105,15 +136,25 @@ function readStringList(value: unknown, limit: number): string[] {
     .slice(0, limit);
 }
 
+/** Maps the model's 1-based thread numbers back to the sample's thread ids. */
+function readSourceThreadIds(value: unknown, threadIds: string[]): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value
+    .map((threadNumber) => threadIds[Number(threadNumber) - 1])
+    .filter((threadId): threadId is string => Boolean(threadId));
+  return [...new Set(ids)];
+}
+
 /**
- * Categories come back name+description; drop blanks, names that already
- * exist for the user (a cheap model re-proposes "🔔 Monitoring Alerts" as
- * "🚨 Monitoring Alerts" despite being told not to), and duplicates within one
- * response so a chatty model can't pad the list.
+ * Categories come back name+description(+thread numbers); drop blanks, names
+ * that already exist for the user (a cheap model re-proposes "🔔 Monitoring
+ * Alerts" as "🚨 Monitoring Alerts" despite being told not to), and duplicates
+ * within one response so a chatty model can't pad the list.
  */
 function readCategories(
   value: unknown,
   existingCategories: string[],
+  threadIds: string[],
 ): DiscoveredCategory[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>(
@@ -129,7 +170,11 @@ function readCategories(
     const key = normalizeCategoryNameForDedup(name);
     if (!name || !key || seen.has(key)) continue;
     seen.add(key);
-    categories.push({ name, description: readString(record.description) });
+    categories.push({
+      name,
+      description: readString(record.description),
+      sourceThreadIds: readSourceThreadIds(record.threadNumbers, threadIds),
+    });
     if (categories.length >= QUERY_LIMITS.DISCOVERY_MAX_CATEGORIES_PER_BATCH) {
       break;
     }
@@ -191,17 +236,25 @@ export function normalizeProjectName(name: string): string {
   return normalizeCategoryNameForDedup(name);
 }
 
-/** Narrow a raw model response into a DiscoveryResult; null when unparseable. */
+/**
+ * Narrow a raw model response into a DiscoveryResult; null when unparseable.
+ * `threadIds` is the sample in prompt order, so thread numbers resolve to ids.
+ */
 export function parseDiscoveryResponse(
   raw: string,
   userEmail: string | null,
   existingCategories: string[] = [],
   existingProjects: string[] = [],
+  threadIds: string[] = [],
 ): DiscoveryResult | null {
   const parsed = tryParseJsonObjectFromLlmResponse(raw);
   if (!parsed) return null;
   return {
-    categories: readCategories(parsed.categories, existingCategories),
+    categories: readCategories(
+      parsed.categories,
+      existingCategories,
+      threadIds,
+    ),
     vipContacts: readVipContacts(parsed.vipContacts, userEmail),
     projects: readProjects(parsed.projects, existingProjects),
     urgentHints: readStringList(
@@ -241,6 +294,11 @@ export async function discoverUserContext(
     existingVipContacts: formatList(existingVipContacts),
     existingProjects: formatList(existingProjects),
     threadCount: threads.length,
+    minCategories: minimumProposedCategories(
+      threads.length,
+      existingCategories.length,
+    ),
+    maxCategories: QUERY_LIMITS.DISCOVERY_MAX_CATEGORIES_PER_BATCH,
     threads: formatDiscoveryThreads(threads),
   };
   const prompt = renderPrompt(promptConfig.prompt || "", renderVars);
@@ -254,7 +312,8 @@ export async function discoverUserContext(
       prompt,
       systemPrompt,
       temperature: RATIOS.THIRTY_PERCENT,
-      maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+      // 15+ categories with their thread numbers outgrow the medium budget.
+      maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
       jsonMode: true,
       userId: params.userId,
     });
@@ -263,6 +322,7 @@ export async function discoverUserContext(
       userEmail,
       existingCategories,
       existingProjects,
+      threads.map((thread) => thread.threadId),
     );
     if (!result) {
       logger.warn("[DISCOVER-CONTEXT] No JSON object in response");
@@ -275,44 +335,45 @@ export async function discoverUserContext(
 }
 
 /**
- * Discovery with **Nova Micro (Bedrock)** as the primary model, escalating to
- * **Gemini** only when Nova fails outright, returns nothing parseable, or
- * returns no categories at all on a first analysis (a sample of 20 real inbox
- * threads always has at least one bucket, so an empty list means the cheap
- * model gave up). On a re-analysis an empty list is legitimate — every bucket
- * may already exist — so it is not escalated. This mirrors
- * `categoriseWithEscalation` so onboarding rides the same cost curve as the
- * per-email categorisation pipeline.
+ * Discovery with **Gemini Flash Lite** (the default Gemini model) as the
+ * primary, escalating to the strong Gemini model only when it fails outright,
+ * returns nothing parseable, or returns no categories at all on a first
+ * analysis (a sample of real inbox threads always has at least one bucket, so
+ * an empty list means the model gave up). On a re-analysis an empty list is
+ * legitimate — every bucket may already exist — so it is not escalated.
+ * Flash Lite rather than Nova Micro: the category set is proposed once over
+ * 100 threads and must be granular, which Nova did not manage; Jev then files
+ * every later email into it.
  */
 export async function discoverUserContextWithEscalation(
   llmCoreService: Pick<LLMCoreService, "generateText">,
   logger: Logger,
   params: DiscoverUserContextParams,
 ): Promise<DiscoveryResult | null> {
-  const runWith = (provider: LLMProvider) =>
+  const runWith = (model?: string) =>
     discoverUserContext(
       (request) =>
         llmCoreService.generateText(
-          { ...request, operation: LLM_OP_DISCOVER_USER_CONTEXT },
-          provider,
+          { ...request, operation: LLM_OP_DISCOVER_USER_CONTEXT, model },
+          LLMProvider.GEMINI,
           params.userId,
         ),
       logger,
       params,
     );
 
-  const primary = await runWith(LLMProvider.BEDROCK);
+  const primary = await runWith();
   const isReanalysis = params.existingCategories.length > 0;
   if (primary && (primary.categories.length > 0 || isReanalysis)) {
     return primary;
   }
 
-  const escalated = await runWith(LLMProvider.GEMINI);
+  const escalated = await runWith(STRONG_GEMINI_MODEL);
   if (!escalated) {
     return primary;
   }
   logger.log(
-    `[DISCOVER-CONTEXT] escalated to Gemini (nova: ${
+    `[DISCOVER-CONTEXT] escalated to ${STRONG_GEMINI_MODEL} (flash-lite: ${
       primary ? "no categories" : "failed"
     }) → ${escalated.categories.length} categories`,
   );

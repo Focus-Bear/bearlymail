@@ -3,7 +3,19 @@ import React from 'react';
 import { LegalList } from 'components/legal/LegalList';
 import { LegalParagraph } from 'components/legal/LegalParagraph';
 import { LegalSection } from 'components/legal/LegalSection';
+import { GOOGLE_API_SERVICES_USER_DATA_POLICY_URL } from 'constants/legal';
 import { AiProcessorsContent, OutsideAustraliaContent } from 'pages/privacy/AiProcessorsContent';
+import { AutomatedDecisionsContent, PersonalModelContent } from 'pages/privacy/AutomatedDecisionsContent';
+
+const GoogleUserDataContent: React.FC = () => (
+  <LegalParagraph>
+    BearlyMail’s use and transfer of information received from Google APIs to any other app will adhere to the{' '}
+    <a href={GOOGLE_API_SERVICES_USER_DATA_POLICY_URL} target="_blank" rel="noopener noreferrer">
+      Google API Services User Data Policy
+    </a>
+    , including the Limited Use requirements.
+  </LegalParagraph>
+);
 
 const DataSecuritySection: React.FC = () => (
   <LegalSection title="4. Data Security">
@@ -34,6 +46,7 @@ const ThirdPartyServicesSection: React.FC = () => (
     subsections={[
       { title: '5.1 AI Processors', content: <AiProcessorsContent /> },
       { title: '5.2 Processing Outside Australia', content: <OutsideAustraliaContent /> },
+      { title: '5.3 Google User Data', content: <GoogleUserDataContent /> },
     ]}
   >
     <LegalParagraph>We integrate with the following third-party services:</LegalParagraph>
@@ -98,6 +111,10 @@ export const PrivacyPolicyContentPart1: React.FC = () => {
                     'Email attachments (processed temporarily for analysis)',
                   ]}
                 />
+                <LegalParagraph>
+                  Your emails contain personal information about the people you correspond with. We process it only to
+                  provide BearlyMail to you, as this policy describes. We do not sell it or use it for advertising.
+                </LegalParagraph>
               </>
             ),
           },
@@ -125,7 +142,13 @@ export const PrivacyPolicyContentPart1: React.FC = () => {
         ]}
       />
 
-      <LegalSection title="3. How We Use Your Information">
+      <LegalSection
+        title="3. How We Use Your Information"
+        subsections={[
+          { title: '3.1 Decisions Made by Computer Programs', content: <AutomatedDecisionsContent /> },
+          { title: '3.2 A Model Trained on Your Own Email', content: <PersonalModelContent /> },
+        ]}
+      >
         <LegalParagraph>We use your information to:</LegalParagraph>
         <LegalList
           items={[

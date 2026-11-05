@@ -7,6 +7,10 @@
  *                                   (per-sender variants, existing categories)
  *   expectedCategoryTerms         — lowercase substrings; each must appear in at
  *                                   least one category name or description
+ *   maxCategoryShare              — 0-1; no category's threadNumbers may cover more
+ *                                   than this share of the sample (vars.threadCount)
+ *   forbiddenCategoryNames        — lowercase names (emoji/punctuation ignored) no
+ *                                   category may have exactly, e.g. a catch-all bucket
  *   forbiddenVipTerms             — lowercase substrings no VIP name may contain
  *   expectedVipTerms              — lowercase substrings; each must match a VIP name
  *   forbiddenVipEmails            — lowercase substrings no VIP email may contain
@@ -66,6 +70,13 @@ module.exports = (output, context) => {
     if (wordCount < 1 || wordCount > 5) {
       throw new Error(`Category "${category.name}" must be 1-5 words after the emoji`);
     }
+    if (category.threadNumbers !== undefined) {
+      const threadCount = Number((context.vars || {}).threadCount);
+      const isValidNumber = (n) => Number.isInteger(n) && n >= 1 && (!threadCount || n <= threadCount);
+      if (!Array.isArray(category.threadNumbers) || !category.threadNumbers.every(isValidNumber)) {
+        throw new Error(`Category "${category.name}" threadNumbers must be thread numbers from the sample: ${JSON.stringify(category.threadNumbers)}`);
+      }
+    }
     const key = normalise(category.name);
     if (seen.has(key)) {
       throw new Error(`Duplicate category name: "${category.name}"`);
@@ -78,6 +89,20 @@ module.exports = (output, context) => {
   }
   if (config.maxCategories !== undefined && categories.length > config.maxCategories) {
     throw new Error(`Expected at most ${config.maxCategories} categories, got ${categories.length}: ${categories.map((c) => c.name).join(', ')}`);
+  }
+
+  if (config.maxCategoryShare !== undefined) {
+    const threadCount = Number((context.vars || {}).threadCount);
+    for (const category of categories) {
+      const share = new Set(category.threadNumbers || []).size / threadCount;
+      if (share > config.maxCategoryShare) {
+        throw new Error(`Category "${category.name}" holds ${Math.round(share * 100)}% of the sample (max ${Math.round(config.maxCategoryShare * 100)}%) — split it by intent/topic`);
+      }
+    }
+  }
+  for (const name of config.forbiddenCategoryNames || []) {
+    const hit = categories.find((c) => normalise(c.name) === normalise(name));
+    if (hit) throw new Error(`Category "${hit.name}" is a catch-all bucket — split it by intent/topic`);
   }
 
   const categoryNames = categories.map((c) => c.name.toLowerCase());
@@ -95,6 +120,9 @@ module.exports = (output, context) => {
   for (const vip of vipContacts) {
     if (!vip || typeof vip.name !== 'string' || !vip.name.trim()) {
       throw new Error('Every VIP needs a non-empty string name: ' + JSON.stringify(vip));
+    }
+    if (typeof vip.reason !== 'string' || !vip.reason.trim()) {
+      throw new Error(`VIP "${vip.name}" needs a reason — it is shown when the user hovers the VIP`);
     }
   }
   if (config.maxVips !== undefined && vipContacts.length > config.maxVips) {

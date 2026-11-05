@@ -18,6 +18,9 @@ import {
   type TFn,
 } from './learning-view';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
+import { CategoryCountsPanel } from './recategorise/CategoryCountsPanel';
+import { RECATEGORISE_STATUS } from './recategorise/recategorise';
+import { type RecategoriseState, useRecategorise } from './recategorise/useRecategorise';
 import { useCategorisationProgress } from './useCategorisationProgress';
 
 interface LearningStepProps {
@@ -144,27 +147,36 @@ function useMaxWaitTimeout(waitMs: number): { timedOut: boolean; restartTimeout:
   return { timedOut, restartTimeout };
 }
 
+/**
+ * The analysis normally started in the background when the mailbox was
+ * connected, so join it (often already finished) once, rather than restarting it.
+ */
+function useJoinAnalysisOnArrival(isUnderway: boolean, joinOrStartAnalysis: () => Promise<void>): void {
+  const hasJoinedRef = useRef(false);
+  useEffect(() => {
+    if (!isUnderway && !hasJoinedRef.current) {
+      hasJoinedRef.current = true;
+      joinOrStartAnalysis();
+    }
+  }, [isUnderway, joinOrStartAnalysis]);
+}
+
 export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, isLoading }) => {
   const { t } = useTranslation();
   const [importProgress, setImportProgress] = useState<ImportProgress>({ prioritizedCount: 0, isReady: false });
   const { timedOut, restartTimeout } = useMaxWaitTimeout(IMPORT_TIMEOUT_MS);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasStartedAnalysisRef = useRef(false);
   const isReadyRef = useRef(false);
   const mountedRef = useRef(true);
 
   const handleAnalysisComplete = useCallback(async () => undefined, []);
 
-  const { analyzing, analyzeProgress, startAnalysis } = useAnalysisProgress(handleAnalysisComplete, {
-    isNewUserOnboarding: true,
-  });
+  const { analyzing, analyzeProgress, startAnalysis, joinOrStartAnalysis } = useAnalysisProgress(
+    handleAnalysisComplete,
+    { isNewUserOnboarding: true }
+  );
 
-  useEffect(() => {
-    if (!analyzing && !analyzeProgress.isComplete && !hasStartedAnalysisRef.current) {
-      hasStartedAnalysisRef.current = true;
-      startAnalysis();
-    }
-  }, [analyzing, analyzeProgress.isComplete, startAnalysis]);
+  useJoinAnalysisOnArrival(analyzing || analyzeProgress.isComplete, joinOrStartAnalysis);
 
   const fetchImportProgress = useCallback(async () => {
     try {
@@ -215,6 +227,8 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
     startAnalysis();
   }, [restartTimeout, startAnalysis]);
 
+  const recategorise = useRecategorise();
+
   const categorisation = useCategorisationProgress(hasLearningFinished(analyzeProgress, importProgress, timedOut));
   const view = computeLearningView(analyzeProgress, importProgress, timedOut, categorisation);
   const { displayProgress, canFinish, isStalled, currentPhase, realProgress } = view;
@@ -240,35 +254,88 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
 
       <LearningRows currentPhase={currentPhase} canFinish={canFinish} realProgress={realProgress} t={t} />
 
-      <LearnedContextEditor isEnabled={analyzeProgress.isComplete} />
+      <LearnedContextEditor isEnabled={analyzeProgress.isComplete} onCategoriesChanged={recategorise.markCategoriesChanged} />
+      <CategoryCountsPanel status={recategorise.status} progress={recategorise.progress} counts={recategorise.counts} />
 
       <PrivacyCard t={t} />
 
       {headerState === HEADER_STATE_STALLED ? (
         <StalledActions isLoading={isLoading} onBack={onBack} onRetry={retryAnalysis} onSkip={onComplete} t={t} />
       ) : (
-        <LearningActions canFinish={canFinish} isLoading={isLoading} onBack={onBack} onComplete={onComplete} t={t} />
+        <LearningActions
+          primary={pickPrimaryAction({ canFinish, isLoading, onComplete, ...toResortInput(recategorise) })}
+          onBack={onBack}
+          t={t}
+        />
       )}
     </section>
   );
 };
 
-interface LearningActionsProps {
+type ResortInput = Pick<PrimaryActionInput, 'hasUnsortedCategoryChanges' | 'isRecategorising' | 'onRecategorise'>;
+
+function toResortInput(recategorise: RecategoriseState): ResortInput {
+  return {
+    hasUnsortedCategoryChanges: recategorise.hasUnsortedCategoryChanges,
+    isRecategorising: recategorise.status === RECATEGORISE_STATUS.RUNNING,
+    onRecategorise: recategorise.start,
+  };
+}
+
+interface PrimaryAction {
+  labelKey: string;
+  isEnabled: boolean;
+  onClick: () => void;
+}
+
+interface PrimaryActionInput {
   canFinish: boolean;
   isLoading: boolean;
-  onBack: () => void;
+  /** The user changed their categories since the inbox was last sorted. */
+  hasUnsortedCategoryChanges: boolean;
+  isRecategorising: boolean;
   onComplete: () => void;
+  onRecategorise: () => void;
+}
+
+/**
+ * The primary button opens the inbox, unless the user has changed their
+ * categories: then it re-sorts the inbox with them first, so it doesn't open
+ * sorted by categories they just replaced.
+ */
+export function pickPrimaryAction(input: PrimaryActionInput): PrimaryAction {
+  if (input.isLoading) {
+    return { labelKey: 'common.loading', isEnabled: false, onClick: input.onComplete };
+  }
+  if (input.isRecategorising) {
+    return { labelKey: 'setupWizard.recategorise.running', isEnabled: false, onClick: input.onRecategorise };
+  }
+  if (input.hasUnsortedCategoryChanges) {
+    return { labelKey: 'setupWizard.recategorise.button', isEnabled: true, onClick: input.onRecategorise };
+  }
+  return { labelKey: 'setupWizard.learning.openInbox', isEnabled: input.canFinish, onClick: input.onComplete };
+}
+
+interface LearningActionsProps {
+  primary: PrimaryAction;
+  onBack: () => void;
   t: TFn;
 }
 
-const LearningActions: React.FC<LearningActionsProps> = ({ canFinish, isLoading, onBack, onComplete, t }) => (
+const LearningActions: React.FC<LearningActionsProps> = ({ primary, onBack, t }) => (
   <div style={actionsRowStyle}>
     <button type="button" onClick={onBack} style={ghostButtonStyle}>
       ← {t('setupWizard.common.back')}
     </button>
     <div style={spacerStyle} />
-    <button onClick={onComplete} disabled={!canFinish || isLoading} style={primaryButtonStyle(canFinish && !isLoading)}>
-      {isLoading ? t('common.loading') : t('setupWizard.learning.openInbox')}
+    <button
+      type="button"
+      onClick={primary.onClick}
+      disabled={!primary.isEnabled}
+      style={primaryButtonStyle(primary.isEnabled)}
+      data-testid="learning-primary-action"
+    >
+      {t(primary.labelKey)}
     </button>
   </div>
 );

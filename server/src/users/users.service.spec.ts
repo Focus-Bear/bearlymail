@@ -14,8 +14,11 @@ import {
 } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { LocalModelUserDataService } from "../local-model/local-model-user-data.service";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "./users.service";
+
+jest.mock("../utils/error-logger");
 
 jest.mock("../encryption/encryption.helper", () => {
   const noopTransformer = {
@@ -43,6 +46,7 @@ describe("UsersService", () => {
   let service: UsersService;
   let repository: jest.Mocked<Repository<User>>;
   let deletedAccountRepository: jest.Mocked<Repository<DeletedAccount>>;
+  let deleteLocalModelData: jest.Mock;
 
   const mockUser: User = {
     id: "user-1",
@@ -82,6 +86,10 @@ describe("UsersService", () => {
             upsert: jest.fn().mockResolvedValue(undefined),
           },
         },
+        {
+          provide: LocalModelUserDataService,
+          useValue: { deleteUserData: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -89,6 +97,9 @@ describe("UsersService", () => {
     repository = module.get(getRepositoryToken(User));
     deletedAccountRepository = module.get(getRepositoryToken(DeletedAccount));
     jest.clearAllMocks();
+    deleteLocalModelData = module.get(LocalModelUserDataService)
+      .deleteUserData as jest.Mock;
+    deleteLocalModelData.mockResolvedValue(0);
   });
 
   describe("create", () => {
@@ -747,13 +758,13 @@ describe("UsersService", () => {
     });
 
     it("shows only the latest change to users one version behind", async () => {
-      repository.findOne.mockResolvedValue(acceptedPrivacy("1.2.0"));
+      repository.findOne.mockResolvedValue(acceptedPrivacy("1.3.0"));
 
       const result = await service.getOnboardingStatus("user-1");
 
       expect(result.needsPrivacyAcceptance).toBe(true);
       expect(result.privacyChangeSummaryKeys).toEqual([
-        PRIVACY_CHANGE_SUMMARY_KEYS["1.3.0"],
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.4.0"],
       ]);
     });
 
@@ -765,6 +776,7 @@ describe("UsersService", () => {
       expect(result.privacyChangeSummaryKeys).toEqual([
         PRIVACY_CHANGE_SUMMARY_KEYS["1.2.0"],
         PRIVACY_CHANGE_SUMMARY_KEYS["1.3.0"],
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.4.0"],
       ]);
     });
 
@@ -790,6 +802,20 @@ describe("UsersService", () => {
         "test@example.com",
       );
       expect(result).toBe("hash_test@example.com");
+    });
+  });
+
+  describe("findExistingUserIds", () => {
+    it("returns the ids that still have an account", async () => {
+      repository.query.mockResolvedValue([{ id: "user-1" }]);
+
+      const result = await service.findExistingUserIds(["user-1", "user-2"]);
+
+      expect(result).toEqual(new Set(["user-1"]));
+      expect(repository.query).toHaveBeenCalledWith(
+        expect.stringContaining("ANY($1::uuid[])"),
+        [["user-1", "user-2"]],
+      );
     });
   });
 
@@ -888,6 +914,26 @@ describe("UsersService", () => {
         async (cb: (m: typeof mockManager) => Promise<void>) => cb(mockManager),
       );
       (repository as unknown as { manager: unknown }).manager = { transaction };
+    });
+
+    it("deletes the user's local-model data after the database delete commits", async () => {
+      repository.findOne.mockResolvedValue(mockUser);
+
+      await service.deleteAccount("user-1");
+
+      expect(deleteLocalModelData).toHaveBeenCalledWith("user-1");
+      expect(transaction.mock.invocationCallOrder[0]).toBeLessThan(
+        deleteLocalModelData.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("still completes the account deletion when local-model cleanup fails", async () => {
+      repository.findOne.mockResolvedValue(mockUser);
+      deleteLocalModelData.mockRejectedValue(new Error("S3 unavailable"));
+      jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+
+      await expect(service.deleteAccount("user-1")).resolves.toBeUndefined();
+      expect(managerUserDelete).toHaveBeenCalledWith("user-1");
     });
 
     it("should save a tombstone to deleted_accounts before deleting", async () => {

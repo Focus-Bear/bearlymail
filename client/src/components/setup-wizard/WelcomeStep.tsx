@@ -6,7 +6,7 @@ import { API_URL } from 'config/api';
 import { useAuth } from 'contexts/AuthContext';
 
 import { resolveGooglePermissions } from './google-permissions';
-import { GmailPermissionWarning, OptionalPermissionsNotice } from './GooglePermissionNotices';
+import { GmailPermissionWarning } from './GooglePermissionNotices';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 interface WelcomeStepProps {
@@ -39,7 +39,7 @@ function pickIconColor(variant: PropVariant): string {
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUser }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { gmailProblem, missingOptional } = resolveGooglePermissions(user);
+  const { gmailProblem } = resolveGooglePermissions(user);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // Tailor the "your inbox is connected" copy to the actual provider — a local
@@ -103,7 +103,6 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
             doneLabel={t('setupWizard.welcome.doneTag')}
           />
         )}
-        <OptionalPermissionsNotice missing={missingOptional} />
         <PropCard
           variant={VARIANT_GREEN}
           icon={<ClockIcon />}

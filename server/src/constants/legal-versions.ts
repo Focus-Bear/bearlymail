@@ -4,11 +4,12 @@
  * wording changes. TERMS_VERSION / PRIVACY_VERSION env vars override.
  */
 export const DEFAULT_LEGAL_VERSIONS = {
-  TERMS: "1.0.0",
+  // 1.1.0: raises the minimum age from 13 to 16.
+  TERMS: "1.1.0",
   // 1.1.0: names every AI provider that processes email content, including TypeSafe.
   // 1.2.0: discloses email open tracking (pixel, open time, IP and user agent).
   // 1.3.0: describes each AI processor and the processing done outside Australia.
-  // 1.4.0: automated decisions (APP 1.8), the per-account model, Google API Limited Use, rights by region.
+  // 1.4.0: automated decisions (APP 1.8), the per-account model, Google API Limited Use, rights by region, minimum age 16.
   PRIVACY: "1.4.0",
 } as const;
 

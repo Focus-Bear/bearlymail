@@ -26,6 +26,13 @@ describe('PrivacyPolicyContent', () => {
     expect(screen.getByText(/rules BearlyMail creates automatically from your email/)).toBeInTheDocument();
   });
 
+  it('states the minimum age', () => {
+    render(<PrivacyPolicyContent />);
+
+    expect(screen.getByText(/not intended for users under the age of 16/)).toBeInTheDocument();
+    expect(screen.getByText(/raises the minimum age from 13 to 16/)).toBeInTheDocument();
+  });
+
   it('states the Google API Services Limited Use commitment with a link to the policy', () => {
     render(<PrivacyPolicyContent />);
 

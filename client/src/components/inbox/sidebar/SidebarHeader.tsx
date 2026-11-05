@@ -1,18 +1,30 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { ROUTE_INBOX, STRING_NONE } from 'constants/strings';
 
 interface SidebarHeaderProps {
   isCollapsed?: boolean;
   /** Whether the collapse/expand toggle should be shown (split view active or Settings page). */
   canToggleCollapse?: boolean;
   onToggleCollapse?: () => void;
+  /** Called after the logo navigates to the inbox, e.g. so the mobile menu can close. */
+  onLogoClick?: () => void;
 }
+
+const logoLinkStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing.sm,
+  minWidth: 0,
+  textDecoration: STRING_NONE,
+};
 
 const toggleBtnStyle: React.CSSProperties = {
   display: 'flex',
@@ -39,6 +51,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
   isCollapsed = false,
   canToggleCollapse = false,
   onToggleCollapse,
+  onLogoClick,
 }) => {
   const { t } = useTranslation();
 
@@ -47,6 +60,11 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
   const handleToggle = () => {
     captureEvent(isCollapsed ? ANALYTICS_EVENTS.SIDEBAR_EXPAND_CLICKED : ANALYTICS_EVENTS.SIDEBAR_COLLAPSE_CLICKED);
     onToggleCollapse?.();
+  };
+
+  const handleLogoClick = () => {
+    captureEvent(ANALYTICS_EVENTS.SIDEBAR_LOGO_CLICKED);
+    onLogoClick?.();
   };
 
   return (
@@ -62,10 +80,16 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         gap: theme.spacing.sm,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, minWidth: 0 }}>
+      <Link
+        to={ROUTE_INBOX}
+        onClick={handleLogoClick}
+        title={t('sidebar.goToInbox')}
+        aria-label={t('sidebar.goToInbox')}
+        style={logoLinkStyle}
+      >
         <img
           src="/favicon.svg"
-          alt="BearlyMail Icon"
+          alt=""
           style={{
             height: '28px',
             width: 'auto',
@@ -84,7 +108,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
             {t('common.appName')}
           </h2>
         )}
-      </div>
+      </Link>
       {showToggle && (
         <button
           onClick={handleToggle}

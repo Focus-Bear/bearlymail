@@ -9,6 +9,7 @@ import {
   CALENDAR_CONFLICT_LOOKAHEAD_DAYS,
   CALENDAR_CONFLICT_LOOKBACK_DAYS,
 } from "./calendar-meeting-conflict.helper";
+import { hasGoogleCalendarAccess } from "./google-calendar-access.util";
 
 /** Extract a bare lowercased email address from an RFC-5322 address token. */
 function extractEmailAddress(address: string): string {
@@ -49,7 +50,7 @@ export class CalendarMeetingConflictService {
       }
 
       const user = await this.usersService.findOne(userId);
-      if (!user?.googleCalendarAccessToken) {
+      if (!hasGoogleCalendarAccess(user)) {
         // Calendar not connected — degrade silently.
         return none;
       }

@@ -91,3 +91,53 @@ describe('useAnalysisProgress — resuming after an unfinished earlier run', () 
     expect(progressCallIds()).toContain(OLD_ANALYSIS_ID);
   });
 });
+
+describe('useAnalysisProgress — joining the background onboarding run', () => {
+  const ANALYZE_URL_SUFFIX = '/context/analyze';
+  const BACKGROUND_ANALYSIS_ID = 'started-at-mailbox-connect';
+  const COMPLETE_PERCENT = 100;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    mockedAxios.post.mockResolvedValue({ data: { analysisId: BACKGROUND_ANALYSIS_ID } });
+    mockedAxios.get.mockImplementation((url: string) =>
+      Promise.resolve({
+        data: url.includes('analysisId=')
+          ? { progress: { current: COMPLETE_PERCENT, total: COMPLETE_PERCENT }, error: null }
+          : { progress: null, error: null },
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('asks the server to attach, and reports an already-finished run as complete', async () => {
+    const { result } = renderHook(() => useAnalysisProgress(undefined, { isNewUserOnboarding: true }));
+    await act(async () => {
+      await result.current.joinOrStartAnalysis();
+    });
+    await flush(3000);
+
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining(ANALYZE_URL_SUFFIX),
+      expect.objectContaining({ attachToExisting: true })
+    );
+    expect(progressCallIds()).toContain(BACKGROUND_ANALYSIS_ID);
+    expect(result.current.analyzeProgress.isComplete).toBe(true);
+  });
+
+  it('a plain start (retry, Settings) still forces a fresh run', async () => {
+    const { result } = renderHook(() => useAnalysisProgress());
+    await act(async () => {
+      await result.current.startAnalysis();
+    });
+
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining(ANALYZE_URL_SUFFIX),
+      expect.objectContaining({ attachToExisting: false })
+    );
+  });
+});

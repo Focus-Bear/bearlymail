@@ -104,6 +104,11 @@ export const JOB_NAMES = {
   ARCHIVE_EMAIL: "archive-email",
   ARCHIVE_EMAIL_PROVIDER_SYNC: "archive-email-provider-sync",
 
+  // Read status: mirrors a USER's read/unread action to the provider. Never
+  // queued by sync or triage, so read state learned from the provider is not
+  // echoed back.
+  READ_STATUS_PROVIDER_SYNC: "read-status-provider-sync",
+
   // Auto-responder
   AUTO_RESPONDER: "auto-responder",
 
@@ -150,6 +155,7 @@ export const JOB_NAMES = {
 
   // Data retention
   CLEANUP_INACTIVE_ACCOUNTS: "cleanup-inactive-accounts",
+  CLEANUP_ORPHANED_LOCAL_MODEL_DATA: "cleanup-orphaned-local-model-data",
   PRUNE_OLD_DATA: "prune-old-data",
 
   // Encryption migration (admin-triggered, idempotent)

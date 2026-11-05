@@ -16,7 +16,7 @@ import { EmailsService } from "../../emails.service";
 import { RawEmailMessage } from "../../interfaces/email-provider.interface";
 import { ScanEmailService } from "../../scan-email.service";
 import {
-  getOldestAllowedSyncDate,
+  resolveInboxSyncFloor,
   resolveMaxFetchResults,
   shouldFlagSyncWindowLimited,
 } from "../../sync-window-policy";
@@ -64,7 +64,7 @@ export class ImapSyncService {
     const { userId } = account;
     const fetchLimit = resolveMaxFetchResults(isInitialSync);
     const snapshot = await listInboxSnapshot(client, {
-      since: getOldestAllowedSyncDate(),
+      since: resolveInboxSyncFloor(isInitialSync),
       limit: fetchLimit,
       host: account.imapHost,
     });
@@ -72,7 +72,6 @@ export class ImapSyncService {
       shouldFlagSyncWindowLimited({
         isInitialSync,
         hitFetchCap: snapshot.hitLimit,
-        olderMailExists: snapshot.hitLimit,
       })
     ) {
       await this.usersService.markSyncWindowLimited(userId);

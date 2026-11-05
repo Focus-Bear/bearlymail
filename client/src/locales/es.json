@@ -465,18 +465,6 @@
           "title": "Ver tus contactos",
           "description": "Para reconocer a las personas que te importan (tus VIP) y autocompletar direcciones cuando escribes."
         },
-        "otherContacts": {
-          "title": "Ver tus “Otros contactos”",
-          "description": "La lista de Google de personas a las que has escrito pero nunca guardaste. Muchos de tus remitentes más importantes solo están aquí."
-        },
-        "calendarEvents": {
-          "title": "Ver y editar eventos del calendario",
-          "description": "Para sugerir horarios de reunión en las respuestas y añadir la invitación cuando alguien reserva. No cambiamos la configuración de tu calendario."
-        },
-        "availability": {
-          "title": "Ver cuándo estás libre u ocupado",
-          "description": "Permite que las sugerencias de reunión eviten conflictos, sin leer de qué tratan tus eventos."
-        },
         "stayConnected": {
           "title": "Mantener la conexión cuando no estás",
           "description": "Mantiene tu bandeja sincronizada aunque no hayas iniciado sesión, para que tus lotes lleguen a tiempo."
@@ -518,7 +506,8 @@
       },
       "missingGmailPermission": {
         "title": "BearlyMail necesita acceso a tu Gmail",
-        "description": "La pantalla de permisos de Google te dejó iniciar sesión sin permitir el acceso a Gmail, así que BearlyMail no puede ver tu bandeja de entrada. Vuelve a iniciar sesión y, en la pantalla de Google, marca las casillas para leer, redactar y enviar correos (o elige \"Seleccionar todo\")."
+        "description": "La pantalla de permisos de Google te dejó iniciar sesión sin permitir el acceso a Gmail, así que BearlyMail no puede ver tu bandeja de entrada. Vuelve a iniciar sesión y, en la pantalla de Google, marca las casillas para leer, redactar y enviar correos (o elige \"Seleccionar todo\").",
+        "grantButton": "Permitir acceso a Gmail"
       },
       "generic": {
         "title": "Error de autenticación"
@@ -808,7 +797,7 @@
     "changeSummaries": {
       "privacy_1_2_0": "Ahora explicamos el seguimiento de apertura de correos: los correos que envías pueden incluir una pequeña imagen invisible que registra cuándo se abren, junto con la dirección IP y los datos del dispositivo de quien los abre.",
       "privacy_1_3_0": "Ahora enumeramos cada servicio de IA que procesa tu correo (TypeSafe AI, Google Gemini, OpenAI y Amazon Bedrock), qué recibe cada uno y por qué, y explicamos que parte de este procesamiento se realiza fuera de Australia.",
-      "privacy_1_4_0": "Ahora explicamos qué decisiones sobre tu correo toman o ayudan a tomar nuestros programas y la IA, y cómo pedir que una persona revise una; que podemos entrenar un modelo pequeño solo para tu cuenta, a partir de tu propio correo; que cumplimos los requisitos de Uso Limitado de Google; y tus derechos y autoridades de control en Australia, la UE y el Reino Unido, Nueva Zelanda y EE. UU."
+      "privacy_1_4_0": "Ahora explicamos qué decisiones sobre tu correo toman o ayudan a tomar nuestros programas y la IA, y cómo pedir que una persona revise una; que podemos entrenar un modelo pequeño solo para tu cuenta, a partir de tu propio correo; que cumplimos los requisitos de Uso Limitado de Google; y tus derechos y autoridades de control en Australia, la UE y el Reino Unido, Nueva Zelanda y EE. UU. Además, ahora debes tener al menos 16 años para usar BearlyMail, y hemos actualizado nuestras Condiciones de uso en consecuencia."
     }
   },
   "debug": {
@@ -1388,6 +1377,10 @@
     "keepOriginal": "Mantener original",
     "saveAsPdf": "Guardar como PDF",
     "moreOptions": "Más opciones",
+    "downloadEml": "Descargar .eml",
+    "messageOptions": "Opciones del mensaje",
+    "downloadEmlFailed": "No se pudo descargar el correo. Inténtalo de nuevo.",
+    "downloadEmlUnsupported": "Tu proveedor de correo todavía no permite descargar el mensaje original.",
     "icsInvite": {
       "loading": "Cargando invitación de calendario...",
       "title": "Invitación de Calendario",
@@ -1518,7 +1511,14 @@
     "createDeal": "Crear Negocio",
     "errorLoadingDeals": "Error al cargar negocios",
     "errorCreatingDeal": "No se pudo crear el negocio. Inténtalo de nuevo.",
-    "expectedClose": "Cierre esperado"
+    "expectedClose": "Cierre esperado",
+    "locked": "Mejora tu plan para usar el CRM",
+    "upgrade": {
+      "title": "El CRM está incluido en Growth y Enterprise",
+      "description": "Sigue tus negocios a lo largo del embudo, guarda notas y campos personalizados en tus contactos y consulta todas las conversaciones con un contacto en un solo lugar.",
+      "planNote": "Disponible desde el plan {{plan}} por ${{price}} al mes.",
+      "viewPlans": "Ver planes"
+    }
   },
   "senderContext": {
     "title": "Contexto del remitente",
@@ -1562,7 +1562,21 @@
     "closedWon": "Ganado",
     "closedLost": "Perdido",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar este negocio?",
-    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar."
+    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar.",
+    "notes": {
+      "title": "Notas",
+      "placeholder": "Añade una nota sobre este negocio…",
+      "add": "Añadir nota",
+      "edit": "Editar",
+      "editLabel": "Editar nota",
+      "edited": "Última edición: {{time}}",
+      "empty": "Todavía no hay notas.",
+      "loading": "Cargando notas…",
+      "loadError": "No se pudieron cargar las notas de este negocio.",
+      "saveError": "No se pudo guardar la nota. Inténtalo de nuevo.",
+      "deleteError": "No se pudo eliminar la nota. Inténtalo de nuevo.",
+      "deleteConfirm": "¿Eliminar esta nota?"
+    }
   },
   "contactTypes": {
     "lead": "Prospecto",
@@ -1937,7 +1951,7 @@
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
     "syncWindowBanner": {
-      "message": "Aviso: no estamos sincronizando tus correos antiguos. Solo hemos sincronizado los últimos 7 días de correo.",
+      "message": "Aviso: hemos importado tus {{count}} conversaciones más recientes. Los correos más antiguos no se sincronizan con BearlyMail.",
       "dismiss": "Descartar"
     },
     "openTrackingNotice": {
@@ -3221,14 +3235,20 @@
     "tour": {
       "actionContent": "Los correos que priorizas pasan a esta pestaña. Es tu lista de tareas para los correos que requieren trabajo de verdad.",
       "actionTitle": "Pestaña Acción",
-      "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y su prioridad. Usa sus botones para archivarlo, posponerlo o priorizarlo, o ábrelo para ver el panel lateral de IA con tareas, notas y Preguntar a IA.",
+      "archiveContent": "¿Ya terminaste con él o nunca lo necesitaste? Archivar lo quita de tu lista y también lo archiva en Gmail u Outlook. No se borra nada: puedes encontrarlo en Todos los correos. Atajo: pulsa Supr.",
+      "archiveTitle": "Archívalo",
+      "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y lo urgente que creemos que es. Ábrela para ver el panel lateral de IA con tareas, notas y Preguntar a IA. Los siguientes pasos muestran qué hacen sus botones.",
       "assistantTitle": "Tus correos",
       "back": "Atrás",
+      "blockContent": "¿No quieres volver a saber de alguien? Abre este menú ⋮ y elige Bloquear remitente. Cuando lo confirmes, todos sus correos futuros se archivarán automáticamente. Puedes desbloquearlo cuando quieras en Configuración. (En los boletines, el menú ofrece Darse de baja.)",
+      "blockTitle": "Bloquea a un remitente",
       "deliveryContent": "En lugar de llegar a cuentagotas todo el día, los correos nuevos llegan por tandas. Esta barra muestra cuándo llega la próxima; los urgentes siguen llegando al momento.",
       "deliveryTitle": "Entrega programada",
       "finish": "Finalizar",
       "next": "Próximo",
       "processContent": "Prioriza un correo electrónico para moverlo aquí. Este es su espacio de trabajo enfocado a los correos electrónicos que necesitan acción.",
+      "prioritiseContent": "¿Hay que hacer algo? Elige lo urgente que es para ti: Puede esperar, Ponte a ello u Oh mierda Al elegir uno, el correo pasa a la pestaña Acción, donde tus tareas se ordenan por prioridad.",
+      "prioritiseTitle": "Priorízalo",
       "processTitle": "Pestaña Proceso",
       "skip": "Saltar",
       "stepProgress": "{{current}} de {{total}}",
@@ -3268,6 +3288,12 @@
       "prop3Title": "Entrenamos una IA con tu bandeja",
       "prop3Body": "Resumimos tus correos más recientes y creamos reglas a partir de cómo actúas: a quién respondes rápido, qué archivas, qué destacas. El umbral de urgente es alto a propósito.",
       "doneTag": "Listo",
+      "permissions": {
+        "gmailTitle": "BearlyMail todavía no puede acceder a tu Gmail",
+        "gmailBody": "En la pantalla de permisos de Google quedaron sin marcar las casillas que permiten a BearlyMail leer, organizar y enviar tus correos. Hasta que las permitas, tu bandeja seguirá vacía: no se agrupará, resumirá ni enviará nada.",
+        "gmailBodyRevoked": "Google ya no deja que BearlyMail acceda a tu buzón: el acceso se eliminó o caducó. Hasta que lo vuelvas a permitir, tu bandeja seguirá vacía: no se agrupará, resumirá ni enviará nada.",
+        "gmailButton": "Permitir acceso a Gmail"
+      },
       "iAcceptThe": "Acepto los",
       "termsOfUse": "Términos de uso",
       "and": "y la",
@@ -3329,6 +3355,18 @@
       "stalledDetailTimeout": "Esto aún no ha terminado después de {{minutes}} minutos. Inténtalo de nuevo, o abre tu bandeja ahora y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA.",
       "retry": "Intentar de nuevo",
       "skipToInbox": "Abrir mi bandeja de todos modos →"
+    },
+    "recategorise": {
+      "button": "Recategorizar",
+      "running": "Recategorizando…",
+      "runningTitle": "Reordenando tu bandeja con tus categorías",
+      "stillRunningTitle": "Seguimos reordenando tu bandeja en segundo plano",
+      "doneTitle": "Así quedaron repartidos tus correos",
+      "progress": "{{done}} de {{total}} correos reordenados",
+      "other": "Otros",
+      "emailCount_one": "{{count}} correo",
+      "emailCount_other": "{{count}} correos",
+      "error": "No pudimos reordenar tu bandeja. Inténtalo de nuevo o abre tu bandeja; el correo nuevo usará tus categorías."
     },
     "learned": {
       "title": "Esto es lo que aprendimos",
@@ -4877,6 +4915,7 @@
     "keyEsc": "Esc"
   },
   "sidebar": {
+    "goToInbox": "Ir a la bandeja de entrada",
     "collapse": "Contraer barra lateral",
     "expand": "Expandir barra lateral"
   },
@@ -5051,6 +5090,8 @@
         "emailsPerCycle_other": "{{count, number}} correos procesados con IA al mes",
         "includesEmailTracking": "Seguimiento de aperturas de correos",
         "includesEmailTrackingDescription": "Comprueba si la otra persona ha leído tu correo",
+        "includesCrm": "CRM",
+        "includesCrmDescription": "Embudo de negocios, notas y campos personalizados en contactos",
         "teamMembers_one": "{{count}} miembro del equipo",
         "teamMembers_other": "{{count}} miembros del equipo",
         "choosePlan": "Elegir plan",
@@ -5087,5 +5128,21 @@
     "multipleRecipients_one": "Enviado a {{count}} destinatario.",
     "multipleRecipients_other": "Enviado a {{count}} destinatarios: la apertura puede ser de cualquiera de ellos.",
     "imagesCaveat": "Las aperturas se detectan con una imagen diminuta. Quien bloquee las imágenes no aparecerá como abierto."
+  },
+  "googlePermissions": {
+    "startError": "No se pudo abrir Google. Inténtalo de nuevo.",
+    "calendar": {
+      "message": "Conecta tu Google Calendar para que BearlyMail pueda ver cuándo estás libre y añadir la reunión por ti.",
+      "action": "Conectar tu calendario"
+    },
+    "contacts": {
+      "message": "Solo tenemos los contactos de tus correos.",
+      "action": "Importar todos tus contactos de Gmail"
+    },
+    "result": {
+      "granted": "Listo. BearlyMail ya puede usarlo.",
+      "declined": "Google no le dio ese permiso a BearlyMail. Marca su casilla en la pantalla de Google para permitirlo.",
+      "wrongAccount": "Esa era otra cuenta de Google. Elige la cuenta con la que iniciaste sesión en BearlyMail."
+    }
   }
 }

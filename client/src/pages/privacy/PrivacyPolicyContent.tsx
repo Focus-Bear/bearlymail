@@ -14,6 +14,7 @@ const CHANGE_SUMMARIES = [
       'Section 3.2 explains that we may train a small model for your account only, from your own email.',
       'Section 5.3 confirms that we follow Google’s API Services User Data Policy, including its Limited Use requirements.',
       'Section 7 explains how to use your rights and adds the rights and regulators for Australia, the EU and UK, New Zealand and the United States.',
+      'Section 8 raises the minimum age from 13 to 16.',
     ],
   },
   {

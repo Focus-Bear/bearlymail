@@ -69,6 +69,7 @@ import { PriorityAnalysisService } from "../../llm/priority-analysis.service";
 import { TokenUsageService } from "../../llm/token-usage.service";
 import { LocalModelInferenceService } from "../../local-model/local-model-inference.service";
 import { LocalModelSupervisionService } from "../../local-model/local-model-supervision.service";
+import { LocalModelUserDataService } from "../../local-model/local-model-user-data.service";
 import { PriorityCacheService } from "../../priority/priority-cache.service";
 import { PriorityRulesService } from "../../priority-rules/priority-rules.service";
 import { ProtoCategoriesService } from "../../proto-categories/proto-categories.service";
@@ -95,7 +96,11 @@ interface CompositionContext {
 }
 
 function buildLlmLayer({ repo, config }: CompositionContext) {
-  const usersService = new UsersService(repo(User), repo(DeletedAccount));
+  const usersService = new UsersService(
+    repo(User),
+    repo(DeletedAccount),
+    new LocalModelUserDataService(config),
+  );
   const debugService = new DebugService(repo(DebugData), repo(DebugConfig));
   const tokenUsageService = new TokenUsageService(
     repo(TokenUsage),

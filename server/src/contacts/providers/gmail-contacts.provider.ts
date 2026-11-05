@@ -2,6 +2,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { google } from "googleapis";
 
 import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
+import {
+  GOOGLE_PERMISSION_GROUP,
+  hasGooglePermission,
+} from "../../constants/google-oauth-scopes";
 import { HTTP_STATUS } from "../../constants/http-status";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { isApiError } from "../../types/common";
@@ -99,12 +103,22 @@ export class GmailContactsProvider implements ContactProvider {
   /**
    * Gets Google OAuth credentials for a user.
    * Checks both legacy (User entity) and modern (GoogleAccount entity) token storage.
-   * Returns null if no valid credentials found.
+   * Returns null if no valid credentials found, or contacts aren't granted.
    */
   private async getGoogleOAuthCredentials(
     userId: string,
   ): Promise<{ accessToken: string; refreshToken?: string } | null> {
     const user = await this.usersService.findOne(userId);
+    // Sign-in only asks for Gmail; until contacts are granted from the CRM,
+    // People API calls would 403, so behave as "no Google contacts".
+    if (
+      !hasGooglePermission(
+        user?.googleGrantedScopes,
+        GOOGLE_PERMISSION_GROUP.CONTACTS,
+      )
+    ) {
+      return null;
+    }
 
     // Try GoogleAccount (modern linked accounts)
     const gas = googleAccountsServiceGetter?.();

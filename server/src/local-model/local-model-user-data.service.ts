@@ -14,6 +14,10 @@ import {
   TRAINING_DATA_PREFIX,
 } from "./local-model-storage.constants";
 
+/** The user id in `training-data/<id>.json`, `models/<id>.joblib` or `models/<id>/...`. */
+const USER_ID_IN_KEY =
+  /^[^/]+\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[./]/i;
+
 /**
  * Removes everything the local-model pipeline stores for one user: the
  * plaintext training export, the legacy flat model and every versioned bundle
@@ -58,6 +62,21 @@ export class LocalModelUserDataService {
       `Deleted ${deletedCount} local-model objects for user ${userId}`,
     );
     return deletedCount;
+  }
+
+  /** Every user id with data in the bucket. Keys in any other shape are ignored. */
+  async findStoredUserIds(): Promise<string[]> {
+    if (!this.bucket) return [];
+
+    const keys = [
+      ...(await this.listKeys(TRAINING_DATA_PREFIX)),
+      ...(await this.listKeys(MODELS_PREFIX)),
+    ];
+    const userIds = keys.flatMap((key) => {
+      const userId = USER_ID_IN_KEY.exec(key)?.[1];
+      return userId ? [userId] : [];
+    });
+    return [...new Set(userIds)];
   }
 
   private async listKeys(prefix: string): Promise<string[]> {

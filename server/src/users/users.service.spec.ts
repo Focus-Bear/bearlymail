@@ -804,6 +804,20 @@ describe("UsersService", () => {
     });
   });
 
+  describe("findExistingUserIds", () => {
+    it("returns the ids that still have an account", async () => {
+      repository.query.mockResolvedValue([{ id: "user-1" }]);
+
+      const result = await service.findExistingUserIds(["user-1", "user-2"]);
+
+      expect(result).toEqual(new Set(["user-1"]));
+      expect(repository.query).toHaveBeenCalledWith(
+        expect.stringContaining("ANY($1::uuid[])"),
+        [["user-1", "user-2"]],
+      );
+    });
+  });
+
   describe("findUsersForDeletion", () => {
     it("returns user IDs from the raw query result", async () => {
       repository.query.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);

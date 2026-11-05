@@ -124,6 +124,60 @@ describe("LocalModelUserDataService", () => {
     ]);
   });
 
+  describe("findStoredUserIds", () => {
+    const FIRST = "11111111-1111-1111-1111-111111111111";
+    const SECOND = "22222222-2222-2222-2222-222222222222";
+    const THIRD = "33333333-3333-3333-3333-333333333333";
+
+    it("finds users across the training exports, legacy models and bundles", async () => {
+      const send = jest.fn(async (command: ListObjectsV2Command) => ({
+        Contents:
+          command.input.Prefix === "training-data/"
+            ? [{ Key: `training-data/${FIRST}.json` }]
+            : [
+                { Key: `models/${FIRST}/current.json` },
+                { Key: `models/${FIRST}/20261101T000000Z.joblib` },
+                { Key: `models/${SECOND}.joblib` },
+                { Key: `models/${THIRD}/current.json` },
+              ],
+      }));
+      const service = await makeService(
+        { LOCAL_MODELS_BUCKET: "bucket" },
+        send,
+      );
+
+      await expect(service.findStoredUserIds()).resolves.toEqual([
+        FIRST,
+        SECOND,
+        THIRD,
+      ]);
+    });
+
+    it("ignores keys that don't hold a user id", async () => {
+      const send = jest.fn(async () => ({
+        Contents: [
+          { Key: "training-data/" },
+          { Key: "training-data/notes.txt" },
+          { Key: "models/shared/current.json" },
+        ],
+      }));
+      const service = await makeService(
+        { LOCAL_MODELS_BUCKET: "bucket" },
+        send,
+      );
+
+      await expect(service.findStoredUserIds()).resolves.toEqual([]);
+    });
+
+    it("returns nothing when the bucket isn't configured", async () => {
+      const send = jest.fn();
+      const service = await makeService({}, send);
+
+      await expect(service.findStoredUserIds()).resolves.toEqual([]);
+      expect(send).not.toHaveBeenCalled();
+    });
+  });
+
   it("throws when S3 reports objects it couldn't delete", async () => {
     const send = jest.fn(async (command: unknown) =>
       command instanceof DeleteObjectsCommand

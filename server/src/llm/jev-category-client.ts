@@ -15,6 +15,10 @@ import {
   logJevConfidence,
   runnerUpMargin,
 } from "./jev-confidence-log";
+import {
+  type FamilyConfidence,
+  topFamilyConfidence,
+} from "./jev-family-confidence";
 import type {
   CategoriseFromSummaryParams,
   CategoriseFromSummaryResult,
@@ -25,6 +29,8 @@ import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
 export interface JevDeclinedPick {
   categoryName: string;
   confidence: number;
+  /** Jev's most probable family; null when Jev returned no probabilities. */
+  family: FamilyConfidence | null;
 }
 
 export class JevCategoryClient {
@@ -65,12 +71,15 @@ export class JevCategoryClient {
       });
       const answer = response.answers[JEV.QUESTION_ID];
       const isAccepted = answer.confidence >= JEV.MIN_ACCEPTED_CONFIDENCE;
-      this.logConfidence(answer, params.categories.length, isAccepted);
+      const family = topFamilyConfidence(answer.probabilities ?? {}, (choice) =>
+        categoryNameForChoice(choice, params),
+      );
+      this.logConfidence(answer, params.categories.length, isAccepted, family);
       const categoryNumber = Number(answer.choice);
       const categoryName = categoryNameForChoice(answer.choice, params);
       if (!isAccepted) {
         if (categoryName)
-          onDeclined?.({ categoryName, confidence: answer.confidence });
+          onDeclined?.({ categoryName, confidence: answer.confidence, family });
         return null;
       }
       if (!categoryName) throw new Error("Jev chose an unknown category");
@@ -93,6 +102,7 @@ export class JevCategoryClient {
     answer: JevCategoryAnswer,
     categoryCount: number,
     isAccepted: boolean,
+    family: FamilyConfidence | null,
   ): void {
     logJevConfidence(this.logger, {
       decision: LLM_OP_CATEGORISE_SUMMARY,
@@ -105,6 +115,7 @@ export class JevCategoryClient {
       optionCount: categoryCount + 1,
       choseNoneOption: answer.choice === JEV.OTHER_OPTION,
       runnerUpMargin: runnerUpMargin(answer.probabilities ?? {}),
+      familyConfidence: family?.confidence,
     });
   }
 }

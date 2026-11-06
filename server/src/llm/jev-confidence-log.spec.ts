@@ -16,9 +16,10 @@ describe("formatJevConfidenceRecord", () => {
         optionCount: 13,
         choseNoneOption: false,
         runnerUpMargin: 0.12,
+        familyConfidence: 0.971,
       }),
     ).toBe(
-      "[JEV-CONFIDENCE] decision=categorise_summary outcome=below_threshold confidence=0.83 threshold=0.90 options=13 chose_none=false margin=0.12",
+      "[JEV-CONFIDENCE] decision=categorise_summary outcome=below_threshold confidence=0.83 threshold=0.90 options=13 chose_none=false margin=0.12 family_confidence=0.97",
     );
   });
 
@@ -46,6 +47,19 @@ describe("formatJevShadowRecord", () => {
       }),
     ).toBe(
       "[JEV-SHADOW] decision=categorise_summary confidence=0.84 agreed=false",
+    );
+  });
+
+  it("appends family agreement after the original fields", () => {
+    expect(
+      formatJevShadowRecord({
+        decision: "categorise_summary",
+        confidence: 0.6,
+        agreed: false,
+        family: { family: "GitHub / Issues", confidence: 0.951, agreed: true },
+      }),
+    ).toBe(
+      '[JEV-SHADOW] decision=categorise_summary confidence=0.60 agreed=false family_agreed=true family_confidence=0.95 family="GitHub / Issues"',
     );
   });
 });

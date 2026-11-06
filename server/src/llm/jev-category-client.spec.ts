@@ -56,7 +56,7 @@ describe("JevCategoryClient", () => {
     );
     // Content-free: decision, confidence and shape only, never names or email text.
     expect(logger.log).toHaveBeenCalledWith(
-      "[JEV-CONFIDENCE] decision=categorise_summary outcome=accepted confidence=1.00 threshold=0.90 options=2 chose_none=false margin=1.00",
+      "[JEV-CONFIDENCE] decision=categorise_summary outcome=accepted confidence=1.00 threshold=0.90 options=2 chose_none=false margin=1.00 family_confidence=1.00",
     );
     expect(fetchMock).toHaveBeenCalledWith(
       JEV.API_URL,
@@ -98,6 +98,7 @@ describe("JevCategoryClient", () => {
     expect(onDeclined).toHaveBeenCalledWith({
       categoryName: "QA passed",
       confidence: 0.84,
+      family: { family: "GitHub / Issues", confidence: 1 },
     });
   });
 

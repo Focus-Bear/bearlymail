@@ -6,8 +6,8 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * write until the user grants gmail.modify; this records that one was skipped
  * so the app can say so once.
  */
-export class AddGmailWriteNoticeToUsers1797700000000 implements MigrationInterface {
-  name = "AddGmailWriteNoticeToUsers1797700000000";
+export class AddGmailWriteNoticeToUsers1797800000000 implements MigrationInterface {
+  name = "AddGmailWriteNoticeToUsers1797800000000";
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

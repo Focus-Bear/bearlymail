@@ -1,6 +1,14 @@
+import { categoryRuleSettingsPath } from 'utils/categoryRuleLinks';
+
 import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
 
-import { CategoryDebugData } from './CategoryDebugModal.types';
+import {
+  CategoryDebugData,
+  CategoryRuleTraceSnapshot,
+  CURRENT_RULE_RECORDED_BY,
+  CurrentCategoryRule,
+  RULE_CATEGORY_SOURCE,
+} from './CategoryDebugModal.types';
 
 // Pure section builders for GitHub issue formatting.
 
@@ -17,7 +25,43 @@ function appendEmailSection(lines: string[], email: CategoryDebugData['email']):
   lines.push('');
 }
 
-function appendCategorySection(lines: string[], thread: CategoryDebugData['thread']): void {
+/** The rule behind the current category, with a link that opens it in Settings. */
+function currentRuleLine(rule: CurrentCategoryRule | null, appOrigin: string): string {
+  if (!rule) {
+    return '- **Rule that set this category**: not recorded, and no rule matches the newest email into this category now';
+  }
+  const name = rule.categoryName ?? 'rule since deleted';
+  const liveMatchNote =
+    rule.recordedBy === CURRENT_RULE_RECORDED_BY.LIVE_MATCH
+      ? ' (ID not recorded when this was set; this is the rule that matches the newest email now)'
+      : '';
+  return `- **Rule that set this category**: ${name} (rule ${rule.ruleId})${liveMatchNote} — ${appOrigin}${categoryRuleSettingsPath(rule.ruleId)}`;
+}
+
+/**
+ * The rule-step snapshot is only rewritten by paths that re-run the full rule
+ * trace, so it can describe a decision made weeks before the current one.
+ */
+function historicalTraceLine(
+  snapshot: CategoryRuleTraceSnapshot | null | undefined,
+  currentRuleId: string | null
+): string {
+  if (!snapshot) {
+    return '- **Rule trace (historical, from processing time)**: none recorded';
+  }
+  const winner = snapshot.winningRuleId
+    ? `${snapshot.winningRuleCategoryName ?? '?'} (rule ${snapshot.winningRuleId})`
+    : 'none';
+  const matchedNotWinning =
+    snapshot.matchedButNotWinningRuleIds.length > 0 ? snapshot.matchedButNotWinningRuleIds.join(', ') : '—';
+  const differsNote =
+    currentRuleId && snapshot.winningRuleId && snapshot.winningRuleId !== currentRuleId
+      ? ' — a different rule from the one that set the current category'
+      : '';
+  return `- **Rule trace (historical, from processing time ${snapshot.evaluatedAt})**: rulesConsidered=${snapshot.rulesConsideredCount} winner=${winner} matchedButNotApplied=[${matchedNotWinning}]${differsNote}`;
+}
+
+function appendCategorySection(lines: string[], thread: CategoryDebugData['thread'], appOrigin: string): void {
   lines.push('### Current Category', `- **Category**: ${thread.category ?? 'None'}`);
   if (thread.categorySource) {
     lines.push(`- **Set by step**: ${thread.categorySource}`);
@@ -25,21 +69,11 @@ function appendCategorySection(lines: string[], thread: CategoryDebugData['threa
   if (thread.categoryExplanation) {
     lines.push(`- **Explanation**: ${thread.categoryExplanation}`);
   }
-  const snapshot = thread.categoryRuleTrace;
-  if (snapshot) {
-    const winner = snapshot.winningRuleId
-      ? `${snapshot.winningRuleCategoryName ?? '?'} (rule ${snapshot.winningRuleId})`
-      : 'none';
-    const matchedNotWinning =
-      snapshot.matchedButNotWinningRuleIds.length > 0
-        ? snapshot.matchedButNotWinningRuleIds.join(', ')
-        : '—';
-    lines.push(
-      `- **Rule trace (processing time)**: ${snapshot.evaluatedAt} | rulesConsidered=${snapshot.rulesConsideredCount} winner=${winner} matchedButNotApplied=[${matchedNotWinning}]`
-    );
-  } else {
-    lines.push('- **Rule trace (processing time)**: none recorded');
+  const currentRule = thread.currentRule ?? null;
+  if (thread.categorySource === RULE_CATEGORY_SOURCE) {
+    lines.push(currentRuleLine(currentRule, appOrigin));
   }
+  lines.push(historicalTraceLine(thread.categoryRuleTrace, currentRule?.ruleId ?? null));
   lines.push('');
 }
 
@@ -77,10 +111,10 @@ function appendContextItemList(
 }
 
 // eslint-disable-next-line max-statements -- pre-existing: helper function aggregates data from multiple sources
-export const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
+export const formatForGithubIssue = (debugInfo: CategoryDebugData, appOrigin: string): string => {
   const lines: string[] = ['## Category Debug Report', ''];
   appendEmailSection(lines, debugInfo.email);
-  appendCategorySection(lines, debugInfo.thread);
+  appendCategorySection(lines, debugInfo.thread, appOrigin);
   appendCategoriesList(
     lines,
     debugInfo.emailCategories,

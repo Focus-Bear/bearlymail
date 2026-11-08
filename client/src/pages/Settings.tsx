@@ -8,6 +8,7 @@ import { Sidebar } from 'components/inbox/Sidebar';
 import { AccountDeletionSection } from 'components/settings/AccountDeletionSection';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
 import { AutoResponderSection } from 'components/settings/auto-responder';
+import { ClaudeAccessSection } from 'components/settings/claude-access';
 import { DataExportSection } from 'components/settings/DataExportSection';
 import { EmailDeliverySection } from 'components/settings/EmailDeliverySection';
 import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
@@ -278,6 +279,8 @@ const Settings: React.FC = () => {
         <SchedulingPreferencesSection />
 
         <MCPServersSection />
+
+        <ClaudeAccessSection />
 
         <WorkflowsSection />
 

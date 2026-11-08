@@ -16,24 +16,29 @@ import { logErrorToFile } from "../utils/error-logger";
 
 const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
 
-/**
- * The fields of a structured error the client acts on, such as the code that
- * opens the Google permission prompt. Listed by name so nothing else an
- * exception carries reaches the browser, and only kept for client errors.
- */
-const CLIENT_ERROR_DETAIL_FIELDS = ["code", "permission", "action"] as const;
+/** Fields the filter writes itself; an exception body can't override them. */
+const RESPONSE_ENVELOPE_KEYS = new Set([
+  "statusCode",
+  "timestamp",
+  "path",
+  "message",
+  "error",
+]);
 
-function pickClientErrorDetails(
+/**
+ * Structured fields on a client-error body (`requiresPassword`, `code`,
+ * `failure`, ...) are part of the API contract: the client's step-up flow,
+ * AI-limit banner and plan gates branch on them. Server errors expose none.
+ */
+function clientErrorDetails(
   status: number,
-  message: unknown,
+  body: string | object,
 ): Record<string, unknown> {
-  if (status >= HttpStatus.INTERNAL_SERVER_ERROR) return {};
-  if (typeof message !== "object" || message === null) return {};
-  const body = message as Record<string, unknown>;
+  if (status >= HttpStatus.INTERNAL_SERVER_ERROR || typeof body !== "object") {
+    return {};
+  }
   return Object.fromEntries(
-    CLIENT_ERROR_DETAIL_FIELDS.filter((field) => body[field] !== undefined).map(
-      (field) => [field, body[field]],
-    ),
+    Object.entries(body).filter(([key]) => !RESPONSE_ENVELOPE_KEYS.has(key)),
   );
 }
 
@@ -129,7 +134,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       ) {
         return String((message as { message?: unknown }).message);
       }
-      return message;
+      // e.g. new UnauthorizedException({ requiresPassword: true }): the body's
+      // fields go out as details below, and the exception's own text as message.
+      return exception instanceof Error ? exception.message : message;
     })();
 
     const sanitizedMessage =
@@ -146,12 +153,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : undefined;
 
     response.status(status).json({
+      ...clientErrorDetails(status, message),
       statusCode: status,
       timestamp: errorDetails.timestamp,
       path: request.url,
       message: sanitizedMessage,
       ...(errorCode ? { error: errorCode } : {}),
-      ...pickClientErrorDetails(status, message),
     });
   }
 }

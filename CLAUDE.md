@@ -158,6 +158,7 @@ Need to modify something? Here's where to find it:
 | **Email summarization**                          | `server/src/summarization/summarization.service.ts`                          |
 | **Reply generation**                             | `server/src/replies/replies.service.ts`                                      |
 | **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry) |
+| **MCP server for Claude (`POST /mcp`)**          | `server/src/mcp-server/` (tools in `mcp-server-tool-definitions.ts`); auth = personal access tokens in `server/src/personal-access-tokens/` or OAuth 2.1 (claude.ai connectors) in `server/src/mcp-oauth/`. Not `src/mcp/` (that is BearlyMail as an MCP *client*). See [`docs/connect-claude.md`](docs/connect-claude.md) |
 | **Context analysis (VIP detection, categories)** | `server/src/context/context.service.ts`                                      |
 | **Gmail provider implementation**                | `server/src/emails/providers/gmail.provider.ts`                              |
 | **Office365 provider implementation**            | `server/src/emails/providers/office365.provider.ts`                          |
@@ -270,6 +271,9 @@ Need to modify something? Here's where to find it:
 | `Waitlist`                | `waitlist`                   | Waitlist signups                                     |
 | `AutoArchiveProposal`     | `auto_archive_proposals`     | Mined "sender + keywords → archive" rule proposals (pending/approved/dismissed) with encrypted evidence |
 | `AutoArchiveScanState`    | `auto_archive_scan_states`   | Per-user watermark for incremental proposal mining   |
+| `PersonalAccessToken`     | `personal_access_tokens`     | Scoped (`mail:read` / `mail:send`) bearer tokens for `/mcp`: hand-made PATs (`kind='personal'`) and OAuth connections (`kind='oauth'`, rotating access + refresh hashes); only SHA-256 hashes are stored |
+| `OAuthClient`             | `oauth_clients`              | RFC 7591 dynamically registered MCP OAuth clients (metadata-document clients like claude.ai aren't stored) |
+| `OAuthAuthorizationCode`  | `oauth_authorization_codes`  | In-flight `/oauth/authorize` requests → single-use code hashes (PKCE challenge, granted scopes); pruned after a day |
 
 ---
 
@@ -850,6 +854,9 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 - `/follow-ups/*` - Follow-up drafts and bulk send
 - `/batch-schedule/*` - Email batching schedule
 - `/github/*` - GitHub integration settings
+- `/personal-access-tokens` - Create/list/revoke tokens for Claude (JWT only; a token can never mint tokens)
+- `POST /mcp` - MCP server (Streamable HTTP, stateless JSON-RPC); authenticated by `Authorization: Bearer bm_pat_...` or an OAuth access token (`bm_oat_...`) only, never the session cookie; a 401 carries the RFC 9728 `WWW-Authenticate` challenge
+- `/.well-known/oauth-protected-resource[/mcp]`, `/.well-known/oauth-authorization-server`, `/oauth/{authorize,token,register,revoke}` - OAuth 2.1 authorization server for `/mcp` (CIMD + DCR, PKCE S256); consent page is the web app's `/oauth/consent`
 
 ---
 

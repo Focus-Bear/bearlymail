@@ -15,3 +15,13 @@ const RULE_ID_MARKER_SUFFIX = ")";
 export function withRuleIdMarker(explanation: string, ruleId: string): string {
   return `${explanation} ${RULE_ID_MARKER_PREFIX}${ruleId}${RULE_ID_MARKER_SUFFIX}`;
 }
+
+const RULE_ID_MARKER_PATTERN = /\(rule:([0-9a-f-]+)\)\s*$/i;
+
+/** The rule ID a {@link withRuleIdMarker} explanation ends with, or null. */
+export function extractRuleIdMarker(
+  explanation: string | null | undefined,
+): string | null {
+  if (!explanation) return null;
+  return RULE_ID_MARKER_PATTERN.exec(explanation)?.[1] ?? null;
+}

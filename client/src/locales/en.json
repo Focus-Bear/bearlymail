@@ -728,6 +728,9 @@
       "customRules": "Custom Rules"
     },
     "deleteActionItem": "Delete action item",
+    "saveToFocusBear": "Save to Focus Bear",
+    "saveToFocusBearHint": "Opens the Focus Bear app and adds \"{{task}}\" as a task",
+    "focusBearTaskNotes": "From {{sender}}: \"{{subject}}\"",
     "regenerateActions": "Regenerate Actions",
     "suggestedReplies": "Suggested Replies",
     "generating": "Generating...",

@@ -20,3 +20,6 @@ export const STALE_TIME_5_MIN = 5 * MS_PER_MINUTE;
 
 /** Default garbage-collection time for inactive queries (5 minutes). */
 export const GC_TIME_DEFAULT = 5 * MS_PER_MINUTE;
+
+/** Never refetch on its own — for idempotent lookups whose answer cannot change (e.g. find-or-create by email). */
+export const STALE_TIME_NEVER = Infinity;

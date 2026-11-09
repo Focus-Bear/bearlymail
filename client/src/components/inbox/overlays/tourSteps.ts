@@ -40,6 +40,15 @@ export const INBOX_TOUR_STEPS: TourStepDefinition[] = [
     placement: 'bottom-start',
   },
   {
+    // Onboarding unlocks the inbox once its newest emails are sorted; this
+    // explains the rest moving into categories. Without the progress banner
+    // (sorting already finished, or a replayed tour) it shows as a centred card.
+    titleKey: 'onboarding.tour.backgroundSortingTitle',
+    contentKey: 'onboarding.tour.backgroundSortingContent',
+    targets: [TOUR_TARGETS.BACKGROUND_SORTING],
+    placement: 'bottom',
+  },
+  {
     titleKey: 'onboarding.tour.actionTitle',
     contentKey: 'onboarding.tour.actionContent',
     targets: [TOUR_TARGETS.ACTION_TAB],
@@ -62,6 +71,12 @@ export const INBOX_TOUR_STEPS: TourStepDefinition[] = [
     contentKey: 'onboarding.tour.prioritiseContent',
     targets: [TOUR_TARGETS.EMAIL_PRIORITY, ...EMAIL_CARD_TARGETS],
     placement: 'top-start',
+  },
+  {
+    titleKey: 'onboarding.tour.snoozeTitle',
+    contentKey: 'onboarding.tour.snoozeContent',
+    targets: [TOUR_TARGETS.EMAIL_SNOOZE, ...EMAIL_CARD_TARGETS],
+    placement: 'top',
   },
   {
     titleKey: 'onboarding.tour.archiveTitle',

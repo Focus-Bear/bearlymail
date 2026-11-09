@@ -27,6 +27,7 @@ function stepFor(titleKey: string): TourStep {
 }
 
 const PRIORITISE_STEP = 'onboarding.tour.prioritiseTitle';
+const SNOOZE_STEP = 'onboarding.tour.snoozeTitle';
 const ARCHIVE_STEP = 'onboarding.tour.archiveTitle';
 const BLOCK_STEP = 'onboarding.tour.blockTitle';
 
@@ -35,10 +36,11 @@ afterEach(() => {
 });
 
 describe('inbox tour — email card steps', () => {
-  it('explains the card, then prioritising, archiving and blocking as separate steps, in that order', () => {
-    expect(INBOX_TOUR_STEPS.map(step => step.titleKey).slice(-4)).toEqual([
+  it('explains the card, then prioritising, snoozing, archiving and blocking as separate steps, in that order', () => {
+    expect(INBOX_TOUR_STEPS.map(step => step.titleKey).slice(-5)).toEqual([
       'onboarding.tour.assistantTitle',
       PRIORITISE_STEP,
+      SNOOZE_STEP,
       ARCHIVE_STEP,
       BLOCK_STEP,
     ]);
@@ -46,6 +48,7 @@ describe('inbox tour — email card steps', () => {
 
   it.each([
     [PRIORITISE_STEP, TOUR_TARGETS.EMAIL_PRIORITY],
+    [SNOOZE_STEP, TOUR_TARGETS.EMAIL_SNOOZE],
     [ARCHIVE_STEP, TOUR_TARGETS.EMAIL_ARCHIVE],
     [BLOCK_STEP, TOUR_TARGETS.EMAIL_MORE_ACTIONS],
   ])('%s points at its control on the email card', (titleKey, control) => {
@@ -55,7 +58,7 @@ describe('inbox tour — email card steps', () => {
     expect(toJoyrideStep(stepFor(titleKey)).target).toBe(element);
   });
 
-  it.each([PRIORITISE_STEP, ARCHIVE_STEP, BLOCK_STEP])(
+  it.each([PRIORITISE_STEP, SNOOZE_STEP, ARCHIVE_STEP, BLOCK_STEP])(
     '%s falls back to the email card when its control is not on screen',
     titleKey => {
       const row = mountTarget(TOUR_TARGETS.EMAIL_ROW);
@@ -64,8 +67,28 @@ describe('inbox tour — email card steps', () => {
     }
   );
 
-  it.each([PRIORITISE_STEP, ARCHIVE_STEP, BLOCK_STEP])('%s becomes a centred card when there are no emails', titleKey => {
+  it.each([PRIORITISE_STEP, SNOOZE_STEP, ARCHIVE_STEP, BLOCK_STEP])('%s becomes a centred card when there are no emails', titleKey => {
     expect(toJoyrideStep(stepFor(titleKey)).placement).toBe(TOUR_PLACEMENT_CENTER);
+  });
+});
+
+const BACKGROUND_SORTING_STEP = 'onboarding.tour.backgroundSortingTitle';
+
+describe('inbox tour — background sorting step', () => {
+  it('comes straight after the Triage tab, before the user starts working through emails', () => {
+    const titleKeys = INBOX_TOUR_STEPS.map(step => step.titleKey);
+
+    expect(titleKeys.indexOf(BACKGROUND_SORTING_STEP)).toBe(titleKeys.indexOf('onboarding.tour.triageTitle') + 1);
+  });
+
+  it('points at the background sorting progress bar while it is showing', () => {
+    const banner = mountTarget(TOUR_TARGETS.BACKGROUND_SORTING);
+
+    expect(toJoyrideStep(stepFor(BACKGROUND_SORTING_STEP)).target).toBe(banner);
+  });
+
+  it('becomes a centred card once sorting has finished and the bar is gone', () => {
+    expect(toJoyrideStep(stepFor(BACKGROUND_SORTING_STEP)).placement).toBe(TOUR_PLACEMENT_CENTER);
   });
 });
 

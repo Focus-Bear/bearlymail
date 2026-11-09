@@ -13,6 +13,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { AppleMailAccount } from "../database/entities/apple-mail-account.entity";
 import { decryptAppleMailAccountEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { AppleMailScriptService } from "./apple-mail-script.service";
 
@@ -116,7 +117,7 @@ export class AppleMailAccountsService {
         { userId },
         {
           priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, true),
-          singletonKey: `fetch-user-emails-${userId}`,
+          singletonKey: fetchUserEmailsJobKey(userId),
         },
       )
       .catch((err) => {

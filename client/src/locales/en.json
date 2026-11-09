@@ -600,7 +600,11 @@
       "dismiss": "Got it"
     },
     "familyCategoryCount_one": "{{count}} category",
-    "familyCategoryCount_other": "{{count}} categories"
+    "familyCategoryCount_other": "{{count}} categories",
+    "backgroundSorting": {
+      "title": "Sorting the rest of your inbox in the background",
+      "progress": "{{categorised}} of {{total}} sorted"
+    }
   },
   "emailDetail": {
     "attachments": "Attachments ({{count}})",
@@ -2712,6 +2716,8 @@
       "welcomeContent": "Here's a quick tour of your inbox. We'll highlight each part as we go — use the arrow keys to move between steps, or Esc to skip.",
       "triageTitle": "Triage Tab",
       "triageContent": "New emails land in this tab, most important first. Decide on each one: reply, archive, snooze — or prioritise it to move it to Action.",
+      "backgroundSortingTitle": "Still sorting the rest",
+      "backgroundSortingContent": "We sorted your newest emails first so you could get started. The rest are still being processed in the background and will move into their categories as they're sorted. This bar shows how far along it is, and disappears when it's done.",
       "processTitle": "Process Tab",
       "processContent": "Prioritise an email to move it here. This is your focused workspace for emails that need action.",
       "actionTitle": "Action Tab",
@@ -2722,6 +2728,8 @@
       "assistantContent": "Each card shows who it's from, an AI summary and how urgent we think it is. Open one to get the AI side panel with tasks, notes and Ask AI. The next few steps show what its buttons do.",
       "prioritiseTitle": "Prioritise it",
       "prioritiseContent": "Needs doing? Pick how urgent it is for you: Can wait, Get on it or Oh sh$t. Picking one moves the email to the Action tab, where your to-dos are sorted by priority.",
+      "snoozeTitle": "Snooze it",
+      "snoozeContent": "Can't deal with it yet? Snooze hides the email and brings it back to your inbox when you choose. Click Snooze, type when you want it back, like 4h, 5pm, tomorrow or next Monday, and press Enter. It syncs to Gmail or Outlook too.",
       "archiveTitle": "Archive it",
       "archiveContent": "Done with it, or never needed it? Archive clears it from your list and archives it in Gmail or Outlook too. Nothing is deleted: you can still find it in All Mail. Shortcut: press Delete.",
       "blockTitle": "Block a sender",
@@ -3992,7 +4000,7 @@
       "phaseCategorise": "Sorting your emails into categories",
       "statusCategorise": "Sorting your inbox into categories… ({{categorised}} of {{total}}) so it opens organised",
       "statusCategoriseGeneric": "Sorting your inbox into categories so it opens organised…",
-      "readyDetailStillSorting": "Most of your inbox is sorted. The rest will move into their categories over the next few minutes.",
+      "readyDetailStillSorting": "Your newest emails are sorted, so your inbox is ready. We'll keep sorting the rest in the background, and they'll move into their categories over the next few minutes.",
       "stalledTitle": "Learning from your emails has stalled",
       "stalledDetailError": "We couldn't finish learning from your emails. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",
       "stalledDetailTimeout": "This still hasn't finished after {{minutes}} minutes. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",

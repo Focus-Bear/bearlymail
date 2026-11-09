@@ -10,8 +10,10 @@ export const TOUR_TARGETS = {
   EMAIL_ROW: 'email-row',
   EMAIL_PRIORITY: 'email-priority',
   EMAIL_ARCHIVE: 'email-archive',
+  EMAIL_SNOOZE: 'email-snooze',
   EMAIL_MORE_ACTIONS: 'email-more-actions',
   CATEGORY_ACCORDION: 'category-accordion',
+  BACKGROUND_SORTING: 'background-sorting',
 } as const;
 
 export type TourTarget = (typeof TOUR_TARGETS)[keyof typeof TOUR_TARGETS];

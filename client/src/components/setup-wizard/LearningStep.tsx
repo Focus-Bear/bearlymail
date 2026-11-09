@@ -231,10 +231,10 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
 
   const categorisation = useCategorisationProgress(hasLearningFinished(analyzeProgress, importProgress, timedOut));
   const view = computeLearningView(analyzeProgress, importProgress, timedOut, categorisation);
-  const { displayProgress, canFinish, isStalled, currentPhase, realProgress } = view;
+  const { displayProgress, canFinish, isStalled, isStillSorting, currentPhase, realProgress } = view;
   const headerTitle = pickHeaderTitle(t, canFinish, isStalled, currentPhase);
   const headerDetail = pickHeaderDetail(t, { ...view, hasAnalysisError: Boolean(analyzeProgress.error) });
-  const headerState = pickHeaderState(canFinish, isStalled);
+  const headerState = pickHeaderState(canFinish, isStalled, isStillSorting);
 
   return (
     <section className="onboarding-pane" style={paneStyle}>
@@ -252,7 +252,7 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
         displayProgress={displayProgress}
       />
 
-      <LearningRows currentPhase={currentPhase} canFinish={canFinish} realProgress={realProgress} t={t} />
+      <LearningRows currentPhase={currentPhase} realProgress={realProgress} t={t} />
 
       <LearnedContextEditor isEnabled={analyzeProgress.isComplete} onCategoriesChanged={recategorise.markCategoriesChanged} />
       <CategoryCountsPanel status={recategorise.status} progress={recategorise.progress} counts={recategorise.counts} />
@@ -368,9 +368,10 @@ const StalledActions: React.FC<StalledActionsProps> = ({ isLoading, onBack, onRe
 
 type HeaderState = typeof HEADER_STATE_WORKING | typeof HEADER_STATE_STALLED | typeof HEADER_STATE_COMPLETE;
 
-function pickHeaderState(canFinish: boolean, isStalled: boolean): HeaderState {
+/** Still sorting in the background keeps the spinner: the user may continue, but the work isn't done. */
+function pickHeaderState(canFinish: boolean, isStalled: boolean, isStillSorting: boolean): HeaderState {
   if (canFinish) {
-    return HEADER_STATE_COMPLETE;
+    return isStillSorting ? HEADER_STATE_WORKING : HEADER_STATE_COMPLETE;
   }
   return isStalled ? HEADER_STATE_STALLED : HEADER_STATE_WORKING;
 }
@@ -421,16 +422,15 @@ const LearningHeader: React.FC<LearningHeaderProps> = ({ headerState, headerTitl
 
 interface LearningRowsProps {
   currentPhase: number;
-  canFinish: boolean;
   realProgress: RealProgress;
   t: TFn;
 }
 
-const LearningRows: React.FC<LearningRowsProps> = ({ currentPhase, canFinish, realProgress, t }) => (
+const LearningRows: React.FC<LearningRowsProps> = ({ currentPhase, realProgress, t }) => (
   <div style={learnRowsStyle}>
     {PHASE_LABEL_KEYS.map((labelKey, idx) => {
-      const isActive = idx === currentPhase && !canFinish;
-      const isDone = idx < currentPhase || canFinish;
+      const isActive = idx === currentPhase;
+      const isDone = idx < currentPhase;
       const count = buildRowCount(t, idx, isActive || isDone, realProgress);
       return (
         <div key={labelKey} style={learnRowStyle(isActive, isDone)}>

@@ -33,3 +33,8 @@ export function workflowEvaluationJobKey(emailThreadId: string): string {
 export function autoResponderJobKey(emailThreadId: string): string {
   return `auto-responder-${emailThreadId}`;
 }
+
+/** One inbox sync per user at a time, whichever path enqueues it. */
+export function fetchUserEmailsJobKey(userId: string): string {
+  return `fetch-user-emails-${userId}`;
+}

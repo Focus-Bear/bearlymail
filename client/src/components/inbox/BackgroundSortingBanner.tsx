@@ -27,10 +27,11 @@ export const BackgroundSortingBanner: React.FC = () => {
     return null;
   }
   const percent = toPercent(progress.categorised, progress.total);
+  const styles = buildStyles();
   return (
-    <div data-tour={TOUR_TARGETS.BACKGROUND_SORTING} style={bannerStyle} data-testid="background-sorting-banner">
-      <div style={labelRowStyle}>
-        <span style={titleStyle}>{t('inbox.backgroundSorting.title')}</span>
+    <div data-tour={TOUR_TARGETS.BACKGROUND_SORTING} style={styles.banner} data-testid="background-sorting-banner">
+      <div style={styles.labelRow}>
+        <span style={styles.title}>{t('inbox.backgroundSorting.title')}</span>
         <span>
           {t('inbox.backgroundSorting.progress', { categorised: progress.categorised, total: progress.total })}
         </span>
@@ -41,7 +42,7 @@ export const BackgroundSortingBanner: React.FC = () => {
         aria-valuemin={0}
         aria-valuemax={PERCENT_MAX}
         aria-valuenow={percent}
-        style={trackStyle}
+        style={styles.track}
       >
         <div style={fillStyle(percent)} />
       </div>
@@ -49,35 +50,40 @@ export const BackgroundSortingBanner: React.FC = () => {
   );
 };
 
-const bannerStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing.xs,
-  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-  backgroundColor: theme.colors.primary.subtle,
-  borderRadius: theme.borderRadius.md,
-  fontSize: theme.typography.fontSize.lg,
-  color: theme.colors.text.secondary,
-};
-
-const labelRowStyle: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  justifyContent: 'space-between',
-  gap: theme.spacing.sm,
-};
-
-const titleStyle: React.CSSProperties = {
-  color: theme.colors.text.primary,
-  fontWeight: theme.typography.fontWeight.semibold,
-};
-
-const trackStyle: React.CSSProperties = {
-  height: `${PROGRESS_TRACK_HEIGHT_PX}px`,
-  borderRadius: theme.borderRadius.full,
-  backgroundColor: theme.colors.background.paper,
-  overflow: 'hidden',
-};
+/**
+ * Built at render rather than import: the banner sits inside InboxContentParts,
+ * whose tests mock a partial theme, and reading it at import time would break them.
+ */
+function buildStyles(): Record<'banner' | 'labelRow' | 'title' | 'track', React.CSSProperties> {
+  return {
+    banner: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing.xs,
+      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+      backgroundColor: theme.colors.primary.subtle,
+      borderRadius: theme.borderRadius.md,
+      fontSize: theme.typography.fontSize.lg,
+      color: theme.colors.text.secondary,
+    },
+    labelRow: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: theme.spacing.sm,
+    },
+    title: {
+      color: theme.colors.text.primary,
+      fontWeight: theme.typography.fontWeight.semibold,
+    },
+    track: {
+      height: `${PROGRESS_TRACK_HEIGHT_PX}px`,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.background.paper,
+      overflow: 'hidden',
+    },
+  };
+}
 
 const fillStyle = (percent: number): React.CSSProperties => ({
   width: `${percent}%`,

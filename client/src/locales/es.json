@@ -1539,6 +1539,7 @@
     "createDeal": "Crear Negocio",
     "errorLoadingDeals": "Error al cargar negocios",
     "errorCreatingDeal": "No se pudo crear el negocio. Inténtalo de nuevo.",
+    "errorLoadingDealForm": "No se pudieron cargar las etapas o los contactos. Puedes seguir escribiendo; inténtalo de nuevo en un momento.",
     "expectedClose": "Cierre esperado",
     "locked": "Mejora tu plan para usar el CRM",
     "upgrade": {

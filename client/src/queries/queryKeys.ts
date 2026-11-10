@@ -9,9 +9,15 @@
 
 export const contactKeys = {
   all: ['contacts'] as const,
+  list: ['contacts', 'list'] as const,
+  forEmail: (email: string) => ['contacts', 'for-email', email.toLowerCase()] as const,
   types: ['contact-types'] as const,
   typesByEmails: (emails: string[]) => ['contact-types-by-emails', [...emails].sort().join(',')] as const,
   frequent: (limit: number) => ['contacts', 'frequent', limit] as const,
+} as const;
+
+export const dealKeys = {
+  stages: ['deals', 'stages'] as const,
 } as const;
 
 export const settingsKeys = {

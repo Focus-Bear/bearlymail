@@ -810,6 +810,55 @@ describe("ContactsService", () => {
     });
   });
 
+  // The inbox's "Add Deal" button find-or-creates the sender with only an
+  // email. Rebuilding the search tokens from that request alone wiped the
+  // contact's name tokens, so it stopped turning up in a search by name.
+  describe("createContact on an existing contact", () => {
+    const userId = "user-123";
+    const existingContact = {
+      id: "contact-1",
+      userId,
+      email: "jane@acme.com",
+      name: "Jane Smith",
+      firstName: "Jane",
+      lastName: "Smith",
+      company: "Acme",
+    };
+
+    beforeEach(() => {
+      mockRepository.findOne.mockResolvedValue(existingContact);
+      mockRepository.findOneOrFail.mockResolvedValue(existingContact);
+    });
+
+    const writtenSearchTokens = (): string[] => {
+      const [, written] = mockRepository.update.mock.calls[0];
+      return JSON.parse(written.searchTokens);
+    };
+
+    it("keeps the stored name in the search index when only the email is sent", async () => {
+      await service.createContact(userId, { email: existingContact.email });
+
+      expect(writtenSearchTokens()).toEqual(
+        expect.arrayContaining(
+          SearchIndexHelper.generateSearchTokens("Jane Smith", "Acme"),
+        ),
+      );
+    });
+
+    it("indexes a name the caller supplies instead of the stored one", async () => {
+      await service.createContact(userId, {
+        email: existingContact.email,
+        name: "Janet Jones",
+      });
+
+      expect(writtenSearchTokens()).toEqual(
+        expect.arrayContaining(
+          SearchIndexHelper.generateSearchTokens("Janet Jones"),
+        ),
+      );
+    });
+  });
+
   // Pentest finding (issue #324): any string, including markup, was stored as
   // the contact type.
   describe("contact type validation", () => {

@@ -2614,6 +2614,7 @@
     "createDeal": "Create Deal",
     "errorLoadingDeals": "Error loading deals",
     "errorCreatingDeal": "Could not create the deal. Please try again.",
+    "errorLoadingDealForm": "Could not load the stages or contacts. You can keep typing; try again in a moment.",
     "expectedClose": "Expected close",
     "locked": "Upgrade to use the CRM",
     "upgrade": {

@@ -161,7 +161,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
   // OAuth/SSO logins land on /inbox; resume the page that sent the user to log in.
@@ -188,7 +188,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <PrivateRouteLoading />;
   }
 
-  return user?.isAdmin ? <>{children}</> : <Navigate to="/inbox" />;
+  return user?.isAdmin ? <>{children}</> : <Navigate to="/inbox" replace />;
 };
 
 const AppRoutes: React.FC = () => (

@@ -237,6 +237,15 @@
       "movingToFollowUp": "→ Follow-Up",
       "movingToAction": "→ Action"
     },
+    "actionMove": {
+      "toast": "Moved to Action — your to-do pile.",
+      "view": "View",
+      "dismiss": "Dismiss",
+      "badge": "+{{count}}",
+      "announcement": "Email moved to the Action tab.",
+      "announcementFirst": "Email moved to the Action tab, your to-do pile. Open the Action tab to see it.",
+      "ghostFallback": "Email"
+    },
     "action": "Action",
     "followUp": "Follow Up",
     "process": "Process",

@@ -7,6 +7,7 @@ import { InboxMode } from 'types/email';
 import { InboxHeaderActions, InboxHeaderTabs } from 'components/inbox/header';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { ActionMoveFeedback } from 'hooks/useActionMoveFeedback';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const HAMBURGER_ICON = '\u2630'; // ☰
@@ -128,9 +129,8 @@ interface InboxHeaderProps {
   onToggleDebug?: () => void;
   onViewBlockedEmails?: () => void;
   onViewAutoRespondedEmails?: () => void;
-  // Mobile Action tab pulse — signals email moved when split-view is hidden
-  actionTabPulsing?: boolean;
-  onActionTabPulseEnd?: () => void;
+  /** Signals that a prioritised email just moved to the Action tab. */
+  actionMoveFeedback?: Pick<ActionMoveFeedback, 'tabEmphasis' | 'onTabEmphasisEnd' | 'movedCount'>;
 }
 
 export const InboxHeader: React.FC<InboxHeaderProps> = ({
@@ -152,8 +152,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   onToggleDebug,
   onViewBlockedEmails,
   onViewAutoRespondedEmails,
-  actionTabPulsing,
-  onActionTabPulseEnd,
+  actionMoveFeedback,
 }) => {
   const { t } = useTranslation();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
@@ -199,8 +198,9 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           actionTabRef={actionTabRef}
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
-          actionTabPulsing={actionTabPulsing}
-          onActionTabPulseEnd={onActionTabPulseEnd}
+          actionTabEmphasis={actionMoveFeedback?.tabEmphasis}
+          onActionTabEmphasisEnd={actionMoveFeedback?.onTabEmphasisEnd}
+          actionMovedCount={actionMoveFeedback?.movedCount}
         />
 
         <FilterToggleButton

@@ -10,6 +10,7 @@ import { useAuth } from 'contexts/AuthContext';
 import { LearningStep } from './LearningStep';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 import { ScheduleStep } from './ScheduleStep';
+import { useSetupWizardHistory } from './useSetupWizardHistory';
 import { WelcomeStep } from './WelcomeStep';
 
 interface SetupWizardProps {
@@ -25,7 +26,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUse
   const { t } = useTranslation();
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<WizardStep>(SETUP_STEP_WELCOME);
+  const { currentStep, goToStep, goBack, rewindWizardHistory } = useSetupWizardHistory(STEP_ORDER);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = useCallback(() => {
@@ -33,27 +34,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUse
     navigate('/login');
   }, [logout, navigate]);
 
-  const goToStep = useCallback((step: WizardStep) => {
-    setCurrentStep(step);
-  }, []);
-
   const handleWelcomeComplete = useCallback(() => goToStep(SETUP_STEP_SCHEDULE), [goToStep]);
   const handleScheduleComplete = useCallback(() => goToStep(SETUP_STEP_LEARNING), [goToStep]);
-  const handleScheduleBack = useCallback(() => goToStep(SETUP_STEP_WELCOME), [goToStep]);
-  const handleLearningBack = useCallback(() => goToStep(SETUP_STEP_SCHEDULE), [goToStep]);
 
   const handleLearningComplete = useCallback(async () => {
     setIsLoading(true);
     try {
       await axios.post(`${API_URL}/onboarding/complete`);
       await refreshUser();
+      await rewindWizardHistory();
       onComplete();
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [onComplete, refreshUser]);
+  }, [onComplete, refreshUser, rewindWizardHistory]);
 
   const stepIndex = STEP_ORDER.indexOf(currentStep) + 1;
 
@@ -90,10 +86,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUse
             <WelcomeStep onComplete={handleWelcomeComplete} refreshUser={refreshUser} />
           )}
           {currentStep === SETUP_STEP_SCHEDULE && (
-            <ScheduleStep onComplete={handleScheduleComplete} onBack={handleScheduleBack} />
+            <ScheduleStep onComplete={handleScheduleComplete} onBack={goBack} />
           )}
           {currentStep === SETUP_STEP_LEARNING && (
-            <LearningStep onComplete={handleLearningComplete} onBack={handleLearningBack} isLoading={isLoading} />
+            <LearningStep onComplete={handleLearningComplete} onBack={goBack} isLoading={isLoading} />
           )}
         </div>
       </main>

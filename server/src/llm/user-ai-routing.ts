@@ -1,14 +1,13 @@
-import { HttpException, HttpStatus } from "@nestjs/common";
-
+// Routing rules for "Use your own AI account". Keep this file free of Nest
+// imports: the email-intelligence module, which the prioritisation Lambda
+// bundles, reaches it through the Jev clients.
+import { HTTP_STATUS } from "../constants/http-status";
 import {
-  findUserAiProvider,
-  USER_AI_KEY_REJECTED_CODE,
   USER_AI_PROVIDER_DESCRIPTORS,
   USER_AI_PROVIDERS,
   type UserAiProvider,
 } from "../constants/user-ai-providers.constants";
 import { LLMProvider } from "./llm.types";
-import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from "./llm-retry-policy";
 
 /** The decrypted keys a user has saved, by provider. */
 export type UserAiKeys = Partial<Record<UserAiProvider, string>>;
@@ -104,24 +103,7 @@ export function selectJevCredentials(
 /** The provider refused the credentials (bad, revoked or expired key). */
 export function isAuthFailure(error: unknown): boolean {
   const status = (error as { status?: unknown } | null)?.status;
-  return status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN;
-}
-
-/**
- * A provider refused the user's own key. Deliberately not a 401: the client
- * treats 401 as "your BearlyMail session ended" and logs the user out.
- */
-export class UserAiKeyRejectedException extends HttpException {
-  constructor(readonly provider: UserAiProvider) {
-    const name = findUserAiProvider(provider)?.displayName ?? provider;
-    super(
-      {
-        statusCode: HttpStatus.FAILED_DEPENDENCY,
-        code: USER_AI_KEY_REJECTED_CODE,
-        provider,
-        message: `${name} rejected your API key (it may be invalid, revoked or out of credit). Update it in Settings → Use your own AI account.`,
-      },
-      HttpStatus.FAILED_DEPENDENCY,
-    );
-  }
+  return (
+    status === HTTP_STATUS.UNAUTHORIZED || status === HTTP_STATUS.FORBIDDEN
+  );
 }

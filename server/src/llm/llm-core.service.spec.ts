@@ -16,8 +16,9 @@ import { LLMProvider, LLMRequest } from "./llm.types";
 import type { CategoriseFromSummaryParams } from "./llm-categorise-summary";
 import { LLMCoreService } from "./llm-core.service";
 import { TokenUsageService } from "./token-usage.service";
+import { UserAiKeyRejectedException } from "./user-ai-key-rejected.exception";
 import { UserAiKeysService } from "./user-ai-keys.service";
-import { UserAiKeyRejectedException, type UserAiKeys } from "./user-ai-routing";
+import type { UserAiKeys } from "./user-ai-routing";
 
 // --- Vendor SDK mocks ---
 // Names are prefixed `mock*` so they survive jest.mock hoisting.

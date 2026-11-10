@@ -2,12 +2,12 @@ import { HttpStatus } from "@nestjs/common";
 
 import { USER_AI_PROVIDERS } from "../constants/user-ai-providers.constants";
 import { LLMProvider } from "./llm.types";
+import { UserAiKeyRejectedException } from "./user-ai-key-rejected.exception";
 import { maskKey } from "./user-ai-keys.service";
 import {
   isAuthFailure,
   planOwnProviderAttempts,
   selectJevCredentials,
-  UserAiKeyRejectedException,
   usesOwnAiAccount,
 } from "./user-ai-routing";
 

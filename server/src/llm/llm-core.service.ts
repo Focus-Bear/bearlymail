@@ -53,6 +53,7 @@ import {
 } from "./openai-text-generation";
 import { reportProvider } from "./provider-report.util";
 import { TokenUsageService } from "./token-usage.service";
+import { UserAiKeyRejectedException } from "./user-ai-key-rejected.exception";
 import { UserAiKeysService } from "./user-ai-keys.service";
 import {
   isAuthFailure,
@@ -60,7 +61,6 @@ import {
   type OwnProviderAttempt,
   planOwnProviderAttempts,
   selectJevCredentials,
-  UserAiKeyRejectedException,
   type UserAiKeys,
   usesOwnAiAccount,
 } from "./user-ai-routing";

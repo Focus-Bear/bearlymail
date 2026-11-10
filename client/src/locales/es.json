@@ -3889,7 +3889,6 @@
     },
     "analyzeEmails": "Analizar correos electrónicos",
     "analyzing": "Analizando...",
-    "apiKeyError": "No se pudo guardar la clave API",
     "batchHoursError": "No se pudieron actualizar las horas del lote",
     "batchHoursUpdated": "Horas de lote actualizadas exitosamente",
     "batchScheduleError": "Error al actualizar el horario de lotes",
@@ -3921,7 +3920,6 @@
       "unblock": "Desatascar"
     },
     "confirmDeleteRule": "¿Está seguro de que desea eliminar esta regla de prioridad?",
-    "confirmRemoveKey": "¿Está seguro de que desea eliminar su clave API de OpenAI? Utilizará la clave predeterminada del sistema.",
     "context": {
       "answer": "Respuesta",
       "noItems": "Aún no hay artículos",
@@ -4306,8 +4304,6 @@
     },
     "emailsFrom": "Correos electrónicos de {{value}}",
     "emailsSubject": "Correos electrónicos con asunto que contiene \"{{value}}\"",
-    "enterApiKey": "Ingrese una clave API de OpenAI",
-    "getKey": "Obtener clave API →",
     "github": {
       "connect": "Conectar GitHub",
       "connected": "GitHub conectado",
@@ -4380,8 +4376,6 @@
     "subjectPatternsHelp": "Coincide por palabras clave del asunto. Texto plano = búsqueda de subcadena. Dejar vacío para coincidir con cualquier asunto.",
     "priority": "Prioridad",
     "priorityHelp": "Número más bajo = mayor prioridad. Las reglas se verifican en orden; gana la primera coincidencia.",
-    "keyRemoveError": "No se pudo eliminar la clave API",
-    "keyRemoved": "La clave API se eliminó correctamente",
     "learnedContext": "Contexto aprendido",
     "nav": {
       "accountSecurity": "Cuenta y seguridad",
@@ -4400,8 +4394,7 @@
       "integrationsApps": "Integraciones y aplicaciones",
       "connectedApps": "Aplicaciones conectadas",
       "workflows": "Flujos de trabajo",
-      "openAiApiKey": "Clave API de OpenAI",
-      "anthropicApiKey": "Clave API de Anthropic",
+      "ownAiAccount": "Usa tu propia cuenta de IA",
       "summarization": "Resumen",
       "toneSettings": "Configuración de tono",
       "autoResponder": "Respuesta automática",
@@ -4625,12 +4618,8 @@
       "connectAnother": "Conectar otra cuenta de Office 365",
       "noAccounts": "No hay cuentas de Office 365 conectadas"
     },
-    "openAiDesc": "Utilice su propia clave API de OpenAI para las funciones de IA. Si no se proporciona, se utilizará la clave predeterminada del sistema. Su clave está cifrada y almacenada de forma segura.",
-    "openAiTitle": "Clave API de OpenAI (opcional)",
-    "removeKey": "Quitar clave",
     "ruleDeleteError": "No se pudo eliminar la regla",
     "ruleUpdateError": "No se pudo actualizar la regla",
-    "saveApiKey": "Guardar clave API",
     "saved": "✓ Guardado",
     "show": "Espectáculo",
     "source": "Fuente: {{source}}",
@@ -4714,10 +4703,6 @@
       "description": "Vuelve a ver la guía interactiva de triaje, acción, entrega programada y el panel del asistente con IA.",
       "button": "Repetir tour"
     },
-    "anthropicTitle": "Clave API de Anthropic (opcional)",
-    "anthropicDesc": "Utilice su propia clave Anthropic para usar Claude Sonnet 4.6. Compatible con claves de API sk-ant-api03-* y tokens OAuth de corta duración sk-ant-oat-* generados por la CLI de Claude (claude auth token). Las claves se almacenan cifradas y nunca se devuelven al cliente en texto plano.",
-    "anthropicKeySaved": "Clave guardada ✓",
-    "anthropicNoKey": "Sin clave configurada",
     "version": "Versión:",
     "builtAt": "Compilado:",
     "versionFooterLabel": "Versión de la aplicación",
@@ -4992,6 +4977,37 @@
       "serverUrlLabel": "URL del servidor",
       "authHeaderLabel": "Cabecera de autorización",
       "configFileLabel": "Archivo de configuración (para apps como Cursor o Windsurf)"
+    },
+    "ownAiAccount": {
+      "title": "Usa tu propia cuenta de IA",
+      "why": "Por defecto, BearlyMail analiza tus correos con proveedores de IA bajo las cuentas y condiciones de BearlyMail. Si prefieres que ese procesamiento quede bajo tu propio acuerdo con un proveedor de IA (soberanía de datos), conecta tu propia cuenta: tus correos se analizarán con tu cuenta y bajo las condiciones de tu proveedor, no las de BearlyMail.",
+      "howItWorks": "En cuanto añadas una clave de OpenAI o Anthropic, todas las funciones de IA (clasificación, prioridades, resúmenes, borradores, Pregunta a la IA) se ejecutan con tu cuenta y las factura tu proveedor. Si tu clave deja de funcionar, BearlyMail muestra un error aquí en lugar de volver en silencio a su propia cuenta.",
+      "selfHost": "¿Prefieres tenerlo todo en tus propios servidores? También puedes <selfHostLink>alojar BearlyMail tú mismo</selfHostLink>.",
+      "useMyKeys": "Usar mis propias claves",
+      "saveKey": "Guardar clave",
+      "checkingKey": "Comprobando la clave…",
+      "replaceKey": "Reemplazar clave",
+      "removeKey": "Eliminar clave",
+      "getKey": "Obtener una clave de {{provider}}",
+      "keyInputLabel": "Clave API de {{provider}}",
+      "confirmRemove": "¿Eliminar tu clave de {{provider}}? Si es tu única clave de OpenAI o Anthropic, la IA volverá a ejecutarse con la cuenta de BearlyMail.",
+      "saveError": "No se pudo guardar la clave. Revísala e inténtalo de nuevo.",
+      "removeError": "No se pudo eliminar la clave. Inténtalo de nuevo.",
+      "keyRejected": "{{provider}} rechazó esta clave el {{date}} (puede que no sea válida, se haya revocado o no tenga saldo). Las funciones de IA que la necesitan están en pausa hasta que la reemplaces.",
+      "providers": {
+        "openai": {
+          "name": "OpenAI",
+          "description": "Se usa para resúmenes, borradores, clasificación y Pregunta a la IA. Es además el único proveedor que permite la coincidencia inteligente de categorías."
+        },
+        "anthropic": {
+          "name": "Anthropic (Claude)",
+          "description": "Se usa para resúmenes, borradores, clasificación y Pregunta a la IA. Acepta claves sk-ant-api03 y tokens OAuth de Claude CLI."
+        },
+        "typesafe": {
+          "name": "TypeSafe AI (Jev)",
+          "description": "Jev toma las decisiones rápidas de sí/no y de categoría de BearlyMail. Si añades una clave de OpenAI o Anthropic pero no de Jev, esa cuenta tomará esas decisiones. Una clave de Jev por sí sola solo traslada a tu cuenta las decisiones de Jev."
+        }
+      }
     }
   },
   "keyboard": {

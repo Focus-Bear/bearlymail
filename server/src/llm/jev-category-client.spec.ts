@@ -25,11 +25,8 @@ const response = (choice = "1", confidence = 1) => ({
 describe("JevCategoryClient", () => {
   const usage = { logUsage: jest.fn().mockResolvedValue(undefined) };
   const logger = { warn: jest.fn(), log: jest.fn() };
-  const client = new JevCategoryClient(
-    (key) => (key === JEV.API_KEY_ENV ? API_KEY : undefined),
-    logger,
-    usage,
-  );
+  const client = new JevCategoryClient(() => undefined, logger, usage);
+  const CREDENTIALS = { apiKey: API_KEY };
   let fetchMock: jest.SpyInstance;
   beforeEach(() => {
     jest.clearAllMocks();
@@ -39,7 +36,7 @@ describe("JevCategoryClient", () => {
 
   it("uses exact category identity, an honest explanation and actual usage", async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify(response())));
-    expect(await client.categorise(PARAMS)).toEqual({
+    expect(await client.categorise(PARAMS, CREDENTIALS)).toEqual({
       categoryNumber: 1,
       categoryName: "QA passed",
       categoryConfidence: "HIGH",
@@ -68,7 +65,7 @@ describe("JevCategoryClient", () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(response(JEV.OTHER_OPTION))),
     );
-    const result = await client.categorise(PARAMS);
+    const result = await client.categorise(PARAMS, CREDENTIALS);
     expect(result?.categoryName).toBe(JEV.OTHER_CATEGORY);
     expect(result?.protoCategorySuggestion).toBeUndefined();
   });
@@ -79,7 +76,7 @@ describe("JevCategoryClient", () => {
       fetchMock.mockResolvedValue(
         new Response(JSON.stringify(response("1", confidence))),
       );
-      expect(await client.categorise(PARAMS)).toBeNull();
+      expect(await client.categorise(PARAMS, CREDENTIALS)).toBeNull();
       expect(usage.logUsage).toHaveBeenCalledTimes(1);
       expect(logger.log).toHaveBeenCalledWith(
         expect.stringContaining(
@@ -94,7 +91,7 @@ describe("JevCategoryClient", () => {
       new Response(JSON.stringify(response("1", 0.84))),
     );
     const onDeclined = jest.fn();
-    expect(await client.categorise(PARAMS, onDeclined)).toBeNull();
+    expect(await client.categorise(PARAMS, CREDENTIALS, onDeclined)).toBeNull();
     expect(onDeclined).toHaveBeenCalledWith({
       categoryName: "QA passed",
       confidence: 0.84,
@@ -105,7 +102,7 @@ describe("JevCategoryClient", () => {
   it("does not report a pick it was trusted with", async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify(response())));
     const onDeclined = jest.fn();
-    await client.categorise(PARAMS, onDeclined);
+    await client.categorise(PARAMS, CREDENTIALS, onDeclined);
     expect(onDeclined).not.toHaveBeenCalled();
   });
 
@@ -113,30 +110,47 @@ describe("JevCategoryClient", () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(response("1", JEV.MIN_ACCEPTED_CONFIDENCE))),
     );
-    expect(await client.categorise(PARAMS)).not.toBeNull();
+    expect(await client.categorise(PARAMS, CREDENTIALS)).not.toBeNull();
   });
 
   it.each([
-    { apiKey: undefined, enabled: undefined },
-    { apiKey: API_KEY, enabled: "false" },
+    { credentials: null, enabled: undefined },
+    { credentials: { apiKey: API_KEY }, enabled: "false" },
   ])(
     "does not send data when unavailable (%s)",
-    async ({ apiKey, enabled }) => {
+    async ({ credentials, enabled }) => {
       const disabled = new JevCategoryClient(
-        (key) => (key === JEV.API_KEY_ENV ? apiKey : enabled),
+        (key) => (key === JEV.ENABLED_ENV ? enabled : undefined),
         logger,
         usage,
       );
-      expect(await disabled.categorise(PARAMS)).toBeNull();
+      expect(await disabled.categorise(PARAMS, credentials)).toBeNull();
       expect(fetchMock).not.toHaveBeenCalled();
     },
   );
+
+  it("sends the given key and reports a refused key so Settings can show it", async () => {
+    fetchMock.mockResolvedValue(new Response("", { status: 401 }));
+    const onRejected = jest.fn();
+    expect(
+      await client.categorise(PARAMS, { apiKey: "user-jev-key", onRejected }),
+    ).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      JEV.API_URL,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-jev-key",
+        }),
+      }),
+    );
+    expect(onRejected).toHaveBeenCalledTimes(1);
+  });
 
   it("falls back on a timeout without logging email contents or credential", async () => {
     fetchMock.mockRejectedValue(
       new Error(`sensitive ${API_KEY} ${PARAMS.summary}`),
     );
-    expect(await client.categorise(PARAMS)).toBeNull();
+    expect(await client.categorise(PARAMS, CREDENTIALS)).toBeNull();
     expect(logger.warn).toHaveBeenCalledWith(
       "Jev categorisation unavailable; falling back to Gemini",
     );
@@ -144,15 +158,18 @@ describe("JevCategoryClient", () => {
 
   it("rejects unknown choices and unsupported taxonomy sizes", async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify(response("99"))));
-    expect(await client.categorise(PARAMS)).toBeNull();
+    expect(await client.categorise(PARAMS, CREDENTIALS)).toBeNull();
     fetchMock.mockClear();
     expect(
-      await client.categorise({
-        ...PARAMS,
-        categories: Array.from({ length: JEV.MAX_OPTIONS }, (_, i) => ({
-          name: String(i),
-        })),
-      }),
+      await client.categorise(
+        {
+          ...PARAMS,
+          categories: Array.from({ length: JEV.MAX_OPTIONS }, (_, i) => ({
+            name: String(i),
+          })),
+        },
+        CREDENTIALS,
+      ),
     ).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });

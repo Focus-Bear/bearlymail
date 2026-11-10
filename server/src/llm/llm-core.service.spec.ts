@@ -1,4 +1,4 @@
-import { Logger, UnauthorizedException } from "@nestjs/common";
+import { HttpStatus, Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter } from "events";
 
@@ -8,10 +8,16 @@ import {
   JEV_DECISION_KINDS,
   JEV_PRIORITY_LEVELS,
 } from "../constants/jev.constants";
-import { UsersService } from "../users/users.service";
+import {
+  USER_AI_KEY_REJECTED_CODE,
+  USER_AI_PROVIDERS,
+} from "../constants/user-ai-providers.constants";
 import { LLMProvider, LLMRequest } from "./llm.types";
+import type { CategoriseFromSummaryParams } from "./llm-categorise-summary";
 import { LLMCoreService } from "./llm-core.service";
 import { TokenUsageService } from "./token-usage.service";
+import { UserAiKeysService } from "./user-ai-keys.service";
+import { UserAiKeyRejectedException, type UserAiKeys } from "./user-ai-routing";
 
 // --- Vendor SDK mocks ---
 // Names are prefixed `mock*` so they survive jest.mock hoisting.
@@ -20,8 +26,12 @@ const mockGeminiGenerateContent = jest.fn();
 
 const mockOpenAIChatCreate = jest.fn();
 const mockOpenAIResponsesCreate = jest.fn();
+/** Records the apiKey of the OpenAI client each chat call was made on. */
+const mockOpenAIKeyUsed = jest.fn();
 
 const mockAnthropicMessagesCreate = jest.fn();
+/** Records the apiKey of the Anthropic client each messages call was made on. */
+const mockAnthropicKeyUsed = jest.fn();
 
 const mockBedrockSend = jest.fn();
 
@@ -56,16 +66,33 @@ jest.mock("@google/genai", () => ({
 
 jest.mock("openai", () => ({
   __esModule: true,
-  default: jest.fn().mockImplementation(() => ({
-    chat: { completions: { create: mockOpenAIChatCreate } },
-    responses: { create: mockOpenAIResponsesCreate },
+  default: jest.fn().mockImplementation(({ apiKey }: { apiKey: string }) => ({
+    chat: {
+      completions: {
+        create: (...args: unknown[]) => {
+          mockOpenAIKeyUsed(apiKey);
+          return mockOpenAIChatCreate(...args);
+        },
+      },
+    },
+    responses: {
+      create: (...args: unknown[]) => {
+        mockOpenAIKeyUsed(apiKey);
+        return mockOpenAIResponsesCreate(...args);
+      },
+    },
   })),
 }));
 
 jest.mock("@anthropic-ai/sdk", () => ({
   __esModule: true,
-  default: jest.fn().mockImplementation(() => ({
-    messages: { create: mockAnthropicMessagesCreate },
+  default: jest.fn().mockImplementation(({ apiKey }: { apiKey: string }) => ({
+    messages: {
+      create: (...args: unknown[]) => {
+        mockAnthropicKeyUsed(apiKey);
+        return mockAnthropicMessagesCreate(...args);
+      },
+    },
   })),
 }));
 
@@ -79,15 +106,16 @@ const allKeysConfig: Record<string, string | undefined> = {
 
 function makeService(
   config: Record<string, string | undefined> = allKeysConfig,
+  userKeys: UserAiKeys = {},
 ) {
   const configService = {
     get: jest.fn((key: string) => config[key]),
   } as unknown as ConfigService;
 
-  const usersService = {
-    findOneWithApiKey: jest.fn().mockResolvedValue(null),
-    findOneWithAnthropicKey: jest.fn().mockResolvedValue(null),
-  } as unknown as UsersService;
+  const userAiKeys = {
+    findKeys: jest.fn().mockResolvedValue(userKeys),
+    markRejected: jest.fn().mockResolvedValue(undefined),
+  };
 
   const tokenUsageService = {
     logUsage: jest.fn().mockResolvedValue(undefined),
@@ -95,10 +123,10 @@ function makeService(
 
   const service = new LLMCoreService(
     configService,
-    usersService,
+    userAiKeys as unknown as UserAiKeysService,
     tokenUsageService,
   );
-  return { service, tokenUsageService, usersService };
+  return { service, tokenUsageService, userAiKeys };
 }
 
 const baseRequest: LLMRequest = { prompt: "Hello" };
@@ -158,6 +186,8 @@ describe("LLMCoreService", () => {
     mockOpenAIChatCreate.mockReset();
     mockOpenAIResponsesCreate.mockReset();
     mockAnthropicMessagesCreate.mockReset();
+    mockOpenAIKeyUsed.mockReset();
+    mockAnthropicKeyUsed.mockReset();
     mockBedrockSend.mockReset();
     bedrockConverseCommand.mockClear();
     mockSpawn.mockReset();
@@ -615,16 +645,16 @@ describe("LLMCoreService", () => {
       );
     });
 
-    it("surfaces 401 as UnauthorizedException without falling back to another provider", async () => {
+    it("surfaces a refused system key without a 401 (which would log the user out) and without retrying", async () => {
       const authError = Object.assign(new Error("unauthorized"), {
         status: 401,
       });
       mockAnthropicMessagesCreate.mockRejectedValue(authError);
       const { service } = makeService();
 
-      await expect(
-        service.generateText(baseRequest, LLMProvider.ANTHROPIC),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      const failure = service.generateText(baseRequest, LLMProvider.ANTHROPIC);
+      await expect(failure).rejects.toBe(authError);
+      await expect(failure).rejects.not.toBeInstanceOf(UnauthorizedException);
 
       // 401 is permanent — retrying can never fix it, so the upstream call
       // fires exactly once before bubbling up.
@@ -1205,6 +1235,366 @@ describe("LLMCoreService", () => {
         LLMProvider.GEMINI,
         LLMProvider.CLAUDE_CLI,
       ]);
+    });
+  });
+
+  /**
+   * "Use your own AI account": every AI entry point on LLMCoreService must run
+   * on the user's own keys once they saved a generative (OpenAI/Anthropic)
+   * key, and never fall back to BearlyMail's.
+   */
+  describe("own AI account routing", () => {
+    const USER_ID = "user-own-ai";
+    const USER_OPENAI_KEY = "sk-user-openai";
+    const USER_ANTHROPIC_KEY = "sk-ant-user";
+    const USER_JEV_KEY = "user-typesafe-key";
+    const SYSTEM_JEV_KEY = "system-typesafe-key";
+    // A non-reasoning model keeps OpenAI on the chat completions mock.
+    const ownAccountConfig = { ...allKeysConfig, OPENAI_MODEL: "gpt-4o-mini" };
+    const configWithJev = {
+      ...ownAccountConfig,
+      [JEV.API_KEY_ENV]: SYSTEM_JEV_KEY,
+    };
+    const openAiAnswer = (content: string) => ({
+      choices: [{ message: { content } }],
+      usage: undefined,
+    });
+    const anthropicAnswer = (text: string) => ({
+      content: [{ type: "text", text }],
+      usage: undefined,
+    });
+    const authError = () =>
+      Object.assign(new Error("invalid x-api-key"), { status: 401 });
+    const decisionRequest: LLMRequest = {
+      prompt: "CONDITION: invoice\nBODY: Please pay invoice 104.",
+      jsonMode: true,
+      jevDecision: { kind: JEV_DECISION_KINDS.WORKFLOW_CONDITION, input: {} },
+    };
+    const jevAuthorization = (fetchMock: jest.SpyInstance) =>
+      (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
+        string,
+        string
+      >;
+    const categoriseParams: CategoriseFromSummaryParams = {
+      subject: "QA done",
+      summary: "The fix passed QA",
+      userId: USER_ID,
+      categories: [{ name: "QA passed", description: "Verified fixes" }],
+    };
+
+    afterEach(() => jest.mocked(global.fetch).mockRestore?.());
+
+    describe("generateText (summaries, categorisation, prioritisation, drafts, workers and the prioritisation Lambda)", () => {
+      it("runs a requested OpenAI call on the user's OpenAI key, keeping the requested model", async () => {
+        mockOpenAIChatCreate.mockResolvedValue(openAiAnswer("ok"));
+        const { service } = makeService(ownAccountConfig, {
+          openai: USER_OPENAI_KEY,
+        });
+
+        await service.generateText(
+          { prompt: "p", model: "gpt-4o-mini" },
+          LLMProvider.OPENAI,
+          USER_ID,
+        );
+
+        expect(mockOpenAIKeyUsed).toHaveBeenCalledWith(USER_OPENAI_KEY);
+        expect(mockOpenAIChatCreate).toHaveBeenCalledWith(
+          expect.objectContaining({ model: "gpt-4o-mini" }),
+        );
+      });
+
+      it("moves a Gemini call onto the user's OpenAI key with OpenAI's default model", async () => {
+        mockOpenAIChatCreate.mockResolvedValue(openAiAnswer("ok"));
+        const { service } = makeService(ownAccountConfig, {
+          openai: USER_OPENAI_KEY,
+        });
+
+        const out = await service.generateText(
+          { prompt: "p", model: "gemini-3.1-flash-lite", userId: USER_ID },
+          LLMProvider.GEMINI,
+        );
+
+        expect(out).toBe("ok");
+        expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+        expect(mockOpenAIKeyUsed).toHaveBeenCalledWith(USER_OPENAI_KEY);
+        expect(mockOpenAIChatCreate).toHaveBeenCalledWith(
+          expect.objectContaining({ model: "gpt-4o-mini" }),
+        );
+      });
+
+      it("moves the default-provider call (no provider named) onto the user's key", async () => {
+        mockAnthropicMessagesCreate.mockResolvedValue(anthropicAnswer("ok"));
+        const { service } = makeService(ownAccountConfig, {
+          anthropic: USER_ANTHROPIC_KEY,
+        });
+
+        await service.generateText({ prompt: "p" }, undefined, USER_ID);
+
+        expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+        expect(mockAnthropicKeyUsed).toHaveBeenCalledWith(USER_ANTHROPIC_KEY);
+      });
+
+      it("moves a Bedrock (priority scoring) call onto the user's Anthropic key", async () => {
+        mockAnthropicMessagesCreate.mockResolvedValue(anthropicAnswer("ok"));
+        const { service } = makeService(ownAccountConfig, {
+          anthropic: USER_ANTHROPIC_KEY,
+        });
+
+        const out = await service.generateText(
+          { prompt: "p", model: "amazon.nova-micro-v1:0" },
+          LLMProvider.BEDROCK,
+          USER_ID,
+        );
+
+        expect(out).toBe("ok");
+        expect(mockBedrockSend).not.toHaveBeenCalled();
+        expect(mockAnthropicKeyUsed).toHaveBeenCalledWith(USER_ANTHROPIC_KEY);
+        expect(mockAnthropicMessagesCreate).toHaveBeenCalledWith(
+          expect.objectContaining({ model: "claude-sonnet-4-6" }),
+        );
+      });
+
+      it("falls back only to the user's other key when one of their providers fails", async () => {
+        mockOpenAIChatCreate.mockRejectedValue(
+          Object.assign(new Error("bad request"), { status: 400 }),
+        );
+        mockAnthropicMessagesCreate.mockResolvedValue(anthropicAnswer("ok"));
+        const { service } = makeService(ownAccountConfig, {
+          openai: USER_OPENAI_KEY,
+          anthropic: USER_ANTHROPIC_KEY,
+        });
+
+        const out = await service.generateText(
+          baseRequest,
+          LLMProvider.OPENAI,
+          USER_ID,
+        );
+
+        expect(out).toBe("ok");
+        expect(mockOpenAIKeyUsed).not.toHaveBeenCalledWith("openai-key");
+        expect(mockAnthropicKeyUsed).toHaveBeenCalledWith(USER_ANTHROPIC_KEY);
+        expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      });
+
+      it("surfaces a refused user key as a 424, records it, and never falls back to BearlyMail's keys", async () => {
+        mockOpenAIChatCreate.mockRejectedValue(authError());
+        const { service, userAiKeys } = makeService(ownAccountConfig, {
+          openai: USER_OPENAI_KEY,
+        });
+
+        const failure = service.generateText(
+          baseRequest,
+          LLMProvider.GEMINI,
+          USER_ID,
+        );
+
+        await expect(failure).rejects.toBeInstanceOf(
+          UserAiKeyRejectedException,
+        );
+        const rejection = await failure.catch(
+          (error: UserAiKeyRejectedException) => error,
+        );
+        expect(rejection.getStatus()).toBe(HttpStatus.FAILED_DEPENDENCY);
+        expect(rejection.getResponse()).toEqual(
+          expect.objectContaining({
+            code: USER_AI_KEY_REJECTED_CODE,
+            provider: USER_AI_PROVIDERS.OPENAI,
+          }),
+        );
+        expect(userAiKeys.markRejected).toHaveBeenCalledWith(
+          USER_ID,
+          USER_AI_PROVIDERS.OPENAI,
+        );
+        expect(mockOpenAIKeyUsed).not.toHaveBeenCalledWith("openai-key");
+        expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+        expect(mockAnthropicMessagesCreate).not.toHaveBeenCalled();
+      });
+
+      it("keeps generation on BearlyMail's providers for a user with only a TypeSafe key", async () => {
+        mockGeminiGenerateContent.mockResolvedValue({
+          text: "gemini",
+          usageMetadata: undefined,
+        });
+        const { service } = makeService(ownAccountConfig, {
+          typesafe: USER_JEV_KEY,
+        });
+
+        const out = await service.generateText(
+          baseRequest,
+          LLMProvider.GEMINI,
+          USER_ID,
+        );
+
+        expect(out).toBe("gemini");
+      });
+
+      it("uses BearlyMail's keys for a user without their own keys", async () => {
+        mockOpenAIChatCreate.mockResolvedValue(openAiAnswer("ok"));
+        const { service, userAiKeys } = makeService(ownAccountConfig);
+
+        await service.generateText(baseRequest, LLMProvider.OPENAI, USER_ID);
+
+        expect(userAiKeys.findKeys).toHaveBeenCalledWith(USER_ID);
+        expect(mockOpenAIKeyUsed).toHaveBeenCalledWith("openai-key");
+      });
+    });
+
+    describe("Jev decisions (generateText)", () => {
+      it("skips BearlyMail's TypeSafe key for a user on their own account without one", async () => {
+        const fetchMock = jest.spyOn(global, "fetch");
+        mockOpenAIChatCreate.mockResolvedValue(
+          openAiAnswer('{"matches":false}'),
+        );
+        const { service } = makeService(configWithJev, {
+          openai: USER_OPENAI_KEY,
+        });
+
+        const out = await service.generateText(
+          decisionRequest,
+          LLMProvider.GEMINI,
+          USER_ID,
+        );
+
+        expect(out).toBe('{"matches":false}');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockOpenAIKeyUsed).toHaveBeenCalledWith(USER_OPENAI_KEY);
+      });
+
+      it("asks Jev with the user's own TypeSafe key", async () => {
+        const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              model: JEV.DEFAULT_MODEL,
+              answers: { matches: { type: "noul", noul: 0.99 } },
+              usage: { input_tokens: 10, output_tokens: 1 },
+            }),
+          ),
+        );
+        const { service } = makeService(configWithJev, {
+          openai: USER_OPENAI_KEY,
+          typesafe: USER_JEV_KEY,
+        });
+
+        const out = await service.generateText(
+          decisionRequest,
+          LLMProvider.GEMINI,
+          USER_ID,
+        );
+
+        expect(out).toBe('{"matches":true}');
+        expect(jevAuthorization(fetchMock).Authorization).toBe(
+          `Bearer ${USER_JEV_KEY}`,
+        );
+      });
+
+      it("records a refused TypeSafe key and answers with the user's LLM instead", async () => {
+        jest
+          .spyOn(global, "fetch")
+          .mockResolvedValue(new Response("", { status: 401 }));
+        mockOpenAIChatCreate.mockResolvedValue(
+          openAiAnswer('{"matches":true}'),
+        );
+        const { service, userAiKeys } = makeService(configWithJev, {
+          openai: USER_OPENAI_KEY,
+          typesafe: USER_JEV_KEY,
+        });
+
+        await service.generateText(
+          decisionRequest,
+          LLMProvider.GEMINI,
+          USER_ID,
+        );
+
+        expect(userAiKeys.markRejected).toHaveBeenCalledWith(
+          USER_ID,
+          USER_AI_PROVIDERS.TYPESAFE,
+        );
+        expect(mockOpenAIKeyUsed).toHaveBeenCalledWith(USER_OPENAI_KEY);
+      });
+    });
+
+    describe("categoriseWithJev (category selection)", () => {
+      it("does not call Jev for a user on their own account without a TypeSafe key", async () => {
+        const fetchMock = jest.spyOn(global, "fetch");
+        const { service } = makeService(configWithJev, {
+          anthropic: USER_ANTHROPIC_KEY,
+        });
+
+        expect(await service.categoriseWithJev(categoriseParams)).toBeNull();
+        expect(fetchMock).not.toHaveBeenCalled();
+      });
+
+      it("calls Jev with the user's TypeSafe key", async () => {
+        const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              model: JEV.DEFAULT_MODEL,
+              answers: {
+                category: {
+                  type: "choice",
+                  choice: "1",
+                  confidence: 1,
+                  probabilities: { "0": 0, "1": 1 },
+                },
+              },
+              usage: { input_tokens: 10, output_tokens: 1 },
+            }),
+          ),
+        );
+        const { service } = makeService(configWithJev, {
+          typesafe: USER_JEV_KEY,
+        });
+
+        const result = await service.categoriseWithJev(categoriseParams);
+
+        expect(result?.categoryName).toBe("QA passed");
+        expect(jevAuthorization(fetchMock).Authorization).toBe(
+          `Bearer ${USER_JEV_KEY}`,
+        );
+      });
+    });
+
+    describe("chatWithTools (Ask AI)", () => {
+      const toolParams = {
+        messages: [{ role: "user" as const, content: "find invoices" }],
+        userId: USER_ID,
+      };
+
+      it("runs tool steps on the user's OpenAI key", async () => {
+        mockOpenAIChatCreate.mockResolvedValue(openAiAnswer("done"));
+        const { service } = makeService(ownAccountConfig, {
+          openai: USER_OPENAI_KEY,
+        });
+
+        const message = await service.chatWithTools(toolParams);
+
+        expect(message.content).toBe("done");
+        expect(mockOpenAIKeyUsed).toHaveBeenCalledWith(USER_OPENAI_KEY);
+      });
+
+      it("runs tool steps on the user's Anthropic key when that is their only provider", async () => {
+        mockAnthropicMessagesCreate.mockResolvedValue(anthropicAnswer("done"));
+        const { service } = makeService(ownAccountConfig, {
+          anthropic: USER_ANTHROPIC_KEY,
+        });
+
+        await service.chatWithTools(toolParams);
+
+        expect(mockOpenAIChatCreate).not.toHaveBeenCalled();
+        expect(mockAnthropicKeyUsed).toHaveBeenCalledWith(USER_ANTHROPIC_KEY);
+      });
+
+      it("surfaces a refused key instead of trying BearlyMail's Anthropic key", async () => {
+        mockOpenAIChatCreate.mockRejectedValue(authError());
+        const { service } = makeService(ownAccountConfig, {
+          openai: USER_OPENAI_KEY,
+        });
+
+        await expect(service.chatWithTools(toolParams)).rejects.toBeInstanceOf(
+          UserAiKeyRejectedException,
+        );
+        expect(mockAnthropicMessagesCreate).not.toHaveBeenCalled();
+      });
     });
   });
 });

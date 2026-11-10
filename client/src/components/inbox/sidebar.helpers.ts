@@ -5,7 +5,7 @@
 import { NavigateFunction } from 'react-router-dom';
 
 import { OPEN_TRACKING_SETTINGS_ANCHOR } from 'constants/openTracking';
-import { settingsAnchorPath } from 'constants/settingsAnchors';
+import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 
 export interface SettingsSubNavItem {
   id: string;
@@ -110,8 +110,11 @@ export function getSettingsNavItems(
         { id: 'connected-apps', label: translate('settings.nav.connectedApps'), anchor: 'connected-apps' },
         { id: 'workflows', label: translate('settings.nav.workflows'), anchor: 'workflows' },
         { id: 'github-integration', label: translate('settings.nav.githubIntegration'), anchor: 'github-integration' },
-        { id: 'api-key', label: translate('settings.nav.openAiApiKey'), anchor: 'api-key' },
-        { id: 'anthropic-api-key', label: translate('settings.nav.anthropicApiKey'), anchor: 'anthropic-api-key' },
+        {
+          id: SETTINGS_ANCHORS.OWN_AI_ACCOUNT,
+          label: translate('settings.nav.ownAiAccount'),
+          anchor: SETTINGS_ANCHORS.OWN_AI_ACCOUNT,
+        },
       ],
     },
     {

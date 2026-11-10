@@ -2,9 +2,12 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 
+import { USER_AI_PROVIDERS } from "../constants/user-ai-providers.constants";
 import { LLMProvider } from "./llm.types";
 import { LLM_OP_CATEGORY_EMBEDDING, LLMOperation } from "./llm-operations";
 import { TokenUsageService } from "./token-usage.service";
+import { UserAiKeysService } from "./user-ai-keys.service";
+import { usesOwnAiAccount } from "./user-ai-routing";
 
 /** Default embedding model. Override via EMBEDDING_MODEL env var. */
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
@@ -14,8 +17,18 @@ export interface EmbedOptions {
   cache?: boolean;
   /** Operation label for token-usage tracking. */
   operation?: LLMOperation;
-  userId?: string | null;
 }
+
+/**
+ * No embeddings provider may be used for this user: BearlyMail has no OpenAI
+ * key, or the user is on their own AI account without one. Callers fall back
+ * to working without embeddings.
+ */
+export class EmbeddingsUnavailableError extends Error {}
+
+const OWN_ACCOUNT_WITHOUT_EMBEDDINGS =
+  "Embeddings skipped: the user's own AI account has no OpenAI key, and their email text must not go to BearlyMail's";
+const SYSTEM_KEY_MISSING = "Embeddings unavailable: OPENAI_API_KEY not set";
 
 /**
  * EmbeddingService — produces vector embeddings via OpenAI's embeddings API.
@@ -24,6 +37,11 @@ export interface EmbedOptions {
  * similarity. Category embeddings rarely change, so they are cached in-memory
  * (keyed by model + text). The cache is process-local and repopulated lazily
  * after a restart — no persistence by design.
+ *
+ * Embeddings are made for one user's email, so they follow that user's AI
+ * routing: their own OpenAI key when they saved one; when they are on their
+ * own AI account without one (Anthropic and TypeSafe have no embeddings API)
+ * embedding is skipped and the caller uses the unranked category list.
  */
 @Injectable()
 export class EmbeddingService {
@@ -35,6 +53,7 @@ export class EmbeddingService {
   constructor(
     private readonly configService: ConfigService,
     private readonly tokenUsageService: TokenUsageService,
+    private readonly userAiKeys: UserAiKeysService,
   ) {
     this.model =
       this.configService.get<string>("EMBEDDING_MODEL") ??
@@ -50,11 +69,6 @@ export class EmbeddingService {
     }
   }
 
-  /** Whether the embedding API is usable (system OpenAI key configured). */
-  isAvailable(): boolean {
-    return this.client !== null;
-  }
-
   private cacheKey(text: string): string {
     return `${this.model}:${text}`;
   }
@@ -68,14 +82,13 @@ export class EmbeddingService {
    */
   async embed(
     texts: string[],
+    userId: string | undefined,
     options: EmbedOptions = {},
   ): Promise<number[][]> {
-    if (!this.client) {
-      throw new Error("Embeddings unavailable: OPENAI_API_KEY not set");
-    }
     if (texts.length === 0) {
       return [];
     }
+    const client = await this.resolveClient(userId);
 
     const useCache = options.cache ?? false;
     const results: Array<number[] | undefined> = new Array(texts.length);
@@ -94,7 +107,7 @@ export class EmbeddingService {
 
     if (misses.length > 0) {
       const startTime = Date.now();
-      const response = await this.client.embeddings.create({
+      const response = await client.embeddings.create({
         model: this.model,
         input: misses.map((miss) => miss.text),
       });
@@ -113,7 +126,7 @@ export class EmbeddingService {
 
       const promptTokens = response.usage?.prompt_tokens ?? 0;
       await this.tokenUsageService.logUsage({
-        userId: options.userId ?? null,
+        userId: userId ?? null,
         operation: options.operation ?? LLM_OP_CATEGORY_EMBEDDING,
         provider: LLMProvider.OPENAI,
         model: this.model,
@@ -125,6 +138,17 @@ export class EmbeddingService {
     }
 
     return results as number[][];
+  }
+
+  private async resolveClient(userId: string | undefined): Promise<OpenAI> {
+    const keys = userId ? await this.userAiKeys.findKeys(userId) : {};
+    const userOpenAiKey = keys[USER_AI_PROVIDERS.OPENAI];
+    if (userOpenAiKey) return new OpenAI({ apiKey: userOpenAiKey });
+    if (usesOwnAiAccount(keys)) {
+      throw new EmbeddingsUnavailableError(OWN_ACCOUNT_WITHOUT_EMBEDDINGS);
+    }
+    if (!this.client) throw new EmbeddingsUnavailableError(SYSTEM_KEY_MISSING);
+    return this.client;
   }
 }
 

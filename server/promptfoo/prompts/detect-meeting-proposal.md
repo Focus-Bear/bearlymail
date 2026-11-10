@@ -78,8 +78,10 @@ DO NOT do any timezone math yourself. NEVER convert to UTC. Output the wall-cloc
     - BST → "UTC+1"
     - CET → "UTC+1"; CEST → "UTC+2"
     - IST (India) → "UTC+5:30"
+    - AWST → "UTC+8"; ACST → "UTC+9:30"; ACDT → "UTC+10:30"
     - AEST → "UTC+10"; AEDT → "UTC+11"
     - NZST → "UTC+12"; NZDT → "UTC+13"
+  - If the email names a city, state or region as the timezone instead of an abbreviation (e.g. "11.30am (Fremantle time)", "2pm Sydney time", "10am WA time"), output that place's IANA timezone name — e.g. Fremantle / Perth / WA → "Australia/Perth", Sydney / Canberra → "Australia/Sydney", Melbourne → "Australia/Melbourne", Brisbane → "Australia/Brisbane", Adelaide → "Australia/Adelaide", Auckland → "Pacific/Auckland", London → "Europe/London". Never fall back to the recipient's timezone when the sender named a place.
   - When the timezone is ambiguous (e.g. "Eastern" without country context and the email is from North America), default to US Eastern Time.
   - **If no timezone is mentioned in the email, output the recipient's IANA timezone exactly: "{{userTimezone}}".** Do not output "UTC" in this case.
 - If the meeting duration is not mentioned, set durationMinutes to null.

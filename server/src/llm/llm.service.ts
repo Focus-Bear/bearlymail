@@ -21,6 +21,7 @@ import {
 import { LLMMiscService } from "./llm-misc.service";
 import { LLMOperation } from "./llm-operations";
 import {
+  type DetectedMeetingProposal,
   LLMReplyService,
   type ReplyOptionsUserContext,
 } from "./llm-reply.service";
@@ -679,16 +680,7 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
     userTimezone?: string,
-  ): Promise<{
-    hasProposal: boolean;
-    bookingInvited: boolean;
-    proposedTime: string | null;
-    windowEnd: string | null;
-    proposedDate: string | null;
-    proposedTimeText: string | null;
-    topic: string | null;
-    durationMinutes: number | null;
-  }> {
+  ): Promise<DetectedMeetingProposal> {
     return this.llmReplyService.detectMeetingProposal(
       email,
       provider,

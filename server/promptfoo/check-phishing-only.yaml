@@ -41,6 +41,12 @@ tests:
           - "verify account/identity"
           - "urgency language"
         rawScore: 8
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -90,6 +96,12 @@ tests:
           - "account suspended/locked"
           - "click to verify/update"
         rawScore: 9
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -128,6 +140,12 @@ tests:
         linkedDomains: []
         suspiciousKeywords: []
         rawScore: 0
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -174,6 +192,12 @@ tests:
           - "focusbear.us1.list-manage.com"
         suspiciousKeywords: []
         rawScore: 3
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -217,6 +241,12 @@ tests:
         suspiciousKeywords:
           - "urgency language"
         rawScore: 1
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |

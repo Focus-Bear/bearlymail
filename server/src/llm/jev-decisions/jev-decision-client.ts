@@ -15,6 +15,7 @@ import { requestJev } from "../jev-system-one";
 import type { LLMRequest } from "../llm.types";
 import { LLM_OP_UNKNOWN } from "../llm-operations";
 import { reportProvider } from "../provider-report.util";
+import { isAuthFailure, type JevCredentials } from "../user-ai-routing";
 import { jevAnswerConfidence } from "./jev-answer.helpers";
 import { JEV_DECISION_REGISTRY } from "./jev-decision.registry";
 import type {
@@ -77,11 +78,18 @@ export class JevDecisionClient {
     private readonly tokenUsage: TokenUsageSink,
   ) {}
 
-  async decide(request: LLMRequest, userId?: string): Promise<string | null> {
+  /**
+   * `credentials` is the TypeSafe key this call may use (the user's own or
+   * BearlyMail's — see selectJevCredentials); null skips Jev.
+   */
+  async decide(
+    request: LLMRequest,
+    userId: string | undefined,
+    credentials: JevCredentials | null,
+  ): Promise<string | null> {
     const decision = request.jevDecision;
-    const apiKey = this.getConfig(JEV.API_KEY_ENV);
-    if (!decision || !apiKey || !isJevDecisionsAvailable(this.getConfig))
-      return null;
+    if (!decision || !credentials || !this.isEnabled()) return null;
+    const { apiKey } = credentials;
     try {
       const definition = this.definitionFor(decision);
       const response = await this.ask(
@@ -103,13 +111,20 @@ export class JevDecisionClient {
       }
       const output = JSON.stringify(outcome.output);
       return reportProvider(request, JEV_DECISION_PROVIDER, output);
-    } catch {
+    } catch (error) {
+      if (isAuthFailure(error)) credentials.onRejected?.();
       // Vendor errors may contain email data; keep fallback logs content-free.
       this.logger.warn(
         `Jev ${decision.kind} decision unavailable; using the LLM fallback`,
       );
       return null;
     }
+  }
+
+  private isEnabled(): boolean {
+    return (
+      this.getConfig(JEV_DECISIONS.ENABLED_ENV) !== ENV_BOOLEAN_STRING.FALSE
+    );
   }
 
   // The registry is keyed by kind, so the definition always matches its input.

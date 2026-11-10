@@ -10,6 +10,7 @@ import {
 
 import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.types";
 import { GmailAccessIssue } from "../../constants/domain-statuses";
+import type { UserAiProvider } from "../../constants/user-ai-providers.constants";
 import {
   makeGlobalEmailTransformer,
   makeGlobalEncryptedColumnTransformer,
@@ -223,6 +224,23 @@ export class User {
       "Anthropic API key (encrypted) - allows users to use their own key (sk-ant-api03-* or sk-ant-oat-* OAuth token)",
   })
   anthropicApiKey: string;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    transformer: makeGlobalEncryptedColumnTransformer("users.typesafeApiKey"),
+    comment:
+      "TypeSafe AI (Jev) API key (encrypted) - Jev decisions run on the user's own account",
+  })
+  typesafeApiKey: string | null;
+
+  @Column({
+    type: "jsonb",
+    nullable: true,
+    comment:
+      "When each AI provider last rejected the user's own key (provider id -> ISO time); cleared when the key is replaced",
+  })
+  aiKeyRejections: Partial<Record<UserAiProvider, string>> | null;
 
   @Column({
     nullable: true,

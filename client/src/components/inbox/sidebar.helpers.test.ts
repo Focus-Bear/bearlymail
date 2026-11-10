@@ -1,3 +1,5 @@
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
+
 import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup } from './sidebar.helpers';
 
 const translateMock = (key: string): string => key;
@@ -62,11 +64,12 @@ describe('getSettingsNavItems', () => {
     expect(group.items).toHaveLength(6);
   });
 
-  it('returns 6 items in the Integrations & Apps group, Focus Bear among them', () => {
+  it('returns 5 items in the Integrations & Apps group, with one entry for the own-AI-account keys and one for Focus Bear', () => {
     const items = getSettingsNavItems(translateMock);
     const group = items[4] as SettingsSubNavGroup;
-    expect(group.items).toHaveLength(6);
-    expect(group.items.map(item => item.anchor)).toContain('focus-bear');
+    expect(group.items).toHaveLength(5);
+    expect(group.items.map(item => item.anchor)).toContain(SETTINGS_ANCHORS.OWN_AI_ACCOUNT);
+    expect(group.items.map(item => item.anchor)).toContain(SETTINGS_ANCHORS.FOCUS_BEAR);
   });
 
   it('returns 3 items in the Team & Plan group', () => {

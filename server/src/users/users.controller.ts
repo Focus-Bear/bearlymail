@@ -18,6 +18,7 @@ import * as path from "path";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { findMissingGooglePermissionGroups } from "../constants/google-oauth-scopes";
+import { USER_AI_PROVIDER_DESCRIPTORS } from "../constants/user-ai-providers.constants";
 import { User } from "../database/entities/user.entity";
 import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
@@ -99,17 +100,9 @@ export class UsersController {
   async getProfile(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
     decryptUserEntityForApi(user);
-    // Never return the raw Anthropic key or Focus Bear token — expose presence only.
-    const {
-      password: _password,
-      anthropicApiKey: _anthropicApiKey,
-      focusBearApiToken: _focusBearApiToken,
-      ...result
-    } = user;
+    const { password: _password, ...result } = withoutUserSecrets(user);
     return {
       ...result,
-      hasAnthropicKey: !!user.anthropicApiKey,
-      hasFocusBearToken: !!user.focusBearApiToken,
       gmailAccessIssue: resolveGmailAccessIssue(user),
       missingGooglePermissions: findMissingGooglePermissionGroups(
         user.googleGrantedScopes,
@@ -119,24 +112,14 @@ export class UsersController {
 
   @Put("me")
   async updateProfile(@Request() req, @Body() updates: Partial<User>) {
-    // The Anthropic key and Focus Bear token must only be set via their own endpoints
-    // (POST /llm/me/anthropic-key, PUT /focus-bear/connection), which validate them.
-    // Strip them here so PUT /users/me cannot bypass that validation.
-    const {
-      anthropicApiKey: _stripped,
-      focusBearApiToken: _strippedFocusBearToken,
-      ...safeUpdates
-    } = updates as Record<string, unknown> & {
-      anthropicApiKey?: unknown;
-      focusBearApiToken?: unknown;
-    };
+    // AI keys and the Focus Bear token are only set via their own endpoints, which
+    // validate them, so PUT /users/me cannot write them — nor ever return them.
     const updated = await this.usersService.update(
       req.user.userId,
-      safeUpdates as Partial<User>,
+      withoutUserSecrets(updates),
     );
     decryptUserEntityForApi(updated);
-    const { focusBearApiToken: _focusBearApiToken, ...result } = updated;
-    return result;
+    return withoutUserSecrets(updated);
   }
 
   @Post("accept-consent")
@@ -202,4 +185,24 @@ export class UsersController {
 
     return result;
   }
+}
+
+const FOCUS_BEAR_TOKEN_FIELD: keyof User = "focusBearApiToken";
+
+const USER_SECRET_FIELDS: ReadonlySet<string> = new Set([
+  ...USER_AI_PROVIDER_DESCRIPTORS.map(({ column }) => column),
+  "aiKeyRejections",
+  FOCUS_BEAR_TOKEN_FIELD,
+]);
+
+/**
+ * The user's own AI keys and Focus Bear token never travel to the client, in
+ * either direction: Settings reads masked AI keys from GET /llm/me/ai-keys and
+ * the Focus Bear connection from GET /focus-bear/connection instead, and each is
+ * set only through its own validating endpoint.
+ */
+function withoutUserSecrets(user: Partial<User>): Partial<User> {
+  return Object.fromEntries(
+    Object.entries(user).filter(([field]) => !USER_SECRET_FIELDS.has(field)),
+  ) as Partial<User>;
 }

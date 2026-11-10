@@ -30,16 +30,20 @@ describe("JevDecisionClient", () => {
   const respondWith = (body: unknown) =>
     fetchMock.mockResolvedValue(new Response(JSON.stringify(body)));
 
+  const CREDENTIALS = { apiKey: API_KEY };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    config = { [JEV.API_KEY_ENV]: API_KEY };
+    config = {};
     fetchMock = jest.spyOn(global, "fetch");
   });
   afterEach(() => jest.restoreAllMocks());
 
   it("returns the caller's JSON contract when Jev is confident", async () => {
     respondWith(jevResponse(0.99));
-    expect(await client.decide(REQUEST, "user-1")).toBe('{"matches":true}');
+    expect(await client.decide(REQUEST, "user-1", CREDENTIALS)).toBe(
+      '{"matches":true}',
+    );
     expect(usage.logUsage).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
@@ -55,7 +59,7 @@ describe("JevDecisionClient", () => {
 
   it("sends the policy once in state rather than in every question", async () => {
     respondWith(jevResponse(0.01));
-    await client.decide(REQUEST);
+    await client.decide(REQUEST, undefined, CREDENTIALS);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(body.state.policyAndInput).toBe(
       `${REQUEST.systemPrompt}\n\n${REQUEST.prompt}`,
@@ -68,7 +72,7 @@ describe("JevDecisionClient", () => {
 
   it("falls back when an answer is below the confidence threshold", async () => {
     respondWith(jevResponse(0.6));
-    expect(await client.decide(REQUEST)).toBeNull();
+    expect(await client.decide(REQUEST, undefined, CREDENTIALS)).toBeNull();
     expect(logger.log).toHaveBeenCalledWith(
       "[JEV-CONFIDENCE] decision=evaluate-workflow-condition outcome=below_threshold confidence=0.20 threshold=0.80",
     );
@@ -88,10 +92,17 @@ describe("JevDecisionClient", () => {
       usage: { input_tokens: 1, output_tokens: 1 },
     });
     expect(
-      await client.decide({
-        ...REQUEST,
-        jevDecision: { kind: JEV_DECISION_KINDS.PHISHING_CLEARANCE, input: {} },
-      }),
+      await client.decide(
+        {
+          ...REQUEST,
+          jevDecision: {
+            kind: JEV_DECISION_KINDS.PHISHING_CLEARANCE,
+            input: {},
+          },
+        },
+        undefined,
+        CREDENTIALS,
+      ),
     ).toBeNull();
     expect(logger.log).toHaveBeenCalledWith(
       expect.stringContaining(
@@ -101,22 +112,43 @@ describe("JevDecisionClient", () => {
   });
 
   it.each([
-    ["the request has no decision", { ...REQUEST, jevDecision: undefined }, {}],
-    ["no API key is configured", REQUEST, { [JEV.API_KEY_ENV]: undefined }],
+    [
+      "the request has no decision",
+      { ...REQUEST, jevDecision: undefined },
+      {},
+      CREDENTIALS,
+    ],
+    ["no credentials may be used", REQUEST, {}, null],
     [
       "decisions are disabled",
       REQUEST,
       { [JEV_DECISIONS.ENABLED_ENV]: ENV_BOOLEAN_STRING.FALSE },
+      CREDENTIALS,
     ],
-  ])("makes no request when %s", async (_case, request, overrides) => {
-    config = { ...config, ...overrides };
-    expect(await client.decide(request)).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
+  ])(
+    "makes no request when %s",
+    async (_case, request, overrides, credentials) => {
+      config = { ...config, ...overrides };
+      expect(await client.decide(request, undefined, credentials)).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reports a refused key and falls back", async () => {
+    fetchMock.mockResolvedValue(new Response("", { status: 403 }));
+    const onRejected = jest.fn();
+    expect(
+      await client.decide(REQUEST, "user-1", {
+        apiKey: "user-jev-key",
+        onRejected,
+      }),
+    ).toBeNull();
+    expect(onRejected).toHaveBeenCalledTimes(1);
   });
 
   it("falls back with a content-free warning when Jev fails", async () => {
     fetchMock.mockRejectedValue(new Error("Please pay invoice 104"));
-    expect(await client.decide(REQUEST)).toBeNull();
+    expect(await client.decide(REQUEST, undefined, CREDENTIALS)).toBeNull();
     expect(logger.warn).toHaveBeenCalledWith(
       expect.not.stringContaining("invoice"),
     );

@@ -17,6 +17,9 @@ const renderModal = (overrides: Partial<React.ComponentProps<typeof TourModalCon
     tourSteps: steps,
     isLastStep: false,
     isFirstStep: false,
+    isSkipPromptVisible: false,
+    onRequestSkip: vi.fn(),
+    onCancelSkip: vi.fn(),
     onSkipTour: vi.fn(),
     onNextTourStep: vi.fn(),
     onPrevTourStep: vi.fn(),
@@ -43,5 +46,48 @@ describe('TourModalContent Back button (#299)', () => {
     const props = renderModal({ tourStep: 1, isFirstStep: false });
     fireEvent.click(screen.getByText(NEXT_LABEL));
     expect(props.onNextTourStep).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TourModalContent Next lock', () => {
+  it('greys out Next and ignores clicks while locked, but keeps it focusable', () => {
+    const props = renderModal({ isNextLocked: true });
+    const next = screen.getByRole('button', { name: NEXT_LABEL });
+
+    fireEvent.click(next);
+
+    expect(props.onNextTourStep).not.toHaveBeenCalled();
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    expect(next).not.toBeDisabled();
+    expect(next).toHaveFocus();
+  });
+});
+
+describe('TourModalContent Skip (hold to skip)', () => {
+  const SKIP_LABEL = 'onboarding.tour.skip';
+  const SKIP_MESSAGE = 'onboarding.tourSkipPrompt.message';
+  const CONTINUE_LABEL = 'onboarding.tourSkipPrompt.continueTour';
+
+  it('asks for the skip prompt instead of skipping when Skip is clicked', () => {
+    const props = renderModal();
+    fireEvent.click(screen.getByText(SKIP_LABEL));
+    expect(props.onRequestSkip).toHaveBeenCalledTimes(1);
+    expect(props.onSkipTour).not.toHaveBeenCalled();
+  });
+
+  it('shows the recommendation and a hold-to-skip button in the prompt', () => {
+    renderModal({ isSkipPromptVisible: true });
+    expect(screen.getByText(SKIP_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'onboarding.tourSkipPrompt.ariaLabel' })).toHaveAccessibleDescription(
+      SKIP_MESSAGE
+    );
+    expect(screen.queryByText(SKIP_LABEL)).not.toBeInTheDocument();
+  });
+
+  it('closes the prompt with "Continue the tour"', () => {
+    const props = renderModal({ isSkipPromptVisible: true });
+    fireEvent.click(screen.getByText(CONTINUE_LABEL));
+    expect(props.onCancelSkip).toHaveBeenCalledTimes(1);
+    expect(props.onSkipTour).not.toHaveBeenCalled();
   });
 });

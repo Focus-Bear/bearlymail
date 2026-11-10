@@ -44,7 +44,7 @@ export interface InboxDataValue {
   lastUrgentCheck: InboxStateReturn['lastUrgentCheck'];
   selectedEmailIndex: InboxStateReturn['selectedEmailIndex'];
   selectedEmailIds: InboxStateReturn['selectedEmailIds'];
-  actionTabPulsing: InboxStateReturn['actionTabPulsing'];
+  actionMoveFeedback: InboxStateReturn['actionMoveFeedback'];
   expandedCategories: InboxStateReturn['expandedCategories'];
   stableCategoryOrder: InboxStateReturn['stableCategoryOrder'];
   user: InboxStateReturn['user'];
@@ -86,7 +86,6 @@ export interface InboxActionsValue {
   updateStableCategoryOrder: InboxStateReturn['updateStableCategoryOrder'];
   setSelectedEmailIndex: InboxStateReturn['setSelectedEmailIndex'];
   setSelectedEmailIds: InboxStateReturn['setSelectedEmailIds'];
-  setActionTabPulsing: InboxStateReturn['setActionTabPulsing'];
   fetchTabCounts: InboxStateReturn['fetchTabCounts'];
   updateLastUrgentCheck: InboxStateReturn['updateLastUrgentCheck'];
   logout: InboxStateReturn['logout'];

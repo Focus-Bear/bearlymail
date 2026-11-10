@@ -21,3 +21,19 @@ export type TourTarget = (typeof TOUR_TARGETS)[keyof typeof TOUR_TARGETS];
 export function tourTargetSelector(target: TourTarget): string {
   return `[data-tour="${target}"]`;
 }
+
+/**
+ * Skipping the tour takes a deliberate press-and-hold: BearlyMail works quite
+ * differently from other email clients, and people were skipping straight past
+ * the explanation.
+ */
+export const TOUR_SKIP_HOLD_DURATION_MS = 5_000;
+
+/**
+ * Next stays greyed out this long the first time each step shows, so the step
+ * gets a moment's read instead of being clicked straight past.
+ */
+export const TOUR_NEXT_STEP_DELAY_MS = 3_000;
+
+/** Marks the hold-to-skip button so the tour's Enter-to-advance shortcut leaves its key presses alone. */
+export const TOUR_HOLD_TO_SKIP_ATTRIBUTE = 'data-tour-hold-to-skip';

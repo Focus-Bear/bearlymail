@@ -111,8 +111,11 @@ export function getSettingsNavItems(
         { id: 'workflows', label: translate('settings.nav.workflows'), anchor: 'workflows' },
         { id: 'github-integration', label: translate('settings.nav.githubIntegration'), anchor: 'github-integration' },
         { id: 'focus-bear', label: translate('settings.nav.focusBear'), anchor: SETTINGS_ANCHORS.FOCUS_BEAR },
-        { id: 'api-key', label: translate('settings.nav.openAiApiKey'), anchor: 'api-key' },
-        { id: 'anthropic-api-key', label: translate('settings.nav.anthropicApiKey'), anchor: 'anthropic-api-key' },
+        {
+          id: SETTINGS_ANCHORS.OWN_AI_ACCOUNT,
+          label: translate('settings.nav.ownAiAccount'),
+          anchor: SETTINGS_ANCHORS.OWN_AI_ACCOUNT,
+        },
       ],
     },
     {

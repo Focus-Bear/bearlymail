@@ -2020,7 +2020,7 @@
       "checkingKey": "Checking key…",
       "replaceKey": "Replace key",
       "removeKey": "Remove key",
-      "getKey": "Get a {{provider}} key",
+      "getKey": "Get a key",
       "keyInputLabel": "{{provider}} API key",
       "confirmRemove": "Remove your {{provider}} key? If it's your only OpenAI or Anthropic key, AI goes back to running on BearlyMail's account.",
       "saveError": "Couldn't save the key. Please check it and try again.",

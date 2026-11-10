@@ -4988,7 +4988,7 @@
       "checkingKey": "Comprobando la clave…",
       "replaceKey": "Reemplazar clave",
       "removeKey": "Eliminar clave",
-      "getKey": "Obtener una clave de {{provider}}",
+      "getKey": "Obtener una clave",
       "keyInputLabel": "Clave API de {{provider}}",
       "confirmRemove": "¿Eliminar tu clave de {{provider}}? Si es tu única clave de OpenAI o Anthropic, la IA volverá a ejecutarse con la cuenta de BearlyMail.",
       "saveError": "No se pudo guardar la clave. Revísala e inténtalo de nuevo.",

@@ -116,7 +116,7 @@ export const AiProviderKeyRow: React.FC<AiProviderKeyRowProps> = ({ provider, st
             </button>
           )}
           <a href={provider.keyConsoleUrl} target="_blank" rel="noopener noreferrer" style={linkStyle}>
-            {t('settings.ownAiAccount.getKey', { provider: providerName })}
+            {t('settings.ownAiAccount.getKey')}
           </a>
         </div>
       )}

@@ -10,6 +10,10 @@ export const FOCUS_BEAR_TASK_PARAM = {
   NOTES: 'notes',
   LINK: 'link',
   SOURCE: 'source',
+  /** `YYYY-MM-DD`. */
+  DUE_DATE: 'due_date',
+  /** A Focus Bear project id. */
+  PROJECT_ID: 'project_id',
 } as const;
 
 export const FOCUS_BEAR_TASK_SOURCE_BEARLYMAIL = 'bearlymail';

@@ -376,6 +376,15 @@ export class UsersService {
       .getOne();
   }
 
+  /** Selects id + focusBearApiToken only, for the Focus Bear task suggestions. */
+  async findOneWithFocusBearToken(id: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder("user")
+      .select(["user.id", "user.focusBearApiToken"])
+      .where("user.id = :id", { id })
+      .getOne();
+  }
+
   /**
    * Fastest query - only checks if user exists.
    * Returns true if user exists, false otherwise.

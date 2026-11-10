@@ -62,10 +62,11 @@ describe('getSettingsNavItems', () => {
     expect(group.items).toHaveLength(6);
   });
 
-  it('returns 5 items in the Integrations & Apps group', () => {
+  it('returns 6 items in the Integrations & Apps group, Focus Bear among them', () => {
     const items = getSettingsNavItems(translateMock);
     const group = items[4] as SettingsSubNavGroup;
-    expect(group.items).toHaveLength(5);
+    expect(group.items).toHaveLength(6);
+    expect(group.items.map(item => item.anchor)).toContain('focus-bear');
   });
 
   it('returns 3 items in the Team & Plan group', () => {

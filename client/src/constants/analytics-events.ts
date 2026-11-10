@@ -76,6 +76,8 @@ export const ANALYTICS_EVENTS = {
   KEYWORD_UNBLOCKED: 'keyword_unblocked',
   OPENAI_API_KEY_REMOVED: 'openai_api_key_removed',
   ANTHROPIC_API_KEY_SAVED: 'anthropic_api_key_saved',
+  FOCUS_BEAR_CONNECTED: 'focus_bear_connected',
+  FOCUS_BEAR_DISCONNECTED: 'focus_bear_disconnected',
   ANTHROPIC_API_KEY_REMOVED: 'anthropic_api_key_removed',
   OPENAI_API_KEY_SAVED: 'openai_api_key_saved',
   PASSWORD_SETUP_COMPLETED: 'password_setup_completed',

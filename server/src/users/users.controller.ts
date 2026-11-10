@@ -99,15 +99,17 @@ export class UsersController {
   async getProfile(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
     decryptUserEntityForApi(user);
-    // Never return the raw Anthropic key — expose presence only.
+    // Never return the raw Anthropic key or Focus Bear token — expose presence only.
     const {
       password: _password,
       anthropicApiKey: _anthropicApiKey,
+      focusBearApiToken: _focusBearApiToken,
       ...result
     } = user;
     return {
       ...result,
       hasAnthropicKey: !!user.anthropicApiKey,
+      hasFocusBearToken: !!user.focusBearApiToken,
       gmailAccessIssue: resolveGmailAccessIssue(user),
       missingGooglePermissions: findMissingGooglePermissionGroups(
         user.googleGrantedScopes,
@@ -117,18 +119,24 @@ export class UsersController {
 
   @Put("me")
   async updateProfile(@Request() req, @Body() updates: Partial<User>) {
-    // Anthropic key must only be set via POST /llm/me/anthropic-key (validated + encrypted).
-    // Strip it here so PUT /users/me cannot bypass that validation.
-    const { anthropicApiKey: _stripped, ...safeUpdates } = updates as Record<
-      string,
-      unknown
-    > & { anthropicApiKey?: unknown };
+    // The Anthropic key and Focus Bear token must only be set via their own endpoints
+    // (POST /llm/me/anthropic-key, PUT /focus-bear/connection), which validate them.
+    // Strip them here so PUT /users/me cannot bypass that validation.
+    const {
+      anthropicApiKey: _stripped,
+      focusBearApiToken: _strippedFocusBearToken,
+      ...safeUpdates
+    } = updates as Record<string, unknown> & {
+      anthropicApiKey?: unknown;
+      focusBearApiToken?: unknown;
+    };
     const updated = await this.usersService.update(
       req.user.userId,
       safeUpdates as Partial<User>,
     );
     decryptUserEntityForApi(updated);
-    return updated;
+    const { focusBearApiToken: _focusBearApiToken, ...result } = updated;
+    return result;
   }
 
   @Post("accept-consent")

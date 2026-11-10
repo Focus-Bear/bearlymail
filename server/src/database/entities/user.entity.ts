@@ -234,6 +234,17 @@ export class User {
   @Column({
     type: "text",
     nullable: true,
+    transformer: makeGlobalEncryptedColumnTransformer(
+      "users.focusBearApiToken",
+    ),
+    comment:
+      "Focus Bear access token (encrypted, scope tasks:read) - for project and due-date suggestions on Save to Focus Bear",
+  })
+  focusBearApiToken: string | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
     comment:
       "Connected GitHub account's login (e.g. 'jeremynagel'). Used to match " +
       "the user against PR authors / requested reviewers when surfacing " +

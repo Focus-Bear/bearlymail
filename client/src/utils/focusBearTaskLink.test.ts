@@ -78,6 +78,40 @@ describe('buildFocusBearTaskLink', () => {
   });
 });
 
+describe('buildFocusBearTaskLink — project and due date', () => {
+  const PROJECT_ID = '9b2f7c1e-0000-4000-8000-0000000000aa';
+
+  it('carries the chosen project and due date', () => {
+    const params = paramsOf(
+      buildFocusBearTaskLink({ title: 'Complete the evaluation form', projectId: PROJECT_ID, dueDate: '2026-11-12' })
+    );
+
+    expect(params.get('project_id')).toBe(PROJECT_ID);
+    expect(params.get('due_date')).toBe('2026-11-12');
+  });
+
+  it('leaves them out when there are none', () => {
+    const params = paramsOf(buildFocusBearTaskLink({ title: 'Reply' }));
+
+    expect(params.has('project_id')).toBe(false);
+    expect(params.has('due_date')).toBe(false);
+  });
+
+  it('never cuts them when the text has to shrink to fit', () => {
+    const link = buildFocusBearTaskLink({
+      title: 'Ответить Наталье',
+      notes: '日本語のメール本文🐻'.repeat(100),
+      link: EMAIL_URL,
+      projectId: PROJECT_ID,
+      dueDate: '2026-11-12',
+    });
+
+    expect(link.length).toBeLessThanOrEqual(FOCUS_BEAR_TASK_MAX_URL_LENGTH);
+    expect(paramsOf(link).get('project_id')).toBe(PROJECT_ID);
+    expect(paramsOf(link).get('due_date')).toBe('2026-11-12');
+  });
+});
+
 describe('truncateForFocusBear', () => {
   it('never splits an emoji', () => {
     expect(truncateForFocusBear('🐻🐻🐻', 2)).toBe(`🐻${FOCUS_BEAR_TASK_ELLIPSIS}`);

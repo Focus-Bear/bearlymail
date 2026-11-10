@@ -13,6 +13,7 @@ export const SETTINGS_ANCHORS = {
   CATEGORY_RULES: 'category-rules',
   CLAUDE_ACCESS: 'connect-claude',
   CONNECTED_APPS: 'connected-apps',
+  FOCUS_BEAR: 'focus-bear',
   WORKFLOWS: 'workflows',
 } as const;
 

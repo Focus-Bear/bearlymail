@@ -875,7 +875,16 @@
     "discardReplyMessage": "Your reply hasn't been sent. Save it as a draft to finish later, or discard it.",
     "discardReplyKeepEditing": "Keep editing",
     "discardReplySaveDraft": "Save draft",
-    "discardReplyDiscard": "Discard"
+    "discardReplyDiscard": "Discard",
+    "focusBearSaveOptions": "Choose the project and due date before saving to Focus Bear",
+    "focusBearSuggested": "Suggested",
+    "focusBearFindingSuggestions": "Finding a project and a free day…",
+    "focusBearProject": "Project",
+    "focusBearNoProject": "No project",
+    "focusBearDueDate": "Due date",
+    "focusBearConnectHint": "Connect Focus Bear to get a suggested project and the next free day.",
+    "focusBearConnectLink": "Connect Focus Bear",
+    "focusBearSave": "Save"
   },
   "settings": {
     "title": "Settings",
@@ -1288,7 +1297,8 @@
       "dataExport": "Export & Import",
       "troubleshooting": "Troubleshooting",
       "deleteAccount": "Delete Account",
-      "emailTracking": "Open tracking"
+      "emailTracking": "Open tracking",
+      "focusBear": "Focus Bear"
     },
     "schedulingPreferences": {
       "title": "Scheduling Preferences",
@@ -2028,6 +2038,18 @@
       "serverUrlLabel": "Server URL",
       "authHeaderLabel": "Authorization header",
       "configFileLabel": "Config file (for apps like Cursor or Windsurf)"
+    },
+    "focusBear": {
+      "title": "Focus Bear",
+      "description": "When you save an action item to Focus Bear, BearlyMail suggests the project it belongs in and the next day you have time for it. In Focus Bear, open Integrations, create an access token with the tasks:read scope, and paste it here. It's stored encrypted and only used for these suggestions.",
+      "tokenLabel": "Focus Bear access token",
+      "tokenPlaceholder": "Paste your Focus Bear access token",
+      "connect": "Connect",
+      "checking": "Checking…",
+      "disconnect": "Disconnect",
+      "connected": "Connected ✓",
+      "notConnected": "Not connected",
+      "tokenRejected": "Focus Bear didn't accept that token. Check it has the tasks:read scope and try again."
     }
   },
   "oauthConsent": {

@@ -35,3 +35,10 @@ export const emailKeys = {
     [...emailKeys.all, 'category', mode, category, filters] as const,
   detail: (threadId: string) => [...emailKeys.all, 'detail', threadId] as const,
 } as const;
+
+export const focusBearKeys = {
+  connection: ['focus-bear', 'connection'] as const,
+  allSuggestions: ['focus-bear', 'task-suggestions'] as const,
+  suggestions: (title: string, emailSubject: string) =>
+    [...focusBearKeys.allSuggestions, title, emailSubject] as const,
+} as const;

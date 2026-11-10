@@ -1470,7 +1470,16 @@
     "discardReplyMessage": "Tu respuesta no se ha enviado. Guárdala como borrador para terminarla más tarde, o descártala.",
     "discardReplyKeepEditing": "Seguir editando",
     "discardReplySaveDraft": "Guardar borrador",
-    "discardReplyDiscard": "Descartar"
+    "discardReplyDiscard": "Descartar",
+    "focusBearSaveOptions": "Elige el proyecto y la fecha límite antes de guardar en Focus Bear",
+    "focusBearSuggested": "Sugerido",
+    "focusBearFindingSuggestions": "Buscando un proyecto y un día libre…",
+    "focusBearProject": "Proyecto",
+    "focusBearNoProject": "Sin proyecto",
+    "focusBearDueDate": "Fecha límite",
+    "focusBearConnectHint": "Conecta Focus Bear para recibir un proyecto sugerido y el próximo día libre.",
+    "focusBearConnectLink": "Conectar Focus Bear",
+    "focusBearSave": "Guardar"
   },
   "contacts": {
     "title": "Contactos",
@@ -4429,7 +4438,8 @@
       "dataExport": "Exportar e importar",
       "troubleshooting": "Solución de problemas",
       "deleteAccount": "Eliminar cuenta",
-      "emailTracking": "Seguimiento de aperturas"
+      "emailTracking": "Seguimiento de aperturas",
+      "focusBear": "Focus Bear"
     },
     "schedulingPreferences": {
       "title": "Preferencias de programación",
@@ -5001,6 +5011,18 @@
       "serverUrlLabel": "URL del servidor",
       "authHeaderLabel": "Cabecera de autorización",
       "configFileLabel": "Archivo de configuración (para apps como Cursor o Windsurf)"
+    },
+    "focusBear": {
+      "title": "Focus Bear",
+      "description": "Cuando guardas una tarea en Focus Bear, BearlyMail sugiere el proyecto al que pertenece y el próximo día en que tienes tiempo para ella. En Focus Bear, abre Integraciones, crea un token de acceso con el permiso tasks:read y pégalo aquí. Se guarda cifrado y solo se usa para estas sugerencias.",
+      "tokenLabel": "Token de acceso de Focus Bear",
+      "tokenPlaceholder": "Pega tu token de acceso de Focus Bear",
+      "connect": "Conectar",
+      "checking": "Comprobando…",
+      "disconnect": "Desconectar",
+      "connected": "Conectado ✓",
+      "notConnected": "Sin conectar",
+      "tokenRejected": "Focus Bear no aceptó ese token. Comprueba que tenga el permiso tasks:read e inténtalo de nuevo."
     }
   },
   "keyboard": {

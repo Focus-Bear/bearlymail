@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { AnthropicApiKeySection } from 'components/settings/integrations/AnthropicApiKeySection';
+import { FocusBearConnectionSection } from 'components/settings/integrations/FocusBearConnectionSection';
 import { GitHubConnectionStatusSection } from 'components/settings/integrations/GitHubConnectionStatusSection';
 import { GitHubIntegrationSection } from 'components/settings/integrations/GitHubIntegrationSection';
 import { GitHubRepoMappingsSection } from 'components/settings/integrations/GitHubRepoMappingsSection';
@@ -82,6 +83,7 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
         onConnectGitHubWithRepoAccess={onConnectGitHubWithRepoAccess}
       />
       <GitHubRepoMappingsSection hasGithubToken={hasGithubToken} />
+      <FocusBearConnectionSection />
     </>
   );
 };

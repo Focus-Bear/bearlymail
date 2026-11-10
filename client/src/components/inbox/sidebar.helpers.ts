@@ -110,6 +110,7 @@ export function getSettingsNavItems(
         { id: 'connected-apps', label: translate('settings.nav.connectedApps'), anchor: 'connected-apps' },
         { id: 'workflows', label: translate('settings.nav.workflows'), anchor: 'workflows' },
         { id: 'github-integration', label: translate('settings.nav.githubIntegration'), anchor: 'github-integration' },
+        { id: 'focus-bear', label: translate('settings.nav.focusBear'), anchor: SETTINGS_ANCHORS.FOCUS_BEAR },
         {
           id: SETTINGS_ANCHORS.OWN_AI_ACCOUNT,
           label: translate('settings.nav.ownAiAccount'),

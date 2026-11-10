@@ -76,6 +76,8 @@ export const ANALYTICS_EVENTS = {
   KEYWORD_UNBLOCKED: 'keyword_unblocked',
   OPENAI_API_KEY_REMOVED: 'openai_api_key_removed',
   ANTHROPIC_API_KEY_SAVED: 'anthropic_api_key_saved',
+  FOCUS_BEAR_CONNECTED: 'focus_bear_connected',
+  FOCUS_BEAR_DISCONNECTED: 'focus_bear_disconnected',
   ANTHROPIC_API_KEY_REMOVED: 'anthropic_api_key_removed',
   OPENAI_API_KEY_SAVED: 'openai_api_key_saved',
   OWN_AI_ACCOUNT_EXPANDED: 'own_ai_account_expanded',
@@ -144,3 +146,10 @@ export const ANALYTICS_EVENTS = {
   CALENDAR_INVITE_ACCEPT_CLICKED: 'calendar_invite_accept_clicked',
   CALENDAR_INVITE_DECLINE_CLICKED: 'calendar_invite_decline_clicked',
 } as const;
+
+/**
+ * PostHog autocapture skips any element inside one with this class. Put it on
+ * controls whose attributes carry email content, such as a focusbear:// link
+ * whose href and title hold the task text.
+ */
+export const POSTHOG_NO_CAPTURE_CLASS = 'ph-no-capture';

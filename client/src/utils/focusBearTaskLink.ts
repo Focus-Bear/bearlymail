@@ -34,7 +34,14 @@ export interface FocusBearTaskDraft {
   notes?: string;
   /** Opens the email the task came from, back in BearlyMail. */
   link?: string;
+  /** The Focus Bear project to file the task in. */
+  projectId?: string;
+  /** `YYYY-MM-DD`. */
+  dueDate?: string;
 }
+
+/** What the link carries besides the text, all sent whole: a cut id or date means nothing. */
+type FocusBearTaskTarget = Pick<FocusBearTaskDraft, 'link' | 'projectId' | 'dueDate'>;
 
 /** Shortens `text` to at most `maxLength` characters, ending in an ellipsis when cut. */
 export function truncateForFocusBear(text: string, maxLength: number): string {
@@ -53,7 +60,7 @@ export function truncateForFocusBear(text: string, maxLength: number): string {
   );
 }
 
-function encodeTaskLink(title: string, notes: string, link: string | undefined): string {
+function encodeTaskLink(title: string, notes: string, { link, projectId, dueDate }: FocusBearTaskTarget): string {
   const params = new URLSearchParams();
   params.set(FOCUS_BEAR_TASK_PARAM.TITLE, title);
   if (notes) {
@@ -61,6 +68,12 @@ function encodeTaskLink(title: string, notes: string, link: string | undefined):
   }
   if (link) {
     params.set(FOCUS_BEAR_TASK_PARAM.LINK, link);
+  }
+  if (projectId) {
+    params.set(FOCUS_BEAR_TASK_PARAM.PROJECT_ID, projectId);
+  }
+  if (dueDate) {
+    params.set(FOCUS_BEAR_TASK_PARAM.DUE_DATE, dueDate);
   }
   params.set(FOCUS_BEAR_TASK_PARAM.SOURCE, FOCUS_BEAR_TASK_SOURCE_BEARLYMAIL);
   // URLSearchParams writes spaces as "+"; %20 is what every URL parser decodes the same way.
@@ -70,20 +83,21 @@ function encodeTaskLink(title: string, notes: string, link: string | undefined):
 /**
  * The `focusbear://create-task?…` link for a task. Notes are shortened first,
  * then the title, until the encoded link fits FOCUS_BEAR_TASK_MAX_URL_LENGTH;
- * the link back to the email is never cut, because a cut URL opens nothing.
+ * the link back to the email, the project and the due date are never cut, because
+ * a cut one means nothing.
  */
 export function buildFocusBearTaskLink(draft: FocusBearTaskDraft): string {
   let title = truncateForFocusBear(draft.title, FOCUS_BEAR_TASK_MAX_TITLE_LENGTH);
   let notes = truncateForFocusBear(draft.notes ?? '', FOCUS_BEAR_TASK_MAX_NOTES_LENGTH);
-  let url = encodeTaskLink(title, notes, draft.link);
+  let url = encodeTaskLink(title, notes, draft);
 
   while (url.length > FOCUS_BEAR_TASK_MAX_URL_LENGTH && notes) {
     notes = truncateForFocusBear(notes, Array.from(notes).length - excessCharacters(url));
-    url = encodeTaskLink(title, notes, draft.link);
+    url = encodeTaskLink(title, notes, draft);
   }
   while (url.length > FOCUS_BEAR_TASK_MAX_URL_LENGTH && title) {
     title = truncateForFocusBear(title, Array.from(title).length - excessCharacters(url));
-    url = encodeTaskLink(title, notes, draft.link);
+    url = encodeTaskLink(title, notes, draft);
   }
   return url;
 }

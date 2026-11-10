@@ -1,4 +1,6 @@
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { captureEvent } from 'utils/posthog';
 
@@ -14,6 +16,12 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('utils/posthog', () => ({ captureEvent: vi.fn() }));
 
+// Not connected to Focus Bear: the plain link, as before. Suggestions are covered in SaveToFocusBearLink.test.
+vi.mock('queries/useFocusBear', () => ({
+  useFocusBearConnectionQuery: () => ({ data: { connected: false } }),
+  fetchFocusBearTaskSuggestions: vi.fn(),
+}));
+
 const SOURCE = {
   emailSubject: 'Contract & next steps',
   sender: 'Sam Patel',
@@ -27,12 +35,16 @@ const ITEMS = [
 
 function renderList(focusBearTaskSource?: typeof SOURCE) {
   return render(
-    <ActionItemList
-      actionItems={ITEMS}
-      onToggleActionItem={vi.fn()}
-      onDeleteActionItem={vi.fn()}
-      focusBearTaskSource={focusBearTaskSource}
-    />
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter>
+        <ActionItemList
+          actionItems={ITEMS}
+          onToggleActionItem={vi.fn()}
+          onDeleteActionItem={vi.fn()}
+          focusBearTaskSource={focusBearTaskSource}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -54,7 +66,10 @@ describe('ActionItemList — Save to Focus Bear', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'emailDetail.saveToFocusBear' }));
 
-    expect(captureEvent).toHaveBeenCalledWith(ANALYTICS_EVENTS.ACTION_ITEM_SAVED_TO_FOCUS_BEAR);
+    expect(captureEvent).toHaveBeenCalledWith(
+      ANALYTICS_EVENTS.ACTION_ITEM_SAVED_TO_FOCUS_BEAR,
+      expect.objectContaining({ fromPanel: false, hasProject: false, hasDueDate: false })
+    );
   });
 
   it('shows no link without an email to describe', () => {

@@ -200,6 +200,7 @@ Need to modify something? Here's where to find it:
 - `hasSeenTour`, `hasScannedHistory`, `hasCompletedOnboarding`
 - `lastEmailSyncAt`, `subscriptionStatus`, `trialStartedAt`
 - `openAiApiKey` (encrypted, user's own key), `githubToken` (encrypted)
+- `focusBearApiToken` (encrypted, scope `tasks:read`; set only via `PUT /focus-bear/connection`, never returned by `/users/me`)
 - `toneSettings` (encrypted JSON: `{ rules: string[] }`)
 - `autoResponderSettings` (encrypted JSON)
 - Relations: `emails`, `contexts`, `notes`, `summarizationRules`, `actionItems`, `googleAccounts`, `office365Accounts`, `zohoAccounts`
@@ -877,6 +878,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`            | No       | GitHub integration                        |
 | `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Override consent versions (defaults in `server/src/constants/legal-versions.ts`; bump the default when policy wording changes so users re-accept) |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |
+| `FOCUS_BEAR_API_URL`                                          | No       | Focus Bear API base URL for task project/due-date suggestions (default `https://api.focusbear.io`) |
 | `ZOHO_CLIQ_*`                                                 | No       | Zoho Cliq notifications                   |
 | `PUSHER_APP_ID`                                               | No       | Pusher app id (realtime events)           |
 | `PUSHER_KEY`                                                  | No       | Pusher key (also exposed to the client)   |

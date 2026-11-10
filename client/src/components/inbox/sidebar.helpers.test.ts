@@ -64,11 +64,12 @@ describe('getSettingsNavItems', () => {
     expect(group.items).toHaveLength(6);
   });
 
-  it('returns 4 items in the Integrations & Apps group, with one entry for the own-AI-account keys', () => {
+  it('returns 5 items in the Integrations & Apps group, with one entry for the own-AI-account keys and one for Focus Bear', () => {
     const items = getSettingsNavItems(translateMock);
     const group = items[4] as SettingsSubNavGroup;
-    expect(group.items).toHaveLength(4);
+    expect(group.items).toHaveLength(5);
     expect(group.items.map(item => item.anchor)).toContain(SETTINGS_ANCHORS.OWN_AI_ACCOUNT);
+    expect(group.items.map(item => item.anchor)).toContain(SETTINGS_ANCHORS.FOCUS_BEAR);
   });
 
   it('returns 3 items in the Team & Plan group', () => {

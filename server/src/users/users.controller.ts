@@ -100,7 +100,7 @@ export class UsersController {
   async getProfile(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
     decryptUserEntityForApi(user);
-    const { password: _password, ...result } = withoutUserAiKeys(user);
+    const { password: _password, ...result } = withoutUserSecrets(user);
     return {
       ...result,
       gmailAccessIssue: resolveGmailAccessIssue(user),
@@ -112,14 +112,14 @@ export class UsersController {
 
   @Put("me")
   async updateProfile(@Request() req, @Body() updates: Partial<User>) {
-    // AI keys are only set via POST /llm/me/ai-keys/:provider, which validates
-    // them, so PUT /users/me cannot write them — nor ever return them.
+    // AI keys and the Focus Bear token are only set via their own endpoints, which
+    // validate them, so PUT /users/me cannot write them — nor ever return them.
     const updated = await this.usersService.update(
       req.user.userId,
-      withoutUserAiKeys(updates),
+      withoutUserSecrets(updates),
     );
     decryptUserEntityForApi(updated);
-    return withoutUserAiKeys(updated);
+    return withoutUserSecrets(updated);
   }
 
   @Post("accept-consent")
@@ -187,17 +187,22 @@ export class UsersController {
   }
 }
 
-const USER_AI_KEY_FIELDS: ReadonlySet<string> = new Set([
+const FOCUS_BEAR_TOKEN_FIELD: keyof User = "focusBearApiToken";
+
+const USER_SECRET_FIELDS: ReadonlySet<string> = new Set([
   ...USER_AI_PROVIDER_DESCRIPTORS.map(({ column }) => column),
   "aiKeyRejections",
+  FOCUS_BEAR_TOKEN_FIELD,
 ]);
 
 /**
- * The user's own AI keys never travel to the client, in either direction:
- * Settings reads masked values from GET /llm/me/ai-keys instead.
+ * The user's own AI keys and Focus Bear token never travel to the client, in
+ * either direction: Settings reads masked AI keys from GET /llm/me/ai-keys and
+ * the Focus Bear connection from GET /focus-bear/connection instead, and each is
+ * set only through its own validating endpoint.
  */
-function withoutUserAiKeys(user: Partial<User>): Partial<User> {
+function withoutUserSecrets(user: Partial<User>): Partial<User> {
   return Object.fromEntries(
-    Object.entries(user).filter(([field]) => !USER_AI_KEY_FIELDS.has(field)),
+    Object.entries(user).filter(([field]) => !USER_SECRET_FIELDS.has(field)),
   ) as Partial<User>;
 }

@@ -1,6 +1,7 @@
 /**
  * TourSkipPrompt stories — clicking Skip on the onboarding tour no longer skips:
- * it asks the user to stay and makes skipping a 10-second press-and-hold.
+ * it asks the user to stay and makes skipping a 5-second press-and-hold. Next
+ * is greyed out for the first few seconds of each step.
  */
 import React from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
@@ -24,7 +25,10 @@ const STEPS = [
 
 const noop = () => undefined;
 
-const TourCard: React.FC<{ isSkipPromptVisible: boolean }> = ({ isSkipPromptVisible }) => (
+const TourCard: React.FC<{ isSkipPromptVisible: boolean; isNextLocked?: boolean }> = ({
+  isSkipPromptVisible,
+  isNextLocked = false,
+}) => (
   <I18nextProvider i18n={tourI18n}>
     <TourModalContent
       tourStep={0}
@@ -35,6 +39,7 @@ const TourCard: React.FC<{ isSkipPromptVisible: boolean }> = ({ isSkipPromptVisi
       onRequestSkip={noop}
       onCancelSkip={noop}
       onSkipTour={noop}
+      isNextLocked={isNextLocked}
       onNextTourStep={noop}
       onPrevTourStep={noop}
     />
@@ -52,3 +57,5 @@ type Story = StoryObj<typeof TourCard>;
 export const TourCardWithSkip: Story = { args: { isSkipPromptVisible: false } };
 
 export const SkipPromptShown: Story = { args: { isSkipPromptVisible: true } };
+
+export const NextLocked: Story = { args: { isSkipPromptVisible: false, isNextLocked: true } };

@@ -6,7 +6,9 @@ import { TourModalContent } from 'components/inbox/overlays/TourModalContent';
 import { TourStep } from 'components/inbox/overlays/tourSteps';
 import { useResolvedTourSteps } from 'components/inbox/overlays/useResolvedTourSteps';
 import { useTourKeyboard } from 'components/inbox/overlays/useTourKeyboard';
+import { useTourNextLock } from 'components/inbox/overlays/useTourNextLock';
 import { Z_INDEX_POPUP } from 'constants/numbers';
+import { TOUR_NEXT_STEP_DELAY_MS } from 'constants/tour';
 import { usePrefersReducedMotion } from 'hooks/usePrefersReducedMotion';
 
 export const TOUR_SPOTLIGHT_PADDING_PX = 6;
@@ -38,9 +40,12 @@ interface TourOverlayProps {
   onSkipTour: () => void;
   onNextTourStep: () => void;
   onPrevTourStep: () => void;
+  /** How long Next stays locked on a step's first showing; defaults to TOUR_NEXT_STEP_DELAY_MS. */
+  nextStepDelayMs?: number;
 }
 
 interface TourControls extends TourOverlayProps {
+  isNextLocked: boolean;
   isSkipPromptVisible: boolean;
   onRequestSkip: () => void;
   onCancelSkip: () => void;
@@ -85,6 +90,7 @@ const TourTooltip: React.FC<TooltipRenderProps> = ({ tooltipProps }) => {
       onRequestSkip={controls.onRequestSkip}
       onCancelSkip={controls.onCancelSkip}
       onSkipTour={onSkipTour}
+      isNextLocked={controls.isNextLocked}
       onNextTourStep={onNextTourStep}
       onPrevTourStep={onPrevTourStep}
       dialogProps={tooltipProps}
@@ -99,20 +105,34 @@ const TourTooltip: React.FC<TooltipRenderProps> = ({ tooltipProps }) => {
  * element isn't on screen falls back to a centred card.
  */
 export const TourOverlay: React.FC<TourOverlayProps> = props => {
-  const { tourStep, tourSteps, onNextTourStep, onPrevTourStep } = props;
+  const { tourStep, tourSteps, onNextTourStep, onPrevTourStep, nextStepDelayMs = TOUR_NEXT_STEP_DELAY_MS } = props;
   const prefersReducedMotion = usePrefersReducedMotion();
   const { isSkipPromptVisible, onRequestSkip, onCancelSkip, onToggleSkipPrompt } = useSkipPrompt(tourStep);
+  const isNextLocked = useTourNextLock(tourStep, nextStepDelayMs);
+  // The Next button, → and Enter all go through this, so none of them can skip the wait.
+  const onNextWhenUnlocked = useCallback(() => {
+    if (!isNextLocked) {
+      onNextTourStep();
+    }
+  }, [isNextLocked, onNextTourStep]);
 
   useTourKeyboard({
     isFirstStep: tourStep === 0,
     onEscape: onToggleSkipPrompt,
-    onNext: onNextTourStep,
+    onNext: onNextWhenUnlocked,
     onPrev: onPrevTourStep,
   });
 
   const controls = useMemo<TourControls>(
-    () => ({ ...props, isSkipPromptVisible, onRequestSkip, onCancelSkip }),
-    [props, isSkipPromptVisible, onRequestSkip, onCancelSkip]
+    () => ({
+      ...props,
+      onNextTourStep: onNextWhenUnlocked,
+      isNextLocked,
+      isSkipPromptVisible,
+      onRequestSkip,
+      onCancelSkip,
+    }),
+    [props, onNextWhenUnlocked, isNextLocked, isSkipPromptVisible, onRequestSkip, onCancelSkip]
   );
 
   const steps = useResolvedTourSteps(tourSteps, tourStep);

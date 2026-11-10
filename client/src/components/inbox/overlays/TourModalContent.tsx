@@ -4,7 +4,7 @@ import { theme } from 'theme/theme';
 
 import { TourHoldToSkipButton } from 'components/inbox/overlays/TourHoldToSkipButton';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
-import { MS_PER_SECOND } from 'constants/numbers';
+import { MS_PER_SECOND, OPACITY_FULL, OPACITY_HALF } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { TOUR_SKIP_HOLD_DURATION_MS } from 'constants/tour';
 
@@ -27,6 +27,8 @@ interface TourModalContentProps {
   onCancelSkip: () => void;
   /** Only reached by completing the press-and-hold. */
   onSkipTour: () => void;
+  /** Next is greyed out and ignores clicks while the step is still fresh (see TOUR_NEXT_STEP_DELAY_MS). */
+  isNextLocked?: boolean;
   onNextTourStep: () => void;
   onPrevTourStep: () => void;
   /** Dialog semantics supplied by the positioning layer (Joyride's tooltipProps). */
@@ -71,7 +73,7 @@ const SKIP_HOLD_SECONDS = Math.round(TOUR_SKIP_HOLD_DURATION_MS / MS_PER_SECOND)
 /**
  * Shown instead of skipping outright: BearlyMail works quite differently from
  * other email clients, so it asks the user to stay and makes skipping a
- * deliberate 10-second hold.
+ * deliberate press-and-hold (TOUR_SKIP_HOLD_DURATION_MS).
  */
 const SkipPrompt: React.FC<{ onSkipTour: () => void; onCancelSkip: () => void }> = ({ onSkipTour, onCancelSkip }) => {
   const { t } = useTranslation();
@@ -90,6 +92,37 @@ const SkipPrompt: React.FC<{ onSkipTour: () => void; onCancelSkip: () => void }>
 };
 
 /**
+ * Next (or Finish). Focus lands here so Enter advances the tour. While locked it
+ * is greyed out and ignores clicks, using aria-disabled rather than disabled so
+ * it keeps focus and screen readers still announce it.
+ */
+const TourNextButton: React.FC<{ isLocked: boolean; onNext: () => void; children: React.ReactNode }> = ({
+  isLocked,
+  onNext,
+  children,
+}) => (
+  <button
+    type="button"
+    autoFocus
+    aria-disabled={isLocked}
+    onClick={isLocked ? undefined : onNext}
+    style={{
+      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+      backgroundColor: theme.colors.primary.main,
+      color: COLOR_NAMED_WHITE,
+      border: STRING_NONE,
+      borderRadius: theme.borderRadius.md,
+      cursor: isLocked ? 'not-allowed' : 'pointer',
+      opacity: isLocked ? OPACITY_HALF : OPACITY_FULL,
+      transition: 'opacity 0.2s ease',
+      fontWeight: theme.typography.fontWeight.semibold,
+    }}
+  >
+    {children}
+  </button>
+);
+
+/**
  * The tour card: step title, copy, Skip/Back/Next and progress. Placement (next
  * to the spotlit element, or centred) is handled by the TourOverlay.
  */
@@ -102,6 +135,7 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
   onRequestSkip,
   onCancelSkip,
   onSkipTour,
+  isNextLocked = false,
   onNextTourStep,
   onPrevTourStep,
   dialogProps,
@@ -164,23 +198,9 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
             {t('onboarding.tour.back')}
           </button>
         )}
-        <button
-          type="button"
-          // Focus lands on Next so Enter advances the tour.
-          autoFocus
-          onClick={onNextTourStep}
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: theme.colors.primary.main,
-            color: COLOR_NAMED_WHITE,
-            border: STRING_NONE,
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-            fontWeight: theme.typography.fontWeight.semibold,
-          }}
-        >
+        <TourNextButton isLocked={isNextLocked} onNext={onNextTourStep}>
           {isLastStep ? t('onboarding.tour.finish') : t('onboarding.tour.next')}
-        </button>
+        </TourNextButton>
       </div>
       {isSkipPromptVisible ? (
         <SkipPrompt onSkipTour={onSkipTour} onCancelSkip={onCancelSkip} />

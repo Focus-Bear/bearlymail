@@ -49,8 +49,8 @@ describe('TourHoldToSkipButton', () => {
     vi.useRealTimers();
   });
 
-  it('holds for 10 seconds by default', () => {
-    expect(TOUR_SKIP_HOLD_DURATION_MS).toBe(10 * ONE_SECOND_MS);
+  it('holds for 5 seconds by default', () => {
+    expect(TOUR_SKIP_HOLD_DURATION_MS).toBe(5 * ONE_SECOND_MS);
   });
 
   it('skips exactly once after a full press-and-hold', () => {
@@ -105,7 +105,10 @@ describe('TourHoldToSkipButton', () => {
     fireEvent.pointerDown(button);
     advance(TOUR_SKIP_HOLD_DURATION_MS / 2);
 
-    expect(screen.getByRole('status')).toHaveTextContent('onboarding.tourSkipPrompt.keepHolding:{"count":5}');
+    const secondsLeft = Math.ceil(TOUR_SKIP_HOLD_DURATION_MS / 2 / ONE_SECOND_MS);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      `onboarding.tourSkipPrompt.keepHolding:{"count":${secondsLeft}}`
+    );
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
     expect(screen.getByTestId('tour-skip-hold-fill')).toHaveStyle({ width: '50%' });
   });

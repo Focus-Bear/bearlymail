@@ -49,6 +49,20 @@ describe('TourModalContent Back button (#299)', () => {
   });
 });
 
+describe('TourModalContent Next lock', () => {
+  it('greys out Next and ignores clicks while locked, but keeps it focusable', () => {
+    const props = renderModal({ isNextLocked: true });
+    const next = screen.getByRole('button', { name: NEXT_LABEL });
+
+    fireEvent.click(next);
+
+    expect(props.onNextTourStep).not.toHaveBeenCalled();
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    expect(next).not.toBeDisabled();
+    expect(next).toHaveFocus();
+  });
+});
+
 describe('TourModalContent Skip (hold to skip)', () => {
   const SKIP_LABEL = 'onboarding.tour.skip';
   const SKIP_MESSAGE = 'onboarding.tourSkipPrompt.message';

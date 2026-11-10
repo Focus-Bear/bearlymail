@@ -15,6 +15,8 @@ vi.mock('react-i18next', () => ({
 }));
 
 const TAB_RECT = { x: 40, y: 10, top: 10, left: 40, width: 120, height: 36, right: 160, bottom: 46 };
+// Short enough for a test, long enough that an immediate click lands while Next is still locked.
+const NEXT_DELAY_MS = 300;
 
 const triageStep: TourStep = {
   title: 'Triage tab',
@@ -75,10 +77,15 @@ describe('tour step targeting', () => {
 });
 
 describe('TourOverlay', () => {
-  function renderTour(tourStep: number) {
+  // No Next delay by default, so the keyboard tests can advance straight away.
+  function renderTour(tourStep: number, nextStepDelayMs = 0) {
     const handlers = { onSkipTour: vi.fn(), onNextTourStep: vi.fn(), onPrevTourStep: vi.fn() };
-    render(<TourOverlay tourStep={tourStep} tourSteps={steps} {...handlers} />);
-    return handlers;
+    const view = render(
+      <TourOverlay tourStep={tourStep} tourSteps={steps} nextStepDelayMs={nextStepDelayMs} {...handlers} />
+    );
+    const showStep = (step: number) =>
+      view.rerender(<TourOverlay tourStep={step} tourSteps={steps} nextStepDelayMs={nextStepDelayMs} {...handlers} />);
+    return { ...handlers, showStep };
   }
 
   it('shows the current step card and cuts the spotlight around its target', async () => {
@@ -172,6 +179,49 @@ describe('TourOverlay', () => {
     });
 
     expect(handlers.onPrevTourStep).not.toHaveBeenCalled();
+  });
+
+  it('greys out Next on a new step and ignores Next, → and Enter until the delay passes', async () => {
+    const handlers = renderTour(0, NEXT_DELAY_MS);
+    await screen.findByText('Quick tour');
+    const next = screen.getByRole('button', { name: 'onboarding.tour.next' });
+
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    act(() => {
+      fireEvent.click(next);
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+    });
+    expect(handlers.onNextTourStep).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(next).toHaveAttribute('aria-disabled', 'false'));
+    fireEvent.click(next);
+    expect(handlers.onNextTourStep).toHaveBeenCalledTimes(1);
+  });
+
+  it('locks Next again on each new step, but not on a step already waited on', async () => {
+    const handlers = renderTour(0, NEXT_DELAY_MS);
+    await screen.findByText('Quick tour');
+    const nextButton = () => screen.getByRole('button', { name: 'onboarding.tour.next' });
+    await waitFor(() => expect(nextButton()).toHaveAttribute('aria-disabled', 'false'));
+
+    handlers.showStep(1);
+    await screen.findByText('New emails land here');
+    expect(nextButton()).toHaveAttribute('aria-disabled', 'true');
+
+    handlers.showStep(0);
+    await screen.findByText('Quick tour');
+    expect(nextButton()).toHaveAttribute('aria-disabled', 'false');
+  });
+
+  it('keeps Skip and Back usable while Next is locked', async () => {
+    const handlers = renderTour(1, NEXT_DELAY_MS);
+    await screen.findByText('New emails land here');
+
+    fireEvent.click(screen.getByText('onboarding.tour.back'));
+    fireEvent.click(screen.getByText('onboarding.tour.skip'));
+
+    expect(handlers.onPrevTourStep).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('tour-skip-prompt')).toBeInTheDocument();
   });
 
   it('keeps the arrow keys away from the inbox shortcuts underneath', async () => {

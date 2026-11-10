@@ -2741,6 +2741,18 @@
       "finish": "Finish",
       "stepProgress": "{{current}} of {{total}}"
     },
+    "tourSkipPrompt": {
+      "message_one": "BearlyMail has quite a different philosophy for emails. We highly recommend going through the tour. Hold for {{count}} second to skip.",
+      "message_other": "BearlyMail has quite a different philosophy for emails. We highly recommend going through the tour. Hold for {{count}} seconds to skip.",
+      "holdButton": "Hold to skip the tour",
+      "ariaLabel_one": "Skip the tour. Press and hold for {{count}} second, or hold Space or Enter.",
+      "ariaLabel_other": "Skip the tour. Press and hold for {{count}} seconds, or hold Space or Enter.",
+      "keepHolding_one": "Keep holding… {{count}} second left",
+      "keepHolding_other": "Keep holding… {{count}} seconds left",
+      "releasedEarly": "Released too early — the tour continues.",
+      "progressLabel": "Skip progress",
+      "continueTour": "Continue the tour"
+    },
     "scan": {
       "title": "Personalize Your Experience",
       "content": "To help BearlyMail learn your priorities and writing style, we can scan your recent email history. This data stays private and is only used to train your personal model.",

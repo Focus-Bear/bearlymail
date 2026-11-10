@@ -11,7 +11,6 @@
  *           position 30/100 which falls in the "Low" bucket (20-40).
  *
  * Solution: PriorityBucketDef.min/max store actual server score values.
- * PriorityRangeSelector maps these to even visual positions (0-20-40-60-80-100) for display.
  *
  * Server SQL ranges (email_threads.priorityScore) — half-open intervals [min, max):
  *   Very High:  >= 50          → min: 50, max: null
@@ -51,7 +50,7 @@ export const PRIORITY_BUCKET_DEFS: PriorityBucketDef[] = [
 
 /**
  * The 5 concrete buckets (no "All" sentinel).
- * Used by `PriorityRangeSelector` as the visual track source.
+ * Used by the priority checkbox filter (one checkbox per bucket).
  */
 export const PRIORITY_BUCKET_RANGES = PRIORITY_BUCKET_DEFS.filter(
   (bucketDef): bucketDef is PriorityBucketDef => bucketDef.label !== BUCKET_LABEL_ALL
@@ -69,96 +68,3 @@ export const PRIORITY_LABEL_TO_KEY: Record<string, 'veryLow' | 'low' | 'medium' 
   High: 'high',
   'Very High': 'veryHigh',
 };
-
-/**
- * Visual slider: even spacing (5 buckets × 20 = 100 units).
- * Maps visual position 0-100 to/from actual score values.
- *
- * | Visual range | Bucket     | Score range      |
- * |--------------|------------|------------------|
- * |   0 –  20    | Very Low   | null → 0         |
- * |  20 –  40    | Low        | 0 → 15           |
- * |  40 –  60    | Medium     | 15 → 30          |
- * |  60 –  80    | High       | 30 → 50          |
- * |  80 – 100    | Very High  | 50 → null        |
- */
-export const VISUAL_BUCKET_SIZE = 20;
-
-/** Number of visual positions (0-100 inclusive with step 20). */
-export const VISUAL_SLIDER_MAX = 100;
-export const VISUAL_SLIDER_MIN = 0;
-
-interface ScoreVisualMapping {
-  label: string;
-  scoreMin: number | null;
-  scoreMax: number | null;
-  visualMin: number;
-  visualMax: number;
-}
-
-export const SCORE_VISUAL_MAP: ScoreVisualMapping[] = [
-  { label: 'Very Low', scoreMin: null, scoreMax: 0, visualMin: 0, visualMax: 20 },
-  { label: 'Low', scoreMin: 0, scoreMax: 15, visualMin: 20, visualMax: 40 },
-  { label: 'Medium', scoreMin: 15, scoreMax: 30, visualMin: 40, visualMax: 60 },
-  { label: 'High', scoreMin: 30, scoreMax: 50, visualMin: 60, visualMax: 80 },
-  { label: 'Very High', scoreMin: 50, scoreMax: null, visualMin: 80, visualMax: 100 },
-];
-
-/**
- * Convert an actual server score (minPriority) to a visual slider position.
- * @param score The actual score value (or null for "no lower bound").
- * @returns Visual position 0-100.
- */
-export function scoreMinToVisual(score: number | null): number {
-  if (score === null) {
-    return VISUAL_SLIDER_MIN;
-  }
-  const entry = SCORE_VISUAL_MAP.find(mapping => mapping.scoreMin === score);
-  if (entry) {
-    return entry.visualMin;
-  }
-  // Fallback: clamp proportionally within known score range (-10 to 60)
-  return VISUAL_SLIDER_MIN;
-}
-
-/**
- * Convert an actual server score (maxPriority) to a visual slider position.
- * @param score The actual score value (or null for "no upper cap").
- * @returns Visual position 0-100.
- */
-export function scoreMaxToVisual(score: number | null): number {
-  if (score === null) {
-    return VISUAL_SLIDER_MAX;
-  }
-  const entry = SCORE_VISUAL_MAP.find(mapping => mapping.scoreMax === score);
-  if (entry) {
-    return entry.visualMax;
-  }
-  return VISUAL_SLIDER_MAX;
-}
-
-/**
- * Convert a visual slider min position (0-100) to an actual server score.
- * @param visual Visual position (0-100, multiple of 20).
- * @returns Actual minPriority score, or null if at the slider minimum.
- */
-export function visualMinToScore(visual: number): number | null {
-  if (visual <= VISUAL_SLIDER_MIN) {
-    return null;
-  }
-  const entry = SCORE_VISUAL_MAP.find(mapping => mapping.visualMin === visual);
-  return entry?.scoreMin ?? null;
-}
-
-/**
- * Convert a visual slider max position (0-100) to an actual server score.
- * @param visual Visual position (0-100, multiple of 20).
- * @returns Actual maxPriority score, or null if at the slider maximum.
- */
-export function visualMaxToScore(visual: number): number | null {
-  if (visual >= VISUAL_SLIDER_MAX) {
-    return null;
-  }
-  const entry = SCORE_VISUAL_MAP.find(mapping => mapping.visualMax === visual);
-  return entry?.scoreMax ?? null;
-}

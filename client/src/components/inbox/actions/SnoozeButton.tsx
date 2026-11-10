@@ -10,6 +10,7 @@ import {
   setEmailActionHover,
 } from 'components/inbox/actions/emailActionButton.styles';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { TOUR_TARGETS } from 'constants/tour';
 
 interface SnoozeButtonProps {
   email: Email;
@@ -22,6 +23,7 @@ export const SnoozeButton: React.FC<SnoozeButtonProps> = ({ email, onShowSnooze 
   return (
     <button
       type="button"
+      data-tour={TOUR_TARGETS.EMAIL_SNOOZE}
       onClick={() => {
         captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CLICKED, { email_id: email.id });
         onShowSnooze(email.id);

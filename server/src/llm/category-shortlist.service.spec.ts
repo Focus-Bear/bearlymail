@@ -4,8 +4,14 @@ import {
   type CategoryItem,
   CategoryShortlistService,
   isGithubSenderEmail,
+  type ShortlistEmail,
 } from "./category-shortlist.service";
-import { EmbeddingService } from "./embedding.service";
+import {
+  EmbeddingService,
+  EmbeddingsUnavailableError,
+} from "./embedding.service";
+
+const USER_ID = "user-1";
 
 const VEC_DIM = 32;
 
@@ -31,6 +37,7 @@ function emailVectorFavouring(
 }
 
 const mockEmail = {
+  userId: USER_ID,
   from: "sender@example.com",
   fromName: "Sender Name",
   subject: "Test Email",
@@ -74,9 +81,8 @@ describe("CategoryShortlistService", () => {
    * vectors by position; the single email embed returns `emailVector`.
    */
   function setupEmbeddings(emailVector: number[]): void {
-    (mockEmbeddingService.isAvailable as jest.Mock).mockReturnValue(true);
     (mockEmbeddingService.embed as jest.Mock).mockImplementation(
-      (texts: string[], options?: { cache?: boolean }) => {
+      (texts: string[], _userId: string, options?: { cache?: boolean }) => {
         if (options?.cache) {
           return Promise.resolve(texts.map((_, i) => oneHot(i)));
         }
@@ -90,12 +96,7 @@ describe("CategoryShortlistService", () => {
    * (effective list + per-candidate provenance) for ranking assertions.
    */
   async function getMeta(
-    email: {
-      from: string;
-      fromName?: string;
-      subject: string;
-      summary: string;
-    },
+    email: ShortlistEmail,
     categories: CategoryItem[],
     weightsByIndex: Record<number, number>,
     topN?: number,
@@ -106,10 +107,7 @@ describe("CategoryShortlistService", () => {
   }
 
   beforeEach(async () => {
-    mockEmbeddingService = {
-      isAvailable: jest.fn().mockReturnValue(true),
-      embed: jest.fn(),
-    };
+    mockEmbeddingService = { embed: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -150,11 +148,12 @@ describe("CategoryShortlistService", () => {
       expect(mockEmbeddingService.embed).not.toHaveBeenCalled();
     });
 
-    it("should return full list when embeddings are unavailable", async () => {
-      (mockEmbeddingService.isAvailable as jest.Mock).mockReturnValue(false);
+    it("should return full list when embeddings are unavailable for the user", async () => {
+      (mockEmbeddingService.embed as jest.Mock).mockRejectedValue(
+        new EmbeddingsUnavailableError("own AI account without OpenAI"),
+      );
       const result = await service.getShortlist(mockEmail, allCategories);
       expect(result).toEqual(allCategories);
-      expect(mockEmbeddingService.embed).not.toHaveBeenCalled();
     });
 
     it("should rank categories by cosine similarity to the email", async () => {
@@ -189,16 +188,18 @@ describe("CategoryShortlistService", () => {
       await service.getShortlist(mockEmail, allCategories);
 
       const { calls } = (mockEmbeddingService.embed as jest.Mock).mock;
-      const categoryCall = calls.find((call) => call[1]?.cache === true);
-      const emailCall = calls.find((call) => !call[1]?.cache);
+      const categoryCall = calls.find((call) => call[2]?.cache === true);
+      const emailCall = calls.find((call) => !call[2]?.cache);
       expect(categoryCall).toBeDefined();
       expect(emailCall).toBeDefined();
+      // Both embed under the email owner's AI routing
+      expect(categoryCall?.[1]).toBe(USER_ID);
+      expect(emailCall?.[1]).toBe(USER_ID);
       // Email embed receives exactly one text
       expect(emailCall?.[0]).toHaveLength(1);
     });
 
     it("should fall back to full list when embedding fails", async () => {
-      (mockEmbeddingService.isAvailable as jest.Mock).mockReturnValue(true);
       (mockEmbeddingService.embed as jest.Mock).mockRejectedValue(
         new Error("embedding API unavailable"),
       );
@@ -311,6 +312,7 @@ describe("CategoryShortlistService", () => {
   describe("getShortlist — platform pinning integration", () => {
     it("pins github categories even when they rank outside the top-N", async () => {
       const githubEmail = {
+        userId: USER_ID,
         from: "notifications@github.com",
         fromName: "GitHub",
         subject: "Dependabot opened a PR",
@@ -356,6 +358,7 @@ describe("CategoryShortlistService", () => {
 
     it("ranks the FULL shortlist (embedding hits + pins) by score, so a high-relevance pin outranks a low-relevance hit", async () => {
       const githubEmail = {
+        userId: USER_ID,
         from: "notifications@github.com",
         fromName: "GitHub",
         subject: "CI passed",
@@ -415,6 +418,7 @@ describe("CategoryShortlistService", () => {
 
     it("gives an outside-top-N platform pin a real score (not null) and still includes it", async () => {
       const githubEmail = {
+        userId: USER_ID,
         from: "notifications@github.com",
         fromName: "GitHub",
         subject: "Dependabot opened a PR",
@@ -456,6 +460,7 @@ describe("CategoryShortlistService", () => {
 
     it("does not pin platform categories for non-platform email", async () => {
       const regularEmail = {
+        userId: USER_ID,
         from: "alice@example.com",
         fromName: "Alice",
         subject: "Hello",

@@ -5,7 +5,7 @@
  *  1. AuthContext — uses its own refreshUser pattern (not replaced here)
  *  2. useSettingsData — fetches user settings
  *  3. settings/useToneRules — reads user tone rules
- *  4. settings/useApiKeys — reads user API keys
+ *  4. settings/useApiKeys — reads the GitHub token presence
  *
  * Note: AuthContext.refreshUser() is the authoritative source for user identity
  * and is NOT replaced by this query. This hook is for read-only settings
@@ -39,14 +39,8 @@ export interface UserProfile {
   termsVersion?: string;
   privacyVersion?: string;
   // Settings-specific fields
-  openAiKey?: string;
-  anthropicKey?: string;
-  /** True when the server has an Anthropic key stored (never returns the raw key). */
-  hasAnthropicKey?: boolean;
   /** GitHub OAuth token presence flag or raw token (server-controlled). */
   githubToken?: string | null;
-  /** OpenAI API key (write-only; server never returns the raw value). */
-  openAiApiKey?: string | null;
   /** Tone rules configuration stored by the user. */
   toneSettings?: {
     rules?: string[];

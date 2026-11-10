@@ -62,7 +62,6 @@ interface UseEmailActionsBaseProps {
     emailSubject?: string
   ) => void;
   onTabCountsUpdateOptimistically?: (changes: TabCountChanges) => void;
-  onEmailMoved?: (emailId: string) => void;
   mode?: string;
 }
 
@@ -71,7 +70,6 @@ interface UseStarCountMutationParams {
   fetchEmails: (overrideFilters?: Partial<InboxFilter>) => Promise<void>;
   onSuggestionRemove?: (emailId: string) => void;
   onTabCountsUpdateOptimistically?: (changes: TabCountChanges) => void;
-  onEmailMoved?: (emailId: string) => void;
   mode?: string;
   dispatch: AppDispatch;
 }
@@ -86,7 +84,6 @@ function useStarCountMutation({
   fetchEmails,
   onSuggestionRemove,
   onTabCountsUpdateOptimistically,
-  onEmailMoved,
   mode,
   dispatch,
 }: UseStarCountMutationParams) {
@@ -111,7 +108,6 @@ function useStarCountMutation({
           dispatch(removeEmail(emailId));
           dispatch(removeAnimatingOut(emailId));
           priorityAnimationTimeouts.current.delete(emailId);
-          onEmailMoved?.(emailId);
         }, EMAIL_EXIT_ANIMATION_DURATION_MS);
         priorityAnimationTimeouts.current.set(emailId, tid);
       } else if (mode === MODE_ACTION && starCount === 0) {
@@ -150,7 +146,7 @@ function useStarCountMutation({
 
       return result;
     },
-    [emails, fetchEmails, onSuggestionRemove, dispatch, mode, onTabCountsUpdateOptimistically, onEmailMoved]
+    [emails, fetchEmails, onSuggestionRemove, dispatch, mode, onTabCountsUpdateOptimistically]
   );
 
   return { handleSetStarCount };
@@ -161,7 +157,6 @@ export function useEmailActionsBase({
   onSuggestionRemove,
   onShowPriorityOverride,
   onTabCountsUpdateOptimistically,
-  onEmailMoved,
   mode,
 }: UseEmailActionsBaseProps) {
   const dispatch = useDispatch<AppDispatch>();
@@ -175,8 +170,7 @@ export function useEmailActionsBase({
     fetchEmails,
     onSuggestionRemove,
     onTabCountsUpdateOptimistically,
-    onEmailMoved,
-    mode,
+      mode,
     dispatch,
   });
 

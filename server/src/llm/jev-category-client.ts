@@ -24,6 +24,7 @@ import type {
   CategoriseFromSummaryResult,
 } from "./llm-categorise-summary";
 import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
+import { isAuthFailure, type JevCredentials } from "./user-ai-routing";
 
 /** Jev's below-threshold pick, reported only so agreement with the fallback can be measured. */
 export interface JevDeclinedPick {
@@ -40,13 +41,17 @@ export class JevCategoryClient {
     private readonly tokenUsage: TokenUsageSink,
   ) {}
 
+  /**
+   * `credentials` is the TypeSafe key this call may use (the user's own or
+   * BearlyMail's — see selectJevCredentials); null skips Jev.
+   */
   async categorise(
     params: CategoriseFromSummaryParams,
+    credentials: JevCredentials | null,
     onDeclined?: (pick: JevDeclinedPick) => void,
   ): Promise<CategoriseFromSummaryResult | null> {
-    const apiKey = this.getConfig(JEV.API_KEY_ENV);
     if (
-      !apiKey ||
+      !credentials ||
       this.getConfig(JEV.ENABLED_ENV) === ENV_BOOLEAN_STRING.FALSE ||
       !params.summary?.trim() ||
       !params.categories.length
@@ -58,7 +63,7 @@ export class JevCategoryClient {
         this.getConfig(JEV.MODEL_ENV) || JEV.DEFAULT_MODEL,
       );
       const startedAt = Date.now();
-      const response = await requestJevCategory(request, apiKey);
+      const response = await requestJevCategory(request, credentials.apiKey);
       await this.tokenUsage.logUsage({
         userId: params.userId,
         operation: LLM_OP_CATEGORISE_SUMMARY,
@@ -89,7 +94,8 @@ export class JevCategoryClient {
         categoryConfidence: "HIGH",
         reasoning: `Jev selected "${categoryName}" (choice confidence ${Math.round(answer.confidence * PERCENTAGES.ONE_HUNDRED)}%).`,
       };
-    } catch {
+    } catch (error) {
+      if (isAuthFailure(error)) credentials.onRejected?.();
       // Vendor errors may contain email data; keep fallback logs content-free.
       this.logger.warn(
         "Jev categorisation unavailable; falling back to Gemini",

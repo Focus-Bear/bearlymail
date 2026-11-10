@@ -302,7 +302,7 @@ export class LLMToneService {
    * Redact person names from text using LLM for better accuracy.
    * Replaces names with [Name] placeholder.
    */
-  async redactNamesWithLLM(text: string): Promise<string> {
+  async redactNamesWithLLM(text: string, userId?: string): Promise<string> {
     if (!text || text.trim().length === 0) {
       return text;
     }
@@ -328,7 +328,7 @@ export class LLMToneService {
           maxTokens: text.length + 100,
         },
         undefined,
-        undefined,
+        userId,
         LLM_OP_REDACT_NAMES,
       );
 
@@ -343,7 +343,10 @@ export class LLMToneService {
     }
   }
 
-  async validateWritingExample(text: string): Promise<string | null> {
+  async validateWritingExample(
+    text: string,
+    userId?: string,
+  ): Promise<string | null> {
     if (!text || text.trim().length === 0) {
       return null;
     }
@@ -353,7 +356,7 @@ export class LLMToneService {
       this.logger.warn(
         "validate_writing_example prompt not found - falling back to redactNamesWithLLM",
       );
-      return this.redactNamesWithLLM(text);
+      return this.redactNamesWithLLM(text, userId);
     }
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
@@ -370,7 +373,7 @@ export class LLMToneService {
           jsonMode: true,
         },
         undefined,
-        undefined,
+        userId,
         LLM_OP_VALIDATE_WRITING_EXAMPLE,
       );
 

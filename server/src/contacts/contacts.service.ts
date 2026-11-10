@@ -543,11 +543,16 @@ export class ContactsService {
       where: { userId, emailHash },
     });
 
+    // Index the fields the contact will have AFTER this write. Fields the
+    // caller left out keep their stored values (TypeORM skips undefined in
+    // update), so their tokens must survive too — rebuilding from the request
+    // alone wiped a named contact's name tokens whenever a caller only knew
+    // the email (e.g. the inbox's "Add Deal" find-or-create).
     const searchTokens = SearchIndexHelper.generateSearchTokens(
-      contactData.name,
-      contactData.firstName,
-      contactData.lastName,
-      contactData.company,
+      contactData.name ?? existing?.name,
+      contactData.firstName ?? existing?.firstName,
+      contactData.lastName ?? existing?.lastName,
+      contactData.company ?? existing?.company,
       SearchIndexHelper.extractEmailLocalPart(contactData.email),
       SearchIndexHelper.extractEmailDomain(contactData.email),
     );

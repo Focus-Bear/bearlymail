@@ -1,6 +1,6 @@
 import React from 'react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { act, render, screen, waitFor } from '@testing-library/react';
 
 import { useAuth } from 'contexts/AuthContext';
 
@@ -58,5 +58,29 @@ describe('GooglePermissionResultListener', () => {
 
     expect(showSuccess).not.toHaveBeenCalled();
     expect(showError).not.toHaveBeenCalled();
+  });
+
+  it('replaces the OAuth return entry, so Back goes to the page before Google rather than the result URL', async () => {
+    let navigate: ReturnType<typeof useNavigate> = () => undefined;
+    const NavigateCapture: React.FC = () => {
+      navigate = useNavigate();
+      return null;
+    };
+    render(
+      <MemoryRouter initialEntries={['/before-google', '/settings?googlePermission=granted']} initialIndex={1}>
+        <GooglePermissionResultListener />
+        <NavigateCapture />
+        <Routes>
+          <Route path="*" element={<CurrentUrl />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent(/^\/settings$/));
+
+    act(() => {
+      void navigate(-1);
+    });
+
+    expect(screen.getByTestId('url')).toHaveTextContent('/before-google');
   });
 });

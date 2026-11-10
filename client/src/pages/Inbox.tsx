@@ -4,6 +4,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { CategoryArchiveSuggestion } from 'utils/categoryArchiveWorkflow';
 
+import { ActionMoveFeedbackLayer } from 'components/inbox/action-move/ActionMoveFeedbackLayer';
 import { AnalysingPriorityCategory } from 'components/inbox/AnalysingPriorityCategory';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { AutoArchiveSuggestionsNotice } from 'components/inbox/auto-archive-notice/AutoArchiveSuggestionsNotice';
@@ -11,6 +12,7 @@ import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
 import { DebugPanel } from 'components/inbox/DebugPanel';
 import { DistractionFrictionModal } from 'components/inbox/DistractionFrictionModal';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
+import { ImportOlderEmailsNotice } from 'components/inbox/ImportOlderEmailsNotice';
 import { hasPendingCategorisation, navigateAfterSplitViewAction } from 'components/inbox/inboxCategoryHelpers';
 import { InboxContent } from 'components/inbox/InboxContent';
 import { InboxFilters } from 'components/inbox/InboxFilters';
@@ -20,27 +22,28 @@ import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { InboxPlanStatusBanner } from 'components/inbox/InboxPlanStatusBanner';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
+import { countThreadsInPriorityRange, shouldRefetchEmptyTriageList } from 'components/inbox/priorityRangeCounts';
 import { shouldRevealLowerPriorityTriage } from 'components/inbox/revealLowerPriorityTriage';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { LoadingState, PrioritisationInterstitial } from 'components/inbox/states';
 import { SuggestArchiveWorkflowModal } from 'components/inbox/SuggestArchiveWorkflowModal';
-import { SyncWindowBanner } from 'components/inbox/SyncWindowBanner';
 import { selectTriageContentRegion, TriageContentRegion } from 'components/inbox/triageContentRegion';
 import { API_URL } from 'config/api';
-import { BUCKET_LABEL_ALL, PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
 import { ERROR_CODE_GMAIL_REQUIRED, MODE_TRIAGE } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { useDistractionFriction } from 'hooks/useDistractionFriction';
+import { useFirstImportRefresh } from 'hooks/useFirstImportRefresh';
 import {
   HIGH_PRIORITY_THRESHOLD,
   isPriorityFilterActiveForMode,
   PRIORITY_FILTER_SOURCE,
+  PriorityFilterSource,
   VERY_HIGH_PRIORITY_THRESHOLD,
 } from 'hooks/useInboxFilters';
 import { GATE_FILTER_SWITCHED_KEY, usePrioritisationGate } from 'hooks/usePrioritisationGate';
-import { usePriorityCounts } from 'hooks/usePriorityCounts';
+import { PriorityCounts, usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
 import { selectSummaryLoading } from 'store/selectors/emailSelectors';
 
@@ -67,7 +70,7 @@ const InboxView: React.FC = () => {
     lastUrgentCheck,
     selectedEmailIndex,
     selectedEmailIds,
-    actionTabPulsing,
+    actionMoveFeedback,
     expandedCategories,
     stableCategoryOrder,
     user,
@@ -105,7 +108,6 @@ const InboxView: React.FC = () => {
     updateStableCategoryOrder,
     setSelectedEmailIndex,
     setSelectedEmailIds,
-    setActionTabPulsing,
     logout,
     refreshUser,
     setMode,
@@ -122,6 +124,7 @@ const InboxView: React.FC = () => {
       loadingCategories,
       hasActiveFilters,
       toggleFilterBar,
+      collapseFilterBar,
       setAccountFilter,
       setCategoryFilter,
       setPriorityFilter,
@@ -148,13 +151,35 @@ const InboxView: React.FC = () => {
   // began (snapshot, NOT live counts), shown in the friction copy. Emails moved to
   // Action/Follow-Up mid-session must not inflate this and re-trigger the gate.
   const existingWorkCount = distraction.existingActionCount + distraction.existingFollowUpCount;
+  const requestDistractionUnlock = distraction.requestUnlock;
 
-  // Apply a priority-filter change (peek below High) and refetch. Shared by the
-  // frictionless peek path and the friction-modal completion path.
-  const applyPriorityUnlock = (minPriority: number | null, maxPriority: number | null) => {
-    // Peek/unlock is a Triage-scoped guided action.
-    setPriorityFilter(minPriority, maxPriority, PRIORITY_FILTER_SOURCE.GUIDED);
-    fetchEmails({ minPriority, maxPriority });
+  const applyPriorityRange = (minPriority: number | null, maxPriority: number | null, source: PriorityFilterSource) => {
+    setPriorityFilter(minPriority, maxPriority, source);
+    // The new values travel as overrides: the state update above lands after this call.
+    fetchEmails({ minPriority, maxPriority, priorityFilterSource: source });
+    fetchPriorityCounts();
+  };
+  // Peek/unlock is a Triage-scoped guided action. Shared by the frictionless peek path and the
+  // friction-modal completion path.
+  const applyPriorityUnlock = (minPriority: number | null, maxPriority: number | null) =>
+    applyPriorityRange(minPriority, maxPriority, PRIORITY_FILTER_SOURCE.GUIDED);
+
+  // Every user path to lower-priority mail (checkboxes, "Show all emails", "Clear all filters")
+  // goes through the distraction gate. Before, the checkboxes' slider and Clear-all bypassed it,
+  // and the gate's floor effect then silently put the High filter back.
+  const handlePriorityCheckboxChange = (minPriority: number | null, maxPriority: number | null) => {
+    if (distraction.requestUnlock(minPriority, maxPriority)) {
+      return;
+    }
+    applyPriorityRange(minPriority, maxPriority, PRIORITY_FILTER_SOURCE.MANUAL);
+  };
+  const handleClearAllFilters = () => {
+    if (distraction.requestUnlock(null, null)) {
+      return;
+    }
+    clearFilters();
+    // Cleared values travel as overrides: clearFilters() only schedules the state update. Fix #2334.
+    fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
     fetchPriorityCounts();
   };
   // Fix #1466: track summary refetch so category pills can show a loading skeleton.
@@ -179,21 +204,35 @@ const InboxView: React.FC = () => {
   const hasEffectiveActiveFilters = activeFilterCount > 0;
 
   // Fix #1571 Item 3: extract priorityTotalCount so it can be passed to the debug panel.
-  // PRIORITY_LABEL_TO_KEY is now imported from constants/priorityBuckets (single source of truth).
   const priorityTotalCount = priorityCounts
-    ? PRIORITY_BUCKET_DEFS.filter(bucket => bucket.label !== BUCKET_LABEL_ALL)
-        .filter(bucket => {
-          const bucketMin = bucket.min ?? -Infinity;
-          const bucketMax = bucket.max ?? Infinity;
-          const filterMin = filters.minPriority ?? -Infinity;
-          const filterMax = filters.maxPriority ?? Infinity;
-          return bucketMin < filterMax && bucketMax > filterMin;
-        })
-        .reduce((sum, bucket) => {
-          const key = PRIORITY_LABEL_TO_KEY[bucket.label];
-          return sum + (key ? (priorityCounts[key] ?? 0) : 0);
-        }, 0)
+    ? countThreadsInPriorityRange(priorityCounts, filters.minPriority, filters.maxPriority)
     : undefined;
+
+  // While the first import is still being scored, keep the counts fresh, and refetch a Triage
+  // list that was loaded before any High mail existed once the counts say it has some.
+  const isFirstImportRunning = (priorityCounts?.unprioritised ?? 0) > 0;
+  useFirstImportRefresh({ isImportRunning: isFirstImportRunning, onRefresh: fetchPriorityCounts });
+  const isTriageListEmpty =
+    hasInitiallyLoaded &&
+    !decrypting &&
+    !loadingModeSwitch &&
+    categorySummary !== null &&
+    categorySummary.every(category => category.count <= 0);
+  const lastEmptyListRefetchCountsRef = useRef<PriorityCounts | null>(null);
+  useEffect(() => {
+    if (!priorityCounts || lastEmptyListRefetchCountsRef.current === priorityCounts) {
+      return;
+    }
+    const shouldRefetch = shouldRefetchEmptyTriageList({
+      isTriage: mode === MODE_TRIAGE,
+      isListEmpty: isTriageListEmpty,
+      threadsInRange: priorityTotalCount ?? 0,
+    });
+    if (shouldRefetch) {
+      lastEmptyListRefetchCountsRef.current = priorityCounts;
+      fetchEmails();
+    }
+  }, [priorityCounts, mode, isTriageListEmpty, priorityTotalCount, fetchEmails]);
 
   // When the prioritisation gate lifts for the first time, auto-switch to the
   // guided High-and-above filter so new users get the focused experience after
@@ -309,6 +348,9 @@ const InboxView: React.FC = () => {
     });
     if (shouldReveal) {
       hasRevealedLowerRef.current = true;
+      // Registers the reveal as this session's unlock, so existing work that the import delivers
+      // afterwards can't switch the gate on and hide these threads again.
+      requestDistractionUnlock(null, null);
       setPriorityFilter(null, null);
       fetchEmails({ minPriority: null, maxPriority: null });
       fetchPriorityCounts();
@@ -317,6 +359,7 @@ const InboxView: React.FC = () => {
     mode,
     distraction.isGateResolved,
     distraction.hasExistingWork,
+    requestDistractionUnlock,
     filters.minPriority,
     filters.maxPriority,
     priorityCounts,
@@ -400,26 +443,20 @@ const InboxView: React.FC = () => {
           actionTabRef={actionTabRef}
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
-          actionTabPulsing={actionTabPulsing}
-          onActionTabPulseEnd={() => setActionTabPulsing(false)}
+          actionMoveFeedback={actionMoveFeedback}
           onToggleMobileMenu={openMobileMenu}
           isFilterBarVisible={isFilterBarVisible}
           hasActiveFilters={hasEffectiveActiveFilters}
           activeFilterCount={activeFilterCount}
           onToggleFilterBar={toggleFilterBar}
-          onClearFilters={() => {
-            clearFilters();
-            // Pass cleared filter values explicitly to avoid stale closure sending old filter params.
-            // clearFilters() schedules a React state update (async), so fetchEmails() without
-            // overrides would capture the pre-clear values and fetch the wrong emails. Fix #2334.
-            fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
-          }}
+          onClearFilters={handleClearAllFilters}
           isAdmin={user?.isAdmin}
           debugViewOpen={debugPanel.debugViewOpen}
           onToggleDebug={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
           onViewBlockedEmails={() => setMode('blocked')}
           onViewAutoRespondedEmails={() => setMode('autoresponded')}
         />
+        <ActionMoveFeedbackLayer feedback={actionMoveFeedback} />
         <InboxFilters
           onFilterChange={fetchEmails}
           isFilterBarVisible={isFilterBarVisible}
@@ -431,7 +468,8 @@ const InboxView: React.FC = () => {
           hasActiveFilters={hasActiveFilters}
           setAccountFilter={setAccountFilter}
           setCategoryFilter={setCategoryFilter}
-          setPriorityFilter={setPriorityFilter}
+          onPriorityChange={handlePriorityCheckboxChange}
+          onCollapse={collapseFilterBar}
           categoryCounts={
             categorySummary ? Object.fromEntries(categorySummary.map(cat => [cat.id, cat.count])) : undefined
           }
@@ -532,7 +570,12 @@ const InboxView: React.FC = () => {
           <LoadingState decrypting={decrypting} loadingModeSwitch={loadingModeSwitch} mode={mode} />
         ) : (
           <>
-            {user && <SyncWindowBanner userId={user.id} syncWindowLimited={user.syncWindowLimited} />}
+            {mode === MODE_TRIAGE && (
+              <ImportOlderEmailsNotice
+                syncWindowLimited={user?.syncWindowLimited}
+                isTriageCleared={hasInitiallyLoaded && tabCounts?.triage === 0}
+              />
+            )}
             {user && <AutoArchiveSuggestionsNotice userId={user.id} hasSeenTour={user.hasSeenTour} />}
             {/* "Analysing priority..." banner for unprioritised emails, unless the
                 "AI deciding category" accordion is already listing them */}
@@ -613,11 +656,7 @@ const InboxView: React.FC = () => {
                 }
                 applyPriorityUnlock(minPriority, maxPriority);
               }}
-              onClearFilters={() => {
-                clearFilters();
-                // Pass cleared filter values explicitly to avoid stale closure. Fix #2334.
-                fetchEmails({ minPriority: null, maxPriority: null, accountIds: [], categories: [] });
-              }}
+              onClearFilters={handleClearAllFilters}
               onSplitViewArchive={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex, expandedCategories)}
               onSplitViewSnooze={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex, expandedCategories)}
               onSplitViewPrioritySet={(id, count) => {

@@ -29,6 +29,8 @@ export const ERROR_MESSAGES = {
     "Downloading the original message isn't supported for this email provider yet",
   RAW_MESSAGE_NOT_FOUND:
     "The original message is no longer available from your email provider",
+  TERMS_NOT_ACCEPTED:
+    "Accept the Terms of Use before BearlyMail reads your email",
 } as const;
 
 export type ErrorMessage = (typeof ERROR_MESSAGES)[keyof typeof ERROR_MESSAGES];

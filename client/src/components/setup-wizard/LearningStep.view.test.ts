@@ -10,7 +10,7 @@ import {
   PHASE_SYNC,
   type TFn,
 } from './learning-view';
-import { type CategorisationState } from './useCategorisationProgress';
+import { type CategorisationState, ONBOARDING_CATEGORISE_UNLOCK_COUNT } from './useCategorisationProgress';
 
 const analyze = (current: number, total: number, isComplete: boolean): AnalyzeProgress => ({
   show: true,
@@ -84,12 +84,44 @@ describe('computeLearningView — categorisation gate', () => {
     expect(view.currentPhase).toBeLessThan(PHASE_CATEGORISE);
   });
 
-  it('lets the user in after the max wait with a still-sorting note', () => {
+  it('lets the user in after the max wait with a still-sorting note, still showing the real progress', () => {
     const view = computeLearningView(analyze(100, 100, true), READY_IMPORT, false, sorting(42, 67, true));
 
     expect(view.canFinish).toBe(true);
     expect(view.isStillSorting).toBe(true);
-    expect(view.displayProgress).toBe(1);
+    expect(view.displayProgress).toBeLessThan(1);
+    expect(view.currentPhase).toBe(PHASE_CATEGORISE);
+  });
+
+  it('unlocks Continue once the first 50 threads are sorted, with the rest still sorting', () => {
+    const view = computeLearningView(
+      analyze(100, 100, true),
+      READY_IMPORT,
+      false,
+      sorting(ONBOARDING_CATEGORISE_UNLOCK_COUNT, 400)
+    );
+
+    expect(view.canFinish).toBe(true);
+    expect(view.isStillSorting).toBe(true);
+    expect(view.currentPhase).toBe(PHASE_CATEGORISE);
+    expect(view.realProgress).toMatchObject({ categorisedCount: 50, categoriseTotal: 400 });
+    expect(view.displayProgress).toBeLessThan(1);
+  });
+
+  it('keeps Continue locked at 49 sorted threads', () => {
+    const view = computeLearningView(
+      analyze(100, 100, true),
+      READY_IMPORT,
+      false,
+      sorting(ONBOARDING_CATEGORISE_UNLOCK_COUNT - 1, 400)
+    );
+
+    expect(view.canFinish).toBe(false);
+  });
+
+  it('waits for the whole inbox when it has fewer than 50 threads', () => {
+    expect(computeLearningView(analyze(100, 100, true), READY_IMPORT, false, sorting(29, 30)).canFinish).toBe(false);
+    expect(computeLearningView(analyze(100, 100, true), READY_IMPORT, false, sorting(30, 30)).canFinish).toBe(true);
   });
 
   it('treats an empty inbox as already sorted', () => {

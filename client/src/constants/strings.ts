@@ -171,6 +171,16 @@ export const ERROR_CODE_GMAIL_REQUIRED = 'GMAIL_REQUIRED' as const;
 
 // API endpoints
 export const API_ENDPOINT_USERS_ME = '/users/me' as const;
+/** POST: imports the next batch of older inbox mail ("process another 500"). */
+export const API_ENDPOINT_IMPORT_OLDER_EMAILS = '/emails/import-older' as const;
+
+/** Result statuses of API_ENDPOINT_IMPORT_OLDER_EMAILS — mirrors the server's IMPORT_OLDER_STATUS. */
+export const IMPORT_OLDER_STATUS = {
+  QUEUED: 'queued',
+  NOTHING_OLDER: 'nothing-older',
+  UNSUPPORTED: 'unsupported',
+} as const;
+export type ImportOlderStatus = (typeof IMPORT_OLDER_STATUS)[keyof typeof IMPORT_OLDER_STATUS];
 
 // Error codes returned by the API
 export const AI_VOLUME_LIMIT_REACHED_CODE = 'AI_VOLUME_LIMIT_REACHED' as const;

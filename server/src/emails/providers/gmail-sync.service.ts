@@ -27,7 +27,11 @@ import { formatGaxiosError, isApiError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { logErrorToFile } from "../../utils/error-logger";
 import { InvalidTokenError } from "../../utils/errors";
-import { providerSyncCreateEmailOptions } from "../email-lifecycle.service";
+import {
+  backfillSyncCreateEmailOptions,
+  CreateEmailOptions,
+  providerSyncCreateEmailOptions,
+} from "../email-lifecycle.service";
 import {
   EmailDataWithOptionalThreadProps,
   EmailsService,
@@ -50,6 +54,7 @@ import {
   isGmailInsufficientScopeError,
   isThreadStarred,
 } from "./gmail/gmail-sync";
+import { GMAIL_INBOX_QUERY } from "./gmail-inbox-query";
 import {
   refreshAttachmentsFromGmailForThread,
   refreshAttachmentsFromGmailForUser,
@@ -69,10 +74,6 @@ function isSameGoogleGrant(before: User | null, after: User | null): boolean {
     before.googleCalendarRefreshToken === after?.googleCalendarRefreshToken
   );
 }
-
-/** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
-const GMAIL_INBOX_QUERY =
-  "in:inbox -label:SnoozedBearlyMail -label:VA-to-action";
 
 /**
  * Handles all Gmail sync and scan operations, extracted from GmailProvider to keep
@@ -133,7 +134,8 @@ export class GmailSyncService {
   private isInvalidTokenError(error: unknown): boolean {
     const errAsGaxios = error as Record<string, unknown>;
     const errResponse = errAsGaxios?.response as
-      Record<string, unknown> | undefined;
+      | Record<string, unknown>
+      | undefined;
     const responseData = errResponse?.data as { error?: string } | undefined;
     if (responseData?.error) {
       const code = responseData.error.toLowerCase();
@@ -303,6 +305,7 @@ export class GmailSyncService {
       providedThreadIds?: string[];
       isContinuation?: boolean;
       noDateFilter?: boolean;
+      isBackfill?: boolean;
     } = {},
   ): Promise<void> {
     const {
@@ -310,6 +313,7 @@ export class GmailSyncService {
       providedThreadIds,
       isContinuation = false,
       noDateFilter = false,
+      isBackfill = false,
     } = options;
     const syncStart = Date.now();
     let allThreadIds: Set<string>;
@@ -356,7 +360,9 @@ export class GmailSyncService {
       Array.from(allThreadIds),
       gmail,
       existingThreadMap,
-      isInitialSync,
+      isBackfill
+        ? backfillSyncCreateEmailOptions()
+        : providerSyncCreateEmailOptions(isInitialSync),
     );
     await this.applyThreadUpdates(userId, updates);
 
@@ -380,7 +386,7 @@ export class GmailSyncService {
     userId: string,
     message: gmail_v1.Schema$Message,
     starCount: number,
-    isInitialSync: boolean,
+    createEmailOptions: CreateEmailOptions,
   ): Promise<void> {
     const rawEmail = parseGmailMessage(message);
     if (!rawEmail) return;
@@ -414,7 +420,7 @@ export class GmailSyncService {
         starCount,
         labels: rawEmail.labelIds,
       } as EmailDataWithOptionalThreadProps,
-      providerSyncCreateEmailOptions(isInitialSync),
+      createEmailOptions,
     );
   }
 
@@ -431,7 +437,7 @@ export class GmailSyncService {
         isArchived: boolean;
       }
     >,
-    isInitialSync: boolean,
+    createEmailOptions: CreateEmailOptions,
   ): Promise<{
     starUpdates: { threadId: string; starCount: number }[];
     archivedUpdates: { threadId: string; isArchived: boolean }[];
@@ -479,7 +485,7 @@ export class GmailSyncService {
                 userId,
                 message,
                 starCount,
-                isInitialSync,
+                createEmailOptions,
               );
             }
           } catch (error) {

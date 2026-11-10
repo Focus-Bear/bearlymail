@@ -141,6 +141,7 @@ describe("parseAppleMailMessage", () => {
       to: "team@example.com",
       cc: "boss@example.com",
       replyTo: undefined,
+      senderAuthResults: null,
       body: "Hello there",
       starCount: 3,
       receivedAt: new Date(1750000000000),

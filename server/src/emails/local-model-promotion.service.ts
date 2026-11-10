@@ -386,7 +386,6 @@ export class LocalModelPromotionService {
       emailThreadId,
       userId,
       finalScore: score,
-      starCount: thread.starCount ?? 0,
       isBatched: thread.isBatched ?? true,
     });
 

@@ -11,6 +11,9 @@ import { OPACITY_DISABLED_ALT, OPACITY_HALF } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 
+import { getProviderReassurance } from './accountDeletion.helpers';
+import type { EmailAccountProvider } from './email-delivery/emailAccounts.helpers';
+
 const CONFIRMATION_TEXT = 'delete all my data';
 
 // Static style constants — outside component to avoid recreation on each render
@@ -64,6 +67,16 @@ const warningDescStyle: React.CSSProperties = {
   color: theme.colors.text.primary,
   marginBottom: theme.spacing.md,
   fontSize: theme.typography.fontSize.sm,
+};
+
+const reassuranceStyle: React.CSSProperties = {
+  color: theme.colors.text.primary,
+  backgroundColor: theme.colors.background.paper,
+  borderRadius: theme.borderRadius.md,
+  padding: theme.spacing.sm,
+  marginBottom: theme.spacing.md,
+  fontSize: theme.typography.fontSize.sm,
+  fontWeight: theme.typography.fontWeight.medium,
 };
 
 const confirmationPromptStyle: React.CSSProperties = {
@@ -124,8 +137,14 @@ function getConfirmDeleteButtonStyle(isConfirmationValid: boolean, isDeleting: b
   };
 }
 
-export const AccountDeletionSection: React.FC = () => {
+interface AccountDeletionSectionProps {
+  /** Providers of the connected mailboxes, so the prompt can name where the email stays. */
+  connectedProviders?: EmailAccountProvider[];
+}
+
+export const AccountDeletionSection: React.FC<AccountDeletionSectionProps> = ({ connectedProviders = [] }) => {
   const { t } = useTranslation();
+  const reassurance = getProviderReassurance(connectedProviders);
   const { logout } = useAuth();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationInput, setConfirmationInput] = useState('');
@@ -192,6 +211,9 @@ export const AccountDeletionSection: React.FC = () => {
         <div style={confirmationBoxStyle}>
           <p style={warningTitleStyle}>{t('settings.accountDeletion.warningTitle')}</p>
           <p style={warningDescStyle}>{t('settings.accountDeletion.warningDescription')}</p>
+          <p style={reassuranceStyle} data-testid="account-deletion-provider-reassurance">
+            {t(reassurance.key, reassurance.params)}
+          </p>
           <p style={confirmationPromptStyle}>
             {t('settings.accountDeletion.confirmationPrompt', { text: CONFIRMATION_TEXT })}
           </p>

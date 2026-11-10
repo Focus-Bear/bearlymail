@@ -3,10 +3,10 @@ import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 const TABLE = "users";
 const COLUMN = "focusBearApiToken";
 
-export class AddFocusBearApiTokenToUsers1797750000000
+export class AddFocusBearApiTokenToUsers1797770000000
   implements MigrationInterface
 {
-  name = "AddFocusBearApiTokenToUsers1797750000000";
+  name = "AddFocusBearApiTokenToUsers1797770000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     const usersTable = await queryRunner.getTable(TABLE);

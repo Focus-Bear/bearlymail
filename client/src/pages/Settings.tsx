@@ -10,6 +10,7 @@ import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal
 import { AutoResponderSection } from 'components/settings/auto-responder';
 import { ClaudeAccessSection } from 'components/settings/claude-access';
 import { DataExportSection } from 'components/settings/DataExportSection';
+import { buildAllAccounts } from 'components/settings/email-delivery/emailAccounts.helpers';
 import { EmailDeliverySection } from 'components/settings/EmailDeliverySection';
 import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
 import { EmailTrackingSection } from 'components/settings/EmailTrackingSection';
@@ -299,7 +300,15 @@ const Settings: React.FC = () => {
 
         <TroubleshootingSection />
 
-        <AccountDeletionSection />
+        <AccountDeletionSection
+          connectedProviders={buildAllAccounts(
+            settingsData.googleAccounts,
+            settingsData.office365Accounts,
+            settingsData.zohoAccounts,
+            settingsData.appleMailAccounts,
+            settingsData.imapAccounts
+          ).map(account => account.provider)}
+        />
 
         <VersionFooter />
       </div>

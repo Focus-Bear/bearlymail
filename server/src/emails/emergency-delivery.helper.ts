@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { MoreThan, Repository } from "typeorm";
 
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -7,9 +7,16 @@ import { EmailThread } from "../database/entities/email-thread.entity";
  * Un-batches a thread for immediate delivery when its priority score is high
  * enough OR its urgency dimension is critical (a time-critical email — e.g. a
  * same-day cancellation — must reach the user now even when the composite
- * score stays moderate). No-op for threads already visible (starred +
- * delivered) or below both thresholds. Shared by the LLM and
- * deterministic-rule priority paths.
+ * score stays moderate). Shared by the LLM, local-model and deterministic-rule
+ * priority paths.
+ *
+ * Only a thread that is still held in a batch can be delivered early. Threads
+ * that were never batched — the first import ("Initial sync"), a disabled
+ * schedule, an urgent bypass, a starred thread already visible — or whose
+ * batch window has already passed were delivered on time, so they are left
+ * alone. Flagging those made a week-old email from the first import read
+ * "Urgent – delivered early". The batch check is repeated in the UPDATE's WHERE
+ * so a stale thread snapshot can't flag a thread that has since been released.
  */
 export async function applyEmergencyDelivery(
   threadRepository: Repository<EmailThread>,
@@ -17,24 +24,26 @@ export async function applyEmergencyDelivery(
     emailThreadId: string;
     userId: string;
     finalScore: number;
-    starCount: number;
     isBatched: boolean;
     /** LLM urgency dimension (0–100). Omitted on the deterministic-rule path. */
     urgencyScore?: number;
   },
 ): Promise<void> {
-  const { emailThreadId, userId, finalScore, starCount, isBatched } = args;
+  const { emailThreadId, userId, finalScore, isBatched } = args;
+  if (!isBatched) return;
   const urgencyScore = args.urgencyScore ?? 0;
-  // Starred + already delivered (was visible in Action/Follow-Up before the
-  // email arrived): no-op.
-  if (starCount > 0 && !isBatched) return;
   const isCriticalUrgency =
     urgencyScore >= PRIORITY_SCORES.CRITICAL_URGENCY_THRESHOLD;
   if (finalScore < PRIORITY_SCORES.HIGH_THRESHOLD && !isCriticalUrgency) {
     return;
   }
   await threadRepository.update(
-    { id: emailThreadId, userId },
+    {
+      id: emailThreadId,
+      userId,
+      isBatched: true,
+      batchReleaseAt: MoreThan(new Date()),
+    },
     {
       isBatched: false,
       batchReleaseAt: null,

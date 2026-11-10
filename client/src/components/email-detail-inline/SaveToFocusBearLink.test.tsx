@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { fetchFocusBearTaskSuggestions, type FocusBearTaskSuggestions } from 'queries/useFocusBear';
 import { captureEvent } from 'utils/posthog';
 
-import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { ANALYTICS_EVENTS, POSTHOG_NO_CAPTURE_CLASS } from 'constants/analytics-events';
 
 import { SaveToFocusBearLink } from './SaveToFocusBearLink';
 
@@ -176,5 +176,13 @@ describe('SaveToFocusBearLink', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
 
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('keeps the task text in the links out of PostHog autocapture', () => {
+    renderLink();
+    fireEvent.click(screen.getByRole('button', { name: 'emailDetail.focusBearSaveOptions' }));
+
+    expect(quickSaveLink().closest(`.${POSTHOG_NO_CAPTURE_CLASS}`)).not.toBeNull();
+    expect(screen.getByRole('dialog')).toHaveClass(POSTHOG_NO_CAPTURE_CLASS);
   });
 });

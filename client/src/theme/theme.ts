@@ -88,8 +88,7 @@ export const colors = {
     inverse: '#FFFFFF', // White — for text on dark/filled backgrounds (e.g. selected "All" pill)
   },
 
-  // Priority bucket colors — single source of truth for the visual filter slider track.
-  // Replacing hardcoded literals in PriorityRangeSelector.tsx (fix #1526 bug 1).
+  // Priority bucket colors — single source of truth for the priority filter checkboxes.
   priorityBuckets: {
     veryLow: '#64748B', // Slate
     low: '#3B82F6', // Blue

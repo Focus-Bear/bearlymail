@@ -12,7 +12,7 @@ import { buildFocusBearTaskLink, type FocusBearTaskSource } from 'utils/focusBea
 import { captureEvent } from 'utils/posthog';
 
 import { type FocusBearTaskChoice, SaveToFocusBearPanel } from 'components/email-detail-inline/SaveToFocusBearPanel';
-import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { ANALYTICS_EVENTS, POSTHOG_NO_CAPTURE_CLASS } from 'constants/analytics-events';
 import { EMOJI_FOCUS_BEAR } from 'constants/emojis';
 import { FOCUS_BEAR_QUICK_SAVE_WAIT_MS } from 'constants/focusBear';
 
@@ -154,7 +154,7 @@ export const SaveToFocusBearLink: React.FC<SaveToFocusBearLinkProps> = ({ taskTi
   };
 
   return (
-    <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+    <span className={POSTHOG_NO_CAPTURE_CLASS} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
       <a
         href={buildHref(suggestedChoice(suggestions))}
         aria-label={t('emailDetail.saveToFocusBear')}

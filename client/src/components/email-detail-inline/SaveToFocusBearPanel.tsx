@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import type { FocusBearTaskSuggestions } from 'queries/useFocusBear';
 import { theme } from 'theme/theme';
 
+import { POSTHOG_NO_CAPTURE_CLASS } from 'constants/analytics-events';
 import { Z_INDEX_DROPDOWN } from 'constants/numbers';
 import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 
@@ -225,6 +226,7 @@ export const SaveToFocusBearPanel: React.FC<SaveToFocusBearPanelProps> = ({
   return createPortal(
     <div
       ref={panelRef}
+      className={POSTHOG_NO_CAPTURE_CLASS}
       role="dialog"
       aria-label={t('emailDetail.saveToFocusBear')}
       style={{ ...panelStyle, ...placement }}

@@ -2,6 +2,8 @@ import {
   AppleMailMessageDetail,
   AppleMailMessageSummary,
 } from "../../../apple-mail-accounts/apple-mail-script.service";
+import { MAIL_HEADER_NAMES } from "../../../constants/mail-server.constants";
+import { parseAuthenticationResults } from "../../../utils/authentication-results.util";
 import {
   EmailAttachment,
   RawEmailMessage,
@@ -97,7 +99,11 @@ export function parseAppleMailMessage(
     fromName: sender.name,
     to: extractHeader(detail.allHeaders, "To") || undefined,
     cc: extractHeader(detail.allHeaders, "Cc") || undefined,
-    replyTo: extractHeader(detail.allHeaders, "Reply-To") || undefined,
+    replyTo:
+      extractHeader(detail.allHeaders, MAIL_HEADER_NAMES.REPLY_TO) || undefined,
+    senderAuthResults: parseAuthenticationResults(
+      extractHeader(detail.allHeaders, MAIL_HEADER_NAMES.AUTHENTICATION_RESULTS),
+    ),
     body: detail.content || "",
     starCount: summary.isFlagged ? 3 : 0,
     receivedAt: new Date(summary.dateReceivedMs),

@@ -1988,15 +1988,6 @@
     "andMore": "y {{count}} más",
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
-    "syncWindowBanner": {
-      "message": "Aviso: hemos importado tus {{count}} conversaciones más recientes. Los correos más antiguos no se sincronizan con BearlyMail.",
-      "dismiss": "Descartar"
-    },
-    "openTrackingNotice": {
-      "message": "El seguimiento de aperturas está activado: BearlyMail ahora te muestra cuándo se abren los correos que envías.",
-      "manage": "Gestionar en Ajustes",
-      "dismiss": "Descartar"
-    },
     "autoArchiveNotice": {
       "message_one": "BearlyMail encontró {{count}} tipo de correo que nunca abres: revisa la sugerencia de archivado automático.",
       "message_other": "BearlyMail encontró {{count}} tipos de correo que nunca abres: revisa las sugerencias de archivado automático.",
@@ -2081,8 +2072,6 @@
       "categoryGroup": "Filtro de categoría",
       "priority": "Filtro de prioridad",
       "priorityAll": "Todas las prioridades",
-      "priorityMinHandle": "Prioridad mínima",
-      "priorityMaxHandle": "Prioridad máxima",
       "resetPriority": "Restablecer",
       "allAccounts": "Todas las cuentas",
       "allCategories": "Todas",
@@ -2091,7 +2080,17 @@
       "clearAll": "Borrar filtros",
       "moreCategories": "más",
       "showMoreCategories": "Mostrar {{count}} categorías más",
-      "nCategoriesSelected": "{{count}} seleccionadas"
+      "nCategoriesSelected": "{{count}} seleccionadas",
+      "collapse": "Ocultar filtros",
+      "prioritySelectedCount_one": "{{count}} correo",
+      "prioritySelectedCount_other": "{{count}} correos",
+      "buckets": {
+        "veryHigh": "Muy alta",
+        "high": "Alta",
+        "medium": "Media",
+        "low": "Baja",
+        "veryLow": "Muy baja"
+      }
     },
     "checkUrgent": "Verificar urgentes",
     "loadMore": "Cargar más correos",
@@ -2340,11 +2339,6 @@
     },
     "catchingUp": "Procesando {{remaining}} hilo(s) de correo pendiente(s) de cuando estabas ausente...",
     "catchingUpTooltip": "El procesamiento de IA se pausó mientras estabas inactivo. Procesando ahora en segundo plano.",
-    "batchSummary": {
-      "total_one": "{{count}} correo por clasificar",
-      "total_other": "{{count}} correos por clasificar",
-      "band": "{{count}} {{label}}"
-    },
     "scheduledTour": {
       "title": "Correo programado ✅",
       "body": "Encuéntralo aquí cuando quieras: toca ⋮ y luego Programados para ver, reprogramar o cancelar.",
@@ -2352,6 +2346,18 @@
     },
     "familyCategoryCount_one": "{{count}} categoría",
     "familyCategoryCount_other": "{{count}} categorías",
+    "importOlderNotice": {
+      "message": "Solo importamos tus {{count}} correos más recientes.",
+      "processMore": "Haz clic aquí para procesar otros {{count}}.",
+      "credits_one": "Aviso: a tu plan solo le quedan créditos para {{count}} correo más.",
+      "credits_other": "Aviso: a tu plan solo le quedan créditos para {{count}} correos más.",
+      "viewPlans": "Ver planes",
+      "queued_one": "Importando {{count}} correo antiguo. Aparecerá en Clasificación cuando se haya clasificado.",
+      "queued_other": "Importando {{count}} correos antiguos. Aparecerán en Clasificación a medida que se clasifiquen.",
+      "nothingOlder": "No quedan correos antiguos por importar.",
+      "unsupported": "Por ahora, importar correos antiguos solo está disponible para cuentas de Gmail.",
+      "failed": "No se pudo iniciar la importación. Inténtalo de nuevo."
+    },
     "backgroundSorting": {
       "title": "Ordenando el resto de tu bandeja en segundo plano",
       "progress": "{{categorised}} de {{total}} ordenados"
@@ -4575,7 +4581,10 @@
       "description": "Eliminar permanentemente tu cuenta y todos los datos asociados.",
       "deleteButton": "Eliminar mi cuenta",
       "warningTitle": "¿Estás absolutamente seguro?",
-      "warningDescription": "Esto eliminará permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
+      "warningDescription": "Esto eliminará permanentemente tu cuenta de BearlyMail y todos sus datos asociados, incluida la copia de tus correos que guarda BearlyMail. Esta acción no se puede deshacer.",
+      "providerReassurance_one": "Tus correos NO se eliminarán de {{providers, list}}. Esto solo los quita de BearlyMail: siguen en tu cuenta de {{providers, list}}.",
+      "providerReassurance_other": "Tus correos NO se eliminarán de {{providers, list}}. Esto solo los quita de BearlyMail: siguen en tus cuentas de {{providers, list}}.",
+      "providerReassuranceGeneric": "Tus correos NO se eliminarán de tu proveedor de correo. Esto solo los quita de BearlyMail: siguen en tu buzón.",
       "confirmationPrompt": "Para confirmar, escribe \"{{text}}\" a continuación:",
       "confirmationMismatch": "El texto de confirmación no coincide. Por favor escribe exactamente lo que se indica.",
       "confirmDelete": "Eliminar cuenta permanentemente",

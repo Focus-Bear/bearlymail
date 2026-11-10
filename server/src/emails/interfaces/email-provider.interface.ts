@@ -1,3 +1,5 @@
+import { SenderAuthResults } from "../../utils/authentication-results.util";
+
 /**
  * Email attachment metadata
  */
@@ -29,6 +31,8 @@ export interface RawEmailMessage {
   to?: string;
   cc?: string;
   replyTo?: string;
+  /** SPF/DKIM/DMARC outcomes from the receiving server, when the provider exposes headers */
+  senderAuthResults?: SenderAuthResults | null;
   senderJobTitle?: string;
   body: string;
   htmlBody?: string;
@@ -102,6 +106,12 @@ export interface SyncEmailsOptions {
    * Whether this is a continuation job (affects logging and behavior)
    */
   isContinuation?: boolean;
+
+  /**
+   * True when the threads are OLDER mail the user asked to import ("process another 500").
+   * Old mail must not be held for the next batch delivery, and it is charged to the plan.
+   */
+  isBackfill?: boolean;
 
   /**
    * When true, fetch the full ongoing sync window (ONGOING_SYNC_WINDOW_DAYS)

@@ -1,6 +1,8 @@
 import type { AddressObject, Attachment, ParsedMail } from "mailparser";
 
+import { MAIL_HEADER_NAMES } from "../../../constants/mail-server.constants";
 import { STAR_COUNTS } from "../../../constants/priority-constants";
+import { parseAuthenticationResults } from "../../../utils/authentication-results.util";
 import {
   EmailAttachment,
   RawEmailMessage,
@@ -21,6 +23,19 @@ export interface ImapMessageState {
   isFlagged: boolean;
   /** Server receipt time; the Date header is sender-controlled and may lie. */
   internalDate?: Date;
+}
+
+/**
+ * The first (topmost) value of a header. mailparser keys headers in lower case
+ * and collects a repeated header into an array in message order.
+ */
+function firstHeaderValue(
+  parsed: ParsedMail,
+  headerName: string,
+): string | undefined {
+  const value = parsed.headers.get(headerName.toLowerCase());
+  const first = Array.isArray(value) ? value[0] : value;
+  return typeof first === "string" ? first : undefined;
 }
 
 /** Formats one or more parsed address headers as "Name <addr>, addr". */
@@ -96,6 +111,9 @@ export function parseImapMessage(
     to: formatAddressList(parsed.to),
     cc: formatAddressList(parsed.cc),
     replyTo: formatAddressList(parsed.replyTo),
+    senderAuthResults: parseAuthenticationResults(
+      firstHeaderValue(parsed, MAIL_HEADER_NAMES.AUTHENTICATION_RESULTS),
+    ),
     body: parsed.text || "",
     htmlBody: parsed.html || undefined,
     starCount: state.isFlagged ? STAR_COUNTS.HIGH : STAR_COUNTS.NONE,

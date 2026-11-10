@@ -146,3 +146,10 @@ export const ANALYTICS_EVENTS = {
   CALENDAR_INVITE_ACCEPT_CLICKED: 'calendar_invite_accept_clicked',
   CALENDAR_INVITE_DECLINE_CLICKED: 'calendar_invite_decline_clicked',
 } as const;
+
+/**
+ * PostHog autocapture skips any element inside one with this class. Put it on
+ * controls whose attributes carry email content, such as a focusbear:// link
+ * whose href and title hold the task text.
+ */
+export const POSTHOG_NO_CAPTURE_CLASS = 'ph-no-capture';

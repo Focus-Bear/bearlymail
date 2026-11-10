@@ -25,7 +25,6 @@ import { familyGroupingAppliesTo, orderCategoriesByFamily } from 'components/inb
 import { InboxFamilyHeader } from 'components/inbox/InboxFamilyHeader';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
 import { AnalysingPriorityCategory } from 'components/inbox/states/AnalysingPriorityCategory';
-import { TriageBatchSummary } from 'components/inbox/TriageBatchSummary';
 import { ScheduledEmailsManager } from 'components/scheduled-emails/ScheduledEmailsManager';
 import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
@@ -997,7 +996,6 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
           <>
             <BackgroundSortingBanner />
             <BatchInfoBar nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck} />
-            <TriageBatchSummary counts={priorityCounts} isVisible={canRenderCategories} />
           </>
         )}
         {mode === MODE_FOLLOW_UP && (

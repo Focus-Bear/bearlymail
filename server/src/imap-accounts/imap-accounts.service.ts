@@ -20,6 +20,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MAIL_DISCOVERY_TIMEOUT_MS } from "../constants/mail-server.constants";
 import { ImapAccount } from "../database/entities/imap-account.entity";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { ImapAccountSettingsDto } from "./dto/imap-account-settings.dto";
 import {
@@ -273,7 +274,7 @@ export class ImapAccountsService {
         { userId },
         {
           priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, true),
-          singletonKey: `fetch-user-emails-${userId}`,
+          singletonKey: fetchUserEmailsJobKey(userId),
         },
       )
       .catch((error: unknown) => {

@@ -1,10 +1,7 @@
 import {
-  forwardRef,
-  Inject,
   Injectable,
   Logger,
   ServiceUnavailableException,
-  UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Anthropic from "@anthropic-ai/sdk";
@@ -17,10 +14,14 @@ import { GenerateContentResponse, GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 
 import { LLM_BLOCK_TYPES } from "../constants/domain-types";
+import { JEV } from "../constants/jev.constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
-import { UsersService } from "../users/users.service";
+import {
+  USER_AI_PROVIDERS,
+  type UserAiProvider,
+} from "../constants/user-ai-providers.constants";
 import {
   fromAnthropicMessage,
   toAnthropicMessages,
@@ -32,20 +33,37 @@ import {
 } from "./bedrock-prompt-cache";
 import { ClaudeCliClient } from "./claude-cli.helper";
 import { buildGeminiGenerationConfig } from "./gemini-request.helper";
-import { JevCategoryClient } from "./jev-category-client";
+import { JevCategoryClient, type JevDeclinedPick } from "./jev-category-client";
 import { JevDecisionClient } from "./jev-decisions/jev-decision-client";
 import { LLMProvider, LLMRequest } from "./llm.types";
+import type {
+  CategoriseFromSummaryParams,
+  CategoriseFromSummaryResult,
+} from "./llm-categorise-summary";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
 import {
-  HTTP_FORBIDDEN,
-  HTTP_UNAUTHORIZED,
   isGeminiBillingError,
   LLM_RETRY_MAX_ATTEMPTS,
   retryLLMOperation,
 } from "./llm-retry-policy";
 import { supportsReasoningEffort } from "./llm-utils";
+import {
+  generateWithOpenAIReasoningModel,
+  generateWithOpenAIStandardModel,
+} from "./openai-text-generation";
 import { reportProvider } from "./provider-report.util";
 import { TokenUsageService } from "./token-usage.service";
+import { UserAiKeyRejectedException } from "./user-ai-key-rejected.exception";
+import { UserAiKeysService } from "./user-ai-keys.service";
+import {
+  isAuthFailure,
+  type JevCredentials,
+  type OwnProviderAttempt,
+  planOwnProviderAttempts,
+  selectJevCredentials,
+  type UserAiKeys,
+  usesOwnAiAccount,
+} from "./user-ai-routing";
 
 /** Parameters for a single provider-agnostic tool-calling step. */
 export interface ToolChatParams {
@@ -91,6 +109,14 @@ const DEFAULT_BEDROCK_MODEL = "amazon.nova-micro-v1:0";
 /** Nova Micro caps output at ~5k tokens; clamp so an oversized budget can't 400. */
 const BEDROCK_MAX_OUTPUT_TOKENS = 5000;
 
+const DEFAULT_OPENAI_MODEL = "gpt-5.4-mini";
+const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
+
+type ApiKeySource = "system" | "user";
+
+/** Where to send settings-related errors in user-facing messages. */
+const OWN_AI_ACCOUNT_SETTINGS_HINT = "Settings → Use your own AI account";
+
 @Injectable()
 export class LLMCoreService {
   private readonly logger = new Logger(LLMCoreService.name);
@@ -113,8 +139,7 @@ export class LLMCoreService {
 
   constructor(
     private configService: ConfigService,
-    @Inject(forwardRef(() => UsersService))
-    private usersService: UsersService,
+    private userAiKeys: UserAiKeysService,
     private tokenUsageService: TokenUsageService,
   ) {
     this.claudeCli = new ClaudeCliClient(
@@ -146,8 +171,48 @@ export class LLMCoreService {
     }
   }
 
-  categoriseWithJev(...args: Parameters<JevCategoryClient["categorise"]>) {
-    return this.jevCategories.categorise(...args);
+  async categoriseWithJev(
+    params: CategoriseFromSummaryParams,
+    onDeclined?: (pick: JevDeclinedPick) => void,
+  ): Promise<CategoriseFromSummaryResult | null> {
+    const keys = await this.findUserKeys(params.userId);
+    return this.jevCategories.categorise(
+      params,
+      this.jevCredentialsFor(keys, params.userId),
+      onDeclined,
+    );
+  }
+
+  /**
+   * The user's own AI provider keys. Every AI entry point reads them first:
+   * a user on their own AI account (see usesOwnAiAccount) never has a call
+   * sent to BearlyMail's provider accounts.
+   */
+  private async findUserKeys(userId?: string | null): Promise<UserAiKeys> {
+    if (!userId) return {};
+    return this.userAiKeys.findKeys(userId);
+  }
+
+  private jevCredentialsFor(
+    keys: UserAiKeys,
+    userId?: string | null,
+  ): JevCredentials | null {
+    return selectJevCredentials(
+      keys,
+      this.configService.get<string>(JEV.API_KEY_ENV),
+      () => {
+        if (userId) this.recordRejectedKey(userId, USER_AI_PROVIDERS.TYPESAFE);
+      },
+    );
+  }
+
+  /** Remembers a refused key so Settings can tell the user; never blocks the call path. */
+  private recordRejectedKey(userId: string, provider: UserAiProvider): void {
+    this.userAiKeys.markRejected(userId, provider).catch((error: unknown) => {
+      this.logger.warn(
+        `Could not record the rejected ${provider} key for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
   }
 
   private initializeClients() {
@@ -215,9 +280,87 @@ export class LLMCoreService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
-    const jevOutput = await this.jevDecisions.decide(request, userId);
+    const effectiveUserId = userId || request.userId;
+    const keys = await this.findUserKeys(effectiveUserId);
+    const jevOutput = await this.jevDecisions.decide(
+      request,
+      effectiveUserId,
+      this.jevCredentialsFor(keys, effectiveUserId),
+    );
     if (jevOutput !== null) return jevOutput;
+    if (effectiveUserId && usesOwnAiAccount(keys)) {
+      return this.generateOnOwnAccount(
+        request,
+        provider || this.defaultProvider,
+        keys,
+        effectiveUserId,
+      );
+    }
     return this.generateWithProviderFallback(request, provider, userId);
+  }
+
+  /**
+   * Generation for a user on their own AI account: only their keys, tried in
+   * planOwnProviderAttempts order. A refused key is recorded and surfaced as
+   * UserAiKeyRejectedException; nothing falls back to BearlyMail's keys.
+   */
+  private async generateOnOwnAccount(
+    request: LLMRequest,
+    requested: LLMProvider,
+    keys: UserAiKeys,
+    userId: string,
+  ): Promise<string> {
+    return this.runOnOwnAccount(
+      planOwnProviderAttempts(keys, requested, request.model),
+      userId,
+      (attempt) => {
+        const attemptRequest = { ...request, model: attempt.model };
+        return attempt.provider === LLMProvider.ANTHROPIC
+          ? this.generateWithAnthropicClient(
+              attemptRequest,
+              new Anthropic({ apiKey: attempt.apiKey }),
+              "user",
+              userId,
+            )
+          : this.generateWithOpenAIClient(
+              attemptRequest,
+              new OpenAI({ apiKey: attempt.apiKey }),
+              "user",
+              userId,
+            );
+      },
+    );
+  }
+
+  /**
+   * Tries each of the user's providers until one answers. Aborts stop at
+   * once; a refused key is recorded and reported in preference to any other
+   * failure, since it is the one the user can fix.
+   */
+  private async runOnOwnAccount<T>(
+    attempts: OwnProviderAttempt[],
+    userId: string,
+    run: (attempt: OwnProviderAttempt) => Promise<T>,
+  ): Promise<T> {
+    let rejection: UserAiKeyRejectedException | undefined;
+    let lastError: unknown;
+    for (const attempt of attempts) {
+      try {
+        return await run(attempt);
+      } catch (error) {
+        if (this.isAbortError(error)) throw error;
+        if (isAuthFailure(error)) {
+          this.recordRejectedKey(userId, attempt.userProvider);
+          rejection ??= new UserAiKeyRejectedException(attempt.userProvider);
+        } else {
+          lastError = error;
+        }
+        this.logger.warn(
+          `User ${userId}'s own ${attempt.provider} key failed${isAuthFailure(error) ? " (rejected)" : ""}`,
+        );
+      }
+    }
+    throw rejection ?? lastError;
   }
 
   private async generateWithProviderFallback(
@@ -248,11 +391,6 @@ export class LLMCoreService {
         `Error generating text with ${selectedProvider}`,
         error,
       );
-      // Do not fall back from Anthropic — auth errors (401/403) surface as
-      // UnauthorizedException and should be returned as-is to the caller.
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
       // Fallback to the other provider if available. Strip `request.model`
       // before falling back — it may name a provider-specific model (e.g.
       // "gemini-3.1-flash-lite") that the fallback provider would reject.
@@ -469,159 +607,24 @@ export class LLMCoreService {
     }).then((text) => reportProvider(request, LLMProvider.BEDROCK, text));
   }
 
-  private async generateWithOpenAIReasoningModel(options: {
-    openaiClient: OpenAI;
-    request: LLMRequest;
-    model: string;
-    reasoningEffort: string;
-    userId: string | undefined;
-    startTime: number;
-  }): Promise<string> {
-    const { openaiClient, request, model, reasoningEffort, userId, startTime } =
-      options;
-    if (
-      !openaiClient.responses ||
-      typeof openaiClient.responses.create !== "function"
-    ) {
-      const sdkError = new Error(
-        `OpenAI SDK does not support responses.create() - the Responses API requires openai SDK v4.87.0+. ` +
-          `Current model ${model} requires this API for reasoning support. ` +
-          `Consider upgrading the openai package or switching to a non-reasoning model.`,
-      );
-      this.logger.error(sdkError.message);
-      throw sdkError;
-    }
-
-    const responseParams: {
-      model: string;
-      reasoning: { effort: "low" | "medium" | "high" };
-      input: Array<{ role: "user" | "assistant" | "system"; content: string }>;
-      max_output_tokens: number;
-      text?: { format: { type: "json_object" } };
-      instructions?: string;
-    } = {
-      model,
-      reasoning: { effort: reasoningEffort as "low" | "medium" | "high" },
-      input: [{ role: "user" as const, content: request.prompt }],
-      max_output_tokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-      ...(request.jsonMode && {
-        text: { format: { type: "json_object" as const } },
-      }),
-    };
-
-    if (request.systemPrompt) {
-      responseParams.instructions = request.systemPrompt;
-    }
-
-    const response = await openaiClient.responses.create(responseParams);
-    const durationMs = Date.now() - startTime;
-
-    if (response.usage) {
-      await this.tokenUsageService.logUsage({
-        userId: userId || null,
-        operation: request.operation || LLM_OP_UNKNOWN,
-        provider: LLMProvider.OPENAI,
-        model,
-        promptTokens: response.usage.input_tokens || 0,
-        completionTokens: response.usage.output_tokens || 0,
-        totalTokens: response.usage.total_tokens || 0,
-        durationMs,
-        promptText: request.prompt,
-        systemPromptText: request.systemPrompt,
-        emailIds: request.metadata?.emailIds,
-      });
-    }
-    return response.output_text || "";
-  }
-
-  private async generateWithOpenAIStandardModel(
-    openaiClient: OpenAI,
-    request: LLMRequest,
-    model: string,
-    userId: string | undefined,
-    startTime: number,
-  ): Promise<string> {
-    const messages: Array<{
-      role: "system" | "user" | "assistant";
-      content: string;
-    }> = [];
-    if (request.systemPrompt) {
-      messages.push({ role: "system", content: request.systemPrompt });
-    }
-    messages.push({ role: "user", content: request.prompt });
-
-    const completionParams: {
-      model: string;
-      messages: typeof messages;
-      temperature: number;
-      max_completion_tokens: number;
-      response_format?: { type: "json_object" };
-    } = {
-      model,
-      messages,
-      temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
-      max_completion_tokens:
-        request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-      ...(request.jsonMode && {
-        response_format: { type: "json_object" as const },
-      }),
-    };
-
-    const completion =
-      await openaiClient.chat.completions.create(completionParams);
-    const durationMs = Date.now() - startTime;
-
-    if (completion.usage) {
-      await this.tokenUsageService.logUsage({
-        userId: userId || null,
-        operation: request.operation || LLM_OP_UNKNOWN,
-        provider: LLMProvider.OPENAI,
-        model,
-        promptTokens: completion.usage.prompt_tokens || 0,
-        completionTokens: completion.usage.completion_tokens || 0,
-        totalTokens: completion.usage.total_tokens || 0,
-        durationMs,
-        promptText: request.prompt,
-        systemPromptText: request.systemPrompt,
-        emailIds: request.metadata?.emailIds,
-      });
-    }
-    return completion.choices[0]?.message?.content || "";
-  }
-
-  /**
-   * Resolve the OpenAI client to use for a request: the user's own key takes
-   * precedence over the system key. Shared by plain-text generation and the
-   * tool-calling path so both honour a user-supplied key.
-   */
-  private async resolveOpenAiClient(
-    userId?: string,
-  ): Promise<{ client: OpenAI; apiKeySource: "system" | "user" }> {
-    let client = this.openaiClient;
-    let apiKeySource: "system" | "user" = "system";
-
-    if (userId) {
-      try {
-        const user = await this.usersService.findOneWithApiKey(userId);
-        if (user?.openAiApiKey) {
-          client = new OpenAI({ apiKey: user.openAiApiKey });
-          apiKeySource = "user";
-          this.logger.debug(`Using user's OpenAI API key for user ${userId}`);
-        }
-      } catch (error) {
-        this.logger.warn(
-          `Failed to fetch user's API key for ${userId}, using system key`,
-          error,
-        );
-      }
-    }
-
-    if (!client) {
+  /** BearlyMail's OpenAI client, for users not on their own AI account. */
+  private requireSystemOpenAiClient(): OpenAI {
+    if (!this.openaiClient) {
       throw new ServiceUnavailableException(
-        "OpenAI is not configured. Set OPENAI_API_KEY on the server, or add your own OpenAI key in Settings → Integrations.",
+        `OpenAI is not configured. Set OPENAI_API_KEY on the server, or add your own key in ${OWN_AI_ACCOUNT_SETTINGS_HINT}.`,
       );
     }
-    return { client, apiKeySource };
+    return this.openaiClient;
+  }
+
+  /** BearlyMail's Anthropic client, for users not on their own AI account. */
+  private requireSystemAnthropicClient(): Anthropic {
+    if (!this.anthropicClient) {
+      throw new ServiceUnavailableException(
+        `Anthropic is not configured. Set ANTHROPIC_API_KEY on the server, or add your own key in ${OWN_AI_ACCOUNT_SETTINGS_HINT}.`,
+      );
+    }
+    return this.anthropicClient;
   }
 
   /**
@@ -634,17 +637,16 @@ export class LLMCoreService {
    *
    * OpenAI is required here (tool-calling support); there is no Gemini fallback.
    */
-  async openAiChatWithTools(
+  private async openAiChatWithTools(
     params: ToolChatParams,
+    client: OpenAI,
+    apiKeySource: ApiKeySource,
   ): Promise<OpenAI.Chat.Completions.ChatCompletionMessage> {
-    const { client, apiKeySource } = await this.resolveOpenAiClient(
-      params.userId,
-    );
     const model =
       params.model ||
       this.configService.get<string>("OPENAI_ASK_AI_MODEL") ||
       this.configService.get<string>("OPENAI_MODEL") ||
-      "gpt-5.4-mini";
+      DEFAULT_OPENAI_MODEL;
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
@@ -699,21 +701,57 @@ export class LLMCoreService {
   async chatWithTools(
     params: ToolChatParams,
   ): Promise<OpenAI.Chat.Completions.ChatCompletionMessage> {
+    const keys = await this.findUserKeys(params.userId);
+    if (params.userId && usesOwnAiAccount(keys)) {
+      return this.chatWithToolsOnOwnAccount(params, keys, params.userId);
+    }
     try {
-      return await this.openAiChatWithTools(params);
+      return await this.openAiChatWithTools(
+        params,
+        this.requireSystemOpenAiClient(),
+        "system",
+      );
     } catch (err) {
       if (this.isAbortError(err)) throw err;
       this.logger.warn(
         `OpenAI tool step failed (${(err as Error).message}); trying Anthropic`,
       );
       try {
-        return await this.anthropicChatWithTools(params);
+        return await this.anthropicChatWithTools(
+          params,
+          this.requireSystemAnthropicClient(),
+          "system",
+        );
       } catch (fallbackErr) {
         if (this.isAbortError(fallbackErr)) throw fallbackErr;
         // Surface the clearer "not configured" cause if OpenAI raised it.
         throw err instanceof ServiceUnavailableException ? err : fallbackErr;
       }
     }
+  }
+
+  /** Ask AI's tool steps on the user's own keys: OpenAI first, then Anthropic. */
+  private chatWithToolsOnOwnAccount(
+    params: ToolChatParams,
+    keys: UserAiKeys,
+    userId: string,
+  ): Promise<OpenAI.Chat.Completions.ChatCompletionMessage> {
+    return this.runOnOwnAccount(
+      planOwnProviderAttempts(keys, LLMProvider.OPENAI, params.model),
+      userId,
+      (attempt) =>
+        attempt.provider === LLMProvider.ANTHROPIC
+          ? this.anthropicChatWithTools(
+              params,
+              new Anthropic({ apiKey: attempt.apiKey }),
+              "user",
+            )
+          : this.openAiChatWithTools(
+              { ...params, model: attempt.model },
+              new OpenAI({ apiKey: attempt.apiKey }),
+              "user",
+            ),
+    );
   }
 
   private isAbortError(error: unknown): boolean {
@@ -726,14 +764,14 @@ export class LLMCoreService {
    * Anthropic's tool_use/tool_result format, calls the model, and maps the reply
    * back to an OpenAI ChatCompletionMessage.
    */
-  async anthropicChatWithTools(
+  private async anthropicChatWithTools(
     params: ToolChatParams,
+    client: Anthropic,
+    apiKeySource: ApiKeySource,
   ): Promise<OpenAI.Chat.Completions.ChatCompletionMessage> {
-    const { client, apiKeySource } = await this.resolveAnthropicClient(
-      params.userId,
-    );
     const model =
-      this.configService.get<string>("ANTHROPIC_MODEL") || "claude-sonnet-4-6";
+      this.configService.get<string>("ANTHROPIC_MODEL") ||
+      DEFAULT_ANTHROPIC_MODEL;
     const { system, messages } = toAnthropicMessages(params.messages);
     const tools = toAnthropicTools(params.tools);
 
@@ -755,18 +793,10 @@ export class LLMCoreService {
         ...(params.signal ? { signal: params.signal } : {}),
       };
 
-      let response: Anthropic.Message;
-      try {
-        response = await client.messages.create(createParams, requestOptions);
-      } catch (err: unknown) {
-        const { status } = err as { status?: number };
-        if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) {
-          throw new UnauthorizedException(
-            "Your Anthropic API key is invalid or has expired. Please update it in Settings → Integrations.",
-          );
-        }
-        throw err;
-      }
+      const response = await client.messages.create(
+        createParams,
+        requestOptions,
+      );
 
       if (response.usage) {
         await this.tokenUsageService.logUsage({
@@ -786,47 +816,29 @@ export class LLMCoreService {
     });
   }
 
-  /** Resolve the Anthropic client (user key takes precedence over system key). */
-  private async resolveAnthropicClient(
-    userId?: string,
-  ): Promise<{ client: Anthropic; apiKeySource: "system" | "user" }> {
-    let client = this.anthropicClient;
-    let apiKeySource: "system" | "user" = "system";
-
-    if (userId) {
-      try {
-        const user = await this.usersService.findOneWithAnthropicKey(userId);
-        if (user?.anthropicApiKey) {
-          client = new Anthropic({ apiKey: user.anthropicApiKey });
-          apiKeySource = "user";
-        }
-      } catch (err) {
-        this.logger.warn(
-          `Failed to fetch Anthropic key for userId=${userId}, using system key`,
-          err,
-        );
-      }
-    }
-
-    if (!client) {
-      throw new ServiceUnavailableException(
-        "Anthropic is not configured. Set ANTHROPIC_API_KEY on the server, or add your own key in Settings → Integrations.",
-      );
-    }
-    return { client, apiKeySource };
-  }
-
-  private async generateWithOpenAI(
+  /** OpenAI on BearlyMail's key (users not on their own AI account). */
+  private generateWithOpenAI(
     request: LLMRequest,
     userId?: string,
   ): Promise<string> {
-    const { client: openaiClient, apiKeySource } =
-      await this.resolveOpenAiClient(userId);
+    return this.generateWithOpenAIClient(
+      request,
+      this.requireSystemOpenAiClient(),
+      "system",
+      userId,
+    );
+  }
 
+  private async generateWithOpenAIClient(
+    request: LLMRequest,
+    openaiClient: OpenAI,
+    apiKeySource: ApiKeySource,
+    userId?: string,
+  ): Promise<string> {
     const model =
       request.model ||
       this.configService.get<string>("OPENAI_MODEL") ||
-      "gpt-5.4-mini";
+      DEFAULT_OPENAI_MODEL;
     const reasoningEffort =
       this.configService.get<string>("OPENAI_REASONING_EFFORT") || "low";
     const isReasoningModel = supportsReasoningEffort(model);
@@ -838,58 +850,44 @@ export class LLMCoreService {
         `Generating text with OpenAI model: ${model} using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
       );
 
-      if (isReasoningModel) {
-        return this.generateWithOpenAIReasoningModel({
-          openaiClient: capturedClient,
-          request,
-          model,
-          reasoningEffort,
-          userId,
-          startTime,
-        });
-      }
-      return this.generateWithOpenAIStandardModel(
-        capturedClient,
+      const generation = {
+        openaiClient: capturedClient,
         request,
         model,
         userId,
         startTime,
-      );
+        tokenUsage: this.tokenUsageService,
+        logger: this.logger,
+      };
+      return isReasoningModel
+        ? generateWithOpenAIReasoningModel({ ...generation, reasoningEffort })
+        : generateWithOpenAIStandardModel(generation);
     }).then((text) => reportProvider(request, LLMProvider.OPENAI, text));
   }
 
-  private async generateWithAnthropic(
+  /** Anthropic on BearlyMail's key (users not on their own AI account). */
+  private generateWithAnthropic(
     request: LLMRequest,
     userId?: string,
   ): Promise<string> {
-    let client = this.anthropicClient;
-    let apiKeySource = "system";
+    return this.generateWithAnthropicClient(
+      request,
+      this.requireSystemAnthropicClient(),
+      "system",
+      userId,
+    );
+  }
 
-    // User key overrides the system key
-    if (userId) {
-      try {
-        const user = await this.usersService.findOneWithAnthropicKey(userId);
-        if (user?.anthropicApiKey) {
-          client = new Anthropic({ apiKey: user.anthropicApiKey });
-          apiKeySource = "user";
-          this.logger.debug(`Using user Anthropic key for userId=${userId}`);
-        }
-      } catch (err) {
-        this.logger.warn(
-          `Failed to fetch Anthropic key for userId=${userId}, using system key`,
-          err,
-        );
-      }
-    }
-
-    if (!client) {
-      throw new Error(
-        "No Anthropic client available (no system key and no user key set)",
-      );
-    }
-
+  private async generateWithAnthropicClient(
+    request: LLMRequest,
+    client: Anthropic,
+    apiKeySource: ApiKeySource,
+    userId?: string,
+  ): Promise<string> {
     const model =
-      this.configService.get<string>("ANTHROPIC_MODEL") || "claude-sonnet-4-6";
+      request.model ||
+      this.configService.get<string>("ANTHROPIC_MODEL") ||
+      DEFAULT_ANTHROPIC_MODEL;
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
@@ -917,18 +915,7 @@ export class LLMCoreService {
         }\nRespond with valid JSON only. No markdown fences, no commentary.`;
       }
 
-      let response: Anthropic.Message;
-      try {
-        response = await client!.messages.create(params);
-      } catch (err: unknown) {
-        const { status } = err as { status?: number };
-        if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) {
-          throw new UnauthorizedException(
-            "Your Anthropic API key is invalid or has expired. Please update it in Settings → Integrations.",
-          );
-        }
-        throw err;
-      }
+      const response = await client.messages.create(params);
 
       const durationMs = Date.now() - startTime;
 

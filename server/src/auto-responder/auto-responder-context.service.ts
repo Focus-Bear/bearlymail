@@ -30,11 +30,13 @@ export class AutoResponderContextService {
     },
     headers?: Record<string, string>,
     hasUserReplies?: boolean,
+    userId?: string,
   ) {
     return this.emailClassifierService.classifyEmail(
       email,
       headers,
       hasUserReplies,
+      userId,
     );
   }
 
@@ -43,12 +45,14 @@ export class AutoResponderContextService {
     rules: string[],
     classification?: EmailClassification,
     headers?: Record<string, string>,
+    userId?: string,
   ) {
     return this.emailClassifierService.checkCustomExclusionRules(
       email,
       rules,
       classification,
       headers,
+      userId,
     );
   }
 

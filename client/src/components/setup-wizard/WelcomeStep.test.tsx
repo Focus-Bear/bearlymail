@@ -87,3 +87,39 @@ describe('WelcomeStep — Google permissions', () => {
     expect(screen.queryByRole('button', { name: /permission/i })).not.toBeInTheDocument();
   });
 });
+
+describe('WelcomeStep — no email is read before the terms are accepted', () => {
+  const ACCEPT_CONSENT_PATH = '/users/accept-consent';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedAxios.get.mockResolvedValue({ data: [] });
+    mockedAxios.post.mockResolvedValue({ data: {} });
+  });
+
+  function requestedPaths(): string[] {
+    return [...mockedAxios.get.mock.calls, ...mockedAxios.post.mock.calls].map(([url]) => String(url));
+  }
+
+  it('makes no sync, scan or analysis request on step 1 and keeps Continue disabled', () => {
+    renderWithUser({ missingGooglePermissions: [] });
+
+    expect(screen.getByText('setupWizard.welcome.getStarted').closest('button')).toBeDisabled();
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+    expect(requestedPaths().some(path => /emails|onboarding|context\/analyze/.test(path))).toBe(false);
+  });
+
+  it('records the acceptance (which starts the first sync server-side) only once the box is ticked', async () => {
+    const onComplete = vi.fn();
+    mockedUseAuth.mockReturnValue({ user: { id: 'user-1', email: 'a@example.com' } });
+    render(<WelcomeStep onComplete={onComplete} refreshUser={vi.fn().mockResolvedValue(undefined)} />);
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('setupWizard.welcome.getStarted'));
+
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalled());
+    expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+    expect(mockedAxios.post.mock.calls[0][0]).toContain(ACCEPT_CONSENT_PATH);
+    expect(mockedAxios.post.mock.calls[0][1]).toEqual({ termsAccepted: true, privacyAccepted: true });
+  });
+});

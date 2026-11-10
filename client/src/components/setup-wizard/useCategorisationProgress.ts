@@ -7,7 +7,7 @@ import { MS_PER_MINUTE, POLLING_INTERVAL_MS } from 'constants/numbers';
 /** Longest we hold the user on the learning step waiting for categorisation once learning is done. */
 export const CATEGORISATION_MAX_WAIT_MINUTES = 3;
 const CATEGORISATION_MAX_WAIT_MS = CATEGORISATION_MAX_WAIT_MINUTES * MS_PER_MINUTE;
-const CATEGORISATION_PROGRESS_PATH = '/onboarding/categorisation-progress';
+export const CATEGORISATION_PROGRESS_PATH = '/onboarding/categorisation-progress';
 
 export interface CategorisationProgress {
   total: number;
@@ -19,12 +19,27 @@ export interface CategorisationState {
   timedOut: boolean;
 }
 
-function isCategorisationProgress(value: unknown): value is CategorisationProgress {
+export function isCategorisationProgress(value: unknown): value is CategorisationProgress {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
   const candidate = value as Record<string, unknown>;
   return typeof candidate.total === 'number' && typeof candidate.categorised === 'number';
+}
+
+/**
+ * Continue unlocks once this many inbox threads are sorted. Waiting for the
+ * whole inbox held new users on this step for minutes; the rest keep sorting
+ * server-side after they leave, and the inbox shows that progress.
+ */
+export const ONBOARDING_CATEGORISE_UNLOCK_COUNT = 50;
+
+/** The newest ONBOARDING_CATEGORISE_UNLOCK_COUNT threads (or all of a smaller inbox) have a settled category. */
+export function hasSortedEnoughToContinue(progress: CategorisationProgress | null): boolean {
+  if (progress === null) {
+    return false;
+  }
+  return progress.categorised >= Math.min(ONBOARDING_CATEGORISE_UNLOCK_COUNT, progress.total);
 }
 
 /** True once every untriaged inbox thread has a settled category (an empty inbox counts as sorted). */

@@ -26,6 +26,7 @@ import { SECONDS } from "../constants/time-constants";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { logError } from "../utils/logger";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
@@ -595,7 +596,7 @@ export class AuthController {
         { userId },
         {
           priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
-          singletonKey: `fetch-user-emails-${userId}`,
+          singletonKey: fetchUserEmailsJobKey(userId),
         },
       )
       .catch((err) => {

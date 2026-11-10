@@ -56,7 +56,9 @@ import { Email } from "../database/entities/email.entity";
 import { EmailTrackingSummaryService } from "../email-tracking/email-tracking-summary.service";
 import { stripTrackingPixels } from "../email-tracking/tracking-pixel.helpers";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
+import { EmailProcessingConsentGuard } from "../users/email-processing-consent.guard";
 import { sanitizeLogInput } from "../utils/sanitize-log";
 import { EmailAdminService } from "./email-admin.service";
 import {
@@ -977,13 +979,14 @@ export class EmailsController {
   }
 
   @Post("force-check")
+  @UseGuards(EmailProcessingConsentGuard)
   async forceCheck(@Request() req) {
     await this.boss.send(
       JOB_NAMES.FETCH_USER_EMAILS,
       { userId: req.user.userId },
       {
         priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, true),
-        singletonKey: `fetch-user-emails-${req.user.userId}`,
+        singletonKey: fetchUserEmailsJobKey(req.user.userId),
         singletonSeconds: SECONDS.FIVE_MINUTES,
       },
     );

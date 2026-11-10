@@ -67,11 +67,27 @@ export const IMPERSONATED_BRANDS: readonly ImpersonatedBrand[] = [
   {
     brand: "PayPal",
     names: ["paypal"],
-    domains: ["paypal.com", "paypal.com.au", "paypal.co.uk", "paypal.de"],
+    domains: [
+      "paypal.com",
+      "paypal.com.au",
+      "paypal.co.uk",
+      "paypal.de",
+      "paypal.ca",
+      "paypal.fr",
+      "paypal.es",
+      "paypal.it",
+      "paypal.nl",
+    ],
   },
   {
     brand: "Microsoft",
-    names: ["microsoft", "office 365", "microsoft 365", "onedrive", "sharepoint"],
+    names: [
+      "microsoft",
+      "office 365",
+      "microsoft 365",
+      "onedrive",
+      "sharepoint",
+    ],
     domains: [
       "microsoft.com",
       "office.com",
@@ -83,6 +99,8 @@ export const IMPERSONATED_BRANDS: readonly ImpersonatedBrand[] = [
       "live.com",
       "hotmail.com",
       "azure.com",
+      // SharePoint and OneDrive sharing notifications
+      "sharepointonline.com",
       // Microsoft's own gTLD, e.g. teams.mail.microsoft
       "microsoft",
     ],
@@ -153,7 +171,8 @@ export const IMPERSONATED_BRANDS: readonly ImpersonatedBrand[] = [
   {
     brand: "Adobe",
     names: ["adobe"],
-    domains: ["adobe.com"],
+    // Adobe Acrobat Sign (formerly EchoSign) sends signature requests from its own domains
+    domains: ["adobe.com", "adobesign.com", "echosign.com"],
   },
   {
     brand: "Xero",

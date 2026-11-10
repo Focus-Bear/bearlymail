@@ -51,7 +51,9 @@ describe("phishing pre-checks — SendGrid impersonation regression", () => {
 
   it("reads the link domains from the HTML body, where an HTML-only email keeps them", () => {
     const { phishingSignals } = buildPhishingContext([sendgridImpersonation]);
-    expect(phishingSignals.linkedDomains).toEqual(["u00000000.ct.sendgrid.net"]);
+    expect(phishingSignals.linkedDomains).toEqual([
+      "u00000000.ct.sendgrid.net",
+    ]);
   });
 
   it("finds the sending-paused threat in the subject and body", () => {
@@ -94,8 +96,42 @@ describe("detectImpersonatedBrand", () => {
     ["Microsoft Teams", "no-reply@teams.mail.microsoft"],
     ["Google Workspace", "workspace-noreply@google.com"],
     ["Amazon Web Services", "aws-marketing@amazon.com"],
+    ["Jane Doe via Adobe Acrobat Sign", "adobesign@adobesign.com"],
+    ["SharePoint Online", "no-reply@sharepointonline.com"],
+    ["PayPal", "service@paypal.ca"],
   ])("accepts %s from its own domain (%s)", (name, address) => {
     expect(detectImpersonatedBrand(name, address.split("@")[1])).toBeNull();
+  });
+
+  it.each([
+    [
+      "an Adobe Sign request asking to verify identity",
+      {
+        fromName: "Jane Doe via Adobe Acrobat Sign",
+        senderDomain: "adobesign.com",
+        body: "Jane sent you a document. Verify your identity to sign it.",
+      },
+    ],
+    [
+      "a SharePoint notice about restricted access",
+      {
+        fromName: "SharePoint Online",
+        senderDomain: "sharepointonline.com",
+        body: "Access to this file is restricted to people in Acme.",
+      },
+    ],
+    [
+      "PayPal Canada limiting an account",
+      {
+        fromName: "PayPal",
+        senderDomain: "paypal.ca",
+        body: "Your account access is restricted until you verify your details.",
+      },
+    ],
+  ])("does not flag %s from the brand's own domain", (_label, email) => {
+    const assessment = assessPhishingRedFlags(email);
+    expect(assessment.redFlags).toEqual([]);
+    expect(assessment.verdict).toBeNull();
   });
 
   it("flags a brand name on a lookalike domain", () => {
@@ -118,9 +154,7 @@ describe("findLinkTextMismatches", () => {
       findLinkTextMismatches(
         `<a href="https://login.evil.example.test/x">https://www.paypal.com/signin</a>`,
       ),
-    ).toEqual([
-      { shownDomain: "paypal.com", linkedDomain: "example.test" },
-    ]);
+    ).toEqual([{ shownDomain: "paypal.com", linkedDomain: "example.test" }]);
   });
 
   it("ignores click trackers and mail-security proxies", () => {

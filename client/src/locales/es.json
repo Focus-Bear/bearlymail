@@ -2230,6 +2230,15 @@
       "movingToFollowUp": "→ Seguimiento",
       "movingToAction": "→ Acción"
     },
+    "actionMove": {
+      "toast": "Movido a Acción: tu pila de pendientes.",
+      "view": "Ver",
+      "dismiss": "Cerrar",
+      "badge": "+{{count}}",
+      "announcement": "Correo movido a la pestaña Acción.",
+      "announcementFirst": "Correo movido a la pestaña Acción, tu pila de pendientes. Abre la pestaña Acción para verlo.",
+      "ghostFallback": "Correo"
+    },
     "triageCaughtUp": "Estás al día con los nuevos mensajes.",
     "triageTab": "Clasificación",
     "unsubscribe": "Darse de baja",

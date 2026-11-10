@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ACTION_TAB_EMPHASIS_CLASS, ActionTabEmphasis } from 'constants/actionMove';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
@@ -24,10 +25,35 @@ interface InboxHeaderTabsProps {
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
   tabCounts?: TabCounts | null;
-  /** When true, pulses the Action tab to signal an email moved there (mobile only) */
-  actionTabPulsing?: boolean;
-  onActionTabPulseEnd?: () => void;
+  /** Animation to play on the Action tab because an email just moved there. */
+  actionTabEmphasis?: ActionTabEmphasis | null;
+  onActionTabEmphasisEnd?: () => void;
+  /** Emails moved to Action since the user last opened it, shown as a "+N" badge. */
+  actionMovedCount?: number;
 }
+
+/** The "+N" badge's pop animation bubbles up to the tab too; only the tab's own animation ends the emphasis. */
+function endEmphasisOnOwnAnimation(
+  event: React.AnimationEvent<HTMLButtonElement>,
+  emphasis: ActionTabEmphasis | null | undefined,
+  onEmphasisEnd: (() => void) | undefined
+) {
+  if (emphasis && event.target === event.currentTarget) {
+    onEmphasisEnd?.();
+  }
+}
+
+const MovedToActionBadge: React.FC<{ count: number }> = ({ count }) => {
+  const { t } = useTranslation();
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <span className="action-tab-badge" aria-hidden="true" data-testid="action-tab-moved-badge">
+      {t('inbox.actionMove.badge', { count })}
+    </span>
+  );
+};
 
 /**
  * Inbox header tabs component
@@ -41,8 +67,9 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   actionTabRef,
   followUpTabRef,
   tabCounts,
-  actionTabPulsing,
-  onActionTabPulseEnd,
+  actionTabEmphasis,
+  onActionTabEmphasisEnd,
+  actionMovedCount = 0,
 }) => {
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
@@ -116,13 +143,14 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
       <button
         ref={actionTabRef}
         data-tour={TOUR_TARGETS.ACTION_TAB}
-        className={`action-tab${actionTabPulsing ? ' animate-tab-pulse' : ''}`}
+        className={actionTabEmphasis ? `action-tab ${ACTION_TAB_EMPHASIS_CLASS[actionTabEmphasis]}` : 'action-tab'}
         onClick={() => handleTabClick('action')}
         disabled={loadingModeSwitch}
-        style={getTabStyle('action')}
-        onAnimationEnd={actionTabPulsing ? onActionTabPulseEnd : undefined}
+        style={{ ...getTabStyle('action'), position: 'relative' }}
+        onAnimationEnd={event => endEmphasisOnOwnAnimation(event, actionTabEmphasis, onActionTabEmphasisEnd)}
       >
         {getTabLabel('action')}
+        <MovedToActionBadge count={actionMovedCount} />
       </button>
       <button
         ref={followUpTabRef}

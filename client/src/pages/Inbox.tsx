@@ -4,6 +4,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { CategoryArchiveSuggestion } from 'utils/categoryArchiveWorkflow';
 
+import { ActionMoveFeedbackLayer } from 'components/inbox/action-move/ActionMoveFeedbackLayer';
 import { AnalysingPriorityCategory } from 'components/inbox/AnalysingPriorityCategory';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { AutoArchiveSuggestionsNotice } from 'components/inbox/auto-archive-notice/AutoArchiveSuggestionsNotice';
@@ -68,7 +69,7 @@ const InboxView: React.FC = () => {
     lastUrgentCheck,
     selectedEmailIndex,
     selectedEmailIds,
-    actionTabPulsing,
+    actionMoveFeedback,
     expandedCategories,
     stableCategoryOrder,
     user,
@@ -106,7 +107,6 @@ const InboxView: React.FC = () => {
     updateStableCategoryOrder,
     setSelectedEmailIndex,
     setSelectedEmailIds,
-    setActionTabPulsing,
     logout,
     refreshUser,
     setMode,
@@ -401,8 +401,7 @@ const InboxView: React.FC = () => {
           actionTabRef={actionTabRef}
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
-          actionTabPulsing={actionTabPulsing}
-          onActionTabPulseEnd={() => setActionTabPulsing(false)}
+          actionMoveFeedback={actionMoveFeedback}
           onToggleMobileMenu={openMobileMenu}
           isFilterBarVisible={isFilterBarVisible}
           hasActiveFilters={hasEffectiveActiveFilters}
@@ -421,6 +420,7 @@ const InboxView: React.FC = () => {
           onViewBlockedEmails={() => setMode('blocked')}
           onViewAutoRespondedEmails={() => setMode('autoresponded')}
         />
+        <ActionMoveFeedbackLayer feedback={actionMoveFeedback} />
         <InboxFilters
           onFilterChange={fetchEmails}
           isFilterBarVisible={isFilterBarVisible}

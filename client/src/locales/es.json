@@ -2333,7 +2333,11 @@
       "dismiss": "Entendido"
     },
     "familyCategoryCount_one": "{{count}} categoría",
-    "familyCategoryCount_other": "{{count}} categorías"
+    "familyCategoryCount_other": "{{count}} categorías",
+    "backgroundSorting": {
+      "title": "Ordenando el resto de tu bandeja en segundo plano",
+      "progress": "{{categorised}} de {{total}} ordenados"
+    }
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",
@@ -3268,6 +3272,8 @@
       "archiveTitle": "Archívalo",
       "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y lo urgente que creemos que es. Ábrela para ver el panel lateral de IA con tareas, notas y Preguntar a IA. Los siguientes pasos muestran qué hacen sus botones.",
       "assistantTitle": "Tus correos",
+      "backgroundSortingContent": "Primero ordenamos tus correos más recientes para que pudieras empezar. El resto se sigue procesando en segundo plano y pasará a su categoría a medida que se ordene. Esta barra muestra cuánto falta y desaparece cuando termina.",
+      "backgroundSortingTitle": "Seguimos ordenando el resto",
       "back": "Atrás",
       "blockContent": "¿No quieres volver a saber de alguien? Abre este menú ⋮ y elige Bloquear remitente. Cuando lo confirmes, todos sus correos futuros se archivarán automáticamente. Puedes desbloquearlo cuando quieras en Configuración. (En los boletines, el menú ofrece Darse de baja.)",
       "blockTitle": "Bloquea a un remitente",
@@ -3280,6 +3286,8 @@
       "prioritiseTitle": "Priorízalo",
       "processTitle": "Pestaña Proceso",
       "skip": "Saltar",
+      "snoozeContent": "¿Todavía no puedes ocuparte? Posponer oculta el correo y lo devuelve a tu bandeja cuando tú elijas. Haz clic en Posponer, escribe cuándo quieres que vuelva, como 4h, 5pm, mañana o el próximo lunes, y pulsa Intro. También se sincroniza con Gmail u Outlook.",
+      "snoozeTitle": "Pospónlo",
       "stepProgress": "{{current}} de {{total}}",
       "triageContent": "Los correos nuevos llegan a esta pestaña, con los más importantes primero. Decide qué hacer con cada uno: responder, archivar, posponer o priorizarlo para moverlo a Acción.",
       "triageTitle": "Pestaña de clasificación",
@@ -3378,7 +3386,7 @@
       "phaseCategorise": "Clasificando tus correos en categorías",
       "statusCategorise": "Clasificando tu bandeja en categorías… ({{categorised}} de {{total}}) para que se abra ordenada",
       "statusCategoriseGeneric": "Clasificando tu bandeja en categorías para que se abra ordenada…",
-      "readyDetailStillSorting": "La mayor parte de tu bandeja ya está ordenada. El resto pasará a sus categorías en los próximos minutos.",
+      "readyDetailStillSorting": "Tus correos más recientes ya están ordenados, así que tu bandeja está lista. Seguiremos ordenando el resto en segundo plano y pasarán a sus categorías en los próximos minutos.",
       "stalledTitle": "El aprendizaje a partir de tus correos se ha detenido",
       "stalledDetailError": "No pudimos terminar de aprender de tus correos. Inténtalo de nuevo, o abre tu bandeja ahora y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA.",
       "stalledDetailTimeout": "Esto aún no ha terminado después de {{minutes}} minutos. Inténtalo de nuevo, o abre tu bandeja ahora y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA.",

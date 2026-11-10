@@ -11,6 +11,7 @@ import { Email, getEmailPriorityScore, InboxMode, TriageSuggestion } from 'types
 import { devLog, devWarn } from 'utils/dev-logger';
 import { ACCORDION_BUDGETS } from 'utils/performanceBudget';
 
+import { BackgroundSortingBanner } from 'components/inbox/BackgroundSortingBanner';
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { CategoryAccordion, CategoryGroup } from 'components/inbox/CategoryAccordion';
 import { CategoryDebugPanel } from 'components/inbox/CategoryDebugPanel';
@@ -994,6 +995,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
       >
         {mode === MODE_TRIAGE && (
           <>
+            <BackgroundSortingBanner />
             <BatchInfoBar nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck} />
             <TriageBatchSummary counts={priorityCounts} isVisible={canRenderCategories} />
           </>

@@ -95,11 +95,12 @@ interface CompositionContext {
   boss: PgBoss;
 }
 
-function buildLlmLayer({ repo, config }: CompositionContext) {
+function buildLlmLayer({ repo, config, boss }: CompositionContext) {
   const usersService = new UsersService(
     repo(User),
     repo(DeletedAccount),
     new LocalModelUserDataService(config),
+    boss,
   );
   const debugService = new DebugService(repo(DebugData), repo(DebugConfig));
   const tokenUsageService = new TokenUsageService(

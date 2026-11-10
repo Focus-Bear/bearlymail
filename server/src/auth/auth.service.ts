@@ -32,6 +32,7 @@ import { User } from "../database/entities/user.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
@@ -417,7 +418,7 @@ export class AuthService {
           { userId },
           {
             priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
-            singletonKey: `fetch-user-emails-${userId}`,
+            singletonKey: fetchUserEmailsJobKey(userId),
             singletonSeconds: SECONDS.FIVE_MINUTES,
           },
         )

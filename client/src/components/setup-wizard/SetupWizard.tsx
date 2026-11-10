@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { markBackgroundSortingStarted } from 'utils/backgroundSorting';
 
 import { API_URL } from 'config/api';
 import { SETUP_STEP_LEARNING, SETUP_STEP_SCHEDULE, SETUP_STEP_WELCOME } from 'constants/strings';
@@ -46,6 +47,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUse
     setIsLoading(true);
     try {
       await axios.post(`${API_URL}/onboarding/complete`);
+      // Continue unlocks before the whole inbox is sorted; the inbox shows the rest finishing.
+      markBackgroundSortingStarted();
       await refreshUser();
       onComplete();
     } catch (error) {

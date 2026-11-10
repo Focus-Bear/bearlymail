@@ -4,6 +4,8 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { GMAIL_ACCESS_ISSUE } from "../constants/domain-statuses";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import {
   DEFAULT_LEGAL_VERSIONS,
   PRIVACY_CHANGE_SUMMARY_KEYS,
@@ -43,6 +45,7 @@ jest.mock("../auth/auth-logger", () => ({
 }));
 
 describe("UsersService", () => {
+  let boss: { send: jest.Mock };
   let service: UsersService;
   let repository: jest.Mocked<Repository<User>>;
   let deletedAccountRepository: jest.Mocked<Repository<DeletedAccount>>;
@@ -87,6 +90,10 @@ describe("UsersService", () => {
           },
         },
         {
+          provide: INJECT_TOKENS.PG_BOSS,
+          useValue: { send: jest.fn().mockResolvedValue("job-id") },
+        },
+        {
           provide: LocalModelUserDataService,
           useValue: { deleteUserData: jest.fn() },
         },
@@ -95,6 +102,7 @@ describe("UsersService", () => {
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(getRepositoryToken(User));
+    boss = module.get(INJECT_TOKENS.PG_BOSS);
     deletedAccountRepository = module.get(getRepositoryToken(DeletedAccount));
     jest.clearAllMocks();
     deleteLocalModelData = module.get(LocalModelUserDataService)
@@ -543,6 +551,61 @@ describe("UsersService", () => {
     beforeEach(() => {
       process.env.TERMS_VERSION = "2.0.0";
       process.env.PRIVACY_VERSION = "2.0.0";
+    });
+
+    it("queues the first email sync when a new user accepts the terms", async () => {
+      repository.findOne
+        .mockResolvedValueOnce(
+          mockPartial<User>({
+            id: "user-1",
+            termsAcceptedAt: null,
+            hasCompletedOnboarding: false,
+          }),
+        )
+        .mockResolvedValue({ ...mockUser, termsAcceptedAt: new Date() });
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+
+      await service.acceptConsent("user-1", true, true);
+
+      expect(boss.send).toHaveBeenCalledWith(
+        JOB_NAMES.FETCH_USER_EMAILS,
+        { userId: "user-1" },
+        expect.objectContaining({ singletonKey: "fetch-user-emails-user-1" }),
+      );
+    });
+
+    it("does not queue another sync for a user who had already accepted", async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockUser,
+        termsAcceptedAt: new Date("2026-01-01"),
+      });
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+
+      await service.acceptConsent("user-1", true, true);
+
+      expect(boss.send).not.toHaveBeenCalled();
+    });
+
+    it("still records the acceptance when queueing the sync fails", async () => {
+      repository.findOne
+        .mockResolvedValueOnce(
+          mockPartial<User>({
+            id: "user-1",
+            termsAcceptedAt: null,
+            hasCompletedOnboarding: false,
+          }),
+        )
+        .mockResolvedValue({ ...mockUser, termsAcceptedAt: new Date() });
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+      boss.send.mockRejectedValueOnce(new Error("queue down"));
+
+      await expect(
+        service.acceptConsent("user-1", true, true),
+      ).resolves.toBeDefined();
+      expect(repository.update).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ termsAcceptedAt: expect.any(Date) }),
+      );
     });
 
     it("should accept terms and privacy", async () => {

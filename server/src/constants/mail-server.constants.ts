@@ -35,3 +35,9 @@ export const GMAIL_SEARCH_VALUES = {
   UNREAD: "unread",
   STARRED: "starred",
 } as const;
+
+/** RFC 5322 / RFC 8601 header names read from incoming mail. */
+export const MAIL_HEADER_NAMES = {
+  REPLY_TO: "Reply-To",
+  AUTHENTICATION_RESULTS: "Authentication-Results",
+} as const;

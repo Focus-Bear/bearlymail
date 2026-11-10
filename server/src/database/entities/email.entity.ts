@@ -12,6 +12,7 @@ import {
   makeEncryptedColumnTransformer,
   makeEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
+import { SenderAuthResults } from "../../utils/authentication-results.util";
 import { EmailThread } from "./email-thread.entity";
 import { GoogleAccount } from "./google-account.entity";
 import { Office365Account } from "./office365-account.entity";
@@ -293,6 +294,14 @@ export class Email {
     comment: "Human-readable reason for the phishing detection signal",
   })
   phishingReason: string | null;
+
+  @Column({
+    type: "jsonb",
+    nullable: true,
+    comment:
+      "SPF/DKIM/DMARC outcomes from the receiving server's Authentication-Results header, e.g. {\"spf\":\"pass\",\"dmarc\":\"fail\"}. NULL when the provider exposes no such header.",
+  })
+  senderAuthResults: SenderAuthResults | null;
 
   @Column({
     default: false,

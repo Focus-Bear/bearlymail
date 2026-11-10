@@ -185,7 +185,7 @@ export const CLASSIFICATION_DECISIONS: Pick<
       risk: {
         type: JEV_QUESTION_TYPES.CHOICE,
         instructions:
-          "Does the email contain clear evidence of phishing under the policy? A brand-impersonating sender domain is suspicious even when links match it. Legitimate ESPs and urgent notices from the real brand are not phishing.",
+          "Does the email contain clear evidence of phishing under the policy? A brand-impersonating sender domain is suspicious even when links match it. A sender display name claiming a brand (e.g. SendGrid, PayPal) from a domain that is not that brand's is impersonation, even when SPF/DKIM/DMARC pass and links use the brand's click-tracker. Legitimate ESPs and urgent notices from the real brand are not phishing.",
         criteria: {
           [PHISHING_RISK.LEGITIMATE]: "Legitimate or no clear deceptive signal",
           [PHISHING_RISK.PHISHING]:

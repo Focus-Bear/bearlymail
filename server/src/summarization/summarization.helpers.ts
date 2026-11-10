@@ -11,8 +11,10 @@ import { LLMService } from "../llm/llm.service";
 import { LLM_OP_MATCH_SUMMARIZATION_RULE } from "../llm/llm-operations";
 import { logWarn } from "../utils/logger";
 import {
+  EMPTY_PHISHING_SIGNALS,
   extractPhishingSignals,
   mergePhishingSignalSets,
+  PhishingEmailContext,
   PhishingSignals,
 } from "./phishing-detection.service";
 import { EmailWithHtmlBody, SummaryDebugInfo } from "./summarization.types";
@@ -61,30 +63,35 @@ export function buildPhishingCacheKey(
   return `${(from ?? "").slice(0, partLen)}::${(subject ?? "").slice(0, partLen)}`;
 }
 
+/** The email fields the phishing signals are derived from. */
+export type PhishingContextEmail = PhishingEmailContext & {
+  from?: string;
+  body?: string | null;
+};
+
 /**
  * Derive combined phishing signals from all emails in a thread.
- * These signals are passed as context to the LLM — they are NOT used as a standalone
- * phishing verdict. Only the LLM can produce a phishing verdict.
+ * These signals are passed as context to the LLM; only when the deterministic
+ * pre-checks' red flags combine (`deterministicVerdict`) do they decide alone.
  */
 export function buildPhishingContext(
-  allThreadEmails: Array<{ from?: string; body?: string | null }>,
+  allThreadEmails: PhishingContextEmail[],
 ): {
   phishingSignals: PhishingSignals;
 } {
-  const emptySignals: PhishingSignals = {
-    hasDomainMismatch: false,
-    senderDomain: null,
-    linkedDomains: [],
-    suspiciousKeywords: [],
-    rawScore: 0,
-  };
   const phishingSignals = allThreadEmails.reduce(
     (merged, threadEmail) =>
       mergePhishingSignalSets(
         merged,
-        extractPhishingSignals(threadEmail.from, threadEmail.body ?? ""),
+        extractPhishingSignals(threadEmail.from, threadEmail.body ?? "", {
+          fromName: threadEmail.fromName,
+          replyTo: threadEmail.replyTo,
+          subject: threadEmail.subject,
+          htmlBody: threadEmail.htmlBody,
+          senderAuthResults: threadEmail.senderAuthResults,
+        }),
       ),
-    emptySignals,
+    EMPTY_PHISHING_SIGNALS,
   );
   return { phishingSignals };
 }

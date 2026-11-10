@@ -49,6 +49,36 @@ describe('useDistractionFriction', () => {
     expect(result.current.isModalOpen).toBe(false);
   });
 
+  // Report 2026-11-10 (Bala): a new user revealed lower-priority mail while the first import
+  // was running; a starred thread then landed in Action, the snapshot absorbed it, the gate
+  // switched on and the floor effect re-applied the High filter over the user's reveal.
+  it('keeps a frictionless reveal unlocked when existing work arrives later in the session', () => {
+    const { result, rerender } = renderHook(
+      ({ tabCounts, workAdditionCount }) => useDistractionFriction({ mode: 'triage', tabCounts, workAdditionCount }),
+      { initialProps: { tabCounts: NO_WORK, workAdditionCount: 0 } }
+    );
+    let intercepted = true;
+    act(() => {
+      intercepted = result.current.requestUnlock(null, null);
+    });
+    expect(intercepted).toBe(false);
+
+    // The import delivers a starred thread into Action — no user move, so the snapshot absorbs it.
+    rerender({ tabCounts: { triage: 499, action: 1, followUp: 0 }, workAdditionCount: 0 });
+
+    expect(result.current.hasExistingWork).toBe(true);
+    expect(result.current.isUnlocked).toBe(true);
+    expect(result.current.isGateActive).toBe(false);
+  });
+
+  it('does not unlock the session for a frictionless peek that stays at High-and-above', () => {
+    const { result } = renderHook(() => useDistractionFriction({ mode: 'triage', tabCounts: NO_WORK }));
+    act(() => {
+      result.current.requestUnlock(HIGH_PRIORITY_THRESHOLD, null);
+    });
+    expect(result.current.isUnlocked).toBe(false);
+  });
+
   it('freezes the snapshot once the user moves work in, even as live counts keep climbing', () => {
     const { result, rerender } = renderHook(
       ({ tabCounts, workAdditionCount }) => useDistractionFriction({ mode: 'triage', tabCounts, workAdditionCount }),

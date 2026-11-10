@@ -104,6 +104,12 @@ export interface SyncEmailsOptions {
   isContinuation?: boolean;
 
   /**
+   * True when the threads are OLDER mail the user asked to import ("process another 500").
+   * Old mail must not be held for the next batch delivery, and it is charged to the plan.
+   */
+  isBackfill?: boolean;
+
+  /**
    * When true, fetch the full ongoing sync window (ONGOING_SYNC_WINDOW_DAYS)
    * instead of the incremental window. Used by the 2-hour extended sync to
    * catch any missed emails. Despite the name, the fetch is still clamped to

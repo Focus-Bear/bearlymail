@@ -27,6 +27,7 @@ import { registerWorker } from "../queue/register-worker";
 import { UsersService } from "../users/users.service";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import type { FetchUserEmailsJobData } from "./fetch-user-emails-job.types";
 import { GmailProvider } from "./providers/gmail.provider";
 
 @Injectable()
@@ -199,13 +200,13 @@ export class EmailSyncProcessor implements OnModuleInit {
         teamSize: this.syncConcurrency,
       } as { teamSize: number },
       async (job) => {
-        const { userId, threadIds, isContinuation, syncWindowHours } =
-          job.data as {
-            userId: string;
-            threadIds?: string[];
-            isContinuation?: boolean;
-            syncWindowHours?: number;
-          };
+        const {
+          userId,
+          threadIds,
+          isContinuation,
+          syncWindowHours,
+          isBackfill,
+        } = job.data as FetchUserEmailsJobData;
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(
           JOB_NAMES.FETCH_USER_EMAILS,
@@ -231,6 +232,7 @@ export class EmailSyncProcessor implements OnModuleInit {
                 threadIds,
                 isContinuation: true,
                 syncWindowHours,
+                isBackfill,
               });
             } else {
               await this.startOnboardingAnalysisIfConnected(userId);

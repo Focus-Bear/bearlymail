@@ -1978,10 +1978,6 @@
     "andMore": "y {{count}} más",
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
-    "syncWindowBanner": {
-      "message": "Aviso: hemos importado tus {{count}} conversaciones más recientes. Los correos más antiguos no se sincronizan con BearlyMail.",
-      "dismiss": "Descartar"
-    },
     "openTrackingNotice": {
       "message": "El seguimiento de aperturas está activado: BearlyMail ahora te muestra cuándo se abren los correos que envías.",
       "manage": "Gestionar en Ajustes",
@@ -2071,8 +2067,6 @@
       "categoryGroup": "Filtro de categoría",
       "priority": "Filtro de prioridad",
       "priorityAll": "Todas las prioridades",
-      "priorityMinHandle": "Prioridad mínima",
-      "priorityMaxHandle": "Prioridad máxima",
       "resetPriority": "Restablecer",
       "allAccounts": "Todas las cuentas",
       "allCategories": "Todas",
@@ -2081,7 +2075,17 @@
       "clearAll": "Borrar filtros",
       "moreCategories": "más",
       "showMoreCategories": "Mostrar {{count}} categorías más",
-      "nCategoriesSelected": "{{count}} seleccionadas"
+      "nCategoriesSelected": "{{count}} seleccionadas",
+      "collapse": "Ocultar filtros",
+      "prioritySelectedCount_one": "{{count}} correo",
+      "prioritySelectedCount_other": "{{count}} correos",
+      "buckets": {
+        "veryHigh": "Muy alta",
+        "high": "Alta",
+        "medium": "Media",
+        "low": "Baja",
+        "veryLow": "Muy baja"
+      }
     },
     "checkUrgent": "Verificar urgentes",
     "loadMore": "Cargar más correos",
@@ -2321,18 +2325,25 @@
     },
     "catchingUp": "Procesando {{remaining}} hilo(s) de correo pendiente(s) de cuando estabas ausente...",
     "catchingUpTooltip": "El procesamiento de IA se pausó mientras estabas inactivo. Procesando ahora en segundo plano.",
-    "batchSummary": {
-      "total_one": "{{count}} correo por clasificar",
-      "total_other": "{{count}} correos por clasificar",
-      "band": "{{count}} {{label}}"
-    },
     "scheduledTour": {
       "title": "Correo programado ✅",
       "body": "Encuéntralo aquí cuando quieras: toca ⋮ y luego Programados para ver, reprogramar o cancelar.",
       "dismiss": "Entendido"
     },
     "familyCategoryCount_one": "{{count}} categoría",
-    "familyCategoryCount_other": "{{count}} categorías"
+    "familyCategoryCount_other": "{{count}} categorías",
+    "importOlderNotice": {
+      "message": "Solo importamos tus {{count}} correos más recientes.",
+      "processMore": "Haz clic aquí para procesar otros {{count}}.",
+      "credits_one": "Aviso: a tu plan solo le quedan créditos para {{count}} correo más.",
+      "credits_other": "Aviso: a tu plan solo le quedan créditos para {{count}} correos más.",
+      "viewPlans": "Ver planes",
+      "queued_one": "Importando {{count}} correo antiguo. Aparecerá en Clasificación cuando se haya clasificado.",
+      "queued_other": "Importando {{count}} correos antiguos. Aparecerán en Clasificación a medida que se clasifiquen.",
+      "nothingOlder": "No quedan correos antiguos por importar.",
+      "unsupported": "Por ahora, importar correos antiguos solo está disponible para cuentas de Gmail.",
+      "failed": "No se pudo iniciar la importación. Inténtalo de nuevo."
+    }
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",

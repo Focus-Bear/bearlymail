@@ -166,6 +166,51 @@ describe("UsersController", () => {
     });
   });
 
+  describe("own AI keys never reach the client", () => {
+    const keyFields = {
+      openAiApiKey: "sk-user-openai",
+      anthropicApiKey: "sk-ant-user",
+      typesafeApiKey: "user-jev",
+      aiKeyRejections: { openai: "2026-11-10T00:00:00.000Z" },
+    };
+
+    it("omits every AI key from GET /users/me", async () => {
+      mockUsersService.findOne.mockResolvedValue({
+        id: "user-123",
+        email: "test@example.com",
+        ...keyFields,
+      });
+
+      const result = await controller.getProfile({
+        user: { userId: "user-123" },
+      });
+
+      for (const field of Object.keys(keyFields)) {
+        expect(result).not.toHaveProperty(field);
+      }
+    });
+
+    it("ignores AI keys sent to PUT /users/me and never echoes them back", async () => {
+      mockUsersService.update.mockResolvedValue({
+        id: "user-123",
+        name: "Updated Name",
+        ...keyFields,
+      });
+
+      const result = await controller.updateProfile(
+        { user: { userId: "user-123" } },
+        { name: "Updated Name", ...keyFields },
+      );
+
+      expect(usersService.update).toHaveBeenCalledWith("user-123", {
+        name: "Updated Name",
+      });
+      for (const field of Object.keys(keyFields)) {
+        expect(result).not.toHaveProperty(field);
+      }
+    });
+  });
+
   describe("acceptConsent", () => {
     it("should accept consent", async () => {
       const userId = "user-123";

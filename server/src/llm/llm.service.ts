@@ -279,12 +279,15 @@ export class LLMService {
     );
   }
 
-  async redactNamesWithLLM(text: string): Promise<string> {
-    return this.llmToneService.redactNamesWithLLM(text);
+  async redactNamesWithLLM(text: string, userId?: string): Promise<string> {
+    return this.llmToneService.redactNamesWithLLM(text, userId);
   }
 
-  async validateWritingExample(text: string): Promise<string | null> {
-    return this.llmToneService.validateWritingExample(text);
+  async validateWritingExample(
+    text: string,
+    userId?: string,
+  ): Promise<string | null> {
+    return this.llmToneService.validateWritingExample(text, userId);
   }
 
   // ─── Actions ─────────────────────────────────────────────────────────────

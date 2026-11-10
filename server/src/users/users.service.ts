@@ -248,7 +248,7 @@ export class UsersService {
   }
 
   /**
-   * @deprecated Use optimized methods like findOneForAuth, findOneWithTokens, or findOneWithApiKey instead
+   * @deprecated Use optimized methods like findOneForAuth or findOneWithTokens instead
    * This method selects all columns including encrypted ones, which is slow.
    */
   async findOne(id: string): Promise<User> {
@@ -349,29 +349,6 @@ export class UsersService {
         "user.needsRelogin",
         "user.lastLogoutReason",
       ])
-      .where("user.id = :id", { id })
-      .getOne();
-  }
-
-  /**
-   * Optimized for LLM services - selects id + openAiApiKey.
-   * Use when you only need the OpenAI API key.
-   */
-  async findOneWithApiKey(id: string): Promise<User | null> {
-    return this.userRepository
-      .createQueryBuilder("user")
-      .select(["user.id", "user.openAiApiKey"])
-      .where("user.id = :id", { id })
-      .getOne();
-  }
-
-  /**
-   * Optimized for Anthropic LLM service — selects id + anthropicApiKey only.
-   */
-  async findOneWithAnthropicKey(id: string): Promise<User | null> {
-    return this.userRepository
-      .createQueryBuilder("user")
-      .select(["user.id", "user.anthropicApiKey"])
       .where("user.id = :id", { id })
       .getOne();
   }

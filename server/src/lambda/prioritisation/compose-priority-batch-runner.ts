@@ -67,6 +67,7 @@ import { LLMSummarizationService } from "../../llm/llm-summarization.service";
 import { LLMToneService } from "../../llm/llm-tone.service";
 import { PriorityAnalysisService } from "../../llm/priority-analysis.service";
 import { TokenUsageService } from "../../llm/token-usage.service";
+import { UserAiKeysService } from "../../llm/user-ai-keys.service";
 import { LocalModelInferenceService } from "../../local-model/local-model-inference.service";
 import { LocalModelSupervisionService } from "../../local-model/local-model-supervision.service";
 import { LocalModelUserDataService } from "../../local-model/local-model-user-data.service";
@@ -109,9 +110,10 @@ function buildLlmLayer({ repo, config, boss }: CompositionContext) {
     repo(User),
     debugService,
   );
+  const userAiKeysService = new UserAiKeysService(repo(User));
   const llmCoreService = new LLMCoreService(
     config,
-    usersService,
+    userAiKeysService,
     tokenUsageService,
   );
   const llmCategoriesService = new LLMCategoriesService(llmCoreService);
@@ -135,7 +137,7 @@ function buildLlmLayer({ repo, config, boss }: CompositionContext) {
     llmService,
     errorTrackingService: new ErrorTrackingService(),
     categoryShortlistService: new CategoryShortlistService(
-      new EmbeddingService(config, tokenUsageService),
+      new EmbeddingService(config, tokenUsageService, userAiKeysService),
     ),
     cloudWatchService: new CloudWatchService(config),
     userEncryptionService: new UserEncryptionService(

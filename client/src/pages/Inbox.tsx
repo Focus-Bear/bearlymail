@@ -22,7 +22,6 @@ import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { InboxPlanStatusBanner } from 'components/inbox/InboxPlanStatusBanner';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
-import { OpenTrackingNoticeBanner } from 'components/inbox/OpenTrackingNoticeBanner';
 import { countThreadsInPriorityRange, shouldRefetchEmptyTriageList } from 'components/inbox/priorityRangeCounts';
 import { shouldRevealLowerPriorityTriage } from 'components/inbox/revealLowerPriorityTriage';
 import { Sidebar } from 'components/inbox/Sidebar';
@@ -577,16 +576,7 @@ const InboxView: React.FC = () => {
                 isTriageCleared={hasInitiallyLoaded && tabCounts?.triage === 0}
               />
             )}
-            {user && (
-              <>
-                <OpenTrackingNoticeBanner
-                  userId={user.id}
-                  trackEmailOpens={user.trackEmailOpens}
-                  hasSeenTour={user.hasSeenTour}
-                />
-                <AutoArchiveSuggestionsNotice userId={user.id} hasSeenTour={user.hasSeenTour} />
-              </>
-            )}
+            {user && <AutoArchiveSuggestionsNotice userId={user.id} hasSeenTour={user.hasSeenTour} />}
             {/* "Analysing priority..." banner for unprioritised emails, unless the
                 "AI deciding category" accordion is already listing them */}
             {priorityCounts && priorityCounts.unprioritised > 0 && !hasPendingCategorisation(categorySummary) && (

@@ -117,7 +117,7 @@ describe('TourOverlay', () => {
     await waitFor(() => expect(screen.getByTestId('spotlight').querySelectorAll('path')).toHaveLength(2));
   });
 
-  it('Esc skips, → advances and ← goes back', async () => {
+  it('Esc opens the hold-to-skip prompt instead of skipping, → advances and ← goes back', async () => {
     mountTarget(TOUR_TARGETS.TRIAGE_TAB);
     const handlers = renderTour(1);
     await screen.findByText('New emails land here');
@@ -130,7 +130,37 @@ describe('TourOverlay', () => {
 
     expect(handlers.onNextTourStep).toHaveBeenCalledTimes(1);
     expect(handlers.onPrevTourStep).toHaveBeenCalledTimes(1);
-    expect(handlers.onSkipTour).toHaveBeenCalledTimes(1);
+    expect(handlers.onSkipTour).not.toHaveBeenCalled();
+    expect(screen.getByTestId('tour-skip-prompt')).toBeInTheDocument();
+  });
+
+  it('Esc again closes the skip prompt and carries on with the tour', async () => {
+    renderTour(0);
+    await screen.findByText('Quick tour');
+
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+    expect(screen.getByTestId('tour-skip-prompt')).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+    expect(screen.queryByTestId('tour-skip-prompt')).not.toBeInTheDocument();
+  });
+
+  it('leaves Enter on the hold-to-skip button to the hold, rather than advancing the tour', async () => {
+    const handlers = renderTour(0);
+    await screen.findByText('Quick tour');
+    fireEvent.click(screen.getByText('onboarding.tour.skip'));
+
+    const holdButton = screen.getByRole('button', { name: 'onboarding.tourSkipPrompt.ariaLabel' });
+    act(() => {
+      fireEvent.keyDown(holdButton, { key: 'Enter' });
+    });
+
+    expect(handlers.onNextTourStep).not.toHaveBeenCalled();
+    expect(holdButton).toHaveAttribute('data-holding', 'true');
   });
 
   it('does not go back from the first step', async () => {

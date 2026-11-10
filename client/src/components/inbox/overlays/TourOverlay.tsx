@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { Joyride, type TooltipRenderProps } from 'react-joyride';
 import { theme } from 'theme/theme';
 
@@ -40,11 +40,34 @@ interface TourOverlayProps {
   onPrevTourStep: () => void;
 }
 
+interface TourControls extends TourOverlayProps {
+  isSkipPromptVisible: boolean;
+  onRequestSkip: () => void;
+  onCancelSkip: () => void;
+}
+
 /**
  * Joyride renders the tooltip component itself (inside its portal), so the
  * step state and handlers reach it through context rather than props.
  */
-const TourControlsContext = createContext<TourOverlayProps | null>(null);
+const TourControlsContext = createContext<TourControls | null>(null);
+
+/**
+ * Whether the "hold to skip" prompt is showing. It closes again whenever the
+ * step changes, so moving on through the tour puts the card back to normal.
+ */
+function useSkipPrompt(tourStep: number) {
+  const [isSkipPromptVisible, setIsSkipPromptVisible] = useState(false);
+  const [promptStep, setPromptStep] = useState(tourStep);
+  if (promptStep !== tourStep) {
+    setPromptStep(tourStep);
+    setIsSkipPromptVisible(false);
+  }
+  const onRequestSkip = useCallback(() => setIsSkipPromptVisible(true), []);
+  const onCancelSkip = useCallback(() => setIsSkipPromptVisible(false), []);
+  const onToggleSkipPrompt = useCallback(() => setIsSkipPromptVisible(isVisible => !isVisible), []);
+  return { isSkipPromptVisible, onRequestSkip, onCancelSkip, onToggleSkipPrompt };
+}
 
 const TourTooltip: React.FC<TooltipRenderProps> = ({ tooltipProps }) => {
   const controls = useContext(TourControlsContext);
@@ -58,6 +81,9 @@ const TourTooltip: React.FC<TooltipRenderProps> = ({ tooltipProps }) => {
       tourSteps={tourSteps}
       isFirstStep={tourStep === 0}
       isLastStep={tourStep === tourSteps.length - 1}
+      isSkipPromptVisible={controls.isSkipPromptVisible}
+      onRequestSkip={controls.onRequestSkip}
+      onCancelSkip={controls.onCancelSkip}
       onSkipTour={onSkipTour}
       onNextTourStep={onNextTourStep}
       onPrevTourStep={onPrevTourStep}
@@ -73,21 +99,27 @@ const TourTooltip: React.FC<TooltipRenderProps> = ({ tooltipProps }) => {
  * element isn't on screen falls back to a centred card.
  */
 export const TourOverlay: React.FC<TourOverlayProps> = props => {
-  const { tourStep, tourSteps, onSkipTour, onNextTourStep, onPrevTourStep } = props;
+  const { tourStep, tourSteps, onNextTourStep, onPrevTourStep } = props;
   const prefersReducedMotion = usePrefersReducedMotion();
+  const { isSkipPromptVisible, onRequestSkip, onCancelSkip, onToggleSkipPrompt } = useSkipPrompt(tourStep);
 
   useTourKeyboard({
     isFirstStep: tourStep === 0,
-    onSkip: onSkipTour,
+    onEscape: onToggleSkipPrompt,
     onNext: onNextTourStep,
     onPrev: onPrevTourStep,
   });
+
+  const controls = useMemo<TourControls>(
+    () => ({ ...props, isSkipPromptVisible, onRequestSkip, onCancelSkip }),
+    [props, isSkipPromptVisible, onRequestSkip, onCancelSkip]
+  );
 
   const steps = useResolvedTourSteps(tourSteps, tourStep);
   const floatingOptions = useMemo(buildFloatingOptions, []);
 
   return (
-    <TourControlsContext.Provider value={props}>
+    <TourControlsContext.Provider value={controls}>
       <Joyride
         run
         continuous
@@ -105,7 +137,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = props => {
           offset: TOOLTIP_OFFSET_PX,
           skipBeacon: true,
           blockTargetInteraction: true,
-          // Esc and overlay clicks are handled by useTourKeyboard / the Skip button.
+          // Esc and overlay clicks are handled by useTourKeyboard / the hold-to-skip prompt.
           dismissKeyAction: false,
           overlayClickAction: false,
           scrollDuration: prefersReducedMotion ? 0 : SCROLL_DURATION_MS,

@@ -3292,6 +3292,18 @@
       "triageTitle": "Pestaña de clasificación",
       "welcome": "¡Bienvenido a BearlyMail!",
       "welcomeContent": "Este es un recorrido rápido por tu bandeja de entrada. Iremos resaltando cada parte: usa las flechas para cambiar de paso o Esc para saltarlo."
+    },
+    "tourSkipPrompt": {
+      "message_one": "BearlyMail tiene una filosofía muy diferente sobre el correo. Te recomendamos encarecidamente hacer el recorrido. Mantén pulsado {{count}} segundo para saltarlo.",
+      "message_other": "BearlyMail tiene una filosofía muy diferente sobre el correo. Te recomendamos encarecidamente hacer el recorrido. Mantén pulsado {{count}} segundos para saltarlo.",
+      "holdButton": "Mantén pulsado para saltar el recorrido",
+      "ariaLabel_one": "Saltar el recorrido. Mantén pulsado {{count}} segundo, o mantén Espacio o Intro.",
+      "ariaLabel_other": "Saltar el recorrido. Mantén pulsado {{count}} segundos, o mantén Espacio o Intro.",
+      "keepHolding_one": "Sigue pulsando… queda {{count}} segundo",
+      "keepHolding_other": "Sigue pulsando… quedan {{count}} segundos",
+      "releasedEarly": "Has soltado demasiado pronto: el recorrido continúa.",
+      "progressLabel": "Progreso para saltar",
+      "continueTour": "Seguir con el recorrido"
     }
   },
   "setupWizard": {

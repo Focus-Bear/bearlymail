@@ -1,5 +1,8 @@
 import { gmail_v1 } from "googleapis";
 
+import { MAIL_HEADER_NAMES } from "../../../constants/mail-server.constants";
+import { parseAuthenticationResults } from "../../../utils/authentication-results.util";
+import { extractEmailAddress } from "../../../utils/email-address.utils";
 import { decodeRfc2047HeaderValue } from "../../../utils/rfc2047-header.util";
 import { GmailSearchResult } from "../../email-search.types";
 import {
@@ -37,6 +40,12 @@ export function parseGmailMessage(
   const fromMatch = from.match(/(.*)<(.+)>/);
   const fromName = fromMatch ? fromMatch[1].trim() : undefined;
   const fromEmail = fromMatch ? fromMatch[2].trim() : from;
+  const replyTo = getHeader(MAIL_HEADER_NAMES.REPLY_TO);
+  // Gmail lists headers top-down, so this is the one Google's MX added — the
+  // only Authentication-Results header the sender cannot forge.
+  const senderAuthResults = parseAuthenticationResults(
+    getHeader(MAIL_HEADER_NAMES.AUTHENTICATION_RESULTS),
+  );
 
   const { body, htmlBody } = extractBodyFromPayload(
     messageData.payload,
@@ -53,6 +62,8 @@ export function parseGmailMessage(
     fromName,
     to,
     cc,
+    replyTo: replyTo ? extractEmailAddress(replyTo) : undefined,
+    senderAuthResults,
     body,
     htmlBody,
     starCount,

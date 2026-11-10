@@ -47,6 +47,39 @@ describe("gmail-message-parser — header extraction", () => {
     expect(parsed?.subject).toBe("Hi Jeremy");
   });
 
+  it("keeps the Reply-To address so replies and the phishing check can use it", () => {
+    const parsed = parseGmailMessage(
+      buildMessage([
+        { name: "From", value: "Acme <news@acme.example.test>" },
+        { name: "Reply-To", value: "Support Desk <help@desk.example.test>" },
+      ]),
+    );
+    expect(parsed?.replyTo).toBe("help@desk.example.test");
+  });
+
+  it("reads SPF/DKIM/DMARC from the topmost Authentication-Results header only", () => {
+    const parsed = parseGmailMessage(
+      buildMessage([
+        { name: "From", value: "Acme <news@acme.example.test>" },
+        {
+          name: "Authentication-Results",
+          value:
+            "mx.google.com; dkim=pass header.i=@acme.example.test; spf=pass smtp.mailfrom=acme.example.test; dmarc=pass header.from=acme.example.test",
+        },
+        // A forged header further down must not override Google's verdict.
+        {
+          name: "Authentication-Results",
+          value: "forged.example.test; spf=fail; dmarc=fail",
+        },
+      ]),
+    );
+    expect(parsed?.senderAuthResults).toEqual({
+      spf: "pass",
+      dkim: "pass",
+      dmarc: "pass",
+    });
+  });
+
   it("leaves cc undefined when there is no Cc header", () => {
     const parsed = parseGmailMessage(
       buildMessage([{ name: "To", value: "jeremy@focusbear.io" }]),

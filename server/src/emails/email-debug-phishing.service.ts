@@ -28,8 +28,8 @@ export interface PhishingDebugInfo {
    */
   signals: PhishingSignals;
   /**
-   * Display-name vs sender-domain comparison. Surfaces brand-impersonation
-   * mismatches that the production signals do NOT currently detect.
+   * Coarse display-name vs sender-domain comparison. Production uses the brand
+   * registry instead (signals.redFlags / signals.deterministicVerdict).
    */
   displayNameCheck: DisplayNameDomainCheck;
 }
@@ -37,8 +37,8 @@ export interface PhishingDebugInfo {
 /**
  * Admin-only debug helper: answers "why was (or wasn't) this email flagged as
  * phishing?" by returning the stored LLM verdict alongside the raw signals that
- * fed it, plus a display-name/domain impersonation check that production scoring
- * does not yet use.
+ * fed it, plus a coarse display-name/domain comparison for spotting senders the
+ * brand registry does not cover yet.
  *
  * Gated by AdminGuard at the controller, so we deliberately do not scope by userId.
  */
@@ -61,6 +61,13 @@ export class EmailDebugPhishingService {
     const signals = extractPhishingSignals(
       email.from ?? undefined,
       email.body ?? "",
+      {
+        fromName: email.fromName,
+        replyTo: email.replyTo,
+        subject: email.subject,
+        htmlBody: email.htmlBody,
+        senderAuthResults: email.senderAuthResults,
+      },
     );
     const displayNameCheck = detectDisplayNameDomainMismatch(
       email.fromName,

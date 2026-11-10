@@ -1,13 +1,13 @@
 /**
- * InboxFilters stories — covers PriorityRangeSelector, VisualCategoryFilter,
+ * InboxFilters stories — covers PriorityCheckboxFilter, VisualCategoryFilter,
  * and the composed InboxFilters component.
  *
  * Covers:
- * 1. PriorityRangeSelector — All (no filter)
- * 2. PriorityRangeSelector — Very High only (new-user default)
- * 3. PriorityRangeSelector — Mid-range selection
- * 4. PriorityRangeSelector — With bucket counts
- * 5. PriorityRangeSelector — Interactive (controls)
+ * 1. PriorityCheckboxFilter — All (no filter)
+ * 2. PriorityCheckboxFilter — Very High only (new-user default)
+ * 3. PriorityCheckboxFilter — Mid-range selection
+ * 4. PriorityCheckboxFilter — With bucket counts
+ * 5. PriorityCheckboxFilter — Interactive (controls)
  * 6. VisualCategoryFilter — Empty (no categories)
  * 7. VisualCategoryFilter — 3 categories, none selected
  * 8. VisualCategoryFilter — Multiple selected
@@ -28,7 +28,7 @@ import { I18nextProvider } from 'react-i18next';
 import type { Meta, StoryObj } from '@storybook/react';
 
 import { InboxFilters } from 'components/inbox/InboxFilters';
-import { PriorityRangeSelector } from 'components/inbox/PriorityRangeSelector';
+import { PriorityCheckboxFilter } from 'components/inbox/PriorityCheckboxFilter';
 import { VisualCategoryFilter } from 'components/inbox/VisualCategoryFilter';
 
 import { inboxFiltersI18n } from './storyHelpers/i18nInstances';
@@ -86,13 +86,13 @@ const DEFAULT_FILTERS = {
 
 // ── Stateful wrappers ─────────────────────────────────────────────────────────
 
-interface PriorityRangeSelectorDemoProps {
+interface PriorityCheckboxFilterDemoProps {
   selectedMin: number | null;
   selectedMax: number | null;
   showCounts?: boolean;
 }
 
-const PriorityRangeSelectorDemo: React.FC<PriorityRangeSelectorDemoProps> = ({
+const PriorityCheckboxFilterDemo: React.FC<PriorityCheckboxFilterDemoProps> = ({
   selectedMin: initialMin,
   selectedMax: initialMax,
   showCounts = false,
@@ -102,7 +102,7 @@ const PriorityRangeSelectorDemo: React.FC<PriorityRangeSelectorDemoProps> = ({
   return (
     <I18nextProvider i18n={inboxFiltersI18n}>
       <div style={{ padding: '24px', maxWidth: '480px' }}>
-        <PriorityRangeSelector
+        <PriorityCheckboxFilter
           selectedMin={min}
           selectedMax={max}
           onChange={(newMin, newMax) => {
@@ -193,7 +193,10 @@ const InboxFiltersDemo: React.FC<InboxFiltersDemoProps> = ({
           hasActiveFilters={hasActiveFilters}
           setAccountFilter={ids => setFilters(prev => ({ ...prev, accountIds: ids }))}
           setCategoryFilter={cats => setFilters(prev => ({ ...prev, categories: cats }))}
-          setPriorityFilter={(min, max = null) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
+          onPriorityChange={(min, max) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
+          onCollapse={() => {
+            /* no-op in Storybook */
+          }}
           onFilterChange={() => {
             /* no-op in Storybook */
           }}
@@ -208,26 +211,26 @@ const InboxFiltersDemo: React.FC<InboxFiltersDemoProps> = ({
   );
 };
 
-// ── PriorityRangeSelector stories ─────────────────────────────────────────────
+// ── PriorityCheckboxFilter stories ────────────────────────────────────────────
 
-const priorityMeta: Meta<typeof PriorityRangeSelectorDemo> = {
-  title: 'Inbox/PriorityRangeSelector',
-  component: PriorityRangeSelectorDemo,
+const priorityMeta: Meta<typeof PriorityCheckboxFilterDemo> = {
+  title: 'Inbox/PriorityCheckboxFilter',
+  component: PriorityCheckboxFilterDemo,
   parameters: { layout: 'padded' },
   argTypes: {
     selectedMin: {
       control: { type: 'number' },
-      description: 'Minimum priority value (null = 0 / no lower bound)',
+      description: 'Minimum priority score (null = no lower bound)',
     },
     selectedMax: {
       control: { type: 'number' },
-      description: 'Maximum priority value (null = 100 / no upper bound)',
+      description: 'Maximum priority score (null = no upper bound)',
     },
   },
 };
 export default priorityMeta;
 
-type PriorityStory = StoryObj<typeof PriorityRangeSelectorDemo>;
+type PriorityStory = StoryObj<typeof PriorityCheckboxFilterDemo>;
 
 export const AllPriorities: PriorityStory = {
   name: 'All (no filter)',
@@ -235,23 +238,23 @@ export const AllPriorities: PriorityStory = {
 };
 
 export const VeryHighSelected: PriorityStory = {
-  name: 'Very High only (new-user default)',
-  args: { selectedMin: 80, selectedMax: null },
+  name: 'High and above (new-user default)',
+  args: { selectedMin: 30, selectedMax: null },
 };
 
 export const MidRangeSelected: PriorityStory = {
   name: 'Mid range (Low → High)',
-  args: { selectedMin: 20, selectedMax: 80 },
+  args: { selectedMin: 0, selectedMax: 50 },
 };
 
 export const WithBucketCounts: PriorityStory = {
   name: 'With bucket counts',
-  args: { selectedMin: 40, selectedMax: null, showCounts: true },
+  args: { selectedMin: 15, selectedMax: null, showCounts: true },
 };
 
 export const Interactive: PriorityStory = {
   name: 'Interactive (controls)',
-  args: { selectedMin: 60, selectedMax: null },
+  args: { selectedMin: 50, selectedMax: null },
 };
 
 // ── VisualCategoryFilter stories ──────────────────────────────────────────────
@@ -342,7 +345,10 @@ const FullFilterBarCategoriesSelectedDemo: React.FC = () => {
           hasActiveFilters={hasActiveFilters}
           setAccountFilter={ids => setFilters(prev => ({ ...prev, accountIds: ids }))}
           setCategoryFilter={cats => setFilters(prev => ({ ...prev, categories: cats }))}
-          setPriorityFilter={(min, max = null) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
+          onPriorityChange={(min, max) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
+          onCollapse={() => {
+            /* no-op in Storybook */
+          }}
           onFilterChange={() => {
             /* no-op */
           }}
@@ -484,9 +490,10 @@ export const MobileStackedLayout: StoryObj = {
               hasActiveFilters={hasActiveFilters}
               setAccountFilter={ids => setFilters(prev => ({ ...prev, accountIds: ids }))}
               setCategoryFilter={cats => setFilters(prev => ({ ...prev, categories: cats }))}
-              setPriorityFilter={(min, max = null) =>
-                setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))
-              }
+              onPriorityChange={(min, max) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
+          onCollapse={() => {
+            /* no-op in Storybook */
+          }}
               onFilterChange={() => {
                 /* no-op */
               }}
@@ -539,7 +546,10 @@ export const TabletSideBySideLayout: StoryObj = {
           setCategoryFilter={() => {
             /* no-op */
           }}
-          setPriorityFilter={() => {
+          onPriorityChange={() => {
+            /* no-op */
+          }}
+          onCollapse={() => {
             /* no-op */
           }}
           onFilterChange={() => {

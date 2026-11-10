@@ -333,10 +333,6 @@
     "blockSender": "Block sender",
     "unsubscribe": "Unsubscribe",
     "nextBatch": "Next batch",
-    "syncWindowBanner": {
-      "message": "Heads up: we've imported your {{count}} most recent conversations. Older emails aren't synced into BearlyMail.",
-      "dismiss": "Dismiss"
-    },
     "openTrackingNotice": {
       "message": "Open tracking is on: BearlyMail now shows you when people open the emails you send.",
       "manage": "Manage in Settings",
@@ -504,8 +500,6 @@
       "categoryGroup": "Category filter",
       "priority": "Priority Filter",
       "priorityAll": "All priorities",
-      "priorityMinHandle": "Minimum priority",
-      "priorityMaxHandle": "Maximum priority",
       "resetPriority": "Reset",
       "allAccounts": "All accounts",
       "allCategories": "All",
@@ -514,7 +508,17 @@
       "clearAll": "Clear Filters",
       "moreCategories": "more",
       "showMoreCategories": "Show {{count}} more categories",
-      "nCategoriesSelected": "{{count}} selected"
+      "nCategoriesSelected": "{{count}} selected",
+      "collapse": "Hide filters",
+      "prioritySelectedCount_one": "{{count}} email",
+      "prioritySelectedCount_other": "{{count}} emails",
+      "buckets": {
+        "veryHigh": "Very High",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "veryLow": "Very Low"
+      }
     },
     "blockConfirm": {
       "title": "Block Sender",
@@ -598,11 +602,6 @@
     },
     "catchingUp": "Catching up on {{remaining}} email thread(s) missed while you were away...",
     "catchingUpTooltip": "AI processing was paused while you were inactive. Processing now in the background.",
-    "batchSummary": {
-      "total_one": "{{count}} email to triage",
-      "total_other": "{{count}} emails to triage",
-      "band": "{{count}} {{label}}"
-    },
     "scheduledTour": {
       "title": "Email scheduled ✅",
       "body": "Find it here anytime — tap ⋮ then Scheduled to view, reschedule, or cancel.",
@@ -610,6 +609,18 @@
     },
     "familyCategoryCount_one": "{{count}} category",
     "familyCategoryCount_other": "{{count}} categories",
+    "importOlderNotice": {
+      "message": "We only imported your most recent {{count}} emails.",
+      "processMore": "Click here to process another {{count}}.",
+      "credits_one": "Heads up: your plan only has credits for another {{count}} email.",
+      "credits_other": "Heads up: your plan only has credits for another {{count}} emails.",
+      "viewPlans": "View plans",
+      "queued_one": "Importing {{count}} older email. It will appear in Triage once it has been sorted.",
+      "queued_other": "Importing {{count}} older emails. They will appear in Triage as they are sorted.",
+      "nothingOlder": "There are no older emails left to import.",
+      "unsupported": "Importing older emails is only available for Gmail accounts for now.",
+      "failed": "Couldn't start the import. Please try again."
+    },
     "backgroundSorting": {
       "title": "Sorting the rest of your inbox in the background",
       "progress": "{{categorised}} of {{total}} sorted"

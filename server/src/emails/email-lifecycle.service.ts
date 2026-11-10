@@ -66,6 +66,19 @@ export function providerSyncCreateEmailOptions(
   };
 }
 
+/**
+ * Create options for OLDER mail imported on request ("process another 500"): it is old, so it
+ * skips batch delivery and eager reply drafts, but it is new to BearlyMail and so is charged
+ * to the plan like any other processed email.
+ */
+export function backfillSyncCreateEmailOptions(): CreateEmailOptions {
+  return {
+    skipBatching: true,
+    countTowardVolume: true,
+    skipEagerReplySuggestions: true,
+  };
+}
+
 @Injectable()
 export class EmailLifecycleService {
   private readonly logger = new Logger(EmailLifecycleService.name);

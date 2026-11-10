@@ -110,12 +110,14 @@ function parseGmailSyncOptions(
   providedThreadIds?: string[];
   isContinuation: boolean;
   noDateFilter: boolean;
+  isBackfill: boolean;
 } {
   if (typeof syncWindowHoursOrOptions === "number") {
     return {
       syncWindowHours: syncWindowHoursOrOptions,
       isContinuation: false,
       noDateFilter: false,
+      isBackfill: false,
     };
   }
   return {
@@ -123,6 +125,7 @@ function parseGmailSyncOptions(
     providedThreadIds: syncWindowHoursOrOptions?.threadIds,
     isContinuation: syncWindowHoursOrOptions?.isContinuation || false,
     noDateFilter: syncWindowHoursOrOptions?.noDateFilter || false,
+    isBackfill: syncWindowHoursOrOptions?.isBackfill || false,
   };
 }
 

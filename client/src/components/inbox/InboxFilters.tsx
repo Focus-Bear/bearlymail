@@ -3,13 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import type { ConnectedAccount, InboxFilter, PriorityFilterSource } from 'hooks/useInboxFilters';
-import { PRIORITY_FILTER_SOURCE } from 'hooks/useInboxFilters';
+import { EMOJI_CLOSE } from 'constants/emojis';
+import type { ConnectedAccount, InboxFilter } from 'hooks/useInboxFilters';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { getMultiSelectDisplayText } from './inboxFilters.helpers';
-import { PriorityRangeSelector } from './PriorityRangeSelector';
+import { PriorityCheckboxFilter } from './PriorityCheckboxFilter';
 import { VisualCategoryFilter } from './VisualCategoryFilter';
+
+export const INBOX_FILTERS_COLLAPSE_TEST_ID = 'inbox-filters-collapse';
 
 interface InboxFiltersProps {
   onFilterChange?: (overrideFilters?: Partial<InboxFilter>) => void;
@@ -22,7 +24,13 @@ interface InboxFiltersProps {
   hasActiveFilters: boolean;
   setAccountFilter: (accountIds: string[]) => void;
   setCategoryFilter: (categories: string[]) => void;
-  setPriorityFilter: (minPriority: number | null, maxPriority?: number | null, source?: PriorityFilterSource) => void;
+  /**
+   * Applies a priority choice from the checkboxes. Owned by the inbox page so the choice goes
+   * through the same distraction gate as every other way of revealing lower-priority mail.
+   */
+  onPriorityChange: (minPriority: number | null, maxPriority: number | null) => void;
+  /** Collapses the filter panel (the ✕ button); the inbox remembers the choice. */
+  onCollapse: () => void;
   /** Optional per-category email counts, keyed by category id. */
   categoryCounts?: Record<string, number>;
   /** Optional per-bucket email counts for display under priority labels. */
@@ -309,6 +317,32 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   );
 };
 
+const FilterPanelCollapseButton: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <button
+        type="button"
+        data-testid={INBOX_FILTERS_COLLAPSE_TEST_ID}
+        onClick={onCollapse}
+        aria-label={t('inbox.filters.collapse')}
+        title={t('inbox.filters.collapse')}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: theme.spacing.xs,
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.lg,
+          lineHeight: 1,
+        }}
+      >
+        {EMOJI_CLOSE}
+      </button>
+    </div>
+  );
+};
+
 // ── Main InboxFilters component ───────────────────────────────────────────────
 
 export const InboxFilters: React.FC<InboxFiltersProps> = ({
@@ -321,7 +355,8 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
   loadingCategories,
   setAccountFilter,
   setCategoryFilter,
-  setPriorityFilter,
+  onPriorityChange,
+  onCollapse,
   categoryCounts,
   bucketCounts,
   priorityTotalCount,
@@ -339,19 +374,6 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
   const handleCategoryChange = (ids: string[]) => {
     setCategoryFilter(ids);
     onFilterChange?.({ categories: ids });
-  };
-
-  // Pass new priority values directly to bypass the stale-closure problem:
-  // setPriorityFilter schedules an async React state update, but onFilterChange fires
-  // synchronously in the same tick. Without the override, fetchEmails would read the
-  // previous render's filters (stale closure) and send the old minPriority to the API.
-  // Fixes: #1165 (selecting "High (30-50)" sends minPriority=0 from stale "Low" selection).
-  const handlePriorityChange = (min: number | null, max: number | null) => {
-    // A slider change is an explicit user choice — mark it `manual` so it applies to every mode
-    // (Triage, Action, Follow-Up), unlike the guided default. The source must also travel in the
-    // override so the immediate fetch treats it as manual even if the previous filter was guided.
-    setPriorityFilter(min, max, PRIORITY_FILTER_SOURCE.MANUAL);
-    onFilterChange?.({ minPriority: min, maxPriority: max, priorityFilterSource: PRIORITY_FILTER_SOURCE.MANUAL });
   };
 
   const accountOptions = connectedAccounts.map(account => ({
@@ -377,6 +399,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
         borderBottom: `1px solid ${theme.colors.border.light}`,
       }}
     >
+      <FilterPanelCollapseButton onCollapse={onCollapse} />
       {/* Row 1: Account selector — full width, only shown if more than 1 connected account */}
       {showAccountFilter && !loadingAccounts && (
         <div style={{ width: '100%' }}>
@@ -420,14 +443,14 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
           />
         </div>
 
-        {/* Priority Filter — dual-thumb range slider.
-            display:flex+flexDirection:column lets PriorityRangeSelector's flex:1 fill
+        {/* Priority Filter — one checkbox per bucket, Very High on the left.
+            display:flex+flexDirection:column lets PriorityCheckboxFilter's flex:1 fill
             the wrapper so it matches the Category card height (fix #1735). */}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column' }}>
-          <PriorityRangeSelector
+          <PriorityCheckboxFilter
             selectedMin={isPriorityFilterActive ? filters.minPriority : null}
             selectedMax={isPriorityFilterActive ? filters.maxPriority : null}
-            onChange={handlePriorityChange}
+            onChange={onPriorityChange}
             bucketCounts={bucketCounts}
             totalCount={priorityTotalCount}
           />

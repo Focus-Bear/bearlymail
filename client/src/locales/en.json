@@ -328,11 +328,6 @@
       "message": "Heads up: we've imported your {{count}} most recent conversations. Older emails aren't synced into BearlyMail.",
       "dismiss": "Dismiss"
     },
-    "openTrackingNotice": {
-      "message": "Open tracking is on: BearlyMail now shows you when people open the emails you send.",
-      "manage": "Manage in Settings",
-      "dismiss": "Dismiss"
-    },
     "autoArchiveNotice": {
       "message_one": "BearlyMail found {{count}} kind of email you never open — review the auto-archive suggestion.",
       "message_other": "BearlyMail found {{count}} kinds of email you never open — review the auto-archive suggestions.",
@@ -1406,7 +1401,10 @@
       "description": "Permanently delete your account and all associated data. This action cannot be undone.",
       "deleteButton": "Delete My Account",
       "warningTitle": "Are you absolutely sure?",
-      "warningDescription": "This will permanently delete your account and all your data, including emails, contacts, settings, and any other information associated with your account. This action cannot be undone.",
+      "warningDescription": "This will permanently delete your BearlyMail account and all your BearlyMail data, including BearlyMail's copy of your emails, contacts, settings, and any other information associated with your account. This action cannot be undone.",
+      "providerReassurance_one": "Your emails will NOT be deleted from {{providers, list}}. This only removes them from BearlyMail — they stay in your {{providers, list}} account.",
+      "providerReassurance_other": "Your emails will NOT be deleted from {{providers, list}}. This only removes them from BearlyMail — they stay in your {{providers, list}} accounts.",
+      "providerReassuranceGeneric": "Your emails will NOT be deleted from your email provider. This only removes them from BearlyMail — they stay in your mailbox.",
       "confirmationPrompt": "To confirm, please type \"{{text}}\" below:",
       "confirmationMismatch": "The confirmation text does not match. Please type exactly \"delete all my data\".",
       "confirmDelete": "Permanently Delete Account",

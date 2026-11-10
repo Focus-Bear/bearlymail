@@ -347,12 +347,13 @@ textarea {
   animation-play-state: paused;
 }
 
-/* Inbox email-card actions row (EmailActionsRow): keep Snooze/Archive/⋮ on the
- * same line as the PRIORITY pills at every card width. The row is a size
- * container; when it's too narrow for the labelled buttons, hide the button
- * text (.email-action-label) so the actions collapse to icons instead of
- * wrapping below the pills box. The buttons' title attributes keep the labels
- * available as tooltips.
+/* Inbox email-card actions row (EmailActionsRow). The row is a size container.
+ * On desktop Snooze/Archive are always labelled buttons and wrap below the
+ * PRIORITY pills when the card is too narrow (the split view) — bare icons
+ * there were too small and unclear. On mobile the row carries
+ * .email-actions-row--collapsible, and when it's too narrow the button text
+ * (.email-action-label) is hidden so the actions collapse to icons; the
+ * buttons' title attributes keep the labels available as tooltips.
  *
  * Measured fits (Chrome): pills box ~385-412px, labelled actions ~200-213px,
  * so the labelled row needs ~630px; icon-only needs ~560px; the compact tier
@@ -373,7 +374,7 @@ textarea {
 }
 
 @container email-actions (max-width: 640px) {
-  .email-action-label {
+  .email-actions-row--collapsible .email-action-label {
     display: none;
   }
 }

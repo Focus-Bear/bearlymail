@@ -1982,11 +1982,6 @@
       "message": "Aviso: hemos importado tus {{count}} conversaciones más recientes. Los correos más antiguos no se sincronizan con BearlyMail.",
       "dismiss": "Descartar"
     },
-    "openTrackingNotice": {
-      "message": "El seguimiento de aperturas está activado: BearlyMail ahora te muestra cuándo se abren los correos que envías.",
-      "manage": "Gestionar en Ajustes",
-      "dismiss": "Descartar"
-    },
     "autoArchiveNotice": {
       "message_one": "BearlyMail encontró {{count}} tipo de correo que nunca abres: revisa la sugerencia de archivado automático.",
       "message_other": "BearlyMail encontró {{count}} tipos de correo que nunca abres: revisa las sugerencias de archivado automático.",
@@ -4542,7 +4537,10 @@
       "description": "Eliminar permanentemente tu cuenta y todos los datos asociados.",
       "deleteButton": "Eliminar mi cuenta",
       "warningTitle": "¿Estás absolutamente seguro?",
-      "warningDescription": "Esto eliminará permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
+      "warningDescription": "Esto eliminará permanentemente tu cuenta de BearlyMail y todos sus datos asociados, incluida la copia de tus correos que guarda BearlyMail. Esta acción no se puede deshacer.",
+      "providerReassurance_one": "Tus correos NO se eliminarán de {{providers, list}}. Esto solo los quita de BearlyMail: siguen en tu cuenta de {{providers, list}}.",
+      "providerReassurance_other": "Tus correos NO se eliminarán de {{providers, list}}. Esto solo los quita de BearlyMail: siguen en tus cuentas de {{providers, list}}.",
+      "providerReassuranceGeneric": "Tus correos NO se eliminarán de tu proveedor de correo. Esto solo los quita de BearlyMail: siguen en tu buzón.",
       "confirmationPrompt": "Para confirmar, escribe \"{{text}}\" a continuación:",
       "confirmationMismatch": "El texto de confirmación no coincide. Por favor escribe exactamente lo que se indica.",
       "confirmDelete": "Eliminar cuenta permanentemente",

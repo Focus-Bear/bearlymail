@@ -4,15 +4,20 @@
  * to pointing at the whole card.
  */
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Email } from 'types/email';
 
-import { EmailActionsRow } from 'components/inbox/EmailActionsRow';
+import { ACTIONS_ROW_COLLAPSIBLE_CLASS, EmailActionsRow } from 'components/inbox/EmailActionsRow';
 import { MODE_TRIAGE } from 'constants/strings';
 import { TOUR_TARGETS, tourTargetSelector } from 'constants/tour';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+}));
+
+const breakpoints = vi.hoisted(() => ({ isMobile: false }));
+vi.mock('hooks/useResponsiveBreakpoints', () => ({
+  useResponsiveBreakpoints: () => ({ isMobile: breakpoints.isMobile, isTablet: false, isDesktop: !breakpoints.isMobile }),
 }));
 
 const email = { id: 'email-1', body: 'Hello', htmlBody: '', starCount: 0 } as unknown as Email;
@@ -55,5 +60,26 @@ describe('EmailActionsRow tour anchors', () => {
       'title',
       'inbox.archive'
     );
+  });
+});
+
+describe('EmailActionsRow Snooze / Archive buttons', () => {
+  afterEach(() => {
+    breakpoints.isMobile = false;
+  });
+
+  it('keeps the labels on desktop so the split view shows full buttons, not bare icons', () => {
+    renderRow();
+
+    expect(screen.getByTestId('email-actions-row')).not.toHaveClass(ACTIONS_ROW_COLLAPSIBLE_CLASS);
+    expect(screen.getByRole('button', { name: 'emailDetail.snooze' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'inbox.archive' })).toBeInTheDocument();
+  });
+
+  it('lets the labels collapse to icons on mobile', () => {
+    breakpoints.isMobile = true;
+    renderRow();
+
+    expect(screen.getByTestId('email-actions-row')).toHaveClass(ACTIONS_ROW_COLLAPSIBLE_CLASS);
   });
 });

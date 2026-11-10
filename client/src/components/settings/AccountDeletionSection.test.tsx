@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+import { PROVIDER_GMAIL } from 'constants/strings';
+
 import { AccountDeletionSection } from './AccountDeletionSection';
 
 vi.mock('react-i18next', () => ({
@@ -56,5 +58,14 @@ describe('AccountDeletionSection', () => {
     // once. Neither the delete button nor Cancel may remain while deleting.
     expect(screen.queryByText(CONFIRM_DELETE)).not.toBeInTheDocument();
     expect(screen.queryByText(CANCEL)).not.toBeInTheDocument();
+  });
+
+  it('reassures the user their email stays in their provider, naming it', () => {
+    render(<AccountDeletionSection connectedProviders={[PROVIDER_GMAIL]} />);
+    fireEvent.click(screen.getByText(DELETE_BUTTON));
+
+    expect(screen.getByTestId('account-deletion-provider-reassurance')).toHaveTextContent(
+      'settings.accountDeletion.providerReassurance:{"providers":["Gmail"],"count":1}'
+    );
   });
 });

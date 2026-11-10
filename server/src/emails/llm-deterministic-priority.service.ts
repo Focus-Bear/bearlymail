@@ -253,7 +253,6 @@ export class LLMDeterministicPriorityService {
       emailThreadId,
       userId,
       finalScore: representativeScore,
-      starCount: thread.starCount ?? 0,
       isBatched: thread.isBatched ?? true,
     });
 

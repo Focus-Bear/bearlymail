@@ -6,6 +6,7 @@ import { AuditLog } from "../database/entities/audit-log.entity";
 import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
+import { UsersService } from "../users/users.service";
 import { McpSendToolsService } from "./mcp-send-tools.service";
 import { McpCallContext } from "./mcp-server.types";
 import { McpToolInputError } from "./mcp-tool-args";
@@ -21,6 +22,11 @@ const CONTEXT: McpCallContext = {
   userAgent: "claude-code",
 };
 const QUEUED = { sendId: "send-1", status: "queued" as const };
+const READ_ONLY_GMAIL_USER = {
+  googleCalendarAccessToken: "google-token",
+  googleGrantedScopes:
+    "email profile https://www.googleapis.com/auth/gmail.readonly",
+};
 
 describe("McpSendToolsService", () => {
   let emailsService: { getEmailById: jest.Mock };
@@ -30,6 +36,7 @@ describe("McpSendToolsService", () => {
   let auditLogs: { count: jest.Mock; create: jest.Mock; save: jest.Mock };
   let lockQuery: jest.Mock;
   let auditLogRepository: { manager: { transaction: jest.Mock } };
+  let usersService: { findOneWithTokens: jest.Mock };
   let service: McpSendToolsService;
 
   beforeEach(() => {
@@ -64,11 +71,14 @@ describe("McpSendToolsService", () => {
         }),
       },
     };
+    // A user with no recorded Google grant, as every non-Gmail mailbox is.
+    usersService = { findOneWithTokens: jest.fn().mockResolvedValue({}) };
     service = new McpSendToolsService(
       emailsService as unknown as EmailsService,
       providerManager as unknown as EmailProviderManager,
       sendQueue as unknown as EmailSendQueueService,
       auditLogRepository as unknown as Repository<AuditLog>,
+      usersService as unknown as UsersService,
     );
   });
 
@@ -183,6 +193,15 @@ describe("McpSendToolsService", () => {
       expect(sendQueue.queueReply).not.toHaveBeenCalled();
     });
 
+    it("refuses before queueing when the Gmail grant is read-only", async () => {
+      usersService.findOneWithTokens.mockResolvedValue(READ_ONLY_GMAIL_USER);
+      await expect(
+        service.sendReply(CONTEXT, { emailId: EMAIL_ID, body: "hi" }),
+      ).rejects.toThrow(/permission to send/);
+      expect(sendQueue.queueReply).not.toHaveBeenCalled();
+      expect(savedAudits).toEqual([]);
+    });
+
     it("stops at the hourly send cap", async () => {
       auditLogs.count.mockResolvedValue(MCP_SERVER.SEND_LIMIT_PER_HOUR);
       await expect(
@@ -236,6 +255,31 @@ describe("McpSendToolsService", () => {
       expect(
         results.filter((result) => result.status === "rejected"),
       ).toHaveLength(10);
+    });
+
+    it("refuses before queueing when the Gmail grant is read-only", async () => {
+      usersService.findOneWithTokens.mockResolvedValue(READ_ONLY_GMAIL_USER);
+      await expect(
+        service.sendEmail(CONTEXT, {
+          to: ["a@example.com"],
+          subject: "s",
+          body: "b",
+        }),
+      ).rejects.toBeInstanceOf(McpToolInputError);
+      expect(sendQueue.queueNewEmail).not.toHaveBeenCalled();
+    });
+
+    it("sends when the Gmail grant includes gmail.modify", async () => {
+      usersService.findOneWithTokens.mockResolvedValue({
+        ...READ_ONLY_GMAIL_USER,
+        googleGrantedScopes: "https://www.googleapis.com/auth/gmail.modify",
+      });
+      await service.sendEmail(CONTEXT, {
+        to: ["a@example.com"],
+        subject: "s",
+        body: "b",
+      });
+      expect(sendQueue.queueNewEmail).toHaveBeenCalledTimes(1);
     });
 
     it("requires at least one recipient", async () => {

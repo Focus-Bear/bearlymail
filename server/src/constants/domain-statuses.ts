@@ -93,6 +93,20 @@ export const GMAIL_ACCESS_ISSUE = {
 export type GmailAccessIssue =
   (typeof GMAIL_ACCESS_ISSUE)[keyof typeof GMAIL_ACCESS_ISSUE];
 
+/**
+ * The one-time "allow BearlyMail to manage Gmail" notice, shown after a
+ * background job (archive workflow, blocked-sender archive, snooze return…)
+ * skipped a Gmail write because the grant is read-only. Stored on
+ * `users.gmailWriteNotice`; null until the first skipped write.
+ */
+export const GMAIL_WRITE_NOTICE = {
+  PENDING: "pending",
+  DISMISSED: "dismissed",
+} as const;
+
+export type GmailWriteNotice =
+  (typeof GMAIL_WRITE_NOTICE)[keyof typeof GMAIL_WRITE_NOTICE];
+
 export const QUEUE_JOB_STATE = {
   CREATED: "created",
   ACTIVE: "active",

@@ -50,8 +50,13 @@ export interface User {
   syncWindowLimited?: boolean;
   /** Set while the server can't read the user's Gmail — shows the reconnect banner. */
   gmailAccessIssue?: GmailAccessIssue | null;
-  /** Google consent-screen permissions the last Google sign-in left unticked. */
+  /**
+   * Google permissions the grant doesn't cover: unticked at sign-in (gmail), or
+   * not asked for yet (gmail_manage, gmail_send, calendar, contacts).
+   */
   missingGooglePermissions?: GooglePermissionGroup[];
+  /** A background job skipped a Gmail write because the grant is read-only. */
+  showGmailWriteNotice?: boolean;
   /** Mailtrack-style open tracking for outgoing mail; on unless the user turned it off. */
   trackEmailOpens?: boolean;
   isAdmin?: boolean;

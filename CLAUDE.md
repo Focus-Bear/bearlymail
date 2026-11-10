@@ -564,6 +564,14 @@ Automated email response pipeline:
 
 This section highlights critical patterns and edge cases that commonly trip up AI assistants working with this codebase.
 
+### Google sign-in is read-only; Gmail writes need an on-demand grant
+
+Google sign-in asks only for `gmail.readonly` (+ email/profile) — see `GOOGLE_SIGN_IN_SCOPES` in `server/src/constants/google-oauth-scopes.ts`. `gmail.modify` (`gmail_manage`) and `gmail.send` (`gmail_send`) are incremental groups, like calendar and contacts:
+
+- **Interactive endpoints** that write to Gmail carry `@RequireGooglePermission(group, action)`; without the grant they 403 with `code: GOOGLE_PERMISSION_REQUIRED` before changing anything. The client's axios interceptor shows an explainer, saves the request, sends the user to `GET /auth/google/permission-url`, and replays the request when Google returns `?googlePermission=granted`.
+- **Background writers** go through `GmailProvider`, which skips modify-writes on a read-only grant (BearlyMail state is kept) and arms `users.gmailWriteNotice` for the one-time "allow BearlyMail to manage Gmail" banner. Sends without `gmail.send` throw `GooglePermissionRequiredException` instead — a silently skipped send would lose mail. Never call a Gmail write API outside these provider methods.
+- `gmail.modify` also satisfies `gmail.readonly` and `gmail.send` (`GOOGLE_SCOPES_IMPLIED_BY`), so users who signed up before read-only sign-in keep everything; a `null` `googleGrantedScopes` (unrecorded grant) counts as granted.
+
 ### Encryption in Raw SQL Queries
 
 **Problem**: TypeORM column transformers (for encryption/decryption) don't work with raw SQL queries.

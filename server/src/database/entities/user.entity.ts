@@ -9,7 +9,10 @@ import {
 } from "typeorm";
 
 import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.types";
-import { GmailAccessIssue } from "../../constants/domain-statuses";
+import {
+  GmailAccessIssue,
+  GmailWriteNotice,
+} from "../../constants/domain-statuses";
 import {
   makeGlobalEmailTransformer,
   makeGlobalEncryptedColumnTransformer,
@@ -308,6 +311,14 @@ export class User {
       "Space-separated OAuth scopes Google reported at the last Google sign-in; null when unknown. Drives the onboarding missing-permissions warning.",
   })
   googleGrantedScopes: string | null;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "One-time notice that a background Gmail write was skipped for lack of the gmail.modify grant: pending (show it) or dismissed; null until a write is first skipped.",
+  })
+  gmailWriteNotice: GmailWriteNotice | null;
 
   @Column({
     default: true,

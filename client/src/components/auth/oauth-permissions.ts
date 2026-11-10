@@ -10,6 +10,7 @@ export const OAUTH_PROVIDER_DISPLAY_NAMES: Record<OAuthProvider, string> = {
 };
 
 const PERMISSION_MAIL_READ = 'mailRead';
+const PERMISSION_MAIL_READ_ONLY = 'mailReadOnly';
 const PERMISSION_MAIL_SEND = 'mailSend';
 const PERMISSION_CONTACTS = 'contacts';
 const PERMISSION_STAY_CONNECTED = 'stayConnected';
@@ -27,11 +28,11 @@ export interface OAuthPermission {
   scopes: readonly string[];
 }
 
-// Calendar and contacts aren't asked for at sign-in; the scheduling card and
-// the CRM ask Google for them when they're needed.
+// Google sign-in asks only to read. Changing the mailbox (archive, snooze,
+// star…) and sending are asked for the first time the user does one; calendar
+// and contacts from the scheduling card and the CRM.
 const GOOGLE_PERMISSIONS: readonly OAuthPermission[] = [
-  { id: PERMISSION_MAIL_READ, icon: '📥', scopes: ['https://www.googleapis.com/auth/gmail.modify'] },
-  { id: PERMISSION_MAIL_SEND, icon: '📤', scopes: ['https://www.googleapis.com/auth/gmail.send'] },
+  { id: PERMISSION_MAIL_READ_ONLY, icon: '📥', scopes: ['https://www.googleapis.com/auth/gmail.readonly'] },
   { id: PERMISSION_PROFILE, icon: '🙂', scopes: ['email', 'profile'] },
 ];
 
@@ -74,5 +75,13 @@ export const OAUTH_PERMISSIONS: Record<OAuthProvider, readonly OAuthPermission[]
  * vs ongoing access choice, so only Google gets the "on the next screen" tips.
  */
 export function hasConsentScreenTips(provider: OAuthProvider): boolean {
+  return provider === PROVIDER_GOOGLE;
+}
+
+/**
+ * Only Google sign-in starts read-only and asks for more on demand, so only
+ * Google gets the "we'll ask before archiving or sending" note.
+ */
+export function asksForMailChangesLater(provider: OAuthProvider): boolean {
   return provider === PROVIDER_GOOGLE;
 }

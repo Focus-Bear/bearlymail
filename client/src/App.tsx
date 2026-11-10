@@ -14,6 +14,8 @@ import { peekPostLoginPath } from 'utils/postLoginRedirect';
 import { AdminMfaProvider } from 'components/admin/AdminMfaGate';
 import { ConsentModal } from 'components/ConsentModal';
 import { CrmPlanGate } from 'components/crm/CrmPlanGate';
+import { GmailWriteNoticeBanner } from 'components/google-permissions/GmailWriteNoticeBanner';
+import { GooglePermissionExplainer } from 'components/google-permissions/GooglePermissionExplainer';
 import { GooglePermissionResultListener } from 'components/google-permissions/GooglePermissionResultListener';
 import { ENGINEERING_MANAGER_LANDING_PATH, PRODUCT_MANAGER_LANDING_PATH } from 'components/landing-v2/constants';
 import { AiLimitBanner } from 'components/notifications/AiLimitBanner';
@@ -379,8 +381,11 @@ function App() {
                   {/* Background sends report their real outcome after the user
                       has left the composer, so this listens app-wide. */}
                   <EmailSendOutcomeListener />
-                  {/* Google sends the user back here after granting calendar or contacts. */}
+                  {/* Google sends the user back here after granting a permission. */}
                   <GooglePermissionResultListener />
+                  {/* Explains a permission an action needs (archive, send…) before asking Google. */}
+                  <GooglePermissionExplainer />
+                  <GmailWriteNoticeBanner />
                   <AppRoutes />
                 </div>
               </AdminMfaProvider>

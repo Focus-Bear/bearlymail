@@ -9,6 +9,17 @@ import {
   EmailAttachment,
   RawEmailMessage,
 } from "../../interfaces/email-provider.interface";
+import { hasDraftLabel } from "../../labels.util";
+
+/**
+ * Drop unsent drafts from a Gmail thread / message list. threads.get returns a
+ * thread's drafts next to its real messages, and they must not pass as mail.
+ */
+export function excludeGmailDrafts(
+  messages: gmail_v1.Schema$Message[] | null | undefined,
+): gmail_v1.Schema$Message[] {
+  return (messages ?? []).filter((message) => !hasDraftLabel(message.labelIds));
+}
 
 /**
  * Parse Gmail message to RawEmailMessage format

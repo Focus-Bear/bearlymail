@@ -1,6 +1,7 @@
 import { gmail_v1 } from "googleapis";
 
 import {
+  excludeGmailDrafts,
   extractAttachmentsFromPayload,
   filenameFromContentDisposition,
   parseGmailMessage,
@@ -374,5 +375,26 @@ describe("gmail-message-parser — attachments", () => {
         expect(result![1].attachmentId).toBe("inline-ics-1");
       });
     });
+  });
+});
+
+describe("gmail-message-parser — excludeGmailDrafts", () => {
+  it("drops unsent drafts that threads.get returns next to real messages", () => {
+    const received: gmail_v1.Schema$Message = {
+      id: "m1",
+      labelIds: ["INBOX"],
+    };
+    const sent: gmail_v1.Schema$Message = { id: "m2", labelIds: ["SENT"] };
+    const draft: gmail_v1.Schema$Message = { id: "m3", labelIds: ["DRAFT"] };
+
+    expect(excludeGmailDrafts([received, draft, sent])).toEqual([
+      received,
+      sent,
+    ]);
+  });
+
+  it("returns an empty list when Gmail sends no messages", () => {
+    expect(excludeGmailDrafts(undefined)).toEqual([]);
+    expect(excludeGmailDrafts(null)).toEqual([]);
   });
 });

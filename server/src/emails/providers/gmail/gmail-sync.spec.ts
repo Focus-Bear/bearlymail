@@ -1,7 +1,9 @@
 import { gmail_v1 } from "googleapis";
 
 import { GMAIL_ACCESS_ISSUE } from "../../../constants/domain-statuses";
+import { Email } from "../../../database/entities/email.entity";
 import {
+  buildStoredGmailEmailUpdates,
   classifyGmailAccessIssue,
   isGmailAuthError,
   isGmailInsufficientScopeError,
@@ -388,5 +390,55 @@ describe("gmail-sync helpers", () => {
       expect(updates[0].starCount).toBe(3);
       expect(updates[0].isArchived).toBe(false);
     });
+  });
+});
+
+describe("buildStoredGmailEmailUpdates", () => {
+  const storedEmail = (overrides: Partial<Email>) =>
+    ({
+      isRead: true,
+      attachments: null,
+      labels: ["INBOX"],
+      ...overrides,
+    }) as Pick<Email, "isRead" | "attachments" | "labels">;
+
+  it("returns no updates when nothing changed", () => {
+    expect(
+      buildStoredGmailEmailUpdates(storedEmail({}), {
+        isRead: true,
+        labelIds: ["INBOX"],
+      }),
+    ).toEqual({});
+  });
+
+  it("mirrors Gmail's read state", () => {
+    expect(
+      buildStoredGmailEmailUpdates(storedEmail({ isRead: true }), {
+        isRead: false,
+        labelIds: ["INBOX", "UNREAD"],
+      }),
+    ).toEqual({ isRead: false });
+  });
+
+  it("backfills attachments missing from an older sync", () => {
+    const attachments = [
+      { attachmentId: "a1", filename: "f.pdf", mimeType: "x", size: 1 },
+    ];
+    expect(
+      buildStoredGmailEmailUpdates(storedEmail({}), {
+        isRead: true,
+        labelIds: ["INBOX"],
+        attachments,
+      }),
+    ).toEqual({ attachments });
+  });
+
+  it("refreshes the labels of a row stored while the message was a draft", () => {
+    expect(
+      buildStoredGmailEmailUpdates(storedEmail({ labels: ["DRAFT"] }), {
+        isRead: true,
+        labelIds: ["SENT"],
+      }),
+    ).toEqual({ labels: ["SENT"] });
   });
 });

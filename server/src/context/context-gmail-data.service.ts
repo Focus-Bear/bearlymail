@@ -14,6 +14,7 @@ import {
 } from "../emails/interfaces/email-provider.interface";
 import { AppleMailProvider } from "../emails/providers/apple-mail.provider";
 import { GmailProvider } from "../emails/providers/gmail.provider";
+import { excludeGmailDrafts } from "../emails/providers/gmail/gmail-message-parser";
 import {
   formatGaxiosError,
   getErrorMessage,
@@ -628,7 +629,7 @@ export class ContextEmailDataService {
         id: threadId,
         format: "full",
       });
-      const messages = threadResponse.data.messages || [];
+      const messages = excludeGmailDrafts(threadResponse.data.messages);
       if (messages.length === 0) {
         return null;
       }
@@ -755,8 +756,7 @@ export class ContextEmailDataService {
         id: threadId,
         format: "full",
       });
-      const thread = threadResponse.data;
-      const messages = thread.messages || [];
+      const messages = excludeGmailDrafts(threadResponse.data.messages);
       if (messages.length === 0) {
         return null;
       }

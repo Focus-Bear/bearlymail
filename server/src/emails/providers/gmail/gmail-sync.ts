@@ -8,10 +8,48 @@ import {
 import { OAUTH_ERROR_CODES } from "../../../constants/domain-types";
 import { HTTP_STATUS } from "../../../constants/http-status";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
+import { Email } from "../../../database/entities/email.entity";
 import { ApiError, isApiError, isError } from "../../../types/common";
 import { logErrorToFile } from "../../../utils/error-logger";
+import {
+  EmailAttachment,
+  RawEmailMessage,
+} from "../../interfaces/email-provider.interface";
+import { hasDraftLabel } from "../../labels.util";
 
 const logger = new Logger("GmailSync");
+
+export interface StoredGmailEmailUpdates {
+  isRead?: boolean;
+  attachments?: EmailAttachment[];
+  labels?: string[];
+}
+
+/**
+ * Fields of an already-stored email that a re-sync of the same Gmail message
+ * should refresh: read state, attachments missing from older syncs, and the
+ * labels of a row stored while the message was still a draft (if Gmail later
+ * sent it under the same ID, the stale DRAFT label would keep hiding it).
+ */
+export function buildStoredGmailEmailUpdates(
+  existing: Pick<Email, "isRead" | "attachments" | "labels">,
+  rawEmail: Pick<RawEmailMessage, "isRead" | "attachments" | "labelIds">,
+): StoredGmailEmailUpdates {
+  const updates: StoredGmailEmailUpdates = {};
+  const isReadInGmail = Boolean(rawEmail.isRead);
+  if (existing.isRead !== isReadInGmail) {
+    updates.isRead = isReadInGmail;
+  }
+  const hasStoredAttachments =
+    Array.isArray(existing.attachments) && existing.attachments.length > 0;
+  if (!hasStoredAttachments && rawEmail.attachments?.length) {
+    updates.attachments = rawEmail.attachments;
+  }
+  if (hasDraftLabel(existing.labels)) {
+    updates.labels = rawEmail.labelIds ?? [];
+  }
+  return updates;
+}
 
 /**
  * Check if ANY message in a thread has the STARRED label.

@@ -1,3 +1,5 @@
+import { GMAIL_LABELS } from "../constants/email-labels";
+
 /**
  * Tolerant decoding of the `emails.labels` / `scan_emails.labels` value.
  *
@@ -113,4 +115,15 @@ export function parseLabelsValue(value: string): string[] | null {
   }
 
   return null;
+}
+
+/**
+ * True when a message's provider labels mark it as an unsent draft. Gmail
+ * returns drafts inside threads, searches and message lists alongside real
+ * mail; they were never sent, so they must not be stored, shown in a thread or
+ * treated as "the user replied". Also guards legacy rows synced before drafts
+ * were skipped (their stored `labels` still carry the raw Gmail label IDs).
+ */
+export function hasDraftLabel(labels: unknown): boolean {
+  return Array.isArray(labels) && labels.includes(GMAIL_LABELS.DRAFT);
 }

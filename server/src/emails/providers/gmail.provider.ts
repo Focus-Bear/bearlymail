@@ -26,6 +26,7 @@ import {
   SendReplyOptions,
   SyncEmailsOptions,
 } from "../interfaces/email-provider.interface";
+import { hasDraftLabel } from "../labels.util";
 import {
   buildGmailUrlIdsToTry,
   type GmailLookupAttempt,
@@ -34,6 +35,7 @@ import {
   lookupGmailThreadByIds,
 } from "./gmail/gmail-lookup";
 import {
+  excludeGmailDrafts,
   parseGmailMessage,
   parseGmailMetadata,
 } from "./gmail/gmail-message-parser";
@@ -555,7 +557,7 @@ export class GmailProvider implements EmailProvider {
           }),
         );
         for (const parsed of parsedBatch) {
-          if (parsed) results.push(parsed);
+          if (parsed && !hasDraftLabel(parsed.labelIds)) results.push(parsed);
         }
       }
       return results;
@@ -579,8 +581,7 @@ export class GmailProvider implements EmailProvider {
         id: threadId,
         format: "full",
       });
-      const messages = threadResponse.data.messages || [];
-      return messages
+      return excludeGmailDrafts(threadResponse.data.messages)
         .slice(0, limit)
         .map((msg) => parseGmailMessage(msg))
         .filter((msg): msg is RawEmailMessage => msg !== null);
@@ -645,7 +646,8 @@ export class GmailProvider implements EmailProvider {
       }
 
       return allResults.filter(
-        (result): result is GmailSearchResult => result !== null,
+        (result): result is GmailSearchResult =>
+          result !== null && !hasDraftLabel(result.labelIds),
       );
     } catch (error) {
       await this.handleReadAuthError(userId, "Failed metadata search", error);

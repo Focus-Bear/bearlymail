@@ -8,6 +8,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { isDatabaseError, isError } from "../types/common";
+import { hasDraftLabel } from "./labels.util";
 
 const PER_THREAD_BUDGET_MS = 200;
 
@@ -27,7 +28,7 @@ export class EmailThreadService {
   ) {}
 
   /**
-   * Get all emails in a thread, sorted by date
+   * Get all sent/received emails in a thread, sorted by date (unsent drafts excluded)
    */
   async getThreadEmails(
     userId: string,
@@ -49,7 +50,9 @@ export class EmailThreadService {
     for (const email of emails) {
       decryptEmailEntityForApi(email);
     }
-    return emails;
+    // Rows synced before drafts were skipped are still in the table; hiding them
+    // here keeps them out of the thread view, follow-up status and reply context.
+    return emails.filter((email) => !hasDraftLabel(email.labels));
   }
 
   /**

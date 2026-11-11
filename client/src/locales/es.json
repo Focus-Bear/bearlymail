@@ -4892,7 +4892,7 @@
         },
         "zohoBigin": {
           "tagline": "Muestra detalles del CRM sobre el remitente del correo",
-          "instructions": "Conecta Zoho Bigin para mostrar detalles del CRM sobre el remitente. Crea un servidor en el portal MCP de Zoho y pega abajo la URL generada (incluye tu clave de acceso)."
+          "instructions": "Conecta Zoho Bigin para mostrar detalles del CRM sobre el remitente. Crea un servidor en el portal MCP de Zoho y pega abajo la URL generada. Después iniciarás sesión en Zoho para autorizar el acceso. La URL incluye tu clave de acceso, así que BearlyMail la guarda cifrada y no la vuelve a mostrar."
         },
         "hubspot": {
           "tagline": "Muestra detalles del CRM sobre el remitente del correo",
@@ -4935,13 +4935,16 @@
         "connectionFailed": "✗ Conexión fallida",
         "test": "Probar",
         "testing": "Probando…",
-        "refreshTools": "Actualizar herramientas"
+        "refreshTools": "Actualizar herramientas",
+        "signIn": "Iniciar sesión",
+        "signInRequired": "Debes iniciar sesión"
       },
       "section": {
         "title": "Apps conectadas",
         "description": "Conecta servidores MCP para Google Drive, tu CRM y más. Las apps conectadas pueden mostrar el contexto del remitente al abrir un correo, potenciar Preguntar a la IA y ejecutarse como acciones dentro de tus flujos de trabajo.",
         "loadError": "No se pudieron cargar las apps conectadas. Actualiza la página.",
         "refreshError": "No se pudieron actualizar las herramientas. Inténtalo de nuevo.",
+        "signInError": "No se pudo iniciar sesión en esta app. Inténtalo de nuevo.",
         "removeError": "No se pudo eliminar la app conectada. Inténtalo de nuevo.",
         "loading": "Cargando apps conectadas…",
         "connectedSuccess": "App conectada.",

@@ -2,17 +2,18 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { MCPServerConfig } from 'components/settings/workflows/types';
+import { MCPConnectionTestResult, MCPServerConfig } from 'components/settings/workflows/types';
 
 import { getPurposeMeta } from './mcpPresets';
 
 interface MCPServerCardProps {
   server: MCPServerConfig;
-  testResult?: { ok: boolean; toolCount: number };
+  testResult?: MCPConnectionTestResult;
   testing: boolean;
   onTest: (id: string) => void;
   onRefresh: (id: string) => void;
   onRemove: (id: string) => void;
+  onAuthorize: (id: string) => void;
 }
 
 const secondaryButtonStyle: React.CSSProperties = {
@@ -32,10 +33,12 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   onTest,
   onRefresh,
   onRemove,
+  onAuthorize,
 }) => {
   const { t } = useTranslation();
   const purposeMeta = getPurposeMeta(t);
   const purpose = purposeMeta[server.purpose] ?? purposeMeta.workflow;
+  const needsSignIn = server.needsAuthorization || Boolean(testResult?.needsAuthorization);
 
   return (
     <div
@@ -76,13 +79,18 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          {server.serverUrl}
+          {server.serverUrlRedacted}
         </div>
         <div style={{ fontSize: 12, marginTop: 4, color: theme.colors.text.secondary }}>
           {server.cachedTools
             ? t('settings.mcp.card.toolsDiscovered', { count: server.cachedTools.length })
             : t('settings.mcp.card.toolsNotFetched')}
-          {testResult && (
+          {needsSignIn && (
+            <span style={{ marginLeft: 8, fontWeight: 600, color: theme.colors.error.main }}>
+              {t('settings.mcp.card.signInRequired')}
+            </span>
+          )}
+          {testResult && !needsSignIn && (
             <span
               style={{
                 marginLeft: 8,
@@ -98,6 +106,21 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        {needsSignIn && (
+          <button
+            type="button"
+            onClick={() => onAuthorize(server.id)}
+            style={{
+              ...secondaryButtonStyle,
+              border: 'none',
+              background: theme.colors.primary.main,
+              color: theme.colors.background.paper,
+              fontWeight: 600,
+            }}
+          >
+            {t('settings.mcp.card.signIn')}
+          </button>
+        )}
         <button type="button" onClick={() => onTest(server.id)} disabled={testing} style={secondaryButtonStyle}>
           {testing ? t('settings.mcp.card.testing') : t('settings.mcp.card.test')}
         </button>

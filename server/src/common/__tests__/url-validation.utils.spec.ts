@@ -123,6 +123,12 @@ describe("assertSafeOutboundUrl", () => {
         "invalid URL",
       );
     });
+
+    it("does not echo the raw value, which may embed an access key", () => {
+      expect(() =>
+        assertSafeOutboundUrl("not a url fake-secret-key", "MCP server URL"),
+      ).toThrow(/^MCP server URL: invalid URL$/);
+    });
   });
 
   describe("label appears in error messages", () => {

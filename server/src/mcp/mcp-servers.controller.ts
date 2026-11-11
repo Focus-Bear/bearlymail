@@ -13,6 +13,7 @@ import {
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { MCPSenderContextService } from "./mcp-sender-context.service";
+import { MCPServerView, toMCPServerView } from "./mcp-server-view";
 import {
   CreateMCPServerDto,
   MCPServersService,
@@ -40,8 +41,9 @@ export class MCPServersController {
   ) {}
 
   @Get()
-  async list(@Request() req: AuthenticatedRequest) {
-    return this.mcpServersService.findAll(req.user.userId);
+  async list(@Request() req: AuthenticatedRequest): Promise<MCPServerView[]> {
+    const configs = await this.mcpServersService.findAll(req.user.userId);
+    return configs.map(toMCPServerView);
   }
 
   /**
@@ -66,13 +68,20 @@ export class MCPServersController {
   async create(
     @Request() req: AuthenticatedRequest,
     @Body() body: CreateMCPServerDto,
-  ) {
-    return this.mcpServersService.create(req.user.userId, body);
+  ): Promise<MCPServerView> {
+    return toMCPServerView(
+      await this.mcpServersService.create(req.user.userId, body),
+    );
   }
 
   @Get(":id")
-  async getOne(@Request() req: AuthenticatedRequest, @Param("id") id: string) {
-    return this.mcpServersService.findOne(req.user.userId, id);
+  async getOne(
+    @Request() req: AuthenticatedRequest,
+    @Param("id") id: string,
+  ): Promise<MCPServerView> {
+    return toMCPServerView(
+      await this.mcpServersService.findOne(req.user.userId, id),
+    );
   }
 
   @Put(":id")
@@ -80,8 +89,10 @@ export class MCPServersController {
     @Request() req: AuthenticatedRequest,
     @Param("id") id: string,
     @Body() body: UpdateMCPServerDto,
-  ) {
-    return this.mcpServersService.update(req.user.userId, id, body);
+  ): Promise<MCPServerView> {
+    return toMCPServerView(
+      await this.mcpServersService.update(req.user.userId, id, body),
+    );
   }
 
   @Delete(":id")

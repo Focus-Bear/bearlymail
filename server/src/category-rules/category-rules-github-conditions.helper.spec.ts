@@ -10,6 +10,7 @@ import {
   GithubRuleConditions,
   sameGithubConditions,
   specMatchesGithubConditions,
+  withoutUnsettledGithubConditions,
 } from "./category-rules-github-conditions.helper";
 
 const BASE_FACTS: GithubCategorySignals = {
@@ -273,5 +274,45 @@ describe("condition summaries", () => {
         spec({ githubStateAny: ["closed"] }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("withoutUnsettledGithubConditions", () => {
+  const boardAndAuthorRule = spec({
+    githubStateAny: ["open"],
+    githubProjectStatusAny: [{ status: "QA Passed/Done" }],
+    githubLabelsAny: ["bug"],
+    githubAuthorKind: "bot",
+  });
+
+  it("keeps every condition when the facts were fetched after the email", () => {
+    expect(withoutUnsettledGithubConditions(boardAndAuthorRule, facts())).toBe(
+      boardAndAuthorRule,
+    );
+  });
+
+  it("drops state, board status and labels when the facts predate the email, but keeps a known author kind", () => {
+    const relaxed = withoutUnsettledGithubConditions(
+      boardAndAuthorRule,
+      facts({ metadataStale: true }),
+    );
+
+    expect(relaxed).toEqual(spec({ githubAuthorKind: "bot" }));
+    // The author kind never changes, so a human-authored issue still fails it.
+    expect(
+      specMatchesGithubConditions(relaxed, facts({ metadataStale: true })),
+    ).toBe(false);
+  });
+
+  it("drops every condition when there are no facts at all", () => {
+    const relaxed = withoutUnsettledGithubConditions(boardAndAuthorRule, null);
+
+    expect(githubConditionCount(relaxed)).toBe(0);
+    expect(specMatchesGithubConditions(relaxed, null)).toBe(true);
+  });
+
+  it("returns specs without GitHub conditions unchanged", () => {
+    const plain = spec({});
+    expect(withoutUnsettledGithubConditions(plain, null)).toBe(plain);
   });
 });

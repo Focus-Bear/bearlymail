@@ -16,6 +16,9 @@ interface MCPServerCardProps {
   onAuthorize: (id: string) => void;
 }
 
+/** Below this the action buttons wrap under the details instead of squeezing them (phones). */
+const DETAILS_MIN_WIDTH_PX = 240;
+
 const secondaryButtonStyle: React.CSSProperties = {
   padding: '4px 10px',
   borderRadius: theme.borderRadius.sm,
@@ -50,10 +53,11 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
+        flexWrap: 'wrap',
         gap: theme.spacing.md,
       }}
     >
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, flex: `1 1 ${DETAILS_MIN_WIDTH_PX}px` }}>
         <div style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {server.name}
           <span
@@ -105,7 +109,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
           )}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {needsSignIn && (
           <button
             type="button"

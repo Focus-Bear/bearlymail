@@ -39,7 +39,10 @@ import { LocalAuthGuard } from "./local-auth.guard";
 import { isMfaElevationFresh } from "./mfa-elevation";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { determineOAuthErrorType } from "./oauth-error-type";
-import { ParsedOAuthState, parseSignedOAuthState } from "./oauth-state.util";
+import {
+  parseBrowserBoundOAuthState,
+  ParsedOAuthState,
+} from "./oauth-state.util";
 import { StepUpAuthGuard } from "./step-up.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
 
@@ -571,10 +574,6 @@ export class AuthController {
     return res.redirect(`${frontendUrl}/auth-error?${errorParams.toString()}`);
   }
 
-  private parseOAuthState(state: string): ParsedOAuthState | null {
-    return parseSignedOAuthState(state);
-  }
-
   /**
    * Enqueue an immediate inbox sync for a freshly connected (or reconnected)
    * mailbox. The OAuth "connect" flow returns early without going through
@@ -612,7 +611,7 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
-    const stateData = this.parseOAuthState(state);
+    const stateData = parseBrowserBoundOAuthState(state, req);
     if (
       !stateData ||
       stateData.action !== AUTH_ACTION_TYPES.CONNECT ||
@@ -687,7 +686,7 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
-    const stateData = this.parseOAuthState(state);
+    const stateData = parseBrowserBoundOAuthState(state, req);
     if (
       !stateData ||
       stateData.action !== AUTH_ACTION_TYPES.CONNECT ||
@@ -902,7 +901,7 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
-    const stateData = this.parseOAuthState(state);
+    const stateData = parseBrowserBoundOAuthState(state, req);
     if (
       !stateData ||
       stateData.action !== AUTH_ACTION_TYPES.CONNECT ||

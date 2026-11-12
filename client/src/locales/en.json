@@ -2913,6 +2913,10 @@
     "issueLabel": "Issue",
     "prLabel": "PR"
   },
+  "connectMailbox": {
+    "button": "Connect an email account",
+    "connectError": "Couldn't start connecting that account. Please try again."
+  },
   "gmail": {
     "connectTitle": "Connect your email",
     "connectDescription": "To get started, connect the email account you want BearlyMail to look after. We sync your emails securely and help you stay on top of them.",
@@ -4039,6 +4043,8 @@
       "prop3Title": "We train an AI on your inbox",
       "prop3Body": "We summarise your most recent emails and build rules from how you actually behave: who you reply to fast, what you archive, what you star. The bar for urgent is high by design.",
       "doneTag": "Done",
+      "noMailboxTitle": "Connect your email to get started",
+      "noMailboxBody": "BearlyMail sorts the email in your own inbox, so it needs an account to work with. Gmail, Outlook, Zoho or any other email. Nothing moves and there's no new address.",
       "permissions": {
         "gmailTitle": "BearlyMail can't reach your Gmail yet",
         "gmailBody": "On Google's permission screen, the boxes that let BearlyMail read, organise and send your email were left unticked. Until you allow them, your inbox stays empty: nothing gets batched, summarised or sent.",
@@ -4105,7 +4111,9 @@
       "stalledDetailError": "We couldn't finish learning from your emails. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",
       "stalledDetailTimeout": "This still hasn't finished after {{minutes}} minutes. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",
       "retry": "Try again",
-      "skipToInbox": "Open my inbox anyway →"
+      "skipToInbox": "Open my inbox anyway →",
+      "noMailboxTitle": "No email account connected yet",
+      "noMailboxDetail": "BearlyMail learns from the emails in your inbox, so there's nothing to learn from yet. Connect an account and we'll start straight away."
     },
     "recategorise": {
       "button": "Re-categorise",

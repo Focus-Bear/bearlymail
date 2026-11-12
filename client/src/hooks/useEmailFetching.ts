@@ -13,6 +13,7 @@ import {
   setCachedSummary,
 } from 'utils/emailCache';
 import { getAxiosErrorMessage } from 'utils/errors';
+import { isNoMailboxError } from 'utils/mailboxConnection';
 
 import { API_URL } from 'config/api';
 import {
@@ -28,6 +29,7 @@ import {
 import {
   CATEGORY_OTHER,
   ERROR_CODE_ERR_NETWORK,
+  ERROR_CODE_GMAIL_REQUIRED,
   ERROR_GMAIL,
   ERROR_GMAIL_REQUIRED,
   ERROR_NETWORK,
@@ -1144,7 +1146,14 @@ async function fetchEmailsImpl({
   }
 }
 
-function handleFetchError(dispatch: AppDispatch, error: unknown) {
+/** Turns a failed inbox fetch into the fetchError the Inbox page renders (exported for tests). */
+export function handleFetchError(dispatch: AppDispatch, error: unknown) {
+  // No mailbox connected: the inbox shows the "connect your email" screen
+  // instead of a list that can never load (#442).
+  if (isNoMailboxError(error)) {
+    dispatch(setFetchError(ERROR_CODE_GMAIL_REQUIRED));
+    return;
+  }
   if (axios.isAxiosError(error)) {
     if (error.code === ERROR_CODE_ERR_NETWORK || error.message?.includes(ERROR_NETWORK)) {
       dispatch(setFetchError('Unable to connect to the server. Please check if the server is running.'));

@@ -104,6 +104,8 @@ test.describe('TeamSettings in Settings page', () => {
     await loginAs(page, OWNER_EMAIL, OWNER_PASSWORD);
     await page.goto('/settings');
     await page.waitForLoadState('domcontentloaded');
+    // Settings is split into tabs; the Team section only shows on the "Team & Plan" tab.
+    await page.getByRole('tab', { name: /team & plan/i }).click();
   });
 
   test('TeamSettings section is visible', async ({ page }) => {

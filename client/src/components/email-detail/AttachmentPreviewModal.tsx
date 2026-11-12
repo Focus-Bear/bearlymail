@@ -9,6 +9,8 @@ import { EMOJI_CLOSE, EMOJI_DOWNLOAD } from 'constants/emojis';
 import { OPACITY_DISABLED_ALT, OPACITY_FULL, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 import { KEY_ESCAPE } from 'constants/strings';
 
+import { getAttachmentPreviewType } from './attachmentPreviewType';
+
 interface EmailAttachment {
   attachmentId: string;
   filename: string;
@@ -123,7 +125,11 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
           bytes[i] = binaryString.charCodeAt(i);
         }
 
-        const blob = new Blob([bytes], { type: attachment.mimeType });
+        const previewType = getAttachmentPreviewType(attachment.mimeType);
+        if (!previewType) {
+          throw new Error('Attachment type cannot be previewed');
+        }
+        const blob = new Blob([bytes], { type: previewType.blobType });
         const url = window.URL.createObjectURL(blob);
         blobUrlRef.current = url;
         setBlobUrl(url);
@@ -169,7 +175,7 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
     }
   }, [onDownload, emailId, attachment.attachmentId, attachment.filename]);
 
-  const isImage = attachment.mimeType.startsWith('image/');
+  const isImage = getAttachmentPreviewType(attachment.mimeType)?.kind === 'image';
 
   return (
     <div

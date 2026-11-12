@@ -30,6 +30,8 @@ interface InboxHeaderTabsProps {
   onActionTabEmphasisEnd?: () => void;
   /** Emails moved to Action since the user last opened it, shown as a "+N" badge. */
   actionMovedCount?: number;
+  /** The tabs have a header row to themselves (narrow screens), so they split it evenly. */
+  isFullWidthRow?: boolean;
 }
 
 /** The "+N" badge's pop animation bubbles up to the tab too; only the tab's own animation ends the emphasis. */
@@ -55,6 +57,37 @@ const MovedToActionBadge: React.FC<{ count: number }> = ({ count }) => {
   );
 };
 
+function getTabButtonStyle({
+  isActive,
+  isMobile,
+  isLoading,
+}: {
+  isActive: boolean;
+  isMobile: boolean;
+  isLoading: boolean;
+}): React.CSSProperties {
+  return {
+    padding: isMobile ? `${theme.spacing.xs} ${theme.spacing.sm}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
+    backgroundColor: isActive ? theme.colors.primary.subtle : 'transparent',
+    color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
+    border: STRING_NONE,
+    borderRadius: theme.borderRadius.full,
+    cursor: isLoading ? 'wait' : 'pointer',
+    fontWeight: theme.typography.fontWeight.semibold,
+    fontSize: isMobile ? theme.typography.fontSize.md : theme.typography.fontSize.base,
+    whiteSpace: 'nowrap',
+    opacity: isLoading ? OPACITY_DISABLED : OPACITY_FULL,
+  };
+}
+
+/** On narrow screens the tabs have their own header row, split evenly; otherwise they sit inline. */
+function getTabsRowStyle(isFullWidthRow: boolean): React.CSSProperties {
+  if (isFullWidthRow) {
+    return { display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(0, 1fr)', gap: theme.spacing.xs };
+  }
+  return { display: 'flex', gap: theme.spacing.md };
+}
+
 /**
  * Inbox header tabs component
  * Displays tab navigation for inbox modes
@@ -70,6 +103,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   actionTabEmphasis,
   onActionTabEmphasisEnd,
   actionMovedCount = 0,
+  isFullWidthRow = false,
 }) => {
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
@@ -84,20 +118,8 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
     }
   };
 
-  const getTabStyle = (tabMode: InboxMode) => {
-    const isActive = mode === tabMode;
-    return {
-      padding: isMobile ? `${theme.spacing.xs} ${theme.spacing.sm}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
-      backgroundColor: isActive ? theme.colors.primary.subtle : 'transparent',
-      color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
-      border: STRING_NONE,
-      borderRadius: theme.borderRadius.full,
-      cursor: loadingModeSwitch ? 'wait' : 'pointer',
-      fontWeight: theme.typography.fontWeight.semibold,
-      fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize.base,
-      opacity: loadingModeSwitch ? OPACITY_DISABLED : OPACITY_FULL,
-    };
-  };
+  const getTabStyle = (tabMode: InboxMode) =>
+    getTabButtonStyle({ isActive: mode === tabMode, isMobile, isLoading: loadingModeSwitch });
 
   const getTabLabel = (tabMode: InboxMode): string => {
     if (loadingModeSwitch && mode === tabMode) {
@@ -129,7 +151,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', gap: isMobile ? theme.spacing.xs : theme.spacing.md }}>
+    <div style={getTabsRowStyle(isFullWidthRow)}>
       <button
         ref={triageTabRef}
         data-tour={TOUR_TARGETS.TRIAGE_TAB}

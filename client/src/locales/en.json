@@ -487,6 +487,7 @@
     },
     "filters": {
       "toggle": "Toggle filters",
+      "title": "Filters",
       "searchPlaceholder": "Search...",
       "icon": "Filter icon",
       "clear": "Clear all filters",

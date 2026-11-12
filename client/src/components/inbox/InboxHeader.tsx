@@ -6,8 +6,10 @@ import { InboxMode } from 'types/email';
 
 import { InboxHeaderActions, InboxHeaderTabs } from 'components/inbox/header';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { BREAKPOINT_INBOX_HEADER_SINGLE_ROW } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { ActionMoveFeedback } from 'hooks/useActionMoveFeedback';
+import { useIsViewportNarrowerThan } from 'hooks/useIsViewportNarrowerThan';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const HAMBURGER_ICON = '\u2630'; // ☰
@@ -95,6 +97,7 @@ const ClearFiltersButton: React.FC<ClearFiltersButtonProps> = ({ onClear, label 
       color: theme.colors.primary.main,
       cursor: 'pointer',
       textDecoration: 'underline',
+      whiteSpace: 'nowrap',
       flexShrink: 0,
     }}
   >
@@ -157,6 +160,23 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   const { t } = useTranslation();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
+  const isStacked = useIsViewportNarrowerThan(BREAKPOINT_INBOX_HEADER_SINGLE_ROW);
+
+  const tabs = (
+    <InboxHeaderTabs
+      mode={mode}
+      setMode={setMode}
+      loadingModeSwitch={loadingModeSwitch}
+      triageTabRef={triageTabRef}
+      actionTabRef={actionTabRef}
+      followUpTabRef={followUpTabRef}
+      tabCounts={tabCounts}
+      actionTabEmphasis={actionMoveFeedback?.tabEmphasis}
+      onActionTabEmphasisEnd={actionMoveFeedback?.onTabEmphasisEnd}
+      actionMovedCount={actionMoveFeedback?.movedCount}
+      isFullWidthRow={isStacked}
+    />
+  );
 
   return (
     <header
@@ -165,62 +185,59 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: isStacked ? 'column' : 'row',
+        gap: isStacked ? theme.spacing.xs : undefined,
       }}
     >
-      <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
-        {/* Hamburger menu button for mobile and tablet */}
-        {isNarrow && (
-          <button
-            onClick={onToggleMobileMenu}
-            style={{
-              background: STRING_NONE,
-              border: STRING_NONE,
-              cursor: 'pointer',
-              padding: theme.spacing.xs,
-              display: 'flex',
-              alignItems: 'center',
-              fontSize: '24px',
-              color: theme.colors.text.primary,
-            }}
-            aria-label="Toggle navigation menu"
-          >
-            {HAMBURGER_ICON}
-          </button>
-        )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', minWidth: 0 }}>
+          {/* Hamburger menu button for mobile and tablet */}
+          {isNarrow && (
+            <button
+              onClick={onToggleMobileMenu}
+              style={{
+                background: STRING_NONE,
+                border: STRING_NONE,
+                cursor: 'pointer',
+                padding: theme.spacing.xs,
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '24px',
+                color: theme.colors.text.primary,
+              }}
+              aria-label="Toggle navigation menu"
+            >
+              {HAMBURGER_ICON}
+            </button>
+          )}
 
-        <InboxHeaderTabs
+          {!isStacked && tabs}
+
+          <FilterToggleButton
+            isFilterBarVisible={isFilterBarVisible}
+            hasActiveFilters={hasActiveFilters}
+            activeFilterCount={activeFilterCount}
+            onToggle={onToggleFilterBar}
+          />
+
+          {hasActiveFilters && (
+            <ClearFiltersButton
+              onClear={onClearFilters}
+              label={isMobile ? t('inbox.filters.clearAll') : t('inbox.filters.clear')}
+            />
+          )}
+        </div>
+
+        <InboxHeaderActions
           mode={mode}
-          setMode={setMode}
-          loadingModeSwitch={loadingModeSwitch}
-          triageTabRef={triageTabRef}
-          actionTabRef={actionTabRef}
-          followUpTabRef={followUpTabRef}
-          tabCounts={tabCounts}
-          actionTabEmphasis={actionMoveFeedback?.tabEmphasis}
-          onActionTabEmphasisEnd={actionMoveFeedback?.onTabEmphasisEnd}
-          actionMovedCount={actionMoveFeedback?.movedCount}
+          isAdmin={isAdmin}
+          debugViewOpen={debugViewOpen}
+          onToggleDebug={onToggleDebug}
+          onViewBlockedEmails={onViewBlockedEmails}
+          onViewAutoRespondedEmails={onViewAutoRespondedEmails}
         />
-
-        <FilterToggleButton
-          isFilterBarVisible={isFilterBarVisible}
-          hasActiveFilters={hasActiveFilters}
-          activeFilterCount={activeFilterCount}
-          onToggle={onToggleFilterBar}
-        />
-
-        {hasActiveFilters && <ClearFiltersButton onClear={onClearFilters} label={t('inbox.filters.clear')} />}
       </div>
-
-      <InboxHeaderActions
-        mode={mode}
-        isAdmin={isAdmin}
-        debugViewOpen={debugViewOpen}
-        onToggleDebug={onToggleDebug}
-        onViewBlockedEmails={onViewBlockedEmails}
-        onViewAutoRespondedEmails={onViewAutoRespondedEmails}
-      />
+      {isStacked && tabs}
     </header>
   );
 };

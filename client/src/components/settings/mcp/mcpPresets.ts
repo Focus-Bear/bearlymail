@@ -89,7 +89,9 @@ export const getMcpProviderPresets = (translate: TFunction): MCPProviderPreset[]
     brandColor: '#E42527',
     tagline: translate('settings.mcp.preset.zohoBigin.tagline'),
     purpose: 'sender_context',
-    authType: 'bearer',
+    // Zoho MCP answers 401 with an RFC 9728 OAuth challenge and supports
+    // dynamic client registration, so the URL alone isn't enough.
+    authType: 'oauth',
     // Zoho generates a unique per-user MCP URL (with an embedded key), so it
     // can't be pre-filled — the user pastes the one from the Zoho MCP portal.
     urlPlaceholder: 'https://mcp.zoho.com/...',

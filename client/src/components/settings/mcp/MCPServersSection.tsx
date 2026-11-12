@@ -4,7 +4,12 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 
 import { GMAIL_ACCESS_ALERT_LAYOUT, GmailAccessAlert } from 'components/gmail-access/GmailAccessAlert';
-import { MCPServerConfig, MCPServerPurpose } from 'components/settings/workflows/types';
+import {
+  MCP_AUTH_TYPES,
+  MCPConnectionTestResult,
+  MCPServerConfig,
+  MCPServerPurpose,
+} from 'components/settings/workflows/types';
 import { API_URL } from 'config/api';
 import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { useAuth } from 'contexts/AuthContext';
@@ -71,30 +76,27 @@ export const MCPServersSection: React.FC = () => {
     );
   }, [t, loadServers]);
 
-  const handleAdd = async (
-    name: string,
-    serverUrl: string,
-    apiKey: string | undefined,
-    purpose: MCPServerPurpose
-  ) => {
+  const handleAdd = async (name: string, serverUrl: string, apiKey: string | undefined, purpose: MCPServerPurpose) => {
     await axios.post(`${API_URL}/mcp-servers`, { name, serverUrl, apiKey, purpose });
     await loadServers();
   };
 
-  // OAuth providers: create the connection, then redirect to the provider's
-  // consent screen. The browser returns to this page via the callback above.
+  // The browser returns to this page via the ?mcpConnected callback above.
+  const redirectToAuthorization = async (id: string) => {
+    const response = await axios.get<{ authorizationUrl: string }>(`${API_URL}/mcp-servers/${id}/oauth/start`);
+    window.location.href = response.data.authorizationUrl;
+  };
+
+  // OAuth providers: create the connection, then redirect to the provider's consent screen.
   const handleStartOAuth = async (name: string, serverUrl: string, purpose: MCPServerPurpose) => {
     const created = await axios.post<MCPServerConfig>(`${API_URL}/mcp-servers`, {
       name,
       serverUrl,
       purpose,
-      authType: 'oauth',
+      authType: MCP_AUTH_TYPES.OAUTH,
     });
     try {
-      const { data } = await axios.get<{ authorizationUrl: string }>(
-        `${API_URL}/mcp-servers/${created.data.id}/oauth/start`
-      );
-      window.location.href = data.authorizationUrl;
+      await redirectToAuthorization(created.data.id);
     } catch (err) {
       // Authorization couldn't start (e.g. the server doesn't support OAuth) —
       // remove the half-created connection so it doesn't linger unauthorized.
@@ -112,17 +114,30 @@ export const MCPServersSection: React.FC = () => {
     }
   };
 
-  const handleRefresh = async (id: string) => {
+  const handleAuthorize = async (id: string) => {
     try {
-      await axios.post(`${API_URL}/mcp-servers/${id}/refresh`);
-      await loadServers();
+      await redirectToAuthorization(id);
     } catch {
-      setError(t('settings.mcp.section.refreshError'));
+      setError(t('settings.mcp.section.signInError'));
     }
   };
 
+  // A failed refresh can flip a keyless connection to OAuth server-side, so
+  // reload either way to surface the "Sign in" action.
+  const handleRefresh = async (id: string) => {
+    try {
+      await axios.post(`${API_URL}/mcp-servers/${id}/refresh`);
+    } catch {
+      setError(t('settings.mcp.section.refreshError'));
+    }
+    await loadServers();
+  };
+
   const handleTest = async (id: string) => {
-    const res = await axios.post<{ ok: boolean; toolCount: number }>(`${API_URL}/mcp-servers/${id}/test`);
+    const res = await axios.post<MCPConnectionTestResult>(`${API_URL}/mcp-servers/${id}/test`);
+    if (res.data.needsAuthorization) {
+      await loadServers();
+    }
     return res.data;
   };
 
@@ -186,6 +201,7 @@ export const MCPServersSection: React.FC = () => {
           onRemove={handleRemove}
           onRefresh={handleRefresh}
           onTest={handleTest}
+          onAuthorize={handleAuthorize}
         />
       )}
     </div>

@@ -27,7 +27,8 @@ export interface SettingsNavOptions {
 
 /**
  * Returns the full settings sidebar navigation tree, translated via the
- * provided `translate` function.
+ * provided `translate` function. Groups follow the Settings tabs' order
+ * (settings-tabs.ts): email first, account and security last.
  *
  * @param translate - i18n translation function (`t` from `useTranslation()`).
  * @param options - Flags that gate conditional items (e.g. admin-only MFA).
@@ -38,13 +39,6 @@ export function getSettingsNavItems(
   options: SettingsNavOptions = {}
 ): (SettingsSubNavItem | SettingsSubNavGroup)[] {
   return [
-    {
-      label: translate('settings.nav.accountSecurity'),
-      items: [
-        { id: 'set-password', label: translate('settings.nav.password'), anchor: 'set-password' },
-        ...(options.isAdmin ? [{ id: 'mfa', label: translate('settings.nav.twoFactorAuth'), anchor: 'mfa' }] : []),
-      ],
-    },
     {
       label: translate('settings.nav.emailDelivery'),
       items: [
@@ -124,6 +118,13 @@ export function getSettingsNavItems(
         { id: 'team-members', label: translate('settings.nav.teamMembers'), anchor: 'team-members' },
         { id: 'team-usage', label: translate('settings.nav.teamUsage'), anchor: 'team-usage' },
         { id: 'team-promo', label: translate('settings.nav.teamPromo'), anchor: 'team-promo' },
+      ],
+    },
+    {
+      label: translate('settings.nav.accountSecurity'),
+      items: [
+        { id: 'set-password', label: translate('settings.nav.password'), anchor: 'set-password' },
+        ...(options.isAdmin ? [{ id: 'mfa', label: translate('settings.nav.twoFactorAuth'), anchor: 'mfa' }] : []),
       ],
     },
     {

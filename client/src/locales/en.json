@@ -1282,6 +1282,10 @@
       "save": "Save Signature",
       "saving": "Saving..."
     },
+    "tabs": {
+      "account": "Account",
+      "label": "Settings sections"
+    },
     "nav": {
       "accountSecurity": "Account & Security",
       "password": "Password",

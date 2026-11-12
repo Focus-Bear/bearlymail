@@ -1,4 +1,5 @@
 import {
+  formatRecipientLabel,
   formatRecipientToken,
   isValidEmail,
   parseAddressHeader,
@@ -204,6 +205,30 @@ describe('formatRecipientToken', () => {
 
   it('quotes a name containing a comma so it round-trips', () => {
     expect(formatRecipientToken('Nagel, Jeremy', 'jeremy@focusbear.io')).toBe('"Nagel, Jeremy" <jeremy@focusbear.io>');
+  });
+
+  it('drops a display name that is just the address, instead of quoting it', () => {
+    expect(formatRecipientToken('Belinda@Example.com', 'belinda@example.com')).toBe('belinda@example.com');
+  });
+});
+
+describe('formatRecipientLabel', () => {
+  it('shows a quoted display name without its quotes or escapes', () => {
+    expect(formatRecipientLabel('"Nagel, \\"JJ\\" Jeremy" <jeremy@focusbear.io>')).toBe(
+      'Nagel, "JJ" Jeremy <jeremy@focusbear.io>'
+    );
+  });
+
+  it('shows only the address when the display name repeats it', () => {
+    expect(formatRecipientLabel('"belinda@example.com" <belinda@example.com>')).toBe('belinda@example.com');
+  });
+
+  it('shows a bare address unchanged', () => {
+    expect(formatRecipientLabel('a@x.com')).toBe('a@x.com');
+  });
+
+  it('shows an unparseable token as typed', () => {
+    expect(formatRecipientLabel('not an address')).toBe('not an address');
   });
 });
 

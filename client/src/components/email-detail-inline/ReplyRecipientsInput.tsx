@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
@@ -7,7 +7,7 @@ import { ContactGroup } from 'types/contactGroup';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, STRING_NONE } from 'constants/strings';
 
-import RecipientChip from './RecipientChip';
+import RecipientChip, { RECIPIENT_CHIP_EDIT_ATTRIBUTE } from './RecipientChip';
 import RecipientSuggestions from './RecipientSuggestions';
 import { useRecipients } from './useRecipients';
 
@@ -47,6 +47,7 @@ interface RecipientFieldProps {
   handleSelectContact: (contact: Contact, field: FieldType) => void;
   handleSelectGroup: (group: ContactGroup, field: FieldType) => void;
   handleRemoveTag: (i: number, field: FieldType) => void;
+  handleReplaceTag: (i: number, field: FieldType, editedValue: string) => boolean;
   handleBlur: (field: FieldType) => void;
   setSelectedSuggestionIndex: (idx: number) => void;
   /** Drag-and-drop */
@@ -57,6 +58,66 @@ interface RecipientFieldProps {
   onChipDragStart: (index: number, event: React.DragEvent) => void;
   t: (tKey: string) => string;
 }
+
+interface RecipientChipListProps {
+  tags: string[];
+  field: FieldType;
+  handleRemoveTag: (i: number, field: FieldType) => void;
+  handleReplaceTag: (i: number, field: FieldType, editedValue: string) => boolean;
+  onChipDragStart: (index: number, event: React.DragEvent) => void;
+  /** Where focus goes when the edited chip no longer exists (cleared, or split into others). */
+  focusFieldInput: () => void;
+}
+
+// Owns which chip is being edited, and puts keyboard focus back on that chip once the edit ends.
+const RecipientChipList: React.FC<RecipientChipListProps> = ({
+  tags,
+  field,
+  handleRemoveTag,
+  handleReplaceTag,
+  onChipDragStart,
+  focusFieldInput,
+}) => {
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const listRef = useRef<HTMLSpanElement>(null);
+
+  const focusChip = (index: number) =>
+    requestAnimationFrame(() => {
+      const chipButtons = listRef.current?.querySelectorAll<HTMLButtonElement>(`[${RECIPIENT_CHIP_EDIT_ATTRIBUTE}]`);
+      const chipButton = chipButtons?.[index];
+      if (chipButton) {
+        chipButton.focus();
+        return;
+      }
+      focusFieldInput();
+    });
+
+  const handleEditEnd = (index: number, shouldRestoreFocus: boolean) => {
+    setEditingIndex(null);
+    if (shouldRestoreFocus) {
+      focusChip(index);
+    }
+  };
+
+  return (
+    <span ref={listRef} style={{ display: 'contents' }}>
+      {tags.map((tag, index) => (
+        <RecipientChip
+          key={tag}
+          tag={tag}
+          index={index}
+          onRemove={i => handleRemoveTag(i, field)}
+          draggable={editingIndex !== index}
+          onDragStart={event => onChipDragStart(index, event)}
+          isEditing={editingIndex === index}
+          onStartEdit={setEditingIndex}
+          onCommitEdit={(i, editedValue) => handleReplaceTag(i, field, editedValue)}
+          onEditEnd={handleEditEnd}
+        />
+      ))}
+    </span>
+  );
+};
 
 const RecipientField: React.FC<RecipientFieldProps> = ({
   label,
@@ -74,6 +135,7 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
   handleSelectContact,
   handleSelectGroup,
   handleRemoveTag,
+  handleReplaceTag,
   handleBlur,
   setSelectedSuggestionIndex,
   isDragOver,
@@ -82,94 +144,87 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
   onDrop,
   onChipDragStart,
   t,
-}) => (
-  <div style={{ marginBottom: theme.spacing.sm, position: 'relative' }}>
-    <label
-      style={{
-        display: 'block',
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.xs,
-      }}
-    >
-      {label}:
-    </label>
+}) => {
+  const fieldInputRef = useRef<HTMLInputElement>(null);
 
-    <div
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: '4px',
-        padding: '4px 8px',
-        border: isDragOver ? `2px dashed ${theme.colors.primary.main}` : `1px solid ${theme.colors.border.medium}`,
-        borderRadius: theme.borderRadius.md,
-        minHeight: '38px',
-        cursor: 'text',
-        backgroundColor: isDragOver ? theme.colors.primary.subtle : undefined,
-        transition: 'border-color 0.15s, background-color 0.15s',
-      }}
-      onClick={event => {
-        const input = event.currentTarget.querySelector('input');
-        if (input) {
-          (input as HTMLInputElement).focus();
-        }
-      }}
-    >
-      {tags.map((tag, index) => (
-        <RecipientChip
-          key={tag}
-          tag={tag}
-          index={index}
-          onRemove={i => handleRemoveTag(i, field)}
-          draggable
-          onDragStart={event => onChipDragStart(index, event)}
-        />
-      ))}
-      <input
-        type="text"
-        value={inputValues[field]}
-        onChange={event => handleInputChange(event.target.value, field)}
-        onFocus={() => setActiveField(field)}
-        onBlur={() => handleBlur(field)}
-        onKeyDown={event =>
-          handleKeyDown(
-            event as unknown as React.KeyboardEvent,
-            field,
-            selectedSuggestionIndex,
-            handleRemoveTag
-          )
-        }
+  return (
+    <div style={{ marginBottom: theme.spacing.sm, position: 'relative' }}>
+      <label
         style={{
-          flex: 1,
-          minWidth: '120px',
-          border: STRING_NONE,
-          outline: 'none',
+          display: 'block',
           fontSize: theme.typography.fontSize.sm,
-          padding: '4px 0',
-          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.xs,
         }}
-        placeholder={tags.length === 0 ? t('compose.recipientPlaceholder') : ''}
-      />
-    </div>
+      >
+        {label}:
+      </label>
 
-    {activeField === field && recipientSuggestions.length > 0 && (
-      <RecipientSuggestions
-        suggestions={recipientSuggestions}
-        contacts={searchResults}
-        selectedIndex={selectedSuggestionIndex}
-        onSelect={(contact: Contact) => handleSelectContact(contact, field)}
-        onSelectGroup={(group: ContactGroup) => handleSelectGroup(group, field)}
-        onHover={(idx: number) => setSelectedSuggestionIndex(idx)}
-        dropdownRef={dropdownRef}
-        field={field}
-      />
-    )}
-  </div>
-);
+      <div
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '4px 8px',
+          border: isDragOver ? `2px dashed ${theme.colors.primary.main}` : `1px solid ${theme.colors.border.medium}`,
+          borderRadius: theme.borderRadius.md,
+          minHeight: '38px',
+          cursor: 'text',
+          backgroundColor: isDragOver ? theme.colors.primary.subtle : undefined,
+          transition: 'border-color 0.15s, background-color 0.15s',
+        }}
+        onClick={() => fieldInputRef.current?.focus()}
+      >
+        <RecipientChipList
+          tags={tags}
+          field={field}
+          handleRemoveTag={handleRemoveTag}
+          handleReplaceTag={handleReplaceTag}
+          onChipDragStart={onChipDragStart}
+          focusFieldInput={() => fieldInputRef.current?.focus()}
+        />
+        <input
+          ref={fieldInputRef}
+          type="text"
+          value={inputValues[field]}
+          onChange={event => handleInputChange(event.target.value, field)}
+          onFocus={() => setActiveField(field)}
+          onBlur={() => handleBlur(field)}
+          onKeyDown={event =>
+            handleKeyDown(event as unknown as React.KeyboardEvent, field, selectedSuggestionIndex, handleRemoveTag)
+          }
+          style={{
+            flex: 1,
+            minWidth: '120px',
+            border: STRING_NONE,
+            outline: 'none',
+            fontSize: theme.typography.fontSize.sm,
+            padding: '4px 0',
+            backgroundColor: COLOR_TRANSPARENT,
+          }}
+          placeholder={tags.length === 0 ? t('compose.recipientPlaceholder') : ''}
+        />
+      </div>
+
+      {activeField === field && recipientSuggestions.length > 0 && (
+        <RecipientSuggestions
+          suggestions={recipientSuggestions}
+          contacts={searchResults}
+          selectedIndex={selectedSuggestionIndex}
+          onSelect={(contact: Contact) => handleSelectContact(contact, field)}
+          onSelectGroup={(group: ContactGroup) => handleSelectGroup(group, field)}
+          onHover={(idx: number) => setSelectedSuggestionIndex(idx)}
+          dropdownRef={dropdownRef}
+          field={field}
+        />
+      )}
+    </div>
+  );
+};
 
 export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
   replyRecipients,
@@ -201,6 +256,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
     handleSelectContact,
     handleSelectGroup,
     handleRemoveTag,
+    handleReplaceTag,
     handleBlur,
     setSelectedSuggestionIndex,
     handleDragStart,
@@ -242,6 +298,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
     handleSelectContact,
     handleSelectGroup,
     handleRemoveTag,
+    handleReplaceTag,
     handleBlur,
     setSelectedSuggestionIndex,
     t,

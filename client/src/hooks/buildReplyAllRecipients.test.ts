@@ -111,3 +111,13 @@ describe('buildReplyToOwnEmailRecipient', () => {
     );
   });
 });
+
+describe('buildReplyAllRecipients — display names', () => {
+  it('drops a display name that only repeats the address, so the chip has no stray quote', () => {
+    const email = makeEmail({ to: `${USER_EMAIL}, "belinda@example.com" <belinda@example.com>` });
+    expect(buildReplyAllRecipients(email, isCurrentUser, false)).toEqual({
+      recipients: `${SENDER}, belinda@example.com`,
+      cc: null,
+    });
+  });
+});

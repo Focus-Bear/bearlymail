@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  FiBarChart2,
+  FiBriefcase,
+  FiDollarSign,
+  FiEdit3,
+  FiInbox,
+  FiLock,
+  FiSearch,
+  FiSettings,
+  FiTool,
+  FiUser,
+  FiUsers,
+} from 'react-icons/fi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
@@ -32,7 +45,7 @@ import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup, Settings
 interface SidebarItemProps {
   label: string;
   path: string;
-  icon?: string;
+  icon?: React.ReactNode;
   active?: boolean;
   isCollapsed?: boolean;
   onNavigationClick?: (path: string) => void;
@@ -42,7 +55,11 @@ interface SidebarItemProps {
   lockedTooltip?: string;
 }
 
-const LOCK_ICON = '🔒';
+/** Line icons, not emoji: they take the item's text colour (white when active) and look the same on every OS. */
+const NAV_ICON_SIZE = 18;
+const navIcon = (Icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>) => (
+  <Icon size={NAV_ICON_SIZE} aria-hidden />
+);
 
 const SIDEBAR_ROUTE_EVENTS: Record<string, string> = {
   [ROUTE_INBOX]: ANALYTICS_EVENTS.SIDEBAR_INBOX_CLICKED,
@@ -161,7 +178,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       {badge !== undefined && badge > 0 && <SidebarBadge count={badge} isCollapsed={isCollapsed} />}
       {lockedTooltip && !isCollapsed && (
         <span aria-hidden data-testid="sidebar-item-lock">
-          {LOCK_ICON}
+          <FiLock size={14} />
         </span>
       )}
     </Link>
@@ -263,7 +280,7 @@ const CrmSubNav: React.FC<CrmSubNavProps> = ({ pathname, isCollapsed, translate,
       <SidebarItem
         label={translate('crm.contacts')}
         path={ROUTE_CRM_CONTACTS}
-        icon="👤"
+        icon={navIcon(FiUser)}
         active={pathname === ROUTE_CRM_CONTACTS || pathname.startsWith(`${ROUTE_CRM_CONTACTS}/`)}
         isCollapsed={false}
         onNavigationClick={onNavigationClick}
@@ -271,7 +288,7 @@ const CrmSubNav: React.FC<CrmSubNavProps> = ({ pathname, isCollapsed, translate,
       <SidebarItem
         label={translate('crm.deals')}
         path={ROUTE_CRM_DEALS}
-        icon="🤝"
+        icon={navIcon(FiDollarSign)}
         active={pathname === ROUTE_CRM_DEALS}
         isCollapsed={false}
         onNavigationClick={onNavigationClick}
@@ -279,7 +296,7 @@ const CrmSubNav: React.FC<CrmSubNavProps> = ({ pathname, isCollapsed, translate,
       <SidebarItem
         label={translate('crm.contactGroups')}
         path={ROUTE_CRM_CONTACT_GROUPS}
-        icon="👥"
+        icon={navIcon(FiUsers)}
         active={pathname === ROUTE_CRM_CONTACT_GROUPS}
         isCollapsed={false}
         onNavigationClick={onNavigationClick}
@@ -313,7 +330,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     <SidebarItem
       label={translate('inbox.title')}
       path={ROUTE_INBOX}
-      icon="📥"
+      icon={navIcon(FiInbox)}
       active={location.pathname === ROUTE_INBOX}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
@@ -321,7 +338,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     <SidebarItem
       label={translate('compose.title')}
       path={ROUTE_COMPOSE}
-      icon="✏️"
+      icon={navIcon(FiEdit3)}
       active={location.pathname === ROUTE_COMPOSE}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
@@ -329,7 +346,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     <SidebarItem
       label={translate('common.search')}
       path={ROUTE_SEARCH}
-      icon="🔍"
+      icon={navIcon(FiSearch)}
       active={location.pathname === ROUTE_SEARCH}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
@@ -337,7 +354,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     <SidebarItem
       label={translate('crm.title')}
       path={ROUTE_CRM_CONTACTS}
-      icon="💼"
+      icon={navIcon(FiBriefcase)}
       active={location.pathname.startsWith('/crm')}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={isCollapsed || isCrmLocked ? handleNavigationClick : undefined}
@@ -354,7 +371,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     <SidebarItem
       label={translate('stats.title')}
       path={ROUTE_STATS}
-      icon="📊"
+      icon={navIcon(FiBarChart2)}
       active={location.pathname === ROUTE_STATS}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
@@ -363,7 +380,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       <SidebarItem
         label={translate('settings.title')}
         path={ROUTE_SETTINGS}
-        icon="⚙️"
+        icon={navIcon(FiSettings)}
         active={isSettingsPage}
         isCollapsed={effectiveIsCollapsed}
         onNavigationClick={handleNavigationClick}
@@ -375,7 +392,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
         <SidebarItem
           label={translate('admin.title')}
           path={ROUTE_ADMIN}
-          icon="🛠️"
+          icon={navIcon(FiTool)}
           active={location.pathname === ROUTE_ADMIN}
           isCollapsed={effectiveIsCollapsed}
           onNavigationClick={handleNavigationClick}

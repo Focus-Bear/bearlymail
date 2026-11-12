@@ -4454,6 +4454,10 @@
     "priority": "Prioridad",
     "priorityHelp": "Número más bajo = mayor prioridad. Las reglas se verifican en orden; gana la primera coincidencia.",
     "learnedContext": "Contexto aprendido",
+    "tabs": {
+      "account": "Cuenta",
+      "label": "Secciones de ajustes"
+    },
     "nav": {
       "accountSecurity": "Cuenta y seguridad",
       "password": "Contraseña",

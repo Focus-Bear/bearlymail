@@ -9,6 +9,7 @@ import { MAILBOX_STATUS, type MailboxStatus, useMailboxConnection } from 'hooks/
 import { type GmailPermissionProblem, resolveGooglePermissions } from './google-permissions';
 import { GmailPermissionWarning } from './GooglePermissionNotices';
 import { NoMailboxCard } from './NoMailboxCard';
+import { onboardingPrimaryButtonStyle as primaryButtonStyle } from './onboarding-buttons';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 interface WelcomeStepProps {
@@ -380,20 +381,3 @@ const termsLinkStyle: React.CSSProperties = {
   textUnderlineOffset: '2px',
 };
 
-const primaryButtonStyle = (enabled: boolean): React.CSSProperties => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '8px',
-  height: '48px',
-  padding: '0 22px',
-  borderRadius: '12px',
-  fontSize: '15px',
-  fontWeight: FONT_WEIGHT_SEMIBOLD,
-  border: `1.5px solid ${enabled ? TOK.sun : TOK.sunPale2}`,
-  background: enabled ? TOK.sun : TOK.sunPale2,
-  color: '#fff',
-  cursor: enabled ? 'pointer' : 'not-allowed',
-  boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.12)',
-  transition: 'background .12s, border-color .12s, color .12s',
-});

@@ -1,6 +1,6 @@
 import React, { RefObject, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiFilter } from 'react-icons/fi';
+import { FiFilter, FiX } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 
@@ -82,23 +82,30 @@ const FilterToggleButton: React.FC<FilterToggleButtonProps> = ({
 interface ClearFiltersButtonProps {
   onClear: () => void;
   label: string;
+  /** Phone/tablet width: an × icon, since the text label pushed the header off screen (#442). */
+  compact: boolean;
 }
 
-const ClearFiltersButton: React.FC<ClearFiltersButtonProps> = ({ onClear, label }) => (
+const ClearFiltersButton: React.FC<ClearFiltersButtonProps> = ({ onClear, label, compact }) => (
   <button
     onClick={onClear}
+    aria-label={label}
+    title={label}
+    data-testid="clear-filters-button"
     style={{
-      padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
+      padding: theme.spacing.xs,
       fontSize: theme.typography.fontSize.lg,
       border: STRING_NONE,
       backgroundColor: COLOR_TRANSPARENT,
       color: theme.colors.primary.main,
       cursor: 'pointer',
-      textDecoration: 'underline',
+      textDecoration: compact ? STRING_NONE : 'underline',
+      display: 'flex',
+      alignItems: 'center',
       flexShrink: 0,
     }}
   >
-    {label}
+    {compact ? <FiX size={18} aria-hidden /> : label}
   </button>
 );
 
@@ -167,9 +174,12 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        // Narrow screens: the actions drop to a second row instead of overflowing (#442).
+        flexWrap: 'wrap',
+        rowGap: theme.spacing.xs,
       }}
     >
-      <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', minWidth: 0 }}>
         {/* Hamburger menu button for mobile and tablet */}
         {isNarrow && (
           <button
@@ -210,7 +220,9 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           onToggle={onToggleFilterBar}
         />
 
-        {hasActiveFilters && <ClearFiltersButton onClear={onClearFilters} label={t('inbox.filters.clear')} />}
+        {hasActiveFilters && (
+          <ClearFiltersButton onClear={onClearFilters} label={t('inbox.filters.clear')} compact={isNarrow} />
+        )}
       </div>
 
       <InboxHeaderActions

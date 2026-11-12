@@ -995,7 +995,38 @@ describe("UsersService", () => {
       deleteLocalModelData.mockRejectedValue(new Error("S3 unavailable"));
       jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
 
-      await expect(service.deleteAccount("user-1")).resolves.toBeUndefined();
+      await expect(service.deleteAccount("user-1")).resolves.toEqual({
+        stillSnoozedThreads: 0,
+      });
+      expect(managerUserDelete).toHaveBeenCalledWith("user-1");
+    });
+
+    it("runs the pre-deletion steps before deleting and returns what they report", async () => {
+      repository.findOne.mockResolvedValue(mockUser);
+      const restoreSnoozed = jest
+        .fn()
+        .mockResolvedValue({ stillSnoozedThreads: 3 });
+      service.beforeAccountDeletion.register(restoreSnoozed);
+
+      await expect(service.deleteAccount("user-1")).resolves.toEqual({
+        stillSnoozedThreads: 3,
+      });
+      expect(restoreSnoozed).toHaveBeenCalledWith("user-1");
+      expect(restoreSnoozed.mock.invocationCallOrder[0]).toBeLessThan(
+        transaction.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("still deletes the account when a pre-deletion step fails", async () => {
+      repository.findOne.mockResolvedValue(mockUser);
+      jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      service.beforeAccountDeletion.register(
+        jest.fn().mockRejectedValue(new Error("Gmail unavailable")),
+      );
+
+      await expect(service.deleteAccount("user-1")).resolves.toEqual({
+        stillSnoozedThreads: 0,
+      });
       expect(managerUserDelete).toHaveBeenCalledWith("user-1");
     });
 

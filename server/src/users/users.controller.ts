@@ -151,8 +151,14 @@ export class UsersController {
       );
     }
 
-    await this.usersService.deleteAccount(req.user.userId);
-    return { success: true, message: "Account deleted successfully" };
+    const { stillSnoozedThreads } = await this.usersService.deleteAccount(
+      req.user.userId,
+    );
+    return {
+      success: true,
+      message: "Account deleted successfully",
+      stillSnoozedThreads,
+    };
   }
 
   @Get("me/export")

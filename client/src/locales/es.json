@@ -4613,7 +4613,11 @@
       "confirmationMismatch": "El texto de confirmación no coincide. Por favor escribe exactamente lo que se indica.",
       "confirmDelete": "Eliminar cuenta permanentemente",
       "deleting": "Eliminando...",
-      "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte."
+      "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte.",
+      "stillSnoozedTitle": "Tu cuenta se ha eliminado",
+      "stillSnoozed_one": "{{count}} conversación pospuesta no se pudo devolver a tu bandeja de entrada. En Gmail, la encontrarás en la etiqueta {{label}}.",
+      "stillSnoozed_other": "{{count}} conversaciones pospuestas no se pudieron devolver a tu bandeja de entrada. En Gmail, las encontrarás en la etiqueta {{label}}.",
+      "stillSnoozedDone": "Aceptar"
     },
     "dataExport": {
       "title": "Exportar e Importar Datos",

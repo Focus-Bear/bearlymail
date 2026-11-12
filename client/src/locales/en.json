@@ -1449,7 +1449,11 @@
       "confirmationMismatch": "The confirmation text does not match. Please type exactly \"delete all my data\".",
       "confirmDelete": "Permanently Delete Account",
       "deleting": "Deleting...",
-      "deletionError": "Failed to delete account. Please try again or contact support."
+      "deletionError": "Failed to delete account. Please try again or contact support.",
+      "stillSnoozedTitle": "Your account has been deleted",
+      "stillSnoozed_one": "{{count}} snoozed email thread couldn't be moved back to your inbox. In Gmail, you'll find it under the {{label}} label.",
+      "stillSnoozed_other": "{{count}} snoozed email threads couldn't be moved back to your inbox. In Gmail, you'll find them under the {{label}} label.",
+      "stillSnoozedDone": "OK"
     },
     "dataExport": {
       "title": "Export & Import Data",

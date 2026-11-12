@@ -68,4 +68,36 @@ describe('AccountDeletionSection', () => {
       'settings.accountDeletion.providerReassurance:{"providers":["Gmail"],"count":1}'
     );
   });
+
+  const confirmDeletion = () => {
+    fireEvent.click(screen.getByText(DELETE_BUTTON));
+    fireEvent.change(screen.getByPlaceholderText(CONFIRMATION_TEXT), {
+      target: { value: CONFIRMATION_TEXT },
+    });
+    fireEvent.click(screen.getByText(CONFIRM_DELETE));
+  };
+
+  it('signs out straight away when every snoozed thread was put back in the inbox', async () => {
+    deleteMock.mockResolvedValue({ data: { success: true, stillSnoozedThreads: 0 } });
+    render(<AccountDeletionSection />);
+
+    confirmDeletion();
+
+    await waitFor(() => expect(logout).toHaveBeenCalled());
+    expect(screen.queryByTestId('account-deletion-still-snoozed')).not.toBeInTheDocument();
+  });
+
+  it('says where the snoozed threads it could not restore are before signing out', async () => {
+    deleteMock.mockResolvedValue({ data: { success: true, stillSnoozedThreads: 2 } });
+    render(<AccountDeletionSection />);
+
+    confirmDeletion();
+
+    const notice = await screen.findByTestId('account-deletion-still-snoozed');
+    expect(notice).toHaveTextContent('settings.accountDeletion.stillSnoozed:{"count":2,"label":"SnoozedBearlyMail"}');
+    expect(logout).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('settings.accountDeletion.stillSnoozedDone'));
+    expect(logout).toHaveBeenCalled();
+  });
 });

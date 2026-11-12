@@ -24,6 +24,10 @@ import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 import { DataExportService } from "./data-export.service";
 import { DataImportService, ImportOptions } from "./data-import.service";
+import {
+  UPDATABLE_PROFILE_FIELDS,
+  UpdateProfileDto,
+} from "./dto/update-profile.dto";
 import { resolveGmailAccessIssue } from "./gmail-access-issue";
 import { UsersService } from "./users.service";
 
@@ -100,7 +104,7 @@ export class UsersController {
   async getProfile(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
     decryptUserEntityForApi(user);
-    const { password: _password, ...result } = withoutUserSecrets(user);
+    const result = withoutUserSecrets(user);
     return {
       ...result,
       gmailAccessIssue: resolveGmailAccessIssue(user),
@@ -111,12 +115,13 @@ export class UsersController {
   }
 
   @Put("me")
-  async updateProfile(@Request() req, @Body() updates: Partial<User>) {
-    // AI keys and the Focus Bear token are only set via their own endpoints, which
-    // validate them, so PUT /users/me cannot write them — nor ever return them.
+  async updateProfile(@Request() req, @Body() updates: UpdateProfileDto) {
+    // The DTO makes the validation pipe reject anything else; the explicit pick
+    // keeps that true even if the pipe is bypassed. AI keys, the Focus Bear
+    // token and every privilege/identity column are never writable here.
     const updated = await this.usersService.update(
       req.user.userId,
-      withoutUserSecrets(updates),
+      pickUpdatableProfileFields(updates),
     );
     decryptUserEntityForApi(updated);
     return withoutUserSecrets(updated);
@@ -199,16 +204,46 @@ const USER_SECRET_FIELDS: ReadonlySet<string> = new Set([
   ...USER_AI_PROVIDER_DESCRIPTORS.map(({ column }) => column),
   "aiKeyRejections",
   FOCUS_BEAR_TOKEN_FIELD,
+  "password",
+  "passwordSetupToken",
+  "passwordSetupTokenExpiresAt",
+  "passwordResetToken",
+  "passwordResetExpires",
+  "totpSecret",
+  "encryptedDataKey",
 ]);
 
 /**
- * The user's own AI keys and Focus Bear token never travel to the client, in
- * either direction: Settings reads masked AI keys from GET /llm/me/ai-keys and
- * the Focus Bear connection from GET /focus-bear/connection instead, and each is
- * set only through its own validating endpoint.
+ * Credentials the client only needs to know exist (Settings shows "connected").
+ * They come back as a fixed mask so `!!user.githubToken` keeps working.
+ */
+const MASKED_USER_FIELDS: readonly (keyof User)[] = [
+  "githubToken",
+  "googleCalendarAccessToken",
+  "googleCalendarRefreshToken",
+];
+export const MASKED_SECRET_VALUE = "********";
+
+/**
+ * Secrets never travel to the client: AI keys, the Focus Bear token, password
+ * and reset/setup tokens, the TOTP seed and the wrapped data key are dropped;
+ * OAuth and GitHub tokens are masked. Settings reads masked AI keys from
+ * GET /llm/me/ai-keys and the Focus Bear connection from its own endpoint.
  */
 function withoutUserSecrets(user: Partial<User>): Partial<User> {
-  return Object.fromEntries(
+  const safe = Object.fromEntries(
     Object.entries(user).filter(([field]) => !USER_SECRET_FIELDS.has(field)),
-  ) as Partial<User>;
+  ) as Record<string, unknown>;
+  for (const field of MASKED_USER_FIELDS) {
+    if (safe[field]) safe[field] = MASKED_SECRET_VALUE;
+  }
+  return safe as Partial<User>;
+}
+
+function pickUpdatableProfileFields(updates: UpdateProfileDto): Partial<User> {
+  const picked: Record<string, unknown> = {};
+  for (const field of UPDATABLE_PROFILE_FIELDS) {
+    if (updates?.[field] !== undefined) picked[field] = updates[field];
+  }
+  return picked as Partial<User>;
 }

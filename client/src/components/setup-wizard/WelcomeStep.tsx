@@ -4,9 +4,11 @@ import axios from 'axios';
 
 import { API_URL } from 'config/api';
 import { useAuth } from 'contexts/AuthContext';
+import { MAILBOX_STATUS, type MailboxStatus, useMailboxConnection } from 'hooks/useMailboxConnection';
 
-import { resolveGooglePermissions } from './google-permissions';
+import { type GmailPermissionProblem, resolveGooglePermissions } from './google-permissions';
 import { GmailPermissionWarning } from './GooglePermissionNotices';
+import { NoMailboxCard } from './NoMailboxCard';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 interface WelcomeStepProps {
@@ -40,6 +42,7 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
   const { t } = useTranslation();
   const { user } = useAuth();
   const { gmailProblem } = resolveGooglePermissions(user);
+  const mailbox = useMailboxConnection();
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // Tailor the "your inbox is connected" copy to the actual provider — a local
@@ -92,17 +95,12 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
       </p>
 
       <div style={propsGridStyle}>
-        {gmailProblem ? (
-          <GmailPermissionWarning problem={gmailProblem} />
-        ) : (
-          <PropCard
-            variant={VARIANT_DONE}
-            icon={<CheckIconLarge />}
-            title={t('setupWizard.welcome.prop1Title')}
-            body={t(isAppleMail ? 'setupWizard.welcome.prop1BodyAppleMail' : 'setupWizard.welcome.prop1Body')}
-            doneLabel={t('setupWizard.welcome.doneTag')}
-          />
-        )}
+        <MailboxCard
+          gmailProblem={gmailProblem}
+          mailboxStatus={mailbox.status}
+          isAppleMail={isAppleMail}
+          onConnected={mailbox.recheck}
+        />
         <PropCard
           variant={VARIANT_GREEN}
           icon={<ClockIcon />}
@@ -143,6 +141,44 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
       </div>
     </section>
   );
+};
+
+interface MailboxCardProps {
+  gmailProblem: GmailPermissionProblem | null;
+  mailboxStatus: MailboxStatus;
+  isAppleMail: boolean;
+  onConnected: () => void;
+}
+
+/** First card: only says "connected" once a mailbox is actually there (#442). */
+const MailboxCard: React.FC<MailboxCardProps> = ({ gmailProblem, mailboxStatus, isAppleMail, onConnected }) => {
+  const { t } = useTranslation();
+  if (gmailProblem) {
+    return <GmailPermissionWarning problem={gmailProblem} />;
+  }
+  if (mailboxStatus === MAILBOX_STATUS.NONE) {
+    return <NoMailboxCard onConnected={onConnected} />;
+  }
+  if (mailboxStatus === MAILBOX_STATUS.CHECKING) {
+    // Holds the card's space so the page doesn't jump, without claiming either way.
+    return <div aria-hidden style={checkingPlaceholderStyle} />;
+  }
+  return (
+    <PropCard
+      variant={VARIANT_DONE}
+      icon={<CheckIconLarge />}
+      title={t('setupWizard.welcome.prop1Title')}
+      body={t(isAppleMail ? 'setupWizard.welcome.prop1BodyAppleMail' : 'setupWizard.welcome.prop1Body')}
+      doneLabel={t('setupWizard.welcome.doneTag')}
+    />
+  );
+};
+
+const checkingPlaceholderStyle: React.CSSProperties = {
+  minHeight: '72px',
+  borderRadius: '12px',
+  background: TOK.cream2,
+  border: `1px solid ${TOK.line}`,
 };
 
 interface PropCardProps {

@@ -30,6 +30,8 @@ export interface PatternFallbackContext {
   /** Raw bodies of earlier thread messages, oldest first. */
   priorBodies: string[];
   userTimezone: string;
+  /** When the viewed email arrived, so "tomorrow" and the default day count from then. */
+  receivedAt?: Date;
   now: Date;
 }
 
@@ -65,6 +67,7 @@ export function applyTimePatternFallback(
     latestText: cleanForExtraction(context.latestBody),
     priorTexts: context.priorBodies.map(cleanForExtraction),
     userTimezone: context.userTimezone,
+    receivedAt: context.receivedAt,
     now: context.now,
   });
   if (!extracted) {
@@ -142,6 +145,10 @@ export async function findAlternativeSlots(
   const searchEnd = proposedDay
     .plus({ days: ALTERNATIVE_SEARCH_DAYS })
     .toJSDate();
+  // A proposal days in the past leaves nothing to search, and free/busy rejects an empty range.
+  if (searchEnd.getTime() <= searchStart.getTime()) {
+    return [];
+  }
   try {
     const calendar = google.calendar({
       version: "v3",

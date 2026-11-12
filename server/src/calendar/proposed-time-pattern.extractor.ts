@@ -33,6 +33,12 @@ export interface ExtractProposedTimeInput {
   priorTexts: string[];
   /** The recipient's zone, used when the sender names none. */
   userTimezone: string;
+  /**
+   * When the message arrived. "Tomorrow" and the next-weekday default count from here, not from
+   * when the user happens to open it. Defaults to `now`.
+   */
+  receivedAt?: Date;
+  /** A slot that has already started by now is dropped: the meeting it proposed has passed. */
   now: Date;
 }
 
@@ -60,6 +66,9 @@ const PM_MARKER = "p";
 // handles; the fallback only resolves single times.
 const RANGE_END_PATTERN = /\d\s*(?:[ap]\.?m\.?)?\s*(?:-|–|to|and)\s*$/i;
 const RANGE_START_PATTERN = /^\s*(?:-|–|to|until)\s*\d/i;
+// "from 2pm", "after 2pm", "by 2pm" bound a window or set a deadline rather than offer one slot.
+const WINDOW_BOUNDARY_PATTERN =
+  /\b(?:from|after|before|until|till|by|since)\s*$/i;
 // A time the sender says they can't do is not a proposal.
 const NEGATION_PATTERN =
   /\b(?:can['’]?t|cannot|can not|unable|unavailable|not available|won['’]?t|doesn['’]?t|isn['’]?t|busy)\b/i;
@@ -127,9 +136,11 @@ export function findProposedClockTime(text: string): ClockTime | null {
     const hour = Number(match[1]);
     const after = text.slice(index + match[0].length);
     const isOutOfRange = hour < 1 || hour > HOURS_ON_CLOCK_FACE;
+    const before = text.slice(0, index);
     const isRange =
-      RANGE_END_PATTERN.test(text.slice(0, index)) ||
-      RANGE_START_PATTERN.test(after);
+      RANGE_END_PATTERN.test(before) ||
+      RANGE_START_PATTERN.test(after) ||
+      WINDOW_BOUNDARY_PATTERN.test(before);
     if (
       isOutOfRange ||
       isRange ||
@@ -213,14 +224,15 @@ function nextOccurrence(
 function findThreadDate(
   input: ExtractProposedTimeInput,
   timezone: string,
+  referenceTime: Date,
 ): CalendarDate | null {
-  const ownDate = findMentionedDate(input.latestText, timezone, input.now);
+  const ownDate = findMentionedDate(input.latestText, timezone, referenceTime);
   if (ownDate) {
     return ownDate;
   }
   // Most recent earlier message first — the latest day discussed is the one being confirmed.
   for (const prior of [...input.priorTexts].reverse()) {
-    const priorDate = findMentionedDate(prior, timezone, input.now);
+    const priorDate = findMentionedDate(prior, timezone, referenceTime);
     if (priorDate) {
       return priorDate;
     }
@@ -231,7 +243,7 @@ function findThreadDate(
 /**
  * Extracts a single proposed meeting time from the latest message, resolving its day from the
  * thread (or the next weekday occurrence) and its zone from the place named next to it.
- * Returns null when the message offers no single clock time.
+ * Returns null when the message offers no single clock time, or when that time has already passed.
  */
 export function extractProposedTimeFromThread(
   input: ExtractProposedTimeInput,
@@ -241,14 +253,20 @@ export function extractProposedTimeFromThread(
     return null;
   }
   const timezone = clock.timezone ?? input.userTimezone;
-  const date = findThreadDate(input, timezone);
+  // A received time later than now (clock skew) or missing falls back to now.
+  const referenceTime =
+    input.receivedAt && input.receivedAt.getTime() <= input.now.getTime()
+      ? input.receivedAt
+      : input.now;
+  const date = findThreadDate(input, timezone, referenceTime);
   const start = date
     ? DateTime.fromObject(
         { ...date, hour: clock.hour, minute: clock.minute },
         { zone: timezone },
       )
-    : nextOccurrence(clock, timezone, input.now);
-  const proposedTime = start.isValid ? start.toUTC().toISO() : null;
+    : nextOccurrence(clock, timezone, referenceTime);
+  const isStillAhead = start.isValid && start.toMillis() > input.now.getTime();
+  const proposedTime = isStillAhead ? start.toUTC().toISO() : null;
   if (!proposedTime) {
     return null;
   }

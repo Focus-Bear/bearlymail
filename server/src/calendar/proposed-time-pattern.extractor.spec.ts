@@ -11,12 +11,18 @@ const TUESDAY_MORNING_PERTH = new Date("2026-11-10T00:00:00Z");
 
 function extract(
   latestText: string,
-  options: { priorTexts?: string[]; now?: Date; userTimezone?: string } = {},
+  options: {
+    priorTexts?: string[];
+    now?: Date;
+    receivedAt?: Date;
+    userTimezone?: string;
+  } = {},
 ) {
   return extractProposedTimeFromThread({
     latestText,
     priorTexts: options.priorTexts ?? [],
     userTimezone: options.userTimezone ?? MELBOURNE,
+    receivedAt: options.receivedAt,
     now: options.now ?? TUESDAY_MORNING_PERTH,
   });
 }
@@ -50,6 +56,25 @@ describe("findProposedClockTime", () => {
       expect(findProposedClockTime(text)).toBeNull();
     },
   );
+
+  it.each([
+    "I'm free from 2pm",
+    "Any time after 2pm works",
+    "Before 11am is best",
+    "I'm around until 4pm",
+    "Could you send it by 3pm?",
+  ])(
+    "leaves a window boundary or deadline (%p) to the LLM detector",
+    (text) => {
+      expect(findProposedClockTime(text)).toBeNull();
+    },
+  );
+
+  it("still finds the offered time after a window boundary", () => {
+    expect(
+      findProposedClockTime("I'm free after 2pm, so would 3pm suit?"),
+    ).toMatchObject({ hour: 15, minute: 0 });
+  });
 
   it.each([
     ["Would 11.30am (Fremantle time) suit?", PERTH, "11.30am (Fremantle time)"],
@@ -158,6 +183,33 @@ describe("extractProposedTimeFromThread", () => {
     const result = extract("Can we talk at 3pm on 12/11?");
 
     expect(result?.proposedTime).toBe("2026-11-12T04:00:00.000Z");
+  });
+
+  it("counts 'tomorrow' from when the email arrived, not when it is read", () => {
+    const result = extract("Would 11.30am tomorrow suit?", {
+      // Sent Mon 9 Nov 11:00 Melbourne, read Tue 10 Nov 11:00 Melbourne.
+      receivedAt: new Date("2026-11-09T00:00:00Z"),
+    });
+
+    // 11:30 Melbourne on Tue 10 Nov (AEDT, UTC+11), not Wed 11 Nov.
+    expect(result?.proposedTime).toBe("2026-11-10T00:30:00.000Z");
+  });
+
+  it("drops a bare time whose day, counted from when the email arrived, has already passed", () => {
+    const result = extract("Would 11.30am (Fremantle time) suit?", {
+      // Sent Mon 9 Nov 08:00 Perth meaning 11:30 that day; read the next morning.
+      receivedAt: new Date("2026-11-09T00:00:00Z"),
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("uses now when the received time is in the future", () => {
+    const result = extract("Would 11.30am (Fremantle time) suit?", {
+      receivedAt: new Date("2026-11-20T00:00:00Z"),
+    });
+
+    expect(result?.proposedTime).toBe("2026-11-10T03:30:00.000Z");
   });
 
   it("returns null when the message offers no clock time", () => {

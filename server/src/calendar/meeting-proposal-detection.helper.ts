@@ -97,6 +97,7 @@ export async function detectProposalForEmail(
     latestBody,
     priorBodies: priorMessages.map((message) => message.body),
     userTimezone,
+    receivedAt: email.receivedAt ? new Date(email.receivedAt) : undefined,
     now: new Date(),
   });
 }

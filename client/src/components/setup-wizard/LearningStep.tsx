@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import axios from 'axios';
 
+import { ConnectMailboxButton } from 'components/connect-mailbox/ConnectMailboxButton';
 import { API_URL } from 'config/api';
 import { MS_PER_SECOND, POLLING_INTERVAL_MS, SECONDS_PER_MINUTE } from 'constants/numbers';
 import { useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
+import { MAILBOX_STATUS, useMailboxConnection } from 'hooks/useMailboxConnection';
 
 import { LearnedContextEditor } from './learned-context/LearnedContextEditor';
 import {
@@ -17,6 +19,7 @@ import {
   type RealProgress,
   type TFn,
 } from './learning-view';
+import { onboardingPrimaryButtonStyle as primaryButtonStyle } from './onboarding-buttons';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 import { CategoryCountsPanel } from './recategorise/CategoryCountsPanel';
 import { RECATEGORISE_STATUS } from './recategorise/recategorise';
@@ -129,6 +132,46 @@ function pickHeaderDetail(translate: TFn, input: HeaderDetailInput): string {
   return buildStatusDetail(translate, input.currentPhase, input.realProgress);
 }
 
+interface HeaderContent {
+  title: string;
+  detail: string;
+  state: HeaderState;
+}
+
+/** With no mailbox the analysis can't run at all, so say that instead of "stalled" (#442). */
+function pickHeaderContent(
+  translate: TFn,
+  view: Omit<HeaderDetailInput, 'hasAnalysisError'>,
+  hasAnalysisError: boolean,
+  hasNoMailbox: boolean
+): HeaderContent {
+  if (hasNoMailbox) {
+    return {
+      title: translate('setupWizard.learning.noMailboxTitle'),
+      detail: translate('setupWizard.learning.noMailboxDetail'),
+      state: HEADER_STATE_STALLED,
+    };
+  }
+  return {
+    title: pickHeaderTitle(translate, view.canFinish, view.isStalled, view.currentPhase),
+    detail: pickHeaderDetail(translate, { ...view, hasAnalysisError }),
+    state: pickHeaderState(view.canFinish, view.isStalled, view.isStillSorting),
+  };
+}
+
+/**
+ * With no mailbox, returns what to do once the user connects one here (recheck,
+ * then re-run the analysis that couldn't start); otherwise undefined.
+ */
+function useConnectMailboxInstead(retryAnalysis: () => void): (() => Promise<void>) | undefined {
+  const { status, recheck } = useMailboxConnection();
+  const onConnected = useCallback(async () => {
+    await recheck();
+    retryAnalysis();
+  }, [recheck, retryAnalysis]);
+  return status === MAILBOX_STATUS.NONE ? onConnected : undefined;
+}
+
 /** Flips `timedOut` after `waitMs`; `restartTimeout` clears it and starts a fresh full wait (used on retry). */
 function useMaxWaitTimeout(waitMs: number): { timedOut: boolean; restartTimeout: () => void } {
   const [timedOut, setTimedOut] = useState(false);
@@ -227,14 +270,13 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
     startAnalysis();
   }, [restartTimeout, startAnalysis]);
 
+  const onMailboxConnected = useConnectMailboxInstead(retryAnalysis);
   const recategorise = useRecategorise();
 
   const categorisation = useCategorisationProgress(hasLearningFinished(analyzeProgress, importProgress, timedOut));
   const view = computeLearningView(analyzeProgress, importProgress, timedOut, categorisation);
-  const { displayProgress, canFinish, isStalled, isStillSorting, currentPhase, realProgress } = view;
-  const headerTitle = pickHeaderTitle(t, canFinish, isStalled, currentPhase);
-  const headerDetail = pickHeaderDetail(t, { ...view, hasAnalysisError: Boolean(analyzeProgress.error) });
-  const headerState = pickHeaderState(canFinish, isStalled, isStillSorting);
+  const { displayProgress, canFinish, currentPhase, realProgress } = view;
+  const header = pickHeaderContent(t, view, Boolean(analyzeProgress.error), Boolean(onMailboxConnected));
 
   return (
     <section className="onboarding-pane" style={paneStyle}>
@@ -246,9 +288,9 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
       </p>
 
       <LearningHeader
-        headerState={headerState}
-        headerTitle={headerTitle}
-        headerDetail={headerDetail}
+        headerState={header.state}
+        headerTitle={header.title}
+        headerDetail={header.detail}
         displayProgress={displayProgress}
       />
 
@@ -259,15 +301,13 @@ export const LearningStep: React.FC<LearningStepProps> = ({ onComplete, onBack, 
 
       <PrivacyCard t={t} />
 
-      {headerState === HEADER_STATE_STALLED ? (
-        <StalledActions isLoading={isLoading} onBack={onBack} onRetry={retryAnalysis} onSkip={onComplete} t={t} />
-      ) : (
-        <LearningActions
-          primary={pickPrimaryAction({ canFinish, isLoading, onComplete, ...toResortInput(recategorise) })}
-          onBack={onBack}
-          t={t}
-        />
-      )}
+      <StepActions
+        stalled={header.state === HEADER_STATE_STALLED}
+        stalledActions={{ isLoading, onBack, onRetry: retryAnalysis, onSkip: onComplete, onMailboxConnected, t }}
+        primary={pickPrimaryAction({ canFinish, isLoading, onComplete, ...toResortInput(recategorise) })}
+        onBack={onBack}
+        t={t}
+      />
     </section>
   );
 };
@@ -340,26 +380,50 @@ const LearningActions: React.FC<LearningActionsProps> = ({ primary, onBack, t })
   </div>
 );
 
+interface StepActionsProps {
+  stalled: boolean;
+  stalledActions: StalledActionsProps;
+  primary: PrimaryAction;
+  onBack: () => void;
+  t: TFn;
+}
+
+const StepActions: React.FC<StepActionsProps> = ({ stalled, stalledActions, primary, onBack, t }) =>
+  stalled ? <StalledActions {...stalledActions} /> : <LearningActions primary={primary} onBack={onBack} t={t} />;
+
 interface StalledActionsProps {
   isLoading: boolean;
   onBack: () => void;
   onRetry: () => void;
   onSkip: () => void;
+  /** Set when no mailbox is connected: retrying can't help, so offer to connect one instead. */
+  onMailboxConnected?: () => void;
   t: TFn;
 }
 
 // Skipping goes straight to the inbox: categorisation keeps running server-side,
 // and holding someone who just escaped a stall for another sorting wait would
 // recreate the problem.
-const StalledActions: React.FC<StalledActionsProps> = ({ isLoading, onBack, onRetry, onSkip, t }) => (
+const StalledActions: React.FC<StalledActionsProps> = ({
+  isLoading,
+  onBack,
+  onRetry,
+  onSkip,
+  onMailboxConnected,
+  t,
+}) => (
   <div style={actionsRowStyle}>
     <button type="button" onClick={onBack} style={ghostButtonStyle}>
       ← {t('setupWizard.common.back')}
     </button>
     <div style={spacerStyle} />
-    <button type="button" onClick={onRetry} disabled={isLoading} style={secondaryButtonStyle}>
-      {t('setupWizard.learning.retry')}
-    </button>
+    {onMailboxConnected ? (
+      <ConnectMailboxButton style={secondaryButtonStyle} onConnected={onMailboxConnected} />
+    ) : (
+      <button type="button" onClick={onRetry} disabled={isLoading} style={secondaryButtonStyle}>
+        {t('setupWizard.learning.retry')}
+      </button>
+    )}
     <button type="button" onClick={onSkip} disabled={isLoading} style={primaryButtonStyle(!isLoading)}>
       {isLoading ? t('common.loading') : t('setupWizard.learning.skipToInbox')}
     </button>
@@ -693,19 +757,3 @@ const secondaryButtonStyle: React.CSSProperties = {
   color: TOK.ink,
 };
 
-const primaryButtonStyle = (enabled: boolean): React.CSSProperties => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '8px',
-  height: '48px',
-  padding: '0 22px',
-  borderRadius: '12px',
-  fontSize: '15px',
-  fontWeight: ACTIVE_WEIGHT,
-  border: `1.5px solid ${enabled ? TOK.sun : TOK.sunPale2}`,
-  background: enabled ? TOK.sun : TOK.sunPale2,
-  color: '#fff',
-  cursor: enabled ? 'pointer' : 'not-allowed',
-  boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.12)',
-});

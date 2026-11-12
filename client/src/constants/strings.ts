@@ -168,6 +168,8 @@ export const ERROR_CODE_ERR_NETWORK = 'ERR_NETWORK' as const;
 export const ERROR_GMAIL_REQUIRED = 'Gmail account connection required' as const;
 export const ERROR_GMAIL = 'Gmail' as const;
 export const ERROR_CODE_GMAIL_REQUIRED = 'GMAIL_REQUIRED' as const;
+/** Error code the server's mailbox-required guard sends (with a 403) when no email account is connected. */
+export const ERROR_CODE_EMAIL_PROVIDER_REQUIRED = 'EMAIL_PROVIDER_REQUIRED' as const;
 
 // API endpoints
 export const API_ENDPOINT_USERS_ME = '/users/me' as const;

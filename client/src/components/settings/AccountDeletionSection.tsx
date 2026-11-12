@@ -11,8 +11,9 @@ import { OPACITY_DISABLED_ALT, OPACITY_HALF } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 
-import { getProviderReassurance } from './accountDeletion.helpers';
+import { getProviderReassurance, getStillSnoozedThreads } from './accountDeletion.helpers';
 import type { EmailAccountProvider } from './email-delivery/emailAccounts.helpers';
+import { SnoozedThreadsLeftNotice } from './SnoozedThreadsLeftNotice';
 
 const CONFIRMATION_TEXT = 'delete all my data';
 
@@ -137,15 +138,28 @@ function getConfirmDeleteButtonStyle(isConfirmationValid: boolean, isDeleting: b
   };
 }
 
+/** Deletes the account; resolves to the snoozed threads it could not put back in the inbox. */
+async function requestAccountDeletion(confirmationText: string): Promise<number> {
+  const response = await axios.delete(`${API_URL}/users/me`, {
+    // eslint-disable-next-line id-denylist -- axios config requires the `data` property key for request body
+    data: { confirmationText },
+  });
+  return getStillSnoozedThreads(response?.data);
+}
+
 interface AccountDeletionSectionProps {
   /** Providers of the connected mailboxes, so the prompt can name where the email stays. */
   connectedProviders?: EmailAccountProvider[];
 }
 
-export const AccountDeletionSection: React.FC<AccountDeletionSectionProps> = ({ connectedProviders = [] }) => {
+interface AccountDeletionFormProps extends AccountDeletionSectionProps {
+  /** The account was deleted; `stillSnoozedThreads` could not be put back in the inbox. */
+  onDeleted: (stillSnoozedThreads: number) => void;
+}
+
+const AccountDeletionForm: React.FC<AccountDeletionFormProps> = ({ connectedProviders = [], onDeleted }) => {
   const { t } = useTranslation();
   const reassurance = getProviderReassurance(connectedProviders);
-  const { logout } = useAuth();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationInput, setConfirmationInput] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -176,11 +190,7 @@ export const AccountDeletionSection: React.FC<AccountDeletionSectionProps> = ({ 
     setError(null);
 
     try {
-      await axios.delete(`${API_URL}/users/me`, {
-        // eslint-disable-next-line id-denylist -- axios config requires the `data` property key for request body
-        data: { confirmationText: confirmationInput },
-      });
-      logout();
+      onDeleted(await requestAccountDeletion(confirmationInput));
     } catch (err) {
       setError(t('settings.accountDeletion.deletionError'));
       setIsDeleting(false);
@@ -253,4 +263,31 @@ export const AccountDeletionSection: React.FC<AccountDeletionSectionProps> = ({ 
       )}
     </div>
   );
+};
+
+/**
+ * Settings section for deleting the account. Once deleted, signs the user out,
+ * unless some snoozed threads could not be put back in the inbox: then it first
+ * says where to find them.
+ */
+export const AccountDeletionSection: React.FC<AccountDeletionSectionProps> = props => {
+  const { logout } = useAuth();
+  const [stillSnoozedThreads, setStillSnoozedThreads] = useState(0);
+
+  const handleDeleted = (leftSnoozed: number) => {
+    if (leftSnoozed > 0) {
+      setStillSnoozedThreads(leftSnoozed);
+      return;
+    }
+    logout();
+  };
+
+  if (stillSnoozedThreads > 0) {
+    return (
+      <div id="account-deletion" style={sectionContainerStyle}>
+        <SnoozedThreadsLeftNotice count={stillSnoozedThreads} onDone={logout} />
+      </div>
+    );
+  }
+  return <AccountDeletionForm {...props} onDeleted={handleDeleted} />;
 };

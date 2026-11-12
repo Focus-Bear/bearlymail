@@ -1,6 +1,24 @@
 import { PROVIDER_GMAIL, PROVIDER_IMAP, PROVIDER_OFFICE365 } from 'constants/strings';
 
-import { getProviderReassurance, REASSURANCE_GENERIC_KEY, REASSURANCE_NAMED_KEY } from './accountDeletion.helpers';
+import {
+  getProviderReassurance,
+  getStillSnoozedThreads,
+  REASSURANCE_GENERIC_KEY,
+  REASSURANCE_NAMED_KEY,
+} from './accountDeletion.helpers';
+
+describe('getStillSnoozedThreads', () => {
+  it('reads the count from the deletion response', () => {
+    expect(getStillSnoozedThreads({ success: true, stillSnoozedThreads: 3 })).toBe(3);
+  });
+
+  it.each([undefined, null, {}, { stillSnoozedThreads: 0 }, { stillSnoozedThreads: '2' }])(
+    'treats %p as nothing left snoozed',
+    responseData => {
+      expect(getStillSnoozedThreads(responseData)).toBe(0);
+    }
+  );
+});
 
 describe('getProviderReassurance', () => {
   it('names Gmail for a Gmail-only account', () => {

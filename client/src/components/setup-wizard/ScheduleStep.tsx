@@ -6,6 +6,7 @@ import { API_URL } from 'config/api';
 import { STRING_UTC } from 'constants/strings';
 
 import { BatchTimeInput } from './BatchTimeInput';
+import { onboardingPrimaryButtonStyle as primaryButtonStyle } from './onboarding-buttons';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 interface ScheduleStepProps {
@@ -418,19 +419,3 @@ const ghostButtonStyle: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-const primaryButtonStyle = (enabled: boolean): React.CSSProperties => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '8px',
-  height: '48px',
-  padding: '0 22px',
-  borderRadius: '12px',
-  fontSize: '15px',
-  fontWeight: FONT_WEIGHT_SEMIBOLD,
-  border: `1.5px solid ${enabled ? TOK.sun : TOK.sunPale2}`,
-  background: enabled ? TOK.sun : TOK.sunPale2,
-  color: '#fff',
-  cursor: enabled ? 'pointer' : 'not-allowed',
-  boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.12)',
-});

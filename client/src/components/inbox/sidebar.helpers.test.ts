@@ -18,55 +18,55 @@ describe('getSettingsNavItems', () => {
   it('uses the translate function for group labels', () => {
     const items = getSettingsNavItems(translateMock);
     const groups = items.filter(isGroup);
-    expect(groups[0].label).toBe('settings.nav.accountSecurity');
-    expect(groups[1].label).toBe('settings.nav.emailDelivery');
-    expect(groups[2].label).toBe('settings.nav.guideOurAI');
-    expect(groups[3].label).toBe('settings.nav.schedulingPreferences');
-    expect(groups[4].label).toBe('settings.nav.integrationsApps');
-    expect(groups[5].label).toBe('settings.nav.teamPlan');
+    expect(groups[0].label).toBe('settings.nav.emailDelivery');
+    expect(groups[1].label).toBe('settings.nav.guideOurAI');
+    expect(groups[2].label).toBe('settings.nav.schedulingPreferences');
+    expect(groups[3].label).toBe('settings.nav.integrationsApps');
+    expect(groups[4].label).toBe('settings.nav.teamPlan');
+    expect(groups[5].label).toBe('settings.nav.accountSecurity');
     expect(groups[6].label).toBe('settings.nav.dataAccount');
   });
 
   it('uses the translate function for item labels', () => {
     const items = getSettingsNavItems(translateMock);
-    const emailDeliveryGroup = items[1] as SettingsSubNavGroup;
+    const emailDeliveryGroup = items[0] as SettingsSubNavGroup;
     expect(emailDeliveryGroup.items[0].label).toBe('settings.nav.emailAccounts');
   });
 
   it('omits the MFA item for non-admin users', () => {
     const items = getSettingsNavItems(translateMock);
-    const accountGroup = items[0] as SettingsSubNavGroup;
+    const accountGroup = items[5] as SettingsSubNavGroup;
     expect(accountGroup.items.map(item => item.id)).toEqual(['set-password']);
   });
 
   it('includes the MFA item for admin users', () => {
     const items = getSettingsNavItems(translateMock, { isAdmin: true });
-    const accountGroup = items[0] as SettingsSubNavGroup;
+    const accountGroup = items[5] as SettingsSubNavGroup;
     expect(accountGroup.items.map(item => item.id)).toEqual(['set-password', 'mfa']);
   });
 
   it('returns 5 items in the Email Delivery group, ending with open tracking', () => {
     const items = getSettingsNavItems(translateMock);
-    const group = items[1] as SettingsSubNavGroup;
+    const group = items[0] as SettingsSubNavGroup;
     expect(group.items).toHaveLength(5);
     expect(group.items[4].anchor).toBe('email-tracking');
   });
 
   it('returns 5 items in the Guide Our AI group', () => {
     const items = getSettingsNavItems(translateMock);
-    const group = items[2] as SettingsSubNavGroup;
+    const group = items[1] as SettingsSubNavGroup;
     expect(group.items).toHaveLength(5);
   });
 
   it('returns 6 items in the Scheduling group', () => {
     const items = getSettingsNavItems(translateMock);
-    const group = items[3] as SettingsSubNavGroup;
+    const group = items[2] as SettingsSubNavGroup;
     expect(group.items).toHaveLength(6);
   });
 
   it('returns 5 items in the Integrations & Apps group, with one entry for the own-AI-account keys and one for Focus Bear', () => {
     const items = getSettingsNavItems(translateMock);
-    const group = items[4] as SettingsSubNavGroup;
+    const group = items[3] as SettingsSubNavGroup;
     expect(group.items).toHaveLength(5);
     expect(group.items.map(item => item.anchor)).toContain(SETTINGS_ANCHORS.OWN_AI_ACCOUNT);
     expect(group.items.map(item => item.anchor)).toContain(SETTINGS_ANCHORS.FOCUS_BEAR);
@@ -74,7 +74,7 @@ describe('getSettingsNavItems', () => {
 
   it('returns 3 items in the Team & Plan group', () => {
     const items = getSettingsNavItems(translateMock);
-    const group = items[5] as SettingsSubNavGroup;
+    const group = items[4] as SettingsSubNavGroup;
     expect(group.items).toHaveLength(3);
   });
 
@@ -108,7 +108,7 @@ describe('getSettingsNavItems', () => {
     const customTranslate = (key: string): string => `TRANSLATED:${key}`;
     const items = getSettingsNavItems(customTranslate);
     const firstGroup = items[0] as SettingsSubNavGroup;
-    expect(firstGroup.label).toBe('TRANSLATED:settings.nav.accountSecurity');
+    expect(firstGroup.label).toBe('TRANSLATED:settings.nav.emailDelivery');
   });
 });
 

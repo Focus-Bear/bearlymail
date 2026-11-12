@@ -24,6 +24,10 @@ import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { getErrorMessage } from "../types/common";
 import { logErrorToFile } from "../utils/error-logger";
+import {
+  type AccountDeletionReport,
+  BeforeAccountDeletionHooks,
+} from "./account-deletion-hooks";
 import { hasEmailProcessingConsent } from "./email-processing-consent";
 
 const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
@@ -111,6 +115,8 @@ function privacyChangeSummaryKeys(
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  /** Steps other modules run before an account is deleted, e.g. restoring snoozed threads. */
+  readonly beforeAccountDeletion = new BeforeAccountDeletionHooks(this.logger);
 
   constructor(
     @InjectRepository(User)
@@ -700,11 +706,15 @@ export class UsersService {
   async deleteAccount(
     userId: string,
     reason: DeletionReason = DeletionReason.MANUAL,
-  ): Promise<void> {
+  ): Promise<AccountDeletionReport> {
     const user = await this.findOne(userId);
     if (!user) {
       throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
+
+    // Runs while the mailbox tokens still exist, e.g. to put snoozed threads
+    // back in the provider's inbox. Never throws.
+    const report = await this.beforeAccountDeletion.run(userId);
 
     const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId} (reason: ${reason})`;
     writeDebugLog(logMsg);
@@ -737,6 +747,7 @@ export class UsersService {
 
     const completedMsg = `[UsersService.deleteAccount] Successfully deleted account for user ${userId}`;
     writeDebugLog(completedMsg);
+    return report;
   }
 
   /**

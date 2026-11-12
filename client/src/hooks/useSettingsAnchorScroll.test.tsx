@@ -66,6 +66,26 @@ describe('useSettingsAnchorScroll', () => {
     expect(element.style.outline).toBe('');
   });
 
+  it('waits while the section is in a hidden Settings tab, then scrolls once the tab opens', () => {
+    const tabPanel = document.createElement('div');
+    tabPanel.hidden = true;
+    document.body.appendChild(tabPanel);
+    const { element } = addSection();
+    tabPanel.appendChild(element);
+
+    renderAt(`/settings#${ANCHOR}`);
+    act(() => {
+      vi.advanceTimersByTime(ANCHOR_POLL_MS * 2);
+    });
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    tabPanel.hidden = false;
+    act(() => {
+      vi.advanceTimersByTime(ANCHOR_POLL_MS);
+    });
+    expect(scrollTo).toHaveBeenCalledWith({ top: 976, behavior: 'smooth' });
+  });
+
   it('scrolls again when sections above it finish loading and push it down', () => {
     const { layout } = addSection();
     renderAt(`/settings#${ANCHOR}`);

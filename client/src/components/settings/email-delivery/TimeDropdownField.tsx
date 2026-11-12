@@ -132,5 +132,7 @@ const baseSelectStyle: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-const timeSelectStyle: React.CSSProperties = { ...baseSelectStyle, width: '64px' };
-const meridiemSelectStyle: React.CSSProperties = { ...baseSelectStyle, width: '56px' };
+// A minimum, not a fixed width, so the browser's own arrow can't clip "11:00"
+// (same bug as the onboarding picker, issue #441).
+const timeSelectStyle: React.CSSProperties = { ...baseSelectStyle, minWidth: '64px' };
+const meridiemSelectStyle: React.CSSProperties = { ...baseSelectStyle, minWidth: '56px' };

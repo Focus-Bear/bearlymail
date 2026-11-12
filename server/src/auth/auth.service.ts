@@ -9,9 +9,11 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { InjectRepository } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import type { PgBoss } from "pg-boss";
+import { Repository } from "typeorm";
 
 import {
   BUSINESS_ANALYTICS_EVENTS,
@@ -28,10 +30,13 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { SECONDS } from "../constants/time-constants";
+import { Office365Account } from "../database/entities/office365-account.entity";
+import { PersonalAccessToken } from "../database/entities/personal-access-token.entity";
 import { User } from "../database/entities/user.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { revokeAllAccessTokens } from "../personal-access-tokens/revoke-all-access-tokens";
 import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
@@ -103,6 +108,37 @@ function buildGoogleGrantUpdates(
   };
 }
 
+interface MicrosoftLoginProfile {
+  id: string;
+  mail?: string;
+  userPrincipalName?: string;
+  displayName?: string;
+}
+
+/** Guest accounts carry `#EXT#` UPNs on the host tenant's domain. */
+const MICROSOFT_GUEST_UPN_MARKER = "#ext#";
+
+/**
+ * The address a Microsoft sign-in may claim: its userPrincipalName, whose
+ * domain Entra only allows if the tenant has verified it (for personal
+ * Microsoft accounts it is the sign-in address Microsoft verified). `mail`
+ * is never used: it's an unverified attribute any tenant admin can set.
+ */
+export function verifiedMicrosoftSignInEmail(
+  profile: Pick<MicrosoftLoginProfile, "userPrincipalName">,
+): string {
+  const upn = (profile.userPrincipalName ?? "").trim();
+  if (
+    !upn.includes("@") ||
+    upn.toLowerCase().includes(MICROSOFT_GUEST_UPN_MARKER)
+  ) {
+    throw new Error(
+      "This Microsoft account has no verified sign-in address. Sign in another way, then connect Outlook from Settings.",
+    );
+  }
+  return upn;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -119,7 +155,60 @@ export class AuthService {
     // Optional so sign-in never depends on analytics wiring. The module is
     // global, so the app always has it.
     @Optional() private readonly errorTracking?: ErrorTrackingService,
+    // Optional so unit tests that don't touch passwords needn't provide it.
+    @Optional()
+    @InjectRepository(PersonalAccessToken)
+    private readonly accessTokenRepository?: Repository<PersonalAccessToken>,
+    @Optional()
+    @InjectRepository(Office365Account)
+    private readonly office365AccountRepository?: Repository<Office365Account>,
   ) {}
+
+  /**
+   * The BearlyMail user a Microsoft sign-in belongs to. A Microsoft identity
+   * already linked to a user (by its immutable Graph id) wins. Otherwise the
+   * account is matched by `userPrincipalName`, whose domain the tenant must
+   * have verified — never by `mail`, which any tenant admin can set to anyone's
+   * address ("nOAuth"), letting a self-made tenant sign in as that person.
+   */
+  private async findUserForMicrosoftLogin(
+    profile: MicrosoftLoginProfile,
+  ): Promise<{ user: User | null; email: string }> {
+    const linked = this.office365AccountRepository
+      ? await this.office365AccountRepository.findOne({
+          where: { microsoftId: profile.id },
+          order: { createdAt: "ASC" },
+        })
+      : null;
+    if (linked) {
+      const user = await this.usersService.findOne(linked.userId);
+      if (user) return { user, email: user.email };
+    }
+    const email = verifiedMicrosoftSignInEmail(profile);
+    return { user: await this.usersService.findByEmail(email), email };
+  }
+
+  /**
+   * A password change already invalidates session JWTs (jwt.strategy.ts);
+   * this ends the MCP tokens and OAuth connections too, which would
+   * otherwise keep an attacker's mailbox access alive after a reset.
+   */
+  private async revokeAccessTokensAfterPasswordChange(
+    userId: string,
+    now: Date,
+  ): Promise<void> {
+    if (!this.accessTokenRepository) return;
+    const revoked = await revokeAllAccessTokens(
+      this.accessTokenRepository,
+      userId,
+      now,
+    );
+    if (revoked > 0) {
+      this.logger.log(
+        `Revoked ${revoked} access token(s) for user ${userId} after a password change`,
+      );
+    }
+  }
 
   /**
    * Sends `user_registered` for an OAuth sign-up, under the new user's ID (the
@@ -447,23 +536,15 @@ export class AuthService {
   }
 
   async validateMicrosoftUser(
-    profile: {
-      id: string;
-      mail?: string;
-      userPrincipalName?: string;
-      displayName?: string;
-    },
+    profile: MicrosoftLoginProfile,
     accessToken: string,
     refreshToken: string,
   ): Promise<UserWithoutPassword> {
-    const email = profile.mail || profile.userPrincipalName || "";
-    if (!email) {
-      throw new Error("Microsoft profile does not contain email");
-    }
+    const found = await this.findUserForMicrosoftLogin(profile);
+    const { email } = found;
+    let { user } = found;
 
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
-
-    let user = await this.usersService.findByEmail(email);
 
     if (!user) {
       // Create new user
@@ -772,6 +853,7 @@ export class AuthService {
       isApproved: true,
       passwordChangedAt: now,
     });
+    await this.revokeAccessTokensAfterPasswordChange(user.id, now);
 
     // Refetch the user
     const updatedUser = await this.usersService.findOne(user.id);
@@ -809,10 +891,12 @@ export class AuthService {
 
     // Update password and record change timestamp so existing JWTs are invalidated
     // (OWASP ASVS req 3.3.1 / 3.3.2)
+    const changedAt = new Date();
     await this.usersService.update(userId, {
       password: hashedPassword,
-      passwordChangedAt: new Date(),
+      passwordChangedAt: changedAt,
     });
+    await this.revokeAccessTokensAfterPasswordChange(userId, changedAt);
 
     this.logger.log(
       `[SET_PASSWORD] User ${userId} successfully set a password for their account`,

@@ -2,9 +2,12 @@ import { forwardRef, Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
+import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { AppleMailAccountsModule } from "../apple-mail-accounts/apple-mail-accounts.module";
 import { AuditModule } from "../audit/audit.module";
+import { Office365Account } from "../database/entities/office365-account.entity";
+import { PersonalAccessToken } from "../database/entities/personal-access-token.entity";
 import { EmailModule } from "../email/email.module";
 import { EmailsModule } from "../emails/emails.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
@@ -33,6 +36,7 @@ import { ZohoStrategy } from "./zoho.strategy";
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([PersonalAccessToken, Office365Account]),
     UsersModule,
     AuditModule,
     EmailModule,

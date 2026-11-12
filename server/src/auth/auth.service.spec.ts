@@ -12,7 +12,7 @@ import { EmailBacklogService } from "../emails/email-backlog.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
-import { AuthService } from "./auth.service";
+import { AuthService, verifiedMicrosoftSignInEmail } from "./auth.service";
 import { TotpService } from "./totp.service";
 
 jest.mock("bcrypt");
@@ -554,7 +554,11 @@ describe("AuthService", () => {
       emails: [{ value: "test@example.com" }],
       displayName: "Test User",
     };
-    const microsoftProfile = { id: "ms-id-1", mail: "test@example.com" };
+    const microsoftProfile = {
+      id: "ms-id-1",
+      mail: "test@example.com",
+      userPrincipalName: "test@example.com",
+    };
     const zohoProfile = { ZUID: "zuid-1", Email: "test@example.com" };
 
     const expectRegistered = (method: string) =>
@@ -604,6 +608,45 @@ describe("AuthService", () => {
       );
       await service.validateZohoUser(zohoProfile, "access", "refresh");
       expect(captureEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Microsoft sign-in identity (nOAuth)", () => {
+    it("never matches an account by the tenant-controlled mail attribute", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.create.mockResolvedValue(mockUser);
+      usersService.findOne.mockResolvedValue(mockUser);
+
+      await service
+        .validateMicrosoftUser(
+          {
+            id: "attacker-oid",
+            mail: "victim@company.com",
+            userPrincipalName: "attacker@evil.onmicrosoft.com",
+          },
+          "access",
+          "refresh",
+        )
+        .catch(() => undefined);
+
+      expect(usersService.findByEmail).not.toHaveBeenCalledWith(
+        "victim@company.com",
+      );
+      expect(usersService.findByEmail).toHaveBeenCalledWith(
+        "attacker@evil.onmicrosoft.com",
+      );
+    });
+
+    it("refuses a guest UPN or a profile with only a mail attribute", () => {
+      expect(() =>
+        verifiedMicrosoftSignInEmail({
+          userPrincipalName: "victim_company.com#EXT#@evil.onmicrosoft.com",
+        }),
+      ).toThrow();
+      expect(() => verifiedMicrosoftSignInEmail({})).toThrow();
+      expect(
+        verifiedMicrosoftSignInEmail({ userPrincipalName: "me@contoso.com" }),
+      ).toBe("me@contoso.com");
     });
   });
 

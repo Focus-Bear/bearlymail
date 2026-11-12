@@ -28,6 +28,15 @@ describe('replaceEditedRecipient', () => {
     expect(replaceEditedRecipient(['a@x.com'], 0, '"Doe, Jane" <jane@x.com>')).toEqual(['"Doe, Jane" <jane@x.com>']);
   });
 
+  it('does not add an address that is already in the list, ignoring case and display name', () => {
+    expect(replaceEditedRecipient(TAGS, 2, 'A@X.com')).toEqual(['a@x.com', 'Bee <b@y.com>']);
+    expect(replaceEditedRecipient(TAGS, 2, 'Bea <B@y.com>')).toEqual(['a@x.com', 'Bee <b@y.com>']);
+  });
+
+  it('keeps one copy when the edit itself repeats an address', () => {
+    expect(replaceEditedRecipient(TAGS, 0, 'd@w.com, D@w.com')).toEqual(['d@w.com', 'Bee <b@y.com>', 'c@z.com']);
+  });
+
   it('rejects an edit that is not an address', () => {
     expect(replaceEditedRecipient(TAGS, 0, 'not-an-address')).toBeNull();
   });

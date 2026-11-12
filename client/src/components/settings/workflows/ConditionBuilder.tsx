@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { CategoryNamesById, describeCategoryScope } from './describeWorkflowCondition';
 import { PatternTagInput } from './PatternTagInput';
 import { WorkflowCondition } from './types';
 
 interface ConditionBuilderProps {
   condition: WorkflowCondition;
   onChange: (condition: WorkflowCondition) => void;
+  categoryNamesById: CategoryNamesById;
 }
 
 type PatternField = 'fromPatterns' | 'subjectPatterns' | 'bodyPatterns';
@@ -44,7 +46,7 @@ const EMPTY_INPUTS: Record<PatternField, string> = { fromPatterns: '', subjectPa
  * Builds the "When" condition part of a workflow rule.
  * Supports from/subject/body patterns and an optional natural-language condition.
  */
-export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, onChange }) => {
+export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, onChange, categoryNamesById }) => {
   const { t } = useTranslation();
   const [inputs, setInputs] = useState(EMPTY_INPUTS);
   const [showAdvanced, setShowAdvanced] = useState(Boolean(condition.naturalLanguageCondition));
@@ -74,11 +76,11 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, o
     display: 'block',
   };
 
-  const isCategoryScoped = (condition.categories?.length ?? 0) > 0;
+  const categoryScope = describeCategoryScope(condition, categoryNamesById, t);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-      {isCategoryScoped && (
+      {categoryScope && (
         <p
           style={{
             ...theme.typography.body.small,
@@ -90,7 +92,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, o
             color: theme.colors.text.secondary,
           }}
         >
-          {t('settings.workflows.condition.categoryScopeNote')}
+          {t('settings.workflows.condition.categoryScopeNote', { category: categoryScope })}
         </p>
       )}
       {PATTERN_FIELDS.map(({ field, labelKey, hintKey, placeholderKey }) => (

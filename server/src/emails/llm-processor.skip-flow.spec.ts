@@ -21,6 +21,7 @@ import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMProcessor } from "./llm-processor";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
+import { StaleRuleCategoryService } from "./stale-rule-category.service";
 
 /**
  * Integration test for the deterministic skip wiring: when a rule handles the
@@ -33,12 +34,15 @@ describe("LLMProcessor — deterministic skip flow", () => {
   const tryIncrementalAnalysis = jest.fn();
   const checkAiCapacity = jest.fn();
   const threadUpdate = jest.fn();
+  const releaseStaleRuleLabel = jest.fn();
+  const invalidateUserContexts = jest.fn();
   const email = { id: "email-1", emailThreadId: "thread-1" } as Email;
   const thread = { id: "thread-1" } as EmailThread;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     checkAiCapacity.mockResolvedValue({ allowed: true, percentUsed: 0 });
+    releaseStaleRuleLabel.mockResolvedValue(false);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LLMProcessor,
@@ -56,7 +60,10 @@ describe("LLMProcessor — deterministic skip flow", () => {
           useValue: { getEmailById: jest.fn().mockResolvedValue(email) },
         },
         { provide: PriorityService, useValue: {} },
-        { provide: PriorityCacheService, useValue: {} },
+        {
+          provide: PriorityCacheService,
+          useValue: { invalidateUserContexts },
+        },
         { provide: PriorityAnalysisService, useValue: { analyzePriority } },
         {
           provide: CloudWatchService,
@@ -79,6 +86,10 @@ describe("LLMProcessor — deterministic skip flow", () => {
           useValue: { tryIncrementalAnalysis },
         },
         { provide: DebugService, useValue: { log: jest.fn() } },
+        {
+          provide: StaleRuleCategoryService,
+          useValue: { release: releaseStaleRuleLabel },
+        },
         { provide: CategoryRulesService, useValue: {} },
         {
           provide: PriorityRulesService,
@@ -103,15 +114,27 @@ describe("LLMProcessor — deterministic skip flow", () => {
     processor = module.get(LLMProcessor);
   });
 
-  const runJob = () =>
+  const runJob = (forceRecalculate?: boolean) =>
     (
       processor as unknown as {
         handleRefinePriorityJob: (job: unknown) => Promise<void>;
       }
     ).handleRefinePriorityJob({
       id: "job-1",
-      data: { userId: "user-1", emailId: "email-1" },
+      data: { userId: "user-1", emailId: "email-1", forceRecalculate },
     });
+
+  it("drops the cached contexts on a forced run, so a re-sort sees categories the user just changed", async () => {
+    tryHandle.mockResolvedValue(true);
+    await runJob(true);
+    expect(invalidateUserContexts).toHaveBeenCalledWith("user-1");
+  });
+
+  it("keeps the cached contexts on a normal run", async () => {
+    tryHandle.mockResolvedValue(true);
+    await runJob();
+    expect(invalidateUserContexts).not.toHaveBeenCalled();
+  });
 
   it("skips the LLM when a rule handles the email", async () => {
     tryHandle.mockResolvedValue(true);
@@ -131,12 +154,27 @@ describe("LLMProcessor — deterministic skip flow", () => {
     expect(tryIncrementalAnalysis).toHaveBeenCalled();
   });
 
+  it("re-checks a rule-labelled thread against the new email before any category writer runs", async () => {
+    tryHandle.mockResolvedValue(true);
+    await runJob();
+    expect(releaseStaleRuleLabel).toHaveBeenCalledWith({
+      userId: "user-1",
+      email,
+      thread,
+      workerId: "job-1",
+    });
+    expect(releaseStaleRuleLabel.mock.invocationCallOrder[0]).toBeLessThan(
+      tryHandle.mock.invocationCallOrder[0],
+    );
+  });
+
   it("skips the whole refinement and clears isProcessingPriority when AI capacity is exhausted", async () => {
     checkAiCapacity.mockResolvedValue({ allowed: false, percentUsed: 120 });
     await runJob();
     expect(checkAiCapacity).toHaveBeenCalledWith("user-1");
     expect(analyzePriority).not.toHaveBeenCalled();
     expect(tryHandle).not.toHaveBeenCalled();
+    expect(releaseStaleRuleLabel).not.toHaveBeenCalled();
     expect(tryIncrementalAnalysis).not.toHaveBeenCalled();
     // Clears the flag so the UI doesn't show a stuck "Calculating..." state.
     expect(threadUpdate).toHaveBeenCalledWith(

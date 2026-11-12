@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+import { PROVIDER_GMAIL } from 'constants/strings';
+
 import { AccountDeletionSection } from './AccountDeletionSection';
 
 vi.mock('react-i18next', () => ({
@@ -56,5 +58,46 @@ describe('AccountDeletionSection', () => {
     // once. Neither the delete button nor Cancel may remain while deleting.
     expect(screen.queryByText(CONFIRM_DELETE)).not.toBeInTheDocument();
     expect(screen.queryByText(CANCEL)).not.toBeInTheDocument();
+  });
+
+  it('reassures the user their email stays in their provider, naming it', () => {
+    render(<AccountDeletionSection connectedProviders={[PROVIDER_GMAIL]} />);
+    fireEvent.click(screen.getByText(DELETE_BUTTON));
+
+    expect(screen.getByTestId('account-deletion-provider-reassurance')).toHaveTextContent(
+      'settings.accountDeletion.providerReassurance:{"providers":["Gmail"],"count":1}'
+    );
+  });
+
+  const confirmDeletion = () => {
+    fireEvent.click(screen.getByText(DELETE_BUTTON));
+    fireEvent.change(screen.getByPlaceholderText(CONFIRMATION_TEXT), {
+      target: { value: CONFIRMATION_TEXT },
+    });
+    fireEvent.click(screen.getByText(CONFIRM_DELETE));
+  };
+
+  it('signs out straight away when every snoozed thread was put back in the inbox', async () => {
+    deleteMock.mockResolvedValue({ data: { success: true, stillSnoozedThreads: 0 } });
+    render(<AccountDeletionSection />);
+
+    confirmDeletion();
+
+    await waitFor(() => expect(logout).toHaveBeenCalled());
+    expect(screen.queryByTestId('account-deletion-still-snoozed')).not.toBeInTheDocument();
+  });
+
+  it('says where the snoozed threads it could not restore are before signing out', async () => {
+    deleteMock.mockResolvedValue({ data: { success: true, stillSnoozedThreads: 2 } });
+    render(<AccountDeletionSection />);
+
+    confirmDeletion();
+
+    const notice = await screen.findByTestId('account-deletion-still-snoozed');
+    expect(notice).toHaveTextContent('settings.accountDeletion.stillSnoozed:{"count":2,"label":"SnoozedBearlyMail"}');
+    expect(logout).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('settings.accountDeletion.stillSnoozedDone'));
+    expect(logout).toHaveBeenCalled();
   });
 });

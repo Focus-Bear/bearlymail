@@ -2,6 +2,7 @@ import { Repository } from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 
 import { EmailThread } from "../database/entities/email-thread.entity";
+import type { CategoryDecisionTrace } from "./category-decision-trace.types";
 
 /**
  * Who is writing the category. Every writer of `EmailThread.categoryId` must
@@ -9,11 +10,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
  * allowed to replace what a previous writer decided.
  */
 export type CategoryWriterSource =
-  | "user"
-  | "rule"
-  | "local"
-  | "priority"
-  | "proto";
+  "user" | "rule" | "local" | "priority" | "proto";
 
 /**
  * The authoritative, user-set category source. It is top-ranked in the
@@ -80,6 +77,50 @@ export function overridableCategorySources(
 }
 
 /**
+ * Refuses a decision computed from an email when the thread holds a NEWER
+ * email. The pipeline decides a thread's category from one email; when an
+ * older one is reprocessed out of order (a batch holding two emails of one
+ * thread, a reclassify fan-out over every email in a thread, a retry), its
+ * verdict used to overwrite — or, as a rule, out-rank — the verdict for the
+ * newest message. Real case: a "Closed as completed" GitHub notification was
+ * re-run after a later "QA Status: Pass" comment and refiled the thread under
+ * a status-update rule the QA comment never matched. The analysed email itself
+ * is excluded so a sub-millisecond receivedAt can never make it block itself.
+ * TypeORM emits Postgres UPDATEs without an alias, so the outer row is
+ * `"email_threads"`.
+ */
+const NO_NEWER_EMAIL_IN_THREAD_SQL = `NOT EXISTS (
+  SELECT 1 FROM "emails" "newerEmail"
+  WHERE "newerEmail"."emailThreadId" = "email_threads"."id"
+    AND "newerEmail"."id" <> :analyzedEmailId
+    AND "newerEmail"."receivedAt" > :analyzedEmailReceivedAt
+)`;
+
+/**
+ * The email a category write was decided from, when the write records one.
+ * `receivedAt` comes back as a Date, not the trace's ISO string: `emails.receivedAt`
+ * is a timestamp without time zone written from a Date in the server's local zone,
+ * and Postgres drops the "Z" from a string, so on a server not running in UTC an
+ * ISO string would be compared hours off. A Date is sent in the same local zone
+ * the column was written in.
+ */
+function analyzedEmailOf(
+  set: QueryDeepPartialEntity<EmailThread>,
+): { emailId: string; receivedAt: Date } | null {
+  const trace = set.categoryDecisionTrace as
+    Partial<CategoryDecisionTrace> | null | undefined;
+  const analyzedEmail = trace?.analyzedEmail;
+  if (!analyzedEmail?.emailId || !analyzedEmail.receivedAt) {
+    return null;
+  }
+  const receivedAt = new Date(analyzedEmail.receivedAt);
+  if (Number.isNaN(receivedAt.getTime())) {
+    return null;
+  }
+  return { emailId: analyzedEmail.emailId, receivedAt };
+}
+
+/**
  * Applies category columns to threads WITH the precedence guard: the UPDATE
  * only touches rows whose current `categorySource` is null or outranked by
  * `source`. This is the single choke-point every automated category writer
@@ -89,6 +130,10 @@ export function overridableCategorySources(
  * `{ protoCategoryId }` for a promotion's bulk reassign); `whereIdIn` targets
  * an explicit thread-id list (e.g. a rule's retroactive application). Returns
  * the number of rows actually updated so callers can log blocked writes.
+ *
+ * A write whose `categoryDecisionTrace` names the email it was decided from is
+ * also refused when the thread has a newer email (see
+ * NO_NEWER_EMAIL_IN_THREAD_SQL): only the newest message may set the category.
  */
 export async function updateThreadCategoryWithPrecedence(
   repository: Repository<EmailThread>,
@@ -127,6 +172,14 @@ export async function updateThreadCategoryWithPrecedence(
     '("categorySource" IS NULL OR "categorySource" IN (:...overridableSources))',
     { overridableSources: overridableCategorySources(source) },
   );
+
+  const analyzedEmail = analyzedEmailOf(set);
+  if (analyzedEmail) {
+    builder.andWhere(NO_NEWER_EMAIL_IN_THREAD_SQL, {
+      analyzedEmailId: analyzedEmail.emailId,
+      analyzedEmailReceivedAt: analyzedEmail.receivedAt,
+    });
+  }
 
   const result = await builder.execute();
   return result.affected ?? 0;

@@ -1,6 +1,10 @@
 import { type AnalyzeProgress } from 'hooks/settings/useAnalysisProgress';
 
-import { type CategorisationState, isCategorisationComplete } from './useCategorisationProgress';
+import {
+  type CategorisationState,
+  hasSortedEnoughToContinue,
+  isCategorisationComplete,
+} from './useCategorisationProgress';
 
 export interface ImportProgress {
   prioritizedCount: number;
@@ -65,23 +69,42 @@ export interface RealProgress {
 
 export interface LearningView {
   displayProgress: number;
-  /** Sync + context analysis have finished (or timed out). */
+  /** Sync + context analysis have finished (or the import timed out after analysis completed). */
   isLearningDone: boolean;
-  /** The user may open the inbox: learning is done and the inbox is sorted, or we stopped waiting. */
+  /** Analysis failed or overran the max wait: the user must retry or skip rather than watch a frozen bar. */
+  isStalled: boolean;
+  /** The user may open the inbox: learning is done and enough of the inbox is sorted, or we stopped waiting. */
   canFinish: boolean;
-  /** Let in by the max-wait timeout while some threads are still being sorted. */
+  /** The user may continue while the rest of the inbox is still being sorted in the background. */
   isStillSorting: boolean;
   currentPhase: number;
   realProgress: RealProgress;
 }
 
-/** Sync + context analysis have finished, or we stopped waiting for them. */
+/**
+ * Context analysis has finished and the email sync is ready, or the sync poll
+ * overran the max wait after analysis completed. A timeout alone no longer
+ * counts: an analysis that never finishes is a stall the user must see.
+ */
 export function hasLearningFinished(
   analyzeProgress: AnalyzeProgress,
   importProgress: ImportProgress,
   timedOut: boolean
 ): boolean {
-  return (importProgress.isReady && analyzeProgress.isComplete) || timedOut;
+  return analyzeProgress.isComplete && (importProgress.isReady || timedOut);
+}
+
+/**
+ * The analysis errored (e.g. it was superseded by a newer run, or failed to
+ * start) or is still unfinished at the max wait. Either way no further progress
+ * is coming without the user's action, so the screen must say so instead of
+ * holding a frozen bar on "Reading your recent emails".
+ */
+export function isAnalysisStalled(analyzeProgress: AnalyzeProgress, timedOut: boolean): boolean {
+  if (analyzeProgress.isComplete) {
+    return false;
+  }
+  return Boolean(analyzeProgress.error) || timedOut;
 }
 
 function getAnalysisPhase(messageKey: string | undefined): number {
@@ -106,11 +129,13 @@ function computeSortingFraction(categorisation: CategorisationState): number {
   return progress.total > 0 ? Math.min(PROGRESS_MAX, progress.categorised / progress.total) : PROGRESS_MAX;
 }
 
-function pickCurrentPhase(canFinish: boolean, isLearningDone: boolean, messageKey: string | undefined): number {
-  if (canFinish) {
+function pickCurrentPhase(isFullySorted: boolean, isLearningDone: boolean, messageKey: string | undefined): number {
+  if (isLearningDone && isFullySorted) {
     // Past the last row so every row reads as done.
     return PHASE_LABEL_KEYS.length;
   }
+  // Sorting stays the active row while the rest of the inbox sorts in the
+  // background, even once the user may continue, so its count keeps climbing.
   return isLearningDone ? PHASE_CATEGORISE : getAnalysisPhase(messageKey);
 }
 
@@ -119,8 +144,9 @@ function pickCurrentPhase(canFinish: boolean, isLearningDone: boolean, messageKe
  * backend signals: the context-analysis poll (a real 0-100 percentage plus
  * per-stage counts), the email-import poll (real synced-thread count) and the
  * categorisation poll (threads with a settled category). Nothing is
- * synthesised. The inbox only unlocks once the inbox is sorted, so the user
- * doesn't land on a wall of "Other" — or once the max wait elapses.
+ * synthesised. The inbox unlocks once its newest threads are sorted, so the
+ * user doesn't land on a wall of "Other" — or once the max wait elapses. The
+ * rest keep sorting in the background, and the bar keeps showing it.
  */
 export function computeLearningView(
   analyzeProgress: AnalyzeProgress,
@@ -129,18 +155,22 @@ export function computeLearningView(
   categorisation: CategorisationState
 ): LearningView {
   const isLearningDone = hasLearningFinished(analyzeProgress, importProgress, timedOut);
+  const isStalled = isAnalysisStalled(analyzeProgress, timedOut);
   const isSorted = isCategorisationComplete(categorisation.progress);
-  const canFinish = isLearningDone && (isSorted || categorisation.timedOut);
+  const hasSortedEnough = hasSortedEnoughToContinue(categorisation.progress);
+  const canFinish = isLearningDone && (hasSortedEnough || categorisation.timedOut);
+  const isFinished = canFinish && isSorted;
   const learningFraction = isLearningDone ? PROGRESS_MAX : computeLearningFraction(analyzeProgress, importProgress);
   const blended = LEARNING_SHARE * learningFraction + SORTING_SHARE * computeSortingFraction(categorisation);
   const progress = analyzeProgress.progress;
   return {
     // Once finished every indicator reads "done", so the bar must show 100% too (#294).
-    displayProgress: canFinish ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, blended),
+    displayProgress: isFinished ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, blended),
     isLearningDone,
+    isStalled,
     canFinish,
     isStillSorting: canFinish && !isSorted,
-    currentPhase: pickCurrentPhase(canFinish, isLearningDone, progress?.messageKey),
+    currentPhase: pickCurrentPhase(isSorted, isLearningDone, progress?.messageKey),
     realProgress: {
       syncedCount: importProgress.prioritizedCount,
       threadCount: progress?.threadCount,
@@ -178,6 +208,15 @@ function buildFraction(done: number | undefined, total: number | undefined): str
     return `${done ?? 0} / ${total}`;
   }
   return done ? String(done) : '';
+}
+
+/**
+ * Count shown on the right of a phase row. A phase that hasn't started shows
+ * nothing: a dimmed "Sorting" row reading "204 / 250" beside an active
+ * "Reading your recent emails" row looked like the steps were running out of order.
+ */
+export function buildRowCount(translate: TFn, phaseIdx: number, isStarted: boolean, rp: RealProgress): string {
+  return isStarted ? buildPhaseCount(translate, phaseIdx, rp) : '';
 }
 
 /** Real count shown on the right of each phase row (empty until the number exists). */

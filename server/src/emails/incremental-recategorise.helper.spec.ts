@@ -169,7 +169,11 @@ describe("recategoriseFromSummary", () => {
   describe("deterministic rule short-circuit", () => {
     it("persists the rule's category with a rule-step trace stamped with the NEW email, without consulting the LLM", async () => {
       mockCategoryRulesService.peekMatchingRuleWithTrace.mockResolvedValue({
-        match: { categoryId: "cat-1", categoryName: "QA failed" },
+        match: {
+          categoryId: "cat-1",
+          categoryName: "QA failed",
+          ruleId: "rule-abc",
+        },
         snapshot: { ruleId: "rule-abc" } as never,
       });
 
@@ -192,6 +196,11 @@ describe("recategoriseFromSummary", () => {
           ),
         }),
       );
+      // The rule ID must end the explanation, or the inbox's "edit this rule"
+      // link can only open the rules list for this thread.
+      expect(
+        persistCategoryMock.mock.calls[0][2].resolvedCategoryExplanation,
+      ).toMatch(/\(rule:rule-abc\)$/);
       const trace: CategoryDecisionTrace =
         persistCategoryMock.mock.calls[0][2].decisionTrace;
       expect(trace.writtenBy).toBe("incremental");
@@ -274,6 +283,7 @@ describe("recategoriseFromSummary", () => {
       const [shortlistEmail, allCategories] =
         getShortlistWithMeta.mock.calls[0];
       expect(shortlistEmail).toEqual({
+        userId: "user-1",
         from: "notifications@github.com",
         fromName: "Bao Ngoc",
         subject: "Re: Habit editing bug",

@@ -9,9 +9,11 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { InjectRepository } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import type { PgBoss } from "pg-boss";
+import { Repository } from "typeorm";
 
 import {
   BUSINESS_ANALYTICS_EVENTS,
@@ -28,10 +30,14 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { SECONDS } from "../constants/time-constants";
+import { Office365Account } from "../database/entities/office365-account.entity";
+import { PersonalAccessToken } from "../database/entities/personal-access-token.entity";
 import { User } from "../database/entities/user.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { revokeAllAccessTokens } from "../personal-access-tokens/revoke-all-access-tokens";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
@@ -60,13 +66,77 @@ function guessNameFromEmail(email: string): string {
 
 type UserWithoutPassword = Omit<User, "password">;
 
-interface UserUpdateData {
+interface UserUpdateData extends GoogleGrantUpdates {
   googleId?: string;
   googleCalendarAccessToken?: string;
   googleCalendarRefreshToken?: string;
   needsRelogin?: boolean;
   isApproved?: boolean;
   isAdmin?: boolean;
+}
+
+interface GoogleSignInGrant {
+  accessToken: string;
+  refreshToken: string;
+  isJeremy: boolean;
+  grantUpdates: GoogleGrantUpdates;
+}
+
+type GoogleGrantUpdates = Partial<
+  Pick<User, "googleGrantedScopes" | "gmailAccessIssue" | "gmailAccessIssueAt">
+>;
+
+/**
+ * Columns a fresh Google grant updates besides the tokens. Scopes are only
+ * recorded when Google reports them, so an omitted field never erases a
+ * known grant. A grant that came with a refresh token has just been through
+ * Google's consent screen with the Gmail boxes ticked (GoogleStrategy rejects
+ * one without), so a recorded Gmail access issue is stale: clearing it here
+ * lets onboarding show the fix at once instead of after the next sync.
+ */
+function buildGoogleGrantUpdates(
+  refreshToken: string,
+  grantedScopes: string | undefined,
+): GoogleGrantUpdates {
+  return {
+    ...(grantedScopes !== undefined
+      ? { googleGrantedScopes: grantedScopes }
+      : {}),
+    ...(refreshToken
+      ? { gmailAccessIssue: null, gmailAccessIssueAt: null }
+      : {}),
+  };
+}
+
+interface MicrosoftLoginProfile {
+  id: string;
+  mail?: string;
+  userPrincipalName?: string;
+  displayName?: string;
+}
+
+/** Guest accounts carry `#EXT#` UPNs on the host tenant's domain. */
+const MICROSOFT_GUEST_UPN_MARKER = "#ext#";
+
+/**
+ * The address a Microsoft sign-in may claim: its userPrincipalName, whose
+ * domain Entra only allows if the tenant has verified it (for personal
+ * Microsoft accounts it is the sign-in address Microsoft verified). `mail`
+ * is never used: it's an unverified attribute any tenant admin can set.
+ */
+export function verifiedMicrosoftSignInEmail(
+  profile: Pick<MicrosoftLoginProfile, "userPrincipalName">,
+): string {
+  const upn = (profile.userPrincipalName ?? "").trim();
+  if (
+    !upn.includes("@") ||
+    upn.toLowerCase().includes(MICROSOFT_GUEST_UPN_MARKER)
+  ) {
+    throw new Error(
+      "This Microsoft account has no verified sign-in address. Sign in another way, then connect Outlook from Settings.",
+    );
+  }
+  return upn;
 }
 
 @Injectable()
@@ -85,7 +155,60 @@ export class AuthService {
     // Optional so sign-in never depends on analytics wiring. The module is
     // global, so the app always has it.
     @Optional() private readonly errorTracking?: ErrorTrackingService,
+    // Optional so unit tests that don't touch passwords needn't provide it.
+    @Optional()
+    @InjectRepository(PersonalAccessToken)
+    private readonly accessTokenRepository?: Repository<PersonalAccessToken>,
+    @Optional()
+    @InjectRepository(Office365Account)
+    private readonly office365AccountRepository?: Repository<Office365Account>,
   ) {}
+
+  /**
+   * The BearlyMail user a Microsoft sign-in belongs to. A Microsoft identity
+   * already linked to a user (by its immutable Graph id) wins. Otherwise the
+   * account is matched by `userPrincipalName`, whose domain the tenant must
+   * have verified — never by `mail`, which any tenant admin can set to anyone's
+   * address ("nOAuth"), letting a self-made tenant sign in as that person.
+   */
+  private async findUserForMicrosoftLogin(
+    profile: MicrosoftLoginProfile,
+  ): Promise<{ user: User | null; email: string }> {
+    const linked = this.office365AccountRepository
+      ? await this.office365AccountRepository.findOne({
+          where: { microsoftId: profile.id },
+          order: { createdAt: "ASC" },
+        })
+      : null;
+    if (linked) {
+      const user = await this.usersService.findOne(linked.userId);
+      if (user) return { user, email: user.email };
+    }
+    const email = verifiedMicrosoftSignInEmail(profile);
+    return { user: await this.usersService.findByEmail(email), email };
+  }
+
+  /**
+   * A password change already invalidates session JWTs (jwt.strategy.ts);
+   * this ends the MCP tokens and OAuth connections too, which would
+   * otherwise keep an attacker's mailbox access alive after a reset.
+   */
+  private async revokeAccessTokensAfterPasswordChange(
+    userId: string,
+    now: Date,
+  ): Promise<void> {
+    if (!this.accessTokenRepository) return;
+    const revoked = await revokeAllAccessTokens(
+      this.accessTokenRepository,
+      userId,
+      now,
+    );
+    if (revoked > 0) {
+      this.logger.log(
+        `Revoked ${revoked} access token(s) for user ${userId} after a password change`,
+      );
+    }
+  }
 
   /**
    * Sends `user_registered` for an OAuth sign-up, under the new user's ID (the
@@ -155,6 +278,7 @@ export class AuthService {
       return null;
     }
 
+    await this.provisionPersonalOrg(user.id);
     const { password: _password, ...result } = user;
     return result;
   }
@@ -163,6 +287,7 @@ export class AuthService {
     profile: GoogleProfile,
     accessToken: string,
     refreshToken: string,
+    grantedScopes?: string,
   ): Promise<UserWithoutPassword> {
     const email = profile.emails[0].value;
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
@@ -178,23 +303,22 @@ export class AuthService {
       refreshToken,
     });
 
+    const grantUpdates = buildGoogleGrantUpdates(refreshToken, grantedScopes);
     if (!user) {
-      user = await this.createGoogleUser(
-        email,
-        profile,
+      user = await this.createGoogleUser(email, profile, {
         accessToken,
         refreshToken,
         isJeremy,
-      );
+        grantUpdates,
+      });
       this.trackOAuthRegistration(user.id, REGISTRATION_METHODS.GOOGLE);
     } else {
-      user = await this.updateGoogleUser(
-        user,
-        profile,
+      user = await this.updateGoogleUser(user, profile, {
         accessToken,
         refreshToken,
         isJeremy,
-      );
+        grantUpdates,
+      });
     }
 
     user = await this.ensureApproved(user);
@@ -274,10 +398,9 @@ export class AuthService {
   private async createGoogleUser(
     email: string,
     profile: GoogleProfile,
-    accessToken: string,
-    refreshToken: string,
-    isJeremy: boolean,
+    grant: GoogleSignInGrant,
   ): Promise<User> {
+    const { accessToken, refreshToken, isJeremy, grantUpdates } = grant;
     if (!refreshToken) {
       throw new Error(
         "Google OAuth did not provide a refresh token. Please try logging in again. If the issue persists, you may need to revoke app access at https://myaccount.google.com/permissions and try again.",
@@ -295,17 +418,18 @@ export class AuthService {
       isApproved: true,
       isAdmin: isJeremy,
       needsRelogin: false,
+      ...grantUpdates,
     });
   }
 
   private async updateGoogleUser(
     user: User,
     profile: GoogleProfile,
-    accessToken: string,
-    refreshToken: string,
-    isJeremy: boolean,
+    grant: GoogleSignInGrant,
   ): Promise<User> {
+    const { accessToken, refreshToken, isJeremy, grantUpdates } = grant;
     const updates: UserUpdateData = {
+      ...grantUpdates,
       googleId: profile.id,
       googleCalendarAccessToken: accessToken,
       ...(refreshToken ? { googleCalendarRefreshToken: refreshToken } : {}),
@@ -383,7 +507,7 @@ export class AuthService {
           { userId },
           {
             priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
-            singletonKey: `fetch-user-emails-${userId}`,
+            singletonKey: fetchUserEmailsJobKey(userId),
             singletonSeconds: SECONDS.FIVE_MINUTES,
           },
         )
@@ -412,23 +536,15 @@ export class AuthService {
   }
 
   async validateMicrosoftUser(
-    profile: {
-      id: string;
-      mail?: string;
-      userPrincipalName?: string;
-      displayName?: string;
-    },
+    profile: MicrosoftLoginProfile,
     accessToken: string,
     refreshToken: string,
   ): Promise<UserWithoutPassword> {
-    const email = profile.mail || profile.userPrincipalName || "";
-    if (!email) {
-      throw new Error("Microsoft profile does not contain email");
-    }
+    const found = await this.findUserForMicrosoftLogin(profile);
+    const { email } = found;
+    let { user } = found;
 
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
-
-    let user = await this.usersService.findByEmail(email);
 
     if (!user) {
       // Create new user
@@ -683,6 +799,8 @@ export class AuthService {
       throw new Error("Failed to create account");
     }
 
+    // Without an org the user can't open the plan picker or start Stripe Checkout.
+    await this.provisionPersonalOrg(user.id);
     this.logger.log(`[REGISTER] Created active account for user ${user.id}`);
     return this.login(user);
   }
@@ -735,6 +853,7 @@ export class AuthService {
       isApproved: true,
       passwordChangedAt: now,
     });
+    await this.revokeAccessTokensAfterPasswordChange(user.id, now);
 
     // Refetch the user
     const updatedUser = await this.usersService.findOne(user.id);
@@ -772,10 +891,12 @@ export class AuthService {
 
     // Update password and record change timestamp so existing JWTs are invalidated
     // (OWASP ASVS req 3.3.1 / 3.3.2)
+    const changedAt = new Date();
     await this.usersService.update(userId, {
       password: hashedPassword,
-      passwordChangedAt: new Date(),
+      passwordChangedAt: changedAt,
     });
+    await this.revokeAccessTokensAfterPasswordChange(userId, changedAt);
 
     this.logger.log(
       `[SET_PASSWORD] User ${userId} successfully set a password for their account`,

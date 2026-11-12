@@ -13,7 +13,7 @@ import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 import { InboxMode } from 'types/email';
 
 import { API_URL } from 'config/api';
-import { PRIORITY_BUCKET_DEFS } from 'constants/priorityBuckets';
+import { PRIORITY_BUCKET_DEFS, PRIORITY_BUCKET_RANGES } from 'constants/priorityBuckets';
 import { MODE_TRIAGE } from 'constants/strings';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
@@ -53,9 +53,7 @@ export function isGuidedPriorityFilterSuppressed(
   mode: InboxMode,
   filters?: Pick<InboxFilter, 'priorityFilterSource'> | null
 ): boolean {
-  return (
-    !!filters && filters.priorityFilterSource === PRIORITY_FILTER_SOURCE.GUIDED && mode !== MODE_TRIAGE
-  );
+  return !!filters && filters.priorityFilterSource === PRIORITY_FILTER_SOURCE.GUIDED && mode !== MODE_TRIAGE;
 }
 
 /**
@@ -82,13 +80,17 @@ export function isPriorityFilterActiveForMode(mode: InboxMode, filters: InboxFil
 export interface ConnectedAccount {
   id: string;
   email: string;
-  provider: 'gmail' | 'office365' | 'zoho' | 'apple-mail';
+  provider: 'gmail' | 'office365' | 'zoho' | 'apple-mail' | 'imap';
   isPrimary: boolean;
   isActive: boolean;
 }
 
 const STORAGE_KEY = 'inbox_filters';
 const FIRST_LOAD_KEY = 'inbox_first_load_seen';
+/** Remembers whether the user collapsed (or re-opened) the filter panel. Absent = first visit. */
+export const FILTER_BAR_VISIBLE_KEY = 'inbox_filter_bar_visible';
+const STORED_TRUE = 'true';
+const STORED_FALSE = 'false';
 const PRIORITY_DEFAULT_FIX_KEY = 'inbox_priority_migration_v2_done';
 /**
  * v3 migration key: resets users who stored old visual bucket values (80/null for VH, etc.)
@@ -109,9 +111,7 @@ export const MEDIUM_PRIORITY_THRESHOLD = 15;
 export const LOW_PRIORITY_THRESHOLD = 1;
 
 /**
- * Priority ranges used for sanitizing stored filters.
- * Each entry is a valid (min, max) pair from the PriorityRangeSelector slider.
- * The slider snaps to multiples of 20 (0, 20, 40, 60, 80, 100); null means no bound.
+ * The single-bucket priority ranges (plus "All"); null means no bound.
  *
  * Single source of truth: derived from PRIORITY_BUCKET_DEFS in constants/priorityBuckets.ts.
  * Do not hardcode bucket boundaries here — update priorityBuckets.ts instead.
@@ -121,7 +121,7 @@ export const PRIORITY_RANGES = PRIORITY_BUCKET_DEFS;
 /**
  * Sanitize filters loaded from localStorage.
  *
- * Validates the stored `(minPriority, maxPriority)` pair against known PRIORITY_RANGES.
+ * Validates the stored `(minPriority, maxPriority)` pair is a span of adjacent priority buckets.
  * This handles users who stored filters before `maxPriority` was introduced (PR #1103):
  * their localStorage has `{ minPriority: 50 }` with no `maxPriority` key, which results
  * in `maxPriority: undefined` after JSON.parse. `undefined !== null` causes:
@@ -133,6 +133,21 @@ export const PRIORITY_RANGES = PRIORITY_BUCKET_DEFS;
  *
  * Fixes: #1164 (ghost active-filter badge count)
  */
+const BUCKET_LOWER_BOUNDS = new Set(PRIORITY_BUCKET_RANGES.map(bucket => bucket.min));
+const BUCKET_UPPER_BOUNDS = new Set(PRIORITY_BUCKET_RANGES.map(bucket => bucket.max));
+
+/**
+ * Whether (min, max) spans one or more ADJACENT priority buckets — every filter the priority
+ * checkboxes can produce (e.g. Medium → Very High = 15/null, the guided High-and-above = 30/null).
+ * Anything else (old visual-slider values, garbage) is not a filter the UI can show.
+ */
+export function isContiguousBucketSpan(minPriority: number | null, maxPriority: number | null): boolean {
+  if (!BUCKET_LOWER_BOUNDS.has(minPriority) || !BUCKET_UPPER_BOUNDS.has(maxPriority)) {
+    return false;
+  }
+  return minPriority === null || maxPriority === null || minPriority < maxPriority;
+}
+
 function sanitizeStoredFilters(filters: InboxFilter): InboxFilter {
   const minPriority = filters.minPriority ?? null;
   const maxPriority = filters.maxPriority ?? null;
@@ -141,13 +156,7 @@ function sanitizeStoredFilters(filters: InboxFilter): InboxFilter {
     return { ...filters, minPriority: null, maxPriority: null, priorityFilterSource: null };
   }
 
-  const isValidRange = PRIORITY_RANGES.some(range => range.min === minPriority && range.max === maxPriority);
-  // The guided default "High-and-above" (High floor, no upper cap) is not one of
-  // the discrete slider buckets (High is bounded 30–50), but it is a valid stored
-  // filter — allow it so the guided default persists across reloads.
-  const isGuidedHighAndAbove = minPriority === HIGH_PRIORITY_THRESHOLD && maxPriority === null;
-
-  if (!isValidRange && !isGuidedHighAndAbove) {
+  if (!isContiguousBucketSpan(minPriority, maxPriority)) {
     return { ...filters, minPriority: null, maxPriority: null, priorityFilterSource: null };
   }
 
@@ -250,8 +259,25 @@ function loadInitialFilters(): InboxFilter {
   };
 }
 
+/** The filter panel starts open on a first visit; afterwards it remembers the user's choice. */
+function loadInitialFilterBarVisible(): boolean {
+  try {
+    return localStorage.getItem(FILTER_BAR_VISIBLE_KEY) !== STORED_FALSE;
+  } catch {
+    return true;
+  }
+}
+
+function persistFilterBarVisible(isVisible: boolean): void {
+  try {
+    localStorage.setItem(FILTER_BAR_VISIBLE_KEY, isVisible ? STORED_TRUE : STORED_FALSE);
+  } catch {
+    // Storage unavailable — the choice still holds for this session
+  }
+}
+
 export function useInboxFilters() {
-  const [isFilterBarVisible, setIsFilterBarVisible] = useState(false);
+  const [isFilterBarVisible, setIsFilterBarVisible] = useState(loadInitialFilterBarVisible);
   const [filters, setFilters] = useState<InboxFilter>(loadInitialFilters);
 
   const [availableCategories, setAvailableCategories] = useState<Array<{ id: string; label: string }>>([]);
@@ -299,8 +325,16 @@ export function useInboxFilters() {
     }
   }, [isFilterBarVisible, fetchCategories]);
 
+  useEffect(() => {
+    persistFilterBarVisible(isFilterBarVisible);
+  }, [isFilterBarVisible]);
+
   const toggleFilterBar = useCallback(() => {
     setIsFilterBarVisible(prev => !prev);
+  }, []);
+
+  const collapseFilterBar = useCallback(() => {
+    setIsFilterBarVisible(false);
   }, []);
 
   const setAccountFilter = useCallback((accountIds: string[]) => {
@@ -352,6 +386,7 @@ export function useInboxFilters() {
     loadingCategories,
     hasActiveFilters,
     toggleFilterBar,
+    collapseFilterBar,
     setAccountFilter,
     setCategoryFilter,
     setPriorityFilter,

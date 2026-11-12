@@ -21,6 +21,11 @@ import {
   renderPrompt,
 } from "../llm/prompts";
 import { LLM_CONFIG } from "./auto-responder-constants";
+import {
+  AUTOMATED_SENDER_PATTERNS,
+  AUTOMATED_SUBJECT_PATTERNS,
+  NEWSLETTER_SENDER_PATTERNS,
+} from "./automated-email-patterns";
 import { EmailClassification } from "./types/auto-responder.types";
 
 /**
@@ -30,55 +35,6 @@ import { EmailClassification } from "./types/auto-responder.types";
 @Injectable()
 export class EmailClassifierService {
   private readonly logger = new Logger(EmailClassifierService.name);
-
-  // Common automated email patterns
-  private readonly automatedPatterns = {
-    senders: [
-      /^noreply@/i,
-      /^no-reply@/i,
-      /^donotreply@/i,
-      /^do-not-reply@/i,
-      /^mailer-daemon@/i,
-      /^postmaster@/i,
-      /^notifications?@/i,
-      /^alerts?@/i,
-      /^auto@/i,
-      /^automated@/i,
-      /^system@/i,
-      /^support@.*\.(zendesk|freshdesk|intercom|helpscout)/i,
-      /^.*@.*\.notifications\./i,
-    ],
-    subjects: [
-      /\[auto(-)?reply\]/i,
-      /automatic reply/i,
-      /out of (the )?office/i,
-      /auto(-)?response/i,
-      /delivery (status )?notification/i,
-      /undeliverable/i,
-      /read receipt/i,
-      /return receipt/i,
-    ],
-  };
-
-  // Newsletter patterns
-  private readonly newsletterPatterns = {
-    senders: [
-      /@.*mail\.(mailchimp|constantcontact|sendgrid|mailgun|convertkit)/i,
-      /@.*\.substack\.com$/i,
-      /newsletter@/i,
-      /digest@/i,
-      /updates@/i,
-      /marketing@/i,
-      /promo(tions)?@/i,
-    ],
-    subjects: [
-      /\bunsubscribe\b/i,
-      /\bweekly digest\b/i,
-      /\bdaily digest\b/i,
-      /\bnewsletter\b/i,
-      /\bmonthly update\b/i,
-    ],
-  };
 
   // Cold outreach patterns
   private readonly coldOutreachPatterns = {
@@ -136,6 +92,7 @@ export class EmailClassifierService {
     },
     headers?: Record<string, string>,
     threadHasReplies?: boolean,
+    userId?: string,
   ): Promise<EmailClassification> {
     const headerClassification = this.classifyByHeaders(headers || {});
     const senderClassification = this.classifyBySender(email.from);
@@ -190,7 +147,7 @@ export class EmailClassifierService {
     }
 
     try {
-      const llmClassification = await this.classifyWithLLM(email);
+      const llmClassification = await this.classifyWithLLM(email, userId);
       return {
         ...llmClassification,
         isReply: threadHasReplies || false,
@@ -300,11 +257,11 @@ export class EmailClassifierService {
   } {
     const email = from.toLowerCase();
 
-    const isAutomated = this.automatedPatterns.senders.some((pattern) =>
+    const isAutomated = AUTOMATED_SENDER_PATTERNS.some((pattern) =>
       pattern.test(email),
     );
 
-    const isNewsletter = this.newsletterPatterns.senders.some((pattern) =>
+    const isNewsletter = NEWSLETTER_SENDER_PATTERNS.some((pattern) =>
       pattern.test(email),
     );
 
@@ -320,7 +277,7 @@ export class EmailClassifierService {
   } {
     const subjectLower = subject.toLowerCase();
 
-    const isAutomated = this.automatedPatterns.subjects.some((pattern) =>
+    const isAutomated = AUTOMATED_SUBJECT_PATTERNS.some((pattern) =>
       pattern.test(subjectLower),
     );
 
@@ -413,12 +370,15 @@ export class EmailClassifierService {
   /**
    * Use LLM to classify email content
    */
-  private async classifyWithLLM(email: {
-    from: string;
-    fromName?: string;
-    subject: string;
-    body: string;
-  }): Promise<EmailClassification> {
+  private async classifyWithLLM(
+    email: {
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+    },
+    userId: string | undefined,
+  ): Promise<EmailClassification> {
     const promptConfig = getPrompt(
       CLASSIFICATION_PROMPT_IDS.CLASSIFY_EMAIL_TYPE,
     );
@@ -457,7 +417,7 @@ export class EmailClassifierService {
         jevDecision: { kind: JEV_DECISION_KINDS.EMAIL_TYPE, input: {} },
       },
       LLMProvider.OPENAI,
-      undefined,
+      userId,
       LLM_OP_CLASSIFY_EMAIL,
     );
 
@@ -595,6 +555,7 @@ export class EmailClassifierService {
     customRules: string[],
     classification?: EmailClassification,
     headers?: Record<string, string>,
+    userId?: string,
   ): Promise<{ matched: boolean; matchedRule: string | null; reason: string }> {
     if (!customRules || customRules.length === 0) {
       return {
@@ -632,6 +593,7 @@ export class EmailClassifierService {
           email,
           customRules,
           cleanedBody,
+          userId,
         );
       }
 
@@ -656,7 +618,7 @@ export class EmailClassifierService {
           },
         },
         LLMProvider.OPENAI,
-        undefined,
+        userId,
         LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
       );
 
@@ -722,6 +684,7 @@ export class EmailClassifierService {
     email: { from: string; fromName?: string; subject: string },
     customRules: string[],
     cleanedBody: string,
+    userId: string | undefined,
   ): Promise<{ matched: boolean; matchedRule: string | null; reason: string }> {
     const rulesText = customRules
       .map((rule, index) => `${index + 1}. ${rule}`)
@@ -758,7 +721,7 @@ Respond with a JSON object in this exact format:
         maxTokens: LLM_CONFIG.CUSTOM_RULES_MAX_TOKENS,
       },
       LLMProvider.OPENAI,
-      undefined,
+      userId,
       LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
     );
     const jsonString = response

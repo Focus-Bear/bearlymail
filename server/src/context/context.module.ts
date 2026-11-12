@@ -5,6 +5,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "../auth/auth.module";
 import { AwsModule } from "../aws/aws.module";
 import { CategoryKeysModule } from "../category-keys/category-keys.module";
+import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { CategoryConsolidationRun } from "../database/entities/category-consolidation-run.entity";
 import { CategoryFamily } from "../database/entities/category-family.entity";
 import { CategoryRule } from "../database/entities/category-rule.entity";
@@ -43,6 +44,8 @@ import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
 import { LearnQaProcessor } from "./learn-qa.processor";
+import { OnboardingAnalysisStartService } from "./onboarding-analysis-start.service";
+import { OnboardingCategorySortService } from "./onboarding-category-sort.service";
 import { WritingStyleLearningProcessor } from "./writing-style-learning.processor";
 import { WritingStyleLearningService } from "./writing-style-learning.service";
 
@@ -51,6 +54,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     SubscriptionsModule,
     CategoryKeysModule,
     TypeOrmModule.forFeature([
+      AutoResponseLog,
       UserContext,
       Email,
       EmailThread,
@@ -84,6 +88,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextCategoryService,
     ContextCompressionService,
     ContextAnalysisProgressService,
+    OnboardingAnalysisStartService,
     ContextPiiRedactionService,
     ContextGmailDataService,
     ContextQaExtractionService,
@@ -92,6 +97,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextDiscoveryBatchProcessor,
     ContextFinalizationProcessor,
     ContextAnalysisCleanupService,
+    OnboardingCategorySortService,
     WritingStyleLearningService,
     WritingStyleLearningProcessor,
   ],
@@ -101,6 +107,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextCategoryService,
     CategoryFamilyService,
     ContextAnalysisProgressService,
+    OnboardingAnalysisStartService,
     WritingStyleLearningService,
   ],
 })

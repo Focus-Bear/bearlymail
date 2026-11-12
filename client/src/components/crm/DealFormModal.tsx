@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { Deal, DealStage } from 'types/deal';
 
+import { DealNotesSection } from 'components/crm/deal-notes/DealNotesSection';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_FULL, OPACITY_HALF } from 'constants/numbers';
 import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
@@ -16,6 +17,11 @@ interface DealFormModalProps {
    * sender when adding a deal from the email view. Ignored when editing an
    * existing deal, which carries its own contactId. */
   initialContactId?: string;
+  /** Disables Save while something the payload depends on is still loading
+   * (e.g. the sender's contact) — the fields stay editable meanwhile. */
+  isSubmitBlocked?: boolean;
+  /** Shown above the actions, e.g. a failed save; the typed input is kept. */
+  errorMessage?: string | null;
   onSave: (payload: {
     title: string;
     details?: string;
@@ -537,6 +543,19 @@ interface DealFormActionsProps {
   t: (key: string) => string;
 }
 
+const DealFormError: React.FC<{ message: string }> = ({ message }) => (
+  <div
+    role="alert"
+    style={{
+      marginTop: theme.spacing.md,
+      color: theme.colors.error.main,
+      fontSize: theme.typography.fontSize.sm,
+    }}
+  >
+    {message}
+  </div>
+);
+
 const DealFormActions: React.FC<DealFormActionsProps> = ({ onClose, canSubmit, t }) => (
   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: theme.spacing.sm, marginTop: theme.spacing.lg }}>
     <button
@@ -591,17 +610,37 @@ interface DealFormState {
   setExpectedCloseDate: (v: string) => void;
 }
 
-function useDealFormState(
-  deal: Deal | null,
-  stages: DealStage[],
-  initialContactId?: string
-): DealFormState {
+/**
+ * A field whose default can arrive after the form has opened (the form no
+ * longer waits for stages or the sender's contact before showing). The late
+ * default fills the field only while it is still empty and the user hasn't
+ * chosen something themselves — including choosing "none".
+ */
+function useFieldWithLateDefault(initialValue: string, lateDefault: string | undefined) {
+  const [value, setValue] = useState(initialValue);
+  const [isChosenByUser, setIsChosenByUser] = useState(false);
+
+  useEffect(() => {
+    if (!isChosenByUser && !value && lateDefault) {
+      setValue(lateDefault);
+    }
+  }, [isChosenByUser, value, lateDefault]);
+
+  const chooseValue = useCallback((next: string) => {
+    setIsChosenByUser(true);
+    setValue(next);
+  }, []);
+
+  return [value, chooseValue] as const;
+}
+
+function useDealFormState(deal: Deal | null, stages: DealStage[], initialContactId?: string): DealFormState {
   const [title, setTitle] = useState(deal?.title || '');
   const [details, setDetails] = useState(deal?.details || '');
   const [value, setValue] = useState(deal?.value?.toString() || '');
   const [currency, setCurrency] = useState(deal?.currency || 'USD');
-  const [stageId, setStageId] = useState(deal?.stageId || stages[0]?.id || '');
-  const [contactId, setContactId] = useState(deal?.contactId || initialContactId || '');
+  const [stageId, setStageId] = useFieldWithLateDefault(deal?.stageId || '', stages[0]?.id);
+  const [contactId, setContactId] = useFieldWithLateDefault(deal?.contactId || '', deal ? undefined : initialContactId);
   const [expectedCloseDate, setExpectedCloseDate] = useState(
     deal?.expectedCloseDate ? deal.expectedCloseDate.split('T')[0] : ''
   );
@@ -628,6 +667,8 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
   stages,
   contacts,
   initialContactId,
+  isSubmitBlocked = false,
+  errorMessage,
   onSave,
   onClose,
 }) => {
@@ -637,7 +678,7 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!title.trim()) {
+    if (!title.trim() || isSubmitBlocked) {
       return;
     }
     onSave({
@@ -692,8 +733,10 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
         </h2>
         <form onSubmit={handleSubmit}>
           <DealFormFields {...formState} stages={stages} contacts={contacts} t={t} />
-          <DealFormActions onClose={onClose} canSubmit={Boolean(title.trim())} t={t} />
+          {errorMessage && <DealFormError message={errorMessage} />}
+          <DealFormActions onClose={onClose} canSubmit={Boolean(title.trim()) && !isSubmitBlocked} t={t} />
         </form>
+        {deal && <DealNotesSection dealId={deal.id} />}
       </div>
     </div>
   );

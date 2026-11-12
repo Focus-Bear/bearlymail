@@ -5,7 +5,11 @@ import {
   domainMatchesAny,
   PLATFORM_PINNING,
 } from "../constants/platform-pinning.constants";
-import { cosineSimilarity, EmbeddingService } from "./embedding.service";
+import {
+  cosineSimilarity,
+  EmbeddingService,
+  EmbeddingsUnavailableError,
+} from "./embedding.service";
 
 // Re-exported from the shared registry so existing importers keep working while
 // the single source of truth lives in `constants/platform-pinning.constants.ts`.
@@ -17,6 +21,7 @@ export {
 import type {
   CategoryItem,
   ShortlistCandidate,
+  ShortlistEmail,
   ShortlistResult,
 } from "../shared/email-intelligence/category.types";
 
@@ -42,7 +47,7 @@ const SHORTLIST_THRESHOLD = 12;
 // Lives with the framework-free email-intelligence module; re-exported here.
 export type { CategoryItem };
 
-export type { ShortlistCandidate, ShortlistResult };
+export type { ShortlistCandidate, ShortlistEmail, ShortlistResult };
 
 /**
  * CategoryShortlistService — Step 1 of the two-step category analysis.
@@ -179,12 +184,7 @@ export class CategoryShortlistService {
    * Falls back to `allCategories` if embeddings are unavailable or fail.
    */
   async getShortlist(
-    email: {
-      from: string;
-      fromName?: string;
-      subject: string;
-      summary: string;
-    },
+    email: ShortlistEmail,
     allCategories: CategoryItem[],
     topN: number = DEFAULT_TOP_N,
   ): Promise<CategoryItem[]> {
@@ -199,23 +199,11 @@ export class CategoryShortlistService {
    * `candidates` is empty since no scoring was performed.
    */
   async getShortlistWithMeta(
-    email: {
-      from: string;
-      fromName?: string;
-      subject: string;
-      summary: string;
-    },
+    email: ShortlistEmail,
     allCategories: CategoryItem[],
     topN: number = DEFAULT_TOP_N,
   ): Promise<ShortlistResult> {
     if (allCategories.length === 0) {
-      return { effective: allCategories, candidates: [] };
-    }
-
-    if (!this.embeddingService.isAvailable()) {
-      this.logger.warn(
-        "CategoryShortlistService: embeddings unavailable — falling back to full category list",
-      );
       return { effective: allCategories, candidates: [] };
     }
 
@@ -231,9 +219,10 @@ export class CategoryShortlistService {
       const [categoryVectors, emailVectors] = await Promise.all([
         this.embeddingService.embed(
           shortlistableCategories.map((cat) => this.categoryText(cat)),
+          email.userId,
           { cache: true },
         ),
-        this.embeddingService.embed([this.emailText(email)]),
+        this.embeddingService.embed([this.emailText(email)], email.userId),
       ]);
       const emailVector = emailVectors[0];
 
@@ -289,10 +278,16 @@ export class CategoryShortlistService {
 
       return { effective, candidates };
     } catch (error) {
-      this.logger.error(
-        "CategoryShortlistService: embedding shortlist failed — falling back to full category list",
-        error,
-      );
+      if (error instanceof EmbeddingsUnavailableError) {
+        this.logger.warn(
+          `CategoryShortlistService: ${error.message} — falling back to full category list`,
+        );
+      } else {
+        this.logger.error(
+          "CategoryShortlistService: embedding shortlist failed — falling back to full category list",
+          error,
+        );
+      }
       return { effective: allCategories, candidates: [] };
     }
   }

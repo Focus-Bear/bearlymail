@@ -62,7 +62,12 @@ vi.mock('components/priority/CategoryOverrideModal', () => ({
 
 vi.mock('constants/strings', () => ({
   CATEGORY_OTHER: 'Other',
+  ROUTE_SETTINGS: '/settings',
 }));
+
+const RULE_ID = '263666e4-b0a6-47c6-b310-a1dcdb42e4e3';
+const RULE_EDIT_HREF = `/settings?openEditRuleId=${RULE_ID}#category-rules`;
+const RULES_LIST_HREF = '/settings#category-rules';
 
 const defaultProps = {
   category: 'Human GitHub issue status updates',
@@ -103,71 +108,38 @@ describe('PriorityTooltipCategory', () => {
     expect(screen.queryByTestId('edit-category-rule-btn')).not.toBeInTheDocument();
   });
 
-  it('shows edit rule button when categoryExplanation indicates a deterministic rule match', () => {
+  it('shows edit rule button when categoryExplanation records the matched rule ID', () => {
     renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
-        categoryExplanation='Matched deterministic rule (composite): category="Human GitHub issue status updates"'
+        categoryExplanation={`Matched deterministic rule (composite): category="Human GitHub issue status updates" (rule:${RULE_ID})`}
       />
     );
     expect(screen.getByTestId('edit-category-rule-btn')).toBeInTheDocument();
   });
 
-  it('opens settings in a new tab with encoded category name when edit rule button is clicked', () => {
+  it('hides the edit rule button when the explanation does not record which rule matched', () => {
     renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
-        category="Human GitHub issue status updates"
         categoryExplanation='Matched deterministic rule (composite): category="Human GitHub issue status updates"'
       />
     );
-
-    fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
-
-    expect(mockWindowOpen).toHaveBeenCalledWith(
-      '/settings?openEditRule=Human%20GitHub%20issue%20status%20updates#guide-our-ai',
-      '_blank',
-      'noopener,noreferrer'
-    );
+    expect(screen.queryByTestId('edit-category-rule-btn')).not.toBeInTheDocument();
   });
 
-  it('opens settings in new tab with correct encoding for category names with special characters', () => {
+  it('opens the matched rule by ID only — the category name is never in the link', () => {
     renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
-        category="Bills & Invoices"
-        categoryExplanation='Matched deterministic rule (legacy): category="Bills & Invoices"'
+        category="📅 Meeting Reschedule Requests"
+        categoryExplanation={`Matched deterministic rule (composite): category="📅 Meeting Reschedule Requests" (rule:${RULE_ID})`}
       />
     );
 
     fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
 
-    expect(mockWindowOpen).toHaveBeenCalledWith(
-      '/settings?openEditRule=Bills%20%26%20Invoices#guide-our-ai',
-      '_blank',
-      'noopener,noreferrer'
-    );
-  });
-
-  it('opens settings in new tab by rule ID when categoryExplanation includes a rule marker (#1789)', () => {
-    renderWithRouter(
-      <PriorityTooltipCategory
-        {...defaultProps}
-        category="GitHub PR Updates"
-        categoryExplanation='Matched deterministic rule (composite): category="GitHub PR Updates" (rule:abc123-def-456)'
-      />
-    );
-
-    fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
-
-    // Opens by ruleId (the SPECIFIC matching rule even when the category has
-    // several rules) but also carries the category name so settings can fall
-    // back to it when the stored rule ID is stale (post-merge / regeneration).
-    expect(mockWindowOpen).toHaveBeenCalledWith(
-      '/settings?openEditRuleId=abc123-def-456&openEditRule=GitHub%20PR%20Updates#guide-our-ai',
-      '_blank',
-      'noopener,noreferrer'
-    );
+    expect(mockWindowOpen).toHaveBeenCalledWith(RULE_EDIT_HREF, '_blank', 'noopener,noreferrer');
   });
 
   it('renders the "Categorised by" line when a categorisationSource is provided', () => {
@@ -210,34 +182,44 @@ describe('PriorityTooltipCategory', () => {
         {...defaultProps}
         category="GitHub PR Updates"
         categorizationSource="rule"
-        categoryExplanation='Matched deterministic rule (composite): category="GitHub PR Updates" (rule:abc123-def-456)'
+        categoryExplanation={`Matched deterministic rule (composite): category="GitHub PR Updates" (rule:${RULE_ID})`}
       />
     );
 
     const link = screen.getByTestId('categorised-by-rule-link');
-    expect(link).toHaveAttribute(
-      'href',
-      '/settings?openEditRuleId=abc123-def-456&openEditRule=GitHub%20PR%20Updates#guide-our-ai'
-    );
+    expect(link).toHaveAttribute('href', RULE_EDIT_HREF);
+    expect(link).toHaveAttribute('title', 'priority.tooltip.editCategoryRule');
     expect(link).toHaveAttribute('target', '_blank');
   });
 
-  it('links "Deterministic rule" by category name when there is no rule-ID marker', () => {
-    renderWithRouter(
-      <PriorityTooltipCategory
-        {...defaultProps}
-        category="Human GitHub issue status updates"
-        categorizationSource="rule"
-        categoryExplanation='Matched deterministic rule (composite): category="Human GitHub issue status updates"'
-      />
-    );
+  it.each([
+    [
+      'a retro-applied rule',
+      'Deterministic rule (category "🐛 Human GitHub issue status updates") applied retroactively — the rule was created or updated after this thread was last processed.',
+    ],
+    [
+      'a priority+category rule',
+      'Deterministic priority+category rule (category "🐛 Human GitHub issue status updates")',
+    ],
+    ['no explanation', null],
+  ])(
+    'links "Deterministic rule" to the rules list, never a rule picked by name, when %s recorded no rule ID',
+    (_case, categoryExplanation) => {
+      renderWithRouter(
+        <PriorityTooltipCategory
+          {...defaultProps}
+          category="🐛 Human GitHub issue status updates"
+          categorizationSource="rule"
+          categoryExplanation={categoryExplanation}
+        />
+      );
 
-    const link = screen.getByTestId('categorised-by-rule-link');
-    expect(link).toHaveAttribute(
-      'href',
-      '/settings?openEditRule=Human%20GitHub%20issue%20status%20updates#guide-our-ai'
-    );
-  });
+      const link = screen.getByTestId('categorised-by-rule-link');
+      expect(link).toHaveAttribute('href', RULES_LIST_HREF);
+      expect(link.getAttribute('href')).not.toContain('openEditRule');
+      expect(link).toHaveAttribute('title', 'priority.tooltip.openCategoryRulesList');
+    }
+  );
 
   it('opens the matched rule in a new tab when the "Deterministic rule" link is clicked', () => {
     renderWithRouter(
@@ -245,24 +227,13 @@ describe('PriorityTooltipCategory', () => {
         {...defaultProps}
         category="GitHub PR Updates"
         categorizationSource="rule"
-        categoryExplanation='Matched deterministic rule (composite): category="GitHub PR Updates" (rule:abc123-def-456)'
+        categoryExplanation={`Matched deterministic rule (composite): category="GitHub PR Updates" (rule:${RULE_ID})`}
       />
     );
 
     fireEvent.click(screen.getByTestId('categorised-by-rule-link'));
 
-    expect(mockWindowOpen).toHaveBeenCalledWith(
-      '/settings?openEditRuleId=abc123-def-456&openEditRule=GitHub%20PR%20Updates#guide-our-ai',
-      '_blank',
-      'noopener,noreferrer'
-    );
-  });
-
-  it('renders "Deterministic rule" as plain text (no link) when the rule cannot be resolved (Other)', () => {
-    renderWithRouter(<PriorityTooltipCategory {...defaultProps} category="Other" categorizationSource="rule" />);
-
-    expect(screen.getByText('priority.tooltip.categorisedBy.label')).toBeInTheDocument();
-    expect(screen.queryByTestId('categorised-by-rule-link')).not.toBeInTheDocument();
+    expect(mockWindowOpen).toHaveBeenCalledWith(RULE_EDIT_HREF, '_blank', 'noopener,noreferrer');
   });
 
   it.each(['ai', 'local', 'proto', 'user'] as const)(
@@ -281,7 +252,7 @@ describe('PriorityTooltipCategory', () => {
     renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
-        categoryExplanation='Matched deterministic rule (composite): category="Test"'
+        categoryExplanation={`Matched deterministic rule (composite): category="Test" (rule:${RULE_ID})`}
       />
     );
 

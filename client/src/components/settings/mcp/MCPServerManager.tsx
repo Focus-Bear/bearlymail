@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { MCPServerConfig, MCPServerPurpose } from 'components/settings/workflows/types';
+import { MCPConnectionTestResult, MCPServerConfig, MCPServerPurpose } from 'components/settings/workflows/types';
 
 import { MCPProviderPreset } from './mcpPresets';
 import { MCPProviderGrid } from './MCPProviderGrid';
@@ -15,7 +15,9 @@ interface MCPServerManagerProps {
   onStartOAuth: (name: string, serverUrl: string, purpose: MCPServerPurpose) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onRefresh: (id: string) => Promise<void>;
-  onTest: (id: string) => Promise<{ ok: boolean; toolCount: number }>;
+  onTest: (id: string) => Promise<MCPConnectionTestResult>;
+  /** Send the user through the OAuth flow for an existing connection. */
+  onAuthorize: (id: string) => Promise<void>;
 }
 
 /**
@@ -31,11 +33,12 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
   onRemove,
   onRefresh,
   onTest,
+  onAuthorize,
 }) => {
   const { t } = useTranslation();
   const [selectedPreset, setSelectedPreset] = useState<MCPProviderPreset | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; toolCount: number }>>({});
+  const [testResults, setTestResults] = useState<Record<string, MCPConnectionTestResult>>({});
   const [error, setError] = useState<string | null>(null);
 
   const handleConnect = async (
@@ -74,6 +77,7 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
               onTest={handleTest}
               onRefresh={onRefresh}
               onRemove={onRemove}
+              onAuthorize={onAuthorize}
             />
           ))}
         </div>

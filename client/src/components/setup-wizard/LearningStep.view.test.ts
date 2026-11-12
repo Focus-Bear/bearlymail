@@ -1,7 +1,16 @@
 import { type AnalyzeProgress } from 'hooks/settings/useAnalysisProgress';
 
-import { computeLearningView, PHASE_CATEGORISE, PHASE_LABEL_KEYS } from './learning-view';
-import { type CategorisationState } from './useCategorisationProgress';
+import {
+  buildRowCount,
+  computeLearningView,
+  hasLearningFinished,
+  isAnalysisStalled,
+  PHASE_CATEGORISE,
+  PHASE_LABEL_KEYS,
+  PHASE_SYNC,
+  type TFn,
+} from './learning-view';
+import { type CategorisationState, ONBOARDING_CATEGORISE_UNLOCK_COUNT } from './useCategorisationProgress';
 
 const analyze = (current: number, total: number, isComplete: boolean): AnalyzeProgress => ({
   show: true,
@@ -75,17 +84,100 @@ describe('computeLearningView — categorisation gate', () => {
     expect(view.currentPhase).toBeLessThan(PHASE_CATEGORISE);
   });
 
-  it('lets the user in after the max wait with a still-sorting note', () => {
+  it('lets the user in after the max wait with a still-sorting note, still showing the real progress', () => {
     const view = computeLearningView(analyze(100, 100, true), READY_IMPORT, false, sorting(42, 67, true));
 
     expect(view.canFinish).toBe(true);
     expect(view.isStillSorting).toBe(true);
-    expect(view.displayProgress).toBe(1);
+    expect(view.displayProgress).toBeLessThan(1);
+    expect(view.currentPhase).toBe(PHASE_CATEGORISE);
+  });
+
+  it('unlocks Continue once the first 50 threads are sorted, with the rest still sorting', () => {
+    const view = computeLearningView(
+      analyze(100, 100, true),
+      READY_IMPORT,
+      false,
+      sorting(ONBOARDING_CATEGORISE_UNLOCK_COUNT, 400)
+    );
+
+    expect(view.canFinish).toBe(true);
+    expect(view.isStillSorting).toBe(true);
+    expect(view.currentPhase).toBe(PHASE_CATEGORISE);
+    expect(view.realProgress).toMatchObject({ categorisedCount: 50, categoriseTotal: 400 });
+    expect(view.displayProgress).toBeLessThan(1);
+  });
+
+  it('keeps Continue locked at 49 sorted threads', () => {
+    const view = computeLearningView(
+      analyze(100, 100, true),
+      READY_IMPORT,
+      false,
+      sorting(ONBOARDING_CATEGORISE_UNLOCK_COUNT - 1, 400)
+    );
+
+    expect(view.canFinish).toBe(false);
+  });
+
+  it('waits for the whole inbox when it has fewer than 50 threads', () => {
+    expect(computeLearningView(analyze(100, 100, true), READY_IMPORT, false, sorting(29, 30)).canFinish).toBe(false);
+    expect(computeLearningView(analyze(100, 100, true), READY_IMPORT, false, sorting(30, 30)).canFinish).toBe(true);
   });
 
   it('treats an empty inbox as already sorted', () => {
     const view = computeLearningView(analyze(100, 100, true), READY_IMPORT, false, sorting(0, 0));
 
     expect(view.canFinish).toBe(true);
+  });
+});
+
+const failed = (message: string): AnalyzeProgress => ({ show: true, progress: null, error: message, isComplete: false });
+const NOT_READY_IMPORT = { prioritizedCount: 0, isReady: false };
+
+describe('computeLearningView — stalled analysis', () => {
+  it('reports a stall the moment the analysis errors, instead of a silent frozen first row', () => {
+    // The report's state: 258 emails synced (import ready) but the analysis poll
+    // died on a superseded run, so nothing would ever advance the screen.
+    const view = computeLearningView(failed('Superseded by new analysis'), { prioritizedCount: 258, isReady: true }, false, sorting(204, 250));
+
+    expect(view.isStalled).toBe(true);
+    expect(view.isLearningDone).toBe(false);
+    expect(view.canFinish).toBe(false);
+  });
+
+  it('reports a stall when the max wait elapses with the analysis still unfinished', () => {
+    const view = computeLearningView(analyze(10, 100, false), READY_IMPORT, true, NOT_STARTED);
+
+    expect(view.isStalled).toBe(true);
+    expect(view.canFinish).toBe(false);
+  });
+
+  it('is not stalled while the analysis is still progressing inside the max wait', () => {
+    const view = computeLearningView(analyze(10, 100, false), READY_IMPORT, false, NOT_STARTED);
+
+    expect(view.isStalled).toBe(false);
+  });
+
+  it('is not stalled once the analysis completed, even if the import poll timed out (#294)', () => {
+    expect(isAnalysisStalled(analyze(100, 100, true), true)).toBe(false);
+    expect(hasLearningFinished(analyze(100, 100, true), NOT_READY_IMPORT, true)).toBe(true);
+  });
+
+  it('no longer counts an unfinished analysis as learned just because the clock ran out', () => {
+    expect(hasLearningFinished(analyze(10, 100, false), READY_IMPORT, true)).toBe(false);
+  });
+});
+
+describe('buildRowCount', () => {
+  const translate: TFn = (key, values) => `${key}:${JSON.stringify(values)}`;
+  const progress = { syncedCount: 258, categorisedCount: 204, categoriseTotal: 250 };
+
+  it('hides the count on a phase that has not started yet', () => {
+    expect(buildRowCount(translate, PHASE_CATEGORISE, false, progress)).toBe('');
+  });
+
+  it('shows the real count on an active or finished phase', () => {
+    expect(buildRowCount(translate, PHASE_CATEGORISE, true, progress)).toBe('204 / 250');
+    expect(buildRowCount(translate, PHASE_SYNC, true, progress)).toContain('"count":258');
   });
 });

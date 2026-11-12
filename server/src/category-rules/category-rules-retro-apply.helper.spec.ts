@@ -105,6 +105,10 @@ describe("retroApplyCompositeRuleToRecentThreads", () => {
         protoCategoryId: null,
       }),
     );
+    // The rule ID must be recorded, or the inbox's "edit this rule" link can
+    // only fall back to the category name, which several rules can share.
+    const setPayload = (builder.set as jest.Mock).mock.calls[0][0];
+    expect(setPayload.categoryExplanation).toMatch(/\(rule:rule-1\)$/);
     expect(builder.andWhere).toHaveBeenCalledWith('"id" IN (:...whereIdIn)', {
       whereIdIn: ["t-1", "t-2"],
     });

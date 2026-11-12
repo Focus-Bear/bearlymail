@@ -1,12 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
+import { CategoryNamesById, describeWorkflowCondition } from './describeWorkflowCondition';
 import { WorkflowRule } from './types';
 
 interface WorkflowsListProps {
   rules: WorkflowRule[];
+  /** Resolves category-scoped rules to "Any email in <category>". */
+  categoryNamesById: CategoryNamesById;
   onToggle: (id: string) => void;
   onEdit: (rule: WorkflowRule) => void;
   onDelete: (id: string) => void;
@@ -26,7 +28,7 @@ const statusBadgeStyle = (enabled: boolean): React.CSSProperties => ({
   color: enabled ? theme.colors.success.main : theme.colors.error.dark,
 });
 
-export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, onEdit, onDelete }) => {
+export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, categoryNamesById, onToggle, onEdit, onDelete }) => {
   const { t } = useTranslation();
 
   if (rules.length === 0) {
@@ -69,7 +71,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, o
               </span>
             </div>
             <div style={{ marginTop: 4, ...theme.typography.body.small, color: theme.colors.text.secondary }}>
-              {describeCondition(rule, t)}
+              {describeWorkflowCondition(rule.condition, categoryNamesById, t)}
               {' · '}
               {t('settings.workflows.list.actionCount', { count: rule.actions.length })}
             </div>
@@ -95,27 +97,6 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, o
     </div>
   );
 };
-
-const PATTERNS_SHOWN = 2;
-
-const CONDITION_LABEL_KEYS = [
-  ['fromPatterns', 'settings.workflows.list.conditionFrom'],
-  ['subjectPatterns', 'settings.workflows.list.conditionSubject'],
-  ['bodyPatterns', 'settings.workflows.list.conditionBody'],
-] as const;
-
-function describeCondition(rule: WorkflowRule, translate: TFunction): string {
-  const parts = CONDITION_LABEL_KEYS.flatMap(([field, labelKey]) => {
-    const patterns = rule.condition[field] ?? [];
-    return patterns.length > 0
-      ? [translate(labelKey, { value: patterns.slice(0, PATTERNS_SHOWN).join(', ') })]
-      : [];
-  });
-  if (parts.length === 0) {
-    return translate('settings.workflows.list.conditionAny');
-  }
-  return parts.join('; ');
-}
 
 function buttonStyle(variant: ButtonVariant): React.CSSProperties {
   const base: React.CSSProperties = {

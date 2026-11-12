@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Email } from 'types/email';
 import { isCalendarInvitation } from 'utils/calendarUtils';
 
@@ -54,6 +54,10 @@ vi.mock('components/email-detail/SchedulingRequestCard', () => ({
   SchedulingRequestCard: () => <div data-testid="SchedulingRequestCard" />,
 }));
 
+vi.mock('components/google-permissions/ConnectCalendarPrompt', () => ({
+  ConnectCalendarPrompt: () => null,
+}));
+
 vi.mock('components/email-detail/QuickActionsSection', () => ({
   QuickActionsSection: ({ suggestedActions }: { suggestedActions: SuggestedAction[] }) => (
     <div data-testid="QuickActionsSection" data-count={suggestedActions.length} />
@@ -77,6 +81,7 @@ vi.mock('react-icons/fi', () => ({
   FiClock: () => null,
   FiCornerUpLeft: () => null,
   FiCornerUpRight: () => null,
+  FiDownload: () => null,
   FiPrinter: () => null,
 }));
 
@@ -87,7 +92,20 @@ vi.mock('hooks/useResponsiveBreakpoints', () => ({
 const mockUseResponsiveBreakpoints = vi.mocked(useResponsiveBreakpoints);
 
 vi.mock('components/common/OverflowMenu', () => ({
-  OverflowMenu: () => <div data-testid="OverflowMenu" />,
+  OverflowMenu: ({ items }: { items: Array<{ key: string; label: string; onClick: () => void }> }) => (
+    <div data-testid="OverflowMenu">
+      {items.map(item => (
+        <button key={item.key} type="button" onClick={item.onClick}>
+          {item.label}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
+const mockDownloadEml = vi.fn();
+vi.mock('hooks/useEmlDownload', () => ({
+  useEmlDownload: () => mockDownloadEml,
 }));
 
 vi.mock('theme/theme', () => ({
@@ -308,5 +326,15 @@ describe('EmailDetailActions — mobile layout (fixes #1068)', () => {
   it('renders the block sender button in row 2 when there is no unsubscribe link', () => {
     render(<EmailDetailActions {...baseProps} />);
     expect(screen.getByText('inbox.blockSender')).toBeInTheDocument();
+  });
+});
+
+describe('EmailDetailActions — overflow menu', () => {
+  it('offers "Download .eml" for the open email', () => {
+    render(<EmailDetailActions {...baseProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'emailDetail.downloadEml' }));
+
+    expect(mockDownloadEml).toHaveBeenCalledWith(baseEmail.id);
   });
 });

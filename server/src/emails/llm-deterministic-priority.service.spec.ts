@@ -63,7 +63,11 @@ describe("LLMDeterministicPriorityService.applyDeterministicPriority", () => {
       email: { id: "e1", emailThreadId: "t1" } as never,
       thread: { starCount: 0, isBatched: true, githubMetadata: null } as never,
       representativeScore: 10,
-      categoryMatch: { categoryName: "CI", categoryId: "cat-1" },
+      categoryMatch: {
+        categoryName: "CI",
+        categoryId: "cat-1",
+        ruleId: "rule-1",
+      },
       userId: "user-1",
       workerId: "w1",
     });
@@ -86,7 +90,11 @@ describe("LLMDeterministicPriorityService.applyDeterministicPriority", () => {
       thread: { starCount: 0, isBatched: true, githubMetadata: null } as never,
       // Low score so emergency delivery is a no-op (single thread update).
       representativeScore: 10,
-      categoryMatch: { categoryName: "CI", categoryId: "cat-1" },
+      categoryMatch: {
+        categoryName: "CI",
+        categoryId: "cat-1",
+        ruleId: "rule-1",
+      },
       categoryRuleTrace: snapshot,
       userId: "user-1",
       workerId: "w1",
@@ -110,6 +118,29 @@ describe("LLMDeterministicPriorityService.applyDeterministicPriority", () => {
     expect(queryBuilder.execute).toHaveBeenCalledTimes(1);
   });
 
+  it("records the matched rule's ID in the explanation so the inbox can open that exact rule", async () => {
+    const queryBuilder = makeUpdateQueryBuilderMock();
+    const service = buildService(jest.fn().mockResolvedValue({}), queryBuilder);
+
+    await service.applyDeterministicPriority({
+      email: { id: "e1", emailThreadId: "t1" } as never,
+      thread: { starCount: 0, isBatched: true, githubMetadata: null } as never,
+      representativeScore: 10,
+      categoryMatch: {
+        categoryName: "CI",
+        categoryId: "cat-1",
+        ruleId: "263666e4-b0a6-47c6-b310-a1dcdb42e4e3",
+      },
+      userId: "user-1",
+      workerId: "w1",
+    });
+
+    const setPayload = queryBuilder.set.mock.calls[0][0];
+    expect(setPayload.categoryExplanation).toMatch(
+      /\(rule:263666e4-b0a6-47c6-b310-a1dcdb42e4e3\)$/,
+    );
+  });
+
   it("omits categoryRuleTrace from the update when none is provided", async () => {
     const update = jest.fn().mockResolvedValue({});
     const queryBuilder = makeUpdateQueryBuilderMock();
@@ -119,7 +150,11 @@ describe("LLMDeterministicPriorityService.applyDeterministicPriority", () => {
       email: { id: "e1", emailThreadId: "t1" } as never,
       thread: { starCount: 0, isBatched: true, githubMetadata: null } as never,
       representativeScore: 10,
-      categoryMatch: { categoryName: "CI", categoryId: "cat-1" },
+      categoryMatch: {
+        categoryName: "CI",
+        categoryId: "cat-1",
+        ruleId: "rule-1",
+      },
       userId: "user-1",
       workerId: "w1",
     });

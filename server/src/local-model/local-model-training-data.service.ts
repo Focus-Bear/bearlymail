@@ -7,13 +7,15 @@ import {
   ExportEmailRecord,
 } from "../emails/email-export.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import {
+  TRAINING_DATA_EXTENSION,
+  TRAINING_DATA_PREFIX,
+} from "./local-model-storage.constants";
 
 /** Don't bother training (or even uploading) for users with too little history —
  * the time-split + per-category support gates need a reasonable number of
  * labelled threads to produce anything useful. */
 const MIN_RECORDS_TO_EXPORT = 100;
-
-const TRAINING_DATA_PREFIX = "training-data/";
 
 export interface TrainingDataExportResult {
   userId: string;
@@ -85,7 +87,7 @@ export class LocalModelTrainingDataService {
     await this.s3.send(
       new PutObjectCommand({
         Bucket: this.bucket,
-        Key: `${TRAINING_DATA_PREFIX}${userId}.json`,
+        Key: `${TRAINING_DATA_PREFIX}${userId}${TRAINING_DATA_EXTENSION}`,
         Body: JSON.stringify(records),
         ContentType: "application/json",
       }),

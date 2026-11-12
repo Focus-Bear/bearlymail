@@ -8,8 +8,10 @@ import { theme } from 'theme/theme';
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 
-const CONTEXT_PROVIDERS_SETTINGS_PATH = '/settings#workflows';
+// Sender-context providers are MCP servers, configured under Settings > Connected apps.
+const CONTEXT_PROVIDERS_SETTINGS_PATH = settingsAnchorPath(SETTINGS_ANCHORS.CONNECTED_APPS);
 
 const SENDER_CONTEXT_ACCENT = '#0EA5E9'; // Sky blue
 const SENDER_CONTEXT_BG = '#F0F9FF';

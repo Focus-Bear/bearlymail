@@ -39,6 +39,15 @@ export const ACTION_ITEM_TYPES = {
 export type ActionItemType =
   (typeof ACTION_ITEM_TYPES)[keyof typeof ACTION_ITEM_TYPES];
 
+/** Which detector found a meeting proposal — surfaced in the scheduling card's admin debug panel. */
+export const PROPOSAL_DETECTION_SOURCES = {
+  LLM: "llm",
+  TIME_PATTERN: "time_pattern",
+} as const;
+
+export type ProposalDetectionSource =
+  (typeof PROPOSAL_DETECTION_SOURCES)[keyof typeof PROPOSAL_DETECTION_SOURCES];
+
 export const DATA_IMPORT_MERGE_MODES = {
   REPLACE: "replace",
   MERGE: "merge",
@@ -56,6 +65,7 @@ export const EMAIL_PROVIDER_TYPES = {
   GMAIL: "gmail",
   OFFICE365: "office365",
   ZOHO: "zoho",
+  IMAP: "imap",
 } as const;
 
 export type EmailProviderType =
@@ -216,6 +226,8 @@ export type PhishingConfidence =
 export const AUTH_ACTION_TYPES = {
   CONNECT: "connect",
   DISCONNECT: "disconnect",
+  /** Incremental Google authorization: add calendar or contacts to a signed-in user's grant. */
+  GRANT_GOOGLE_PERMISSION: "grant_google_permission",
 } as const;
 
 export type AuthActionType =

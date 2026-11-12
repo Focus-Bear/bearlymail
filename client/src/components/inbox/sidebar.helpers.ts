@@ -5,9 +5,7 @@
 import { NavigateFunction } from 'react-router-dom';
 
 import { OPEN_TRACKING_SETTINGS_ANCHOR } from 'constants/openTracking';
-
-/** Delay (ms) before scrolling to a settings anchor after navigation. */
-export const SIDEBAR_SCROLL_DELAY_MS = 50;
+import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 
 export interface SettingsSubNavItem {
   id: string;
@@ -29,7 +27,8 @@ export interface SettingsNavOptions {
 
 /**
  * Returns the full settings sidebar navigation tree, translated via the
- * provided `translate` function.
+ * provided `translate` function. Groups follow the Settings tabs' order
+ * (settings-tabs.ts): email first, account and security last.
  *
  * @param translate - i18n translation function (`t` from `useTranslation()`).
  * @param options - Flags that gate conditional items (e.g. admin-only MFA).
@@ -40,13 +39,6 @@ export function getSettingsNavItems(
   options: SettingsNavOptions = {}
 ): (SettingsSubNavItem | SettingsSubNavGroup)[] {
   return [
-    {
-      label: translate('settings.nav.accountSecurity'),
-      items: [
-        { id: 'set-password', label: translate('settings.nav.password'), anchor: 'set-password' },
-        ...(options.isAdmin ? [{ id: 'mfa', label: translate('settings.nav.twoFactorAuth'), anchor: 'mfa' }] : []),
-      ],
-    },
     {
       label: translate('settings.nav.emailDelivery'),
       items: [
@@ -112,8 +104,12 @@ export function getSettingsNavItems(
         { id: 'connected-apps', label: translate('settings.nav.connectedApps'), anchor: 'connected-apps' },
         { id: 'workflows', label: translate('settings.nav.workflows'), anchor: 'workflows' },
         { id: 'github-integration', label: translate('settings.nav.githubIntegration'), anchor: 'github-integration' },
-        { id: 'api-key', label: translate('settings.nav.openAiApiKey'), anchor: 'api-key' },
-        { id: 'anthropic-api-key', label: translate('settings.nav.anthropicApiKey'), anchor: 'anthropic-api-key' },
+        { id: 'focus-bear', label: translate('settings.nav.focusBear'), anchor: SETTINGS_ANCHORS.FOCUS_BEAR },
+        {
+          id: SETTINGS_ANCHORS.OWN_AI_ACCOUNT,
+          label: translate('settings.nav.ownAiAccount'),
+          anchor: SETTINGS_ANCHORS.OWN_AI_ACCOUNT,
+        },
       ],
     },
     {
@@ -122,6 +118,13 @@ export function getSettingsNavItems(
         { id: 'team-members', label: translate('settings.nav.teamMembers'), anchor: 'team-members' },
         { id: 'team-usage', label: translate('settings.nav.teamUsage'), anchor: 'team-usage' },
         { id: 'team-promo', label: translate('settings.nav.teamPromo'), anchor: 'team-promo' },
+      ],
+    },
+    {
+      label: translate('settings.nav.accountSecurity'),
+      items: [
+        { id: 'set-password', label: translate('settings.nav.password'), anchor: 'set-password' },
+        ...(options.isAdmin ? [{ id: 'mfa', label: translate('settings.nav.twoFactorAuth'), anchor: 'mfa' }] : []),
       ],
     },
     {
@@ -138,20 +141,15 @@ export function getSettingsNavItems(
 /**
  * Returns a scroll-to-section handler bound to the given `navigate` function.
  *
- * Navigates to `/settings#<anchor>` and then, after a short delay, scrolls
- * the matching DOM element into view.
+ * Only navigates to `/settings#<anchor>`: the Settings page scrolls to and
+ * highlights the section itself (`useSettingsAnchorScroll`), waiting for it to
+ * render and keeping it in place while the sections above it load.
  *
  * @param navigate - React Router `navigate` function from `useNavigate()`.
- * @returns A function that accepts an anchor string and performs the scroll.
+ * @returns A function that accepts an anchor string and navigates to it.
  */
 export function makeScrollToSection(navigate: NavigateFunction): (anchor: string) => void {
   return (anchor: string) => {
-    navigate(`/settings#${anchor}`, { replace: true });
-    setTimeout(() => {
-      const element = document.getElementById(anchor);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, SIDEBAR_SCROLL_DELAY_MS);
+    navigate(settingsAnchorPath(anchor), { replace: true });
   };
 }

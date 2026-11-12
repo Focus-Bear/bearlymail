@@ -6,6 +6,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 import { STRING_NONE } from 'constants/strings';
 
 interface AnalyzeEmailsButtonProps {
@@ -24,7 +25,7 @@ export const AnalyzeEmailsButton: React.FC<AnalyzeEmailsButtonProps> = ({ hasRun
     <button
       onClick={() => {
         captureEvent(ANALYTICS_EVENTS.ANALYZE_EMAILS_BUTTON_CLICKED);
-        navigate('/settings#context');
+        navigate(settingsAnchorPath(SETTINGS_ANCHORS.CONTEXT));
       }}
       style={{
         padding: `${theme.spacing.xs} ${theme.spacing.md}`,

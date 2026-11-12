@@ -7,7 +7,7 @@ import { MS_PER_MINUTE, POLLING_INTERVAL_MS } from 'constants/numbers';
 /** Longest we hold the user on the learning step waiting for categorisation once learning is done. */
 export const CATEGORISATION_MAX_WAIT_MINUTES = 3;
 const CATEGORISATION_MAX_WAIT_MS = CATEGORISATION_MAX_WAIT_MINUTES * MS_PER_MINUTE;
-const CATEGORISATION_PROGRESS_PATH = '/onboarding/categorisation-progress';
+export const CATEGORISATION_PROGRESS_PATH = '/onboarding/categorisation-progress';
 
 export interface CategorisationProgress {
   total: number;
@@ -19,12 +19,27 @@ export interface CategorisationState {
   timedOut: boolean;
 }
 
-function isCategorisationProgress(value: unknown): value is CategorisationProgress {
+export function isCategorisationProgress(value: unknown): value is CategorisationProgress {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
   const candidate = value as Record<string, unknown>;
   return typeof candidate.total === 'number' && typeof candidate.categorised === 'number';
+}
+
+/**
+ * Continue unlocks once this many inbox threads are sorted. Waiting for the
+ * whole inbox held new users on this step for minutes; the rest keep sorting
+ * server-side after they leave, and the inbox shows that progress.
+ */
+export const ONBOARDING_CATEGORISE_UNLOCK_COUNT = 50;
+
+/** The newest ONBOARDING_CATEGORISE_UNLOCK_COUNT threads (or all of a smaller inbox) have a settled category. */
+export function hasSortedEnoughToContinue(progress: CategorisationProgress | null): boolean {
+  if (progress === null) {
+    return false;
+  }
+  return progress.categorised >= Math.min(ONBOARDING_CATEGORISE_UNLOCK_COUNT, progress.total);
 }
 
 /** True once every untriaged inbox thread has a settled category (an empty inbox counts as sorted). */
@@ -36,12 +51,16 @@ export function isCategorisationComplete(progress: CategorisationProgress | null
  * Polls how many inbox threads have been categorised so onboarding can keep
  * the user out of a still-unsorted inbox. Polling stops once learning is done
  * and everything is sorted; the max-wait clock starts when learning finishes,
- * so a stuck job can never trap the user.
+ * so a stuck job can never trap the user. A count from before learning finished
+ * isn't trusted: the sort into the saved categories hadn't been queued yet, so
+ * the inbox can look sorted when it isn't.
  */
 export function useCategorisationProgress(isLearningDone: boolean): CategorisationState {
   const [progress, setProgress] = useState<CategorisationProgress | null>(null);
   const [timedOut, setTimedOut] = useState(false);
-  const isSettled = isLearningDone && isCategorisationComplete(progress);
+  const [isProgressCurrent, setIsProgressCurrent] = useState(false);
+  const currentProgress = !isLearningDone || isProgressCurrent ? progress : null;
+  const isSettled = isLearningDone && isCategorisationComplete(currentProgress);
 
   useEffect(() => {
     if (isSettled) {
@@ -54,6 +73,7 @@ export function useCategorisationProgress(isLearningDone: boolean): Categorisati
         const response = await axios.get<unknown>(`${API_URL}${CATEGORISATION_PROGRESS_PATH}`);
         if (!isCancelled && isCategorisationProgress(response.data)) {
           setProgress(response.data);
+          setIsProgressCurrent(isLearningDone);
         }
       } catch (error) {
         console.error('Failed to fetch categorisation progress:', error);
@@ -67,7 +87,7 @@ export function useCategorisationProgress(isLearningDone: boolean): Categorisati
       isCancelled = true;
       clearTimeout(pollTimer);
     };
-  }, [isSettled]);
+  }, [isSettled, isLearningDone]);
 
   useEffect(() => {
     if (!isLearningDone) {
@@ -77,5 +97,5 @@ export function useCategorisationProgress(isLearningDone: boolean): Categorisati
     return () => clearTimeout(timeoutId);
   }, [isLearningDone]);
 
-  return { progress, timedOut };
+  return { progress: currentProgress, timedOut };
 }

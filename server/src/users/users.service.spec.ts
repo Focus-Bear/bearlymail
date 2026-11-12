@@ -3,6 +3,9 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { GMAIL_ACCESS_ISSUE } from "../constants/domain-statuses";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import {
   DEFAULT_LEGAL_VERSIONS,
   PRIVACY_CHANGE_SUMMARY_KEYS,
@@ -13,8 +16,11 @@ import {
 } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { LocalModelUserDataService } from "../local-model/local-model-user-data.service";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "./users.service";
+
+jest.mock("../utils/error-logger");
 
 jest.mock("../encryption/encryption.helper", () => {
   const noopTransformer = {
@@ -39,9 +45,11 @@ jest.mock("../auth/auth-logger", () => ({
 }));
 
 describe("UsersService", () => {
+  let boss: { send: jest.Mock };
   let service: UsersService;
   let repository: jest.Mocked<Repository<User>>;
   let deletedAccountRepository: jest.Mocked<Repository<DeletedAccount>>;
+  let deleteLocalModelData: jest.Mock;
 
   const mockUser: User = {
     id: "user-1",
@@ -81,13 +89,25 @@ describe("UsersService", () => {
             upsert: jest.fn().mockResolvedValue(undefined),
           },
         },
+        {
+          provide: INJECT_TOKENS.PG_BOSS,
+          useValue: { send: jest.fn().mockResolvedValue("job-id") },
+        },
+        {
+          provide: LocalModelUserDataService,
+          useValue: { deleteUserData: jest.fn() },
+        },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(getRepositoryToken(User));
+    boss = module.get(INJECT_TOKENS.PG_BOSS);
     deletedAccountRepository = module.get(getRepositoryToken(DeletedAccount));
     jest.clearAllMocks();
+    deleteLocalModelData = module.get(LocalModelUserDataService)
+      .deleteUserData as jest.Mock;
+    deleteLocalModelData.mockResolvedValue(0);
   });
 
   describe("create", () => {
@@ -222,6 +242,54 @@ describe("UsersService", () => {
       expect(saved.lastLogoutAt!.getTime()).toBeGreaterThanOrEqual(before);
       expect(saved.lastLogoutAt!.getTime()).toBeLessThanOrEqual(after);
     });
+
+    describe("inside the post-login grace period", () => {
+      const recentlyUpdatedUser = (): User => ({
+        ...mockUser,
+        needsRelogin: false,
+        updatedAt: new Date(),
+      });
+
+      it("does not flag by default", async () => {
+        jest
+          .spyOn(service, "findOneLightweight")
+          .mockResolvedValue(recentlyUpdatedUser());
+
+        await service.markNeedsRelogin("user-1", "gmail_sync_auth_error");
+
+        expect(repository.save).not.toHaveBeenCalled();
+      });
+
+      it("flags when bypassGracePeriod is set", async () => {
+        const existingUser = recentlyUpdatedUser();
+        jest
+          .spyOn(service, "findOneLightweight")
+          .mockResolvedValue(existingUser);
+        repository.findOne.mockResolvedValue(existingUser);
+        repository.save.mockImplementation(async (user) => user as User);
+
+        await service.markNeedsRelogin("user-1", "gmail_insufficient_scope", {
+          bypassGracePeriod: true,
+        });
+
+        expect(repository.save).toHaveBeenCalledTimes(1);
+        const saved = repository.save.mock.calls[0][0] as User;
+        expect(saved.needsRelogin).toBe(true);
+        expect(saved.lastLogoutReason).toBe("gmail_insufficient_scope");
+      });
+    });
+
+    it("does not rewrite an already-flagged user even when bypassing the grace period", async () => {
+      jest
+        .spyOn(service, "findOneLightweight")
+        .mockResolvedValue({ ...mockUser, needsRelogin: true });
+
+      await service.markNeedsRelogin("user-1", "gmail_insufficient_scope", {
+        bypassGracePeriod: true,
+      });
+
+      expect(repository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe("markSyncWindowLimited", () => {
@@ -238,6 +306,54 @@ describe("UsersService", () => {
       expect(repository.save).toHaveBeenCalledTimes(1);
       const saved = repository.save.mock.calls[0][0] as User;
       expect(saved.syncWindowLimited).toBe(true);
+    });
+  });
+
+  describe("Gmail access issue", () => {
+    function mockUpdateBuilder(affected: number) {
+      const builder = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected }),
+      };
+      (
+        repository as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder = jest.fn().mockReturnValue(builder);
+      return builder;
+    }
+
+    it("records the issue with a timestamp, only when it changes", async () => {
+      const builder = mockUpdateBuilder(1);
+
+      await service.recordGmailAccessIssue(
+        "user-1",
+        GMAIL_ACCESS_ISSUE.MISSING,
+      );
+
+      expect(builder.set).toHaveBeenCalledWith({
+        gmailAccessIssue: GMAIL_ACCESS_ISSUE.MISSING,
+        gmailAccessIssueAt: expect.any(Date),
+      });
+      expect(builder.andWhere).toHaveBeenCalledWith(
+        '"gmailAccessIssue" IS DISTINCT FROM :issue',
+        { issue: GMAIL_ACCESS_ISSUE.MISSING },
+      );
+    });
+
+    it("clears the issue and its timestamp only when one is set", async () => {
+      const builder = mockUpdateBuilder(1);
+
+      await service.clearGmailAccessIssue("user-1");
+
+      expect(builder.set).toHaveBeenCalledWith({
+        gmailAccessIssue: null,
+        gmailAccessIssueAt: null,
+      });
+      expect(builder.andWhere).toHaveBeenCalledWith(
+        '"gmailAccessIssue" IS NOT NULL',
+      );
     });
   });
 
@@ -435,6 +551,61 @@ describe("UsersService", () => {
     beforeEach(() => {
       process.env.TERMS_VERSION = "2.0.0";
       process.env.PRIVACY_VERSION = "2.0.0";
+    });
+
+    it("queues the first email sync when a new user accepts the terms", async () => {
+      repository.findOne
+        .mockResolvedValueOnce(
+          mockPartial<User>({
+            id: "user-1",
+            termsAcceptedAt: null,
+            hasCompletedOnboarding: false,
+          }),
+        )
+        .mockResolvedValue({ ...mockUser, termsAcceptedAt: new Date() });
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+
+      await service.acceptConsent("user-1", true, true);
+
+      expect(boss.send).toHaveBeenCalledWith(
+        JOB_NAMES.FETCH_USER_EMAILS,
+        { userId: "user-1" },
+        expect.objectContaining({ singletonKey: "fetch-user-emails-user-1" }),
+      );
+    });
+
+    it("does not queue another sync for a user who had already accepted", async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockUser,
+        termsAcceptedAt: new Date("2026-01-01"),
+      });
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+
+      await service.acceptConsent("user-1", true, true);
+
+      expect(boss.send).not.toHaveBeenCalled();
+    });
+
+    it("still records the acceptance when queueing the sync fails", async () => {
+      repository.findOne
+        .mockResolvedValueOnce(
+          mockPartial<User>({
+            id: "user-1",
+            termsAcceptedAt: null,
+            hasCompletedOnboarding: false,
+          }),
+        )
+        .mockResolvedValue({ ...mockUser, termsAcceptedAt: new Date() });
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+      boss.send.mockRejectedValueOnce(new Error("queue down"));
+
+      await expect(
+        service.acceptConsent("user-1", true, true),
+      ).resolves.toBeDefined();
+      expect(repository.update).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ termsAcceptedAt: expect.any(Date) }),
+      );
     });
 
     it("should accept terms and privacy", async () => {
@@ -650,13 +821,13 @@ describe("UsersService", () => {
     });
 
     it("shows only the latest change to users one version behind", async () => {
-      repository.findOne.mockResolvedValue(acceptedPrivacy("1.2.0"));
+      repository.findOne.mockResolvedValue(acceptedPrivacy("1.3.0"));
 
       const result = await service.getOnboardingStatus("user-1");
 
       expect(result.needsPrivacyAcceptance).toBe(true);
       expect(result.privacyChangeSummaryKeys).toEqual([
-        PRIVACY_CHANGE_SUMMARY_KEYS["1.3.0"],
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.4.0"],
       ]);
     });
 
@@ -668,6 +839,7 @@ describe("UsersService", () => {
       expect(result.privacyChangeSummaryKeys).toEqual([
         PRIVACY_CHANGE_SUMMARY_KEYS["1.2.0"],
         PRIVACY_CHANGE_SUMMARY_KEYS["1.3.0"],
+        PRIVACY_CHANGE_SUMMARY_KEYS["1.4.0"],
       ]);
     });
 
@@ -693,6 +865,20 @@ describe("UsersService", () => {
         "test@example.com",
       );
       expect(result).toBe("hash_test@example.com");
+    });
+  });
+
+  describe("findExistingUserIds", () => {
+    it("returns the ids that still have an account", async () => {
+      repository.query.mockResolvedValue([{ id: "user-1" }]);
+
+      const result = await service.findExistingUserIds(["user-1", "user-2"]);
+
+      expect(result).toEqual(new Set(["user-1"]));
+      expect(repository.query).toHaveBeenCalledWith(
+        expect.stringContaining("ANY($1::uuid[])"),
+        [["user-1", "user-2"]],
+      );
     });
   });
 
@@ -791,6 +977,57 @@ describe("UsersService", () => {
         async (cb: (m: typeof mockManager) => Promise<void>) => cb(mockManager),
       );
       (repository as unknown as { manager: unknown }).manager = { transaction };
+    });
+
+    it("deletes the user's local-model data after the database delete commits", async () => {
+      repository.findOne.mockResolvedValue(mockUser);
+
+      await service.deleteAccount("user-1");
+
+      expect(deleteLocalModelData).toHaveBeenCalledWith("user-1");
+      expect(transaction.mock.invocationCallOrder[0]).toBeLessThan(
+        deleteLocalModelData.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("still completes the account deletion when local-model cleanup fails", async () => {
+      repository.findOne.mockResolvedValue(mockUser);
+      deleteLocalModelData.mockRejectedValue(new Error("S3 unavailable"));
+      jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+
+      await expect(service.deleteAccount("user-1")).resolves.toEqual({
+        stillSnoozedThreads: 0,
+      });
+      expect(managerUserDelete).toHaveBeenCalledWith("user-1");
+    });
+
+    it("runs the pre-deletion steps before deleting and returns what they report", async () => {
+      repository.findOne.mockResolvedValue(mockUser);
+      const restoreSnoozed = jest
+        .fn()
+        .mockResolvedValue({ stillSnoozedThreads: 3 });
+      service.beforeAccountDeletion.register(restoreSnoozed);
+
+      await expect(service.deleteAccount("user-1")).resolves.toEqual({
+        stillSnoozedThreads: 3,
+      });
+      expect(restoreSnoozed).toHaveBeenCalledWith("user-1");
+      expect(restoreSnoozed.mock.invocationCallOrder[0]).toBeLessThan(
+        transaction.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("still deletes the account when a pre-deletion step fails", async () => {
+      repository.findOne.mockResolvedValue(mockUser);
+      jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      service.beforeAccountDeletion.register(
+        jest.fn().mockRejectedValue(new Error("Gmail unavailable")),
+      );
+
+      await expect(service.deleteAccount("user-1")).resolves.toEqual({
+        stillSnoozedThreads: 0,
+      });
+      expect(managerUserDelete).toHaveBeenCalledWith("user-1");
     });
 
     it("should save a tombstone to deleted_accounts before deleting", async () => {

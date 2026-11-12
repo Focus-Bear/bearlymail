@@ -34,7 +34,10 @@ export class CalendarAgendaService {
    * Summarises a meeting agenda into a short title using the LLM.
    * Falls back to a truncated version of the agenda text if the LLM call fails.
    */
-  async summariseAgendaToTitle(agenda: string): Promise<string> {
+  async summariseAgendaToTitle(
+    agenda: string,
+    userId: string,
+  ): Promise<string> {
     const MAX_TITLE_LENGTH = 60;
     try {
       const promptConfig = getPrompt(
@@ -50,7 +53,7 @@ export class CalendarAgendaService {
       const title = await this.llmService.generateText(
         { prompt },
         undefined,
-        undefined,
+        userId,
         LLM_OP_GENERATE_BOOKING_TITLE,
       );
       const trimmed = title.trim().slice(0, MAX_TITLE_LENGTH);
@@ -76,7 +79,7 @@ export class CalendarAgendaService {
       return createEventFn(rest);
     }
 
-    const title = await this.summariseAgendaToTitle(agenda);
+    const title = await this.summariseAgendaToTitle(agenda, options.userId);
     return createEventFn({ ...rest, title, description: agenda });
   }
 }

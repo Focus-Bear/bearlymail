@@ -1,3 +1,5 @@
+import { SETTINGS_ANCHORS, SETTINGS_CATEGORY_QUERY_PARAM, settingsAnchorPath } from 'constants/settingsAnchors';
+
 /**
  * Opens the Settings page in a NEW browser tab, deep-linked to the
  * email-categories section. When a category display name is supplied, the
@@ -12,8 +14,11 @@
  */
 export function categorySettingsUrl(categoryName?: string): string {
   return categoryName
-    ? `/settings?category=${encodeURIComponent(categoryName)}#email-categories`
-    : '/settings#email-categories';
+    ? settingsAnchorPath(
+        SETTINGS_ANCHORS.EMAIL_CATEGORIES,
+        `${SETTINGS_CATEGORY_QUERY_PARAM}=${encodeURIComponent(categoryName)}`
+      )
+    : settingsAnchorPath(SETTINGS_ANCHORS.EMAIL_CATEGORIES);
 }
 
 export function openCategorySettings(categoryName?: string): void {

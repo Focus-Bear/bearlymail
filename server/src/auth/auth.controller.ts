@@ -26,17 +26,20 @@ import { SECONDS } from "../constants/time-constants";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { logError } from "../utils/logger";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthService } from "./auth.service";
 import { GoogleAuthGuard } from "./google-auth.guard";
+import { GooglePermissionGrantService } from "./google-permission-grant.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { jwtCookieOptions } from "./jwt-cookie.util";
 import { LocalAuthGuard } from "./local-auth.guard";
 import { isMfaElevationFresh } from "./mfa-elevation";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
-import { parseSignedOAuthState } from "./oauth-state.util";
+import { determineOAuthErrorType } from "./oauth-error-type";
+import { parseBrowserBoundOAuthState } from "./oauth-state.util";
 import { StepUpAuthGuard } from "./step-up.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
 
@@ -68,6 +71,7 @@ export class AuthController {
     private zohoAccountsService: ZohoAccountsService,
     private userEncryptionService: UserEncryptionService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
+    private googlePermissionGrantService: GooglePermissionGrantService,
   ) {}
 
   /**
@@ -369,6 +373,13 @@ export class AuthController {
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const grantRedirect =
+      await this.googlePermissionGrantService.getCallbackRedirect(
+        state,
+        req,
+        frontendUrl,
+      );
+    if (grantRedirect) return res.redirect(grantRedirect);
     if (req.authError || req.user?.authFailed) {
       return this.redirectWithAuthError(
         req.authError as Error,
@@ -521,17 +532,6 @@ export class AuthController {
     res.redirect(`${frontendUrl}/inbox`);
   }
 
-  private determineOAuthErrorType(errorMessage: string): string {
-    if (errorMessage.includes("pending approval")) return "pending_approval";
-    if (
-      errorMessage.includes("waitlist") ||
-      errorMessage.includes("join the waitlist")
-    ) {
-      return "not_on_waitlist";
-    }
-    return "auth_error";
-  }
-
   /**
    * A connect-account flow failed after we already knew the user's intent was
    * CONNECT (missing fields or a persistence error). Surface it on /auth-error
@@ -562,19 +562,13 @@ export class AuthController {
   ) {
     const errorMessage = error?.message || "Authentication failed";
     this.logger.warn(`${providerName} auth error: ${errorMessage}`);
-    const errorType = this.determineOAuthErrorType(errorMessage);
+    const errorType = determineOAuthErrorType(errorMessage);
     const errorParams = new URLSearchParams({
       error: "auth_failed",
       message: errorMessage,
       type: errorType,
     });
     return res.redirect(`${frontendUrl}/auth-error?${errorParams.toString()}`);
-  }
-
-  private parseOAuthState(
-    state: string,
-  ): { action: string; userId: string } | null {
-    return parseSignedOAuthState(state);
   }
 
   /**
@@ -598,7 +592,7 @@ export class AuthController {
         { userId },
         {
           priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
-          singletonKey: `fetch-user-emails-${userId}`,
+          singletonKey: fetchUserEmailsJobKey(userId),
         },
       )
       .catch((err) => {
@@ -614,7 +608,7 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
-    const stateData = this.parseOAuthState(state);
+    const stateData = parseBrowserBoundOAuthState(state, req);
     if (
       !stateData ||
       stateData.action !== AUTH_ACTION_TYPES.CONNECT ||
@@ -689,7 +683,7 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
-    const stateData = this.parseOAuthState(state);
+    const stateData = parseBrowserBoundOAuthState(state, req);
     if (
       !stateData ||
       stateData.action !== AUTH_ACTION_TYPES.CONNECT ||
@@ -904,7 +898,7 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
-    const stateData = this.parseOAuthState(state);
+    const stateData = parseBrowserBoundOAuthState(state, req);
     if (
       !stateData ||
       stateData.action !== AUTH_ACTION_TYPES.CONNECT ||

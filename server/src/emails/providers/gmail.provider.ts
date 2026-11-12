@@ -8,8 +8,10 @@ import {
 import { gmail_v1, google } from "googleapis";
 
 import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
+import { RELOGIN_REASONS } from "../../constants/auth-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { MILLISECONDS, MINUTES } from "../../constants/time-constants";
+import { User } from "../../database/entities/user.entity";
 import { formatGaxiosError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { InvalidTokenError } from "../../utils/errors";
@@ -20,8 +22,11 @@ import {
   EmailProvider,
   EmailRecipient,
   RawEmailMessage,
+  ReadStatusTarget,
   SendReplyOptions,
+  SyncEmailsOptions,
 } from "../interfaces/email-provider.interface";
+import { hasDraftLabel } from "../labels.util";
 import {
   buildGmailUrlIdsToTry,
   type GmailLookupAttempt,
@@ -30,27 +35,38 @@ import {
   lookupGmailThreadByIds,
 } from "./gmail/gmail-lookup";
 import {
+  excludeGmailDrafts,
   parseGmailMessage,
   parseGmailMetadata,
 } from "./gmail/gmail-message-parser";
 import {
   archiveThreadInGmail,
   ensureLabelExists,
+  markMessageUnreadInGmail,
+  markThreadReadInGmail,
   snoozeThreadInGmail,
-  syncReadStatusToGmail as syncReadToGmail,
   syncStarStatusToGmail as syncStarToGmail,
   trashThreadInGmail,
   unarchiveThreadInGmail,
   unsnoozeThreadInGmail,
 } from "./gmail/gmail-operations";
+import {
+  decodeGmailRawMessage,
+  GMAIL_RAW_MESSAGE_FORMAT,
+} from "./gmail/gmail-raw-message";
 import { buildEmailContent, encodeEmailForGmail } from "./gmail/gmail-send";
-import { isGmailAuthError } from "./gmail/gmail-sync";
+import { classifyGmailAccessIssue, isGmailAuthError } from "./gmail/gmail-sync";
 import { GmailSyncService } from "./gmail-sync.service";
 
 // Canonical implementation lives in email-address.utils.ts; re-exported for backward compatibility.
 export { parseRecipientsFromString } from "../../utils/email-address.utils";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { parseRecipientsFromString } from "../../utils/email-address.utils";
+
+/** True when the user was flagged because their Google grant lacks a Gmail scope. */
+function isAwaitingScopeReconsent(user: User): boolean {
+  return user.lastLogoutReason === RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE;
+}
 
 /**
  * Strips HTML tags and decodes common HTML entities to produce a plain-text
@@ -87,6 +103,33 @@ function stripHtmlTags(html: string): string {
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
 const GMAIL_INBOX_QUERY =
   "in:inbox -label:SnoozedBearlyMail -label:VA-to-action";
+
+/** Normalises syncEmails' legacy number-or-options argument for performSync. */
+function parseGmailSyncOptions(
+  syncWindowHoursOrOptions?: number | SyncEmailsOptions,
+): {
+  syncWindowHours?: number;
+  providedThreadIds?: string[];
+  isContinuation: boolean;
+  noDateFilter: boolean;
+  isBackfill: boolean;
+} {
+  if (typeof syncWindowHoursOrOptions === "number") {
+    return {
+      syncWindowHours: syncWindowHoursOrOptions,
+      isContinuation: false,
+      noDateFilter: false,
+      isBackfill: false,
+    };
+  }
+  return {
+    syncWindowHours: syncWindowHoursOrOptions?.syncWindowHours,
+    providedThreadIds: syncWindowHoursOrOptions?.threadIds,
+    isContinuation: syncWindowHoursOrOptions?.isContinuation || false,
+    noDateFilter: syncWindowHoursOrOptions?.noDateFilter || false,
+    isBackfill: syncWindowHoursOrOptions?.isBackfill || false,
+  };
+}
 
 @Injectable()
 export class GmailProvider implements EmailProvider {
@@ -241,8 +284,10 @@ export class GmailProvider implements EmailProvider {
     context: string,
     error: unknown,
   ): Promise<void> {
-    if (isGmailAuthError(error)) {
+    const accessIssue = classifyGmailAccessIssue(error);
+    if (accessIssue) {
       try {
+        await this.usersService.recordGmailAccessIssue(userId, accessIssue);
         const user = await this.usersService.findOneLightweight(userId);
         if (user && !user.needsRelogin) {
           await this.usersService.markNeedsRelogin(
@@ -268,23 +313,9 @@ export class GmailProvider implements EmailProvider {
 
   async syncEmails(
     userId: string,
-    syncWindowHoursOrOptions?:
-      | number
-      | import("../interfaces/email-provider.interface").SyncEmailsOptions,
+    syncWindowHoursOrOptions?: number | SyncEmailsOptions,
   ): Promise<void> {
-    let syncWindowHours: number | undefined;
-    let providedThreadIds: string[] | undefined;
-    let isContinuation = false;
-    let noDateFilter = false;
-
-    if (typeof syncWindowHoursOrOptions === "number") {
-      syncWindowHours = syncWindowHoursOrOptions;
-    } else if (syncWindowHoursOrOptions) {
-      ({ syncWindowHours, threadIds: providedThreadIds } =
-        syncWindowHoursOrOptions);
-      isContinuation = syncWindowHoursOrOptions.isContinuation || false;
-      noDateFilter = syncWindowHoursOrOptions.noDateFilter || false;
-    }
+    const syncOptions = parseGmailSyncOptions(syncWindowHoursOrOptions);
 
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) return;
@@ -298,7 +329,13 @@ export class GmailProvider implements EmailProvider {
     // needsRelogin. Respect the grace period so a just-logged-in user whose
     // flag hasn't been cleared yet isn't skipped. Logged at debug so this
     // steady-state skip itself adds no production log volume. See #2218.
-    if (user.needsRelogin && !isRecentLogin) {
+    // A missing-scope flag skips even inside the grace window: that window is
+    // keyed off `updatedAt`, which unrelated user-row writes keep re-arming,
+    // and the stored grant can never succeed until the user re-consents.
+    if (
+      user.needsRelogin &&
+      (!isRecentLogin || isAwaitingScopeReconsent(user))
+    ) {
       this.logger.debug(
         `[GmailProvider] Skipping sync for user ${userId} — needsRelogin set (awaiting re-auth)`,
       );
@@ -331,12 +368,13 @@ export class GmailProvider implements EmailProvider {
 
     try {
       const isInitialSync = !user.lastEmailSyncAt;
-      await this.gmailSyncService.performSync(userId, gmail, isInitialSync, {
-        syncWindowHours,
-        providedThreadIds,
-        isContinuation,
-        noDateFilter,
-      });
+      await this.gmailSyncService.performSync(
+        userId,
+        gmail,
+        isInitialSync,
+        syncOptions,
+      );
+      await this.usersService.clearGmailAccessIssue(userId);
     } catch (error) {
       await this.gmailSyncService.handleSyncError(userId, user, error);
     } finally {
@@ -519,7 +557,7 @@ export class GmailProvider implements EmailProvider {
           }),
         );
         for (const parsed of parsedBatch) {
-          if (parsed) results.push(parsed);
+          if (parsed && !hasDraftLabel(parsed.labelIds)) results.push(parsed);
         }
       }
       return results;
@@ -543,8 +581,7 @@ export class GmailProvider implements EmailProvider {
         id: threadId,
         format: "full",
       });
-      const messages = threadResponse.data.messages || [];
-      return messages
+      return excludeGmailDrafts(threadResponse.data.messages)
         .slice(0, limit)
         .map((msg) => parseGmailMessage(msg))
         .filter((msg): msg is RawEmailMessage => msg !== null);
@@ -609,7 +646,8 @@ export class GmailProvider implements EmailProvider {
       }
 
       return allResults.filter(
-        (result): result is GmailSearchResult => result !== null,
+        (result): result is GmailSearchResult =>
+          result !== null && !hasDraftLabel(result.labelIds),
       );
     } catch (error) {
       await this.handleReadAuthError(userId, "Failed metadata search", error);
@@ -702,14 +740,18 @@ export class GmailProvider implements EmailProvider {
     await syncStarToGmail(userId, threadId, starCount, gmail);
   }
 
-  async syncReadStatusToGmail(
+  async syncReadStatus(
     userId: string,
-    messageId: string,
+    target: ReadStatusTarget,
     isRead: boolean,
   ): Promise<void> {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
-    await syncReadToGmail(userId, messageId, isRead, gmail);
+    if (isRead) {
+      await markThreadReadInGmail(target.threadId, gmail);
+      return;
+    }
+    await markMessageUnreadInGmail(target.messageId, gmail);
   }
 
   async snoozeThread(
@@ -771,23 +813,62 @@ export class GmailProvider implements EmailProvider {
         size: attachmentMetadata?.size || attachmentBuffer.length,
       };
     } catch (error) {
-      if (isGmailAuthError(error)) {
-        await this.usersService.markNeedsRelogin(
-          userId,
-          "gmail_attachment_auth_error",
-        );
-        this.logger.warn(
-          `getAttachment auth failure — flagged user ${userId} as needsRelogin: ${formatGaxiosError(error)}`,
-        );
-        throw new UnauthorizedException(
-          ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED,
-        );
-      }
-      this.logger.error(
-        `getAttachment failed for user ${userId} message ${messageId}: ${formatGaxiosError(error)}`,
-      );
-      throw error;
+      return this.rethrowMessageReadFailure(error, {
+        userId,
+        messageId,
+        operation: "getAttachment",
+        reloginReason: RELOGIN_REASONS.GMAIL_ATTACHMENT_AUTH_ERROR,
+      });
     }
+  }
+
+  async getRawMessage(userId: string, messageId: string): Promise<Buffer> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
+
+    try {
+      const response = await gmail.users.messages.get({
+        userId: "me",
+        id: messageId,
+        format: GMAIL_RAW_MESSAGE_FORMAT,
+      });
+      return decodeGmailRawMessage(response.data.raw);
+    } catch (error) {
+      return this.rethrowMessageReadFailure(error, {
+        userId,
+        messageId,
+        operation: "getRawMessage",
+        reloginReason: RELOGIN_REASONS.GMAIL_RAW_MESSAGE_AUTH_ERROR,
+      });
+    }
+  }
+
+  /**
+   * A dead or under-scoped grant can only be fixed by reconnecting, so flag the
+   * user for relogin and surface a 401; anything else is rethrown as-is. Logs
+   * only ids and the API error — never message content.
+   */
+  private async rethrowMessageReadFailure(
+    error: unknown,
+    context: {
+      userId: string;
+      messageId: string;
+      operation: string;
+      reloginReason: string;
+    },
+  ): Promise<never> {
+    const { userId, messageId, operation, reloginReason } = context;
+    if (isGmailAuthError(error)) {
+      await this.usersService.markNeedsRelogin(userId, reloginReason);
+      this.logger.warn(
+        `${operation} auth failure — flagged user ${userId} as needsRelogin: ${formatGaxiosError(error)}`,
+      );
+      throw new UnauthorizedException(ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED);
+    }
+    this.logger.error(
+      `${operation} failed for user ${userId} message ${messageId}: ${formatGaxiosError(error)}`,
+    );
+    throw error;
   }
 
   async lookupByGmailUrlId(

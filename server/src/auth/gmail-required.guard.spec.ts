@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 
 import { AppleMailAccountsService } from "../apple-mail-accounts/apple-mail-accounts.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { ImapAccountsService } from "../imap-accounts/imap-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
@@ -29,6 +30,9 @@ describe("EmailAccountRequiredGuard", () => {
   const mockAppleMailAccountsService = {
     hasConnectedAppleMail: jest.fn(),
   };
+  const mockImapAccountsService = {
+    hasConnectedImap: jest.fn().mockResolvedValue(false),
+  };
 
   const mockUsersService = {
     findOne: jest.fn(),
@@ -54,6 +58,10 @@ describe("EmailAccountRequiredGuard", () => {
         {
           provide: AppleMailAccountsService,
           useValue: mockAppleMailAccountsService,
+        },
+        {
+          provide: ImapAccountsService,
+          useValue: mockImapAccountsService,
         },
         {
           provide: UsersService,

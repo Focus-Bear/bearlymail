@@ -1,6 +1,7 @@
 import type { Logger } from "@nestjs/common";
 import type { Repository } from "typeorm";
 
+import { withRuleIdMarker } from "../category-rules/category-rule-explanation.helper";
 import type { CategoryRulesService } from "../category-rules/category-rules.service";
 import type { CategoryRuleTraceSnapshot } from "../category-rules/category-rules.types";
 import type { AiDecisionProvider } from "../constants/ai-decision-provider.constants";
@@ -185,6 +186,7 @@ export async function recategoriseFromSummary(
     await applyRuleCategory(deps, args, emailThreadId, decidedAt, {
       categoryId: match.categoryId,
       categoryName: match.categoryName,
+      ruleId: match.ruleId,
       snapshot,
     });
     return;
@@ -202,6 +204,7 @@ async function applyRuleCategory(
   rule: {
     categoryId: string;
     categoryName: string;
+    ruleId: string;
     snapshot: CategoryRuleTraceSnapshot | null | undefined;
   },
 ): Promise<void> {
@@ -217,12 +220,16 @@ async function applyRuleCategory(
       categoryId: rule.categoryId,
       finalCategory: rule.categoryName,
       protoCategoryId: null,
-      resolvedCategoryExplanation: `Incremental re-categorisation: deterministic rule matched "${rule.categoryName}".`,
+      resolvedCategoryExplanation: withRuleIdMarker(
+        `Incremental re-categorisation: deterministic rule matched "${rule.categoryName}".`,
+        rule.ruleId,
+      ),
       decisionTrace: incrementalRuleTrace({
         decidedAt,
         email,
         categoryName: rule.categoryName,
         categoryId: rule.categoryId,
+        ruleId: rule.ruleId,
       }),
     },
   );

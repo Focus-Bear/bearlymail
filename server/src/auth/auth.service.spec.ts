@@ -12,7 +12,7 @@ import { EmailBacklogService } from "../emails/email-backlog.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
-import { AuthService } from "./auth.service";
+import { AuthService, verifiedMicrosoftSignInEmail } from "./auth.service";
 import { TotpService } from "./totp.service";
 
 jest.mock("bcrypt");
@@ -31,6 +31,7 @@ describe("AuthService", () => {
   let emailBacklogService: jest.Mocked<EmailBacklogService>;
   let totpService: jest.Mocked<TotpService>;
   let captureEvent: jest.Mock;
+  let ensurePersonalOrg: jest.Mock;
 
   const mockUser: User = {
     id: "user-1",
@@ -90,9 +91,8 @@ describe("AuthService", () => {
 
     captureEvent = jest.fn();
 
-    const mockOrganizationsService = {
-      ensurePersonalOrg: jest.fn().mockResolvedValue({ id: "org-1" }),
-    };
+    ensurePersonalOrg = jest.fn().mockResolvedValue({ id: "org-1" });
+    const mockOrganizationsService = { ensurePersonalOrg };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -157,6 +157,24 @@ describe("AuthService", () => {
         "password",
         "hashed-password",
       );
+    });
+
+    it("should provision a personal org on a successful password login", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await service.validateUser("test@example.com", "password");
+
+      expect(ensurePersonalOrg).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    it("should not provision an org when the password is wrong", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await service.validateUser("test@example.com", "wrong");
+
+      expect(ensurePersonalOrg).not.toHaveBeenCalled();
     });
 
     it("should return null when user is not found and no deleted account record", async () => {
@@ -385,6 +403,61 @@ describe("AuthService", () => {
       expect(result).toBeDefined();
     });
 
+    it("records the granted scopes and clears a stale Gmail access issue on a fresh grant", async () => {
+      const grantedScopes = "email profile gmail-scopes";
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      usersService.update.mockResolvedValue(mockUser);
+      usersService.findOne.mockResolvedValue(mockUser);
+
+      await service.validateGoogleUser(
+        mockProfile,
+        "access-token",
+        "refresh-token",
+        grantedScopes,
+      );
+
+      expect(usersService.update).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.objectContaining({
+          googleGrantedScopes: grantedScopes,
+          gmailAccessIssue: null,
+          gmailAccessIssueAt: null,
+        }),
+      );
+    });
+
+    it("records the granted scopes on a new Google account", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.create.mockResolvedValue(mockUser);
+
+      await service.validateGoogleUser(
+        mockProfile,
+        "access-token",
+        "refresh-token",
+        "email profile",
+      );
+
+      expect(usersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ googleGrantedScopes: "email profile" }),
+      );
+    });
+
+    it("keeps the known grant and Gmail access issue when Google sends neither scopes nor a refresh token", async () => {
+      const userWithToken = {
+        ...mockUser,
+        googleCalendarRefreshToken: "existing-refresh-token",
+      };
+      usersService.findByEmail.mockResolvedValue(userWithToken);
+      usersService.update.mockResolvedValue(userWithToken);
+      usersService.findOne.mockResolvedValue(userWithToken);
+
+      await service.validateGoogleUser(mockProfile, "access-token", "");
+
+      const updates = usersService.update.mock.calls[0][1];
+      expect(updates).not.toHaveProperty("googleGrantedScopes");
+      expect(updates).not.toHaveProperty("gmailAccessIssue");
+    });
+
     it("should preserve existing refresh token when new one is not provided", async () => {
       const userWithToken = {
         ...mockUser,
@@ -481,7 +554,11 @@ describe("AuthService", () => {
       emails: [{ value: "test@example.com" }],
       displayName: "Test User",
     };
-    const microsoftProfile = { id: "ms-id-1", mail: "test@example.com" };
+    const microsoftProfile = {
+      id: "ms-id-1",
+      mail: "test@example.com",
+      userPrincipalName: "test@example.com",
+    };
     const zohoProfile = { ZUID: "zuid-1", Email: "test@example.com" };
 
     const expectRegistered = (method: string) =>
@@ -531,6 +608,45 @@ describe("AuthService", () => {
       );
       await service.validateZohoUser(zohoProfile, "access", "refresh");
       expect(captureEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Microsoft sign-in identity (nOAuth)", () => {
+    it("never matches an account by the tenant-controlled mail attribute", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.create.mockResolvedValue(mockUser);
+      usersService.findOne.mockResolvedValue(mockUser);
+
+      await service
+        .validateMicrosoftUser(
+          {
+            id: "attacker-oid",
+            mail: "victim@company.com",
+            userPrincipalName: "attacker@evil.onmicrosoft.com",
+          },
+          "access",
+          "refresh",
+        )
+        .catch(() => undefined);
+
+      expect(usersService.findByEmail).not.toHaveBeenCalledWith(
+        "victim@company.com",
+      );
+      expect(usersService.findByEmail).toHaveBeenCalledWith(
+        "attacker@evil.onmicrosoft.com",
+      );
+    });
+
+    it("refuses a guest UPN or a profile with only a mail attribute", () => {
+      expect(() =>
+        verifiedMicrosoftSignInEmail({
+          userPrincipalName: "victim_company.com#EXT#@evil.onmicrosoft.com",
+        }),
+      ).toThrow();
+      expect(() => verifiedMicrosoftSignInEmail({})).toThrow();
+      expect(
+        verifiedMicrosoftSignInEmail({ userPrincipalName: "me@contoso.com" }),
+      ).toBe("me@contoso.com");
     });
   });
 
@@ -638,6 +754,23 @@ describe("AuthService", () => {
       );
       expect(result.access_token).toBe("jwt-token");
       expect(result.user.id).toBe("new-user");
+      expect(ensurePersonalOrg).toHaveBeenCalledWith("new-user");
+    });
+
+    it("should still sign the user in when org provisioning fails", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      const createdUser = { ...mockUser, id: "new-user", isApproved: true };
+      usersService.create.mockResolvedValue(createdUser);
+      usersService.findOne.mockResolvedValue(createdUser);
+      jwtService.sign.mockReturnValue("jwt-token");
+      ensurePersonalOrg.mockRejectedValueOnce(new Error("db down"));
+
+      const result = await service.register(
+        "new@example.com",
+        "a-strong-password",
+      );
+
+      expect(result.access_token).toBe("jwt-token");
     });
 
     it("should reject a password shorter than the minimum length", async () => {

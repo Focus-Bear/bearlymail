@@ -14,6 +14,7 @@ import {
 } from "../emails/interfaces/email-provider.interface";
 import { AppleMailProvider } from "../emails/providers/apple-mail.provider";
 import { GmailProvider } from "../emails/providers/gmail.provider";
+import { excludeGmailDrafts } from "../emails/providers/gmail/gmail-message-parser";
 import {
   formatGaxiosError,
   getErrorMessage,
@@ -51,6 +52,10 @@ export interface ThreadData {
 
 export interface SentEmailData {
   id: string;
+  /** Provider thread id; pairs a reply with the message it answered. */
+  threadId: string;
+  /** The user's sending address (or alias) for this message. */
+  from: string;
   body: string;
   htmlBody?: string;
   subject: string;
@@ -106,7 +111,7 @@ export class ContextEmailDataService {
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
     if (!provider) {
       throw new Error(
-        "No email provider connected - please connect Gmail, Office365, or Zoho",
+        "No email provider connected - please connect Gmail, Office365, Zoho, or an IMAP mailbox",
       );
     }
     return provider;
@@ -624,7 +629,7 @@ export class ContextEmailDataService {
         id: threadId,
         format: "full",
       });
-      const messages = threadResponse.data.messages || [];
+      const messages = excludeGmailDrafts(threadResponse.data.messages);
       if (messages.length === 0) {
         return null;
       }
@@ -751,8 +756,7 @@ export class ContextEmailDataService {
         id: threadId,
         format: "full",
       });
-      const thread = threadResponse.data;
-      const messages = thread.messages || [];
+      const messages = excludeGmailDrafts(threadResponse.data.messages);
       if (messages.length === 0) {
         return null;
       }
@@ -1048,6 +1052,8 @@ export class ContextEmailDataService {
     }
     const limitedSentEmails = filtered.slice(0, limit).map((msg) => ({
       id: msg.messageId,
+      threadId: msg.threadId,
+      from: msg.from,
       body: msg.body,
       htmlBody: msg.htmlBody,
       subject: msg.subject,

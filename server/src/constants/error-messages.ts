@@ -4,6 +4,7 @@ export const ERROR_MESSAGES = {
   THREAD_NOT_FOUND: "Thread not found",
   CONTACT_NOT_FOUND: "Contact not found",
   DEAL_NOT_FOUND: "Deal not found",
+  DEAL_NOTE_NOT_FOUND: "Deal note not found",
   FOLLOW_UP_NOT_FOUND: "Follow-up not found",
   GOOGLE_ACCOUNT_NOT_FOUND: "Google account not found",
   OFFICE365_ACCOUNT_NOT_FOUND: "Office 365 account not found",
@@ -24,6 +25,12 @@ export const ERROR_MESSAGES = {
   FAILED_TO_SEND_EMAIL: "Failed to send email",
   GMAIL_RECONNECT_REQUIRED:
     "Gmail authorisation has expired. Please reconnect your account.",
+  RAW_MESSAGE_UNSUPPORTED:
+    "Downloading the original message isn't supported for this email provider yet",
+  RAW_MESSAGE_NOT_FOUND:
+    "The original message is no longer available from your email provider",
+  TERMS_NOT_ACCEPTED:
+    "Accept the Terms of Use before BearlyMail reads your email",
 } as const;
 
 export type ErrorMessage = (typeof ERROR_MESSAGES)[keyof typeof ERROR_MESSAGES];

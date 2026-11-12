@@ -11,6 +11,7 @@ import {
   NODE_ENV_VALUES,
 } from "../constants/domain-types";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { ImapAccountsService } from "../imap-accounts/imap-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
@@ -23,6 +24,7 @@ export class EmailAccountRequiredGuard implements CanActivate {
     private office365AccountsService: Office365AccountsService,
     private zohoAccountsService: ZohoAccountsService,
     private appleMailAccountsService: AppleMailAccountsService,
+    private imapAccountsService: ImapAccountsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -60,12 +62,13 @@ export class EmailAccountRequiredGuard implements CanActivate {
     }
 
     // Check all supported email providers
-    const [hasGmailAccounts, hasOffice365, hasZoho, hasAppleMail] =
+    const [hasGmailAccounts, hasOffice365, hasZoho, hasAppleMail, hasImap] =
       await Promise.all([
         this.googleAccountsService.hasConnectedGmail(userId),
         this.office365AccountsService.hasConnectedOffice365(userId),
         this.zohoAccountsService.hasConnectedZoho(userId),
         this.appleMailAccountsService.hasConnectedAppleMail(userId),
+        this.imapAccountsService.hasConnectedImap(userId),
       ]);
 
     // Also check legacy: if user has tokens directly on User entity
@@ -77,10 +80,11 @@ export class EmailAccountRequiredGuard implements CanActivate {
       !hasLegacyGmail &&
       !hasOffice365 &&
       !hasZoho &&
-      !hasAppleMail
+      !hasAppleMail &&
+      !hasImap
     ) {
       throw new UnauthorizedException(
-        "Email account connection required. Please connect Gmail, Outlook, Zoho, or Apple Mail to continue.",
+        "Email account connection required. Please connect Gmail, Outlook, Zoho, Apple Mail, or another mailbox (IMAP) to continue.",
       );
     }
 

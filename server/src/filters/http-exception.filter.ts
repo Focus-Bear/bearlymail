@@ -16,6 +16,32 @@ import { logErrorToFile } from "../utils/error-logger";
 
 const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
 
+/** Fields the filter writes itself; an exception body can't override them. */
+const RESPONSE_ENVELOPE_KEYS = new Set([
+  "statusCode",
+  "timestamp",
+  "path",
+  "message",
+  "error",
+]);
+
+/**
+ * Structured fields on a client-error body (`requiresPassword`, `code`,
+ * `failure`, ...) are part of the API contract: the client's step-up flow,
+ * AI-limit banner and plan gates branch on them. Server errors expose none.
+ */
+function clientErrorDetails(
+  status: number,
+  body: string | object,
+): Record<string, unknown> {
+  if (status >= HttpStatus.INTERNAL_SERVER_ERROR || typeof body !== "object") {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(body).filter(([key]) => !RESPONSE_ENVELOPE_KEYS.has(key)),
+  );
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -108,7 +134,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       ) {
         return String((message as { message?: unknown }).message);
       }
-      return message;
+      // e.g. new UnauthorizedException({ requiresPassword: true }): the body's
+      // fields go out as details below, and the exception's own text as message.
+      return exception instanceof Error ? exception.message : message;
     })();
 
     const sanitizedMessage =
@@ -125,6 +153,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : undefined;
 
     response.status(status).json({
+      ...clientErrorDetails(status, message),
       statusCode: status,
       timestamp: errorDetails.timestamp,
       path: request.url,

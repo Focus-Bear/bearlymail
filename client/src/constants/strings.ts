@@ -168,9 +168,21 @@ export const ERROR_CODE_ERR_NETWORK = 'ERR_NETWORK' as const;
 export const ERROR_GMAIL_REQUIRED = 'Gmail account connection required' as const;
 export const ERROR_GMAIL = 'Gmail' as const;
 export const ERROR_CODE_GMAIL_REQUIRED = 'GMAIL_REQUIRED' as const;
+/** Error code the server's mailbox-required guard sends (with a 403) when no email account is connected. */
+export const ERROR_CODE_EMAIL_PROVIDER_REQUIRED = 'EMAIL_PROVIDER_REQUIRED' as const;
 
 // API endpoints
 export const API_ENDPOINT_USERS_ME = '/users/me' as const;
+/** POST: imports the next batch of older inbox mail ("process another 500"). */
+export const API_ENDPOINT_IMPORT_OLDER_EMAILS = '/emails/import-older' as const;
+
+/** Result statuses of API_ENDPOINT_IMPORT_OLDER_EMAILS — mirrors the server's IMPORT_OLDER_STATUS. */
+export const IMPORT_OLDER_STATUS = {
+  QUEUED: 'queued',
+  NOTHING_OLDER: 'nothing-older',
+  UNSUPPORTED: 'unsupported',
+} as const;
+export type ImportOlderStatus = (typeof IMPORT_OLDER_STATUS)[keyof typeof IMPORT_OLDER_STATUS];
 
 // Error codes returned by the API
 export const AI_VOLUME_LIMIT_REACHED_CODE = 'AI_VOLUME_LIMIT_REACHED' as const;
@@ -214,6 +226,8 @@ export const CONTEXT_KEY_Q_AND_A = 'Q_AND_A' as const;
 
 // Context explanation keys
 export const CONTEXT_EXPLANATION_VIP_CONTACT_STARRED = 'vipContactStarredExplanation' as const;
+/** Saved by onboarding discovery when it has no real reason. Marks the source; never shown as a reason. */
+export const CONTEXT_EXPLANATION_EMAIL_ANALYSIS = 'email_analysis' as const;
 
 // Context source additional values
 export const CONTEXT_SOURCE_USER_EDITED = 'USER_EDITED' as const;
@@ -270,6 +284,7 @@ export const PROVIDER_GMAIL = 'gmail' as const;
 export const PROVIDER_OFFICE365 = 'office365' as const;
 export const PROVIDER_ZOHO = 'zoho' as const;
 export const PROVIDER_APPLE_MAIL = 'apple-mail' as const;
+export const PROVIDER_IMAP = 'imap' as const;
 export const PROVIDER_OUTLOOK = 'outlook' as const;
 export const PROVIDER_GOOGLE = 'google' as const;
 export const PROVIDER_MICROSOFT = 'microsoft' as const;
@@ -330,6 +345,10 @@ export const SUMMARY_SOURCE_DETERMINISTIC = 'deterministic' as const;
 
 // DOM events
 export const EVENT_CLICK = 'click' as const;
+export const EVENT_LOAD = 'load' as const;
+export const EVENT_ERROR = 'error' as const;
+/** `FontFaceSet` event fired when a batch of web fonts finishes loading. */
+export const EVENT_FONTS_LOADING_DONE = 'loadingdone' as const;
 
 // Priority levels
 export const PRIORITY_LEVEL_HIGH = 'high' as const;
@@ -371,7 +390,35 @@ export const SCROLL_BLOCK_START = 'start' as const;
 // Auth Error Types
 export const ERROR_TYPE_PENDING_APPROVAL = 'pending_approval' as const;
 export const ERROR_TYPE_NOT_ON_WAITLIST = 'not_on_waitlist' as const;
+export const ERROR_TYPE_MISSING_GMAIL_PERMISSION = 'missing_gmail_permission' as const;
 export const ERROR_TYPE_AUTH_ERROR = 'auth_error' as const;
+
+// Why the server can't read the user's Gmail (server GMAIL_ACCESS_ISSUE values)
+export const GMAIL_ACCESS_ISSUE_MISSING = 'gmail_access_missing' as const;
+export const GMAIL_ACCESS_ISSUE_REVOKED = 'gmail_access_revoked' as const;
+export type GmailAccessIssue = typeof GMAIL_ACCESS_ISSUE_MISSING | typeof GMAIL_ACCESS_ISSUE_REVOKED;
+
+// Checkbox groups on Google's consent screen (server GOOGLE_PERMISSION_GROUP values)
+export const GOOGLE_PERMISSION_GMAIL = 'gmail' as const;
+export const GOOGLE_PERMISSION_CALENDAR = 'calendar' as const;
+export const GOOGLE_PERMISSION_CONTACTS = 'contacts' as const;
+export type GooglePermissionGroup =
+  | typeof GOOGLE_PERMISSION_GMAIL
+  | typeof GOOGLE_PERMISSION_CALENDAR
+  | typeof GOOGLE_PERMISSION_CONTACTS;
+
+// Server path that starts Google sign-in (always with the consent screen forced)
+export const GOOGLE_OAUTH_START_PATH = '/auth/google';
+
+// Sign-in only asks for Gmail; these are granted later, from the feature that needs them
+export type IncrementalGooglePermissionGroup = typeof GOOGLE_PERMISSION_CALENDAR | typeof GOOGLE_PERMISSION_CONTACTS;
+// Server path returning the Google consent URL for one more permission group
+export const GOOGLE_PERMISSION_URL_PATH = '/auth/google/permission-url';
+// Query parameter (and values) the server adds when a grant returns to the app
+export const GOOGLE_PERMISSION_RESULT_PARAM = 'googlePermission';
+export const GOOGLE_PERMISSION_RESULT_GRANTED = 'granted' as const;
+export const GOOGLE_PERMISSION_RESULT_DECLINED = 'declined' as const;
+export const GOOGLE_PERMISSION_RESULT_WRONG_ACCOUNT = 'wrong_account' as const;
 
 // Deletion reasons (must match server DeletionReason enum)
 export const DELETION_REASON_INACTIVITY = 'inactivity' as const;

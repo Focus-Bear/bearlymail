@@ -163,18 +163,18 @@ textarea {
   animation: poof 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* Priority out: email slides right toward the Action tab */
+/* Priority out: the row fades in place while a copy of it flies to the Action tab (useActionMoveFeedback) */
 @keyframes priorityOut {
   0% {
     transform: translateX(0) scale(1);
     opacity: 1;
   }
   15% {
-    transform: translateX(-12px) scale(0.97);
+    transform: translateX(0) scale(0.98);
     opacity: 1;
   }
   100% {
-    transform: translateX(80vw) translateY(-20px) scale(0.6);
+    transform: translateX(0) scale(0.94);
     opacity: 0;
   }
 }
@@ -309,6 +309,116 @@ textarea {
   transform-origin: center;
 }
 
+/* First prioritise: the Action tab bounces and glows three times so the move can't be missed.
+ * Colours are the Sunray primary (#E9902C). */
+@keyframes tabBounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 0 rgba(233, 144, 44, 0);
+  }
+  20% {
+    transform: translateY(-6px) scale(1.14);
+    box-shadow: 0 0 0 8px rgba(233, 144, 44, 0.45);
+  }
+  40% {
+    transform: translateY(0) scale(0.97);
+  }
+  60% {
+    transform: translateY(-3px) scale(1.06);
+    box-shadow: 0 0 0 16px rgba(233, 144, 44, 0);
+  }
+}
+
+.animate-tab-bounce {
+  animation: tabBounce 900ms cubic-bezier(0.3, 0.7, 0.4, 1) 3;
+  transform-origin: center bottom;
+}
+
+/* "+N" badge on the Action tab: emails moved there since the user last opened it */
+@keyframes badgePop {
+  0% {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.action-tab-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e9902c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #fff;
+  pointer-events: none;
+  animation: badgePop 300ms ease-out;
+}
+
+/* Copy of a prioritised email that flies from its row to the Action tab */
+.action-move-ghost {
+  box-sizing: border-box;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: #fffcf6;
+  border: 1px solid #e9902c;
+  color: #0b0b0b;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.action-move-ghost--first-time {
+  border-width: 2px;
+  box-shadow:
+    0 0 0 6px rgba(233, 144, 44, 0.35),
+    0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes actionMoveToastRise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.action-move-toast {
+  animation: actionMoveToastRise 250ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-tab-pulse,
+  .animate-tab-bounce,
+  .action-tab-badge,
+  .action-move-toast {
+    animation: none;
+  }
+}
+
 /* Subtle pulsing affordance around the AI-recommended action (star count or
  * archive). Apply the .animate-recommended-pulse class to every email's
  * recommended button; CSS picks one to actually animate at any given time:
@@ -347,12 +457,13 @@ textarea {
   animation-play-state: paused;
 }
 
-/* Inbox email-card actions row (EmailActionsRow): keep Snooze/Archive/⋮ on the
- * same line as the PRIORITY pills at every card width. The row is a size
- * container; when it's too narrow for the labelled buttons, hide the button
- * text (.email-action-label) so the actions collapse to icons instead of
- * wrapping below the pills box. The buttons' title attributes keep the labels
- * available as tooltips.
+/* Inbox email-card actions row (EmailActionsRow). The row is a size container.
+ * On desktop Snooze/Archive are always labelled buttons and wrap below the
+ * PRIORITY pills when the card is too narrow (the split view) — bare icons
+ * there were too small and unclear. On mobile the row carries
+ * .email-actions-row--collapsible, and when it's too narrow the button text
+ * (.email-action-label) is hidden so the actions collapse to icons; the
+ * buttons' title attributes keep the labels available as tooltips.
  *
  * Measured fits (Chrome): pills box ~385-412px, labelled actions ~200-213px,
  * so the labelled row needs ~630px; icon-only needs ~560px; the compact tier
@@ -373,7 +484,7 @@ textarea {
 }
 
 @container email-actions (max-width: 640px) {
-  .email-action-label {
+  .email-actions-row--collapsible .email-action-label {
     display: none;
   }
 }

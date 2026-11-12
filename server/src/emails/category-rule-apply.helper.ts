@@ -1,3 +1,4 @@
+import { withRuleIdMarker } from "../category-rules/category-rule-explanation.helper";
 import type {
   CategoryRuleMatch,
   CategoryRuleTraceSnapshot,
@@ -34,7 +35,10 @@ export function applyCategoryRuleToResult(
     // after the rule was created — the rule matches but files to Other).
     result.ruleCategoryId = match.categoryId;
     const kindOrType = match.ruleType ?? match.ruleKind;
-    result.categoryExplanation = `Matched deterministic rule (${kindOrType}): category="${match.categoryName}" (rule:${match.ruleId})`;
+    result.categoryExplanation = withRuleIdMarker(
+      `Matched deterministic rule (${kindOrType}): category="${match.categoryName}"`,
+      match.ruleId,
+    );
   }
   result.categoryRuleTrace = snapshot;
 }

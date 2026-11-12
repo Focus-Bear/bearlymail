@@ -31,6 +31,8 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
     <div
       style={{
         display: 'flex',
+        flexWrap: 'wrap',
+        gap: theme.spacing.sm,
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         marginBottom: theme.spacing.xs,

@@ -1,11 +1,17 @@
-import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import type { PgBoss } from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
-import { JOB_NAMES } from "../constants/job-names";
+import { JOB_NAMES, type JobName } from "../constants/job-names";
 import {
   DAYS,
   HOURS,
@@ -13,13 +19,18 @@ import {
   MS_PER_SECOND,
   SECONDS,
 } from "../constants/time-constants";
+import { OnboardingAnalysisStartService } from "../context/onboarding-analysis-start.service";
+import type { User } from "../database/entities/user.entity";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
 import { registerWorker } from "../queue/register-worker";
+import { hasEmailProcessingConsent } from "../users/email-processing-consent";
 import { UsersService } from "../users/users.service";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import type { FetchUserEmailsJobData } from "./fetch-user-emails-job.types";
 import { GmailProvider } from "./providers/gmail.provider";
 
 @Injectable()
@@ -36,6 +47,9 @@ export class EmailSyncProcessor implements OnModuleInit {
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,
     private readonly userEncryptionService: UserEncryptionService,
+    // EmailsModule and ContextModule import each other.
+    @Inject(forwardRef(() => OnboardingAnalysisStartService))
+    private readonly onboardingAnalysisStartService: OnboardingAnalysisStartService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -107,7 +121,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         this.logger.log("Starting email fetch job scheduling (5-minute check)");
         try {
           tracker.startPhase("fetchUsers");
-          const users = await this.usersService.findAll();
+          const users = await this.findUsersConsentedToSync();
           tracker.endPhase("fetchUsers");
           tracker.startPhase("queueJobs");
 
@@ -145,7 +159,7 @@ export class EmailSyncProcessor implements OnModuleInit {
                       false,
                     ),
                     // Scheduled fetch = medium priority
-                    singletonKey: `fetch-user-emails-${user.id}`,
+                    singletonKey: fetchUserEmailsJobKey(user.id),
                     // Don't allow another fetch for same user within 5 minutes
                     singletonSeconds: SECONDS.FIVE_MINUTES,
                   },
@@ -189,13 +203,13 @@ export class EmailSyncProcessor implements OnModuleInit {
         teamSize: this.syncConcurrency,
       } as { teamSize: number },
       async (job) => {
-        const { userId, threadIds, isContinuation, syncWindowHours } =
-          job.data as {
-            userId: string;
-            threadIds?: string[];
-            isContinuation?: boolean;
-            syncWindowHours?: number;
-          };
+        const {
+          userId,
+          threadIds,
+          isContinuation,
+          syncWindowHours,
+          isBackfill,
+        } = job.data as FetchUserEmailsJobData;
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(
           JOB_NAMES.FETCH_USER_EMAILS,
@@ -209,6 +223,16 @@ export class EmailSyncProcessor implements OnModuleInit {
         });
 
         const continuationLabel = isContinuation ? " (continuation)" : "";
+        if (
+          !(await this.isMailboxAccessAllowed(
+            userId,
+            workerId,
+            JOB_NAMES.FETCH_USER_EMAILS,
+          ))
+        ) {
+          tracker.finish();
+          return;
+        }
         this.logger.log(
           `[Worker ${workerId}] Starting email fetch${continuationLabel} for user ${userId}${threadIds ? ` (${threadIds.length} threads)` : ""}`,
         );
@@ -221,8 +245,10 @@ export class EmailSyncProcessor implements OnModuleInit {
                 threadIds,
                 isContinuation: true,
                 syncWindowHours,
+                isBackfill,
               });
             } else {
+              await this.startOnboardingAnalysisIfConnected(userId);
               // Normal sync - use provider manager for all connected providers
               await this.emailProviderManager.syncAllProviders(
                 userId,
@@ -257,6 +283,54 @@ export class EmailSyncProcessor implements OnModuleInit {
     );
   }
 
+  /**
+   * Users who may be synced on a schedule. A user still on the first
+   * onboarding step hasn't accepted the terms, so the crons leave their
+   * mailbox alone until they do.
+   */
+  private async findUsersConsentedToSync(): Promise<User[]> {
+    const users = await this.usersService.findAll();
+    return users.filter((user) => hasEmailProcessingConsent(user));
+  }
+
+  /**
+   * Every path that enqueues a sync (login, connecting a mailbox, the crons,
+   * "check now") ends up here, so this is where reading a mailbox before the
+   * terms are accepted is refused. A refused job completes without retrying;
+   * accepting the terms queues the first sync (UsersService.acceptConsent).
+   */
+  private async isMailboxAccessAllowed(
+    userId: string,
+    workerId: string,
+    jobName: JobName,
+  ): Promise<boolean> {
+    if (await this.usersService.hasEmailProcessingConsent(userId)) {
+      return true;
+    }
+    this.logger.log(
+      `[Worker ${workerId}] Skipping ${jobName} for user ${userId}: terms not accepted yet`,
+    );
+    return false;
+  }
+
+  /**
+   * A new user's first sync is the moment their mailbox is connected, so
+   * start the onboarding analysis now, in parallel with the import, rather
+   * than when the setup wizard reaches its learning step. The service only
+   * acts for users still onboarding whose first import hasn't run, and never
+   * throws. The connect flow's earlier login sync has no mailbox yet, so the
+   * provider check keeps it from starting an analysis of an empty inbox.
+   */
+  private async startOnboardingAnalysisIfConnected(
+    userId: string,
+  ): Promise<void> {
+    await this.onboardingAnalysisStartService.startForNewMailbox(
+      userId,
+      async () =>
+        (await this.emailProviderManager.getPrimaryProvider(userId)) !== null,
+    );
+  }
+
   // Worker for scheduling extended email fetch jobs (every 2 hours) - fetches ALL inbox emails (no date filter)
   private async registerExtendedFetchSchedulerWorker(): Promise<void> {
     await registerWorker(
@@ -275,7 +349,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         );
         try {
           tracker.startPhase("fetchUsers");
-          const users = await this.usersService.findAll();
+          const users = await this.findUsersConsentedToSync();
           tracker.endPhase("fetchUsers");
           tracker.startPhase("queueJobs");
 
@@ -352,6 +426,16 @@ export class EmailSyncProcessor implements OnModuleInit {
           this.cloudWatchService,
         );
         tracker.setMetadata({ userId });
+        if (
+          !(await this.isMailboxAccessAllowed(
+            userId,
+            workerId,
+            JOB_NAMES.FETCH_USER_EMAILS_EXTENDED,
+          ))
+        ) {
+          tracker.finish();
+          return;
+        }
 
         this.logger.log(
           `[Worker ${workerId}] Starting extended email fetch (${noDateFilter ? "full sync window" : `${syncWindowHours ?? HOURS.TWO_DAYS}h`}) for user ${userId}`,
@@ -405,7 +489,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         );
         try {
           tracker.startPhase("fetchUsers");
-          const users = await this.usersService.findAll();
+          const users = await this.findUsersConsentedToSync();
           tracker.endPhase("fetchUsers");
           tracker.startPhase("queueJobs");
 
@@ -498,6 +582,16 @@ export class EmailSyncProcessor implements OnModuleInit {
     // Keep 'sync-gmail' for backwards compatibility, but route to new system
     await registerWorker(this.boss, JOB_NAMES.SYNC_GMAIL, async (job) => {
       const { userId } = job.data as { userId: string };
+      const workerId = job.id || "unknown";
+      if (
+        !(await this.isMailboxAccessAllowed(
+          userId,
+          workerId,
+          JOB_NAMES.SYNC_GMAIL,
+        ))
+      ) {
+        return;
+      }
       this.logger.debug(
         `Starting background email sync for user ${userId} (legacy route)`,
       );
@@ -565,6 +659,16 @@ export class EmailSyncProcessor implements OnModuleInit {
           this.cloudWatchService,
         );
         tracker.setMetadata({ userId });
+        if (
+          !(await this.isMailboxAccessAllowed(
+            userId,
+            workerId,
+            JOB_NAMES.SCAN_HISTORY,
+          ))
+        ) {
+          tracker.finish();
+          return;
+        }
 
         this.logger.log(
           `[Worker ${workerId}] Starting historical email scan for user ${userId}`,

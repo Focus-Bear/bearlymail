@@ -917,6 +917,38 @@ describe("SubscriptionsService", () => {
 
   // ─── checkAiCapacity ──────────────────────────────────────────────────────────
 
+  describe("hasCrmAccess", () => {
+    const membershipWith = (organization: Partial<Organization>) =>
+      mockPartial<OrganizationMember>({
+        organizationId: "org-1",
+        organization: mockPartial<Organization>({
+          planStatus: ORG_PLAN_STATUS.ACTIVE,
+          trialEndsAt: null,
+          grandfatheredEmailTracking: false,
+          ...organization,
+        }),
+      });
+
+    it("fails open when the user has no active org membership", async () => {
+      memberRepository.findOne.mockResolvedValue(null);
+      await expect(service.hasCrmAccess("user-1")).resolves.toBe(true);
+    });
+
+    it("allows an active Growth org", async () => {
+      memberRepository.findOne.mockResolvedValue(
+        membershipWith({ volumeTierProductId: "bearlymail_growth" }),
+      );
+      await expect(service.hasCrmAccess("user-1")).resolves.toBe(true);
+    });
+
+    it("blocks an active Starter org", async () => {
+      memberRepository.findOne.mockResolvedValue(
+        membershipWith({ volumeTierProductId: "bearlymail_starter" }),
+      );
+      await expect(service.hasCrmAccess("user-1")).resolves.toBe(false);
+    });
+  });
+
   describe("checkAiCapacity", () => {
     it("fails open (allowed) when the user has no active org membership", async () => {
       memberRepository.findOne.mockResolvedValue(null);
@@ -1078,6 +1110,13 @@ describe("SubscriptionsService", () => {
       expect(orgRepository.increment).not.toHaveBeenCalled();
       expect(orgRepository.findOne).not.toHaveBeenCalled();
       expect(orgRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("hasCrmAccess allows without looking up the org", async () => {
+      await expect(selfHostedService.hasCrmAccess("user-1")).resolves.toBe(
+        true,
+      );
+      expect(memberRepository.findOne).not.toHaveBeenCalled();
     });
 
     it("trackEmailForUser returns null (no gate) without touching the org", async () => {
@@ -1522,6 +1561,7 @@ describe("SubscriptionsService", () => {
           emailsPerCycle: 3000,
           seats: 1,
           includesEmailTracking: false,
+          includesCrm: false,
         },
         {
           id: "bearlymail_growth",
@@ -1529,6 +1569,7 @@ describe("SubscriptionsService", () => {
           emailsPerCycle: 10000,
           seats: 1,
           includesEmailTracking: true,
+          includesCrm: true,
         },
         {
           id: "bearlymail_enterprise",
@@ -1536,6 +1577,7 @@ describe("SubscriptionsService", () => {
           emailsPerCycle: 30000,
           seats: 5,
           includesEmailTracking: true,
+          includesCrm: true,
         },
       ]);
     });

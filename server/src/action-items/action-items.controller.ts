@@ -12,8 +12,11 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { ActionItem } from "../database/entities/action-item.entity";
 import { ActionItemsService } from "./action-items.service";
+import {
+  CreateActionItemDto,
+  UpdateActionItemDto,
+} from "./dto/action-item.dto";
 
 @Controller("action-items")
 @UseGuards(JwtAuthGuard)
@@ -21,8 +24,15 @@ export class ActionItemsController {
   constructor(private readonly actionItemsService: ActionItemsService) {}
 
   @Post()
-  async create(@Request() req, @Body() body: Partial<ActionItem>) {
-    return this.actionItemsService.create(req.user.userId, body);
+  async create(@Request() req, @Body() body: CreateActionItemDto) {
+    const { description, isCompleted, source, emailId, emailThreadId } = body;
+    return this.actionItemsService.create(req.user.userId, {
+      description,
+      isCompleted,
+      source,
+      emailId,
+      emailThreadId,
+    });
   }
 
   @Get()
@@ -34,9 +44,13 @@ export class ActionItemsController {
   async update(
     @Request() req,
     @Param("id") id: string,
-    @Body() body: Partial<ActionItem>,
+    @Body() body: UpdateActionItemDto,
   ) {
-    return this.actionItemsService.update(req.user.userId, id, body);
+    const { description, isCompleted } = body;
+    return this.actionItemsService.update(req.user.userId, id, {
+      ...(description !== undefined && { description }),
+      ...(isCompleted !== undefined && { isCompleted }),
+    });
   }
 
   @Delete(":id")

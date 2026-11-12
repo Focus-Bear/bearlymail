@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import type { ImapAccountSummary } from 'types/imap-account.types';
 
 import { StepUpModal } from 'components/auth/StepUpModal';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { PROVIDER_APPLE_MAIL, PROVIDER_GMAIL, PROVIDER_GOOGLE, STRING_NONE } from 'constants/strings';
+import { PROVIDER_APPLE_MAIL, PROVIDER_GMAIL, PROVIDER_GOOGLE, PROVIDER_IMAP, STRING_NONE } from 'constants/strings';
 
 import {
   buildAllAccounts,
@@ -18,7 +19,9 @@ import {
   getProviderColor,
   getProviderName,
 } from './emailAccounts.helpers';
+import { ImapConnectModal } from './imap/ImapConnectModal';
 import { ProviderSelectionModal } from './ProviderSelectionModal';
+import { startOAuthConnect } from './startOAuthConnect';
 
 export type { EmailAccount } from './emailAccounts.helpers';
 
@@ -27,6 +30,7 @@ interface EmailAccountsSectionProps {
   office365Accounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
   zohoAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
   appleMailAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
+  imapAccounts: ImapAccountSummary[];
   appleMailAvailable: boolean;
   onFetchData: () => Promise<void>;
 }
@@ -38,9 +42,81 @@ interface EmailAccountRowProps {
   canDisconnect: boolean;
   onSetPrimary: (id: string, provider: EmailAccountProvider) => Promise<void>;
   onDisconnect: (id: string, provider: EmailAccountProvider) => Promise<void>;
+  onReconnect: (account: EmailAccount) => void;
 }
 
-const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, canDisconnect, onSetPrimary, onDisconnect }) => (
+const ReloginNotice: React.FC<{ t: (k: string) => string; onReconnect: () => void }> = ({ t, onReconnect }) => (
+  <div
+    style={{ color: theme.colors.accent.error, fontSize: theme.typography.fontSize.xs, marginTop: theme.spacing.xs }}
+  >
+    {t('settings.imap.needsRelogin')}{' '}
+    <button
+      onClick={onReconnect}
+      style={{
+        background: 'none',
+        border: STRING_NONE,
+        padding: 0,
+        color: theme.colors.primary.main,
+        cursor: 'pointer',
+        fontSize: theme.typography.fontSize.xs,
+      }}
+    >
+      {t('settings.imap.reconnect')}
+    </button>
+  </div>
+);
+
+const AccountBadges: React.FC<{ account: EmailAccount; t: (k: string) => string }> = ({ account, t }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
+    <span
+      style={{
+        fontSize: theme.typography.fontSize.xs,
+        color: COLOR_NAMED_WHITE,
+        backgroundColor: getProviderColor(account.provider),
+        padding: '2px 8px',
+        borderRadius: theme.borderRadius.sm,
+        fontWeight: theme.typography.fontWeight.medium,
+      }}
+    >
+      {getProviderName(account.provider)}
+    </span>
+    {account.isPrimary && (
+      <span
+        style={{
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.primary.main,
+          backgroundColor: `${theme.colors.primary.main}20`,
+          padding: '2px 6px',
+          borderRadius: theme.borderRadius.sm,
+        }}
+      >
+        {t('settings.gmail.primary')}
+      </span>
+    )}
+    {account.isSSO && (
+      <span
+        style={{
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.accent.info,
+          backgroundColor: `${theme.colors.accent.info}20`,
+          padding: '2px 6px',
+          borderRadius: theme.borderRadius.sm,
+        }}
+      >
+        {t('settings.gmail.ssoLogin')}
+      </span>
+    )}
+  </div>
+);
+
+const EmailAccountRow: React.FC<EmailAccountRowProps> = ({
+  account,
+  t,
+  canDisconnect,
+  onSetPrimary,
+  onDisconnect,
+  onReconnect,
+}) => (
   <div
     style={{
       padding: theme.spacing.md,
@@ -53,52 +129,14 @@ const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, canDiscon
     }}
   >
     <div style={{ flex: 1 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
-        <span
-          style={{
-            fontSize: theme.typography.fontSize.xs,
-            color: COLOR_NAMED_WHITE,
-            backgroundColor: getProviderColor(account.provider),
-            padding: '2px 8px',
-            borderRadius: theme.borderRadius.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
-        >
-          {getProviderName(account.provider)}
-        </span>
-        {account.isPrimary && (
-          <span
-            style={{
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.primary.main,
-              backgroundColor: `${theme.colors.primary.main}20`,
-              padding: '2px 6px',
-              borderRadius: theme.borderRadius.sm,
-            }}
-          >
-            {t('settings.gmail.primary')}
-          </span>
-        )}
-        {account.isSSO && (
-          <span
-            style={{
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.accent.info,
-              backgroundColor: `${theme.colors.accent.info}20`,
-              padding: '2px 6px',
-              borderRadius: theme.borderRadius.sm,
-            }}
-          >
-            {t('settings.gmail.ssoLogin')}
-          </span>
-        )}
-      </div>
+      <AccountBadges account={account} t={t} />
       <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
         {account.email}
       </div>
       {account.name && (
         <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{account.name}</div>
       )}
+      {account.needsRelogin && <ReloginNotice t={t} onReconnect={() => onReconnect(account)} />}
     </div>
     <div>
       {!account.isPrimary && !account.isSSO && (
@@ -168,6 +206,11 @@ const AccountsEmptyState: React.FC<AccountsEmptyStateProps> = ({ t, onConnect })
 interface UseEmailAccountHandlersParams {
   onFetchData: () => Promise<void>;
   t: (k: string) => string;
+}
+
+interface UseConnectHandlersParams extends UseEmailAccountHandlersParams {
+  /** IMAP has no OAuth redirect: it opens the credentials form instead. */
+  onConnectImap: () => void;
 }
 
 /**
@@ -255,8 +298,12 @@ function useStepUpDisconnect({ onFetchData, t }: UseEmailAccountHandlersParams) 
   };
 }
 
-function useEmailAccountHandlers({ onFetchData, t }: UseEmailAccountHandlersParams) {
+function useEmailAccountHandlers({ onFetchData, t, onConnectImap }: UseConnectHandlersParams) {
   const handleConnectProvider = async (provider: EmailAccountProvider) => {
+    if (provider === PROVIDER_IMAP) {
+      onConnectImap();
+      return;
+    }
     if (provider === PROVIDER_APPLE_MAIL) {
       try {
         await axios.post(`${API_URL}/apple-mail-accounts/connect`);
@@ -268,10 +315,7 @@ function useEmailAccountHandlers({ onFetchData, t }: UseEmailAccountHandlersPara
       return;
     }
     try {
-      const response = await axios.get(
-        `${API_URL}/${provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider}-accounts/connect-url`
-      );
-      window.location.href = response.data.url;
+      await startOAuthConnect(provider);
     } catch (error) {
       console.error(`Error connecting ${provider} account:`, error); // nosemgrep
       alert(`Failed to connect ${provider} account. Please try again.`);
@@ -298,23 +342,96 @@ function useEmailAccountHandlers({ onFetchData, t }: UseEmailAccountHandlersPara
   };
 }
 
+interface AccountsListProps {
+  accounts: EmailAccount[];
+  t: (k: string) => string;
+  onConnect: () => void;
+  onSetPrimary: (id: string, provider: EmailAccountProvider) => Promise<void>;
+  onDisconnect: (id: string, provider: EmailAccountProvider) => Promise<void>;
+  onReconnect: (account: EmailAccount) => void;
+}
+
+const AccountsList: React.FC<AccountsListProps> = ({
+  accounts,
+  t,
+  onConnect,
+  onSetPrimary,
+  onDisconnect,
+  onReconnect,
+}) => {
+  const canDisconnect = canDisconnectAccounts(accounts.length);
+  const showLastAccountHint = !canDisconnect && accounts.some(account => !account.isSSO);
+  if (accounts.length === 0) {
+    return <AccountsEmptyState t={t} onConnect={onConnect} />;
+  }
+  return (
+    <>
+      {accounts.map(account => (
+        <EmailAccountRow
+          key={`${account.provider}-${account.id}`}
+          account={account}
+          t={t}
+          canDisconnect={canDisconnect}
+          onSetPrimary={onSetPrimary}
+          onDisconnect={onDisconnect}
+          onReconnect={onReconnect}
+        />
+      ))}
+      {showLastAccountHint && (
+        <p
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.xs,
+            marginTop: theme.spacing.xs,
+            marginBottom: 0,
+          }}
+        >
+          {t('settings.emailAccounts.lastAccountHint')}
+        </p>
+      )}
+      <button
+        onClick={onConnect}
+        style={{
+          marginTop: theme.spacing.md,
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.primary.main,
+          border: `1px solid ${theme.colors.primary.main}`,
+          borderRadius: theme.borderRadius.md,
+          fontSize: theme.typography.fontSize.sm,
+          cursor: 'pointer',
+        }}
+      >
+        + {t('settings.emailAccounts.connectAnother')}
+      </button>
+    </>
+  );
+};
+
 export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
   googleAccounts,
   office365Accounts,
   zohoAccounts,
   appleMailAccounts,
+  imapAccounts,
   appleMailAvailable,
   onFetchData,
 }) => {
   const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [imapForm, setImapForm] = useState<{ isOpen: boolean; initialEmail?: string }>({ isOpen: false });
   const { handleConnectProvider, handleDisconnect, handleSetPrimary, stepUpModalProps } = useEmailAccountHandlers({
     onFetchData,
     t,
+    onConnectImap: () => setImapForm({ isOpen: true }),
   });
-  const allAccounts = buildAllAccounts(googleAccounts, office365Accounts, zohoAccounts, appleMailAccounts);
-  const canDisconnect = canDisconnectAccounts(allAccounts.length);
-  const showLastAccountHint = !canDisconnect && allAccounts.some(account => !account.isSSO);
+  const allAccounts = buildAllAccounts(
+    googleAccounts,
+    office365Accounts,
+    zohoAccounts,
+    appleMailAccounts,
+    imapAccounts
+  );
 
   return (
     <>
@@ -339,49 +456,14 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
           {t('settings.emailAccounts.title')}
         </h3>
 
-        {allAccounts.length === 0 ? (
-          <AccountsEmptyState t={t} onConnect={() => setIsModalOpen(true)} />
-        ) : (
-          <>
-            {allAccounts.map(account => (
-              <EmailAccountRow
-                key={`${account.provider}-${account.id}`}
-                account={account}
-                t={t}
-                canDisconnect={canDisconnect}
-                onSetPrimary={handleSetPrimary}
-                onDisconnect={handleDisconnect}
-              />
-            ))}
-            {showLastAccountHint && (
-              <p
-                style={{
-                  color: theme.colors.text.secondary,
-                  fontSize: theme.typography.fontSize.xs,
-                  marginTop: theme.spacing.xs,
-                  marginBottom: 0,
-                }}
-              >
-                {t('settings.emailAccounts.lastAccountHint')}
-              </p>
-            )}
-            <button
-              onClick={() => setIsModalOpen(true)}
-              style={{
-                marginTop: theme.spacing.md,
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: COLOR_TRANSPARENT,
-                color: theme.colors.primary.main,
-                border: `1px solid ${theme.colors.primary.main}`,
-                borderRadius: theme.borderRadius.md,
-                fontSize: theme.typography.fontSize.sm,
-                cursor: 'pointer',
-              }}
-            >
-              + {t('settings.emailAccounts.connectAnother')}
-            </button>
-          </>
-        )}
+        <AccountsList
+          accounts={allAccounts}
+          t={t}
+          onConnect={() => setIsModalOpen(true)}
+          onSetPrimary={handleSetPrimary}
+          onDisconnect={handleDisconnect}
+          onReconnect={account => setImapForm({ isOpen: true, initialEmail: account.email })}
+        />
       </div>
 
       <ProviderSelectionModal
@@ -389,6 +471,21 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
         onClose={() => setIsModalOpen(false)}
         onSelectProvider={handleConnectProvider}
         appleMailAvailable={appleMailAvailable}
+      />
+
+      <ImapConnectModal
+        key={imapForm.initialEmail ?? 'new'}
+        isOpen={imapForm.isOpen}
+        initialEmail={imapForm.initialEmail}
+        onClose={() => setImapForm({ isOpen: false })}
+        onUseProvider={provider => {
+          setImapForm({ isOpen: false });
+          void handleConnectProvider(provider);
+        }}
+        onConnected={() => {
+          setImapForm({ isOpen: false });
+          void onFetchData();
+        }}
       />
 
       <StepUpModal {...stepUpModalProps} />

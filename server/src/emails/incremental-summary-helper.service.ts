@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, IsNull, Not, Repository } from "typeorm";
 
@@ -11,6 +11,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
 import { extractEmailAddress } from "../utils/email-address.utils";
+import type { EmailLookup } from "./email-lookup.types";
 import { EmailsService } from "./emails.service";
 
 const CONTACT_TYPE_CONFIDENCE_THRESHOLD = 0.6;
@@ -31,7 +32,7 @@ export class IncrementalSummaryHelperService {
     private readonly emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(Contact)
     private readonly contactRepository: Repository<Contact>,
-    private readonly emailsService: EmailsService,
+    @Inject(EmailsService) private readonly emailsService: EmailLookup,
     private readonly incrementalAnalysisService: IncrementalAnalysisService,
   ) {}
 

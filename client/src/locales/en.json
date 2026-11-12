@@ -112,18 +112,6 @@
           "title": "See your contacts",
           "description": "To recognise the people who matter to you (your VIPs) and autocomplete addresses when you write."
         },
-        "otherContacts": {
-          "title": "See your “Other contacts”",
-          "description": "Google's list of people you've emailed but never saved. Many of your most important senders only live here."
-        },
-        "calendarEvents": {
-          "title": "View and edit calendar events",
-          "description": "So we can suggest meeting times in replies and add the invite when someone books. We don't change your calendar settings."
-        },
-        "availability": {
-          "title": "See when you're free or busy",
-          "description": "Lets meeting suggestions avoid clashes, without reading what your events are about."
-        },
         "stayConnected": {
           "title": "Stay connected while you're away",
           "description": "Keeps your inbox syncing when you're not signed in, so your batches still arrive on time."
@@ -162,6 +150,11 @@
       "notOnWaitlist": {
         "title": "Join the Waitlist",
         "description": "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."
+      },
+      "missingGmailPermission": {
+        "title": "BearlyMail needs access to your Gmail",
+        "description": "Google's permission screen let you sign in without allowing Gmail access, so BearlyMail can't see your inbox. Sign in again and, on the Google screen, tick the boxes to read, compose and send email (or choose \"Select all\").",
+        "grantButton": "Allow Gmail access"
       },
       "generic": {
         "title": "Authentication Error"
@@ -243,6 +236,15 @@
     "triage": {
       "movingToFollowUp": "→ Follow-Up",
       "movingToAction": "→ Action"
+    },
+    "actionMove": {
+      "toast": "Moved to Action — your to-do pile.",
+      "view": "View",
+      "dismiss": "Dismiss",
+      "badge": "+{{count}}",
+      "announcement": "Email moved to the Action tab.",
+      "announcementFirst": "Email moved to the Action tab, your to-do pile. Open the Action tab to see it.",
+      "ghostFallback": "Email"
     },
     "action": "Action",
     "followUp": "Follow Up",
@@ -331,15 +333,6 @@
     "blockSender": "Block sender",
     "unsubscribe": "Unsubscribe",
     "nextBatch": "Next batch",
-    "syncWindowBanner": {
-      "message": "Heads up: we're not syncing your old emails. We've only synced the last 7 days worth.",
-      "dismiss": "Dismiss"
-    },
-    "openTrackingNotice": {
-      "message": "Open tracking is on: BearlyMail now shows you when people open the emails you send.",
-      "manage": "Manage in Settings",
-      "dismiss": "Dismiss"
-    },
     "autoArchiveNotice": {
       "message_one": "BearlyMail found {{count}} kind of email you never open — review the auto-archive suggestion.",
       "message_other": "BearlyMail found {{count}} kinds of email you never open — review the auto-archive suggestions.",
@@ -494,6 +487,7 @@
     },
     "filters": {
       "toggle": "Toggle filters",
+      "title": "Filters",
       "searchPlaceholder": "Search...",
       "icon": "Filter icon",
       "clear": "Clear all filters",
@@ -502,8 +496,6 @@
       "categoryGroup": "Category filter",
       "priority": "Priority Filter",
       "priorityAll": "All priorities",
-      "priorityMinHandle": "Minimum priority",
-      "priorityMaxHandle": "Maximum priority",
       "resetPriority": "Reset",
       "allAccounts": "All accounts",
       "allCategories": "All",
@@ -512,7 +504,17 @@
       "clearAll": "Clear Filters",
       "moreCategories": "more",
       "showMoreCategories": "Show {{count}} more categories",
-      "nCategoriesSelected": "{{count}} selected"
+      "nCategoriesSelected": "{{count}} selected",
+      "collapse": "Hide filters",
+      "prioritySelectedCount_one": "{{count}} email",
+      "prioritySelectedCount_other": "{{count}} emails",
+      "buckets": {
+        "veryHigh": "Very High",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "veryLow": "Very Low"
+      }
     },
     "blockConfirm": {
       "title": "Block Sender",
@@ -596,18 +598,29 @@
     },
     "catchingUp": "Catching up on {{remaining}} email thread(s) missed while you were away...",
     "catchingUpTooltip": "AI processing was paused while you were inactive. Processing now in the background.",
-    "batchSummary": {
-      "total_one": "{{count}} email to triage",
-      "total_other": "{{count}} emails to triage",
-      "band": "{{count}} {{label}}"
-    },
     "scheduledTour": {
       "title": "Email scheduled ✅",
       "body": "Find it here anytime — tap ⋮ then Scheduled to view, reschedule, or cancel.",
       "dismiss": "Got it"
     },
     "familyCategoryCount_one": "{{count}} category",
-    "familyCategoryCount_other": "{{count}} categories"
+    "familyCategoryCount_other": "{{count}} categories",
+    "importOlderNotice": {
+      "message": "We only imported your most recent {{count}} emails.",
+      "processMore": "Click here to process another {{count}}.",
+      "credits_one": "Heads up: your plan only has credits for another {{count}} email.",
+      "credits_other": "Heads up: your plan only has credits for another {{count}} emails.",
+      "viewPlans": "View plans",
+      "queued_one": "Importing {{count}} older email. It will appear in Triage once it has been sorted.",
+      "queued_other": "Importing {{count}} older emails. They will appear in Triage as they are sorted.",
+      "nothingOlder": "There are no older emails left to import.",
+      "unsupported": "Importing older emails is only available for Gmail accounts for now.",
+      "failed": "Couldn't start the import. Please try again."
+    },
+    "backgroundSorting": {
+      "title": "Sorting the rest of your inbox in the background",
+      "progress": "{{categorised}} of {{total}} sorted"
+    }
   },
   "emailDetail": {
     "attachments": "Attachments ({{count}})",
@@ -735,6 +748,9 @@
       "customRules": "Custom Rules"
     },
     "deleteActionItem": "Delete action item",
+    "saveToFocusBear": "Save to Focus Bear",
+    "saveToFocusBearHint": "Opens the Focus Bear app and adds \"{{task}}\" as a task",
+    "focusBearTaskNotes": "From {{sender}}: \"{{subject}}\"",
     "regenerateActions": "Regenerate Actions",
     "suggestedReplies": "Suggested Replies",
     "generating": "Generating...",
@@ -790,6 +806,27 @@
         "durationMinutes": "{{minutes}} minutes",
         "confirm": "Confirm & Create",
         "cancel": "Cancel"
+      },
+      "decision": {
+        "description": "They proposed a specific time. Here's how it fits your calendar.",
+        "conversion": "{{senderTime}} {{senderZone}} = {{localTime}} your time ({{localDate}})",
+        "localOnly": "{{localTime}} ({{localDate}})",
+        "free": "✓ You're free.",
+        "busy": "⚠ You're busy then.",
+        "alternativesHeading": "You're free nearby at:",
+        "noAlternatives": "No free times found nearby. Use Edit details to pick another time.",
+        "accept": "Accept & add to calendar",
+        "accepting": "Adding…",
+        "acceptFailed": "Couldn't add it to your calendar. Try Edit details.",
+        "suggestAnother": "Suggest another time",
+        "editDetails": "Edit details",
+        "slotInZone": "{{date}}, {{time}} {{zone}} time",
+        "slotLocal": "{{date}}, {{time}}",
+        "draftGreetingNamed": "Hi {{name}},",
+        "draftGreeting": "Hi,",
+        "draftAcceptBody": "{{slot}} works for me. I've added it to my calendar. Talk then!",
+        "draftAlternativesIntro": "Thanks for suggesting {{proposed}}. That time doesn't work for me. Would any of these suit instead?",
+        "draftSignOff": "Thanks,"
       }
     },
     "scheduleForMorning": "Schedule for tomorrow morning",
@@ -810,6 +847,10 @@
     "cc": "CC",
     "saveAsPdf": "Save as PDF",
     "moreOptions": "More options",
+    "downloadEml": "Download .eml",
+    "messageOptions": "Message options",
+    "downloadEmlFailed": "Couldn’t download the email. Please try again.",
+    "downloadEmlUnsupported": "Downloading the original email isn’t supported for your email provider yet.",
     "icsInvite": {
       "loading": "Loading calendar invite...",
       "title": "Calendar Invite",
@@ -871,7 +912,16 @@
     "discardReplyMessage": "Your reply hasn't been sent. Save it as a draft to finish later, or discard it.",
     "discardReplyKeepEditing": "Keep editing",
     "discardReplySaveDraft": "Save draft",
-    "discardReplyDiscard": "Discard"
+    "discardReplyDiscard": "Discard",
+    "focusBearSaveOptions": "Choose the project and due date before saving to Focus Bear",
+    "focusBearSuggested": "Suggested",
+    "focusBearFindingSuggestions": "Finding a project and a free day…",
+    "focusBearProject": "Project",
+    "focusBearNoProject": "No project",
+    "focusBearDueDate": "Due date",
+    "focusBearConnectHint": "Connect Focus Bear to get a suggested project and the next free day.",
+    "focusBearConnectLink": "Connect Focus Bear",
+    "focusBearSave": "Save"
   },
   "settings": {
     "title": "Settings",
@@ -880,18 +930,9 @@
     "toneConfig": "Configure rules for the tone checker to enforce when drafting replies. This is learned from your sent emails.",
     "addRulePlaceholder": "Add a new rule (e.g., 'Be professional')",
     "addRule": "Add Rule",
-    "openAiTitle": "OpenAI API Key (Optional)",
-    "openAiDesc": "Use your own OpenAI API key for AI features. If not provided, the system default key will be used. Your key is encrypted and stored securely.",
-    "anthropicTitle": "Anthropic API Key (Optional)",
-    "anthropicDesc": "Bring your own Anthropic key to use Claude Sonnet 4.6. Supports both sk-ant-api03-* API keys and short-lived sk-ant-oat-* OAuth tokens generated by the Claude CLI (claude auth token). Keys are stored encrypted and never returned to the client in plain text.",
-    "anthropicKeySaved": "Key saved ✓",
-    "anthropicNoKey": "No key set",
     "hide": "Hide",
     "show": "Show",
     "saved": "✓ Saved",
-    "saveApiKey": "Save API Key",
-    "removeKey": "Remove Key",
-    "getKey": "Get API Key →",
     "emailBatching": {
       "title": "Email Batching",
       "description": "Non-urgent emails will be batched and delivered at these scheduled times. Urgent emails always arrive immediately."
@@ -930,11 +971,6 @@
     },
     "batchHoursError": "Failed to update batch hours",
     "toneRulesError": "Failed to update tone rules",
-    "enterApiKey": "Please enter an OpenAI API key",
-    "apiKeyError": "Failed to save API key",
-    "confirmRemoveKey": "Are you sure you want to remove your OpenAI API key? You will use the system default key.",
-    "keyRemoved": "API key removed successfully",
-    "keyRemoveError": "Failed to remove API key",
     "ruleUpdateError": "Failed to update rule",
     "confirmDeleteRule": "Are you sure you want to delete this priority rule?",
     "ruleDeleteError": "Failed to delete rule",
@@ -1124,8 +1160,8 @@
       "deleteSuccess": "Rule deleted",
       "deleteError": "Could not delete the rule",
       "deepLink": {
-        "ruleUpdated": "That rule was updated, so we opened the current rule for this category.",
-        "ruleNotFound": "We couldn't find that rule — it may have been removed or merged into another."
+        "pickRuleFromList": "This link doesn't say which rule to open, so pick it from the list below.",
+        "ruleNotFound": "We couldn't find that rule — it may have been removed or merged into another. Pick the rule from the list below."
       },
       "legacyWeakWarning": "This rule matches on limited criteria and may produce false positives. Consider creating a composite rule.",
       "upgradeToComposite": "Upgrade to composite rule",
@@ -1247,6 +1283,10 @@
       "save": "Save Signature",
       "saving": "Saving..."
     },
+    "tabs": {
+      "account": "Account",
+      "label": "Settings sections"
+    },
     "nav": {
       "accountSecurity": "Account & Security",
       "password": "Password",
@@ -1266,8 +1306,7 @@
       "integrationsApps": "Integrations & Apps",
       "connectedApps": "Connected Apps",
       "workflows": "Workflows",
-      "openAiApiKey": "OpenAI API Key",
-      "anthropicApiKey": "Anthropic API Key",
+      "ownAiAccount": "Use your own AI account",
       "githubIntegration": "GitHub Integration",
       "schedulingPreferences": "Scheduling",
       "schedulingAvailability": "Availability",
@@ -1284,7 +1323,8 @@
       "dataExport": "Export & Import",
       "troubleshooting": "Troubleshooting",
       "deleteAccount": "Delete Account",
-      "emailTracking": "Open tracking"
+      "emailTracking": "Open tracking",
+      "focusBear": "Focus Bear"
     },
     "schedulingPreferences": {
       "title": "Scheduling Preferences",
@@ -1406,12 +1446,19 @@
       "description": "Permanently delete your account and all associated data. This action cannot be undone.",
       "deleteButton": "Delete My Account",
       "warningTitle": "Are you absolutely sure?",
-      "warningDescription": "This will permanently delete your account and all your data, including emails, contacts, settings, and any other information associated with your account. This action cannot be undone.",
+      "warningDescription": "This will permanently delete your BearlyMail account and all your BearlyMail data, including BearlyMail's copy of your emails, contacts, settings, and any other information associated with your account. This action cannot be undone.",
+      "providerReassurance_one": "Your emails will NOT be deleted from {{providers, list}}. This only removes them from BearlyMail — they stay in your {{providers, list}} account.",
+      "providerReassurance_other": "Your emails will NOT be deleted from {{providers, list}}. This only removes them from BearlyMail — they stay in your {{providers, list}} accounts.",
+      "providerReassuranceGeneric": "Your emails will NOT be deleted from your email provider. This only removes them from BearlyMail — they stay in your mailbox.",
       "confirmationPrompt": "To confirm, please type \"{{text}}\" below:",
       "confirmationMismatch": "The confirmation text does not match. Please type exactly \"delete all my data\".",
       "confirmDelete": "Permanently Delete Account",
       "deleting": "Deleting...",
-      "deletionError": "Failed to delete account. Please try again or contact support."
+      "deletionError": "Failed to delete account. Please try again or contact support.",
+      "stillSnoozedTitle": "Your account has been deleted",
+      "stillSnoozed_one": "{{count}} snoozed email thread couldn't be moved back to your inbox. In Gmail, you'll find it under the {{label}} label.",
+      "stillSnoozed_other": "{{count}} snoozed email threads couldn't be moved back to your inbox. In Gmail, you'll find them under the {{label}} label.",
+      "stillSnoozedDone": "OK"
     },
     "dataExport": {
       "title": "Export & Import Data",
@@ -1551,6 +1598,10 @@
         },
         "appleMail": {
           "description": "Pull email from the Mail app on this Mac — no cloud account needed"
+        },
+        "imap": {
+          "name": "Other email",
+          "description": "Email from your web host, work or any other provider. Just your email address and password."
         }
       },
       "selectProvider": "Select Email Provider"
@@ -1583,6 +1634,51 @@
     "appleMail": {
       "confirmDisconnect": "Are you sure you want to disconnect this Apple Mail account?",
       "connectError": "Failed to connect Apple Mail. Please try again."
+    },
+    "imap": {
+      "title": "Connect your email",
+      "reconnectTitle": "Sign in to your email again",
+      "description": "Enter the email address and password you use to check your email. We'll find the right settings for you.",
+      "email": "Email address",
+      "password": "Email password",
+      "passwordHint": "The password you use to check this email, for example in webmail. Not the password for your web hosting or website account.",
+      "name": "Your name (optional, shown on emails you send)",
+      "finding": "Connecting to your email… this can take up to a minute.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "enterManually": "Enter server settings myself",
+      "useAutomatic": "Find my settings automatically",
+      "showDetails": "Show technical details",
+      "hideDetails": "Hide technical details",
+      "incomingServer": "Incoming mail server (IMAP)",
+      "outgoingServer": "Outgoing mail server (SMTP)",
+      "host": "Server",
+      "port": "Port",
+      "security": "Security",
+      "securitySsl": "SSL/TLS",
+      "securityStartTls": "STARTTLS",
+      "username": "Username (only if it's different from your email address)",
+      "confirmDisconnect": "Disconnect this email? BearlyMail will forget its password.",
+      "needsRelogin": "Your email password has changed.",
+      "reconnect": "Sign in again",
+      "useProvider": {
+        "gmail": "Connect with Google instead",
+        "office365": "Connect with Microsoft instead",
+        "zoho": "Connect with Zoho instead"
+      },
+      "errors": {
+        "auth_failed_imap": "That email address and password didn't work. Check it's the password you use to check your email, not the password for your web hosting or website account.",
+        "auth_failed_smtp": "We can read your email, but couldn't sign in to send it. Your email provider may use a different username or password for sending. Click \"Enter server settings myself\" to add it.",
+        "server_not_found": "We couldn't find your email settings automatically. Your email provider's help pages will list them (look for \"IMAP\" and \"SMTP\"). Click \"Enter server settings myself\" to add them.",
+        "use_gmail": "This email address is run by Google, so it connects with your Google sign-in instead of a password.",
+        "use_office365": "This email address is run by Microsoft, so it connects with your Microsoft sign-in instead of a password.",
+        "use_zoho": "This email address is run by Zoho, so it connects with your Zoho sign-in instead of a password.",
+        "invalid_server": "That server name doesn't look right. Check it against your email provider's settings.",
+        "connection_failed": "We couldn't reach that email server. Check the server name and port.",
+        "certificate_mismatch": "That server name doesn't match the server's security certificate. Many web hosts want the hosting server's own name instead of mail.yourdomain. You'll find it in your hosting account's email settings.",
+        "tls_failed": "We couldn't make a secure connection. Try switching the security setting between SSL/TLS and STARTTLS.",
+        "unknown": "Something went wrong connecting to your email. Please try again."
+      }
     },
     "blockedSenders": {
       "title": "Blocked Senders",
@@ -1749,7 +1845,7 @@
         "bodyTemplateLabel": "Body template (JSON with {{variable}} substitution)"
       },
       "condition": {
-        "categoryScopeNote": "This workflow only runs on emails in a specific category (set when it was created from the category menu).",
+        "categoryScopeNote": "This workflow runs on any email in {{category}}. It was set when the workflow was created from the category menu.",
         "fromLabel": "From (sender patterns)",
         "fromHint": "Glob (*@upwork.com), regex (/billing/i), or plain text. Empty = match any sender.",
         "fromPlaceholder": "*@upwork.com",
@@ -1801,6 +1897,10 @@
         "conditionFrom": "From: {{value}}",
         "conditionSubject": "Subject: {{value}}",
         "conditionAny": "Matches any email",
+        "conditionCategory": "Any email in {{category}}",
+        "conditionInCategory": "In {{category}}",
+        "conditionAi": "AI check: {{value}}",
+        "unknownCategory": "a specific category",
         "conditionBody": "Body: {{value}}"
       },
       "section": {
@@ -1837,7 +1937,7 @@
         },
         "zohoBigin": {
           "tagline": "Show CRM details about the email sender",
-          "instructions": "Connect Zoho Bigin to show CRM details about the sender. Create a server in the Zoho MCP portal, then paste its generated URL (it includes your access key) below."
+          "instructions": "Connect Zoho Bigin to show CRM details about the sender. Create a server in the Zoho MCP portal and paste its generated URL below. You'll then sign in to Zoho to authorize access. The URL includes your access key, so BearlyMail stores it encrypted and never shows it again."
         },
         "hubspot": {
           "tagline": "Show CRM details about the email sender",
@@ -1880,13 +1980,16 @@
         "connectionFailed": "✗ Connection failed",
         "test": "Test",
         "testing": "Testing…",
-        "refreshTools": "Refresh Tools"
+        "refreshTools": "Refresh Tools",
+        "signIn": "Sign in",
+        "signInRequired": "Sign-in required"
       },
       "section": {
         "title": "Connected Apps",
         "description": "Connect MCP servers for Google Drive, your CRM and more. Connected apps can show sender context when you open an email, power Ask AI, and run as actions inside your workflows.",
         "loadError": "Failed to load connected apps. Please refresh.",
         "refreshError": "Failed to refresh tools. Please try again.",
+        "signInError": "Couldn't start sign-in for this app. Please try again.",
         "removeError": "Failed to remove the connected app. Please try again.",
         "loading": "Loading connected apps…",
         "connectedSuccess": "App connected.",
@@ -1916,7 +2019,130 @@
       "notIncluded": "Email tracking is included with the Growth and Enterprise plans.",
       "viewPlans": "View plans",
       "saveError": "Couldn't update open tracking. Please try again."
+    },
+    "claudeAccess": {
+      "title": "Connect Claude",
+      "description": "Let Claude read your important emails, reply and send new ones through BearlyMail, with open tracking and follow-up reminders.",
+      "safetyNote": "Emails are written by other people and can contain instructions aimed at AI assistants. Tokens are read-only unless you allow sending, Claude asks before sending, and every message sent this way is logged.",
+      "nameLabel": "Token name",
+      "expiryLabel": "Expires",
+      "expiryDays_one": "In {{count}} day",
+      "expiryDays_other": "In {{count}} days",
+      "neverExpires": "Never expires",
+      "allowSendLabel": "Allow sending email",
+      "allowSendHint": "Lets the app send replies and new emails from your mailbox. Leave off for a read-only token.",
+      "createButton": "Create token",
+      "creating": "Creating…",
+      "createError": "Couldn't create the token. Please try again.",
+      "newTokenTitle": "Copy your token now.",
+      "newTokenWarning": "You won't be able to see it again. Anyone with it can act on your mailbox, so keep it secret.",
+      "tokenLabel": "Access token",
+      "copy": "Copy",
+      "copied": "Copied",
+      "dismiss": "Done",
+      "activeTokens": "Connected apps and tokens",
+      "loading": "Loading…",
+      "loadError": "Couldn't load your connections and tokens.",
+      "noTokens": "Nothing connected yet.",
+      "scopeRead": "Read only",
+      "scopeReadSend": "Read and send",
+      "lastUsed": "Last used {{date}}",
+      "neverUsed": "Never used",
+      "expires": "Expires {{date}}",
+      "revoke": "Revoke",
+      "revoking": "Revoking…",
+      "revokeAria": "Revoke token {{name}}",
+      "revokeConfirm": "Revoke \"{{name}}\"? Anything using it will lose access immediately.",
+      "revoked": "Revoked \"{{name}}\".",
+      "revokeError": "Couldn't revoke the token. Please try again.",
+      "connectorTitle": "Recommended: add BearlyMail to Claude",
+      "connectorStepOpen": "In Claude, go to Customize → Connectors and choose Add custom connector.",
+      "connectorOpenLink": "Open Claude connectors",
+      "connectorStepPaste": "Paste the URL below and click Add.",
+      "connectorStepApprove": "Click Connect, sign in to BearlyMail, and choose read only or read and send.",
+      "connectorUrlLabel": "Connector URL",
+      "claudeCodeOAuthLabel": "Claude Code — run in a terminal, then /mcp to sign in",
+      "tokenSectionTitle": "Access tokens for other AI apps",
+      "tokenSectionHint": "For AI apps, editors and scripts that can't sign in to BearlyMail themselves. Using Claude? Use the connector above instead.",
+      "connectedApp": "Connected app",
+      "connectionLapses": "Disconnects if unused until {{date}}",
+      "disconnect": "Disconnect",
+      "disconnectAria": "Disconnect {{name}}",
+      "disconnectConfirm": "Disconnect \"{{name}}\"? It will lose access immediately, and you'll need to connect it again to use it.",
+      "connectorSubtitle": "Set it up once and it works everywhere you use Claude: on the web, in the desktop app and on your phone. No token needed.",
+      "tokenSectionToggle": "Using a different AI app? Create an access token",
+      "serverUrlLabel": "Server URL",
+      "authHeaderLabel": "Authorization header",
+      "configFileLabel": "Config file (for apps like Cursor or Windsurf)"
+    },
+    "focusBear": {
+      "title": "Focus Bear",
+      "description": "When you save an action item to Focus Bear, BearlyMail suggests the project it belongs in and the next day you have time for it. In Focus Bear, open Integrations, create an access token with the tasks:read scope, and paste it here. It's stored encrypted and only used for these suggestions.",
+      "tokenLabel": "Focus Bear access token",
+      "tokenPlaceholder": "Paste your Focus Bear access token",
+      "connect": "Connect",
+      "checking": "Checking…",
+      "disconnect": "Disconnect",
+      "connected": "Connected ✓",
+      "notConnected": "Not connected",
+      "tokenRejected": "Focus Bear didn't accept that token. Check it has the tasks:read scope and try again."
+    },
+    "ownAiAccount": {
+      "title": "Use your own AI account",
+      "why": "By default BearlyMail analyses your emails with AI providers under BearlyMail's own accounts and terms. If you'd rather keep that processing under your own agreement with an AI provider (data sovereignty), connect your own account: your emails are then analysed under your account and your provider's terms, not BearlyMail's.",
+      "howItWorks": "Once you add an OpenAI or Anthropic key, every AI feature (sorting, priorities, summaries, drafts, Ask AI) runs on your account and is billed by your provider. If your key stops working, BearlyMail shows an error here instead of quietly switching back to its own account.",
+      "selfHost": "Prefer to keep everything on your own servers? You can <selfHostLink>self-host BearlyMail</selfHostLink> instead.",
+      "useMyKeys": "Use my own keys",
+      "saveKey": "Save key",
+      "checkingKey": "Checking key…",
+      "replaceKey": "Replace key",
+      "removeKey": "Remove key",
+      "getKey": "Get a key",
+      "keyInputLabel": "{{provider}} API key",
+      "confirmRemove": "Remove your {{provider}} key? If it's your only OpenAI or Anthropic key, AI goes back to running on BearlyMail's account.",
+      "saveError": "Couldn't save the key. Please check it and try again.",
+      "removeError": "Couldn't remove the key. Please try again.",
+      "keyRejected": "{{provider}} rejected this key on {{date}} (it may be invalid, revoked or out of credit). AI features that need it are paused until you replace it.",
+      "providers": {
+        "openai": {
+          "name": "OpenAI",
+          "description": "Used for summaries, drafts, sorting and Ask AI. Also the only provider that powers smart category matching."
+        },
+        "anthropic": {
+          "name": "Anthropic (Claude)",
+          "description": "Used for summaries, drafts, sorting and Ask AI. Accepts sk-ant-api03 keys and Claude CLI OAuth tokens."
+        },
+        "typesafe": {
+          "name": "TypeSafe AI (Jev)",
+          "description": "Jev makes BearlyMail's quick yes/no and category decisions. If you add an OpenAI or Anthropic key but no Jev key, that account makes those decisions instead. A Jev key on its own moves only Jev's decisions to your account."
+        }
+      }
     }
+  },
+  "oauthConsent": {
+    "brand": "BearlyMail",
+    "title": "Allow {{client}} to use your BearlyMail?",
+    "verifiedClient": "Requested by an app published at {{host}}.",
+    "selfDescribedClient": "The app chose this name itself, so check where it will send you.",
+    "redirectTo": "After you answer, you'll be sent to",
+    "signedInAs": "Signed in as {{email}}.",
+    "loopbackWarning": "This app runs on your computer. Only continue if you just started connecting from Claude Code or another app on this device.",
+    "scopeLegend": "What it can do",
+    "scopeReadTitle": "Read only",
+    "scopeReadDescription": "Read and search your important email, threads and follow-ups.",
+    "scopeSendTitle": "Read and send",
+    "scopeSendDescription": "Also reply and send new email from your mailbox. Claude asks you before each send.",
+    "scopeSendNotRequested": "This app didn't ask to send email.",
+    "safetyNote": "Emails are written by other people and can contain instructions aimed at AI assistants. You can disconnect at any time in Settings → Connect Claude.",
+    "submitError": "Something went wrong. Please try again.",
+    "deny": "Deny",
+    "allow": "Allow",
+    "allowing": "Allowing…",
+    "loading": "Loading…",
+    "framed": "For your security, this page can't be shown inside another site. Open it in its own tab.",
+    "invalidLink": "This link is missing its sign-in request. Start connecting again from Claude.",
+    "expired": "This sign-in request has expired or was already answered. Start connecting again from Claude.",
+    "redirecting": "Returning to {{client}}…"
   },
   "admin": {
     "title": "Admin",
@@ -2396,6 +2622,9 @@
     },
     "confirmLeaveScheduled": "Your email is not scheduled yet — you still need to click \"Schedule send\". Leave anyway?",
     "editRecipient": "Click to edit",
+    "editRecipientLabel": "Edit recipient {{recipient}}",
+    "editRecipientInputLabel": "Edit recipient address. Press Enter to save or Escape to cancel",
+    "removeRecipientLabel": "Remove recipient {{recipient}}",
     "unsavedChangesTitle": "Unsent email",
     "leaveAnyway": "Leave anyway",
     "keepEditing": "Keep editing",
@@ -2481,7 +2710,15 @@
     "createDeal": "Create Deal",
     "errorLoadingDeals": "Error loading deals",
     "errorCreatingDeal": "Could not create the deal. Please try again.",
-    "expectedClose": "Expected close"
+    "errorLoadingDealForm": "Could not load the stages or contacts. You can keep typing; try again in a moment.",
+    "expectedClose": "Expected close",
+    "locked": "Upgrade to use the CRM",
+    "upgrade": {
+      "title": "The CRM comes with Growth and Enterprise",
+      "description": "Track deals through your pipeline, keep notes and custom fields on your contacts, and see every conversation with a contact in one place.",
+      "planNote": "Available from the {{plan}} plan at ${{price}}/month.",
+      "viewPlans": "View plans"
+    }
   },
   "senderContext": {
     "title": "Sender Context",
@@ -2525,7 +2762,21 @@
     "closedWon": "Won",
     "closedLost": "Lost",
     "deleteConfirm": "Are you sure you want to delete this deal?",
-    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned."
+    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned.",
+    "notes": {
+      "title": "Notes",
+      "placeholder": "Add a note about this deal…",
+      "add": "Add note",
+      "edit": "Edit",
+      "editLabel": "Edit note",
+      "edited": "Last edited: {{time}}",
+      "empty": "No notes yet.",
+      "loading": "Loading notes…",
+      "loadError": "Couldn't load the notes for this deal.",
+      "saveError": "Couldn't save the note. Please try again.",
+      "deleteError": "Couldn't delete the note. Please try again.",
+      "deleteConfirm": "Delete this note?"
+    }
   },
   "contactTypes": {
     "lead": "Lead",
@@ -2557,20 +2808,42 @@
       "welcome": "Welcome to BearlyMail!",
       "welcomeContent": "Here's a quick tour of your inbox. We'll highlight each part as we go — use the arrow keys to move between steps, or Esc to skip.",
       "triageTitle": "Triage Tab",
-      "triageContent": "New emails land in this tab, most important first. Decide on each one: reply, archive, snooze — or star it to move it to Action.",
+      "triageContent": "New emails land in this tab, most important first. Decide on each one: reply, archive, snooze — or prioritise it to move it to Action.",
+      "backgroundSortingTitle": "Still sorting the rest",
+      "backgroundSortingContent": "We sorted your newest emails first so you could get started. The rest are still being processed in the background and will move into their categories as they're sorted. This bar shows how far along it is, and disappears when it's done.",
       "processTitle": "Process Tab",
-      "processContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
+      "processContent": "Prioritise an email to move it here. This is your focused workspace for emails that need action.",
       "actionTitle": "Action Tab",
-      "actionContent": "Emails you star move to this tab. It's your focused to-do list for the emails that need real work.",
+      "actionContent": "Emails you prioritise move to this tab. It's your focused to-do list for the emails that need real work.",
       "deliveryTitle": "Scheduled Delivery",
       "deliveryContent": "Instead of trickling in all day, new emails arrive in batches. This bar shows when the next batch lands — urgent emails still come straight through.",
       "assistantTitle": "Your emails",
-      "assistantContent": "Each card shows who it's from, an AI summary and its priority. Use its buttons to archive, snooze or star it — or open it to get the AI side panel with tasks, notes and Ask AI.",
+      "assistantContent": "Each card shows who it's from, an AI summary and how urgent we think it is. Open one to get the AI side panel with tasks, notes and Ask AI. The next few steps show what its buttons do.",
+      "prioritiseTitle": "Prioritise it",
+      "prioritiseContent": "Needs doing? Pick how urgent it is for you: Can wait, Get on it or Oh sh$t. Picking one moves the email to the Action tab, where your to-dos are sorted by priority.",
+      "snoozeTitle": "Snooze it",
+      "snoozeContent": "Can't deal with it yet? Snooze hides the email and brings it back to your inbox when you choose. Click Snooze, type when you want it back, like 4h, 5pm, tomorrow or next Monday, and press Enter. It syncs to Gmail or Outlook too.",
+      "archiveTitle": "Archive it",
+      "archiveContent": "Done with it, or never needed it? Archive clears it from your list and archives it in Gmail or Outlook too. Nothing is deleted: you can still find it in All Mail. Shortcut: press Delete.",
+      "blockTitle": "Block a sender",
+      "blockContent": "Never want to hear from someone again? Open this ⋮ menu and choose Block sender. Once you confirm, every future email from them is archived automatically. You can unblock them any time in Settings. (For newsletters, the menu offers Unsubscribe instead.)",
       "skip": "Skip",
       "back": "Back",
       "next": "Next",
       "finish": "Finish",
       "stepProgress": "{{current}} of {{total}}"
+    },
+    "tourSkipPrompt": {
+      "message_one": "BearlyMail has quite a different philosophy for emails. We highly recommend going through the tour. Hold for {{count}} second to skip.",
+      "message_other": "BearlyMail has quite a different philosophy for emails. We highly recommend going through the tour. Hold for {{count}} seconds to skip.",
+      "holdButton": "Hold to skip the tour",
+      "ariaLabel_one": "Skip the tour. Press and hold for {{count}} second, or hold Space or Enter.",
+      "ariaLabel_other": "Skip the tour. Press and hold for {{count}} seconds, or hold Space or Enter.",
+      "keepHolding_one": "Keep holding… {{count}} second left",
+      "keepHolding_other": "Keep holding… {{count}} seconds left",
+      "releasedEarly": "Released too early — the tour continues.",
+      "progressLabel": "Skip progress",
+      "continueTour": "Continue the tour"
     },
     "scan": {
       "title": "Personalize Your Experience",
@@ -2645,11 +2918,19 @@
     "issueLabel": "Issue",
     "prLabel": "PR"
   },
+  "connectMailbox": {
+    "button": "Connect an email account",
+    "connectError": "Couldn't start connecting that account. Please try again."
+  },
   "gmail": {
-    "connectTitle": "Connect Your Gmail Account",
-    "connectDescription": "To get started with BearlyMail, please connect your Gmail account. We'll sync your emails securely and help you manage them more effectively.",
+    "connectTitle": "Connect your email",
+    "connectDescription": "To get started, connect the email account you want BearlyMail to look after. We sync your emails securely and help you stay on top of them.",
     "connectButton": "Connect Gmail",
-    "connectMultipleHint": "You can connect multiple Gmail accounts later in settings."
+    "connectOtherProvider": "Use a different email (work, website or other provider)",
+    "connectMultipleHint": "You can connect more email accounts later in Settings.",
+    "accessIssueTitle": "BearlyMail can't read your Gmail",
+    "accessIssueMessage": "When you signed in, Gmail access wasn't allowed (or it was turned off). Reconnect Google and tick the Gmail boxes to see your email.",
+    "reconnectGoogle": "Reconnect Google"
   },
   "help": {
     "title": "Help",
@@ -2998,7 +3279,8 @@
     "whatsChanged": "What's changed",
     "changeSummaries": {
       "privacy_1_2_0": "We now explain email open tracking: emails you send can include a small invisible image that records when they are opened, with the opener's IP address and device details.",
-      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia."
+      "privacy_1_3_0": "We now list each AI service that processes your email (TypeSafe AI, Google Gemini, OpenAI and Amazon Bedrock), what each one receives and why, and explain that some of this processing happens outside Australia.",
+      "privacy_1_4_0": "We now explain which decisions about your email our programs and AI make or help with, and how to ask a person to review one; that we may train a small model for your account only, from your own email; that we follow Google's Limited Use requirements; and your rights and regulators in Australia, the EU and UK, New Zealand and the US. You also now need to be at least 16 to use BearlyMail, and our Terms of Use have changed to match."
     }
   },
   "debug": {
@@ -3388,6 +3670,7 @@
       "category": "Category",
       "showCategoryExplanation": "Show why this category was chosen",
       "editCategoryRule": "Edit the rule that matched this category",
+      "openCategoryRulesList": "Open your category rules (this email didn't record which rule matched)",
       "suggestedCategory": "Suggested Category",
       "categorisedBy": {
         "label": "Categorised by: <ruleLink>{{sourceLabel}}</ruleLink>",
@@ -3543,6 +3826,11 @@
       "referenceProtoCategories": "Reference — proto categories",
       "referenceUserContext": "Reference — user context",
       "categorySourceLabel": "Set by step",
+      "currentRuleLabel": "Rule that set this category",
+      "currentRuleDeleted": "rule since deleted",
+      "currentRuleLiveMatch": "ID not recorded when this was set; this is the rule that matches the newest email now",
+      "currentRuleUnknown": "Not recorded, and no rule matches the newest email into this category now",
+      "currentRuleEdit": "Edit rule",
       "shortlistedCategoriesLabel": "Shortlisted categories (stored from last analysis)",
       "shortlistNotApplicable": "Not applicable (category count below shortlist threshold, or not yet analysed)",
       "categoryLabelUnreadable": "Category record {{shortId}}…",
@@ -3760,6 +4048,14 @@
       "prop3Title": "We train an AI on your inbox",
       "prop3Body": "We summarise your most recent emails and build rules from how you actually behave: who you reply to fast, what you archive, what you star. The bar for urgent is high by design.",
       "doneTag": "Done",
+      "noMailboxTitle": "Connect your email to get started",
+      "noMailboxBody": "BearlyMail sorts the email in your own inbox, so it needs an account to work with. Gmail, Outlook, Zoho or any other email. Nothing moves and there's no new address.",
+      "permissions": {
+        "gmailTitle": "BearlyMail can't reach your Gmail yet",
+        "gmailBody": "On Google's permission screen, the boxes that let BearlyMail read, organise and send your email were left unticked. Until you allow them, your inbox stays empty: nothing gets batched, summarised or sent.",
+        "gmailBodyRevoked": "Google has stopped letting BearlyMail into your mailbox — the access was removed or has expired. Until you allow it again, your inbox stays empty: nothing gets batched, summarised or sent.",
+        "gmailButton": "Allow Gmail access"
+      },
       "iAcceptThe": "I accept the",
       "termsOfUse": "Terms of Use",
       "and": "and",
@@ -3815,7 +4111,26 @@
       "phaseCategorise": "Sorting your emails into categories",
       "statusCategorise": "Sorting your inbox into categories… ({{categorised}} of {{total}}) so it opens organised",
       "statusCategoriseGeneric": "Sorting your inbox into categories so it opens organised…",
-      "readyDetailStillSorting": "Most of your inbox is sorted. The rest will move into their categories over the next few minutes."
+      "readyDetailStillSorting": "Your newest emails are sorted, so your inbox is ready. We'll keep sorting the rest in the background, and they'll move into their categories over the next few minutes.",
+      "stalledTitle": "Learning from your emails has stalled",
+      "stalledDetailError": "We couldn't finish learning from your emails. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",
+      "stalledDetailTimeout": "This still hasn't finished after {{minutes}} minutes. Try again, or open your inbox now and re-run it later from Settings → Guide Our AI.",
+      "retry": "Try again",
+      "skipToInbox": "Open my inbox anyway →",
+      "noMailboxTitle": "No email account connected yet",
+      "noMailboxDetail": "BearlyMail learns from the emails in your inbox, so there's nothing to learn from yet. Connect an account and we'll start straight away."
+    },
+    "recategorise": {
+      "button": "Re-categorise",
+      "running": "Re-categorising…",
+      "runningTitle": "Re-sorting your inbox with your categories",
+      "stillRunningTitle": "Still re-sorting your inbox in the background",
+      "doneTitle": "Here's where your emails landed",
+      "progress": "{{done}} of {{total}} emails re-sorted",
+      "other": "Other",
+      "emailCount_one": "{{count}} email",
+      "emailCount_other": "{{count}} emails",
+      "error": "We couldn't re-sort your inbox. Try again, or open your inbox; new mail will use your categories."
     },
     "learned": {
       "title": "Here's what we learned",
@@ -4394,85 +4709,101 @@
         "kicker": "Common questions",
         "title": "A few things you might be wondering.",
         "items": {
-          "timeSensitive": {
-            "q": "What if I miss something genuinely time-sensitive?",
-            "a": "Truly urgent emails break through immediately. The model learns what \"urgent\" means for you by watching how quickly you reply, who you prioritise, and what you archive without reading. The bar for breaking through is high by design, so only things that genuinely interrupt your flow get through."
-          },
-          "priorityScore": {
-            "q": "How is the priority score calculated?",
-            "a": "It's learned from your context, not a generic formula. The score weighs who's sending — including the VIP senders you mark yourself — the projects and goals you're currently working on, deadlines, and urgency signals in the message. If a score looks wrong, you can correct it, and BearlyMail learns from every correction."
-          },
-          "lowScore": {
-            "q": "What if something important gets a low score?",
-            "a": "There are safety nets. You can mark important senders as VIPs so they're never buried, urgent-detection lets time-critical email bypass batching entirely, and nothing is ever hidden — you can always see every email and sort by time in the app."
-          },
-          "vip": {
-            "q": "Can I mark important senders myself?",
-            "a": "Yes. VIP senders are fully user-editable — add or remove anyone at any time. BearlyMail also learns VIPs automatically from how you star and reply, but you always have the final say."
-          },
-          "manualTriage": {
-            "q": "Why do I still triage manually if emails already have scores?",
-            "a": "Scores tell you what's likely to matter; triage tells BearlyMail what actually needs action from you. Starring an email moves it to your Action list, ordered by priority so the most important work sits on top — and the system learns from every choice you make."
-          },
-          "colleagues": {
-            "q": "Will my colleagues notice I’m slower to reply?",
-            "a": "Probably not. Most replies that feel \"instant\" are really under an hour, which still happens with 3× daily delivery. For people you always want to hear from immediately, mark them as VIPs and their email skips the batch."
+          "whatItDoes": {
+            "q": "What does BearlyMail actually do?",
+            "a": "It sits on top of your existing email account. It gives every email a priority score from 0 to 100, sorts it into a category, and holds non-urgent email until the delivery times you choose. When you're ready to deal with an email, it summarises the thread and drafts a reply for you to edit and send."
           },
           "providers": {
-            "q": "Which email providers does it work with?",
-            "a": "Google Workspace and Gmail, Office365 and Outlook, and Zoho Mail. BearlyMail sits on top of your existing account: no migration, no new email address."
+            "q": "Which email accounts does it work with?",
+            "a": "Gmail and Google Workspace, Microsoft 365 and Outlook, and Zoho Mail. You can connect more than one account. You keep your email address and nothing is migrated."
           },
-          "calendar": {
-            "q": "Does it work with my calendar?",
-            "a": "Yes. BearlyMail integrates with Google Calendar for meeting scheduling, so when an email turns into a meeting it can check your availability and help you schedule it without leaving your inbox."
+          "setup": {
+            "q": "What happens when I sign up?",
+            "a": "You connect your account and pick 2, 3 or 4 delivery times a day. BearlyMail then reads your most recent emails (up to 500) to learn your categories, the people who matter to you and what you're working on. That takes about a minute. You can then check what it learned and fix anything that's off."
           },
-          "peek": {
-            "q": "Can I peek at what’s being held?",
-            "a": "Technically yes, by opening Gmail or Outlook directly. We recommend blocking those sites and apps during focus time using <focusBear>Focus Bear</focusBear> so the temptation doesn't pull you back in."
+          "stillInMailbox": {
+            "q": "Is my email still in Gmail or Outlook?",
+            "a": "Yes. Held email is still in your normal mailbox, so you can always find it there. When you archive, snooze or star in BearlyMail, the change syncs back to your mailbox. If opening Gmail during focus time is the problem, <focusBear>Focus Bear</focusBear> can block it."
           },
-          "gmailImportant": {
-            "q": "How is this different from Gmail’s \"Important\" or Snooze?",
-            "a": "Gmail's Important label still shows you everything immediately, just sorted differently. Snooze still relies on you to triage every email first. BearlyMail flips the default: nothing arrives unless you've decided to be interrupted, or unless it's actually urgent."
+          "delivery": {
+            "q": "When will I see new email?",
+            "a": "At your delivery times. You choose them during setup and can change the times and days any time in Settings, under Email Batching. Between deliveries, non-urgent email waits quietly. It doesn't vanish."
           },
-          "price": {
-            "q": "What does it cost?",
-            "a": "From $5 USD / month, depending on how much email you get."
+          "urgent": {
+            "q": "What if something urgent arrives between deliveries?",
+            "a": "It comes through straight away. Any email that scores 75 or more skips the wait, and so do new replies on threads you've starred. You can turn urgent delivery off if you'd rather nothing interrupts you."
           },
-          "cancel": {
-            "q": "What happens if I cancel?",
-            "a": "Nothing is lost. BearlyMail sits on top of your existing Google, Microsoft or Zoho account, so every email is still there. Cancel any time and simply go back to your old inbox."
+          "vip": {
+            "q": "Do emails from my VIPs skip the wait?",
+            "a": "Not automatically. Marking someone as a VIP adds a big boost to the score of every email they send, which often takes it past the urgent bar, but not always. Give an email from someone the top star rating (\"Oh sh$t\") twice and BearlyMail adds them as a VIP for you. You can add or remove VIPs yourself in Settings."
+          },
+          "priorityScore": {
+            "q": "How does BearlyMail decide what's important?",
+            "a": "The AI scores each email on how urgent it is and how closely it relates to the goals and projects you've told it about. VIPs and senior senders get a boost, and newsletters get a lower score. To change what counts, edit your projects, goals and urgent topics in Settings, under Guide Our AI."
+          },
+          "wrongScore": {
+            "q": "What if it gets an email wrong?",
+            "a": "Change the score or the category on any email, and BearlyMail takes your correction into account. Nothing is deleted for scoring low. In Triage, lower-priority email sits behind \"Show all emails\", so the important email comes first."
+          },
+          "triageTabs": {
+            "q": "What are Triage, Action and Follow Up?",
+            "a": "Triage is new email you haven't dealt with yet. Star an email (\"Can wait\", \"Get on it\" or \"Oh sh$t\") to move it to Action, where your to-dos are sorted by priority. Once you've replied and are waiting on the other person, the thread moves to Follow Up until they answer."
           },
           "categories": {
-            "q": "How does BearlyMail decide categories?",
-            "a": "When you connect, BearlyMail looks at your recent email to suggest categories that fit your work — clients, projects, notifications, receipts and so on. New email is sorted into them automatically. You can rename, merge or add categories and move any email, and BearlyMail learns from every correction."
+            "q": "Where do the categories come from?",
+            "a": "During setup, BearlyMail suggests categories from a sample of your recent email, such as clients, receipts or notifications. You can add, rename or delete categories, move any email to a different one, and group categories into families. If you want a category to clear itself, you can auto-archive it."
+          },
+          "aiActions": {
+            "q": "Will it ever send or archive email without me?",
+            "a": "Only if you switch that on. Drafted replies are only sent when you press send. The auto-responder is off by default. When it's on, it replies at most once per sender every 7 days and skips newsletters, no-reply addresses and cold outreach. Email is only archived automatically by a rule you created or approved, including the auto-archive rules BearlyMail suggests, or because you blocked the sender."
           },
           "aiProviders": {
-            "q": "Which AI providers process my email, and for what?",
-            "a": "We use OpenAI, Google Gemini and Amazon Bedrock (Amazon Nova models) to summarise emails, score priority, sort email into categories and draft replies. Quick yes/no and multiple-choice decisions — such as which category an email belongs in, or whether it looks like phishing — go first to Jev, a small classification model from TypeSafe AI (hosted in the US). Every one of these providers commits not to train its models on your email."
+            "q": "Which AI services see my email, and do they train on it?",
+            "a": "Google Gemini, OpenAI, Amazon Bedrock (Amazon Nova models, run in Sydney) and TypeSafe AI's Jev classifier (in the US) summarise, score, categorise and draft replies. None of them train their models on your email, and we never sell your data. Our Privacy page lists what each one receives and where it runs."
           },
           "aiData": {
             "q": "What exactly is sent to the AI?",
-            "a": "Only what the task needs — for example, the email being summarised or the thread you are replying to, plus the priorities and categories you have set. Facts BearlyMail saves to learn your preferences have personal details such as phone numbers, addresses and bank details stripped out first."
+            "a": "Only what the task needs. That might be the email being summarised or scored, the thread you're replying to, and your saved goals and category names. Before BearlyMail saves anything it learns about you, it removes personal details such as phone numbers, addresses and bank details."
           },
-          "aiTraining": {
-            "q": "Is my email used to train AI models?",
-            "a": "No. Every AI provider we use — OpenAI, Google Gemini, Amazon Bedrock and TypeSafe AI (Jev) — commits not to train its models on your data, and we never sell it. You can export or delete everything at any time."
-          },
-          "aiActions": {
-            "q": "Will the AI send or archive email without me?",
-            "a": "Not unless you switch it on. Reply drafts are only sent when you send them. The auto-responder is off by default and only replies to the kinds of email you choose. Auto-archive rules only run for categories you have opted into."
-          },
-          "aiLearning": {
-            "q": "How does it learn my priorities?",
-            "a": "From what you do: who you reply to quickly, what you star, what you archive without reading, and every score or category you correct. You can also tell it directly by marking VIP senders and listing what you are working on."
+          "security": {
+            "q": "Where is my data stored, and how is it protected?",
+            "a": "On Amazon Web Services in Sydney, Australia. Your email and settings are encrypted at rest with AES-256-GCM, using encryption keys that are separate for each user. BearlyMail keeps an encrypted copy of the email it syncs until you delete your account."
           },
           "ownKey": {
             "q": "Can I use my own AI API key?",
-            "a": "Yes. Add your own OpenAI or Anthropic API key in Settings and BearlyMail will use it for your requests instead of ours."
+            "a": "Yes. You can add an OpenAI or Anthropic API key in Settings. BearlyMail then uses your key for any request it sends to that provider. Requests to Gemini, Amazon Bedrock and Jev still use BearlyMail's keys."
+          },
+          "calendar": {
+            "q": "Does it work with my calendar?",
+            "a": "With Google Calendar, yes. When an email asks for a meeting, BearlyMail checks your availability and can suggest times. It can also RSVP to invitations and give people a booking link for your free time. Outlook calendars aren't supported yet."
+          },
+          "price": {
+            "q": "How much does it cost?",
+            "a": "Plans are priced in US dollars by how many emails BearlyMail processes with AI each month. Starter is $5 a month for 3,000 emails. Growth is $15 a month for 10,000 emails and adds email open tracking. Enterprise is $40 a month for 30,000 emails and up to 5 people. You can change plans any time."
           },
           "trial": {
-            "q": "Is there a free trial?",
-            "a": "Yes. Every new account starts with a 7-day free trial with full AI prioritisation and categorisation, so you can see the difference in your own inbox before you pay."
+            "q": "Is there a free trial? Do I need a card?",
+            "a": "Every new account gets a 7-day free trial with 3,000 AI-processed emails and email open tracking. You don't need a card to start. If you don't choose a plan when the trial ends, your account keeps working, but only the first 100 emails each month are processed with AI."
+          },
+          "overLimit": {
+            "q": "What happens if I go over my plan's email limit?",
+            "a": "Your email still syncs and still arrives at your delivery times. Emails over the limit just don't get AI processing, so they have no score, category or summary, until your next billing month starts or you move to a bigger plan."
+          },
+          "team": {
+            "q": "Can my team use BearlyMail?",
+            "a": "Yes. The Enterprise plan covers up to 5 people. Invite them from Settings, under Team & Plan. Each person connects their own mailbox. There's no shared inbox."
+          },
+          "gmailImportant": {
+            "q": "How is this different from Gmail's Important label or Priority Inbox?",
+            "a": "Gmail sorts your email, but everything still arrives the moment it's sent. BearlyMail holds anything that isn't urgent until your next delivery time, tells you how important each email is, and drafts your replies."
+          },
+          "mobile": {
+            "q": "Is there a phone app?",
+            "a": "Not yet. BearlyMail runs in your browser and works on a phone, and you can add it to your home screen."
+          },
+          "cancel": {
+            "q": "What happens if I cancel or stop using it?",
+            "a": "Your mailbox isn't affected. All your email stays in Gmail, Outlook or Zoho. You can export your BearlyMail settings, rules and learned context, and delete your account, from Settings at any time. If an account isn't used for 30 days, it's deleted automatically, along with BearlyMail's copy of your email."
           }
         }
       },
@@ -4581,8 +4912,8 @@
             "body": "We make money from subscriptions, not your data. We never sell it or use it for advertising."
           },
           "noTraining": {
-            "title": "Not used to train AI",
-            "body": "Every AI provider we use commits not to train its models on your email."
+            "title": "Not used to train shared AI",
+            "body": "Every AI provider we use commits not to train its models on your email. Any model we train from it is for your account only."
           },
           "control": {
             "title": "You stay in control",
@@ -4790,6 +5121,7 @@
     "keyEsc": "Esc"
   },
   "sidebar": {
+    "goToInbox": "Go to inbox",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar"
   },
@@ -4964,6 +5296,8 @@
         "emailsPerCycle_other": "{{count, number}} AI-processed emails per month",
         "includesEmailTracking": "Email open tracking",
         "includesEmailTrackingDescription": "See if the other person read your email",
+        "includesCrm": "CRM",
+        "includesCrmDescription": "Deals pipeline, contact notes and custom fields",
         "teamMembers_one": "{{count}} team member",
         "teamMembers_other": "{{count}} team members",
         "choosePlan": "Choose plan",
@@ -5000,5 +5334,21 @@
     "multipleRecipients_one": "Sent to {{count}} recipient.",
     "multipleRecipients_other": "Sent to {{count}} recipients — an open could be any of them.",
     "imagesCaveat": "Opens are detected with a tiny image. Recipients who block images won't show as opened."
+  },
+  "googlePermissions": {
+    "startError": "Couldn't open Google. Please try again.",
+    "calendar": {
+      "message": "Connect your Google Calendar so BearlyMail can check when you're free and add the meeting for you.",
+      "action": "Connect your calendar"
+    },
+    "contacts": {
+      "message": "We've only got contacts from your emails.",
+      "action": "Import all your Gmail contacts"
+    },
+    "result": {
+      "granted": "Done. BearlyMail can now use it.",
+      "declined": "Google didn't give BearlyMail that permission. Tick its box on Google's screen to allow it.",
+      "wrongAccount": "That was a different Google account. Choose the account you signed in to BearlyMail with."
+    }
   }
 }

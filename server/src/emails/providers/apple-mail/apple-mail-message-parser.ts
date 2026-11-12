@@ -2,15 +2,19 @@ import {
   AppleMailMessageDetail,
   AppleMailMessageSummary,
 } from "../../../apple-mail-accounts/apple-mail-script.service";
+import { MAIL_HEADER_NAMES } from "../../../constants/mail-server.constants";
+import { parseAuthenticationResults } from "../../../utils/authentication-results.util";
 import {
   EmailAttachment,
   RawEmailMessage,
 } from "../../interfaces/email-provider.interface";
+import {
+  deriveThreadIdFromChain,
+  extractMessageIdTokens,
+  normalizeMessageId,
+} from "../rfc822/rfc822-threading";
 
-/** Strips enclosing angle brackets from an RFC-822 message ID. */
-export function normalizeMessageId(id: string): string {
-  return (id || "").replace(/^</, "").replace(/>$/, "").trim();
-}
+export { normalizeMessageId };
 
 /** Parses "Display Name <user@host>" (or a bare address) into parts. */
 export function parseAddress(raw: string): { email: string; name?: string } {
@@ -49,29 +53,16 @@ export function extractHeader(
   return null;
 }
 
-/** Extracts all <id> tokens from a References / In-Reply-To header value. */
-function extractMessageIdTokens(headerValue: string | null): string[] {
-  if (!headerValue) return [];
-  const tokens = headerValue.match(/<[^<>]+>/g) || [];
-  return tokens.map(normalizeMessageId);
-}
-
 /**
  * Derives a stable thread ID for a message. Apple Mail exposes no thread /
- * conversation ID via AppleScript, so we use the RFC-822 chain: the first
- * entry of References is the thread root; failing that In-Reply-To (parent ==
- * root for two-message threads); failing that the message is its own root.
+ * conversation ID via AppleScript, so we use the RFC-822 chain.
  */
 export function deriveThreadId(allHeaders: string, messageId: string): string {
-  const references = extractMessageIdTokens(
-    extractHeader(allHeaders, "References"),
-  );
-  if (references.length > 0) return references[0];
-  const inReplyTo = extractMessageIdTokens(
-    extractHeader(allHeaders, "In-Reply-To"),
-  );
-  if (inReplyTo.length > 0) return inReplyTo[0];
-  return normalizeMessageId(messageId);
+  return deriveThreadIdFromChain({
+    references: extractMessageIdTokens(extractHeader(allHeaders, "References")),
+    inReplyTo: extractMessageIdTokens(extractHeader(allHeaders, "In-Reply-To")),
+    messageId,
+  });
 }
 
 /**
@@ -108,7 +99,11 @@ export function parseAppleMailMessage(
     fromName: sender.name,
     to: extractHeader(detail.allHeaders, "To") || undefined,
     cc: extractHeader(detail.allHeaders, "Cc") || undefined,
-    replyTo: extractHeader(detail.allHeaders, "Reply-To") || undefined,
+    replyTo:
+      extractHeader(detail.allHeaders, MAIL_HEADER_NAMES.REPLY_TO) || undefined,
+    senderAuthResults: parseAuthenticationResults(
+      extractHeader(detail.allHeaders, MAIL_HEADER_NAMES.AUTHENTICATION_RESULTS),
+    ),
     body: detail.content || "",
     starCount: summary.isFlagged ? 3 : 0,
     receivedAt: new Date(summary.dateReceivedMs),

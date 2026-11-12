@@ -104,6 +104,12 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
   const cancelledRef = useRef(false);
   const progressHighWaterMark = useRef(0); // Track highest progress to prevent going backwards
   const messageKeyHighWaterMark = useRef<string | null>(null); // Track highest stage to prevent message going backwards
+  // Set once this hook starts its own analysis. Starting supersedes (fails) any
+  // older running analysis on the server, so a mount-resume result that lands
+  // afterwards would point polling at a dead run and surface "Superseded by new
+  // analysis" — which froze onboarding for a user re-entering after an
+  // unfinished earlier sign-up.
+  const hasStartedAnalysisRef = useRef(false);
   // Backoff circuit breaker for 429 handling — uses a single synthetic key since there is
   // only one analysis-progress polling loop. Stored in refs so it never triggers re-renders.
   const backoff = usePollingWithBackoff({ maxRetries: MAX_POLL_RETRIES_429 });
@@ -123,7 +129,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     const resumeIfInProgress = async () => {
       try {
         const response = await axios.get(`${API_URL}/context/analyze-progress`);
-        if (cancelled) {
+        if (cancelled || hasStartedAnalysisRef.current) {
           return;
         }
 
@@ -159,11 +165,14 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     // Run once on mount only
   }, []);
 
-  const startAnalysis = useCallback(async () => {
+  // `attachToExisting` joins the user's running or finished analysis instead of
+  // superseding it: onboarding starts one in the background at mailbox connect.
+  const beginAnalysis = useCallback(async (attachToExisting: boolean) => {
     devLog('===== Starting Context Analysis =====');
     devDebug('Setting analyzing state to true');
 
     // Reset cancellation flag, high water marks, and backoff state when starting new analysis
+    hasStartedAnalysisRef.current = true;
     cancelledRef.current = false;
     progressHighWaterMark.current = 0;
     messageKeyHighWaterMark.current = null;
@@ -181,6 +190,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
       devLog(`Making POST request to ${API_URL}/context/analyze`);
       const response = await axios.post(`${API_URL}/context/analyze`, {
         isNewUserOnboarding: hookOptions?.isNewUserOnboarding ?? false,
+        attachToExisting,
       });
       devLog('POST request successful', response.data);
 
@@ -211,6 +221,11 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing
   }, []);
+
+  /** Starts a fresh analysis, superseding any run in progress (manual re-analysis, retry). */
+  const startAnalysis = useCallback(() => beginAnalysis(false), [beginAnalysis]);
+  /** Joins the analysis already running or finished for this user, starting one only if there is none. */
+  const joinOrStartAnalysis = useCallback(() => beginAnalysis(true), [beginAnalysis]);
 
   useEffect(() => {
     // Don't start polling until BOTH analyzing is true AND analysisId is set
@@ -491,6 +506,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     setAnalyzing,
     setAnalyzeProgress,
     startAnalysis,
+    joinOrStartAnalysis,
     dismissProgress,
   };
 };

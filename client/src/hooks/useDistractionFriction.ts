@@ -156,7 +156,16 @@ export function useDistractionFriction({
     (minPriority: number | null, maxPriority: number | null): boolean => {
       // Only intercept peeks BELOW High while gated. Staying at High-and-above, or
       // peeking when there was no existing work at session start, is frictionless.
-      if (!isGateActive || !isBelowHighFloor(minPriority)) {
+      if (!isBelowHighFloor(minPriority)) {
+        return false;
+      }
+      if (!isGateActive) {
+        // A frictionless reveal counts as this session's unlock. During a first import the
+        // existing-work snapshot keeps absorbing counts (starred threads land in Action), so
+        // without this the gate switched on AFTER the reveal and its floor effect silently
+        // put the High filter back — "Show all emails" and "Clear all filters" both looked
+        // like they did nothing.
+        setIsUnlocked(true);
         return false;
       }
       pendingTargetRef.current = { minPriority, maxPriority };

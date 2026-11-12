@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 
+import { GMAIL_ACCESS_ISSUE_MISSING } from 'constants/strings';
 import {
   HIGH_PRIORITY_THRESHOLD,
   MEDIUM_PRIORITY_THRESHOLD,
@@ -8,6 +9,11 @@ import {
 } from 'hooks/useInboxFilters';
 
 import { EmailListStates } from './EmailListStates';
+
+vi.mock('components/gmail-access/GmailAccessAlert', () => ({
+  GMAIL_ACCESS_ALERT_LAYOUT: { BANNER: 'banner', PANEL: 'panel' },
+  GmailAccessAlert: ({ layout }: { layout: string }) => <div data-testid={`gmail-access-alert-${layout}`} />,
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -100,6 +106,19 @@ const baseProps = {
 describe('EmailListStates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('Gmail access issue', () => {
+    it('explains the empty inbox instead of showing an empty or syncing state', () => {
+      render(<EmailListStates {...baseProps} emailsEmpty isSyncing gmailAccessIssue={GMAIL_ACCESS_ISSUE_MISSING} />);
+      expect(screen.getByTestId('gmail-access-alert-panel')).toBeTruthy();
+      expect(screen.queryByTestId('empty-state')).toBeNull();
+    });
+
+    it('keeps the normal empty state once Gmail is readable again', () => {
+      render(<EmailListStates {...baseProps} emailsEmpty gmailAccessIssue={null} />);
+      expect(screen.queryByTestId('gmail-access-alert-panel')).toBeNull();
+    });
   });
 
   describe('loading states', () => {

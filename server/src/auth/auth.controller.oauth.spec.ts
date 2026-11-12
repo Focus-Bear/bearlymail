@@ -2,7 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { createHmac } from "crypto";
 import { Response } from "express";
 
-import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import { AUTH_CONSTANTS, OAUTH_ERROR_TYPES } from "../constants/auth-constants";
+import { MISSING_GMAIL_PERMISSION_MESSAGE } from "../constants/google-oauth-scopes";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
@@ -12,6 +13,7 @@ import { WaitlistService } from "../waitlist/waitlist.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { GooglePermissionGrantService } from "./google-permission-grant.service";
 import { StepUpAuthGuard } from "./step-up.guard";
 
 const FRONTEND_URL = "https://app.bearlymail.test";
@@ -36,8 +38,16 @@ function asResponse(mock: MockResponse): Response {
 
 // Mirrors the HMAC signing in oauth-state.util.ts so the controller's
 // signature verification accepts the state these tests produce.
+const CONNECT_NONCE = "test-connect-nonce";
+/** The binding cookie a browser holds after asking for a connect URL. */
+const CONNECT_COOKIE = { cookie: `bm_oauth_connect=${CONNECT_NONCE}` };
+
 function encodeState(payload: Record<string, string>): string {
-  const json = JSON.stringify({ ...payload, iat: Date.now() });
+  const withNonce =
+    payload.action === "connect"
+      ? { ...payload, nonce: CONNECT_NONCE }
+      : payload;
+  const json = JSON.stringify({ ...withNonce, iat: Date.now() });
   const body = Buffer.from(json).toString("base64url");
   const sig = createHmac("sha256", process.env.JWT_SECRET as string)
     .update(json)
@@ -101,6 +111,8 @@ describe("AuthController OAuth callbacks", () => {
     create: jest.fn(),
   };
 
+  const mockGooglePermissionGrantService = { getCallbackRedirect: jest.fn() };
+
   const mockBoss = {
     send: jest.fn(),
   };
@@ -132,6 +144,10 @@ describe("AuthController OAuth callbacks", () => {
         { provide: UserEncryptionService, useValue: mockUserEncryptionService },
         { provide: WaitlistService, useValue: {} },
         { provide: INJECT_TOKENS.PG_BOSS, useValue: mockBoss },
+        {
+          provide: GooglePermissionGrantService,
+          useValue: mockGooglePermissionGrantService,
+        },
       ],
     })
       // These tests call handlers directly; the guard is covered by step-up.guard.spec.
@@ -191,6 +207,27 @@ describe("AuthController OAuth callbacks", () => {
       );
     });
 
+    it("should send a user who declined Gmail access to the grant-permission explanation", async () => {
+      const res = createMockResponse();
+
+      await controller.googleAuthRedirect(
+        {
+          authError: new Error(MISSING_GMAIL_PERMISSION_MESSAGE),
+          user: { authFailed: true },
+        },
+        asResponse(res),
+        undefined,
+      );
+
+      expect(mockAuthService.login).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith(
+        expectedErrorRedirect(
+          MISSING_GMAIL_PERMISSION_MESSAGE,
+          OAUTH_ERROR_TYPES.MISSING_GMAIL_PERMISSION,
+        ),
+      );
+    });
+
     it("should use a generic message and auth_error type when auth failed without an error object", async () => {
       const res = createMockResponse();
 
@@ -217,7 +254,7 @@ describe("AuthController OAuth callbacks", () => {
       };
 
       await controller.googleAuthRedirect(
-        { user: connectUser },
+        { user: connectUser, headers: CONNECT_COOKIE },
         asResponse(res),
         encodeState({ action: "connect", userId: "owner-1" }),
       );
@@ -260,6 +297,7 @@ describe("AuthController OAuth callbacks", () => {
 
       await controller.googleAuthRedirect(
         {
+          headers: CONNECT_COOKIE,
           user: {
             googleId: "google-123",
             googleAccessToken: "new-access",
@@ -283,6 +321,29 @@ describe("AuthController OAuth callbacks", () => {
       );
     });
 
+    it("ignores a connect-state this browser didn't start (link handed over by someone else)", async () => {
+      const res = createMockResponse();
+      mockGoogleAccountsService.findAllByUser.mockResolvedValue([]);
+
+      await controller.googleAuthRedirect(
+        {
+          user: {
+            googleId: "victim-google",
+            googleAccessToken: "access-token",
+            googleRefreshToken: "refresh-token",
+            email: "victim@example.com",
+          },
+          headers: {},
+        },
+        asResponse(res),
+        encodeState({ action: "connect", userId: "attacker-1" }),
+      );
+
+      expect(mockGoogleAccountsService.create).not.toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "attacker-1" }),
+      );
+    });
+
     it("should fall through to the normal login flow when state is not a connect action", async () => {
       const res = createMockResponse();
 
@@ -295,6 +356,49 @@ describe("AuthController OAuth callbacks", () => {
       expect(mockGoogleAccountsService.findAllByUser).not.toHaveBeenCalled();
       expect(mockAuthService.login).toHaveBeenCalledWith(googleUser);
       expect(res.redirect).toHaveBeenCalledWith(`${FRONTEND_URL}/inbox`);
+    });
+
+    describe("incremental Google permission grant", () => {
+      const grantRequest = { user: googleUser };
+      const grantUrl = `${FRONTEND_URL}/email/abc?googlePermission=granted`;
+
+      it("follows the grant's redirect without logging in", async () => {
+        mockGooglePermissionGrantService.getCallbackRedirect.mockResolvedValue(
+          grantUrl,
+        );
+        const res = createMockResponse();
+
+        await controller.googleAuthRedirect(
+          grantRequest,
+          asResponse(res),
+          "signed-state",
+        );
+
+        expect(
+          mockGooglePermissionGrantService.getCallbackRedirect,
+        ).toHaveBeenCalledWith("signed-state", grantRequest, FRONTEND_URL);
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(res.cookie).not.toHaveBeenCalled();
+        expect(res.redirect).toHaveBeenCalledWith(grantUrl);
+      });
+
+      it("returns a cancelled grant to the app, not the sign-in error page", async () => {
+        mockGooglePermissionGrantService.getCallbackRedirect.mockResolvedValue(
+          `${FRONTEND_URL}/email/abc?googlePermission=declined`,
+        );
+        const res = createMockResponse();
+
+        await controller.googleAuthRedirect(
+          { authError: new Error("denied"), user: { authFailed: true } },
+          asResponse(res),
+          "signed-state",
+        );
+
+        expect(res.redirect).toHaveBeenCalledTimes(1);
+        expect(res.redirect).toHaveBeenCalledWith(
+          `${FRONTEND_URL}/email/abc?googlePermission=declined`,
+        );
+      });
     });
   });
 
@@ -404,7 +508,7 @@ describe("AuthController OAuth callbacks", () => {
       ]);
 
       await controller.microsoftAuthRedirect(
-        { user: microsoftUser },
+        { user: microsoftUser, headers: CONNECT_COOKIE },
         asResponse(res),
         encodeState({ action: "connect", userId: "owner-1" }),
       );
@@ -560,7 +664,7 @@ describe("AuthController OAuth callbacks", () => {
       };
 
       await controller.zohoAuthRedirect(
-        { user: connectUser },
+        { user: connectUser, headers: CONNECT_COOKIE },
         asResponse(res),
         encodeState({ action: "connect", userId: "owner-1" }),
       );

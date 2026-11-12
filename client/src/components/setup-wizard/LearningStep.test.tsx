@@ -23,6 +23,7 @@ vi.mock('hooks/settings/useAnalysisProgress', () => ({
     analyzing: true,
     analyzeProgress: { show: true, progress: { current: 0, total: 100 }, error: null, isComplete: false },
     startAnalysis: vi.fn(),
+    joinOrStartAnalysis: vi.fn(),
   }),
 }));
 

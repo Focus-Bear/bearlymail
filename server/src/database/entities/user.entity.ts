@@ -9,6 +9,8 @@ import {
 } from "typeorm";
 
 import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.types";
+import { GmailAccessIssue } from "../../constants/domain-statuses";
+import type { UserAiProvider } from "../../constants/user-ai-providers.constants";
 import {
   makeGlobalEmailTransformer,
   makeGlobalEncryptedColumnTransformer,
@@ -18,6 +20,7 @@ import { ActionItem } from "./action-item.entity";
 import { AppleMailAccount } from "./apple-mail-account.entity";
 import { Email } from "./email.entity";
 import { GoogleAccount } from "./google-account.entity";
+import { ImapAccount } from "./imap-account.entity";
 import { Office365Account } from "./office365-account.entity";
 import { PrivateNote } from "./private-note.entity";
 import { SummarizationRule } from "./summarization-rule.entity";
@@ -223,11 +226,39 @@ export class User {
   anthropicApiKey: string;
 
   @Column({
+    type: "varchar",
+    nullable: true,
+    transformer: makeGlobalEncryptedColumnTransformer("users.typesafeApiKey"),
+    comment:
+      "TypeSafe AI (Jev) API key (encrypted) - Jev decisions run on the user's own account",
+  })
+  typesafeApiKey: string | null;
+
+  @Column({
+    type: "jsonb",
+    nullable: true,
+    comment:
+      "When each AI provider last rejected the user's own key (provider id -> ISO time); cleared when the key is replaced",
+  })
+  aiKeyRejections: Partial<Record<UserAiProvider, string>> | null;
+
+  @Column({
     nullable: true,
     transformer: makeGlobalEncryptedColumnTransformer("users.githubToken"),
     comment: "GitHub fine-grained PAT (encrypted) - for GitHub integration",
   })
   githubToken: string;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: makeGlobalEncryptedColumnTransformer(
+      "users.focusBearApiToken",
+    ),
+    comment:
+      "Focus Bear access token (encrypted, scope tasks:read) - for project and due-date suggestions on Save to Focus Bear",
+  })
+  focusBearApiToken: string | null;
 
   @Column({
     type: "text",
@@ -283,6 +314,29 @@ export class User {
       "True when the initial sync skipped older mail (500-email cap / 7-day window). Drives the client 'old emails not synced' banner.",
   })
   syncWindowLimited: boolean;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Why the last Gmail fetch couldn't read mail (gmail_access_missing / gmail_access_revoked); null once a fetch succeeds. Drives the client reconnect banner.",
+  })
+  gmailAccessIssue: GmailAccessIssue | null;
+
+  @Column({
+    type: "timestamptz",
+    nullable: true,
+    comment: "When gmailAccessIssue was first recorded.",
+  })
+  gmailAccessIssueAt: Date | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    comment:
+      "Space-separated OAuth scopes Google reported at the last Google sign-in; null when unknown. Drives the onboarding missing-permissions warning.",
+  })
+  googleGrantedScopes: string | null;
 
   @Column({
     default: true,
@@ -401,4 +455,7 @@ export class User {
 
   @OneToMany(() => AppleMailAccount, (account) => account.user)
   appleMailAccounts: AppleMailAccount[];
+
+  @OneToMany(() => ImapAccount, (account) => account.user)
+  imapAccounts: ImapAccount[];
 }

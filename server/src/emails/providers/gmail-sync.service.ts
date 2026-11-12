@@ -4,7 +4,11 @@ import type { PgBoss } from "pg-boss";
 
 import { authLogger } from "../../auth/auth-logger";
 import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
-import { SYNC_STATUS } from "../../constants/domain-statuses";
+import { RELOGIN_REASONS } from "../../constants/auth-constants";
+import {
+  GMAIL_ACCESS_ISSUE,
+  SYNC_STATUS,
+} from "../../constants/domain-statuses";
 import { OAUTH_ERROR_CODES } from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
@@ -23,12 +27,17 @@ import { formatGaxiosError, isApiError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { logErrorToFile } from "../../utils/error-logger";
 import { InvalidTokenError } from "../../utils/errors";
-import { providerSyncCreateEmailOptions } from "../email-lifecycle.service";
+import {
+  backfillSyncCreateEmailOptions,
+  CreateEmailOptions,
+  providerSyncCreateEmailOptions,
+} from "../email-lifecycle.service";
 import {
   EmailDataWithOptionalThreadProps,
   EmailsService,
 } from "../emails.service";
 import { EmailAttachment } from "../interfaces/email-provider.interface";
+import { hasDraftLabel } from "../labels.util";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
 import {
@@ -40,23 +49,33 @@ import {
 import { GmailProvider } from "./gmail.provider";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
 import {
+  buildStoredGmailEmailUpdates,
+  classifyGmailAccessIssue,
   getExistingThreadUpdates,
   isGmailAuthError,
+  isGmailInsufficientScopeError,
   isThreadStarred,
 } from "./gmail/gmail-sync";
+import { GMAIL_INBOX_QUERY } from "./gmail-inbox-query";
 import {
   refreshAttachmentsFromGmailForThread,
   refreshAttachmentsFromGmailForUser,
 } from "./gmail-sync.refresh-attachments";
-import {
-  fetchAllThreadsWithPagination,
-  olderMailExistsBeyondWindow,
-} from "./gmail-sync.thread-list";
+import { fetchAllThreadsWithPagination } from "./gmail-sync.thread-list";
 import { verifyInboxStatusForUser } from "./gmail-sync.verify-inbox";
 
-/** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
-const GMAIL_INBOX_QUERY =
-  "in:inbox -label:SnoozedBearlyMail -label:VA-to-action";
+/**
+ * True when both snapshots hold the same Google refresh token. Every Google
+ * login re-consents (prompt=consent) and stores a freshly minted refresh token,
+ * so a mismatch means the user reconnected while this sync was in flight and
+ * the failure belongs to the superseded grant — not one worth flagging.
+ */
+function isSameGoogleGrant(before: User | null, after: User | null): boolean {
+  return (
+    !!before?.googleCalendarRefreshToken &&
+    before.googleCalendarRefreshToken === after?.googleCalendarRefreshToken
+  );
+}
 
 /**
  * Handles all Gmail sync and scan operations, extracted from GmailProvider to keep
@@ -107,14 +126,17 @@ export class GmailSyncService {
       userId,
       "gmail_missing_refresh_token",
     );
+    await this.usersService.recordGmailAccessIssue(
+      userId,
+      GMAIL_ACCESS_ISSUE.REVOKED,
+    );
     throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
   }
 
   private isInvalidTokenError(error: unknown): boolean {
     const errAsGaxios = error as Record<string, unknown>;
     const errResponse = errAsGaxios?.response as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const responseData = errResponse?.data as { error?: string } | undefined;
     if (responseData?.error) {
       const code = responseData.error.toLowerCase();
@@ -148,6 +170,10 @@ export class GmailSyncService {
             `(this is the usual cause of "logged out") — detail: ${formatGaxiosError(error)}`,
         );
         await this.usersService.markNeedsRelogin(userId, "gmail_invalid_token");
+        await this.usersService.recordGmailAccessIssue(
+          userId,
+          GMAIL_ACCESS_ISSUE.REVOKED,
+        );
         throw new InvalidTokenError(ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED);
       }
       // Transient/non-auth failure (network, 5xx, rate limit): do NOT flag for
@@ -211,10 +237,11 @@ export class GmailSyncService {
     }
     const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
 
-    // Sync-window policy: every fetch is clamped to the ongoing window — the
-    // extended (noDateFilter) sync gets the full window instead of no filter.
-    // Starred threads are fetched separately below with the wider starred
-    // window.
+    // Sync-window policy: the initial inbox listing has no date floor (it is
+    // capped by count instead); every other fetch is clamped to the ongoing
+    // window — the extended (noDateFilter) sync gets the full window instead
+    // of no filter. Starred threads are fetched separately below with the
+    // wider starred window.
     const syncWindowStart = resolveSyncWindowStart({
       lastEmailSyncAt: user.lastEmailSyncAt,
       syncWindowHours,
@@ -224,7 +251,9 @@ export class GmailSyncService {
       syncWindowStart.getTime() / MS_PER_SECOND,
     );
     const afterQuery = `after:${syncWindowTimestamp}`;
-    const inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
+    const inboxQuery = params.isInitialSync
+      ? `in:inbox ${baseQuery}`
+      : `in:inbox ${baseQuery} ${afterQuery}`;
     const sentQuery = noDateFilter
       ? `in:sent ${baseQuery} newer_than:2d`
       : `in:sent ${baseQuery} ${afterQuery}`;
@@ -277,6 +306,7 @@ export class GmailSyncService {
       providedThreadIds?: string[];
       isContinuation?: boolean;
       noDateFilter?: boolean;
+      isBackfill?: boolean;
     } = {},
   ): Promise<void> {
     const {
@@ -284,6 +314,7 @@ export class GmailSyncService {
       providedThreadIds,
       isContinuation = false,
       noDateFilter = false,
+      isBackfill = false,
     } = options;
     const syncStart = Date.now();
     let allThreadIds: Set<string>;
@@ -307,25 +338,13 @@ export class GmailSyncService {
           isInitialSync,
         }));
 
-      if (isInitialSync) {
-        // Hitting the fetch cap already flags the sync window as limited, so
-        // the older-mail network probe is only needed when the cap wasn't hit.
-        const olderMailExists = inboxHasMore
-          ? false
-          : await olderMailExistsBeyondWindow(
-              this.logger,
-              gmail,
-              syncWindowStart,
-            );
-        if (
-          shouldFlagSyncWindowLimited({
-            isInitialSync,
-            hitFetchCap: inboxHasMore,
-            olderMailExists,
-          })
-        ) {
-          await this.usersService.markSyncWindowLimited(userId);
-        }
+      if (
+        shouldFlagSyncWindowLimited({
+          isInitialSync,
+          hitFetchCap: inboxHasMore,
+        })
+      ) {
+        await this.usersService.markSyncWindowLimited(userId);
       }
     }
 
@@ -342,7 +361,9 @@ export class GmailSyncService {
       Array.from(allThreadIds),
       gmail,
       existingThreadMap,
-      isInitialSync,
+      isBackfill
+        ? backfillSyncCreateEmailOptions()
+        : providerSyncCreateEmailOptions(isInitialSync),
     );
     await this.applyThreadUpdates(userId, updates);
 
@@ -366,8 +387,15 @@ export class GmailSyncService {
     userId: string,
     message: gmail_v1.Schema$Message,
     starCount: number,
-    isInitialSync: boolean,
+    createEmailOptions: CreateEmailOptions,
   ): Promise<void> {
+    if (hasDraftLabel(message.labelIds)) {
+      // An unsent draft is not mail. Older syncs stored drafts like sent
+      // replies, so drop any such copy instead of just skipping it.
+      await this.emailsService.deleteEmailByMessageId(userId, message.id!);
+      return;
+    }
+
     const rawEmail = parseGmailMessage(message);
     if (!rawEmail) return;
 
@@ -376,17 +404,7 @@ export class GmailSyncService {
       message.id!,
     );
     if (existing) {
-      const isReadInGmail = !(message.labelIds || []).includes("UNREAD");
-      const hasStoredAttachments =
-        Array.isArray(existing.attachments) && existing.attachments.length > 0;
-      const parsedAttachments = rawEmail.attachments;
-      const updates: { isRead?: boolean; attachments?: EmailAttachment[] } = {};
-      if (existing.isRead !== isReadInGmail) {
-        updates.isRead = isReadInGmail;
-      }
-      if (!hasStoredAttachments && parsedAttachments?.length) {
-        updates.attachments = parsedAttachments;
-      }
+      const updates = buildStoredGmailEmailUpdates(existing, rawEmail);
       if (Object.keys(updates).length > 0) {
         await this.emailsService.updateEmail(userId, existing.id, updates);
       }
@@ -400,7 +418,7 @@ export class GmailSyncService {
         starCount,
         labels: rawEmail.labelIds,
       } as EmailDataWithOptionalThreadProps,
-      providerSyncCreateEmailOptions(isInitialSync),
+      createEmailOptions,
     );
   }
 
@@ -417,7 +435,7 @@ export class GmailSyncService {
         isArchived: boolean;
       }
     >,
-    isInitialSync: boolean,
+    createEmailOptions: CreateEmailOptions,
   ): Promise<{
     starUpdates: { threadId: string; starCount: number }[];
     archivedUpdates: { threadId: string; isArchived: boolean }[];
@@ -465,7 +483,7 @@ export class GmailSyncService {
                 userId,
                 message,
                 starCount,
-                isInitialSync,
+                createEmailOptions,
               );
             }
           } catch (error) {
@@ -588,33 +606,62 @@ export class GmailSyncService {
       "GmailProvider",
     );
 
-    if (isGmailAuthError(error)) {
-      const currentUser = await this.usersService
-        .findOneWithTokens(userId)
-        .catch(() => user);
-      const isRecentLogin = this.isWithinGracePeriod(currentUser);
-      this.logger.warn(
-        `[NEEDS_RELOGIN] syncEmails: Gmail API auth error for user ${userId} ` +
-          `(gracePeriodActive=${isRecentLogin}, willFlag=${!isRecentLogin}) — detail: ${formattedError}`,
-      );
-      authLogger.logAuthFailure(
-        userId,
-        currentUser?.email || null,
-        "syncEmails-gmailApi",
-        error,
-        { isRecentLogin, gracePeriodActive: isRecentLogin },
-      );
-      if (!isRecentLogin)
-        await this.usersService.markNeedsRelogin(
-          userId,
-          "gmail_sync_auth_error",
-        );
-    } else {
+    const accessIssue = classifyGmailAccessIssue(error);
+    if (!accessIssue) {
       this.logger.warn(
         `syncEmails: non-auth error for user ${userId} — NOT flagging relogin: ${formattedError}`,
       );
+      throw error;
     }
+    // Recorded regardless of the relogin grace period: the token in hand
+    // genuinely can't read mail, and the next successful fetch clears it.
+    await this.usersService.recordGmailAccessIssue(userId, accessIssue);
+    await this.flagSyncAuthFailure(userId, user, error, formattedError);
     throw error;
+  }
+
+  /**
+   * Decide whether a Gmail auth failure during sync flags the user for
+   * re-login. Generic auth errors respect the post-login grace period (a stale
+   * token can race a fresh login). A missing-scope 403 bypasses it: retrying
+   * can never succeed, and the grace window — keyed off `updatedAt`, which any
+   * user-row write re-arms — otherwise strands the user with a sync that fails
+   * every cycle and no reconnect prompt.
+   */
+  private async flagSyncAuthFailure(
+    userId: string,
+    userAtSyncStart: User | null,
+    error: unknown,
+    formattedError: string,
+  ): Promise<void> {
+    const currentUser = await this.usersService
+      .findOneWithTokens(userId)
+      .catch(() => userAtSyncStart);
+    const isRecentLogin = this.isWithinGracePeriod(currentUser);
+    const isPermanentScopeFailure =
+      isGmailInsufficientScopeError(error) &&
+      isSameGoogleGrant(userAtSyncStart, currentUser);
+    const willFlag = isPermanentScopeFailure || !isRecentLogin;
+    this.logger.warn(
+      `[NEEDS_RELOGIN] syncEmails: Gmail API auth error for user ${userId} ` +
+        `(gracePeriodActive=${isRecentLogin}, insufficientScope=${isPermanentScopeFailure}, ` +
+        `willFlag=${willFlag}) — detail: ${formattedError}`,
+    );
+    authLogger.logAuthFailure(
+      userId,
+      currentUser?.email || null,
+      "syncEmails-gmailApi",
+      error,
+      { isRecentLogin, gracePeriodActive: isRecentLogin },
+    );
+    if (!willFlag) return;
+    await this.usersService.markNeedsRelogin(
+      userId,
+      isPermanentScopeFailure
+        ? RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE
+        : RELOGIN_REASONS.GMAIL_SYNC_AUTH_ERROR,
+      { bypassGracePeriod: isPermanentScopeFailure },
+    );
   }
 
   // ── Verify / Scan ─────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
@@ -7,6 +7,7 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import type { EmailLookup } from "../emails/email-lookup.types";
 import { EmailsService } from "../emails/emails.service";
 import { decryptSummarizationRuleEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
@@ -51,7 +52,7 @@ export class SummarizationService {
   >();
 
   constructor(
-    private emailsService: EmailsService,
+    @Inject(EmailsService) private emailsService: EmailLookup,
     private llmService: LLMService,
     @InjectRepository(SummarizationRuleEntity)
     private summarizationRuleRepository: Repository<SummarizationRuleEntity>,

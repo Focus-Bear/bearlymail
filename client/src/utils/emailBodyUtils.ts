@@ -219,6 +219,91 @@ export interface CleanBodyResult {
 }
 
 /**
+ * The "On <date>, <name> wrote:" line a mail client puts above a quoted reply,
+ * in the shapes real clients write: Gmail day-first and US month-first, Apple's
+ * forms without a weekday, numeric dates, BearlyMail's own
+ * "On Mon, 26 Oct 2026 02:52:50 GMT, Name <a@b> wrote:", and the Spanish,
+ * German and French Gmail forms. The attribution may wrap onto a
+ * second line ("Name <\na@b> wrote:"), but no further, so a sentence that
+ * merely starts "On Monday…" and says "wrote:" much later is not a boundary.
+ */
+const ATTRIBUTION_TAIL = String.raw`[^\n]{0,250}(?:\n[^\n]{0,250})?`;
+const DAY_OR_MONTH = String.raw`[^\s,]+`;
+const OPTIONAL_WEEKDAY = String.raw`(?:${DAY_OR_MONTH},\s+)?`;
+const REPLY_ATTRIBUTION_PATTERNS = [
+  new RegExp(String.raw`On\s+${OPTIONAL_WEEKDAY}\d{1,2}\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}wrote:`, 'i'),
+  new RegExp(String.raw`On\s+${OPTIONAL_WEEKDAY}${DAY_OR_MONTH}\s+\d{1,2},\s+\d{4}${ATTRIBUTION_TAIL}wrote:`, 'i'),
+  new RegExp(String.raw`On\s+\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}${ATTRIBUTION_TAIL}wrote:`, 'i'),
+  new RegExp(String.raw`El\s+${DAY_OR_MONTH},\s+\d{1,2}\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}escribió:`, 'i'),
+  new RegExp(String.raw`Am\s+${DAY_OR_MONTH},\s+\d{1,2}\.\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}schrieb${ATTRIBUTION_TAIL}:`, 'i'),
+  new RegExp(String.raw`Le\s+${DAY_OR_MONTH}\s+\d{1,2}\s+${DAY_OR_MONTH}\s+\d{4}${ATTRIBUTION_TAIL}a\s+écrit\s*:`, 'i'),
+];
+
+/**
+ * Forwarded / Outlook header blocks. These need real content above them: a
+ * forward with only "FYI" on top is mostly the forwarded mail, so hiding it
+ * would hide the point of the message.
+ */
+const FORWARD_HEADER_PATTERNS = [
+  /From:\s+.*?<.*?@.*?>\s+Sent:\s+.*?Subject:/i,
+  /-----Original Message-----/i,
+  /Date:\s+.*?\nFrom:\s+.*?\nTo:\s+.*?\nSubject:/i,
+];
+
+function earliestMatch(text: string, patterns: RegExp[], isAcceptable: (index: number) => boolean): number {
+  let earliest = -1;
+  for (const pattern of patterns) {
+    const index = text.search(pattern);
+    if (index >= 0 && isAcceptable(index) && (earliest < 0 || index < earliest)) {
+      earliest = index;
+    }
+  }
+  return earliest;
+}
+
+/**
+ * Where the quoted earlier mail starts in `text`, or -1. A reply attribution
+ * only needs some words above it, because "Thanks Sujith." is a complete
+ * reply; a forward header needs MIN_CONTENT_BEFORE_BOUNDARY characters of
+ * text. Blank lines don't count, as they leave the reader nothing to see.
+ */
+export function findQuoteBoundary(text: string): number {
+  const textLengthBefore = (index: number) => text.slice(0, index).trim().length;
+  const attribution = earliestMatch(text, REPLY_ATTRIBUTION_PATTERNS, index => textLengthBefore(index) > 0);
+  const forwardHeader = earliestMatch(
+    text,
+    FORWARD_HEADER_PATTERNS,
+    index => textLengthBefore(index) > MIN_CONTENT_BEFORE_BOUNDARY
+  );
+  if (attribution < 0) {
+    return forwardHeader;
+  }
+  return forwardHeader < 0 ? attribution : Math.min(attribution, forwardHeader);
+}
+
+/** True when `htmlFragment` renders any text, so a cut there leaves the reader something. */
+function hasVisibleText(htmlFragment: string): boolean {
+  const doc = new DOMParser().parseFromString(htmlFragment, 'text/html');
+  return domVisibleText(doc).trim() !== '';
+}
+
+const HTML_SEARCH_STEP = 10;
+
+/**
+ * Lengths of the pre-boundary text's tail to look for in the HTML, from
+ * HTML_CUT_POINT_OFFSET_50 down in steps of HTML_SEARCH_STEP. Never shorter:
+ * "no" also matches "text-decoration:none" in a style block, and cutting there
+ * hides the reply. A reply that short is cut at the boundary text instead.
+ */
+function htmlSearchLengths(textLength: number): number[] {
+  const lengths: number[] = [];
+  for (let length = Math.min(HTML_CUT_POINT_OFFSET_50, textLength); length >= HTML_SEARCH_STEP; length -= HTML_SEARCH_STEP) {
+    lengths.push(length);
+  }
+  return lengths;
+}
+
+/**
  * Helper function to clean HTML body by removing quoted/forwarded email content.
  * Returns both the cleaned HTML and a flag indicating whether content was truncated.
  */
@@ -234,29 +319,9 @@ export function extractCleanHtmlBodyWithMeta(htmlBody: string): CleanHtmlResult 
   const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
   const textContent = domVisibleText(doc);
 
-  // Simple patterns that catch most email boundaries
-  const boundaryPatterns = [
-    // "On [date] at [time] [name] <email> wrote:" - Gmail style
-    /On\s+\w+,\s+\d{1,2}\s+\w+\s+\d{4}\s+at\s+\d{1,2}:\d{2}.*?wrote:/i,
-    // "On [date] [name] wrote:" - common pattern
-    /On\s+\w+,\s+\d{1,2}\s+\w+\s+\d{4}.*?wrote:/i,
-    // "From: [name] <email>" with date/time
-    /From:\s+.*?<.*?@.*?>\s+Sent:\s+.*?Subject:/i,
-    // "-----Original Message-----"
-    /-----Original Message-----/i,
-    // "Date: ... From: ... To: ... Subject: ..."
-    /Date:\s+.*?\nFrom:\s+.*?\nTo:\s+.*?\nSubject:/i,
-  ];
-
-  let cutoffIndex = textContent.length;
-  for (const pattern of boundaryPatterns) {
-    const match = textContent.search(pattern);
-    if (match > 0 && match < cutoffIndex) {
-      // Need at least 20 chars of content before boundary
-      if (match > MIN_CONTENT_BEFORE_BOUNDARY) {
-        cutoffIndex = match;
-      }
-    }
+  let cutoffIndex = findQuoteBoundary(textContent);
+  if (cutoffIndex < 0) {
+    cutoffIndex = textContent.length;
   }
 
   // If we found a boundary, find it in the HTML.
@@ -265,9 +330,8 @@ export function extractCleanHtmlBodyWithMeta(htmlBody: string): CleanHtmlResult 
   // textContent concatenates text nodes without element separators, so a 50-char slice
   // can straddle a tag boundary and fail with a direct indexOf on the raw HTML.
   if (cutoffIndex < textContent.length) {
-    const textBeforeBoundary = textContent.substring(0, cutoffIndex);
-    const startLen = Math.min(HTML_CUT_POINT_OFFSET_50, textBeforeBoundary.length);
-    for (let searchLen = startLen; searchLen >= 10; searchLen -= 10) {
+    const textBeforeBoundary = textContent.substring(0, cutoffIndex).trimEnd();
+    for (const searchLen of htmlSearchLengths(textBeforeBoundary.length)) {
       const searchText = textBeforeBoundary.slice(-searchLen);
       if (!searchText) {
         continue;
@@ -287,7 +351,7 @@ export function extractCleanHtmlBodyWithMeta(htmlBody: string): CleanHtmlResult 
     const boundaryStart = textContent.substring(cutoffIndex, cutoffIndex + BOUNDARY_FALLBACK_SEARCH_CHARS);
     if (boundaryStart.length >= 8) {
       const htmlBoundaryPos = htmlBody.indexOf(boundaryStart);
-      if (htmlBoundaryPos > BLOCKQUOTE_MIN_POSITION) {
+      if (htmlBoundaryPos > 0 && hasVisibleText(htmlBody.substring(0, htmlBoundaryPos))) {
         return { html: htmlBody.substring(0, htmlBoundaryPos).trim(), wasTruncated: true };
       }
     }
@@ -715,28 +779,11 @@ export function extractCleanBodyWithMeta(emailBody: string, htmlBody?: string): 
     content = domVisibleText(doc);
   }
 
-  const boundaryPatterns = [
-    /On\s+\w+,\s+\d{1,2}\s+\w+\s+\d{4}\s+at\s+\d{1,2}:\d{2}.*?wrote:/i,
-    /On\s+\w+,\s+\d{1,2}\s+\w+\s+\d{4}.*?wrote:/i,
-    /From:\s+.*?<.*?@.*?>\s+Sent:\s+.*?Subject:/i,
-    /-----Original Message-----/i,
-  ];
-
-  let cutoffIndex = content.length;
-  for (const pattern of boundaryPatterns) {
-    const match = content.search(pattern);
-    if (match > MIN_CONTENT_BEFORE_BOUNDARY && match < cutoffIndex) {
-      cutoffIndex = match;
-    }
-  }
-
   let wasTruncated = false;
-  if (cutoffIndex < content.length) {
-    const cleaned = content.substring(0, cutoffIndex).trim();
-    if (cleaned.length > MIN_CONTENT_BEFORE_BOUNDARY) {
-      content = cleaned;
-      wasTruncated = true;
-    }
+  const cutoffIndex = findQuoteBoundary(content);
+  if (cutoffIndex > 0) {
+    content = content.substring(0, cutoffIndex).trim();
+    wasTruncated = true;
   }
 
   // Remove any remaining quoted lines (lines starting with >)

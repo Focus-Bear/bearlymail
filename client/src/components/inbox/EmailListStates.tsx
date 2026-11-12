@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
 
+import { GMAIL_ACCESS_ALERT_LAYOUT, GmailAccessAlert } from 'components/gmail-access/GmailAccessAlert';
 import {
   AllCaughtUpState,
   EmptyState,
@@ -11,7 +12,7 @@ import {
   ProgressiveUnlockPrompt,
   SyncingState,
 } from 'components/inbox/states';
-import { MODE_TRIAGE } from 'constants/strings';
+import { GmailAccessIssue, MODE_TRIAGE } from 'constants/strings';
 import {
   HIGH_PRIORITY_THRESHOLD,
   LOW_PRIORITY_THRESHOLD,
@@ -88,6 +89,8 @@ interface EmailListStatesProps {
    * instead so the user knows emails are still on their way.
    */
   isSyncing?: boolean;
+  /** Set while the server can't read Gmail: the empty list says why instead of "caught up". */
+  gmailAccessIssue?: GmailAccessIssue | null;
   onRetry: () => void;
   /** Current priority filter lower bound (null = no lower bound / show all) */
   minPriority?: number | null;
@@ -249,6 +252,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
   emailsEmpty,
   mode,
   isSyncing,
+  gmailAccessIssue,
   onRetry,
   minPriority,
   maxPriority,
@@ -270,6 +274,10 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
   }
 
   if (emailsEmpty) {
+    if (gmailAccessIssue) {
+      return <GmailAccessAlert layout={GMAIL_ACCESS_ALERT_LAYOUT.PANEL} />;
+    }
+
     // While a mailbox sync is running and no priority filter is narrowing the
     // view, the inbox is empty simply because emails haven't arrived yet. Show
     // the friendly "Syncing…" state instead of the misleading "all caught up"

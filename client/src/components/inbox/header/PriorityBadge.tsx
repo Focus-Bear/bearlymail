@@ -55,6 +55,8 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
         borderRadius: theme.borderRadius.full,
         fontWeight: theme.typography.fontWeight.medium,
         display: 'flex',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
         alignItems: 'center',
         gap: theme.spacing.xs,
         cursor: 'pointer',

@@ -30,6 +30,17 @@ jest.mock("./prompts", () => ({
   },
 }));
 
+/** A user with categories, so the category step has a list to choose from. */
+const USER_WITH_CATEGORIES = {
+  emailCategories: [
+    { name: "Newsletters", description: "Marketing emails and digests" },
+    { name: "Sales", description: "Potential customer inquiries" },
+    { name: "Partnerships", description: "Collaboration requests" },
+    { name: "Customer Support", description: "Support requests" },
+    { name: "HR Admin", description: "Internal company matters" },
+  ],
+};
+
 const mockEmail = {
   from: "sender@example.com",
   fromName: "Sender Name",
@@ -102,6 +113,41 @@ function routeLlm(
     const next = queue.length > 1 ? queue.shift()! : queue[0];
     return typeof next === "function" ? next() : next;
   });
+}
+
+type AnalyzePriority = PriorityAnalyzer["analyzePriority"];
+type PriorityResult = Awaited<ReturnType<AnalyzePriority>>;
+
+/**
+ * analyzePriority stub that parks every call until released, recording how
+ * many run at once. Module-level so the concurrency tests stay within the
+ * max-nested-callbacks limit.
+ */
+function createGatedAnalyzer(result: PriorityResult) {
+  const state = { inFlight: 0, maxInFlight: 0 };
+  const pending: Array<() => void> = [];
+  const analyzePriority: AnalyzePriority = async () => {
+    state.inFlight++;
+    state.maxInFlight = Math.max(state.maxInFlight, state.inFlight);
+    await new Promise<void>((resolve) => pending.push(resolve));
+    state.inFlight--;
+    return result;
+  };
+  const releaseAll = () => {
+    for (const release of pending.splice(0)) release();
+  };
+  return { state, analyzePriority, releaseAll };
+}
+
+/** analyzePriority stub that throws for one subject and succeeds otherwise. */
+function failForSubject(
+  failingSubject: string,
+  result: PriorityResult,
+): AnalyzePriority {
+  return async ({ email }) => {
+    if (email.subject === failingSubject) throw new Error("LLM failed");
+    return result;
+  };
 }
 
 describe("PriorityAnalysisService", () => {
@@ -185,7 +231,10 @@ describe("PriorityAnalysisService", () => {
         },
       );
 
-      const result = await service.analyzePriority({ email: mockEmail });
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(result.categoryDecisionProvider).toBe(LLMProvider.GEMINI);
       expect(result.priorityDecisionProvider).toBe(JEV_DECISION_PROVIDER);
@@ -194,7 +243,10 @@ describe("PriorityAnalysisService", () => {
     it("leaves the providers null when the LLM layer reports none", async () => {
       routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
-      const result = await service.analyzePriority({ email: mockEmail });
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(result.categoryDecisionProvider).toBeNull();
       expect(result.priorityDecisionProvider).toBeNull();
@@ -203,7 +255,10 @@ describe("PriorityAnalysisService", () => {
     it("should parse a valid JSON response with top-level result key correctly", async () => {
       routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
-      const result = await service.analyzePriority({ email: mockEmail });
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(result.category).toBe("Customer Support");
       // The category and its explanation come from the category step, not the
@@ -242,6 +297,7 @@ describe("PriorityAnalysisService", () => {
 
       const result = await service.analyzePriority({
         email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
         preComputedSentimentScore: 0.8,
       });
 
@@ -271,7 +327,10 @@ describe("PriorityAnalysisService", () => {
         }),
       });
 
-      const result = await service.analyzePriority({ email: mockEmail });
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(result.category).toBe("Sales");
       expect(result.urgencyScore).toBe(75);
@@ -280,7 +339,10 @@ describe("PriorityAnalysisService", () => {
     it("should pass jsonMode: true to LLM to enforce JSON responses", async () => {
       routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
-      await service.analyzePriority({ email: mockEmail });
+      await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -295,7 +357,10 @@ describe("PriorityAnalysisService", () => {
     it("should use LLM_MAX_TOKENS_MEDIUM to prevent JSON truncation", async () => {
       routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
-      await service.analyzePriority({ email: mockEmail });
+      await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -329,6 +394,7 @@ describe("PriorityAnalysisService", () => {
 
       const result = await service.analyzePriority({
         email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
         userId: "user-123",
       });
 
@@ -369,6 +435,7 @@ describe("PriorityAnalysisService", () => {
 
       const result = await service.analyzePriority({
         email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
         userId: "user-456",
       });
 
@@ -403,7 +470,10 @@ describe("PriorityAnalysisService", () => {
         "This is URGENT please respond ASAP",
       );
 
-      const result = await service.analyzePriority({ email: mockEmail });
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(result.urgencyExplanation).toBe("Contains urgent keywords");
       expect(result.urgencyScore).toBeGreaterThan(0);
@@ -413,7 +483,10 @@ describe("PriorityAnalysisService", () => {
       (prompts.getPrompt as jest.Mock).mockReturnValue(null);
 
       await expect(
-        service.analyzePriority({ email: mockEmail }),
+        service.analyzePriority({
+          email: mockEmail,
+          userContext: USER_WITH_CATEGORIES,
+        }),
       ).rejects.toThrow("Prompt template not found: analyze_priority");
     });
 
@@ -423,7 +496,10 @@ describe("PriorityAnalysisService", () => {
         .fn()
         .mockReturnValue(false);
 
-      const result = await service.analyzePriority({ email: mockEmail });
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(result.shortlistedCategoryNames).toBeNull();
     });
@@ -485,7 +561,10 @@ describe("PriorityAnalysisService", () => {
         responseWithProtoCategory,
       );
 
-      const result = await service.analyzePriority({ email: mockEmail });
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userContext: USER_WITH_CATEGORIES,
+      });
 
       expect(result.category).toBe("Other");
       expect(result.protoCategorySuggestion).toEqual({
@@ -542,7 +621,7 @@ describe("PriorityAnalysisService", () => {
     it("should pass jsonMode: true to LLM for the triage call", async () => {
       routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
-      await service.analyzePriorityBatch(batchEmails);
+      await service.analyzePriorityBatch(batchEmails, USER_WITH_CATEGORIES);
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
         expect.objectContaining({ jsonMode: true }),
@@ -554,7 +633,10 @@ describe("PriorityAnalysisService", () => {
     it("should mark non-flagged emails as triagePreserved and only run individual analysis for flagged ones", async () => {
       routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
-      const results = await service.analyzePriorityBatch(batchEmails);
+      const results = await service.analyzePriorityBatch(
+        batchEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       expect(results.size).toBe(2);
       expect(results.get("email-1")?.isFallback).toBe(false);
@@ -586,7 +668,10 @@ describe("PriorityAnalysisService", () => {
         priority: highConfidenceResponse,
       });
 
-      const results = await service.analyzePriorityBatch(batchEmails);
+      const results = await service.analyzePriorityBatch(
+        batchEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       expect(results.get("email-1")?.categoryConfidence).toBe("HIGH");
       expect(results.get("email-1")?.isFallback).toBe(false);
@@ -604,7 +689,10 @@ describe("PriorityAnalysisService", () => {
         triage: allFlaggedTriage,
       });
 
-      const results = await service.analyzePriorityBatch(batchEmails);
+      const results = await service.analyzePriorityBatch(
+        batchEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       expect(results.size).toBe(2);
       expect(results.get("email-1")?.isFallback).toBe(false);
@@ -622,7 +710,10 @@ describe("PriorityAnalysisService", () => {
         .spyOn(Logger.prototype, "warn")
         .mockImplementation(() => undefined);
 
-      const results = await service.analyzePriorityBatch(batchEmails);
+      const results = await service.analyzePriorityBatch(
+        batchEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       expect(loggerWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining("will reanalyse all emails"),
@@ -637,7 +728,10 @@ describe("PriorityAnalysisService", () => {
         triage: () => Promise.reject(new Error("Triage LLM failed")),
       });
 
-      const results = await service.analyzePriorityBatch(batchEmails);
+      const results = await service.analyzePriorityBatch(
+        batchEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       expect(loggerErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining("Triage LLM call failed"),
@@ -663,7 +757,10 @@ describe("PriorityAnalysisService", () => {
         ],
       });
 
-      const results = await service.analyzePriorityBatch(batchEmails);
+      const results = await service.analyzePriorityBatch(
+        batchEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       expect(results.size).toBe(2);
       expect(results.get("email-1")?.isFallback).toBe(false);
@@ -687,7 +784,10 @@ describe("PriorityAnalysisService", () => {
         triage: singleFlaggedTriage,
       });
 
-      const results = await service.analyzePriorityBatch(emailsWithSentiment);
+      const results = await service.analyzePriorityBatch(
+        emailsWithSentiment,
+        USER_WITH_CATEGORIES,
+      );
 
       expect(results.get("email-1")?.sentimentScore).toBe(-0.9);
     });
@@ -699,7 +799,7 @@ describe("PriorityAnalysisService", () => {
 
       routeLlm(mockLLMCoreService.generateText as jest.Mock);
 
-      await service.analyzePriorityBatch(batchEmails);
+      await service.analyzePriorityBatch(batchEmails, USER_WITH_CATEGORIES);
 
       expect(loggerLogSpy).toHaveBeenCalledWith(
         expect.stringContaining("triage flagged 1/2 existing"),
@@ -721,7 +821,10 @@ describe("PriorityAnalysisService", () => {
         .spyOn(Logger.prototype, "warn")
         .mockImplementation(() => undefined);
 
-      const results = await service.analyzePriorityBatch(batchEmails);
+      const results = await service.analyzePriorityBatch(
+        batchEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       // email-1 was marked needsReanalysis: false → triagePreserved
       expect(results.get("email-1")?.triagePreserved).toBe(true);
@@ -750,7 +853,10 @@ describe("PriorityAnalysisService", () => {
         .spyOn(Logger.prototype, "log")
         .mockImplementation(() => undefined);
 
-      const results = await service.analyzePriorityBatch(newEmails);
+      const results = await service.analyzePriorityBatch(
+        newEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       // Triage should not have been called: category + priority only.
       expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(2);
@@ -793,7 +899,10 @@ describe("PriorityAnalysisService", () => {
         triage: triagePreservesExisting,
       });
 
-      const results = await service.analyzePriorityBatch(mixedEmails);
+      const results = await service.analyzePriorityBatch(
+        mixedEmails,
+        USER_WITH_CATEGORIES,
+      );
 
       // existing-1: triage said no reanalysis → triagePreserved
       expect(results.get("existing-1")?.triagePreserved).toBe(true);
@@ -832,56 +941,51 @@ describe("PriorityAnalysisService", () => {
       afterEach(() => jest.restoreAllMocks());
 
       it("analyses up to PRIORITY_BATCH_LLM_CONCURRENCY emails at once and settles every one", async () => {
-        const releases: Array<() => void> = [];
-        let inFlight = 0;
-        let maxInFlight = 0;
+        const gate = createGatedAnalyzer(priorityResult);
         jest
           .spyOn(PriorityAnalyzer.prototype, "analyzePriority")
-          .mockImplementation(async () => {
-            inFlight++;
-            maxInFlight = Math.max(maxInFlight, inFlight);
-            await new Promise<void>((resolve) => releases.push(resolve));
-            inFlight--;
-            return priorityResult;
-          });
+          .mockImplementation(gate.analyzePriority);
 
-        const run = service.analyzePriorityBatch(newEmails);
+        const run = service.analyzePriorityBatch(
+          newEmails,
+          USER_WITH_CATEGORIES,
+        );
         await flushMicrotasks();
-        expect(inFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
+        expect(gate.state.inFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
 
-        while (inFlight > 0) {
-          releases.splice(0).forEach((release) => release());
+        while (gate.state.inFlight > 0) {
+          gate.releaseAll();
           await flushMicrotasks();
         }
         const results = await run;
 
-        expect(maxInFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
+        expect(gate.state.maxInFlight).toBe(PRIORITY_BATCH_LLM_CONCURRENCY);
         expect(results.size).toBe(NEW_EMAIL_COUNT);
-        newEmails.forEach(({ emailKey }) => {
+        for (const { emailKey } of newEmails) {
           expect(results.get(emailKey)?.isFallback).toBe(false);
-        });
+        }
       });
 
       it("keeps analysing the other emails when one fails", async () => {
         const failingKeyIndex = 2;
         const analyzePrioritySpy = jest
           .spyOn(PriorityAnalyzer.prototype, "analyzePriority")
-          .mockImplementation(async ({ email }) => {
-            if (email.subject === newEmails[failingKeyIndex].subject) {
-              throw new Error("LLM failed");
-            }
-            return priorityResult;
-          });
+          .mockImplementation(
+            failForSubject(newEmails[failingKeyIndex].subject, priorityResult),
+          );
 
-        const results = await service.analyzePriorityBatch(newEmails);
+        const results = await service.analyzePriorityBatch(
+          newEmails,
+          USER_WITH_CATEGORIES,
+        );
 
         expect(analyzePrioritySpy).toHaveBeenCalledTimes(NEW_EMAIL_COUNT);
         expect(results.size).toBe(NEW_EMAIL_COUNT);
-        newEmails.forEach(({ emailKey }, index) => {
+        for (const [index, { emailKey }] of newEmails.entries()) {
           expect(results.get(emailKey)?.isFallback).toBe(
             index === failingKeyIndex,
           );
-        });
+        }
       });
     });
   });

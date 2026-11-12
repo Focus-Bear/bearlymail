@@ -1,7 +1,6 @@
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -12,9 +11,11 @@ import {
   NODE_ENV_VALUES,
 } from "../constants/domain-types";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { ImapAccountsService } from "../imap-accounts/imap-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
+import { EmailProviderRequiredException } from "./exceptions/email-provider-required.exception";
 
 @Injectable()
 export class EmailProviderRequiredGuard implements CanActivate {
@@ -24,6 +25,7 @@ export class EmailProviderRequiredGuard implements CanActivate {
     private zohoAccountsService: ZohoAccountsService,
     private appleMailAccountsService: AppleMailAccountsService,
     private usersService: UsersService,
+    private imapAccountsService: ImapAccountsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -60,15 +62,21 @@ export class EmailProviderRequiredGuard implements CanActivate {
     const hasZoho = await this.zohoAccountsService.hasConnectedZoho(userId);
     const hasAppleMail =
       await this.appleMailAccountsService.hasConnectedAppleMail(userId);
+    const hasImap = await this.imapAccountsService.hasConnectedImap(userId);
 
     // Also check legacy: if user has tokens directly on User entity
     const fullUser = await this.usersService.findOneWithTokens(userId);
     const hasLegacyGmail = !!fullUser?.googleCalendarAccessToken;
 
-    if (!hasGmail && !hasO365 && !hasZoho && !hasAppleMail && !hasLegacyGmail) {
-      throw new ForbiddenException(
-        "Email provider connection required. Please connect an email account to continue.",
-      );
+    if (
+      !hasGmail &&
+      !hasO365 &&
+      !hasZoho &&
+      !hasAppleMail &&
+      !hasImap &&
+      !hasLegacyGmail
+    ) {
+      throw new EmailProviderRequiredException();
     }
 
     return true;

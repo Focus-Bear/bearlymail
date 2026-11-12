@@ -41,6 +41,12 @@ tests:
           - "verify account/identity"
           - "urgency language"
         rawScore: 8
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -90,6 +96,12 @@ tests:
           - "account suspended/locked"
           - "click to verify/update"
         rawScore: 9
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -128,6 +140,12 @@ tests:
         linkedDomains: []
         suspiciousKeywords: []
         rawScore: 0
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -174,6 +192,12 @@ tests:
           - "focusbear.us1.list-manage.com"
         suspiciousKeywords: []
         rawScore: 3
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -217,6 +241,12 @@ tests:
         suspiciousKeywords:
           - "urgency language"
         rawScore: 1
+        senderDisplayName: ""
+        replyToDomain: ""
+        senderAuthSummary: ""
+        linkTextMismatches: []
+        accountThreats: []
+        redFlags: []
     assert:
       - type: javascript
         value: |
@@ -232,5 +262,55 @@ tests:
           // transactional alert must never reach it (reported false positive).
           if (parsed.phishing && parsed.phishing.is_phishing && ['medium', 'high'].includes(parsed.phishing.confidence)) {
             throw new Error(`Over-flagged: legit transactional alert flagged ${parsed.phishing.confidence}. Reason: ${parsed.phishing?.reason}`);
+          }
+          return true;
+
+  # Redacted from a real miss: "SendGrid <noreply@pylott.io>" — SPF/DKIM/DMARC
+  # pass for the unrelated sender domain and every link goes through SendGrid's
+  # real click tracker, so only the display-name/brand vs domain signal gives it
+  # away. The deterministic pre-check catches it in production; this keeps the
+  # prompt able to as well.
+  - description: "SendGrid impersonation from an unrelated domain with passing auth must be detected"
+    vars:
+      subject: "GDPR compliance error: verify consent to resume sending"
+      contextNote: ""
+      body: |
+        Email sending is paused
+        A GDPR compliance error is blocking this account. Marketing email needs valid consent, and you need records that can prove it.
+        This is your duty on SendGrid. SendGrid delivers the message. Your account chooses the recipients, so the consent and the records have to be yours.
+        You will not be able to send emails until this is resolved.
+        Start verification
+        Twilio SendGrid
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "pylott.io"
+        linkedDomains:
+          - "u00000000.ct.sendgrid.net"
+        suspiciousKeywords: []
+        rawScore: 0
+        senderDisplayName: "SendGrid"
+        replyToDomain: ""
+        senderAuthSummary: "spf=pass, dkim=pass, dmarc=pass"
+        linkTextMismatches: []
+        accountThreats:
+          - "account or sending paused/suspended"
+          - "act to restore access"
+          - "blocked until you act"
+          - "verify account/consent/details"
+        redFlags:
+          - "brand impersonation"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const firstBrace = text.indexOf('{');
+          const lastBrace = text.lastIndexOf('}');
+          if (firstBrace === -1 || lastBrace === -1) throw new Error('No JSON object found');
+          const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+          if (!parsed.phishing || !parsed.phishing.is_phishing) {
+            throw new Error(`Missed SendGrid impersonation. Got: ${JSON.stringify(parsed.phishing)}`);
+          }
+          if (!['medium', 'high'].includes(parsed.phishing.confidence)) {
+            throw new Error(`Expected medium/high confidence, got: ${parsed.phishing.confidence}`);
           }
           return true;

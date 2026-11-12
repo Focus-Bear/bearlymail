@@ -37,6 +37,7 @@ import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
 import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
+import { StaleRuleCategoryService } from "./stale-rule-category.service";
 
 const USER_ID = "user-uuid-1";
 const WORKER_ID = "worker-1";
@@ -152,6 +153,10 @@ describe("LLMPriorityBatchService — category-rule enqueue (batch path)", () =>
           useValue: { findActiveByUser: jest.fn().mockResolvedValue([]) },
         },
         { provide: DebugService, useValue: { logBatch: jest.fn() } },
+        {
+          provide: StaleRuleCategoryService,
+          useValue: { release: jest.fn().mockResolvedValue(false) },
+        },
         {
           provide: PrioritySqsDispatchService,
           useValue: { enqueueAllBatchesViaSqs: jest.fn() },

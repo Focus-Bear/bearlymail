@@ -47,6 +47,8 @@ export interface CategoryDecisionStep {
   categoryId: string | null;
   /** Human-readable explanation of what this step did and why. */
   detail: string;
+  /** The deterministic rule that produced this step's category, when a rule did. */
+  ruleId?: string | null;
 }
 
 /**

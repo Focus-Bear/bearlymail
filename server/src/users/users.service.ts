@@ -1,9 +1,13 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import type { PgBoss } from "pg-boss";
 import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
+import { GmailAccessIssue } from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import {
   DEFAULT_LEGAL_VERSIONS,
   PRIVACY_CHANGE_SUMMARY_KEYS,
@@ -15,12 +19,27 @@ import {
 } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { LocalModelUserDataService } from "../local-model/local-model-user-data.service";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
+import { getJobPriority } from "../queue/job-priorities";
+import { getErrorMessage } from "../types/common";
+import { logErrorToFile } from "../utils/error-logger";
+import {
+  type AccountDeletionReport,
+  BeforeAccountDeletionHooks,
+} from "./account-deletion-hooks";
+import { hasEmailProcessingConsent } from "./email-processing-consent";
 
 const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
 
 /** Table every user-owned row ultimately hangs off, for FK discovery. */
 const USERS_TABLE = "users";
 const RECENT_LOGIN_GRACE_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
+
+export interface MarkNeedsReloginOptions {
+  /** Flag even inside the post-login grace window (see `markNeedsRelogin`). */
+  bypassGracePeriod?: boolean;
+}
 
 /**
  * Stack-frame window captured for `[NEEDS_RELOGIN]` diagnostics. We skip the
@@ -96,12 +115,16 @@ function privacyChangeSummaryKeys(
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  /** Steps other modules run before an account is deleted, e.g. restoring snoozed threads. */
+  readonly beforeAccountDeletion = new BeforeAccountDeletionHooks(this.logger);
 
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
     @InjectRepository(DeletedAccount)
     private deletedAccountRepository: Repository<DeletedAccount>,
+    private readonly localModelUserDataService: LocalModelUserDataService,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   /**
@@ -146,17 +169,26 @@ export class UsersService {
    *   - skip if `needsRelogin` is already true — avoids redundant DB writes
    *     and `[NEEDS_RELOGIN]` log spam
    *
+   * `bypassGracePeriod` is for failures retrying can never fix (a grant that is
+   * missing a required scope). The grace window is keyed off `updatedAt`, which
+   * any write to the user row re-arms, so honouring it for such failures can
+   * strand the user forever with no reconnect prompt.
+   *
    * Emits a WARN line (visible in CloudWatch) — file-based debug logging is a
    * no-op in production, so console logging is the only reliable signal there.
    */
-  async markNeedsRelogin(userId: string, reason: string): Promise<void> {
+  async markNeedsRelogin(
+    userId: string,
+    reason: string,
+    options: MarkNeedsReloginOptions = {},
+  ): Promise<void> {
     const user = await this.findOneLightweight(userId);
-    if (!user) return;
+    if (!user || user.needsRelogin) return;
 
     const recentLoginCutoff = new Date(Date.now() - RECENT_LOGIN_GRACE_MS);
     const isRecentLogin =
       !!user.updatedAt && user.updatedAt > recentLoginCutoff;
-    if (isRecentLogin || user.needsRelogin) return;
+    if (isRecentLogin && !options.bypassGracePeriod) return;
 
     this.logger.warn(`[NEEDS_RELOGIN] user=${userId} reason=${reason}`);
     await this.update(userId, {
@@ -178,6 +210,40 @@ export class UsersService {
     await this.update(userId, { syncWindowLimited: true });
   }
 
+  /**
+   * Records why Gmail can't be read. Writes only when the issue changes, so a
+   * failure repeated every sync cycle neither logs nor touches the row again.
+   */
+  async recordGmailAccessIssue(
+    userId: string,
+    issue: GmailAccessIssue,
+  ): Promise<void> {
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ gmailAccessIssue: issue, gmailAccessIssueAt: new Date() })
+      .where("id = :userId", { userId })
+      .andWhere('"gmailAccessIssue" IS DISTINCT FROM :issue', { issue })
+      .execute();
+    if (result.affected) {
+      this.logger.warn(`[GMAIL_ACCESS] user=${userId} issue=${issue}`);
+    }
+  }
+
+  /** Clears a recorded Gmail access issue after a fetch succeeds. */
+  async clearGmailAccessIssue(userId: string): Promise<void> {
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ gmailAccessIssue: null, gmailAccessIssueAt: null })
+      .where("id = :userId", { userId })
+      .andWhere('"gmailAccessIssue" IS NOT NULL')
+      .execute();
+    if (result.affected) {
+      this.logger.log(`[GMAIL_ACCESS] user=${userId} issue cleared`);
+    }
+  }
+
   async create(userData: Partial<User>): Promise<User> {
     // Generate email hash if email is provided
     if (userData.email && !userData.emailHash) {
@@ -188,7 +254,7 @@ export class UsersService {
   }
 
   /**
-   * @deprecated Use optimized methods like findOneForAuth, findOneWithTokens, or findOneWithApiKey instead
+   * @deprecated Use optimized methods like findOneForAuth or findOneWithTokens instead
    * This method selects all columns including encrypted ones, which is slow.
    */
   async findOne(id: string): Promise<User> {
@@ -216,6 +282,9 @@ export class UsersService {
         "user.subscriptionExpiresAt",
         "user.trialStartedAt",
         "user.lastEmailSyncAt",
+        "user.lastLogoutReason",
+        "user.gmailAccessIssue",
+        "user.gmailAccessIssueAt",
         "user.createdAt",
         "user.updatedAt",
       ])
@@ -284,30 +353,19 @@ export class UsersService {
         "user.lastEmailSyncAt",
         "user.updatedAt",
         "user.needsRelogin",
+        "user.lastLogoutReason",
       ])
       .where("user.id = :id", { id })
       .getOne();
   }
 
   /**
-   * Optimized for LLM services - selects id + openAiApiKey.
-   * Use when you only need the OpenAI API key.
+   * Selects id + focusBearApiToken only, for the Focus Bear task suggestions.
    */
-  async findOneWithApiKey(id: string): Promise<User | null> {
+  async findOneWithFocusBearToken(id: string): Promise<User | null> {
     return this.userRepository
       .createQueryBuilder("user")
-      .select(["user.id", "user.openAiApiKey"])
-      .where("user.id = :id", { id })
-      .getOne();
-  }
-
-  /**
-   * Optimized for Anthropic LLM service — selects id + anthropicApiKey only.
-   */
-  async findOneWithAnthropicKey(id: string): Promise<User | null> {
-    return this.userRepository
-      .createQueryBuilder("user")
-      .select(["user.id", "user.anthropicApiKey"])
+      .select(["user.id", "user.focusBearApiToken"])
       .where("user.id = :id", { id })
       .getOne();
   }
@@ -400,11 +458,21 @@ export class UsersService {
     return { scanProgress, scanTotal, isComplete };
   }
 
+  /** See hasEmailProcessingConsent: no mailbox access before the terms are accepted. */
+  async hasEmailProcessingConsent(userId: string): Promise<boolean> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: { id: true, termsAcceptedAt: true, hasCompletedOnboarding: true },
+    });
+    return hasEmailProcessingConsent(user);
+  }
+
   async acceptConsent(
     userId: string,
     termsAccepted: boolean,
     privacyAccepted: boolean,
   ): Promise<User> {
+    const hadConsent = await this.hasEmailProcessingConsent(userId);
     const now = new Date();
     const { currentTermsVersion, currentPrivacyVersion } =
       currentConsentVersions();
@@ -420,7 +488,33 @@ export class UsersService {
     }
 
     await this.userRepository.update(userId, updates);
+    if (termsAccepted && !hadConsent) {
+      await this.queueFirstEmailSync(userId);
+    }
     return this.findOne(userId);
+  }
+
+  /**
+   * Every sync enqueued before the terms were accepted (at login, or when the
+   * mailbox was connected) was skipped, so start the first import now. No
+   * `singletonSeconds`: the skipped login sync must not throttle this one away.
+   * Best effort — the 5-minute fetch cron picks the user up if this fails.
+   */
+  private async queueFirstEmailSync(userId: string): Promise<void> {
+    try {
+      await this.boss.send(
+        JOB_NAMES.FETCH_USER_EMAILS,
+        { userId },
+        {
+          priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, true),
+          singletonKey: fetchUserEmailsJobKey(userId),
+        },
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to queue the first email sync for user ${userId}: ${getErrorMessage(error)}`,
+      );
+    }
   }
 
   async getConsentStatus(userId: string): Promise<{
@@ -568,6 +662,15 @@ export class UsersService {
    * activity was never recorded) falls outside the given retention window.
    * Used by the data-retention cleanup job to find accounts eligible for deletion.
    */
+  /** Which of these ids still have an account. */
+  async findExistingUserIds(userIds: string[]): Promise<Set<string>> {
+    const rows: { id: string }[] = await this.userRepository.query(
+      `SELECT id FROM users WHERE id = ANY($1::uuid[])`,
+      [userIds],
+    );
+    return new Set(rows.map((row) => row.id));
+  }
+
   async findUsersForDeletion(thresholdDays: number): Promise<string[]> {
     const HOURS_PER_DAY = 24;
     const MINUTES_PER_HOUR = 60;
@@ -603,11 +706,15 @@ export class UsersService {
   async deleteAccount(
     userId: string,
     reason: DeletionReason = DeletionReason.MANUAL,
-  ): Promise<void> {
+  ): Promise<AccountDeletionReport> {
     const user = await this.findOne(userId);
     if (!user) {
       throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
+
+    // Runs while the mailbox tokens still exist, e.g. to put snoozed threads
+    // back in the provider's inbox. Never throws.
+    const report = await this.beforeAccountDeletion.run(userId);
 
     const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId} (reason: ${reason})`;
     writeDebugLog(logMsg);
@@ -636,8 +743,33 @@ export class UsersService {
       await manager.getRepository(User).delete(userId);
     });
 
+    await this.deleteLocalModelData(userId);
+
     const completedMsg = `[UsersService.deleteAccount] Successfully deleted account for user ${userId}`;
     writeDebugLog(completedMsg);
+    return report;
+  }
+
+  /**
+   * The training export holds the user's email in plaintext, so it must not
+   * outlive the account. Runs after the DB transaction commits: S3 isn't
+   * transactional, and a storage failure shouldn't resurrect a half-deleted
+   * account, so it's logged loudly for follow-up instead of rethrown.
+   */
+  private async deleteLocalModelData(userId: string): Promise<void> {
+    try {
+      await this.localModelUserDataService.deleteUserData(userId);
+    } catch (error: unknown) {
+      this.logger.error(
+        `[UsersService.deleteAccount] Failed to delete local-model data for user ${userId}`,
+        error,
+      );
+      logErrorToFile(
+        `Failed to delete local-model data (userId: ${userId})`,
+        error,
+        "UsersService",
+      );
+    }
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { Job } from "pg-boss";
 import { In, Repository } from "typeorm";
@@ -21,6 +21,7 @@ import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { SummarizationService } from "../summarization/summarization.service";
 import { parseCategoryName } from "../utils/category-name.util";
 import { extractEmailAddress } from "../utils/email-address.utils";
+import type { EmailLookup } from "./email-lookup.types";
 import { EmailsService } from "./emails.service";
 import { canUseIncrementalAnalysis } from "./incremental-analysis-eligibility.helper";
 import {
@@ -84,7 +85,7 @@ export class LLMSummaryProcessorService {
     private readonly emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(Contact)
     private readonly contactRepository: Repository<Contact>,
-    private readonly emailsService: EmailsService,
+    @Inject(EmailsService) private readonly emailsService: EmailLookup,
     private readonly summarizationService: SummarizationService,
     private readonly incrementalAnalysisService: IncrementalAnalysisService,
     private readonly priorityCacheService: PriorityCacheService,

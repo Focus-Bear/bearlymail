@@ -7,6 +7,7 @@ import { ContextAboutMeHeader } from 'components/settings/guide-ai/ContextAboutM
 import { ContextImpactInfo } from 'components/settings/guide-ai/ContextImpactInfo';
 import { ContextSectionsList } from 'components/settings/guide-ai/ContextSectionsList';
 import { ProfileSettingsSection } from 'components/settings/guide-ai/ProfileSettingsSection';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 
 interface UserContext {
   contextId: string;
@@ -68,7 +69,7 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
 
   return (
     <div
-      id="context"
+      id={SETTINGS_ANCHORS.CONTEXT}
       style={{
         marginBottom: theme.spacing.md,
         paddingBottom: theme.spacing.sm,

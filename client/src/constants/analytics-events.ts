@@ -4,6 +4,7 @@ export const ANALYTICS_EVENTS = {
   ACCOUNT_DELETION_INITIATED: 'account_deletion_initiated',
   ACTION_ITEM_ADDED: 'action_item_added',
   ACTION_ITEM_DELETED: 'action_item_deleted',
+  ACTION_ITEM_SAVED_TO_FOCUS_BEAR: 'action_item_saved_to_focus_bear',
   ACTION_ITEM_TOGGLED: 'action_item_toggled',
   ACTION_ITEMS_EXTRACT_CLICKED: 'action_items_extract_clicked',
   ACTION_ITEMS_REGENERATE_CLICKED: 'action_items_regenerate_clicked',
@@ -39,11 +40,16 @@ export const ANALYTICS_EVENTS = {
   COMPOSE_VIEWED: 'compose_viewed',
   CONTACTS_SYNC_CLICKED: 'contacts_sync_clicked',
   CONTACTS_VIEWED: 'contacts_viewed',
+  CRM_UPGRADE_PROMPT_VIEWED: 'crm_upgrade_prompt_viewed',
+  CRM_UPGRADE_VIEW_PLANS_CLICKED: 'crm_upgrade_view_plans_clicked',
   CONTEXT_DELETED: 'context_deleted',
   CONTEXT_EDIT_CLICKED: 'context_edit_clicked',
   CONTEXT_ADD_MATCHING_RULE_CLICKED: 'context_add_matching_rule_clicked',
   CONTEXT_ADD_WORKFLOW_CLICKED: 'context_add_workflow_clicked',
   DATA_EXPORT_COMPLETED: 'data_export_completed',
+  DEAL_NOTE_ADDED: 'deal_note_added',
+  DEAL_NOTE_DELETED: 'deal_note_deleted',
+  DEAL_NOTE_EDITED: 'deal_note_edited',
   DATA_EXPORT_FAILED: 'data_export_failed',
   DATA_EXPORT_INITIATED: 'data_export_initiated',
   DATA_IMPORT_COMPLETED: 'data_import_completed',
@@ -70,8 +76,13 @@ export const ANALYTICS_EVENTS = {
   KEYWORD_UNBLOCKED: 'keyword_unblocked',
   OPENAI_API_KEY_REMOVED: 'openai_api_key_removed',
   ANTHROPIC_API_KEY_SAVED: 'anthropic_api_key_saved',
+  FOCUS_BEAR_CONNECTED: 'focus_bear_connected',
+  FOCUS_BEAR_DISCONNECTED: 'focus_bear_disconnected',
   ANTHROPIC_API_KEY_REMOVED: 'anthropic_api_key_removed',
   OPENAI_API_KEY_SAVED: 'openai_api_key_saved',
+  OWN_AI_ACCOUNT_EXPANDED: 'own_ai_account_expanded',
+  TYPESAFE_API_KEY_SAVED: 'typesafe_api_key_saved',
+  TYPESAFE_API_KEY_REMOVED: 'typesafe_api_key_removed',
   PASSWORD_SETUP_COMPLETED: 'password_setup_completed',
   PLAN_CHECKOUT_STARTED: 'plan_checkout_started',
   PLAN_PURCHASE_FAILED: 'plan_purchase_failed',
@@ -81,8 +92,10 @@ export const ANALYTICS_EVENTS = {
   REPLY_DRAFT_GENERATED: 'reply_draft_generated',
   REPLY_SCHEDULED: 'reply_scheduled',
   REPLY_SENT: 'reply_sent',
+  SCHEDULING_ALTERNATIVES_DRAFTED: 'scheduling_alternatives_drafted',
   SCHEDULING_DRAFT_REPLY_CLICKED: 'scheduling_draft_reply_clicked',
   SCHEDULING_LINK_COPIED: 'scheduling_link_copied',
+  SCHEDULING_PROPOSAL_ACCEPTED: 'scheduling_proposal_accepted',
   SEARCH_BACK_TO_INBOX_CLICKED: 'search_back_to_inbox_clicked',
   SEARCH_HELP_CLICKED: 'search_help_clicked',
   SEARCH_PERFORMED: 'search_performed',
@@ -92,9 +105,11 @@ export const ANALYTICS_EVENTS = {
   SENDER_BLOCKED: 'sender_blocked',
   SENDER_UNBLOCKED: 'sender_unblocked',
   SETTINGS_VIEWED: 'settings_viewed',
+  GOOGLE_PERMISSION_REQUESTED: 'google_permission_requested',
   SIDEBAR_COLLAPSE_CLICKED: 'sidebar_collapse_clicked',
   SIDEBAR_EXPAND_CLICKED: 'sidebar_expand_clicked',
   SIDEBAR_FOCUSBEAR_LINK_CLICKED: 'sidebar_focusbear_link_clicked',
+  SIDEBAR_LOGO_CLICKED: 'sidebar_logo_clicked',
   SIDEBAR_LOGOUT_CLICKED: 'sidebar_logout_clicked',
   TONE_CHECK_DISMISSED: 'tone_check_dismissed',
   TONE_CHECK_DISPUTE_FORM_OPENED: 'tone_check_dispute_form_opened',
@@ -133,3 +148,10 @@ export const ANALYTICS_EVENTS = {
   CALENDAR_INVITE_ACCEPT_CLICKED: 'calendar_invite_accept_clicked',
   CALENDAR_INVITE_DECLINE_CLICKED: 'calendar_invite_decline_clicked',
 } as const;
+
+/**
+ * PostHog autocapture skips any element inside one with this class. Put it on
+ * controls whose attributes carry email content, such as a focusbear:// link
+ * whose href and title hold the task text.
+ */
+export const POSTHOG_NO_CAPTURE_CLASS = 'ph-no-capture';

@@ -39,7 +39,9 @@ server/src/
 │   ├── providers/
 │   │   ├── gmail.provider.ts      # Gmail API implementation
 │   │   ├── office365.provider.ts  # Microsoft Graph API implementation
-│   │   └── zoho.provider.ts       # Zoho Mail API implementation
+│   │   ├── zoho.provider.ts       # Zoho Mail API implementation
+│   │   └── imap.provider.ts       # IMAP (read) + SMTP (send) for password mailboxes;
+│   │                              # threads from References, messages found by Message-ID
 │   └── interfaces/
 │       └── email-provider.interface.ts # Unified provider interface
 │
@@ -66,6 +68,10 @@ server/src/
 │   ├── token-usage.service.ts # Token usage tracking per operation
 │   └── token-usage.controller.ts # Admin endpoint for usage stats
 │
+├── lambda/
+│   └── prioritisation/        # SQS Lambda for refine-priority batches: hand-wires the worker's
+│                              # services over a plain DataSource (no Nest container); bundled by
+│                              # scripts/bundle-prioritisation-lambda.mjs
 ├── queue/                     # PgBoss job queue infrastructure
 │   ├── queue.module.ts        # PgBoss provider setup
 │   ├── job-priorities.ts      # Priority levels (HIGH=80, MEDIUM=40, LOW=20)
@@ -101,6 +107,10 @@ server/src/
 ├── google-accounts/           # Google OAuth account management
 ├── office365-accounts/        # Microsoft OAuth account management
 ├── zoho-accounts/             # Zoho OAuth account management
+├── imap-accounts/             # IMAP/SMTP accounts: connect/test, SSRF-safe host resolution, SMTP send
+├── mcp-server/                # BearlyMail AS an MCP server (POST /mcp) so Claude can read/send mail
+├── mcp-oauth/                 # OAuth 2.1 authorization server for /mcp (claude.ai custom connectors)
+├── personal-access-tokens/    # Scoped bearer tokens for /mcp (hash-only storage, guard, settings API)
 ├── proto-categories/          # Proto-category suggestions for "Other" emails
 ├── scheduling-preferences/    # User scheduling preferences
 ├── pusher/                    # Real-time push notifications

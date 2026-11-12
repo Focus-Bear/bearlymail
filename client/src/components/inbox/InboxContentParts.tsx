@@ -11,6 +11,7 @@ import { Email, getEmailPriorityScore, InboxMode, TriageSuggestion } from 'types
 import { devLog, devWarn } from 'utils/dev-logger';
 import { ACCORDION_BUDGETS } from 'utils/performanceBudget';
 
+import { BackgroundSortingBanner } from 'components/inbox/BackgroundSortingBanner';
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { CategoryAccordion, CategoryGroup } from 'components/inbox/CategoryAccordion';
 import { CategoryDebugPanel } from 'components/inbox/CategoryDebugPanel';
@@ -24,7 +25,6 @@ import { familyGroupingAppliesTo, orderCategoriesByFamily } from 'components/inb
 import { InboxFamilyHeader } from 'components/inbox/InboxFamilyHeader';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
 import { AnalysingPriorityCategory } from 'components/inbox/states/AnalysingPriorityCategory';
-import { TriageBatchSummary } from 'components/inbox/TriageBatchSummary';
 import { ScheduledEmailsManager } from 'components/scheduled-emails/ScheduledEmailsManager';
 import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
@@ -893,10 +893,13 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
   // Poll the mailbox sync status only while the inbox is genuinely empty after
   // an initial load — so a first sync surfaces a "Syncing…" state and refetches
   // on completion, without polling forever on a populated inbox.
-  const { isSyncing } = useSyncStatus({
+  const { isSyncing, gmailAccessIssue: polledGmailAccessIssue } = useSyncStatus({
     enabled: hasInitiallyLoaded && emailsEmpty && !loading && !loadingModeSwitch && !fetchError,
     onSyncComplete: onRetry,
   });
+  const { user } = useAuth();
+  // A live poll beats the profile loaded at sign-in, which goes stale once a fetch clears the issue.
+  const gmailAccessIssue = polledGmailAccessIssue !== undefined ? polledGmailAccessIssue : user?.gmailAccessIssue;
 
   const renderItem = (email: Email, emailIndex: number) => (
     <InboxEmailItem
@@ -991,8 +994,8 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
       >
         {mode === MODE_TRIAGE && (
           <>
+            <BackgroundSortingBanner />
             <BatchInfoBar nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck} />
-            <TriageBatchSummary counts={priorityCounts} isVisible={canRenderCategories} />
           </>
         )}
         {mode === MODE_FOLLOW_UP && (
@@ -1012,6 +1015,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
           emailsEmpty={emailsEmpty}
           mode={mode}
           isSyncing={isSyncing}
+          gmailAccessIssue={gmailAccessIssue}
           onRetry={onRetry}
           minPriority={minPriority}
           maxPriority={maxPriority}

@@ -4,11 +4,13 @@ import { theme } from 'theme/theme';
 
 import { ActionBuilder } from './ActionBuilder';
 import { ConditionBuilder } from './ConditionBuilder';
+import { CategoryNamesById } from './describeWorkflowCondition';
 import { MCPServerConfig, WorkflowAction, WorkflowCondition, WorkflowRule, WorkflowRuleFormValues } from './types';
 
 interface WorkflowEditorProps {
   rule: WorkflowRule | null;
   mcpServers: MCPServerConfig[];
+  categoryNamesById: CategoryNamesById;
   onSave: (values: WorkflowRuleFormValues) => Promise<void>;
   onCancel: () => void;
 }
@@ -25,7 +27,7 @@ const emptyCondition: WorkflowCondition = {
  * Modal-style editor for creating and editing workflow rules.
  * Part of feature #1483 — Automated Email Workflows.
  */
-export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers, onSave, onCancel }) => {
+export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers, categoryNamesById, onSave, onCancel }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(rule?.name ?? '');
   const [enabled, setEnabled] = useState(rule?.enabled ?? true);
@@ -127,7 +129,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers
         {/* Condition */}
         <div style={sectionStyle}>
           <div style={sectionTitleStyle}>{t('settings.workflows.editor.whenSectionTitle')}</div>
-          <ConditionBuilder condition={condition} onChange={setCondition} />
+          <ConditionBuilder condition={condition} onChange={setCondition} categoryNamesById={categoryNamesById} />
         </div>
 
         {/* Actions */}

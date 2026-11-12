@@ -1,3 +1,5 @@
+import { SenderAuthResults } from "../../utils/authentication-results.util";
+
 /**
  * Email attachment metadata
  */
@@ -29,6 +31,8 @@ export interface RawEmailMessage {
   to?: string;
   cc?: string;
   replyTo?: string;
+  /** SPF/DKIM/DMARC outcomes from the receiving server, when the provider exposes headers */
+  senderAuthResults?: SenderAuthResults | null;
   senderJobTitle?: string;
   body: string;
   htmlBody?: string;
@@ -38,6 +42,14 @@ export interface RawEmailMessage {
   isRead?: boolean;
   labelIds?: string[];
   attachments?: EmailAttachment[];
+}
+
+/**
+ * The provider message a read-status change applies to, plus its thread.
+ */
+export interface ReadStatusTarget {
+  threadId: string;
+  messageId: string;
 }
 
 /**
@@ -94,6 +106,12 @@ export interface SyncEmailsOptions {
    * Whether this is a continuation job (affects logging and behavior)
    */
   isContinuation?: boolean;
+
+  /**
+   * True when the threads are OLDER mail the user asked to import ("process another 500").
+   * Old mail must not be held for the next batch delivery, and it is charged to the plan.
+   */
+  isBackfill?: boolean;
 
   /**
    * When true, fetch the full ongoing sync window (ONGOING_SYNC_WINDOW_DAYS)
@@ -236,6 +254,18 @@ export interface EmailProvider {
   ): Promise<void>;
 
   /**
+   * Mirror the user's read/unread action to the provider. Marking read applies
+   * to the whole thread (opening a conversation reads all of it); marking
+   * unread flags only `target.messageId`. Optional: providers without it are
+   * skipped. Throws on failure so the queued job retries.
+   */
+  syncReadStatus?(
+    userId: string,
+    target: ReadStatusTarget,
+    isRead: boolean,
+  ): Promise<void>;
+
+  /**
    * Delete/trash a thread (move to trash folder)
    */
   trashThread(userId: string, threadId: string): Promise<void>;
@@ -290,4 +320,12 @@ export interface EmailProvider {
     mimeType: string;
     size: number;
   }>;
+
+  /**
+   * The message's original RFC 822 source — every header plus the full MIME
+   * body — exactly as the provider stores it. Optional: a provider that cannot
+   * fetch it leaves this out, and callers report it as unsupported rather than
+   * rebuilding a lookalike message from stored fields.
+   */
+  getRawMessage?(userId: string, messageId: string): Promise<Buffer>;
 }

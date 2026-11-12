@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { hasIcsAttachment } from 'utils/calendarUtils';
 import { extractEmailAddress, getCorrespondent } from 'utils/emailUtils';
+import { focusBearTaskSourceFor } from 'utils/focusBearTaskLink';
 import { captureEvent } from 'utils/posthog';
 
 import { CRMDealsSection } from 'components/crm/CRMDealsSection';
@@ -46,6 +47,7 @@ import {
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { CardType, useCardVisibilityPreferences } from 'hooks/useCardVisibilityPreferences';
+import { useCrmPlanAccess } from 'hooks/useCrmPlanAccess';
 import { useDebugViewOpen } from 'hooks/useDebugViewOpen';
 import { useEmailDetailDraftHandlers } from 'hooks/useEmailDetailDraftHandlers';
 import { useEmailDetailDraftSync } from 'hooks/useEmailDetailDraftSync';
@@ -464,6 +466,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   const assistantInPanel = isCompact || isMobile;
 
   const { hiddenCards, hideCard, showCard } = useCardVisibilityPreferences();
+  const { isCrmIncluded } = useCrmPlanAccess();
   const [showCardSettings, setShowCardSettings] = useState(false);
 
   const { handleDraftChange, handleReplyOptionSelect, handleReplyClose } = useEmailDetailDraftHandlers({
@@ -580,6 +583,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
       onExtractActions={ops.handleExtractActions}
       onRegenerateActionItems={ops.handleRegenerateActionItems}
       onDismiss={() => hideCard('actionItems')}
+      focusBearTaskSource={st.email ? focusBearTaskSourceFor(st.email, window.location.origin) : undefined}
     />
   ) : null;
 
@@ -639,7 +643,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           />
         </div>
       )}
-      {!hiddenCards.has('crm') && (
+      {isCrmIncluded && !hiddenCards.has('crm') && (
         <div style={{ marginBottom: theme.spacing.xl }}>
           <CRMDealsSection
             senderEmail={extractEmailAddress(st.email?.from)}

@@ -37,7 +37,8 @@ export function assertSafeOutboundUrl(raw: string, label: string): void {
   try {
     parsed = new URL(raw);
   } catch {
-    throw new Error(`${label}: invalid URL "${raw}"`);
+    // Never echo the raw value: some URLs (e.g. Zoho MCP) embed an access key.
+    throw new Error(`${label}: invalid URL`);
   }
 
   if (parsed.protocol !== "https:") {

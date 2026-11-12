@@ -32,6 +32,7 @@ import { EmailSendQueueModule } from "../email-send-queue/email-send-queue.modul
 import { EmailTrackingModule } from "../email-tracking/email-tracking.module";
 import { GitHubModule } from "../github/github.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
+import { ImapAccountsModule } from "../imap-accounts/imap-accounts.module";
 import { LLMModule } from "../llm/llm.module";
 import { LocalModelModule } from "../local-model/local-model.module";
 import { LocalModelTrainingDataProcessor } from "../local-model/local-model-training-data.processor";
@@ -63,6 +64,7 @@ import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailDebugPhishingService } from "./email-debug-phishing.service";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
+import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportProcessor } from "./email-export.processor";
 import { EmailExportService } from "./email-export.service";
 import { EmailExportJobService } from "./email-export-job.service";
@@ -97,6 +99,8 @@ import { EmailSyncProcessor } from "./email-sync.processor";
 import { EmailThreadService } from "./email-thread.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
+import { ImportOlderEmailsController } from "./import-older-emails.controller";
+import { ImportOlderEmailsService } from "./import-older-emails.service";
 import { IncrementalSummaryHelperService } from "./incremental-summary-helper.service";
 import { LLMDeterministicPriorityService } from "./llm-deterministic-priority.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
@@ -111,13 +115,18 @@ import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 import { AppleMailProvider } from "./providers/apple-mail.provider";
 import { GmailProvider } from "./providers/gmail.provider";
 import { GmailSyncService } from "./providers/gmail-sync.service";
+import { ImapProvider } from "./providers/imap.provider";
+import { ImapSyncService } from "./providers/imap/imap-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
+import { ReadStatusSyncProcessor } from "./read-status-sync.processor";
+import { ReadStatusSyncService } from "./read-status-sync.service";
 import { RuleLabelReCategoriseController } from "./rule-label-recategorise.controller";
 import { RuleLabelReCategoriseProcessor } from "./rule-label-recategorise.processor";
 import { RuleLabelReCategoriseService } from "./rule-label-recategorise.service";
 import { ScanEmailService } from "./scan-email.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
+import { StaleRuleCategoryService } from "./stale-rule-category.service";
 import { StuckPriorityDetectionService } from "./stuck-priority-detection.service";
 import { SyncHistoryService } from "./sync-history.service";
 
@@ -158,6 +167,7 @@ import { SyncHistoryService } from "./sync-history.service";
     forwardRef(() => Office365AccountsModule),
     forwardRef(() => ZohoAccountsModule),
     forwardRef(() => AppleMailAccountsModule),
+    forwardRef(() => ImapAccountsModule),
     forwardRef(() => GitHubModule),
     forwardRef(() => SuggestedRepliesModule),
     ProtoCategoriesModule,
@@ -176,6 +186,7 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailDebugAdminController,
     EmailSearchOpsController,
     EmailBacklogController,
+    ImportOlderEmailsController,
     EmailDebugController,
     EmailSendController,
     EmailAssignmentController,
@@ -183,8 +194,10 @@ import { SyncHistoryService } from "./sync-history.service";
   ],
   providers: [
     SyncHistoryService,
+    EmailEmlDownloadService,
     CategoryDedupService,
     EmailBacklogService,
+    ImportOlderEmailsService,
     EmailAssignmentService,
     EmailProviderManager,
     EmailThreadService,
@@ -302,6 +315,8 @@ import { SyncHistoryService } from "./sync-history.service";
     Office365Provider,
     ZohoProvider,
     AppleMailProvider,
+    ImapProvider,
+    ImapSyncService,
     EmailSyncProcessor,
     LLMProcessor,
     BackgroundSummaryQueueService,
@@ -310,9 +325,12 @@ import { SyncHistoryService } from "./sync-history.service";
     LocalModelPromotionService,
     PriorityRuleMiningCron,
     LLMPriorityBatchService,
+    StaleRuleCategoryService,
     IncrementalSummaryHelperService,
     LLMSummaryProcessorService,
     ArchiveEmailProcessor,
+    ReadStatusSyncService,
+    ReadStatusSyncProcessor,
     EmailAdminService,
     EmailExportService,
     EmailExportStorageService,

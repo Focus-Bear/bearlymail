@@ -6,6 +6,7 @@ import {
 } from "./interfaces/email-provider.interface";
 import { AppleMailProvider } from "./providers/apple-mail.provider";
 import { GmailProvider } from "./providers/gmail.provider";
+import { ImapProvider } from "./providers/imap.provider";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
 
@@ -27,12 +28,15 @@ export class EmailProviderManager {
     private zohoProvider: ZohoProvider,
     @Inject(forwardRef(() => AppleMailProvider))
     private appleMailProvider: AppleMailProvider,
+    @Inject(forwardRef(() => ImapProvider))
+    private imapProvider: ImapProvider,
   ) {
     // Register providers
     this.providers.set("gmail", gmailProvider);
     this.providers.set("office365", office365Provider);
     this.providers.set("zoho", zohoProvider);
     this.providers.set("apple-mail", appleMailProvider);
+    this.providers.set("imap", imapProvider);
   }
 
   /**
@@ -66,8 +70,10 @@ export class EmailProviderManager {
    * Tries providers in order of priority: Gmail, Outlook, Teams, etc.
    */
   async getPrimaryProvider(userId: string): Promise<EmailProvider | null> {
-    // Priority order: Gmail first, then Office 365, Zoho, Apple Mail
-    const priorityOrder = ["gmail", "office365", "zoho", "apple-mail"];
+    // Priority order: Gmail first, then Office 365, Zoho, Apple Mail, IMAP.
+    // Actions route to this one provider, so password-based IMAP goes last:
+    // a user who also connects an OAuth mailbox keeps it as the default.
+    const priorityOrder = ["gmail", "office365", "zoho", "apple-mail", "imap"];
 
     for (const providerType of priorityOrder) {
       const provider = await this.getProvider(userId, providerType);

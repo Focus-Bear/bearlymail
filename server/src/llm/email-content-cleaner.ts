@@ -60,6 +60,17 @@ function capScanInput(text: string): string {
     : text;
 }
 
+export interface CleanEmailContentOptions {
+  /**
+   * Cut at the FIRST quoted earlier message, however short the new text above
+   * it. The default keeps the quote when the reply is shorter than
+   * MIN_CONTENT_BEFORE_SEPARATOR so the LLM still has some context; rule
+   * matching must never see quoted text, or a stranger's reply that quotes the
+   * user's own "sorry" satisfies the user's "body contains sorry" rule.
+   */
+  dropAllQuotedReplies?: boolean;
+}
+
 /**
  * Clean email content for LLM analysis
  * @param body Email body (plain text or HTML)
@@ -70,11 +81,15 @@ export function cleanEmailContent(
   body: string | null | undefined,
   htmlBody?: string | null,
   maxLength: number = BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+  options: CleanEmailContentOptions = {},
 ): string {
+  const dropAllQuotedReplies = options.dropAllQuotedReplies === true;
+  const htmlToText = (html: string): string =>
+    stripHtml(dropAllQuotedReplies ? cutHtmlAtReplyQuote(html) : html);
   let content = "";
 
   if (htmlBody && htmlBody.trim()) {
-    content = stripHtml(htmlBody);
+    content = htmlToText(htmlBody);
   }
 
   if (!content.trim()) {
@@ -86,11 +101,15 @@ export function cleanEmailContent(
     content.includes("<html") ||
     content.includes("<body")
   ) {
-    content = stripHtml(content);
+    content = htmlToText(content);
   }
 
   if (content.includes("<") && content.includes(">")) {
-    content = stripHtml(content);
+    content = htmlToText(content);
+  }
+
+  if (dropAllQuotedReplies) {
+    content = cutTextAtReplyQuote(content);
   }
 
   // Remove quoted replies (earlier messages in thread)
@@ -147,15 +166,23 @@ export function buildDeterministicSummary(
  * re-truncated because substring matching has no token cost. When the two
  * sources are identical (the common case where `body` is just the HTML stripped
  * to text) only one copy is returned.
+ *
+ * Both sources drop every quoted earlier message (reply attributions, Outlook
+ * header blocks, Gmail/Outlook/Apple quote containers), so a rule only ever
+ * matches what THIS message's sender wrote. Forwarded content is kept — it is
+ * the substance of a forward.
  */
 export function buildRuleMatchText(
   body: string | null | undefined,
   htmlBody?: string | null,
   maxLength: number = BODY_PREVIEW_LENGTHS.RULE_MATCH,
 ): string {
-  const plain = cleanEmailContent(body, null, maxLength);
+  const ruleMatchOptions: CleanEmailContentOptions = {
+    dropAllQuotedReplies: true,
+  };
+  const plain = cleanEmailContent(body, null, maxLength, ruleMatchOptions);
   const fromHtml = htmlBody?.trim()
-    ? cleanEmailContent("", htmlBody, maxLength)
+    ? cleanEmailContent("", htmlBody, maxLength, ruleMatchOptions)
     : "";
 
   if (!fromHtml || fromHtml === plain) {
@@ -248,6 +275,95 @@ function truncateAtSeparator(text: string, pattern: RegExp): string {
   return index > MIN_CONTENT_BEFORE_SEPARATOR
     ? text.substring(0, index).trim()
     : text;
+}
+
+// Quote-container openers in HTML replies. Each is bounded (`[^>]{0,300}`) so
+// the scan stays linear on attacker-influenced bodies (CWE-1333).
+const HTML_REPLY_QUOTE_MARKERS: RegExp[] = [
+  // Gmail (`gmail_quote`, `gmail_quote gmail_quote_container`)
+  /<(?:div|blockquote)\b[^>]{0,300}\bclass=["']?gmail_quote\b/i,
+  // Apple Mail / Thunderbird
+  /<blockquote\b[^>]{0,300}\btype=["']?cite\b/i,
+  /<div\b[^>]{0,300}\bclass=["']?moz-cite-prefix\b/i,
+  // Outlook on the web / new Outlook
+  /<div\b[^>]{0,300}\bid=["']?divRplyFwdMsg\b/i,
+  /<div\b[^>]{0,300}\bid=["']?appendonsend\b/i,
+  // Outlook for Mac
+  /<div\b[^>]{0,300}\bid=["']?mail-editor-reference-message-container\b/i,
+  // Outlook desktop's From/Sent header block
+  /<div\b[^>]{0,300}border-top:\s{0,5}solid\s{1,5}#(?:E1E1E1|B5C4DF)/i,
+  // Yahoo
+  /<div\b[^>]{0,300}\bclass=["']?yahoo_quoted\b/i,
+];
+
+// Plain-text openers of a quoted earlier message.
+const TEXT_REPLY_QUOTE_MARKERS: RegExp[] = [
+  /^On [^\n]{1,250}wrote:[ \t\r]*$/im,
+  // Attribution wrapped onto a second line ("On …, Jeremy <\njeremy@…> wrote:")
+  /^On [^\n]{1,250}\n[^\n]{0,250}wrote:[ \t\r]*$/im,
+  // Outlook header block: "From: …" then "Sent: …", blank lines allowed between
+  // and no fixed To/Cc/Subject order after it (a Cc line broke the old pattern).
+  // "Date:" is deliberately not accepted — form/notification bodies use
+  // From/Date lines; Outlook for Mac's Date variant is caught by its HTML marker.
+  /^[ \t*]*From:[^\n]{1,300}\n(?:[ \t\r]*\n){0,2}[ \t*]*Sent:[^\n]{1,300}$/im,
+  /-{5,80}\s*Original Message\s*-{5,80}/i,
+  /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2}\s*(?:AM|PM)?[^<\n]{1,200}<[^@\n]{1,200}@[^>\n]{1,200}>:\s*$/im,
+  /-{3,80}\s*(?:Reply|Write|Respond)\s+(?:above|below)\s+this\s+line\s*-{3,80}/i,
+];
+
+const FORWARD_MARKER_PATTERNS: RegExp[] = [
+  /-{5,80}\s*Forwarded message\s*-{5,80}/i,
+  /Begin forwarded message:/i,
+];
+
+/** How far into a quote container a forward marker may sit (Gmail puts it inside). */
+const FORWARD_MARKER_LOOKAHEAD_CHARS = 600;
+
+function earliestMatchIndex(text: string, patterns: RegExp[]): number | null {
+  let earliest: number | null = null;
+  for (const pattern of patterns) {
+    const index = pattern.exec(text)?.index;
+    if (index !== undefined && (earliest === null || index < earliest)) {
+      earliest = index;
+    }
+  }
+  return earliest;
+}
+
+/**
+ * Drops an HTML reply's quoted earlier message: everything from the first
+ * quote container on. Returns the input unchanged when there is no quote, when
+ * the "quote" is forwarded content (a forward marker before or just inside
+ * it), or when nothing but markup would be left (a forward with no preamble).
+ */
+function cutHtmlAtReplyQuote(html: string): string {
+  const scanned = capScanInput(html);
+  const quoteIndex = earliestMatchIndex(scanned, HTML_REPLY_QUOTE_MARKERS);
+  if (quoteIndex === null) return html;
+  const forwardIndex = earliestMatchIndex(scanned, FORWARD_MARKER_PATTERNS);
+  if (
+    forwardIndex !== null &&
+    forwardIndex < quoteIndex + FORWARD_MARKER_LOOKAHEAD_CHARS
+  ) {
+    return html;
+  }
+  const head = scanned.slice(0, quoteIndex);
+  return stripHtml(head).trim() ? head : html;
+}
+
+/**
+ * Plain-text counterpart of {@link cutHtmlAtReplyQuote}: keeps only the text
+ * above the first reply attribution / Outlook header, with the same forward
+ * and nothing-left exceptions.
+ */
+function cutTextAtReplyQuote(text: string): string {
+  const scanned = capScanInput(text);
+  const quoteIndex = earliestMatchIndex(scanned, TEXT_REPLY_QUOTE_MARKERS);
+  if (quoteIndex === null) return text;
+  const forwardIndex = earliestMatchIndex(scanned, FORWARD_MARKER_PATTERNS);
+  if (forwardIndex !== null && forwardIndex < quoteIndex) return text;
+  const head = scanned.slice(0, quoteIndex);
+  return head.trim() ? head : text;
 }
 
 /**

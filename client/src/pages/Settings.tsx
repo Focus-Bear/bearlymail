@@ -8,7 +8,9 @@ import { Sidebar } from 'components/inbox/Sidebar';
 import { AccountDeletionSection } from 'components/settings/AccountDeletionSection';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
 import { AutoResponderSection } from 'components/settings/auto-responder';
+import { ClaudeAccessSection } from 'components/settings/claude-access';
 import { DataExportSection } from 'components/settings/DataExportSection';
+import { buildAllAccounts } from 'components/settings/email-delivery/emailAccounts.helpers';
 import { EmailDeliverySection } from 'components/settings/EmailDeliverySection';
 import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
 import { EmailTrackingSection } from 'components/settings/EmailTrackingSection';
@@ -19,17 +21,22 @@ import { MfaSection } from 'components/settings/MfaSection';
 import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
 import { SeedTestDataSection, TESTER_EMAIL } from 'components/settings/SeedTestDataSection';
 import { SetPasswordSection } from 'components/settings/SetPasswordSection';
+import { SETTINGS_TAB } from 'components/settings/settings-tabs';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
+import { SettingsTabBar, SettingsTabPanel } from 'components/settings/SettingsTabs';
 import { TeamSettingsSection } from 'components/settings/TeamSettingsSection';
 import { TroubleshootingSection } from 'components/settings/TroubleshootingSection';
 import { VersionFooter } from 'components/settings/VersionFooter';
 import { WorkflowsSection } from 'components/settings/workflows';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
+import { SETTINGS_AUTO_ANALYZE_PARAM } from 'constants/settingsAnchors';
 import { useAuth } from 'contexts/AuthContext';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSettingsAnchorScroll } from 'hooks/useSettingsAnchorScroll';
 import { useSettingsData } from 'hooks/useSettingsData';
+import { useSettingsTabs } from 'hooks/useSettingsTabs';
 import { useSidebarState } from 'hooks/useSidebarState';
 import { useUnsavedChangesGuard } from 'hooks/useUnsavedChangesGuard';
 
@@ -76,7 +83,7 @@ const Settings: React.FC = () => {
     }
 
     const params = new URLSearchParams(window.location.search);
-    const autoAnalyze = params.get('autoAnalyze');
+    const autoAnalyze = params.get(SETTINGS_AUTO_ANALYZE_PARAM);
 
     if (autoAnalyze === AUTO_ANALYZE_QUERY_VALUE) {
       hasTriggeredAutoAnalyze.current = true;
@@ -92,24 +99,8 @@ const Settings: React.FC = () => {
     }
   }, [settingsLoading, handleAnalyzeContext, refreshUser]);
 
-  // Handle anchor scrolling when navigating with hash (from sidebar navigation)
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash && !settingsData.loading) {
-        setTimeout(() => {
-          const element = document.getElementById(hash.substring(1));
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 100);
-      }
-    };
-
-    handleHashChange();
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [settingsData.loading]);
+  useSettingsAnchorScroll(!settingsData.loading);
+  const { activeTab, setActiveTab } = useSettingsTabs(!settingsData.loading);
 
   const sidebar = (
     <Sidebar
@@ -190,142 +181,152 @@ const Settings: React.FC = () => {
 
         <SettingsHeader />
 
-        <SetPasswordSection />
+        <SettingsTabBar activeTab={activeTab} onSelect={setActiveTab} />
 
-        {user?.isAdmin && <MfaSection />}
+        <SettingsTabPanel tabId={SETTINGS_TAB.EMAIL} activeTab={activeTab}>
+          <EmailDeliverySection
+            googleAccounts={settingsData.googleAccounts}
+            office365Accounts={settingsData.office365Accounts}
+            zohoAccounts={settingsData.zohoAccounts}
+            appleMailAccounts={settingsData.appleMailAccounts}
+            imapAccounts={settingsData.imapAccounts}
+            appleMailAvailable={settingsData.appleMailAvailable}
+            batchSchedule={settingsData.batchSchedule}
+            blockedSenders={settingsData.blockedSenders}
+            blockedKeywords={settingsData.blockedKeywords}
+            newDeliveryTime={settingsData.newDeliveryTime}
+            onFetchData={settingsData.fetchData}
+            onBatchScheduleChange={settingsData.setBatchSchedule}
+            onNewDeliveryTimeChange={settingsData.setNewDeliveryTime}
+            onSaveBatchSchedule={settingsData.updateBatchSchedule}
+            onUnblockSender={settingsData.handleUnblockSender}
+            onUnblockKeyword={settingsData.handleUnblockKeyword}
+            onAddKeyword={settingsData.handleAddKeyword}
+          />
 
-        <EmailDeliverySection
-          googleAccounts={settingsData.googleAccounts}
-          office365Accounts={settingsData.office365Accounts}
-          zohoAccounts={settingsData.zohoAccounts}
-          appleMailAccounts={settingsData.appleMailAccounts}
-          appleMailAvailable={settingsData.appleMailAvailable}
-          batchSchedule={settingsData.batchSchedule}
-          blockedSenders={settingsData.blockedSenders}
-          blockedKeywords={settingsData.blockedKeywords}
-          newDeliveryTime={settingsData.newDeliveryTime}
-          onFetchData={settingsData.fetchData}
-          onBatchScheduleChange={settingsData.setBatchSchedule}
-          onNewDeliveryTimeChange={settingsData.setNewDeliveryTime}
-          onSaveBatchSchedule={settingsData.updateBatchSchedule}
-          onUnblockSender={settingsData.handleUnblockSender}
-          onUnblockKeyword={settingsData.handleUnblockKeyword}
-          onAddKeyword={settingsData.handleAddKeyword}
-        />
+          <EmailSignatureSection
+            emailSignature={settingsData.emailSignature}
+            onSignatureChange={settingsData.setEmailSignature}
+            onSave={settingsData.handleSaveEmailSignature}
+            saving={settingsData.savingSignature}
+          />
 
-        <EmailSignatureSection
-          emailSignature={settingsData.emailSignature}
-          onSignatureChange={settingsData.setEmailSignature}
-          onSave={settingsData.handleSaveEmailSignature}
-          saving={settingsData.savingSignature}
-        />
+          <EmailTrackingSection />
+        </SettingsTabPanel>
 
-        <EmailTrackingSection />
+        <SettingsTabPanel tabId={SETTINGS_TAB.AI} activeTab={activeTab}>
+          <GuideOurAISection
+            contexts={settingsData.contexts}
+            toneRules={settingsData.toneRules}
+            summarizationRules={settingsData.summarizationRules}
+            analyzing={settingsData.analyzing}
+            newToneRule={settingsData.newToneRule}
+            newSummarizationWhen={settingsData.newSummarizationWhen}
+            newSummarizationHow={settingsData.newSummarizationHow}
+            newFromPatterns={settingsData.newFromPatterns}
+            newSubjectPatterns={settingsData.newSubjectPatterns}
+            newPriority={settingsData.newPriority}
+            editingSummarizationRule={settingsData.editingSummarizationRule}
+            editSummarizationWhen={settingsData.editSummarizationWhen}
+            editSummarizationHow={settingsData.editSummarizationHow}
+            editFromPatterns={settingsData.editFromPatterns}
+            editSubjectPatterns={settingsData.editSubjectPatterns}
+            editPriority={settingsData.editPriority}
+            newContextValue={settingsData.newContextValue}
+            newContextPriority={settingsData.newContextPriority}
+            addingContextType={settingsData.addingContextType}
+            editingContextId={settingsData.editingContextId}
+            editContextValue={settingsData.editContextValue}
+            editContextPriority={settingsData.editContextPriority}
+            displayName={settingsData.displayName}
+            jobTitle={settingsData.jobTitle}
+            calendarBookingUrl={settingsData.calendarBookingUrl}
+            onAnalyzeContext={settingsData.handleAnalyzeContext}
+            onAddToneRule={settingsData.handleAddToneRule}
+            onRemoveToneRule={settingsData.handleRemoveToneRule}
+            onEditToneRule={settingsData.handleEditToneRule}
+            onNewToneRuleChange={settingsData.setNewToneRule}
+            onAddSummarizationRule={settingsData.handleAddSummarizationRule}
+            onEditSummarizationRule={settingsData.handleEditSummarizationRule}
+            onSaveSummarizationRule={settingsData.handleSaveSummarizationRule}
+            onDeleteSummarizationRule={settingsData.handleDeleteSummarizationRule}
+            onNewSummarizationWhenChange={settingsData.setNewSummarizationWhen}
+            onNewSummarizationHowChange={settingsData.setNewSummarizationHow}
+            onNewFromPatternsChange={settingsData.setNewFromPatterns}
+            onNewSubjectPatternsChange={settingsData.setNewSubjectPatterns}
+            onNewPriorityChange={settingsData.setNewPriority}
+            onEditSummarizationWhenChange={settingsData.setEditSummarizationWhen}
+            onEditSummarizationHowChange={settingsData.setEditSummarizationHow}
+            onEditFromPatternsChange={settingsData.setEditFromPatterns}
+            onEditSubjectPatternsChange={settingsData.setEditSubjectPatterns}
+            onEditPriorityChange={settingsData.setEditPriority}
+            onEditingSummarizationRuleChange={settingsData.setEditingSummarizationRule}
+            onAddContext={settingsData.handleAddContext}
+            onUpdateContext={settingsData.handleUpdateContext}
+            onDeleteContext={settingsData.handleDeleteContext}
+            onNewContextValueChange={settingsData.setNewContextValue}
+            onNewContextPriorityChange={settingsData.setNewContextPriority}
+            onAddingContextTypeChange={settingsData.setAddingContextType}
+            onEditingContextIdChange={settingsData.setEditingContextId}
+            onEditContextValueChange={settingsData.setEditContextValue}
+            onEditContextPriorityChange={settingsData.setEditContextPriority}
+            onUpdateProfile={settingsData.updateProfile}
+            onRefreshContexts={settingsData.fetchContexts}
+          />
 
-        <GuideOurAISection
-          contexts={settingsData.contexts}
-          toneRules={settingsData.toneRules}
-          summarizationRules={settingsData.summarizationRules}
-          analyzing={settingsData.analyzing}
-          newToneRule={settingsData.newToneRule}
-          newSummarizationWhen={settingsData.newSummarizationWhen}
-          newSummarizationHow={settingsData.newSummarizationHow}
-          newFromPatterns={settingsData.newFromPatterns}
-          newSubjectPatterns={settingsData.newSubjectPatterns}
-          newPriority={settingsData.newPriority}
-          editingSummarizationRule={settingsData.editingSummarizationRule}
-          editSummarizationWhen={settingsData.editSummarizationWhen}
-          editSummarizationHow={settingsData.editSummarizationHow}
-          editFromPatterns={settingsData.editFromPatterns}
-          editSubjectPatterns={settingsData.editSubjectPatterns}
-          editPriority={settingsData.editPriority}
-          newContextValue={settingsData.newContextValue}
-          newContextPriority={settingsData.newContextPriority}
-          addingContextType={settingsData.addingContextType}
-          editingContextId={settingsData.editingContextId}
-          editContextValue={settingsData.editContextValue}
-          editContextPriority={settingsData.editContextPriority}
-          displayName={settingsData.displayName}
-          jobTitle={settingsData.jobTitle}
-          calendarBookingUrl={settingsData.calendarBookingUrl}
-          onAnalyzeContext={settingsData.handleAnalyzeContext}
-          onAddToneRule={settingsData.handleAddToneRule}
-          onRemoveToneRule={settingsData.handleRemoveToneRule}
-          onEditToneRule={settingsData.handleEditToneRule}
-          onNewToneRuleChange={settingsData.setNewToneRule}
-          onAddSummarizationRule={settingsData.handleAddSummarizationRule}
-          onEditSummarizationRule={settingsData.handleEditSummarizationRule}
-          onSaveSummarizationRule={settingsData.handleSaveSummarizationRule}
-          onDeleteSummarizationRule={settingsData.handleDeleteSummarizationRule}
-          onNewSummarizationWhenChange={settingsData.setNewSummarizationWhen}
-          onNewSummarizationHowChange={settingsData.setNewSummarizationHow}
-          onNewFromPatternsChange={settingsData.setNewFromPatterns}
-          onNewSubjectPatternsChange={settingsData.setNewSubjectPatterns}
-          onNewPriorityChange={settingsData.setNewPriority}
-          onEditSummarizationWhenChange={settingsData.setEditSummarizationWhen}
-          onEditSummarizationHowChange={settingsData.setEditSummarizationHow}
-          onEditFromPatternsChange={settingsData.setEditFromPatterns}
-          onEditSubjectPatternsChange={settingsData.setEditSubjectPatterns}
-          onEditPriorityChange={settingsData.setEditPriority}
-          onEditingSummarizationRuleChange={settingsData.setEditingSummarizationRule}
-          onAddContext={settingsData.handleAddContext}
-          onUpdateContext={settingsData.handleUpdateContext}
-          onDeleteContext={settingsData.handleDeleteContext}
-          onNewContextValueChange={settingsData.setNewContextValue}
-          onNewContextPriorityChange={settingsData.setNewContextPriority}
-          onAddingContextTypeChange={settingsData.setAddingContextType}
-          onEditingContextIdChange={settingsData.setEditingContextId}
-          onEditContextValueChange={settingsData.setEditContextValue}
-          onEditContextPriorityChange={settingsData.setEditContextPriority}
-          onUpdateProfile={settingsData.updateProfile}
-          onRefreshContexts={settingsData.fetchContexts}
-        />
+          <AutoResponderSection
+            config={autoResponder.config}
+            queueStats={autoResponder.queueStats}
+            onConfigChange={autoResponder.updateConfig}
+            loading={autoResponder.loading}
+            userName={user?.name}
+          />
+        </SettingsTabPanel>
 
-        <AutoResponderSection
-          config={autoResponder.config}
-          queueStats={autoResponder.queueStats}
-          onConfigChange={autoResponder.updateConfig}
-          loading={autoResponder.loading}
-          userName={user?.name}
-        />
+        <SettingsTabPanel tabId={SETTINGS_TAB.SCHEDULING} activeTab={activeTab}>
+          <SchedulingPreferencesSection />
+        </SettingsTabPanel>
 
-        <SchedulingPreferencesSection />
+        <SettingsTabPanel tabId={SETTINGS_TAB.INTEGRATIONS} activeTab={activeTab}>
+          <MCPServersSection />
 
-        <MCPServersSection />
+          <ClaudeAccessSection />
 
-        <WorkflowsSection />
+          <WorkflowsSection />
 
-        <IntegrationsSection
-          openAiApiKey={settingsData.openAiApiKey}
-          showApiKey={settingsData.showApiKey}
-          apiKeySaved={settingsData.apiKeySaved}
-          hasGithubToken={settingsData.hasGithubToken}
-          anthropicApiKey={settingsData.anthropicApiKey}
-          showAnthropicKey={settingsData.showAnthropicKey}
-          anthropicApiKeySaved={settingsData.anthropicApiKeySaved}
-          hasAnthropicKey={settingsData.hasAnthropicKey}
-          onAnthropicApiKeyChange={settingsData.setAnthropicApiKey}
-          onShowAnthropicKeyChange={settingsData.setShowAnthropicKey}
-          onSaveAnthropicKey={settingsData.handleSaveAnthropicKey}
-          onRemoveAnthropicKey={settingsData.handleRemoveAnthropicKey}
-          onOpenAiApiKeyChange={settingsData.setOpenAiApiKey}
-          onShowApiKeyChange={settingsData.setShowApiKey}
-          onSaveApiKey={settingsData.handleSaveApiKey}
-          onRemoveApiKey={settingsData.handleRemoveApiKey}
-          onConnectGitHub={settingsData.handleConnectGitHub}
-          onConnectGitHubWithRepoAccess={settingsData.handleConnectGitHubWithRepoAccess}
-          onDisconnectGitHub={settingsData.handleDisconnectGitHub}
-        />
+          <IntegrationsSection
+            hasGithubToken={settingsData.hasGithubToken}
+            onConnectGitHub={settingsData.handleConnectGitHub}
+            onConnectGitHubWithRepoAccess={settingsData.handleConnectGitHubWithRepoAccess}
+            onDisconnectGitHub={settingsData.handleDisconnectGitHub}
+          />
+        </SettingsTabPanel>
 
-        <TeamSettingsSection />
+        <SettingsTabPanel tabId={SETTINGS_TAB.TEAM} activeTab={activeTab}>
+          <TeamSettingsSection />
+        </SettingsTabPanel>
 
-        <DataExportSection />
+        <SettingsTabPanel tabId={SETTINGS_TAB.ACCOUNT} activeTab={activeTab}>
+          <SetPasswordSection />
 
-        {user?.email === TESTER_EMAIL && <SeedTestDataSection />}
+          {user?.isAdmin && <MfaSection />}
 
-        <TroubleshootingSection />
+          <DataExportSection />
 
-        <AccountDeletionSection />
+          {user?.email === TESTER_EMAIL && <SeedTestDataSection />}
+
+          <TroubleshootingSection />
+
+          <AccountDeletionSection
+            connectedProviders={buildAllAccounts(
+              settingsData.googleAccounts,
+              settingsData.office365Accounts,
+              settingsData.zohoAccounts,
+              settingsData.appleMailAccounts,
+              settingsData.imapAccounts
+            ).map(account => account.provider)}
+          />
+        </SettingsTabPanel>
 
         <VersionFooter />
       </div>

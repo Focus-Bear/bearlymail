@@ -2,7 +2,12 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { MoreThan, Repository } from "typeorm";
 
-import { EMAIL_MODES } from "../constants/domain-types";
+import { GmailAccessIssue } from "../constants/domain-statuses";
+import {
+  EMAIL_MODES,
+  EMAIL_PROVIDER_TYPES,
+  type EmailProviderType,
+} from "../constants/domain-types";
 import { JOB_NAMES } from "../constants/job-names";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -14,6 +19,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { resolveGmailAccessIssue } from "../users/gmail-access-issue";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
 
@@ -37,11 +43,15 @@ export class EmailStatusService {
   async getSyncStatus(userId: string): Promise<{
     lastSyncAt: Date | null;
     isSyncing: boolean;
+    gmailAccessIssue: GmailAccessIssue | null;
+    gmailAccessIssueAt: Date | null;
   }> {
     const user = await this.usersService.findOneLightweight(userId);
     return {
       lastSyncAt: user?.lastEmailSyncAt ?? null,
       isSyncing: await this.hasPendingEmailFetch(userId),
+      gmailAccessIssue: user ? resolveGmailAccessIssue(user) : null,
+      gmailAccessIssueAt: user?.gmailAccessIssueAt ?? null,
     };
   }
 
@@ -400,7 +410,7 @@ export class EmailStatusService {
     Array<{
       id: string;
       email: string;
-      provider: "gmail" | "office365" | "zoho";
+      provider: EmailProviderType;
       isPrimary: boolean;
       isActive: boolean;
     }>
@@ -408,7 +418,7 @@ export class EmailStatusService {
     const accounts: Array<{
       id: string;
       email: string;
-      provider: "gmail" | "office365" | "zoho";
+      provider: EmailProviderType;
       isPrimary: boolean;
       isActive: boolean;
     }> = [];
@@ -451,6 +461,20 @@ export class EmailStatusService {
         id: acc.id,
         email: decrypt(acc.email),
         provider: "zoho",
+        isPrimary: acc.isPrimary,
+        isActive: acc.isActive,
+      });
+    }
+
+    const imapAccounts = await this.emailRepository.query(
+      `SELECT id, email, "isPrimary", "isActive" FROM imap_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+    for (const acc of imapAccounts) {
+      accounts.push({
+        id: acc.id,
+        email: decrypt(acc.email),
+        provider: EMAIL_PROVIDER_TYPES.IMAP,
         isPrimary: acc.isPrimary,
         isActive: acc.isActive,
       });

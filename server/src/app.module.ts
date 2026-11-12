@@ -36,16 +36,21 @@ import { EncryptionModule } from "./encryption/encryption.module";
 import { UserEncryptionInterceptor } from "./encryption/user-encryption.interceptor";
 import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
 import { FeedbackModule } from "./feedback/feedback.module";
+import { FocusBearModule } from "./focus-bear/focus-bear.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { GitHubModule } from "./github/github.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
+import { ImapAccountsModule } from "./imap-accounts/imap-accounts.module";
 import { LLMModule } from "./llm/llm.module";
 import { MCPModule } from "./mcp/mcp.module";
+import { McpOAuthModule } from "./mcp-oauth/mcp-oauth.module";
+import { McpServerModule } from "./mcp-server/mcp-server.module";
 import { NotesModule } from "./notes/notes.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
 import { OnboardingModule } from "./onboarding/onboarding.module";
 import { OrganizationNameRepairModule } from "./organizations/organization-name-repair.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
+import { PersonalAccessTokensModule } from "./personal-access-tokens/personal-access-tokens.module";
 import { PriorityModule } from "./priority/priority.module";
 import { ProtoCategoriesModule } from "./proto-categories/proto-categories.module";
 import { PusherModule } from "./pusher/pusher.module";
@@ -167,7 +172,9 @@ const DEFAULT_POLLING_LIMIT = 3000;
     Office365AccountsModule,
     ZohoAccountsModule,
     AppleMailAccountsModule,
+    ImapAccountsModule,
     GitHubModule,
+    FocusBearModule,
     SuggestedActionsModule,
     AutoResponderModule,
     DraftsModule,
@@ -180,6 +187,9 @@ const DEFAULT_POLLING_LIMIT = 3000;
     AutoArchiveProposalsModule,
     TriageModule,
     MCPModule,
+    McpServerModule,
+    McpOAuthModule,
+    PersonalAccessTokensModule,
     AskAiModule,
     SeedTestDataModule,
   ],

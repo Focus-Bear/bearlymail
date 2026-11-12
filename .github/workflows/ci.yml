@@ -228,6 +228,16 @@ jobs:
         working-directory: server
         run: npx typeorm migration:run -d dist/data-source.js
 
+      # The prioritisation Lambda is a hand-wired bundle of dist/; this catches
+      # missing entities, unbundleable deps and cold-start crashes before deploy.
+      - name: Bundle prioritisation Lambda and cold-start it
+        working-directory: server
+        env:
+          NODE_ENV: production
+        run: |
+          node scripts/bundle-prioritisation-lambda.mjs
+          node -e "require('./dist-lambda/prioritisation/handler.js').handler({ Records: [] }).then((result) => { console.log('Prioritisation Lambda cold start ok', JSON.stringify(result)); process.exit(0); }, (error) => { console.error(error); process.exit(1); })"
+
       - name: Check for schema drift
         working-directory: server
         run: |

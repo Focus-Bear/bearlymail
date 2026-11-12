@@ -370,7 +370,11 @@ describe("categoriseWithEscalation", () => {
   describe("Jev shadow agreement", () => {
     const declinedJev = (categoryName: string) =>
       jest.fn((_params, onDeclined) => {
-        onDeclined?.({ categoryName, confidence: 0.84 });
+        onDeclined?.({
+          categoryName,
+          confidence: 0.84,
+          family: { family: "GitHub / Issues", confidence: 0.97 },
+        });
         return Promise.resolve(null);
       });
 
@@ -382,11 +386,11 @@ describe("categoriseWithEscalation", () => {
         params,
       );
       expect(logger.log).toHaveBeenCalledWith(
-        "[JEV-SHADOW] decision=categorise_summary confidence=0.84 agreed=true",
+        '[JEV-SHADOW] decision=categorise_summary confidence=0.84 agreed=true family_agreed=true family_confidence=0.97 family="GitHub / Issues"',
       );
     });
 
-    it("logs disagreement when Gemini picks a different category", async () => {
+    it("logs a category disagreement within the same family", async () => {
       const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
       await categoriseWithEscalation(
         { generateText, categoriseWithJev: declinedJev("QA failed") },
@@ -394,7 +398,7 @@ describe("categoriseWithEscalation", () => {
         params,
       );
       expect(logger.log).toHaveBeenCalledWith(
-        "[JEV-SHADOW] decision=categorise_summary confidence=0.84 agreed=false",
+        '[JEV-SHADOW] decision=categorise_summary confidence=0.84 agreed=false family_agreed=true family_confidence=0.97 family="GitHub / Issues"',
       );
     });
 

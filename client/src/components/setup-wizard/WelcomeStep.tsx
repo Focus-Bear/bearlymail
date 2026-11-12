@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
+import { useAuth } from 'contexts/AuthContext';
+import { MAILBOX_STATUS, type MailboxStatus, useMailboxConnection } from 'hooks/useMailboxConnection';
 
+import { type GmailPermissionProblem, resolveGooglePermissions } from './google-permissions';
+import { GmailPermissionWarning } from './GooglePermissionNotices';
+import { NoMailboxCard } from './NoMailboxCard';
+import { onboardingPrimaryButtonStyle as primaryButtonStyle } from './onboarding-buttons';
 import { ONBOARDING_TOKENS as TOK } from './onboarding-tokens';
 
 interface WelcomeStepProps {
@@ -35,6 +41,9 @@ function pickIconColor(variant: PropVariant): string {
 
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUser }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { gmailProblem } = resolveGooglePermissions(user);
+  const mailbox = useMailboxConnection();
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // Tailor the "your inbox is connected" copy to the actual provider — a local
@@ -87,16 +96,11 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
       </p>
 
       <div style={propsGridStyle}>
-        <PropCard
-          variant={VARIANT_DONE}
-          icon={<CheckIconLarge />}
-          title={t('setupWizard.welcome.prop1Title')}
-          body={t(
-            isAppleMail
-              ? 'setupWizard.welcome.prop1BodyAppleMail'
-              : 'setupWizard.welcome.prop1Body',
-          )}
-          doneLabel={t('setupWizard.welcome.doneTag')}
+        <MailboxCard
+          gmailProblem={gmailProblem}
+          mailboxStatus={mailbox.status}
+          isAppleMail={isAppleMail}
+          onConnected={mailbox.recheck}
         />
         <PropCard
           variant={VARIANT_GREEN}
@@ -138,6 +142,44 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
       </div>
     </section>
   );
+};
+
+interface MailboxCardProps {
+  gmailProblem: GmailPermissionProblem | null;
+  mailboxStatus: MailboxStatus;
+  isAppleMail: boolean;
+  onConnected: () => void;
+}
+
+/** First card: only says "connected" once a mailbox is actually there (#442). */
+const MailboxCard: React.FC<MailboxCardProps> = ({ gmailProblem, mailboxStatus, isAppleMail, onConnected }) => {
+  const { t } = useTranslation();
+  if (gmailProblem) {
+    return <GmailPermissionWarning problem={gmailProblem} />;
+  }
+  if (mailboxStatus === MAILBOX_STATUS.NONE) {
+    return <NoMailboxCard onConnected={onConnected} />;
+  }
+  if (mailboxStatus === MAILBOX_STATUS.CHECKING) {
+    // Holds the card's space so the page doesn't jump, without claiming either way.
+    return <div aria-hidden style={checkingPlaceholderStyle} />;
+  }
+  return (
+    <PropCard
+      variant={VARIANT_DONE}
+      icon={<CheckIconLarge />}
+      title={t('setupWizard.welcome.prop1Title')}
+      body={t(isAppleMail ? 'setupWizard.welcome.prop1BodyAppleMail' : 'setupWizard.welcome.prop1Body')}
+      doneLabel={t('setupWizard.welcome.doneTag')}
+    />
+  );
+};
+
+const checkingPlaceholderStyle: React.CSSProperties = {
+  minHeight: '72px',
+  borderRadius: '12px',
+  background: TOK.cream2,
+  border: `1px solid ${TOK.line}`,
 };
 
 interface PropCardProps {
@@ -339,20 +381,3 @@ const termsLinkStyle: React.CSSProperties = {
   textUnderlineOffset: '2px',
 };
 
-const primaryButtonStyle = (enabled: boolean): React.CSSProperties => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '8px',
-  height: '48px',
-  padding: '0 22px',
-  borderRadius: '12px',
-  fontSize: '15px',
-  fontWeight: FONT_WEIGHT_SEMIBOLD,
-  border: `1.5px solid ${enabled ? TOK.sun : TOK.sunPale2}`,
-  background: enabled ? TOK.sun : TOK.sunPale2,
-  color: '#fff',
-  cursor: enabled ? 'pointer' : 'not-allowed',
-  boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.12)',
-  transition: 'background .12s, border-color .12s, color .12s',
-});

@@ -39,12 +39,18 @@ function makeUpdateQueryBuilderMock() {
   return builder;
 }
 
+/** The emergency update only touches a thread still held in an unreleased batch. */
+const HELD_BATCH_WHERE = expect.objectContaining({
+  id: "thread-1",
+  userId: "user-1",
+  isBatched: true,
+});
+
 type ServiceWithPrivate = LLMPriorityResultService & {
   maybeApplyEmergencyDelivery: (args: {
     emailThreadId: string;
     userId: string;
     finalScore: number;
-    starCount: number;
     isBatched: boolean;
     urgencyScore: number;
   }) => Promise<void>;
@@ -219,13 +225,12 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
         emailThreadId: "thread-1",
         userId: "user-1",
         finalScore: PRIORITY_SCORES.HIGH_THRESHOLD,
-        starCount: 0,
         isBatched: true,
         urgencyScore: 0,
       });
 
       expect(emailThreadRepository.update).toHaveBeenCalledWith(
-        { id: "thread-1", userId: "user-1" },
+        HELD_BATCH_WHERE,
         expect.objectContaining({
           isBatched: false,
           wasDeliveredEarly: true,
@@ -239,7 +244,6 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
         emailThreadId: "thread-1",
         userId: "user-1",
         finalScore: PRIORITY_SCORES.HIGH_THRESHOLD - 1,
-        starCount: 0,
         isBatched: true,
         urgencyScore: 0,
       });
@@ -252,13 +256,12 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
         emailThreadId: "thread-1",
         userId: "user-1",
         finalScore: 40,
-        starCount: 0,
         isBatched: true,
         urgencyScore: PRIORITY_SCORES.CRITICAL_URGENCY_THRESHOLD,
       });
 
       expect(emailThreadRepository.update).toHaveBeenCalledWith(
-        { id: "thread-1", userId: "user-1" },
+        HELD_BATCH_WHERE,
         expect.objectContaining({
           isBatched: false,
           wasDeliveredEarly: true,
@@ -272,7 +275,6 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
         emailThreadId: "thread-1",
         userId: "user-1",
         finalScore: 40,
-        starCount: 0,
         isBatched: true,
         urgencyScore: PRIORITY_SCORES.CRITICAL_URGENCY_THRESHOLD - 1,
       });
@@ -288,7 +290,6 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           emailThreadId: "thread-1",
           userId: "user-1",
           finalScore: 90,
-          starCount: 1,
           isBatched: false,
           urgencyScore: 0,
         });
@@ -301,7 +302,6 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           emailThreadId: "thread-1",
           userId: "user-1",
           finalScore: 90,
-          starCount: 1,
           isBatched: false,
           urgencyScore: PRIORITY_SCORES.CRITICAL_URGENCY_THRESHOLD,
         });
@@ -316,13 +316,12 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           emailThreadId: "thread-1",
           userId: "user-1",
           finalScore: PRIORITY_SCORES.HIGH_THRESHOLD,
-          starCount: 1,
           isBatched: true,
           urgencyScore: 0,
         });
 
         expect(emailThreadRepository.update).toHaveBeenCalledWith(
-          { id: "thread-1", userId: "user-1" },
+          HELD_BATCH_WHERE,
           expect.objectContaining({
             isBatched: false,
             wasDeliveredEarly: true,
@@ -336,7 +335,6 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           emailThreadId: "thread-1",
           userId: "user-1",
           finalScore: PRIORITY_SCORES.HIGH_THRESHOLD - 1,
-          starCount: 1,
           isBatched: true,
           urgencyScore: 0,
         });
@@ -349,7 +347,6 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           emailThreadId: "thread-1",
           userId: "user-1",
           finalScore: PRIORITY_SCORES.MEDIUM_THRESHOLD,
-          starCount: 2,
           isBatched: true,
           urgencyScore: 0,
         });
@@ -362,7 +359,6 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           emailThreadId: "thread-starred-batched",
           userId: "user-1",
           finalScore: 60,
-          starCount: 1,
           isBatched: true,
           urgencyScore: 0,
         });
@@ -372,7 +368,6 @@ describe("LLMPriorityResultService - maybeApplyEmergencyDelivery", () => {
           emailThreadId: "thread-unstarred",
           userId: "user-1",
           finalScore: 60,
-          starCount: 0,
           isBatched: true,
           urgencyScore: 0,
         });

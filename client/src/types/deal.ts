@@ -29,3 +29,11 @@ export interface KanbanBoard {
   deals: Record<string, Deal[]>;
   totals: Record<string, number>;
 }
+
+export interface DealNote {
+  id: string;
+  dealId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}

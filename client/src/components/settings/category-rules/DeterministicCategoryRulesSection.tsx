@@ -7,6 +7,7 @@ import { CompositeCategoryRuleFormModal } from 'components/settings/category-rul
 import { DeterministicCategoryRulesPanel } from 'components/settings/category-rules/DeterministicCategoryRulesPanel';
 import { SuggestRulesDialog } from 'components/settings/category-rules/SuggestRulesDialog';
 import { COLOR_WHITE } from 'constants/colors';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { useDeterministicCategoryRulesSectionState } from 'hooks/settings/useDeterministicCategoryRulesSectionState';
 
 export type DeterministicCategoryRulesController = ReturnType<typeof useDeterministicCategoryRulesSectionState>;
@@ -47,6 +48,7 @@ export const DeterministicCategoryRulesSection: React.FC<DeterministicCategoryRu
 
   return (
     <div
+      id={SETTINGS_ANCHORS.CATEGORY_RULES}
       style={{
         marginTop: theme.spacing.lg,
         paddingTop: theme.spacing.md,

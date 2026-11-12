@@ -1,9 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import axios from "axios";
 import { Repository } from "typeorm";
 
-import { assertSafeOutboundUrl } from "../common/url-validation.utils";
 import {
   MCP_AUTH_TYPES,
   MCPServerConfig,
@@ -11,19 +9,40 @@ import {
   MCPToolDefinition,
 } from "../database/entities/mcp-server-config.entity";
 import { MCPOAuthService } from "./mcp-oauth.service";
+import { isAwaitingOAuthAuthorization } from "./mcp-server-view";
+import {
+  MCPAuthorizationRequiredError,
+  MCPStreamableHttpClient,
+} from "./mcp-streamable-http.client";
 
-const TOOL_CALL_TIMEOUT_MS = 30_000;
+const MCP_METHODS = {
+  TOOLS_LIST: "tools/list",
+  TOOLS_CALL: "tools/call",
+} as const;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
 const MS_PER_SECOND = 1000;
 /** Cache TTL for the MCP tool list: 1 hour */
 const TOOL_CACHE_TTL_MS = SECONDS_PER_MINUTE * MINUTES_PER_HOUR * MS_PER_SECOND;
 
+export interface MCPConnectionTestResult {
+  ok: boolean;
+  toolCount: number;
+  needsAuthorization: boolean;
+}
+
+interface MCPListedTool {
+  name: string;
+  description?: string;
+  inputSchema?: object;
+  annotations?: MCPToolAnnotations;
+}
+
 /**
  * Manages connections to user-configured MCP servers.
  *
- * Uses a simple HTTP-based MCP client (JSON-RPC over HTTPS) matching the
- * MCP streamable HTTP transport spec. We implement the two operations needed:
+ * Talks MCP Streamable HTTP via {@link MCPStreamableHttpClient}. We implement
+ * the two operations needed:
  *   - tools/list  — discover available tools
  *   - tools/call  — invoke a tool with arguments
  *
@@ -85,80 +104,95 @@ export class MCPClientManagerService {
 
   /**
    * Test connectivity to an MCP server by fetching its tool list.
+   * `needsAuthorization` tells the UI to offer "Sign in" instead of a bare failure.
    */
-  async testConnection(
-    serverId: string,
-  ): Promise<{ ok: boolean; toolCount: number }> {
+  async testConnection(serverId: string): Promise<MCPConnectionTestResult> {
     try {
       const tools = await this.getTools(serverId, true);
-      return { ok: true, toolCount: tools.length };
+      return { ok: true, toolCount: tools.length, needsAuthorization: false };
     } catch (error) {
       this.logger.warn(
         `MCP connection test failed for ${serverId}: ${(error as Error).message}`,
       );
-      return { ok: false, toolCount: 0 };
+      return {
+        ok: false,
+        toolCount: 0,
+        needsAuthorization: error instanceof MCPAuthorizationRequiredError,
+      };
     }
   }
 
   // ── Private MCP HTTP client ─────────────────────────────────────────────────
 
   /**
-   * Build request headers, resolving the bearer credential from either the
-   * static API key or — for OAuth connections — a valid (auto-refreshed) token.
+   * Resolve the bearer credential from either the static API key or — for
+   * OAuth connections — a valid (auto-refreshed) token.
    */
-  private async buildHeaders(
+  private async buildAuthHeaders(
     config: MCPServerConfig,
   ): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (config.authType === MCP_AUTH_TYPES.OAUTH) {
-      headers["Authorization"] =
-        `Bearer ${await this.oauthService.getValidAccessToken(config)}`;
-    } else if (config.apiKey) {
-      headers["Authorization"] = `Bearer ${config.apiKey}`;
+    if (isAwaitingOAuthAuthorization(config)) {
+      throw new MCPAuthorizationRequiredError(true);
     }
-    return headers;
+    if (config.authType === MCP_AUTH_TYPES.OAUTH) {
+      return {
+        Authorization: `Bearer ${await this.oauthService.getValidAccessToken(config)}`,
+      };
+    }
+    return config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {};
+  }
+
+  private async request(
+    config: MCPServerConfig,
+    method: string,
+    params: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const client = new MCPStreamableHttpClient(
+      config.serverUrl,
+      await this.buildAuthHeaders(config),
+    );
+    try {
+      return await client.request(method, params);
+    } catch (err) {
+      if (err instanceof MCPAuthorizationRequiredError) {
+        await this.switchToOAuthIfOffered(config, err);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * A keyless connection whose server answers with an RFC 9728 OAuth challenge
+   * (e.g. Zoho MCP) can only work through the OAuth flow. Flip it to OAuth so
+   * the settings UI offers "Sign in" rather than failing forever.
+   */
+  private async switchToOAuthIfOffered(
+    config: MCPServerConfig,
+    err: MCPAuthorizationRequiredError,
+  ): Promise<void> {
+    const isKeylessNonOAuth =
+      config.authType !== MCP_AUTH_TYPES.OAUTH && !config.apiKey;
+    if (!err.supportsOAuth || !isKeylessNonOAuth) return;
+    await this.configRepo.update(config.id, {
+      authType: MCP_AUTH_TYPES.OAUTH,
+    });
+    config.authType = MCP_AUTH_TYPES.OAUTH;
   }
 
   private async fetchToolList(
     config: MCPServerConfig,
   ): Promise<MCPToolDefinition[]> {
-    // Guard against SSRF: only allow https:// and reject private/loopback hosts.
-    assertSafeOutboundUrl(config.serverUrl, "MCP server URL");
-
-    const response = await axios.post(
-      config.serverUrl,
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "tools/list",
-        params: {},
-      },
-      {
-        headers: await this.buildHeaders(config),
-        timeout: TOOL_CALL_TIMEOUT_MS,
-      },
-    );
-
-    const result = response.data?.result;
-    if (!result?.tools || !Array.isArray(result.tools)) {
+    const result = await this.request(config, MCP_METHODS.TOOLS_LIST, {});
+    if (!Array.isArray(result.tools)) {
       throw new Error("Invalid tools/list response from MCP server");
     }
 
-    return result.tools.map(
-      (tool: {
-        name: string;
-        description?: string;
-        inputSchema?: object;
-        annotations?: MCPToolAnnotations;
-      }) => ({
-        name: tool.name,
-        description: tool.description ?? "",
-        inputSchema: tool.inputSchema ?? {},
-        ...(tool.annotations ? { annotations: tool.annotations } : {}),
-      }),
-    );
+    return (result.tools as MCPListedTool[]).map((tool) => ({
+      name: tool.name,
+      description: tool.description ?? "",
+      inputSchema: tool.inputSchema ?? {},
+      ...(tool.annotations ? { annotations: tool.annotations } : {}),
+    }));
   }
 
   private async invokeToolCall(
@@ -166,32 +200,9 @@ export class MCPClientManagerService {
     toolName: string,
     parameters: Record<string, unknown>,
   ): Promise<unknown> {
-    // Guard against SSRF: only allow https:// and reject private/loopback hosts.
-    // (Also checked in fetchToolList, but validated here defensively since
-    // callTool can be invoked without a prior getTools call.)
-    assertSafeOutboundUrl(config.serverUrl, "MCP server URL");
-
-    const response = await axios.post(
-      config.serverUrl,
-      {
-        jsonrpc: "2.0",
-        id: 2,
-        method: "tools/call",
-        params: {
-          name: toolName,
-          arguments: parameters,
-        },
-      },
-      {
-        headers: await this.buildHeaders(config),
-        timeout: TOOL_CALL_TIMEOUT_MS,
-      },
-    );
-
-    const result = response.data?.result;
-    if (response.data?.error) {
-      throw new Error(`MCP tool error: ${JSON.stringify(response.data.error)}`);
-    }
-    return result;
+    return this.request(config, MCP_METHODS.TOOLS_CALL, {
+      name: toolName,
+      arguments: parameters,
+    });
   }
 }

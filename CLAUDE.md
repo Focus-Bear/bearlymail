@@ -158,10 +158,12 @@ Need to modify something? Here's where to find it:
 | **Email summarization**                          | `server/src/summarization/summarization.service.ts`                          |
 | **Reply generation**                             | `server/src/replies/replies.service.ts`                                      |
 | **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry) |
+| **MCP server for Claude (`POST /mcp`)**          | `server/src/mcp-server/` (tools in `mcp-server-tool-definitions.ts`); auth = personal access tokens in `server/src/personal-access-tokens/` or OAuth 2.1 (claude.ai connectors) in `server/src/mcp-oauth/`. Not `src/mcp/` (that is BearlyMail as an MCP *client*). See [`docs/connect-claude.md`](docs/connect-claude.md) |
 | **Context analysis (VIP detection, categories)** | `server/src/context/context.service.ts`                                      |
 | **Gmail provider implementation**                | `server/src/emails/providers/gmail.provider.ts`                              |
 | **Office365 provider implementation**            | `server/src/emails/providers/office365.provider.ts`                          |
 | **Zoho provider implementation**                 | `server/src/emails/providers/zoho.provider.ts`                               |
+| **IMAP/SMTP provider (password mailboxes)**      | `server/src/emails/providers/imap.provider.ts` + `providers/imap/`; accounts in `server/src/imap-accounts/` |
 | **Apple Mail (local) provider implementation**   | `server/src/emails/providers/apple-mail.provider.ts` + `server/src/apple-mail-accounts/` (JXA scripts, account + message-ref services) |
 | **Provider routing logic**                       | `server/src/emails/email-provider-manager.service.ts`                        |
 | **LLM prompts (all prompts)**                    | `server/promptfoo/prompts/*.md`                                              |
@@ -198,6 +200,7 @@ Need to modify something? Here's where to find it:
 - `hasSeenTour`, `hasScannedHistory`, `hasCompletedOnboarding`
 - `lastEmailSyncAt`, `subscriptionStatus`, `trialStartedAt`
 - `openAiApiKey` (encrypted, user's own key), `githubToken` (encrypted)
+- `focusBearApiToken` (encrypted, scope `tasks:read`; set only via `PUT /focus-bear/connection`, never returned by `/users/me`)
 - `toneSettings` (encrypted JSON: `{ rules: string[] }`)
 - `autoResponderSettings` (encrypted JSON)
 - Relations: `emails`, `contexts`, `notes`, `summarizationRules`, `actionItems`, `googleAccounts`, `office365Accounts`, `zohoAccounts`
@@ -245,6 +248,7 @@ Need to modify something? Here's where to find it:
 | `GoogleAccount`           | `google_accounts`            | OAuth tokens for Gmail                               |
 | `Office365Account`        | `office365_accounts`         | OAuth tokens for Microsoft                           |
 | `ZohoAccount`             | `zoho_accounts`              | OAuth tokens for Zoho Mail                           |
+| `ImapAccount`             | `imap_accounts`              | IMAP/SMTP servers + encrypted password (Crazy Domains, cPanel, ...) |
 | `ContextAnalysis`         | `context_analyses`           | Tracks progress of background analysis jobs (0-100%) |
 | `BatchSchedule`           | `batch_schedules`            | Per-user email batching schedule                     |
 | `BlockedSender`           | `blocked_senders`            | Blocked email addresses                              |
@@ -268,6 +272,9 @@ Need to modify something? Here's where to find it:
 | `Waitlist`                | `waitlist`                   | Waitlist signups                                     |
 | `AutoArchiveProposal`     | `auto_archive_proposals`     | Mined "sender + keywords → archive" rule proposals (pending/approved/dismissed) with encrypted evidence |
 | `AutoArchiveScanState`    | `auto_archive_scan_states`   | Per-user watermark for incremental proposal mining   |
+| `PersonalAccessToken`     | `personal_access_tokens`     | Scoped (`mail:read` / `mail:send`) bearer tokens for `/mcp`: hand-made PATs (`kind='personal'`) and OAuth connections (`kind='oauth'`, rotating access + refresh hashes); only SHA-256 hashes are stored |
+| `OAuthClient`             | `oauth_clients`              | RFC 7591 dynamically registered MCP OAuth clients (metadata-document clients like claude.ai aren't stored) |
+| `OAuthAuthorizationCode`  | `oauth_authorization_codes`  | In-flight `/oauth/authorize` requests → single-use code hashes (PKCE challenge, granted scopes); pruned after a day |
 
 ---
 
@@ -373,6 +380,7 @@ interface EmailProvider {
   unarchiveThread(userId, threadId): Promise<void>;
   syncStarStatusToGmail(userId, threadId, starCount): Promise<void>;
   snoozeThread(userId, threadId, snoozeUntil): Promise<void>;
+  syncReadStatus?(userId, { threadId, messageId }, isRead): Promise<void>; // optional; Gmail only today
   searchEmails(userId, query, maxResults?): Promise<RawEmailMessage[]>;
   getAttachment(
     userId,
@@ -403,11 +411,13 @@ Jobs are enqueued in the web server and processed by worker processes. Key job t
 | `learn-from-star`             | VERY_LOW (10)    | Update context from user starring behavior                   |
 | `learn-qa-from-sent`          | VERY_LOW (10)    | Debounced per-user: extract Q&A from recent sent emails       |
 | `archive-email-provider-sync` | HIGH (80)        | Sync archive to Gmail/Office365/Zoho                         |
+| `read-status-provider-sync`   | HIGH (80)        | Mirror the user's read/unread action to the provider (Gmail). Queued only by the read/unread endpoints, never by sync/archive/triage |
 | `auto-responder`              | LOW (20)         | Generate and send auto-responses                             |
 | `generate-suggested-replies`  | LOW (20)         | Pre-generate reply suggestions                               |
 | `scan-history`                | MEDIUM (40)      | Historical email scan (onboarding)                           |
 | `schedule-auto-archive-proposals` | VERY_LOW (10) | Daily cron: fans out per-user proposal mining                |
 | `mine-auto-archive-proposals` | VERY_LOW (10)    | Mine one user's heavy senders into auto-archive proposals (`server/src/auto-archive-proposals/`) |
+| `cleanup-orphaned-local-model-data` | Default | Daily on the worker: finds local-model S3 data whose account is gone. Only reports until `LOCAL_MODEL_ORPHAN_CLEANUP_DELETE=true` |
 
 User-triggered jobs get priority boost. See `server/src/queue/job-priorities.ts`.
 
@@ -453,7 +463,7 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 | Prompt File                         | Prompt ID                        | Purpose                                                       |
 | ----------------------------------- | -------------------------------- | ------------------------------------------------------------- |
 | `prioritise-email.md`               | `analyze_priority`               | Score email importance (0-100)                                |
-| `discover-user-context.md`          | `discover_user_context`          | Slim onboarding discovery: initial categories + VIP contacts from thread stubs (Nova → Gemini) |
+| `discover-user-context.md`          | `discover_user_context`          | Slim onboarding discovery: initial categories, VIP contacts and current projects from thread stubs (Nova → Gemini) |
 | `analyze-priority-feedback.md`      | `analyze_priority_feedback`      | Learn from user priority overrides                            |
 | `generate-reply.md`                 | `generate_reply`                 | Generate single reply draft                                   |
 | `generate-multiple-replies.md`      | `generate_multiple_replies`      | Generate 3-5 reply options                                    |
@@ -476,7 +486,6 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 | `search-relevance-explanation.md`   | `search-relevance-explanation`   | Explain search result relevance                               |
 | `search-query-conversion.md`        | N/A (promptfoo test only)        | Convert natural language to search query                      |
 | `search-ranking.md`                 | N/A (promptfoo test only)        | Rank search results                                           |
-| `consolidate-email-categories.md`   | `consolidate_categories`         | Merge duplicate/overlapping categories                        |
 | `generate-categories-from-other.md` | `generate_categories_from_other` | Suggest new categories from "Other" emails                    |
 | `check-category-duplicate.md`       | `check_category_duplicate`       | Determine if two category names are duplicates                |
 
@@ -732,7 +741,7 @@ Other Features
 | Task                              | Prompt File                    | Prompt ID                   |
 | --------------------------------- | ------------------------------ | --------------------------- |
 | Score email importance            | `prioritise-email.md`          | `analyze_priority`          |
-| Discover categories + VIP contacts | `discover-user-context.md`     | `discover_user_context`     |
+| Discover categories, VIPs, projects | `discover-user-context.md`     | `discover_user_context`     |
 | Generate single reply             | `generate-reply.md`            | `generate_reply`            |
 | Generate multiple reply options   | `generate-multiple-replies.md` | `generate_multiple_replies` |
 | Generate meeting scheduling reply | `generate-meeting-reply.md`    | `generate_meeting_reply`    |
@@ -796,6 +805,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | GET    | `/emails/:id/thread`                           | Get all emails in thread                    |
 | GET    | `/emails/:id/priority-explanation`             | Get priority breakdown                      |
 | GET    | `/emails/:id/attachments/:attachmentId`        | Get attachment data                         |
+| GET    | `/emails/:id/eml`                              | Download original message as `.eml` (Gmail/O365/IMAP; 501 otherwise) |
 | PUT    | `/emails/:id/archive`                          | Archive single email                        |
 | PUT    | `/emails/:id/star-count`                       | Set star count (0-3)                        |
 | PUT    | `/emails/:id/read`                             | Mark as read                                |
@@ -837,6 +847,9 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 - `/follow-ups/*` - Follow-up drafts and bulk send
 - `/batch-schedule/*` - Email batching schedule
 - `/github/*` - GitHub integration settings
+- `/personal-access-tokens` - Create/list/revoke tokens for Claude (JWT only; a token can never mint tokens)
+- `POST /mcp` - MCP server (Streamable HTTP, stateless JSON-RPC); authenticated by `Authorization: Bearer bm_pat_...` or an OAuth access token (`bm_oat_...`) only, never the session cookie; a 401 carries the RFC 9728 `WWW-Authenticate` challenge
+- `/.well-known/oauth-protected-resource[/mcp]`, `/.well-known/oauth-authorization-server`, `/oauth/{authorize,token,register,revoke}` - OAuth 2.1 authorization server for `/mcp` (CIMD + DCR, PKCE S256); consent page is the web app's `/oauth/consent`
 
 ---
 
@@ -865,6 +878,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`            | No       | GitHub integration                        |
 | `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Override consent versions (defaults in `server/src/constants/legal-versions.ts`; bump the default when policy wording changes so users re-accept) |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |
+| `FOCUS_BEAR_API_URL`                                          | No       | Focus Bear API base URL for task project/due-date suggestions (default `https://api.focusbear.io`) |
 | `ZOHO_CLIQ_*`                                                 | No       | Zoho Cliq notifications                   |
 | `PUSHER_APP_ID`                                               | No       | Pusher app id (realtime events)           |
 | `PUSHER_KEY`                                                  | No       | Pusher key (also exposed to the client)   |

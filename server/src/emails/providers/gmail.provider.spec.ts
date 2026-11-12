@@ -1,6 +1,7 @@
-import { Logger } from "@nestjs/common";
+import { Logger, UnauthorizedException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { GMAIL_ACCESS_ISSUE } from "../../constants/domain-statuses";
 import { UsersService } from "../../users/users.service";
 import { GmailRateLimitError, InvalidTokenError } from "../../utils/errors";
 import { EmailsService } from "../emails.service";
@@ -48,6 +49,8 @@ describe("GmailProvider — validateToken", () => {
       findOneWithTokens: jest.fn().mockResolvedValue(mockUser),
       update: jest.fn().mockResolvedValue(undefined),
       markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
+      recordGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
+      clearGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
       incrementScanProgress: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
@@ -133,6 +136,19 @@ describe("GmailProvider — validateToken", () => {
       // Proceeded past the skip into token validation.
       expect(mockGetAccessToken).toHaveBeenCalled();
     });
+
+    it("skips even inside the grace period when flagged for a missing Gmail scope", async () => {
+      usersService.findOneWithTokens = jest.fn().mockResolvedValue({
+        ...mockUser,
+        needsRelogin: true,
+        lastLogoutReason: "gmail_insufficient_scope",
+        updatedAt: new Date(),
+      });
+
+      await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
+
+      expect(mockGetAccessToken).not.toHaveBeenCalled();
+    });
   });
 
   describe("invalid token — irrecoverable path", () => {
@@ -150,6 +166,10 @@ describe("GmailProvider — validateToken", () => {
       expect(usersService.markNeedsRelogin).toHaveBeenCalledWith(
         "user-123",
         "gmail_invalid_token",
+      );
+      expect(usersService.recordGmailAccessIssue).toHaveBeenCalledWith(
+        "user-123",
+        GMAIL_ACCESS_ISSUE.REVOKED,
       );
     });
 
@@ -256,6 +276,8 @@ describe("GmailProvider — pagination retry & auth failures", () => {
       }),
       update: jest.fn().mockResolvedValue(undefined),
       markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
+      recordGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
+      clearGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
       incrementScanProgress: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
@@ -513,6 +535,8 @@ describe("GmailProvider — read/search 403 insufficient-scope handling (#2218)"
         .mockResolvedValue({ id: "user-123", needsRelogin: false }),
       update: jest.fn().mockResolvedValue(undefined),
       markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
+      recordGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
+      clearGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<UsersService>;
 
     jest.spyOn(Logger.prototype, "warn").mockImplementation(() => {});
@@ -533,6 +557,10 @@ describe("GmailProvider — read/search 403 insufficient-scope handling (#2218)"
     expect(usersService.markNeedsRelogin).toHaveBeenCalledWith(
       "user-123",
       "gmail_read_auth_error",
+    );
+    expect(usersService.recordGmailAccessIssue).toHaveBeenCalledWith(
+      "user-123",
+      GMAIL_ACCESS_ISSUE.MISSING,
     );
     expect(Logger.prototype.warn).toHaveBeenCalledWith(
       expect.stringContaining("auth failure"),
@@ -597,6 +625,8 @@ describe("GmailProvider — lastEmailSyncAt advances after every sync attempt (b
       }),
       update: jest.fn().mockResolvedValue(undefined),
       markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
+      recordGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
+      clearGmailAccessIssue: jest.fn().mockResolvedValue(undefined),
       incrementScanProgress: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
@@ -665,6 +695,62 @@ describe("GmailProvider — lastEmailSyncAt advances after every sync attempt (b
     });
   });
 
+  it("records missing Gmail access when the sync 403s for insufficient scopes", async () => {
+    jest.spyOn(gmailSyncService, "performSync").mockRejectedValue(
+      Object.assign(
+        new Error("Request had insufficient authentication scopes."),
+        {
+          code: 403,
+          errors: [{ reason: "insufficientPermissions" }],
+          response: { status: 403 },
+        },
+      ),
+    );
+
+    // handleSyncError re-throws so the fetch job's retry/logging still sees it.
+    await expect(provider.syncEmails("user-123")).rejects.toThrow();
+
+    expect(usersService.recordGmailAccessIssue).toHaveBeenCalledWith(
+      "user-123",
+      GMAIL_ACCESS_ISSUE.MISSING,
+    );
+    expect(usersService.clearGmailAccessIssue).not.toHaveBeenCalled();
+  });
+
+  it("records revoked Gmail access when the sync fails with invalid_grant", async () => {
+    jest
+      .spyOn(gmailSyncService, "performSync")
+      .mockRejectedValue(new Error("invalid_grant: Token has been revoked."));
+
+    // handleSyncError re-throws so the fetch job's retry/logging still sees it.
+    await expect(provider.syncEmails("user-123")).rejects.toThrow();
+
+    expect(usersService.recordGmailAccessIssue).toHaveBeenCalledWith(
+      "user-123",
+      GMAIL_ACCESS_ISSUE.REVOKED,
+    );
+  });
+
+  it("leaves the access state alone when the sync fails for a non-auth reason", async () => {
+    jest
+      .spyOn(gmailSyncService, "performSync")
+      .mockRejectedValue(new Error("socket hang up"));
+
+    // handleSyncError re-throws so the fetch job's retry/logging still sees it.
+    await expect(provider.syncEmails("user-123")).rejects.toThrow();
+
+    expect(usersService.recordGmailAccessIssue).not.toHaveBeenCalled();
+    expect(usersService.clearGmailAccessIssue).not.toHaveBeenCalled();
+  });
+
+  it("clears a recorded Gmail access issue once a fetch succeeds", async () => {
+    jest.spyOn(gmailSyncService, "performSync").mockResolvedValue(undefined);
+
+    await provider.syncEmails("user-123");
+
+    expect(usersService.clearGmailAccessIssue).toHaveBeenCalledWith("user-123");
+  });
+
   it("stamps lastEmailSyncAt on a successful sync", async () => {
     jest.spyOn(gmailSyncService, "performSync").mockResolvedValue(undefined);
 
@@ -673,5 +759,150 @@ describe("GmailProvider — lastEmailSyncAt advances after every sync attempt (b
     expect(usersService.update).toHaveBeenCalledWith("user-123", {
       lastEmailSyncAt: expect.any(Date),
     });
+  });
+});
+
+describe("GmailProvider — getRawMessage (.eml download)", () => {
+  let usersService: jest.Mocked<UsersService>;
+
+  function buildProviderWithMessagesGet(
+    messagesGet: jest.Mock,
+  ): Promise<GmailProvider> {
+    const { google } = jest.requireMock("googleapis");
+    (google.gmail as jest.Mock).mockReturnValue({
+      users: { messages: { get: messagesGet } },
+    });
+    return Test.createTestingModule({
+      providers: [
+        GmailProvider,
+        GmailSyncService,
+        { provide: UsersService, useValue: usersService },
+        { provide: EmailsService, useValue: {} },
+        { provide: ScanEmailService, useValue: {} },
+        { provide: SyncHistoryService, useValue: {} },
+        { provide: "PG_BOSS", useValue: { send: jest.fn() } },
+      ],
+    })
+      .compile()
+      .then((module) => module.get<GmailProvider>(GmailProvider));
+  }
+
+  beforeEach(() => {
+    usersService = {
+      findOneWithTokens: jest.fn().mockResolvedValue({
+        id: "user-123",
+        googleCalendarAccessToken: "access-token",
+        googleCalendarRefreshToken: "refresh-token",
+        updatedAt: new Date(),
+      }),
+      markNeedsRelogin: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<UsersService>;
+    jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("requests format=raw and returns the decoded RFC 822 bytes", async () => {
+    const source = Buffer.from(
+      "Received: by mx.google.com\r\nMessage-ID: <m@x>\r\nSubject: Hi\r\n\r\nBody",
+    );
+    const messagesGet = jest
+      .fn()
+      .mockResolvedValue({ data: { raw: source.toString("base64url") } });
+    const provider = await buildProviderWithMessagesGet(messagesGet);
+
+    const raw = await provider.getRawMessage("user-123", "msg-1");
+
+    expect(raw.equals(source)).toBe(true);
+    expect(messagesGet).toHaveBeenCalledWith({
+      userId: "me",
+      id: "msg-1",
+      format: "raw",
+    });
+  });
+
+  it("flags relogin and answers 401 on a revoked grant", async () => {
+    const revoked = Object.assign(new Error("invalid_grant"), {
+      code: 401,
+      response: { status: 401 },
+    });
+    const provider = await buildProviderWithMessagesGet(
+      jest.fn().mockRejectedValue(revoked),
+    );
+
+    await expect(
+      provider.getRawMessage("user-123", "msg-1"),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(usersService.markNeedsRelogin).toHaveBeenCalledWith(
+      "user-123",
+      "gmail_raw_message_auth_error",
+    );
+  });
+});
+
+describe("GmailProvider — fetchThreadMessages skips drafts", () => {
+  function buildProviderWithThreadsGet(
+    threadsGet: jest.Mock,
+  ): Promise<GmailProvider> {
+    const { google } = jest.requireMock("googleapis");
+    (google.gmail as jest.Mock).mockReturnValue({
+      users: { threads: { get: threadsGet } },
+    });
+    const usersService = {
+      findOneWithTokens: jest.fn().mockResolvedValue({
+        id: "user-123",
+        googleCalendarAccessToken: "access-token",
+        googleCalendarRefreshToken: "refresh-token",
+        updatedAt: new Date(),
+      }),
+    } as unknown as jest.Mocked<UsersService>;
+    return Test.createTestingModule({
+      providers: [
+        GmailProvider,
+        GmailSyncService,
+        { provide: UsersService, useValue: usersService },
+        { provide: EmailsService, useValue: {} },
+        { provide: ScanEmailService, useValue: {} },
+        { provide: SyncHistoryService, useValue: {} },
+        { provide: "PG_BOSS", useValue: { send: jest.fn() } },
+      ],
+    })
+      .compile()
+      .then((module) => module.get<GmailProvider>(GmailProvider));
+  }
+
+  const message = (id: string, labelIds: string[]) => ({
+    id,
+    threadId: "thread-1",
+    labelIds,
+    internalDate: "1700000000000",
+    payload: { headers: [{ name: "From", value: "me@example.com" }] },
+  });
+
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("returns the thread's sent and received messages but not its draft", async () => {
+    const threadsGet = jest.fn().mockResolvedValue({
+      data: {
+        messages: [
+          message("received-1", ["INBOX"]),
+          message("sent-1", ["SENT"]),
+          message("draft-1", ["DRAFT"]),
+        ],
+      },
+    });
+    const provider = await buildProviderWithThreadsGet(threadsGet);
+
+    const messages = await provider.fetchThreadMessages("user-123", "thread-1");
+
+    expect(messages.map((msg) => msg.messageId)).toEqual([
+      "received-1",
+      "sent-1",
+    ]);
   });
 });

@@ -1,9 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 
-import {
-  BODY_PREVIEW_LENGTHS,
-  QA_EXTRACTION,
-} from "../constants/llm-constants";
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { getErrorMessage } from "../types/common";
@@ -22,6 +19,11 @@ import {
   PRIORITY_PROMPT_IDS,
   renderPrompt,
 } from "./prompts";
+import {
+  type ExtractedQaCluster,
+  parseQaExtractionResponse,
+  QA_EXTRACTION_RESPONSE_SCHEMA,
+} from "./qa-extraction-response";
 
 /**
  * Domain service for miscellaneous LLM operations: override analysis, Q&A extraction, context compression.
@@ -40,6 +42,7 @@ export class LLMMiscService {
       temperature: number;
       maxTokens: number;
       jsonMode?: boolean;
+      responseSchema?: Record<string, unknown>;
       userId?: string;
     },
     provider?: LLMProvider,
@@ -143,15 +146,16 @@ export class LLMMiscService {
     };
   }
 
+  /**
+   * Groups numbered question/reply pairs (see `formatQaPairsForPrompt`) into
+   * proposed FAQs. Returns the model's proposals unfiltered apart from shape;
+   * the caller's quality gate decides which survive.
+   */
   async extractQAndA(
-    userReplies: Array<{
-      subject: string;
-      body: string;
-      receivedAt: string;
-    }>,
+    pairsText: string,
     userId?: string,
     provider?: LLMProvider,
-  ): Promise<Array<{ question: string; answer: string; frequency: number }>> {
+  ): Promise<ExtractedQaCluster[]> {
     const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.EXTRACT_COMMON_QUESTIONS);
     if (!promptConfig) {
       this.logger.error(
@@ -160,28 +164,16 @@ export class LLMMiscService {
       return [];
     }
 
-    const cleanReplies = userReplies.map((emailEntry) => {
-      const body = cleanEmailContent(
-        emailEntry.body,
-        null,
-        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-      );
-      return `Subject: ${emailEntry.subject}\nBody: ${body}`;
-    });
-
-    const repliesText = cleanReplies.join("\n\n---\n\n");
-
-    const prompt = renderPrompt(promptConfig.prompt || "", {
-      repliesText,
-    });
+    const prompt = renderPrompt(promptConfig.prompt || "", { pairsText });
 
     const response = await this.generateText(
       {
         prompt,
         systemPrompt: promptConfig.systemPrompt || "",
-        temperature: RATIOS.THIRTY_PERCENT,
+        temperature: RATIOS.ZERO,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         jsonMode: true,
+        responseSchema: QA_EXTRACTION_RESPONSE_SCHEMA,
         userId,
       },
       provider,
@@ -190,58 +182,14 @@ export class LLMMiscService {
     );
 
     try {
-      const jsonString = response
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-      let parsedArr: unknown[] | null = null;
-      const jsonObjMatch = jsonString.match(/\{[\s\S]*\}/);
-      if (jsonObjMatch) {
-        const parsedObj = JSON.parse(jsonObjMatch[0]) as Record<
-          string,
-          unknown
-        >;
-        if (Array.isArray(parsedObj.qa_pairs)) {
-          parsedArr = parsedObj.qa_pairs;
-        } else {
-          const arrayKey = Object.keys(parsedObj).find((key) =>
-            Array.isArray(parsedObj[key]),
-          );
-          if (arrayKey) {
-            this.logger.warn(
-              `[QA-EXTRACTION] Expected key 'qa_pairs' but found '${arrayKey}'. Using fallback.`,
-            );
-            parsedArr = parsedObj[arrayKey] as unknown[];
-          }
-        }
-      }
-      if (!parsedArr) {
-        const jsonArrMatch = jsonString.match(/\[[\s\S]*\]/);
-        if (jsonArrMatch) {
-          this.logger.warn(
-            `[QA-EXTRACTION] Response was a bare array instead of wrapped object. Accepting with warning.`,
-          );
-          parsedArr = JSON.parse(jsonArrMatch[0]) as unknown[];
-        }
-      }
-      if (Array.isArray(parsedArr)) {
-        return (
-          parsedArr as Array<{
-            question: string;
-            answer: string;
-            frequency: number;
-          }>
-        ).filter((qa) => (qa.frequency ?? 0) >= QA_EXTRACTION.MIN_FREQUENCY);
-      }
+      return parseQaExtractionResponse(response);
     } catch (error) {
       this.logger.warn(
         "Failed to parse LLM Q&A extraction response as JSON",
         error,
       );
+      return [];
     }
-
-    return [];
   }
 
   async compressUserContext(

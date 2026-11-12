@@ -56,6 +56,7 @@ import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { LocalModelPromotionService } from "./local-model-promotion.service";
 import { runPriorityAnalysisForEmail } from "./priority-analysis-request.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
+import { StaleRuleCategoryService } from "./stale-rule-category.service";
 
 // Preview length constants for log messages
 const ORCHESTRATOR_CONSTANTS = {
@@ -104,6 +105,7 @@ export class LLMProcessor implements OnModuleInit {
     private priorityRulesService: PriorityRulesService,
     private readonly githubCategorySignalsService: GithubCategorySignalsService,
     private readonly userEncryptionService: UserEncryptionService,
+    private readonly staleRuleCategoryService: StaleRuleCategoryService,
     @Inject(forwardRef(() => SubscriptionsService))
     private readonly subscriptionsService: SubscriptionsService,
     // Optional: shadow-compares the local model vs the LLM. No-op unless
@@ -241,6 +243,11 @@ export class LLMProcessor implements OnModuleInit {
     tracker: JobPerformanceTracker,
   ): Promise<{ email: Email; thread: EmailThread | null } | null> {
     tracker.startPhase("dataFetch");
+    // A forced run applies something the user just changed, such as their
+    // categories. The cache is per-process, so the web server can't clear it.
+    if (forceRecalculate) {
+      this.priorityCacheService.invalidateUserContexts(userId);
+    }
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
       this.logger.warn(`Email ${emailId} not found`);
@@ -769,6 +776,13 @@ export class LLMProcessor implements OnModuleInit {
           tracker.finish();
           return;
         }
+
+        await this.staleRuleCategoryService.release({
+          userId,
+          email,
+          thread,
+          workerId,
+        });
 
         const skipped = await this.deterministicPriorityService.tryHandle(
           userId,

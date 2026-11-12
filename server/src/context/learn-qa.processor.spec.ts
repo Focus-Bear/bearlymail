@@ -65,6 +65,7 @@ describe("LearnQaProcessor", () => {
     expect(qaExtractionService.extractQAndAFromSentEmails).toHaveBeenCalledWith(
       "user1",
       sent,
+      "me@example.com",
     );
   });
 

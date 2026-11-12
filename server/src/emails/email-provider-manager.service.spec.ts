@@ -4,6 +4,7 @@ import { mockPartial } from "../test/helpers/mock-utils";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { AppleMailProvider } from "./providers/apple-mail.provider";
 import { GmailProvider } from "./providers/gmail.provider";
+import { ImapProvider } from "./providers/imap.provider";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
 
@@ -13,6 +14,7 @@ describe("EmailProviderManager", () => {
   let office365Provider: jest.Mocked<Office365Provider>;
   let zohoProvider: jest.Mocked<ZohoProvider>;
   let appleMailProvider: jest.Mocked<AppleMailProvider>;
+  let imapProvider: jest.Mocked<ImapProvider>;
 
   beforeEach(async () => {
     gmailProvider = mockPartial({
@@ -36,6 +38,11 @@ describe("EmailProviderManager", () => {
       syncEmails: jest.fn(),
     });
 
+    imapProvider = mockPartial({
+      isConnected: jest.fn().mockResolvedValue(false),
+      syncEmails: jest.fn(),
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmailProviderManager,
@@ -54,6 +61,10 @@ describe("EmailProviderManager", () => {
         {
           provide: AppleMailProvider,
           useValue: appleMailProvider,
+        },
+        {
+          provide: ImapProvider,
+          useValue: imapProvider,
         },
       ],
     }).compile();
@@ -122,6 +133,25 @@ describe("EmailProviderManager", () => {
 
       expect(gmailProvider.isConnected).toHaveBeenCalledWith("user-1");
       expect(result).toBeNull();
+    });
+
+    it("uses an IMAP mailbox when it is the only one connected", async () => {
+      gmailProvider.isConnected.mockResolvedValue(false);
+      imapProvider.isConnected.mockResolvedValue(true);
+
+      const result = await service.getPrimaryProvider("user-1");
+
+      expect(result).toBe(imapProvider);
+    });
+
+    it("keeps an OAuth mailbox as primary when IMAP is also connected", async () => {
+      zohoProvider.isConnected.mockResolvedValue(true);
+      imapProvider.isConnected.mockResolvedValue(true);
+      gmailProvider.isConnected.mockResolvedValue(false);
+
+      const result = await service.getPrimaryProvider("user-1");
+
+      expect(result).toBe(zohoProvider);
     });
   });
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { SETTINGS_ANCHORS, SETTINGS_AUTO_ANALYZE_PARAM, settingsAnchorPath } from 'constants/settingsAnchors';
 import { STRING_TRUE } from 'constants/strings';
 import { User } from 'contexts/AuthContext';
 
@@ -111,7 +112,7 @@ export function useOnboarding({ user, authLoading, refreshUser }: UseOnboardingP
   const handleStartScan = useCallback(async () => {
     setShowScanModal(false);
     // Navigate to settings page with autoAnalyze param to trigger context analysis
-    navigate('/settings?autoAnalyze=true#context');
+    navigate(settingsAnchorPath(SETTINGS_ANCHORS.CONTEXT, `${SETTINGS_AUTO_ANALYZE_PARAM}=${STRING_TRUE}`));
   }, [navigate]);
 
   return {

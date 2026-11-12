@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { withRuleIdMarker } from "../category-rules/category-rule-explanation.helper";
 import { CategoryRulesService } from "../category-rules/category-rules.service";
 import type {
   CategoryRuleEvaluationSet,
@@ -136,6 +137,7 @@ export class LLMDeterministicPriorityService {
         categoryMatch: {
           categoryName: categoryTrace.match.categoryName,
           categoryId: categoryTrace.match.categoryId,
+          ruleId: categoryTrace.match.ruleId,
         },
         categoryRuleTrace: categoryTrace.snapshot,
         userId,
@@ -160,7 +162,11 @@ export class LLMDeterministicPriorityService {
     email: Email;
     thread: EmailThread;
     representativeScore: number;
-    categoryMatch: { categoryName: string; categoryId: string | null };
+    categoryMatch: {
+      categoryName: string;
+      categoryId: string | null;
+      ruleId: string;
+    };
     categoryRuleTrace?: CategoryRuleTraceSnapshot | null;
     userId: string;
     workerId: string;
@@ -183,6 +189,7 @@ export class LLMDeterministicPriorityService {
       categoryName: categoryMatch.categoryName,
       ruleCategoryId: categoryMatch.categoryId,
       finalCategoryId: categoryId,
+      ruleId: categoryMatch.ruleId,
       analyzedEmail: analyzedEmailFromEmail(email, "email-metadata"),
     });
 
@@ -226,7 +233,10 @@ export class LLMDeterministicPriorityService {
           ...(categoryId !== null && categoryId !== undefined
             ? { categoryId }
             : {}),
-          categoryExplanation: `Deterministic priority+category rule (category "${categoryMatch.categoryName}")`,
+          categoryExplanation: withRuleIdMarker(
+            `Deterministic priority+category rule (category "${categoryMatch.categoryName}")`,
+            categoryMatch.ruleId,
+          ),
           categorySource: "rule" as const,
           ...(categoryRuleTrace !== undefined ? { categoryRuleTrace } : {}),
           categoryDecisionTrace: decisionTrace,
@@ -243,7 +253,6 @@ export class LLMDeterministicPriorityService {
       emailThreadId,
       userId,
       finalScore: representativeScore,
-      starCount: thread.starCount ?? 0,
       isBatched: thread.isBatched ?? true,
     });
 

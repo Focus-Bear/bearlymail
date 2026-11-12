@@ -203,15 +203,37 @@ async function fetchAutoRespondedEmails(
   });
 }
 
+/** Says whether a fetch's answer is still wanted, i.e. no newer summary fetch has started since. */
+type IsCurrent = () => boolean;
+
+const ALWAYS_CURRENT: IsCurrent = () => true;
+
+/**
+ * Captures the fetch session now; the returned check turns false once fetchEmails starts a
+ * newer one (e.g. the user ticked another priority box while this request was in flight).
+ */
+function isSessionCurrent(fetchSessionRef: React.MutableRefObject<number>): IsCurrent {
+  const sessionId = fetchSessionRef.current;
+  return () => fetchSessionRef.current === sessionId;
+}
+
+/**
+ * Fetch the summary and show it. A stale answer (see IsCurrent) is still returned so the
+ * caller can cache it under its own filter hash, but it is not shown.
+ */
 async function fetchInboxSummary(
   dispatch: AppDispatch,
   buildSummaryParams: () => URLSearchParams,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  isCurrent: IsCurrent = ALWAYS_CURRENT
 ): Promise<CategorySummaryItem[] | null> {
   const params = buildSummaryParams();
   dispatch(pruneStaleOptimisticRemovals());
   const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`, { signal });
   const { total, categories } = response.data;
+  if (!isCurrent()) {
+    return categories ?? null;
+  }
   dispatch(setCategorySummary(categories));
   dispatch(setSummaryLoading(false));
   dispatch(setTotalCount(total));
@@ -237,6 +259,8 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   // session ID and abandons its results if the session changed while the API call was in flight.
   // This prevents a stale fetchCategoryEmails from marking a category as "loaded" after
   // fetchEmails() cleared the state, which would block a subsequent re-fetch via the guard.
+  // The summary fetches use it the same way, so an older filter's late answer never
+  // overwrites the category counts of a newer one (#453).
   const fetchSessionRef = useRef(0);
   // Backoff circuit breaker for category fetches. Stored in refs (not useState) so that
   // backoff tracking never triggers a re-render, which would re-fire Effect 2.
@@ -287,6 +311,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       const effectiveOverride = signalOrOverride instanceof AbortSignal ? overrideFilters : signalOrOverride;
 
       fetchSessionRef.current += 1;
+      const isCurrent = isSessionCurrent(fetchSessionRef);
       summaryReconcileAttemptedRef.current = new Set();
       // Fix #846: when filters change, the cached summary and per-category emails are stale
       // by definition (they were fetched with different filter params). Invalidate all cached
@@ -308,6 +333,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
         // Fix #1571 Bug 1: pass effective filters so the cache key is scoped to the filter hash.
         activeFilters: effectiveFilters,
         signal,
+        isCurrent,
       });
     },
     [mode, dispatch, filters, buildAutoRespondedSummary]
@@ -422,6 +448,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
         // Fix #1571 Bug 1: pass current filters so cache write-back is scoped to filter hash.
         activeFilters: filters,
         signal,
+        isCurrent: isSessionCurrent(fetchSessionRef),
       }).finally(() => {
         if (refreshInFlightRef.current?.promise === promise) {
           refreshInFlightRef.current = null;
@@ -768,12 +795,14 @@ async function refreshSummaryInPlace({
   buildSummaryParams,
   activeFilters,
   signal,
+  isCurrent,
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
   buildSummaryParams: () => URLSearchParams;
   activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
   signal?: AbortSignal;
+  isCurrent: IsCurrent;
 }): Promise<boolean> {
   // Fix #1571 Bug 1: scope the cache write-back to the active filter hash.
   const hash = activeFilters ? filterHash(activeFilters) : undefined;
@@ -782,10 +811,14 @@ async function refreshSummaryInPlace({
     dispatch(pruneStaleOptimisticRemovals());
     const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`, { signal });
     const freshCategories = summaryResponse.data.categories;
+    setCachedSummary(mode, freshCategories, hash);
+    // The filter changed mid-refresh: fetchEmails is already loading the new filter's data.
+    if (!isCurrent()) {
+      return false;
+    }
     dispatch(setCategorySummary(freshCategories));
     dispatch(setSummaryLoading(false));
     dispatch(setTotalCount(summaryResponse.data.total));
-    setCachedSummary(mode, freshCategories, hash);
     return true;
   } catch (err) {
     console.warn('[refreshInPlace] Summary fetch failed:', err);
@@ -886,6 +919,7 @@ async function refreshInPlaceImpl({
   getState,
   activeFilters,
   signal,
+  isCurrent,
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
@@ -897,6 +931,7 @@ async function refreshInPlaceImpl({
   /** Fix #1571 Bug 1: filters used to scope the cache write-back to the filter hash. */
   activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
   signal?: AbortSignal;
+  isCurrent: IsCurrent;
 }) {
   if (mode === MODE_AUTORESPONDED) {
     try {
@@ -907,7 +942,14 @@ async function refreshInPlaceImpl({
     return;
   }
 
-  const isSummaryFresh = await refreshSummaryInPlace({ mode, dispatch, buildSummaryParams, activeFilters, signal });
+  const isSummaryFresh = await refreshSummaryInPlace({
+    mode,
+    dispatch,
+    buildSummaryParams,
+    activeFilters,
+    signal,
+    isCurrent,
+  });
   if (!isSummaryFresh) {
     return;
   }
@@ -1030,6 +1072,7 @@ function serveSummaryFromCacheAndRefresh({
   dispatch,
   buildSummaryParams,
   hash,
+  isCurrent,
 }: {
   cachedSummary: CategorySummaryItem[];
   mode: InboxMode;
@@ -1037,6 +1080,7 @@ function serveSummaryFromCacheAndRefresh({
   buildSummaryParams: () => URLSearchParams;
   /** Fix #1571 Bug 1: filter hash to scope the write-back to the same key. */
   hash?: string;
+  isCurrent: IsCurrent;
 }): void {
   dispatch(setFetchError(null));
   dispatch(clearCategoryState());
@@ -1050,7 +1094,7 @@ function serveSummaryFromCacheAndRefresh({
   dispatch(setLoading(false));
   dispatch(setDecrypting(false));
   dispatch(setLastFetchedAt(Date.now()));
-  fetchInboxSummary(dispatch, buildSummaryParams)
+  fetchInboxSummary(dispatch, buildSummaryParams, undefined, isCurrent)
     .then(freshSummary => {
       if (freshSummary) {
         setCachedSummary(mode, freshSummary, hash);
@@ -1088,6 +1132,7 @@ async function fetchEmailsImpl({
   buildAutoRespondedSummary,
   activeFilters,
   signal,
+  isCurrent,
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
@@ -1098,6 +1143,8 @@ async function fetchEmailsImpl({
   /** Fix #1571 Bug 1: filters used to compute the cache key hash. */
   activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
   signal?: AbortSignal;
+  /** False once a newer fetchEmails started; that fetch then owns the loading and error state. */
+  isCurrent: IsCurrent;
 }) {
   // Stale-while-revalidate: if we have cached summary data AND it is within the
   // TTL window, serve it immediately (no spinner) then refresh in the background.
@@ -1110,7 +1157,7 @@ async function fetchEmailsImpl({
   const hasCachedData = cachedSummary !== null && cachedSummary.length > 0;
 
   if (hasCachedData) {
-    serveSummaryFromCacheAndRefresh({ cachedSummary, mode, dispatch, buildSummaryParams, hash });
+    serveSummaryFromCacheAndRefresh({ cachedSummary, mode, dispatch, buildSummaryParams, hash, isCurrent });
     return;
   }
 
@@ -1127,23 +1174,37 @@ async function fetchEmailsImpl({
       dispatch(setLoadingModeSwitch(false));
       return;
     } else {
-      const freshSummary = await fetchInboxSummary(dispatch, buildSummaryParams, signal);
+      const freshSummary = await fetchInboxSummary(dispatch, buildSummaryParams, signal, isCurrent);
       if (freshSummary) {
         setCachedSummary(mode, freshSummary, hash);
       }
+    }
+    if (!isCurrent()) {
+      return;
     }
     dispatch(setDecrypting(false));
     dispatch(setFetchError(null));
     dispatch(setLastFetchedAt(Date.now()));
   } catch (error: unknown) {
+    if (!isCurrent()) {
+      return;
+    }
     dispatch(setDecrypting(false));
     dispatch(setSummaryLoading(false));
     handleFetchError(dispatch, error);
   } finally {
-    dispatch(setLoading(false));
-    dispatch(setRefreshing(false));
-    dispatch(setLoadingModeSwitch(false));
+    // A newer fetch is still loading: leave its spinner and mode-switch state alone.
+    if (isCurrent()) {
+      dispatchFetchSettled(dispatch);
+    }
   }
+}
+
+/** Clear the loading flags once the current fetch has finished, whether it succeeded or not. */
+function dispatchFetchSettled(dispatch: AppDispatch) {
+  dispatch(setLoading(false));
+  dispatch(setRefreshing(false));
+  dispatch(setLoadingModeSwitch(false));
 }
 
 /** Turns a failed inbox fetch into the fetchError the Inbox page renders (exported for tests). */

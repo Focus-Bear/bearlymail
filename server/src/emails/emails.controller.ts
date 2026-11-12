@@ -831,11 +831,6 @@ export class EmailsController {
     res.send(download.content);
   }
 
-  @Post()
-  async createEmail(@Request() req, @Body() emailData: Partial<Email>) {
-    return this.emailsService.createEmail(req.user.userId, emailData);
-  }
-
   // The four read/unread endpoints are the only callers of the provider read
   // sync: they are the user's own actions, unlike sync/archive/triage writes.
   @Put(":id/read")

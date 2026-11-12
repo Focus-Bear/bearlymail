@@ -3,16 +3,26 @@ import type { Repository } from "typeorm";
 
 import type { CategoryRulesService } from "../category-rules/category-rules.service";
 import type { CategoryRuleEvaluationSet } from "../category-rules/category-rules.types";
+import { withoutUnsettledGithubConditions } from "../category-rules/category-rules-github-conditions.helper";
 import { isGithubSenderEmail } from "../constants/platform-pinning.constants";
+import type { CategoryRule } from "../database/entities/category-rule.entity";
 import type { Email } from "../database/entities/email.entity";
 import type { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  buildGithubCategorySignals,
+  type GithubCategorySignals,
+} from "../github/github-category-signals.helper";
 import { RULE_CATEGORY_SOURCE } from "./category-precedence.helper";
+import { githubSignalsEmailFields } from "./email-github-signals.helper";
 import { buildRuleEmailMetadata } from "./rule-email-metadata.helper";
 
 export interface ReleaseStaleRuleCategoryDeps {
   emailRepository: Repository<Email>;
   emailThreadRepository: Repository<EmailThread>;
-  categoryRulesService: Pick<CategoryRulesService, "peekMatchingRuleWithTrace">;
+  categoryRulesService: Pick<
+    CategoryRulesService,
+    "peekMatchingRuleWithTrace" | "loadRuleEvaluationSet"
+  >;
   logger: Logger;
 }
 
@@ -46,6 +56,65 @@ async function isNewestEmailInThread(
 }
 
 /**
+ * True when some rule matches the newest email, or — for GitHub mail — could
+ * match it once the item's volatile facts are refetched.
+ */
+async function anyRuleCanMatch(
+  deps: ReleaseStaleRuleCategoryDeps,
+  args: {
+    userId: string;
+    email: Email;
+    thread: EmailThread;
+    preloadedRules?: CategoryRuleEvaluationSet;
+  },
+): Promise<boolean> {
+  const { userId, email, thread, preloadedRules } = args;
+  if (!isGithubSenderEmail(email.from || "")) {
+    const { match } = await deps.categoryRulesService.peekMatchingRuleWithTrace(
+      userId,
+      buildRuleEmailMetadata(email),
+      preloadedRules,
+    );
+    return Boolean(match?.categoryId);
+  }
+  const facts = buildGithubCategorySignals(
+    githubSignalsEmailFields(email),
+    thread.githubMetadata ?? null,
+  );
+  const ruleSet =
+    preloadedRules ??
+    (await deps.categoryRulesService.loadRuleEvaluationSet(userId));
+  const { match } = await deps.categoryRulesService.peekMatchingRuleWithTrace(
+    userId,
+    buildRuleEmailMetadata(email, facts),
+    withUnsettledGithubConditionsRelaxed(ruleSet, facts),
+  );
+  return Boolean(match?.categoryId);
+}
+
+/** Copies the rule set with {@link withoutUnsettledGithubConditions} applied. */
+function withUnsettledGithubConditionsRelaxed(
+  ruleSet: CategoryRuleEvaluationSet,
+  facts: GithubCategorySignals | null,
+): CategoryRuleEvaluationSet {
+  return {
+    ...ruleSet,
+    rules: ruleSet.rules.map(
+      (rule): CategoryRule =>
+        rule.compositeSpec
+          ? {
+              ...rule,
+              compositeSpec: withoutUnsettledGithubConditions(
+                rule.compositeSpec,
+                facts,
+              ),
+            }
+          : rule,
+    ),
+  };
+}
+
+/**
  * A rule decides a thread's category from ONE message. The precedence guard
  * then pins that `rule` label above every automated writer, so when a later
  * message in the thread does NOT match any rule (e.g. the user's own
@@ -61,9 +130,13 @@ async function isNewestEmailInThread(
  * replaces it, so the inbox never flashes "Other" mid-run. A still-matching
  * rule keeps the label untouched.
  *
- * GitHub mail is skipped: rules can pin GitHub facts (state, labels, author
- * kind) that this early check does not fetch, so "no match" here would not
- * mean "no match".
+ * GitHub mail is judged with the facts the thread already holds, and any
+ * condition those facts cannot settle (a board status that may have moved
+ * since the last fetch) is treated as satisfiable: the label is released only
+ * when no rule could match whatever the item's current status is. GitHub mail
+ * used to be skipped outright, so a coarse rule that matched a "Closed"
+ * notification kept the thread when a later "QA Status: Pass" comment matched
+ * nothing.
  *
  * Returns true when the label was released. Never throws: a failure leaves
  * the label as it was and the refine run carries on.
@@ -90,17 +163,12 @@ async function releaseIfUnmatched(
 ): Promise<boolean> {
   const { userId, email, thread, workerId, preloadedRules } = args;
   if (!thread || thread.categorySource !== RULE_CATEGORY_SOURCE) return false;
-  if (isGithubSenderEmail(email.from || "")) return false;
   if (!(await isNewestEmailInThread(deps.emailRepository, email))) {
     return false;
   }
-
-  const { match } = await deps.categoryRulesService.peekMatchingRuleWithTrace(
-    userId,
-    buildRuleEmailMetadata(email),
-    preloadedRules,
-  );
-  if (match?.categoryId) return false;
+  if (await anyRuleCanMatch(deps, { userId, email, thread, preloadedRules })) {
+    return false;
+  }
 
   // Conditional on the stored source so a concurrent user override is never
   // clobbered.

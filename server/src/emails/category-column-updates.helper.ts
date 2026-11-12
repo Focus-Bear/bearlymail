@@ -95,7 +95,7 @@ export async function persistLlmCategoryWithPrecedence(
   });
   if (applied === 0) {
     logger.log(
-      `[Worker ${workerId}] Category write blocked by precedence for thread ${emailThreadId} (source=${writerSource} cannot override the stored categorySource) — priority updated, category kept`,
+      `[Worker ${workerId}] Category write blocked by precedence for thread ${emailThreadId} (source=${writerSource} cannot override the stored categorySource, or a newer email in the thread decides it) — priority updated, category kept`,
     );
   }
 }
@@ -125,7 +125,7 @@ export async function persistCategoryDecisionTraceOnly(
   });
   if (applied === 0) {
     logger.log(
-      `[Worker ${workerId}] Trace-only category write blocked by precedence for thread ${emailThreadId} (stored categorySource outranks priority) — existing trace kept`,
+      `[Worker ${workerId}] Trace-only category write blocked by precedence for thread ${emailThreadId} (stored categorySource outranks priority, or a newer email in the thread decides it) — existing trace kept`,
     );
   }
 }

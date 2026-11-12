@@ -2092,6 +2092,7 @@
     },
     "filters": {
       "toggle": "Alternar filtros",
+      "title": "Filtros",
       "searchPlaceholder": "Buscar...",
       "icon": "Icono de filtro",
       "clear": "Borrar todos los filtros",

@@ -130,68 +130,68 @@ const MultiSelectDropdownPanel: React.FC<MultiSelectDropdownPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   return (
-  <div
-    style={{
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      right: 0,
-      marginTop: theme.spacing.xs,
-      maxHeight: '280px',
-      backgroundColor: theme.colors.background.paper,
-      border: `1px solid ${theme.colors.border.medium}`,
-      borderRadius: theme.borderRadius.md,
-      boxShadow: theme.shadows.lg,
-      zIndex: 1000,
-      display: 'flex',
-      flexDirection: 'column',
-    }}
-  >
-    {searchable && (
-      <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
-        <input
-          ref={searchInputRef}
-          type="text"
-          value={searchTerm}
-          onChange={event => setSearchTerm(event.target.value)}
-          placeholder={t('inbox.filters.searchPlaceholder')}
-          style={{
-            width: '100%',
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            fontSize: theme.typography.fontSize.lg,
-            borderRadius: theme.borderRadius.sm,
-            border: `1px solid ${theme.colors.border.light}`,
-            backgroundColor: theme.colors.background.default,
-            color: theme.colors.text.primary,
-            outline: 'none',
-          }}
-        />
-      </div>
-    )}
-    <div style={{ overflowY: 'auto', maxHeight: '220px' }}>
-      {filteredOptions.length === 0 ? (
-        <div
-          style={{
-            padding: theme.spacing.md,
-            fontSize: theme.typography.fontSize.lg,
-            color: theme.colors.text.tertiary,
-            textAlign: 'center',
-          }}
-        >
-          {emptyMessage}
-        </div>
-      ) : (
-        filteredOptions.map(option => (
-          <MultiSelectOptionItem
-            key={option.id}
-            option={option}
-            isSelected={selectedIds.includes(option.id)}
-            onToggle={handleToggle}
+    <div
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        marginTop: theme.spacing.xs,
+        maxHeight: '280px',
+        backgroundColor: theme.colors.background.paper,
+        border: `1px solid ${theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        boxShadow: theme.shadows.lg,
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {searchable && (
+        <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchTerm}
+            onChange={event => setSearchTerm(event.target.value)}
+            placeholder={t('inbox.filters.searchPlaceholder')}
+            style={{
+              width: '100%',
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              fontSize: theme.typography.fontSize.lg,
+              borderRadius: theme.borderRadius.sm,
+              border: `1px solid ${theme.colors.border.light}`,
+              backgroundColor: theme.colors.background.default,
+              color: theme.colors.text.primary,
+              outline: 'none',
+            }}
           />
-        ))
+        </div>
       )}
+      <div style={{ overflowY: 'auto', maxHeight: '220px' }}>
+        {filteredOptions.length === 0 ? (
+          <div
+            style={{
+              padding: theme.spacing.md,
+              fontSize: theme.typography.fontSize.lg,
+              color: theme.colors.text.tertiary,
+              textAlign: 'center',
+            }}
+          >
+            {emptyMessage}
+          </div>
+        ) : (
+          filteredOptions.map(option => (
+            <MultiSelectOptionItem
+              key={option.id}
+              option={option}
+              isSelected={selectedIds.includes(option.id)}
+              onToggle={handleToggle}
+            />
+          ))
+        )}
+      </div>
     </div>
-  </div>
   );
 };
 
@@ -317,10 +317,20 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   );
 };
 
-const FilterPanelCollapseButton: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) => {
+/** Title row: names the panel and holds its ✕, so the close button isn't floating on a row of its own. */
+const FilterPanelToolbar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) => {
   const { t } = useTranslation();
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: theme.typography.fontWeight.semibold,
+          color: theme.colors.text.secondary,
+        }}
+      >
+        {t('inbox.filters.title')}
+      </span>
       <button
         type="button"
         data-testid={INBOX_FILTERS_COLLAPSE_TEST_ID}
@@ -342,6 +352,24 @@ const FilterPanelCollapseButton: React.FC<{ onCollapse: () => void }> = ({ onCol
     </div>
   );
 };
+
+/**
+ * Category + priority cards: stacked on a phone, side-by-side and equal height on wider screens
+ * (fix #1571 Bug 2 — stretching stacked cards would make them tall for nothing).
+ */
+function getFilterCardsRowStyle(isMobile: boolean): React.CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: isMobile ? 'column' : 'row',
+    gap: isMobile ? theme.spacing.sm : theme.spacing.md,
+    alignItems: isMobile ? 'flex-start' : 'stretch',
+  };
+}
+
+/** Wraps one card; flex column lets the card's flex:1 fill it so both cards match heights (fix #1735). */
+function getFilterCardSlotStyle(isMobile: boolean): React.CSSProperties {
+  return { flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column' };
+}
 
 // ── Main InboxFilters component ───────────────────────────────────────────────
 
@@ -383,6 +411,10 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
 
   // Hide account filter if only one account
   const showAccountFilter = connectedAccounts.length > 1;
+  // On a phone a category card holding nothing but "All" costs a screenful of height for no choice.
+  const hasNoCategoryChoice =
+    !loadingCategories && !isSummaryLoading && availableCategories.length === 0 && filters.categories.length === 0;
+  const showCategoryFilter = !(isMobile && hasNoCategoryChoice);
 
   if (!isFilterBarVisible) {
     return null;
@@ -394,12 +426,12 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
         display: 'flex',
         flexDirection: 'column',
         gap: theme.spacing.sm,
-        padding: theme.spacing.md,
+        padding: isMobile ? `${theme.spacing.xs} ${theme.spacing.sm} ${theme.spacing.sm}` : theme.spacing.md,
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
       }}
     >
-      <FilterPanelCollapseButton onCollapse={onCollapse} />
+      <FilterPanelToolbar onCollapse={onCollapse} />
       {/* Row 1: Account selector — full width, only shown if more than 1 connected account */}
       {showAccountFilter && !loadingAccounts && (
         <div style={{ width: '100%' }}>
@@ -415,44 +447,32 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
       )}
 
       {/* Row 2: Category filter + Priority range slider — stacked on mobile, side-by-side on tablet/desktop */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: theme.spacing.md,
-          // Fix #1571 Bug 2: stretch makes both cards equal height on desktop/tablet;
-          // keep flex-start on mobile (stacked) so cards don't stretch vertically.
-          alignItems: isMobile ? 'flex-start' : 'stretch',
-        }}
-      >
+      <div style={getFilterCardsRowStyle(isMobile)}>
         {/* Category Filter — visual pill-based multi-select.
-            Fix #1526 bug 5: always render VisualCategoryFilter; pass loading=true while
-            categories are fetching so the component can show skeleton pills instead of
-            flashing in fully-formed all at once. This avoids the brief blank gap when the
-            filter bar first opens and fetchCategories is in-flight.
-            display:flex+flexDirection:column lets the inner component's flex:1 fill the
-            wrapper height so both cards stretch to the same height (fix #1735). */}
-        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column' }}>
-          <VisualCategoryFilter
-            categories={loadingCategories ? [] : availableCategories}
-            selectedIds={filters.categories}
-            onChange={handleCategoryChange}
-            categoryCounts={categoryCounts}
-            loading={loadingCategories || isSummaryLoading}
-            compact={isMobile}
-          />
-        </div>
+            Fix #1526 bug 5: render VisualCategoryFilter while categories load (it shows skeleton
+            pills) rather than flashing it in once fetchCategories finishes. */}
+        {showCategoryFilter && (
+          <div style={getFilterCardSlotStyle(isMobile)}>
+            <VisualCategoryFilter
+              categories={loadingCategories ? [] : availableCategories}
+              selectedIds={filters.categories}
+              onChange={handleCategoryChange}
+              categoryCounts={categoryCounts}
+              loading={loadingCategories || isSummaryLoading}
+              compact={isMobile}
+            />
+          </div>
+        )}
 
-        {/* Priority Filter — one checkbox per bucket, Very High on the left.
-            display:flex+flexDirection:column lets PriorityCheckboxFilter's flex:1 fill
-            the wrapper so it matches the Category card height (fix #1735). */}
-        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column' }}>
+        {/* Priority Filter — one checkbox per bucket, Very High on the left. */}
+        <div style={getFilterCardSlotStyle(isMobile)}>
           <PriorityCheckboxFilter
             selectedMin={isPriorityFilterActive ? filters.minPriority : null}
             selectedMax={isPriorityFilterActive ? filters.maxPriority : null}
             onChange={onPriorityChange}
             bucketCounts={bucketCounts}
             totalCount={priorityTotalCount}
+            compact={isMobile}
           />
         </div>
       </div>

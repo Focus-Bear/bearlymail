@@ -1,56 +1,67 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { render, screen } from '@testing-library/react';
 
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { BREAKPOINT_INBOX_HEADER_SINGLE_ROW } from 'constants/numbers';
 
 import { InboxHeader } from './InboxHeader';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
-vi.mock('components/inbox/header', () => ({
-  InboxHeaderTabs: () => null,
-  InboxHeaderActions: () => null,
-}));
-vi.mock('hooks/useResponsiveBreakpoints', () => ({ useResponsiveBreakpoints: vi.fn() }));
+vi.mock('utils/posthog', () => ({ captureEvent: vi.fn() }));
 
-const mockedBreakpoints = useResponsiveBreakpoints as unknown as ReturnType<typeof vi.fn>;
-const CLEAR_LABEL = 'inbox.filters.clear';
+const PHONE_WIDTH = 360;
+const ORIGINAL_WIDTH = window.innerWidth;
 
-function renderHeader({ isMobile }: { isMobile: boolean }) {
-  mockedBreakpoints.mockReturnValue({ isMobile, isTablet: false });
-  const onClearFilters = vi.fn();
+const renderHeaderAtWidth = (width: number) => {
+  window.innerWidth = width;
   render(
-    <InboxHeader
-      mode="triage"
-      setMode={vi.fn()}
-      loadingModeSwitch={false}
-      triageTabRef={{ current: null }}
-      actionTabRef={{ current: null }}
-      followUpTabRef={{ current: null }}
-      isFilterBarVisible={false}
-      hasActiveFilters
-      activeFilterCount={1}
-      onToggleFilterBar={vi.fn()}
-      onClearFilters={onClearFilters}
-    />
+    <MemoryRouter>
+      <InboxHeader
+        mode="triage"
+        setMode={vi.fn()}
+        loadingModeSwitch={false}
+        triageTabRef={{ current: null }}
+        actionTabRef={{ current: null }}
+        followUpTabRef={{ current: null }}
+        tabCounts={{ triage: 0, action: 5, followUp: 0 }}
+        isFilterBarVisible
+        hasActiveFilters
+        activeFilterCount={1}
+        onToggleFilterBar={vi.fn()}
+        onClearFilters={vi.fn()}
+      />
+    </MemoryRouter>
   );
-  return { onClearFilters };
-}
+};
 
-describe('InboxHeader — clear filters (#442)', () => {
-  it('shows the "Clear all filters" text on a wide screen', () => {
-    renderHeader({ isMobile: false });
+/** The header's direct child that holds the mode tabs. */
+const getTabsRow = () => {
+  const header = screen.getByRole('banner');
+  const triageTab = screen.getByText('inbox.triageTab (0)');
+  return Array.from(header.children).find(child => child.contains(triageTab));
+};
 
-    expect(screen.getByTestId('clear-filters-button')).toHaveTextContent(CLEAR_LABEL);
+describe('InboxHeader', () => {
+  afterEach(() => {
+    window.innerWidth = ORIGINAL_WIDTH;
   });
 
-  it('shrinks to an × icon on a phone, still named for screen readers, so the header fits', () => {
-    const { onClearFilters } = renderHeader({ isMobile: true });
-    const button = screen.getByRole('button', { name: CLEAR_LABEL });
+  it('gives the tabs a row of their own when one row would not fit', () => {
+    renderHeaderAtWidth(PHONE_WIDTH);
+    const header = screen.getByRole('banner');
+    expect(getTabsRow()).toBe(header.lastElementChild);
+    expect(getTabsRow()).not.toContainElement(screen.getByTestId('filter-toggle-button'));
+  });
 
-    expect(button).not.toHaveTextContent(CLEAR_LABEL);
-    fireEvent.click(button);
-    expect(onClearFilters).toHaveBeenCalledTimes(1);
+  it('keeps tabs, filter and actions on one row when they fit', () => {
+    renderHeaderAtWidth(BREAKPOINT_INBOX_HEADER_SINGLE_ROW);
+    expect(getTabsRow()).toContainElement(screen.getByTestId('filter-toggle-button'));
+  });
+
+  it('uses the short Clear label on a phone', () => {
+    renderHeaderAtWidth(PHONE_WIDTH);
+    expect(screen.getByText('inbox.filters.clearAll')).toBeInTheDocument();
   });
 });

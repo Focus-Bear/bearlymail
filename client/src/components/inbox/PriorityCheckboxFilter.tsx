@@ -25,6 +25,9 @@ export const PRIORITY_CHECKBOX_TEST_ID_PREFIX = 'priority-checkbox-';
 
 const CHECKBOX_SIZE = '18px';
 const CHECKBOX_BORDER_WIDTH = '2px';
+const TILE_MIN_WIDTH = '96px';
+const CARD_MIN_WIDTH = '280px';
+const COMPACT_LABEL_LINE_HEIGHT = 1.2;
 
 type PriorityBucketKey = (typeof PRIORITY_LABEL_TO_KEY)[string];
 
@@ -36,6 +39,11 @@ interface PriorityCheckboxFilterProps {
   bucketCounts?: Record<string, number>;
   /** Total email count for the selected range, shown in the header. */
   totalCount?: number;
+  /**
+   * Phone layout: tighter card and one even row of stacked tiles (box over label over count),
+   * so five buckets fit a ~360px screen without wrapping into uneven rows.
+   */
+  compact?: boolean;
 }
 
 interface PriorityCheckboxProps {
@@ -45,21 +53,47 @@ interface PriorityCheckboxProps {
   isChecked: boolean;
   /** The last ticked box can't be unticked — an empty filter would show nothing. */
   isLocked: boolean;
+  compact: boolean;
   onToggle: () => void;
 }
 
-const PriorityCheckbox: React.FC<PriorityCheckboxProps> = ({ bucketKey, label, count, isChecked, isLocked, onToggle }) => {
+/** Tile layout: a wrapping row of side-by-side tiles, or (compact) a stacked tile in an even grid cell. */
+function getTileLayoutStyle(compact: boolean): React.CSSProperties {
+  if (compact) {
+    return {
+      minWidth: 0,
+      flexDirection: 'column',
+      justifyContent: 'flex-start',
+      gap: theme.spacing.xs,
+      padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
+      textAlign: 'center',
+    };
+  }
+  return {
+    flex: '1 1 0',
+    minWidth: TILE_MIN_WIDTH,
+    gap: theme.spacing.sm,
+    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+  };
+}
+
+const PriorityCheckbox: React.FC<PriorityCheckboxProps> = ({
+  bucketKey,
+  label,
+  count,
+  isChecked,
+  isLocked,
+  compact,
+  onToggle,
+}) => {
   const color = theme.colors.priorityBuckets[bucketKey];
   return (
     <label
       data-testid={`${PRIORITY_CHECKBOX_TEST_ID_PREFIX}${bucketKey}`}
       style={{
-        flex: '1 1 0',
-        minWidth: '96px',
+        ...getTileLayoutStyle(compact),
         display: 'flex',
         alignItems: 'center',
-        gap: theme.spacing.sm,
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
         borderRadius: theme.borderRadius.md,
         border: `1px solid ${isChecked ? color : theme.colors.border.medium}`,
         backgroundColor: isChecked ? theme.colors.background.subtle : theme.colors.background.paper,
@@ -96,13 +130,23 @@ const PriorityCheckbox: React.FC<PriorityCheckboxProps> = ({ bucketKey, label, c
       >
         {isChecked ? EMOJI_CHECK : null}
       </span>
-      <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <span
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          // Compact tiles share a row height, so counts sit on one line even when a label wraps.
+          ...(compact ? { alignItems: 'center', flex: 1, justifyContent: 'space-between' } : {}),
+        }}
+      >
         <span
           style={{
-            fontSize: theme.typography.fontSize.md,
+            fontSize: compact ? theme.typography.fontSize.sm : theme.typography.fontSize.md,
             fontWeight: theme.typography.fontWeight.semibold,
             color: theme.colors.text.primary,
-            whiteSpace: 'nowrap',
+            // Compact tiles are narrow, so two-word labels ("Very High") wrap onto two lines.
+            whiteSpace: compact ? 'normal' : 'nowrap',
+            lineHeight: compact ? COMPACT_LABEL_LINE_HEIGHT : undefined,
           }}
         >
           {label}
@@ -121,6 +165,7 @@ export const PriorityCheckboxFilter: React.FC<PriorityCheckboxFilterProps> = ({
   onChange,
   bucketCounts,
   totalCount,
+  compact = false,
 }) => {
   const { t } = useTranslation();
   const range: PriorityRange = { minPriority: selectedMin, maxPriority: selectedMax };
@@ -144,13 +189,15 @@ export const PriorityCheckboxFilter: React.FC<PriorityCheckboxFilterProps> = ({
       aria-label={t('inbox.filters.priority')}
       style={{
         flex: '1',
-        minWidth: '280px',
+        minWidth: compact ? 0 : CARD_MIN_WIDTH,
+        // The min width includes padding, else the card spills out of its half of a 640px panel.
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: theme.colors.background.paper,
         border: `1px solid ${theme.colors.border.light}`,
         borderRadius: theme.borderRadius.md,
-        padding: theme.spacing.md,
+        padding: compact ? theme.spacing.sm : theme.spacing.md,
         boxShadow: theme.shadows.sm,
       }}
     >
@@ -159,7 +206,7 @@ export const PriorityCheckboxFilter: React.FC<PriorityCheckboxFilterProps> = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: theme.spacing.md,
+          marginBottom: compact ? theme.spacing.sm : theme.spacing.md,
         }}
       >
         <span
@@ -173,7 +220,13 @@ export const PriorityCheckboxFilter: React.FC<PriorityCheckboxFilterProps> = ({
         </span>
         <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.tertiary }}>{headerText}</span>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+      <div
+        style={
+          compact
+            ? { display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(0, 1fr)', gap: theme.spacing.xs }
+            : { display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm }
+        }
+      >
         {PRIORITY_BUCKETS_HIGH_FIRST.map((bucket, index) => {
           const bucketKey = PRIORITY_LABEL_TO_KEY[bucket.label];
           const isChecked = checkedIndexes.includes(index);
@@ -185,6 +238,7 @@ export const PriorityCheckboxFilter: React.FC<PriorityCheckboxFilterProps> = ({
               count={bucketCounts?.[bucket.label]}
               isChecked={isChecked}
               isLocked={isChecked && checkedIndexes.length === 1}
+              compact={compact}
               onToggle={() => handleToggle(index)}
             />
           );

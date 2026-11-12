@@ -168,6 +168,11 @@ export const OPACITY_30_PERCENT = 0.3;
 // Responsive breakpoints (in pixels)
 export const BREAKPOINT_TABLET = 640;
 export const BREAKPOINT_DESKTOP = 1280;
+/**
+ * Below this width the inbox header's tabs, filter toggle, Clear and actions don't fit one row
+ * (~810px in English, ~920px in Spanish), so the tabs move to a row of their own.
+ */
+export const BREAKPOINT_INBOX_HEADER_SINGLE_ROW = 960;
 
 // Percentage values for urgency score ranges
 export const URGENCY_SCORE_CRITICAL_MIN = 95;

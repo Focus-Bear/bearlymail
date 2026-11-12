@@ -1,13 +1,15 @@
 import React, { RefObject, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiFilter, FiX } from 'react-icons/fi';
+import { FiFilter } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 
 import { InboxHeaderActions, InboxHeaderTabs } from 'components/inbox/header';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { BREAKPOINT_INBOX_HEADER_SINGLE_ROW } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { ActionMoveFeedback } from 'hooks/useActionMoveFeedback';
+import { useIsViewportNarrowerThan } from 'hooks/useIsViewportNarrowerThan';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const HAMBURGER_ICON = '\u2630'; // ☰
@@ -82,30 +84,24 @@ const FilterToggleButton: React.FC<FilterToggleButtonProps> = ({
 interface ClearFiltersButtonProps {
   onClear: () => void;
   label: string;
-  /** Phone/tablet width: an × icon, since the text label pushed the header off screen (#442). */
-  compact: boolean;
 }
 
-const ClearFiltersButton: React.FC<ClearFiltersButtonProps> = ({ onClear, label, compact }) => (
+const ClearFiltersButton: React.FC<ClearFiltersButtonProps> = ({ onClear, label }) => (
   <button
     onClick={onClear}
-    aria-label={label}
-    title={label}
-    data-testid="clear-filters-button"
     style={{
-      padding: theme.spacing.xs,
+      padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
       fontSize: theme.typography.fontSize.lg,
       border: STRING_NONE,
       backgroundColor: COLOR_TRANSPARENT,
       color: theme.colors.primary.main,
       cursor: 'pointer',
-      textDecoration: compact ? STRING_NONE : 'underline',
-      display: 'flex',
-      alignItems: 'center',
+      textDecoration: 'underline',
+      whiteSpace: 'nowrap',
       flexShrink: 0,
     }}
   >
-    {compact ? <FiX size={18} aria-hidden /> : label}
+    {label}
   </button>
 );
 
@@ -164,6 +160,23 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   const { t } = useTranslation();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
+  const isStacked = useIsViewportNarrowerThan(BREAKPOINT_INBOX_HEADER_SINGLE_ROW);
+
+  const tabs = (
+    <InboxHeaderTabs
+      mode={mode}
+      setMode={setMode}
+      loadingModeSwitch={loadingModeSwitch}
+      triageTabRef={triageTabRef}
+      actionTabRef={actionTabRef}
+      followUpTabRef={followUpTabRef}
+      tabCounts={tabCounts}
+      actionTabEmphasis={actionMoveFeedback?.tabEmphasis}
+      onActionTabEmphasisEnd={actionMoveFeedback?.onTabEmphasisEnd}
+      actionMovedCount={actionMoveFeedback?.movedCount}
+      isFullWidthRow={isStacked}
+    />
+  );
 
   return (
     <header
@@ -172,67 +185,59 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        // Narrow screens: the actions drop to a second row instead of overflowing (#442).
-        flexWrap: 'wrap',
-        rowGap: theme.spacing.xs,
+        flexDirection: isStacked ? 'column' : 'row',
+        gap: isStacked ? theme.spacing.xs : undefined,
       }}
     >
-      <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', minWidth: 0 }}>
-        {/* Hamburger menu button for mobile and tablet */}
-        {isNarrow && (
-          <button
-            onClick={onToggleMobileMenu}
-            style={{
-              background: STRING_NONE,
-              border: STRING_NONE,
-              cursor: 'pointer',
-              padding: theme.spacing.xs,
-              display: 'flex',
-              alignItems: 'center',
-              fontSize: '24px',
-              color: theme.colors.text.primary,
-            }}
-            aria-label="Toggle navigation menu"
-          >
-            {HAMBURGER_ICON}
-          </button>
-        )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', minWidth: 0 }}>
+          {/* Hamburger menu button for mobile and tablet */}
+          {isNarrow && (
+            <button
+              onClick={onToggleMobileMenu}
+              style={{
+                background: STRING_NONE,
+                border: STRING_NONE,
+                cursor: 'pointer',
+                padding: theme.spacing.xs,
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '24px',
+                color: theme.colors.text.primary,
+              }}
+              aria-label="Toggle navigation menu"
+            >
+              {HAMBURGER_ICON}
+            </button>
+          )}
 
-        <InboxHeaderTabs
+          {!isStacked && tabs}
+
+          <FilterToggleButton
+            isFilterBarVisible={isFilterBarVisible}
+            hasActiveFilters={hasActiveFilters}
+            activeFilterCount={activeFilterCount}
+            onToggle={onToggleFilterBar}
+          />
+
+          {hasActiveFilters && (
+            <ClearFiltersButton
+              onClear={onClearFilters}
+              label={isMobile ? t('inbox.filters.clearAll') : t('inbox.filters.clear')}
+            />
+          )}
+        </div>
+
+        <InboxHeaderActions
           mode={mode}
-          setMode={setMode}
-          loadingModeSwitch={loadingModeSwitch}
-          triageTabRef={triageTabRef}
-          actionTabRef={actionTabRef}
-          followUpTabRef={followUpTabRef}
-          tabCounts={tabCounts}
-          actionTabEmphasis={actionMoveFeedback?.tabEmphasis}
-          onActionTabEmphasisEnd={actionMoveFeedback?.onTabEmphasisEnd}
-          actionMovedCount={actionMoveFeedback?.movedCount}
+          isAdmin={isAdmin}
+          debugViewOpen={debugViewOpen}
+          onToggleDebug={onToggleDebug}
+          onViewBlockedEmails={onViewBlockedEmails}
+          onViewAutoRespondedEmails={onViewAutoRespondedEmails}
         />
-
-        <FilterToggleButton
-          isFilterBarVisible={isFilterBarVisible}
-          hasActiveFilters={hasActiveFilters}
-          activeFilterCount={activeFilterCount}
-          onToggle={onToggleFilterBar}
-        />
-
-        {hasActiveFilters && (
-          <ClearFiltersButton onClear={onClearFilters} label={t('inbox.filters.clear')} compact={isNarrow} />
-        )}
       </div>
-
-      <InboxHeaderActions
-        mode={mode}
-        isAdmin={isAdmin}
-        debugViewOpen={debugViewOpen}
-        onToggleDebug={onToggleDebug}
-        onViewBlockedEmails={onViewBlockedEmails}
-        onViewAutoRespondedEmails={onViewAutoRespondedEmails}
-      />
+      {isStacked && tabs}
     </header>
   );
 };

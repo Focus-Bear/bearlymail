@@ -191,8 +191,38 @@ describe("updateThreadCategoryWithPrecedence", () => {
       expect(guardCall?.[0]).toContain('"email_threads"."id"');
       expect(guardCall?.[1]).toEqual({
         analyzedEmailId: CLOSED_EMAIL_ID,
-        analyzedEmailReceivedAt: CLOSED_RECEIVED_AT,
+        analyzedEmailReceivedAt: new Date(CLOSED_RECEIVED_AT),
       });
+    });
+
+    it("passes the received time as a Date, so it is compared in the zone receivedAt was written in", async () => {
+      // emails.receivedAt is a timestamp without time zone. Postgres ignores the
+      // "Z" on an ISO string, so on a server not running in UTC a string would be
+      // compared hours off and an older email would look newer.
+      const { repository, builder } = makeRepo(1);
+
+      await updateThreadCategoryWithPrecedence(repository, {
+        where: { id: "thread-1" },
+        source: "rule",
+        set: {
+          categoryDecisionTrace: {
+            decidedAt: "2026-11-10T10:30:21.918Z",
+            source: "rule",
+            analyzedEmail: {
+              emailId: CLOSED_EMAIL_ID,
+              receivedAt: CLOSED_RECEIVED_AT,
+            },
+            finalCategory: "Human GitHub issue status updates",
+            finalCategoryId: "cat-status-updates",
+            steps: [],
+          },
+        },
+      });
+
+      const receivedAtParam =
+        newerEmailGuardCall(builder)?.[1]?.analyzedEmailReceivedAt;
+      expect(receivedAtParam).toBeInstanceOf(Date);
+      expect((receivedAtParam as Date).toISOString()).toBe(CLOSED_RECEIVED_AT);
     });
 
     it("excludes the analysed email itself so it can never block its own write", async () => {
@@ -238,6 +268,19 @@ describe("updateThreadCategoryWithPrecedence", () => {
             decidedAt: "2026-11-10T10:30:21.918Z",
             source: "rule" as const,
             analyzedEmail: { emailId: "email-undated", receivedAt: null },
+            finalCategory: "Invoices",
+            finalCategoryId: "cat-1",
+            steps: [],
+          },
+        },
+        {
+          categoryDecisionTrace: {
+            decidedAt: "2026-11-10T10:30:21.918Z",
+            source: "rule" as const,
+            analyzedEmail: {
+              emailId: "email-bad-date",
+              receivedAt: "not-a-date",
+            },
             finalCategory: "Invoices",
             finalCategoryId: "cat-1",
             steps: [],

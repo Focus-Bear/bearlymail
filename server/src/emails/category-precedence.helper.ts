@@ -10,11 +10,7 @@ import type { CategoryDecisionTrace } from "./category-decision-trace.types";
  * allowed to replace what a previous writer decided.
  */
 export type CategoryWriterSource =
-  | "user"
-  | "rule"
-  | "local"
-  | "priority"
-  | "proto";
+  "user" | "rule" | "local" | "priority" | "proto";
 
 /**
  * The authoritative, user-set category source. It is top-ranked in the
@@ -100,22 +96,28 @@ const NO_NEWER_EMAIL_IN_THREAD_SQL = `NOT EXISTS (
     AND "newerEmail"."receivedAt" > :analyzedEmailReceivedAt
 )`;
 
-/** The email a category write was decided from, when the write records one. */
+/**
+ * The email a category write was decided from, when the write records one.
+ * `receivedAt` comes back as a Date, not the trace's ISO string: `emails.receivedAt`
+ * is a timestamp without time zone written from a Date in the server's local zone,
+ * and Postgres drops the "Z" from a string, so on a server not running in UTC an
+ * ISO string would be compared hours off. A Date is sent in the same local zone
+ * the column was written in.
+ */
 function analyzedEmailOf(
   set: QueryDeepPartialEntity<EmailThread>,
-): { emailId: string; receivedAt: string } | null {
+): { emailId: string; receivedAt: Date } | null {
   const trace = set.categoryDecisionTrace as
-    | Partial<CategoryDecisionTrace>
-    | null
-    | undefined;
+    Partial<CategoryDecisionTrace> | null | undefined;
   const analyzedEmail = trace?.analyzedEmail;
   if (!analyzedEmail?.emailId || !analyzedEmail.receivedAt) {
     return null;
   }
-  return {
-    emailId: analyzedEmail.emailId,
-    receivedAt: analyzedEmail.receivedAt,
-  };
+  const receivedAt = new Date(analyzedEmail.receivedAt);
+  if (Number.isNaN(receivedAt.getTime())) {
+    return null;
+  }
+  return { emailId: analyzedEmail.emailId, receivedAt };
 }
 
 /**

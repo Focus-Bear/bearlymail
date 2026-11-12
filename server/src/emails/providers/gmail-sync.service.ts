@@ -37,6 +37,7 @@ import {
   EmailsService,
 } from "../emails.service";
 import { EmailAttachment } from "../interfaces/email-provider.interface";
+import { hasDraftLabel } from "../labels.util";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
 import {
@@ -48,6 +49,7 @@ import {
 import { GmailProvider } from "./gmail.provider";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
 import {
+  buildStoredGmailEmailUpdates,
   classifyGmailAccessIssue,
   getExistingThreadUpdates,
   isGmailAuthError,
@@ -134,8 +136,7 @@ export class GmailSyncService {
   private isInvalidTokenError(error: unknown): boolean {
     const errAsGaxios = error as Record<string, unknown>;
     const errResponse = errAsGaxios?.response as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const responseData = errResponse?.data as { error?: string } | undefined;
     if (responseData?.error) {
       const code = responseData.error.toLowerCase();
@@ -388,6 +389,13 @@ export class GmailSyncService {
     starCount: number,
     createEmailOptions: CreateEmailOptions,
   ): Promise<void> {
+    if (hasDraftLabel(message.labelIds)) {
+      // An unsent draft is not mail. Older syncs stored drafts like sent
+      // replies, so drop any such copy instead of just skipping it.
+      await this.emailsService.deleteEmailByMessageId(userId, message.id!);
+      return;
+    }
+
     const rawEmail = parseGmailMessage(message);
     if (!rawEmail) return;
 
@@ -396,17 +404,7 @@ export class GmailSyncService {
       message.id!,
     );
     if (existing) {
-      const isReadInGmail = !(message.labelIds || []).includes("UNREAD");
-      const hasStoredAttachments =
-        Array.isArray(existing.attachments) && existing.attachments.length > 0;
-      const parsedAttachments = rawEmail.attachments;
-      const updates: { isRead?: boolean; attachments?: EmailAttachment[] } = {};
-      if (existing.isRead !== isReadInGmail) {
-        updates.isRead = isReadInGmail;
-      }
-      if (!hasStoredAttachments && parsedAttachments?.length) {
-        updates.attachments = parsedAttachments;
-      }
+      const updates = buildStoredGmailEmailUpdates(existing, rawEmail);
       if (Object.keys(updates).length > 0) {
         await this.emailsService.updateEmail(userId, existing.id, updates);
       }

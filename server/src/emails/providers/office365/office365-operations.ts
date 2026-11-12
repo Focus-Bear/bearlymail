@@ -5,7 +5,14 @@ import { HTTP_STATUS } from "../../../constants/http-status";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { isApiError } from "../../../types/common";
 import { EmailAttachmentData } from "../../interfaces/email-provider.interface";
-import { MicrosoftGraphMessage } from "./office365-message-parser";
+import {
+  excludeOffice365Drafts,
+  MicrosoftGraphMessage,
+} from "./office365-message-parser";
+
+/** Fields fetched for search hits and conversation messages; `isDraft` lets drafts be dropped. */
+const MESSAGE_LIST_FIELDS =
+  "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,isDraft";
 
 /**
  * Maps our attachment shape onto Microsoft Graph `fileAttachment` resources,
@@ -334,12 +341,11 @@ export async function searchEmailsViaOffice365(
     params: {
       $search: searchQuery,
       $top: maxResults,
-      $select:
-        "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance",
+      $select: MESSAGE_LIST_FIELDS,
     },
   });
 
-  return response.data.value || [];
+  return excludeOffice365Drafts(response.data.value || []);
 }
 
 /**
@@ -354,12 +360,11 @@ export async function fetchThreadMessagesViaOffice365(
     params: {
       $filter: `conversationId eq '${threadId}'`,
       $top: limit,
-      $select:
-        "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance",
+      $select: MESSAGE_LIST_FIELDS,
     },
   });
 
-  return response.data.value || [];
+  return excludeOffice365Drafts(response.data.value || []);
 }
 
 /**

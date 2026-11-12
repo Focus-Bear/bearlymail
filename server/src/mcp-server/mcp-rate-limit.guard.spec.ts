@@ -5,11 +5,11 @@ import { ThrottlerStorageService } from "@nestjs/throttler/dist/throttler.servic
 import { MCP_SERVER } from "../constants/mcp-server.constants";
 import { McpRateLimitGuard } from "./mcp-rate-limit.guard";
 
-function contextFor(userId: string) {
+function contextFor(userId: string, body: unknown = {}) {
   const header = jest.fn();
   const context = {
     switchToHttp: () => ({
-      getRequest: () => ({ user: { userId } }),
+      getRequest: () => ({ user: { userId }, body }),
       getResponse: () => ({ header }),
     }),
   } as unknown as ExecutionContext;
@@ -38,7 +38,9 @@ describe("McpRateLimitGuard", () => {
     await useUpLimit("busy-user");
     const { context, header } = contextFor("busy-user");
 
-    await expect(guard.canActivate(context)).rejects.toThrow(ThrottlerException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      ThrottlerException,
+    );
     expect(header).toHaveBeenCalledWith("Retry-After", expect.any(String));
   });
 
@@ -48,5 +50,21 @@ describe("McpRateLimitGuard", () => {
     await expect(
       guard.canActivate(contextFor("quiet-user").context),
     ).resolves.toBe(true);
+  });
+
+  it("charges a JSON-RPC batch once per message", async () => {
+    const batch = new Array(MCP_SERVER.MAX_BATCH_MESSAGES).fill({});
+    const batches = Math.floor(
+      MCP_SERVER.RATE_LIMIT / MCP_SERVER.MAX_BATCH_MESSAGES,
+    );
+    for (let request = 0; request < batches; request++) {
+      await expect(
+        guard.canActivate(contextFor("batcher", batch).context),
+      ).resolves.toBe(true);
+    }
+
+    await expect(
+      guard.canActivate(contextFor("batcher", batch).context),
+    ).rejects.toThrow(ThrottlerException);
   });
 });

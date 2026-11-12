@@ -32,6 +32,7 @@ describe("AuthController OAuth connect-flow error handling", () => {
       action: AUTH_ACTION_TYPES.CONNECT,
       userId,
       iat: Date.now(),
+      nonce: "test-connect-nonce",
     });
     const body = Buffer.from(json).toString("base64url");
     const sig = createHmac("sha256", process.env.JWT_SECRET as string)
@@ -96,6 +97,7 @@ describe("AuthController OAuth connect-flow error handling", () => {
     });
     const res = makeRes();
     const req = {
+      headers: { cookie: "bm_oauth_connect=test-connect-nonce" },
       user: {
         googleId: "g-1",
         googleAccessToken: "at",
@@ -126,6 +128,7 @@ describe("AuthController OAuth connect-flow error handling", () => {
     // Confirmed CONNECT intent (valid state) but the profile is missing the
     // access/refresh tokens — must surface, not fall through to login.
     const req = {
+      headers: { cookie: "bm_oauth_connect=test-connect-nonce" },
       user: {
         googleId: "g-1",
         email: "user@example.com",

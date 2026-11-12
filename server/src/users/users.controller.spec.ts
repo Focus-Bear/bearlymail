@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ValidationPipe } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { GMAIL_ACCESS_ISSUE } from "../constants/domain-statuses";
@@ -8,7 +8,8 @@ import {
 } from "../constants/google-oauth-scopes";
 import { DataExportService } from "./data-export.service";
 import { DataImportService } from "./data-import.service";
-import { UsersController } from "./users.controller";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
+import { MASKED_SECRET_VALUE, UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 
 describe("UsersController", () => {
@@ -151,10 +152,10 @@ describe("UsersController", () => {
     it("should update user profile", async () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
-      const updates = { name: "Updated Name" };
+      const updates = { displayName: "Updated Name" };
       const mockUpdatedUser = {
         id: userId,
-        name: "Updated Name",
+        displayName: "Updated Name",
       };
 
       mockUsersService.update.mockResolvedValue(mockUpdatedUser);
@@ -163,6 +164,83 @@ describe("UsersController", () => {
 
       expect(result).toEqual(mockUpdatedUser);
       expect(usersService.update).toHaveBeenCalledWith(userId, updates);
+    });
+
+    it("never writes privilege, identity or credential columns", async () => {
+      mockUsersService.update.mockResolvedValue({ id: "user-123" });
+
+      await controller.updateProfile({ user: { userId: "user-123" } }, {
+        displayName: "Me",
+        isAdmin: true,
+        isApproved: true,
+        id: "victim-user-id",
+        email: "victim@example.com",
+        password: "$2b$10$attackerhash",
+        subscriptionStatus: "active",
+        totpEnabled: false,
+        passwordChangedAt: null,
+      } as never);
+
+      expect(usersService.update).toHaveBeenCalledWith("user-123", {
+        displayName: "Me",
+      });
+    });
+
+    it("rejects unknown fields and non-null githubToken at the validation pipe", async () => {
+      const pipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+      const metadata = { type: "body" as const, metatype: UpdateProfileDto };
+
+      await expect(
+        pipe.transform({ isAdmin: true }, metadata),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        pipe.transform({ githubToken: "ghp_stolen" }, metadata),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        pipe.transform(
+          { githubToken: null, toneSettings: { rules: ["Be brief"] } },
+          metadata,
+        ),
+      ).resolves.toMatchObject({ githubToken: null });
+    });
+  });
+
+  describe("credentials never reach the client", () => {
+    it("drops the TOTP seed, setup tokens and data key, and masks OAuth tokens", async () => {
+      mockUsersService.findOne.mockResolvedValue({
+        id: "user-123",
+        password: "$2b$10$hash",
+        totpSecret: "JBSWY3DPEHPK3PXP",
+        passwordSetupToken: "setup-token",
+        passwordResetToken: "reset-hash",
+        encryptedDataKey: "wrapped-key",
+        githubToken: "ghp_real",
+        googleCalendarAccessToken: "ya29.real",
+        googleCalendarRefreshToken: "1//real",
+      });
+
+      const result = await controller.getProfile({
+        user: { userId: "user-123" },
+      });
+
+      for (const field of [
+        "password",
+        "totpSecret",
+        "passwordSetupToken",
+        "passwordResetToken",
+        "encryptedDataKey",
+      ]) {
+        expect(result).not.toHaveProperty(field);
+      }
+      expect(result).toMatchObject({
+        githubToken: MASKED_SECRET_VALUE,
+        googleCalendarAccessToken: MASKED_SECRET_VALUE,
+        googleCalendarRefreshToken: MASKED_SECRET_VALUE,
+      });
     });
   });
 
@@ -199,11 +277,11 @@ describe("UsersController", () => {
 
       const result = await controller.updateProfile(
         { user: { userId: "user-123" } },
-        { name: "Updated Name", ...keyFields },
+        { displayName: "Updated Name", ...keyFields } as never,
       );
 
       expect(usersService.update).toHaveBeenCalledWith("user-123", {
-        name: "Updated Name",
+        displayName: "Updated Name",
       });
       for (const field of Object.keys(keyFields)) {
         expect(result).not.toHaveProperty(field);

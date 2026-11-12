@@ -38,8 +38,16 @@ function asResponse(mock: MockResponse): Response {
 
 // Mirrors the HMAC signing in oauth-state.util.ts so the controller's
 // signature verification accepts the state these tests produce.
+const CONNECT_NONCE = "test-connect-nonce";
+/** The binding cookie a browser holds after asking for a connect URL. */
+const CONNECT_COOKIE = { cookie: `bm_oauth_connect=${CONNECT_NONCE}` };
+
 function encodeState(payload: Record<string, string>): string {
-  const json = JSON.stringify({ ...payload, iat: Date.now() });
+  const withNonce =
+    payload.action === "connect"
+      ? { ...payload, nonce: CONNECT_NONCE }
+      : payload;
+  const json = JSON.stringify({ ...withNonce, iat: Date.now() });
   const body = Buffer.from(json).toString("base64url");
   const sig = createHmac("sha256", process.env.JWT_SECRET as string)
     .update(json)
@@ -246,7 +254,7 @@ describe("AuthController OAuth callbacks", () => {
       };
 
       await controller.googleAuthRedirect(
-        { user: connectUser },
+        { user: connectUser, headers: CONNECT_COOKIE },
         asResponse(res),
         encodeState({ action: "connect", userId: "owner-1" }),
       );
@@ -289,6 +297,7 @@ describe("AuthController OAuth callbacks", () => {
 
       await controller.googleAuthRedirect(
         {
+          headers: CONNECT_COOKIE,
           user: {
             googleId: "google-123",
             googleAccessToken: "new-access",
@@ -309,6 +318,29 @@ describe("AuthController OAuth callbacks", () => {
       expect(mockGoogleAccountsService.create).not.toHaveBeenCalled();
       expect(res.redirect).toHaveBeenCalledWith(
         `${FRONTEND_URL}/settings?googleConnected=true`,
+      );
+    });
+
+    it("ignores a connect-state this browser didn't start (link handed over by someone else)", async () => {
+      const res = createMockResponse();
+      mockGoogleAccountsService.findAllByUser.mockResolvedValue([]);
+
+      await controller.googleAuthRedirect(
+        {
+          user: {
+            googleId: "victim-google",
+            googleAccessToken: "access-token",
+            googleRefreshToken: "refresh-token",
+            email: "victim@example.com",
+          },
+          headers: {},
+        },
+        asResponse(res),
+        encodeState({ action: "connect", userId: "attacker-1" }),
+      );
+
+      expect(mockGoogleAccountsService.create).not.toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "attacker-1" }),
       );
     });
 
@@ -476,7 +508,7 @@ describe("AuthController OAuth callbacks", () => {
       ]);
 
       await controller.microsoftAuthRedirect(
-        { user: microsoftUser },
+        { user: microsoftUser, headers: CONNECT_COOKIE },
         asResponse(res),
         encodeState({ action: "connect", userId: "owner-1" }),
       );
@@ -632,7 +664,7 @@ describe("AuthController OAuth callbacks", () => {
       };
 
       await controller.zohoAuthRedirect(
-        { user: connectUser },
+        { user: connectUser, headers: CONNECT_COOKIE },
         asResponse(res),
         encodeState({ action: "connect", userId: "owner-1" }),
       );

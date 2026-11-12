@@ -1,6 +1,17 @@
 import { createHmac } from "crypto";
+import type { Response } from "express";
 
-import { createConnectState, parseSignedOAuthState } from "./oauth-state.util";
+import {
+  CONNECT_BINDING_COOKIE,
+  createConnectState as createConnectStateWithCookie,
+  isConnectStateBoundToBrowser,
+  parseSignedOAuthState,
+} from "./oauth-state.util";
+
+const fakeResponse = () =>
+  ({ cookie: jest.fn() }) as unknown as Response & { cookie: jest.Mock };
+const createConnectState = (userId: string) =>
+  createConnectStateWithCookie(userId, fakeResponse());
 
 describe("oauth-state.util", () => {
   const OLD_SECRET = process.env.JWT_SECRET;
@@ -16,7 +27,31 @@ describe("oauth-state.util", () => {
   it("round-trips a signed connect state", () => {
     const state = createConnectState("user-123");
     const parsed = parseSignedOAuthState(state);
-    expect(parsed).toEqual({ action: "connect", userId: "user-123" });
+    expect(parsed).toEqual({
+      action: "connect",
+      userId: "user-123",
+      nonce: expect.any(String),
+    });
+  });
+
+  it("binds a connect state to the browser that received its cookie", () => {
+    const res = fakeResponse();
+    const state = parseSignedOAuthState(createConnectStateWithCookie("u", res));
+    const [name, nonce, options] = res.cookie.mock.calls[0];
+    expect(name).toBe(CONNECT_BINDING_COOKIE);
+    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax" });
+
+    expect(
+      isConnectStateBoundToBrowser(state!, {
+        headers: { cookie: `other=1; ${CONNECT_BINDING_COOKIE}=${nonce}` },
+      }),
+    ).toBe(true);
+    expect(isConnectStateBoundToBrowser(state!, { headers: {} })).toBe(false);
+    expect(
+      isConnectStateBoundToBrowser(state!, {
+        headers: { cookie: `${CONNECT_BINDING_COOKIE}=someone-elses-nonce` },
+      }),
+    ).toBe(false);
   });
 
   it("rejects an unsigned (plain base64 JSON) state", () => {

@@ -16,6 +16,11 @@ export const MCP_SERVER = {
   /** Requests per user per window, across all MCP methods and tokens. */
   RATE_LIMIT: 120,
   RATE_WINDOW_MS: MILLISECONDS.MINUTE,
+  /**
+   * Most JSON-RPC messages one POST may batch. Each still counts against
+   * RATE_LIMIT; without a cap, one request could run hundreds of tool calls.
+   */
+  MAX_BATCH_MESSAGES: 10,
   /** Hard cap on messages sent through MCP per user per hour. */
   SEND_LIMIT_PER_HOUR: 30,
   SEND_LIMIT_WINDOW_MS: MILLISECONDS.HOUR,

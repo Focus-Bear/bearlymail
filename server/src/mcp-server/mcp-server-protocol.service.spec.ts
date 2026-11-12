@@ -174,4 +174,24 @@ describe("McpServerProtocolService", () => {
     ]);
     expect(response).toEqual([{ jsonrpc: "2.0", id: 7, result: {} }]);
   });
+
+  it("refuses a batch larger than the cap without running any of it", async () => {
+    const batch = Array.from(
+      { length: MCP_SERVER.MAX_BATCH_MESSAGES + 1 },
+      (_, index) => ({
+        jsonrpc: "2.0",
+        id: index,
+        method: "tools/call",
+        params: { name: "search_emails", arguments: { query: "" } },
+      }),
+    );
+
+    const response = await service.handle(CONTEXT, batch);
+
+    expect(response).toMatchObject({
+      id: null,
+      error: { code: JSON_RPC_ERROR_CODES.INVALID_REQUEST },
+    });
+    expect(callTool).not.toHaveBeenCalled();
+  });
 });

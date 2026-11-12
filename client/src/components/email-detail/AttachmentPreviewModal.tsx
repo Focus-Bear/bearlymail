@@ -9,7 +9,7 @@ import { EMOJI_CLOSE, EMOJI_DOWNLOAD } from 'constants/emojis';
 import { OPACITY_DISABLED_ALT, OPACITY_FULL, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 import { KEY_ESCAPE } from 'constants/strings';
 
-import { getAttachmentPreviewType } from './attachmentPreviewType';
+import { getAttachmentPreviewType, PREVIEW_KIND_IMAGE } from './attachmentPreviewType';
 
 interface EmailAttachment {
   attachmentId: string;
@@ -175,7 +175,7 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
     }
   }, [onDownload, emailId, attachment.attachmentId, attachment.filename]);
 
-  const isImage = getAttachmentPreviewType(attachment.mimeType)?.kind === 'image';
+  const isImage = getAttachmentPreviewType(attachment.mimeType)?.kind === PREVIEW_KIND_IMAGE;
 
   return (
     <div

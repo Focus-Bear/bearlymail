@@ -39,10 +39,7 @@ import { LocalAuthGuard } from "./local-auth.guard";
 import { isMfaElevationFresh } from "./mfa-elevation";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { determineOAuthErrorType } from "./oauth-error-type";
-import {
-  parseBrowserBoundOAuthState,
-  ParsedOAuthState,
-} from "./oauth-state.util";
+import { parseBrowserBoundOAuthState } from "./oauth-state.util";
 import { StepUpAuthGuard } from "./step-up.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
 

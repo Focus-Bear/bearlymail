@@ -8,18 +8,22 @@
 const LEGACY_JPEG_TYPE = 'image/jpg';
 const JPEG_TYPE = 'image/jpeg';
 
-const PREVIEWABLE_TYPES: Readonly<Record<string, 'image' | 'pdf'>> = {
-  'image/png': 'image',
-  'image/jpeg': 'image',
-  'image/jpg': 'image',
-  'image/gif': 'image',
-  'image/webp': 'image',
-  'image/bmp': 'image',
-  'application/pdf': 'pdf',
+export const PREVIEW_KIND_IMAGE = 'image';
+export const PREVIEW_KIND_PDF = 'pdf';
+type PreviewKind = typeof PREVIEW_KIND_IMAGE | typeof PREVIEW_KIND_PDF;
+
+const PREVIEWABLE_TYPES: Readonly<Record<string, PreviewKind>> = {
+  'image/png': PREVIEW_KIND_IMAGE,
+  'image/jpeg': PREVIEW_KIND_IMAGE,
+  'image/jpg': PREVIEW_KIND_IMAGE,
+  'image/gif': PREVIEW_KIND_IMAGE,
+  'image/webp': PREVIEW_KIND_IMAGE,
+  'image/bmp': PREVIEW_KIND_IMAGE,
+  'application/pdf': PREVIEW_KIND_PDF,
 };
 
 export interface AttachmentPreviewType {
-  kind: 'image' | 'pdf';
+  kind: PreviewKind;
   /** Safe MIME type to give the preview blob. */
   blobType: string;
 }

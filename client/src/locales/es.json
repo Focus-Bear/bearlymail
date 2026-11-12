@@ -1267,6 +1267,27 @@
         "durationMinutes": "{{minutes}} minutos",
         "confirm": "Confirmar y crear",
         "cancel": "Cancelar"
+      },
+      "decision": {
+        "description": "Propusieron un horario específico. Así encaja en tu calendario.",
+        "conversion": "{{senderTime}} {{senderZone}} = {{localTime}} tu hora ({{localDate}})",
+        "localOnly": "{{localTime}} ({{localDate}})",
+        "free": "✓ Estás libre.",
+        "busy": "⚠ Estás ocupado a esa hora.",
+        "alternativesHeading": "Estás libre cerca de esa hora:",
+        "noAlternatives": "No se encontraron horarios libres cercanos. Usa Editar detalles para elegir otro horario.",
+        "accept": "Aceptar y añadir al calendario",
+        "accepting": "Añadiendo…",
+        "acceptFailed": "No se pudo añadir a tu calendario. Prueba con Editar detalles.",
+        "suggestAnother": "Sugerir otro horario",
+        "editDetails": "Editar detalles",
+        "slotInZone": "{{date}}, {{time}} hora de {{zone}}",
+        "slotLocal": "{{date}}, {{time}}",
+        "draftGreetingNamed": "Hola {{name}}:",
+        "draftGreeting": "Hola:",
+        "draftAcceptBody": "{{slot}} me viene bien. Ya lo añadí a mi calendario. ¡Hablamos entonces!",
+        "draftAlternativesIntro": "Gracias por proponer {{proposed}}. Ese horario no me viene bien. ¿Te vendría bien alguno de estos?",
+        "draftSignOff": "Gracias,"
       }
     },
     "checkTone": "Comprobar tono",

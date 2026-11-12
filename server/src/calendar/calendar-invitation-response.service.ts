@@ -1,12 +1,16 @@
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { calendar_v3, google } from "googleapis";
 
-import { LLM_PROVIDER_STRINGS } from "../constants/domain-types";
+import {
+  LLM_PROVIDER_STRINGS,
+  type ProposalDetectionSource,
+} from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMProvider } from "../llm/llm.types";
-import { createLogger, logError } from "../utils/logger";
+import type { SchedulingPreferenceData } from "../scheduling-preferences/scheduling-preferences.service";
+import { logError } from "../utils/logger";
 import { convertLocalTimeInZoneToUtc } from "../utils/meeting-time.util";
 import type { CalendarService } from "./calendar.service";
 import {
@@ -14,9 +18,12 @@ import {
   listConflictingEvents,
 } from "./calendar-conflicting-events.helper";
 import { hasGoogleCalendarAccess } from "./google-calendar-access.util";
+import { detectProposalForEmail } from "./meeting-proposal-detection.helper";
+import {
+  type AttributedMeetingProposal,
+  findAlternativeSlots,
+} from "./meeting-proposal-enrichment.helper";
 import { findExistingScheduledEvent } from "./scheduled-event-lookup.helper";
-
-const proposalLog = createLogger("CalendarMeetingProposal");
 
 const ICAL_DATE_MIN_LENGTH = 8;
 const ICAL_YEAR_END = 4;
@@ -418,9 +425,20 @@ export interface MeetingProposalResult {
    * sender gave an explicit time or window.
    */
   proposedDate: string | null;
+  /** Zone the sender meant (IANA name or fixed offset such as "UTC+10"), for "11:30am Perth = …". */
+  proposedTimezone: string | null;
   proposedTimeText: string | null;
   topic: string | null;
   durationMinutes: number | null;
+  /** Which detector found the proposal (LLM or the bare-time pattern fallback); null when none did. */
+  detectedBy: ProposalDetectionSource | null;
+  /** The user's scheduling timezone, so the card shows "= 2:30pm your time" in their calendar's zone. */
+  userTimezone?: string;
+  /**
+   * Free starts (UTC ISO) near a single proposed time, closest first then chronological, for
+   * "Suggest another time". Only set for a fixed-time proposal whose availability was checked.
+   */
+  alternativeSlots?: string[];
   isAvailable: boolean | null;
   /**
    * UTC ISO start of a free slot of the meeting's length. For a single fixed time this equals
@@ -566,12 +584,6 @@ async function checkCalendarAvailability(
   }
 }
 
-/** The shape returned by the LLM detector, before calendar availability is layered on. */
-type DetectedMeetingProposal = Omit<
-  MeetingProposalResult,
-  "isAvailable" | "suggestedTime" | "calendarConnected"
->;
-
 /** Zero-pad an hour to two digits for building a naive ISO datetime (e.g. 9 → "09"). */
 const HOUR_PAD = 2;
 
@@ -626,7 +638,7 @@ function buildAvailabilityWindowForDate(
 async function resolveDateOnlyProposal(
   service: CalendarService,
   user: Parameters<typeof checkCalendarAvailability>[1],
-  proposal: DetectedMeetingProposal,
+  proposal: AttributedMeetingProposal,
   prefs: {
     availabilityStartHour: number;
     availabilityEndHour: number;
@@ -674,54 +686,6 @@ async function resolveDateOnlyProposal(
   };
 }
 
-/** How many earlier thread messages to feed the detector as confirmation-reply context. */
-const MAX_PRIOR_THREAD_MESSAGES = 4;
-
-/**
- * Returns the messages that came BEFORE the viewed email in its thread, oldest first,
- * capped to the most recent {@link MAX_PRIOR_THREAD_MESSAGES}. These give the detector
- * the original proposal so a short confirmation reply can inherit its day/date.
- */
-async function getPriorThreadMessages(
-  service: CalendarService,
-  userId: string,
-  viewedEmail: { id: string; threadId?: string | null },
-): Promise<Array<{ from: string; fromName?: string; body: string }>> {
-  if (!viewedEmail.threadId) {
-    return [];
-  }
-  try {
-    const threadEmails = await service.emailsService.getThreadEmails(
-      userId,
-      viewedEmail.threadId,
-      { order: "ASC" },
-    );
-    const viewedIndex = threadEmails.findIndex(
-      (threadEmail) => threadEmail.id === viewedEmail.id,
-    );
-    const priorEmails =
-      viewedIndex !== -1 ? threadEmails.slice(0, viewedIndex) : threadEmails;
-    return priorEmails
-      .filter(
-        (threadEmail) =>
-          threadEmail.id !== viewedEmail.id &&
-          Boolean(threadEmail.body || threadEmail.htmlBody),
-      )
-      .slice(-MAX_PRIOR_THREAD_MESSAGES)
-      .map((threadEmail) => ({
-        from: threadEmail.from,
-        fromName: threadEmail.fromName,
-        body: threadEmail.body || threadEmail.htmlBody || "",
-      }));
-  } catch (error) {
-    proposalLog.warn(
-      `[getPriorThreadMessages] failed to load thread context for email ${viewedEmail.id}`,
-      error,
-    );
-    return [];
-  }
-}
-
 /**
  * Detects whether the email proposes a specific meeting time and checks calendar availability.
  *
@@ -739,32 +703,27 @@ export async function checkMeetingProposal(
   userId: string,
   emailId: string,
 ): Promise<MeetingProposalResult> {
+  const prefs =
+    await service.schedulingPreferencesService.getPreferences(userId);
+  const result = await resolveMeetingProposal(service, userId, emailId, prefs);
+  return { ...result, userTimezone: prefs.timezone };
+}
+
+async function resolveMeetingProposal(
+  service: CalendarService,
+  userId: string,
+  emailId: string,
+  prefs: SchedulingPreferenceData,
+): Promise<MeetingProposalResult> {
   const email = await service.emailsService.getEmailById(userId, emailId);
   if (!email) {
     throw new Error("Email not found");
   }
 
-  const prefs =
-    await service.schedulingPreferencesService.getPreferences(userId);
-
-  // Gather earlier messages in the thread so a short confirmation reply
-  // ("great, lock in 2pm") can inherit the day/date from the original
-  // proposal — the viewed email alone often only restates the time.
-  const priorMessages = await getPriorThreadMessages(service, userId, email);
-
-  proposalLog.debug(
-    `[checkMeetingProposal] running timezone-aware detect on viewed email ${emailId} with userTimezone="${prefs.timezone}" priorMessages=${priorMessages.length}`,
-  );
-  const proposal = await service.llmService.detectMeetingProposal(
-    {
-      from: email.from,
-      fromName: email.fromName,
-      subject: email.subject || "",
-      body: email.body || email.htmlBody || "",
-      priorMessages,
-    },
-    undefined,
+  const proposal = await detectProposalForEmail(
+    service,
     userId,
+    email,
     prefs.timezone,
   );
 
@@ -840,6 +799,18 @@ export async function checkMeetingProposal(
       proposal.durationMinutes,
       proposal.windowEnd ?? null,
     );
+  // A single proposed time gets nearby free alternatives for "Suggest another time"; a window
+  // already searches for its own free slot.
+  const alternativeSlots =
+    proposal.windowEnd || isAvailable === null
+      ? undefined
+      : await findAlternativeSlots(service, user, {
+          proposedTime: proposal.proposedTime,
+          durationMinutes: proposal.durationMinutes,
+          senderTimezone: proposal.proposedTimezone,
+          prefs,
+          now: new Date(),
+        });
   return {
     ...proposal,
     windowEnd: proposal.windowEnd ?? null,
@@ -847,6 +818,7 @@ export async function checkMeetingProposal(
     suggestedTime,
     calendarConnected: true,
     conflictingEvents,
+    alternativeSlots,
   };
 }
 

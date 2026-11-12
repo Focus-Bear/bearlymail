@@ -23,8 +23,11 @@ import {
 } from 'constants/numbers';
 import { STRING_NONE, STRING_TRANSPARENT } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { useProposedTimeDecisionReplies } from 'hooks/useProposedTimeDecisionReplies';
 
 import { ConflictingEvent, ConflictingEventsList } from './ConflictingEventsList';
+import { hasProposedTimeDecision, MeetingProposal } from './meetingProposal';
+import { ProposedTimeDecision } from './ProposedTimeDecision';
 
 interface SchedulingRequestCardProps {
   email: Email;
@@ -32,36 +35,8 @@ interface SchedulingRequestCardProps {
   schedulingActions?: SuggestedAction[];
 }
 
-export interface MeetingProposal {
-  hasProposal: boolean;
-  /**
-   * True when the latest reply green-lit sending a calendar invite (e.g. "feel free to send an
-   * invite") without accepting a specific time. proposedTime is then an editable default taken
-   * from an earlier proposal in the thread (possibly one the sender just declined), so the card
-   * asks the user to confirm/pick a time rather than implying the slot was accepted.
-   */
-  bookingInvited?: boolean;
-  proposedTime: string | null;
-  /** End of the proposed window when the sender gave a range; null for a fixed time. */
-  windowEnd: string | null;
-  /** Date the sender named without a time ("the 9th of July"); the backend fills the time from your availability. */
-  proposedDate: string | null;
-  proposedTimeText: string | null;
-  topic: string | null;
-  durationMinutes: number | null;
-  isAvailable: boolean | null;
-  /** Start of the free slot to suggest/pre-fill (UTC ISO); null on conflict or check failure. */
-  suggestedTime: string | null;
-  calendarConnected: boolean;
-  /** True when the user already created an event for this proposal — show it as scheduled, not a conflict. */
-  alreadyScheduled?: boolean;
-  /** Google Calendar event URL for the already-created event ("View in Google Calendar"). */
-  eventLink?: string | null;
-  /** Google Meet link for the already-created event, if any. */
-  meetLink?: string | null;
-  /** The calendar events behind an isAvailable: false verdict, so the UI can name the conflict. */
-  conflictingEvents?: ConflictingEvent[];
-}
+export type { MeetingProposal } from './meetingProposal';
+export { hasProposedTimeDecision } from './meetingProposal';
 
 
 interface SchedulingActionButtonsProps {
@@ -507,6 +482,7 @@ interface ProposedTimeCardProps {
 
 const DEFAULT_DURATION = 30;
 
+
 export const ProposedTimeCard: React.FC<ProposedTimeCardProps> = ({
   proposal,
   creating,
@@ -746,6 +722,27 @@ const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({
   );
 };
 
+/**
+ * Card description: generic share-availability copy, the decision view's copy, or — for a booking
+ * green-light (sender invited an invite without accepting the time) — honest "confirm or pick a
+ * time" copy, distinct from the confirmed-slot copy.
+ */
+function resolveDescriptionKey(
+  showProposedTimeCard: boolean,
+  isDecisionFlow: boolean,
+  isBookingInvited: boolean | undefined,
+): string {
+  if (!showProposedTimeCard) {
+    return 'emailDetail.schedulingRequest.description';
+  }
+  if (isDecisionFlow) {
+    return 'emailDetail.schedulingRequest.decision.description';
+  }
+  return isBookingInvited
+    ? 'emailDetail.schedulingRequest.proposedTime.bookingInvitedDescription'
+    : 'emailDetail.schedulingRequest.proposedTime.description';
+}
+
 export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ email, onDraftReply, schedulingActions = [] }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -759,6 +756,8 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
   const [eventLink, setEventLink] = useState<string | null>(null);
   /** Google Meet link — shown separately as "Join Meeting" if present. */
   const [meetLink, setMeetLink] = useState<string | null>(null);
+  /** The decision view is shown until the user opens the full review form via "Edit details". */
+  const [showDecision, setShowDecision] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -793,6 +792,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
     setCreating(false);
     setEventLink(null);
     setMeetLink(null);
+    setShowDecision(true);
   }, [email.id]);
 
   // The proposal check reports when an event was already created for this slot (survives remounts).
@@ -846,12 +846,14 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
     [email.from, email.fromName, email.to, email.cc, user?.email],
   );
 
+  const attendeeEmails = useMemo(() => attendeeCandidates.map((attendee) => attendee.email), [attendeeCandidates]);
+
   const handleCreateInvite = useCallback(async (
     proposedTime: string,
     durationMinutes: number,
     topic: string,
     attendees: string[],
-  ) => {
+  ): Promise<boolean> => {
     setCreating(true);
     captureEvent(ANALYTICS_EVENTS.SCHEDULING_DRAFT_REPLY_CLICKED, { email_id: email.id, action: 'create_invite' });
     try {
@@ -869,25 +871,27 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
       // Use the Google Calendar event URL (htmlLink) for "View in Google Calendar" (#1788).
       setEventLink(response.data.htmlLink);
       setMeetLink(response.data.meetLink);
+      return true;
     } catch (err) {
       console.error('Failed to create calendar invite:', err);
+      return false;
     } finally {
       setCreating(false);
     }
   }, [email.id]);
 
-  const showProposedTimeCard = !proposalLoading && proposal?.hasProposal === true && Boolean(proposal.proposedTime);
+  const { acceptFailed, handleAccept, handleSuggestAnother } = useProposedTimeDecisionReplies({
+    email,
+    proposal,
+    attendeeEmails,
+    createInvite: handleCreateInvite,
+    onDraftReply,
+  });
 
-  // A booking green-light (sender invited an invite without accepting the time) gets honest
-  // "confirm or pick a time" copy, distinct from the confirmed-slot copy.
-  const resolveDescriptionKey = (): string => {
-    if (!showProposedTimeCard) {
-      return 'emailDetail.schedulingRequest.description';
-    }
-    return proposal?.bookingInvited
-      ? 'emailDetail.schedulingRequest.proposedTime.bookingInvitedDescription'
-      : 'emailDetail.schedulingRequest.proposedTime.description';
-  };
+  const showProposedTimeCard = !proposalLoading && proposal?.hasProposal === true && Boolean(proposal.proposedTime);
+  // Stays true after Accept so the copy doesn't flip back to "review the details before creating".
+  const isDecisionFlow = showProposedTimeCard && showDecision && hasProposedTimeDecision(proposal);
+  const showDecisionView = isDecisionFlow && !created;
 
   return (
     <div
@@ -938,10 +942,21 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
               lineHeight: theme.typography.lineHeight.normal,
             }}
           >
-            {t(resolveDescriptionKey())}
+            {t(resolveDescriptionKey(showProposedTimeCard, isDecisionFlow, proposal?.bookingInvited))}
           </div>
 
-          {showProposedTimeCard ? (
+          {showDecisionView && hasProposedTimeDecision(proposal) && (
+            <ProposedTimeDecision
+              proposal={proposal}
+              accepting={creating}
+              acceptFailed={acceptFailed}
+              canDraftReply={Boolean(onDraftReply)}
+              onAccept={handleAccept}
+              onSuggestAnother={handleSuggestAnother}
+              onEditDetails={() => setShowDecision(false)}
+            />
+          )}
+          {!showDecisionView && showProposedTimeCard && (
             <ProposedTimeCard
               proposal={proposal!}
               creating={creating}
@@ -952,7 +967,8 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
               attendeeCandidates={attendeeCandidates}
               onCreateInvite={handleCreateInvite}
             />
-          ) : (
+          )}
+          {!showProposedTimeCard && (
             <SchedulingActionButtons
               linkCopied={linkCopied}
               drafting={drafting}

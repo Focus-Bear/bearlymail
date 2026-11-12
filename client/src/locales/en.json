@@ -805,6 +805,27 @@
         "durationMinutes": "{{minutes}} minutes",
         "confirm": "Confirm & Create",
         "cancel": "Cancel"
+      },
+      "decision": {
+        "description": "They proposed a specific time. Here's how it fits your calendar.",
+        "conversion": "{{senderTime}} {{senderZone}} = {{localTime}} your time ({{localDate}})",
+        "localOnly": "{{localTime}} ({{localDate}})",
+        "free": "✓ You're free.",
+        "busy": "⚠ You're busy then.",
+        "alternativesHeading": "You're free nearby at:",
+        "noAlternatives": "No free times found nearby. Use Edit details to pick another time.",
+        "accept": "Accept & add to calendar",
+        "accepting": "Adding…",
+        "acceptFailed": "Couldn't add it to your calendar. Try Edit details.",
+        "suggestAnother": "Suggest another time",
+        "editDetails": "Edit details",
+        "slotInZone": "{{date}}, {{time}} {{zone}} time",
+        "slotLocal": "{{date}}, {{time}}",
+        "draftGreetingNamed": "Hi {{name}},",
+        "draftGreeting": "Hi,",
+        "draftAcceptBody": "{{slot}} works for me. I've added it to my calendar. Talk then!",
+        "draftAlternativesIntro": "Thanks for suggesting {{proposed}}. That time doesn't work for me. Would any of these suit instead?",
+        "draftSignOff": "Thanks,"
       }
     },
     "scheduleForMorning": "Schedule for tomorrow morning",

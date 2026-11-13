@@ -4,6 +4,7 @@ import axios from "axios";
 import { createHash, randomBytes } from "crypto";
 import { Repository } from "typeorm";
 
+import { safeAxiosConfig } from "../common/safe-http/safe-http";
 import { assertSafeOutboundUrl } from "../common/url-validation.utils";
 import {
   MCP_AUTH_TYPES,
@@ -348,7 +349,7 @@ export class MCPOAuthService {
         token_endpoint_auth_method: "none",
         ...(scope ? { scope } : {}),
       },
-      { timeout: HTTP_TIMEOUT_MS },
+      safeAxiosConfig({ timeoutMs: HTTP_TIMEOUT_MS }),
     );
     const clientId = res.data?.client_id;
     if (typeof clientId !== "string") {
@@ -372,8 +373,8 @@ export class MCPOAuthService {
       metadata.tokenEndpoint,
       new URLSearchParams(params).toString(),
       {
+        ...safeAxiosConfig({ timeoutMs: HTTP_TIMEOUT_MS }),
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        timeout: HTTP_TIMEOUT_MS,
       },
     );
     if (typeof res.data?.access_token !== "string") {
@@ -404,7 +405,10 @@ export class MCPOAuthService {
   ): Promise<Record<string, unknown> | null> {
     try {
       assertSafeOutboundUrl(url, "OAuth metadata URL");
-      const res = await axios.get(url, { timeout: HTTP_TIMEOUT_MS });
+      const res = await axios.get(
+        url,
+        safeAxiosConfig({ timeoutMs: HTTP_TIMEOUT_MS }),
+      );
       return res.data as Record<string, unknown>;
     } catch (err) {
       this.logger.debug(

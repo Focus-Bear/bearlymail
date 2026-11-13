@@ -139,3 +139,47 @@ describe("assertSafeOutboundUrl", () => {
     });
   });
 });
+
+describe("assertSafeOutboundUrl — encoded and reserved internal addresses", () => {
+  it.each([
+    "https://[::ffff:a9fe:a9fe]/latest/meta-data/",
+    "https://[::ffff:127.0.0.1]/",
+    "https://[64:ff9b::a9fe:a9fe]/",
+    "https://0.0.0.0/",
+    "https://100.64.0.1/",
+    "https://[fc00::1]/",
+    "https://[fe80::1]/",
+    "https://2130706433/",
+    "https://api.localhost/",
+  ])("rejects %s", (url) => {
+    expect(() => assertSafeOutboundUrl(url, "test")).toThrow(
+      "private/internal hosts",
+    );
+  });
+});
+
+describe("assertSafeOutboundUrl — local development flag", () => {
+  const ORIGINAL_ENV = { ...process.env };
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+  });
+
+  it("allows http:// and private hosts in development with the flag", () => {
+    process.env.NODE_ENV = "development";
+    process.env.ALLOW_PRIVATE_OUTBOUND_URLS = "true";
+    expect(() =>
+      assertSafeOutboundUrl("http://localhost:3005/mcp", "test"),
+    ).not.toThrow();
+  });
+
+  it("ignores the flag in production", () => {
+    process.env.NODE_ENV = "production";
+    process.env.ALLOW_PRIVATE_OUTBOUND_URLS = "true";
+    expect(() =>
+      assertSafeOutboundUrl("https://localhost/mcp", "test"),
+    ).toThrow("private/internal hosts");
+    expect(() => assertSafeOutboundUrl("http://example.com", "test")).toThrow(
+      "only https://",
+    );
+  });
+});

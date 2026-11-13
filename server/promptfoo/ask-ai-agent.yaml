@@ -3,7 +3,7 @@ description: "Ask AI agentic email assistant prompt for BearlyMail"
 # The agent prompt is also valid without tools: when the open email already
 # answers the question the model must respond directly and stay grounded.
 providers:
-  - id: openai:gpt-4o-mini
+  - id: google:gemini-3.1-flash-lite
     config:
       temperature: 0
 

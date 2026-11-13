@@ -847,6 +847,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 - `/follow-ups/*` - Follow-up drafts and bulk send
 - `/batch-schedule/*` - Email batching schedule
 - `/github/*` - GitHub integration settings
+- `POST /csp-report` - Public, throttled sink for the web app's CSP `report-uri`/`report-to` reports (`server/src/csp-report/`); logs a one-line summary per violation. The web app's CSP itself is set by CloudFront in the private infra repo
 - `/personal-access-tokens` - Create/list/revoke tokens for Claude (JWT only; a token can never mint tokens)
 - `POST /mcp` - MCP server (Streamable HTTP, stateless JSON-RPC); authenticated by `Authorization: Bearer bm_pat_...` or an OAuth access token (`bm_oat_...`) only, never the session cookie; a 401 carries the RFC 9728 `WWW-Authenticate` challenge
 - `/.well-known/oauth-protected-resource[/mcp]`, `/.well-known/oauth-authorization-server`, `/oauth/{authorize,token,register,revoke}` - OAuth 2.1 authorization server for `/mcp` (CIMD + DCR, PKCE S256); consent page is the web app's `/oauth/consent`

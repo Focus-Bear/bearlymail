@@ -7,6 +7,7 @@ import { StepUpModal } from 'components/auth/StepUpModal';
 import { usePasswordSave } from 'components/settings/usePasswordSave';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { MIN_PASSWORD_LENGTH } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 interface PasswordInputProps {
@@ -129,7 +130,7 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
   });
 
   const validatePassword = useCallback((): string | null => {
-    if (password.length < 8) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
       return t('settings.setPassword.passwordTooShort');
     }
     if (password !== confirmPassword) {

@@ -1,0 +1,10 @@
+# Reviewed false positives (gitleaks fingerprints). All are placeholders, not real credentials:
+# localhost curl examples in docs, a fake sk-test key in a unit test, and the CI smoke-test JWT secret.
+f7f29c6594ef4ae25921c418c1ef9c847569bcbc:client/src/components/settings/own-ai-account/OwnAiAccountSection.test.tsx:generic-api-key:97
+87cd6d98d2ef95f2e90a00218b88eb07cb92df9b:QUICKSTART.md:curl-auth-header:195
+87cd6d98d2ef95f2e90a00218b88eb07cb92df9b:.github/workflows/ci.yml:generic-api-key:197
+64d7b0d6ed63ba76df603a2ed8167c23de899602:QUICKSTART.md:curl-auth-header:91
+64d7b0d6ed63ba76df603a2ed8167c23de899602:LLM_SETUP.md:curl-auth-header:51
+64d7b0d6ed63ba76df603a2ed8167c23de899602:LLM_SETUP.md:curl-auth-header:62
+64d7b0d6ed63ba76df603a2ed8167c23de899602:LLM_SETUP.md:curl-auth-header:72
+64d7b0d6ed63ba76df603a2ed8167c23de899602:LLM_SETUP.md:curl-auth-header:131

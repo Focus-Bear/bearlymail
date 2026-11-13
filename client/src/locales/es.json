@@ -1591,7 +1591,17 @@
     "sourceCount_one": "{{count}} fuente",
     "sourceCount_other": "{{count}} fuentes",
     "refresh": "Actualizar contexto del remitente",
-    "errorLoading": "Error al cargar el contexto del remitente"
+    "errorLoading": "Error al cargar el contexto del remitente",
+    "crm": {
+      "deals": "Oportunidades",
+      "recentNotes": "Notas recientes",
+      "closes": "Cierra el {{date}}",
+      "closed": "cerrada",
+      "owner": "Responsable: {{name}}",
+      "matchedByDomain": "Coincidencia por el dominio del correo del remitente",
+      "multipleMatches_one": "{{count}} registro coincidente",
+      "multipleMatches_other": "{{count}} registros coincidentes: se muestra el actualizado más recientemente"
+    }
   },
   "deals": {
     "title": "Negocios",

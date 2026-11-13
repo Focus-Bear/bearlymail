@@ -12,13 +12,19 @@ import {
   MCPServerConfig,
 } from "../database/entities/mcp-server-config.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { BIGIN_TOOLS } from "./bigin/bigin-sender-context.constants";
+import { BiginSenderContextService } from "./bigin/bigin-sender-context.service";
+import { isBiginToolset } from "./bigin/bigin-toolset";
+import { formatCrmSenderContext } from "./crm-sender-context.format";
 import { MCPClientManagerService } from "./mcp-client-manager.service";
+import { extractMcpText } from "./mcp-tool-result";
 
-/** How long a cached sender-context result is considered fresh. */
+/**
+ * How long a cached sender-context result is considered fresh, per user and
+ * sender. Misses and failures are cached too, so a rate-limited or unknown
+ * sender isn't re-queried on every open; the card's refresh button bypasses it.
+ */
 const SENDER_CONTEXT_TTL_MS = MILLISECONDS.HOUR;
-
-/** MCP tools/call content-part discriminator for a plain-text part. */
-const TEXT_CONTENT_TYPE = "text";
 
 export interface SenderContextResult {
   entries: MCPSenderContextEntry[];
@@ -29,7 +35,9 @@ export interface SenderContextResult {
 
 /**
  * Fetches context about an email sender from the user's sender-context MCP
- * servers (e.g. HubSpot CRM), using each server's pre-derived lookup mapping.
+ * servers (e.g. HubSpot CRM). No model is involved per sender: Zoho Bigin gets
+ * a fixed contact → deals/notes lookup, any other server a single call to its
+ * pre-derived lookup mapping.
  *
  * Results are cached per sender (encrypted, 1h TTL) so repeat opens of the same
  * sender are cheap and don't re-hit the external CRM.
@@ -44,6 +52,7 @@ export class MCPSenderContextService {
     @InjectRepository(MCPSenderContextCache)
     private readonly cacheRepo: Repository<MCPSenderContextCache>,
     private readonly mcpClientManager: MCPClientManagerService,
+    private readonly biginSenderContext: BiginSenderContextService,
   ) {}
 
   async getSenderContext(
@@ -99,7 +108,10 @@ export class MCPSenderContextService {
       },
     });
 
-    const usable = servers.filter((server) => server.senderLookupMapping);
+    const usable = servers.filter(
+      (server) =>
+        isBiginToolset(server.cachedTools) || server.senderLookupMapping,
+    );
 
     const results = await Promise.all(
       usable.map((server) => this.querySingleServer(server, email)),
@@ -114,52 +126,65 @@ export class MCPSenderContextService {
     server: MCPServerConfig,
     email: string,
   ): Promise<MCPSenderContextEntry | null> {
-    const mapping = server.senderLookupMapping;
-    if (!mapping) return null;
-
     try {
-      const output = await this.mcpClientManager.callTool(
-        server.id,
-        mapping.toolName,
-        { [mapping.emailArgName]: email },
-      );
-      const text = this.extractText(output);
-      if (!text) return null;
-
-      return {
-        serverId: server.id,
-        serverName: server.name,
-        toolName: mapping.toolName,
-        text,
-      };
+      return isBiginToolset(server.cachedTools)
+        ? await this.queryBigin(server, email)
+        : await this.queryMappedTool(server, email);
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(
-        `Sender-context lookup failed on server ${server.id}: ${(err as Error).message}`,
+        `Sender-context lookup failed on server ${server.id}: ${message}`,
       );
       return null;
     }
   }
 
-  /**
-   * Pull human-readable text out of an MCP tools/call result. The MCP spec returns
-   * `{ content: [{ type: "text", text }, ...] }`; fall back to JSON for other shapes.
-   */
-  private extractText(output: unknown): string {
-    if (typeof output === "string") return output;
-    const result = output as {
-      content?: Array<{ type?: string; text?: string }>;
+  private async queryBigin(
+    server: MCPServerConfig,
+    email: string,
+  ): Promise<MCPSenderContextEntry | null> {
+    const crm = await this.biginSenderContext.lookup(
+      server.id,
+      email,
+      server.cachedTools,
+    );
+    if (!crm) return null;
+    return {
+      serverId: server.id,
+      serverName: server.name,
+      toolName: BIGIN_TOOLS.SEARCH_RECORDS,
+      text: formatCrmSenderContext(crm),
+      crm,
     };
-    if (Array.isArray(result?.content)) {
-      const text = result.content
-        .filter(
-          (part) =>
-            part?.type === TEXT_CONTENT_TYPE && typeof part.text === "string",
-        )
-        .map((part) => part.text)
-        .join("\n")
-        .trim();
-      if (text) return text;
-    }
+  }
+
+  private async queryMappedTool(
+    server: MCPServerConfig,
+    email: string,
+  ): Promise<MCPSenderContextEntry | null> {
+    const mapping = server.senderLookupMapping;
+    if (!mapping) return null;
+
+    const output = await this.mcpClientManager.callTool(
+      server.id,
+      mapping.toolName,
+      { [mapping.emailArgName]: email },
+    );
+    const text = this.extractText(output);
+    if (!text) return null;
+
+    return {
+      serverId: server.id,
+      serverName: server.name,
+      toolName: mapping.toolName,
+      text,
+    };
+  }
+
+  /** Text parts of an MCP tools/call result, or its JSON for other shapes. */
+  private extractText(output: unknown): string {
+    const text = extractMcpText(output);
+    if (text) return text;
     if (output == null) return "";
     return JSON.stringify(output);
   }

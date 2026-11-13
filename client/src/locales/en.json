@@ -2729,7 +2729,17 @@
     "sourceCount_one": "{{count}} source",
     "sourceCount_other": "{{count}} sources",
     "refresh": "Refresh sender context",
-    "errorLoading": "Error loading sender context"
+    "errorLoading": "Error loading sender context",
+    "crm": {
+      "deals": "Deals",
+      "recentNotes": "Recent notes",
+      "closes": "Closes {{date}}",
+      "closed": "closed",
+      "owner": "Owner: {{name}}",
+      "matchedByDomain": "Matched by the sender's email domain",
+      "multipleMatches_one": "{{count}} matching record",
+      "multipleMatches_other": "{{count}} matching records — showing the most recently updated"
+    }
   },
   "deals": {
     "title": "Deals",

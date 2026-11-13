@@ -2248,7 +2248,17 @@
       "prompt3": "¿Qué requiere mi acción?",
       "prompt4": "Busca otros correos de este remitente",
       "disclaimer": "La IA puede cometer errores. Verifica los detalles importantes.",
-      "connectTools": "Conecta Google Drive y otras herramientas"
+      "connectTools": "Conecta Google Drive y otras herramientas",
+      "approval": {
+        "title": "¿Permitir esta acción?",
+        "description": "Preguntar a IA quiere usar {{tool}} en {{server}}. No se hará nada a menos que lo apruebes.",
+        "argumentsLabel": "Exactamente lo que se enviará",
+        "noArguments": "Esta acción no envía ningún detalle.",
+        "warning": "Apruébalo solo si tú lo pediste. Los correos pueden contener texto que intenta engañar al asistente para que actúe.",
+        "approve": "Aprobar",
+        "deny": "Denegar",
+        "unavailable": "Esa solicitud de aprobación caducó o ya se usó. Vuelve a preguntar si aún quieres hacerlo."
+      }
     },
     "clickToArchive": "Haz clic para archivar",
     "clickToSetPriority": "Haz clic para establecer prioridad: {{priority}}",

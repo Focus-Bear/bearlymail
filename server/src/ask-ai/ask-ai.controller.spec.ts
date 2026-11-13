@@ -1,3 +1,5 @@
+import { BadRequestException } from "@nestjs/common";
+import type { Request as ExpressRequest, Response } from "express";
 import { Repository } from "typeorm";
 
 import { Email } from "../database/entities/email.entity";
@@ -20,7 +22,9 @@ function emailRow(partial: Partial<Email>): Email {
 }
 
 describe("AskAiController", () => {
-  let agent: jest.Mocked<Pick<AskAiAgentService, "ask">>;
+  let agent: jest.Mocked<
+    Pick<AskAiAgentService, "ask" | "claimApproval" | "resume">
+  >;
   let emailRepo: jest.Mocked<Pick<Repository<Email>, "findOne" | "find">>;
   let controller: AskAiController;
 
@@ -29,6 +33,8 @@ describe("AskAiController", () => {
   beforeEach(() => {
     agent = {
       ask: jest.fn().mockResolvedValue({ answer: "ok", toolActivity: [] }),
+      claimApproval: jest.fn(),
+      resume: jest.fn(),
     };
     emailRepo = { findOne: jest.fn(), find: jest.fn() };
     controller = new AskAiController(
@@ -91,5 +97,107 @@ describe("AskAiController", () => {
     expect(opts.email.isThread).toBe(false);
     expect(opts.email.body).toContain("Just one standalone message");
     expect(opts.email.body).not.toContain("[Message 1");
+  });
+
+  describe("tool approval stream", () => {
+    const APPROVAL_ID = "11111111-1111-1111-1111-111111111111";
+    const HASH = "b".repeat(64);
+
+    function fakeStream() {
+      const writes: string[] = [];
+      const res = {
+        setHeader: jest.fn(),
+        flushHeaders: jest.fn(),
+        write: jest.fn((chunk: string) => writes.push(chunk)),
+        end: jest.fn(),
+        writableEnded: false,
+      } as unknown as Response;
+      const rawReq = { on: jest.fn() } as unknown as ExpressRequest;
+      const events = () =>
+        writes.map((chunk) => JSON.parse(chunk.replace(/^data: /, "")));
+      return { res, rawReq, events };
+    }
+
+    it("rejects a malformed approval before claiming anything", async () => {
+      const { res, rawReq } = fakeStream();
+
+      await expect(
+        controller.streamToolDecision(
+          req,
+          { approvalId: "not-a-uuid", argumentsHash: HASH, approved: true },
+          rawReq,
+          res,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        controller.streamToolDecision(
+          req,
+          { approvalId: APPROVAL_ID, argumentsHash: "short", approved: true },
+          rawReq,
+          res,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(agent.claimApproval).not.toHaveBeenCalled();
+    });
+
+    it("claims the approval for the signed-in user, then streams the resumed answer", async () => {
+      const paused = { awaiting: {} } as never;
+      agent.claimApproval.mockResolvedValue(paused);
+      agent.resume.mockResolvedValue({ answer: "Done.", toolActivity: [] });
+      const { res, rawReq, events } = fakeStream();
+
+      await controller.streamToolDecision(
+        req,
+        { approvalId: APPROVAL_ID, argumentsHash: HASH, approved: false },
+        rawReq,
+        res,
+      );
+
+      const decision = {
+        userId: "u1",
+        approvalId: APPROVAL_ID,
+        argumentsHash: HASH,
+        approved: false,
+      };
+      expect(agent.claimApproval).toHaveBeenCalledWith(decision);
+      expect(agent.resume).toHaveBeenCalledWith(
+        decision,
+        paused,
+        expect.objectContaining({ onEvent: expect.any(Function) }),
+      );
+      expect(events()).toEqual([
+        { type: "answer", answer: "Done.", toolActivity: [] },
+      ]);
+    });
+
+    it("streams an approval_required event when the turn pauses", async () => {
+      emailRepo.findOne.mockResolvedValue(emailRow({}));
+      emailRepo.find.mockResolvedValue([]);
+      const pendingToolCall = {
+        approvalId: APPROVAL_ID,
+        serverName: "Google Drive",
+        toolName: "share_file",
+        arguments: { fileId: "f1" },
+        argumentsHash: HASH,
+        expiresAt: new Date().toISOString(),
+      };
+      agent.ask.mockResolvedValue({
+        answer: "",
+        toolActivity: [],
+        pendingToolCall,
+      });
+      const { res, rawReq, events } = fakeStream();
+
+      await controller.streamEmail(
+        req,
+        { emailId: "e1", question: "share it" },
+        rawReq,
+        res,
+      );
+
+      expect(events()).toEqual([
+        { type: "approval_required", pendingToolCall, toolActivity: [] },
+      ]);
+    });
   });
 });

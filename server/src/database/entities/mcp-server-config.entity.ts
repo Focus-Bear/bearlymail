@@ -12,8 +12,9 @@ import { User } from "./user.entity";
 
 /**
  * Optional behaviour hints an MCP server may advertise per tool (MCP spec
- * `annotations`). Used to keep known-destructive tools away from the Ask AI
- * assistant, which calls tools autonomously.
+ * `annotations`). The Ask AI assistant runs only tools marked `readOnlyHint`
+ * on its own, asks the user before any other tool, and never offers tools
+ * marked `destructiveHint`.
  */
 export interface MCPToolAnnotations {
   title?: string;

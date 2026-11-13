@@ -9,6 +9,10 @@ const PARAMS = {
   categories: [{ name: "QA passed", description: "Verified fixes" }],
 };
 const API_KEY = "test-only";
+const CONFIDENCE_LOG_DECIMALS = 2;
+const LOGGED_THRESHOLD = JEV.MIN_ACCEPTED_CONFIDENCE.toFixed(
+  CONFIDENCE_LOG_DECIMALS,
+);
 const response = (choice = "1", confidence = 1) => ({
   model: JEV.DEFAULT_MODEL,
   answers: {
@@ -53,7 +57,7 @@ describe("JevCategoryClient", () => {
     );
     // Content-free: decision, confidence and shape only, never names or email text.
     expect(logger.log).toHaveBeenCalledWith(
-      "[JEV-CONFIDENCE] decision=categorise_summary outcome=accepted confidence=1.00 threshold=0.90 options=2 chose_none=false margin=1.00 family_confidence=1.00",
+      `[JEV-CONFIDENCE] decision=categorise_summary outcome=accepted confidence=1.00 threshold=${LOGGED_THRESHOLD} options=2 chose_none=false margin=1.00 family_confidence=1.00`,
     );
     expect(fetchMock).toHaveBeenCalledWith(
       JEV.API_URL,
@@ -80,7 +84,7 @@ describe("JevCategoryClient", () => {
       expect(usage.logUsage).toHaveBeenCalledTimes(1);
       expect(logger.log).toHaveBeenCalledWith(
         expect.stringContaining(
-          `outcome=below_threshold confidence=${confidence.toFixed(2)} threshold=0.90`,
+          `outcome=below_threshold confidence=${confidence.toFixed(2)} threshold=${LOGGED_THRESHOLD}`,
         ),
       );
     },

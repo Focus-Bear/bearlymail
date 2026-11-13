@@ -34,7 +34,7 @@ Fixture replay of the ten routed suites with the production definitions (60 case
 
 | Prompt | Jev implementation shape | Contract and validation requirements |
 | --- | --- | --- |
-| `categorise-summary.md` | Implemented: Choice over exact existing categories plus Other | Shared production/evaluation helper. Accept Choice confidence ≥0.9; otherwise Gemini. |
+| `categorise-summary.md` | Implemented: Choice over exact existing categories plus Other | Shared production/evaluation helper. Accept Choice confidence ≥0.85 (lowered from 0.9 after production shadow logs showed 91% Gemini agreement at 0.85–0.90); otherwise Gemini. |
 | `categorise-summary-jev.md` | Implemented: dedicated Choice policy | Inlines both shared policy fragments, preserves GitHub facts and actor identity. |
 | `check-phishing-only.md` | Choice: legitimate, phishing, insufficient evidence | Jev primary; uncertain/error → Gemini. Keep `confirm_phishing` on independent Gemini to avoid having the same model confirm itself. Preserve known ESP/link evidence rules and evaluate false positives as well as attacks. A static Jev verdict must not pretend to be a generated explanation. |
 | `check-category-duplicate.md` | Choice over existing exact category IDs plus none | Pass ordered candidates as typed metadata; do not recover identity from prose. Test related-but-distinct categories. |

@@ -20,6 +20,9 @@ import { LocalModelUserDataService } from "../local-model/local-model-user-data.
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "./users.service";
 
+/** Repository.save stand-in that hands back the entity it was given. */
+const saveReturnsUser = async (user: unknown) => user as User;
+
 jest.mock("../utils/error-logger");
 
 jest.mock("../encryption/encryption.helper", () => {
@@ -228,7 +231,7 @@ describe("UsersService", () => {
       const existingUser = { ...mockUser };
       jest.spyOn(service, "findOneLightweight").mockResolvedValue(existingUser);
       repository.findOne.mockResolvedValue(existingUser);
-      repository.save.mockImplementation(async (user) => user as User);
+      repository.save.mockImplementation(saveReturnsUser);
 
       const before = Date.now();
       await service.markNeedsRelogin("user-1", "gmail_invalid_token");
@@ -266,7 +269,7 @@ describe("UsersService", () => {
           .spyOn(service, "findOneLightweight")
           .mockResolvedValue(existingUser);
         repository.findOne.mockResolvedValue(existingUser);
-        repository.save.mockImplementation(async (user) => user as User);
+        repository.save.mockImplementation(saveReturnsUser);
 
         await service.markNeedsRelogin("user-1", "gmail_insufficient_scope", {
           bypassGracePeriod: true,
@@ -296,7 +299,7 @@ describe("UsersService", () => {
     it("persists syncWindowLimited=true for the user", async () => {
       const existingUser = { ...mockUser, syncWindowLimited: false };
       repository.findOne.mockResolvedValue(existingUser);
-      repository.save.mockImplementation(async (user) => user as User);
+      repository.save.mockImplementation(saveReturnsUser);
 
       await service.markSyncWindowLimited("user-1");
 
@@ -376,7 +379,7 @@ describe("UsersService", () => {
     it("should generate email hash when email is updated", async () => {
       const existingUser = { ...mockUser };
       repository.findOne.mockResolvedValue(existingUser);
-      repository.save.mockImplementation(async (user) => user as User);
+      repository.save.mockImplementation(saveReturnsUser);
 
       await service.update("user-1", { email: "new@example.com" });
 
@@ -389,7 +392,7 @@ describe("UsersService", () => {
     it("should not generate email hash if emailHash is provided in update", async () => {
       const existingUser = { ...mockUser };
       repository.findOne.mockResolvedValue(existingUser);
-      repository.save.mockImplementation(async (user) => user as User);
+      repository.save.mockImplementation(saveReturnsUser);
 
       await service.update("user-1", {
         email: "new@example.com",
@@ -414,7 +417,7 @@ describe("UsersService", () => {
     it("logs a [NEEDS_RELOGIN] warning when needsRelogin is set to true", async () => {
       const existingUser = { ...mockUser, needsRelogin: false };
       repository.findOne.mockResolvedValue(existingUser);
-      repository.save.mockImplementation(async (user) => user as User);
+      repository.save.mockImplementation(saveReturnsUser);
       const loggerInstance = (service as unknown as { logger: Logger }).logger;
       const warnSpy = jest
         .spyOn(loggerInstance, "warn")
@@ -431,7 +434,7 @@ describe("UsersService", () => {
     it("does NOT log a [NEEDS_RELOGIN] warning for ordinary updates", async () => {
       const existingUser = { ...mockUser };
       repository.findOne.mockResolvedValue(existingUser);
-      repository.save.mockImplementation(async (user) => user as User);
+      repository.save.mockImplementation(saveReturnsUser);
       const loggerInstance = (service as unknown as { logger: Logger }).logger;
       const warnSpy = jest
         .spyOn(loggerInstance, "warn")

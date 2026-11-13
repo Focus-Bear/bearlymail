@@ -2,7 +2,9 @@
  * AskAiPanel — the "Ask AI" tab in the email action sidebar.
  *
  * Free-form Q&A grounded in the single email/thread the user has open. Posts to
- * the NestJS `/llm/ask-email` endpoint via {@link useAskAi}. The conversation is
+ * the NestJS `/llm/ask-email` endpoint via {@link useAskAi}. Connected-tool
+ * actions that are not read-only wait for the user's approval in an
+ * {@link AskAiToolApprovalCard}. The conversation is
  * in-memory only and resets when a different email is opened.
  */
 import React, { useEffect, useRef } from 'react';
@@ -15,7 +17,9 @@ import { COLOR_TRANSPARENT } from 'constants/colors';
 import { MAX_TEXTAREA_HEIGHT_PX } from 'constants/numbers';
 import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
-import { ASK_AI_ROLE_USER, AskAiMessage, AskAiToolActivity, useAskAi } from 'hooks/useAskAi';
+import { ASK_AI_ROLE_USER, AskAiMessage, AskAiPendingToolCall, AskAiToolActivity, useAskAi } from 'hooks/useAskAi';
+
+import { AskAiToolApprovalCard } from './AskAiToolApprovalCard';
 
 const SUGGESTED_PROMPT_KEYS = [
   'inbox.askAi.prompt1',
@@ -113,6 +117,8 @@ interface AskAiConversationProps {
   hasError: boolean;
   errorMessage: string | null;
   liveActivity: AskAiToolActivity[];
+  pendingToolCall: AskAiPendingToolCall | null;
+  onDecide: (approved: boolean) => void;
   onSuggested: (prompt: string) => void;
 }
 
@@ -122,6 +128,8 @@ const AskAiConversation: React.FC<AskAiConversationProps> = ({
   hasError,
   errorMessage,
   liveActivity,
+  pendingToolCall,
+  onDecide,
   onSuggested,
 }) => {
   const { t } = useTranslation();
@@ -129,7 +137,7 @@ const AskAiConversation: React.FC<AskAiConversationProps> = ({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, isLoading, hasError]);
+  }, [messages, isLoading, hasError, pendingToolCall]);
 
   const isEmpty = messages.length === 0;
 
@@ -200,6 +208,9 @@ const AskAiConversation: React.FC<AskAiConversationProps> = ({
           {messages.map((message, index) => (
             <MessageBubble key={`${message.role}-${index}`} message={message} />
           ))}
+          {pendingToolCall && !isLoading && (
+            <AskAiToolApprovalCard pendingToolCall={pendingToolCall} onDecide={onDecide} />
+          )}
           {isLoading && (
             <div style={{ alignSelf: 'flex-start', display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
               {liveActivity.length > 0 && <ToolActivityChips activity={liveActivity} />}
@@ -215,7 +226,13 @@ const AskAiConversation: React.FC<AskAiConversationProps> = ({
             </div>
           )}
           {hasError && (
-            <span style={{ alignSelf: 'flex-start', fontSize: theme.typography.fontSize.sm, color: theme.colors.error.main }}>
+            <span
+              style={{
+                alignSelf: 'flex-start',
+                fontSize: theme.typography.fontSize.sm,
+                color: theme.colors.error.main,
+              }}
+            >
               {errorMessage ?? t('inbox.askAi.error')}
             </span>
           )}
@@ -333,7 +350,18 @@ const AskAiInput: React.FC<AskAiInputProps> = ({ value, onChange, onSubmit, disa
 };
 
 export const AskAiPanel: React.FC<AskAiPanelProps> = ({ emailId }) => {
-  const { messages, input, setInput, isLoading, hasError, errorMessage, liveActivity, send } = useAskAi(emailId);
+  const {
+    messages,
+    input,
+    setInput,
+    isLoading,
+    hasError,
+    errorMessage,
+    liveActivity,
+    pendingToolCall,
+    send,
+    decideToolCall,
+  } = useAskAi(emailId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: theme.spacing.md }}>
@@ -343,13 +371,15 @@ export const AskAiPanel: React.FC<AskAiPanelProps> = ({ emailId }) => {
         hasError={hasError}
         errorMessage={errorMessage}
         liveActivity={liveActivity}
+        pendingToolCall={pendingToolCall}
+        onDecide={approved => decideToolCall(approved)}
         onSuggested={prompt => send(prompt)}
       />
       <AskAiInput
         value={input}
         onChange={setInput}
         onSubmit={() => send(input)}
-        disabled={isLoading || !emailId}
+        disabled={isLoading || !emailId || Boolean(pendingToolCall)}
       />
     </div>
   );

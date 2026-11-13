@@ -48,6 +48,19 @@ const SNIPPET_LENGTH = 160;
 /** Score weight: a query token matching the subject counts more than the body. */
 const SUBJECT_MATCH_WEIGHT = 2;
 
+/** Prefix telling the model a connected tool runs only after user approval. */
+const APPROVAL_NOTE =
+  "(Runs only after the user approves it; call it only when the user asked for this action.)";
+
+/**
+ * Whether a resolved tool may run without asking the user. Only BearlyMail's
+ * own read tools and connected tools explicitly annotated read-only qualify;
+ * every other connected tool (including unannotated ones) needs approval.
+ */
+export function requiresApproval(descriptor: AskAiToolDescriptor): boolean {
+  return descriptor.kind === KIND_MCP && !descriptor.readOnly;
+}
+
 interface SearchEmailsArgs {
   query?: string;
   from?: string;
@@ -67,6 +80,7 @@ interface ScoredEmail {
  *    user's synced emails (no provider sync, no nested LLM ranking); and
  *  - any MCP servers the user connected with purpose "ask_ai" (e.g. Google
  *    Drive), whose cached tools are exposed verbatim and invoked over HTTP.
+ *    Tools not annotated read-only are gated by {@link requiresApproval}.
  */
 @Injectable()
 export class AskAiToolService {
@@ -118,7 +132,9 @@ export class AskAiToolService {
         resultJson: this.truncate(JSON.stringify(result ?? null)),
         activity: {
           tool: descriptor.toolName,
-          label: `Looked in ${descriptor.serverName}`,
+          label: descriptor.readOnly
+            ? `Looked in ${descriptor.serverName}`
+            : `Used ${descriptor.toolName} on ${descriptor.serverName}`,
         },
       };
     } catch (error) {
@@ -433,7 +449,8 @@ export class AskAiToolService {
       }
 
       for (const def of definitions) {
-        // Keep known-destructive tools away from the autonomous assistant.
+        // Never offer known-destructive tools to the assistant, even with
+        // approval: an irreversible action is a poor fit for a chat helper.
         if (def.annotations?.destructiveHint === true) {
           this.logger.log(
             `Ask AI: skipping destructive MCP tool "${def.name}" on ${server.name}`,
@@ -447,14 +464,15 @@ export class AskAiToolService {
           return;
         }
         const fnName = this.safeFunctionName(def.name, index++, registry);
+        const readOnly = def.annotations?.readOnlyHint === true;
+        const description = readOnly
+          ? `[${server.name}] ${def.description}`
+          : `[${server.name}] ${APPROVAL_NOTE} ${def.description}`;
         tools.push({
           type: "function",
           function: {
             name: fnName,
-            description: `[${server.name}] ${def.description}`.slice(
-              0,
-              MAX_TOOL_DESCRIPTION_CHARS,
-            ),
+            description: description.slice(0, MAX_TOOL_DESCRIPTION_CHARS),
             parameters: (def.inputSchema as Record<string, unknown>) ?? {
               type: "object",
               properties: {},
@@ -466,6 +484,10 @@ export class AskAiToolService {
           serverId: server.id,
           serverName: server.name,
           toolName: def.name,
+          ...(def.annotations?.title
+            ? { toolTitle: def.annotations.title }
+            : {}),
+          readOnly,
         });
       }
     }

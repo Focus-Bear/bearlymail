@@ -13,6 +13,13 @@ import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
 import { AuthService, verifiedMicrosoftSignInEmail } from "./auth.service";
+import { EmailVerificationService } from "./email-verification.service";
+import { EmailNotVerifiedException } from "./exceptions/email-not-verified.exception";
+import {
+  AccountLockedException,
+  LoginLockoutService,
+} from "./login-lockout.service";
+import { hashEmailedToken } from "./token-hash.util";
 import { TotpService } from "./totp.service";
 
 jest.mock("bcrypt");
@@ -32,6 +39,18 @@ describe("AuthService", () => {
   let totpService: jest.Mocked<TotpService>;
   let captureEvent: jest.Mock;
   let ensurePersonalOrg: jest.Mock;
+  let emailVerification: {
+    claimForProviderSignIn: jest.Mock;
+    assertVerifiedForPasswordSignIn: jest.Mock;
+    sendVerification: jest.Mock;
+    sendPasswordResetLink: jest.Mock;
+  };
+  let loginLockout: {
+    assertNotLocked: jest.Mock;
+    recordFailure: jest.Mock;
+    recordSuccess: jest.Mock;
+    recordUnknownEmailAttempt: jest.Mock;
+  };
 
   const mockUser: User = {
     id: "user-1",
@@ -50,8 +69,11 @@ describe("AuthService", () => {
     googleId: null,
     googleCalendarAccessToken: null,
     googleCalendarRefreshToken: null,
-    passwordSetupToken: null,
+    passwordSetupTokenHash: null,
     passwordSetupTokenExpiresAt: null,
+    emailVerifiedAt: new Date(),
+    failedLoginAttempts: 0,
+    loginLockedUntil: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   } as User;
@@ -63,6 +85,7 @@ describe("AuthService", () => {
       update: jest.fn(),
       findOne: jest.fn(),
       findAll: jest.fn(),
+      findByPasswordSetupTokenHash: jest.fn(),
       wasUserInactive: jest.fn().mockResolvedValue(false),
       updateLastActivity: jest.fn().mockResolvedValue(undefined),
       hashEmail: jest.fn().mockReturnValue("hashed-email"),
@@ -94,6 +117,19 @@ describe("AuthService", () => {
     ensurePersonalOrg = jest.fn().mockResolvedValue({ id: "org-1" });
     const mockOrganizationsService = { ensurePersonalOrg };
 
+    emailVerification = {
+      claimForProviderSignIn: jest.fn(async (user: User) => user),
+      assertVerifiedForPasswordSignIn: jest.fn().mockResolvedValue(undefined),
+      sendVerification: jest.fn().mockResolvedValue(undefined),
+      sendPasswordResetLink: jest.fn().mockResolvedValue(undefined),
+    };
+    loginLockout = {
+      assertNotLocked: jest.fn(),
+      recordFailure: jest.fn().mockResolvedValue(undefined),
+      recordSuccess: jest.fn().mockResolvedValue(undefined),
+      recordUnknownEmailAttempt: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -122,6 +158,8 @@ describe("AuthService", () => {
           useValue: mockOrganizationsService,
         },
         { provide: ErrorTrackingService, useValue: { captureEvent } },
+        { provide: EmailVerificationService, useValue: emailVerification },
+        { provide: LoginLockoutService, useValue: loginLockout },
       ],
     }).compile();
 
@@ -315,7 +353,7 @@ describe("AuthService", () => {
   describe("validateGoogleUser", () => {
     const mockProfile = {
       id: "google-id-123",
-      emails: [{ value: "test@example.com" }],
+      emails: [{ value: "test@example.com", verified: true }],
       displayName: "Test User",
     };
 
@@ -347,7 +385,7 @@ describe("AuthService", () => {
     it("should auto-approve and make admin for jeremy@focusbear.io", async () => {
       const jeremyProfile = {
         ...mockProfile,
-        emails: [{ value: "jeremy@focusbear.io" }],
+        emails: [{ value: "jeremy@focusbear.io", verified: true }],
       };
       usersService.findByEmail.mockResolvedValue(null);
       usersService.create.mockResolvedValue({
@@ -551,7 +589,7 @@ describe("AuthService", () => {
   describe("OAuth sign-up analytics", () => {
     const googleProfile = {
       id: "google-id-123",
-      emails: [{ value: "test@example.com" }],
+      emails: [{ value: "test@example.com", verified: true }],
       displayName: "Test User",
     };
     const microsoftProfile = {
@@ -732,12 +770,14 @@ describe("AuthService", () => {
   });
 
   describe("register", () => {
-    it("should create an immediately-active account and return a session", async () => {
+    it("creates an unverified account, emails a link, and issues no session", async () => {
       usersService.findByEmail.mockResolvedValue(null);
-      const createdUser = { ...mockUser, id: "new-user", isApproved: true };
+      const createdUser = {
+        ...mockUser,
+        id: "new-user",
+        emailVerifiedAt: null,
+      };
       usersService.create.mockResolvedValue(createdUser);
-      usersService.findOne.mockResolvedValue(createdUser);
-      jwtService.sign.mockReturnValue("jwt-token");
 
       const result = await service.register(
         "new@example.com",
@@ -752,25 +792,14 @@ describe("AuthService", () => {
           isAdmin: false,
         }),
       );
-      expect(result.access_token).toBe("jwt-token");
-      expect(result.user.id).toBe("new-user");
-      expect(ensurePersonalOrg).toHaveBeenCalledWith("new-user");
-    });
-
-    it("should still sign the user in when org provisioning fails", async () => {
-      usersService.findByEmail.mockResolvedValue(null);
-      const createdUser = { ...mockUser, id: "new-user", isApproved: true };
-      usersService.create.mockResolvedValue(createdUser);
-      usersService.findOne.mockResolvedValue(createdUser);
-      jwtService.sign.mockReturnValue("jwt-token");
-      ensurePersonalOrg.mockRejectedValueOnce(new Error("db down"));
-
-      const result = await service.register(
-        "new@example.com",
-        "a-strong-password",
+      expect(usersService.create.mock.calls[0][0]).not.toHaveProperty(
+        "emailVerifiedAt",
       );
-
-      expect(result.access_token).toBe("jwt-token");
+      expect(emailVerification.sendVerification).toHaveBeenCalledWith(
+        createdUser,
+      );
+      expect(result).toEqual({ verificationRequired: true });
+      expect(jwtService.sign).not.toHaveBeenCalled();
     });
 
     it("should reject a password shorter than the minimum length", async () => {
@@ -792,95 +821,77 @@ describe("AuthService", () => {
 
   describe("setupPassword", () => {
     const mockToken = "valid-token-abcdef1234567890abcdef1234567890";
-    const futureDate = new Date();
-    futureDate.setHours(futureDate.getHours() + 1);
+    const strongPassword = "a-strong-new-password";
 
-    it("should setup password and approve user with valid token, setting passwordChangedAt", async () => {
-      const userWithToken = {
-        ...mockUser,
-        passwordSetupToken: mockToken,
-        passwordSetupTokenExpiresAt: futureDate,
-      };
-      usersService.findAll.mockResolvedValue([userWithToken]);
-      usersService.update.mockResolvedValue({
-        ...userWithToken,
-        password: "hashed-password",
-        passwordSetupToken: null,
-        passwordSetupTokenExpiresAt: null,
-        isApproved: true,
-      });
+    it("looks the token up by its hash, sets the password and marks the email verified", async () => {
+      const userWithToken = { ...mockUser, emailVerifiedAt: null };
+      usersService.findByPasswordSetupTokenHash.mockResolvedValue(
+        userWithToken,
+      );
       usersService.findOne.mockResolvedValue({
         ...userWithToken,
         isApproved: true,
       });
       jwtService.sign.mockReturnValue("jwt-token");
 
-      const result = await service.setupPassword(mockToken, "new-password");
+      const result = await service.setupPassword(mockToken, strongPassword);
 
+      expect(usersService.findByPasswordSetupTokenHash).toHaveBeenCalledWith(
+        hashEmailedToken(mockToken),
+      );
+      expect(usersService.findAll).not.toHaveBeenCalled();
       expect(usersService.update).toHaveBeenCalledWith(
         userWithToken.id,
         expect.objectContaining({
           password: "hashed-password",
-          passwordSetupToken: null,
+          passwordSetupTokenHash: null,
           passwordSetupTokenExpiresAt: null,
           isApproved: true,
           passwordChangedAt: expect.any(Date),
+          emailVerifiedAt: expect.any(Date),
+          failedLoginAttempts: 0,
+          loginLockedUntil: null,
         }),
       );
       expect(result.access_token).toBe("jwt-token");
       // Verify bcrypt uses updated cost factor (12 rounds per OWASP ASVS req 2.4.1)
-      expect(bcrypt.hash).toHaveBeenCalledWith("new-password", 12);
+      expect(bcrypt.hash).toHaveBeenCalledWith(strongPassword, 12);
     });
 
-    it("should throw error for invalid token", async () => {
-      usersService.findAll.mockResolvedValue([mockUser]);
+    it("keeps an existing verification timestamp", async () => {
+      usersService.findByPasswordSetupTokenHash.mockResolvedValue(mockUser);
+      usersService.findOne.mockResolvedValue(mockUser);
 
-      await expect(
-        service.setupPassword("wrong-token-that-does-not-match", "password"),
-      ).rejects.toThrow("Invalid or expired setup token");
+      await service.setupPassword(mockToken, strongPassword);
+
+      expect(usersService.update.mock.calls[0][1]).not.toHaveProperty(
+        "emailVerifiedAt",
+      );
     });
 
-    it("should throw error for expired token", async () => {
-      const pastDate = new Date();
-      pastDate.setHours(pastDate.getHours() - 1);
-      const userWithExpiredToken = {
-        ...mockUser,
-        passwordSetupToken: mockToken,
-        passwordSetupTokenExpiresAt: pastDate,
-      };
-      usersService.findAll.mockResolvedValue([userWithExpiredToken]);
+    it("rejects an unknown or expired token", async () => {
+      usersService.findByPasswordSetupTokenHash.mockResolvedValue(null);
 
       await expect(
-        service.setupPassword(mockToken, "password"),
+        service.setupPassword("wrong-token", strongPassword),
       ).rejects.toThrow("Invalid or expired setup token");
+      expect(usersService.update).not.toHaveBeenCalled();
     });
 
-    it("should throw error when token is null", async () => {
-      const userWithNullToken = {
-        ...mockUser,
-        passwordSetupToken: null,
-        passwordSetupTokenExpiresAt: null,
-      };
-      usersService.findAll.mockResolvedValue([userWithNullToken]);
-
-      await expect(
-        service.setupPassword(mockToken, "password"),
-      ).rejects.toThrow("Invalid or expired setup token");
+    it("rejects a missing token without querying", async () => {
+      await expect(service.setupPassword("", strongPassword)).rejects.toThrow(
+        "Invalid or expired setup token",
+      );
+      expect(usersService.findByPasswordSetupTokenHash).not.toHaveBeenCalled();
     });
 
-    it("should reject token of different length (constant-time comparison)", async () => {
-      const userWithToken = {
-        ...mockUser,
-        passwordSetupToken: mockToken,
-        passwordSetupTokenExpiresAt: futureDate,
-      };
-      usersService.findAll.mockResolvedValue([userWithToken]);
+    it("enforces the minimum password length", async () => {
+      usersService.findByPasswordSetupTokenHash.mockResolvedValue(mockUser);
 
-      // A token that is a prefix of mockToken — the SHA-256 hash comparison
-      // correctly rejects it because different inputs produce different digests
-      await expect(
-        service.setupPassword(mockToken.slice(0, 10), "password"),
-      ).rejects.toThrow("Invalid or expired setup token");
+      await expect(service.setupPassword(mockToken, "short")).rejects.toThrow(
+        "at least",
+      );
+      expect(usersService.update).not.toHaveBeenCalled();
     });
   });
 
@@ -891,55 +902,150 @@ describe("AuthService", () => {
       await expect(
         service.forgotPassword("unknown@example.com"),
       ).resolves.toBeUndefined();
-      expect(usersService.update).not.toHaveBeenCalled();
-      expect(boss.send).not.toHaveBeenCalled();
+      expect(emailVerification.sendPasswordResetLink).not.toHaveBeenCalled();
     });
 
-    it("should update user with reset token and queue email job when email exists", async () => {
+    it("emails a reset link when the email exists", async () => {
       usersService.findByEmail.mockResolvedValue(mockUser);
-      usersService.update.mockResolvedValue(mockUser);
-      boss.send.mockResolvedValue(undefined);
 
       await service.forgotPassword(mockUser.email);
 
-      expect(usersService.update).toHaveBeenCalledWith(
-        mockUser.id,
-        expect.objectContaining({
-          passwordSetupToken: expect.any(String),
-          passwordSetupTokenExpiresAt: expect.any(Date),
-        }),
+      expect(emailVerification.sendPasswordResetLink).toHaveBeenCalledWith(
+        mockUser,
       );
-      expect(boss.send).toHaveBeenCalledWith(
-        "send-password-reset-email",
-        expect.objectContaining({
-          userId: mockUser.id,
-          email: mockUser.email,
-          token: expect.any(String),
-          resetUrl: expect.stringContaining("/reset-password?token="),
-        }),
-      );
+      expect(boss.send).not.toHaveBeenCalled();
     });
   });
 
   describe("resetPassword", () => {
-    const mockToken = "valid-token-123";
-
     it("should delegate to setupPassword and return login response", async () => {
-      const futureDate = new Date();
-      futureDate.setHours(futureDate.getHours() + 1);
-      const userWithToken = {
-        ...mockUser,
-        passwordSetupToken: mockToken,
-        passwordSetupTokenExpiresAt: futureDate,
-      };
-      usersService.findAll.mockResolvedValue([userWithToken]);
-      usersService.update.mockResolvedValue(userWithToken);
+      usersService.findByPasswordSetupTokenHash.mockResolvedValue(mockUser);
       usersService.findOne.mockResolvedValue(mockUser);
       jwtService.sign.mockReturnValue("jwt-token");
 
-      const result = await service.resetPassword(mockToken, "new-password");
+      const result = await service.resetPassword(
+        "valid-token-123",
+        "a-strong-new-password",
+      );
 
       expect(result.access_token).toBe("jwt-token");
+    });
+  });
+
+  describe("password sign-in lockout and verification", () => {
+    it("records a failure for a wrong password", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.validateUser(mockUser.email, "wrong"),
+      ).resolves.toBeNull();
+      expect(loginLockout.recordFailure).toHaveBeenCalledWith(mockUser.id);
+      expect(loginLockout.recordSuccess).not.toHaveBeenCalled();
+    });
+
+    it("refuses a locked account without checking the password", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      loginLockout.assertNotLocked.mockImplementation(() => {
+        throw new AccountLockedException(new Date(Date.now() + 60_000));
+      });
+
+      await expect(
+        service.validateUser(mockUser.email, "anything"),
+      ).rejects.toBeInstanceOf(AccountLockedException);
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it("tracks attempts on unknown addresses the same way", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+
+      await service.validateUser("nobody@example.com", "pw");
+
+      expect(loginLockout.recordUnknownEmailAttempt).toHaveBeenCalledWith(
+        "hashed-email",
+      );
+    });
+
+    it("clears the count and requires a verified email after a correct password", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+
+      await service.validateUser(mockUser.email, "right");
+
+      expect(loginLockout.recordSuccess).toHaveBeenCalledWith(mockUser);
+      expect(
+        emailVerification.assertVerifiedForPasswordSignIn,
+      ).toHaveBeenCalledWith(mockUser);
+    });
+
+    it("refuses an unverified account and doesn't provision an org", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      emailVerification.assertVerifiedForPasswordSignIn.mockRejectedValue(
+        new EmailNotVerifiedException(),
+      );
+
+      await expect(
+        service.validateUser(mockUser.email, "right"),
+      ).rejects.toBeInstanceOf(EmailNotVerifiedException);
+      expect(ensurePersonalOrg).not.toHaveBeenCalled();
+    });
+
+    it("never checks verification when the password is wrong", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await service.validateUser(mockUser.email, "wrong");
+
+      expect(
+        emailVerification.assertVerifiedForPasswordSignIn,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("provider sign-in claims the address", () => {
+    it("refuses a Google sign-in whose email Google hasn't verified", async () => {
+      await expect(
+        service.validateGoogleUser(
+          {
+            id: "g-1",
+            emails: [{ value: "test@example.com", verified: false }],
+          },
+          "access",
+          "refresh",
+        ),
+      ).rejects.toThrow("hasn't verified");
+      expect(usersService.findByEmail).not.toHaveBeenCalled();
+    });
+
+    it("claims an existing account matched by a verified Google address", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      usersService.update.mockResolvedValue(mockUser);
+      usersService.findOne.mockResolvedValue(mockUser);
+
+      await service.validateGoogleUser(
+        { id: "g-1", emails: [{ value: mockUser.email, verified: "true" }] },
+        "access",
+        "refresh",
+      );
+
+      expect(emailVerification.claimForProviderSignIn).toHaveBeenCalledWith(
+        mockUser,
+      );
+    });
+
+    it("creates new provider accounts already verified", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.create.mockResolvedValue({ ...mockUser, id: "z-user" });
+
+      await service.validateZohoUser(
+        { ZUID: "1", Email: "new@zoho.example" },
+        "access",
+        "refresh",
+      );
+
+      expect(usersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ emailVerifiedAt: expect.any(Date) }),
+      );
+      expect(emailVerification.claimForProviderSignIn).not.toHaveBeenCalled();
     });
   });
 

@@ -197,6 +197,9 @@ Need to modify something? Here's where to find it:
 - `name`, `displayName`, `jobTitle` (all encrypted)
 - `googleId`, OAuth tokens for calendar
 - `isAdmin`, `isApproved` (waitlist), `needsRelogin`
+- `emailVerifiedAt` (null = password sign-in refused with `EMAIL_NOT_VERIFIED` until the emailed link is followed; set by `/auth/verify-email`, an emailed setup/reset link, or a Google/Microsoft/Zoho sign-in that vouches for the address — which also removes a password set on a never-verified account), `emailVerificationTokenHash` + `emailVerificationTokenExpiresAt` (SHA-256 of the 24h link token)
+- `passwordSetupTokenHash` + `passwordSetupTokenExpiresAt` (SHA-256 of the waitlist setup / password-reset link token; indexed lookup, plaintext never stored)
+- `failedLoginAttempts`, `loginLockedUntil` (per-account lockout: from the 10th consecutive wrong password, locked 5 min doubling to 1h; cleared on success or reset — `server/src/auth/login-lockout.service.ts`)
 - `hasSeenTour`, `hasScannedHistory`, `hasCompletedOnboarding`
 - `lastEmailSyncAt`, `subscriptionStatus`, `trialStartedAt`
 - `openAiApiKey` (encrypted, user's own key), `githubToken` (encrypted)
@@ -868,6 +871,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                    | Yes      | Google OAuth                              |
 | `GOOGLE_REDIRECT_URI`                                         | Yes      | OAuth callback URL                        |
 | `FRONTEND_URL`                                                | Yes      | Frontend URL for CORS                     |
+| `TRUST_PROXY_HOPS`                                            | No       | Proxies in front of the API that append to X-Forwarded-For (default `1`, the production ALB; `0` = none). Makes `req.ip` the client for per-IP rate limits |
 | `BACKEND_URL`                                                 | No       | Public API origin for absolute URLs (MCP OAuth redirect, open-tracking pixel). Falls back to the `GOOGLE_REDIRECT_URI` origin. Open tracking is skipped when it resolves to localhost |
 | `LLM_PROVIDER`                                                | No       | Default LLM: `gemini`, `openai`, or `claude-cli` (local Claude Code CLI, no API key) |
 | `CLAUDE_CLI_PATH`, `CLAUDE_CLI_MODEL`                         | No       | Claude Code CLI binary path (default `claude`) and model alias (default `sonnet`) for `claude-cli` |

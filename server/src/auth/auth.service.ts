@@ -11,7 +11,6 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
-import * as crypto from "crypto";
 import type { PgBoss } from "pg-boss";
 import { Repository } from "typeorm";
 
@@ -23,8 +22,6 @@ import {
 import {
   AUTH_CONSTANTS,
   STEP_UP_TOKEN_EXPIRY_MINUTES,
-  TOKEN_BYTES,
-  TOKEN_EXPIRY_MS,
 } from "../constants/auth-constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
@@ -42,17 +39,18 @@ import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import { AuthLogger, writeDebugLog } from "./auth-logger";
+import {
+  EmailVerificationService,
+  emailVerifiedFields,
+} from "./email-verification.service";
 import { DeletedAccountException } from "./exceptions/deleted-account.exception";
 import { OAuthOnlyAccountException } from "./exceptions/oauth-only-account.exception";
+import { GoogleProfile, isGoogleEmailVerified } from "./google-email-verified";
+import { LoginLockoutService } from "./login-lockout.service";
+import { hashEmailedToken } from "./token-hash.util";
 import { TotpService, TotpSetupData } from "./totp.service";
 
 const INITIAL_SYNC_DELAY_MS = 2000;
-
-interface GoogleProfile {
-  id: string;
-  emails: Array<{ value: string }>;
-  displayName?: string;
-}
 
 function guessNameFromEmail(email: string): string {
   const localPart = email.split("@")[0];
@@ -152,6 +150,8 @@ export class AuthService {
     private emailBacklogService: EmailBacklogService,
     @Inject(forwardRef(() => OrganizationsService))
     private organizationsService: OrganizationsService,
+    private emailVerificationService: EmailVerificationService,
+    private loginLockout: LoginLockoutService,
     // Optional so sign-in never depends on analytics wiring. The module is
     // global, so the app always has it.
     @Optional() private readonly errorTracking?: ErrorTrackingService,
@@ -173,7 +173,7 @@ export class AuthService {
    */
   private async findUserForMicrosoftLogin(
     profile: MicrosoftLoginProfile,
-  ): Promise<{ user: User | null; email: string }> {
+  ): Promise<{ user: User | null; email: string; matchedByAddress: boolean }> {
     const linked = this.office365AccountRepository
       ? await this.office365AccountRepository.findOne({
           where: { microsoftId: profile.id },
@@ -182,10 +182,14 @@ export class AuthService {
       : null;
     if (linked) {
       const user = await this.usersService.findOne(linked.userId);
-      if (user) return { user, email: user.email };
+      if (user) return { user, email: user.email, matchedByAddress: false };
     }
     const email = verifiedMicrosoftSignInEmail(profile);
-    return { user: await this.usersService.findByEmail(email), email };
+    return {
+      user: await this.usersService.findByEmail(email),
+      email,
+      matchedByAddress: true,
+    };
   }
 
   /**
@@ -254,6 +258,7 @@ export class AuthService {
     // If the password also matches we show an informative "data deleted" message.
     if (!user) {
       const emailHash = this.usersService.hashEmail(email);
+      this.loginLockout.recordUnknownEmailAttempt(emailHash);
       const deleted =
         await this.usersService.findDeletedAccountByEmailHash(emailHash);
       if (deleted?.passwordHash) {
@@ -268,6 +273,9 @@ export class AuthService {
       return null;
     }
 
+    // While locked the password isn't checked at all.
+    this.loginLockout.assertNotLocked(user);
+
     // OAuth-only account — no password hash set
     if (!user.password || user.password.length === 0) {
       throw new OAuthOnlyAccountException(email);
@@ -275,9 +283,14 @@ export class AuthService {
 
     // wrong password
     if (!(await bcrypt.compare(password, user.password))) {
+      await this.loginLockout.recordFailure(user.id);
       return null;
     }
 
+    await this.loginLockout.recordSuccess(user);
+    // Only after the password matched, so this never tells a stranger
+    // anything about the account.
+    await this.emailVerificationService.assertVerifiedForPasswordSignIn(user);
     await this.provisionPersonalOrg(user.id);
     const { password: _password, ...result } = user;
     return result;
@@ -290,9 +303,17 @@ export class AuthService {
     grantedScopes?: string,
   ): Promise<UserWithoutPassword> {
     const email = profile.emails[0].value;
+    if (!isGoogleEmailVerified(profile)) {
+      throw new Error(
+        "Google hasn't verified the email address on this account. Verify it with Google, or sign in another way.",
+      );
+    }
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
     let user = await this.usersService.findByEmail(email);
     const isNewUser = !user;
+    if (user) {
+      user = await this.emailVerificationService.claimForProviderSignIn(user);
+    }
 
     await this.handleMissingRefreshToken({
       user,
@@ -418,6 +439,7 @@ export class AuthService {
       isApproved: true,
       isAdmin: isJeremy,
       needsRelogin: false,
+      emailVerifiedAt: new Date(),
       ...grantUpdates,
     });
   }
@@ -543,6 +565,11 @@ export class AuthService {
     const found = await this.findUserForMicrosoftLogin(profile);
     const { email } = found;
     let { user } = found;
+    // Only a match on the verified sign-in address vouches for the email; a
+    // linked-identity match vouches for that link, not the account's address.
+    if (user && found.matchedByAddress) {
+      user = await this.emailVerificationService.claimForProviderSignIn(user);
+    }
 
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
 
@@ -563,6 +590,7 @@ export class AuthService {
         isApproved: true,
         isAdmin: isJeremy,
         needsRelogin: false,
+        emailVerifiedAt: new Date(),
       });
       this.trackOAuthRegistration(user.id, REGISTRATION_METHODS.MICROSOFT);
     } else {
@@ -597,7 +625,12 @@ export class AuthService {
 
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
 
+    // Zoho's account profile carries the primary address Zoho verified at
+    // sign-up (or, from the Mail API fallback, the user's own Zoho mailbox).
     let user = await this.usersService.findByEmail(email);
+    if (user) {
+      user = await this.emailVerificationService.claimForProviderSignIn(user);
+    }
 
     if (!user) {
       // Create new user
@@ -616,6 +649,7 @@ export class AuthService {
         isApproved: true,
         isAdmin: isJeremy,
         needsRelogin: false,
+        emailVerifiedAt: new Date(),
       });
       this.trackOAuthRegistration(user.id, REGISTRATION_METHODS.ZOHO);
     } else {
@@ -639,36 +673,13 @@ export class AuthService {
   }
 
   /**
-   * Initiates the forgot-password flow for a given email address.
-   * Generates a time-limited reset token, stores it on the user record, and
-   * queues a password-reset email via PgBoss. Always returns silently — we
-   * never reveal whether the email is registered.
+   * Initiates the forgot-password flow: emails a short-lived reset link.
+   * Always returns silently — we never reveal whether the email is registered.
    */
   async forgotPassword(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
-    // silent — don't reveal whether the email exists
     if (!user) return;
-
-    const token = crypto.randomBytes(TOKEN_BYTES).toString("hex");
-    // 1 hour from now
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
-
-    await this.usersService.update(user.id, {
-      passwordSetupToken: token,
-      passwordSetupTokenExpiresAt: expiresAt,
-    });
-
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    await this.boss.send("send-password-reset-email", {
-      userId: user.id,
-      email: user.email,
-      token,
-      resetUrl: `${frontendUrl}/reset-password?token=${token}`,
-    });
-
-    this.logger.log(
-      `[FORGOT_PASSWORD] Password reset email queued for user ${user.id}`,
-    );
+    await this.emailVerificationService.sendPasswordResetLink(user);
   }
 
   /**
@@ -749,6 +760,7 @@ export class AuthService {
         name: "Local User",
         password: "",
         isApproved: true,
+        emailVerifiedAt: new Date(),
       });
       this.logger.log(`Provisioned local Apple Mail user ${user.id}`);
     }
@@ -756,19 +768,20 @@ export class AuthService {
   }
 
   /**
-   * Direct sign-up: creates an immediately-active account and logs the user in.
-   * There is no waitlist/approval gate — new accounts are approved on creation.
+   * Direct sign-up: creates an approved but unverified account and emails a
+   * verification link. No session is issued — password sign-in works once the
+   * link has been followed.
    */
-  async register(email: string, password: string, name?: string) {
+  async register(
+    email: string,
+    password: string,
+    name?: string,
+  ): Promise<{ verificationRequired: true }> {
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
       throw new BadRequestException("Email is required");
     }
-    if (password.length < AUTH_CONSTANTS.MIN_PASSWORD_LENGTH) {
-      throw new BadRequestException(
-        `Password must be at least ${AUTH_CONSTANTS.MIN_PASSWORD_LENGTH} characters`,
-      );
-    }
+    this.assertPasswordLength(password);
 
     const existing = await this.usersService.findByEmail(normalizedEmail);
     if (existing) {
@@ -794,74 +807,68 @@ export class AuthService {
       needsRelogin: false,
     });
 
-    const user = await this.usersService.findOne(created.id);
-    if (!user) {
-      throw new Error("Failed to create account");
-    }
-
-    // Without an org the user can't open the plan picker or start Stripe Checkout.
-    await this.provisionPersonalOrg(user.id);
-    this.logger.log(`[REGISTER] Created active account for user ${user.id}`);
-    return this.login(user);
+    await this.emailVerificationService.sendVerification(created);
+    this.logger.log(
+      `[REGISTER] Created account for user ${created.id}; awaiting email verification`,
+    );
+    return { verificationRequired: true };
   }
 
+  private assertPasswordLength(password: unknown): void {
+    if (
+      typeof password !== "string" ||
+      password.length < AUTH_CONSTANTS.MIN_PASSWORD_LENGTH
+    ) {
+      throw new BadRequestException(
+        `Password must be at least ${AUTH_CONSTANTS.MIN_PASSWORD_LENGTH} characters`,
+      );
+    }
+  }
+
+  /**
+   * Completes an emailed password setup (waitlist approval) or reset link.
+   * Only the token's SHA-256 is stored, so the lookup is one indexed equality
+   * match. Following the link proves the address, so the account is marked
+   * verified and any login lockout is cleared.
+   */
   async setupPassword(token: string, password: string) {
-    // Find user by password setup token using a query
-    // Note: We need to query all users and filter in memory since passwordSetupToken is not indexed
-    // In production, consider adding an index or using a separate table for tokens
-    const users = await this.usersService.findAll();
-
-    // Use constant-time comparison to prevent timing attacks on token values
-    // (OWASP ASVS req 2.9.3 / 6.2.7).
-    // Hash both values to a fixed 32-byte length with SHA-256 before comparing so
-    // that timingSafeEqual always runs in constant time with no early exit on length mismatch.
-    const tokenHash = crypto.createHash("sha256").update(token).digest();
-    const user = users.find((userItem) => {
-      if (
-        !userItem.passwordSetupToken ||
-        !userItem.passwordSetupTokenExpiresAt ||
-        userItem.passwordSetupTokenExpiresAt <= new Date()
-      ) {
-        return false;
-      }
-      const storedHash = crypto
-        .createHash("sha256")
-        .update(userItem.passwordSetupToken)
-        .digest();
-      return crypto.timingSafeEqual(storedHash, tokenHash);
-    });
-
+    this.assertPasswordLength(password);
+    const user =
+      typeof token === "string" && token
+        ? await this.usersService.findByPasswordSetupTokenHash(
+            hashEmailedToken(token),
+          )
+        : null;
     if (!user) {
-      throw new Error(
+      throw new BadRequestException(
         "Invalid or expired setup token. Please contact support if you need a new link.",
       );
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(
       password,
       AUTH_CONSTANTS.BCRYPT_SALT_ROUNDS,
     );
 
     const now = new Date();
-    // Update user with password, approve them, and record when password changed
-    // so that any previously issued JWTs are invalidated (OWASP ASVS req 3.3.1 / 3.3.2)
+    // Record when the password changed so previously issued JWTs are
+    // invalidated (OWASP ASVS req 3.3.1 / 3.3.2).
     await this.usersService.update(user.id, {
       password: hashedPassword,
-      passwordSetupToken: null,
+      passwordSetupTokenHash: null,
       passwordSetupTokenExpiresAt: null,
       isApproved: true,
       passwordChangedAt: now,
+      failedLoginAttempts: 0,
+      loginLockedUntil: null,
+      ...(user.emailVerifiedAt ? {} : emailVerifiedFields(now)),
     });
     await this.revokeAccessTokensAfterPasswordChange(user.id, now);
 
-    // Refetch the user
     const updatedUser = await this.usersService.findOne(user.id);
     if (!updatedUser) {
       throw new Error("Failed to update user");
     }
-
-    // Log them in
     return this.login(updatedUser);
   }
 

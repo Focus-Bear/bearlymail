@@ -21,6 +21,7 @@ import { EmailSendOutcomeListener } from 'components/notifications/EmailSendOutc
 import { SetupWizard } from 'components/setup-wizard';
 import { API_URL } from 'config/api';
 import { OAUTH_CONSENT_PATH } from 'constants/claudeAccess';
+import { ROUTE_VERIFY_EMAIL } from 'constants/strings';
 import { AuthProvider, useAuth } from 'contexts/AuthContext';
 import { NotificationProvider } from 'contexts/NotificationContext';
 import AcceptInvite from 'pages/AcceptInvite';
@@ -53,6 +54,7 @@ import Settings from 'pages/Settings';
 import SetupPassword from 'pages/SetupPassword';
 import Stats from 'pages/Stats';
 import TermsOfUse from 'pages/TermsOfUse';
+import VerifyEmail from 'pages/VerifyEmail';
 import { store } from 'store/store';
 
 interface OnboardingStatus {
@@ -202,6 +204,7 @@ const AppRoutes: React.FC = () => (
     <Route path="/setup-password" element={<SetupPassword />} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path={ROUTE_VERIFY_EMAIL} element={<VerifyEmail />} />
     <Route path="/accept-invite/:token" element={<AcceptInvite />} />
     <Route path="/privacy" element={<PrivacyPolicy />} />
     <Route path="/terms" element={<TermsOfUse />} />

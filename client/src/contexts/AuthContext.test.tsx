@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import * as posthogModule from 'utils/posthog';
 
-import { AuthProvider, useAuth } from './AuthContext';
+import { AuthProvider, EmailNotVerifiedError, useAuth } from './AuthContext';
 
 // Mock dependencies
 vi.mock('axios');
@@ -172,21 +172,41 @@ describe('AuthContext', () => {
     });
   });
 
-  describe('register', () => {
-    it('should register user successfully', async () => {
-      const mockResponse = {
-        data: {
-          access_token: 'test-token',
-          user: {
-            id: 'user-123',
-            email: 'test@example.com',
-            name: 'Test User',
-            isAdmin: false,
-          },
-        },
+  describe('unverified email', () => {
+    it('turns EMAIL_NOT_VERIFIED into an EmailNotVerifiedError carrying the address', async () => {
+      mockedAxios.post.mockRejectedValue({ response: { data: { error: 'EMAIL_NOT_VERIFIED' } } });
+      vi.mocked(mockedAxios.isAxiosError).mockReturnValue(true);
+      let caught: unknown;
+      const LoginButton: React.FC = () => {
+        const auth = useAuth();
+        return (
+          <button
+            onClick={() =>
+              auth.login('ana@example.com', 'pw').catch((error: unknown) => {
+                caught = error;
+              })
+            }
+          >
+            Go
+          </button>
+        );
       };
 
-      mockedAxios.post.mockResolvedValue(mockResponse);
+      render(
+        <AuthProvider>
+          <LoginButton />
+        </AuthProvider>
+      );
+      await userEvent.click(screen.getByText('Go'));
+
+      await waitFor(() => expect(caught).toBeInstanceOf(EmailNotVerifiedError));
+      expect((caught as EmailNotVerifiedError).email).toBe('ana@example.com');
+    });
+  });
+
+  describe('register', () => {
+    it('should register without starting a session', async () => {
+      mockedAxios.post.mockResolvedValue({ data: { verificationRequired: true } });
 
       render(
         <AuthProvider>
@@ -205,18 +225,13 @@ describe('AuthContext', () => {
         });
       });
 
-      // JWT is set in an HttpOnly cookie by the server — NOT in localStorage
       expect(localStorage.getItem('token')).toBeNull();
 
       await waitFor(() => {
         expect(mockedPosthog.captureEvent).toHaveBeenCalledWith('user_registered', { method: 'email' });
       });
-
-      await waitFor(() => {
-        expect(mockedPosthog.identifyUser).toHaveBeenCalledWith('user-123', {
-          isAdmin: false,
-        });
-      });
+      // No account id until the user verifies and signs in.
+      expect(mockedPosthog.identifyUser).not.toHaveBeenCalled();
     });
 
     it('should register user without name', async () => {
@@ -329,7 +344,7 @@ describe('AuthContext', () => {
         expect(mockedAxios.post).toHaveBeenCalledWith(
           expect.stringContaining('/auth/logout'),
           {},
-          expect.objectContaining({ _skipInterceptor: true }),
+          expect.objectContaining({ _skipInterceptor: true })
         );
       });
     });

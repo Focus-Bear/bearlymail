@@ -125,39 +125,29 @@ describe("AuthController", () => {
   });
 
   describe("register", () => {
-    it("should create an account, set the JWT cookie, and return login data", async () => {
-      const loginData = {
-        access_token: "jwt-token",
-        user: { id: "new-user", email: "new@example.com" },
-      };
-      mockAuthService.register.mockResolvedValue(loginData);
-      const res = createMockResponse();
+    it("creates the account without signing the user in", async () => {
+      mockAuthService.register.mockResolvedValue({
+        verificationRequired: true,
+      });
 
-      const result = await controller.register(
-        { email: "new@example.com", password: "a-strong-password" },
-        asResponse(res),
-      );
+      const result = await controller.register({
+        email: "new@example.com",
+        password: "a-strong-password",
+      });
 
-      expect(result).toEqual(loginData);
+      expect(result).toEqual({ verificationRequired: true });
       expect(mockAuthService.register).toHaveBeenCalledWith(
         "new@example.com",
         "a-strong-password",
         undefined,
       );
-      expect(res.cookie).toHaveBeenCalledWith(
-        AUTH_CONSTANTS.COOKIE_NAME,
-        "jwt-token",
-        expectedCookieOptions,
-      );
     });
 
     it("should reject with BadRequestException when email or password is missing", async () => {
-      const res = createMockResponse();
-
       await expect(
-        controller.register({ email: "", password: "" }, asResponse(res)),
+        controller.register({ email: "", password: "" }),
       ).rejects.toThrow(BadRequestException);
-      expect(res.cookie).not.toHaveBeenCalled();
+      expect(mockAuthService.register).not.toHaveBeenCalled();
     });
   });
 

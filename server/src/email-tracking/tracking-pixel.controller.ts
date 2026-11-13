@@ -36,8 +36,9 @@ function resolveClientIp(request: Request): string | null {
  * exists. The open is recorded after the image is sent, so a slow database
  * never delays the recipient's mail client.
  *
- * Throttling is skipped on purpose: without `trust proxy`, `req.ip` is the load
- * balancer, so an IP throttle would lump every recipient together. A hit costs
+ * Throttling is skipped on purpose: recipients' mail clients often fetch
+ * through shared image proxies, so an IP throttle would lump many recipients
+ * together. A hit costs
  * at most one indexed conditional UPDATE, malformed tokens never reach the
  * database, and repeats inside the dedupe window are not counted.
  */

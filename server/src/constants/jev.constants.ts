@@ -17,8 +17,11 @@ export const JEV = {
   OTHER_CATEGORY: "Other",
   QUESTION_ID: "category",
   QUESTION_TYPE: JEV_QUESTION_TYPES.CHOICE,
-  // Acceptance policy, not a claim of calibrated 90% classification accuracy.
-  MIN_ACCEPTED_CONFIDENCE: 0.9,
+  // Acceptance policy, not a claim of calibrated classification accuracy.
+  // Production [JEV-SHADOW] logs (14 days to 2026-11-05): Gemini agreed with
+  // 91% of Jev answers at 0.85-0.90 but only 79% at 0.80-0.85, so 0.85 is the
+  // lowest band worth accepting without the Gemini call.
+  MIN_ACCEPTED_CONFIDENCE: 0.85,
 } as const;
 
 /** Production decisions that try Jev before their existing LLM call. */

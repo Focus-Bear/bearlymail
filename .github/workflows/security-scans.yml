@@ -88,6 +88,7 @@ jobs:
           scan-ref: .
           scanners: vuln,misconfig
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           ignore-unfixed: true
           skip-dirs: '**/node_modules'
           format: sarif

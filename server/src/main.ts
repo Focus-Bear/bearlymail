@@ -19,6 +19,7 @@ import { applyLoadBalancerKeepAlive } from "./utils/http-server-timeouts";
 import { logError, logLog, logWarn } from "./utils/logger";
 import { isDevelopment } from "./utils/logs-dir";
 import { securityHeadersMiddleware } from "./utils/security-headers.middleware";
+import { applyTrustProxy } from "./utils/trust-proxy";
 
 // Restrict log levels in production. The default Nest logger emits every level
 // including `debug`/`verbose`, which was flooding CloudWatch (e.g. per-error
@@ -71,6 +72,8 @@ async function bootstrap() {
       logger: LOG_LEVELS,
       rawBody: true,
     });
+
+    applyTrustProxy(app);
 
     // Security headers middleware (CASA Tier 2/3 compliance)
     app.use(securityHeadersMiddleware);

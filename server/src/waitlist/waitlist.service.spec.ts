@@ -384,7 +384,7 @@ describe("WaitlistService", () => {
         name: "Test",
         isApproved: false,
         isAdmin: false,
-        passwordSetupToken: expect.any(String),
+        passwordSetupTokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
         passwordSetupTokenExpiresAt: expect.any(Date),
       });
       expect(emailService.sendWaitlistApprovalEmail).toHaveBeenCalledWith(
@@ -409,7 +409,7 @@ describe("WaitlistService", () => {
       const result = await service.approve("waitlist-1");
 
       expect(usersService.update).toHaveBeenCalledWith("user-1", {
-        passwordSetupToken: expect.any(String),
+        passwordSetupTokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
         passwordSetupTokenExpiresAt: expect.any(Date),
       });
       expect(usersService.create).not.toHaveBeenCalled();
@@ -436,7 +436,7 @@ describe("WaitlistService", () => {
         name: "Test",
         isApproved: false,
         isAdmin: true,
-        passwordSetupToken: expect.any(String),
+        passwordSetupTokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
         passwordSetupTokenExpiresAt: expect.any(Date),
       });
     });

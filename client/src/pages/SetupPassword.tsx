@@ -9,6 +9,7 @@ import { captureEvent } from 'utils/posthog';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { MIN_PASSWORD_LENGTH } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 
@@ -90,7 +91,7 @@ const SetupPasswordForm: React.FC<SetupPasswordFormProps> = ({
           value={password}
           onChange={event => onPasswordChange(event.target.value)}
           required
-          minLength={8}
+          minLength={MIN_PASSWORD_LENGTH}
           style={{
             width: '100%',
             padding: theme.spacing.md,
@@ -131,7 +132,7 @@ const SetupPasswordForm: React.FC<SetupPasswordFormProps> = ({
           value={confirmPassword}
           onChange={event => onConfirmChange(event.target.value)}
           required
-          minLength={8}
+          minLength={MIN_PASSWORD_LENGTH}
           style={{
             width: '100%',
             padding: theme.spacing.md,
@@ -203,7 +204,7 @@ const SetupPassword: React.FC = () => {
       setError(t('auth.invalidSetupLink'));
       return;
     }
-    if (password.length < 8) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
       setError(t('auth.passwordTooShort'));
       return;
     }

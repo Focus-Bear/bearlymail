@@ -558,6 +558,10 @@ export const QA_TAB_APPROVED = 'approved' as const;
 // Auth error types
 export const AUTH_ERROR_OAUTH_ONLY = 'OAUTH_ONLY_ACCOUNT' as const;
 export const AUTH_ERROR_ACCOUNT_DELETED = 'ACCOUNT_DELETED' as const;
+export const AUTH_ERROR_EMAIL_NOT_VERIFIED = 'EMAIL_NOT_VERIFIED' as const;
+
+/** Client route opened by the emailed verification link (`?token=`). */
+export const ROUTE_VERIFY_EMAIL = '/verify-email' as const;
 
 // Environment values
 export const ENV_PRODUCTION = 'production' as const;

@@ -2,8 +2,23 @@
  * Auto-Responder Configuration Types
  */
 
+/**
+ * How a prepared auto-response is delivered.
+ * - DRAFT: always saved as a reply draft on the thread for the user to review.
+ * - AUTO_SEND_KNOWN_SENDERS: sent automatically, but only to senders who are
+ *   existing contacts or whom the user has emailed before; everyone else still
+ *   gets a draft.
+ */
+export enum AutoResponderDeliveryMode {
+  DRAFT = "draft",
+  AUTO_SEND_KNOWN_SENDERS = "auto_send_known_senders",
+}
+
 export interface AutoResponderConfig {
   enabled: boolean;
+
+  // Draft for approval (default) or auto-send to known senders
+  deliveryMode: AutoResponderDeliveryMode;
 
   // Filtering rules - which priority levels trigger responses
   sendFor: {
@@ -70,7 +85,10 @@ export interface QueueStats {
 
 export interface QASearchResult {
   answer: string;
+  // Combined score: the model's self-reported confidence weighted by how well
+  // the deterministic retrieval matched the selected Q&A pairs.
   confidence: number;
+  retrievalScore?: number;
   sources: Array<{
     question: string;
     answer: string;
@@ -207,6 +225,7 @@ Good news! {{userName}}'s inbox is looking pretty clear right now, so he should 
 
 export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
   enabled: false,
+  deliveryMode: AutoResponderDeliveryMode.DRAFT,
   sendFor: {
     standardPriority: true,
     highPriority: true,

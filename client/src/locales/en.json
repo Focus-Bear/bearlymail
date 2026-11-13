@@ -1394,6 +1394,14 @@
         "addRule": "Add exclusion rule",
         "aiInterpretNote": "AI will interpret these rules to determine which emails should not receive auto-responses."
       },
+      "delivery": {
+        "title": "How replies go out",
+        "description": "Choose whether auto-responses are sent for you or saved as drafts for you to check first.",
+        "draftLabel": "Save as drafts for my approval (recommended)",
+        "draftDesc": "Each auto-response is saved as a reply draft on the email. Nothing is sent until you review and send it.",
+        "autoLabel": "Send automatically to people I know",
+        "autoDesc": "Sent straight away to your contacts and people you've emailed before. Replies to anyone else are saved as drafts."
+      },
       "analytics": {
         "title": "Analytics",
         "noData": "No analytics data available yet.",

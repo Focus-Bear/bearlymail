@@ -4566,6 +4566,14 @@
         "addRule": "Agregar regla de exclusión",
         "aiInterpretNote": "La IA interpretará estas reglas para determinar qué correos electrónicos no deben recibir respuestas automáticas."
       },
+      "delivery": {
+        "title": "Cómo se envían las respuestas",
+        "description": "Elige si las respuestas automáticas se envían por ti o se guardan como borradores para que las revises primero.",
+        "draftLabel": "Guardar como borradores para mi aprobación (recomendado)",
+        "draftDesc": "Cada respuesta automática se guarda como borrador de respuesta en el correo. No se envía nada hasta que lo revises y lo envíes.",
+        "autoLabel": "Enviar automáticamente a personas que conozco",
+        "autoDesc": "Se envían de inmediato a tus contactos y a las personas a las que ya has escrito. Las respuestas a cualquier otra persona se guardan como borradores."
+      },
       "analytics": {
         "title": "Analíticas",
         "noData": "Aún no hay datos de analíticas disponibles.",

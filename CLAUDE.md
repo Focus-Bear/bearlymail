@@ -554,10 +554,11 @@ Key services: `ContextService`, `ContextGmailDataService`, `ContextPiiRedactionS
 Automated email response pipeline:
 
 1. Email classified by type (`classify-email-type.md` prompt)
-2. If Q&A-answerable: generates response from user's learned Q&A knowledge base
+2. If Q&A-answerable: at most 3 Q&A pairs are picked by keyword overlap (`qa-retrieval.ts`, no LLM) and only those go to `generate-qa-answer.md`; the answer is kept only if model confidence x retrieval score clears the bar and it doesn't reproduce unselected pairs
 3. Checks for opt-out signals from sender (`detect-opt-out.md`)
-4. Logs all auto-responses in `AutoResponseLog`, respects `AutoResponseSuppression` rules
-5. Runs as low-priority background job
+4. Recipient is `From` (Reply-To only when it's on the same domain). `deliveryMode` defaults to `draft` (saved as a `ReplyDraft`); `auto_send_known_senders` sends only to contacts / people the user has emailed, and drafts for everyone else (`auto-responder-delivery.service.ts`)
+5. Logs sent auto-responses in `AutoResponseLog`, respects `AutoResponseSuppression` rules
+6. Runs as low-priority background job
 
 ---
 

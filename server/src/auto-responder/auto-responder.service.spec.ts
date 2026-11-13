@@ -11,6 +11,10 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import { AutoResponderContextService } from "./auto-responder-context.service";
+import {
+  AutoResponderDeliveryService,
+  AutoResponseDelivery,
+} from "./auto-responder-delivery.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
 import { AutoResponderQaService } from "./auto-responder-qa.service";
 import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
@@ -29,7 +33,10 @@ jest.mock("../emails/email-provider-manager.service", () => ({
 // Import after mocking
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { mockPartial } from "../test/helpers/mock-utils";
-import { AutoResponderService } from "./auto-responder.service";
+import {
+  AUTO_RESPONSE_DRAFT_SAVED,
+  AutoResponderService,
+} from "./auto-responder.service";
 
 describe("AutoResponderService", () => {
   let module: TestingModule;
@@ -246,6 +253,15 @@ describe("AutoResponderService", () => {
               responsesByDay: [],
               avgQAConfidence: 0,
             }),
+          },
+        },
+        {
+          provide: AutoResponderDeliveryService,
+          useValue: {
+            chooseDelivery: jest
+              .fn()
+              .mockResolvedValue(AutoResponseDelivery.SEND),
+            saveDraft: jest.fn().mockResolvedValue(true),
           },
         },
         {
@@ -813,6 +829,90 @@ describe("AutoResponderService", () => {
       expect(result.sent).toBe(true);
 
       jest.useRealTimers();
+    });
+  });
+
+  describe("delivery and recipient", () => {
+    const enabledUser = {
+      ...mockUser,
+      autoResponderSettings: {
+        ...DEFAULT_AUTO_RESPONDER_CONFIG,
+        enabled: true,
+      },
+    };
+    const threadWithReplyTo = (replyTo: string | null) => ({
+      ...mockThread,
+      emails: [{ ...mockThread.emails[0], replyTo, receivedAt: new Date() }],
+    });
+    let mockProvider: { sendReply: jest.Mock };
+    let deliveryService: jest.Mocked<AutoResponderDeliveryService>;
+
+    beforeEach(() => {
+      userRepository.findOne.mockResolvedValue(enabledUser);
+      autoResponseLogRepository.findOne.mockResolvedValue(null);
+      mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "m-1" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+      deliveryService = module.get(AutoResponderDeliveryService);
+    });
+
+    it("replies to From when Reply-To is on another domain", async () => {
+      emailThreadRepository.findOne.mockResolvedValue(
+        threadWithReplyTo("collector@elsewhere.net"),
+      );
+
+      await service.processEmailForAutoResponse("user-1", "thread-1");
+
+      expect(deliveryService.chooseDelivery).toHaveBeenCalledWith(
+        expect.anything(),
+        "user-1",
+        mockUser.email,
+        "sender@example.com",
+      );
+      expect(mockProvider.sendReply).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ to: "sender@example.com" }),
+      );
+    });
+
+    it("honours a same-domain Reply-To", async () => {
+      emailThreadRepository.findOne.mockResolvedValue(
+        threadWithReplyTo("team@example.com"),
+      );
+
+      await service.processEmailForAutoResponse("user-1", "thread-1");
+
+      expect(mockProvider.sendReply).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ to: "team@example.com" }),
+      );
+    });
+
+    it("saves a draft instead of sending when delivery is DRAFT", async () => {
+      emailThreadRepository.findOne.mockResolvedValue(threadWithReplyTo(null));
+      deliveryService.chooseDelivery.mockResolvedValue(
+        AutoResponseDelivery.DRAFT,
+      );
+      const analyticsService = module.get(AutoResponderAnalyticsService);
+
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
+
+      expect(result).toEqual({
+        sent: false,
+        reason: AUTO_RESPONSE_DRAFT_SAVED,
+      });
+      expect(mockProvider.sendReply).not.toHaveBeenCalled();
+      expect(deliveryService.saveDraft).toHaveBeenCalledWith(
+        "user-1",
+        mockThread.threadId,
+        "sender@example.com",
+        expect.any(String),
+      );
+      expect(analyticsService.logAutoResponse).not.toHaveBeenCalled();
     });
   });
 

@@ -8,6 +8,8 @@ import {
   QueueStats,
 } from "./types/auto-responder.types";
 
+const SAFE_LINK_URL_RE = /^(https?:\/\/|mailto:)[^\s"]*$/i;
+
 /**
  * Service for handling auto-responder template selection and rendering
  */
@@ -27,9 +29,14 @@ export class AutoResponderTemplateService {
       .replace(/>/g, "&gt;");
 
     // Convert markdown links [text](url) to HTML links
+    // Only quote-free http(s)/mailto targets become links, so text from an AI
+    // answer can't smuggle attributes or script URLs into the href.
     html = html.replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" style="color: #E07A5F;">$1</a>',
+      (match: string, label: string, url: string) =>
+        SAFE_LINK_URL_RE.test(url.trim())
+          ? `<a href="${url.trim()}" style="color: #E07A5F;">${label}</a>`
+          : match,
     );
 
     // Convert **bold** to <strong>

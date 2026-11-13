@@ -4,23 +4,38 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import type { FocusBearTaskSuggestions } from 'queries/useFocusBear';
 import { theme } from 'theme/theme';
+import { DUE_DATE_STATUS, resolveFocusBearDueDate } from 'utils/focusBearDueDate';
+import { parseTaskDurationMinutes } from 'utils/taskDuration';
 
+import {
+  DUE_DATE_MODE,
+  DueDateField,
+  type DueDateMode,
+  DurationField,
+  fieldStyle,
+  isDurationInvalid,
+  type TaskDurationInput,
+} from 'components/email-detail-inline/SaveToFocusBearFields';
 import { POSTHOG_NO_CAPTURE_CLASS } from 'constants/analytics-events';
-import { Z_INDEX_DROPDOWN } from 'constants/numbers';
+import { OPACITY_DISABLED, OPACITY_FULL, Z_INDEX_DROPDOWN } from 'constants/numbers';
 import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
+import { KEY_ESCAPE } from 'constants/strings';
 
-const PANEL_WIDTH_PX = 280;
+const PANEL_WIDTH_PX = 320;
 const PANEL_GAP_PX = 4;
 const VIEWPORT_MARGIN_PX = 8;
 /** Below this share of the viewport the anchor has room underneath; further down the panel opens upwards. */
 const OPEN_UPWARDS_FROM_VIEWPORT_SHARE = 0.6;
 const NO_PROJECT = '';
-const ESCAPE_KEY = 'Escape';
 
-/** What the panel saves with: a project id and a `YYYY-MM-DD` day, each optional. */
+/**
+ * What the panel saves with, each optional: a project id, a `YYYY-MM-DD` day (none means the next
+ * free spot in the user's to-do list, which Focus Bear picks) and the task's length in minutes.
+ */
 export interface FocusBearTaskChoice {
   projectId?: string;
   dueDate?: string;
+  durationMinutes?: number;
 }
 
 interface SaveToFocusBearPanelProps {
@@ -31,26 +46,15 @@ interface SaveToFocusBearPanelProps {
   /** Null while they load, or when there is no connection. */
   suggestions: FocusBearTaskSuggestions | null;
   isLoading: boolean;
-  buildHref: (choice: FocusBearTaskChoice) => string;
   onSave: (choice: FocusBearTaskChoice) => void;
-  onClose: () => void;
+  /** Closes the panel; `shouldRestoreFocus` when it was dismissed from the keyboard or by Cancel. */
+  onClose: (shouldRestoreFocus: boolean) => void;
 }
 
 const suggestedFieldStyle: React.CSSProperties = {
   borderColor: theme.colors.primary.main,
   borderStyle: 'dashed',
   backgroundColor: theme.colors.primary.subtle,
-};
-
-const fieldStyle: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-  fontSize: theme.typography.fontSize.sm,
-  border: `1px solid ${theme.colors.border.medium}`,
-  borderRadius: theme.borderRadius.sm,
-  backgroundColor: theme.colors.background.paper,
-  color: theme.colors.text.primary,
 };
 
 const SuggestedBadge: React.FC = () => {
@@ -97,15 +101,19 @@ const cancelButtonStyle: React.CSSProperties = {
   fontSize: theme.typography.fontSize.sm,
 };
 
-const saveLinkStyle: React.CSSProperties = {
-  padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-  fontSize: theme.typography.fontSize.sm,
-  fontWeight: theme.typography.fontWeight.semibold,
-  color: theme.colors.text.inverse,
-  backgroundColor: theme.colors.primary.main,
-  borderRadius: theme.borderRadius.sm,
-  textDecoration: 'none',
-};
+function saveButtonStyle(isDisabled: boolean): React.CSSProperties {
+  return {
+    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text.inverse,
+    backgroundColor: theme.colors.primary.main,
+    border: 'none',
+    borderRadius: theme.borderRadius.sm,
+    cursor: isDisabled ? 'not-allowed' : 'pointer',
+    opacity: isDisabled ? OPACITY_DISABLED : OPACITY_FULL,
+  };
+}
 
 /**
  * Fixed coordinates next to the anchor, right-aligned with it. The panel is rendered
@@ -139,37 +147,63 @@ function useSuggestedValue(suggested: string | undefined) {
 
 /**
  * Closes the panel on Escape, a click outside it (the anchor toggles it itself), or
- * a scroll of the page under it, which would leave it pointing at nothing.
+ * a scroll of the page under it, which would leave it pointing at nothing. Only
+ * Escape hands focus back to the anchor: a click outside put it where the user wanted.
  */
 function useDismissOnOutsideInteraction(
-  panelRef: React.RefObject<HTMLDivElement | null>,
+  panelRef: React.RefObject<HTMLFormElement | null>,
   anchor: HTMLElement,
-  onClose: () => void
+  onClose: (shouldRestoreFocus: boolean) => void
 ) {
   useEffect(() => {
     const isInside = (target: EventTarget | null) =>
       target instanceof Node && (Boolean(panelRef.current?.contains(target)) || anchor.contains(target));
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === ESCAPE_KEY) {
-        onClose();
+      if (event.key === KEY_ESCAPE) {
+        onClose(true);
       }
     };
     const closeOnOutsideEvent = (event: Event) => {
       if (!isInside(event.target)) {
-        onClose();
+        onClose(false);
       }
     };
+    const closeOnResize = () => onClose(false);
     document.addEventListener('keydown', closeOnEscape);
     document.addEventListener('mousedown', closeOnOutsideEvent);
     window.addEventListener('scroll', closeOnOutsideEvent, true);
-    window.addEventListener('resize', onClose);
+    window.addEventListener('resize', closeOnResize);
     return () => {
       document.removeEventListener('keydown', closeOnEscape);
       document.removeEventListener('mousedown', closeOnOutsideEvent);
       window.removeEventListener('scroll', closeOnOutsideEvent, true);
-      window.removeEventListener('resize', onClose);
+      window.removeEventListener('resize', closeOnResize);
     };
   }, [panelRef, anchor, onClose]);
+}
+
+/** The due-date toggle and the custom day typed under it; "Next free spot" sends no day. */
+function useDueDateChoice(locale: string) {
+  const [mode, setMode] = useState<DueDateMode>(DUE_DATE_MODE.NEXT_FREE);
+  const [customText, setCustomText] = useState('');
+  const customDueDate = resolveFocusBearDueDate(customText, new Date(), locale);
+  const isCustom = mode === DUE_DATE_MODE.CUSTOM;
+  const dueDate = isCustom && customDueDate.status === DUE_DATE_STATUS.VALID ? customDueDate.day : undefined;
+  return { mode, setMode, customText, setCustomText, customDueDate, dueDate, isReady: !isCustom || Boolean(dueDate) };
+}
+
+function useDurationChoice() {
+  const [text, setText] = useState('');
+  const duration: TaskDurationInput = { minutes: parseTaskDurationMinutes(text), isBlank: !text.trim() };
+  const isInvalid = isDurationInvalid(duration);
+  return { text, setText, duration, durationMinutes: isInvalid ? undefined : (duration.minutes ?? undefined), isInvalid };
+}
+
+/** Puts focus on the due-date toggle as the panel opens, so it can be used straight from the keyboard. */
+function useFocusOnOpen(target: React.RefObject<HTMLInputElement | null>) {
+  useEffect(() => {
+    target.current?.focus({ preventScroll: true });
+  }, [target]);
 }
 
 /** A labelled field, styled and badged as "Suggested" while it still holds Focus Bear's suggestion. */
@@ -201,9 +235,10 @@ const ConnectFocusBearHint: React.FC = () => {
 };
 
 /**
- * "Save to Focus Bear" with the task's project and due date shown before it is
- * saved: Focus Bear's suggestions arrive pre-selected and marked "Suggested", and
- * the user can change either. Saving opens the same focusbear://create-task link.
+ * "Save task in Focus Bear": asks for the due date (the next free spot in the user's to-do list,
+ * or a day typed snooze-style), how long the task takes, and, with Focus Bear connected, the
+ * project, pre-selected to Focus Bear's suggestion and marked "Suggested". Saving opens the
+ * focusbear://create-task link; Enter saves and Escape cancels.
  */
 export const SaveToFocusBearPanel: React.FC<SaveToFocusBearPanelProps> = ({
   anchor,
@@ -211,28 +246,40 @@ export const SaveToFocusBearPanel: React.FC<SaveToFocusBearPanelProps> = ({
   isConnected,
   suggestions,
   isLoading,
-  buildHref,
   onSave,
   onClose,
 }) => {
-  const { t } = useTranslation();
-  const panelRef = useRef<HTMLDivElement>(null);
+  const { t, i18n } = useTranslation();
+  const panelRef = useRef<HTMLFormElement>(null);
+  const selectedModeRef = useRef<HTMLInputElement>(null);
   const project = useSuggestedValue(suggestions?.project?.id);
-  const dueDate = useSuggestedValue(suggestions?.dueDate ?? undefined);
-  const choice: FocusBearTaskChoice = { projectId: project.value || undefined, dueDate: dueDate.value || undefined };
+  const due = useDueDateChoice(i18n.language);
+  const duration = useDurationChoice();
   const [placement] = useState(() => placementNextTo(anchor));
+  const canSave = due.isReady && !duration.isInvalid;
   useDismissOnOutsideInteraction(panelRef, anchor, onClose);
+  useFocusOnOpen(selectedModeRef);
+
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canSave) {
+      return;
+    }
+    onSave({ projectId: project.value || undefined, dueDate: due.dueDate, durationMinutes: duration.durationMinutes });
+  };
 
   return createPortal(
-    <div
+    <form
       ref={panelRef}
       className={POSTHOG_NO_CAPTURE_CLASS}
       role="dialog"
-      aria-label={t('emailDetail.saveToFocusBear')}
+      aria-label={t('emailDetail.saveTaskInFocusBear')}
+      onSubmit={save}
+      noValidate
       style={{ ...panelStyle, ...placement }}
     >
       <div style={{ fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.semibold }}>
-        {t('emailDetail.saveToFocusBear')}
+        {t('emailDetail.saveTaskInFocusBear')}
       </div>
       <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, wordBreak: 'break-word' }}>
         {taskTitle}
@@ -242,6 +289,16 @@ export const SaveToFocusBearPanel: React.FC<SaveToFocusBearPanelProps> = ({
           {t('emailDetail.focusBearFindingSuggestions')}
         </div>
       )}
+      <DueDateField
+        mode={due.mode}
+        onModeChange={due.setMode}
+        customText={due.customText}
+        onCustomTextChange={due.setCustomText}
+        customDueDate={due.customDueDate}
+        suggestedDay={suggestions?.dueDate ?? null}
+        selectedModeRef={selectedModeRef}
+      />
+      <DurationField text={duration.text} onTextChange={duration.setText} duration={duration.duration} />
       {isConnected && (
         <SuggestedField label={t('emailDetail.focusBearProject')} isSuggested={project.isSuggested}>
           {fieldProps => (
@@ -256,21 +313,16 @@ export const SaveToFocusBearPanel: React.FC<SaveToFocusBearPanelProps> = ({
           )}
         </SuggestedField>
       )}
-      <SuggestedField label={t('emailDetail.focusBearDueDate')} isSuggested={dueDate.isSuggested}>
-        {fieldProps => (
-          <input {...fieldProps} type="date" value={dueDate.value} onChange={event => dueDate.choose(event.target.value)} />
-        )}
-      </SuggestedField>
       {!isConnected && <ConnectFocusBearHint />}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
-        <button type="button" onClick={onClose} style={cancelButtonStyle}>
+        <button type="button" onClick={() => onClose(true)} style={cancelButtonStyle}>
           {t('common.cancel')}
         </button>
-        <a href={buildHref(choice)} onClick={() => onSave(choice)} style={saveLinkStyle}>
-          {t('emailDetail.focusBearSave')}
-        </a>
+        <button type="submit" aria-disabled={!canSave} style={saveButtonStyle(!canSave)}>
+          {t('emailDetail.saveToFocusBear')}
+        </button>
       </div>
-    </div>,
+    </form>,
     document.body
   );
 };

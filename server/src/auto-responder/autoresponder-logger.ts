@@ -36,7 +36,7 @@ export interface AutoresponderDecisionContext {
 }
 
 export interface AutoresponderDecision {
-  decision: "SEND" | "SKIP";
+  decision: "SEND" | "DRAFT" | "SKIP";
   reason: string;
   details?: Record<string, unknown>;
 }

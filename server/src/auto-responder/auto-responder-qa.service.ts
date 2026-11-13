@@ -13,6 +13,12 @@ import { LLMService } from "../llm/llm.service";
 import { LLM_OP_GENERATE_QA_ANSWER } from "../llm/llm-operations";
 import { getPrompt, renderPrompt, REPLY_PROMPT_IDS } from "../llm/prompts";
 import { LLM_CONFIG } from "./auto-responder-constants";
+import {
+  combineQAConfidence,
+  findLeakedQAPairs,
+  QAPair,
+  selectRelevantQAPairs,
+} from "./qa-retrieval";
 import { QASearchResult } from "./types/auto-responder.types";
 
 /**
@@ -51,21 +57,29 @@ export class AutoResponderQaService {
       const qaPairs = this.parseQAPairs(qaContexts);
       if (qaPairs.length === 0) return null;
 
+      const cleanedBody = cleanEmailContent(
+        body,
+        null,
+        LLM_CONFIG.MAX_BODY_LENGTH_FOR_QA,
+      );
+      const emailText = `${subject}\n${cleanedBody}`;
+      const selected = selectRelevantQAPairs(qaPairs, emailText);
+      if (selected.length === 0) {
+        this.logger.debug("No Q&A pair is relevant enough to auto-answer");
+        return null;
+      }
+
       const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_QA_ANSWER);
       if (!promptConfig) {
         this.logger.warn("generate_qa_answer prompt not found");
         return null;
       }
 
-      const cleanedBody = cleanEmailContent(
-        body,
-        null,
-        LLM_CONFIG.MAX_BODY_LENGTH_FOR_QA,
-      );
+      const selectedPairs = selected.map((scored) => scored.pair);
       const prompt = renderPrompt(promptConfig.prompt || "", {
         subject,
         body: cleanedBody,
-        qaPairs: qaPairs
+        qaPairs: selectedPairs
           .map((qa, i) => `${i + 1}. Q: ${qa.question}\n   A: ${qa.answer}`)
           .join("\n\n"),
       });
@@ -82,17 +96,23 @@ export class AutoResponderQaService {
         LLM_OP_GENERATE_QA_ANSWER,
       );
 
-      return this.parseQALLMResponse(response, minConfidence);
+      return this.validateQAResponse(response, {
+        minConfidence,
+        retrievalScore: selected[0].score,
+        selectedPairs,
+        unselectedPairs: qaPairs.filter(
+          (pair) => !selectedPairs.includes(pair),
+        ),
+        emailText,
+      });
     } catch (error) {
       this.logger.error("Failed to generate Q&A answer", error);
       return null;
     }
   }
 
-  private parseQAPairs(
-    qaContexts: UserContext[],
-  ): Array<{ question: string; answer: string }> {
-    const qaPairs: Array<{ question: string; answer: string }> = [];
+  private parseQAPairs(qaContexts: UserContext[]): QAPair[] {
+    const qaPairs: QAPair[] = [];
     for (const ctx of qaContexts) {
       try {
         const parsed = JSON.parse(ctx.contextValue);
@@ -109,25 +129,59 @@ export class AutoResponderQaService {
     return qaPairs;
   }
 
-  private parseQALLMResponse(
+  /**
+   * Accepts the model's answer only when the combined (model x retrieval)
+   * confidence clears the bar and the answer does not reproduce Q&A pairs
+   * that were not selected for this email. Sources are always the pairs we
+   * selected, never what the model claims.
+   */
+  private validateQAResponse(
     response: string,
-    minConfidence: number,
+    context: {
+      minConfidence: number;
+      retrievalScore: number;
+      selectedPairs: QAPair[];
+      unselectedPairs: QAPair[];
+      emailText: string;
+    },
   ): QASearchResult | null {
+    let parsed: { answer?: unknown; confidence?: unknown };
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.confidence >= minConfidence && parsed.answer) {
-          return {
-            answer: parsed.answer,
-            confidence: parsed.confidence,
-            sources: parsed.sources || [],
-          };
-        }
-      }
+      if (!jsonMatch) return null;
+      parsed = JSON.parse(jsonMatch[0]);
     } catch (parseError) {
       this.logger.warn("Failed to parse Q&A response", parseError);
+      return null;
     }
-    return null;
+    if (typeof parsed.answer !== "string" || !parsed.answer.trim()) {
+      return null;
+    }
+
+    const confidence = combineQAConfidence(
+      parsed.confidence,
+      context.retrievalScore,
+    );
+    if (confidence < context.minConfidence) return null;
+
+    const leaked = findLeakedQAPairs(
+      parsed.answer,
+      context.selectedPairs,
+      context.unselectedPairs,
+      context.emailText,
+    );
+    if (leaked.length > 0) {
+      this.logger.warn(
+        `Discarding Q&A answer: it reproduces ${leaked.length} unselected Q&A pair(s)`,
+      );
+      return null;
+    }
+
+    return {
+      answer: parsed.answer,
+      confidence,
+      retrievalScore: context.retrievalScore,
+      sources: context.selectedPairs,
+    };
   }
 }

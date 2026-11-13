@@ -151,16 +151,16 @@ export class SubscriptionsController {
     return this.subscriptionsService.getVolumeTierList();
   }
 
+  /**
+   * Link the current user to their RevenueCat customer. The RevenueCat app
+   * user id is always the authenticated user's own id; any id in the request
+   * body is ignored.
+   * POST /subscriptions/link-revenuecat
+   */
   @Post("link-revenuecat")
   @UseGuards(JwtAuthGuard)
-  async linkRevenueCat(
-    @Request() req,
-    @Body() body: { revenueCatUserId: string },
-  ) {
-    await this.subscriptionsService.linkRevenueCatUser(
-      req.user.userId,
-      body.revenueCatUserId,
-    );
+  async linkRevenueCat(@Request() req) {
+    await this.subscriptionsService.linkRevenueCatUser(req.user.userId);
     return { success: true };
   }
 

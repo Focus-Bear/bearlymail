@@ -63,8 +63,9 @@ interface MatchedParent {
  *      account's website is exactly that domain (skipped for free-mail domains).
  *   3. That record's Deals and Notes, in parallel.
  *
- * One to four calls per uncached sender; three for a known contact. Search failures throw (the caller treats the
- * server as having no context); a failed Deals/Notes call only drops that part.
+ * One to four calls per uncached sender; three for a known contact. Search
+ * failures throw (the caller treats the server as having no context); a failed
+ * Deals/Notes call only drops that part.
  */
 @Injectable()
 export class BiginSenderContextService {

@@ -40,9 +40,24 @@ export const LOGIN_LOCKOUT = {
   UNKNOWN_EMAIL_TRACKER_IDLE_MS: MILLISECONDS.DAY,
 } as const;
 
+const DEFAULT_LOGIN_LIMIT_PER_MINUTE = 20;
+
+/**
+ * Password sign-ins allowed per client IP per minute: LOGIN_THROTTLE_LIMIT,
+ * read per request (CI's end-to-end suite signs in far more often from one
+ * address), else DEFAULT_LOGIN_LIMIT_PER_MINUTE. Per-account lockout guards
+ * individual accounts on top of this.
+ */
+export function loginThrottleLimit(): number {
+  const configured = Number(process.env.LOGIN_THROTTLE_LIMIT);
+  return Number.isInteger(configured) && configured > 0
+    ? configured
+    : DEFAULT_LOGIN_LIMIT_PER_MINUTE;
+}
+
 /** Per-IP limits on the public auth endpoints (ttl in milliseconds). */
 export const AUTH_THROTTLES = {
-  LOGIN: { default: { limit: 10, ttl: MILLISECONDS.MINUTE } },
+  LOGIN: { default: { limit: loginThrottleLimit, ttl: MILLISECONDS.MINUTE } },
   REGISTER: { default: { limit: 5, ttl: MILLISECONDS.MINUTE } },
   FORGOT_PASSWORD: { default: { limit: 3, ttl: FIVE * MILLISECONDS.MINUTE } },
   RESET_PASSWORD: { default: { limit: 5, ttl: MILLISECONDS.MINUTE } },

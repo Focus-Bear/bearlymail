@@ -871,6 +871,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                    | Yes      | Google OAuth                              |
 | `GOOGLE_REDIRECT_URI`                                         | Yes      | OAuth callback URL                        |
 | `FRONTEND_URL`                                                | Yes      | Frontend URL for CORS                     |
+| `LOGIN_THROTTLE_LIMIT`                                        | No       | Password sign-ins allowed per client IP per minute (default `20`); per-account lockout applies on top |
 | `TRUST_PROXY_HOPS`                                            | No       | Proxies in front of the API that append to X-Forwarded-For (default `1`, the production ALB; `0` = none). Makes `req.ip` the client for per-IP rate limits |
 | `BACKEND_URL`                                                 | No       | Public API origin for absolute URLs (MCP OAuth redirect, open-tracking pixel). Falls back to the `GOOGLE_REDIRECT_URI` origin. Open tracking is skipped when it resolves to localhost |
 | `LLM_PROVIDER`                                                | No       | Default LLM: `gemini`, `openai`, or `claude-cli` (local Claude Code CLI, no API key) |

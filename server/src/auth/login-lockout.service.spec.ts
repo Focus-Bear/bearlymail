@@ -1,6 +1,9 @@
 import { Repository } from "typeorm";
 
-import { LOGIN_LOCKOUT } from "../constants/auth-security.constants";
+import {
+  LOGIN_LOCKOUT,
+  loginThrottleLimit,
+} from "../constants/auth-security.constants";
 import { User } from "../database/entities/user.entity";
 import {
   AccountLockedException,
@@ -98,5 +101,19 @@ describe("LoginLockoutService", () => {
       AccountLockedException,
     );
     expect(() => service.recordUnknownEmailAttempt("hash-b")).not.toThrow();
+  });
+});
+
+describe("loginThrottleLimit", () => {
+  const original = process.env.LOGIN_THROTTLE_LIMIT;
+  afterEach(() => {
+    process.env.LOGIN_THROTTLE_LIMIT = original;
+  });
+
+  it("uses LOGIN_THROTTLE_LIMIT when it is a positive integer", () => {
+    process.env.LOGIN_THROTTLE_LIMIT = "500";
+    expect(loginThrottleLimit()).toBe(500);
+    process.env.LOGIN_THROTTLE_LIMIT = "nope";
+    expect(loginThrottleLimit()).toBe(20);
   });
 });

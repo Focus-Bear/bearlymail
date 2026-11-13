@@ -12,10 +12,13 @@ import {
   BIGIN_ERROR_RESULT,
   biginList,
   CONTACT_RECORD,
+  createInMemoryMatchRepo,
   OPEN_DEAL,
 } from "./bigin/__fixtures__/bigin.fixture";
+import { BiginRecordsClient } from "./bigin/bigin-records.client";
 import { BIGIN_TOOLS } from "./bigin/bigin-sender-context.constants";
 import { BiginSenderContextService } from "./bigin/bigin-sender-context.service";
+import { CrmSenderMatchStore } from "./crm-sender-match.store";
 import { MCPClientManagerService } from "./mcp-client-manager.service";
 import { MCPOAuthService } from "./mcp-oauth.service";
 import { MCPSenderContextService } from "./mcp-sender-context.service";
@@ -85,7 +88,10 @@ describe("MCPSenderContextService", () => {
       configRepo as unknown as Repository<MCPServerConfig>,
       cacheRepo as unknown as Repository<MCPSenderContextCache>,
       clientManager,
-      new BiginSenderContextService(clientManager),
+      new BiginSenderContextService(
+        new BiginRecordsClient(clientManager),
+        new CrmSenderMatchStore(createInMemoryMatchRepo().asRepository),
+      ),
     );
   });
 

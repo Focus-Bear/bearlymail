@@ -57,4 +57,6 @@ export interface CrmSenderContext {
   deals: CrmDealSummary[];
   /** Most recent first. */
   notes: CrmNoteSummary[];
+  /** Link to the matched record in the CRM's web app, when it can be built. */
+  recordUrl: string | null;
 }

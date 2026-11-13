@@ -1,9 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiExternalLink } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { CRM_MATCH_KINDS, CrmDealSummary, CrmNoteSummary, CrmSenderContext } from 'types/crm-sender-context';
 
 const DETAIL_SEPARATOR = ' · ';
+const LINK_ICON_SIZE = 12;
 
 const headingStyle: React.CSSProperties = {
   fontSize: theme.typography.fontSize.xs,
@@ -92,10 +94,40 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
   </section>
 );
 
-/** Structured CRM context (contact, company, deals, notes) for one sender. */
-export const CrmSenderContextView: React.FC<{ context: CrmSenderContext }> = ({ context }) => {
+const RecordLink: React.FC<{ url: string; sourceName: string }> = ({ url, sourceName }) => {
   const { t } = useTranslation();
-  const { contact, company, deals, notes } = context;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        marginTop: theme.spacing.xs,
+        fontSize: theme.typography.fontSize.xs,
+        fontWeight: theme.typography.fontWeight.medium,
+        color: theme.colors.text.secondary,
+        textDecoration: 'underline',
+      }}
+    >
+      <FiExternalLink size={LINK_ICON_SIZE} aria-hidden="true" />
+      {t('senderContext.crm.openRecord', { name: sourceName })}
+    </a>
+  );
+};
+
+interface CrmSenderContextViewProps {
+  context: CrmSenderContext;
+  /** The connection's display name (e.g. "Zoho Bigin"), for the "Open in" link. */
+  sourceName: string;
+}
+
+/** Structured CRM context (contact, company, deals, notes) for one sender. */
+export const CrmSenderContextView: React.FC<CrmSenderContextViewProps> = ({ context, sourceName }) => {
+  const { t } = useTranslation();
+  const { contact, company, deals, notes, recordUrl } = context;
   return (
     <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
       {contact && (
@@ -112,6 +144,7 @@ export const CrmSenderContextView: React.FC<{ context: CrmSenderContext }> = ({ 
       {context.matchCount > 1 && (
         <div style={mutedStyle}>{t('senderContext.crm.multipleMatches', { count: context.matchCount })}</div>
       )}
+      {recordUrl && <RecordLink url={recordUrl} sourceName={sourceName} />}
       {deals.length > 0 && (
         <Section title={t('senderContext.crm.deals')}>
           <ul style={listStyle}>

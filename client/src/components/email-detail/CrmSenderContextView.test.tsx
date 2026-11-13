@@ -11,6 +11,8 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+const RECORD_URL = 'https://bigin.zoho.com/bigin/Home#/contacts/c1';
+
 const CONTEXT: CrmSenderContext = {
   provider: 'zoho_bigin',
   matchedBy: CRM_MATCH_KINDS.CONTACT_EMAIL,
@@ -37,12 +39,13 @@ const CONTEXT: CrmSenderContext = {
       pipeline: null,
     },
   ],
+  recordUrl: RECORD_URL,
   notes: [{ id: 'n1', title: 'Call', content: 'Wants a quote.', createdAt: null }],
 };
 
 describe('CrmSenderContextView', () => {
   it('shows the contact, company, deals and notes', () => {
-    render(<CrmSenderContextView context={CONTEXT} />);
+    render(<CrmSenderContextView context={CONTEXT} sourceName="Zoho Bigin" />);
 
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('Acme')).toBeInTheDocument();
@@ -52,6 +55,15 @@ describe('CrmSenderContextView', () => {
     expect(screen.getByText(/senderContext\.crm\.closed/)).toBeInTheDocument();
     expect(screen.getByText('Wants a quote.')).toBeInTheDocument();
     expect(screen.queryByText(/multipleMatches/)).not.toBeInTheDocument();
+  });
+
+  it('links to the record in the CRM in a new tab', () => {
+    render(<CrmSenderContextView context={CONTEXT} sourceName="Zoho Bigin" />);
+
+    const link = screen.getByRole('link', { name: /senderContext\.crm\.openRecord/ });
+    expect(link).toHaveAttribute('href', RECORD_URL);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('flags domain matches and multiple matches, and hides empty sections', () => {
@@ -64,12 +76,15 @@ describe('CrmSenderContextView', () => {
           contact: null,
           deals: [],
           notes: [],
+          recordUrl: null,
         }}
+        sourceName="Zoho Bigin"
       />
     );
 
     expect(screen.getByText('senderContext.crm.matchedByDomain')).toBeInTheDocument();
     expect(screen.getByText(/senderContext\.crm\.multipleMatches/)).toBeInTheDocument();
     expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 });

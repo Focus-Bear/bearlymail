@@ -1,11 +1,27 @@
-import { extractMcpJson, isMcpToolError, isRecord } from "../mcp-tool-result";
-import { BIGIN_RESPONSE_RECORDS_KEY } from "./bigin-sender-context.constants";
+import {
+  extractMcpJson,
+  extractMcpText,
+  isMcpToolError,
+  isRecord,
+} from "../mcp-tool-result";
+import {
+  BIGIN_RECORD_GONE_MARKERS,
+  BIGIN_RESPONSE_RECORDS_KEY,
+} from "./bigin-sender-context.constants";
+
+const RECORD_GONE_PATTERN = new RegExp(
+  `\\b(${BIGIN_RECORD_GONE_MARKERS.join("|")})\\b`,
+);
 
 /** A Bigin tool call that the MCP server reported as failed (`isError`). */
 export class BiginToolError extends Error {
-  constructor(toolName: string) {
-    super(`Bigin tool ${toolName} reported an error`);
+  /** The record asked for no longer exists, as opposed to a transient failure. */
+  readonly isRecordGone: boolean;
+
+  constructor(toolName: string, detail: string) {
+    super(`Bigin tool ${toolName} reported an error: ${detail}`);
     this.name = BiginToolError.name;
+    this.isRecordGone = RECORD_GONE_PATTERN.test(detail);
   }
 }
 
@@ -22,7 +38,9 @@ export function readBiginRecords<TRecord extends { id: string }>(
   toolName: string,
   output: unknown,
 ): TRecord[] {
-  if (isMcpToolError(output)) throw new BiginToolError(toolName);
+  if (isMcpToolError(output)) {
+    throw new BiginToolError(toolName, extractMcpText(output));
+  }
   const payload = extractMcpJson(output);
   if (!isRecord(payload)) return [];
   const records = payload[BIGIN_RESPONSE_RECORDS_KEY];

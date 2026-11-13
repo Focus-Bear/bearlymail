@@ -64,7 +64,7 @@ const EntryCard: React.FC<EntryCardProps> = ({ entry }) => (
       {entry.serverName}
     </div>
     {entry.crm ? (
-      <CrmSenderContextView context={entry.crm} />
+      <CrmSenderContextView context={entry.crm} sourceName={entry.serverName} />
     ) : (
       <div
         style={{

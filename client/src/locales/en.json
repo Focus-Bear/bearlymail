@@ -2738,7 +2738,8 @@
       "owner": "Owner: {{name}}",
       "matchedByDomain": "Matched by the sender's email domain",
       "multipleMatches_one": "{{count}} matching record",
-      "multipleMatches_other": "{{count}} matching records — showing the most recently updated"
+      "multipleMatches_other": "{{count}} matching records — showing the most recently updated",
+      "openRecord": "Open in {{name}}"
     }
   },
   "deals": {

@@ -1600,7 +1600,8 @@
       "owner": "Responsable: {{name}}",
       "matchedByDomain": "Coincidencia por el dominio del correo del remitente",
       "multipleMatches_one": "{{count}} registro coincidente",
-      "multipleMatches_other": "{{count}} registros coincidentes: se muestra el actualizado más recientemente"
+      "multipleMatches_other": "{{count}} registros coincidentes: se muestra el actualizado más recientemente",
+      "openRecord": "Abrir en {{name}}"
     }
   },
   "deals": {

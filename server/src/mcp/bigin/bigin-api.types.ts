@@ -15,6 +15,7 @@ export interface BiginContactRecord {
   Last_Name?: string | null;
   Full_Name?: string | null;
   Email?: string | null;
+  Secondary_Email?: string | null;
   Title?: string | null;
   Account_Name?: BiginLookupValue | null;
   Owner?: BiginLookupValue | null;

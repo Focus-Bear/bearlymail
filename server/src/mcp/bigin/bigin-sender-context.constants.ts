@@ -1,3 +1,5 @@
+import { MILLISECONDS } from "../../constants/time-constants";
+
 /**
  * Fixed Zoho Bigin lookups behind the sender-context card. Tool names are the
  * ones Zoho's MCP server exposes; argument and field names are Bigin REST v2
@@ -7,6 +9,7 @@ export const BIGIN_TOOLS = {
   SEARCH_RECORDS: "Bigin_searchRecords",
   GET_RELATED_LIST_RECORDS: "Bigin_getRelatedListRecords",
   GET_NOTES_FROM_RECORD: "Bigin_getNotesFromSpecificRecord",
+  GET_SPECIFIC_RECORD: "Bigin_getSpecificRecord",
 } as const;
 
 /**
@@ -57,6 +60,18 @@ export const BIGIN_FIELDS = {
   NOTES: ["Note_Title", "Note_Content", "Created_Time"],
 } as const;
 
+/**
+ * Markers in a failed get-by-ID result meaning the record no longer exists
+ * (deleted or merged away), as opposed to a transient failure such as a rate
+ * limit. Bigin reports an unknown record ID as INVALID_DATA.
+ */
+export const BIGIN_RECORD_GONE_MARKERS: readonly string[] = [
+  "INVALID_DATA",
+  "RECORD_NOT_FOUND",
+  "NOT_FOUND",
+  "404",
+];
+
 export const BIGIN_LIMITS = {
   /** Deals fetched per lookup, before open/recency sorting. */
   DEALS_FETCHED: 20,
@@ -75,6 +90,36 @@ export const BIGIN_LIMITS = {
  * rename them, so anything else counts as open — the cost is only ordering.
  */
 export const BIGIN_CLOSED_STAGE_PREFIX = "closed";
+
+/**
+ * How long a "sender not in Bigin" result is trusted before searching again.
+ * A found match has no TTL: it is re-validated on every fetch by ID instead.
+ */
+export const BIGIN_MISS_TTL_MS = MILLISECONDS.DAY;
+
+/**
+ * Zoho data centres by top-level domain. A connection's region is read from
+ * its OAuth issuer (accounts.zoho.<tld>) or MCP URL (mcp.zoho.<tld> /
+ * <name>.zohomcp.<tld>); the Bigin web app lives at bigin.zoho.<tld>.
+ * Longest first, so "com.au" wins over "com".
+ */
+export const ZOHO_REGION_TLDS: readonly string[] = [
+  "com.au",
+  "com",
+  "eu",
+  "in",
+  "jp",
+];
+
+/** Second-level domains a Zoho connection host can sit under. */
+export const ZOHO_BASE_DOMAINS: readonly string[] = ["zoho", "zohomcp"];
+
+export const BIGIN_WEB = {
+  HOST_PREFIX: "bigin.zoho.",
+  /** Web-app record route; Bigin's SPA routes use the lowercased module name. */
+  RECORD_PATH: "/bigin/Home#/",
+  SCHEME: "https://",
+} as const;
 
 export const CRM_PROVIDERS = {
   ZOHO_BIGIN: "zoho_bigin",

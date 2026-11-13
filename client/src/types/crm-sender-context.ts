@@ -47,4 +47,6 @@ export interface CrmSenderContext {
   company: CrmCompanySummary | null;
   deals: CrmDealSummary[];
   notes: CrmNoteSummary[];
+  /** Link to the matched record in the CRM's web app, when it can be built. */
+  recordUrl: string | null;
 }

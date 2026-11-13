@@ -26,6 +26,13 @@ import { extractMcpText } from "./mcp-tool-result";
  */
 const SENDER_CONTEXT_TTL_MS = MILLISECONDS.HOUR;
 
+/** One sender lookup across the user's sender-context servers. */
+interface SenderLookup {
+  userId: string;
+  email: string;
+  forceRefresh: boolean;
+}
+
 export interface SenderContextResult {
   entries: MCPSenderContextEntry[];
   fetchedAt: string;
@@ -36,8 +43,9 @@ export interface SenderContextResult {
 /**
  * Fetches context about an email sender from the user's sender-context MCP
  * servers (e.g. HubSpot CRM). No model is involved per sender: Zoho Bigin gets
- * a fixed contact → deals/notes lookup, any other server a single call to its
- * pre-derived lookup mapping.
+ * a fixed contact → deals/notes lookup (the matched record is remembered, see
+ * CrmSenderMatchStore), any other server a single call to its pre-derived
+ * lookup mapping.
  *
  * Results are cached per sender (encrypted, 1h TTL) so repeat opens of the same
  * sender are cheap and don't re-hit the external CRM.
@@ -82,7 +90,11 @@ export class MCPSenderContextService {
       }
     }
 
-    const entries = await this.fetchFromServers(userId, email);
+    const entries = await this.fetchFromServers({
+      userId,
+      email,
+      forceRefresh,
+    });
     await this.upsertCache(userId, emailHash, entries);
 
     return {
@@ -97,12 +109,11 @@ export class MCPSenderContextService {
   }
 
   private async fetchFromServers(
-    userId: string,
-    email: string,
+    lookup: SenderLookup,
   ): Promise<MCPSenderContextEntry[]> {
     const servers = await this.configRepo.find({
       where: {
-        userId,
+        userId: lookup.userId,
         purpose: MCP_SERVER_PURPOSES.SENDER_CONTEXT,
         enabled: true,
       },
@@ -114,7 +125,7 @@ export class MCPSenderContextService {
     );
 
     const results = await Promise.all(
-      usable.map((server) => this.querySingleServer(server, email)),
+      usable.map((server) => this.querySingleServer(server, lookup)),
     );
 
     return results.filter(
@@ -124,12 +135,12 @@ export class MCPSenderContextService {
 
   private async querySingleServer(
     server: MCPServerConfig,
-    email: string,
+    lookup: SenderLookup,
   ): Promise<MCPSenderContextEntry | null> {
     try {
       return isBiginToolset(server.cachedTools)
-        ? await this.queryBigin(server, email)
-        : await this.queryMappedTool(server, email);
+        ? await this.queryBigin(server, lookup)
+        : await this.queryMappedTool(server, lookup.email);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(
@@ -141,13 +152,9 @@ export class MCPSenderContextService {
 
   private async queryBigin(
     server: MCPServerConfig,
-    email: string,
+    lookup: SenderLookup,
   ): Promise<MCPSenderContextEntry | null> {
-    const crm = await this.biginSenderContext.lookup(
-      server.id,
-      email,
-      server.cachedTools,
-    );
+    const crm = await this.biginSenderContext.lookup({ server, ...lookup });
     if (!crm) return null;
     return {
       serverId: server.id,

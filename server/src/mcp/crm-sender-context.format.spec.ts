@@ -19,6 +19,7 @@ const CONTEXT: CrmSenderContext = {
       pipeline: "Sales",
     },
   ],
+  recordUrl: null,
   notes: [
     {
       id: "n1",
@@ -51,6 +52,7 @@ describe("formatCrmSenderContext", () => {
       matchCount: 1,
       contact: null,
       deals: [],
+      recordUrl: null,
       notes: [],
     };
     expect(formatCrmSenderContext(companyOnly)).toBe("Company: Acme");

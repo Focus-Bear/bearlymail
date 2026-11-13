@@ -1,3 +1,6 @@
+import { Repository } from "typeorm";
+
+import type { CrmSenderMatch } from "../../../database/entities/crm-sender-match.entity";
 import {
   BIGIN_RESPONSE_RECORDS_KEY,
   BIGIN_TOOLS,
@@ -70,3 +73,51 @@ export const NOTE_RECORD = {
   Note_Content: "Wants a quote before Christmas.",
   Created_Time: "2026-11-02T09:00:00+11:00",
 };
+
+/** Bigin's answer to a get-by-ID for a deleted or unknown record ID. */
+export const BIGIN_RECORD_GONE_RESULT = {
+  isError: true,
+  content: [
+    {
+      type: "text",
+      text: '{"code":"INVALID_DATA","details":{},"message":"the related id given seems to be invalid","status":"error"}',
+    },
+  ],
+};
+
+type MatchRow = Partial<CrmSenderMatch> & { id: string };
+type MatchWhere = Pick<CrmSenderMatch, "userId" | "serverId" | "emailHash">;
+
+const sameKey = (row: MatchRow, where: MatchWhere) =>
+  row.userId === where.userId &&
+  row.serverId === where.serverId &&
+  row.emailHash === where.emailHash;
+
+/**
+ * A crm_sender_matches repository backed by an array, with the three methods
+ * CrmSenderMatchStore uses, so tests exercise the real store logic.
+ */
+export function createInMemoryMatchRepo() {
+  const rows: MatchRow[] = [];
+  const repo = {
+    rows,
+    findOne: jest.fn(({ where }: { where: MatchWhere }) =>
+      Promise.resolve(rows.find((row) => sameKey(row, where)) ?? null),
+    ),
+    upsert: jest.fn((entity: MatchWhere & Partial<CrmSenderMatch>) => {
+      const existing = rows.find((row) => sameKey(row, entity));
+      if (existing) Object.assign(existing, entity);
+      else rows.push({ id: `match-${rows.length + 1}`, ...entity });
+      return Promise.resolve();
+    }),
+    delete: jest.fn((where: MatchWhere) => {
+      const index = rows.findIndex((row) => sameKey(row, where));
+      if (index >= 0) rows.splice(index, 1);
+      return Promise.resolve();
+    }),
+  };
+  return {
+    repo,
+    asRepository: repo as unknown as Repository<CrmSenderMatch>,
+  };
+}

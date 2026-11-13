@@ -1,6 +1,7 @@
 import { lookup } from "dns/promises";
-import { BlockList, isIP } from "net";
+import { isIP } from "net";
 
+import { isBlockedAddress } from "../common/safe-http/blocked-address";
 import {
   IMAP_IMPLICIT_TLS_PORT,
   IMAP_STARTTLS_PORT,
@@ -9,6 +10,8 @@ import {
   SMTP_IMPLICIT_TLS_PORT,
   SMTP_SUBMISSION_PORT,
 } from "../constants/mail-server.constants";
+
+export { isBlockedAddress };
 
 /**
  * Mail ports a user may point a hosted deployment at. Anything else on a
@@ -25,44 +28,6 @@ export const ALLOWED_SMTP_PORTS: readonly number[] = [
   SMTP_SUBMISSION_PORT,
   SMTP_ALTERNATE_SUBMISSION_PORT,
 ];
-
-/**
- * Address ranges a hosted deployment must never connect to on a user's
- * behalf: loopback, private, link-local (incl. the cloud metadata endpoint
- * 169.254.169.254), CGNAT, multicast/reserved and their IPv6 equivalents.
- */
-const BLOCKED_IPV4_CIDRS = [
-  "0.0.0.0/8",
-  "10.0.0.0/8",
-  "100.64.0.0/10",
-  "127.0.0.0/8",
-  "169.254.0.0/16",
-  "172.16.0.0/12",
-  "192.0.0.0/24",
-  "192.168.0.0/16",
-  "198.18.0.0/15",
-  "224.0.0.0/3",
-];
-const BLOCKED_IPV6_CIDRS = [
-  "::/128",
-  "::1/128",
-  "fc00::/7",
-  "fe80::/10",
-  "ff00::/8",
-];
-
-function buildBlockedRanges(): BlockList {
-  const blocked = new BlockList();
-  const add = (cidr: string, family: "ipv4" | "ipv6") => {
-    const [network, prefix] = cidr.split("/");
-    blocked.addSubnet(network, Number(prefix), family);
-  };
-  BLOCKED_IPV4_CIDRS.forEach((cidr) => add(cidr, "ipv4"));
-  BLOCKED_IPV6_CIDRS.forEach((cidr) => add(cidr, "ipv6"));
-  return blocked;
-}
-
-const BLOCKED_RANGES = buildBlockedRanges();
 
 export class MailServerAddressError extends Error {}
 
@@ -81,22 +46,6 @@ export interface ResolvedMailServer {
 function preferIpv4(addresses: Array<{ address: string }>): string {
   const ipv4 = addresses.find(({ address }) => isIP(address) === IP_VERSION.V4);
   return (ipv4 ?? addresses[0]).address;
-}
-
-const IPV4_MAPPED_PREFIX = "::ffff:";
-
-export function isBlockedAddress(address: string): boolean {
-  // "::ffff:10.0.0.1" reaches the IPv4 host, so judge it as IPv4. (Listing
-  // ::ffff:0:0/96 as a blocked range instead would block every IPv4 address:
-  // BlockList matches IPv4 addresses against IPv4-mapped ranges.)
-  const lower = address.toLowerCase();
-  if (lower.startsWith(IPV4_MAPPED_PREFIX)) {
-    const mapped = lower.slice(IPV4_MAPPED_PREFIX.length);
-    if (isIP(mapped) === IP_VERSION.V4)
-      return BLOCKED_RANGES.check(mapped, "ipv4");
-  }
-  const family = isIP(address) === IP_VERSION.V6 ? "ipv6" : "ipv4";
-  return BLOCKED_RANGES.check(address, family);
 }
 
 /**

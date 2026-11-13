@@ -14,6 +14,8 @@ export const FOCUS_BEAR_TASK_PARAM = {
   DUE_DATE: 'due_date',
   /** A Focus Bear project id. */
   PROJECT_ID: 'project_id',
+  /** Whole minutes the task should take. */
+  DURATION_MINUTES: 'duration_minutes',
 } as const;
 
 export const FOCUS_BEAR_TASK_SOURCE_BEARLYMAIL = 'bearlymail';

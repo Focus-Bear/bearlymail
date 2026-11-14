@@ -33,6 +33,26 @@ export const AUTH_CONSTANTS = {
   MFA_ELEVATION_TTL_MS: HOURS.EIGHT * MILLISECONDS.HOUR,
 } as const;
 
+const FORGOT_PASSWORD_WINDOW_MINUTES = 5;
+
+/**
+ * Per-route rate limits for the unauthenticated and step-up auth endpoints.
+ * `ttl` is in MILLISECONDS (@nestjs/throttler v5+). These were once written as
+ * seconds (`ttl: 60`), which made each window 60 ms long and the limits
+ * effectively unenforced.
+ */
+export const AUTH_THROTTLES = {
+  REGISTER: { default: { limit: 5, ttl: MILLISECONDS.MINUTE } },
+  FORGOT_PASSWORD: {
+    default: {
+      limit: 3,
+      ttl: FORGOT_PASSWORD_WINDOW_MINUTES * MILLISECONDS.MINUTE,
+    },
+  },
+  STEP_UP: { default: { limit: 5, ttl: MILLISECONDS.MINUTE } },
+  MFA_VERIFY: { default: { limit: 10, ttl: MILLISECONDS.MINUTE } },
+} as const;
+
 /**
  * `type` query param on the /auth-error redirect. The client's AuthError page
  * switches on these exact values (client/src/constants/strings.ts).

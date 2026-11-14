@@ -18,7 +18,7 @@ import { Throttle } from "@nestjs/throttler";
 import { Response } from "express";
 import type { PgBoss } from "pg-boss";
 
-import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import { AUTH_CONSTANTS, AUTH_THROTTLES } from "../constants/auth-constants";
 import { AUTH_ACTION_TYPES, NODE_ENV_VALUES } from "../constants/domain-types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -81,7 +81,7 @@ export class AuthController {
    * Rate-limited to 5 requests per minute per IP to curb automated abuse.
    */
   @Post("register")
-  @Throttle({ default: { limit: 5, ttl: 60 } })
+  @Throttle(AUTH_THROTTLES.REGISTER)
   async register(
     @Body() body: { email: string; password: string; name?: string },
     @Res({ passthrough: true }) res: Response,
@@ -137,7 +137,7 @@ export class AuthController {
    * Always returns success — we never reveal whether the email is registered.
    */
   @Post("forgot-password")
-  @Throttle({ default: { limit: 3, ttl: 300 } })
+  @Throttle(AUTH_THROTTLES.FORGOT_PASSWORD)
   async forgotPassword(@Body() body: { email: string }) {
     if (!body.email) {
       throw new BadRequestException("Email is required");
@@ -227,7 +227,7 @@ export class AuthController {
    * (OWASP ASVS req 4.2.1)
    */
   @UseGuards(JwtAuthGuard)
-  @Throttle({ default: { limit: 5, ttl: 60 } })
+  @Throttle(AUTH_THROTTLES.STEP_UP)
   @Post("step-up")
   async issueStepUpToken(
     @Request() req,
@@ -290,7 +290,7 @@ export class AuthController {
    * Rate-limited to 10 attempts per minute to prevent brute-force.
    */
   @UseGuards(JwtAuthGuard)
-  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @Throttle(AUTH_THROTTLES.MFA_VERIFY)
   @Post("mfa/verify")
   async mfaVerify(
     @Request() req,

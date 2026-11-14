@@ -9,6 +9,7 @@ import { AuditLog } from "../database/entities/audit-log.entity";
 import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
+import { toSendableHtmlBody } from "./mcp-send-body.helpers";
 import { McpCallContext } from "./mcp-server.types";
 import {
   McpToolInputError,
@@ -84,7 +85,9 @@ export class McpSendToolsService {
     if (!isUUID(emailId)) {
       throw new McpToolInputError("`emailId` must be a BearlyMail email id");
     }
-    const body = requiredString(args, "body", MCP_SERVER.MAX_SEND_BODY_LENGTH);
+    const body = toSendableHtmlBody(
+      requiredString(args, "body", MCP_SERVER.MAX_SEND_BODY_LENGTH),
+    );
     const to = optionalEmailList(args, "to");
     const cc = optionalEmailList(args, "cc");
     const bcc = optionalEmailList(args, "bcc");
@@ -131,7 +134,9 @@ export class McpSendToolsService {
       "subject",
       MCP_SERVER.MAX_SUBJECT_LENGTH,
     );
-    const body = requiredString(args, "body", MCP_SERVER.MAX_SEND_BODY_LENGTH);
+    const body = toSendableHtmlBody(
+      requiredString(args, "body", MCP_SERVER.MAX_SEND_BODY_LENGTH),
+    );
     const options = parseSendOptions(args);
 
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);

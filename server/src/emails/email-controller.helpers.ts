@@ -68,7 +68,7 @@ export const appendSignature = (
     // element (Gmail/Outlook-style) rather than blending into the message body.
     return (
       `${emailBody}<br><br>` +
-      `<div style="color:#888888;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">` +
+      `<div style="color:#888888;font-size:12px;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">` +
       `${htmlSignature}</div>`
     );
   }

@@ -52,6 +52,8 @@ async function seedLocalUser() {
   const existingUser = await userRepository.findOne({ where: { emailHash } });
   if (existingUser) {
     existingUser.password = hashedPassword;
+    // Also repairs users this script created double-encrypted (see below).
+    existingUser.email = email;
     existingUser.isApproved = true;
     existingUser.isAdmin = true;
     await userRepository.save(existingUser);
@@ -59,14 +61,12 @@ async function seedLocalUser() {
     return;
   }
 
-  const encryptedEmail = EncryptionHelper.encrypt(email);
-  if (!encryptedEmail) {
-    throw new Error('Failed to encrypt email. Check ENCRYPTION_KEY environment variable.');
-  }
-
   await userRepository.save(
     userRepository.create({
-      email: encryptedEmail,
+      // The User entity's column transformer encrypts on save, so pass the
+      // plaintext address: encrypting here too stored it double-encrypted and
+      // every server-side read of user.email returned ciphertext.
+      email,
       emailHash,
       password: hashedPassword,
       name: 'Local User',

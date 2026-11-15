@@ -349,6 +349,7 @@ export class AuthController {
   }
 
   @UseGuards(LocalAuthGuard)
+  @Throttle(AUTH_THROTTLES.LOGIN)
   @Post("login")
   async login(@Request() req, @Res({ passthrough: true }) res: Response) {
     const loginData = await this.authService.login(req.user);

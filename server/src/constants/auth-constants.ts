@@ -41,7 +41,16 @@ const FORGOT_PASSWORD_WINDOW_MINUTES = 5;
  * seconds (`ttl: 60`), which made each window 60 ms long and the limits
  * effectively unenforced.
  */
+const DEFAULT_LOGIN_ATTEMPTS_PER_MINUTE = 10;
+// Read once at startup. CI raises it because the browser tests sign in from one
+// address far more often than a person would.
+const LOGIN_ATTEMPTS_PER_MINUTE =
+  Number(process.env.LOGIN_THROTTLE_LIMIT) || DEFAULT_LOGIN_ATTEMPTS_PER_MINUTE;
+
 export const AUTH_THROTTLES = {
+  LOGIN: {
+    default: { limit: LOGIN_ATTEMPTS_PER_MINUTE, ttl: MILLISECONDS.MINUTE },
+  },
   REGISTER: { default: { limit: 5, ttl: MILLISECONDS.MINUTE } },
   FORGOT_PASSWORD: {
     default: {

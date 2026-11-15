@@ -8,25 +8,12 @@ import {
   TRACKING_PIXEL_ROUTE_PREFIX,
   TRANSPARENT_GIF_BASE64,
 } from "../constants/email-tracking.constants";
+import { resolveClientIp } from "../utils/client-ip.util";
 import { EmailOpenRecorderService } from "./email-open-recorder.service";
 import { parseTrackingPixelFilename } from "./tracking-pixel.helpers";
 
 const TRANSPARENT_GIF = Buffer.from(TRANSPARENT_GIF_BASE64, "base64");
-const FORWARDED_FOR_HEADER = "x-forwarded-for";
 const USER_AGENT_HEADER = "user-agent";
-
-/**
- * The load balancer appends the address it saw as the LAST X-Forwarded-For
- * entry; earlier entries are client-supplied and can be forged.
- */
-function resolveClientIp(request: Request): string | null {
-  const forwarded = request.headers[FORWARDED_FOR_HEADER];
-  const forwardedList = Array.isArray(forwarded)
-    ? forwarded.join(",")
-    : forwarded;
-  const lastHop = forwardedList?.split(",").pop()?.trim();
-  return lastHop || request.ip || null;
-}
 
 /**
  * Public, unauthenticated open-tracking pixel: `GET /t/o/<token>.gif`.

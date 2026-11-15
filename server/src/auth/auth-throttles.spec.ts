@@ -14,6 +14,7 @@ describe("auth and Ask AI throttle windows", () => {
   // @nestjs/throttler v5+ reads ttl in milliseconds; a seconds value (60) makes
   // the window 60 ms and the limit meaningless.
   it.each([
+    ["login", AuthController.prototype.login, MILLISECONDS.MINUTE],
     ["register", AuthController.prototype.register, MILLISECONDS.MINUTE],
     [
       "forgot-password",

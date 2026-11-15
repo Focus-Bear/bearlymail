@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "crypto";
 import { calendar_v3, google } from "googleapis";
@@ -698,7 +698,7 @@ Manage this booking:
       options;
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
-      throw new Error("Email not found");
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Invite everyone the caller selected (sender + To + CC by default). Fall back

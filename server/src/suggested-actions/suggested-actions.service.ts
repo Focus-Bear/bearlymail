@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, Not, Repository } from "typeorm";
 
@@ -186,7 +186,7 @@ export class SuggestedActionsService {
     try {
       const email = await this.emailsService.getEmailById(userId, emailId);
       if (!email) {
-        throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+        throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
       }
       const threadId = email.emailThreadId;
       if (!threadId) {

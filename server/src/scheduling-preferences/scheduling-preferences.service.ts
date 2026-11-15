@@ -62,16 +62,8 @@ export class SchedulingPreferencesService {
       }),
     };
 
-    let prefs = await this.repository.findOne({ where: { userId } });
-    if (!prefs) {
-      prefs = this.repository.create({
-        userId,
-        ...DEFAULT_PREFERENCES,
-        ...normalizedUpdates,
-      });
-    } else {
-      Object.assign(prefs, normalizedUpdates);
-    }
+    const prefs = await this.findOrCreateDefaults(userId);
+    Object.assign(prefs, normalizedUpdates);
     const saved = await this.repository.save(prefs);
     return {
       availabilityStartHour: saved.availabilityStartHour,
@@ -82,5 +74,26 @@ export class SchedulingPreferencesService {
       slotDurationMinutes: saved.slotDurationMinutes,
       timezone: saved.timezone,
     };
+  }
+
+  /**
+   * Two first-time saves can arrive together (the settings page writes the
+   * browser timezone on load). A plain find-then-insert lets both insert and the
+   * loser fails on the unique userId index, so the insert ignores conflicts and
+   * both callers then read the one row.
+   */
+  private async findOrCreateDefaults(
+    userId: string,
+  ): Promise<SchedulingPreference> {
+    const existing = await this.repository.findOne({ where: { userId } });
+    if (existing) return existing;
+
+    await this.repository
+      .createQueryBuilder()
+      .insert()
+      .values({ userId, ...DEFAULT_PREFERENCES })
+      .orIgnore()
+      .execute();
+    return this.repository.findOneOrFail({ where: { userId } });
   }
 }

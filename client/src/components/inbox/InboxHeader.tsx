@@ -7,7 +7,7 @@ import { InboxMode } from 'types/email';
 import { InboxHeaderActions, InboxHeaderTabs } from 'components/inbox/header';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { BREAKPOINT_INBOX_HEADER_SINGLE_ROW } from 'constants/numbers';
-import { STRING_NONE } from 'constants/strings';
+import { MODE_SCHEDULED, STRING_NONE } from 'constants/strings';
 import { ActionMoveFeedback } from 'hooks/useActionMoveFeedback';
 import { useIsViewportNarrowerThan } from 'hooks/useIsViewportNarrowerThan';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
@@ -213,14 +213,17 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
 
           {!isStacked && tabs}
 
-          <FilterToggleButton
-            isFilterBarVisible={isFilterBarVisible}
-            hasActiveFilters={hasActiveFilters}
-            activeFilterCount={activeFilterCount}
-            onToggle={onToggleFilterBar}
-          />
+          {/* Scheduled sends are not threads, so category and priority filters do not apply. */}
+          {mode !== MODE_SCHEDULED && (
+            <FilterToggleButton
+              isFilterBarVisible={isFilterBarVisible}
+              hasActiveFilters={hasActiveFilters}
+              activeFilterCount={activeFilterCount}
+              onToggle={onToggleFilterBar}
+            />
+          )}
 
-          {hasActiveFilters && (
+          {mode !== MODE_SCHEDULED && hasActiveFilters && (
             <ClearFiltersButton
               onClear={onClearFilters}
               label={isMobile ? t('inbox.filters.clearAll') : t('inbox.filters.clear')}

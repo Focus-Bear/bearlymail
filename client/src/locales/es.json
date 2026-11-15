@@ -1519,7 +1519,7 @@
     "noSearchResults": "Ningún contacto coincide con “{{query}}”",
     "tryDifferentSearch": "Prueba con un término de búsqueda diferente.",
     "totalContacts": "{{count}} contacto",
-    "totalContacts_plural": "{{count}} contactos",
+    "totalContacts_other": "{{count}} contactos",
     "unsyncedContactInfo": "Este contacto aún no ha sido sincronizado. Sincroniza los contactos para ver los detalles.",
     "addContact": "Agregar Contacto",
     "viewDetail": "Ver Detalles",
@@ -1673,7 +1673,7 @@
     "assignedTo": "Asignado a",
     "changesRequested": "Cambios solicitados",
     "comments": "{{count}} comentario",
-    "comments_plural": "{{count}} comentarios",
+    "comments_other": "{{count}} comentarios",
     "howToCreateToken": "Cómo crear un token de GitHub",
     "issue": "Problema",
     "issueDescription": "Descripción del problema",
@@ -1685,9 +1685,9 @@
     "project": "Proyecto",
     "readyToMerge": "Listo para fusionar",
     "approvalsCount": "{{count}} aprobación",
-    "approvalsCount_plural": "{{count}} aprobaciones",
+    "approvalsCount_other": "{{count}} aprobaciones",
     "changesRequestedCount": "{{count}} cambio solicitado",
-    "changesRequestedCount_plural": "{{count}} cambios solicitados",
+    "changesRequestedCount_other": "{{count}} cambios solicitados",
     "awaitingReviewFrom": "Esperando a {{reviewers}}",
     "bot": {
       "ariaLabel": "Creado por el bot {{name}}"
@@ -1698,7 +1698,7 @@
       "failing": "CI fallando",
       "failingWithNames": "CI fallando: {{names}}",
       "passingTitle": "{{count}} verificación correcta",
-      "passingTitle_plural": "{{count}} verificaciones correctas",
+      "passingTitle_other": "{{count}} verificaciones correctas",
       "connectPrompt": "Conectar para ver estado CI",
       "connecting": "Conectando…"
     },
@@ -1714,7 +1714,7 @@
     "loadingStatus": "Cargando estado de GitHub...",
     "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
     "linksCount": "{{count}} enlace",
-    "linksCount_plural": "{{count}} enlaces",
+    "linksCount_other": "{{count}} enlaces",
     "statusUnavailable": "Estado no disponible — verifica los permisos del token de GitHub o el acceso al repositorio",
     "connectionPrompt": {
       "title": "Conectar GitHub para obtener información mejorada",
@@ -2005,9 +2005,9 @@
     "action": "Acción",
     "actionCaughtUp": "Todos los correos marcados han sido procesados.",
     "actionItems": "{{count}} elemento de acción",
-    "actionItems_plural": "{{count}} elementos de acción",
+    "actionItems_other": "{{count}} elementos de acción",
     "autoResponseBadge": "{{count}} respuesta automática · Último envío {{sentAt}}",
-    "autoResponseBadge_plural": "{{count}} respuestas automáticas · Último envío {{sentAt}}",
+    "autoResponseBadge_other": "{{count}} respuestas automáticas · Último envío {{sentAt}}",
     "actionTab": "Acción",
     "toggleDebug": "Alternar panel de depuración",
     "moreInboxActions": "Más acciones de la bandeja de entrada",
@@ -2041,7 +2041,7 @@
       "markAsRead": "Marcar como leído",
       "markAsUnread": "Marcar como no leído",
       "selected": "{{count}} correo seleccionado",
-      "selected_plural": "{{count}} correos seleccionados"
+      "selected_other": "{{count}} correos seleccionados"
     },
     "category": {
       "newsletters": "Boletines",
@@ -2153,7 +2153,7 @@
     "openInNewTab": "Abrir en nueva pestaña",
     "followUpDetails": {
       "day": "día",
-      "day_plural": "días",
+      "day_other": "días",
       "daysSinceResponse": "Días desde su última respuesta",
       "followUpWasDue": "El seguimiento vencía",
       "followUpScheduledFor": "Seguimiento programado para",
@@ -2186,7 +2186,7 @@
     "maxFollowUpsWarning": "Máximo {{max}} seguimientos permitidos por envío masivo",
     "moreLinks": "+{{count}} más",
     "moreUrgentEmails": "+{{count}} correo urgente más",
-    "moreUrgentEmails_plural": "+{{count}} correos urgentes más",
+    "moreUrgentEmails_other": "+{{count}} correos urgentes más",
     "nextBatch": "Próximo lote",
     "nextDelivery": "Próxima entrega: {{time}}",
     "noActionEmails": "¡No hay correos para procesar!",
@@ -2283,7 +2283,7 @@
     "urgentBadge": "🚨 Urgente ({{score}})",
     "urgentCheckError": "Error al verificar correos urgentes.",
     "urgentEmailsFound": "¡Se encontró {{count}} correo urgente!",
-    "urgentEmailsFound_plural": "¡Se encontraron {{count}} correos urgentes!",
+    "urgentEmailsFound_other": "¡Se encontraron {{count}} correos urgentes!",
     "urgentEmailsWaiting": "Tienes correos urgentes esperando. Se entregarán en el próximo horario de lote.",
     "urgentNotification": "¡Se encontraron {{count}} correo(s) urgente(s)!",
     "blockConfirm": {
@@ -3571,7 +3571,7 @@
       "prediction": "Predicción: {{predicted}}, Real: {{actual}}",
       "skip": "Saltar",
       "starCount": "{{count}} estrella",
-      "starCount_plural": "{{count}} estrellas",
+      "starCount_other": "{{count}} estrellas",
       "submit": "Entregar",
       "submitting": "Sumisión..."
     },
@@ -3846,7 +3846,7 @@
       "createInvite": "Crear invitación",
       "creating": "Creando...",
       "foundEvents": "Se encontró el evento {{count}}",
-      "foundEvents_plural": "Se encontraron {{count}} eventos",
+      "foundEvents_other": "Se encontraron {{count}} eventos",
       "noEventsFound": "No se encontraron eventos para {{email}}",
       "loadingEvents": "Cargando eventos...",
       "openInGoogleCalendar": "Abrir en Google Calendar",
@@ -3856,7 +3856,7 @@
       "closed": "Cerrado",
       "commentLabel": "Comentario",
       "foundIssues": "Se encontró el problema {{count}}",
-      "foundIssues_plural": "Se encontraron {{count}} problemas",
+      "foundIssues_other": "Se encontraron {{count}} problemas",
       "issue": "Asunto",
       "loadingStatuses": "Cargando estados…",
       "noIssuesFound": "No se encontraron problemas",
@@ -5185,9 +5185,9 @@
   },
   "guideAi": {
     "sourceThreads": "📧 {{count}} fuente",
-    "sourceThreads_plural": "📧 {{count}} fuentes",
+    "sourceThreads_other": "📧 {{count}} fuentes",
     "viewSourceThread": "Ver hilo de correo fuente ({{count}} fuente)",
-    "viewSourceThread_plural": "Ver hilo de correo fuente ({{count}} fuentes)"
+    "viewSourceThread_other": "Ver hilo de correo fuente ({{count}} fuentes)"
   },
   "nav": {
     "scheduled": "Programados"

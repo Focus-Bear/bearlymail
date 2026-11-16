@@ -200,7 +200,8 @@ Need to modify something? Here's where to find it:
 - `hasSeenTour`, `hasScannedHistory`, `hasCompletedOnboarding`
 - `lastEmailSyncAt`, `subscriptionStatus`, `trialStartedAt`
 - `openAiApiKey` (encrypted, user's own key), `githubToken` (encrypted)
-- `focusBearApiToken` (encrypted, scope `tasks:read`; set only via `PUT /focus-bear/connection`, never returned by `/users/me`)
+- `focusBearRefreshToken`, `focusBearAccessToken` (encrypted), `focusBearAccessTokenRenewAt`: "Connect Focus Bear" (OAuth code + PKCE against Focus Bear's Auth0), set only by `GET /focus-bear/oauth/callback`, never returned by `/users/me`
+- `focusBearApiToken` (encrypted, scope `tasks:read`): legacy pasted token; still used until the user connects with sign-in (which clears it) or disconnects. Nothing writes it any more
 - `toneSettings` (encrypted JSON: `{ rules: string[] }`)
 - `autoResponderSettings` (encrypted JSON)
 - Relations: `emails`, `contexts`, `notes`, `summarizationRules`, `actionItems`, `googleAccounts`, `office365Accounts`, `zohoAccounts`
@@ -879,6 +880,8 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Override consent versions (defaults in `server/src/constants/legal-versions.ts`; bump the default when policy wording changes so users re-accept) |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |
 | `FOCUS_BEAR_API_URL`                                          | No       | Focus Bear API base URL for task project/due-date suggestions (default `https://api.focusbear.io`) |
+| `FOCUS_BEAR_OAUTH_DOMAIN`, `FOCUS_BEAR_OAUTH_CLIENT_ID`, `FOCUS_BEAR_OAUTH_CLIENT_SECRET`, `FOCUS_BEAR_OAUTH_AUDIENCE` | No | "Connect Focus Bear": the Auth0 domain, the BearlyMail Regular Web Application, and the Focus Bear API identifier (the backend's `AUTH0_IDENTIFIER`). Without all four, Settings shows Connect as unavailable |
+| `FOCUS_BEAR_OAUTH_SCOPE`, `FOCUS_BEAR_OAUTH_REDIRECT_URI`     | No       | Defaults `openid offline_access` and `<BACKEND_URL>/focus-bear/oauth/callback` |
 | `ZOHO_CLIQ_*`                                                 | No       | Zoho Cliq notifications                   |
 | `PUSHER_APP_ID`                                               | No       | Pusher app id (realtime events)           |
 | `PUSHER_KEY`                                                  | No       | Pusher key (also exposed to the client)   |

@@ -1,22 +1,21 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 import { PROMISE_STATUS } from "../constants/domain-statuses";
-import { FOCUS_BEAR_REJECTED_TOKEN_STATUSES } from "../constants/focus-bear.constants";
-import { EncryptionHelper } from "../encryption/encryption.helper";
-import { UsersService } from "../users/users.service";
+import {
+  FOCUS_BEAR_CONNECTION_METHODS,
+  FOCUS_BEAR_REJECTED_TOKEN_STATUSES,
+} from "../constants/focus-bear.constants";
 import {
   FocusBearApiError,
+  FocusBearConnectionStatus,
+  FocusBearCredential,
   FocusBearNextFreeDateResponse,
   FocusBearProjectSuggestionResponse,
   FocusBearTaskSuggestions,
   FocusBearTaskToFile,
 } from "./focus-bear.types";
 import { FocusBearApiService } from "./focus-bear-api.service";
-
-const TOKEN_REJECTED_MESSAGE =
-  "Focus Bear didn't accept that token. Create one with the tasks:read scope in Focus Bear and paste it again.";
-const FOCUS_BEAR_UNREACHABLE_MESSAGE =
-  "Couldn't reach Focus Bear to check the token. Try again in a moment.";
+import { FocusBearCredentialsService } from "./focus-bear-credentials.service";
 
 const NOT_CONNECTED: FocusBearTaskSuggestions = {
   connected: false,
@@ -25,45 +24,50 @@ const NOT_CONNECTED: FocusBearTaskSuggestions = {
   dueDate: null,
 };
 
+type SuggestionResults = [
+  PromiseSettledResult<FocusBearProjectSuggestionResponse>,
+  PromiseSettledResult<FocusBearNextFreeDateResponse>,
+];
+
 const isRejectedToken = (reason: unknown): boolean =>
   reason instanceof FocusBearApiError &&
   FOCUS_BEAR_REJECTED_TOKEN_STATUSES.includes(reason.status);
 
+const reasonOf = (result: PromiseSettledResult<unknown>): unknown =>
+  result.status === PROMISE_STATUS.REJECTED ? result.reason : null;
+
+const valueOf = <T>(result: PromiseSettledResult<T>): T | null =>
+  result.status === PROMISE_STATUS.FULFILLED ? result.value : null;
+
+const isAccessRefused = ([
+  projectResult,
+  dateResult,
+]: SuggestionResults): boolean =>
+  isRejectedToken(reasonOf(projectResult)) &&
+  isRejectedToken(reasonOf(dateResult));
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 /**
- * The user's Focus Bear connection: an access token they create in Focus Bear and
- * paste here, stored encrypted, used only to ask Focus Bear which project and day a
- * task saved from an email should get.
+ * The user's Focus Bear connection, used only to ask Focus Bear which project
+ * and day a task saved from an email should get.
  */
 @Injectable()
 export class FocusBearService {
   private readonly logger = new Logger(FocusBearService.name);
 
   constructor(
-    private readonly usersService: UsersService,
+    private readonly credentials: FocusBearCredentialsService,
     private readonly focusBearApi: FocusBearApiService,
   ) {}
 
-  async isConnected(userId: string): Promise<boolean> {
-    return (await this.loadToken(userId)) !== null;
+  status(userId: string): Promise<FocusBearConnectionStatus> {
+    return this.credentials.status(userId);
   }
 
-  /** Checks the token against Focus Bear before storing it, so a typo fails here, not on every save. */
-  async connect(userId: string, rawToken: string): Promise<void> {
-    const token = rawToken.trim();
-    try {
-      await this.focusBearApi.nextFreeDate(token);
-    } catch (error) {
-      throw new BadRequestException(
-        isRejectedToken(error)
-          ? TOKEN_REJECTED_MESSAGE
-          : FOCUS_BEAR_UNREACHABLE_MESSAGE,
-      );
-    }
-    await this.usersService.update(userId, { focusBearApiToken: token });
-  }
-
-  async disconnect(userId: string): Promise<void> {
-    await this.usersService.update(userId, { focusBearApiToken: null });
+  disconnect(userId: string): Promise<void> {
+    return this.credentials.disconnect(userId);
   }
 
   /**
@@ -74,45 +78,74 @@ export class FocusBearService {
     userId: string,
     task: FocusBearTaskToFile,
   ): Promise<FocusBearTaskSuggestions> {
-    const token = await this.loadToken(userId);
-    if (!token) {
+    const credential = await this.resolveCredential(userId, false);
+    if (!credential) {
       return NOT_CONNECTED;
     }
-    const [projectResult, dateResult] = await Promise.allSettled([
-      this.focusBearApi.suggestProject(token, task),
-      this.focusBearApi.nextFreeDate(token),
+    const results = await this.fetchSuggestions(credential, task);
+    if (!isAccessRefused(results)) {
+      return this.toSuggestions(results);
+    }
+    return this.retryWithRenewedToken(userId, credential, task);
+  }
+
+  /** A signed-in token Focus Bear refuses (e.g. after "log out everywhere") is renewed once. */
+  private async retryWithRenewedToken(
+    userId: string,
+    refused: FocusBearCredential,
+    task: FocusBearTaskToFile,
+  ): Promise<FocusBearTaskSuggestions> {
+    if (refused.method !== FOCUS_BEAR_CONNECTION_METHODS.OAUTH) {
+      return NOT_CONNECTED;
+    }
+    const renewed = await this.resolveCredential(userId, true);
+    if (!renewed) {
+      return NOT_CONNECTED;
+    }
+    const results = await this.fetchSuggestions(renewed, task);
+    return isAccessRefused(results)
+      ? NOT_CONNECTED
+      : this.toSuggestions(results);
+  }
+
+  /** Focus Bear's sign-in being unreachable is a missing suggestion, not a failed save. */
+  private async resolveCredential(
+    userId: string,
+    forceRenewal: boolean,
+  ): Promise<FocusBearCredential | null> {
+    try {
+      return await this.credentials.resolve(userId, { forceRenewal });
+    } catch (error) {
+      this.logger.warn(
+        `Focus Bear sign-in unavailable: ${errorMessage(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private fetchSuggestions(
+    credential: FocusBearCredential,
+    task: FocusBearTaskToFile,
+  ): Promise<SuggestionResults> {
+    return Promise.allSettled([
+      this.focusBearApi.suggestProject(credential, task),
+      this.focusBearApi.nextFreeDate(credential),
     ]);
-    if (
-      isRejectedToken(this.reasonOf(projectResult)) &&
-      isRejectedToken(this.reasonOf(dateResult))
-    ) {
-      return NOT_CONNECTED;
-    }
+  }
+
+  private toSuggestions([
+    projectResult,
+    dateResult,
+  ]: SuggestionResults): FocusBearTaskSuggestions {
     this.logFailure(projectResult, "project");
     this.logFailure(dateResult, "due date");
-    const projectSuggestion =
-      this.valueOf<FocusBearProjectSuggestionResponse>(projectResult);
-    const nextFreeDate =
-      this.valueOf<FocusBearNextFreeDateResponse>(dateResult);
+    const projectSuggestion = valueOf(projectResult);
     return {
       connected: true,
       project: projectSuggestion?.project ?? null,
       projects: projectSuggestion?.projects ?? [],
-      dueDate: nextFreeDate?.date ?? null,
+      dueDate: valueOf(dateResult)?.date ?? null,
     };
-  }
-
-  private async loadToken(userId: string): Promise<string | null> {
-    const user = await this.usersService.findOneWithFocusBearToken(userId);
-    return EncryptionHelper.tryDecrypt(user?.focusBearApiToken) || null;
-  }
-
-  private valueOf<T>(result: PromiseSettledResult<T>): T | null {
-    return result.status === PROMISE_STATUS.FULFILLED ? result.value : null;
-  }
-
-  private reasonOf(result: PromiseSettledResult<unknown>): unknown {
-    return result.status === PROMISE_STATUS.REJECTED ? result.reason : null;
   }
 
   private logFailure(
@@ -122,12 +155,8 @@ export class FocusBearService {
     if (result.status === PROMISE_STATUS.FULFILLED) {
       return;
     }
-    const message =
-      result.reason instanceof Error
-        ? result.reason.message
-        : String(result.reason);
     this.logger.warn(
-      `Focus Bear ${suggestion} suggestion unavailable: ${message}`,
+      `Focus Bear ${suggestion} suggestion unavailable: ${errorMessage(result.reason)}`,
     );
   }
 }

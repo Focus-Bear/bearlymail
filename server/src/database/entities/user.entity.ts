@@ -256,9 +256,39 @@ export class User {
       "users.focusBearApiToken",
     ),
     comment:
-      "Focus Bear access token (encrypted, scope tasks:read) - for project and due-date suggestions on Save to Focus Bear",
+      "Focus Bear access token the user pasted before Connect Focus Bear existed (encrypted, scope tasks:read); cleared when they connect with sign-in",
   })
   focusBearApiToken: string | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: makeGlobalEncryptedColumnTransformer(
+      "users.focusBearRefreshToken",
+    ),
+    comment:
+      "Connect Focus Bear (OAuth) refresh token (encrypted) - for project and due-date suggestions on Save to Focus Bear",
+  })
+  focusBearRefreshToken: string | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: makeGlobalEncryptedColumnTransformer(
+      "users.focusBearAccessToken",
+    ),
+    comment:
+      "Connect Focus Bear (OAuth) access token (encrypted), cached until focusBearAccessTokenRenewAt",
+  })
+  focusBearAccessToken: string | null;
+
+  @Column({
+    type: "timestamptz",
+    nullable: true,
+    comment:
+      "When the cached Focus Bear access token is next renewed with the refresh token",
+  })
+  focusBearAccessTokenRenewAt: Date | null;
 
   @Column({
     type: "text",

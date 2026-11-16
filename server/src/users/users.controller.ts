@@ -198,12 +198,16 @@ export class UsersController {
   }
 }
 
-const FOCUS_BEAR_TOKEN_FIELD: keyof User = "focusBearApiToken";
+const FOCUS_BEAR_SECRET_FIELDS: readonly (keyof User)[] = [
+  "focusBearApiToken",
+  "focusBearRefreshToken",
+  "focusBearAccessToken",
+];
 
 const USER_SECRET_FIELDS: ReadonlySet<string> = new Set([
   ...USER_AI_PROVIDER_DESCRIPTORS.map(({ column }) => column),
   "aiKeyRejections",
-  FOCUS_BEAR_TOKEN_FIELD,
+  ...FOCUS_BEAR_SECRET_FIELDS,
   "password",
   "passwordSetupToken",
   "passwordSetupTokenExpiresAt",
@@ -225,7 +229,7 @@ const MASKED_USER_FIELDS: readonly (keyof User)[] = [
 export const MASKED_SECRET_VALUE = "********";
 
 /**
- * Secrets never travel to the client: AI keys, the Focus Bear token, password
+ * Secrets never travel to the client: AI keys, the Focus Bear tokens, password
  * and reset/setup tokens, the TOTP seed and the wrapped data key are dropped;
  * OAuth and GitHub tokens are masked. Settings reads masked AI keys from
  * GET /llm/me/ai-keys and the Focus Bear connection from its own endpoint.

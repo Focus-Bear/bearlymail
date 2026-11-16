@@ -228,6 +228,8 @@ export const AUTH_ACTION_TYPES = {
   DISCONNECT: "disconnect",
   /** Incremental Google authorization: add calendar or contacts to a signed-in user's grant. */
   GRANT_GOOGLE_PERMISSION: "grant_google_permission",
+  /** "Connect Focus Bear": the state's nonce is the PKCE code challenge. */
+  CONNECT_FOCUS_BEAR: "connect_focus_bear",
 } as const;
 
 export type AuthActionType =

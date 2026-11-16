@@ -7,6 +7,7 @@ const DAYS_PER_QUARTER = 90;
 export const PAT_SCOPES = {
   MAIL_READ: 'mail:read',
   MAIL_SEND: 'mail:send',
+  SETTINGS_WRITE: 'settings:write',
 } as const;
 
 export type PatScope = (typeof PAT_SCOPES)[keyof typeof PAT_SCOPES];

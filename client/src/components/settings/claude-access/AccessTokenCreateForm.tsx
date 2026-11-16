@@ -15,6 +15,8 @@ import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { CreatePersonalAccessTokenInput } from './types';
 
 const NEVER_EXPIRES_VALUE = 'never';
+/** Nudges the checkbox down to line up with the label's first line. */
+const CHECKBOX_TOP_OFFSET_PX = 3;
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -35,25 +37,56 @@ const inputStyle: React.CSSProperties = {
   backgroundColor: theme.colors.background.paper,
 };
 
+interface PermissionCheckboxProps {
+  isChecked: boolean;
+  onChange: (isChecked: boolean) => void;
+  testId: string;
+  label: string;
+  hint: string;
+}
+
+const PermissionCheckbox: React.FC<PermissionCheckboxProps> = ({ isChecked, onChange, testId, label, hint }) => (
+  <label style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.sm, cursor: 'pointer' }}>
+    <input
+      type="checkbox"
+      checked={isChecked}
+      onChange={(event) => onChange(event.target.checked)}
+      data-testid={testId}
+      style={{ marginTop: CHECKBOX_TOP_OFFSET_PX }}
+    />
+    <span>
+      <span style={{ ...labelStyle, display: 'inline', marginBottom: 0 }}>{label}</span>
+      <span style={{ display: 'block', fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+        {hint}
+      </span>
+    </span>
+  </label>
+);
+
 interface AccessTokenCreateFormProps {
   isSubmitting: boolean;
   onCreate: (input: CreatePersonalAccessTokenInput) => void;
 }
 
 /**
- * Name, permission and expiry for a new token. Sending is opt-in so the
- * default token can only read: an email can't talk a read-only Claude into
- * sending anything.
+ * Name, permissions and expiry for a new token. Sending and editing
+ * categories/rules are opt-in so the default token can only read: an email
+ * can't talk a read-only Claude into sending anything or rewriting the rules.
  */
 export const AccessTokenCreateForm: React.FC<AccessTokenCreateFormProps> = ({ isSubmitting, onCreate }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(DEFAULT_TOKEN_NAME);
   const [canSend, setCanSend] = useState(false);
+  const [canEditSettings, setCanEditSettings] = useState(false);
   const [expiry, setExpiry] = useState(String(DEFAULT_TOKEN_EXPIRY_DAYS));
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const scopes: PatScope[] = canSend ? [PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_SEND] : [PAT_SCOPES.MAIL_READ];
+    const scopes: PatScope[] = [
+      PAT_SCOPES.MAIL_READ,
+      ...(canSend ? [PAT_SCOPES.MAIL_SEND] : []),
+      ...(canEditSettings ? [PAT_SCOPES.SETTINGS_WRITE] : []),
+    ];
     onCreate({
       name: name.trim(),
       scopes,
@@ -99,23 +132,20 @@ export const AccessTokenCreateForm: React.FC<AccessTokenCreateFormProps> = ({ is
           </select>
         </div>
       </div>
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.sm, cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={canSend}
-          onChange={(event) => setCanSend(event.target.checked)}
-          data-testid="access-token-can-send"
-          style={{ marginTop: '3px' }}
-        />
-        <span>
-          <span style={{ ...labelStyle, display: 'inline', marginBottom: 0 }}>
-            {t('settings.claudeAccess.allowSendLabel')}
-          </span>
-          <span style={{ display: 'block', fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-            {t('settings.claudeAccess.allowSendHint')}
-          </span>
-        </span>
-      </label>
+      <PermissionCheckbox
+        isChecked={canSend}
+        onChange={setCanSend}
+        testId="access-token-can-send"
+        label={t('settings.claudeAccess.allowSendLabel')}
+        hint={t('settings.claudeAccess.allowSendHint')}
+      />
+      <PermissionCheckbox
+        isChecked={canEditSettings}
+        onChange={setCanEditSettings}
+        testId="access-token-can-edit-settings"
+        label={t('settings.claudeAccess.allowSettingsWriteLabel')}
+        hint={t('settings.claudeAccess.allowSettingsWriteHint')}
+      />
       <div>
         <button
           type="submit"

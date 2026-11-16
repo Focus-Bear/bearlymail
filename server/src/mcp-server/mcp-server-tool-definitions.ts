@@ -2,40 +2,19 @@ import {
   MCP_INBOX_MODES,
   MCP_SERVER,
   MCP_TOOL_NAMES,
-  McpToolName,
 } from "../constants/mcp-server.constants";
 import {
   PAT_SCOPES,
   PatScope,
 } from "../constants/personal-access-tokens.constants";
+import { MCP_SETTINGS_TOOL_SPECS } from "./mcp-settings-tool-definitions";
+import {
+  McpToolDefinition,
+  McpToolSpec,
+  READ_ONLY_ANNOTATIONS,
+} from "./mcp-tool-spec.types";
 
-/** MCP tool annotations (hints the client uses to decide when to confirm). */
-interface McpToolAnnotations {
-  title: string;
-  readOnlyHint: boolean;
-  destructiveHint: boolean;
-  idempotentHint: boolean;
-  openWorldHint: boolean;
-}
-
-export interface McpToolDefinition {
-  name: McpToolName;
-  title: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  annotations: McpToolAnnotations;
-}
-
-export interface McpToolSpec extends McpToolDefinition {
-  requiredScope: PatScope;
-}
-
-const READ_ONLY_ANNOTATIONS = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-} as const;
+export type { McpToolDefinition, McpToolSpec } from "./mcp-tool-spec.types";
 
 /** Sending reaches other people and cannot be undone. */
 const SEND_ANNOTATIONS = {
@@ -223,6 +202,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
     annotations: { title: "Send new email", ...SEND_ANNOTATIONS },
     requiredScope: PAT_SCOPES.MAIL_SEND,
   },
+  ...MCP_SETTINGS_TOOL_SPECS,
 ];
 
 /** Tools a token with these scopes may see and call. */

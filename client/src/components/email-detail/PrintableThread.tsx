@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { Email } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { toPrintSafeEmailHtml } from 'utils/printSafeEmailHtml';
+
+import { useIsPrinting } from 'hooks/useIsPrinting';
 
 interface PrintableThreadProps {
   email: Email;
@@ -12,28 +15,32 @@ interface PrintableThreadProps {
 }
 
 /**
- * A hidden element (visibility: hidden in normal view) that becomes visible
- * when the user triggers browser print (Ctrl+P / Cmd+P or window.print()).
- * The print stylesheet in email-thread-print.css hides all other DOM nodes and
- * reveals only this container so the printed page looks clean.
+ * Print-only copy of the thread. It is mounted only while the browser is
+ * printing (Ctrl+P / Cmd+P or window.print(), tracked by `useIsPrinting`) and
+ * removed afterwards; the print stylesheet in email-thread-print.css hides all
+ * other DOM nodes and reveals only this container so the printed page looks clean.
  *
- * HTML sanitization: email bodies are sanitized with DOMPurify before rendering
- * to prevent XSS from malicious email content, even in this print-only context.
+ * Unlike normal viewing (sandboxed EmailBodyIframe), these bodies are inserted
+ * into the app's own document, so after DOMPurify sanitisation they also go
+ * through `toPrintSafeEmailHtml`, which drops message CSS (`<style>`, `id`,
+ * `class`, fetchable inline style values) so it can't affect the app.
  */
 export const PrintableThread: React.FC<PrintableThreadProps> = ({ email, threadEmails }) => {
+  const isPrinting = useIsPrinting();
+  if (!isPrinting) {
+    return null;
+  }
+  return <PrintableThreadContent email={email} threadEmails={threadEmails} />;
+};
+
+const PrintableThreadContent: React.FC<PrintableThreadProps> = ({ email, threadEmails }) => {
   const { t } = useTranslation();
   const emails = threadEmails.length > 0 ? threadEmails : [email];
 
   return (
-    <div
-      id="printable-email-thread"
-      style={{
-        visibility: 'hidden', // hidden during normal rendering; shown via @media print
-        position: 'absolute',
-        left: '-9999px',
-        top: 0,
-      }}
-    >
+    // Hidden on screen and laid out for paper by email-thread-print.css. No inline
+    // styles here: they would outrank the @media print rules.
+    <div id="printable-email-thread">
       <div className="print-thread-subject">{email.subject}</div>
 
       {emails.map(msg => (
@@ -51,7 +58,9 @@ export const PrintableThread: React.FC<PrintableThreadProps> = ({ email, threadE
           <div
             className="print-message-body"
             // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{ __html: sanitizeAndProcessHtml(msg.htmlBody || msg.body || '', msg.attachments) }}
+            dangerouslySetInnerHTML={{
+              __html: toPrintSafeEmailHtml(sanitizeAndProcessHtml(msg.htmlBody || msg.body || '', msg.attachments)),
+            }}
           />
         </div>
       ))}

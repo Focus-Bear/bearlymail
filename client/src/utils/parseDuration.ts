@@ -266,7 +266,7 @@ function formatTime(date: Date, locale: string): string {
  * Formats the calendar date. English keeps the "Wed 23rd Mar" style (ordinal,
  * day before month); other locales defer to `Intl` (e.g. Spanish "mié, 23 mar").
  */
-function formatDate(date: Date, locale: string, now: Date): string {
+export function formatDate(date: Date, locale: string, now: Date): string {
   const includeYear = date.getFullYear() !== now.getFullYear();
   if (isEnglish(locale)) {
     const weekday = EN_WEEKDAYS[date.getDay()];

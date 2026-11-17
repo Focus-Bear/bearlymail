@@ -36,12 +36,14 @@ export interface FocusBearTaskDraft {
   link?: string;
   /** The Focus Bear project to file the task in. */
   projectId?: string;
-  /** `YYYY-MM-DD`. */
+  /** `YYYY-MM-DD`. Without one, Focus Bear puts the task on the next free day in the user's to-do list. */
   dueDate?: string;
+  /** Whole minutes. Without one, Focus Bear decides. */
+  durationMinutes?: number;
 }
 
 /** What the link carries besides the text, all sent whole: a cut id or date means nothing. */
-type FocusBearTaskTarget = Pick<FocusBearTaskDraft, 'link' | 'projectId' | 'dueDate'>;
+type FocusBearTaskTarget = Pick<FocusBearTaskDraft, 'link' | 'projectId' | 'dueDate' | 'durationMinutes'>;
 
 /** Shortens `text` to at most `maxLength` characters, ending in an ellipsis when cut. */
 export function truncateForFocusBear(text: string, maxLength: number): string {
@@ -60,7 +62,11 @@ export function truncateForFocusBear(text: string, maxLength: number): string {
   );
 }
 
-function encodeTaskLink(title: string, notes: string, { link, projectId, dueDate }: FocusBearTaskTarget): string {
+function encodeTaskLink(
+  title: string,
+  notes: string,
+  { link, projectId, dueDate, durationMinutes }: FocusBearTaskTarget
+): string {
   const params = new URLSearchParams();
   params.set(FOCUS_BEAR_TASK_PARAM.TITLE, title);
   if (notes) {
@@ -75,6 +81,9 @@ function encodeTaskLink(title: string, notes: string, { link, projectId, dueDate
   if (dueDate) {
     params.set(FOCUS_BEAR_TASK_PARAM.DUE_DATE, dueDate);
   }
+  if (durationMinutes) {
+    params.set(FOCUS_BEAR_TASK_PARAM.DURATION_MINUTES, String(durationMinutes));
+  }
   params.set(FOCUS_BEAR_TASK_PARAM.SOURCE, FOCUS_BEAR_TASK_SOURCE_BEARLYMAIL);
   // URLSearchParams writes spaces as "+"; %20 is what every URL parser decodes the same way.
   return `${FOCUS_BEAR_CREATE_TASK_URL}?${params.toString().replace(/\+/g, '%20')}`;
@@ -83,8 +92,8 @@ function encodeTaskLink(title: string, notes: string, { link, projectId, dueDate
 /**
  * The `focusbear://create-task?…` link for a task. Notes are shortened first,
  * then the title, until the encoded link fits FOCUS_BEAR_TASK_MAX_URL_LENGTH;
- * the link back to the email, the project and the due date are never cut, because
- * a cut one means nothing.
+ * the link back to the email, the project, the due date and the duration are never
+ * cut, because a cut one means nothing.
  */
 export function buildFocusBearTaskLink(draft: FocusBearTaskDraft): string {
   let title = truncateForFocusBear(draft.title, FOCUS_BEAR_TASK_MAX_TITLE_LENGTH);

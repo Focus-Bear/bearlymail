@@ -93,7 +93,7 @@ describe("McpSendToolsService", () => {
       });
 
       expect(sendQueue.queueReply).toHaveBeenCalledWith("user-1", EMAIL_ID, {
-        body: "Sounds good — see you Thursday.",
+        body: "<p>Sounds good — see you Thursday.</p>",
         recipients: undefined,
         cc: "boss@example.com",
         bcc: undefined,
@@ -212,6 +212,21 @@ describe("McpSendToolsService", () => {
   });
 
   describe("sendEmail", () => {
+    it("sends a multi-paragraph plain-text body as HTML paragraphs", async () => {
+      await service.sendEmail(CONTEXT, {
+        to: ["ana@example.com"],
+        subject: "Hola",
+        body: "Buen día:\n\nPrimer párrafo.\n\n¿Le interesa?\n¿Es usted?\n\nSaludos,\nAndrea",
+      });
+      expect(sendQueue.queueNewEmail).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          body:
+            "<p>Buen día:</p><p>Primer párrafo.</p>" +
+            "<p>¿Le interesa?<br>¿Es usted?</p><p>Saludos,<br>Andrea</p>",
+        }),
+      );
+    });
     it("queues a new email with recipient objects", async () => {
       await service.sendEmail(CONTEXT, {
         to: ["ana@example.com", "bo@example.com"],
@@ -225,7 +240,7 @@ describe("McpSendToolsService", () => {
         cc: undefined,
         bcc: undefined,
         subject: "Quarterly numbers",
-        body: "Attached below.",
+        body: "<p>Attached below.</p>",
         expectedReplyHours: 168,
         trackOpens: false,
       });

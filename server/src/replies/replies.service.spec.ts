@@ -526,7 +526,7 @@ describe("RepliesService", () => {
 
       const dateStr = email.receivedAt.toUTCString();
       const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\n-- \nSent from BearlyMail (anti inbox overwhelm system)`;
-      const expectedHtmlBody = `Reply body<br><blockquote style="margin:0 0 0 0.8ex;border-left:1px solid #cccccc;padding-left:1ex"><div>On ${dateStr}, ${email.from} wrote:</div>Test body</blockquote><br><br><div style="color:#888888;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">Sent from BearlyMail (anti inbox overwhelm system)</div>`;
+      const expectedHtmlBody = `Reply body<br><blockquote style="margin:0 0 0 0.8ex;border-left:1px solid #cccccc;padding-left:1ex"><div>On ${dateStr}, ${email.from} wrote:</div>Test body</blockquote><br><br><div style="color:#888888;font-size:12px;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">Sent from BearlyMail (anti inbox overwhelm system)</div>`;
 
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
@@ -580,7 +580,7 @@ describe("RepliesService", () => {
       const call = mockProvider.sendReply.mock.calls[0][1];
       // HTML signature is wrapped in the distinct bordered block.
       expect(call.options.htmlBody as string).toContain(
-        '<div style="color:#888888;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">Regards,<br>Ekaterine</div>',
+        '<div style="color:#888888;font-size:12px;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">Regards,<br>Ekaterine</div>',
       );
       expect(call.options.htmlBody as string).not.toContain(
         "Regards,\nEkaterine",

@@ -4,11 +4,14 @@ import { FiDatabase, FiRefreshCw, FiSettings } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { CrmSenderContext } from 'types/crm-sender-context';
 
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
+
+import { CrmSenderContextView } from './CrmSenderContextView';
 
 // Sender-context providers are MCP servers, configured under Settings > Connected apps.
 const CONTEXT_PROVIDERS_SETTINGS_PATH = settingsAnchorPath(SETTINGS_ANCHORS.CONNECTED_APPS);
@@ -21,6 +24,8 @@ interface SenderContextEntry {
   serverName: string;
   toolName: string;
   text: string;
+  /** Typed CRM fields when the server used a fixed CRM lookup (Zoho Bigin). */
+  crm?: CrmSenderContext;
 }
 
 interface SenderContextResult {
@@ -58,16 +63,20 @@ const EntryCard: React.FC<EntryCardProps> = ({ entry }) => (
     >
       {entry.serverName}
     </div>
-    <div
-      style={{
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.primary,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
-    >
-      {entry.text}
-    </div>
+    {entry.crm ? (
+      <CrmSenderContextView context={entry.crm} sourceName={entry.serverName} />
+    ) : (
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.primary,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        {entry.text}
+      </div>
+    )}
   </div>
 );
 
@@ -123,14 +132,22 @@ const EmptyState: React.FC<{ onConfigure: () => void; t: (key: string) => string
 const SectionContent: React.FC<SectionContentProps> = ({ loading, error, entries, onConfigure, t }) => {
   if (loading) {
     return (
-      <div style={{ padding: theme.spacing.md, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+      <div
+        style={{
+          padding: theme.spacing.md,
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
         {t('common.loading')}
       </div>
     );
   }
   if (error) {
     return (
-      <div style={{ padding: theme.spacing.md, color: theme.colors.error.main, fontSize: theme.typography.fontSize.sm }}>
+      <div
+        style={{ padding: theme.spacing.md, color: theme.colors.error.main, fontSize: theme.typography.fontSize.sm }}
+      >
         {error}
       </div>
     );

@@ -13,6 +13,14 @@
  *   portal roots appended directly to <body> by other libraries).
  */
 
+/* The container is only mounted while printing, but keep it off screen in case
+ * the browser paints the page between `beforeprint` and the print layout. */
+@media screen {
+  #printable-email-thread {
+    display: none;
+  }
+}
+
 @media print {
   /* Collapse all direct children of the React root (nav, modals, toasts…) */
   #root > * {
@@ -29,6 +37,7 @@
     top: 0;
     left: 0;
     width: 100%;
+    box-sizing: border-box;
     margin: 0;
     padding: 16px;
     font-family: Georgia, 'Times New Roman', Times, serif;

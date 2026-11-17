@@ -2024,6 +2024,8 @@
     "actionItems_plural": "{{count}} elementos de acción",
     "autoResponseBadge": "{{count}} respuesta automática · Último envío {{sentAt}}",
     "autoResponseBadge_plural": "{{count}} respuestas automáticas · Último envío {{sentAt}}",
+    "autoResponseDraftBadge": "Borrador de respuesta listo",
+    "autoResponseDraftBadgeTitle": "La respuesta automática redactó una respuesta. Abre el correo para revisarla y enviarla.",
     "actionTab": "Acción",
     "toggleDebug": "Alternar panel de depuración",
     "moreInboxActions": "Más acciones de la bandeja de entrada",
@@ -2264,7 +2266,17 @@
       "prompt3": "¿Qué requiere mi acción?",
       "prompt4": "Busca otros correos de este remitente",
       "disclaimer": "La IA puede cometer errores. Verifica los detalles importantes.",
-      "connectTools": "Conecta Google Drive y otras herramientas"
+      "connectTools": "Conecta Google Drive y otras herramientas",
+      "approval": {
+        "title": "¿Permitir esta acción?",
+        "description": "Preguntar a IA quiere usar {{tool}} en {{server}}. No se hará nada a menos que lo apruebes.",
+        "argumentsLabel": "Exactamente lo que se enviará",
+        "noArguments": "Esta acción no envía ningún detalle.",
+        "warning": "Apruébalo solo si tú lo pediste. Los correos pueden contener texto que intenta engañar al asistente para que actúe.",
+        "approve": "Aprobar",
+        "deny": "Denegar",
+        "unavailable": "Esa solicitud de aprobación caducó o ya se usó. Vuelve a preguntar si aún quieres hacerlo."
+      }
     },
     "clickToArchive": "Haz clic para archivar",
     "clickToSetPriority": "Haz clic para establecer prioridad: {{priority}}",
@@ -4581,6 +4593,14 @@
         "noRules": "Aún no se han agregado reglas de exclusión",
         "addRule": "Agregar regla de exclusión",
         "aiInterpretNote": "La IA interpretará estas reglas para determinar qué correos electrónicos no deben recibir respuestas automáticas."
+      },
+      "delivery": {
+        "title": "Cómo se envían las respuestas",
+        "description": "Elige si las respuestas automáticas se envían por ti o se guardan como borradores para que las revises primero.",
+        "draftLabel": "Guardar como borradores para mi aprobación (recomendado)",
+        "draftDesc": "Cada respuesta automática se guarda como borrador de respuesta en el correo. No se envía nada hasta que lo revises y lo envíes.",
+        "autoLabel": "Enviar automáticamente a personas que conozco",
+        "autoDesc": "Se envían de inmediato a tus contactos y a las personas a las que ya has escrito. Las respuestas a cualquier otra persona se guardan como borradores."
       },
       "analytics": {
         "title": "Analíticas",

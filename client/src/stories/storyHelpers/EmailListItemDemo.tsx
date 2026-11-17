@@ -111,6 +111,8 @@ export interface ItemDemoProps {
   followUpData?: DemoFollowUpData | null;
   /** Container width — the follow-up bugs reproduce in narrow (split-view) columns. */
   maxWidth?: number;
+  /** Fields layered over the sample email, e.g. to show a row badge. */
+  emailOverrides?: Partial<Email>;
 }
 
 export const ItemDemo: React.FC<ItemDemoProps> = ({
@@ -119,12 +121,13 @@ export const ItemDemo: React.FC<ItemDemoProps> = ({
   mode = 'triage',
   followUpData = null,
   maxWidth = 700,
+  emailOverrides,
 }) => (
   <QueryClientProvider client={storyQueryClient}>
   <I18nextProvider i18n={emailListItemI18n}>
     <div style={{ maxWidth }}>
       <EmailListItemView
-        email={mode === 'follow-up' ? SAMPLE_FOLLOWUP_EMAIL : SAMPLE_EMAIL}
+        email={{ ...(mode === 'follow-up' ? SAMPLE_FOLLOWUP_EMAIL : SAMPLE_EMAIL), ...emailOverrides }}
         index={0}
         mode={mode}
         isSelected={isSelected}

@@ -157,7 +157,7 @@ Need to modify something? Here's where to find it:
 | **Email open tracking (pixel, stats)**           | `server/src/email-tracking/` (`TrackedEmailSender` = the send choke point, `tracking-pixel.controller.ts` = public `/t/o/<token>.gif`) |
 | **Email summarization**                          | `server/src/summarization/summarization.service.ts`                          |
 | **Reply generation**                             | `server/src/replies/replies.service.ts`                                      |
-| **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry) |
+| **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry, `ask-ai-approval.service.ts` user approval for connected tools not annotated `readOnlyHint`) |
 | **MCP server for Claude (`POST /mcp`)**          | `server/src/mcp-server/` (tools in `mcp-server-tool-definitions.ts`); auth = personal access tokens in `server/src/personal-access-tokens/` or OAuth 2.1 (claude.ai connectors) in `server/src/mcp-oauth/`. Not `src/mcp/` (that is BearlyMail as an MCP *client*). See [`docs/connect-claude.md`](docs/connect-claude.md) |
 | **Context analysis (VIP detection, categories)** | `server/src/context/context.service.ts`                                      |
 | **Gmail provider implementation**                | `server/src/emails/providers/gmail.provider.ts`                              |
@@ -277,6 +277,7 @@ Need to modify something? Here's where to find it:
 | `AutoArchiveScanState`    | `auto_archive_scan_states`   | Per-user watermark for incremental proposal mining   |
 | `PersonalAccessToken`     | `personal_access_tokens`     | Scoped (`mail:read` / `mail:send`) bearer tokens for `/mcp`: hand-made PATs (`kind='personal'`) and OAuth connections (`kind='oauth'`, rotating access + refresh hashes); only SHA-256 hashes are stored |
 | `OAuthClient`             | `oauth_clients`              | RFC 7591 dynamically registered MCP OAuth clients (metadata-document clients like claude.ai aren't stored) |
+| `AskAiPendingApproval`    | `ask_ai_pending_approvals`   | Ask AI turns paused on a connected tool that is not read-only: encrypted agent state + args hash; single-use, expires after 15 min |
 | `OAuthAuthorizationCode`  | `oauth_authorization_codes`  | In-flight `/oauth/authorize` requests → single-use code hashes (PKCE challenge, granted scopes); pruned after a day |
 
 ---
@@ -557,10 +558,11 @@ Key services: `ContextService`, `ContextGmailDataService`, `ContextPiiRedactionS
 Automated email response pipeline:
 
 1. Email classified by type (`classify-email-type.md` prompt)
-2. If Q&A-answerable: generates response from user's learned Q&A knowledge base
+2. If Q&A-answerable: at most 3 Q&A pairs are picked by keyword overlap (`qa-retrieval.ts`, no LLM) and only those go to `generate-qa-answer.md`; the answer is kept only if model confidence x retrieval score clears the bar and it doesn't reproduce unselected pairs
 3. Checks for opt-out signals from sender (`detect-opt-out.md`)
-4. Logs all auto-responses in `AutoResponseLog`, respects `AutoResponseSuppression` rules
-5. Runs as low-priority background job
+4. Recipient is `From` (Reply-To only when it's on the same domain). `deliveryMode` defaults to `draft` (saved as a `ReplyDraft`); `auto_send_known_senders` sends only to contacts / people the user has emailed, and drafts for everyone else (`auto-responder-delivery.service.ts`)
+5. Logs sent auto-responses in `AutoResponseLog`, respects `AutoResponseSuppression` rules
+6. Runs as low-priority background job
 
 ---
 
@@ -850,6 +852,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 - `/follow-ups/*` - Follow-up drafts and bulk send
 - `/batch-schedule/*` - Email batching schedule
 - `/github/*` - GitHub integration settings
+- `POST /csp-report` - Public, throttled sink for the web app's CSP `report-uri`/`report-to` reports (`server/src/csp-report/`); logs a one-line summary per violation. The web app's CSP itself is set by CloudFront in the private infra repo
 - `/personal-access-tokens` - Create/list/revoke tokens for Claude (JWT only; a token can never mint tokens)
 - `POST /mcp` - MCP server (Streamable HTTP, stateless JSON-RPC); authenticated by `Authorization: Bearer bm_pat_...` or an OAuth access token (`bm_oat_...`) only, never the session cookie; a 401 carries the RFC 9728 `WWW-Authenticate` challenge
 - `/.well-known/oauth-protected-resource[/mcp]`, `/.well-known/oauth-authorization-server`, `/oauth/{authorize,token,register,revoke}` - OAuth 2.1 authorization server for `/mcp` (CIMD + DCR, PKCE S256); consent page is the web app's `/oauth/consent`
@@ -874,6 +877,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `LOGIN_THROTTLE_LIMIT`                                        | No       | Password sign-ins allowed per client IP per minute (default `20`); per-account lockout applies on top |
 | `TRUST_PROXY_HOPS`                                            | No       | Proxies in front of the API that append to X-Forwarded-For (default `1`, the production ALB; `0` = none). Makes `req.ip` the client for per-IP rate limits |
 | `BACKEND_URL`                                                 | No       | Public API origin for absolute URLs (MCP OAuth redirect, open-tracking pixel). Falls back to the `GOOGLE_REDIRECT_URI` origin. Open tracking is skipped when it resolves to localhost |
+| `ALLOW_PRIVATE_OUTBOUND_URLS`                                 | No       | `true` lets workflow webhooks and MCP-client requests reach http:// and private/loopback hosts (local MCP servers, webhook receivers). Honoured only when `NODE_ENV` is `development` or `test`; ignored in production. Outbound calls to user-supplied URLs go through `server/src/common/safe-http/` |
 | `LLM_PROVIDER`                                                | No       | Default LLM: `gemini`, `openai`, or `claude-cli` (local Claude Code CLI, no API key) |
 | `CLAUDE_CLI_PATH`, `CLAUDE_CLI_MODEL`                         | No       | Claude Code CLI binary path (default `claude`) and model alias (default `sonnet`) for `claude-cli` |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`                              | No       | Google Gemini config                      |

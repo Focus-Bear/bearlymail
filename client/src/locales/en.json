@@ -339,7 +339,17 @@
       "prompt3": "What needs my action?",
       "prompt4": "Find other emails from this sender",
       "disclaimer": "AI can make mistakes. Double-check important details.",
-      "connectTools": "Connect Google Drive & other tools"
+      "connectTools": "Connect Google Drive & other tools",
+      "approval": {
+        "title": "Allow this action?",
+        "description": "Ask AI wants to use {{tool}} on {{server}}. Nothing happens unless you approve.",
+        "argumentsLabel": "Exactly what will be sent",
+        "noArguments": "No details are sent with this action.",
+        "warning": "Only approve if you asked for this. Emails can contain text that tries to trick the assistant into acting.",
+        "approve": "Approve",
+        "deny": "Deny",
+        "unavailable": "That approval request expired or was already used. Ask again if you still want this done."
+      }
     },
     "otherActions": "Other actions",
     "suggested": "Suggested",
@@ -443,6 +453,8 @@
     "actionItems_plural": "{{count}} action items",
     "autoResponseBadge": "{{count}} auto-response · Last sent {{sentAt}}",
     "autoResponseBadge_plural": "{{count}} auto-responses · Last sent {{sentAt}}",
+    "autoResponseDraftBadge": "Reply draft ready",
+    "autoResponseDraftBadgeTitle": "The auto-responder wrote a reply. Open the email to check it and send it.",
     "note": "Note",
     "phishingFlag": "Phishing",
     "unknownDate": "unknown date",
@@ -1409,6 +1421,14 @@
         "noRules": "No exclusion rules added yet",
         "addRule": "Add exclusion rule",
         "aiInterpretNote": "AI will interpret these rules to determine which emails should not receive auto-responses."
+      },
+      "delivery": {
+        "title": "How replies go out",
+        "description": "Choose whether auto-responses are sent for you or saved as drafts for you to check first.",
+        "draftLabel": "Save as drafts for my approval (recommended)",
+        "draftDesc": "Each auto-response is saved as a reply draft on the email. Nothing is sent until you review and send it.",
+        "autoLabel": "Send automatically to people I know",
+        "autoDesc": "Sent straight away to your contacts and people you've emailed before. Replies to anyone else are saved as drafts."
       },
       "analytics": {
         "title": "Analytics",

@@ -132,6 +132,9 @@ function makeService(
 
 const baseRequest: LLMRequest = { prompt: "Hello" };
 
+/** Resolves a rejected promise to its error, so the test can inspect it. */
+const returnRejection = (error: UserAiKeyRejectedException) => error;
+
 /**
  * Builds a fake `claude -p` child process. Emitting is driven by the service
  * calling `stdin.end(prompt)`: the fake then replays the configured stdout/
@@ -1392,9 +1395,7 @@ describe("LLMCoreService", () => {
         await expect(failure).rejects.toBeInstanceOf(
           UserAiKeyRejectedException,
         );
-        const rejection = await failure.catch(
-          (error: UserAiKeyRejectedException) => error,
-        );
+        const rejection = await failure.catch(returnRejection);
         expect(rejection.getStatus()).toBe(HttpStatus.FAILED_DEPENDENCY);
         expect(rejection.getResponse()).toEqual(
           expect.objectContaining({

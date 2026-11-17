@@ -420,7 +420,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
         </div>
       )}
 
-      {/* Hidden print-only thread renderer — shown by @media print in email-thread-print.css */}
+      {/* Print-only thread renderer — mounted only while printing (see PrintableThread) */}
       <PrintableThread email={email} threadEmails={threadEmails} />
     </div>
   );

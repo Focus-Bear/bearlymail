@@ -165,7 +165,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
     title: "Send reply",
     description:
       "Send a reply in an existing thread from the user's connected mailbox. Only call this when the user has asked for this exact message to be sent. " +
-      "The body is plain text; the user's signature and the quoted earlier message are added automatically. " +
+      "The body is plain text or HTML: in plain text, blank lines separate paragraphs and single newlines are kept as line breaks. The user's signature and the quoted earlier message are added automatically. " +
       "By default the reply goes to the original sender; pass `to`/`cc` to change recipients.",
     inputSchema: {
       type: "object",
@@ -198,7 +198,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
     title: "Send new email",
     description:
       "Send a new email (not a reply) from the user's connected mailbox. Only call this when the user has asked for this exact message to be sent. " +
-      "The body is plain text; the user's signature is added automatically.",
+      "The body is plain text or HTML: in plain text, blank lines separate paragraphs and single newlines are kept as line breaks. The user's signature is added automatically.",
     inputSchema: {
       type: "object",
       properties: {

@@ -31,7 +31,7 @@ describe("appendSignature", () => {
   // The HTML signature is wrapped in a bordered, dimmed block so it reads as a
   // distinct signature rather than blending into the body.
   const htmlBlock = (htmlSignature: string) =>
-    `<br><br><div style="color:#888888;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">${htmlSignature}</div>`;
+    `<br><br><div style="color:#888888;font-size:12px;border-top:1px solid #dddddd;padding-top:8px;margin-top:8px">${htmlSignature}</div>`;
   // Plain-text bodies get the standard "-- " signature delimiter.
   const plainBlock = (signature: string) => `\n\n-- \n${signature}`;
 

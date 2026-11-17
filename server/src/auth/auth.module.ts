@@ -6,8 +6,13 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { AppleMailAccountsModule } from "../apple-mail-accounts/apple-mail-accounts.module";
 import { AuditModule } from "../audit/audit.module";
+import { AppleMailAccount } from "../database/entities/apple-mail-account.entity";
+import { GoogleAccount } from "../database/entities/google-account.entity";
+import { ImapAccount } from "../database/entities/imap-account.entity";
 import { Office365Account } from "../database/entities/office365-account.entity";
 import { PersonalAccessToken } from "../database/entities/personal-access-token.entity";
+import { User } from "../database/entities/user.entity";
+import { ZohoAccount } from "../database/entities/zoho-account.entity";
 import { EmailModule } from "../email/email.module";
 import { EmailsModule } from "../emails/emails.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
@@ -22,12 +27,15 @@ import { AppleMailLocalAuthController } from "./apple-mail-local-auth.controller
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { EmailProviderRequiredGuard } from "./email-provider-required.guard";
+import { EmailVerificationController } from "./email-verification.controller";
+import { EmailVerificationService } from "./email-verification.service";
 import { EmailAccountRequiredGuard } from "./gmail-required.guard";
 import { GoogleStrategy } from "./google.strategy";
 import { GooglePermissionGrantService } from "./google-permission-grant.service";
 import { GooglePermissionsController } from "./google-permissions.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { LocalStrategy } from "./local.strategy";
+import { LoginLockoutService } from "./login-lockout.service";
 import { MicrosoftStrategy } from "./microsoft.strategy";
 import { OptionalJwtAuthGuard } from "./optional-jwt-auth.guard";
 import { StepUpAuthGuard } from "./step-up.guard";
@@ -36,7 +44,15 @@ import { ZohoStrategy } from "./zoho.strategy";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PersonalAccessToken, Office365Account]),
+    TypeOrmModule.forFeature([
+      PersonalAccessToken,
+      User,
+      GoogleAccount,
+      Office365Account,
+      ZohoAccount,
+      ImapAccount,
+      AppleMailAccount,
+    ]),
     UsersModule,
     AuditModule,
     EmailModule,
@@ -60,6 +76,8 @@ import { ZohoStrategy } from "./zoho.strategy";
   ],
   providers: [
     AuthService,
+    EmailVerificationService,
+    LoginLockoutService,
     TotpService,
     JwtStrategy,
     LocalStrategy,
@@ -75,6 +93,7 @@ import { ZohoStrategy } from "./zoho.strategy";
   ],
   controllers: [
     AuthController,
+    EmailVerificationController,
     AppleMailLocalAuthController,
     GooglePermissionsController,
   ],

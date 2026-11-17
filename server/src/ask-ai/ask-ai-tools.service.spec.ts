@@ -7,7 +7,11 @@ import {
 } from "../database/entities/mcp-server-config.entity";
 import { MCPClientManagerService } from "../mcp/mcp-client-manager.service";
 import { AskAiToolDescriptor } from "./ask-ai.types";
-import { AskAiToolService, SEARCH_EMAILS_TOOL } from "./ask-ai-tools.service";
+import {
+  AskAiToolService,
+  requiresApproval,
+  SEARCH_EMAILS_TOOL,
+} from "./ask-ai-tools.service";
 
 function emailRow(partial: Partial<Email>): Email {
   return {
@@ -117,6 +121,53 @@ describe("AskAiToolService", () => {
           (desc) => desc.kind === "mcp" && desc.toolName === "delete_file",
         ),
       ).toBe(false);
+    });
+
+    it("marks only explicitly read-only MCP tools as auto-runnable", async () => {
+      mcpConfigRepo.find.mockResolvedValue([
+        { id: "srv-1", name: "Google Drive" } as MCPServerConfig,
+      ]);
+      mcpClient.getTools.mockResolvedValue([
+        {
+          name: "search_files",
+          description: "Find files",
+          inputSchema: {},
+          annotations: { readOnlyHint: true },
+        },
+        { name: "share_file", description: "Share a file", inputSchema: {} },
+        {
+          name: "create_file",
+          description: "Create a file",
+          inputSchema: {},
+          annotations: { readOnlyHint: false, title: "Create file" },
+        },
+      ]);
+
+      const { tools, registry } = await service.buildToolset("user-1");
+      const byTool = new Map(
+        [...registry.values()]
+          .filter(
+            (desc): desc is Extract<AskAiToolDescriptor, { kind: "mcp" }> =>
+              desc.kind === "mcp",
+          )
+          .map((desc) => [desc.toolName, desc]),
+      );
+
+      expect(byTool.get("search_files")?.readOnly).toBe(true);
+      expect(byTool.get("share_file")?.readOnly).toBe(false);
+      expect(byTool.get("create_file")).toMatchObject({
+        readOnly: false,
+        toolTitle: "Create file",
+      });
+      expect(requiresApproval(byTool.get("search_files")!)).toBe(false);
+      expect(requiresApproval(byTool.get("share_file")!)).toBe(true);
+      expect(requiresApproval(byTool.get("create_file")!)).toBe(true);
+      expect(requiresApproval({ kind: "search_emails" })).toBe(false);
+
+      const shareDescription = tools.find((tool) =>
+        tool.function.name.endsWith("share_file"),
+      )?.function.description;
+      expect(shareDescription).toContain("approves");
     });
   });
 
@@ -270,6 +321,7 @@ describe("AskAiToolService", () => {
       serverId: "srv-1",
       serverName: "Google Drive",
       toolName: "search_files",
+      readOnly: true,
     };
 
     it("invokes the MCP tool and labels the activity", async () => {

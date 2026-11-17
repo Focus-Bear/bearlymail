@@ -449,15 +449,16 @@ describe("SubscriptionsService", () => {
     const orgProduct = "bearlymail_seat_5";
     // Volume tiers are keyed by entitlement id; the store product_id is a Stripe SKU.
     const volumeEntitlement = "bearlymail_starter";
+    const ORG_OWNER_ID = "6f1c2a4e-3b5d-4c7e-9f80-1a2b3c4d5e6f";
 
     const orgOwner = {
       ...mockUser,
-      id: "owner-1",
-      revenueCatUserId: "rc-org-user",
+      id: ORG_OWNER_ID,
+      revenueCatUserId: ORG_OWNER_ID,
     };
     const orgWithOwner = {
       ...mockOrg,
-      ownerId: "owner-1",
+      ownerId: ORG_OWNER_ID,
       billingCycleStart: null,
     };
 
@@ -481,7 +482,7 @@ describe("SubscriptionsService", () => {
       await service.handleWebhook({
         event: {
           type: "INITIAL_PURCHASE",
-          app_user_id: "rc-org-user",
+          app_user_id: ORG_OWNER_ID,
           product_id: orgProduct,
         },
       });
@@ -489,7 +490,7 @@ describe("SubscriptionsService", () => {
       expect(orgRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           maxSeats: 1,
-          revenueCatOrgSubscriptionId: "rc-org-user",
+          revenueCatOrgSubscriptionId: ORG_OWNER_ID,
         }),
       );
     });
@@ -505,7 +506,7 @@ describe("SubscriptionsService", () => {
       await service.handleWebhook({
         event: {
           type: "INITIAL_PURCHASE",
-          app_user_id: "rc-org-user",
+          app_user_id: ORG_OWNER_ID,
           // Store SKU that is NOT a known tier — the entitlement decides the tier.
           product_id: "prod_Udh5PuHXFM1L21",
           entitlement_ids: [volumeEntitlement],
@@ -544,7 +545,7 @@ describe("SubscriptionsService", () => {
       await service.handleWebhook({
         event: {
           type: "RENEWAL",
-          app_user_id: "rc-org-user",
+          app_user_id: ORG_OWNER_ID,
           product_id: orgProduct,
         },
       });
@@ -574,7 +575,7 @@ describe("SubscriptionsService", () => {
       await service.handleWebhook({
         event: {
           type: "INITIAL_PURCHASE",
-          app_user_id: "rc-org-user",
+          app_user_id: ORG_OWNER_ID,
           product_id: "prod_Udh5PuHXFM1L21",
           entitlement_ids: [volumeEntitlement],
         },
@@ -591,7 +592,7 @@ describe("SubscriptionsService", () => {
     it("CANCELLATION: degrades to the free tier (1 seat, free limit, expired plan), deactivates members", async () => {
       const orgWithVolume = {
         ...mockOrg,
-        ownerId: "owner-1",
+        ownerId: ORG_OWNER_ID,
         volumeTierProductId: "bearlymail_starter",
         emailVolumeLimit: 3000,
         maxSeats: 5,
@@ -615,7 +616,7 @@ describe("SubscriptionsService", () => {
       await service.handleWebhook({
         event: {
           type: "CANCELLATION",
-          app_user_id: "rc-org-user",
+          app_user_id: ORG_OWNER_ID,
           product_id: orgProduct,
         },
       });
@@ -636,7 +637,7 @@ describe("SubscriptionsService", () => {
     it("EXPIRATION: degrades to the free tier and clears volume tier", async () => {
       const orgWithVolume = {
         ...mockOrg,
-        ownerId: "owner-1",
+        ownerId: ORG_OWNER_ID,
         volumeTierProductId: "bearlymail_growth",
         emailVolumeLimit: 10000,
         maxSeats: 3,
@@ -652,7 +653,7 @@ describe("SubscriptionsService", () => {
       await service.handleWebhook({
         event: {
           type: "EXPIRATION",
-          app_user_id: "rc-org-user",
+          app_user_id: ORG_OWNER_ID,
           product_id: orgProduct,
         },
       });
@@ -695,7 +696,7 @@ describe("SubscriptionsService", () => {
       await service.handleWebhook({
         event: {
           type: "RENEWAL",
-          app_user_id: "rc-org-user",
+          app_user_id: ORG_OWNER_ID,
           product_id: orgProduct,
         },
       });
@@ -1380,7 +1381,7 @@ describe("SubscriptionsService", () => {
       const result = await service.checkSubscriptionStatus("user-1");
 
       expect(mockedAxios.get).toHaveBeenCalledWith(
-        "https://api.revenuecat.com/v2/projects/test-project-id/customers/rc-user-123/active_entitlements",
+        "https://api.revenuecat.com/v2/projects/test-project-id/customers/user-1/active_entitlements",
         {
           headers: {
             Authorization: "Bearer test-api-key",
@@ -1390,6 +1391,37 @@ describe("SubscriptionsService", () => {
       );
       expect(result.isActive).toBe(true);
       expect(result.status).toBe("active");
+    });
+
+    it("never grants access from a stored RevenueCat id that isn't the user's own", async () => {
+      const userWithForeignId = {
+        ...mockUser,
+        revenueCatUserId: "someone-elses-customer-id",
+        subscriptionStatus: "expired",
+      };
+      repository.findOne.mockResolvedValue(userWithForeignId);
+      // Only the foreign customer has entitlements; the user's own has none.
+      mockedAxios.get.mockImplementationOnce(async (url: string) => ({
+        data: {
+          items: url.includes("someone-elses-customer-id")
+            ? [{ entitlement_id: "bearlymail_growth", expires_at: null }]
+            : [],
+        },
+      }));
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+
+      const result = await service.checkSubscriptionStatus("user-1");
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        "https://api.revenuecat.com/v2/projects/test-project-id/customers/user-1/active_entitlements",
+        expect.anything(),
+      );
+      expect(result.isActive).toBe(false);
+      expect(repository.update).not.toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ subscriptionStatus: "active" }),
+      );
     });
 
     it("should fall back to database status when RevenueCat check fails", async () => {
@@ -1448,6 +1480,7 @@ describe("SubscriptionsService", () => {
   });
 
   describe("handleWebhook", () => {
+    const RC_USER_ID = "0b6c8f2e-5a1d-4e3b-8c7f-2d9e4a6b1c30";
     beforeEach(() => {
       configService.get.mockReturnValue("test-api-key");
       mockedAxios.get.mockReset();
@@ -1455,7 +1488,11 @@ describe("SubscriptionsService", () => {
     });
 
     it("should handle INITIAL_PURCHASE event", async () => {
-      const user = { ...mockUser, revenueCatUserId: "rc-user-123" };
+      const user = {
+        ...mockUser,
+        id: RC_USER_ID,
+        revenueCatUserId: RC_USER_ID,
+      };
       repository.findOne.mockResolvedValue(user);
       mockedAxios.get.mockResolvedValue({
         data: {
@@ -1469,7 +1506,7 @@ describe("SubscriptionsService", () => {
       const payload = {
         event: {
           type: "INITIAL_PURCHASE",
-          app_user_id: "rc-user-123",
+          app_user_id: RC_USER_ID,
           product_id: "prod_individual_sku",
         },
       };
@@ -1477,7 +1514,7 @@ describe("SubscriptionsService", () => {
       await service.handleWebhook(payload);
 
       expect(repository.update).toHaveBeenCalledWith(
-        "user-1",
+        RC_USER_ID,
         expect.objectContaining({
           subscriptionStatus: "active",
           subscriptionExpiresAt: expect.any(Date),
@@ -1486,39 +1523,47 @@ describe("SubscriptionsService", () => {
     });
 
     it("should handle CANCELLATION event", async () => {
-      const user = { ...mockUser, revenueCatUserId: "rc-user-123" };
+      const user = {
+        ...mockUser,
+        id: RC_USER_ID,
+        revenueCatUserId: RC_USER_ID,
+      };
       repository.findOne.mockResolvedValue(user);
       repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const payload = {
         event: {
           type: "CANCELLATION",
-          app_user_id: "rc-user-123",
+          app_user_id: RC_USER_ID,
         },
       };
 
       await service.handleWebhook(payload);
 
-      expect(repository.update).toHaveBeenCalledWith("user-1", {
+      expect(repository.update).toHaveBeenCalledWith(RC_USER_ID, {
         subscriptionStatus: "cancelled",
       });
     });
 
     it("should handle EXPIRATION event", async () => {
-      const user = { ...mockUser, revenueCatUserId: "rc-user-123" };
+      const user = {
+        ...mockUser,
+        id: RC_USER_ID,
+        revenueCatUserId: RC_USER_ID,
+      };
       repository.findOne.mockResolvedValue(user);
       repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const payload = {
         event: {
           type: "EXPIRATION",
-          app_user_id: "rc-user-123",
+          app_user_id: RC_USER_ID,
         },
       };
 
       await service.handleWebhook(payload);
 
-      expect(repository.update).toHaveBeenCalledWith("user-1", {
+      expect(repository.update).toHaveBeenCalledWith(RC_USER_ID, {
         subscriptionStatus: "expired",
       });
     });
@@ -1534,13 +1579,79 @@ describe("SubscriptionsService", () => {
       expect(repository.findOne).not.toHaveBeenCalled();
     });
 
+    it("matches the event to a user by id, not by a stored RevenueCat id", async () => {
+      const user = { ...mockUser, id: RC_USER_ID, revenueCatUserId: null };
+      repository.findOne.mockResolvedValue(user);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+
+      await service.handleWebhook({
+        event: { type: "EXPIRATION", app_user_id: RC_USER_ID },
+      });
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { id: RC_USER_ID },
+      });
+      expect(repository.findOne).not.toHaveBeenCalledWith({
+        where: { revenueCatUserId: expect.anything() },
+      });
+    });
+
+    it("resolves an anonymous purchase to the user via the event's aliases", async () => {
+      const user = { ...mockUser, id: RC_USER_ID };
+      repository.findOne.mockResolvedValue(user);
+      mockedAxios.get.mockResolvedValue({
+        data: {
+          items: [
+            { entitlement_id: "bearlymail_starter", expires_at: 1893456000000 },
+          ],
+        },
+      });
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
+
+      await service.handleWebhook({
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "$RCAnonymousID:abc123",
+          original_app_user_id: "$RCAnonymousID:abc123",
+          aliases: ["$RCAnonymousID:abc123", RC_USER_ID],
+          product_id: "prod_individual_sku",
+        },
+      });
+
+      expect(repository.findOne).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        `https://api.revenuecat.com/v2/projects/test-project-id/customers/${RC_USER_ID}/active_entitlements`,
+        expect.anything(),
+      );
+      expect(repository.update).toHaveBeenCalledWith(
+        RC_USER_ID,
+        expect.objectContaining({
+          subscriptionStatus: "active",
+          revenueCatUserId: RC_USER_ID,
+        }),
+      );
+    });
+
+    it("ignores events whose ids include no BearlyMail user id", async () => {
+      await service.handleWebhook({
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "$RCAnonymousID:abc123",
+          aliases: ["$RCAnonymousID:abc123", "not-a-user-id"],
+        },
+      });
+
+      expect(repository.findOne).not.toHaveBeenCalled();
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+
     it("should ignore webhook if user not found", async () => {
       repository.findOne.mockResolvedValue(null);
 
       const payload = {
         event: {
           type: "INITIAL_PURCHASE",
-          app_user_id: "nonexistent",
+          app_user_id: "4d3c2b1a-0f9e-4d8c-8b7a-6f5e4d3c2b1a",
         },
       };
 
@@ -1584,13 +1695,13 @@ describe("SubscriptionsService", () => {
   });
 
   describe("linkRevenueCatUser", () => {
-    it("should link RevenueCat user ID to user", async () => {
+    it("always stores the user's own id as the RevenueCat app user id", async () => {
       repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
-      await service.linkRevenueCatUser("user-1", "rc-user-123");
+      await service.linkRevenueCatUser("user-1");
 
       expect(repository.update).toHaveBeenCalledWith("user-1", {
-        revenueCatUserId: "rc-user-123",
+        revenueCatUserId: "user-1",
       });
     });
   });

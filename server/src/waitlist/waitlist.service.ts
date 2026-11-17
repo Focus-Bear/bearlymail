@@ -5,6 +5,7 @@ import axios from "axios";
 import * as crypto from "crypto";
 import { Repository } from "typeorm";
 
+import { hashEmailedToken } from "../auth/token-hash.util";
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
 import { Waitlist } from "../database/entities/waitlist.entity";
 import { EmailService } from "../email/email.service";
@@ -231,13 +232,13 @@ export class WaitlistService {
         // Not approved until password is set
         isApproved: false,
         isAdmin: entry.email.toLowerCase() === "jeremy@focusbear.io",
-        passwordSetupToken: setupToken,
+        passwordSetupTokenHash: hashEmailedToken(setupToken),
         passwordSetupTokenExpiresAt: tokenExpiresAt,
       });
     } else {
       // Update existing user with setup token
       await this.usersService.update(existingUser.id, {
-        passwordSetupToken: setupToken,
+        passwordSetupTokenHash: hashEmailedToken(setupToken),
         passwordSetupTokenExpiresAt: tokenExpiresAt,
         // Don't set isApproved to true yet - they need to set password first
       });

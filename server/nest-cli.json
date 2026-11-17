@@ -5,6 +5,8 @@
   "compilerOptions": {
     "deleteOutDir": false,
     "watchAssets": false,
-    "assets": []
+    "assets": [
+      "email/templates/**/*.mjml"
+    ]
   }
 }

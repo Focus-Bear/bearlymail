@@ -20,11 +20,20 @@ import { parseCategoryName } from "../utils/category-name.util";
 import { computeEmailHmac } from "../utils/hmac-email";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import {
+  mergeAutoResponderConfigUpdate,
+  normaliseAutoResponderConfig,
+} from "./auto-responder-config.util";
+import {
   determinePriorityLevel,
   EMAIL_AGE_CONFIG,
 } from "./auto-responder-constants";
 import { AutoResponderContextService } from "./auto-responder-context.service";
+import {
+  AutoResponderDeliveryService,
+  AutoResponseDelivery,
+} from "./auto-responder-delivery.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
+import { selectAutoResponseRecipient } from "./auto-responder-recipient";
 import { AutoResponderTemplateService } from "./auto-responder-template.service";
 import {
   AutoresponderDecisionContext,
@@ -33,10 +42,12 @@ import {
 import {
   AutoResponderConfig,
   AutoResponseTemplateVars,
-  DEFAULT_AUTO_RESPONDER_CONFIG,
   EmailClassification,
   PreparedResponse,
 } from "./types/auto-responder.types";
+
+export const AUTO_RESPONSE_DRAFT_SAVED =
+  "Auto-response saved as a draft for approval";
 
 @Injectable()
 export class AutoResponderService {
@@ -55,6 +66,7 @@ export class AutoResponderService {
     private templateService: AutoResponderTemplateService,
     private analyticsService: AutoResponderAnalyticsService,
     private previewService: AutoResponderPreviewService,
+    private deliveryService: AutoResponderDeliveryService,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
   ) {}
@@ -64,10 +76,7 @@ export class AutoResponderService {
    */
   async getConfig(userId: string): Promise<AutoResponderConfig> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user?.autoResponderSettings) {
-      return DEFAULT_AUTO_RESPONDER_CONFIG;
-    }
-    return { ...DEFAULT_AUTO_RESPONDER_CONFIG, ...user.autoResponderSettings };
+    return normaliseAutoResponderConfig(user?.autoResponderSettings);
   }
 
   /**
@@ -82,9 +91,10 @@ export class AutoResponderService {
       throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
-    const currentConfig =
-      user.autoResponderSettings || DEFAULT_AUTO_RESPONDER_CONFIG;
-    const newConfig = { ...currentConfig, ...config };
+    const newConfig = mergeAutoResponderConfigUpdate(
+      user.autoResponderSettings,
+      config,
+    );
 
     await this.userRepository.update(userId, {
       autoResponderSettings: newConfig,
@@ -733,7 +743,6 @@ export class AutoResponderService {
       prepared,
     } = options;
     const userId = user.id;
-    const { templateUsed, priorityLevel, qaResult } = prepared;
     try {
       const provider =
         await this.emailProviderManager.getPrimaryProvider(userId);
@@ -751,11 +760,31 @@ export class AutoResponderService {
         return { sent: false, reason };
       }
 
+      const replyToAddress = selectAutoResponseRecipient(
+        latestEmail.from,
+        latestEmail.replyTo,
+      );
+      const delivery = await this.deliveryService.chooseDelivery(
+        config,
+        userId,
+        user.email,
+        replyToAddress,
+      );
+
       if (!(await this.claimThreadForAutoResponse(userId, emailThreadId))) {
         return this.skipAlreadyClaimedThread(logContext);
       }
 
-      const replyToAddress = latestEmail.replyTo || latestEmail.from;
+      if (delivery === AutoResponseDelivery.DRAFT) {
+        return this.saveAutoResponseDraft({
+          logContext,
+          thread,
+          userId,
+          emailThreadId,
+          replyToAddress,
+          prepared,
+        });
+      }
       const sentResult = await this.releaseClaimIfSendFails(
         userId,
         emailThreadId,
@@ -780,21 +809,7 @@ export class AutoResponderService {
         config,
       });
 
-      autoresponderLogger.logSendSuccess(logContext, templateUsed, !!qaResult);
-      autoresponderLogger.logDecision(logContext, {
-        decision: "SEND",
-        reason: "Auto-response sent successfully",
-        details: {
-          templateUsed,
-          priorityLevel,
-          qaAnswerProvided: !!qaResult,
-          recipient: latestEmail.from,
-        },
-      });
-      this.logger.log(
-        `Auto-response sent for thread ${emailThreadId} to ${latestEmail.from}`,
-      );
-      return { sent: true, reason: "Auto-response sent successfully" };
+      return this.recordSendSuccess(logContext, prepared, replyToAddress);
     } catch (error) {
       autoresponderLogger.logSendError(logContext, error, "send_reply");
       autoresponderLogger.logDecision(logContext, {
@@ -811,6 +826,75 @@ export class AutoResponderService {
         reason: `Send failed: ${(error as Error).message}`,
       };
     }
+  }
+
+  private recordSendSuccess(
+    logContext: AutoresponderDecisionContext,
+    prepared: PreparedResponse,
+    recipient: string,
+  ): { sent: boolean; reason: string } {
+    const { templateUsed, priorityLevel, qaResult } = prepared;
+    const reason = "Auto-response sent successfully";
+    autoresponderLogger.logSendSuccess(logContext, templateUsed, !!qaResult);
+    autoresponderLogger.logDecision(logContext, {
+      decision: "SEND",
+      reason,
+      details: {
+        templateUsed,
+        priorityLevel,
+        qaAnswerProvided: !!qaResult,
+        recipient,
+      },
+    });
+    this.logger.log(
+      `Auto-response sent for thread ${logContext.emailThreadId}`,
+    );
+    return { sent: true, reason };
+  }
+
+  /**
+   * Stores the response as a reply draft for the user to review and send.
+   * The thread claim is kept so the same thread doesn't get a second draft.
+   */
+  private async saveAutoResponseDraft(options: {
+    logContext: AutoresponderDecisionContext;
+    thread: EmailThread;
+    userId: string;
+    emailThreadId: string;
+    replyToAddress: string;
+    prepared: PreparedResponse;
+  }): Promise<{ sent: boolean; reason: string }> {
+    const {
+      logContext,
+      thread,
+      userId,
+      emailThreadId,
+      replyToAddress,
+      prepared,
+    } = options;
+    const saved = await this.releaseClaimIfSendFails(
+      userId,
+      emailThreadId,
+      () =>
+        this.deliveryService.saveDraft(
+          userId,
+          thread.threadId,
+          replyToAddress,
+          prepared.responseHtmlBody,
+        ),
+    );
+    const reason = saved
+      ? AUTO_RESPONSE_DRAFT_SAVED
+      : "Thread already has a reply draft";
+    autoresponderLogger.logDecision(logContext, {
+      decision: "DRAFT",
+      reason,
+      details: {
+        templateUsed: prepared.templateUsed,
+        qaAnswerProvided: !!prepared.qaResult,
+      },
+    });
+    return { sent: false, reason };
   }
 
   /**

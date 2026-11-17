@@ -7,6 +7,7 @@
 import { ActionItem } from "./action-item.entity";
 import { AppleMailAccount } from "./apple-mail-account.entity";
 import { AppleMailMessageRef } from "./apple-mail-message-ref.entity";
+import { AskAiPendingApproval } from "./ask-ai-pending-approval.entity";
 import { AuditLog } from "./audit-log.entity";
 import { AutoArchiveProposal } from "./auto-archive-proposal.entity";
 import { AutoArchiveScanState } from "./auto-archive-scan-state.entity";
@@ -29,6 +30,7 @@ import { ContactGroupMember } from "./contact-group-member.entity";
 import { ContactNote } from "./contact-note.entity";
 import { ContactType } from "./contact-type.entity";
 import { ContextAnalysis } from "./context-analysis.entity";
+import { CrmSenderMatch } from "./crm-sender-match.entity";
 import { Deal } from "./deal.entity";
 import { DealNote } from "./deal-note.entity";
 import { DealStage } from "./deal-stage.entity";
@@ -80,6 +82,7 @@ export const ALL_ENTITIES = [
   ActionItem,
   AppleMailAccount,
   AppleMailMessageRef,
+  AskAiPendingApproval,
   AuditLog,
   AutoArchiveProposal,
   AutoArchiveScanState,
@@ -121,6 +124,7 @@ export const ALL_ENTITIES = [
   ImapAccount,
   LocalModelSupervision,
   MCPSenderContextCache,
+  CrmSenderMatch,
   MCPServerConfig,
   OAuthAuthorizationCode,
   OAuthClient,

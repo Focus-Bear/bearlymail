@@ -1,6 +1,7 @@
 /* istanbul ignore file */
 import { Repository } from "typeorm";
 
+import { REPLY_DRAFT_SOURCES } from "../constants/domain-types";
 import { Email } from "../database/entities/email.entity";
 import {
   buildThreadFilter,
@@ -16,6 +17,21 @@ import {
   inboxRowLimit,
   InboxScopeFilters,
 } from "./email-inbox-scope.helpers";
+
+/**
+ * True when the auto-responder saved a reply draft on the thread that the user
+ * hasn't touched yet. The draft must be newer than the thread's latest email,
+ * so the flag clears once the user replies (even from another mail app) or a
+ * new message arrives. Sending, discarding or editing the draft clears it too.
+ * Uses the unique (userId, emailThreadId) index on reply_drafts.
+ */
+const HAS_AUTO_RESPONSE_DRAFT_SQL = `EXISTS (
+        SELECT 1 FROM reply_drafts rd
+        WHERE rd."userId" = thread."userId"
+          AND rd."emailThreadId" = thread."threadId"
+          AND rd.source = '${REPLY_DRAFT_SOURCES.AUTO_RESPONDER}'
+          AND rd."createdAt" >= e."receivedAt"
+      ) AS "hasAutoResponseDraft"`;
 
 type InboxQueryFilters = InboxScopeFilters & {
   /**
@@ -150,6 +166,7 @@ export async function runInboxQuery(
       e."phishingConfidence", e."phishingReason",
       e."receivedAt", e.labels, e."to", e."cc", e."senderContactId",
       e."sentByAutoResponder",
+      ${HAS_AUTO_RESPONSE_DRAFT_SQL},
       correspondent."from" as "correspondentEmail",
       correspondent."fromName" as "correspondentName",
       thread_labels."allThreadLabels"

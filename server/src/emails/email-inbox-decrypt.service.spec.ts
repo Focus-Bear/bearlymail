@@ -107,4 +107,15 @@ describe("EmailInboxDecryptService — inbox summary derivation", () => {
     expect(inboxEmail.categorizationProvider).toBeNull();
     expect(inboxEmail.priorityProvider).toBeNull();
   });
+
+  it("flags a thread with an unseen auto-responder draft", () => {
+    const row = makeRow({ hasAutoResponseDraft: true });
+    expect(service.decryptRawEmailRow(row).hasAutoResponseDraft).toBe(true);
+  });
+
+  it("does not flag a thread without one", () => {
+    expect(service.decryptRawEmailRow(makeRow({})).hasAutoResponseDraft).toBe(
+      false,
+    );
+  });
 });

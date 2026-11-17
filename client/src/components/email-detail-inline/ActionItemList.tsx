@@ -5,7 +5,7 @@ import { theme } from 'theme/theme';
 import type { FocusBearTaskSource } from 'utils/focusBearTaskLink';
 import { captureEvent } from 'utils/posthog';
 
-import { SaveToFocusBearLink } from 'components/email-detail-inline/SaveToFocusBearLink';
+import { SaveToFocusBearButton } from 'components/email-detail-inline/SaveToFocusBearButton';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
@@ -131,7 +131,7 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
             )}
           </span>
           {focusBearTaskSource && !item.isCompleted && (
-            <SaveToFocusBearLink taskTitle={item.description} source={focusBearTaskSource} />
+            <SaveToFocusBearButton taskTitle={item.description} source={focusBearTaskSource} />
           )}
           {item.id && <DeleteActionItemButton itemId={item.id} onDeleteActionItem={onDeleteActionItem} />}
         </div>

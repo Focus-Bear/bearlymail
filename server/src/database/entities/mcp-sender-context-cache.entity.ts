@@ -10,17 +10,21 @@ import {
 } from "typeorm";
 
 import { makeEncryptedJsonTransformer } from "../../encryption/encryption.helper";
+import type { CrmSenderContext } from "../../mcp/crm-sender-context.types";
 import { User } from "./user.entity";
 
 /**
  * A single sender-context result from one MCP server.
  * `text` is the human-readable context extracted from the tool's response.
+ * `crm` is set when a known CRM (Zoho Bigin) was queried with fixed lookups,
+ * so the card and any LLM step can use typed fields instead of raw text.
  */
 export interface MCPSenderContextEntry {
   serverId: string;
   serverName: string;
   toolName: string;
   text: string;
+  crm?: CrmSenderContext;
 }
 
 /**

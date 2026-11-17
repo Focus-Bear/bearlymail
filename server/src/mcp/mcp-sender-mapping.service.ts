@@ -12,6 +12,7 @@ import { LLMService } from "../llm/llm.service";
 import { LLM_OP_DERIVE_MCP_SENDER_TOOL } from "../llm/llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "../llm/prompts";
 import { safeJsonParse } from "../utils/json";
+import { isBiginToolset } from "./bigin/bigin-toolset";
 
 const DERIVE_TEMPERATURE = 0;
 const DERIVE_MAX_TOKENS = 200;
@@ -27,7 +28,8 @@ function stripCodeFence(text: string): string {
 
 /**
  * Derives — once per server — which MCP tool (and which argument) to call to look
- * up a sender by email address. The decision is cached on the server config so
+ * up a sender by email address. Zoho Bigin is skipped: it has a fixed lookup
+ * (BiginSenderContextService), so connecting it costs no LLM call. The decision is cached on the server config so
  * every subsequent sender lookup is a cheap deterministic tool call (no LLM).
  */
 @Injectable()
@@ -61,6 +63,13 @@ export class MCPSenderMappingService {
       this.logger.warn(
         `No cached tools for MCP server ${serverId}; cannot derive sender mapping`,
       );
+      await this.configRepo.update(serverId, { senderLookupMapping: null });
+      return null;
+    }
+
+    // Bigin's tools nest arguments (path_variables / query_params), which a
+    // single email-argument mapping can't express; it has its own fixed lookup.
+    if (isBiginToolset(tools)) {
       await this.configRepo.update(serverId, { senderLookupMapping: null });
       return null;
     }

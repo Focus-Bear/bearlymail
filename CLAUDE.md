@@ -197,6 +197,9 @@ Need to modify something? Here's where to find it:
 - `name`, `displayName`, `jobTitle` (all encrypted)
 - `googleId`, OAuth tokens for calendar
 - `isAdmin`, `isApproved` (waitlist), `needsRelogin`
+- `emailVerifiedAt` (null = password sign-in refused with `EMAIL_NOT_VERIFIED` until the emailed link is followed; set by `/auth/verify-email`, an emailed setup/reset link, or a Google/Microsoft/Zoho sign-in that vouches for the address — which also removes a password set on a never-verified account), `emailVerificationTokenHash` + `emailVerificationTokenExpiresAt` (SHA-256 of the 24h link token)
+- `passwordSetupTokenHash` + `passwordSetupTokenExpiresAt` (SHA-256 of the waitlist setup / password-reset link token; indexed lookup, plaintext never stored)
+- `failedLoginAttempts`, `loginLockedUntil` (per-account lockout: from the 10th consecutive wrong password, locked 5 min doubling to 1h; cleared on success or reset — `server/src/auth/login-lockout.service.ts`)
 - `hasSeenTour`, `hasScannedHistory`, `hasCompletedOnboarding`
 - `lastEmailSyncAt`, `subscriptionStatus`, `trialStartedAt`
 - `openAiApiKey` (encrypted, user's own key), `githubToken` (encrypted)
@@ -555,10 +558,11 @@ Key services: `ContextService`, `ContextGmailDataService`, `ContextPiiRedactionS
 Automated email response pipeline:
 
 1. Email classified by type (`classify-email-type.md` prompt)
-2. If Q&A-answerable: generates response from user's learned Q&A knowledge base
+2. If Q&A-answerable: at most 3 Q&A pairs are picked by keyword overlap (`qa-retrieval.ts`, no LLM) and only those go to `generate-qa-answer.md`; the answer is kept only if model confidence x retrieval score clears the bar and it doesn't reproduce unselected pairs
 3. Checks for opt-out signals from sender (`detect-opt-out.md`)
-4. Logs all auto-responses in `AutoResponseLog`, respects `AutoResponseSuppression` rules
-5. Runs as low-priority background job
+4. Recipient is `From` (Reply-To only when it's on the same domain). `deliveryMode` defaults to `draft` (saved as a `ReplyDraft`); `auto_send_known_senders` sends only to contacts / people the user has emailed, and drafts for everyone else (`auto-responder-delivery.service.ts`)
+5. Logs sent auto-responses in `AutoResponseLog`, respects `AutoResponseSuppression` rules
+6. Runs as low-priority background job
 
 ---
 
@@ -856,6 +860,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 - `/follow-ups/*` - Follow-up drafts and bulk send
 - `/batch-schedule/*` - Email batching schedule
 - `/github/*` - GitHub integration settings
+- `POST /csp-report` - Public, throttled sink for the web app's CSP `report-uri`/`report-to` reports (`server/src/csp-report/`); logs a one-line summary per violation. The web app's CSP itself is set by CloudFront in the private infra repo
 - `/personal-access-tokens` - Create/list/revoke tokens for Claude (JWT only; a token can never mint tokens)
 - `POST /mcp` - MCP server (Streamable HTTP, stateless JSON-RPC); authenticated by `Authorization: Bearer bm_pat_...` or an OAuth access token (`bm_oat_...`) only, never the session cookie; a 401 carries the RFC 9728 `WWW-Authenticate` challenge
 - `/.well-known/oauth-protected-resource[/mcp]`, `/.well-known/oauth-authorization-server`, `/oauth/{authorize,token,register,revoke}` - OAuth 2.1 authorization server for `/mcp` (CIMD + DCR, PKCE S256); consent page is the web app's `/oauth/consent`
@@ -877,6 +882,8 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                    | Yes      | Google OAuth                              |
 | `GOOGLE_REDIRECT_URI`                                         | Yes      | OAuth callback URL                        |
 | `FRONTEND_URL`                                                | Yes      | Frontend URL for CORS                     |
+| `LOGIN_THROTTLE_LIMIT`                                        | No       | Password sign-ins allowed per client IP per minute (default `20`); per-account lockout applies on top |
+| `TRUST_PROXY_HOPS`                                            | No       | Proxies in front of the API that append to X-Forwarded-For (default `1`, the production ALB; `0` = none). Makes `req.ip` the client for per-IP rate limits |
 | `BACKEND_URL`                                                 | No       | Public API origin for absolute URLs (MCP OAuth redirect, open-tracking pixel). Falls back to the `GOOGLE_REDIRECT_URI` origin. Open tracking is skipped when it resolves to localhost |
 | `ALLOW_PRIVATE_OUTBOUND_URLS`                                 | No       | `true` lets workflow webhooks and MCP-client requests reach http:// and private/loopback hosts (local MCP servers, webhook receivers). Honoured only when `NODE_ENV` is `development` or `test`; ignored in production. Outbound calls to user-supplied URLs go through `server/src/common/safe-http/` |
 | `LLM_PROVIDER`                                                | No       | Default LLM: `gemini`, `openai`, or `claude-cli` (local Claude Code CLI, no API key) |

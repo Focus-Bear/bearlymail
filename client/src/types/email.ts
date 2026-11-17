@@ -238,6 +238,8 @@ export interface Email {
   // Metadata for list view
   actionItemsCount?: number;
   hasPrivateNote?: boolean;
+  /** The auto-responder saved a reply draft here that the user hasn't sent, edited or discarded yet. */
+  hasAutoResponseDraft?: boolean;
   // Emergency delivery flag - true if email was delivered early due to high priority
   wasDeliveredEarly?: boolean;
   // Batching info for debug

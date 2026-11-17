@@ -13,9 +13,9 @@ const THROTTLER_NAME = "mcp";
 
 /**
  * The per-user limit on `/mcp`. It can't use the global throttler: that runs
- * before the token is checked, so it would key on `req.ip`, which is the load
- * balancer here, and one busy client would use up everyone's allowance. Must
- * come after PersonalAccessTokenGuard, which sets `req.user`.
+ * before the token is checked, so it would key on the client IP, and clients
+ * sharing an address (or one token used from many) would be limited wrongly.
+ * Must come after PersonalAccessTokenGuard, which sets `req.user`.
  */
 @Injectable()
 export class McpRateLimitGuard implements CanActivate {

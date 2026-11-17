@@ -48,6 +48,18 @@ export const PROPOSAL_DETECTION_SOURCES = {
 export type ProposalDetectionSource =
   (typeof PROPOSAL_DETECTION_SOURCES)[keyof typeof PROPOSAL_DETECTION_SOURCES];
 
+/**
+ * Who last wrote a saved reply draft. An auto-responder draft the user hasn't
+ * touched yet shows a "Reply draft ready" badge in the inbox.
+ */
+export const REPLY_DRAFT_SOURCES = {
+  USER: "user",
+  AUTO_RESPONDER: "auto_responder",
+} as const;
+
+export type ReplyDraftSource =
+  (typeof REPLY_DRAFT_SOURCES)[keyof typeof REPLY_DRAFT_SOURCES];
+
 export const DATA_IMPORT_MERGE_MODES = {
   REPLACE: "replace",
   MERGE: "merge",

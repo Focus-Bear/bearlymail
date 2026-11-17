@@ -2,6 +2,7 @@ import { UnauthorizedException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { AuthService } from "./auth.service";
+import { EmailNotVerifiedException } from "./exceptions/email-not-verified.exception";
 import { OAuthOnlyAccountException } from "./exceptions/oauth-only-account.exception";
 import { LocalStrategy } from "./local.strategy";
 
@@ -33,6 +34,15 @@ describe("LocalStrategy", () => {
   });
 
   describe("validate", () => {
+    it("keeps the EMAIL_NOT_VERIFIED code for the client", async () => {
+      mockAuthService.validateUser.mockRejectedValue(
+        new EmailNotVerifiedException(),
+      );
+      await expect(
+        strategy.validate("a@example.com", "pw"),
+      ).rejects.toBeInstanceOf(EmailNotVerifiedException);
+    });
+
     it("should return user when validation succeeds", async () => {
       const email = "test@example.com";
       const password = "password123";

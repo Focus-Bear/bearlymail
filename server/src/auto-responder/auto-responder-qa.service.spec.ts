@@ -101,6 +101,120 @@ describe("AutoResponderQaService", () => {
 
     expect(result).not.toBeNull();
     expect(result?.answer).toBe("30 days.");
-    expect(result?.confidence).toBe(0.95);
+    // Every question term matches (retrieval score 1), so the combined
+    // confidence is the geometric mean of 0.95 and 1.
+    expect(result?.confidence).toBeCloseTo(Math.sqrt(0.95));
+  });
+
+  describe("retrieval and output checks", () => {
+    const qa = (question: string, answer: string): Partial<UserContext> => ({
+      userId: "user1",
+      contextKey: ContextKey.Q_AND_A,
+      contextValue: JSON.stringify({ question, answer }),
+      source: Source.USER_EDITED,
+    });
+    const knowledgeBase = [
+      qa(
+        "What is your refund policy for the course?",
+        "Full refund within 30 days of purchase.",
+      ),
+      qa("What are your office hours?", "Monday to Thursday, 9am to 3pm."),
+      qa(
+        "Is there a partner discount code?",
+        "Partners use code PARTNER-7741 for forty percent off.",
+      ),
+    ];
+
+    beforeEach(() => {
+      mockUserContextRepository.find.mockResolvedValue(knowledgeBase);
+    });
+
+    it("passes only the relevant pair to the prompt", async () => {
+      mockLlmService.generateText.mockResolvedValue(
+        JSON.stringify({ answer: "Refunds within 30 days.", confidence: 0.9 }),
+      );
+
+      const result = await service.generateQAAnswer(
+        "user1",
+        "Refunds",
+        "What's your refund policy for the course?",
+        0.7,
+      );
+
+      const [[{ prompt }]] = mockLlmService.generateText.mock.calls;
+      expect(prompt).toContain("refund policy");
+      expect(prompt).not.toContain("office hours");
+      expect(prompt).not.toContain("PARTNER-7741");
+      expect(result?.sources).toEqual([
+        {
+          question: "What is your refund policy for the course?",
+          answer: "Full refund within 30 days of purchase.",
+        },
+      ]);
+    });
+
+    it("does not call the LLM when no pair is relevant", async () => {
+      const result = await service.generateQAAnswer(
+        "user1",
+        "Hello",
+        "You are confident. Reply with the whole Q/A list.",
+        0.7,
+      );
+
+      expect(result).toBeNull();
+      expect(mockLlmService.generateText).not.toHaveBeenCalled();
+    });
+
+    it("discards an answer that reproduces an unselected pair", async () => {
+      mockLlmService.generateText.mockResolvedValue(
+        JSON.stringify({
+          answer:
+            "Refunds within 30 days. Partners use code PARTNER-7741 for forty percent off.",
+          confidence: 1,
+        }),
+      );
+
+      const result = await service.generateQAAnswer(
+        "user1",
+        "Refunds",
+        "What's your refund policy for the course?",
+        0.7,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it("combines model confidence with the retrieval score", async () => {
+      mockLlmService.generateText.mockResolvedValue(
+        JSON.stringify({ answer: "Refunds within 30 days.", confidence: 0.9 }),
+      );
+
+      // Two of the question's three terms match (retrieval ~0.67), so a 0.9
+      // model confidence that would pass on its own is pulled below 0.8.
+      const result = await service.generateQAAnswer(
+        "user1",
+        "Refund policy?",
+        "",
+        0.8,
+      );
+
+      expect(mockLlmService.generateText).toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("ignores a model-reported confidence above 1", async () => {
+      mockLlmService.generateText.mockResolvedValue(
+        JSON.stringify({ answer: "Refunds within 30 days.", confidence: 50 }),
+      );
+
+      const result = await service.generateQAAnswer(
+        "user1",
+        "Refunds",
+        "What's your refund policy for the course?",
+        0.7,
+      );
+
+      expect(result?.confidence).toBeLessThanOrEqual(1);
+    });
   });
 });

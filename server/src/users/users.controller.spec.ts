@@ -286,7 +286,8 @@ describe("UsersController", () => {
         id: "user-123",
         password: "$2b$10$hash",
         totpSecret: "JBSWY3DPEHPK3PXP",
-        passwordSetupToken: "setup-token",
+        passwordSetupTokenHash: "setup-hash",
+        emailVerificationTokenHash: "verify-hash",
         passwordResetToken: "reset-hash",
         encryptedDataKey: "wrapped-key",
         githubToken: "ghp_real",
@@ -301,7 +302,8 @@ describe("UsersController", () => {
       for (const field of [
         "password",
         "totpSecret",
-        "passwordSetupToken",
+        "passwordSetupTokenHash",
+        "emailVerificationTokenHash",
         "passwordResetToken",
         "encryptedDataKey",
       ]) {

@@ -313,3 +313,6 @@ export const CATEGORY_FETCH_RETRY_DELAY_MS = 5_000; // default retry delay for c
 // An action waiting on a Google consent screen is retried only if the user comes back within this window
 const PENDING_GOOGLE_PERMISSION_ACTION_MAX_AGE_MINUTES = 15;
 export const PENDING_GOOGLE_PERMISSION_ACTION_MAX_AGE_MS = PENDING_GOOGLE_PERMISSION_ACTION_MAX_AGE_MINUTES * MS_PER_MINUTE;
+
+/** Minimum password length; mirrors the server's AUTH_CONSTANTS.MIN_PASSWORD_LENGTH. */
+export const MIN_PASSWORD_LENGTH = 12;

@@ -15,6 +15,16 @@ export default meta;
 type Story = StoryObj<typeof ItemDemo>;
 
 export const Default: Story = { name: 'Default', args: {} };
+
+// Draft delivery mode: the auto-responder saved a reply the user hasn't sent yet.
+export const AutoResponseDraftReady: Story = {
+  name: 'Auto-responder draft ready',
+  args: { emailOverrides: { hasAutoResponseDraft: true } },
+};
+export const AutoResponseDraftReadyNarrow: Story = {
+  name: 'Auto-responder draft ready (phone)',
+  args: { emailOverrides: { hasAutoResponseDraft: true }, maxWidth: 360 },
+};
 export const Selected: Story = { name: 'Selected', args: { isSelected: true } };
 export const AnimatingArchive: Story = {
   name: 'Animating — archive',

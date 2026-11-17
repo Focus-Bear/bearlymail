@@ -3,13 +3,14 @@ import { theme } from 'theme/theme';
 
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 
+import { AutoResponderDeliverySettings } from './AutoResponderDeliverySettings';
 import { AutoResponderEmailPreview } from './AutoResponderEmailPreview';
 import { AutoResponderExclusionSettings } from './AutoResponderExclusionSettings';
 import { AutoResponderHeader } from './AutoResponderHeader';
 import { AutoResponderQASettings } from './AutoResponderQASettings';
 import { AutoResponderTemplateEditor } from './AutoResponderTemplateEditor';
 import { AutoResponderToggle } from './AutoResponderToggle';
-import { AutoResponderConfig, QueueStats } from './types';
+import { AUTO_RESPONDER_DELIVERY_MODES, AutoResponderConfig, QueueStats } from './types';
 
 interface AutoResponderSectionProps {
   config: AutoResponderConfig;
@@ -28,6 +29,10 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
 }) => {
   const handleToggle = async (enabled: boolean) => {
     await onConfigChange({ enabled });
+  };
+
+  const handleDeliveryModeChange = async (deliveryMode: AutoResponderConfig['deliveryMode']) => {
+    await onConfigChange({ deliveryMode });
   };
 
   const handleExclusionRulesChange = async (customExclusionRules: string[]) => {
@@ -61,6 +66,11 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
 
       {config.enabled && (
         <>
+          <AutoResponderDeliverySettings
+            deliveryMode={config.deliveryMode ?? AUTO_RESPONDER_DELIVERY_MODES.DRAFT}
+            onChange={handleDeliveryModeChange}
+          />
+
           <AutoResponderExclusionSettings
             customExclusionRules={config.customExclusionRules || []}
             onChange={handleExclusionRulesChange}

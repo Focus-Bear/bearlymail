@@ -53,6 +53,7 @@ async function seedLocalUser() {
   if (existingUser) {
     existingUser.password = hashedPassword;
     existingUser.isApproved = true;
+    existingUser.emailVerifiedAt = existingUser.emailVerifiedAt ?? now;
     existingUser.isAdmin = true;
     await userRepository.save(existingUser);
     console.log(`Local user ${email} already exists — password refreshed`);
@@ -71,6 +72,7 @@ async function seedLocalUser() {
       password: hashedPassword,
       name: 'Local User',
       isApproved: true,
+      emailVerifiedAt: now,
       isAdmin: true,
       // Left NOT-onboarded so the first login runs the setup wizard
       // (batching preferences + AI training).

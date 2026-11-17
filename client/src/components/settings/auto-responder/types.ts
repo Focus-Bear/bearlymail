@@ -1,5 +1,13 @@
+export const AUTO_RESPONDER_DELIVERY_MODES = {
+  DRAFT: 'draft',
+  AUTO_SEND_KNOWN_SENDERS: 'auto_send_known_senders',
+} as const;
+
+export type AutoResponderDeliveryMode = (typeof AUTO_RESPONDER_DELIVERY_MODES)[keyof typeof AUTO_RESPONDER_DELIVERY_MODES];
+
 export interface AutoResponderConfig {
   enabled: boolean;
+  deliveryMode: AutoResponderDeliveryMode;
   sendFor: {
     standardPriority: boolean;
     highPriority: boolean;
@@ -36,6 +44,7 @@ export interface AutoResponderAnalytics {
 
 export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
   enabled: false,
+  deliveryMode: AUTO_RESPONDER_DELIVERY_MODES.DRAFT,
   sendFor: {
     standardPriority: true,
     highPriority: true,

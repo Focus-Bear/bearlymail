@@ -11,12 +11,13 @@ import { ActionItemList } from './ActionItemList';
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => (params ? `${key} ${JSON.stringify(params)}` : key),
+    i18n: { language: 'en' },
   }),
 }));
 
 vi.mock('utils/posthog', () => ({ captureEvent: vi.fn() }));
 
-// Not connected to Focus Bear: the plain link, as before. Suggestions are covered in SaveToFocusBearLink.test.
+// Not connected to Focus Bear. Suggestions and the panel's fields are covered in SaveToFocusBearButton.test.
 vi.mock('queries/useFocusBear', () => ({
   useFocusBearConnectionQuery: () => ({ data: { connected: false } }),
   fetchFocusBearTaskSuggestions: vi.fn(),
@@ -49,32 +50,44 @@ function renderList(focusBearTaskSource?: typeof SOURCE) {
 }
 
 describe('ActionItemList — Save to Focus Bear', () => {
-  it('offers a focusbear://create-task link on each open item', () => {
+  const assign = vi.fn();
+  const originalLocation = window.location;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...originalLocation, assign } });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+  });
+
+  it('offers "Save task in Focus Bear" on each open item', () => {
     renderList(SOURCE);
 
-    const links = screen.getAllByRole('link', { name: 'emailDetail.saveToFocusBear' });
-    expect(links).toHaveLength(1);
-    const url = new URL(links[0].getAttribute('href') ?? '');
+    expect(screen.getAllByRole('button', { name: 'emailDetail.saveTaskInFocusBear' })).toHaveLength(1);
+  });
+
+  it('saves through a focusbear://create-task link and records it in analytics', () => {
+    renderList(SOURCE);
+
+    fireEvent.click(screen.getByRole('button', { name: 'emailDetail.saveTaskInFocusBear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'emailDetail.saveToFocusBear' }));
+
+    const url = new URL(assign.mock.calls[0][0]);
     expect(`${url.protocol}//${url.host}`).toBe('focusbear://create-task');
     expect(url.searchParams.get('title')).toBe('Send the signed contract');
     expect(url.searchParams.get('link')).toBe(SOURCE.emailUrl);
     expect(url.searchParams.get('notes')).toContain('Contract & next steps');
-  });
-
-  it('records the save in analytics', () => {
-    renderList(SOURCE);
-
-    fireEvent.click(screen.getByRole('link', { name: 'emailDetail.saveToFocusBear' }));
-
     expect(captureEvent).toHaveBeenCalledWith(
       ANALYTICS_EVENTS.ACTION_ITEM_SAVED_TO_FOCUS_BEAR,
-      expect.objectContaining({ fromPanel: false, hasProject: false, hasDueDate: false })
+      expect.objectContaining({ hasProject: false, hasDueDate: false, dueDateNextFree: true })
     );
   });
 
-  it('shows no link without an email to describe', () => {
+  it('offers nothing without an email to describe', () => {
     renderList();
 
-    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'emailDetail.saveTaskInFocusBear' })).toBeNull();
   });
 });

@@ -11,6 +11,7 @@ import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_WHITE } from 'constants/colors';
 import {
   AUTH_ERROR_ACCOUNT_DELETED,
+  AUTH_ERROR_EMAIL_NOT_VERIFIED,
   AUTH_ERROR_OAUTH_ONLY,
   GmailAccessIssue,
   GooglePermissionGroup,
@@ -89,6 +90,26 @@ export class DeletedAccountError extends Error {
   }
 }
 
+/**
+ * Thrown by login() when the password was right but the account's email
+ * address hasn't been verified yet. The server has emailed a link; the Login
+ * page shows "check your inbox" with a resend button for `email`.
+ */
+export class EmailNotVerifiedError extends Error {
+  readonly email: string;
+
+  constructor(email: string) {
+    super('EMAIL_NOT_VERIFIED');
+    this.name = 'EmailNotVerifiedError';
+    this.email = email;
+  }
+}
+
+/** Asks the server to email a fresh verification link. Answers the same whether or not the account exists. */
+export async function resendVerificationEmail(email: string): Promise<void> {
+  await axios.post(`${API_URL}/auth/resend-verification`, { email });
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -99,6 +120,10 @@ interface AuthContextType {
    * Only reachable when GET /auth/apple-mail-local/available returns true.
    */
   loginWithAppleMail: () => Promise<void>;
+  /**
+   * Create a password account. No session is started: the server emails a
+   * verification link and the user signs in once they've followed it.
+   */
   register: (email: string, password: string, name?: string) => Promise<void>;
   /**
    * Log the user out. Pass reason 'session_expired' for involuntary logouts
@@ -201,9 +226,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         // Detect ACCOUNT_DELETED and surface a typed error with the reason.
         if (data?.error === AUTH_ERROR_ACCOUNT_DELETED) {
-          throw new DeletedAccountError(
-            (data.deletionReason as 'manual' | 'inactivity') ?? 'manual',
-          );
+          throw new DeletedAccountError((data.deletionReason as 'manual' | 'inactivity') ?? 'manual');
+        }
+        if (data?.error === AUTH_ERROR_EMAIL_NOT_VERIFIED) {
+          throw new EmailNotVerifiedError(email);
         }
       }
       throw err;
@@ -241,16 +267,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (email: string, password: string, name?: string) => {
-    const response = await axios.post(`${API_URL}/auth/register`, { email, password, name });
-    const { user } = response.data;
-    // JWT is set as an HttpOnly cookie by the server (see login() above)
-    setUser(user);
-    // Track registration event and identify user (NO PII). Google, Microsoft
-    // and Zoho sign-ups are sent by the server when it creates the account.
+    await axios.post(`${API_URL}/auth/register`, { email, password, name });
+    // Track registration (NO PII). Google, Microsoft and Zoho sign-ups are sent
+    // by the server when it creates the account.
     captureEvent(ANALYTICS_EVENTS.USER_REGISTERED, { method: LOGIN_METHOD_EMAIL });
-    identifyUser(user.id, {
-      isAdmin: user.isAdmin,
-    });
   };
 
   const refreshUser = async () => {

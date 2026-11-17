@@ -9,6 +9,7 @@ export { BlockedSender } from "./blocked-sender.entity";
 export { CategoryOverride } from "./category-override.entity";
 export { Contact } from "./contact.entity";
 export { ContextAnalysis } from "./context-analysis.entity";
+export { CrmSenderMatch } from "./crm-sender-match.entity";
 export { DeletedAccount } from "./deleted-account.entity";
 export { Email } from "./email.entity";
 export { EmailThread } from "./email-thread.entity";

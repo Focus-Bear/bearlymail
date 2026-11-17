@@ -18,7 +18,8 @@ import { Throttle } from "@nestjs/throttler";
 import { Response } from "express";
 import type { PgBoss } from "pg-boss";
 
-import { AUTH_CONSTANTS, AUTH_THROTTLES } from "../constants/auth-constants";
+import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import { AUTH_THROTTLES } from "../constants/auth-security.constants";
 import { AUTH_ACTION_TYPES, NODE_ENV_VALUES } from "../constants/domain-types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -75,32 +76,19 @@ export class AuthController {
   ) {}
 
   /**
-   * Direct sign-up. Creates an immediately-active account, sets the HttpOnly JWT
-   * cookie, and returns the login payload so the client can proceed straight to
-   * the app — there is no waitlist/approval gate.
-   * Rate-limited to 5 requests per minute per IP to curb automated abuse.
+   * Direct sign-up. Creates the account and emails a verification link; no
+   * session is issued until the address is verified and the user signs in.
+   * Rate-limited per IP to curb automated abuse.
    */
   @Post("register")
   @Throttle(AUTH_THROTTLES.REGISTER)
   async register(
     @Body() body: { email: string; password: string; name?: string },
-    @Res({ passthrough: true }) res: Response,
   ) {
     if (!body.email || !body.password) {
       throw new BadRequestException("Email and password are required");
     }
-    const loginData = await this.authService.register(
-      body.email,
-      body.password,
-      body.name,
-    );
-    const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
-    res.cookie(
-      AUTH_CONSTANTS.COOKIE_NAME,
-      loginData.access_token,
-      jwtCookieOptions(isProduction),
-    );
-    return loginData;
+    return this.authService.register(body.email, body.password, body.name);
   }
 
   /**
@@ -114,6 +102,7 @@ export class AuthController {
   }
 
   @Post("setup-password")
+  @Throttle(AUTH_THROTTLES.SETUP_PASSWORD)
   async setupPassword(
     @Body() body: { token: string; password: string },
     @Res({ passthrough: true }) res: Response,
@@ -133,7 +122,7 @@ export class AuthController {
 
   /**
    * Initiate the forgot-password flow.
-   * Rate-limited to 3 requests per 5 minutes per IP to prevent abuse.
+   * Rate-limited per IP to prevent abuse.
    * Always returns success — we never reveal whether the email is registered.
    */
   @Post("forgot-password")
@@ -155,6 +144,7 @@ export class AuthController {
    * so the frontend can transition the user to an authenticated state.
    */
   @Post("reset-password")
+  @Throttle(AUTH_THROTTLES.RESET_PASSWORD)
   async resetPassword(
     @Body() body: { token: string; password: string },
     @Res({ passthrough: true }) res: Response,
@@ -348,6 +338,11 @@ export class AuthController {
     return { ...status, verified };
   }
 
+  /**
+   * Password sign-in. Limited per IP here and per account by
+   * LoginLockoutService; refused with EMAIL_NOT_VERIFIED until the address
+   * is verified.
+   */
   @UseGuards(LocalAuthGuard)
   @Throttle(AUTH_THROTTLES.LOGIN)
   @Post("login")

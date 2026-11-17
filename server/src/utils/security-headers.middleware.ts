@@ -1,6 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 
 /**
+ * The API only serves JSON, files and redirects — never an HTML page that loads
+ * subresources — so its responses get a deny-everything policy. The web app's
+ * own policy is set by the CDN that serves the frontend, not here.
+ */
+export const API_CONTENT_SECURITY_POLICY =
+  "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+
+/**
  * Applies HTTP security headers required for CASA Tier 2/3 compliance.
  *
  * Addresses:
@@ -26,10 +34,7 @@ export function securityHeadersMiddleware(
     "Strict-Transport-Security",
     "max-age=63072000; includeSubDomains; preload",
   );
-  res.setHeader(
-    "Content-Security-Policy",
-    "frame-ancestors 'none'; script-src 'self'; object-src 'none'; base-uri 'self'",
-  );
+  res.setHeader("Content-Security-Policy", API_CONTENT_SECURITY_POLICY);
   // Prevent sensitive API responses from being cached by proxies, CDNs, or load balancers.
   res.setHeader("Cache-Control", "no-store");
   res.removeHeader("X-Powered-By");

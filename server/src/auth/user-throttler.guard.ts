@@ -22,10 +22,8 @@ import {
   THROTTLE_TIERS,
 } from "../constants/throttle-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
-import { resolveClientIp } from "../utils/client-ip.util";
 
 const MS_PER_SECOND = 1000;
-const UNKNOWN_CLIENT_TRACKER = "unknown";
 
 /** Request-local key used to pass the blocking tier name to throwThrottlingException. */
 const CURRENT_THROTTLER_NAME_KEY = "__rateLimit_triggeringTier";
@@ -37,9 +35,7 @@ const CURRENT_THROTTLER_NAME_KEY = "__rateLimit_triggeringTier";
  * share a NAT gateway. Since every priority endpoint is behind JwtAuthGuard,
  * the userId is always available on authenticated requests.
  *
- * Public routes (no JWT) fall back to the client address. Behind the load
- * balancer that is the last X-Forwarded-For entry, not `req.ip` (which is the
- * balancer and would put every visitor in one bucket).
+ * Public routes (no JWT) fall back to client IP.
  *
  * ## Header behaviour (fixes #1096 — headers show wrong tier)
  *
@@ -75,7 +71,7 @@ export class UserThrottlerGuard extends ThrottlerGuard {
 
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
     const user = req.user as { userId?: string } | undefined;
-    return user?.userId ?? resolveClientIp(req) ?? UNKNOWN_CLIENT_TRACKER;
+    return user?.userId ?? String(req.ip ?? "unknown");
   }
 
   /**

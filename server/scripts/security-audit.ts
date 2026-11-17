@@ -8,7 +8,7 @@
  * 2. Missing admin guards on admin-only endpoints
  * 3. Endpoints that access userId without JwtAuthGuard
  *
- * LLM analysis is ON by default. Set SECURITY_AUDIT_OPENAI_API_KEY (or OPENAI_API_KEY as fallback).
+ * LLM analysis (Gemini) is ON by default. Set SECURITY_AUDIT_GEMINI_API_KEY, GEMINI_API_KEY or GOOGLE_API_KEY.
  *
  * Usage:
  *   Full scan:       npx ts-node -r tsconfig-paths/register scripts/security-audit.ts
@@ -24,8 +24,9 @@
  *   - Exits 1 when critical findings are detected
  *
  * Environment variables:
- *   SECURITY_AUDIT_OPENAI_API_KEY  Dedicated API key for security audit (recommended)
- *   OPENAI_API_KEY                  Fallback if SECURITY_AUDIT_OPENAI_API_KEY is not set
+ *   SECURITY_AUDIT_GEMINI_API_KEY  Dedicated Gemini key for the security audit (recommended)
+ *   GEMINI_API_KEY / GOOGLE_API_KEY Fallbacks, in that order
+ *   SECURITY_AUDIT_GEMINI_MODEL     Gemini model (default gemini-3.1-flash-lite)
  *   GITHUB_BASE_REF                 Base branch for diff (set automatically by GitHub Actions)
  */
 
@@ -632,24 +633,25 @@ If there are no issues, return an empty array: []
 Return ONLY valid JSON, no other text.`;
 }
 
+const GEMINI_KEY_ENV_VARS = [
+  "SECURITY_AUDIT_GEMINI_API_KEY",
+  "GEMINI_API_KEY",
+  "GOOGLE_API_KEY",
+] as const;
+const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
+
 async function analyzWithLLM(
   controllers: ControllerInfo[],
 ): Promise<SecurityFinding[]> {
-  // Check for OpenAI API key (dedicated key preferred, fallback to main key)
-  const apiKey =
-    process.env.SECURITY_AUDIT_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-  const keySource = process.env.SECURITY_AUDIT_OPENAI_API_KEY
-    ? "SECURITY_AUDIT_OPENAI_API_KEY"
-    : process.env.OPENAI_API_KEY
-      ? "OPENAI_API_KEY (fallback)"
-      : "NOT SET";
+  const keySource = GEMINI_KEY_ENV_VARS.find((name) => process.env[name]);
+  const apiKey = keySource ? process.env[keySource] : undefined;
 
   if (!apiKey) {
     console.error(
-      "\n  LLM analysis requires SECURITY_AUDIT_OPENAI_API_KEY (or OPENAI_API_KEY as fallback).",
+      `\n  LLM analysis requires one of: ${GEMINI_KEY_ENV_VARS.join(", ")}.`,
     );
     console.error(
-      "  Set it with: export SECURITY_AUDIT_OPENAI_API_KEY=your-key-here",
+      "  Set it with: export SECURITY_AUDIT_GEMINI_API_KEY=your-key-here",
     );
     console.error("  Or disable LLM with: --no-llm\n");
     return [];
@@ -665,33 +667,37 @@ async function analyzWithLLM(
     const prompt = buildLLMPrompt(controller);
 
     try {
+      const model =
+        process.env.SECURITY_AUDIT_GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
       const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
+            "x-goog-api-key": apiKey,
           },
           body: JSON.stringify({
-            model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are a security auditor. Respond only with valid JSON arrays.",
-              },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0.1,
-            max_tokens: 2000,
+            systemInstruction: {
+              parts: [
+                {
+                  text: "You are a security auditor. Respond only with valid JSON arrays.",
+                },
+              ],
+            },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 2000,
+              responseMimeType: "application/json",
+            },
           }),
         },
       );
 
       const data = (await response.json()) as {
-        choices?: Array<{
-          message?: { content?: string };
+        candidates?: Array<{
+          content?: { parts?: Array<{ text?: string }> };
         }>;
         error?: { message?: string };
       };
@@ -701,7 +707,10 @@ async function analyzWithLLM(
         continue;
       }
 
-      const content = data.choices?.[0]?.message?.content || "[]";
+      const content =
+        data.candidates?.[0]?.content?.parts
+          ?.map((part) => part.text ?? "")
+          .join("") || "[]";
       // Extract JSON from response (handle markdown code blocks)
       const jsonStr = content
         .replace(/^```json\s*/i, "")

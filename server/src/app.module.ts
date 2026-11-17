@@ -25,6 +25,7 @@ import { ContactGroupsModule } from "./contact-groups/contact-groups.module";
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContextModule } from "./context/context.module";
 import { CrmModule } from "./crm/crm.module";
+import { CspReportModule } from "./csp-report/csp-report.module";
 import { DatabaseModule } from "./database/database.module";
 import { QueryPerformanceLogger } from "./database/query-logger";
 import { createTypeOrmConfig } from "./database/typeorm-config.factory";
@@ -139,6 +140,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     }),
     DatabaseModule,
     AuthModule,
+    CspReportModule,
     UsersModule,
     EmailsModule,
     EmailSendWorkerModule,

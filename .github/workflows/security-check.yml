@@ -36,7 +36,7 @@ jobs:
         working-directory: server
         env:
           GITHUB_BASE_REF: ${{ github.event.inputs.base_ref || 'main' }}
-          SECURITY_AUDIT_OPENAI_API_KEY: ${{ secrets.SECURITY_AUDIT_OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || secrets.GEMINI_API_KEY }}
         run: |
           if [ "${{ github.event.inputs.full_scan }}" = "true" ]; then
             npm run security:audit:llm

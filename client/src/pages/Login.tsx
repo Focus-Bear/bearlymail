@@ -7,21 +7,29 @@ import { devLog } from 'utils/dev-logger';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
 import { peekPostLoginPath } from 'utils/postLoginRedirect';
-import {
-  consumeSessionExpired,
-  getLastLoginMethod,
-  LoginMethod,
-  setLastLoginMethod,
-} from 'utils/sessionState';
+import { consumeSessionExpired, getLastLoginMethod, LoginMethod, setLastLoginMethod } from 'utils/sessionState';
 
+import { CheckInboxPanel } from 'components/auth/CheckInboxPanel';
 import { LoginFormSection } from 'components/auth/LoginFormSection';
 import type { OAuthProvider } from 'components/auth/oauth-permissions';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { SessionExpiredBanner } from 'components/auth/SessionExpiredBanner';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { GOOGLE_OAUTH_START_PATH, PROVIDER_GOOGLE, PROVIDER_MICROSOFT, PROVIDER_ZOHO, ROUTE_INBOX } from 'constants/strings';
-import { DeletedAccountError, OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
+import {
+  GOOGLE_OAUTH_START_PATH,
+  PROVIDER_GOOGLE,
+  PROVIDER_MICROSOFT,
+  PROVIDER_ZOHO,
+  ROUTE_INBOX,
+} from 'constants/strings';
+import {
+  DeletedAccountError,
+  EmailNotVerifiedError,
+  OAuthOnlyAccountError,
+  resendVerificationEmail,
+  useAuth,
+} from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
 
@@ -43,6 +51,8 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [isOAuthOnlyError, setIsOAuthOnlyError] = useState(false);
   const [deletedAccountReason, setDeletedAccountReason] = useState<'manual' | 'inactivity' | null>(null);
+  // Set when the password was right but the address isn't verified yet.
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [pendingProvider, setPendingProvider] = useState<OAuthProvider>(PROVIDER_GOOGLE);
   const { login, loginWithAppleMail, user, loading } = useAuth();
@@ -109,6 +119,8 @@ const Login: React.FC = () => {
       } else if (err instanceof DeletedAccountError) {
         setDeletedAccountReason(err.deletionReason);
         setError('ACCOUNT_DELETED');
+      } else if (err instanceof EmailNotVerifiedError) {
+        setUnverifiedEmail(err.email);
       } else {
         setError(getAxiosErrorMessage(err, t('auth.authenticationFailed')));
       }
@@ -163,7 +175,11 @@ const Login: React.FC = () => {
   return (
     <>
       {showPermissionsModal && (
-        <PermissionsExplanation provider={pendingProvider} onContinue={handlePermissionsContinue} onCancel={handlePermissionsCancel} />
+        <PermissionsExplanation
+          provider={pendingProvider}
+          onContinue={handlePermissionsContinue}
+          onCancel={handlePermissionsCancel}
+        />
       )}
       <div
         style={{
@@ -191,21 +207,30 @@ const Login: React.FC = () => {
               onContinueZoho={handleZohoLogin}
             />
           )}
-          <LoginFormSection
-            email={email}
-            password={password}
-            error={error}
-            isOAuthOnlyError={isOAuthOnlyError}
-            deletedAccountReason={deletedAccountReason}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={handleSubmit}
-            onGoogleLogin={handleGoogleLogin}
-            onMicrosoftLogin={handleMicrosoftLogin}
-            onZohoLogin={handleZohoLogin}
-            appleMailLoginAvailable={appleMailLoginAvailable}
-            onAppleMailLogin={handleAppleMailLogin}
-          />
+          {unverifiedEmail ? (
+            <CheckInboxPanel
+              inline
+              email={unverifiedEmail}
+              onResend={() => resendVerificationEmail(unverifiedEmail)}
+              onBack={() => setUnverifiedEmail(null)}
+            />
+          ) : (
+            <LoginFormSection
+              email={email}
+              password={password}
+              error={error}
+              isOAuthOnlyError={isOAuthOnlyError}
+              deletedAccountReason={deletedAccountReason}
+              onEmailChange={setEmail}
+              onPasswordChange={setPassword}
+              onSubmit={handleSubmit}
+              onGoogleLogin={handleGoogleLogin}
+              onMicrosoftLogin={handleMicrosoftLogin}
+              onZohoLogin={handleZohoLogin}
+              appleMailLoginAvailable={appleMailLoginAvailable}
+              onAppleMailLogin={handleAppleMailLogin}
+            />
+          )}
         </div>
       </div>
     </>

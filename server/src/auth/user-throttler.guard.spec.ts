@@ -131,19 +131,6 @@ describe("UserThrottlerGuard", () => {
       expect(result).toBe("10.0.0.1");
     });
 
-    it("uses the address the load balancer forwarded, not the balancer's own", async () => {
-      const req = {
-        ip: "10.0.3.17",
-        headers: { "x-forwarded-for": "198.51.100.1, 203.0.113.9" },
-      } as Record<string, unknown>;
-      const result = await (
-        guard as unknown as {
-          getTracker(req: Record<string, unknown>): Promise<string>;
-        }
-      ).getTracker(req);
-      expect(result).toBe("203.0.113.9");
-    });
-
     it("falls back to 'unknown' when both userId and IP are absent", async () => {
       const req = {} as Record<string, unknown>;
       const result = await (

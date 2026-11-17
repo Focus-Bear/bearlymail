@@ -134,6 +134,9 @@ const childEnv = {
   NODE_ENV: 'development',
   PORT: '3001',
   FRONTEND_URL: 'http://localhost:3000',
+  // Without this, a client/.env left over from other dev setups can point the
+  // web client at a different port and the app only shows "temporarily unavailable".
+  VITE_API_URL: 'http://localhost:3001',
   LLM_PROVIDER: 'claude-cli',
   // Self-hosters never see plan limits, trials, or AI-capacity 402s.
   SELF_HOSTED: 'true',
@@ -273,6 +276,9 @@ async function runStep(label, command, args, cwd) {
 
 await runStep('Running database migrations...', 'npm', ['run', 'migration:run'], serverDir);
 await runStep('Seeding local login user...', 'npm', ['run', 'seed:local-user'], serverDir);
+// The server and worker run from dist/, so compile first: a fresh clone has no
+// dist/ and an old one would silently run stale code.
+await runStep('Building the API server...', 'npx', ['nest', 'build'], serverDir);
 
 // ── 5. Preflight warnings ────────────────────────────────────────────────────
 
@@ -320,11 +326,11 @@ console.log(`
   Start over with: npm run local -- --reset
 `);
 
-// The worker runs from the compiled dist that `nest start --watch` produces
-// (running worker.ts via ts-node hits a TypeScript emit crash — see
-// `npm run worker`). Waiting for /health guarantees the build has finished.
+// The worker runs from the compiled dist built above (running worker.ts via
+// ts-node hits a TypeScript emit crash — see `npm run worker`). Waiting for
+// /health means the API is up before the worker starts.
 const workerCommand =
-  'sh -c \'echo "waiting for the server build..."; ' +
+  'sh -c \'echo "waiting for the API server..."; ' +
   'until curl -sf http://localhost:3001/health >/dev/null 2>&1; do sleep 2; done; ' +
   'if [ -f dist/worker.js ]; then exec node dist/worker.js; else exec node dist/src/worker.js; fi\'';
 

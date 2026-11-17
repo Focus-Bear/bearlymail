@@ -765,6 +765,8 @@ export async function seedQaUser(existingDataSource?: DataSource): Promise<void>
       console.log('QA user already exists — updating settings...');
       const hashedPassword = await bcrypt.hash(QA_PASSWORD, 10);
       qaUser.password = hashedPassword;
+      // Also repairs users this script created double-encrypted (see below).
+      qaUser.email = QA_EMAIL;
       qaUser.isApproved = true;
       qaUser.emailVerifiedAt = new Date();
       qaUser.hasSeenTour = true;
@@ -775,14 +777,10 @@ export async function seedQaUser(existingDataSource?: DataSource): Promise<void>
     } else {
       console.log('Creating QA user...');
       const hashedPassword = await bcrypt.hash(QA_PASSWORD, 10);
-      const encryptedEmail = EncryptionHelper.encrypt(QA_EMAIL);
-
-      if (!encryptedEmail) {
-        throw new Error('Failed to encrypt email. Check ENCRYPTION_KEY environment variable.');
-      }
-
       const newUser = userRepository.create({
-        email: encryptedEmail,
+        // The User entity's column transformer encrypts on save, so pass the
+        // plaintext address: encrypting here too stored it double-encrypted.
+        email: QA_EMAIL,
         emailHash,
         password: hashedPassword,
         name: QA_NAME,

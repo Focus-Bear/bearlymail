@@ -17,7 +17,7 @@ import axios from 'axios';
 import { Email } from 'types/email';
 import * as emailCache from 'utils/emailCache';
 
-import inboxDataReducer from 'store/slices/inboxDataSlice';
+import inboxDataReducer, { CategorySummaryItem } from 'store/slices/inboxDataSlice';
 import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { useEmailActionsBase } from './useEmailActionsBase';
@@ -55,7 +55,7 @@ function makeEmail(id: string, overrides: Partial<Email> = {}): Email {
   } as Email;
 }
 
-const createTestStore = (emails: Email[] = []) => {
+const createTestStore = (emails: Email[] = [], categorySummary: CategorySummaryItem[] | null = null) => {
   return configureStore({
     reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer },
     preloadedState: {
@@ -64,7 +64,7 @@ const createTestStore = (emails: Email[] = []) => {
         hasMore: false,
         totalCount: 0,
         currentOffset: 0,
-        categorySummary: null,
+        categorySummary,
         loadedCategoryNames: [] as string[],
         loadingCategoryNames: [] as string[],
         exhaustedCategoryNames: [] as string[],
@@ -99,6 +99,64 @@ describe('useEmailActionsBase — handleSetStarCount', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedAxios.put.mockResolvedValue({ data: {} });
+  });
+
+  describe('category summary stays in step with the tab the thread leaves', () => {
+    const UNCATEGORISED_SUMMARY: CategorySummaryItem[] = [{ id: null, name: 'Other', count: 3 }];
+    const summaryCountOf = (store: ReturnType<typeof createTestStore>) =>
+      store.getState().inboxData.categorySummary?.[0]?.count;
+    const renderActions = (store: ReturnType<typeof createTestStore>, mode: string) =>
+      renderHook(
+        () =>
+          useEmailActionsBase({
+            fetchEmails: mockFetchEmails,
+            onSuggestionRemove: mockOnSuggestionRemove,
+            onTabCountsUpdateOptimistically: mockOnTabCountsUpdateOptimistically,
+            mode,
+          }),
+        { wrapper: createWrapper(store) }
+      );
+
+    it('decrements the summary when a Triage thread is given a priority', async () => {
+      const store = createTestStore([makeEmail('email-s1', { category_id: null })], UNCATEGORISED_SUMMARY);
+      const { result } = renderActions(store, MODE_TRIAGE);
+
+      await act(async () => {
+        await result.current.handleSetStarCount('email-s1', 2);
+      });
+
+      expect(summaryCountOf(store)).toBe(2);
+    });
+
+    it('decrements the summary when an Action thread is sent back to Triage', async () => {
+      const store = createTestStore(
+        [makeEmail('email-s2', { starCount: 2, category_id: null }), makeEmail('email-s3', { starCount: 1 })],
+        UNCATEGORISED_SUMMARY
+      );
+      const { result } = renderActions(store, MODE_ACTION);
+
+      await act(async () => {
+        await result.current.handleSetStarCount('email-s2', 0);
+      });
+
+      expect(summaryCountOf(store)).toBe(2);
+    });
+
+    it('restores the summary when the star-count request fails', async () => {
+      mockedAxios.put.mockRejectedValueOnce(new Error('network'));
+      mockFetchEmails.mockResolvedValue(undefined);
+      const store = createTestStore([makeEmail('email-s4', { category_id: null })], UNCATEGORISED_SUMMARY);
+      const { result } = renderActions(store, MODE_TRIAGE);
+
+      await act(async () => {
+        await result.current.handleSetStarCount('email-s4', 2);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(summaryCountOf(store)).toBe(3);
+    });
   });
 
   describe('Triage mode — prioritisation (starCount > 0)', () => {

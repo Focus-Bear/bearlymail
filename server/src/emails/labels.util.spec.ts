@@ -1,4 +1,8 @@
-import { parseLabelsValue, parsePostgresTextArray } from "./labels.util";
+import {
+  hasDraftLabel,
+  parseLabelsValue,
+  parsePostgresTextArray,
+} from "./labels.util";
 
 describe("parsePostgresTextArray", () => {
   it("parses a quoted Postgres array literal", () => {
@@ -70,5 +74,23 @@ describe("parseLabelsValue", () => {
 
   it("coerces non-string JSON array elements to strings", () => {
     expect(parseLabelsValue("[1,2]")).toEqual(["1", "2"]);
+  });
+});
+
+describe("hasDraftLabel", () => {
+  it("is true for a message carrying Gmail's DRAFT label", () => {
+    expect(hasDraftLabel(["DRAFT"])).toBe(true);
+    expect(hasDraftLabel(["IMPORTANT", "DRAFT"])).toBe(true);
+  });
+
+  it("is false for sent and received mail", () => {
+    expect(hasDraftLabel(["SENT"])).toBe(false);
+    expect(hasDraftLabel(["INBOX", "UNREAD"])).toBe(false);
+  });
+
+  it("is false when labels are missing or not an array", () => {
+    expect(hasDraftLabel(undefined)).toBe(false);
+    expect(hasDraftLabel(null)).toBe(false);
+    expect(hasDraftLabel("DRAFT")).toBe(false);
   });
 });

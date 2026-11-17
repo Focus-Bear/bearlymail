@@ -1,5 +1,6 @@
 import type { gmail_v1 } from "googleapis";
 
+import { providerSyncCreateEmailOptions } from "../email-lifecycle.service";
 import { GmailSyncService } from "./gmail-sync.service";
 
 const READ_ONLY_SCOPES =
@@ -58,7 +59,7 @@ async function syncOneMessage(options: {
     ["thread-1"],
     gmail,
     new Map(),
-    false,
+    providerSyncCreateEmailOptions(false),
   );
   return updateEmail;
 }

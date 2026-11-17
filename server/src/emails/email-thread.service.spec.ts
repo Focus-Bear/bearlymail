@@ -72,6 +72,33 @@ describe("EmailThreadService", () => {
       });
     });
 
+    it("excludes stored unsent drafts so they never appear as sent mail", async () => {
+      const received = {
+        id: "email-1",
+        from: "client@example.com",
+        labels: ["INBOX"],
+      };
+      const sentReply = {
+        id: "email-2",
+        from: "me@example.com",
+        labels: ["SENT"],
+      };
+      const legacyDraft = {
+        id: "email-3",
+        from: "me@example.com",
+        labels: ["DRAFT"],
+      };
+      mockEmailRepository.find.mockResolvedValue([
+        received,
+        sentReply,
+        legacyDraft,
+      ]);
+
+      const result = await service.getThreadEmails("user-123", "thread-123");
+
+      expect(result).toEqual([received, sentReply]);
+    });
+
     it("should use DESC order and take when options are passed", async () => {
       const userId = "user-123";
       const threadId = "thread-123";

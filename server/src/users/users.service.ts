@@ -1,5 +1,6 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import type { PgBoss } from "pg-boss";
 import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
@@ -8,6 +9,8 @@ import {
   GmailAccessIssue,
 } from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import {
   DEFAULT_LEGAL_VERSIONS,
   PRIVACY_CHANGE_SUMMARY_KEYS,
@@ -20,7 +23,15 @@ import {
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LocalModelUserDataService } from "../local-model/local-model-user-data.service";
+import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
+import { getJobPriority } from "../queue/job-priorities";
+import { getErrorMessage } from "../types/common";
 import { logErrorToFile } from "../utils/error-logger";
+import {
+  type AccountDeletionReport,
+  BeforeAccountDeletionHooks,
+} from "./account-deletion-hooks";
+import { hasEmailProcessingConsent } from "./email-processing-consent";
 
 const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
 
@@ -107,6 +118,8 @@ function privacyChangeSummaryKeys(
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  /** Steps other modules run before an account is deleted, e.g. restoring snoozed threads. */
+  readonly beforeAccountDeletion = new BeforeAccountDeletionHooks(this.logger);
 
   constructor(
     @InjectRepository(User)
@@ -114,6 +127,7 @@ export class UsersService {
     @InjectRepository(DeletedAccount)
     private deletedAccountRepository: Repository<DeletedAccount>,
     private readonly localModelUserDataService: LocalModelUserDataService,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   /**
@@ -270,7 +284,7 @@ export class UsersService {
   }
 
   /**
-   * @deprecated Use optimized methods like findOneForAuth, findOneWithTokens, or findOneWithApiKey instead
+   * @deprecated Use optimized methods like findOneForAuth or findOneWithTokens instead
    * This method selects all columns including encrypted ones, which is slow.
    */
   async findOne(id: string): Promise<User> {
@@ -377,24 +391,12 @@ export class UsersService {
   }
 
   /**
-   * Optimized for LLM services - selects id + openAiApiKey.
-   * Use when you only need the OpenAI API key.
+   * Selects id + focusBearApiToken only, for the Focus Bear task suggestions.
    */
-  async findOneWithApiKey(id: string): Promise<User | null> {
+  async findOneWithFocusBearToken(id: string): Promise<User | null> {
     return this.userRepository
       .createQueryBuilder("user")
-      .select(["user.id", "user.openAiApiKey"])
-      .where("user.id = :id", { id })
-      .getOne();
-  }
-
-  /**
-   * Optimized for Anthropic LLM service — selects id + anthropicApiKey only.
-   */
-  async findOneWithAnthropicKey(id: string): Promise<User | null> {
-    return this.userRepository
-      .createQueryBuilder("user")
-      .select(["user.id", "user.anthropicApiKey"])
+      .select(["user.id", "user.focusBearApiToken"])
       .where("user.id = :id", { id })
       .getOne();
   }
@@ -487,11 +489,21 @@ export class UsersService {
     return { scanProgress, scanTotal, isComplete };
   }
 
+  /** See hasEmailProcessingConsent: no mailbox access before the terms are accepted. */
+  async hasEmailProcessingConsent(userId: string): Promise<boolean> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: { id: true, termsAcceptedAt: true, hasCompletedOnboarding: true },
+    });
+    return hasEmailProcessingConsent(user);
+  }
+
   async acceptConsent(
     userId: string,
     termsAccepted: boolean,
     privacyAccepted: boolean,
   ): Promise<User> {
+    const hadConsent = await this.hasEmailProcessingConsent(userId);
     const now = new Date();
     const { currentTermsVersion, currentPrivacyVersion } =
       currentConsentVersions();
@@ -507,7 +519,33 @@ export class UsersService {
     }
 
     await this.userRepository.update(userId, updates);
+    if (termsAccepted && !hadConsent) {
+      await this.queueFirstEmailSync(userId);
+    }
     return this.findOne(userId);
+  }
+
+  /**
+   * Every sync enqueued before the terms were accepted (at login, or when the
+   * mailbox was connected) was skipped, so start the first import now. No
+   * `singletonSeconds`: the skipped login sync must not throttle this one away.
+   * Best effort — the 5-minute fetch cron picks the user up if this fails.
+   */
+  private async queueFirstEmailSync(userId: string): Promise<void> {
+    try {
+      await this.boss.send(
+        JOB_NAMES.FETCH_USER_EMAILS,
+        { userId },
+        {
+          priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, true),
+          singletonKey: fetchUserEmailsJobKey(userId),
+        },
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to queue the first email sync for user ${userId}: ${getErrorMessage(error)}`,
+      );
+    }
   }
 
   async getConsentStatus(userId: string): Promise<{
@@ -699,11 +737,15 @@ export class UsersService {
   async deleteAccount(
     userId: string,
     reason: DeletionReason = DeletionReason.MANUAL,
-  ): Promise<void> {
+  ): Promise<AccountDeletionReport> {
     const user = await this.findOne(userId);
     if (!user) {
       throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
+
+    // Runs while the mailbox tokens still exist, e.g. to put snoozed threads
+    // back in the provider's inbox. Never throws.
+    const report = await this.beforeAccountDeletion.run(userId);
 
     const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId} (reason: ${reason})`;
     writeDebugLog(logMsg);
@@ -736,6 +778,7 @@ export class UsersService {
 
     const completedMsg = `[UsersService.deleteAccount] Successfully deleted account for user ${userId}`;
     writeDebugLog(completedMsg);
+    return report;
   }
 
   /**

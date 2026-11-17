@@ -459,6 +459,12 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
     provider?: LLMProvider,
     userId?: string,
   ): Promise<PhishingLLMResult | null> {
+    const deterministic = phishingSignals.deterministicVerdict;
+    if (deterministic) {
+      // Red flags combined into a verdict the model may not overrule; asking it
+      // anyway only risks a clearance (see phishing-red-flags.ts).
+      return { is_phishing: true, ...deterministic };
+    }
     const outcome = await this.runPhishingOnlyCheck({
       emailBody,
       emailSubject,
@@ -534,8 +540,10 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
           cacheStaticPrefix: true,
           userId,
           // Jev may only clear mail on the primary check; the confirmation
-          // stays an independent second opinion from Gemini.
-          ...(operation === LLM_OP_CHECK_PHISHING_ONLY && {
+          // stays an independent second opinion from Gemini. Mail with any
+          // deterministic red flag is never Jev's to clear.
+          ...(operation === LLM_OP_CHECK_PHISHING_ONLY &&
+            phishingSignals.redFlags.length === 0 && {
             jevDecision: {
               kind: JEV_DECISION_KINDS.PHISHING_CLEARANCE,
               input: {},
@@ -585,6 +593,10 @@ SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (ve
       userId,
     } = options;
     if (!verdict?.is_phishing || verdict.confidence === "low") {
+      return verdict;
+    }
+    if (phishingSignals.deterministicVerdict) {
+      // Not a model verdict, so there is no model false positive to undo.
       return verdict;
     }
     if (primaryProvider === LLMProvider.GEMINI) {

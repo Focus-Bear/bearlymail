@@ -32,7 +32,7 @@ export class ZohoAccountsController {
   ) {
     // Create state parameter with user ID and action
     const { userId } = req.user;
-    const state = createConnectState(userId);
+    const state = createConnectState(userId, res);
 
     // Redirect to Zoho OAuth endpoint with state parameter
     const zohoAuthUrl = `${process.env.ZOHO_REDIRECT_URI?.replace("/auth/zoho/callback", "") || "http://localhost:3001"}/auth/zoho`;
@@ -41,10 +41,13 @@ export class ZohoAccountsController {
 
   @Get("connect-url")
   @UseGuards(JwtAuthGuard)
-  async getConnectUrl(@Req() req: AuthenticatedRequest) {
+  async getConnectUrl(
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     // Create state parameter with user ID and action
     const { userId } = req.user;
-    const state = createConnectState(userId);
+    const state = createConnectState(userId, res);
 
     // Return Zoho OAuth URL instead of redirecting
     const zohoAuthUrl = `${process.env.ZOHO_REDIRECT_URI?.replace("/auth/zoho/callback", "") || "http://localhost:3001"}/auth/zoho`;

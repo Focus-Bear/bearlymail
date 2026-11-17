@@ -2284,6 +2284,164 @@ describe("CalendarService", () => {
     });
   });
 
+  describe("checkMeetingProposal — bare proposed time with a named place (report 2026-11-10)", () => {
+    /** Synthetic stand-in for the reported email: a time and a place, but no day. */
+    const bareTimeEmail = {
+      ...mockEmail,
+      from: "access.team@example.edu",
+      fromName: "Example Access Team",
+      subject: "Re: Assistive tech for students",
+      body: "Hi Jeremy,\n\nThank you for getting back to us.\n\nWould 11.30am (Fremantle time) suit?",
+    };
+    const noLlmProposal = {
+      hasProposal: false,
+      bookingInvited: false,
+      proposedTime: null,
+      windowEnd: null,
+      proposedDate: null,
+      proposedTimezone: null,
+      proposedTimeText: null,
+      topic: null,
+      durationMinutes: null,
+    };
+    /** 11:30 Perth on Tue 10 Nov 2026 = 2:30pm Melbourne. */
+    const PROPOSED_UTC = "2026-11-10T03:30:00.000Z";
+
+    beforeEach(() => {
+      // Tue 10 Nov 2026, 8am Perth / 11am Melbourne.
+      jest.useFakeTimers({
+        now: new Date("2026-11-10T00:00:00Z"),
+        doNotFake: ["nextTick", "setImmediate", "queueMicrotask"],
+      });
+      const preferences = (
+        service as unknown as {
+          schedulingPreferencesService: { getPreferences: jest.Mock };
+        }
+      ).schedulingPreferencesService;
+      preferences.getPreferences.mockResolvedValue({
+        availabilityStartHour: 9,
+        availabilityEndHour: 17,
+        availabilityDays: [1, 2, 3, 4, 5],
+        meetingGapMinutes: 0,
+        deepWorkHoursPerDay: 0,
+        slotDurationMinutes: 30,
+        timezone: "Australia/Melbourne",
+      });
+      emailsService.getEmailById.mockResolvedValue(bareTimeEmail);
+      llmService.detectMeetingProposal = jest
+        .fn()
+        .mockResolvedValue(noLlmProposal);
+      usersService.findOne.mockResolvedValue(mockUser);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("extracts the time in the sender's zone and reports the user free, with nearby alternatives", async () => {
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: { calendars: { primary: { busy: [] } } },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result).toMatchObject({
+        hasProposal: true,
+        proposedTime: PROPOSED_UTC,
+        proposedTimezone: "Australia/Perth",
+        proposedTimeText: "11.30am (Fremantle time)",
+        detectedBy: "time_pattern",
+        isAvailable: true,
+        calendarConnected: true,
+        userTimezone: "Australia/Melbourne",
+      });
+      // The three free half-hours closest to 2:30pm Melbourne, never the proposed slot itself.
+      expect(result.alternativeSlots).toEqual([
+        "2026-11-10T02:30:00.000Z",
+        "2026-11-10T03:00:00.000Z",
+        "2026-11-10T04:00:00.000Z",
+      ]);
+    });
+
+    it("reports the conflict and still offers free alternatives when the slot is busy", async () => {
+      const busy = [
+        { start: "2026-11-10T03:00:00Z", end: "2026-11-10T05:00:00Z" },
+      ];
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: { calendars: { primary: { busy } } },
+      });
+      mockCalendar.events.list.mockResolvedValue({
+        data: {
+          items: [
+            {
+              summary: "Team planning",
+              start: { dateTime: "2026-11-10T03:00:00Z" },
+              end: { dateTime: "2026-11-10T05:00:00Z" },
+            },
+          ],
+        },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.isAvailable).toBe(false);
+      expect(result.conflictingEvents).toEqual([
+        expect.objectContaining({ title: "Team planning" }),
+      ]);
+      expect(result.alternativeSlots).toHaveLength(3);
+      for (const slot of result.alternativeSlots ?? []) {
+        const start = new Date(slot).getTime();
+        const overlapsBusy =
+          start >= Date.parse(busy[0].start) && start < Date.parse(busy[0].end);
+        expect(overlapsBusy).toBe(false);
+      }
+    });
+
+    it("never creates an event or sends anything while checking the proposal", async () => {
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: { calendars: { primary: { busy: [] } } },
+      });
+
+      await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(mockCalendar.events.insert).not.toHaveBeenCalled();
+      expect(
+        bookingNotificationService.sendBookingNotifications,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("keeps the LLM's proposal (detectedBy llm) when it found one", async () => {
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        ...noLlmProposal,
+        hasProposal: true,
+        proposedTime: "2026-11-12T03:30:00.000Z",
+        proposedTimezone: "Australia/Perth",
+        proposedTimeText: "Thursday 11.30am (Fremantle time)",
+      });
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: { calendars: { primary: { busy: [] } } },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.detectedBy).toBe("llm");
+      expect(result.proposedTime).toBe("2026-11-12T03:30:00.000Z");
+    });
+
+    it("leaves hasProposal false when the email offers no clock time", async () => {
+      emailsService.getEmailById.mockResolvedValue({
+        ...bareTimeEmail,
+        body: "Happy to meet sometime next week.",
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.hasProposal).toBe(false);
+      expect(result.detectedBy).toBeNull();
+      expect(mockCalendar.freebusy.query).not.toHaveBeenCalled();
+    });
+  });
+
   describe("checkTimeAvailability", () => {
     it("returns calendarConnected=false when calendar not connected", async () => {
       usersService.findOne.mockResolvedValue(

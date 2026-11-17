@@ -265,7 +265,6 @@ export class LLMPriorityResultService {
       emailThreadId,
       userId,
       finalScore,
-      starCount: thread.starCount ?? 0,
       isBatched: thread.isBatched ?? true,
       urgencyScore: llmResult.urgencyScore || 0,
     });
@@ -357,7 +356,6 @@ export class LLMPriorityResultService {
     emailThreadId: string;
     userId: string;
     finalScore: number;
-    starCount: number;
     isBatched: boolean;
     urgencyScore: number;
   }): Promise<void> {

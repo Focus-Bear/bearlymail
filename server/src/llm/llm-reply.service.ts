@@ -24,20 +24,46 @@ import {
 } from "./prompts";
 import type { ReplyPerspective } from "./reply-perspective";
 
-/** Returned by detectMeetingProposal when no proposal can be parsed. */
 /** Length of a YYYY-MM-DD date prefix, used to trim any time portion the LLM appends. */
 const ISO_DATE_LENGTH = 10;
 
-const EMPTY_MEETING_PROPOSAL = {
+/** What the meeting-proposal detector extracts from an email, before calendar checks. */
+export interface DetectedMeetingProposal {
+  hasProposal: boolean;
+  /**
+   * True when the latest message green-lights booking / sending a calendar invite (e.g. "feel
+   * free to send an invite") but has NOT itself accepted the specific time — so the resolved
+   * `proposedTime` is an editable starting point drawn from an earlier proposal in the thread
+   * (possibly one the sender just declined), NOT a slot they confirmed.
+   */
+  bookingInvited: boolean;
+  proposedTime: string | null;
+  windowEnd: string | null;
+  /**
+   * Naive ISO date (YYYY-MM-DD) when the sender pins a specific DAY but gives no time of day
+   * (e.g. "can we meet on the 9th of July?"). The caller fills in a time from the recipient's
+   * own availability. null when an explicit time/window was given.
+   */
+  proposedDate: string | null;
+  /** Zone the sender meant (IANA name or fixed offset such as "UTC+10"); null with no proposal. */
+  proposedTimezone: string | null;
+  proposedTimeText: string | null;
+  topic: string | null;
+  durationMinutes: number | null;
+}
+
+/** Returned by detectMeetingProposal when no proposal can be parsed. */
+const EMPTY_MEETING_PROPOSAL: DetectedMeetingProposal = {
   hasProposal: false,
   bookingInvited: false,
   proposedTime: null,
   windowEnd: null,
   proposedDate: null,
+  proposedTimezone: null,
   proposedTimeText: null,
   topic: null,
   durationMinutes: null,
-} as const;
+};
 
 export interface ReplyOptionsUserContext {
   tone?: string;
@@ -487,27 +513,7 @@ export class LLMReplyService {
     provider?: LLMProvider,
     userId?: string,
     userTimezone?: string,
-  ): Promise<{
-    hasProposal: boolean;
-    /**
-     * True when the latest message green-lights booking / sending a calendar invite (e.g. "feel
-     * free to send an invite") but has NOT itself accepted the specific time — so the resolved
-     * `proposedTime` is an editable starting point drawn from an earlier proposal in the thread
-     * (possibly one the sender just declined), NOT a slot they confirmed.
-     */
-    bookingInvited: boolean;
-    proposedTime: string | null;
-    windowEnd: string | null;
-    /**
-     * Naive ISO date (YYYY-MM-DD) when the sender pins a specific DAY but gives no time of day
-     * (e.g. "can we meet on the 9th of July?"). The caller fills in a time from the recipient's
-     * own availability. null when an explicit time/window was given.
-     */
-    proposedDate: string | null;
-    proposedTimeText: string | null;
-    topic: string | null;
-    durationMinutes: number | null;
-  }> {
+  ): Promise<DetectedMeetingProposal> {
     const promptConfig = getPrompt(CALENDAR_PROMPT_IDS.DETECT_MEETING_PROPOSAL);
     if (!promptConfig) {
       this.logger.error(
@@ -578,16 +584,7 @@ export class LLMReplyService {
   private parseDetectMeetingProposalResponse(
     response: string,
     effectiveTimezone: string,
-  ): {
-    hasProposal: boolean;
-    bookingInvited: boolean;
-    proposedTime: string | null;
-    windowEnd: string | null;
-    proposedDate: string | null;
-    proposedTimeText: string | null;
-    topic: string | null;
-    durationMinutes: number | null;
-  } {
+  ): DetectedMeetingProposal {
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return EMPTY_MEETING_PROPOSAL;
 
@@ -641,6 +638,7 @@ export class LLMReplyService {
       proposedTime,
       windowEnd,
       proposedDate,
+      proposedTimezone: hasProposal ? proposedTimezone : null,
       proposedTimeText: parsed.proposedTimeText ?? null,
       topic: parsed.topic ?? null,
       durationMinutes: parsed.durationMinutes ?? null,

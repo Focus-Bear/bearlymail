@@ -92,6 +92,7 @@ export class EmailClassifierService {
     },
     headers?: Record<string, string>,
     threadHasReplies?: boolean,
+    userId?: string,
   ): Promise<EmailClassification> {
     const headerClassification = this.classifyByHeaders(headers || {});
     const senderClassification = this.classifyBySender(email.from);
@@ -146,7 +147,7 @@ export class EmailClassifierService {
     }
 
     try {
-      const llmClassification = await this.classifyWithLLM(email);
+      const llmClassification = await this.classifyWithLLM(email, userId);
       return {
         ...llmClassification,
         isReply: threadHasReplies || false,
@@ -369,12 +370,15 @@ export class EmailClassifierService {
   /**
    * Use LLM to classify email content
    */
-  private async classifyWithLLM(email: {
-    from: string;
-    fromName?: string;
-    subject: string;
-    body: string;
-  }): Promise<EmailClassification> {
+  private async classifyWithLLM(
+    email: {
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+    },
+    userId: string | undefined,
+  ): Promise<EmailClassification> {
     const promptConfig = getPrompt(
       CLASSIFICATION_PROMPT_IDS.CLASSIFY_EMAIL_TYPE,
     );
@@ -413,7 +417,7 @@ export class EmailClassifierService {
         jevDecision: { kind: JEV_DECISION_KINDS.EMAIL_TYPE, input: {} },
       },
       LLMProvider.OPENAI,
-      undefined,
+      userId,
       LLM_OP_CLASSIFY_EMAIL,
     );
 
@@ -551,6 +555,7 @@ export class EmailClassifierService {
     customRules: string[],
     classification?: EmailClassification,
     headers?: Record<string, string>,
+    userId?: string,
   ): Promise<{ matched: boolean; matchedRule: string | null; reason: string }> {
     if (!customRules || customRules.length === 0) {
       return {
@@ -588,6 +593,7 @@ export class EmailClassifierService {
           email,
           customRules,
           cleanedBody,
+          userId,
         );
       }
 
@@ -612,7 +618,7 @@ export class EmailClassifierService {
           },
         },
         LLMProvider.OPENAI,
-        undefined,
+        userId,
         LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
       );
 
@@ -678,6 +684,7 @@ export class EmailClassifierService {
     email: { from: string; fromName?: string; subject: string },
     customRules: string[],
     cleanedBody: string,
+    userId: string | undefined,
   ): Promise<{ matched: boolean; matchedRule: string | null; reason: string }> {
     const rulesText = customRules
       .map((rule, index) => `${index + 1}. ${rule}`)
@@ -714,7 +721,7 @@ Respond with a JSON object in this exact format:
         maxTokens: LLM_CONFIG.CUSTOM_RULES_MAX_TOKENS,
       },
       LLMProvider.OPENAI,
-      undefined,
+      userId,
       LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
     );
     const jsonString = response

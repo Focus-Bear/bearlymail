@@ -32,7 +32,7 @@ export class Office365AccountsController {
   ) {
     // Create state parameter with user ID and action
     const { userId } = req.user;
-    const state = createConnectState(userId);
+    const state = createConnectState(userId, res);
 
     // Redirect to Microsoft OAuth endpoint with state parameter
     const microsoftAuthUrl = `${process.env.MICROSOFT_REDIRECT_URI?.replace("/auth/microsoft/callback", "") || "http://localhost:3001"}/auth/microsoft`;
@@ -41,10 +41,13 @@ export class Office365AccountsController {
 
   @Get("connect-url")
   @UseGuards(JwtAuthGuard)
-  async getConnectUrl(@Req() req: AuthenticatedRequest) {
+  async getConnectUrl(
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     // Create state parameter with user ID and action
     const { userId } = req.user;
-    const state = createConnectState(userId);
+    const state = createConnectState(userId, res);
 
     // Return Microsoft OAuth URL instead of redirecting
     const microsoftAuthUrl = `${process.env.MICROSOFT_REDIRECT_URI?.replace("/auth/microsoft/callback", "") || "http://localhost:3001"}/auth/microsoft`;

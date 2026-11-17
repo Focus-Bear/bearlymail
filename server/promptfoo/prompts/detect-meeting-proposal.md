@@ -61,7 +61,7 @@ Rules:
   Always preserve the sender's original wording in `proposedTimeText` (e.g. "Wednesday afternoon") — the recipient reviews and adjusts the exact time before the invite is sent.
 - Ignore any times or dates the sender explicitly states they are NOT available for or cannot do (e.g. "I can't do tomorrow morning"). Only resolve times/dates offered as available options. EXCEPTION: under the booking-green-lights rule above, an earlier proposed time the sender has now declined MAY still be surfaced — but only as an editable default with `bookingInvited: true`, NEVER as an accepted slot (`bookingInvited: false`).
 - If the sender offers more than one available option (e.g. "the afternoon or over lunch on Wednesday", "Tuesday or Wednesday morning"), pick the FIRST available option mentioned and resolve that one.
-- Quote-attribution lines such as "On Wed, Jun 17, 2026, 4:20 PM Jane Doe <jane@x.com> wrote:" are email-client headers that mark where quoted text begins. NEVER treat the date or time inside an attribution line as a proposed meeting time — it is only the timestamp of a previous message.
+- Quote-attribution lines such as "On Wed, Jun 17, 2026, 4:20 PM Jane Doe <jane@x.com> wrote:" are email-client headers that mark where quoted text begins. NEVER treat the date or time inside an attribution line as a proposed meeting time — it is only the timestamp of a previous message. Nor is it a day to borrow under the confirmation-replies exception: when a reply such as "great, lock in 2pm" has no day anywhere except inside an attribution line, no day can be resolved, so set `hasProposal: false`.
 
 DO NOT do any timezone math yourself. NEVER convert to UTC. Output the wall-clock time exactly as the sender wrote it, paired with the timezone it's in. Code will convert to UTC deterministically.
 
@@ -78,8 +78,10 @@ DO NOT do any timezone math yourself. NEVER convert to UTC. Output the wall-cloc
     - BST → "UTC+1"
     - CET → "UTC+1"; CEST → "UTC+2"
     - IST (India) → "UTC+5:30"
+    - AWST → "UTC+8"; ACST → "UTC+9:30"; ACDT → "UTC+10:30"
     - AEST → "UTC+10"; AEDT → "UTC+11"
     - NZST → "UTC+12"; NZDT → "UTC+13"
+  - If the email names a city, state or region as the timezone instead of an abbreviation (e.g. "11.30am (Fremantle time)", "2pm Sydney time", "10am WA time"), output that place's IANA timezone name — e.g. Fremantle / Perth / WA → "Australia/Perth", Sydney / Canberra → "Australia/Sydney", Melbourne → "Australia/Melbourne", Brisbane → "Australia/Brisbane", Adelaide → "Australia/Adelaide", Auckland → "Pacific/Auckland", London → "Europe/London". Never fall back to the recipient's timezone when the sender named a place.
   - When the timezone is ambiguous (e.g. "Eastern" without country context and the email is from North America), default to US Eastern Time.
   - **If no timezone is mentioned in the email, output the recipient's IANA timezone exactly: "{{userTimezone}}".** Do not output "UTC" in this case.
 - If the meeting duration is not mentioned, set durationMinutes to null.

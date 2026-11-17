@@ -1,6 +1,10 @@
 import { type AnalyzeProgress } from 'hooks/settings/useAnalysisProgress';
 
-import { type CategorisationState, isCategorisationComplete } from './useCategorisationProgress';
+import {
+  type CategorisationState,
+  hasSortedEnoughToContinue,
+  isCategorisationComplete,
+} from './useCategorisationProgress';
 
 export interface ImportProgress {
   prioritizedCount: number;
@@ -69,9 +73,9 @@ export interface LearningView {
   isLearningDone: boolean;
   /** Analysis failed or overran the max wait: the user must retry or skip rather than watch a frozen bar. */
   isStalled: boolean;
-  /** The user may open the inbox: learning is done and the inbox is sorted, or we stopped waiting. */
+  /** The user may open the inbox: learning is done and enough of the inbox is sorted, or we stopped waiting. */
   canFinish: boolean;
-  /** Let in by the max-wait timeout while some threads are still being sorted. */
+  /** The user may continue while the rest of the inbox is still being sorted in the background. */
   isStillSorting: boolean;
   currentPhase: number;
   realProgress: RealProgress;
@@ -125,11 +129,13 @@ function computeSortingFraction(categorisation: CategorisationState): number {
   return progress.total > 0 ? Math.min(PROGRESS_MAX, progress.categorised / progress.total) : PROGRESS_MAX;
 }
 
-function pickCurrentPhase(canFinish: boolean, isLearningDone: boolean, messageKey: string | undefined): number {
-  if (canFinish) {
+function pickCurrentPhase(isFullySorted: boolean, isLearningDone: boolean, messageKey: string | undefined): number {
+  if (isLearningDone && isFullySorted) {
     // Past the last row so every row reads as done.
     return PHASE_LABEL_KEYS.length;
   }
+  // Sorting stays the active row while the rest of the inbox sorts in the
+  // background, even once the user may continue, so its count keeps climbing.
   return isLearningDone ? PHASE_CATEGORISE : getAnalysisPhase(messageKey);
 }
 
@@ -138,8 +144,9 @@ function pickCurrentPhase(canFinish: boolean, isLearningDone: boolean, messageKe
  * backend signals: the context-analysis poll (a real 0-100 percentage plus
  * per-stage counts), the email-import poll (real synced-thread count) and the
  * categorisation poll (threads with a settled category). Nothing is
- * synthesised. The inbox only unlocks once the inbox is sorted, so the user
- * doesn't land on a wall of "Other" — or once the max wait elapses.
+ * synthesised. The inbox unlocks once its newest threads are sorted, so the
+ * user doesn't land on a wall of "Other" — or once the max wait elapses. The
+ * rest keep sorting in the background, and the bar keeps showing it.
  */
 export function computeLearningView(
   analyzeProgress: AnalyzeProgress,
@@ -150,18 +157,20 @@ export function computeLearningView(
   const isLearningDone = hasLearningFinished(analyzeProgress, importProgress, timedOut);
   const isStalled = isAnalysisStalled(analyzeProgress, timedOut);
   const isSorted = isCategorisationComplete(categorisation.progress);
-  const canFinish = isLearningDone && (isSorted || categorisation.timedOut);
+  const hasSortedEnough = hasSortedEnoughToContinue(categorisation.progress);
+  const canFinish = isLearningDone && (hasSortedEnough || categorisation.timedOut);
+  const isFinished = canFinish && isSorted;
   const learningFraction = isLearningDone ? PROGRESS_MAX : computeLearningFraction(analyzeProgress, importProgress);
   const blended = LEARNING_SHARE * learningFraction + SORTING_SHARE * computeSortingFraction(categorisation);
   const progress = analyzeProgress.progress;
   return {
     // Once finished every indicator reads "done", so the bar must show 100% too (#294).
-    displayProgress: canFinish ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, blended),
+    displayProgress: isFinished ? PROGRESS_MAX : Math.min(PROGRESS_CAP_BEFORE_READY, blended),
     isLearningDone,
     isStalled,
     canFinish,
     isStillSorting: canFinish && !isSorted,
-    currentPhase: pickCurrentPhase(canFinish, isLearningDone, progress?.messageKey),
+    currentPhase: pickCurrentPhase(isSorted, isLearningDone, progress?.messageKey),
     realProgress: {
       syncedCount: importProgress.prioritizedCount,
       threadCount: progress?.threadCount,

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { getMcpProviderPresets, MCPProviderPreset } from './mcpPresets';
+import { MCPProviderIcon } from './MCPProviderIcon';
 
 interface MCPProviderGridProps {
   onSelect: (preset: MCPProviderPreset) => void;
@@ -64,7 +65,7 @@ export const MCPProviderGrid: React.FC<MCPProviderGridProps> = ({ onSelect }) =>
               fontWeight: 700,
             }}
           >
-            {preset.initial}
+            <MCPProviderIcon preset={preset} size={20} />
           </span>
           <span style={{ minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: theme.colors.text.primary }}>

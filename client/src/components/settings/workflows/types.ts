@@ -94,14 +94,23 @@ export const MCP_AUTH_TYPES = { NONE: 'none', BEARER: 'bearer', OAUTH: 'oauth' }
 
 export type MCPAuthType = (typeof MCP_AUTH_TYPES)[keyof typeof MCP_AUTH_TYPES];
 
+/** A connection as returned by the API: credentials and the full URL never leave the server. */
+export interface MCPConnectionTestResult {
+  ok: boolean;
+  toolCount: number;
+  needsAuthorization: boolean;
+}
+
 export interface MCPServerConfig {
   id: string;
-  userId: string;
   name: string;
-  serverUrl: string;
-  apiKey?: string | null;
+  /** Scheme + host only; the path often embeds an access key. */
+  serverUrlRedacted: string;
+  hasApiKey: boolean;
+  /** OAuth connection the user still has to sign in to. */
+  needsAuthorization: boolean;
   purpose: MCPServerPurpose;
-  authType?: MCPAuthType;
+  authType: MCPAuthType;
   cachedTools: MCPToolDefinition[] | null;
   toolsCachedAt: string | null;
   enabled: boolean;

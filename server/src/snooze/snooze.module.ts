@@ -10,6 +10,7 @@ import { UsersModule } from "../users/users.module";
 import { SnoozeController } from "./snooze.controller";
 import { SnoozeProcessor } from "./snooze.processor";
 import { SnoozeService } from "./snooze.service";
+import { SnoozeReleaseService } from "./snooze-release.service";
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { SnoozeService } from "./snooze.service";
     UsersModule,
   ],
   controllers: [SnoozeController],
-  providers: [SnoozeService, SnoozeProcessor],
+  providers: [SnoozeService, SnoozeProcessor, SnoozeReleaseService],
   exports: [SnoozeService],
 })
 export class SnoozeModule {}

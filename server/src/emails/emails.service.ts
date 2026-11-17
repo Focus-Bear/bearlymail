@@ -590,6 +590,16 @@ export class EmailsService {
     );
   }
 
+  async deleteEmailByMessageId(
+    userId: string,
+    messageId: string,
+  ): Promise<boolean> {
+    return this.emailServiceDeps.emailCrudService.deleteEmailByMessageId(
+      userId,
+      messageId,
+    );
+  }
+
   // ── Read / unread ──────────────────────────────────────────────────────────
 
   async markAsRead(userId: string, emailId: string): Promise<Email> {

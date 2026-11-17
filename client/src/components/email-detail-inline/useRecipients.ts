@@ -19,6 +19,8 @@ import {
   SUGGESTION_KIND_GROUP,
 } from 'constants/strings';
 
+import { replaceEditedRecipient } from './recipientChipEditing';
+
 type FieldType = typeof EMAIL_FIELD_TO | typeof EMAIL_FIELD_CC | typeof EMAIL_FIELD_BCC;
 type DispatchFns = {
   onRecipientsChange: (v: string) => void;
@@ -31,8 +33,7 @@ const parseEmailsToTags = (value: string): string[] =>
     .map(event => event.trim())
     .filter(event => event.length > 0);
 
-const formatRecipientDisplay = (name: string | undefined, email: string): string =>
-  formatRecipientToken(name, email);
+const formatRecipientDisplay = (name: string | undefined, email: string): string => formatRecipientToken(name, email);
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -389,6 +390,19 @@ export const useRecipients = ({
     [toTags, ccTags, bccTags, dispatch]
   );
 
+  // Returns false when the edit is not a valid address list, so the chip can keep its original value.
+  const handleReplaceTag = useCallback(
+    (index: number, field: FieldType, editedValue: string): boolean => {
+      const newTags = replaceEditedRecipient(getTagsForField(field, toTags, ccTags, bccTags), index, editedValue);
+      if (!newTags) {
+        return false;
+      }
+      dispatchToField(field, newTags.join(', '), dispatch);
+      return true;
+    },
+    [toTags, ccTags, bccTags, dispatch]
+  );
+
   const handleSelectContact = useCallback(
     (contact: Contact, field: FieldType) => {
       applySelectContact(contact, field, { toTags, ccTags, bccTags }, dispatch);
@@ -551,6 +565,7 @@ export const useRecipients = ({
     handleSelectContact,
     handleSelectGroup,
     handleRemoveTag,
+    handleReplaceTag,
     handleBlur,
     dragSource,
     handleDragStart,

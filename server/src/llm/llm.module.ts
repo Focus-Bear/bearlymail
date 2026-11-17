@@ -32,6 +32,8 @@ import { LocalModelUsageService } from "./local-model-usage.service";
 import { PriorityAnalysisService } from "./priority-analysis.service";
 import { TokenUsageController } from "./token-usage.controller";
 import { TokenUsageService } from "./token-usage.service";
+import { UserAiKeysController } from "./user-ai-keys.controller";
+import { UserAiKeysService } from "./user-ai-keys.service";
 
 @Module({
   imports: [
@@ -49,7 +51,12 @@ import { TokenUsageService } from "./token-usage.service";
     forwardRef(() => AuthModule),
     DebugModule,
   ],
-  controllers: [LLMController, TokenUsageController, LocalModelUsageController],
+  controllers: [
+    LLMController,
+    TokenUsageController,
+    LocalModelUsageController,
+    UserAiKeysController,
+  ],
   providers: [
     LocalModelUsageService,
     LLMService,
@@ -68,6 +75,7 @@ import { TokenUsageService } from "./token-usage.service";
     PriorityAnalysisService,
     IncrementalAnalysisService,
     TokenUsageService,
+    UserAiKeysService,
   ],
   exports: [
     LLMService,
@@ -86,6 +94,7 @@ import { TokenUsageService } from "./token-usage.service";
     PriorityAnalysisService,
     IncrementalAnalysisService,
     TokenUsageService,
+    UserAiKeysService,
   ],
 })
 export class LLMModule {}

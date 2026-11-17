@@ -64,7 +64,7 @@ export class AccountDeletionProcessor implements OnModuleInit {
 
     for (const userId of userIds) {
       try {
-        await this.usersService.deleteAccount(
+        const { stillSnoozedThreads } = await this.usersService.deleteAccount(
           userId,
           DeletionReason.INACTIVITY,
         );
@@ -72,6 +72,11 @@ export class AccountDeletionProcessor implements OnModuleInit {
         this.logger.log(
           `[AccountDeletion] Deleted inactive account userId=${userId}`,
         );
+        if (stillSnoozedThreads > 0) {
+          this.logger.warn(
+            `[AccountDeletion] ${stillSnoozedThreads} snoozed thread(s) could not be put back in the inbox for userId=${userId}`,
+          );
+        }
       } catch (error: unknown) {
         errors++;
         this.logger.error(

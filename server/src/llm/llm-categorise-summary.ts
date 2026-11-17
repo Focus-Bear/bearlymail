@@ -5,6 +5,7 @@ import {
 import { JEV } from "../constants/jev.constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { assignFamily } from "../context/category-family.taxonomy";
 import type { LoggerPort } from "../shared/email-intelligence/ports";
 import {
   buildProtoSuggestionFromResponse,
@@ -245,10 +246,18 @@ function logShadowAgreement(
   chosen: CategoriseFromSummaryResult | null,
 ): void {
   if (!declinedPick || !chosen) return;
+  const { family } = declinedPick;
   logJevShadowAgreement(logger, {
     decision: LLM_OP_CATEGORISE_SUMMARY,
     confidence: declinedPick.confidence,
     agreed: declinedPick.categoryName === chosen.categoryName,
+    family: family
+      ? {
+          family: family.family,
+          confidence: family.confidence,
+          agreed: family.family === assignFamily(chosen.categoryName),
+        }
+      : undefined,
   });
 }
 

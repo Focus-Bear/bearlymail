@@ -89,12 +89,20 @@ const unquoteDisplayName = (name: string): string => {
 };
 
 /**
+ * Senders often set their display name to their own address. Keeping it adds
+ * nothing but forces a quoted-string ("a@x.com" <a@x.com>), which surfaced as a
+ * stray leading quote on recipient chips.
+ */
+const isNameJustTheAddress = (name: string, email: string): boolean =>
+  name.trim().toLowerCase() === email.trim().toLowerCase();
+
+/**
  * Format a recipient as a header/token string, wrapping the display name in a
  * quoted-string when it contains RFC 5322 specials (notably commas) so it
  * survives re-parsing and is accepted by the mail provider.
  */
 export const formatRecipientToken = (name: string | undefined, email: string): string => {
-  if (!name) {
+  if (!name || isNameJustTheAddress(name, email)) {
     return email;
   }
   if (DISPLAY_NAME_MUST_QUOTE.test(name)) {
@@ -199,3 +207,18 @@ const toParsedRecipient = (mailbox: emailAddresses.ParsedMailbox): ParsedRecipie
  */
 export const parseAddressHeader = (header: string | null | undefined): ParsedRecipient[] =>
   header ? parseHeaderAddressList(header).flatMap(toMailboxes).map(toParsedRecipient) : [];
+
+const formatRecipientDisplayText = ({ name, email }: ParsedRecipient): string =>
+  name && !isNameJustTheAddress(name, email) ? `${name} <${email}>` : email;
+
+/**
+ * Human-readable text for a recipient chip: the display name unquoted and
+ * unescaped, so header quoting never shows. Unparseable tokens are shown as-is.
+ */
+export const formatRecipientLabel = (token: string): string => {
+  const parsed = parseToken(token.trim());
+  if (!parsed) {
+    return token;
+  }
+  return formatRecipientDisplayText(parsed);
+};

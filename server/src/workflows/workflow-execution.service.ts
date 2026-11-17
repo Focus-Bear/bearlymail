@@ -3,10 +3,12 @@ import { InjectRepository } from "@nestjs/typeorm";
 import axios from "axios";
 import { Repository } from "typeorm";
 
+import { safeAxiosConfig } from "../common/safe-http/safe-http";
 import { assertSafeOutboundUrl } from "../common/url-validation.utils";
 import { WORKFLOW_RESULT_STATUS } from "../constants/domain-statuses";
 import { WORKFLOW_STEP_TYPES } from "../constants/domain-types";
 import { JEV_DECISION_KINDS } from "../constants/jev.constants";
+import { SAFE_HTTP } from "../constants/safe-http.constants";
 import { WorkflowExecutionLog } from "../database/entities/workflow-execution-log.entity";
 import { WorkflowRule } from "../database/entities/workflow-rule.entity";
 import { EmailArchiveService } from "../emails/email-archive.service";
@@ -28,6 +30,13 @@ import { WorkflowVariableResolver } from "./workflow-variable-resolver";
 
 const WEBHOOK_TIMEOUT_MS = 15_000;
 const MAX_NL_BODY_CHARS = 2000;
+
+/** First {@link SAFE_HTTP.WEBHOOK_RESPONSE_SNIPPET_CHARS} characters of a webhook response body. */
+export function truncateResponseSnippet(body: unknown): string {
+  const text =
+    typeof body === "string" ? body : (JSON.stringify(body ?? "") ?? "");
+  return text.slice(0, SAFE_HTTP.WEBHOOK_RESPONSE_SNIPPET_CHARS);
+}
 const NL_VERDICT_MAX_TOKENS = 64;
 /** The JSON key the condition-evaluation prompt asks the LLM to answer with. */
 const NL_VERDICT_KEY = "matches";
@@ -321,18 +330,28 @@ export class WorkflowExecutionService {
       parsedBody = resolved.body;
     }
 
-    const response = await axios({
+    const response = await axios<string>({
+      ...safeAxiosConfig({
+        timeoutMs: WEBHOOK_TIMEOUT_MS,
+        maxResponseBytes: SAFE_HTTP.WEBHOOK_MAX_RESPONSE_BYTES,
+      }),
       method: action.method,
       url: action.url,
       headers,
       // eslint-disable-next-line id-denylist -- required by axios AxiosRequestConfig API
       data: parsedBody,
-      timeout: WEBHOOK_TIMEOUT_MS,
+      responseType: "text",
+      // Keep the raw text: only a short snippet is stored.
+      transformResponse: (raw: string) => raw,
     });
 
-    const responseBody: unknown = response.data;
+    // Execution logs are readable by the user, so keep only the status and a
+    // short snippet of whatever the receiver answered.
     return {
-      output: { status: response.status, responseBody },
+      output: {
+        status: response.status,
+        responseSnippet: truncateResponseSnippet(response.data),
+      },
       resolved,
     };
   }

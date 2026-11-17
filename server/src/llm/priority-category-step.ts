@@ -54,6 +54,7 @@ async function resolveCategoryCandidates(
   email: { from: string; fromName?: string; subject: string },
   userContext: UserContextInput | undefined,
   cleanedBody: string,
+  userId: string | undefined,
 ): Promise<{
   candidates: CategoryItem[];
   instrumentation: CategoryInstrumentation;
@@ -81,6 +82,7 @@ async function resolveCategoryCandidates(
   const { effective, candidates } =
     await deps.categoryShortlistService.getShortlistWithMeta(
       {
+        userId,
         from: email.from,
         fromName: email.fromName,
         subject: email.subject,
@@ -160,6 +162,7 @@ export async function chooseEmailCategory(
     email,
     userContext,
     cleanedBody,
+    userId,
   );
   if (candidates.length === 0) {
     return otherWithoutVerdict(

@@ -792,6 +792,9 @@
     },
     "confirmLeaveScheduled": "Tu correo aún no está programado: primero pulsa \"Programar envío\". ¿Salir de todos modos?",
     "editRecipient": "Haz clic para editar",
+    "editRecipientLabel": "Editar destinatario {{recipient}}",
+    "editRecipientInputLabel": "Editar la dirección del destinatario. Pulsa Intro para guardar o Escape para cancelar",
+    "removeRecipientLabel": "Quitar destinatario {{recipient}}",
     "unsavedChangesTitle": "Correo sin enviar",
     "leaveAnyway": "Salir de todos modos",
     "keepEditing": "Seguir editando",
@@ -1272,6 +1275,27 @@
         "durationMinutes": "{{minutes}} minutos",
         "confirm": "Confirmar y crear",
         "cancel": "Cancelar"
+      },
+      "decision": {
+        "description": "Propusieron un horario específico. Así encaja en tu calendario.",
+        "conversion": "{{senderTime}} {{senderZone}} = {{localTime}} tu hora ({{localDate}})",
+        "localOnly": "{{localTime}} ({{localDate}})",
+        "free": "✓ Estás libre.",
+        "busy": "⚠ Estás ocupado a esa hora.",
+        "alternativesHeading": "Estás libre cerca de esa hora:",
+        "noAlternatives": "No se encontraron horarios libres cercanos. Usa Editar detalles para elegir otro horario.",
+        "accept": "Aceptar y añadir al calendario",
+        "accepting": "Añadiendo…",
+        "acceptFailed": "No se pudo añadir a tu calendario. Prueba con Editar detalles.",
+        "suggestAnother": "Sugerir otro horario",
+        "editDetails": "Editar detalles",
+        "slotInZone": "{{date}}, {{time}} hora de {{zone}}",
+        "slotLocal": "{{date}}, {{time}}",
+        "draftGreetingNamed": "Hola {{name}}:",
+        "draftGreeting": "Hola:",
+        "draftAcceptBody": "{{slot}} me viene bien. Ya lo añadí a mi calendario. ¡Hablamos entonces!",
+        "draftAlternativesIntro": "Gracias por proponer {{proposed}}. Ese horario no me viene bien. ¿Te vendría bien alguno de estos?",
+        "draftSignOff": "Gracias,"
       }
     },
     "checkTone": "Comprobar tono",
@@ -1286,6 +1310,9 @@
     "createCustomRule": "Crear regla de resumen personalizada",
     "delete": "Borrar",
     "deleteActionItem": "Eliminar elemento de acción",
+    "saveToFocusBear": "Guardar en Focus Bear",
+    "saveToFocusBearHint": "Abre la aplicación Focus Bear y añade \"{{task}}\" como tarea",
+    "focusBearTaskNotes": "De {{sender}}: \"{{subject}}\"",
     "draftReply": "Borrador de respuesta",
     "replySubjectLabel": "Asunto",
     "showFullMessage": "Mostrar mensaje completo",
@@ -1472,7 +1499,16 @@
     "discardReplyMessage": "Tu respuesta no se ha enviado. Guárdala como borrador para terminarla más tarde, o descártala.",
     "discardReplyKeepEditing": "Seguir editando",
     "discardReplySaveDraft": "Guardar borrador",
-    "discardReplyDiscard": "Descartar"
+    "discardReplyDiscard": "Descartar",
+    "focusBearSaveOptions": "Elige el proyecto y la fecha límite antes de guardar en Focus Bear",
+    "focusBearSuggested": "Sugerido",
+    "focusBearFindingSuggestions": "Buscando un proyecto y un día libre…",
+    "focusBearProject": "Proyecto",
+    "focusBearNoProject": "Sin proyecto",
+    "focusBearDueDate": "Fecha límite",
+    "focusBearConnectHint": "Conecta Focus Bear para recibir un proyecto sugerido y el próximo día libre.",
+    "focusBearConnectLink": "Conectar Focus Bear",
+    "focusBearSave": "Guardar"
   },
   "contacts": {
     "title": "Contactos",
@@ -1541,6 +1577,7 @@
     "createDeal": "Crear Negocio",
     "errorLoadingDeals": "Error al cargar negocios",
     "errorCreatingDeal": "No se pudo crear el negocio. Inténtalo de nuevo.",
+    "errorLoadingDealForm": "No se pudieron cargar las etapas o los contactos. Puedes seguir escribiendo; inténtalo de nuevo en un momento.",
     "expectedClose": "Cierre esperado",
     "locked": "Mejora tu plan para usar el CRM",
     "upgrade": {
@@ -1695,10 +1732,14 @@
     "issueLabel": "Issue",
     "prLabel": "PR"
   },
+  "connectMailbox": {
+    "button": "Conectar una cuenta de correo",
+    "connectError": "No se pudo empezar a conectar esa cuenta. Inténtalo de nuevo."
+  },
   "gmail": {
     "connectButton": "Conectar Gmail",
     "connectDescription": "Para empezar, conecta la cuenta de correo que quieres que BearlyMail gestione. Sincronizamos tus correos de forma segura y te ayudamos a mantenerlos al día.",
-    "connectOtherProvider": "Usar otro correo (p. ej. Crazy Domains)",
+    "connectOtherProvider": "Usar otro correo (del trabajo, de tu sitio web u otro proveedor)",
     "connectMultipleHint": "Puedes conectar más cuentas de correo más adelante en Ajustes.",
     "connectTitle": "Conecta tu correo",
     "accessIssueTitle": "BearlyMail no puede leer tu Gmail",
@@ -1980,15 +2021,6 @@
     "andMore": "y {{count}} más",
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
-    "syncWindowBanner": {
-      "message": "Aviso: hemos importado tus {{count}} conversaciones más recientes. Los correos más antiguos no se sincronizan con BearlyMail.",
-      "dismiss": "Descartar"
-    },
-    "openTrackingNotice": {
-      "message": "El seguimiento de aperturas está activado: BearlyMail ahora te muestra cuándo se abren los correos que envías.",
-      "manage": "Gestionar en Ajustes",
-      "dismiss": "Descartar"
-    },
     "autoArchiveNotice": {
       "message_one": "BearlyMail encontró {{count}} tipo de correo que nunca abres: revisa la sugerencia de archivado automático.",
       "message_other": "BearlyMail encontró {{count}} tipos de correo que nunca abres: revisa las sugerencias de archivado automático.",
@@ -2065,6 +2097,7 @@
     },
     "filters": {
       "toggle": "Alternar filtros",
+      "title": "Filtros",
       "searchPlaceholder": "Buscar...",
       "icon": "Icono de filtro",
       "clear": "Borrar todos los filtros",
@@ -2073,8 +2106,6 @@
       "categoryGroup": "Filtro de categoría",
       "priority": "Filtro de prioridad",
       "priorityAll": "Todas las prioridades",
-      "priorityMinHandle": "Prioridad mínima",
-      "priorityMaxHandle": "Prioridad máxima",
       "resetPriority": "Restablecer",
       "allAccounts": "Todas las cuentas",
       "allCategories": "Todas",
@@ -2083,7 +2114,17 @@
       "clearAll": "Borrar filtros",
       "moreCategories": "más",
       "showMoreCategories": "Mostrar {{count}} categorías más",
-      "nCategoriesSelected": "{{count}} seleccionadas"
+      "nCategoriesSelected": "{{count}} seleccionadas",
+      "collapse": "Ocultar filtros",
+      "prioritySelectedCount_one": "{{count}} correo",
+      "prioritySelectedCount_other": "{{count}} correos",
+      "buckets": {
+        "veryHigh": "Muy alta",
+        "high": "Alta",
+        "medium": "Media",
+        "low": "Baja",
+        "veryLow": "Muy baja"
+      }
     },
     "checkUrgent": "Verificar urgentes",
     "loadMore": "Cargar más correos",
@@ -2212,7 +2253,17 @@
       "prompt3": "¿Qué requiere mi acción?",
       "prompt4": "Busca otros correos de este remitente",
       "disclaimer": "La IA puede cometer errores. Verifica los detalles importantes.",
-      "connectTools": "Conecta Google Drive y otras herramientas"
+      "connectTools": "Conecta Google Drive y otras herramientas",
+      "approval": {
+        "title": "¿Permitir esta acción?",
+        "description": "Preguntar a IA quiere usar {{tool}} en {{server}}. No se hará nada a menos que lo apruebes.",
+        "argumentsLabel": "Exactamente lo que se enviará",
+        "noArguments": "Esta acción no envía ningún detalle.",
+        "warning": "Apruébalo solo si tú lo pediste. Los correos pueden contener texto que intenta engañar al asistente para que actúe.",
+        "approve": "Aprobar",
+        "deny": "Denegar",
+        "unavailable": "Esa solicitud de aprobación caducó o ya se usó. Vuelve a preguntar si aún quieres hacerlo."
+      }
     },
     "clickToArchive": "Haz clic para archivar",
     "clickToSetPriority": "Haz clic para establecer prioridad: {{priority}}",
@@ -2230,6 +2281,15 @@
     "triage": {
       "movingToFollowUp": "→ Seguimiento",
       "movingToAction": "→ Acción"
+    },
+    "actionMove": {
+      "toast": "Movido a Acción: tu pila de pendientes.",
+      "view": "Ver",
+      "dismiss": "Cerrar",
+      "badge": "+{{count}}",
+      "announcement": "Correo movido a la pestaña Acción.",
+      "announcementFirst": "Correo movido a la pestaña Acción, tu pila de pendientes. Abre la pestaña Acción para verlo.",
+      "ghostFallback": "Correo"
     },
     "triageCaughtUp": "Estás al día con los nuevos mensajes.",
     "triageTab": "Clasificación",
@@ -2323,18 +2383,29 @@
     },
     "catchingUp": "Procesando {{remaining}} hilo(s) de correo pendiente(s) de cuando estabas ausente...",
     "catchingUpTooltip": "El procesamiento de IA se pausó mientras estabas inactivo. Procesando ahora en segundo plano.",
-    "batchSummary": {
-      "total_one": "{{count}} correo por clasificar",
-      "total_other": "{{count}} correos por clasificar",
-      "band": "{{count}} {{label}}"
-    },
     "scheduledTour": {
       "title": "Correo programado ✅",
       "body": "Encuéntralo aquí cuando quieras: toca ⋮ y luego Programados para ver, reprogramar o cancelar.",
       "dismiss": "Entendido"
     },
     "familyCategoryCount_one": "{{count}} categoría",
-    "familyCategoryCount_other": "{{count}} categorías"
+    "familyCategoryCount_other": "{{count}} categorías",
+    "importOlderNotice": {
+      "message": "Solo importamos tus {{count}} correos más recientes.",
+      "processMore": "Haz clic aquí para procesar otros {{count}}.",
+      "credits_one": "Aviso: a tu plan solo le quedan créditos para {{count}} correo más.",
+      "credits_other": "Aviso: a tu plan solo le quedan créditos para {{count}} correos más.",
+      "viewPlans": "Ver planes",
+      "queued_one": "Importando {{count}} correo antiguo. Aparecerá en Clasificación cuando se haya clasificado.",
+      "queued_other": "Importando {{count}} correos antiguos. Aparecerán en Clasificación a medida que se clasifiquen.",
+      "nothingOlder": "No quedan correos antiguos por importar.",
+      "unsupported": "Por ahora, importar correos antiguos solo está disponible para cuentas de Gmail.",
+      "failed": "No se pudo iniciar la importación. Inténtalo de nuevo."
+    },
+    "backgroundSorting": {
+      "title": "Ordenando el resto de tu bandeja en segundo plano",
+      "progress": "{{categorised}} de {{total}} ordenados"
+    }
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",
@@ -3269,6 +3340,8 @@
       "archiveTitle": "Archívalo",
       "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y lo urgente que creemos que es. Ábrela para ver el panel lateral de IA con tareas, notas y Preguntar a IA. Los siguientes pasos muestran qué hacen sus botones.",
       "assistantTitle": "Tus correos",
+      "backgroundSortingContent": "Primero ordenamos tus correos más recientes para que pudieras empezar. El resto se sigue procesando en segundo plano y pasará a su categoría a medida que se ordene. Esta barra muestra cuánto falta y desaparece cuando termina.",
+      "backgroundSortingTitle": "Seguimos ordenando el resto",
       "back": "Atrás",
       "blockContent": "¿No quieres volver a saber de alguien? Abre este menú ⋮ y elige Bloquear remitente. Cuando lo confirmes, todos sus correos futuros se archivarán automáticamente. Puedes desbloquearlo cuando quieras en Configuración. (En los boletines, el menú ofrece Darse de baja.)",
       "blockTitle": "Bloquea a un remitente",
@@ -3281,11 +3354,25 @@
       "prioritiseTitle": "Priorízalo",
       "processTitle": "Pestaña Proceso",
       "skip": "Saltar",
+      "snoozeContent": "¿Todavía no puedes ocuparte? Posponer oculta el correo y lo devuelve a tu bandeja cuando tú elijas. Haz clic en Posponer, escribe cuándo quieres que vuelva, como 4h, 5pm, mañana o el próximo lunes, y pulsa Intro. También se sincroniza con Gmail u Outlook.",
+      "snoozeTitle": "Pospónlo",
       "stepProgress": "{{current}} de {{total}}",
       "triageContent": "Los correos nuevos llegan a esta pestaña, con los más importantes primero. Decide qué hacer con cada uno: responder, archivar, posponer o priorizarlo para moverlo a Acción.",
       "triageTitle": "Pestaña de clasificación",
       "welcome": "¡Bienvenido a BearlyMail!",
       "welcomeContent": "Este es un recorrido rápido por tu bandeja de entrada. Iremos resaltando cada parte: usa las flechas para cambiar de paso o Esc para saltarlo."
+    },
+    "tourSkipPrompt": {
+      "message_one": "BearlyMail tiene una filosofía muy diferente sobre el correo. Te recomendamos encarecidamente hacer el recorrido. Mantén pulsado {{count}} segundo para saltarlo.",
+      "message_other": "BearlyMail tiene una filosofía muy diferente sobre el correo. Te recomendamos encarecidamente hacer el recorrido. Mantén pulsado {{count}} segundos para saltarlo.",
+      "holdButton": "Mantén pulsado para saltar el recorrido",
+      "ariaLabel_one": "Saltar el recorrido. Mantén pulsado {{count}} segundo, o mantén Espacio o Intro.",
+      "ariaLabel_other": "Saltar el recorrido. Mantén pulsado {{count}} segundos, o mantén Espacio o Intro.",
+      "keepHolding_one": "Sigue pulsando… queda {{count}} segundo",
+      "keepHolding_other": "Sigue pulsando… quedan {{count}} segundos",
+      "releasedEarly": "Has soltado demasiado pronto: el recorrido continúa.",
+      "progressLabel": "Progreso para saltar",
+      "continueTour": "Seguir con el recorrido"
     }
   },
   "setupWizard": {
@@ -3319,6 +3406,8 @@
       "prop3Title": "Entrenamos una IA con tu bandeja",
       "prop3Body": "Resumimos tus correos más recientes y creamos reglas a partir de cómo actúas: a quién respondes rápido, qué archivas, qué destacas. El umbral de urgente es alto a propósito.",
       "doneTag": "Listo",
+      "noMailboxTitle": "Conecta tu correo para empezar",
+      "noMailboxBody": "BearlyMail ordena el correo de tu propia bandeja, así que necesita una cuenta con la que trabajar. Gmail, Outlook, Zoho o cualquier otro correo. Nada se mueve y no hay una dirección nueva.",
       "permissions": {
         "gmailTitle": "BearlyMail todavía no puede acceder a tu Gmail",
         "gmailBody": "En la pantalla de permisos de Google quedó sin marcar la casilla que permite a BearlyMail leer tu correo. Hasta que la permitas, tu bandeja seguirá vacía: no se agrupará ni resumirá nada.",
@@ -3380,12 +3469,14 @@
       "phaseCategorise": "Clasificando tus correos en categorías",
       "statusCategorise": "Clasificando tu bandeja en categorías… ({{categorised}} de {{total}}) para que se abra ordenada",
       "statusCategoriseGeneric": "Clasificando tu bandeja en categorías para que se abra ordenada…",
-      "readyDetailStillSorting": "La mayor parte de tu bandeja ya está ordenada. El resto pasará a sus categorías en los próximos minutos.",
+      "readyDetailStillSorting": "Tus correos más recientes ya están ordenados, así que tu bandeja está lista. Seguiremos ordenando el resto en segundo plano y pasarán a sus categorías en los próximos minutos.",
       "stalledTitle": "El aprendizaje a partir de tus correos se ha detenido",
       "stalledDetailError": "No pudimos terminar de aprender de tus correos. Inténtalo de nuevo, o abre tu bandeja ahora y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA.",
       "stalledDetailTimeout": "Esto aún no ha terminado después de {{minutes}} minutos. Inténtalo de nuevo, o abre tu bandeja ahora y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA.",
       "retry": "Intentar de nuevo",
-      "skipToInbox": "Abrir mi bandeja de todos modos →"
+      "skipToInbox": "Abrir mi bandeja de todos modos →",
+      "noMailboxTitle": "Todavía no hay una cuenta de correo conectada",
+      "noMailboxDetail": "BearlyMail aprende de los correos de tu bandeja, así que todavía no hay nada de lo que aprender. Conecta una cuenta y empezaremos enseguida."
     },
     "recategorise": {
       "button": "Recategorizar",
@@ -3892,7 +3983,6 @@
     },
     "analyzeEmails": "Analizar correos electrónicos",
     "analyzing": "Analizando...",
-    "apiKeyError": "No se pudo guardar la clave API",
     "batchHoursError": "No se pudieron actualizar las horas del lote",
     "batchHoursUpdated": "Horas de lote actualizadas exitosamente",
     "batchScheduleError": "Error al actualizar el horario de lotes",
@@ -3924,7 +4014,6 @@
       "unblock": "Desatascar"
     },
     "confirmDeleteRule": "¿Está seguro de que desea eliminar esta regla de prioridad?",
-    "confirmRemoveKey": "¿Está seguro de que desea eliminar su clave API de OpenAI? Utilizará la clave predeterminada del sistema.",
     "context": {
       "answer": "Respuesta",
       "noItems": "Aún no hay artículos",
@@ -4297,7 +4386,7 @@
         },
         "imap": {
           "name": "Otro correo",
-          "description": "Correo del trabajo o de tu sitio web, como Crazy Domains. Solo tu dirección de correo y tu contraseña."
+          "description": "Correo de tu proveedor de hosting, del trabajo o de cualquier otro proveedor. Solo tu dirección de correo y tu contraseña."
         }
       },
       "selectProvider": "Seleccione proveedor de correo electrónico",
@@ -4309,8 +4398,6 @@
     },
     "emailsFrom": "Correos electrónicos de {{value}}",
     "emailsSubject": "Correos electrónicos con asunto que contiene \"{{value}}\"",
-    "enterApiKey": "Ingrese una clave API de OpenAI",
-    "getKey": "Obtener clave API →",
     "github": {
       "connect": "Conectar GitHub",
       "connected": "GitHub conectado",
@@ -4383,9 +4470,11 @@
     "subjectPatternsHelp": "Coincide por palabras clave del asunto. Texto plano = búsqueda de subcadena. Dejar vacío para coincidir con cualquier asunto.",
     "priority": "Prioridad",
     "priorityHelp": "Número más bajo = mayor prioridad. Las reglas se verifican en orden; gana la primera coincidencia.",
-    "keyRemoveError": "No se pudo eliminar la clave API",
-    "keyRemoved": "La clave API se eliminó correctamente",
     "learnedContext": "Contexto aprendido",
+    "tabs": {
+      "account": "Cuenta",
+      "label": "Secciones de ajustes"
+    },
     "nav": {
       "accountSecurity": "Cuenta y seguridad",
       "password": "Contraseña",
@@ -4403,8 +4492,7 @@
       "integrationsApps": "Integraciones y aplicaciones",
       "connectedApps": "Aplicaciones conectadas",
       "workflows": "Flujos de trabajo",
-      "openAiApiKey": "Clave API de OpenAI",
-      "anthropicApiKey": "Clave API de Anthropic",
+      "ownAiAccount": "Usa tu propia cuenta de IA",
       "summarization": "Resumen",
       "toneSettings": "Configuración de tono",
       "autoResponder": "Respuesta automática",
@@ -4423,7 +4511,8 @@
       "dataExport": "Exportar e importar",
       "troubleshooting": "Solución de problemas",
       "deleteAccount": "Eliminar cuenta",
-      "emailTracking": "Seguimiento de aperturas"
+      "emailTracking": "Seguimiento de aperturas",
+      "focusBear": "Focus Bear"
     },
     "schedulingPreferences": {
       "title": "Preferencias de programación",
@@ -4545,12 +4634,19 @@
       "description": "Eliminar permanentemente tu cuenta y todos los datos asociados.",
       "deleteButton": "Eliminar mi cuenta",
       "warningTitle": "¿Estás absolutamente seguro?",
-      "warningDescription": "Esto eliminará permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
+      "warningDescription": "Esto eliminará permanentemente tu cuenta de BearlyMail y todos sus datos asociados, incluida la copia de tus correos que guarda BearlyMail. Esta acción no se puede deshacer.",
+      "providerReassurance_one": "Tus correos NO se eliminarán de {{providers, list}}. Esto solo los quita de BearlyMail: siguen en tu cuenta de {{providers, list}}.",
+      "providerReassurance_other": "Tus correos NO se eliminarán de {{providers, list}}. Esto solo los quita de BearlyMail: siguen en tus cuentas de {{providers, list}}.",
+      "providerReassuranceGeneric": "Tus correos NO se eliminarán de tu proveedor de correo. Esto solo los quita de BearlyMail: siguen en tu buzón.",
       "confirmationPrompt": "Para confirmar, escribe \"{{text}}\" a continuación:",
       "confirmationMismatch": "El texto de confirmación no coincide. Por favor escribe exactamente lo que se indica.",
       "confirmDelete": "Eliminar cuenta permanentemente",
       "deleting": "Eliminando...",
-      "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte."
+      "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte.",
+      "stillSnoozedTitle": "Tu cuenta se ha eliminado",
+      "stillSnoozed_one": "{{count}} conversación pospuesta no se pudo devolver a tu bandeja de entrada. En Gmail, la encontrarás en la etiqueta {{label}}.",
+      "stillSnoozed_other": "{{count}} conversaciones pospuestas no se pudieron devolver a tu bandeja de entrada. En Gmail, las encontrarás en la etiqueta {{label}}.",
+      "stillSnoozedDone": "Aceptar"
     },
     "dataExport": {
       "title": "Exportar e Importar Datos",
@@ -4628,12 +4724,8 @@
       "connectAnother": "Conectar otra cuenta de Office 365",
       "noAccounts": "No hay cuentas de Office 365 conectadas"
     },
-    "openAiDesc": "Utilice su propia clave API de OpenAI para las funciones de IA. Si no se proporciona, se utilizará la clave predeterminada del sistema. Su clave está cifrada y almacenada de forma segura.",
-    "openAiTitle": "Clave API de OpenAI (opcional)",
-    "removeKey": "Quitar clave",
     "ruleDeleteError": "No se pudo eliminar la regla",
     "ruleUpdateError": "No se pudo actualizar la regla",
-    "saveApiKey": "Guardar clave API",
     "saved": "✓ Guardado",
     "show": "Espectáculo",
     "source": "Fuente: {{source}}",
@@ -4664,7 +4756,7 @@
       "description": "Escribe la dirección y la contraseña que usas para leer tu correo. Nosotros encontraremos la configuración correcta.",
       "email": "Dirección de correo",
       "password": "Contraseña del correo",
-      "passwordHint": "La contraseña que usas para leer este correo, por ejemplo en el webmail. No la contraseña de tu cuenta de Crazy Domains o de tu sitio web.",
+      "passwordHint": "La contraseña que usas para leer este correo, por ejemplo en el webmail. No la contraseña de tu cuenta de hosting o de tu sitio web.",
       "name": "Tu nombre (opcional, aparece en los correos que envías)",
       "finding": "Conectando con tu correo… puede tardar hasta un minuto.",
       "connect": "Conectar",
@@ -4690,7 +4782,7 @@
         "zoho": "Conectar con Zoho"
       },
       "errors": {
-        "auth_failed_imap": "Esa dirección y contraseña no funcionaron. Comprueba que sea la contraseña con la que lees tu correo, no la de tu cuenta de Crazy Domains o de tu sitio web.",
+        "auth_failed_imap": "Esa dirección y contraseña no funcionaron. Comprueba que sea la contraseña con la que lees tu correo, no la de tu cuenta de hosting o de tu sitio web.",
         "auth_failed_smtp": "Podemos leer tu correo, pero no iniciar sesión para enviarlo. Tu proveedor puede usar otro usuario o contraseña para enviar. Pulsa \"Introducir la configuración del servidor yo mismo\" para añadirlo.",
         "server_not_found": "No pudimos encontrar la configuración de tu correo automáticamente. Las páginas de ayuda de tu proveedor la indican (busca \"IMAP\" y \"SMTP\"). Pulsa \"Introducir la configuración del servidor yo mismo\" para añadirla.",
         "use_gmail": "Esta dirección la gestiona Google, así que se conecta con tu inicio de sesión de Google en lugar de una contraseña.",
@@ -4698,7 +4790,7 @@
         "use_zoho": "Esta dirección la gestiona Zoho, así que se conecta con tu inicio de sesión de Zoho en lugar de una contraseña.",
         "invalid_server": "Ese nombre de servidor no parece correcto. Compruébalo con la configuración de tu proveedor de correo.",
         "connection_failed": "No pudimos contactar con ese servidor de correo. Comprueba el nombre del servidor y el puerto.",
-        "certificate_mismatch": "Ese nombre de servidor no coincide con el certificado de seguridad del servidor. Muchos proveedores (incluido Crazy Domains) requieren el nombre del propio servidor de hosting en lugar de mail.tudominio. Lo encontrarás en la configuración de correo de tu cuenta de hosting.",
+        "certificate_mismatch": "Ese nombre de servidor no coincide con el certificado de seguridad del servidor. Muchos proveedores de hosting requieren el nombre del propio servidor de hosting en lugar de mail.tudominio. Lo encontrarás en la configuración de correo de tu cuenta de hosting.",
         "tls_failed": "No pudimos establecer una conexión segura. Prueba a cambiar la seguridad entre SSL/TLS y STARTTLS.",
         "unknown": "Algo salió mal al conectar con tu correo. Inténtalo de nuevo."
       }
@@ -4717,10 +4809,6 @@
       "description": "Vuelve a ver la guía interactiva de triaje, acción, entrega programada y el panel del asistente con IA.",
       "button": "Repetir tour"
     },
-    "anthropicTitle": "Clave API de Anthropic (opcional)",
-    "anthropicDesc": "Utilice su propia clave Anthropic para usar Claude Sonnet 4.6. Compatible con claves de API sk-ant-api03-* y tokens OAuth de corta duración sk-ant-oat-* generados por la CLI de Claude (claude auth token). Las claves se almacenan cifradas y nunca se devuelven al cliente en texto plano.",
-    "anthropicKeySaved": "Clave guardada ✓",
-    "anthropicNoKey": "Sin clave configurada",
     "version": "Versión:",
     "builtAt": "Compilado:",
     "versionFooterLabel": "Versión de la aplicación",
@@ -4861,7 +4949,7 @@
         },
         "zohoBigin": {
           "tagline": "Muestra detalles del CRM sobre el remitente del correo",
-          "instructions": "Conecta Zoho Bigin para mostrar detalles del CRM sobre el remitente. Crea un servidor en el portal MCP de Zoho y pega abajo la URL generada (incluye tu clave de acceso)."
+          "instructions": "Conecta Zoho Bigin para mostrar detalles del CRM sobre el remitente. Crea un servidor en el portal MCP de Zoho y pega abajo la URL generada. Después iniciarás sesión en Zoho para autorizar el acceso. La URL incluye tu clave de acceso, así que BearlyMail la guarda cifrada y no la vuelve a mostrar."
         },
         "hubspot": {
           "tagline": "Muestra detalles del CRM sobre el remitente del correo",
@@ -4904,13 +4992,16 @@
         "connectionFailed": "✗ Conexión fallida",
         "test": "Probar",
         "testing": "Probando…",
-        "refreshTools": "Actualizar herramientas"
+        "refreshTools": "Actualizar herramientas",
+        "signIn": "Iniciar sesión",
+        "signInRequired": "Debes iniciar sesión"
       },
       "section": {
         "title": "Apps conectadas",
         "description": "Conecta servidores MCP para Google Drive, tu CRM y más. Las apps conectadas pueden mostrar el contexto del remitente al abrir un correo, potenciar Preguntar a la IA y ejecutarse como acciones dentro de tus flujos de trabajo.",
         "loadError": "No se pudieron cargar las apps conectadas. Actualiza la página.",
         "refreshError": "No se pudieron actualizar las herramientas. Inténtalo de nuevo.",
+        "signInError": "No se pudo iniciar sesión en esta app. Inténtalo de nuevo.",
         "removeError": "No se pudo eliminar la app conectada. Inténtalo de nuevo.",
         "loading": "Cargando apps conectadas…",
         "connectedSuccess": "App conectada.",
@@ -4995,6 +5086,49 @@
       "serverUrlLabel": "URL del servidor",
       "authHeaderLabel": "Cabecera de autorización",
       "configFileLabel": "Archivo de configuración (para apps como Cursor o Windsurf)"
+    },
+    "focusBear": {
+      "title": "Focus Bear",
+      "description": "Cuando guardas una tarea en Focus Bear, BearlyMail sugiere el proyecto al que pertenece y el próximo día en que tienes tiempo para ella. En Focus Bear, abre Integraciones, crea un token de acceso con el permiso tasks:read y pégalo aquí. Se guarda cifrado y solo se usa para estas sugerencias.",
+      "tokenLabel": "Token de acceso de Focus Bear",
+      "tokenPlaceholder": "Pega tu token de acceso de Focus Bear",
+      "connect": "Conectar",
+      "checking": "Comprobando…",
+      "disconnect": "Desconectar",
+      "connected": "Conectado ✓",
+      "notConnected": "Sin conectar",
+      "tokenRejected": "Focus Bear no aceptó ese token. Comprueba que tenga el permiso tasks:read e inténtalo de nuevo."
+    },
+    "ownAiAccount": {
+      "title": "Usa tu propia cuenta de IA",
+      "why": "Por defecto, BearlyMail analiza tus correos con proveedores de IA bajo las cuentas y condiciones de BearlyMail. Si prefieres que ese procesamiento quede bajo tu propio acuerdo con un proveedor de IA (soberanía de datos), conecta tu propia cuenta: tus correos se analizarán con tu cuenta y bajo las condiciones de tu proveedor, no las de BearlyMail.",
+      "howItWorks": "En cuanto añadas una clave de OpenAI o Anthropic, todas las funciones de IA (clasificación, prioridades, resúmenes, borradores, Pregunta a la IA) se ejecutan con tu cuenta y las factura tu proveedor. Si tu clave deja de funcionar, BearlyMail muestra un error aquí en lugar de volver en silencio a su propia cuenta.",
+      "selfHost": "¿Prefieres tenerlo todo en tus propios servidores? También puedes <selfHostLink>alojar BearlyMail tú mismo</selfHostLink>.",
+      "useMyKeys": "Usar mis propias claves",
+      "saveKey": "Guardar clave",
+      "checkingKey": "Comprobando la clave…",
+      "replaceKey": "Reemplazar clave",
+      "removeKey": "Eliminar clave",
+      "getKey": "Obtener una clave",
+      "keyInputLabel": "Clave API de {{provider}}",
+      "confirmRemove": "¿Eliminar tu clave de {{provider}}? Si es tu única clave de OpenAI o Anthropic, la IA volverá a ejecutarse con la cuenta de BearlyMail.",
+      "saveError": "No se pudo guardar la clave. Revísala e inténtalo de nuevo.",
+      "removeError": "No se pudo eliminar la clave. Inténtalo de nuevo.",
+      "keyRejected": "{{provider}} rechazó esta clave el {{date}} (puede que no sea válida, se haya revocado o no tenga saldo). Las funciones de IA que la necesitan están en pausa hasta que la reemplaces.",
+      "providers": {
+        "openai": {
+          "name": "OpenAI",
+          "description": "Se usa para resúmenes, borradores, clasificación y Pregunta a la IA. Es además el único proveedor que permite la coincidencia inteligente de categorías."
+        },
+        "anthropic": {
+          "name": "Anthropic (Claude)",
+          "description": "Se usa para resúmenes, borradores, clasificación y Pregunta a la IA. Acepta claves sk-ant-api03 y tokens OAuth de Claude CLI."
+        },
+        "typesafe": {
+          "name": "TypeSafe AI (Jev)",
+          "description": "Jev toma las decisiones rápidas de sí/no y de categoría de BearlyMail. Si añades una clave de OpenAI o Anthropic pero no de Jev, esa cuenta tomará esas decisiones. Una clave de Jev por sí sola solo traslada a tu cuenta las decisiones de Jev."
+        }
+      }
     }
   },
   "keyboard": {

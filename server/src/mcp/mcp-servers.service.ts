@@ -9,7 +9,10 @@ import {
   MCPServerConfig,
   MCPServerPurpose,
 } from "../database/entities/mcp-server-config.entity";
-import { MCPClientManagerService } from "./mcp-client-manager.service";
+import {
+  MCPClientManagerService,
+  MCPConnectionTestResult,
+} from "./mcp-client-manager.service";
 import { MCPSenderMappingService } from "./mcp-sender-mapping.service";
 
 export interface CreateMCPServerDto {
@@ -203,7 +206,7 @@ export class MCPServersService {
   async testConnection(
     userId: string,
     id: string,
-  ): Promise<{ ok: boolean; toolCount: number }> {
+  ): Promise<MCPConnectionTestResult> {
     await this.findOne(userId, id);
     return this.mcpClientManager.testConnection(id);
   }

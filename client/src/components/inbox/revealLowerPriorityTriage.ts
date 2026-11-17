@@ -19,6 +19,11 @@ interface PriorityTierCounts {
   medium: number;
   low: number;
   veryLow: number;
+  /**
+   * Threads the AI hasn't scored yet. The server counts them as Low (COALESCE(score, 0)), so
+   * while any remain "High-and-above is empty" just means "not scored yet".
+   */
+  unprioritised?: number;
 }
 
 export interface RevealLowerPriorityTriageInput {
@@ -41,8 +46,8 @@ export interface RevealLowerPriorityTriageInput {
 /**
  * Should Triage auto-reveal its lower-priority threads instead of showing the gating
  * "well done" prompt? True only when: we're in Triage, the existing-work snapshot has
- * resolved to zero, the guided High-and-above view is active, its High-and-above tiers
- * are empty, and lower-priority threads still remain.
+ * resolved to zero, the guided High-and-above view is active, every thread has been scored,
+ * its High-and-above tiers are empty, and lower-priority threads still remain.
  */
 export function shouldRevealLowerPriorityTriage({
   isTriage,
@@ -62,6 +67,12 @@ export function shouldRevealLowerPriorityTriage({
   }
   // Only the guided High-and-above view — never a manually chosen bounded bucket.
   if (minPriority !== HIGH_PRIORITY_THRESHOLD || maxPriority !== null || !priorityCounts) {
+    return false;
+  }
+  // During a first import nothing has been scored High yet. Revealing then (and the gate lift
+  // re-applying High a moment later) left new users on "No High priority emails" while High
+  // mail was arriving.
+  if ((priorityCounts.unprioritised ?? 0) > 0) {
     return false;
   }
   const highAndAboveEmpty = priorityCounts.veryHigh === 0 && priorityCounts.high === 0;

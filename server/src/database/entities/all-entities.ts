@@ -7,6 +7,7 @@
 import { ActionItem } from "./action-item.entity";
 import { AppleMailAccount } from "./apple-mail-account.entity";
 import { AppleMailMessageRef } from "./apple-mail-message-ref.entity";
+import { AskAiPendingApproval } from "./ask-ai-pending-approval.entity";
 import { AuditLog } from "./audit-log.entity";
 import { AutoArchiveProposal } from "./auto-archive-proposal.entity";
 import { AutoArchiveScanState } from "./auto-archive-scan-state.entity";
@@ -80,6 +81,7 @@ export const ALL_ENTITIES = [
   ActionItem,
   AppleMailAccount,
   AppleMailMessageRef,
+  AskAiPendingApproval,
   AuditLog,
   AutoArchiveProposal,
   AutoArchiveScanState,

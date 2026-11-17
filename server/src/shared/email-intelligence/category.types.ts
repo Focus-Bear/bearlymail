@@ -30,16 +30,20 @@ export type ShortlistResult = {
   candidates: ShortlistCandidate[];
 };
 
+/** The email a category shortlist ranks for; `userId` owns it and decides whose AI account embeds it. */
+export type ShortlistEmail = {
+  userId: string | undefined;
+  from: string;
+  fromName?: string;
+  subject: string;
+  summary: string;
+};
+
 /** Narrows a large category list to the candidates worth sending to the model. */
 export interface CategoryShortlister {
   isShortlistEnabled(totalCategoryCount: number): boolean;
   getShortlistWithMeta(
-    email: {
-      from: string;
-      fromName?: string;
-      subject: string;
-      summary: string;
-    },
+    email: ShortlistEmail,
     allCategories: CategoryItem[],
   ): Promise<ShortlistResult>;
 }

@@ -7,6 +7,11 @@ import { captureEvent } from 'utils/posthog';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 
 import { OverflowMenu, OverflowMenuItem } from 'components/common/OverflowMenu';
+import {
+  EMAIL_ACTION_ICON_SIZE,
+  emailActionButtonStyle,
+  setEmailActionHover,
+} from 'components/inbox/actions/emailActionButton.styles';
 import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
 import { SnoozeButton } from 'components/inbox/actions/SnoozeButton';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
@@ -15,25 +20,17 @@ import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { MODE_TRIAGE } from 'constants/strings';
 import { TOUR_TARGETS } from 'constants/tour';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const EVENT_TYPE_CLICK = 'click';
-
-/** Ghost action button (icon + label) matching the split-view / Snooze styling. */
-const ghostActionStyle: React.CSSProperties = {
-  background: 'transparent',
-  border: 'none',
-  cursor: 'pointer',
-  padding: '0 4px',
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing.xs,
-  color: theme.colors.text.secondary,
-  fontSize: theme.typography.fontSize.sm,
-};
+const ACTIONS_ROW_CLASS = 'email-actions-row';
+/** Lets App.css hide the action labels on narrow cards; desktop keeps them. */
+export const ACTIONS_ROW_COLLAPSIBLE_CLASS = 'email-actions-row--collapsible';
 
 /**
- * Archive action — a ghost button using the same FiArchive icon as the split view (and the category
- * "Archive All"), so archive reads consistently everywhere. Pulses when triage recommends archiving.
+ * Archive action — a labelled button using the same FiArchive icon as the split view (and the
+ * category "Archive All"), so archive reads consistently everywhere. Pulses when triage recommends
+ * archiving.
  */
 const ArchiveButton: React.FC<{
   email: Email;
@@ -47,7 +44,9 @@ const ArchiveButton: React.FC<{
     data-tour={TOUR_TARGETS.EMAIL_ARCHIVE}
     className={pulse ? 'animate-recommended-pulse' : undefined}
     title={t('inbox.archive')}
-    style={ghostActionStyle}
+    style={emailActionButtonStyle}
+    onMouseEnter={event => setEmailActionHover(event.currentTarget, true)}
+    onMouseLeave={event => setEmailActionHover(event.currentTarget, false)}
     onClick={event => {
       event.stopPropagation();
       onArchive(email.id, event);
@@ -57,7 +56,7 @@ const ArchiveButton: React.FC<{
       }
     }}
   >
-    <FiArchive size={15} />
+    <FiArchive size={EMAIL_ACTION_ICON_SIZE} aria-hidden />
     <span className="email-action-label">{t('inbox.archive')}</span>
   </button>
 );
@@ -121,6 +120,7 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
   onSnooze,
 }) => {
   const { t } = useTranslation();
+  const { isMobile } = useResponsiveBreakpoints();
   const isSnoozeInputVisible = snoozeInput.showSnoozeInput === email.id;
   const snoozeValue = snoozeInput.getSnoozeValue(email.id);
   const activeSuggestion = mode === MODE_TRIAGE ? suggestion : null;
@@ -162,16 +162,19 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
           marginBottom: theme.spacing.xs,
         }}
       >
-        {/* PRIORITY controls and their effect caption sit in their own box; Snooze/Archive/⋮ are
-            ghost actions pushed to the right edge of the row — always on the same line as the
-            pills. The wrapper above is a CSS container: when the card is too narrow for the
-            labelled buttons, a container query hides the .email-action-label text so Snooze and
-            Archive collapse to icons instead of wrapping to a second row (titles keep the labels
-            as tooltips). flexWrap stays as a last-resort fallback for browsers without container
-            query support, which degrade to the old wrap-below behaviour. */}
+        {/* PRIORITY controls and their effect caption sit in their own box; Snooze/Archive/⋮ sit
+            at the right edge of the row. The wrapper above is a CSS container. On desktop the
+            actions are always labelled buttons — when the card is too narrow (the split view)
+            they wrap onto their own line rather than shrinking to unlabelled icons. On mobile the
+            row is "collapsible": a container query hides the .email-action-label text so the
+            actions fit as icons (titles keep the labels as tooltips). */}
         {/* Gaps live in the .email-actions-row / .email-actions-group CSS (App.css) rather than
             inline styles so the container query can tighten them on narrow cards. */}
-        <div className="email-actions-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div
+          className={isMobile ? `${ACTIONS_ROW_CLASS} ${ACTIONS_ROW_COLLAPSIBLE_CLASS}` : ACTIONS_ROW_CLASS}
+          data-testid={ACTIONS_ROW_CLASS}
+          style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start' }}
+        >
           <div data-tour={TOUR_TARGETS.EMAIL_PRIORITY} style={priorityBoxStyle}>
             <PrioritySlider
               email={email}

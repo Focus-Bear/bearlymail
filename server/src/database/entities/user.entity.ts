@@ -13,6 +13,7 @@ import {
   GmailAccessIssue,
   GmailWriteNotice,
 } from "../../constants/domain-statuses";
+import type { UserAiProvider } from "../../constants/user-ai-providers.constants";
 import {
   makeGlobalEmailTransformer,
   makeGlobalEncryptedColumnTransformer,
@@ -228,11 +229,39 @@ export class User {
   anthropicApiKey: string;
 
   @Column({
+    type: "varchar",
+    nullable: true,
+    transformer: makeGlobalEncryptedColumnTransformer("users.typesafeApiKey"),
+    comment:
+      "TypeSafe AI (Jev) API key (encrypted) - Jev decisions run on the user's own account",
+  })
+  typesafeApiKey: string | null;
+
+  @Column({
+    type: "jsonb",
+    nullable: true,
+    comment:
+      "When each AI provider last rejected the user's own key (provider id -> ISO time); cleared when the key is replaced",
+  })
+  aiKeyRejections: Partial<Record<UserAiProvider, string>> | null;
+
+  @Column({
     nullable: true,
     transformer: makeGlobalEncryptedColumnTransformer("users.githubToken"),
     comment: "GitHub fine-grained PAT (encrypted) - for GitHub integration",
   })
   githubToken: string;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: makeGlobalEncryptedColumnTransformer(
+      "users.focusBearApiToken",
+    ),
+    comment:
+      "Focus Bear access token (encrypted, scope tasks:read) - for project and due-date suggestions on Save to Focus Bear",
+  })
+  focusBearApiToken: string | null;
 
   @Column({
     type: "text",

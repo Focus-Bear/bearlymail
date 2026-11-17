@@ -6,7 +6,8 @@
  *  2. Suspicious body content – urgent language, credential harvesting phrases, etc.
  *
  * Primary API:
- *  - extractPhishingSignals(): structured signal extraction for LLM context injection
+ *  - extractPhishingSignals(): structured signal extraction for LLM context injection,
+ *    plus the deterministic pre-check verdict from phishing-red-flags.ts
  *
  * Deprecated (signals only, NOT verdicts):
  *  - detectPhishingSignal(): keyword-only heuristic — kept for reference/testing only.
@@ -15,6 +16,18 @@
  */
 
 import { PHISHING_CONFIDENCE } from "../constants/domain-types";
+import {
+  MULTI_PART_SUFFIX_LABELS,
+  PhishingRedFlag,
+} from "../constants/phishing.constants";
+import {
+  formatSenderAuthResults,
+  SenderAuthResults,
+} from "../utils/authentication-results.util";
+import {
+  assessPhishingRedFlags,
+  formatLinkTextMismatch,
+} from "./phishing-red-flags";
 
 export type PhishingConfidence = "low" | "medium" | "high";
 
@@ -42,6 +55,32 @@ export interface PhishingSignals {
   suspiciousKeywords: string[];
   /** Raw numeric score (for logging/debugging only — NOT used as a gate) */
   rawScore: number;
+  /** Sender display name ("" when absent) — compared against the sender domain */
+  senderDisplayName: string;
+  /** Domain of the Reply-To address ("" when absent or the same as the sender's) */
+  replyToDomain: string;
+  /** "spf=pass, dkim=pass, dmarc=fail" from the receiving server ("" when unknown) */
+  senderAuthSummary: string;
+  /** Links whose visible text shows a different domain than they open */
+  linkTextMismatches: string[];
+  /** Account-threat phrases ("act to restore access", …) */
+  accountThreats: string[];
+  /** Deterministic red flags; any of them stops Jev from clearing the email */
+  redFlags: PhishingRedFlag[];
+  /**
+   * Verdict from the deterministic pre-checks, when red flags combine into
+   * one. It stands on its own: the LLM check is skipped and cannot clear it.
+   */
+  deterministicVerdict: PhishingSignal | null;
+}
+
+/** Header and HTML facts about an email beyond its sender address and text body. */
+export interface PhishingEmailContext {
+  fromName?: string | null;
+  replyTo?: string | null;
+  subject?: string | null;
+  htmlBody?: string | null;
+  senderAuthResults?: SenderAuthResults | null;
 }
 
 /**
@@ -286,18 +325,52 @@ function extractSuspiciousKeywordLabels(body: string): string[] {
   );
 }
 
+/** Signals with nothing found — the starting point for merging a thread. */
+export const EMPTY_PHISHING_SIGNALS: PhishingSignals = {
+  hasDomainMismatch: false,
+  senderDomain: null,
+  linkedDomains: [],
+  suspiciousKeywords: [],
+  rawScore: 0,
+  senderDisplayName: "",
+  replyToDomain: "",
+  senderAuthSummary: "",
+  linkTextMismatches: [],
+  accountThreats: [],
+  redFlags: [],
+  deterministicVerdict: null,
+};
+
+/** Hostnames of every http(s) link in the HTML body's anchors. */
+function extractHtmlLinkDomains(htmlBody: string | null | undefined): string[] {
+  if (!htmlBody) return [];
+  return [...extractBodyDomains(htmlBody)];
+}
+
+function replyToDomainDiffering(
+  replyTo: string | null | undefined,
+  senderDomain: string | null,
+): string {
+  const replyToDomain = extractSenderDomain(replyTo ?? undefined);
+  return replyToDomain && replyToDomain !== senderDomain ? replyToDomain : "";
+}
+
 /**
  * Extract structured phishing signals from an email for use as LLM context.
- * These signals help the LLM reason about whether the email is phishing,
- * but the LLM always makes the final determination — this function does NOT
- * return a verdict.
+ * These signals help the LLM reason about whether the email is phishing.
+ * The deterministic pre-checks may also produce a verdict of their own
+ * (`deterministicVerdict`) when red flags combine.
  */
 export function extractPhishingSignals(
   from: string | undefined,
   body: string,
+  context: PhishingEmailContext = {},
 ): PhishingSignals {
   const senderDomain = extractSenderDomain(from);
-  const bodyDomainsSet = extractBodyDomains(body);
+  const bodyDomainsSet = new Set([
+    ...extractBodyDomains(body),
+    ...extractHtmlLinkDomains(context.htmlBody),
+  ]);
   const linkedDomains = [...bodyDomainsSet];
   const suspiciousKeywords = extractSuspiciousKeywordLabels(body);
   const mismatch = senderDomain
@@ -305,6 +378,14 @@ export function extractPhishingSignals(
     : false;
   const domainWeight = mismatch ? 3 : 0;
   const keywordWeight = computeSuspicionScore(body);
+  const assessment = assessPhishingRedFlags({
+    senderDomain,
+    fromName: context.fromName,
+    subject: context.subject,
+    body,
+    htmlBody: context.htmlBody,
+    senderAuthResults: context.senderAuthResults,
+  });
 
   return {
     hasDomainMismatch: mismatch,
@@ -312,6 +393,15 @@ export function extractPhishingSignals(
     linkedDomains,
     suspiciousKeywords,
     rawScore: domainWeight + keywordWeight,
+    senderDisplayName: context.fromName?.trim() ?? "",
+    replyToDomain: replyToDomainDiffering(context.replyTo, senderDomain),
+    senderAuthSummary: formatSenderAuthResults(context.senderAuthResults),
+    linkTextMismatches: assessment.linkTextMismatches.map(
+      formatLinkTextMismatch,
+    ),
+    accountThreats: assessment.accountThreats,
+    redFlags: assessment.redFlags,
+    deterministicVerdict: assessment.verdict,
   };
 }
 
@@ -329,12 +419,28 @@ export function mergePhishingSignalSets(
   const mergedKeywords = [
     ...new Set([...signalA.suspiciousKeywords, ...signalB.suspiciousKeywords]),
   ];
+  const union = <T>(listA: T[], listB: T[]): T[] => [
+    ...new Set([...listA, ...listB]),
+  ];
   return {
     hasDomainMismatch: signalA.hasDomainMismatch || signalB.hasDomainMismatch,
     senderDomain: signalA.senderDomain ?? signalB.senderDomain,
     linkedDomains: mergedDomains,
     suspiciousKeywords: mergedKeywords,
     rawScore: Math.max(signalA.rawScore, signalB.rawScore),
+    senderDisplayName: signalA.senderDisplayName || signalB.senderDisplayName,
+    replyToDomain: signalA.replyToDomain || signalB.replyToDomain,
+    senderAuthSummary: signalA.senderAuthSummary || signalB.senderAuthSummary,
+    linkTextMismatches: union(
+      signalA.linkTextMismatches,
+      signalB.linkTextMismatches,
+    ),
+    accountThreats: union(signalA.accountThreats, signalB.accountThreats),
+    redFlags: union(signalA.redFlags, signalB.redFlags),
+    deterministicVerdict: mergePhishingSignals(
+      signalA.deterministicVerdict,
+      signalB.deterministicVerdict,
+    ),
   };
 }
 
@@ -399,21 +505,6 @@ export function detectPhishingSignal(
 }
 
 /**
- * Common second-level domains used in multi-part public suffixes (e.g. ".co.uk",
- * ".com.br"). When a sender's domain ends in one of these, the registered brand
- * label is the third-to-last part, not the second-to-last.
- */
-const MULTI_PART_TLD_SLDS = new Set([
-  "co",
-  "com",
-  "org",
-  "net",
-  "gov",
-  "edu",
-  "ac",
-]);
-
-/**
  * Extract the registered brand label from a hostname, handling common multi-part
  * public suffixes. For "amazon.co.uk" returns "amazon"; for "mail.esmsolutions.com"
  * returns "esmsolutions". Falls back to the original hostname when extraction fails.
@@ -421,7 +512,7 @@ const MULTI_PART_TLD_SLDS = new Set([
 function extractDomainLabel(senderDomain: string): string {
   const parts = senderDomain.split(".");
   const isMultiPartTld =
-    parts.length >= 3 && MULTI_PART_TLD_SLDS.has(parts[parts.length - 2]);
+    parts.length >= 3 && MULTI_PART_SUFFIX_LABELS.has(parts[parts.length - 2]);
   const labelIndex = isMultiPartTld ? parts.length - 3 : parts.length - 2;
   return parts[labelIndex] ?? senderDomain;
 }
@@ -429,8 +520,9 @@ function extractDomainLabel(senderDomain: string): string {
 /**
  * Result of comparing a sender's display name against their actual email domain.
  * Used for debugging brand-impersonation phishing (e.g. display name "SendGrid"
- * sent from noreply@esmsolutions.com). This signal is NOT yet wired into the
- * production verdict path — it is surfaced in the admin phishing debug panel only.
+ * sent from noreply@esmsolutions.com). This coarse check flags personal names
+ * too, so it is surfaced in the admin phishing debug panel only; production uses
+ * the brand registry in detectImpersonatedBrand (phishing-red-flags.ts).
  */
 export interface DisplayNameDomainCheck {
   /** True when the display name doesn't appear to relate to the sender's domain */

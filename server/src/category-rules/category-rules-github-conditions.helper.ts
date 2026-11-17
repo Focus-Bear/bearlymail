@@ -214,6 +214,34 @@ export function specMatchesGithubConditions(
   return true;
 }
 
+/**
+ * The spec with every GitHub condition the given facts cannot settle removed,
+ * so evaluating it answers "could this rule match once fresh facts arrive?".
+ * A PR/issue's state, board status and labels can change at any moment (a
+ * tester moves the card to "QA Passed" seconds after commenting), so they are
+ * unsettled whenever the facts were fetched before the email; the author kind
+ * never changes once known, so it is kept when the facts carry it.
+ */
+export function withoutUnsettledGithubConditions(
+  spec: CompositeCategoryRuleSpec,
+  facts: GithubCategorySignals | null | undefined,
+): CompositeCategoryRuleSpec {
+  if (spec.v !== CATEGORY_RULE_COMPOSITE.SPEC_VERSION) {
+    return spec;
+  }
+  if (!specHasGithubConditions(spec) || (facts && !facts.metadataStale)) {
+    return spec;
+  }
+  const relaxed: CompositeCategoryRuleSpecV3 = { ...spec };
+  delete relaxed.githubStateAny;
+  delete relaxed.githubProjectStatusAny;
+  delete relaxed.githubLabelsAny;
+  if (!facts?.authorKind) {
+    delete relaxed.githubAuthorKind;
+  }
+  return relaxed;
+}
+
 /** Flat, human-readable form of one project-status pin (`Board / QA passed`). */
 export function formatGithubProjectStatusCondition(
   condition: GithubProjectStatusCondition,

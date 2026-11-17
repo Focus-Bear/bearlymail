@@ -129,7 +129,7 @@ describe("LLMDeterministicPriorityService - applyDeterministicPriority", () => {
     await apply(PRIORITY_SCORES.HIGH);
     expect(emailThreadRepository.update).toHaveBeenCalledTimes(2);
     expect(emailThreadRepository.update).toHaveBeenLastCalledWith(
-      { id: "thread-1", userId: "user-1" },
+      expect.objectContaining({ id: "thread-1", userId: "user-1" }),
       expect.objectContaining({ isBatched: false, wasDeliveredEarly: true }),
     );
   });

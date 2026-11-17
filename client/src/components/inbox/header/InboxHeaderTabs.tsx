@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ACTION_TAB_EMPHASIS_CLASS, ActionTabEmphasis } from 'constants/actionMove';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
@@ -24,9 +25,67 @@ interface InboxHeaderTabsProps {
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
   tabCounts?: TabCounts | null;
-  /** When true, pulses the Action tab to signal an email moved there (mobile only) */
-  actionTabPulsing?: boolean;
-  onActionTabPulseEnd?: () => void;
+  /** Animation to play on the Action tab because an email just moved there. */
+  actionTabEmphasis?: ActionTabEmphasis | null;
+  onActionTabEmphasisEnd?: () => void;
+  /** Emails moved to Action since the user last opened it, shown as a "+N" badge. */
+  actionMovedCount?: number;
+  /** The tabs have a header row to themselves (narrow screens), so they split it evenly. */
+  isFullWidthRow?: boolean;
+}
+
+/** The "+N" badge's pop animation bubbles up to the tab too; only the tab's own animation ends the emphasis. */
+function endEmphasisOnOwnAnimation(
+  event: React.AnimationEvent<HTMLButtonElement>,
+  emphasis: ActionTabEmphasis | null | undefined,
+  onEmphasisEnd: (() => void) | undefined
+) {
+  if (emphasis && event.target === event.currentTarget) {
+    onEmphasisEnd?.();
+  }
+}
+
+const MovedToActionBadge: React.FC<{ count: number }> = ({ count }) => {
+  const { t } = useTranslation();
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <span className="action-tab-badge" aria-hidden="true" data-testid="action-tab-moved-badge">
+      {t('inbox.actionMove.badge', { count })}
+    </span>
+  );
+};
+
+function getTabButtonStyle({
+  isActive,
+  isMobile,
+  isLoading,
+}: {
+  isActive: boolean;
+  isMobile: boolean;
+  isLoading: boolean;
+}): React.CSSProperties {
+  return {
+    padding: isMobile ? `${theme.spacing.xs} ${theme.spacing.sm}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
+    backgroundColor: isActive ? theme.colors.primary.subtle : 'transparent',
+    color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
+    border: STRING_NONE,
+    borderRadius: theme.borderRadius.full,
+    cursor: isLoading ? 'wait' : 'pointer',
+    fontWeight: theme.typography.fontWeight.semibold,
+    fontSize: isMobile ? theme.typography.fontSize.md : theme.typography.fontSize.base,
+    whiteSpace: 'nowrap',
+    opacity: isLoading ? OPACITY_DISABLED : OPACITY_FULL,
+  };
+}
+
+/** On narrow screens the tabs have their own header row, split evenly; otherwise they sit inline. */
+function getTabsRowStyle(isFullWidthRow: boolean): React.CSSProperties {
+  if (isFullWidthRow) {
+    return { display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(0, 1fr)', gap: theme.spacing.xs };
+  }
+  return { display: 'flex', gap: theme.spacing.md };
 }
 
 /**
@@ -41,8 +100,10 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   actionTabRef,
   followUpTabRef,
   tabCounts,
-  actionTabPulsing,
-  onActionTabPulseEnd,
+  actionTabEmphasis,
+  onActionTabEmphasisEnd,
+  actionMovedCount = 0,
+  isFullWidthRow = false,
 }) => {
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
@@ -57,20 +118,8 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
     }
   };
 
-  const getTabStyle = (tabMode: InboxMode) => {
-    const isActive = mode === tabMode;
-    return {
-      padding: isMobile ? `${theme.spacing.xs} ${theme.spacing.sm}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
-      backgroundColor: isActive ? theme.colors.primary.subtle : 'transparent',
-      color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
-      border: STRING_NONE,
-      borderRadius: theme.borderRadius.full,
-      cursor: loadingModeSwitch ? 'wait' : 'pointer',
-      fontWeight: theme.typography.fontWeight.semibold,
-      fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize.base,
-      opacity: loadingModeSwitch ? OPACITY_DISABLED : OPACITY_FULL,
-    };
-  };
+  const getTabStyle = (tabMode: InboxMode) =>
+    getTabButtonStyle({ isActive: mode === tabMode, isMobile, isLoading: loadingModeSwitch });
 
   const getTabLabel = (tabMode: InboxMode): string => {
     if (loadingModeSwitch && mode === tabMode) {
@@ -102,7 +151,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', gap: isMobile ? theme.spacing.xs : theme.spacing.md }}>
+    <div style={getTabsRowStyle(isFullWidthRow)}>
       <button
         ref={triageTabRef}
         data-tour={TOUR_TARGETS.TRIAGE_TAB}
@@ -116,13 +165,14 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
       <button
         ref={actionTabRef}
         data-tour={TOUR_TARGETS.ACTION_TAB}
-        className={`action-tab${actionTabPulsing ? ' animate-tab-pulse' : ''}`}
+        className={actionTabEmphasis ? `action-tab ${ACTION_TAB_EMPHASIS_CLASS[actionTabEmphasis]}` : 'action-tab'}
         onClick={() => handleTabClick('action')}
         disabled={loadingModeSwitch}
-        style={getTabStyle('action')}
-        onAnimationEnd={actionTabPulsing ? onActionTabPulseEnd : undefined}
+        style={{ ...getTabStyle('action'), position: 'relative' }}
+        onAnimationEnd={event => endEmphasisOnOwnAnimation(event, actionTabEmphasis, onActionTabEmphasisEnd)}
       >
         {getTabLabel('action')}
+        <MovedToActionBadge count={actionMovedCount} />
       </button>
       <button
         ref={followUpTabRef}

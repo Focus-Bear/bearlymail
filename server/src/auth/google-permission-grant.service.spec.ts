@@ -192,7 +192,10 @@ describe("GooglePermissionGrantService.getCallbackRedirect", () => {
 
   it.each([
     ["a sign-in with no state", () => undefined],
-    ["a connect flow", () => createConnectState(USER_ID)],
+    [
+      "a connect flow",
+      () => createConnectState(USER_ID, { cookie: jest.fn() } as never),
+    ],
     ["a tampered state", () => `${grantState()}x`],
   ])("leaves %s to AuthController", async (_label, buildState) => {
     await expect(

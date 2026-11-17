@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
@@ -9,6 +10,8 @@ import { UsersService } from "./users.service";
 jest.mock("../utils/error-logger", () => ({
   logErrorToFile: jest.fn(),
 }));
+
+const NOTHING_LEFT_SNOOZED = { stillSnoozedThreads: 0 };
 
 describe("AccountDeletionProcessor", () => {
   let processor: AccountDeletionProcessor;
@@ -81,7 +84,7 @@ describe("AccountDeletionProcessor", () => {
         "user-1",
         "user-2",
       ]);
-      mockUsersService.deleteAccount.mockResolvedValue(undefined);
+      mockUsersService.deleteAccount.mockResolvedValue(NOTHING_LEFT_SNOOZED);
 
       await processor.handleCleanupInactiveAccounts();
 
@@ -132,15 +135,34 @@ describe("AccountDeletionProcessor", () => {
       ]);
       mockUsersService.deleteAccount
         // user-1 succeeds
-        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(NOTHING_LEFT_SNOOZED)
         // user-2 fails
         .mockRejectedValueOnce(new Error("DB error"))
         // user-3 succeeds
-        .mockResolvedValueOnce(undefined);
+        .mockResolvedValueOnce(NOTHING_LEFT_SNOOZED);
 
       await processor.handleCleanupInactiveAccounts();
 
       expect(mockUsersService.deleteAccount).toHaveBeenCalledTimes(3);
+    });
+
+    it("logs how many snoozed threads could not be put back in the inbox", async () => {
+      mockUsersService.findUsersForDeletion.mockResolvedValue(["user-1"]);
+      mockUsersService.deleteAccount.mockResolvedValue({
+        stillSnoozedThreads: 2,
+      });
+      const warn = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
+
+      await processor.handleCleanupInactiveAccounts();
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "2 snoozed thread(s) could not be put back in the inbox for userId=user-1",
+        ),
+      );
+      warn.mockRestore();
     });
 
     it("does nothing when no inactive accounts are found", async () => {

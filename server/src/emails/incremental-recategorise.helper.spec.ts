@@ -283,6 +283,7 @@ describe("recategoriseFromSummary", () => {
       const [shortlistEmail, allCategories] =
         getShortlistWithMeta.mock.calls[0];
       expect(shortlistEmail).toEqual({
+        userId: "user-1",
         from: "notifications@github.com",
         fromName: "Bao Ngoc",
         subject: "Re: Habit editing bug",

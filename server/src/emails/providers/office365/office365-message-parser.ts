@@ -66,6 +66,18 @@ export interface MicrosoftGraphMessage {
   categories?: string[];
   hasAttachments?: boolean;
   attachments?: MicrosoftGraphAttachment[];
+  isDraft?: boolean;
+}
+
+/**
+ * Drop unsent drafts from a Graph message list. `/me/messages` spans every
+ * folder, so conversation and search queries return Drafts-folder items next
+ * to real mail; they must not pass as messages the user sent.
+ */
+export function excludeOffice365Drafts(
+  messages: MicrosoftGraphMessage[],
+): MicrosoftGraphMessage[] {
+  return messages.filter((message) => !message.isDraft);
 }
 
 /**

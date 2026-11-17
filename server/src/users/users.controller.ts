@@ -23,11 +23,16 @@ import {
   GOOGLE_PERMISSION_GROUP,
   hasGooglePermission,
 } from "../constants/google-oauth-scopes";
+import { USER_AI_PROVIDER_DESCRIPTORS } from "../constants/user-ai-providers.constants";
 import { User } from "../database/entities/user.entity";
 import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ensureLogsDirSync, isDevelopment, LOGS_DIR } from "../utils/logs-dir";
 import { DataExportService } from "./data-export.service";
 import { DataImportService, ImportOptions } from "./data-import.service";
+import {
+  UPDATABLE_PROFILE_FIELDS,
+  UpdateProfileDto,
+} from "./dto/update-profile.dto";
 import { resolveGmailAccessIssue } from "./gmail-access-issue";
 import { UsersService } from "./users.service";
 
@@ -120,15 +125,9 @@ export class UsersController {
   async getProfile(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
     decryptUserEntityForApi(user);
-    // Never return the raw Anthropic key — expose presence only.
-    const {
-      password: _password,
-      anthropicApiKey: _anthropicApiKey,
-      ...result
-    } = user;
+    const result = withoutUserSecrets(user);
     return {
       ...result,
-      hasAnthropicKey: !!user.anthropicApiKey,
       gmailAccessIssue: resolveGmailAccessIssue(user),
       missingGooglePermissions: findMissingGooglePermissionGroups(
         user.googleGrantedScopes,
@@ -145,19 +144,16 @@ export class UsersController {
   }
 
   @Put("me")
-  async updateProfile(@Request() req, @Body() updates: Partial<User>) {
-    // Anthropic key must only be set via POST /llm/me/anthropic-key (validated + encrypted).
-    // Strip it here so PUT /users/me cannot bypass that validation.
-    const { anthropicApiKey: _stripped, ...safeUpdates } = updates as Record<
-      string,
-      unknown
-    > & { anthropicApiKey?: unknown };
+  async updateProfile(@Request() req, @Body() updates: UpdateProfileDto) {
+    // The DTO makes the validation pipe reject anything else; the explicit pick
+    // keeps that true even if the pipe is bypassed. AI keys, the Focus Bear
+    // token and every privilege/identity column are never writable here.
     const updated = await this.usersService.update(
       req.user.userId,
-      safeUpdates as Partial<User>,
+      pickUpdatableProfileFields(updates),
     );
     decryptUserEntityForApi(updated);
-    return updated;
+    return withoutUserSecrets(updated);
   }
 
   @Post("accept-consent")
@@ -189,8 +185,14 @@ export class UsersController {
       );
     }
 
-    await this.usersService.deleteAccount(req.user.userId);
-    return { success: true, message: "Account deleted successfully" };
+    const { stillSnoozedThreads } = await this.usersService.deleteAccount(
+      req.user.userId,
+    );
+    return {
+      success: true,
+      message: "Account deleted successfully",
+      stillSnoozedThreads,
+    };
   }
 
   @Get("me/export")
@@ -223,4 +225,54 @@ export class UsersController {
 
     return result;
   }
+}
+
+const FOCUS_BEAR_TOKEN_FIELD: keyof User = "focusBearApiToken";
+
+const USER_SECRET_FIELDS: ReadonlySet<string> = new Set([
+  ...USER_AI_PROVIDER_DESCRIPTORS.map(({ column }) => column),
+  "aiKeyRejections",
+  FOCUS_BEAR_TOKEN_FIELD,
+  "password",
+  "passwordSetupToken",
+  "passwordSetupTokenExpiresAt",
+  "passwordResetToken",
+  "passwordResetExpires",
+  "totpSecret",
+  "encryptedDataKey",
+]);
+
+/**
+ * Credentials the client only needs to know exist (Settings shows "connected").
+ * They come back as a fixed mask so `!!user.githubToken` keeps working.
+ */
+const MASKED_USER_FIELDS: readonly (keyof User)[] = [
+  "githubToken",
+  "googleCalendarAccessToken",
+  "googleCalendarRefreshToken",
+];
+export const MASKED_SECRET_VALUE = "********";
+
+/**
+ * Secrets never travel to the client: AI keys, the Focus Bear token, password
+ * and reset/setup tokens, the TOTP seed and the wrapped data key are dropped;
+ * OAuth and GitHub tokens are masked. Settings reads masked AI keys from
+ * GET /llm/me/ai-keys and the Focus Bear connection from its own endpoint.
+ */
+function withoutUserSecrets(user: Partial<User>): Partial<User> {
+  const safe = Object.fromEntries(
+    Object.entries(user).filter(([field]) => !USER_SECRET_FIELDS.has(field)),
+  ) as Record<string, unknown>;
+  for (const field of MASKED_USER_FIELDS) {
+    if (safe[field]) safe[field] = MASKED_SECRET_VALUE;
+  }
+  return safe as Partial<User>;
+}
+
+function pickUpdatableProfileFields(updates: UpdateProfileDto): Partial<User> {
+  const picked: Record<string, unknown> = {};
+  for (const field of UPDATABLE_PROFILE_FIELDS) {
+    if (updates?.[field] !== undefined) picked[field] = updates[field];
+  }
+  return picked as Partial<User>;
 }

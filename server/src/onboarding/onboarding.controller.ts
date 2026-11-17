@@ -2,6 +2,7 @@ import { Controller, Get, Post, Request, UseGuards } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { EmailProcessingConsentGuard } from "../users/email-processing-consent.guard";
 import { CategorisationProgressService } from "./categorisation-progress.service";
 import { CategoryCountsService } from "./category-counts.service";
 import { OnboardingService } from "./onboarding.service";
@@ -16,6 +17,7 @@ export class OnboardingController {
   ) {}
 
   @Post("scan")
+  @UseGuards(EmailProcessingConsentGuard)
   async startScan(@Request() req) {
     return this.onboardingService.startHistoricalScan(req.user.userId);
   }

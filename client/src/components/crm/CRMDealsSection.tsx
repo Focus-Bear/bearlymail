@@ -1,7 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiBriefcase, FiDollarSign, FiPlus } from 'react-icons/fi';
+import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import {
+  prefetchDealFormData,
+  useContactForEmailQuery,
+  useContactListQuery,
+  useDealStagesQuery,
+} from 'queries/dealFormData';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { Deal, DealStage } from 'types/deal';
@@ -15,6 +22,9 @@ import { STRING_EN_US, STRING_ES, STRING_ES_ES, STRING_USD } from 'constants/str
 
 const CRM_ACCENT = '#8B5CF6'; // Purple for CRM
 const CRM_BG = '#F5F3FF'; // Light purple background
+// Stable empty lists so the form's props don't change identity on every render while a lookup is pending.
+const EMPTY_STAGES: DealStage[] = [];
+const EMPTY_CONTACTS: Contact[] = [];
 
 interface CRMDealsSectionProps {
   senderEmail?: string;
@@ -161,7 +171,7 @@ const DealSectionContent: React.FC<DealSectionContentProps> = ({ loading, error,
   );
 };
 
-const useCRMDeals =(senderEmail: string | undefined, contactId: string | undefined) => {
+const useCRMDeals = (senderEmail: string | undefined, contactId: string | undefined) => {
   const { t } = useTranslation();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(false);
@@ -206,76 +216,91 @@ type DealPayload = {
   expectedCloseDate?: string;
 };
 
+/** Puts the sender's contact into the picker's list so it can be shown as selected before the full list arrives. */
+const includeContact = (contacts: Contact[], contact: Contact | undefined): Contact[] => {
+  if (!contact?.id || contacts.some(existing => existing.id === contact.id)) {
+    return contacts;
+  }
+  return [contact, ...contacts];
+};
+
+/**
+ * Loads what the add-deal form needs — stages, the contact picker's list and
+ * the sender's contact (find-or-create, so the deal has something to link to)
+ * — WITHOUT holding the form back. Each lookup is cached, so the form opens
+ * on click and fills in as the answers land.
+ */
+const useDealFormData = (senderEmail: string | undefined, contactId: string | undefined, isEnabled: boolean) => {
+  const stagesQuery = useDealStagesQuery(isEnabled);
+  const contactListQuery = useContactListQuery(isEnabled);
+  const senderContactQuery = useContactForEmailQuery(senderEmail, isEnabled && !contactId);
+
+  const contacts = useMemo(
+    () => includeContact(contactListQuery.data ?? EMPTY_CONTACTS, senderContactQuery.data),
+    [contactListQuery.data, senderContactQuery.data]
+  );
+
+  return {
+    stages: stagesQuery.data ?? EMPTY_STAGES,
+    contacts,
+    formContactId: contactId ?? senderContactQuery.data?.id ?? '',
+    // Save waits only for the sender's contact, so the deal is linked to it. A deal saved
+    // before the stages arrive gets the first stage server-side, the same default the form shows.
+    isResolvingContact: senderContactQuery.isFetching && !senderContactQuery.data,
+    hasLoadError: stagesQuery.isError || contactListQuery.isError || senderContactQuery.isError,
+  };
+};
+
 /**
  * Drives the "add a deal from the email view" flow behind the Deals section's
- * "+" button: ensures a Contact exists for the sender (find-or-create by email,
- * so the deal has something to link to), loads the stages + contacts the form
- * needs, and creates the deal. `onCreated` refreshes the section's deal list.
+ * "+" button. `onCreated` refreshes the section's deal list.
  */
-const useAddDealFlow = (
-  senderEmail: string | undefined,
-  contactId: string | undefined,
-  onCreated: () => void
-) => {
+const useAddDealFlow = (senderEmail: string | undefined, contactId: string | undefined, onCreated: () => void) => {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [preparing, setPreparing] = useState(false);
-  const [stages, setStages] = useState<DealStage[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [formContactId, setFormContactId] = useState('');
-  const [addError, setAddError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const formData = useDealFormData(senderEmail, contactId, isFormOpen);
 
-  const openForm = useCallback(async () => {
-    setPreparing(true);
-    setAddError(null);
-    try {
-      // Ensure a contact exists for the sender so the deal can link to it.
-      // POST /contacts is idempotent on email (find-or-create), so an existing
-      // sender isn't duplicated.
-      let resolvedContactId = contactId ?? '';
-      if (!resolvedContactId && senderEmail) {
-        const contactRes = await axios.post(`${API_URL}/contacts`, { email: senderEmail });
-        resolvedContactId = contactRes.data?.id ?? '';
-      }
-      const [stagesRes, contactsRes] = await Promise.all([
-        axios.get(`${API_URL}/deals/stages`),
-        axios.get(`${API_URL}/contacts`),
-      ]);
-      setStages(stagesRes.data ?? []);
-      setContacts(contactsRes.data ?? []);
-      setFormContactId(resolvedContactId);
-      setIsFormOpen(true);
-    } catch (err) {
-      console.error('Error preparing deal form:', err);
-      setAddError(t('crm.errorCreatingDeal'));
-    } finally {
-      setPreparing(false);
-    }
-  }, [senderEmail, contactId, t]);
+  const prefetch = useCallback(() => prefetchDealFormData(queryClient), [queryClient]);
+
+  const openForm = useCallback(() => {
+    setSaveError(null);
+    setIsFormOpen(true);
+  }, []);
 
   const closeForm = useCallback(() => setIsFormOpen(false), []);
 
   const saveDeal = useCallback(
     async (payload: DealPayload) => {
+      setIsSaving(true);
+      setSaveError(null);
       try {
         await axios.post(`${API_URL}/deals`, payload);
         setIsFormOpen(false);
         onCreated();
       } catch (err) {
+        // The form stays open with everything typed so far; only the error is added.
         console.error('Error creating deal:', err);
-        setAddError(t('crm.errorCreatingDeal'));
+        setSaveError(t('crm.errorCreatingDeal'));
+      } finally {
+        setIsSaving(false);
       }
     },
     [onCreated, t]
   );
 
+  const loadError = formData.hasLoadError ? t('crm.errorLoadingDealForm') : null;
+
   return {
     isFormOpen,
-    preparing,
-    stages,
-    contacts,
-    formContactId,
-    addError,
+    stages: formData.stages,
+    contacts: formData.contacts,
+    formContactId: formData.formContactId,
+    isSubmitBlocked: formData.isResolvingContact || isSaving,
+    formError: saveError ?? loadError,
+    prefetch,
     openForm,
     closeForm,
     saveDeal,
@@ -292,8 +317,18 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
     fetchDeals();
   }, [fetchDeals]);
 
-  const { isFormOpen, preparing, stages, contacts, formContactId, addError, openForm, closeForm, saveDeal } =
-    useAddDealFlow(senderEmail, contactId, onDealCreated);
+  const {
+    isFormOpen,
+    stages,
+    contacts,
+    formContactId,
+    isSubmitBlocked,
+    formError,
+    prefetch,
+    openForm,
+    closeForm,
+    saveDeal,
+  } = useAddDealFlow(senderEmail, contactId, onDealCreated);
 
   useEffect(() => {
     if (!isCollapsed && !hasFetched) {
@@ -323,13 +358,14 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
     <button
       type="button"
       onClick={openForm}
-      disabled={preparing}
+      onPointerEnter={prefetch}
+      onFocus={prefetch}
       title={t('crm.createDeal')}
       aria-label={t('crm.createDeal')}
       style={{
         background: 'transparent',
         border: 'none',
-        cursor: preparing ? 'wait' : 'pointer',
+        cursor: 'pointer',
         color: CRM_ACCENT,
         display: 'flex',
         alignItems: 'center',
@@ -355,18 +391,6 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
         onDismiss={onDismiss}
         dismissTitle={t('emailDetail.hideCard')}
       >
-        {addError && (
-          <div
-            style={{
-              padding: theme.spacing.sm,
-              marginBottom: theme.spacing.sm,
-              color: theme.colors.error.main,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {addError}
-          </div>
-        )}
         <DealSectionContent loading={loading} error={error} deals={deals} locale={locale} t={t} />
       </CollapsibleSection>
       {isFormOpen && (
@@ -375,6 +399,8 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
           stages={stages}
           contacts={contacts}
           initialContactId={formContactId}
+          isSubmitBlocked={isSubmitBlocked}
+          errorMessage={formError}
           onSave={saveDeal}
           onClose={closeForm}
         />

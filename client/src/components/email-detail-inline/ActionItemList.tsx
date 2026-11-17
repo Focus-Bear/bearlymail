@@ -2,8 +2,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiX } from 'react-icons/fi';
 import { theme } from 'theme/theme';
+import type { FocusBearTaskSource } from 'utils/focusBearTaskLink';
 import { captureEvent } from 'utils/posthog';
 
+import { SaveToFocusBearLink } from 'components/email-detail-inline/SaveToFocusBearLink';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
@@ -20,12 +22,53 @@ interface ActionItemListProps {
   actionItems: ActionItem[];
   onToggleActionItem: (itemId: string, completed: boolean) => void;
   onDeleteActionItem: (itemId: string) => void;
+  /** The email the items came from; when set, each open item gets "Save to Focus Bear". */
+  focusBearTaskSource?: FocusBearTaskSource;
 }
+
+const DeleteActionItemButton: React.FC<{ itemId: string; onDeleteActionItem: (itemId: string) => void }> = ({
+  itemId,
+  onDeleteActionItem,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={() => {
+        captureEvent(ANALYTICS_EVENTS.ACTION_ITEM_DELETED);
+        onDeleteActionItem(itemId);
+      }}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        color: theme.colors.text.tertiary,
+        cursor: 'pointer',
+        padding: '2px',
+        display: 'flex',
+        alignItems: 'center',
+        flexShrink: 0,
+        opacity: 0.6,
+      }}
+      onMouseEnter={event => {
+        event.currentTarget.style.opacity = '1';
+        event.currentTarget.style.color = theme.colors.error?.main || theme.colors.accent.error;
+      }}
+      onMouseLeave={event => {
+        event.currentTarget.style.opacity = '0.6';
+        event.currentTarget.style.color = theme.colors.text.tertiary;
+      }}
+      aria-label={t('emailDetail.deleteActionItem')}
+      title={t('emailDetail.deleteActionItem')}
+    >
+      <FiX size={15} />
+    </button>
+  );
+};
 
 export const ActionItemList: React.FC<ActionItemListProps> = ({
   actionItems,
   onToggleActionItem,
   onDeleteActionItem,
+  focusBearTaskSource,
 }) => {
   const { t } = useTranslation();
 
@@ -87,36 +130,10 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
               </span>
             )}
           </span>
-          {item.id && (
-            <button
-              onClick={() => {
-                captureEvent(ANALYTICS_EVENTS.ACTION_ITEM_DELETED);
-                onDeleteActionItem(item.id!);
-              }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: theme.colors.text.tertiary,
-                cursor: 'pointer',
-                padding: '2px',
-                display: 'flex',
-                alignItems: 'center',
-                flexShrink: 0,
-                opacity: 0.6,
-              }}
-              onMouseEnter={event => {
-                event.currentTarget.style.opacity = '1';
-                event.currentTarget.style.color = theme.colors.error?.main || theme.colors.accent.error;
-              }}
-              onMouseLeave={event => {
-                event.currentTarget.style.opacity = '0.6';
-                event.currentTarget.style.color = theme.colors.text.tertiary;
-              }}
-              title={t('emailDetail.deleteActionItem')}
-            >
-              <FiX size={15} />
-            </button>
+          {focusBearTaskSource && !item.isCompleted && (
+            <SaveToFocusBearLink taskTitle={item.description} source={focusBearTaskSource} />
           )}
+          {item.id && <DeleteActionItemButton itemId={item.id} onDeleteActionItem={onDeleteActionItem} />}
         </div>
       ))}
     </div>

@@ -7,4 +7,5 @@ export const HTTP_HEADERS = {
   CACHE_CONTROL: "Cache-Control",
   PRAGMA: "Pragma",
   ACCEPT: "Accept",
+  AUTHORIZATION: "Authorization",
 } as const;

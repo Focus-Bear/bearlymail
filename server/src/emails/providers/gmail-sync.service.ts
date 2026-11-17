@@ -31,12 +31,17 @@ import { formatGaxiosError, isApiError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { logErrorToFile } from "../../utils/error-logger";
 import { InvalidTokenError } from "../../utils/errors";
-import { providerSyncCreateEmailOptions } from "../email-lifecycle.service";
+import {
+  backfillSyncCreateEmailOptions,
+  CreateEmailOptions,
+  providerSyncCreateEmailOptions,
+} from "../email-lifecycle.service";
 import {
   EmailDataWithOptionalThreadProps,
   EmailsService,
 } from "../emails.service";
 import { EmailAttachment } from "../interfaces/email-provider.interface";
+import { hasDraftLabel } from "../labels.util";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
 import {
@@ -48,12 +53,14 @@ import {
 import { GmailProvider } from "./gmail.provider";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
 import {
+  buildStoredGmailEmailUpdates,
   classifyGmailAccessIssue,
   getExistingThreadUpdates,
   isGmailAuthError,
   isGmailInsufficientScopeError,
   isThreadStarred,
 } from "./gmail/gmail-sync";
+import { GMAIL_INBOX_QUERY } from "./gmail-inbox-query";
 import {
   refreshAttachmentsFromGmailForThread,
   refreshAttachmentsFromGmailForUser,
@@ -73,10 +80,6 @@ function isSameGoogleGrant(before: User | null, after: User | null): boolean {
     before.googleCalendarRefreshToken === after?.googleCalendarRefreshToken
   );
 }
-
-/** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
-const GMAIL_INBOX_QUERY =
-  "in:inbox -label:SnoozedBearlyMail -label:VA-to-action";
 
 /**
  * Handles all Gmail sync and scan operations, extracted from GmailProvider to keep
@@ -307,6 +310,7 @@ export class GmailSyncService {
       providedThreadIds?: string[];
       isContinuation?: boolean;
       noDateFilter?: boolean;
+      isBackfill?: boolean;
     } = {},
   ): Promise<void> {
     const {
@@ -314,6 +318,7 @@ export class GmailSyncService {
       providedThreadIds,
       isContinuation = false,
       noDateFilter = false,
+      isBackfill = false,
     } = options;
     const syncStart = Date.now();
     let allThreadIds: Set<string>;
@@ -360,7 +365,9 @@ export class GmailSyncService {
       Array.from(allThreadIds),
       gmail,
       existingThreadMap,
-      isInitialSync,
+      isBackfill
+        ? backfillSyncCreateEmailOptions()
+        : providerSyncCreateEmailOptions(isInitialSync),
     );
     await this.applyThreadUpdates(userId, updates);
 
@@ -384,9 +391,16 @@ export class GmailSyncService {
     userId: string,
     message: gmail_v1.Schema$Message,
     starCount: number,
-    isInitialSync: boolean,
+    createEmailOptions: CreateEmailOptions,
     canWriteToGmail: boolean,
   ): Promise<void> {
+    if (hasDraftLabel(message.labelIds)) {
+      // An unsent draft is not mail. Older syncs stored drafts like sent
+      // replies, so drop any such copy instead of just skipping it.
+      await this.emailsService.deleteEmailByMessageId(userId, message.id!);
+      return;
+    }
+
     const rawEmail = parseGmailMessage(message);
     if (!rawEmail) return;
 
@@ -395,21 +409,9 @@ export class GmailSyncService {
       message.id!,
     );
     if (existing) {
-      const isReadInGmail = !(message.labelIds || []).includes("UNREAD");
-      const hasStoredAttachments =
-        Array.isArray(existing.attachments) && existing.attachments.length > 0;
-      const parsedAttachments = rawEmail.attachments;
-      const updates: { isRead?: boolean; attachments?: EmailAttachment[] } = {};
-      // A read-only grant can't mark the email read in Gmail, so Gmail's UNREAD
-      // says nothing about what the user has already read in BearlyMail.
-      const keepReadInBearlyMail =
-        !canWriteToGmail && existing.isRead && !isReadInGmail;
-      if (existing.isRead !== isReadInGmail && !keepReadInBearlyMail) {
-        updates.isRead = isReadInGmail;
-      }
-      if (!hasStoredAttachments && parsedAttachments?.length) {
-        updates.attachments = parsedAttachments;
-      }
+      const updates = buildStoredGmailEmailUpdates(existing, rawEmail, {
+        canWriteToGmail,
+      });
       if (Object.keys(updates).length > 0) {
         await this.emailsService.updateEmail(userId, existing.id, updates);
       }
@@ -423,7 +425,7 @@ export class GmailSyncService {
         starCount,
         labels: rawEmail.labelIds,
       } as EmailDataWithOptionalThreadProps,
-      providerSyncCreateEmailOptions(isInitialSync),
+      createEmailOptions,
     );
   }
 
@@ -440,7 +442,7 @@ export class GmailSyncService {
         isArchived: boolean;
       }
     >,
-    isInitialSync: boolean,
+    createEmailOptions: CreateEmailOptions,
   ): Promise<{
     starUpdates: { threadId: string; starCount: number }[];
     archivedUpdates: { threadId: string; isArchived: boolean }[];
@@ -493,7 +495,7 @@ export class GmailSyncService {
                 userId,
                 message,
                 starCount,
-                isInitialSync,
+                createEmailOptions,
                 canWriteToGmail,
               );
             }

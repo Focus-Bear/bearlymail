@@ -10,7 +10,11 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { PhishingSignals } from "../summarization/phishing-detection.service";
+import { PHISHING_RED_FLAGS } from "../constants/phishing.constants";
+import {
+  EMPTY_PHISHING_SIGNALS,
+  PhishingSignals,
+} from "../summarization/phishing-detection.service";
 import {
   renderTemplate,
   UNRENDERED_TEMPLATE_SYNTAX_PATTERN,
@@ -184,11 +188,20 @@ describe("shipped prompt files render without leftover template syntax", () => {
 
 describe("loaded prompts render with the variables the services pass", () => {
   const signals: PhishingSignals = {
+    ...EMPTY_PHISHING_SIGNALS,
     hasDomainMismatch: true,
     senderDomain: "commbank-secure-verify.xyz",
     linkedDomains: ["commbank-secure-verify.xyz", "bit.ly"],
     suspiciousKeywords: ["account suspended/locked", "urgency language"],
     rawScore: 8,
+    senderDisplayName: "CommBank",
+    senderAuthSummary: "spf=pass, dkim=pass, dmarc=pass",
+    linkTextMismatches: ["text shows commbank.com.au, link opens bit.ly"],
+    accountThreats: ["account or sending paused/suspended"],
+    redFlags: [
+      PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
+      PHISHING_RED_FLAGS.LINK_TEXT_MISMATCH,
+    ],
   };
 
   it("check_phishing_only substitutes the nested phishing signals and join filters", () => {
@@ -206,6 +219,16 @@ describe("loaded prompts render with the variables the services pass", () => {
     expect(rendered).toContain("Domain mismatch detected: true");
     expect(rendered).toContain(
       "Suspicious keywords found: account suspended/locked, urgency language",
+    );
+    expect(rendered).toContain("Sender display name: CommBank");
+    expect(rendered).toContain(
+      "Sender authentication (receiving server): spf=pass, dkim=pass, dmarc=pass",
+    );
+    expect(rendered).toContain(
+      "Links whose visible text shows a different domain: text shows commbank.com.au, link opens bit.ly",
+    );
+    expect(rendered).toContain(
+      `Red flags from deterministic checks: ${PHISHING_RED_FLAGS.BRAND_IMPERSONATION}, ${PHISHING_RED_FLAGS.LINK_TEXT_MISMATCH}`,
     );
     expectClean(rendered, "check_phishing_only");
     expectClean(config.systemPrompt, "check_phishing_only system");

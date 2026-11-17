@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { DeletedAccount } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { LocalModelUserDataService } from "../local-model/local-model-user-data.service";
@@ -57,6 +58,10 @@ describe("UsersService — inactivity tracking", () => {
             findOne: jest.fn(),
             upsert: jest.fn().mockResolvedValue(undefined),
           },
+        },
+        {
+          provide: INJECT_TOKENS.PG_BOSS,
+          useValue: { send: jest.fn().mockResolvedValue("job-id") },
         },
         {
           provide: LocalModelUserDataService,

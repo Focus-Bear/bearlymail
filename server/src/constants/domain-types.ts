@@ -39,6 +39,15 @@ export const ACTION_ITEM_TYPES = {
 export type ActionItemType =
   (typeof ACTION_ITEM_TYPES)[keyof typeof ACTION_ITEM_TYPES];
 
+/** Which detector found a meeting proposal — surfaced in the scheduling card's admin debug panel. */
+export const PROPOSAL_DETECTION_SOURCES = {
+  LLM: "llm",
+  TIME_PATTERN: "time_pattern",
+} as const;
+
+export type ProposalDetectionSource =
+  (typeof PROPOSAL_DETECTION_SOURCES)[keyof typeof PROPOSAL_DETECTION_SOURCES];
+
 export const DATA_IMPORT_MERGE_MODES = {
   REPLACE: "replace",
   MERGE: "merge",

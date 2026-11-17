@@ -118,6 +118,13 @@ export function parseJevResponse(
   return value as unknown as JevResponse;
 }
 
+/** A non-2xx TypeSafe response; `status` lets callers spot a refused key. */
+export class JevHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`Jev HTTP ${status}`);
+  }
+}
+
 export async function requestJev(
   request: JevRequest,
   apiKey: string,
@@ -131,7 +138,7 @@ export async function requestJev(
     body: JSON.stringify(request),
     signal: AbortSignal.timeout(JEV.REQUEST_TIMEOUT_MS),
   });
-  if (!response.ok) throw new Error(`Jev HTTP ${response.status}`);
+  if (!response.ok) throw new JevHttpError(response.status);
   const value: unknown = await response.json();
   return parseJevResponse(value, request.questions);
 }

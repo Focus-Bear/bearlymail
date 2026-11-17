@@ -154,7 +154,10 @@ export class WritingStyleLearningService {
       validationAttempts++;
       let validated: string | null;
       try {
-        validated = await this.llmService.validateWritingExample(snippet);
+        validated = await this.llmService.validateWritingExample(
+          snippet,
+          userId,
+        );
       } catch (error) {
         // A transient LLM failure (rate limit/timeout) on one snippet must not abort the whole
         // run and discard examples already validated earlier this pass — skip just this snippet.

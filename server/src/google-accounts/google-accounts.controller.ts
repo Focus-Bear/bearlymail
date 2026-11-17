@@ -33,7 +33,7 @@ export class GoogleAccountsController {
     // Create state parameter with user ID and action
     // JWT strategy returns { userId, email }, not { id }
     const { userId } = req.user;
-    const state = createConnectState(userId);
+    const state = createConnectState(userId, res);
 
     // Redirect to Google OAuth endpoint with state parameter
     // Pass state as query param - Google OAuth will preserve it in the callback
@@ -43,10 +43,13 @@ export class GoogleAccountsController {
 
   @Get("connect-url")
   @UseGuards(JwtAuthGuard)
-  async getConnectUrl(@Req() req: AuthenticatedRequest) {
+  async getConnectUrl(
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     // Create state parameter with user ID and action
     const { userId } = req.user;
-    const state = createConnectState(userId);
+    const state = createConnectState(userId, res);
 
     // Return Google OAuth URL instead of redirecting
     const googleAuthUrl = `${process.env.GOOGLE_REDIRECT_URI?.replace("/auth/google/callback", "") || "http://localhost:3001"}/auth/google`;

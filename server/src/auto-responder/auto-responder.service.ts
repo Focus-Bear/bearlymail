@@ -265,6 +265,7 @@ export class AutoResponderService {
       config.customExclusionRules,
       classification,
       headers,
+      logContext.userId,
     );
     if (!result.matched) return null;
     const reason = `Custom exclusion rule matched: ${result.matchedRule} (${result.reason})`;
@@ -326,6 +327,7 @@ export class AutoResponderService {
       },
       headers,
       hasUserReplies,
+      logContext.userId,
     );
 
     autoresponderLogger.logClassification(logContext, {

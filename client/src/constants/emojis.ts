@@ -8,6 +8,7 @@ export const EMOJI_CLOCK = '⏰';
 export const EMOJI_ARCHIVE = '📦';
 export const EMOJI_EMAIL = '📧';
 export const EMOJI_USER = '👤';
+export const EMOJI_FOCUS_BEAR = '🐻';
 export const EMOJI_THREAD = '💬';
 export const EMOJI_SETTINGS = '⚙️';
 export const EMOJI_GOAL = '🎯';

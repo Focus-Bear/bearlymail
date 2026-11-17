@@ -29,6 +29,8 @@ export interface JevConfidenceRecord {
   choseNoneOption?: boolean;
   /** Top probability minus the runner-up's: small margins mean near-ties between options. */
   runnerUpMargin?: number;
+  /** Summed probability of the most probable category family (categorisation only). */
+  familyConfidence?: number;
 }
 
 const DECIMAL_PLACES = 2;
@@ -51,6 +53,8 @@ export function formatJevConfidenceRecord(record: JevConfidenceRecord): string {
     fields.push(`chose_none=${record.choseNoneOption}`);
   if (record.runnerUpMargin !== undefined)
     fields.push(`margin=${formatNumber(record.runnerUpMargin)}`);
+  if (record.familyConfidence !== undefined)
+    fields.push(`family_confidence=${formatNumber(record.familyConfidence)}`);
   return `${JEV_CONFIDENCE_LOG_TAG} ${fields.join(" ")}`;
 }
 
@@ -65,9 +69,10 @@ export function logJevConfidence(
  * Prefix of the one-line, content-free record written when Jev's answer was
  * below threshold and the LLM fallback then decided: whether the two agreed.
  * Agreement rate per confidence band is the accuracy estimate for lowering a
- * threshold. Query with:
+ * threshold. Lines end in an ANSI colour code, so parse with a regex. Query with:
  *   filter @message like "[JEV-SHADOW]"
- *   | parse @message "decision=* confidence=* agreed=*" as decision, confidence, agreed
+ *   | parse @message /confidence=(?<confidence>[0-9.]+) agreed=(?<agreed>true|false) family_agreed=(?<familyAgreed>true|false) family_confidence=(?<familyConfidence>[0-9.]+) family="(?<family>[^"]+)"/
+ * Family fields are present only on categorisation records.
  */
 export const JEV_SHADOW_LOG_TAG = "[JEV-SHADOW]";
 
@@ -77,10 +82,23 @@ export interface JevShadowRecord {
   confidence: number;
   /** True when the LLM fallback reached the same answer as Jev. */
   agreed: boolean;
+  /** Categorisation only: how Jev's most probable family compared with the fallback's pick. */
+  family?: FamilyShadowRecord;
+}
+
+export interface FamilyShadowRecord {
+  /** Jev's most probable family (a fixed taxonomy label, never user content). */
+  family: string;
+  confidence: number;
+  /** True when the fallback's category belongs to that family. */
+  agreed: boolean;
 }
 
 export function formatJevShadowRecord(record: JevShadowRecord): string {
-  return `${JEV_SHADOW_LOG_TAG} decision=${record.decision} confidence=${formatNumber(record.confidence)} agreed=${record.agreed}`;
+  const base = `${JEV_SHADOW_LOG_TAG} decision=${record.decision} confidence=${formatNumber(record.confidence)} agreed=${record.agreed}`;
+  if (!record.family) return base;
+  const { family, confidence, agreed } = record.family;
+  return `${base} family_agreed=${agreed} family_confidence=${formatNumber(confidence)} family="${family}"`;
 }
 
 export function logJevShadowAgreement(

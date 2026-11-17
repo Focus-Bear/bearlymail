@@ -1,5 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import type { IconType } from 'react-icons';
+import { FiMail } from 'react-icons/fi';
+import { PiMicrosoftOutlookLogoFill } from 'react-icons/pi';
+import { SiApple, SiGmail, SiZoho } from 'react-icons/si';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
@@ -22,7 +26,22 @@ interface ProviderOptionCardProps {
   onSelect: (id: ProviderOptionId) => void;
 }
 
-const ProviderOptionCard: React.FC<ProviderOptionCardProps> = ({ provider, onSelect }) => (
+/**
+ * Each provider's logo, drawn in white on its brand-coloured tile. "Other email"
+ * gets a plain envelope because it covers any IMAP host, not one brand.
+ */
+const PROVIDER_ICONS: Record<ProviderOptionId, IconType> = {
+  gmail: SiGmail,
+  office365: PiMicrosoftOutlookLogoFill,
+  zoho: SiZoho,
+  'apple-mail': SiApple,
+  imap: FiMail,
+};
+const PROVIDER_ICON_SIZE = 26;
+
+const ProviderOptionCard: React.FC<ProviderOptionCardProps> = ({ provider, onSelect }) => {
+  const Icon = PROVIDER_ICONS[provider.id];
+  return (
   <button
     key={provider.id}
     onClick={() => onSelect(provider.id)}
@@ -59,12 +78,10 @@ const ProviderOptionCard: React.FC<ProviderOptionCardProps> = ({ provider, onSel
         alignItems: 'center',
         justifyContent: 'center',
         color: COLOR_NAMED_WHITE,
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.bold,
         flexShrink: 0,
       }}
     >
-      {provider.name.charAt(0)}
+      <Icon size={PROVIDER_ICON_SIZE} aria-hidden="true" data-testid={`provider-icon-${provider.id}`} />
     </div>
     <div style={{ flex: 1 }}>
       <div
@@ -82,7 +99,8 @@ const ProviderOptionCard: React.FC<ProviderOptionCardProps> = ({ provider, onSel
       </div>
     </div>
   </button>
-);
+  );
+};
 
 export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
   isOpen,

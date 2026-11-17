@@ -545,6 +545,7 @@ export class EmailDebugCategoryService {
     try {
       const shortlisted = await this.categoryShortlistService.getShortlist(
         {
+          userId,
           from: email.from || "",
           fromName: email.fromName || undefined,
           subject: email.subject || "",

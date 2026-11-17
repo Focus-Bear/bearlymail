@@ -477,3 +477,38 @@ tests:
             throw new Error(`Expected bookingInvited=false when no time is on the table. Got: ${text.substring(0, 300)}`);
           }
           return true;
+
+  - description: "City-named timezone ('11.30am (Fremantle time)' on a named day) resolves to Australia/Perth, not the recipient's zone"
+    vars:
+      currentDatetime: "2026-11-10T00:00:00Z"
+      userTimezone: "Australia/Melbourne"
+      from: "access.team@example.edu"
+      fromName: "Example University Access Team"
+      subject: "Re: Assistive tech for students"
+      body: |
+        Hi Jeremy,
+
+        Thank you for getting back to us.
+
+        Would Thursday at 11.30am (Fremantle time) suit?
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${text.substring(0, 200)}`);
+          }
+          if (parsed.hasProposal !== true) {
+            throw new Error(`Expected hasProposal=true. Got: ${text.substring(0, 300)}`);
+          }
+          if (!parsed.proposedLocalTime || !parsed.proposedLocalTime.startsWith('2026-11-12T11:30')) {
+            throw new Error(`Expected proposedLocalTime '2026-11-12T11:30:00' (Thursday after Tue 10 Nov). Got: ${parsed.proposedLocalTime}`);
+          }
+          if (parsed.proposedTimezone !== 'Australia/Perth' && parsed.proposedTimezone !== 'UTC+8') {
+            throw new Error(`Expected proposedTimezone 'Australia/Perth' (Fremantle is in WA). Got: ${parsed.proposedTimezone}`);
+          }
+          return true;

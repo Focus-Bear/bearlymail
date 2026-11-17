@@ -118,6 +118,9 @@ export function decryptUserEntityForApi(user: User): void {
   ) as string | null;
   user.openAiApiKey = decryptForUI(user.openAiApiKey) as string | null;
   user.githubToken = decryptForUI(user.githubToken) as string | null;
+  user.focusBearApiToken = decryptForUI(user.focusBearApiToken) as
+    | string
+    | null;
   user.anthropicApiKey = decryptForUI(user.anthropicApiKey) as string | null;
 
   if (user.toneSettings != null && typeof user.toneSettings === "string") {

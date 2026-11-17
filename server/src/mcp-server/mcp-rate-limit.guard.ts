@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from "@nestjs/common";
+import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import {
   InjectThrottlerStorage,
   ThrottlerException,
@@ -29,17 +25,30 @@ export class McpRateLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const http = context.switchToHttp();
-    const { userId } = http.getRequest<PatAuthenticatedRequest>().user;
-    const { isBlocked, timeToBlockExpire } = await this.storage.increment(
-      `${THROTTLER_NAME}:${userId}`,
-      MCP_SERVER.RATE_WINDOW_MS,
-      MCP_SERVER.RATE_LIMIT,
-      MCP_SERVER.RATE_WINDOW_MS,
-      THROTTLER_NAME,
-    );
-    if (isBlocked) {
-      http.getResponse<Response>().header("Retry-After", String(timeToBlockExpire));
-      throw new ThrottlerException();
+    const request = http.getRequest<PatAuthenticatedRequest>();
+    const { userId } = request.user;
+    // A JSON-RPC batch is charged per message, so batching can't multiply
+    // the allowance. Oversized batches are refused by the protocol service.
+    const cost = Array.isArray(request.body)
+      ? Math.min(
+          Math.max(request.body.length, 1),
+          MCP_SERVER.MAX_BATCH_MESSAGES,
+        )
+      : 1;
+    for (let charged = 0; charged < cost; charged++) {
+      const { isBlocked, timeToBlockExpire } = await this.storage.increment(
+        `${THROTTLER_NAME}:${userId}`,
+        MCP_SERVER.RATE_WINDOW_MS,
+        MCP_SERVER.RATE_LIMIT,
+        MCP_SERVER.RATE_WINDOW_MS,
+        THROTTLER_NAME,
+      );
+      if (isBlocked) {
+        http
+          .getResponse<Response>()
+          .header("Retry-After", String(timeToBlockExpire));
+        throw new ThrottlerException();
+      }
     }
     return true;
   }

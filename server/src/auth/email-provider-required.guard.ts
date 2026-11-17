@@ -1,7 +1,6 @@
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -16,6 +15,7 @@ import { ImapAccountsService } from "../imap-accounts/imap-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
+import { EmailProviderRequiredException } from "./exceptions/email-provider-required.exception";
 
 @Injectable()
 export class EmailProviderRequiredGuard implements CanActivate {
@@ -76,9 +76,7 @@ export class EmailProviderRequiredGuard implements CanActivate {
       !hasImap &&
       !hasLegacyGmail
     ) {
-      throw new ForbiddenException(
-        "Email provider connection required. Please connect an email account to continue.",
-      );
+      throw new EmailProviderRequiredException();
     }
 
     return true;

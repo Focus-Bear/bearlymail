@@ -5,12 +5,18 @@
  */
 import { Test, TestingModule } from "@nestjs/testing";
 
-import { PhishingSignals } from "../summarization/phishing-detection.service";
+import { JEV_DECISION_KINDS } from "../constants/jev.constants";
+import { PHISHING_RED_FLAGS } from "../constants/phishing.constants";
+import {
+  EMPTY_PHISHING_SIGNALS,
+  PhishingSignals,
+} from "../summarization/phishing-detection.service";
 import { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMSummarizationService } from "./llm-summarization.service";
 
 const SIGNALS: PhishingSignals = {
+  ...EMPTY_PHISHING_SIGNALS,
   hasDomainMismatch: true,
   senderDomain: "evil.xyz",
   linkedDomains: ["evil.xyz"],
@@ -169,5 +175,73 @@ describe("LLMSummarizationService.confirmPhishingVerdict", () => {
     });
     expect(result).toEqual(MEDIUM_VERDICT);
     expect(mockCore.generateText).not.toHaveBeenCalled();
+  });
+});
+
+describe("LLMSummarizationService — deterministic pre-check verdicts", () => {
+  const DETERMINISTIC = {
+    confidence: "high" as const,
+    reason: "The sender name claims to be Twilio SendGrid but the email comes from pylott.io.",
+  };
+  const RED_FLAG_SIGNALS: PhishingSignals = {
+    ...EMPTY_PHISHING_SIGNALS,
+    senderDomain: "pylott.io",
+    redFlags: [PHISHING_RED_FLAGS.BRAND_IMPERSONATION],
+  };
+  let service: LLMSummarizationService;
+  let generateText: jest.Mock;
+
+  beforeEach(async () => {
+    generateText = jest.fn();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LLMSummarizationService,
+        {
+          provide: LLMCoreService,
+          useValue: {
+            generateText,
+            getAvailableProviders: () => [LLMProvider.GEMINI],
+            getDefaultProvider: () => LLMProvider.BEDROCK,
+          },
+        },
+      ],
+    }).compile();
+    service = module.get(LLMSummarizationService);
+  });
+
+  it("returns the deterministic verdict without asking the model (so it cannot clear it)", async () => {
+    const result = await service.checkPhishingOnly("body", "subject", {
+      ...RED_FLAG_SIGNALS,
+      deterministicVerdict: DETERMINISTIC,
+    });
+    expect(result).toEqual({ is_phishing: true, ...DETERMINISTIC });
+    expect(generateText).not.toHaveBeenCalled();
+  });
+
+  it("does not send a deterministic verdict to the confirmation model", async () => {
+    const verdict = { is_phishing: true, ...DETERMINISTIC };
+    const result = await service.confirmPhishingVerdict({
+      verdict,
+      emailBody: "body",
+      emailSubject: "subject",
+      phishingSignals: { ...RED_FLAG_SIGNALS, deterministicVerdict: DETERMINISTIC },
+      primaryProvider: LLMProvider.BEDROCK,
+    });
+    expect(result).toEqual(verdict);
+    expect(generateText).not.toHaveBeenCalled();
+  });
+
+  it("never lets Jev clear an email that carries a red flag", async () => {
+    generateText.mockResolvedValue(JSON.stringify({ phishing: null }));
+    await service.checkPhishingOnly("body", "subject", RED_FLAG_SIGNALS);
+    const [request] = generateText.mock.calls[0];
+    expect(request.jevDecision).toBeUndefined();
+  });
+
+  it("still lets Jev clear an email with no red flags", async () => {
+    generateText.mockResolvedValue(JSON.stringify({ phishing: null }));
+    await service.checkPhishingOnly("body", "subject", EMPTY_PHISHING_SIGNALS);
+    const [request] = generateText.mock.calls[0];
+    expect(request.jevDecision?.kind).toBe(JEV_DECISION_KINDS.PHISHING_CLEARANCE);
   });
 });

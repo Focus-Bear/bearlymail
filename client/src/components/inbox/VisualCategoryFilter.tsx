@@ -402,7 +402,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
         backgroundColor: theme.colors.background.paper,
         border: `1px solid ${theme.colors.border.light}`,
         borderRadius: theme.borderRadius.md,
-        padding: theme.spacing.md,
+        padding: compact ? theme.spacing.sm : theme.spacing.md,
         boxShadow: theme.shadows.sm,
         overflow: 'visible',
       }}

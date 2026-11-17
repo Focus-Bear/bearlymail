@@ -1,6 +1,7 @@
 import { gmail_v1 } from "googleapis";
 
 import {
+  excludeGmailDrafts,
   extractAttachmentsFromPayload,
   filenameFromContentDisposition,
   parseGmailMessage,
@@ -45,6 +46,39 @@ describe("gmail-message-parser — header extraction", () => {
     expect(parsed?.to).toBe("jeremy@focusbear.io");
     expect(parsed?.from).toBe("nicola@example.com");
     expect(parsed?.subject).toBe("Hi Jeremy");
+  });
+
+  it("keeps the Reply-To address so replies and the phishing check can use it", () => {
+    const parsed = parseGmailMessage(
+      buildMessage([
+        { name: "From", value: "Acme <news@acme.example.test>" },
+        { name: "Reply-To", value: "Support Desk <help@desk.example.test>" },
+      ]),
+    );
+    expect(parsed?.replyTo).toBe("help@desk.example.test");
+  });
+
+  it("reads SPF/DKIM/DMARC from the topmost Authentication-Results header only", () => {
+    const parsed = parseGmailMessage(
+      buildMessage([
+        { name: "From", value: "Acme <news@acme.example.test>" },
+        {
+          name: "Authentication-Results",
+          value:
+            "mx.google.com; dkim=pass header.i=@acme.example.test; spf=pass smtp.mailfrom=acme.example.test; dmarc=pass header.from=acme.example.test",
+        },
+        // A forged header further down must not override Google's verdict.
+        {
+          name: "Authentication-Results",
+          value: "forged.example.test; spf=fail; dmarc=fail",
+        },
+      ]),
+    );
+    expect(parsed?.senderAuthResults).toEqual({
+      spf: "pass",
+      dkim: "pass",
+      dmarc: "pass",
+    });
   });
 
   it("leaves cc undefined when there is no Cc header", () => {
@@ -341,5 +375,26 @@ describe("gmail-message-parser — attachments", () => {
         expect(result![1].attachmentId).toBe("inline-ics-1");
       });
     });
+  });
+});
+
+describe("gmail-message-parser — excludeGmailDrafts", () => {
+  it("drops unsent drafts that threads.get returns next to real messages", () => {
+    const received: gmail_v1.Schema$Message = {
+      id: "m1",
+      labelIds: ["INBOX"],
+    };
+    const sent: gmail_v1.Schema$Message = { id: "m2", labelIds: ["SENT"] };
+    const draft: gmail_v1.Schema$Message = { id: "m3", labelIds: ["DRAFT"] };
+
+    expect(excludeGmailDrafts([received, draft, sent])).toEqual([
+      received,
+      sent,
+    ]);
+  });
+
+  it("returns an empty list when Gmail sends no messages", () => {
+    expect(excludeGmailDrafts(undefined)).toEqual([]);
+    expect(excludeGmailDrafts(null)).toEqual([]);
   });
 });

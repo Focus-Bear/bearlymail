@@ -9,9 +9,15 @@
 
 export const contactKeys = {
   all: ['contacts'] as const,
+  list: ['contacts', 'list'] as const,
+  forEmail: (email: string) => ['contacts', 'for-email', email.toLowerCase()] as const,
   types: ['contact-types'] as const,
   typesByEmails: (emails: string[]) => ['contact-types-by-emails', [...emails].sort().join(',')] as const,
   frequent: (limit: number) => ['contacts', 'frequent', limit] as const,
+} as const;
+
+export const dealKeys = {
+  stages: ['deals', 'stages'] as const,
 } as const;
 
 export const settingsKeys = {
@@ -28,4 +34,11 @@ export const emailKeys = {
   category: (mode: string, category: string, filters: Record<string, unknown>) =>
     [...emailKeys.all, 'category', mode, category, filters] as const,
   detail: (threadId: string) => [...emailKeys.all, 'detail', threadId] as const,
+} as const;
+
+export const focusBearKeys = {
+  connection: ['focus-bear', 'connection'] as const,
+  allSuggestions: ['focus-bear', 'task-suggestions'] as const,
+  suggestions: (title: string, emailSubject: string) =>
+    [...focusBearKeys.allSuggestions, title, emailSubject] as const,
 } as const;

@@ -69,8 +69,10 @@ export const CATEGORY_RULE_COMPOSITE = {
    * forever. Prod: 236 calls in a day produced ~5 rules. The cap bounds that
    * spend; the next day's first HIGH-confidence email retries naturally.
    * User-initiated drafts and "Suggest rules for me" are not subject to it.
+   * Raised from 20 (2026-11): busy mailboxes hit 20 on most days while still
+   * yielding rules, so the cap was throttling useful rule creation.
    */
-  AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY: 20,
+  AUTO_GENERATE_MAX_LLM_ATTEMPTS_PER_DAY: 50,
   /**
    * Minimum number of distinct threads a sender must have before it is
    * included in the "Suggest rules for me" response (issue #1714).

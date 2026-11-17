@@ -1,5 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import { createServer, Server } from "http";
+import { AddressInfo } from "net";
 
 import { WorkflowExecutionLog } from "../../database/entities/workflow-execution-log.entity";
 import { WorkflowRule } from "../../database/entities/workflow-rule.entity";
@@ -8,7 +10,10 @@ import { EmailProviderManager } from "../../emails/email-provider-manager.servic
 import { LLMCoreService } from "../../llm/llm-core.service";
 import { MCPClientManagerService } from "../../mcp/mcp-client-manager.service";
 import { WorkflowContext } from "../types/workflow.types";
-import { WorkflowExecutionService } from "../workflow-execution.service";
+import {
+  truncateResponseSnippet,
+  WorkflowExecutionService,
+} from "../workflow-execution.service";
 import { WorkflowVariableResolver } from "../workflow-variable-resolver";
 
 const mockContext: WorkflowContext = {
@@ -250,6 +255,62 @@ describe("WorkflowExecutionService", () => {
       expect(result.actionResults?.[0].error).toMatch(
         /private\/internal hosts/,
       );
+    });
+  });
+
+  describe("executeWebhook — stored response", () => {
+    const ORIGINAL_ENV = { ...process.env };
+    let server: Server;
+    let port: number;
+
+    beforeEach(async () => {
+      // Local receivers are only reachable with the development opt-in.
+      process.env.NODE_ENV = "test";
+      process.env.ALLOW_PRIVATE_OUTBOUND_URLS = "true";
+      server = createServer((_req, res) => res.end("y".repeat(5000)));
+      await new Promise<void>((resolve) =>
+        server.listen(0, "127.0.0.1", () => resolve()),
+      );
+      ({ port } = server.address() as AddressInfo);
+    });
+
+    afterEach(async () => {
+      process.env = { ...ORIGINAL_ENV };
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    it("keeps only the status and a truncated snippet of the body", async () => {
+      const rule = makeRule({
+        actions: [
+          {
+            type: "webhook",
+            url: `http://127.0.0.1:${port}/hook`,
+            method: "POST",
+            bodyTemplate: "{}",
+          },
+        ],
+      });
+
+      const result = await service.execute(rule, mockContext);
+      expect(result.status).toBe("success");
+      expect(result.actionResults?.[0].output).toEqual({
+        status: 200,
+        responseSnippet: "y".repeat(500),
+      });
+    });
+  });
+
+  describe("truncateResponseSnippet", () => {
+    it("truncates long strings to 500 characters", () => {
+      expect(truncateResponseSnippet("z".repeat(600))).toHaveLength(500);
+    });
+
+    it("serialises non-string bodies", () => {
+      expect(truncateResponseSnippet({ ok: true })).toBe('{"ok":true}');
+    });
+
+    it("handles an empty body", () => {
+      expect(truncateResponseSnippet(undefined)).toBe('""');
     });
   });
 

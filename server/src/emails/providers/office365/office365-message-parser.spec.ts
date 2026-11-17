@@ -1,4 +1,5 @@
 import {
+  excludeOffice365Drafts,
   extractAttachmentsFromGraphAttachments,
   normalizeContentId,
   parseOffice365Message,
@@ -221,5 +222,18 @@ describe("normalizeContentId", () => {
 
   it("should leave a value without angle brackets unchanged", () => {
     expect(normalizeContentId("image001.png@01DA")).toBe("image001.png@01DA");
+  });
+});
+
+describe("excludeOffice365Drafts", () => {
+  it("drops Drafts-folder items that /me/messages returns with real mail", () => {
+    const sent = { id: "msg-1", isDraft: false };
+    const draft = { id: "msg-2", isDraft: true };
+    const legacyShape = { id: "msg-3" };
+
+    expect(excludeOffice365Drafts([sent, draft, legacyShape])).toEqual([
+      sent,
+      legacyShape,
+    ]);
   });
 });

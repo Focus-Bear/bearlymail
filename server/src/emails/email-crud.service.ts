@@ -30,6 +30,18 @@ export class EmailCrudService {
   }
 
   /**
+   * Delete the stored copy of a message, e.g. a Gmail draft synced before
+   * drafts were skipped. Returns whether a row was removed.
+   */
+  async deleteEmailByMessageId(
+    userId: string,
+    messageId: string,
+  ): Promise<boolean> {
+    const result = await this.emailRepository.delete({ messageId, userId });
+    return (result.affected ?? 0) > 0;
+  }
+
+  /**
    * Read state of already-stored emails, keyed by message ID. One indexed
    * query instead of a lookup per message, for providers that re-list their
    * whole inbox on every sync (IMAP).

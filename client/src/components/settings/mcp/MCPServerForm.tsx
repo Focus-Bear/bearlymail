@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { MCP_AUTH_TYPES, MCPServerPurpose } from 'components/settings/workflows/types';
 
 import { MCPProviderPreset } from './mcpPresets';
+import { MCPProviderIcon } from './MCPProviderIcon';
 
 interface MCPServerFormProps {
   preset: MCPProviderPreset;
@@ -101,7 +102,7 @@ export const MCPServerForm: React.FC<MCPServerFormProps> = ({ preset, onConnect,
             fontWeight: 700,
           }}
         >
-          {preset.initial}
+          <MCPProviderIcon preset={preset} size={18} />
         </span>
         <h5 style={{ ...theme.typography.heading.h6, margin: 0 }}>
           {preset.isCustom

@@ -8,7 +8,7 @@ import { EmailCrudService } from "./email-crud.service";
 describe("EmailCrudService", () => {
   let service: EmailCrudService;
   let mockRepo: jest.Mocked<
-    Pick<Repository<Email>, "findOne" | "save" | "update">
+    Pick<Repository<Email>, "findOne" | "save" | "update" | "delete">
   >;
 
   beforeEach(async () => {
@@ -16,6 +16,7 @@ describe("EmailCrudService", () => {
       findOne: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     const module = await Test.createTestingModule({
@@ -29,6 +30,31 @@ describe("EmailCrudService", () => {
     }).compile();
 
     service = module.get(EmailCrudService);
+  });
+
+  describe("deleteEmailByMessageId", () => {
+    it("deletes only the given user's row for that message", async () => {
+      mockRepo.delete.mockResolvedValue({ affected: 1, raw: [] });
+
+      const isDeleted = await service.deleteEmailByMessageId(
+        "user-1",
+        "gmail-msg-1",
+      );
+
+      expect(mockRepo.delete).toHaveBeenCalledWith({
+        messageId: "gmail-msg-1",
+        userId: "user-1",
+      });
+      expect(isDeleted).toBe(true);
+    });
+
+    it("reports false when nothing was stored for the message", async () => {
+      mockRepo.delete.mockResolvedValue({ affected: 0, raw: [] });
+
+      await expect(
+        service.deleteEmailByMessageId("user-1", "gmail-msg-1"),
+      ).resolves.toBe(false);
+    });
   });
 
   describe("updateEmail", () => {

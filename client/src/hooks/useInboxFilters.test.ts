@@ -2,7 +2,9 @@ import { act, renderHook } from '@testing-library/react';
 
 import type { InboxFilter } from './useInboxFilters';
 import {
+  FILTER_BAR_VISIBLE_KEY,
   HIGH_PRIORITY_THRESHOLD,
+  isContiguousBucketSpan,
   isGuidedPriorityFilterSuppressed,
   isPriorityFilterActiveForMode,
   PRIORITY_FILTER_SOURCE,
@@ -183,6 +185,19 @@ describe('useInboxFilters', () => {
       const { result } = renderHook(() => useInboxFilters());
 
       expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.maxPriority).toBeNull();
+    });
+
+    it('keeps a multi-bucket checkbox selection (Medium → Very High = 15/null) across reloads', () => {
+      const storedFilters = { accountIds: [], categories: [], minPriority: 15, maxPriority: null };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedFilters));
+      localStorage.setItem(FIRST_LOAD_KEY, '1');
+      localStorage.setItem(PRIORITY_MIGRATION_V2_KEY, '1');
+      localStorage.setItem(PRIORITY_MIGRATION_V3_KEY, '1');
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBe(15);
       expect(result.current.filters.maxPriority).toBeNull();
     });
 
@@ -428,6 +443,48 @@ describe('useInboxFilters', () => {
 
       expect(result.current.hasActiveFilters).toBe(false);
     });
+  });
+});
+
+describe('isContiguousBucketSpan', () => {
+  it('accepts any run of adjacent buckets', () => {
+    expect(isContiguousBucketSpan(0, 50)).toBe(true);
+    expect(isContiguousBucketSpan(null, 15)).toBe(true);
+  });
+
+  it('rejects old visual-slider values and inverted ranges', () => {
+    expect(isContiguousBucketSpan(60, 80)).toBe(false);
+    expect(isContiguousBucketSpan(30, 15)).toBe(false);
+  });
+});
+
+describe('filter panel visibility', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('starts expanded the first time the user reaches the inbox', () => {
+    const { result } = renderHook(() => useInboxFilters());
+    expect(result.current.isFilterBarVisible).toBe(true);
+  });
+
+  it('remembers that the user collapsed it', () => {
+    const { result } = renderHook(() => useInboxFilters());
+    act(() => result.current.collapseFilterBar());
+    expect(result.current.isFilterBarVisible).toBe(false);
+    expect(localStorage.getItem(FILTER_BAR_VISIBLE_KEY)).toBe('false');
+
+    const { result: nextVisit } = renderHook(() => useInboxFilters());
+    expect(nextVisit.current.isFilterBarVisible).toBe(false);
+  });
+
+  it('remembers that the user re-opened it', () => {
+    localStorage.setItem(FILTER_BAR_VISIBLE_KEY, 'false');
+    const { result } = renderHook(() => useInboxFilters());
+    act(() => result.current.toggleFilterBar());
+
+    const { result: nextVisit } = renderHook(() => useInboxFilters());
+    expect(nextVisit.current.isFilterBarVisible).toBe(true);
   });
 });
 

@@ -14,6 +14,7 @@ import {
   MODE_TRIAGE,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { useActionMoveFeedback } from 'hooks/useActionMoveFeedback';
 import { useBatchSchedule } from 'hooks/useBatchSchedule';
 import { useCategoryArchiveAllHotkey } from 'hooks/useCategoryArchiveAllHotkey';
 import { useCategoryFetch } from 'hooks/useCategoryFetch';
@@ -23,6 +24,7 @@ import { useEmailSelection } from 'hooks/useEmailSelection';
 import { useInboxEmailHandlers } from 'hooks/useInboxEmailHandlers';
 import { useInboxFilters } from 'hooks/useInboxFilters';
 import { useInboxFollowUpData } from 'hooks/useInboxFollowUpData';
+import { useInboxHistoryNavigation } from 'hooks/useInboxHistoryNavigation';
 import { useInboxInitialization } from 'hooks/useInboxInitialization';
 import { useInboxModeChanges } from 'hooks/useInboxModeChanges';
 import { useInboxTourRefs } from 'hooks/useInboxTourRefs';
@@ -95,36 +97,11 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const _internalInboxFilters = useInboxFilters();
   const inboxFilters = options.inboxFilters ?? _internalInboxFilters;
 
-  // Action tab pulse state — set true when email moves to signal where it went
-  const [actionTabPulsing, setActionTabPulsing] = useState(false);
-  const actionTabPulseRafRef = useRef<number | null>(null);
-  useEffect(() => {
-    return () => {
-      if (actionTabPulseRafRef.current !== null) {
-        cancelAnimationFrame(actionTabPulseRafRef.current);
-      }
-    };
-  }, []);
-  const onEmailMovedInTriage = useCallback(() => {
-    // Pulse the Action tab to show where the email went (mobile + desktop)
-    // Force a class removal/re-add cycle via requestAnimationFrame so rapid
-    // prioritisations each re-trigger the animation even if it's already running.
-    setActionTabPulsing(false);
-    if (actionTabPulseRafRef.current !== null) {
-      cancelAnimationFrame(actionTabPulseRafRef.current);
-    }
-    actionTabPulseRafRef.current = requestAnimationFrame(() => {
-      setActionTabPulsing(true);
-      actionTabPulseRafRef.current = null;
-    });
-  }, []);
-
   // Email management hook
   const emailManagement = useEmailManagement({
     mode,
     onSuggestionRemove: removeSuggestion,
     onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
-    onEmailMoved: mode === MODE_TRIAGE ? onEmailMovedInTriage : undefined,
     filters: inboxFilters.filters,
   });
   const {
@@ -185,27 +162,14 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     tourSteps,
   } = useInboxUIState({ user, authLoading, refreshUser, fetchEmails, refreshInPlace, mode, emails, loading });
 
-  // Navigate-aware wrappers for openEmail / closeEmail.
-  // Effect 2 in useInboxUrlSync has been DELETED (fix for #1191 navigate loop).
-  // Navigation is now explicit in these event-handler wrappers rather than driven by a
-  // reactive effect. This breaks the state→navigate→URL→state cycle that caused
-  // Chrome to throttle navigation at 1000+ calls per load.
-  //
-  // These wrappers are passed everywhere splitView.openEmail/closeEmail were used so that
-  // ALL call sites (email click, keyboard navigation, email actions, URL sync) produce a
-  // navigate() call as part of the user-action, not as a downstream effect.
-  const openEmailWithNavigate = useCallback(
-    (emailId: string) => {
-      splitView.openEmail(emailId);
-      navigate(`${basePath}/${mode}/${emailId}`, { replace: true });
-    },
-    [splitView, navigate, basePath, mode]
-  );
-
-  const closeEmailWithNavigate = useCallback(() => {
-    splitView.closeEmail();
-    navigate(`${basePath}/${mode}`, { replace: true });
-  }, [splitView, navigate, basePath, mode]);
+  // Navigation happens in these event-handler wrappers, never in a reactive effect: an
+  // effect-driven state→navigate→URL→state cycle made Chrome throttle navigation (#1191).
+  // They push real history entries so Back moves within the inbox (see useInboxHistoryNavigation).
+  const { navigateToMode, openEmailWithNavigate, closeEmailWithNavigate } = useInboxHistoryNavigation({
+    basePath,
+    mode,
+    splitView,
+  });
 
   // Build a splitView proxy that replaces openEmail/closeEmail with navigate-aware versions.
   // Passed to useEmailActions, useInboxEmailHandlers, and all other consumers so they
@@ -231,6 +195,31 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Tour element refs sub-hook (replaces 6 useRef calls)
   const { triageTabRef, actionTabRef, followUpTabRef, emailListRef, emailDetailRef } =
     useInboxTourRefs();
+
+  // setMode is built further down (it needs the category accordion); the toast's View
+  // button reaches it through this ref.
+  const setModeRef = useRef<(newMode: InboxMode) => void>(() => {});
+  const viewActionTab = useCallback(() => setModeRef.current(MODE_ACTION), []);
+  const actionMoveFeedback = useActionMoveFeedback({
+    userId: user?.id,
+    isActionTabActive: mode === MODE_ACTION,
+    actionTabRef,
+    onViewActionTab: viewActionTab,
+  });
+  const { onEmailPrioritised } = actionMoveFeedback;
+
+  // Starts the "moved to Action" feedback before the row animates out, while it can still
+  // be measured as the flight's starting point.
+  const handleSetStarCountWithFeedback = useCallback(
+    (emailId: string, starCount: number, event?: React.MouseEvent) => {
+      if (mode === MODE_TRIAGE && starCount > 0) {
+        const subject = emails.find(email => email.id === emailId)?.subject;
+        onEmailPrioritised(emailId, subject);
+      }
+      return handleSetStarCountBase(emailId, starCount, event);
+    },
+    [mode, emails, onEmailPrioritised, handleSetStarCountBase]
+  );
 
   // Mode changes hook
   useInboxModeChanges({
@@ -315,7 +304,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     setEmails,
     selectedEmailIds,
     setSelectedEmailIds,
-    handleSetStarCountBase,
+    handleSetStarCountBase: handleSetStarCountWithFeedback,
     handleArchiveBase,
     handleSnoozeBase,
     handleMarkAsRead,
@@ -355,7 +344,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     setSelectedEmailIndex,
     handleEmailClickBase,
     handleArchiveBase,
-    handleSetStarCountBase,
+    handleSetStarCountBase: handleSetStarCountWithFeedback,
     handleMarkAsRead,
     splitView: splitViewWithNavigate,
     emailListRef,
@@ -399,15 +388,14 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const setMode = useCallback(
     (newMode: InboxMode) => {
       setModeState(newMode);
-      // Navigate explicitly here instead of relying on a reactive effect.
-      // Effect 2 in useInboxUrlSync has been deleted (fix for #1191 navigate loop).
-      navigate(`${basePath}/${newMode}`, { replace: true });
+      navigateToMode(newMode);
       dispatch(clearCategoryState());
       dispatch(setSummaryLoading(true));
       resetForModeChange();
     },
-    [navigate, basePath, dispatch, resetForModeChange]
+    [navigateToMode, dispatch, resetForModeChange]
   );
+  setModeRef.current = setMode;
 
   // URL-driven mode change (browser back/forward): must also reset accordion state so the
   // new mode auto-expands its own categories. Without this, stale expandedCategories from
@@ -464,8 +452,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     setSelectedEmailIds,
     // Triage
     triageSuggestions,
-    actionTabPulsing,
-    setActionTabPulsing,
+    actionMoveFeedback,
     // Follow-ups
     followUpDataMap,
     isGeneratingDrafts,

@@ -101,7 +101,8 @@ export function useSettingsAnchorScroll(isReady: boolean): void {
 
     const alignToAnchor = () => {
       const element = document.getElementById(anchorId);
-      if (!element) {
+      // Not rendered yet, or still inside a Settings tab that is about to open (useSettingsTabs).
+      if (!element || element.closest('[hidden]')) {
         return Date.now() - startedAt < ANCHOR_FIND_TIMEOUT_MS;
       }
       if (foundAt === null) {

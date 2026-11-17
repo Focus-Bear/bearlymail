@@ -30,6 +30,25 @@ describe('shouldRevealLowerPriorityTriage', () => {
     expect(shouldRevealLowerPriorityTriage({ ...BASE, isTriage: false })).toBe(false);
   });
 
+  // Report 2026-11-10: unscored first-import mail counts as Low, so High-and-above looked empty.
+  it('does NOT reveal while the first import still has unscored threads', () => {
+    expect(
+      shouldRevealLowerPriorityTriage({
+        ...BASE,
+        priorityCounts: { ...CLEARED_HIGH_LOWER_REMAINS, unprioritised: 120 },
+      })
+    ).toBe(false);
+  });
+
+  it('reveals once every thread has been scored', () => {
+    expect(
+      shouldRevealLowerPriorityTriage({
+        ...BASE,
+        priorityCounts: { ...CLEARED_HIGH_LOWER_REMAINS, unprioritised: 0 },
+      })
+    ).toBe(true);
+  });
+
   it('does NOT reveal again once it has already fired this session (latch)', () => {
     expect(shouldRevealLowerPriorityTriage({ ...BASE, alreadyRevealed: true })).toBe(false);
   });

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiCheckSquare } from 'react-icons/fi';
 import { theme } from 'theme/theme';
+import type { FocusBearTaskSource } from 'utils/focusBearTaskLink';
 import { captureEvent } from 'utils/posthog';
 
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
@@ -33,6 +34,8 @@ interface ActionItemsSectionProps {
   onRegenerateActionItems?: () => void;
   /** When provided, shows a dismiss (X) button on the card header. */
   onDismiss?: () => void;
+  /** The open email; enables "Save to Focus Bear" on each action item. */
+  focusBearTaskSource?: FocusBearTaskSource;
 }
 
 export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
@@ -46,6 +49,7 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
   onExtractActions,
   onRegenerateActionItems,
   onDismiss,
+  focusBearTaskSource,
 }) => {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -119,6 +123,7 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
         actionItems={actionItems}
         onToggleActionItem={onToggleActionItem}
         onDeleteActionItem={onDeleteActionItem}
+        focusBearTaskSource={focusBearTaskSource}
       />
       <ActionItemInput
         newActionItem={newActionItem}

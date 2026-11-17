@@ -9,6 +9,7 @@ import { EMOJI_DOWNLOAD } from 'constants/emojis';
 import { FONT_WEIGHT_MEDIUM, FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
+import { getAttachmentPreviewType } from './attachmentPreviewType';
 
 interface EmailAttachment {
   attachmentId: string;
@@ -71,8 +72,7 @@ const getFileIcon = (mimeType: string): string => {
   return '📎';
 };
 
-const isPreviewable = (mimeType: string): boolean =>
-  mimeType.startsWith('image/') || mimeType.includes('pdf');
+const isPreviewable = (mimeType: string): boolean => getAttachmentPreviewType(mimeType) !== null;
 
 /**
  * Download attachment from the server

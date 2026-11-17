@@ -840,3 +840,69 @@ describe("GmailProvider — getRawMessage (.eml download)", () => {
     );
   });
 });
+
+describe("GmailProvider — fetchThreadMessages skips drafts", () => {
+  function buildProviderWithThreadsGet(
+    threadsGet: jest.Mock,
+  ): Promise<GmailProvider> {
+    const { google } = jest.requireMock("googleapis");
+    (google.gmail as jest.Mock).mockReturnValue({
+      users: { threads: { get: threadsGet } },
+    });
+    const usersService = {
+      findOneWithTokens: jest.fn().mockResolvedValue({
+        id: "user-123",
+        googleCalendarAccessToken: "access-token",
+        googleCalendarRefreshToken: "refresh-token",
+        updatedAt: new Date(),
+      }),
+    } as unknown as jest.Mocked<UsersService>;
+    return Test.createTestingModule({
+      providers: [
+        GmailProvider,
+        GmailSyncService,
+        { provide: UsersService, useValue: usersService },
+        { provide: EmailsService, useValue: {} },
+        { provide: ScanEmailService, useValue: {} },
+        { provide: SyncHistoryService, useValue: {} },
+        { provide: "PG_BOSS", useValue: { send: jest.fn() } },
+      ],
+    })
+      .compile()
+      .then((module) => module.get<GmailProvider>(GmailProvider));
+  }
+
+  const message = (id: string, labelIds: string[]) => ({
+    id,
+    threadId: "thread-1",
+    labelIds,
+    internalDate: "1700000000000",
+    payload: { headers: [{ name: "From", value: "me@example.com" }] },
+  });
+
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("returns the thread's sent and received messages but not its draft", async () => {
+    const threadsGet = jest.fn().mockResolvedValue({
+      data: {
+        messages: [
+          message("received-1", ["INBOX"]),
+          message("sent-1", ["SENT"]),
+          message("draft-1", ["DRAFT"]),
+        ],
+      },
+    });
+    const provider = await buildProviderWithThreadsGet(threadsGet);
+
+    const messages = await provider.fetchThreadMessages("user-123", "thread-1");
+
+    expect(messages.map((msg) => msg.messageId)).toEqual([
+      "received-1",
+      "sent-1",
+    ]);
+  });
+});

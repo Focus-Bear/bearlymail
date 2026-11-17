@@ -150,4 +150,151 @@ describe("updateThreadCategoryWithPrecedence", () => {
       { where_protoCategoryId: "proto-1" },
     );
   });
+
+  describe("newer email in the thread", () => {
+    const CLOSED_EMAIL_ID = "email-closed";
+    const CLOSED_RECEIVED_AT = "2026-11-05T10:11:25.000Z";
+
+    const newerEmailGuardCall = (builder: { andWhere: jest.Mock }) =>
+      builder.andWhere.mock.calls.find(([clause]) =>
+        String(clause).includes("NOT EXISTS"),
+      );
+
+    it("refuses a decision from an older email once the thread holds a newer one", async () => {
+      // A "Closed as completed" notification re-run after the thread's later
+      // "QA Status: Pass" comment must not refile the thread.
+      const { repository, builder } = makeRepo(0);
+
+      const applied = await updateThreadCategoryWithPrecedence(repository, {
+        where: { id: "thread-1" },
+        source: "rule",
+        set: {
+          categoryId: "cat-status-updates",
+          categorySource: "rule",
+          categoryDecisionTrace: {
+            decidedAt: "2026-11-10T10:30:21.918Z",
+            source: "rule",
+            analyzedEmail: {
+              emailId: CLOSED_EMAIL_ID,
+              receivedAt: CLOSED_RECEIVED_AT,
+            },
+            finalCategory: "Human GitHub issue status updates",
+            finalCategoryId: "cat-status-updates",
+            steps: [],
+          },
+        },
+      });
+
+      expect(applied).toBe(0);
+      const guardCall = newerEmailGuardCall(builder);
+      expect(guardCall?.[0]).toContain('"newerEmail"."receivedAt" >');
+      expect(guardCall?.[0]).toContain('"email_threads"."id"');
+      expect(guardCall?.[1]).toEqual({
+        analyzedEmailId: CLOSED_EMAIL_ID,
+        analyzedEmailReceivedAt: new Date(CLOSED_RECEIVED_AT),
+      });
+    });
+
+    it("passes the received time as a Date, so it is compared in the zone receivedAt was written in", async () => {
+      // emails.receivedAt is a timestamp without time zone. Postgres ignores the
+      // "Z" on an ISO string, so on a server not running in UTC a string would be
+      // compared hours off and an older email would look newer.
+      const { repository, builder } = makeRepo(1);
+
+      await updateThreadCategoryWithPrecedence(repository, {
+        where: { id: "thread-1" },
+        source: "rule",
+        set: {
+          categoryDecisionTrace: {
+            decidedAt: "2026-11-10T10:30:21.918Z",
+            source: "rule",
+            analyzedEmail: {
+              emailId: CLOSED_EMAIL_ID,
+              receivedAt: CLOSED_RECEIVED_AT,
+            },
+            finalCategory: "Human GitHub issue status updates",
+            finalCategoryId: "cat-status-updates",
+            steps: [],
+          },
+        },
+      });
+
+      const receivedAtParam =
+        newerEmailGuardCall(builder)?.[1]?.analyzedEmailReceivedAt;
+      expect(receivedAtParam).toBeInstanceOf(Date);
+      expect((receivedAtParam as Date).toISOString()).toBe(CLOSED_RECEIVED_AT);
+    });
+
+    it("excludes the analysed email itself so it can never block its own write", async () => {
+      const { repository, builder } = makeRepo(1);
+
+      await updateThreadCategoryWithPrecedence(repository, {
+        where: { id: "thread-1" },
+        source: "priority",
+        set: {
+          categoryDecisionTrace: {
+            decidedAt: "2026-11-10T10:30:21.918Z",
+            source: "priority",
+            analyzedEmail: {
+              emailId: "email-qa-pass",
+              receivedAt: "2026-11-10T10:29:04.000Z",
+            },
+            finalCategory: "Github QA passed issues",
+            finalCategoryId: "cat-qa-passed",
+            steps: [],
+          },
+        },
+      });
+
+      expect(newerEmailGuardCall(builder)?.[0]).toContain(
+        '"newerEmail"."id" <> :analyzedEmailId',
+      );
+    });
+
+    it("adds no newer-email guard when the write names no analysed email (bulk writers)", async () => {
+      for (const set of [
+        { categoryId: "cat-1" },
+        {
+          categoryDecisionTrace: {
+            decidedAt: "2026-11-10T10:30:21.918Z",
+            source: "rule" as const,
+            finalCategory: "Invoices",
+            finalCategoryId: "cat-1",
+            steps: [],
+          },
+        },
+        {
+          categoryDecisionTrace: {
+            decidedAt: "2026-11-10T10:30:21.918Z",
+            source: "rule" as const,
+            analyzedEmail: { emailId: "email-undated", receivedAt: null },
+            finalCategory: "Invoices",
+            finalCategoryId: "cat-1",
+            steps: [],
+          },
+        },
+        {
+          categoryDecisionTrace: {
+            decidedAt: "2026-11-10T10:30:21.918Z",
+            source: "rule" as const,
+            analyzedEmail: {
+              emailId: "email-bad-date",
+              receivedAt: "not-a-date",
+            },
+            finalCategory: "Invoices",
+            finalCategoryId: "cat-1",
+            steps: [],
+          },
+        },
+      ]) {
+        const { repository, builder } = makeRepo(1);
+        await updateThreadCategoryWithPrecedence(repository, {
+          where: { id: "thread-1" },
+          source: "rule",
+          set,
+        });
+        expect(newerEmailGuardCall(builder)).toBeUndefined();
+      }
+    });
+  });
 });

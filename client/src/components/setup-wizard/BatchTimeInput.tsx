@@ -157,7 +157,11 @@ const focusOverlay: React.CSSProperties = {
   boxShadow: `0 0 0 3px ${TOK.sunPale}`,
 };
 
-const timeSelectStyle: React.CSSProperties = { ...baseSelectStyle, width: '68px' };
-const meridiemSelectStyle: React.CSSProperties = { ...baseSelectStyle, width: '58px' };
+// A minimum, not a fixed width: a native select sizes itself to its widest
+// option plus the browser's own arrow, and Safari's arrow is wide enough that a
+// fixed 68px clipped "11:00" to "11:0" (issue #441). Every row has the same
+// options, so the dropdowns still line up.
+const timeSelectStyle: React.CSSProperties = { ...baseSelectStyle, minWidth: '68px' };
+const meridiemSelectStyle: React.CSSProperties = { ...baseSelectStyle, minWidth: '58px' };
 const timeFocusStyle: React.CSSProperties = { ...timeSelectStyle, ...focusOverlay };
 const meridiemFocusStyle: React.CSSProperties = { ...meridiemSelectStyle, ...focusOverlay };

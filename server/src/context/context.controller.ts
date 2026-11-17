@@ -34,6 +34,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
+import { EmailProcessingConsentGuard } from "../users/email-processing-consent.guard";
 import { UsersService } from "../users/users.service";
 import { CategoryConsolidationRunService } from "./category-consolidation-run.service";
 import { ContextService } from "./context.service";
@@ -393,7 +394,7 @@ export class ContextController {
   }
 
   @Post("analyze")
-  @UseGuards(AiCapacityGuard)
+  @UseGuards(EmailProcessingConsentGuard, AiCapacityGuard)
   async analyzeEmails(
     @Request() req: { user: { userId: string } },
     @Body() body: StartAnalysisBody = {},

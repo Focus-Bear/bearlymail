@@ -36,6 +36,7 @@ import { EncryptionModule } from "./encryption/encryption.module";
 import { UserEncryptionInterceptor } from "./encryption/user-encryption.interceptor";
 import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
 import { FeedbackModule } from "./feedback/feedback.module";
+import { FocusBearModule } from "./focus-bear/focus-bear.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { GitHubModule } from "./github/github.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
@@ -173,6 +174,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     AppleMailAccountsModule,
     ImapAccountsModule,
     GitHubModule,
+    FocusBearModule,
     SuggestedActionsModule,
     AutoResponderModule,
     DraftsModule,

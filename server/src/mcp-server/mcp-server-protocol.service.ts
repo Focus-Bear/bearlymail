@@ -74,6 +74,13 @@ export class McpServerProtocolService {
           "Empty batch",
         );
       }
+      if (body.length > MCP_SERVER.MAX_BATCH_MESSAGES) {
+        return failure(
+          null,
+          JSON_RPC_ERROR_CODES.INVALID_REQUEST,
+          `Batch too large: at most ${MCP_SERVER.MAX_BATCH_MESSAGES} messages per request`,
+        );
+      }
       const responses = await Promise.all(
         body.map((message) => this.handleMessage(context, message)),
       );

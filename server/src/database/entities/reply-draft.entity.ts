@@ -9,6 +9,10 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
+import {
+  REPLY_DRAFT_SOURCES,
+  ReplyDraftSource,
+} from "../../constants/domain-types";
 import { makeEncryptedColumnTransformer } from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
@@ -44,6 +48,14 @@ export class ReplyDraft {
     comment: "Comma-separated list of recipients",
   })
   recipients: string | null;
+
+  @Column({
+    type: "varchar",
+    length: 20,
+    default: REPLY_DRAFT_SOURCES.USER,
+    comment: "Who last wrote the draft: user or auto_responder",
+  })
+  source: ReplyDraftSource;
 
   @CreateDateColumn()
   createdAt: Date;

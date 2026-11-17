@@ -160,19 +160,17 @@ describe("SubscriptionsController", () => {
   });
 
   describe("linkRevenueCat", () => {
-    it("should link RevenueCat user", async () => {
+    it("links the authenticated user's own id, never a client-supplied one", async () => {
       const userId = "user-123";
-      const mockRequest = { user: { userId } };
-      const body = { revenueCatUserId: "rc-user-123" };
+      const mockRequest = { user: { userId }, body: { revenueCatUserId: "x" } };
 
       mockSubscriptionsService.linkRevenueCatUser.mockResolvedValue(undefined);
 
-      const result = await controller.linkRevenueCat(mockRequest, body);
+      const result = await controller.linkRevenueCat(mockRequest);
 
       expect(result).toEqual({ success: true });
       expect(subscriptionsService.linkRevenueCatUser).toHaveBeenCalledWith(
         userId,
-        body.revenueCatUserId,
       );
     });
   });

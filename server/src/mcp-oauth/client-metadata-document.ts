@@ -1,10 +1,9 @@
-import { lookup as dnsLookup, LookupAddress } from "dns";
 import { get as httpsGet } from "https";
-import { isIP, LookupFunction } from "net";
+import { isIP } from "net";
 
+import { createPublicOnlyLookup } from "../common/safe-http/safe-http";
 import { HTTP_HEADERS } from "../constants/http-headers";
 import { MCP_OAUTH } from "../constants/mcp-oauth.constants";
-import { isBlockedAddress } from "../imap-accounts/mail-server-address";
 import { isRegistrableRedirectUri } from "./redirect-uri-policy";
 
 const HTTPS_PROTOCOL = "https:";
@@ -108,39 +107,13 @@ export function validateClientMetadataDocument(
   };
 }
 
-/**
- * DNS lookup that refuses internal addresses, used as the socket's resolver
- * so the address we vet is the one we connect to (no DNS-rebinding window).
- */
-const publicOnlyLookup: LookupFunction = (hostname, options, callback) => {
-  dnsLookup(
-    hostname,
-    { all: true, verbatim: true },
-    (error, addresses: LookupAddress[]) => {
-      if (error) {
-        callback(error, "");
-        return;
-      }
-      if (
-        addresses.length === 0 ||
-        addresses.some(({ address }) => isBlockedAddress(address))
-      ) {
-        callback(
-          new ClientMetadataError(
-            `Client metadata host "${hostname}" resolves to a private address`,
-          ),
-          "",
-        );
-        return;
-      }
-      if (options.all) {
-        callback(null, addresses);
-        return;
-      }
-      callback(null, addresses[0].address, addresses[0].family);
-    },
-  );
-};
+/** Socket resolver that refuses internal addresses (see createPublicOnlyLookup). */
+const publicOnlyLookup = createPublicOnlyLookup(
+  (hostname) =>
+    new ClientMetadataError(
+      `Client metadata host "${hostname}" resolves to a private address`,
+    ),
+);
 
 /**
  * Fetches the JSON at a client_id URL. The URL is attacker-chosen, so: HTTPS

@@ -869,6 +869,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `GOOGLE_REDIRECT_URI`                                         | Yes      | OAuth callback URL                        |
 | `FRONTEND_URL`                                                | Yes      | Frontend URL for CORS                     |
 | `BACKEND_URL`                                                 | No       | Public API origin for absolute URLs (MCP OAuth redirect, open-tracking pixel). Falls back to the `GOOGLE_REDIRECT_URI` origin. Open tracking is skipped when it resolves to localhost |
+| `ALLOW_PRIVATE_OUTBOUND_URLS`                                 | No       | `true` lets workflow webhooks and MCP-client requests reach http:// and private/loopback hosts (local MCP servers, webhook receivers). Honoured only when `NODE_ENV` is `development` or `test`; ignored in production. Outbound calls to user-supplied URLs go through `server/src/common/safe-http/` |
 | `LLM_PROVIDER`                                                | No       | Default LLM: `gemini`, `openai`, or `claude-cli` (local Claude Code CLI, no API key) |
 | `CLAUDE_CLI_PATH`, `CLAUDE_CLI_MODEL`                         | No       | Claude Code CLI binary path (default `claude`) and model alias (default `sonnet`) for `claude-cli` |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`                              | No       | Google Gemini config                      |

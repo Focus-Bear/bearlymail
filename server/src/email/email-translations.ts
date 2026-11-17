@@ -44,6 +44,18 @@ export const emailTranslations = {
       additionalGuests: "Additional guests",
       meetLink: "Video call link",
     },
+    emailVerification: {
+      subject: "Confirm your email for BearlyMail",
+      greeting: "Hi {{firstName}},",
+      message:
+        "Thanks for signing up for BearlyMail. Please confirm this is your email address so you can sign in with your password.",
+      cta: "Click the button below to confirm your email:",
+      button: "Confirm email address",
+      linkText: "Or copy and paste this link into your browser:",
+      expiry:
+        "This link expires in 24 hours. If you didn't create a BearlyMail account, ignore this email and don't click the link.",
+      footer: "© {{year}} BearlyMail. All rights reserved.",
+    },
     passwordReset: {
       subject: "Reset Your BearlyMail Password",
       greeting: "Hi {{firstName}},",
@@ -100,6 +112,18 @@ export const emailTranslations = {
       durationMinutes: "{{minutes}} minutos",
       additionalGuests: "Invitados adicionales",
       meetLink: "Enlace de videollamada",
+    },
+    emailVerification: {
+      subject: "Confirma tu correo para BearlyMail",
+      greeting: "Hola {{firstName}},",
+      message:
+        "Gracias por registrarte en BearlyMail. Confirma que esta es tu dirección de correo para poder iniciar sesión con tu contraseña.",
+      cta: "Haz clic en el botón de abajo para confirmar tu correo:",
+      button: "Confirmar correo electrónico",
+      linkText: "O copia y pega este enlace en tu navegador:",
+      expiry:
+        "Este enlace caduca en 24 horas. Si no creaste una cuenta de BearlyMail, ignora este correo y no hagas clic en el enlace.",
+      footer: "© {{year}} BearlyMail. Todos los derechos reservados.",
     },
     passwordReset: {
       subject: "Restablecer tu contraseña de BearlyMail",

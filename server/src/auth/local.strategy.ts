@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  HttpException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { Strategy } from "passport-local";
 
@@ -31,8 +35,9 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
       if (error instanceof DeletedAccountException) {
         throw error;
       }
-      // If it's already an UnauthorizedException, re-throw it
-      if (error instanceof UnauthorizedException) {
+      // Structured HTTP errors (unauthorized, unverified email, locked
+      // account) keep their status and error code for the client.
+      if (error instanceof HttpException) {
         throw error;
       }
       // If it's an approval error, convert to UnauthorizedException with message

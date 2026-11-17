@@ -198,6 +198,8 @@ jobs:
       ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
       PORT: 3001
       NODE_ENV: test
+      # The E2E suite signs in once per test (plus retries) from one address.
+      LOGIN_THROTTLE_LIMIT: 1000
 
     steps:
       - name: Checkout code

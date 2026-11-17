@@ -6,7 +6,7 @@ import { theme } from 'theme/theme';
 
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { TOAST_DURATION_MS } from 'constants/numbers';
+import { MIN_PASSWORD_LENGTH, TOAST_DURATION_MS } from 'constants/numbers';
 import { ENV_PRODUCTION, STRING_NONE } from 'constants/strings';
 
 const ResetPassword: React.FC = () => {
@@ -36,7 +36,7 @@ const ResetPassword: React.FC = () => {
       return;
     }
 
-    if (password.length < 8) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
       setError(t('auth.passwordTooShort'));
       return;
     }
@@ -187,7 +187,7 @@ const ResetPassword: React.FC = () => {
                   value={password}
                   onChange={event => setPassword(event.target.value)}
                   required
-                  minLength={8}
+                  minLength={MIN_PASSWORD_LENGTH}
                   disabled={!token}
                   style={{
                     width: '100%',
@@ -230,7 +230,7 @@ const ResetPassword: React.FC = () => {
                   value={confirmPassword}
                   onChange={event => setConfirmPassword(event.target.value)}
                   required
-                  minLength={8}
+                  minLength={MIN_PASSWORD_LENGTH}
                   disabled={!token}
                   style={{
                     width: '100%',

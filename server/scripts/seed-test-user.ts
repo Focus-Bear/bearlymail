@@ -515,6 +515,7 @@ async function seedTestUser() {
       const hashedPassword = await bcrypt.hash(testPassword, 10);
       existingUser.password = hashedPassword;
       existingUser.isApproved = true;
+      existingUser.emailVerifiedAt = new Date();
       existingUser.hasSeenTour = true;
       existingUser.hasCompletedOnboarding = true;
       existingUser.hasScannedHistory = true;
@@ -541,6 +542,7 @@ async function seedTestUser() {
         password: hashedPassword,
         name: 'Test User',
         isApproved: true,
+        emailVerifiedAt: now,
         hasSeenTour: true,
         hasCompletedOnboarding: true,
         hasScannedHistory: true,

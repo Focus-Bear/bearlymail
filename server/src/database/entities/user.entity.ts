@@ -49,10 +49,14 @@ export class User {
   password: string;
 
   @Column({
+    type: "varchar",
+    length: 64,
     nullable: true,
-    comment: "Token for setting up password after waitlist approval",
+    comment:
+      "SHA-256 (hex) of the emailed password setup/reset token; the token itself is never stored",
   })
-  passwordSetupToken: string;
+  @Index("IDX_users_passwordSetupTokenHash")
+  passwordSetupTokenHash: string | null;
 
   @Column({
     nullable: true,
@@ -391,6 +395,41 @@ export class User {
       "When the user last changed their password. JWTs issued before this timestamp are considered invalidated (OWASP ASVS req 3.3.1 / 3.3.2).",
   })
   passwordChangedAt: Date | null;
+
+  @Column({
+    type: "timestamptz",
+    nullable: true,
+    comment:
+      "When the user proved they own their email address (verification link, emailed setup/reset link, or a sign-in provider that vouches for it). Null = password sign-in refused until verified.",
+  })
+  emailVerifiedAt: Date | null;
+
+  @Column({
+    type: "varchar",
+    length: 64,
+    nullable: true,
+    comment: "SHA-256 (hex) of the outstanding email verification token",
+  })
+  @Index("IDX_users_emailVerificationTokenHash")
+  emailVerificationTokenHash: string | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  emailVerificationTokenExpiresAt: Date | null;
+
+  @Column({
+    type: "int",
+    default: 0,
+    comment:
+      "Consecutive wrong-password sign-ins; reset on success or password reset",
+  })
+  failedLoginAttempts: number;
+
+  @Column({
+    type: "timestamptz",
+    nullable: true,
+    comment: "Password sign-in refused until this time (login lockout)",
+  })
+  loginLockedUntil: Date | null;
 
   @Column({
     type: "text",

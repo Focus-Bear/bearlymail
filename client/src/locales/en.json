@@ -323,7 +323,17 @@
       "prompt3": "What needs my action?",
       "prompt4": "Find other emails from this sender",
       "disclaimer": "AI can make mistakes. Double-check important details.",
-      "connectTools": "Connect Google Drive & other tools"
+      "connectTools": "Connect Google Drive & other tools",
+      "approval": {
+        "title": "Allow this action?",
+        "description": "Ask AI wants to use {{tool}} on {{server}}. Nothing happens unless you approve.",
+        "argumentsLabel": "Exactly what will be sent",
+        "noArguments": "No details are sent with this action.",
+        "warning": "Only approve if you asked for this. Emails can contain text that tries to trick the assistant into acting.",
+        "approve": "Approve",
+        "deny": "Deny",
+        "unavailable": "That approval request expired or was already used. Ask again if you still want this done."
+      }
     },
     "otherActions": "Other actions",
     "suggested": "Suggested",

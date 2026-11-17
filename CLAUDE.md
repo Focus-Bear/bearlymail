@@ -157,7 +157,7 @@ Need to modify something? Here's where to find it:
 | **Email open tracking (pixel, stats)**           | `server/src/email-tracking/` (`TrackedEmailSender` = the send choke point, `tracking-pixel.controller.ts` = public `/t/o/<token>.gif`) |
 | **Email summarization**                          | `server/src/summarization/summarization.service.ts`                          |
 | **Reply generation**                             | `server/src/replies/replies.service.ts`                                      |
-| **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry) |
+| **Ask AI assistant (agentic, tool-using)**       | `server/src/ask-ai/` (`ask-ai-agent.service.ts` loop, `ask-ai-tools.service.ts` registry, `ask-ai-approval.service.ts` user approval for connected tools not annotated `readOnlyHint`) |
 | **MCP server for Claude (`POST /mcp`)**          | `server/src/mcp-server/` (tools in `mcp-server-tool-definitions.ts`); auth = personal access tokens in `server/src/personal-access-tokens/` or OAuth 2.1 (claude.ai connectors) in `server/src/mcp-oauth/`. Not `src/mcp/` (that is BearlyMail as an MCP *client*). See [`docs/connect-claude.md`](docs/connect-claude.md) |
 | **Context analysis (VIP detection, categories)** | `server/src/context/context.service.ts`                                      |
 | **Gmail provider implementation**                | `server/src/emails/providers/gmail.provider.ts`                              |
@@ -274,6 +274,7 @@ Need to modify something? Here's where to find it:
 | `AutoArchiveScanState`    | `auto_archive_scan_states`   | Per-user watermark for incremental proposal mining   |
 | `PersonalAccessToken`     | `personal_access_tokens`     | Scoped (`mail:read` / `mail:send`) bearer tokens for `/mcp`: hand-made PATs (`kind='personal'`) and OAuth connections (`kind='oauth'`, rotating access + refresh hashes); only SHA-256 hashes are stored |
 | `OAuthClient`             | `oauth_clients`              | RFC 7591 dynamically registered MCP OAuth clients (metadata-document clients like claude.ai aren't stored) |
+| `AskAiPendingApproval`    | `ask_ai_pending_approvals`   | Ask AI turns paused on a connected tool that is not read-only: encrypted agent state + args hash; single-use, expires after 15 min |
 | `OAuthAuthorizationCode`  | `oauth_authorization_codes`  | In-flight `/oauth/authorize` requests → single-use code hashes (PKCE challenge, granted scopes); pruned after a day |
 
 ---

@@ -29,4 +29,33 @@ describe("toSendableHtmlBody", () => {
     const html = "<p>Hi <strong>there</strong></p>";
     expect(toSendableHtmlBody(html)).toBe(html);
   });
+
+  it.each([
+    '<a href="https://focusbear.io">Focus Bear</a>',
+    "Line one<br/>Line two",
+    "<div>Hi</div>",
+    "<b>Bold</b> text",
+  ])("treats real HTML tags as HTML (%s)", (html) => {
+    expect(toSendableHtmlBody(html)).toBe(html);
+  });
+
+  it.each([
+    [
+      "Email me at <jane@example.com>\nThanks",
+      "<p>Email me at &lt;jane@example.com&gt;<br>Thanks</p>",
+    ],
+    [
+      "Docs: <https://focusbear.io/docs>\n\nCheers",
+      "<p>Docs: &lt;https://focusbear.io/docs&gt;</p><p>Cheers</p>",
+    ],
+    [
+      "Ask <b@example.com>\nThanks",
+      "<p>Ask &lt;b@example.com&gt;<br>Thanks</p>",
+    ],
+  ])(
+    "keeps line breaks when plain text has <address> or <link> (%s)",
+    (text, html) => {
+      expect(toSendableHtmlBody(text)).toBe(html);
+    },
+  );
 });

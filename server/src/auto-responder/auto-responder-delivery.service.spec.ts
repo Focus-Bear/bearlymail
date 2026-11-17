@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { REPLY_DRAFT_SOURCES } from "../constants/domain-types";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
@@ -120,7 +121,7 @@ describe("AutoResponderDeliveryService", () => {
   });
 
   describe("saveDraft", () => {
-    it("saves the response as the thread's reply draft", async () => {
+    it("saves the response as the thread's reply draft, marked as the auto-responder's", async () => {
       const saved = await service.saveDraft(
         "user-1",
         "provider-thread",
@@ -134,6 +135,7 @@ describe("AutoResponderDeliveryService", () => {
         content: "<p>Hi</p>",
         replyMode: "reply",
         recipients: "friend@example.com",
+        source: REPLY_DRAFT_SOURCES.AUTO_RESPONDER,
       });
     });
 

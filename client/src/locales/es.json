@@ -2008,6 +2008,8 @@
     "actionItems_plural": "{{count}} elementos de acción",
     "autoResponseBadge": "{{count}} respuesta automática · Último envío {{sentAt}}",
     "autoResponseBadge_plural": "{{count}} respuestas automáticas · Último envío {{sentAt}}",
+    "autoResponseDraftBadge": "Borrador de respuesta listo",
+    "autoResponseDraftBadgeTitle": "La respuesta automática redactó una respuesta. Abre el correo para revisarla y enviarla.",
     "actionTab": "Acción",
     "toggleDebug": "Alternar panel de depuración",
     "moreInboxActions": "Más acciones de la bandeja de entrada",

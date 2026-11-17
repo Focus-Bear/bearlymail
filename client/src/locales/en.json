@@ -427,6 +427,8 @@
     "actionItems_plural": "{{count}} action items",
     "autoResponseBadge": "{{count}} auto-response · Last sent {{sentAt}}",
     "autoResponseBadge_plural": "{{count}} auto-responses · Last sent {{sentAt}}",
+    "autoResponseDraftBadge": "Reply draft ready",
+    "autoResponseDraftBadgeTitle": "The auto-responder wrote a reply. Open the email to check it and send it.",
     "note": "Note",
     "phishingFlag": "Phishing",
     "unknownDate": "unknown date",

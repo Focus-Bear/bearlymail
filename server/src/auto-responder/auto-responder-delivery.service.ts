@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { REPLY_DRAFT_SOURCES } from "../constants/domain-types";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
@@ -119,6 +120,8 @@ export class AutoResponderDeliveryService {
         content: htmlBody,
         replyMode: "reply",
         recipients: recipient,
+        // Flags the thread in the inbox until the user sends, edits or discards it.
+        source: REPLY_DRAFT_SOURCES.AUTO_RESPONDER,
       }),
     );
     return true;

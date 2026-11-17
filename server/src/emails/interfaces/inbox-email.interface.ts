@@ -18,6 +18,8 @@ export interface InboxEmail extends Email {
   priorityScore: number | null;
   priorityExplanation: Record<string, unknown> | null;
   isProcessingPriority: boolean;
+  /** The auto-responder saved a reply draft here that the user hasn't sent, edited or discarded yet. */
+  hasAutoResponseDraft?: boolean;
   /**
    * True when the user chose "I still need to take action" on their last reply,
    * pinning the thread to Action mode even though they sent the last message.

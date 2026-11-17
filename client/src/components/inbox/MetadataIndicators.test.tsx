@@ -76,6 +76,20 @@ describe('MetadataIndicators – phishing badge', () => {
   });
 });
 
+describe('MetadataIndicators – auto-responder draft badge', () => {
+  it('shows "Reply draft ready" when the auto-responder left a draft', () => {
+    render(<MetadataIndicators email={makeEmail({ hasAutoResponseDraft: true })} />);
+    const badge = screen.getByTestId('auto-response-draft-badge');
+    expect(badge).toHaveTextContent('inbox.autoResponseDraftBadge');
+    expect(badge).toHaveAttribute('title', 'inbox.autoResponseDraftBadgeTitle');
+  });
+
+  it('does not show the badge otherwise', () => {
+    render(<MetadataIndicators email={makeEmail({ hasAutoResponseDraft: false })} />);
+    expect(screen.queryByTestId('auto-response-draft-badge')).not.toBeInTheDocument();
+  });
+});
+
 describe('MetadataIndicators – renders nothing when no indicators', () => {
   it('returns null when no indicators are present', () => {
     const { container } = render(<MetadataIndicators email={makeEmail()} />);

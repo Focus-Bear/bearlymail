@@ -18,8 +18,8 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * the user's next password sign-in rather than here. Remaining users are
  * asked to confirm their address (a link is emailed) at that sign-in.
  */
-export class BackfillEmailVerifiedAt1797900000001 implements MigrationInterface {
-  name = "BackfillEmailVerifiedAt1797900000001";
+export class BackfillEmailVerifiedAt1798000000001 implements MigrationInterface {
+  name = "BackfillEmailVerifiedAt1798000000001";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

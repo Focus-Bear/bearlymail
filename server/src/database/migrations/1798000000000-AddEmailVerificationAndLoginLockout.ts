@@ -8,8 +8,8 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * same digest the app now computes), so links already sent keep working
  * until they expire; the plaintext column is then dropped.
  */
-export class AddEmailVerificationAndLoginLockout1797900000000 implements MigrationInterface {
-  name = "AddEmailVerificationAndLoginLockout1797900000000";
+export class AddEmailVerificationAndLoginLockout1798000000000 implements MigrationInterface {
+  name = "AddEmailVerificationAndLoginLockout1798000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

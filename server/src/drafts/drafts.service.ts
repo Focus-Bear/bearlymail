@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { REPLY_DRAFT_SOURCES } from "../constants/domain-types";
 import { ReplyDraft } from "../database/entities/reply-draft.entity";
 
 @Injectable()
@@ -29,10 +30,13 @@ export class DraftsService {
   ): Promise<ReplyDraft> {
     const existing = await this.getDraftByThread(userId, threadId);
 
+    // The user has now written (or edited) this draft themselves, so it no longer
+    // counts as an unseen auto-responder draft.
     if (existing) {
       existing.content = content;
       existing.replyMode = replyMode;
       existing.recipients = recipients || null;
+      existing.source = REPLY_DRAFT_SOURCES.USER;
       return this.draftRepository.save(existing);
     }
 
@@ -42,6 +46,7 @@ export class DraftsService {
       content,
       replyMode,
       recipients: recipients || null,
+      source: REPLY_DRAFT_SOURCES.USER,
     });
 
     return this.draftRepository.save(draft);

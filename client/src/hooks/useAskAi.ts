@@ -6,8 +6,15 @@
  * emails", "Looked in Google Drive") before the final answer arrives. Nothing is
  * persisted: switching emails resets the conversation and cancels any in-flight
  * request. Auth rides on the session cookie (credentials: 'include').
+ *
+ * When the assistant wants to use a connected tool that is not read-only, the
+ * stream ends with an "approval_required" event instead of an answer. The hook
+ * exposes that pending call; {@link UseAskAiReturn.decideToolCall} sends the
+ * user's Approve/Deny to `/llm/ask-email/tool-approval/stream`, which streams the
+ * rest of the turn.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -21,6 +28,9 @@ const HTTP_TOO_MANY_REQUESTS = 429;
 const EVENT_TOOL = 'tool';
 const EVENT_ANSWER = 'answer';
 const EVENT_ERROR = 'error';
+const EVENT_APPROVAL_REQUIRED = 'approval_required';
+const ASK_STREAM_PATH = '/llm/ask-email/stream';
+const APPROVAL_STREAM_PATH = '/llm/ask-email/tool-approval/stream';
 const ABORT_ERROR_NAME = 'AbortError';
 const SSE_DELIMITER = '\n\n';
 
@@ -37,12 +47,27 @@ export interface AskAiMessage {
   toolActivity?: AskAiToolActivity[];
 }
 
+/**
+ * A connected-tool call waiting for the user's decision. `arguments` are exactly
+ * what will run on approval; `approvalId` + `argumentsHash` bind the decision.
+ */
+export interface AskAiPendingToolCall {
+  approvalId: string;
+  serverName: string;
+  toolName: string;
+  toolTitle?: string;
+  arguments: Record<string, unknown>;
+  argumentsHash: string;
+  expiresAt: string;
+}
+
 interface AskAiStreamEvent {
   type?: string;
   activity?: unknown;
   answer?: unknown;
   toolActivity?: unknown;
   message?: unknown;
+  pendingToolCall?: unknown;
 }
 
 /** Prior turns sent back to the server are capped to bound the prompt size. */
@@ -58,7 +83,24 @@ export interface UseAskAiReturn {
   errorMessage: string | null;
   /** Tools used so far in the in-flight turn, shown live while loading. */
   liveActivity: AskAiToolActivity[];
+  /** A tool call the assistant is waiting on the user to approve or deny. */
+  pendingToolCall: AskAiPendingToolCall | null;
   send: (question: string) => Promise<void>;
+  /** Approve (true) or deny (false) the pending tool call and resume the turn. */
+  decideToolCall: (approved: boolean) => Promise<void>;
+}
+
+function isPendingToolCall(item: unknown): item is AskAiPendingToolCall {
+  const call = item as AskAiPendingToolCall;
+  return (
+    Boolean(item) &&
+    typeof call.approvalId === 'string' &&
+    typeof call.argumentsHash === 'string' &&
+    typeof call.toolName === 'string' &&
+    typeof call.serverName === 'string' &&
+    Boolean(call.arguments) &&
+    typeof call.arguments === 'object'
+  );
 }
 
 function isToolActivity(item: unknown): item is AskAiToolActivity {
@@ -126,12 +168,14 @@ async function readSseStream(
 }
 
 export function useAskAi(emailId: string | undefined): UseAskAiReturn {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<AskAiMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [liveActivity, setLiveActivity] = useState<AskAiToolActivity[]>([]);
+  const [pendingToolCall, setPendingToolCall] = useState<AskAiPendingToolCall | null>(null);
 
   const messagesRef = useRef<AskAiMessage[]>(messages);
   messagesRef.current = messages;
@@ -152,6 +196,7 @@ export function useAskAi(emailId: string | undefined): UseAskAiReturn {
     setHasError(false);
     setErrorMessage(null);
     setLiveActivity([]);
+    setPendingToolCall(null);
     setIsLoading(false);
   }, [emailId]);
 
@@ -173,6 +218,8 @@ export function useAskAi(emailId: string | undefined): UseAskAiReturn {
           ...(activity.length > 0 ? { toolActivity: activity } : {}),
         },
       ]);
+    } else if (event.type === EVENT_APPROVAL_REQUIRED && isPendingToolCall(event.pendingToolCall)) {
+      setPendingToolCall(event.pendingToolCall);
     } else if (event.type === EVENT_ERROR) {
       if (typeof event.message === 'string') {
         setErrorMessage(event.message);
@@ -181,15 +228,10 @@ export function useAskAi(emailId: string | undefined): UseAskAiReturn {
     }
   }, []);
 
-  const send = useCallback(
-    async (questionText: string) => {
-      const question = questionText.trim();
-      if (!question || !emailId || isLoading) {
-        return;
-      }
-
-      const requestEmailId = emailId;
-      const priorTurns = messagesRef.current.slice(-MAX_HISTORY_TURNS);
+  /** POST to an Ask AI stream endpoint and feed its events to `handleEvent`. */
+  const runStream = useCallback(
+    async (path: string, body: unknown, failureMessage: (response: Response) => Promise<string | null>) => {
+      const requestEmailId = emailIdRef.current;
       const controller = new AbortController();
       abortRef.current = controller;
       const isStale = () => emailIdRef.current !== requestEmailId;
@@ -197,23 +239,20 @@ export function useAskAi(emailId: string | undefined): UseAskAiReturn {
       setHasError(false);
       setErrorMessage(null);
       setLiveActivity([]);
-      setMessages(prev => [...prev, { role: ASK_AI_ROLE_USER, content: question }]);
-      setInput('');
       setIsLoading(true);
-      captureEvent(ANALYTICS_EVENTS.ASK_AI_QUESTION_SENT);
 
       try {
-        const response = await fetch(`${API_URL}/llm/ask-email/stream`, {
+        const response = await fetch(`${API_URL}${path}`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emailId: requestEmailId, question, history: priorTurns }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         });
 
         if (!response.ok || !response.body) {
           if (!isStale()) {
-            setErrorMessage(await messageForResponse(response));
+            setErrorMessage(await failureMessage(response));
             setHasError(true);
           }
           return;
@@ -237,8 +276,55 @@ export function useAskAi(emailId: string | undefined): UseAskAiReturn {
         }
       }
     },
-    [emailId, isLoading, handleEvent]
+    [handleEvent]
   );
 
-  return { messages, input, setInput, isLoading, hasError, errorMessage, liveActivity, send };
+  const send = useCallback(
+    async (questionText: string) => {
+      const question = questionText.trim();
+      if (!question || !emailId || isLoading || pendingToolCall) {
+        return;
+      }
+
+      const priorTurns = messagesRef.current.slice(-MAX_HISTORY_TURNS);
+      setMessages(prev => [...prev, { role: ASK_AI_ROLE_USER, content: question }]);
+      setInput('');
+      captureEvent(ANALYTICS_EVENTS.ASK_AI_QUESTION_SENT);
+
+      await runStream(ASK_STREAM_PATH, { emailId, question, history: priorTurns }, messageForResponse);
+    },
+    [emailId, isLoading, pendingToolCall, runStream]
+  );
+
+  const decideToolCall = useCallback(
+    async (approved: boolean) => {
+      const pending = pendingToolCall;
+      if (!pending || isLoading) {
+        return;
+      }
+      setPendingToolCall(null);
+      await runStream(
+        APPROVAL_STREAM_PATH,
+        { approvalId: pending.approvalId, argumentsHash: pending.argumentsHash, approved },
+        async response =>
+          response.status === HTTP_TOO_MANY_REQUESTS
+            ? messageForResponse(response)
+            : t('inbox.askAi.approval.unavailable')
+      );
+    },
+    [pendingToolCall, isLoading, runStream, t]
+  );
+
+  return {
+    messages,
+    input,
+    setInput,
+    isLoading,
+    hasError,
+    errorMessage,
+    liveActivity,
+    pendingToolCall,
+    send,
+    decideToolCall,
+  };
 }

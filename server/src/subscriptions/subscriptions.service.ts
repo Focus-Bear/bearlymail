@@ -40,6 +40,10 @@ import { OrganizationsService } from "../organizations/organizations.service";
 import { ApiError } from "../types/common";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { orgIncludesCrm } from "./plan-features.util";
+import {
+  getRevenueCatUserIdCandidates,
+  RevenueCatEventIdentity,
+} from "./revenuecat-identity";
 import { StripeService } from "./stripe.service";
 import {
   STRIPE_BILLING_REASON_CYCLE,
@@ -367,16 +371,18 @@ export class SubscriptionsService {
 
     // Sync from RevenueCat (v2 active entitlements) if the user is linked.
     // Any active entitlement → active access; the local "trial" state is owned
-    // by startTrial(), not RevenueCat.
+    // by startTrial(), not RevenueCat. The customer is always looked up by our
+    // own user id (RevenueCat resolves aliases server-side), never by the
+    // stored column, which only records that the user has been linked.
     if (user.revenueCatUserId && this.apiKey && this.projectId) {
       try {
-        const active = await this.getActiveEntitlements(user.revenueCatUserId);
+        const active = await this.getActiveEntitlements(user.id);
         if (active.length > 0) {
           const expiresAt = active[0].expiresAt ?? undefined;
           await this.userRepository.update(userId, {
             subscriptionStatus: SUBSCRIPTION_STATUS.ACTIVE,
             subscriptionExpiresAt: expiresAt,
-            revenueCatUserId: user.revenueCatUserId,
+            revenueCatUserId: user.id,
           });
 
           return {
@@ -439,10 +445,7 @@ export class SubscriptionsService {
       const { event } = payload;
       const { app_user_id } = event;
 
-      // Find user by RevenueCat ID
-      const user = await this.userRepository.findOne({
-        where: { revenueCatUserId: app_user_id },
-      });
+      const user = await this.findUserForRcEvent(event);
 
       if (!user) {
         this.logger.warn(`User not found for RevenueCat ID: ${app_user_id}`);
@@ -466,12 +469,12 @@ export class SubscriptionsService {
         case "RENEWAL":
         case "PRODUCT_CHANGE":
           try {
-            const active = await this.getActiveEntitlements(app_user_id);
+            const active = await this.getActiveEntitlements(user.id);
             if (active.length > 0) {
               await this.userRepository.update(user.id, {
                 subscriptionStatus: SUBSCRIPTION_STATUS.ACTIVE,
                 subscriptionExpiresAt: active[0].expiresAt ?? undefined,
-                revenueCatUserId: app_user_id,
+                revenueCatUserId: user.id,
               });
             }
           } catch (error) {
@@ -529,18 +532,30 @@ export class SubscriptionsService {
   }
 
   /**
-   * Link RevenueCat user ID to our user
+   * Marks the user as a RevenueCat customer. The RevenueCat app user id is
+   * always the user's own BearlyMail id; clients must identify to RevenueCat
+   * with that id (purchases made anonymously first are merged into it by the
+   * SDK's logIn), so no client-supplied id is ever stored.
    */
-  async linkRevenueCatUser(
-    userId: string,
-    revenueCatUserId: string,
-  ): Promise<void> {
+  async linkRevenueCatUser(userId: string): Promise<void> {
     await this.userRepository.update(userId, {
-      revenueCatUserId,
+      revenueCatUserId: userId,
     });
-    this.logger.log(
-      `Linked RevenueCat user ${revenueCatUserId} to user ${userId}`,
-    );
+    this.logger.log(`Linked RevenueCat customer for user ${userId}`);
+  }
+
+  /**
+   * Resolves the user a RevenueCat event belongs to by matching the event's
+   * app_user_id, original_app_user_id and aliases against `users.id`.
+   */
+  private async findUserForRcEvent(
+    event: RevenueCatEventIdentity,
+  ): Promise<User | null> {
+    for (const id of getRevenueCatUserIdCandidates(event)) {
+      const user = await this.userRepository.findOne({ where: { id } });
+      if (user) return user;
+    }
+    return null;
   }
 
   /**
@@ -867,16 +882,16 @@ export class SubscriptionsService {
   }
 
   /**
-   * Looks up the Organisation record for a given RevenueCat app_user_id.
-   * First tries owner-based lookup, then falls back to the stored RC subscription ID.
+   * Looks up the Organisation record for a RevenueCat event.
+   * First tries the org owned by the event's user (matched by id/aliases), then
+   * falls back to the stored RC subscription ID.
    * Returns null if no org is found.
    */
   private async findOrgForRcUser(
-    appUserId: string,
+    event: RevenueCatEvent,
   ): Promise<Organization | null> {
-    const owner = await this.userRepository.findOne({
-      where: { revenueCatUserId: appUserId },
-    });
+    const appUserId = event.app_user_id;
+    const owner = await this.findUserForRcEvent(event);
 
     if (owner) {
       const ownerOrg = await this.orgRepository.findOne({
@@ -902,7 +917,7 @@ export class SubscriptionsService {
     const productId = event.product_id as string | undefined;
     const tierEntitlement = getVolumeTierFromEvent(event);
 
-    const org = await this.findOrgForRcUser(appUserId);
+    const org = await this.findOrgForRcUser(event);
 
     if (!org) {
       this.logger.warn(

@@ -58,11 +58,11 @@ describe("securityHeadersMiddleware", () => {
     );
   });
 
-  it("sets Content-Security-Policy with script-src 'self' to restrict script sources", () => {
+  it("sets a deny-everything Content-Security-Policy on API responses", () => {
     callMiddleware();
     expect(mockRes.setHeader).toHaveBeenCalledWith(
       "Content-Security-Policy",
-      "frame-ancestors 'none'; script-src 'self'; object-src 'none'; base-uri 'self'",
+      "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     );
   });
 

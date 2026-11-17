@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { PgBoss } from "pg-boss";
-import { EntityManager, IsNull, LessThan, Repository } from "typeorm";
+import { EntityManager, IsNull, LessThan, MoreThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
 import { GmailAccessIssue } from "../constants/domain-statuses";
@@ -390,6 +390,28 @@ export class UsersService {
   async findByEmail(email: string): Promise<User | null> {
     const emailHash = EncryptionHelper.hashEmail(email);
     return this.userRepository.findOne({ where: { emailHash } });
+  }
+
+  /** The user holding an unexpired email verification link, by the link token's SHA-256. */
+  async findByEmailVerificationTokenHash(
+    tokenHash: string,
+  ): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: {
+        emailVerificationTokenHash: tokenHash,
+        emailVerificationTokenExpiresAt: MoreThan(new Date()),
+      },
+    });
+  }
+
+  /** The user holding an unexpired password setup/reset link, by the link token's SHA-256. */
+  async findByPasswordSetupTokenHash(tokenHash: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: {
+        passwordSetupTokenHash: tokenHash,
+        passwordSetupTokenExpiresAt: MoreThan(new Date()),
+      },
+    });
   }
 
   /**

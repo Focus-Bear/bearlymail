@@ -132,6 +132,8 @@ export interface RawEmailRow {
   cc: string | null;
   latestFrom?: string | null;
   sentByAutoResponder?: boolean;
+  /** See HAS_AUTO_RESPONSE_DRAFT_SQL in email-inbox-query.helpers.ts. */
+  hasAutoResponseDraft?: boolean;
   /** Aggregated encrypted labels from all emails in the thread (used for blocked-mode app-level filter). */
   allThreadLabels?: string[] | null;
 }

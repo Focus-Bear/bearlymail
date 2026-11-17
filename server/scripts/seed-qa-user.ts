@@ -766,6 +766,7 @@ export async function seedQaUser(existingDataSource?: DataSource): Promise<void>
       const hashedPassword = await bcrypt.hash(QA_PASSWORD, 10);
       qaUser.password = hashedPassword;
       qaUser.isApproved = true;
+      qaUser.emailVerifiedAt = new Date();
       qaUser.hasSeenTour = true;
       qaUser.hasCompletedOnboarding = true;
       qaUser.hasScannedHistory = true;
@@ -786,6 +787,7 @@ export async function seedQaUser(existingDataSource?: DataSource): Promise<void>
         password: hashedPassword,
         name: QA_NAME,
         isApproved: true,
+        emailVerifiedAt: new Date(),
         hasSeenTour: true,
         hasCompletedOnboarding: true,
         hasScannedHistory: true,

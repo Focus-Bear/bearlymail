@@ -338,7 +338,9 @@ const Compose: React.FC = () => {
           backgroundColor: theme.colors.background.paper,
           borderRadius: theme.borderRadius.lg,
           boxShadow: theme.shadows.lg,
-          overflow: 'hidden',
+          // clip (not hidden) rounds the corners without making this card a scroll
+          // container, so the Send row can stay pinned to the screen bottom on phones.
+          overflow: 'clip',
         }}
       >
         <div

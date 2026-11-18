@@ -712,7 +712,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
 
   return (
     <div
-      className="animate-fade-in"
+      className="animate-fade-in reply-composer"
       onKeyDown={discardGuard.handleEscapeKeyDown}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}

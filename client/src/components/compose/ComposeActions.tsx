@@ -226,6 +226,7 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
 
   return (
     <div
+      className="compose-actions"
       style={{
         padding: theme.spacing.lg,
         borderTop: `1px solid ${theme.colors.border.light}`,

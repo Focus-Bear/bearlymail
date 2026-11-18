@@ -1,8 +1,15 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { PgBoss } from "pg-boss";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { PRIORITY_SCORE_SOURCE } from "../constants/priority-rule.constants";
@@ -45,7 +52,7 @@ export class EmailStarService {
   ): Promise<Email> {
     const email = await getEmailById(userId, emailId);
     if (!email) {
-      throw new Error(`Email ${emailId} not found`);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     if (!email.threadId) {
@@ -202,7 +209,7 @@ export class EmailStarService {
   ): Promise<Email> {
     const email = await getEmailById(userId, emailId);
     if (!email) {
-      throw new Error(`Email ${emailId} not found`);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     if (!email.threadId) {

@@ -416,7 +416,7 @@
       "with": "With",
       "daysSinceResponse": "Days since their last response",
       "day": "day",
-      "day_plural": "days",
+      "day_other": "days",
       "status": "Status",
       "noReplyReceived": "No reply received",
       "youSentLast": "You sent the last",
@@ -450,14 +450,14 @@
     "debugDeliveredInBatch": "Delivered in batch",
     "debugSchedule": "Batch schedule",
     "moreUrgentEmails": "+{{count}} more urgent email",
-    "moreUrgentEmails_plural": "+{{count}} more urgent emails",
+    "moreUrgentEmails_other": "+{{count}} more urgent emails",
     "urgentEmailsWaiting": "You have urgent emails waiting. They will be delivered at the next batch time.",
     "urgentEmailsFound": "Found {{count}} urgent email!",
-    "urgentEmailsFound_plural": "Found {{count}} urgent emails!",
+    "urgentEmailsFound_other": "Found {{count}} urgent emails!",
     "actionItems": "{{count}} action item",
-    "actionItems_plural": "{{count}} action items",
+    "actionItems_other": "{{count}} action items",
     "autoResponseBadge": "{{count}} auto-response · Last sent {{sentAt}}",
-    "autoResponseBadge_plural": "{{count}} auto-responses · Last sent {{sentAt}}",
+    "autoResponseBadge_other": "{{count}} auto-responses · Last sent {{sentAt}}",
     "autoResponseDraftBadge": "Reply draft ready",
     "autoResponseDraftBadgeTitle": "The auto-responder wrote a reply. Open the email to check it and send it.",
     "note": "Note",
@@ -465,7 +465,7 @@
     "unknownDate": "unknown date",
     "bulk": {
       "selected": "{{count}} email selected",
-      "selected_plural": "{{count}} emails selected",
+      "selected_other": "{{count}} emails selected",
       "markAsRead": "Mark as read",
       "markAsUnread": "Mark as unread",
       "archive": "Archive",
@@ -2118,7 +2118,7 @@
       "connectorStepOpen": "In Claude, go to Customize → Connectors and choose Add custom connector.",
       "connectorOpenLink": "Open Claude connectors",
       "connectorStepPaste": "Paste the URL below and click Add.",
-      "connectorStepApprove": "Click Connect, sign in to BearlyMail, and choose read only or read and send.",
+      "connectorStepApprove": "Click Connect, sign in to BearlyMail, and choose read only or read and send. Tick \"Also edit categories and rules\" if you want Claude to tidy your rules.",
       "connectorUrlLabel": "Connector URL",
       "claudeCodeOAuthLabel": "Claude Code — run in a terminal, then /mcp to sign in",
       "tokenSectionTitle": "Access tokens for other AI apps",
@@ -2132,7 +2132,10 @@
       "tokenSectionToggle": "Using a different AI app? Create an access token",
       "serverUrlLabel": "Server URL",
       "authHeaderLabel": "Authorization header",
-      "configFileLabel": "Config file (for apps like Cursor or Windsurf)"
+      "configFileLabel": "Config file (for apps like Cursor or Windsurf)",
+      "allowSettingsWriteLabel": "Allow editing categories and rules",
+      "allowSettingsWriteHint": "Lets the app create, change and delete your email categories and category rules. Reading them doesn't need this.",
+      "scopeEditsSettings": "Edits categories and rules"
     },
     "focusBear": {
       "title": "Focus Bear",
@@ -2188,7 +2191,7 @@
     "loopbackWarning": "This app runs on your computer. Only continue if you just started connecting from Claude Code or another app on this device.",
     "scopeLegend": "What it can do",
     "scopeReadTitle": "Read only",
-    "scopeReadDescription": "Read and search your important email, threads and follow-ups.",
+    "scopeReadDescription": "Read and search your important email, threads and follow-ups, and see your email categories and rules.",
     "scopeSendTitle": "Read and send",
     "scopeSendDescription": "Also reply and send new email from your mailbox. Claude asks you before each send.",
     "scopeSendNotRequested": "This app didn't ask to send email.",
@@ -2201,7 +2204,9 @@
     "framed": "For your security, this page can't be shown inside another site. Open it in its own tab.",
     "invalidLink": "This link is missing its sign-in request. Start connecting again from Claude.",
     "expired": "This sign-in request has expired or was already answered. Start connecting again from Claude.",
-    "redirecting": "Returning to {{client}}…"
+    "redirecting": "Returning to {{client}}…",
+    "settingsWriteTitle": "Also edit categories and rules",
+    "settingsWriteDescription": "Lets it create, change and delete your email categories and the rules that file new email into them. Every change it makes is logged."
   },
   "admin": {
     "title": "Admin",
@@ -2716,7 +2721,7 @@
     "noSearchResults": "No contacts match “{{query}}”",
     "tryDifferentSearch": "Try a different search term.",
     "totalContacts": "{{count}} contact",
-    "totalContacts_plural": "{{count}} contacts",
+    "totalContacts_other": "{{count}} contacts",
     "unsyncedContactInfo": "This contact hasn't been synced yet. Sync contacts to view details.",
     "addContact": "Add Contact",
     "viewDetail": "View Details",
@@ -2934,19 +2939,19 @@
     "assignedTo": "Assigned to",
     "statusNoLinks": "No GitHub links found in this email",
     "linksCount": "{{count}} link",
-    "linksCount_plural": "{{count}} links",
+    "linksCount_other": "{{count}} links",
     "open": "Open",
     "closed": "Closed",
     "merged": "Merged",
     "approved": "Approved",
     "changesRequested": "Changes Requested",
     "comments": "{{count}} comment",
-    "comments_plural": "{{count}} comments",
+    "comments_other": "{{count}} comments",
     "readyToMerge": "Ready to Merge",
     "approvalsCount": "{{count}} approval",
-    "approvalsCount_plural": "{{count}} approvals",
+    "approvalsCount_other": "{{count}} approvals",
     "changesRequestedCount": "{{count}} change requested",
-    "changesRequestedCount_plural": "{{count}} changes requested",
+    "changesRequestedCount_other": "{{count}} changes requested",
     "awaitingReviewFrom": "Awaiting {{reviewers}}",
     "bot": {
       "ariaLabel": "Authored by {{name}} bot"
@@ -2957,7 +2962,7 @@
       "failing": "CI failing",
       "failingWithNames": "CI failing: {{names}}",
       "passingTitle": "{{count}} check passing",
-      "passingTitle_plural": "{{count}} checks passing",
+      "passingTitle_other": "{{count}} checks passing",
       "connectPrompt": "Connect for CI status",
       "connecting": "Connecting…"
     },
@@ -3812,7 +3817,7 @@
       "submit": "Submit",
       "notStarred": "Not starred",
       "starCount": "{{count}} star",
-      "starCount_plural": "{{count}} stars",
+      "starCount_other": "{{count}} stars",
       "helpUsLearn": "Help us learn",
       "prediction": "Prediction: {{predicted}}, Actual: {{actual}}",
       "noStars": "No stars"
@@ -4054,7 +4059,7 @@
       "openInGoogleCalendar": "Open in Google Calendar",
       "noEventsFound": "No events found for {{email}}",
       "foundEvents": "Found {{count}} event",
-      "foundEvents_plural": "Found {{count}} events",
+      "foundEvents_other": "Found {{count}} events",
       "creating": "Creating...",
       "createInvite": "Create Invite"
     },
@@ -4062,7 +4067,7 @@
       "closed": "Closed",
       "commentLabel": "Comment",
       "foundIssues": "Found {{count}} issue",
-      "foundIssues_plural": "Found {{count}} issues",
+      "foundIssues_other": "Found {{count}} issues",
       "issue": "Issue",
       "loadingStatuses": "Loading statuses…",
       "noIssuesFound": "No issues found",
@@ -5253,9 +5258,9 @@
   },
   "guideAi": {
     "sourceThreads": "📧 {{count}} source",
-    "sourceThreads_plural": "📧 {{count}} sources",
+    "sourceThreads_other": "📧 {{count}} sources",
     "viewSourceThread": "View source email thread ({{count}} source)",
-    "viewSourceThread_plural": "View source email thread ({{count}} sources)"
+    "viewSourceThread_other": "View source email thread ({{count}} sources)"
   },
   "nav": {
     "scheduled": "Scheduled"

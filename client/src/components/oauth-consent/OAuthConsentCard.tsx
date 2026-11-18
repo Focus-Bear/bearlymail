@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { ConsentScopeChoice } from './ConsentScopeChoice';
+import { ConsentSettingsWriteChoice } from './ConsentSettingsWriteChoice';
 import { OAuthConsentDecision, OAuthConsentRequest } from './types';
 
 interface OAuthConsentCardProps {
@@ -42,6 +43,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const [allowSend, setAllowSend] = useState(false);
+  const [allowSettingsWrite, setAllowSettingsWrite] = useState(false);
 
   return (
     <div data-testid="oauth-consent">
@@ -85,6 +87,9 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
       )}
 
       <ConsentScopeChoice allowSend={allowSend} canRequestSend={request.canRequestSend} onChange={setAllowSend} />
+      {request.canRequestSettingsWrite && (
+        <ConsentSettingsWriteChoice allowSettingsWrite={allowSettingsWrite} onChange={setAllowSettingsWrite} />
+      )}
 
       <p style={{ ...detailStyle, marginBottom: theme.spacing.lg, fontSize: theme.typography.fontSize.xs }}>
         {t('oauthConsent.safetyNote')}
@@ -100,7 +105,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         <button
           type="button"
           disabled={isSubmitting}
-          onClick={() => onDecide({ approve: false, allowSend: false })}
+          onClick={() => onDecide({ approve: false, allowSend: false, allowSettingsWrite: false })}
           data-testid="oauth-consent-deny"
           style={{
             ...buttonStyle,
@@ -114,7 +119,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         <button
           type="button"
           disabled={isSubmitting}
-          onClick={() => onDecide({ approve: true, allowSend })}
+          onClick={() => onDecide({ approve: true, allowSend, allowSettingsWrite: allowSettingsWrite && request.canRequestSettingsWrite })}
           data-testid="oauth-consent-allow"
           style={{
             ...buttonStyle,

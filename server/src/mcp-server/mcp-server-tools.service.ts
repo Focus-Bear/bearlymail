@@ -6,7 +6,9 @@ import {
   McpToolName,
 } from "../constants/mcp-server.constants";
 import { PatScope } from "../constants/personal-access-tokens.constants";
+import { McpCategoryToolsService } from "./mcp-category-tools.service";
 import { McpReadToolsService } from "./mcp-read-tools.service";
+import { McpRuleToolsService } from "./mcp-rule-tools.service";
 import { McpSendToolsService } from "./mcp-send-tools.service";
 import {
   JsonRpcError,
@@ -47,7 +49,12 @@ export class McpServerToolsService {
   private readonly logger = new Logger(McpServerToolsService.name);
   private readonly handlers: Record<McpToolName, ToolHandler>;
 
-  constructor(readTools: McpReadToolsService, sendTools: McpSendToolsService) {
+  constructor(
+    readTools: McpReadToolsService,
+    sendTools: McpSendToolsService,
+    categoryTools: McpCategoryToolsService,
+    ruleTools: McpRuleToolsService,
+  ) {
     this.handlers = {
       [MCP_TOOL_NAMES.LIST_IMPORTANT_EMAILS]: (context, args) =>
         readTools.listImportantEmails(context.principal.userId, args),
@@ -61,6 +68,28 @@ export class McpServerToolsService {
         sendTools.sendReply(context, args),
       [MCP_TOOL_NAMES.SEND_EMAIL]: (context, args) =>
         sendTools.sendEmail(context, args),
+      [MCP_TOOL_NAMES.LIST_CATEGORIES]: (context) =>
+        categoryTools.listCategories(context),
+      [MCP_TOOL_NAMES.GET_CATEGORY]: (context, args) =>
+        categoryTools.getCategory(context, args),
+      [MCP_TOOL_NAMES.CREATE_CATEGORY]: (context, args) =>
+        categoryTools.createCategory(context, args),
+      [MCP_TOOL_NAMES.UPDATE_CATEGORY]: (context, args) =>
+        categoryTools.updateCategory(context, args),
+      [MCP_TOOL_NAMES.DELETE_CATEGORY]: (context, args) =>
+        categoryTools.deleteCategory(context, args),
+      [MCP_TOOL_NAMES.LIST_RULES]: (context, args) =>
+        ruleTools.listRules(context, args),
+      [MCP_TOOL_NAMES.GET_RULE]: (context, args) =>
+        ruleTools.getRule(context, args),
+      [MCP_TOOL_NAMES.CREATE_RULE]: (context, args) =>
+        ruleTools.createRule(context, args),
+      [MCP_TOOL_NAMES.UPDATE_RULE]: (context, args) =>
+        ruleTools.updateRule(context, args),
+      [MCP_TOOL_NAMES.SET_RULES_ENABLED]: (context, args) =>
+        ruleTools.setRulesEnabled(context, args),
+      [MCP_TOOL_NAMES.DELETE_RULES]: (context, args) =>
+        ruleTools.deleteRules(context, args),
     };
   }
 
@@ -82,7 +111,7 @@ export class McpServerToolsService {
     }
     if (!context.principal.scopes.includes(spec.requiredScope)) {
       return errorResult(
-        `This BearlyMail access token doesn't have the "${spec.requiredScope}" permission. The user can create a token with it in BearlyMail Settings.`,
+        `This BearlyMail connection doesn't have the "${spec.requiredScope}" permission. The user can reconnect BearlyMail in Claude and tick it on the consent page, or create a token with it in BearlyMail Settings → Connect Claude.`,
       );
     }
     try {

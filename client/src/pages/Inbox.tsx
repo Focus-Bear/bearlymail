@@ -29,7 +29,7 @@ import { LoadingState, PrioritisationInterstitial } from 'components/inbox/state
 import { SuggestArchiveWorkflowModal } from 'components/inbox/SuggestArchiveWorkflowModal';
 import { selectTriageContentRegion, TriageContentRegion } from 'components/inbox/triageContentRegion';
 import { API_URL } from 'config/api';
-import { ERROR_CODE_GMAIL_REQUIRED, MODE_TRIAGE } from 'constants/strings';
+import { ERROR_CODE_GMAIL_REQUIRED, MODE_SCHEDULED, MODE_TRIAGE } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
@@ -146,7 +146,11 @@ const InboxView: React.FC = () => {
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts(mode);
   // "Distraction tax": when the user has unfinished work, gate lower-priority
   // Triage emails behind a deliberate unlock exercise (session-scoped).
-  const distraction = useDistractionFriction({ mode, tabCounts, workAdditionCount });
+  const belowHighTriageCount =
+    mode === MODE_TRIAGE && priorityCounts
+      ? priorityCounts.medium + priorityCounts.low + priorityCounts.veryLow
+      : null;
+  const distraction = useDistractionFriction({ mode, tabCounts, workAdditionCount, belowHighTriageCount });
   // Conversations already waiting in Action + Follow-Up when this Triage session
   // began (snapshot, NOT live counts), shown in the friction copy. Emails moved to
   // Action/Follow-Up mid-session must not inflate this and re-trigger the gate.
@@ -459,7 +463,8 @@ const InboxView: React.FC = () => {
         <ActionMoveFeedbackLayer feedback={actionMoveFeedback} />
         <InboxFilters
           onFilterChange={fetchEmails}
-          isFilterBarVisible={isFilterBarVisible}
+          // Scheduled sends are not threads; the panel would show another tab's counts.
+          isFilterBarVisible={isFilterBarVisible && mode !== MODE_SCHEDULED}
           filters={filters}
           connectedAccounts={connectedAccounts}
           availableCategories={availableCategories}

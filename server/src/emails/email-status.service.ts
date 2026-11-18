@@ -213,10 +213,15 @@ export class EmailStatusService {
    *
    * @param mode Inbox mode — applies the same starCount filter as getInboxSummary.
    *             Defaults to "triage" to preserve backwards compatibility.
+   * @param onlyThreadIds When given, count only these provider thread ids. Action
+   *             and Follow Up share `starCount > 0`; which tab a thread is on depends
+   *             on who replied last, which this query cannot see, so the caller
+   *             passes that tab's thread ids.
    */
   async getPriorityCounts(
     userId: string,
     mode: "triage" | "action" | "follow-up" = "triage",
+    onlyThreadIds?: string[],
   ): Promise<{
     veryHigh: number;
     high: number;
@@ -248,8 +253,9 @@ export class EmailStatusService {
          AND "isArchived" = false
          AND ("isBatched" = false OR "batchReleaseAt" IS NULL OR "batchReleaseAt" <= NOW())
          AND ("isSnoozed" = false OR "snoozeUntil" IS NULL OR "snoozeUntil" <= NOW())
-         ${modeFilter}`,
-      [userId],
+         ${modeFilter}
+         ${onlyThreadIds ? 'AND "threadId" = ANY($2::text[])' : ""}`,
+      onlyThreadIds ? [userId, onlyThreadIds] : [userId],
     );
     const row = rows[0] ?? {
       veryHigh: 0,

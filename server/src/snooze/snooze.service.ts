@@ -1,4 +1,10 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { PgBoss } from "pg-boss";
 import { In, Repository } from "typeorm";
@@ -45,7 +51,7 @@ export class SnoozeService {
     });
 
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const snoozeUntil = resolveSnoozeUntil(
@@ -197,7 +203,7 @@ export class SnoozeService {
     });
 
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const thread = await this.findThreadForEmail(email, emailId);

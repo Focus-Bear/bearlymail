@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
@@ -246,7 +246,7 @@ export class SummarizationService {
       prefetchedEmail ||
       (await this.emailsService.getEmailById(userId, emailId));
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const userEmail = await this.getUserEmail(userId);
@@ -310,7 +310,7 @@ export class SummarizationService {
       prefetchedEmail ||
       (await this.emailsService.getEmailById(userId, emailId));
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const { email: userEmail, name: userName } =
@@ -796,7 +796,7 @@ export class SummarizationService {
       prefetchedEmail ||
       (await this.emailsService.getEmailById(userId, emailId));
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const userRules =

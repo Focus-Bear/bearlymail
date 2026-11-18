@@ -27,7 +27,7 @@ const CHECKBOX_SIZE = '18px';
 const CHECKBOX_BORDER_WIDTH = '2px';
 const TILE_MIN_WIDTH = '96px';
 const CARD_MIN_WIDTH = '280px';
-const COMPACT_LABEL_LINE_HEIGHT = 1.2;
+const WRAPPED_LABEL_LINE_HEIGHT = 1.2;
 
 type PriorityBucketKey = (typeof PRIORITY_LABEL_TO_KEY)[string];
 
@@ -144,9 +144,12 @@ const PriorityCheckbox: React.FC<PriorityCheckboxProps> = ({
             fontSize: compact ? theme.typography.fontSize.sm : theme.typography.fontSize.md,
             fontWeight: theme.typography.fontWeight.semibold,
             color: theme.colors.text.primary,
-            // Compact tiles are narrow, so two-word labels ("Very High") wrap onto two lines.
-            whiteSpace: compact ? 'normal' : 'nowrap',
-            lineHeight: compact ? COMPACT_LABEL_LINE_HEIGHT : undefined,
+            // Tiles share the row evenly and can be narrower than a two-word label
+            // ("Very High"), which then wraps instead of spilling over the tile border.
+            lineHeight: WRAPPED_LABEL_LINE_HEIGHT,
+            // Wrap between words only; a single word ("Medium") must never be split.
+            overflowWrap: 'normal',
+            wordBreak: 'normal',
           }}
         >
           {label}

@@ -16,6 +16,7 @@ import type { Request as ExpressRequest, Response } from "express";
 import { Repository } from "typeorm";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import {
@@ -39,7 +40,8 @@ const ASK_AI_MAX_QUESTION_LENGTH = 2000;
 const ASK_AI_MAX_HISTORY_TURNS = 12;
 /** Per-user rate limit: an agentic turn fans out to several LLM calls. */
 const ASK_AI_RATE_LIMIT = 20;
-const ASK_AI_RATE_TTL_SECONDS = 60;
+// @nestjs/throttler reads ttl in milliseconds.
+const ASK_AI_RATE_TTL_MS = MILLISECONDS.MINUTE;
 /** Most recent messages of the open thread to feed the assistant. */
 const ASK_AI_MAX_THREAD_MESSAGES = 12;
 /** Per-message body cap when assembling a thread (bounds the prompt). */
@@ -85,7 +87,7 @@ export class AskAiController {
   ) {}
 
   @Throttle({
-    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_SECONDS },
+    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_MS },
   })
   @Post("ask-email")
   async askEmail(
@@ -106,7 +108,7 @@ export class AskAiController {
    * live progress on slower turns. Aborts the turn if the client disconnects.
    */
   @Throttle({
-    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_SECONDS },
+    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_MS },
   })
   @Post("ask-email/stream")
   async streamEmail(
@@ -129,7 +131,7 @@ export class AskAiController {
    * stored call only; the hash must match the call that was shown.
    */
   @Throttle({
-    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_SECONDS },
+    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_MS },
   })
   @Post("ask-email/tool-approval/stream")
   async streamToolDecision(

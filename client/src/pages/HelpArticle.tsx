@@ -21,7 +21,7 @@ export const toArticleKeySegment = (id: string): string =>
 const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
   const { user, logout } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState({
     alwaysToggleable: true,
   });
@@ -34,6 +34,10 @@ const HelpArticle: React.FC = () => {
     const keySegment = toArticleKeySegment(articleId);
     const contentKey = `help.articles.${keySegment}.content`;
     const titleKey = `help.articles.${keySegment}.title`;
+    // An id with no article would otherwise render its raw translation key as the title.
+    if (!i18n.exists(titleKey)) {
+      return null;
+    }
 
     // Get content sections
     const sections = [];

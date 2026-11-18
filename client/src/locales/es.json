@@ -9,7 +9,7 @@
     "loopbackWarning": "Esta app se ejecuta en tu ordenador. Continúa solo si acabas de empezar a conectar desde Claude Code u otra app de este dispositivo.",
     "scopeLegend": "Qué puede hacer",
     "scopeReadTitle": "Solo lectura",
-    "scopeReadDescription": "Leer y buscar tus correos importantes, hilos y seguimientos.",
+    "scopeReadDescription": "Leer y buscar tus correos importantes, conversaciones y seguimientos, y ver tus categorías y reglas de correo.",
     "scopeSendTitle": "Lectura y envío",
     "scopeSendDescription": "También responder y enviar correos nuevos desde tu buzón. Claude te pregunta antes de cada envío.",
     "scopeSendNotRequested": "Esta app no pidió enviar correos.",
@@ -22,7 +22,9 @@
     "framed": "Por tu seguridad, esta página no se puede mostrar dentro de otro sitio. Ábrela en su propia pestaña.",
     "invalidLink": "A este enlace le falta la solicitud de inicio de sesión. Vuelve a empezar la conexión desde Claude.",
     "expired": "Esta solicitud de inicio de sesión caducó o ya se respondió. Vuelve a empezar la conexión desde Claude.",
-    "redirecting": "Volviendo a {{client}}…"
+    "redirecting": "Volviendo a {{client}}…",
+    "settingsWriteTitle": "Editar también categorías y reglas",
+    "settingsWriteDescription": "Le permite crear, cambiar y eliminar tus categorías de correo y las reglas que clasifican el correo nuevo en ellas. Cada cambio que haga queda registrado."
   },
   "admin": {
     "dashboard": {
@@ -1558,7 +1560,7 @@
     "noSearchResults": "Ningún contacto coincide con “{{query}}”",
     "tryDifferentSearch": "Prueba con un término de búsqueda diferente.",
     "totalContacts": "{{count}} contacto",
-    "totalContacts_plural": "{{count}} contactos",
+    "totalContacts_other": "{{count}} contactos",
     "unsyncedContactInfo": "Este contacto aún no ha sido sincronizado. Sincroniza los contactos para ver los detalles.",
     "addContact": "Agregar Contacto",
     "viewDetail": "Ver Detalles",
@@ -1723,7 +1725,7 @@
     "assignedTo": "Asignado a",
     "changesRequested": "Cambios solicitados",
     "comments": "{{count}} comentario",
-    "comments_plural": "{{count}} comentarios",
+    "comments_other": "{{count}} comentarios",
     "howToCreateToken": "Cómo crear un token de GitHub",
     "issue": "Problema",
     "issueDescription": "Descripción del problema",
@@ -1735,9 +1737,9 @@
     "project": "Proyecto",
     "readyToMerge": "Listo para fusionar",
     "approvalsCount": "{{count}} aprobación",
-    "approvalsCount_plural": "{{count}} aprobaciones",
+    "approvalsCount_other": "{{count}} aprobaciones",
     "changesRequestedCount": "{{count}} cambio solicitado",
-    "changesRequestedCount_plural": "{{count}} cambios solicitados",
+    "changesRequestedCount_other": "{{count}} cambios solicitados",
     "awaitingReviewFrom": "Esperando a {{reviewers}}",
     "bot": {
       "ariaLabel": "Creado por el bot {{name}}"
@@ -1748,7 +1750,7 @@
       "failing": "CI fallando",
       "failingWithNames": "CI fallando: {{names}}",
       "passingTitle": "{{count}} verificación correcta",
-      "passingTitle_plural": "{{count}} verificaciones correctas",
+      "passingTitle_other": "{{count}} verificaciones correctas",
       "connectPrompt": "Conectar para ver estado CI",
       "connecting": "Conectando…"
     },
@@ -1764,7 +1766,7 @@
     "loadingStatus": "Cargando estado de GitHub...",
     "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
     "linksCount": "{{count}} enlace",
-    "linksCount_plural": "{{count}} enlaces",
+    "linksCount_other": "{{count}} enlaces",
     "statusUnavailable": "Estado no disponible — verifica los permisos del token de GitHub o el acceso al repositorio",
     "connectionPrompt": {
       "title": "Conectar GitHub para obtener información mejorada",
@@ -2055,9 +2057,9 @@
     "action": "Acción",
     "actionCaughtUp": "Todos los correos marcados han sido procesados.",
     "actionItems": "{{count}} elemento de acción",
-    "actionItems_plural": "{{count}} elementos de acción",
+    "actionItems_other": "{{count}} elementos de acción",
     "autoResponseBadge": "{{count}} respuesta automática · Último envío {{sentAt}}",
-    "autoResponseBadge_plural": "{{count}} respuestas automáticas · Último envío {{sentAt}}",
+    "autoResponseBadge_other": "{{count}} respuestas automáticas · Último envío {{sentAt}}",
     "autoResponseDraftBadge": "Borrador de respuesta listo",
     "autoResponseDraftBadgeTitle": "La respuesta automática redactó una respuesta. Abre el correo para revisarla y enviarla.",
     "actionTab": "Acción",
@@ -2093,7 +2095,7 @@
       "markAsRead": "Marcar como leído",
       "markAsUnread": "Marcar como no leído",
       "selected": "{{count}} correo seleccionado",
-      "selected_plural": "{{count}} correos seleccionados"
+      "selected_other": "{{count}} correos seleccionados"
     },
     "category": {
       "newsletters": "Boletines",
@@ -2205,7 +2207,7 @@
     "openInNewTab": "Abrir en nueva pestaña",
     "followUpDetails": {
       "day": "día",
-      "day_plural": "días",
+      "day_other": "días",
       "daysSinceResponse": "Días desde su última respuesta",
       "followUpWasDue": "El seguimiento vencía",
       "followUpScheduledFor": "Seguimiento programado para",
@@ -2238,7 +2240,7 @@
     "maxFollowUpsWarning": "Máximo {{max}} seguimientos permitidos por envío masivo",
     "moreLinks": "+{{count}} más",
     "moreUrgentEmails": "+{{count}} correo urgente más",
-    "moreUrgentEmails_plural": "+{{count}} correos urgentes más",
+    "moreUrgentEmails_other": "+{{count}} correos urgentes más",
     "nextBatch": "Próximo lote",
     "nextDelivery": "Próxima entrega: {{time}}",
     "noActionEmails": "¡No hay correos para procesar!",
@@ -2345,7 +2347,7 @@
     "urgentBadge": "🚨 Urgente ({{score}})",
     "urgentCheckError": "Error al verificar correos urgentes.",
     "urgentEmailsFound": "¡Se encontró {{count}} correo urgente!",
-    "urgentEmailsFound_plural": "¡Se encontraron {{count}} correos urgentes!",
+    "urgentEmailsFound_other": "¡Se encontraron {{count}} correos urgentes!",
     "urgentEmailsWaiting": "Tienes correos urgentes esperando. Se entregarán en el próximo horario de lote.",
     "urgentNotification": "¡Se encontraron {{count}} correo(s) urgente(s)!",
     "blockConfirm": {
@@ -3634,7 +3636,7 @@
       "prediction": "Predicción: {{predicted}}, Real: {{actual}}",
       "skip": "Saltar",
       "starCount": "{{count}} estrella",
-      "starCount_plural": "{{count}} estrellas",
+      "starCount_other": "{{count}} estrellas",
       "submit": "Entregar",
       "submitting": "Sumisión..."
     },
@@ -3909,7 +3911,7 @@
       "createInvite": "Crear invitación",
       "creating": "Creando...",
       "foundEvents": "Se encontró el evento {{count}}",
-      "foundEvents_plural": "Se encontraron {{count}} eventos",
+      "foundEvents_other": "Se encontraron {{count}} eventos",
       "noEventsFound": "No se encontraron eventos para {{email}}",
       "loadingEvents": "Cargando eventos...",
       "openInGoogleCalendar": "Abrir en Google Calendar",
@@ -3919,7 +3921,7 @@
       "closed": "Cerrado",
       "commentLabel": "Comentario",
       "foundIssues": "Se encontró el problema {{count}}",
-      "foundIssues_plural": "Se encontraron {{count}} problemas",
+      "foundIssues_other": "Se encontraron {{count}} problemas",
       "issue": "Asunto",
       "loadingStatuses": "Cargando estados…",
       "noIssuesFound": "No se encontraron problemas",
@@ -5126,7 +5128,7 @@
       "connectorStepOpen": "En Claude, ve a Personalizar → Conectores y elige Añadir conector personalizado.",
       "connectorOpenLink": "Abrir conectores de Claude",
       "connectorStepPaste": "Pega la URL de abajo y haz clic en Añadir.",
-      "connectorStepApprove": "Haz clic en Conectar, inicia sesión en BearlyMail y elige solo lectura o lectura y envío.",
+      "connectorStepApprove": "Haz clic en Conectar, inicia sesión en BearlyMail y elige solo lectura o lectura y envío. Marca \"Editar también categorías y reglas\" si quieres que Claude ordene tus reglas.",
       "connectorUrlLabel": "URL del conector",
       "claudeCodeOAuthLabel": "Claude Code: ejecútalo en una terminal y luego usa /mcp para iniciar sesión",
       "tokenSectionTitle": "Tokens de acceso para otras apps de IA",
@@ -5140,7 +5142,10 @@
       "tokenSectionToggle": "¿Usas otra app de IA? Crea un token de acceso",
       "serverUrlLabel": "URL del servidor",
       "authHeaderLabel": "Cabecera de autorización",
-      "configFileLabel": "Archivo de configuración (para apps como Cursor o Windsurf)"
+      "configFileLabel": "Archivo de configuración (para apps como Cursor o Windsurf)",
+      "allowSettingsWriteLabel": "Permitir editar categorías y reglas",
+      "allowSettingsWriteHint": "Permite que la app cree, cambie y elimine tus categorías de correo y sus reglas. Para solo leerlas no hace falta.",
+      "scopeEditsSettings": "Edita categorías y reglas"
     },
     "focusBear": {
       "title": "Focus Bear",
@@ -5256,9 +5261,9 @@
   },
   "guideAi": {
     "sourceThreads": "📧 {{count}} fuente",
-    "sourceThreads_plural": "📧 {{count}} fuentes",
+    "sourceThreads_other": "📧 {{count}} fuentes",
     "viewSourceThread": "Ver hilo de correo fuente ({{count}} fuente)",
-    "viewSourceThread_plural": "Ver hilo de correo fuente ({{count}} fuentes)"
+    "viewSourceThread_other": "Ver hilo de correo fuente ({{count}} fuentes)"
   },
   "nav": {
     "scheduled": "Programados"

@@ -1,4 +1,10 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { PgBoss } from "pg-boss";
 import { In, Repository } from "typeorm";
@@ -62,7 +68,7 @@ export class EmailArchiveService {
       this.logger.warn(
         `[Archive] Email not found: userId=${userId}, emailId=${emailId}`,
       );
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
     if (!email.threadId) {
       this.logger.warn(
@@ -347,7 +353,7 @@ export class EmailArchiveService {
       where: { id: emailId, userId },
     });
     if (!email || !email.emailThreadId)
-      throw new Error("Email or thread not found");
+      throw new NotFoundException("Email or thread not found");
 
     const thread = await this.emailThreadRepository.findOne({
       where: { id: email.emailThreadId, userId },

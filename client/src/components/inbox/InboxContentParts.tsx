@@ -975,9 +975,12 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
       style={{
         flex: panelFlex,
         overflowY: 'auto',
+        // No top padding on the scroller itself: sticky category headers pin to the
+        // padding edge, so cards scrolling past showed in that strip above the header.
+        // The inner wrapper carries the top gap instead.
         padding: isMobile
-          ? `${theme.spacing.sm} ${theme.spacing.xs}`
-          : `${theme.spacing.md} ${theme.spacing.lg} ${theme.spacing.lg}`,
+          ? `0 ${theme.spacing.xs} ${theme.spacing.sm}`
+          : `0 ${theme.spacing.lg} ${theme.spacing.lg}`,
         transition: splitView.isResizing ? 'none' : 'flex 0.3s ease',
         borderRight: computeEmailListBorderRight(splitView, isMobile),
         minWidth: 0,
@@ -987,6 +990,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => 
         style={{
           maxWidth: splitView.selectedEmailId ? '100%' : '1000px',
           margin: '0 auto',
+          paddingTop: isMobile ? theme.spacing.sm : theme.spacing.md,
           display: 'flex',
           flexDirection: 'column',
           gap: isMobile ? theme.spacing.xs : theme.spacing.md,

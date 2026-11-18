@@ -168,6 +168,35 @@ describe('useDistractionFriction', () => {
     expect(result.current.isModalOpen).toBe(true);
   });
 
+  it('does NOT intercept when no Triage email sits below High (the exercise would reveal nothing)', () => {
+    const { result } = renderHook(() =>
+      useDistractionFriction({ mode: 'triage', tabCounts: WORK, belowHighTriageCount: 0 })
+    );
+    let intercepted = true;
+    act(() => {
+      intercepted = result.current.requestUnlock(null, null);
+    });
+    expect(intercepted).toBe(false);
+    expect(result.current.isModalOpen).toBe(false);
+  });
+
+  it('still intercepts while the below-High count is unknown or positive', () => {
+    const unknown = renderHook(() =>
+      useDistractionFriction({ mode: 'triage', tabCounts: WORK, belowHighTriageCount: null })
+    );
+    const positive = renderHook(() =>
+      useDistractionFriction({ mode: 'triage', tabCounts: WORK, belowHighTriageCount: 3 })
+    );
+    let unknownIntercepted = false;
+    let positiveIntercepted = false;
+    act(() => {
+      unknownIntercepted = unknown.result.current.requestUnlock(null, null);
+      positiveIntercepted = positive.result.current.requestUnlock(null, null);
+    });
+    expect(unknownIntercepted).toBe(true);
+    expect(positiveIntercepted).toBe(true);
+  });
+
   it('does NOT intercept when there was no existing work at session start (frictionless peek)', () => {
     const { result } = renderHook(() => useDistractionFriction({ mode: 'triage', tabCounts: NO_WORK }));
     let intercepted = true;

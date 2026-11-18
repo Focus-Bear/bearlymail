@@ -21,6 +21,9 @@ import { GmailProvider } from "./providers/gmail.provider";
 import { ReadStatusSyncService } from "./read-status-sync.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
 
+// Email ids are UUIDs; the controller answers 404 for anything else.
+const VALID_EMAIL_ID = "8b217996-65f1-4634-afd6-b2d28a194502";
+
 describe("EmailsController", () => {
   let controller: EmailsController;
   let emailsService: EmailsService;
@@ -802,7 +805,7 @@ describe("EmailsController", () => {
   describe("archiveEmail", () => {
     it("should archive email directly via service", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
+      const emailId = VALID_EMAIL_ID;
       const mockRequest = { user: { userId } };
 
       mockEmailsService.archiveEmail.mockResolvedValue(undefined);
@@ -817,7 +820,7 @@ describe("EmailsController", () => {
   describe("toggleStar", () => {
     it("should toggle star on email", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
+      const emailId = VALID_EMAIL_ID;
       const mockRequest = { user: { userId } };
       const mockResult = { starCount: 1 };
 
@@ -833,7 +836,7 @@ describe("EmailsController", () => {
   describe("setStarCount", () => {
     it("should set star count on email", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
+      const emailId = VALID_EMAIL_ID;
       const mockRequest = { user: { userId } };
       const body = { starCount: 2 };
       const mockResult = { starCount: 2 };
@@ -967,7 +970,7 @@ describe("EmailsController", () => {
   describe("getPriorityExplanation", () => {
     it("should return priority explanation", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
+      const emailId = VALID_EMAIL_ID;
       const mockRequest = { user: { userId } };
       const mockExplanation = { score: 10, reasons: [] };
 

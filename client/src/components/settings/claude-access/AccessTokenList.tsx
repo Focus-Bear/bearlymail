@@ -50,6 +50,7 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
     <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} data-testid="access-token-list">
       {tokens.map((token) => {
         const canSend = token.scopes.includes(PAT_SCOPES.MAIL_SEND);
+        const canEditSettings = token.scopes.includes(PAT_SCOPES.SETTINGS_WRITE);
         const isConnection = token.kind === ACCESS_TOKEN_KINDS.OAUTH;
         return (
           <li
@@ -83,6 +84,7 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
               </div>
               <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
                 {canSend ? t('settings.claudeAccess.scopeReadSend') : t('settings.claudeAccess.scopeRead')}
+                {canEditSettings && ` · ${t('settings.claudeAccess.scopeEditsSettings')}`}
                 {' · '}
                 {token.lastUsedAt
                   ? t('settings.claudeAccess.lastUsed', { date: formatDate(token.lastUsedAt) })

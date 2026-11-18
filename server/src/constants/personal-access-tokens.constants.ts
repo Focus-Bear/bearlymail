@@ -3,11 +3,15 @@ import { DAYS, MILLISECONDS } from "./time-constants";
 /**
  * Scopes a personal access token can carry. Read and send are split so a user
  * can hand an assistant a read-only token: email bodies are untrusted input,
- * and a token that cannot send cannot be talked into sending.
+ * and a token that cannot send cannot be talked into sending. Editing
+ * categories and rules is split out for the same reason: it changes where all
+ * future mail is filed. Reading them needs only `mail:read`, since they are
+ * derived from mail that scope can already read.
  */
 export const PAT_SCOPES = {
   MAIL_READ: "mail:read",
   MAIL_SEND: "mail:send",
+  SETTINGS_WRITE: "settings:write",
 } as const;
 
 export type PatScope = (typeof PAT_SCOPES)[keyof typeof PAT_SCOPES];

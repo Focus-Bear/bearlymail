@@ -4,7 +4,9 @@ import {
   PAT_SCOPES,
   PatScope,
 } from "../constants/personal-access-tokens.constants";
+import { McpCategoryToolsService } from "./mcp-category-tools.service";
 import { McpReadToolsService } from "./mcp-read-tools.service";
+import { McpRuleToolsService } from "./mcp-rule-tools.service";
 import { McpSendToolsService } from "./mcp-send-tools.service";
 import { JsonRpcError, McpCallContext } from "./mcp-server.types";
 import { McpServerToolsService } from "./mcp-server-tools.service";
@@ -21,6 +23,8 @@ function contextWith(scopes: PatScope[]): McpCallContext {
 describe("McpServerToolsService", () => {
   let readTools: jest.Mocked<McpReadToolsService>;
   let sendTools: jest.Mocked<McpSendToolsService>;
+  let categoryTools: jest.Mocked<McpCategoryToolsService>;
+  let ruleTools: jest.Mocked<McpRuleToolsService>;
   let service: McpServerToolsService;
 
   beforeEach(() => {
@@ -34,7 +38,115 @@ describe("McpServerToolsService", () => {
       sendReply: jest.fn().mockResolvedValue({ status: "queued" }),
       sendEmail: jest.fn(),
     } as unknown as jest.Mocked<McpSendToolsService>;
-    service = new McpServerToolsService(readTools, sendTools);
+    categoryTools = {
+      listCategories: jest.fn().mockResolvedValue({ categories: [] }),
+      deleteCategory: jest.fn(),
+    } as unknown as jest.Mocked<McpCategoryToolsService>;
+    ruleTools = {
+      listRules: jest.fn().mockResolvedValue({ rules: [] }),
+      deleteRules: jest.fn(),
+      updateRule: jest.fn(),
+    } as unknown as jest.Mocked<McpRuleToolsService>;
+    service = new McpServerToolsService(
+      readTools,
+      sendTools,
+      categoryTools,
+      ruleTools,
+    );
+  });
+
+  describe("settings tools", () => {
+    const WRITE_TOOLS = [
+      MCP_TOOL_NAMES.CREATE_CATEGORY,
+      MCP_TOOL_NAMES.UPDATE_CATEGORY,
+      MCP_TOOL_NAMES.DELETE_CATEGORY,
+      MCP_TOOL_NAMES.CREATE_RULE,
+      MCP_TOOL_NAMES.UPDATE_RULE,
+      MCP_TOOL_NAMES.SET_RULES_ENABLED,
+      MCP_TOOL_NAMES.DELETE_RULES,
+    ];
+    const READ_TOOLS = [
+      MCP_TOOL_NAMES.LIST_CATEGORIES,
+      MCP_TOOL_NAMES.GET_CATEGORY,
+      MCP_TOOL_NAMES.LIST_RULES,
+      MCP_TOOL_NAMES.GET_RULE,
+    ];
+
+    it("lets any connection read settings but shows writes only with settings:write", () => {
+      const readOnly = service
+        .listTools([PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_SEND])
+        .map((tool) => tool.name);
+      expect(readOnly).toEqual(expect.arrayContaining(READ_TOOLS));
+      WRITE_TOOLS.forEach((name) => expect(readOnly).not.toContain(name));
+
+      const withWrite = service
+        .listTools([PAT_SCOPES.MAIL_READ, PAT_SCOPES.SETTINGS_WRITE])
+        .map((tool) => tool.name);
+      expect(withWrite).toEqual(expect.arrayContaining(WRITE_TOOLS));
+      expect(withWrite).not.toContain(MCP_TOOL_NAMES.SEND_EMAIL);
+    });
+
+    it("refuses a settings write without settings:write, without running it", async () => {
+      const result = await service.callTool(
+        contextWith([PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_SEND]),
+        MCP_TOOL_NAMES.DELETE_RULES,
+        { ruleIds: ["x"] },
+      );
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain(PAT_SCOPES.SETTINGS_WRITE);
+      expect(ruleTools.deleteRules).not.toHaveBeenCalled();
+    });
+
+    it("marks deletes and edits destructive, creates additive, reads read-only", () => {
+      const byName = new Map(
+        service.listTools(ALL_PAT_SCOPES).map((tool) => [tool.name, tool]),
+      );
+      [
+        MCP_TOOL_NAMES.DELETE_CATEGORY,
+        MCP_TOOL_NAMES.DELETE_RULES,
+        MCP_TOOL_NAMES.UPDATE_RULE,
+        MCP_TOOL_NAMES.SET_RULES_ENABLED,
+      ].forEach((name) =>
+        expect(byName.get(name)?.annotations.destructiveHint).toBe(true),
+      );
+      expect(byName.get(MCP_TOOL_NAMES.CREATE_RULE)?.annotations).toMatchObject(
+        { readOnlyHint: false, destructiveHint: false },
+      );
+      READ_TOOLS.forEach((name) =>
+        expect(byName.get(name)?.annotations.readOnlyHint).toBe(true),
+      );
+    });
+
+    it("describes every destructive tool as such and offers dryRun on bulk/delete tools", () => {
+      const byName = new Map(
+        service.listTools(ALL_PAT_SCOPES).map((tool) => [tool.name, tool]),
+      );
+      [
+        MCP_TOOL_NAMES.DELETE_CATEGORY,
+        MCP_TOOL_NAMES.DELETE_RULES,
+        MCP_TOOL_NAMES.SET_RULES_ENABLED,
+      ].forEach((name) => {
+        const tool = byName.get(name);
+        expect(tool?.inputSchema.properties).toHaveProperty("dryRun");
+        expect(tool?.description).toContain("dryRun");
+      });
+      expect(byName.get(MCP_TOOL_NAMES.DELETE_RULES)?.description).toMatch(
+        /^DESTRUCTIVE/,
+      );
+      expect(byName.get(MCP_TOOL_NAMES.DELETE_CATEGORY)?.description).toMatch(
+        /^DESTRUCTIVE/,
+      );
+    });
+
+    it("passes the caller's context to the settings handlers", async () => {
+      const context = contextWith([PAT_SCOPES.MAIL_READ]);
+      await service.callTool(context, MCP_TOOL_NAMES.LIST_RULES, {
+        isEnabled: true,
+      });
+      expect(ruleTools.listRules).toHaveBeenCalledWith(context, {
+        isEnabled: true,
+      });
+    });
   });
 
   it("hides send tools from a read-only token", () => {

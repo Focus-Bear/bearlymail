@@ -207,7 +207,7 @@ emailListItemI18n.use(initReactI18next).init({
         'inbox.followUpDetails.with': 'With',
         'inbox.followUpDetails.daysSinceResponse': 'Days since their last response',
         'inbox.followUpDetails.day': 'day',
-        'inbox.followUpDetails.day_plural': 'days',
+        'inbox.followUpDetails.day_other': 'days',
         'inbox.followUpDetails.status': 'Status',
         'inbox.followUpDetails.noReplyReceived': 'No reply received',
         'inbox.followUpDetails.youSentLast': 'You sent the last',

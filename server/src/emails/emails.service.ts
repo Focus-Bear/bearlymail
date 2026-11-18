@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { In } from "typeorm";
 
 import {
+  EMAIL_MODES,
   EMAIL_PROVIDER_TYPES,
   type EmailProviderType,
 } from "../constants/domain-types";
@@ -91,10 +92,19 @@ export class EmailsService {
     veryLow: number;
     unprioritised: number;
   }> {
-    return this.emailServiceDeps.emailStatusService.getPriorityCounts(
-      userId,
-      mode,
+    const { emailStatusService } = this.emailServiceDeps;
+    if (mode === EMAIL_MODES.TRIAGE) {
+      return emailStatusService.getPriorityCounts(userId, mode);
+    }
+    // The filter chips must add up to the tab's own count, and only the inbox
+    // summary knows whether a starred thread is on Action or Follow Up.
+    const summary = await this.getInboxSummary(userId, mode, {
+      includeThreadIds: true,
+    });
+    const tabThreadIds = summary.categories.flatMap(
+      (category) => category.threadIds ?? [],
     );
+    return emailStatusService.getPriorityCounts(userId, mode, tabThreadIds);
   }
 
   async getPrioritisationStatus(userId: string): Promise<{

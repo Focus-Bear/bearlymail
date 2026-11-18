@@ -112,13 +112,15 @@ function processStats(raw: EmailStats): ProcessedEmailStats {
     .sort((itemA, itemB) => itemB.totalEmails - itemA.totalEmails);
 
   const totalEmails = categoryStats.reduce((sum, cat) => sum + cat.totalEmails, 0);
-  const activeDays = dailyCounts.length || 1;
+  // Average over the whole selected period. Dividing by only the days that had
+  // mail gave the same figure for 7 and 90 days.
+  const periodDays = raw.days || dailyCounts.length || 1;
 
   return {
     dailyCounts,
     categoryStats,
     totalEmails,
-    avgEmailsPerDay: Math.round((totalEmails / activeDays) * 10) / 10,
+    avgEmailsPerDay: Math.round((totalEmails / periodDays) * 10) / 10,
     days: raw.days,
     openTracking: raw.openTracking ?? null,
   };

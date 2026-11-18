@@ -35,6 +35,11 @@ export interface UseDistractionFrictionParams {
    * callers that don't wire it fall back to always absorbing count changes.
    */
   workAdditionCount?: number;
+  /**
+   * How many Triage emails sit below the High floor right now, or null while unknown.
+   * At zero the exercise would unlock nothing, so the gate steps aside.
+   */
+  belowHighTriageCount?: number | null;
 }
 
 export interface UseDistractionFrictionResult {
@@ -96,6 +101,7 @@ export function useDistractionFriction({
   mode,
   tabCounts,
   workAdditionCount = 0,
+  belowHighTriageCount = null,
 }: UseDistractionFrictionParams): UseDistractionFrictionResult {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -159,7 +165,8 @@ export function useDistractionFriction({
       if (!isBelowHighFloor(minPriority)) {
         return false;
       }
-      if (!isGateActive) {
+      const hasNothingToReveal = belowHighTriageCount === 0;
+      if (!isGateActive || hasNothingToReveal) {
         // A frictionless reveal counts as this session's unlock. During a first import the
         // existing-work snapshot keeps absorbing counts (starred threads land in Action), so
         // without this the gate switched on AFTER the reveal and its floor effect silently
@@ -172,7 +179,7 @@ export function useDistractionFriction({
       setIsModalOpen(true);
       return true;
     },
-    [isGateActive]
+    [isGateActive, belowHighTriageCount]
   );
 
   const completeUnlock = useCallback((): PendingUnlockTarget | null => {

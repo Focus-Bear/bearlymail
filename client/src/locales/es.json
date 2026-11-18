@@ -5143,15 +5143,22 @@
     },
     "focusBear": {
       "title": "Focus Bear",
-      "description": "Cuando guardas una tarea en Focus Bear, BearlyMail sugiere el proyecto al que pertenece y el próximo día en que tienes tiempo para ella. En Focus Bear, abre Integraciones, crea un token de acceso con el permiso tasks:read y pégalo aquí. Se guarda cifrado y solo se usa para estas sugerencias.",
-      "tokenLabel": "Token de acceso de Focus Bear",
-      "tokenPlaceholder": "Pega tu token de acceso de Focus Bear",
-      "connect": "Conectar",
-      "checking": "Comprobando…",
+      "description": "Cuando guardas una tarea en Focus Bear, BearlyMail sugiere el proyecto al que pertenece y el próximo día en que tienes tiempo para ella. Conecta tu cuenta de Focus Bear para activarlo: inicias sesión en Focus Bear y BearlyMail solo usa la conexión para estas sugerencias. Puedes desconectarla cuando quieras.",
+      "connect": "Conectar Focus Bear",
+      "connecting": "Abriendo Focus Bear…",
       "disconnect": "Desconectar",
       "connected": "Conectado ✓",
       "notConnected": "Sin conectar",
-      "tokenRejected": "Focus Bear no aceptó ese token. Comprueba que tenga el permiso tasks:read e inténtalo de nuevo."
+      "pastedTokenConnected": "Conectado con un token de acceso",
+      "pastedTokenHint": "Te conectaste pegando un token de acceso de Focus Bear. Sigue funcionando, pero iniciar sesión es más sencillo y se renueva solo. Elige Conectar Focus Bear para cambiar; BearlyMail olvidará entonces el token pegado.",
+      "unavailable": "Conectar Focus Bear aún no está configurado en este servidor de BearlyMail.",
+      "startError": "No se pudo abrir el inicio de sesión de Focus Bear. Inténtalo de nuevo en un momento.",
+      "result": {
+        "connected": "Focus Bear está conectado.",
+        "cancelled": "Focus Bear no se conectó porque se canceló el inicio de sesión.",
+        "expired": "Ese inicio de sesión tardó demasiado o se empezó en otro navegador. Elige Conectar Focus Bear para intentarlo de nuevo.",
+        "failed": "No se pudo conectar Focus Bear. Inténtalo de nuevo en un momento."
+      }
     },
     "ownAiAccount": {
       "title": "Usa tu propia cuenta de IA",

@@ -1,9 +1,14 @@
 import { Injectable } from "@nestjs/common";
 
-import { FOCUS_BEAR_API } from "../constants/focus-bear.constants";
+import {
+  FOCUS_BEAR_API,
+  FOCUS_BEAR_CONNECTION_METHODS,
+  FocusBearConnectionMethod,
+} from "../constants/focus-bear.constants";
 import { HTTP_HEADERS } from "../constants/http-headers";
 import {
   FocusBearApiError,
+  FocusBearCredential,
   FocusBearNextFreeDateResponse,
   FocusBearProjectSuggestionResponse,
   FocusBearTaskToFile,
@@ -12,16 +17,25 @@ import {
 const JSON_CONTENT_TYPE = "application/json";
 const BEARER_PREFIX = "Bearer ";
 
-/** Calls the Focus Bear API as the user, with the access token they connected. */
+const PATHS_BY_METHOD: Record<
+  FocusBearConnectionMethod,
+  { SUGGEST_PROJECT: string; NEXT_FREE_DATE: string }
+> = {
+  [FOCUS_BEAR_CONNECTION_METHODS.OAUTH]: FOCUS_BEAR_API.OAUTH_PATHS,
+  [FOCUS_BEAR_CONNECTION_METHODS.PASTED_TOKEN]:
+    FOCUS_BEAR_API.PASTED_TOKEN_PATHS,
+};
+
+/** Calls the Focus Bear API as the user, with the access they connected. */
 @Injectable()
 export class FocusBearApiService {
   async suggestProject(
-    token: string,
+    credential: FocusBearCredential,
     task: FocusBearTaskToFile,
   ): Promise<FocusBearProjectSuggestionResponse> {
     return this.request<FocusBearProjectSuggestionResponse>(
-      token,
-      FOCUS_BEAR_API.SUGGEST_PROJECT_PATH,
+      credential.accessToken,
+      PATHS_BY_METHOD[credential.method].SUGGEST_PROJECT,
       {
         method: "POST",
         body: JSON.stringify({
@@ -36,7 +50,7 @@ export class FocusBearApiService {
 
   /** Without a duration Focus Bear counts the task as a short one. */
   async nextFreeDate(
-    token: string,
+    credential: FocusBearCredential,
     durationMinutes?: number,
   ): Promise<FocusBearNextFreeDateResponse> {
     const query =
@@ -44,8 +58,8 @@ export class FocusBearApiService {
         ? ""
         : `?${new URLSearchParams({ [FOCUS_BEAR_API.DURATION_QUERY_PARAM]: String(durationMinutes) })}`;
     return this.request<FocusBearNextFreeDateResponse>(
-      token,
-      `${FOCUS_BEAR_API.NEXT_FREE_DATE_PATH}${query}`,
+      credential.accessToken,
+      `${PATHS_BY_METHOD[credential.method].NEXT_FREE_DATE}${query}`,
       { method: "GET" },
     );
   }

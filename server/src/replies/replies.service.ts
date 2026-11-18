@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { PgBoss } from "pg-boss";
@@ -114,7 +115,7 @@ export class RepliesService {
   ): Promise<string> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
     this.ensureEmailDecryptedForReplyCompose(email);
 
@@ -321,7 +322,7 @@ ${closing}`;
     // Analyze the modification to create a new rule
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
     this.ensureEmailDecryptedForReplyCompose(email);
 
@@ -763,7 +764,7 @@ ${closing}`;
     } = options;
 
     const email = await this.emailsService.getEmailById(userId, emailId);
-    if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    if (!email) throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     this.ensureEmailDecryptedForReplyCompose(email);
 
     const user = await this.usersService.findOne(userId);

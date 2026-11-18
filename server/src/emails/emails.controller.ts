@@ -69,6 +69,11 @@ import {
 import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportJobService } from "./email-export-job.service";
 import {
+  assertEmailId,
+  assertValidStarCount,
+  parseStatsDays,
+} from "./email-request-validation";
+import {
   CategoryOverrideBody,
   ExportEmailBody,
   InboxQuery,
@@ -581,7 +586,7 @@ export class EmailsController {
   @Get("stats")
   async getEmailStats(@Request() req, @Query("days") daysParam?: string) {
     const days = Math.min(
-      daysParam ? parseInt(daysParam, 10) : EMAIL_CONTROLLER_DEFAULTS.DAYS,
+      daysParam ? parseStatsDays(daysParam) : EMAIL_CONTROLLER_DEFAULTS.DAYS,
       EMAIL_CONTROLLER_DEFAULTS.MAX_DAYS,
     );
     const { userId } = req.user;
@@ -656,6 +661,7 @@ export class EmailsController {
 
   @Get(":id/priority-explanation")
   async getPriorityExplanation(@Request() req, @Param("id") id: string) {
+    assertEmailId(id);
     return this.emailsService.getPriorityExplanation(req.user.userId, id);
   }
 
@@ -892,6 +898,7 @@ export class EmailsController {
 
   @Put(":id/archive")
   async archiveEmail(@Request() req, @Param("id") id: string) {
+    assertEmailId(id);
     this.logger.log(
       `[Archive] Archive request received for emailId: ${id}, userId: ${req.user.userId}`,
     );
@@ -912,12 +919,14 @@ export class EmailsController {
 
   @Delete(":id")
   async deleteEmail(@Request() req, @Param("id") id: string) {
+    assertEmailId(id);
     await this.emailsService.deleteEmail(req.user.userId, id);
     return { message: "Email deleted" };
   }
 
   @Put(":id/star")
   async toggleStar(@Request() req, @Param("id") id: string) {
+    assertEmailId(id);
     return this.emailsService.toggleStar(req.user.userId, id);
   }
 
@@ -927,6 +936,8 @@ export class EmailsController {
     @Param("id") id: string,
     @Body() body: { starCount: number },
   ) {
+    assertEmailId(id);
+    assertValidStarCount(body?.starCount);
     return this.emailsService.setStarCount(req.user.userId, id, body.starCount);
   }
 

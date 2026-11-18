@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { In } from "typeorm";
 
 import {
@@ -318,7 +318,7 @@ export class EmailsService {
     size: number;
   }> {
     const email = await this.getEmailById(userId, emailId);
-    if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    if (!email) throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     decryptEmailEntityForApi(email);
     const attachmentsList = normaliseEmailAttachmentsList(email.attachments);
     if (attachmentsList.length === 0)
@@ -326,7 +326,8 @@ export class EmailsService {
     const attachment = attachmentsList.find(
       (att) => att.attachmentId === attachmentId,
     );
-    if (!attachment) throw new Error("Attachment not found in email");
+    if (!attachment)
+      throw new NotFoundException("Attachment not found in email");
     // Inline attachments (e.g. text/calendar parts with no Gmail attachment ID)
     // store their content directly in inlineData. Return it without a provider call.
     if (typeof attachment.inlineData === "string") {

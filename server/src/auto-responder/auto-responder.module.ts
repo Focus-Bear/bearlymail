@@ -4,8 +4,10 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "../auth/auth.module";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
+import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { ReplyDraft } from "../database/entities/reply-draft.entity";
 import { User } from "../database/entities/user.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsModule } from "../emails/emails.module";
@@ -18,6 +20,7 @@ import { AutoResponderService } from "./auto-responder.service";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import { AutoResponderArchiveAuditService } from "./auto-responder-archive-audit.service";
 import { AutoResponderContextService } from "./auto-responder-context.service";
+import { AutoResponderDeliveryService } from "./auto-responder-delivery.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
 import { AutoResponderQaService } from "./auto-responder-qa.service";
 import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
@@ -34,6 +37,8 @@ import { QueueStatsService } from "./queue-stats.service";
       UserContext,
       AutoResponseLog,
       AutoResponseSuppression,
+      Contact,
+      ReplyDraft,
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => UsersModule),
@@ -55,6 +60,7 @@ import { QueueStatsService } from "./queue-stats.service";
     AutoResponderAnalyticsService,
     AutoResponderPreviewService,
     AutoResponderArchiveAuditService,
+    AutoResponderDeliveryService,
   ],
   exports: [
     AutoResponderService,

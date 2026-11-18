@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
@@ -407,7 +407,7 @@ export class EmailFollowUpService {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
     });
-    if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    if (!email) throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
 
     const thread = email.emailThreadId
       ? await this.emailThreadRepository.findOne({

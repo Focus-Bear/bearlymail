@@ -8,21 +8,34 @@ import { ASSISTANT_PROMPT_IDS, getPrompt, renderPrompt } from "../llm/prompts";
 import {
   AskAiAgentOptions,
   AskAiAgentResult,
+  AskAiLoopState,
+  AskAiPausedTurn,
+  AskAiRunHooks,
   AskAiStreamEvent,
   AskAiToolActivity,
+  AskAiToolDecision,
   AskAiToolset,
 } from "./ask-ai.types";
-import { AskAiToolService } from "./ask-ai-tools.service";
+import { AskAiApprovalService } from "./ask-ai-approval.service";
+import { AskAiToolService, requiresApproval } from "./ask-ai-tools.service";
 
 type ChatMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 /** OpenAI tool-call discriminant for standard function tools. */
 const FUNCTION_TOOL_CALL = "function";
+/** Tool descriptor discriminant for connected (MCP) tools. */
+const KIND_MCP = "mcp" as const;
+
+/** Tool result the model sees when the user declines a pending tool call. */
+const TOOL_DECLINED_MESSAGE =
+  "The user declined to run this tool. Do not call it again for this request; answer without it and tell the user it was not run.";
 
 /**
  * Drives the agentic Ask AI turn: grounds the model in the open email, exposes
  * the user's tools (email search + connected MCP tools), and runs a bounded
- * tool-calling loop until the model produces a final answer.
+ * tool-calling loop until the model produces a final answer. A connected tool
+ * that is not explicitly read-only pauses the loop until the user approves or
+ * denies that exact call (see {@link AskAiApprovalService}).
  */
 @Injectable()
 export class AskAiAgentService {
@@ -39,11 +52,10 @@ export class AskAiAgentService {
   constructor(
     private readonly llmCore: LLMCoreService,
     private readonly tools: AskAiToolService,
+    private readonly approvals: AskAiApprovalService,
   ) {}
 
   async ask(options: AskAiAgentOptions): Promise<AskAiAgentResult> {
-    const { userId, onEvent, signal } = options;
-
     const promptConfig = getPrompt(ASSISTANT_PROMPT_IDS.ASK_AI_AGENT);
     if (!promptConfig) {
       throw new StructuralError(
@@ -51,14 +63,96 @@ export class AskAiAgentService {
       );
     }
 
-    const messages = this.buildMessages(promptConfig, options);
+    const state: AskAiLoopState = {
+      messages: this.buildMessages(promptConfig, options),
+      activity: [],
+      round: 0,
+      queuedCalls: [],
+    };
+    return this.runLoop(options.userId, state, options);
+  }
+
+  /**
+   * Claim (single use) the paused turn behind a pending tool call. Throws for
+   * an unknown, already-used, expired or mismatched approval.
+   */
+  claimApproval(decision: AskAiToolDecision): Promise<AskAiPausedTurn> {
+    return this.approvals.consume(decision);
+  }
+
+  /**
+   * Resume a turn paused on a tool call once the user has decided. Approval
+   * runs exactly the stored call (the client never supplies arguments); denial
+   * tells the model the user declined. The rest of the turn then continues.
+   */
+  async resume(
+    decision: AskAiToolDecision,
+    paused: AskAiPausedTurn,
+    hooks: AskAiRunHooks = {},
+  ): Promise<AskAiAgentResult> {
+    const { awaiting, ...state } = paused;
+    const { descriptor, args, toolCallId } = awaiting;
+
+    if (decision.approved) {
+      const { resultJson, activity } = await this.tools.executeTool(
+        decision.userId,
+        descriptor,
+        args,
+      );
+      state.activity.push(activity);
+      hooks.onEvent?.({ type: "tool", activity });
+      state.messages.push({
+        role: "tool",
+        tool_call_id: toolCallId,
+        content: resultJson,
+      });
+    } else {
+      const activity: AskAiToolActivity = {
+        tool: descriptor.toolName,
+        label: `You declined ${descriptor.toolName} on ${descriptor.serverName}`,
+      };
+      state.activity.push(activity);
+      hooks.onEvent?.({ type: "tool", activity });
+      state.messages.push({
+        role: "tool",
+        tool_call_id: toolCallId,
+        content: JSON.stringify({ error: TOOL_DECLINED_MESSAGE }),
+      });
+    }
+    return this.runLoop(decision.userId, state, hooks);
+  }
+
+  /**
+   * The bounded tool-calling loop. Drains any queued tool calls, asks the model
+   * for the next step, and stops at a text answer, a tool call that needs the
+   * user's approval, or the round/time budget.
+   */
+  private async runLoop(
+    userId: string,
+    state: AskAiLoopState,
+    hooks: AskAiRunHooks,
+  ): Promise<AskAiAgentResult> {
+    const { onEvent, signal } = hooks;
     const toolset = await this.tools.buildToolset(userId);
-    const activity: AskAiToolActivity[] = [];
+    const { messages, activity } = state;
     const { deadline, controller, cleanup } = this.setupAbort(signal);
 
     try {
-      for (let round = 0; round < AskAiAgentService.MAX_TOOL_ROUNDS; round++) {
-        if (Date.now() >= deadline) break;
+      for (;;) {
+        const paused = await this.runQueuedCalls({
+          userId,
+          state,
+          toolset,
+          onEvent,
+        });
+        if (paused) return paused;
+
+        if (
+          state.round >= AskAiAgentService.MAX_TOOL_ROUNDS ||
+          Date.now() >= deadline
+        ) {
+          break;
+        }
 
         const message = await this.llmCore.chatWithTools({
           messages,
@@ -68,7 +162,7 @@ export class AskAiAgentService {
           timeoutMs: this.callTimeout(deadline),
           signal: controller.signal,
         });
-
+        state.round++;
         messages.push(this.toAssistantMessage(message));
 
         const toolCalls = message.tool_calls ?? [];
@@ -78,15 +172,7 @@ export class AskAiAgentService {
             toolActivity: activity,
           };
         }
-
-        await this.runToolCalls({
-          userId,
-          toolCalls,
-          toolset,
-          messages,
-          activity,
-          onEvent,
-        });
+        state.queuedCalls = [...toolCalls];
       }
 
       // Tool budget exhausted (or deadline hit) — force a final text answer.
@@ -185,17 +271,21 @@ export class AskAiAgentService {
     return name === "AbortError" || name === "APIUserAbortError";
   }
 
-  /** Execute every tool call in a round and append the results to `messages`. */
-  private async runToolCalls(ctx: {
+  /**
+   * Execute the queued tool calls in order, appending each result to the
+   * conversation. Stops at the first call that needs the user's approval:
+   * the turn is persisted and a pending-call result is returned instead.
+   */
+  private async runQueuedCalls(ctx: {
     userId: string;
-    toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+    state: AskAiLoopState;
     toolset: AskAiToolset;
-    messages: ChatMessage[];
-    activity: AskAiToolActivity[];
     onEvent?: (event: AskAiStreamEvent) => void;
-  }): Promise<void> {
-    const { userId, toolCalls, toolset, messages, activity, onEvent } = ctx;
-    for (const call of toolCalls) {
+  }): Promise<AskAiAgentResult | null> {
+    const { userId, state, toolset, onEvent } = ctx;
+    const { messages, activity } = state;
+    while (state.queuedCalls.length > 0) {
+      const call = state.queuedCalls.shift()!;
       if (call.type !== FUNCTION_TOOL_CALL) {
         messages.push({
           role: "tool",
@@ -216,6 +306,14 @@ export class AskAiAgentService {
       }
 
       const args = this.parseArguments(call.function.arguments);
+      if (descriptor.kind === KIND_MCP && requiresApproval(descriptor)) {
+        const pendingToolCall = await this.approvals.createPending(userId, {
+          ...state,
+          awaiting: { toolCallId: call.id, descriptor, args },
+        });
+        return { answer: "", toolActivity: activity, pendingToolCall };
+      }
+
       const { resultJson, activity: toolActivity } =
         await this.tools.executeTool(userId, descriptor, args);
       activity.push(toolActivity);
@@ -226,6 +324,7 @@ export class AskAiAgentService {
         content: resultJson,
       });
     }
+    return null;
   }
 
   private parseArguments(raw: string): Record<string, unknown> {

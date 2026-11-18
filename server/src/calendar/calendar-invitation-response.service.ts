@@ -252,7 +252,7 @@ export async function respondToInvitation(
 
   const email = await service.emailsService.getEmailById(userId, emailId);
   if (!email) {
-    throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
   }
 
   if (!service.isCalendarInvitation(email)) {
@@ -350,7 +350,7 @@ export async function generateMeetingReply(
   const email = await service.emailsService.getEmailById(userId, emailId);
 
   if (!email) {
-    throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
   }
 
   const schedulingLinkUrl = await resolveSchedulingLinkUrl(service, userId);
@@ -717,7 +717,7 @@ async function resolveMeetingProposal(
 ): Promise<MeetingProposalResult> {
   const email = await service.emailsService.getEmailById(userId, emailId);
   if (!email) {
-    throw new Error("Email not found");
+    throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
   }
 
   const proposal = await detectProposalForEmail(

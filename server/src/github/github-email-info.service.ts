@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
@@ -220,7 +220,7 @@ export class GitHubEmailInfoService {
   ): Promise<GitHubEmailInfoResult> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email || !email.emailThreadId) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const thread = await this.emailThreadRepository.findOne({
@@ -269,7 +269,7 @@ export class GitHubEmailInfoService {
   ): Promise<{ links: GitHubMetadataLink[]; message: string }> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email || !email.emailThreadId) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const thread = await this.emailThreadRepository.findOne({

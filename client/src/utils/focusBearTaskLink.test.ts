@@ -81,20 +81,27 @@ describe('buildFocusBearTaskLink', () => {
 describe('buildFocusBearTaskLink — project and due date', () => {
   const PROJECT_ID = '9b2f7c1e-0000-4000-8000-0000000000aa';
 
-  it('carries the chosen project and due date', () => {
+  it('carries the chosen project, due date and duration', () => {
     const params = paramsOf(
-      buildFocusBearTaskLink({ title: 'Complete the evaluation form', projectId: PROJECT_ID, dueDate: '2026-11-12' })
+      buildFocusBearTaskLink({
+        title: 'Complete the evaluation form',
+        projectId: PROJECT_ID,
+        dueDate: '2026-11-12',
+        durationMinutes: 90,
+      })
     );
 
     expect(params.get('project_id')).toBe(PROJECT_ID);
     expect(params.get('due_date')).toBe('2026-11-12');
+    expect(params.get('duration_minutes')).toBe('90');
   });
 
-  it('leaves them out when there are none', () => {
+  it('leaves them out when there are none, so Focus Bear picks the next free day', () => {
     const params = paramsOf(buildFocusBearTaskLink({ title: 'Reply' }));
 
     expect(params.has('project_id')).toBe(false);
     expect(params.has('due_date')).toBe(false);
+    expect(params.has('duration_minutes')).toBe(false);
   });
 
   it('never cuts them when the text has to shrink to fit', () => {
@@ -104,11 +111,13 @@ describe('buildFocusBearTaskLink — project and due date', () => {
       link: EMAIL_URL,
       projectId: PROJECT_ID,
       dueDate: '2026-11-12',
+      durationMinutes: 45,
     });
 
     expect(link.length).toBeLessThanOrEqual(FOCUS_BEAR_TASK_MAX_URL_LENGTH);
     expect(paramsOf(link).get('project_id')).toBe(PROJECT_ID);
     expect(paramsOf(link).get('due_date')).toBe('2026-11-12');
+    expect(paramsOf(link).get('duration_minutes')).toBe('45');
   });
 });
 

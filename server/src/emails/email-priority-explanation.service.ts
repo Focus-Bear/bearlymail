@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { PgBoss } from "pg-boss";
 import { Repository } from "typeorm";
@@ -153,7 +159,7 @@ export class EmailPriorityExplanationService {
       const email = await getEmailById(userId, emailId);
       endEmailQuery();
 
-      if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      if (!email) throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
 
       const thread = await this.resolveThreadForEmail(email);
 

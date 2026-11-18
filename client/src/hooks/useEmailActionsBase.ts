@@ -97,9 +97,13 @@ function useStarCountMutation({
       const predictedStarCount = email
         ? Math.round((getEmailPriorityScore(email) / 100) * 3)
         : Math.round((DEFAULT_PRIORITY_SCORE / 100) * 3);
+      // The active tab's badge is reconciled against the category summary, so a thread
+      // leaving this tab has to leave the summary too or the badge stays one too high.
+      const summaryChange = { categoryKey: email?.category_id ?? CATEGORY_KEY_UNCATEGORIZED, count: 1 };
 
       if (mode === MODE_TRIAGE && starCount > 0) {
         dispatch(addAnimatingOut({ id: emailId, type: 'priority', starCount }));
+        dispatch(decrementCategorySummaryCount(summaryChange));
         removeEmailFromCache(emailId);
         invalidateSummaryCache(mode);
         onSuggestionRemove?.(emailId);
@@ -111,6 +115,7 @@ function useStarCountMutation({
         }, EMAIL_EXIT_ANIMATION_DURATION_MS);
         priorityAnimationTimeouts.current.set(emailId, tid);
       } else if (mode === MODE_ACTION && starCount === 0) {
+        dispatch(decrementCategorySummaryCount(summaryChange));
         dispatch(removeEmail(emailId));
         invalidateSummaryCache(mode);
         onSuggestionRemove?.(emailId);
@@ -134,9 +139,11 @@ function useStarCountMutation({
           } else {
             dispatch(restoreEmail(email));
           }
+          dispatch(incrementCategorySummaryCount(summaryChange));
           onTabCountsUpdateOptimistically?.({ triage: 1, action: -1 });
         } else if (mode === MODE_ACTION && starCount === 0 && email) {
           dispatch(restoreEmail(email));
+          dispatch(incrementCategorySummaryCount(summaryChange));
           onTabCountsUpdateOptimistically?.({ action: 1, triage: -1 });
         } else {
           dispatch(updateEmail({ id: emailId, updates: { starCount: originalStarCount } }));

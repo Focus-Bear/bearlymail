@@ -289,68 +289,109 @@ ${token("footer", { year })}
       .replace(/'/g, "&#39;");
   }
 
+  /**
+   * Sends the emailed password-reset link. `resetUrl` carries the single-use
+   * token; only its hash is stored.
+   */
   async sendPasswordResetEmail(
     toEmail: string,
     firstName: string,
-    resetToken: string,
+    resetUrl: string,
     language: string = "en",
   ): Promise<void> {
-    const frontendUrl =
-      this.configService.get<string>("FRONTEND_URL") || "http://localhost:3000";
-    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+    await this.sendLinkEmail({
+      toEmail,
+      template: "password-reset.mjml",
+      translationPrefix: "passwordReset",
+      firstName,
+      actionUrl: resetUrl,
+      urlVariable: "resetUrl",
+      language,
+    });
+  }
 
-    // Get translations
+  /**
+   * Asks a new password sign-up to confirm they own the address. Until they
+   * follow `verifyUrl`, password sign-in for the account is refused.
+   */
+  async sendEmailVerificationEmail(
+    toEmail: string,
+    firstName: string,
+    verifyUrl: string,
+    language: string = "en",
+  ): Promise<void> {
+    await this.sendLinkEmail({
+      toEmail,
+      template: "email-verification.mjml",
+      translationPrefix: "emailVerification",
+      firstName,
+      actionUrl: verifyUrl,
+      urlVariable: "actionUrl",
+      language,
+    });
+  }
+
+  /**
+   * Renders and sends a single-button email (greeting, message, call to
+   * action, link fallback, expiry note). Every value is HTML-escaped, and
+   * placeholders match with or without inner spaces (`{{ greeting }}`).
+   */
+  private async sendLinkEmail(options: {
+    toEmail: string;
+    template: string;
+    translationPrefix: string;
+    firstName: string;
+    actionUrl: string;
+    urlVariable: string;
+    language: string;
+  }): Promise<void> {
+    const { translationPrefix, firstName, actionUrl, language } = options;
     const translate = (key: string, params: Record<string, string> = {}) =>
-      translateEmail(`passwordReset.${key}`, language, params);
-
-    const subject = translate("subject");
+      translateEmail(`${translationPrefix}.${key}`, language, params);
     const year = new Date().getFullYear().toString();
+    const text = {
+      greeting: translate("greeting", { firstName }),
+      message: translate("message", { firstName }),
+      cta: translate("cta"),
+      button: translate("button"),
+      linkText: translate("linkText"),
+      expiry: translate("expiry"),
+      footer: translate("footer", { year }),
+    };
 
-    // Load MJML template
-    const templatePath = path.join(
-      __dirname,
-      "templates",
-      "password-reset.mjml",
+    let mjmlTemplate = loadTemplate(
+      path.join(__dirname, "templates", options.template),
     );
-    let mjmlTemplate = loadTemplate(templatePath);
+    const vars: Record<string, string> = {
+      ...text,
+      previewText: text.message,
+      [options.urlVariable]: actionUrl,
+    };
+    for (const [key, value] of Object.entries(vars)) {
+      const safeValue = this.escapeHtml(value);
+      mjmlTemplate = mjmlTemplate.replace(
+        new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"),
+        () => safeValue,
+      );
+    }
 
-    // Replace template variables
-    mjmlTemplate = mjmlTemplate
-      .replace(/\{\{previewText\}\}/g, translate("message", { firstName }))
-      .replace(/\{\{greeting\}\}/g, translate("greeting", { firstName }))
-      .replace(/\{\{message\}\}/g, translate("message", { firstName }))
-      .replace(/\{\{cta\}\}/g, translate("cta"))
-      .replace(/\{\{button\}\}/g, translate("button"))
-      .replace(/\{\{linkText\}\}/g, translate("linkText"))
-      .replace(/\{\{resetUrl\}\}/g, resetUrl)
-      .replace(/\{\{expiry\}\}/g, translate("expiry"))
-      .replace(/\{\{footer\}\}/g, translate("footer", { year }));
-
-    // Convert MJML to HTML (mjml v5 is async)
     const { html, errors } = await mjml(mjmlTemplate, {
       validationLevel: "soft",
     });
-
     if (errors && errors.length > 0) {
       this.logger.warn("MJML conversion warnings:", errors);
     }
 
-    // Generate plain text version
-    const textBody = `
-${translate("greeting", { firstName })}
+    const textBody = [
+      text.greeting,
+      text.message,
+      text.cta,
+      actionUrl,
+      text.expiry,
+      text.footer,
+    ].join("\n\n");
 
-${translate("message", { firstName })}
-
-${translate("cta")}
-
-${resetUrl}
-
-${translate("expiry")}
-
-${translate("footer", { year })}
-    `;
-
-    await this.sendEmail(toEmail, subject, html, textBody);
+    await this.sendEmail(options.toEmail, translate("subject"), html, textBody);
   }
 
   private async sendEmail(

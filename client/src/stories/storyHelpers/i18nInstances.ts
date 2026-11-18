@@ -211,6 +211,10 @@ emailListItemI18n.use(initReactI18next).init({
         'inbox.followUpDetails.status': 'Status',
         'inbox.followUpDetails.noReplyReceived': 'No reply received',
         'inbox.followUpDetails.youSentLast': 'You sent the last',
+        // Row badges (MetadataIndicators)
+        'inbox.autoResponseDraftBadge': 'Reply draft ready',
+        'inbox.autoResponseDraftBadgeTitle':
+          'The auto-responder wrote a reply. Open the email to check it and send it.',
       },
     },
   },

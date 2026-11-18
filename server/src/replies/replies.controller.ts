@@ -229,7 +229,7 @@ export class RepliesController {
     },
   ) {
     const email = await this.emailsService.getEmailById(userId, emailId);
-    if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    if (!email) throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     decryptEmailEntityForApi(email);
 
     const subject =

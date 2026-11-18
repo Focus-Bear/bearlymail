@@ -514,7 +514,10 @@ async function seedTestUser() {
       console.log('Test user already exists, updating...');
       const hashedPassword = await bcrypt.hash(testPassword, 10);
       existingUser.password = hashedPassword;
+      // Also repairs users this script created double-encrypted (see below).
+      existingUser.email = testEmail;
       existingUser.isApproved = true;
+      existingUser.emailVerifiedAt = new Date();
       existingUser.hasSeenTour = true;
       existingUser.hasCompletedOnboarding = true;
       existingUser.hasScannedHistory = true;
@@ -528,19 +531,16 @@ async function seedTestUser() {
     } else {
       console.log('Creating test user...');
       const hashedPassword = await bcrypt.hash(testPassword, 10);
-      const encryptedEmail = EncryptionHelper.encrypt(testEmail);
-      
-      if (!encryptedEmail) {
-        throw new Error('Failed to encrypt email. Check ENCRYPTION_KEY environment variable.');
-      }
-      
       const now = new Date();
       const newUser = userRepository.create({
-        email: encryptedEmail,
+        // The User entity's column transformer encrypts on save, so pass the
+        // plaintext address: encrypting here too stored it double-encrypted.
+        email: testEmail,
         emailHash,
         password: hashedPassword,
         name: 'Test User',
         isApproved: true,
+        emailVerifiedAt: now,
         hasSeenTour: true,
         hasCompletedOnboarding: true,
         hasScannedHistory: true,

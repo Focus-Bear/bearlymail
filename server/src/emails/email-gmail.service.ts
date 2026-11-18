@@ -1,4 +1,10 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { google } from "googleapis";
 import { Repository } from "typeorm";
@@ -246,7 +252,7 @@ export class EmailGmailService {
   }> {
     const email = await getEmailById(userId, emailId);
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Get thread info from DB
@@ -327,7 +333,7 @@ export class EmailGmailService {
   }> {
     const email = await getEmailById(userId, emailId);
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const dbLabelsRaw = await this.getDbEmailLabels(email);

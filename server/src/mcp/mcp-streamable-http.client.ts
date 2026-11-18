@@ -1,10 +1,20 @@
 import axios, { AxiosResponse } from "axios";
 
+import { safeAxiosConfig } from "../common/safe-http/safe-http";
 import { assertSafeOutboundUrl } from "../common/url-validation.utils";
+import { SAFE_HTTP } from "../constants/safe-http.constants";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const HTTP_STATUS_UNAUTHORIZED = 401;
 const HTTP_STATUS_FIRST_ERROR = 400;
+const HTTP_STATUS_FIRST_REDIRECT = 300;
+
+/** Public addresses only, redirects never followed, bounded response size. */
+const requestConfig = () =>
+  safeAxiosConfig({
+    timeoutMs: REQUEST_TIMEOUT_MS,
+    maxResponseBytes: SAFE_HTTP.MCP_MAX_RESPONSE_BYTES,
+  });
 const JSON_RPC_VERSION = "2.0";
 /** Newest MCP revision we speak; the server may negotiate an older one. */
 const CLIENT_PROTOCOL_VERSION = "2025-06-18";
@@ -151,8 +161,8 @@ export class MCPStreamableHttpClient {
     if (!session.sessionId) return;
     try {
       await axios.delete(this.serverUrl, {
+        ...requestConfig(),
         headers: this.buildHeaders(session),
-        timeout: REQUEST_TIMEOUT_MS,
       });
     } catch {
       // Servers may answer 405 when they don't allow client-terminated sessions.
@@ -187,13 +197,21 @@ export class MCPStreamableHttpClient {
     session: MCPSession | null,
   ): Promise<AxiosResponse<string>> {
     const response = await axios.post<string>(this.serverUrl, body, {
+      ...requestConfig(),
       headers: this.buildHeaders(session),
-      timeout: REQUEST_TIMEOUT_MS,
       responseType: "text",
       // Keep the raw body: it may be an SSE stream rather than JSON.
       transformResponse: (raw: string) => raw,
       validateStatus: () => true,
     });
+    if (
+      response.status >= HTTP_STATUS_FIRST_REDIRECT &&
+      response.status < HTTP_STATUS_FIRST_ERROR
+    ) {
+      throw new Error(
+        `MCP server responded with a redirect (HTTP ${response.status}), which is not followed`,
+      );
+    }
     if (response.status === HTTP_STATUS_UNAUTHORIZED) {
       throw new MCPAuthorizationRequiredError(
         this.challengeAdvertisesOAuth(response),

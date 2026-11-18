@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Post,
   Request,
@@ -75,7 +76,7 @@ export class PriorityController {
       emailId,
     );
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const contexts = await this.priorityService.getUserContexts(
@@ -208,7 +209,7 @@ export class PriorityController {
       emailId,
     );
     if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Use priority learning service to process feedback and update context

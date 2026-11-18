@@ -160,6 +160,7 @@ export class EmailInboxDecryptService {
       to: row.to ? EncryptionHelper.tryDecrypt(row.to) : null,
       cc: row.cc ? EncryptionHelper.tryDecrypt(row.cc) : null,
       sentByAutoResponder: row.sentByAutoResponder ?? false,
+      hasAutoResponseDraft: row.hasAutoResponseDraft === true,
     } as InboxEmail;
   }
 

@@ -16,6 +16,7 @@ import type { Request as ExpressRequest, Response } from "express";
 import { Repository } from "typeorm";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import {
@@ -24,7 +25,13 @@ import {
   AskAiTurn,
 } from "../llm/llm-ask.service";
 import { AiCapacityGuard } from "../subscriptions/ai-capacity.guard";
-import { AskAiAgentOptions, AskAiStreamEvent } from "./ask-ai.types";
+import {
+  AskAiAgentOptions,
+  AskAiAgentResult,
+  AskAiRunHooks,
+  AskAiStreamEvent,
+  AskAiToolDecision,
+} from "./ask-ai.types";
 import { AskAiAgentService } from "./ask-ai-agent.service";
 
 /** Max characters accepted for a single Ask-AI question. */
@@ -33,7 +40,8 @@ const ASK_AI_MAX_QUESTION_LENGTH = 2000;
 const ASK_AI_MAX_HISTORY_TURNS = 12;
 /** Per-user rate limit: an agentic turn fans out to several LLM calls. */
 const ASK_AI_RATE_LIMIT = 20;
-const ASK_AI_RATE_TTL_SECONDS = 60;
+// @nestjs/throttler reads ttl in milliseconds.
+const ASK_AI_RATE_TTL_MS = MILLISECONDS.MINUTE;
 /** Most recent messages of the open thread to feed the assistant. */
 const ASK_AI_MAX_THREAD_MESSAGES = 12;
 /** Per-message body cap when assembling a thread (bounds the prompt). */
@@ -46,6 +54,16 @@ interface AskAiRequestBody {
   question: string;
   history?: AskAiTurn[];
 }
+
+interface AskAiToolDecisionBody {
+  approvalId: string;
+  argumentsHash: string;
+  approved: boolean;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
 
 type AuthedRequest = { user: { userId: string } };
 
@@ -69,7 +87,7 @@ export class AskAiController {
   ) {}
 
   @Throttle({
-    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_SECONDS },
+    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_MS },
   })
   @Post("ask-email")
   async askEmail(
@@ -77,8 +95,11 @@ export class AskAiController {
     @Body() body: AskAiRequestBody,
   ) {
     const prepared = await this.prepare(req.user.userId, body);
-    const { answer, toolActivity } = await this.agent.ask(prepared);
-    return { answer, toolActivity };
+    const { answer, toolActivity, pendingToolCall } =
+      await this.agent.ask(prepared);
+    return pendingToolCall
+      ? { answer, toolActivity, pendingToolCall }
+      : { answer, toolActivity };
   }
 
   /**
@@ -87,7 +108,7 @@ export class AskAiController {
    * live progress on slower turns. Aborts the turn if the client disconnects.
    */
   @Throttle({
-    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_SECONDS },
+    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_MS },
   })
   @Post("ask-email/stream")
   async streamEmail(
@@ -99,7 +120,45 @@ export class AskAiController {
     // Validation runs before any SSE headers so failures surface as normal HTTP
     // errors that the Nest exception filter can format.
     const prepared = await this.prepare(req.user.userId, body);
+    await this.streamTurn(rawReq, res, (hooks) =>
+      this.agent.ask({ ...prepared, ...hooks }),
+    );
+  }
 
+  /**
+   * Approve or deny a connected-tool call the assistant paused on, then stream
+   * the rest of the turn exactly like `ask-email/stream`. Approval runs the
+   * stored call only; the hash must match the call that was shown.
+   */
+  @Throttle({
+    default: { limit: ASK_AI_RATE_LIMIT, ttl: ASK_AI_RATE_TTL_MS },
+  })
+  @Post("ask-email/tool-approval/stream")
+  async streamToolDecision(
+    @Request() req: AuthedRequest,
+    @Body() body: AskAiToolDecisionBody,
+    @Req() rawReq: ExpressRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    const decision = this.parseDecision(req.user.userId, body);
+    // Claim the approval before opening the stream so an unknown, expired or
+    // mismatched approval is a normal HTTP error rather than an SSE event.
+    const paused = await this.agent.claimApproval(decision);
+    await this.streamTurn(rawReq, res, (hooks) =>
+      this.agent.resume(decision, paused, hooks),
+    );
+  }
+
+  /**
+   * Run one agent step over Server-Sent Events: "tool" events as tools run,
+   * then a terminal "answer", "approval_required" or "error" event. Aborts the
+   * turn if the client disconnects.
+   */
+  private async streamTurn(
+    rawReq: ExpressRequest,
+    res: Response,
+    run: (hooks: AskAiRunHooks) => Promise<AskAiAgentResult>,
+  ): Promise<void> {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
@@ -114,12 +173,15 @@ export class AskAiController {
     };
 
     try {
-      const { answer, toolActivity } = await this.agent.ask({
-        ...prepared,
+      const { answer, toolActivity, pendingToolCall } = await run({
         onEvent: write,
         signal: controller.signal,
       });
-      write({ type: "answer", answer, toolActivity });
+      write(
+        pendingToolCall
+          ? { type: "approval_required", pendingToolCall, toolActivity }
+          : { type: "answer", answer, toolActivity },
+      );
     } catch (error) {
       if (!controller.signal.aborted) {
         const message =
@@ -132,6 +194,33 @@ export class AskAiController {
         res.end();
       }
     }
+  }
+
+  private parseDecision(
+    userId: string,
+    body: AskAiToolDecisionBody,
+  ): AskAiToolDecision {
+    if (
+      typeof body?.approvalId !== "string" ||
+      !UUID_PATTERN.test(body.approvalId)
+    ) {
+      throw new BadRequestException("A valid approvalId is required");
+    }
+    if (
+      typeof body.argumentsHash !== "string" ||
+      !SHA256_HEX_PATTERN.test(body.argumentsHash)
+    ) {
+      throw new BadRequestException("A valid argumentsHash is required");
+    }
+    if (typeof body.approved !== "boolean") {
+      throw new BadRequestException("approved must be true or false");
+    }
+    return {
+      userId,
+      approvalId: body.approvalId,
+      argumentsHash: body.argumentsHash,
+      approved: body.approved,
+    };
   }
 
   /** Shared validation + email fetch + history sanitisation. */

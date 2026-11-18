@@ -179,6 +179,23 @@ describe('ClaudeAccessSection', () => {
     );
   });
 
+  it('adds settings:write only when editing categories and rules is allowed', async () => {
+    mockPosts({ data: { token: 'bm_pat_X', summary: EXISTING_TOKEN } });
+    render(<ClaudeAccessSection />);
+    await screen.findByText('Laptop');
+
+    fireEvent.click(screen.getByTestId('access-token-can-edit-settings'));
+    fireEvent.submit(screen.getByTestId('access-token-create-form'));
+
+    await waitFor(() =>
+      expect(axios.post).toHaveBeenCalledWith(
+        TOKENS_URL,
+        expect.objectContaining({ scopes: ['mail:read', 'settings:write'] }),
+        STEP_UP_HEADERS
+      )
+    );
+  });
+
   it('asks password users to confirm before creating a token', async () => {
     vi.mocked(axios.post).mockImplementation(async (url: string, body?: unknown) => {
       if (url === STEP_UP_URL && !(body as { password?: string }).password) {

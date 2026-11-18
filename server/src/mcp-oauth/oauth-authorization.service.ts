@@ -27,7 +27,7 @@ import { OAuthError } from "./oauth-error";
 import { buildAuthorizationRedirect, readSingleParam } from "./oauth-params";
 import {
   canRequestDrafts,
-  ConsentScopeChoice,
+  ConsentScopeChoices,
   parseRequestedScopes,
   resolveGrantedScopes,
 } from "./oauth-scopes";
@@ -50,10 +50,11 @@ export interface ConsentRequestView {
   isLoopbackRedirect: boolean;
   canRequestDrafts: boolean;
   canRequestSend: boolean;
+  canRequestSettingsWrite: boolean;
   expiresAt: Date;
 }
 
-export interface ConsentDecision extends ConsentScopeChoice {
+export interface ConsentDecision extends ConsentScopeChoices {
   approve: boolean;
 }
 
@@ -159,6 +160,9 @@ export class OAuthAuthorizationService {
       isLoopbackRedirect: isLoopbackRedirectUri(row.redirectUri),
       canRequestDrafts: canRequestDrafts(row.requestedScopes),
       canRequestSend: row.requestedScopes.includes(PAT_SCOPES.MAIL_SEND),
+      canRequestSettingsWrite: row.requestedScopes.includes(
+        PAT_SCOPES.SETTINGS_WRITE,
+      ),
       expiresAt: row.expiresAt,
     };
   }

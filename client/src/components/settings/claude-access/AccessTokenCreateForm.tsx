@@ -8,6 +8,8 @@ import {
   DEFAULT_TOKEN_EXPIRY_DAYS,
   DEFAULT_TOKEN_NAME,
   MAX_TOKEN_NAME_LENGTH,
+  PAT_SCOPES,
+  PatScope,
   SCOPES_FOR_ACCESS_LEVEL,
   TOKEN_EXPIRY_OPTIONS,
 } from 'constants/claudeAccess';
@@ -16,6 +18,8 @@ import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { CreatePersonalAccessTokenInput } from './types';
 
 const NEVER_EXPIRES_VALUE = 'never';
+/** Nudges the checkbox down to line up with the label's first line. */
+const CHECKBOX_TOP_OFFSET_PX = 3;
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -36,27 +40,22 @@ const inputStyle: React.CSSProperties = {
   backgroundColor: theme.colors.background.paper,
 };
 
-interface AccessTokenCreateFormProps {
-  isSubmitting: boolean;
-  onCreate: (input: CreatePersonalAccessTokenInput) => void;
-}
-
 interface PermissionCheckboxProps {
   isChecked: boolean;
   isDisabled?: boolean;
+  onChange: (isChecked: boolean) => void;
+  testId: string;
   label: string;
   hint: string;
-  testId: string;
-  onChange: (isChecked: boolean) => void;
 }
 
 const PermissionCheckbox: React.FC<PermissionCheckboxProps> = ({
   isChecked,
   isDisabled,
+  onChange,
+  testId,
   label,
   hint,
-  testId,
-  onChange,
 }) => (
   <label
     style={{
@@ -72,7 +71,7 @@ const PermissionCheckbox: React.FC<PermissionCheckboxProps> = ({
       disabled={isDisabled}
       onChange={(event) => onChange(event.target.checked)}
       data-testid={testId}
-      style={{ marginTop: '3px' }}
+      style={{ marginTop: CHECKBOX_TOP_OFFSET_PX }}
     />
     <span>
       <span style={{ ...labelStyle, display: 'inline', marginBottom: 0 }}>{label}</span>
@@ -83,6 +82,11 @@ const PermissionCheckbox: React.FC<PermissionCheckboxProps> = ({
   </label>
 );
 
+interface AccessTokenCreateFormProps {
+  isSubmitting: boolean;
+  onCreate: (input: CreatePersonalAccessTokenInput) => void;
+}
+
 function accessLevelFor(canDraft: boolean, canSend: boolean): AccessLevel {
   if (canSend) {
     return ACCESS_LEVELS.SEND;
@@ -90,23 +94,32 @@ function accessLevelFor(canDraft: boolean, canSend: boolean): AccessLevel {
   return canDraft ? ACCESS_LEVELS.DRAFT : ACCESS_LEVELS.READ;
 }
 
+function scopesFor(canDraft: boolean, canSend: boolean, canEditSettings: boolean): PatScope[] {
+  return [
+    ...SCOPES_FOR_ACCESS_LEVEL[accessLevelFor(canDraft, canSend)],
+    ...(canEditSettings ? [PAT_SCOPES.SETTINGS_WRITE] : []),
+  ];
+}
+
 /**
- * Name, permission and expiry for a new token. Drafting and sending are
- * opt-in so the default token can only read: an email can't talk a read-only
- * Claude into writing or sending anything. Sending includes drafting.
+ * Name, permissions and expiry for a new token. Drafting, sending and editing
+ * categories/rules are opt-in so the default token can only read: an email
+ * can't talk a read-only Claude into writing or sending anything or rewriting
+ * the rules. Sending includes drafting.
  */
 export const AccessTokenCreateForm: React.FC<AccessTokenCreateFormProps> = ({ isSubmitting, onCreate }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(DEFAULT_TOKEN_NAME);
   const [canDraft, setCanDraft] = useState(false);
   const [canSend, setCanSend] = useState(false);
+  const [canEditSettings, setCanEditSettings] = useState(false);
   const [expiry, setExpiry] = useState(String(DEFAULT_TOKEN_EXPIRY_DAYS));
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     onCreate({
       name: name.trim(),
-      scopes: SCOPES_FOR_ACCESS_LEVEL[accessLevelFor(canDraft, canSend)],
+      scopes: scopesFor(canDraft, canSend, canEditSettings),
       expiresInDays: expiry === NEVER_EXPIRES_VALUE ? null : Number(expiry),
     });
   };
@@ -152,17 +165,24 @@ export const AccessTokenCreateForm: React.FC<AccessTokenCreateFormProps> = ({ is
       <PermissionCheckbox
         isChecked={canDraft || canSend}
         isDisabled={canSend}
+        onChange={setCanDraft}
+        testId="access-token-can-draft"
         label={t('settings.claudeAccess.allowDraftsLabel')}
         hint={t('settings.claudeAccess.allowDraftsHint')}
-        testId="access-token-can-draft"
-        onChange={setCanDraft}
       />
       <PermissionCheckbox
         isChecked={canSend}
+        onChange={setCanSend}
+        testId="access-token-can-send"
         label={t('settings.claudeAccess.allowSendLabel')}
         hint={t('settings.claudeAccess.allowSendHint')}
-        testId="access-token-can-send"
-        onChange={setCanSend}
+      />
+      <PermissionCheckbox
+        isChecked={canEditSettings}
+        onChange={setCanEditSettings}
+        testId="access-token-can-edit-settings"
+        label={t('settings.claudeAccess.allowSettingsWriteLabel')}
+        hint={t('settings.claudeAccess.allowSettingsWriteHint')}
       />
       <div>
         <button

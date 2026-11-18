@@ -3,46 +3,24 @@ import {
   MCP_INBOX_MODES,
   MCP_SERVER,
   MCP_TOOL_NAMES,
-  McpToolName,
 } from "../constants/mcp-server.constants";
 import {
   PAT_SCOPES,
   PatScope,
 } from "../constants/personal-access-tokens.constants";
+import { MCP_SETTINGS_TOOL_SPECS } from "./mcp-settings-tool-definitions";
+import {
+  McpToolDefinition,
+  McpToolSpec,
+  READ_ONLY_ANNOTATIONS,
+  READ_SCOPES,
+} from "./mcp-tool-spec.types";
 
-/** MCP tool annotations (hints the client uses to decide when to confirm). */
-interface McpToolAnnotations {
-  title: string;
-  readOnlyHint: boolean;
-  destructiveHint: boolean;
-  idempotentHint: boolean;
-  openWorldHint: boolean;
-}
+export type { McpToolDefinition, McpToolSpec } from "./mcp-tool-spec.types";
 
-export interface McpToolDefinition {
-  name: McpToolName;
-  title: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  annotations: McpToolAnnotations;
-}
-
-export interface McpToolSpec extends McpToolDefinition {
-  /** A token needs at least one of these scopes to see and call the tool. */
-  allowedScopes: readonly PatScope[];
-}
-
-const READ_SCOPES = [PAT_SCOPES.MAIL_READ] as const;
 const SEND_SCOPES = [PAT_SCOPES.MAIL_SEND] as const;
 /** Sending is the stronger permission, so a token that can send can also draft. */
 const DRAFT_SCOPES = [PAT_SCOPES.MAIL_DRAFT, PAT_SCOPES.MAIL_SEND] as const;
-
-const READ_ONLY_ANNOTATIONS = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-} as const;
 
 /** Sending reaches other people and cannot be undone. */
 const SEND_ANNOTATIONS = {
@@ -377,6 +355,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
     annotations: { title: "Delete draft", ...DRAFT_DELETE_ANNOTATIONS },
     allowedScopes: DRAFT_SCOPES,
   },
+  ...MCP_SETTINGS_TOOL_SPECS,
 ];
 
 /** Tools a token with these scopes may see and call. */

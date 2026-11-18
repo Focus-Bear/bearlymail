@@ -6,11 +6,15 @@ import { DAYS, MILLISECONDS } from "./time-constants";
  * and a token that cannot send cannot be talked into sending. `mail:draft`
  * sits between them: the assistant can prepare messages in BearlyMail for the
  * user to review, but nothing leaves the mailbox until the user sends it.
+ * Editing categories and rules is split out for the same reason as sending:
+ * it changes where all future mail is filed. Reading them needs only
+ * `mail:read`, since they are derived from mail that scope can already read.
  */
 export const PAT_SCOPES = {
   MAIL_READ: "mail:read",
   MAIL_DRAFT: "mail:draft",
   MAIL_SEND: "mail:send",
+  SETTINGS_WRITE: "settings:write",
 } as const;
 
 export type PatScope = (typeof PAT_SCOPES)[keyof typeof PAT_SCOPES];

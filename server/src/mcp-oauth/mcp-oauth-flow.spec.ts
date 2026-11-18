@@ -105,7 +105,12 @@ async function registerClaudeWeb(harness: Harness): Promise<string> {
 async function authorizeAndApprove(
   harness: Harness,
   clientId: string,
-  options: { redirectUri?: string; allowSend?: boolean; scope?: string } = {},
+  options: {
+    redirectUri?: string;
+    allowSend?: boolean;
+    allowSettingsWrite?: boolean;
+    scope?: string;
+  } = {},
 ) {
   const { verifier, challenge } = pkcePair();
   const redirectUri = options.redirectUri ?? CLAUDE_CALLBACK;
@@ -124,7 +129,11 @@ async function authorizeAndApprove(
     await harness.authorization.decide(
       USER_ID,
       requestId,
-      { approve: true, allowSend: options.allowSend ?? false },
+      {
+        approve: true,
+        allowSend: options.allowSend ?? false,
+        allowSettingsWrite: options.allowSettingsWrite,
+      },
       AUDIT_CONTEXT,
     ),
   );
@@ -175,6 +184,7 @@ describe("MCP OAuth flow", () => {
           PAT_SCOPES.MAIL_READ,
           PAT_SCOPES.MAIL_DRAFT,
           PAT_SCOPES.MAIL_SEND,
+          PAT_SCOPES.SETTINGS_WRITE,
         ],
       });
     });
@@ -276,6 +286,29 @@ describe("MCP OAuth flow", () => {
       expect(tokens.scope).toBe("mail:read mail:draft mail:send");
     });
 
+    it("grants settings:write only when the client asks and the user ticks it", async () => {
+      const harness = setup();
+      const clientId = await registerClaudeWeb(harness);
+      const tokens = await exchangeCode(
+        harness,
+        clientId,
+        await authorizeAndApprove(harness, clientId, {
+          allowSettingsWrite: true,
+          scope: "mail:read mail:send settings:write",
+        }),
+      );
+      expect(tokens.scope).toBe("mail:read settings:write");
+
+      const unrequested = await exchangeCode(
+        harness,
+        clientId,
+        await authorizeAndApprove(harness, clientId, {
+          allowSettingsWrite: true,
+        }),
+      );
+      expect(unrequested.scope).toBe("mail:read");
+    });
+
     it("shows the consent screen where the code will go", async () => {
       const harness = setup();
       const clientId = await registerClaudeWeb(harness);
@@ -299,6 +332,7 @@ describe("MCP OAuth flow", () => {
         isLoopbackRedirect: false,
         canRequestDrafts: true,
         canRequestSend: true,
+        canRequestSettingsWrite: true,
       });
     });
 

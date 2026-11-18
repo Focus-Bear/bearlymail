@@ -27,32 +27,45 @@ export function parseRequestedScopes(scope: string | undefined): PatScope[] {
   return known;
 }
 
-/** The permissions the user picked on the consent screen. */
-export interface ConsentScopeChoice {
+/** The optional permissions the user picked on the consent screen. */
+export interface ConsentScopeChoices {
   allowDrafts?: boolean;
   allowSend: boolean;
+  allowSettingsWrite?: boolean;
 }
 
 /**
  * What the user granted on the consent screen. Read access is the base of
- * every connection; drafting and sending are added only when the client asked
- * for them and the user picked them. A client that asked to send may also be
- * granted drafting alone, since that is the narrower permission.
+ * every connection; drafting, sending and editing categories/rules are each
+ * added only when the client asked for them and the user picked them. A client
+ * that asked to send may also be granted drafting alone, since that is the
+ * narrower permission.
  */
 export function resolveGrantedScopes(
   requested: readonly string[],
-  choice: ConsentScopeChoice,
+  choices: ConsentScopeChoices,
 ): PatScope[] {
-  const canSend = requested.includes(PAT_SCOPES.MAIL_SEND);
-  const canDraft = canSend || requested.includes(PAT_SCOPES.MAIL_DRAFT);
-  const granted = new Set<PatScope>([PAT_SCOPES.MAIL_READ]);
-  if (canDraft && (choice.allowDrafts || choice.allowSend)) {
-    granted.add(PAT_SCOPES.MAIL_DRAFT);
-  }
-  if (canSend && choice.allowSend) {
-    granted.add(PAT_SCOPES.MAIL_SEND);
-  }
-  return ALL_PAT_SCOPES.filter((scope) => granted.has(scope));
+  const optional: Array<[PatScope, boolean, boolean | undefined]> = [
+    [
+      PAT_SCOPES.MAIL_DRAFT,
+      canRequestDrafts(requested),
+      choices.allowDrafts || choices.allowSend,
+    ],
+    [
+      PAT_SCOPES.MAIL_SEND,
+      requested.includes(PAT_SCOPES.MAIL_SEND),
+      choices.allowSend,
+    ],
+    [
+      PAT_SCOPES.SETTINGS_WRITE,
+      requested.includes(PAT_SCOPES.SETTINGS_WRITE),
+      choices.allowSettingsWrite,
+    ],
+  ];
+  const granted = optional
+    .filter(([, wasRequested, isTicked]) => wasRequested && isTicked)
+    .map(([scope]) => scope);
+  return [PAT_SCOPES.MAIL_READ, ...granted];
 }
 
 /** Whether the consent screen may offer drafting for these requested scopes. */

@@ -32,6 +32,7 @@ describe("parseRequestedScopes", () => {
       PAT_SCOPES.MAIL_READ,
       PAT_SCOPES.MAIL_DRAFT,
       PAT_SCOPES.MAIL_SEND,
+      PAT_SCOPES.SETTINGS_WRITE,
     ]);
   });
 
@@ -47,20 +48,23 @@ describe("parseRequestedScopes", () => {
 });
 
 describe("resolveGrantedScopes", () => {
-  const all = [
+  const mailScopes = [
     PAT_SCOPES.MAIL_READ,
     PAT_SCOPES.MAIL_DRAFT,
     PAT_SCOPES.MAIL_SEND,
   ];
+  const all = [...mailScopes, PAT_SCOPES.SETTINGS_WRITE];
 
   it("grants read-only unless the user allowed drafting or sending", () => {
-    expect(resolveGrantedScopes(all, { allowSend: false })).toEqual([
+    expect(resolveGrantedScopes(mailScopes, { allowSend: false })).toEqual([
       PAT_SCOPES.MAIL_READ,
     ]);
     expect(
-      resolveGrantedScopes(all, { allowDrafts: true, allowSend: false }),
+      resolveGrantedScopes(mailScopes, { allowDrafts: true, allowSend: false }),
     ).toEqual([PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_DRAFT]);
-    expect(resolveGrantedScopes(all, { allowSend: true })).toEqual(all);
+    expect(resolveGrantedScopes(mailScopes, { allowSend: true })).toEqual(
+      mailScopes,
+    );
   });
 
   it("can grant drafting alone to a client that asked to send", () => {
@@ -84,6 +88,19 @@ describe("resolveGrantedScopes", () => {
         allowSend: true,
       }),
     ).toEqual([PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_DRAFT]);
+  });
+
+  it("grants settings:write only when asked for and ticked", () => {
+    expect(
+      resolveGrantedScopes(all, { allowSend: false, allowSettingsWrite: true }),
+    ).toEqual([PAT_SCOPES.MAIL_READ, PAT_SCOPES.SETTINGS_WRITE]);
+    expect(resolveGrantedScopes(all, { allowSend: true })).toEqual(mailScopes);
+    expect(
+      resolveGrantedScopes(mailScopes, {
+        allowSend: false,
+        allowSettingsWrite: true,
+      }),
+    ).toEqual([PAT_SCOPES.MAIL_READ]);
   });
 });
 

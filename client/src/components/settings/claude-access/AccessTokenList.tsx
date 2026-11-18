@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
-import { ACCESS_LEVELS, ACCESS_TOKEN_KINDS, AccessLevel, accessLevelOf } from 'constants/claudeAccess';
+import { ACCESS_LEVELS, ACCESS_TOKEN_KINDS, AccessLevel, accessLevelOf, PAT_SCOPES } from 'constants/claudeAccess';
 
 import { PersonalAccessToken } from './types';
 
@@ -56,6 +56,7 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
     <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} data-testid="access-token-list">
       {tokens.map((token) => {
         const accessLevel = accessLevelOf(token.scopes);
+        const canEditSettings = token.scopes.includes(PAT_SCOPES.SETTINGS_WRITE);
         const isConnection = token.kind === ACCESS_TOKEN_KINDS.OAUTH;
         return (
           <li
@@ -89,6 +90,7 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
               </div>
               <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
                 {t(ACCESS_LEVEL_LABEL_KEYS[accessLevel])}
+                {canEditSettings && ` · ${t('settings.claudeAccess.scopeEditsSettings')}`}
                 {' · '}
                 {token.lastUsedAt
                   ? t('settings.claudeAccess.lastUsed', { date: formatDate(token.lastUsedAt) })

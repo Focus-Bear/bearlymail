@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { ACCESS_LEVELS, AccessLevel } from 'constants/claudeAccess';
 
 import { ConsentScopeChoice } from './ConsentScopeChoice';
+import { ConsentSettingsWriteChoice } from './ConsentSettingsWriteChoice';
 import { OAuthConsentDecision, OAuthConsentRequest } from './types';
 
 interface OAuthConsentCardProps {
@@ -30,12 +31,18 @@ const detailStyle: React.CSSProperties = {
   color: theme.colors.text.secondary,
 };
 
-const DENIED: OAuthConsentDecision = { approve: false, allowDrafts: false, allowSend: false };
+const DENIED: OAuthConsentDecision = {
+  approve: false,
+  allowDrafts: false,
+  allowSend: false,
+  allowSettingsWrite: false,
+};
 
-const approvalFor = (accessLevel: AccessLevel): OAuthConsentDecision => ({
+const approvalFor = (accessLevel: AccessLevel, allowSettingsWrite: boolean): OAuthConsentDecision => ({
   approve: true,
   allowDrafts: accessLevel !== ACCESS_LEVELS.READ,
   allowSend: accessLevel === ACCESS_LEVELS.SEND,
+  allowSettingsWrite,
 });
 
 /**
@@ -52,6 +59,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const [accessLevel, setAccessLevel] = useState<AccessLevel>(ACCESS_LEVELS.READ);
+  const [allowSettingsWrite, setAllowSettingsWrite] = useState(false);
 
   return (
     <div data-testid="oauth-consent">
@@ -100,6 +108,9 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         canRequestSend={request.canRequestSend}
         onChange={setAccessLevel}
       />
+      {request.canRequestSettingsWrite && (
+        <ConsentSettingsWriteChoice allowSettingsWrite={allowSettingsWrite} onChange={setAllowSettingsWrite} />
+      )}
 
       <p style={{ ...detailStyle, marginBottom: theme.spacing.lg, fontSize: theme.typography.fontSize.xs }}>
         {t('oauthConsent.safetyNote')}
@@ -129,7 +140,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         <button
           type="button"
           disabled={isSubmitting}
-          onClick={() => onDecide(approvalFor(accessLevel))}
+          onClick={() => onDecide(approvalFor(accessLevel, allowSettingsWrite && request.canRequestSettingsWrite))}
           data-testid="oauth-consent-allow"
           style={{
             ...buttonStyle,

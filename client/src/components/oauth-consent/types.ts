@@ -10,6 +10,8 @@ export interface OAuthConsentRequest {
   isLoopbackRedirect: boolean;
   canRequestDrafts: boolean;
   canRequestSend: boolean;
+  /** Whether the app asked to edit categories and rules (settings:write). */
+  canRequestSettingsWrite: boolean;
   expiresAt: string;
 }
 
@@ -17,4 +19,5 @@ export interface OAuthConsentDecision {
   approve: boolean;
   allowDrafts: boolean;
   allowSend: boolean;
+  allowSettingsWrite: boolean;
 }

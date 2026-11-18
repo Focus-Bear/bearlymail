@@ -182,6 +182,7 @@ describe("MCP OAuth flow", () => {
         authorization_servers: ["http://localhost:3001"],
         scopes_supported: [
           PAT_SCOPES.MAIL_READ,
+          PAT_SCOPES.MAIL_DRAFT,
           PAT_SCOPES.MAIL_SEND,
           PAT_SCOPES.SETTINGS_WRITE,
         ],
@@ -282,7 +283,7 @@ describe("MCP OAuth flow", () => {
         clientId,
         await authorizeAndApprove(harness, clientId, { allowSend: true }),
       );
-      expect(tokens.scope).toBe("mail:read mail:send");
+      expect(tokens.scope).toBe("mail:read mail:draft mail:send");
     });
 
     it("grants settings:write only when the client asks and the user ticks it", async () => {
@@ -329,6 +330,7 @@ describe("MCP OAuth flow", () => {
         clientHost: null,
         redirectHost: "claude.ai",
         isLoopbackRedirect: false,
+        canRequestDrafts: true,
         canRequestSend: true,
         canRequestSettingsWrite: true,
       });

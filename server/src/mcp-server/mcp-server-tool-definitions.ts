@@ -1,4 +1,5 @@
 import {
+  MCP_DRAFTS,
   MCP_INBOX_MODES,
   MCP_SERVER,
   MCP_TOOL_NAMES,
@@ -12,9 +13,14 @@ import {
   McpToolDefinition,
   McpToolSpec,
   READ_ONLY_ANNOTATIONS,
+  READ_SCOPES,
 } from "./mcp-tool-spec.types";
 
 export type { McpToolDefinition, McpToolSpec } from "./mcp-tool-spec.types";
+
+const SEND_SCOPES = [PAT_SCOPES.MAIL_SEND] as const;
+/** Sending is the stronger permission, so a token that can send can also draft. */
+const DRAFT_SCOPES = [PAT_SCOPES.MAIL_DRAFT, PAT_SCOPES.MAIL_SEND] as const;
 
 /** Sending reaches other people and cannot be undone. */
 const SEND_ANNOTATIONS = {
@@ -22,6 +28,21 @@ const SEND_ANNOTATIONS = {
   destructiveHint: true,
   idempotentHint: false,
   openWorldHint: true,
+} as const;
+
+/** Drafts stay in BearlyMail until the user sends them; nobody else sees them. */
+const DRAFT_WRITE_ANNOTATIONS = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+} as const;
+
+const DRAFT_DELETE_ANNOTATIONS = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
 } as const;
 
 const EMAIL_ID_DESCRIPTION =
@@ -46,6 +67,52 @@ const RECIPIENT_LIST = {
   type: "array",
   items: { type: "string", format: "email" },
   maxItems: MCP_SERVER.MAX_RECIPIENTS,
+} as const;
+
+const DRAFT_ID_PROPERTY = {
+  type: "string",
+  description:
+    "BearlyMail draft id (the `draftId` returned by create_draft or list_drafts).",
+} as const;
+
+const DRAFT_ATTACHMENTS_PROPERTY = {
+  type: "array",
+  maxItems: MCP_DRAFTS.MAX_ATTACHMENTS,
+  description: `Files to attach: at most ${MCP_DRAFTS.MAX_ATTACHMENTS}, and ${MCP_DRAFTS.MAX_ATTACHMENT_TOTAL_MB} MB in total.`,
+  items: {
+    type: "object",
+    properties: {
+      filename: {
+        type: "string",
+        minLength: 1,
+        maxLength: MCP_DRAFTS.MAX_FILENAME_LENGTH,
+      },
+      mimeType: {
+        type: "string",
+        description: "For example application/pdf or image/png.",
+      },
+      contentBase64: {
+        type: "string",
+        description: "The file's bytes, standard base64-encoded.",
+      },
+    },
+    required: ["filename", "mimeType", "contentBase64"],
+    additionalProperties: false,
+  },
+} as const;
+
+const DRAFT_SUBJECT_PROPERTY = {
+  type: "string",
+  minLength: 1,
+  maxLength: MCP_SERVER.MAX_SUBJECT_LENGTH,
+} as const;
+
+const DRAFT_BODY_PROPERTY = {
+  type: "string",
+  minLength: 1,
+  maxLength: MCP_SERVER.MAX_SEND_BODY_LENGTH,
+  description:
+    "Plain text or HTML: in plain text, blank lines separate paragraphs and single newlines are kept as line breaks. The user's signature is added when they send it.",
 } as const;
 
 export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
@@ -80,7 +147,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "List important emails", ...READ_ONLY_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_READ,
+    allowedScopes: READ_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.GET_THREAD,
@@ -98,7 +165,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Read email thread", ...READ_ONLY_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_READ,
+    allowedScopes: READ_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.SEARCH_EMAILS,
@@ -124,7 +191,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Search emails", ...READ_ONLY_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_READ,
+    allowedScopes: READ_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.LIST_FOLLOW_UPS,
@@ -137,7 +204,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "List follow-ups", ...READ_ONLY_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_READ,
+    allowedScopes: READ_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.SEND_REPLY,
@@ -170,7 +237,7 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Send reply", ...SEND_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_SEND,
+    allowedScopes: SEND_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.SEND_EMAIL,
@@ -200,7 +267,93 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Send new email", ...SEND_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_SEND,
+    allowedScopes: SEND_SCOPES,
+  },
+  {
+    name: MCP_TOOL_NAMES.CREATE_DRAFT,
+    title: "Create draft",
+    description:
+      "Prepare an email as a draft in BearlyMail for the user to review, edit and send themselves. Never sends anything. " +
+      "Pass `replyToEmailId` to draft a reply in that email's thread (it opens in the thread's reply composer; `to` defaults to the original sender and the subject to \"Re: …\"). " +
+      "Without it the draft is a new message and needs `to` and `subject`. BearlyMail keeps one reply draft per thread, so this fails if the thread already has one. " +
+      "Returns the `draftId` and a `url` that opens the draft in BearlyMail; share the url with the user.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        replyToEmailId: {
+          type: "string",
+          description: `The email to reply to; omit for a new message. ${EMAIL_ID_DESCRIPTION}`,
+        },
+        to: RECIPIENT_LIST,
+        cc: RECIPIENT_LIST,
+        bcc: RECIPIENT_LIST,
+        subject: DRAFT_SUBJECT_PROPERTY,
+        body: DRAFT_BODY_PROPERTY,
+        attachments: DRAFT_ATTACHMENTS_PROPERTY,
+      },
+      required: ["body"],
+      additionalProperties: false,
+    },
+    annotations: { title: "Create draft", ...DRAFT_WRITE_ANNOTATIONS },
+    allowedScopes: DRAFT_SCOPES,
+  },
+  {
+    name: MCP_TOOL_NAMES.UPDATE_DRAFT,
+    title: "Update draft",
+    description:
+      "Change a draft created with create_draft. Only the fields you pass change; `attachments` replaces the whole list (pass [] to remove them all), and an empty `cc`/`bcc` clears it. " +
+      "Drafts the user wrote or has edited can't be changed. Never sends anything.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        draftId: DRAFT_ID_PROPERTY,
+        to: RECIPIENT_LIST,
+        cc: RECIPIENT_LIST,
+        bcc: RECIPIENT_LIST,
+        subject: DRAFT_SUBJECT_PROPERTY,
+        body: DRAFT_BODY_PROPERTY,
+        attachments: DRAFT_ATTACHMENTS_PROPERTY,
+      },
+      required: ["draftId"],
+      additionalProperties: false,
+    },
+    annotations: { title: "Update draft", ...DRAFT_WRITE_ANNOTATIONS },
+    allowedScopes: DRAFT_SCOPES,
+  },
+  {
+    name: MCP_TOOL_NAMES.LIST_DRAFTS,
+    title: "List drafts",
+    description:
+      "List the user's unsent drafts in BearlyMail, most recently changed first: reply drafts and new messages, whoever wrote them, with a link to open each. " +
+      "`isEditableByAssistant` says whether update_draft/delete_draft can change it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: MCP_DRAFTS.MAX_LIST_LIMIT,
+          default: MCP_SERVER.DEFAULT_LIST_LIMIT,
+        },
+      },
+      additionalProperties: false,
+    },
+    annotations: { title: "List drafts", ...READ_ONLY_ANNOTATIONS },
+    allowedScopes: READ_SCOPES,
+  },
+  {
+    name: MCP_TOOL_NAMES.DELETE_DRAFT,
+    title: "Delete draft",
+    description:
+      "Delete a draft created with create_draft. Drafts the user wrote or has edited can't be deleted.",
+    inputSchema: {
+      type: "object",
+      properties: { draftId: DRAFT_ID_PROPERTY },
+      required: ["draftId"],
+      additionalProperties: false,
+    },
+    annotations: { title: "Delete draft", ...DRAFT_DELETE_ANNOTATIONS },
+    allowedScopes: DRAFT_SCOPES,
   },
   ...MCP_SETTINGS_TOOL_SPECS,
 ];
@@ -209,9 +362,16 @@ export const MCP_TOOL_SPECS: readonly McpToolSpec[] = [
 export function toolsForScopes(
   scopes: readonly PatScope[],
 ): McpToolDefinition[] {
-  return MCP_TOOL_SPECS.filter((spec) =>
-    scopes.includes(spec.requiredScope),
-  ).map(({ requiredScope: _requiredScope, ...definition }) => definition);
+  return MCP_TOOL_SPECS.filter((spec) => isToolAllowed(spec, scopes)).map(
+    ({ allowedScopes: _allowedScopes, ...definition }) => definition,
+  );
+}
+
+export function isToolAllowed(
+  spec: McpToolSpec,
+  scopes: readonly PatScope[],
+): boolean {
+  return spec.allowedScopes.some((scope) => scopes.includes(scope));
 }
 
 export function findToolSpec(name: string): McpToolSpec | undefined {

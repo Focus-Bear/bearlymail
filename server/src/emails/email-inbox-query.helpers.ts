@@ -19,17 +19,18 @@ import {
 } from "./email-inbox-scope.helpers";
 
 /**
- * True when the auto-responder saved a reply draft on the thread that the user
- * hasn't touched yet. The draft must be newer than the thread's latest email,
- * so the flag clears once the user replies (even from another mail app) or a
- * new message arrives. Sending, discarding or editing the draft clears it too.
- * Uses the unique (userId, emailThreadId) index on reply_drafts.
+ * True when the auto-responder or an AI assistant saved a reply draft on the
+ * thread that the user hasn't touched yet. The draft must be newer than the
+ * thread's latest email, so the flag clears once the user replies (even from
+ * another mail app) or a new message arrives. Sending, discarding or editing
+ * the draft clears it too. Uses the unique (userId, emailThreadId) index on
+ * reply_drafts.
  */
 const HAS_AUTO_RESPONSE_DRAFT_SQL = `EXISTS (
         SELECT 1 FROM reply_drafts rd
         WHERE rd."userId" = thread."userId"
           AND rd."emailThreadId" = thread."threadId"
-          AND rd.source = '${REPLY_DRAFT_SOURCES.AUTO_RESPONDER}'
+          AND rd.source IN ('${REPLY_DRAFT_SOURCES.AUTO_RESPONDER}', '${REPLY_DRAFT_SOURCES.ASSISTANT}')
           AND rd."createdAt" >= e."receivedAt"
       ) AS "hasAutoResponseDraft"`;
 

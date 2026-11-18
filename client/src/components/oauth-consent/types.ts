@@ -8,6 +8,7 @@ export interface OAuthConsentRequest {
   /** Where the browser is sent after the user answers. */
   redirectHost: string;
   isLoopbackRedirect: boolean;
+  canRequestDrafts: boolean;
   canRequestSend: boolean;
   /** Whether the app asked to edit categories and rules (settings:write). */
   canRequestSettingsWrite: boolean;
@@ -16,6 +17,7 @@ export interface OAuthConsentRequest {
 
 export interface OAuthConsentDecision {
   approve: boolean;
+  allowDrafts: boolean;
   allowSend: boolean;
   allowSettingsWrite: boolean;
 }

@@ -501,3 +501,67 @@ textarea {
     gap: 8px;
   }
 }
+
+/* ── Phone layout (< 640px, matches BREAKPOINT_TABLET) ─────────────────────── */
+@media (max-width: 639px) {
+  /* The reply composer, its editor and the page each added 24-32px of padding,
+   * leaving the reply text about half the screen wide. */
+  .reply-composer {
+    padding: 12px !important;
+  }
+
+  /* Opening a reply scrolls this wrapper to the top; keep the composer header
+   * clear of the fixed 48px back button (EmailDetailSidebar). */
+  .reply-composer-anchor {
+    scroll-margin-top: 72px;
+  }
+
+  .rich-text-content {
+    padding: 12px !important;
+  }
+
+  /* One sideways-scrolling row of formatting buttons instead of three wrapped
+   * rows, with buttons big enough to tap. */
+  .rich-text-toolbar-buttons {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .rich-text-toolbar-buttons::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rich-text-toolbar-buttons button {
+    flex-shrink: 0;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* Compose: keep Send on screen instead of below a 300px editor. */
+  .compose-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 12px !important;
+  }
+}
+
+/* On a phone the inbox card's pills already explain themselves; the caption
+ * under them made every card a line taller. */
+@container email-actions (max-width: 440px) {
+  .email-priority-caption {
+    display: none;
+  }
+}
+
+/* iOS Safari zooms the page in when a focused field's text is under 16px, and
+ * doesn't zoom back out. Touch phones only, so desktop typography is unchanged. */
+@media (max-width: 639px) and (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea,
+  [contenteditable='true'] {
+    font-size: max(16px, 1em) !important;
+  }
+}

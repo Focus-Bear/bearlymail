@@ -21,10 +21,10 @@ const COLUMNS = [
   }),
 ];
 
-export class AddFocusBearOAuthTokensToUsers1797912340000
+export class AddFocusBearOAuthTokensToUsers1798100000000
   implements MigrationInterface
 {
-  name = "AddFocusBearOAuthTokensToUsers1797912340000";
+  name = "AddFocusBearOAuthTokensToUsers1798100000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     const usersTable = await queryRunner.getTable(TABLE);

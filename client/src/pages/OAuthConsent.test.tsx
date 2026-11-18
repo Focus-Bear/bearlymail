@@ -26,6 +26,7 @@ const CONSENT_REQUEST = {
   redirectHost: 'claude.ai',
   isLoopbackRedirect: false,
   canRequestSend: true,
+  canRequestSettingsWrite: true,
   expiresAt: '2026-11-04T01:00:00Z',
 };
 
@@ -87,18 +88,44 @@ describe('OAuthConsent', () => {
     await waitFor(() =>
       expect(axios.post).toHaveBeenCalledWith(
         DECISION_URL,
-        { approve: true, allowSend: true },
+        { approve: true, allowSend: true, allowSettingsWrite: false },
         { headers: { 'X-Step-Up-Token': 'step-up-1' } }
       )
     );
     expect(assign).toHaveBeenCalledWith('https://claude.ai/api/mcp/auth_callback?code=x');
   });
 
+  it('grants editing categories and rules only when the user ticks it', async () => {
+    renderAt(`/oauth/consent?request=${REQUEST_ID}`);
+    const settingsWrite = await screen.findByTestId('oauth-consent-settings-write');
+    expect(settingsWrite).not.toBeChecked();
+    fireEvent.click(settingsWrite);
+    fireEvent.click(screen.getByTestId('oauth-consent-allow'));
+    await waitFor(() =>
+      expect(axios.post).toHaveBeenCalledWith(
+        DECISION_URL,
+        { approve: true, allowSend: false, allowSettingsWrite: true },
+        { headers: { 'X-Step-Up-Token': 'step-up-1' } }
+      )
+    );
+  });
+
+  it('hides the categories-and-rules option when the app did not ask for it', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: { ...CONSENT_REQUEST, canRequestSettingsWrite: false } });
+    renderAt(`/oauth/consent?request=${REQUEST_ID}`);
+    expect(await screen.findByTestId('oauth-consent')).toBeInTheDocument();
+    expect(screen.queryByTestId('oauth-consent-settings-write')).not.toBeInTheDocument();
+  });
+
   it('denies', async () => {
     renderAt(`/oauth/consent?request=${REQUEST_ID}`);
     fireEvent.click(await screen.findByTestId('oauth-consent-deny'));
     await waitFor(() =>
-      expect(axios.post).toHaveBeenCalledWith(DECISION_URL, { approve: false, allowSend: false }, { headers: {} })
+      expect(axios.post).toHaveBeenCalledWith(
+        DECISION_URL,
+        { approve: false, allowSend: false, allowSettingsWrite: false },
+        { headers: {} }
+      )
     );
     expect(axios.post).not.toHaveBeenCalledWith(STEP_UP_URL, expect.anything());
   });

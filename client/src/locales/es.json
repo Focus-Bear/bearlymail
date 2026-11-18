@@ -9,7 +9,7 @@
     "loopbackWarning": "Esta app se ejecuta en tu ordenador. Continúa solo si acabas de empezar a conectar desde Claude Code u otra app de este dispositivo.",
     "scopeLegend": "Qué puede hacer",
     "scopeReadTitle": "Solo lectura",
-    "scopeReadDescription": "Leer y buscar tus correos importantes, hilos y seguimientos.",
+    "scopeReadDescription": "Leer y buscar tus correos importantes, conversaciones y seguimientos, y ver tus categorías y reglas de correo.",
     "scopeSendTitle": "Lectura y envío",
     "scopeSendDescription": "También responder y enviar correos nuevos desde tu buzón. Claude te pregunta antes de cada envío.",
     "scopeSendNotRequested": "Esta app no pidió enviar correos.",
@@ -22,7 +22,9 @@
     "framed": "Por tu seguridad, esta página no se puede mostrar dentro de otro sitio. Ábrela en su propia pestaña.",
     "invalidLink": "A este enlace le falta la solicitud de inicio de sesión. Vuelve a empezar la conexión desde Claude.",
     "expired": "Esta solicitud de inicio de sesión caducó o ya se respondió. Vuelve a empezar la conexión desde Claude.",
-    "redirecting": "Volviendo a {{client}}…"
+    "redirecting": "Volviendo a {{client}}…",
+    "settingsWriteTitle": "Editar también categorías y reglas",
+    "settingsWriteDescription": "Le permite crear, cambiar y eliminar tus categorías de correo y las reglas que clasifican el correo nuevo en ellas. Cada cambio que haga queda registrado."
   },
   "admin": {
     "dashboard": {
@@ -5120,7 +5122,7 @@
       "connectorStepOpen": "En Claude, ve a Personalizar → Conectores y elige Añadir conector personalizado.",
       "connectorOpenLink": "Abrir conectores de Claude",
       "connectorStepPaste": "Pega la URL de abajo y haz clic en Añadir.",
-      "connectorStepApprove": "Haz clic en Conectar, inicia sesión en BearlyMail y elige solo lectura o lectura y envío.",
+      "connectorStepApprove": "Haz clic en Conectar, inicia sesión en BearlyMail y elige solo lectura o lectura y envío. Marca \"Editar también categorías y reglas\" si quieres que Claude ordene tus reglas.",
       "connectorUrlLabel": "URL del conector",
       "claudeCodeOAuthLabel": "Claude Code: ejecútalo en una terminal y luego usa /mcp para iniciar sesión",
       "tokenSectionTitle": "Tokens de acceso para otras apps de IA",
@@ -5134,7 +5136,10 @@
       "tokenSectionToggle": "¿Usas otra app de IA? Crea un token de acceso",
       "serverUrlLabel": "URL del servidor",
       "authHeaderLabel": "Cabecera de autorización",
-      "configFileLabel": "Archivo de configuración (para apps como Cursor o Windsurf)"
+      "configFileLabel": "Archivo de configuración (para apps como Cursor o Windsurf)",
+      "allowSettingsWriteLabel": "Permitir editar categorías y reglas",
+      "allowSettingsWriteHint": "Permite que la app cree, cambie y elimine tus categorías de correo y sus reglas. Para solo leerlas no hace falta.",
+      "scopeEditsSettings": "Edita categorías y reglas"
     },
     "focusBear": {
       "title": "Focus Bear",

@@ -108,7 +108,7 @@ async function expectDiscoveryChallenge() {
   const challenge = response.headers.get('www-authenticate') ?? '';
   const metadataUrl = /resource_metadata="([^"]+)"/.exec(challenge)?.[1];
   assert.ok(metadataUrl, `no resource_metadata in: ${challenge}`);
-  assert.match(challenge, /scope="mail:read mail:send"/);
+  assert.match(challenge, /scope="mail:read mail:send settings:write"/);
   const resource = await (await fetch(metadataUrl)).json();
   assert.equal(resource.resource, MCP_URL);
   const issuer = resource.authorization_servers[0];

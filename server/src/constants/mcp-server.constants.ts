@@ -42,6 +42,37 @@ export const MCP_SERVER = {
   AUDIT_TARGET_TYPE: "email_send_attempt",
 } as const;
 
+/** Limits and audit names for the category/rule settings tools. */
+export const MCP_SETTINGS = {
+  /** Most rules one bulk call (delete_rules, set_rules_enabled) may touch. */
+  MAX_RULE_IDS_PER_CALL: 50,
+  MAX_CATEGORY_DESCRIPTION_LENGTH: 1000,
+  /**
+   * Categories are stored as "Name - Description", so a name containing this
+   * separator would be split into a shorter name plus a description.
+   */
+  CATEGORY_VALUE_SEPARATOR: " - ",
+  AUDIT_ACTIONS: {
+    CATEGORY_CREATED: "MCP_CATEGORY_CREATED",
+    CATEGORY_UPDATED: "MCP_CATEGORY_UPDATED",
+    CATEGORY_DELETED: "MCP_CATEGORY_DELETED",
+    RULE_CREATED: "MCP_RULE_CREATED",
+    RULE_UPDATED: "MCP_RULE_UPDATED",
+    RULES_ENABLED_CHANGED: "MCP_RULES_ENABLED_CHANGED",
+    RULES_DELETED: "MCP_RULES_DELETED",
+  },
+  AUDIT_TARGET_TYPES: {
+    CATEGORY: "email_category",
+    RULE: "category_rule",
+  },
+} as const;
+
+export type McpSettingsAuditAction =
+  (typeof MCP_SETTINGS.AUDIT_ACTIONS)[keyof typeof MCP_SETTINGS.AUDIT_ACTIONS];
+
+export type McpSettingsAuditTargetType =
+  (typeof MCP_SETTINGS.AUDIT_TARGET_TYPES)[keyof typeof MCP_SETTINGS.AUDIT_TARGET_TYPES];
+
 export const MCP_TOOL_NAMES = {
   LIST_IMPORTANT_EMAILS: "list_important_emails",
   GET_THREAD: "get_thread",
@@ -49,6 +80,17 @@ export const MCP_TOOL_NAMES = {
   LIST_FOLLOW_UPS: "list_follow_ups",
   SEND_REPLY: "send_reply",
   SEND_EMAIL: "send_email",
+  LIST_CATEGORIES: "list_categories",
+  GET_CATEGORY: "get_category",
+  CREATE_CATEGORY: "create_category",
+  UPDATE_CATEGORY: "update_category",
+  DELETE_CATEGORY: "delete_category",
+  LIST_RULES: "list_rules",
+  GET_RULE: "get_rule",
+  CREATE_RULE: "create_rule",
+  UPDATE_RULE: "update_rule",
+  SET_RULES_ENABLED: "set_rules_enabled",
+  DELETE_RULES: "delete_rules",
 } as const;
 
 export type McpToolName = (typeof MCP_TOOL_NAMES)[keyof typeof MCP_TOOL_NAMES];

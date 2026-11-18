@@ -275,7 +275,7 @@ Need to modify something? Here's where to find it:
 | `Waitlist`                | `waitlist`                   | Waitlist signups                                     |
 | `AutoArchiveProposal`     | `auto_archive_proposals`     | Mined "sender + keywords → archive" rule proposals (pending/approved/dismissed) with encrypted evidence |
 | `AutoArchiveScanState`    | `auto_archive_scan_states`   | Per-user watermark for incremental proposal mining   |
-| `PersonalAccessToken`     | `personal_access_tokens`     | Scoped (`mail:read` / `mail:send`) bearer tokens for `/mcp`: hand-made PATs (`kind='personal'`) and OAuth connections (`kind='oauth'`, rotating access + refresh hashes); only SHA-256 hashes are stored |
+| `PersonalAccessToken`     | `personal_access_tokens`     | Scoped (`mail:read` / `mail:send` / `settings:write`) bearer tokens for `/mcp`: hand-made PATs (`kind='personal'`) and OAuth connections (`kind='oauth'`, rotating access + refresh hashes); only SHA-256 hashes are stored |
 | `OAuthClient`             | `oauth_clients`              | RFC 7591 dynamically registered MCP OAuth clients (metadata-document clients like claude.ai aren't stored) |
 | `AskAiPendingApproval`    | `ask_ai_pending_approvals`   | Ask AI turns paused on a connected tool that is not read-only: encrypted agent state + args hash; single-use, expires after 15 min |
 | `OAuthAuthorizationCode`  | `oauth_authorization_codes`  | In-flight `/oauth/authorize` requests → single-use code hashes (PKCE challenge, granted scopes); pruned after a day |

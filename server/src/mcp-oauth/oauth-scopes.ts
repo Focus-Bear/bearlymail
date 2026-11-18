@@ -27,17 +27,27 @@ export function parseRequestedScopes(scope: string | undefined): PatScope[] {
   return known;
 }
 
+/** The optional permissions the user ticked on the consent screen. */
+export interface ConsentScopeChoices {
+  allowSend: boolean;
+  allowSettingsWrite?: boolean;
+}
+
 /**
  * What the user granted on the consent screen. Read access is the base of
- * every connection; sending is added only when the client asked for it and
- * the user ticked it.
+ * every connection; sending and editing categories/rules are each added only
+ * when the client asked for that scope and the user ticked it.
  */
 export function resolveGrantedScopes(
   requested: readonly string[],
-  allowSend: boolean,
+  choices: ConsentScopeChoices,
 ): PatScope[] {
-  const canSend = allowSend && requested.includes(PAT_SCOPES.MAIL_SEND);
-  return canSend
-    ? [PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_SEND]
-    : [PAT_SCOPES.MAIL_READ];
+  const optional: Array<[PatScope, boolean | undefined]> = [
+    [PAT_SCOPES.MAIL_SEND, choices.allowSend],
+    [PAT_SCOPES.SETTINGS_WRITE, choices.allowSettingsWrite],
+  ];
+  const granted = optional
+    .filter(([scope, isTicked]) => isTicked && requested.includes(scope))
+    .map(([scope]) => scope);
+  return [PAT_SCOPES.MAIL_READ, ...granted];
 }

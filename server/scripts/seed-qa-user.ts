@@ -9,10 +9,12 @@ import { UserContext, ContextKey, Source } from '../src/database/entities/user-c
 import { SummarizationRule } from '../src/database/entities/summarization-rule.entity';
 import { BlockedSender } from '../src/database/entities/blocked-sender.entity';
 import { Contact } from '../src/database/entities/contact.entity';
+import { encryptionKeyProvider } from '../src/encryption/encryption-key-provider';
 import { EncryptionHelper } from '../src/encryption/encryption.helper';
 
 // Load environment variables from .env file
 config({ path: path.join(__dirname, '../.env') });
+encryptionKeyProvider.initialize();
 
 const dbHost = process.env.DB_HOST || 'localhost';
 const isLocal = dbHost === 'localhost' || dbHost === '127.0.0.1';

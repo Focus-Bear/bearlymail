@@ -280,6 +280,11 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       setDraft: state.setDraft,
       setReplyRecipients: state.setReplyRecipients,
       setReplySubject: state.setReplySubject,
+      setReplyCc: state.setReplyCc,
+      setReplyBcc: state.setReplyBcc,
+      setShowCc: state.setShowCc,
+      setShowBcc: state.setShowBcc,
+      setRestoredReplyFiles: state.setRestoredReplyFiles,
       setReplyMode: state.setReplyMode,
       setShowReplyComposer: state.setShowReplyComposer,
       setReplyOptions: state.setReplyOptions,
@@ -759,6 +764,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               toneCheckResult={st.toneCheckResult}
               sending={st.sending}
               initialAttachments={st.replyMode === REPLY_MODE_FORWARD ? replyTargetEmail?.attachments : undefined}
+              restoredFiles={st.restoredReplyFiles}
               textareaRef={replyTextareaRef}
               scheduledSendAt={scheduledSendAt}
               onReplyRecipientsChange={st.setReplyRecipients}

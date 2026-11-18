@@ -1,3 +1,4 @@
+import { BYTE_CONVERSIONS } from "./service-constants";
 import { MILLISECONDS } from "./time-constants";
 
 /**
@@ -40,6 +41,29 @@ export const MCP_SERVER = {
     SEND_EMAIL: "MCP_SEND_EMAIL",
   },
   AUDIT_TARGET_TYPE: "email_send_attempt",
+  /**
+   * JSON body cap for `POST /mcp`, above the app-wide 100kb default because
+   * draft attachments arrive base64-encoded (4/3 of their size) in the call.
+   */
+  MAX_REQUEST_BODY: "15mb",
+} as const;
+
+const MAX_DRAFT_ATTACHMENT_TOTAL_MB = 10;
+
+/** Limits and links for the draft tools (create/update/list/delete_draft). */
+export const MCP_DRAFTS = {
+  MAX_ATTACHMENTS: 10,
+  /** Decoded size of all of a draft's attachments together. */
+  MAX_ATTACHMENT_TOTAL_MB: MAX_DRAFT_ATTACHMENT_TOTAL_MB,
+  MAX_ATTACHMENT_TOTAL_BYTES:
+    MAX_DRAFT_ATTACHMENT_TOTAL_MB * BYTE_CONVERSIONS.MB,
+  MAX_FILENAME_LENGTH: 255,
+  MAX_MIME_TYPE_LENGTH: 255,
+  MAX_LIST_LIMIT: 50,
+  /** Web-app routes a draft opens in; must match the client's routes. */
+  COMPOSE_PATH: "/compose",
+  COMPOSE_DRAFT_PARAM: "draftId",
+  EMAIL_DETAIL_PATH: "/email",
 } as const;
 
 export const MCP_TOOL_NAMES = {
@@ -49,6 +73,10 @@ export const MCP_TOOL_NAMES = {
   LIST_FOLLOW_UPS: "list_follow_ups",
   SEND_REPLY: "send_reply",
   SEND_EMAIL: "send_email",
+  CREATE_DRAFT: "create_draft",
+  UPDATE_DRAFT: "update_draft",
+  LIST_DRAFTS: "list_drafts",
+  DELETE_DRAFT: "delete_draft",
 } as const;
 
 export type McpToolName = (typeof MCP_TOOL_NAMES)[keyof typeof MCP_TOOL_NAMES];

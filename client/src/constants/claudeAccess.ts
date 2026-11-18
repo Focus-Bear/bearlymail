@@ -6,10 +6,34 @@ const DAYS_PER_QUARTER = 90;
 /** Must match the server's PAT_SCOPES (server/src/constants/personal-access-tokens.constants.ts). */
 export const PAT_SCOPES = {
   MAIL_READ: 'mail:read',
+  MAIL_DRAFT: 'mail:draft',
   MAIL_SEND: 'mail:send',
 } as const;
 
 export type PatScope = (typeof PAT_SCOPES)[keyof typeof PAT_SCOPES];
+
+/** What a token or connection may do; each level includes the ones before it. */
+export const ACCESS_LEVELS = {
+  READ: 'read',
+  DRAFT: 'draft',
+  SEND: 'send',
+} as const;
+
+export type AccessLevel = (typeof ACCESS_LEVELS)[keyof typeof ACCESS_LEVELS];
+
+export const SCOPES_FOR_ACCESS_LEVEL: Record<AccessLevel, PatScope[]> = {
+  [ACCESS_LEVELS.READ]: [PAT_SCOPES.MAIL_READ],
+  [ACCESS_LEVELS.DRAFT]: [PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_DRAFT],
+  [ACCESS_LEVELS.SEND]: [PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_DRAFT, PAT_SCOPES.MAIL_SEND],
+};
+
+/** The broadest thing these scopes allow (the server lets a send scope draft too). */
+export function accessLevelOf(scopes: readonly PatScope[]): AccessLevel {
+  if (scopes.includes(PAT_SCOPES.MAIL_SEND)) {
+    return ACCESS_LEVELS.SEND;
+  }
+  return scopes.includes(PAT_SCOPES.MAIL_DRAFT) ? ACCESS_LEVELS.DRAFT : ACCESS_LEVELS.READ;
+}
 
 /** Must match the server's ACCESS_TOKEN_KINDS: a hand-made token or an OAuth connection (claude.ai). */
 export const ACCESS_TOKEN_KINDS = {

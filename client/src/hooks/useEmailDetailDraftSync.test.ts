@@ -36,6 +36,11 @@ const makeBaseParams = (overrides: Record<string, unknown> = {}) => ({
   setDraft: vi.fn(),
   setReplyRecipients: vi.fn(),
   setReplySubject: vi.fn(),
+  setReplyCc: vi.fn(),
+  setReplyBcc: vi.fn(),
+  setShowCc: vi.fn(),
+  setShowBcc: vi.fn(),
+  setRestoredReplyFiles: vi.fn(),
   setReplyMode: vi.fn(),
   setShowReplyComposer: vi.fn(),
   setReplyOptions: vi.fn(),
@@ -301,6 +306,50 @@ describe('useEmailDetailDraftSync — restoring a saved draft', () => {
 
     await waitFor(() => expect(setReplySubject).toHaveBeenCalledWith('Re: Intro to the dev team'));
     expect(setReplyRecipients).toHaveBeenCalledWith('leah@example.com');
+  });
+
+  it("restores an assistant-prepared draft's subject, Cc, Bcc and attachments", async () => {
+    const setReplySubject = vi.fn();
+    const setReplyCc = vi.fn();
+    const setShowCc = vi.fn();
+    const setReplyBcc = vi.fn();
+    const setShowBcc = vi.fn();
+    const setRestoredReplyFiles = vi.fn();
+    const params = makeBaseParams({
+      showReplyComposer: false,
+      email: { threadId: 'thread-11', subject: 'Quote' },
+      fetchDraft: vi.fn().mockResolvedValue({
+        id: 'draft-1',
+        emailThreadId: 'thread-11',
+        content: '<p>PO attached.</p>',
+        replyMode: 'reply',
+        recipients: 'supplier@example.com',
+        subject: 'Re: Quote — PO 42',
+        cc: 'accounts@example.com',
+        bcc: 'archive@example.com',
+        attachments: [{ filename: 'po.pdf', mimeType: 'application/pdf', content: btoa('%PDF-1.4') }],
+      }),
+      setReplySubject,
+      setReplyCc,
+      setShowCc,
+      setReplyBcc,
+      setShowBcc,
+      setRestoredReplyFiles,
+    });
+
+    renderHook(() => useEmailDetailDraftSync(params));
+
+    await waitFor(() => expect(setReplySubject).toHaveBeenCalledWith('Re: Quote — PO 42'));
+    expect(setReplyCc).toHaveBeenCalledWith('accounts@example.com');
+    expect(setShowCc).toHaveBeenCalledWith(true);
+    expect(setReplyBcc).toHaveBeenCalledWith('archive@example.com');
+    expect(setShowBcc).toHaveBeenCalledWith(true);
+    const { calls } = setRestoredReplyFiles.mock;
+    const restoredFiles: File[] = calls[calls.length - 1][0];
+    expect(restoredFiles).toHaveLength(1);
+    expect(restoredFiles[0].name).toBe('po.pdf');
+    expect(restoredFiles[0].type).toBe('application/pdf');
+    expect(await restoredFiles[0].text()).toBe('%PDF-1.4');
   });
 
   it('does not touch the subject when there is no saved draft', async () => {

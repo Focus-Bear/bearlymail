@@ -3,9 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
-import { ACCESS_TOKEN_KINDS, PAT_SCOPES } from 'constants/claudeAccess';
+import { ACCESS_LEVELS, ACCESS_TOKEN_KINDS, AccessLevel, accessLevelOf } from 'constants/claudeAccess';
 
 import { PersonalAccessToken } from './types';
+
+const ACCESS_LEVEL_LABEL_KEYS: Record<AccessLevel, string> = {
+  [ACCESS_LEVELS.READ]: 'settings.claudeAccess.scopeRead',
+  [ACCESS_LEVELS.DRAFT]: 'settings.claudeAccess.scopeReadDraft',
+  [ACCESS_LEVELS.SEND]: 'settings.claudeAccess.scopeReadSend',
+};
 
 interface AccessTokenListProps {
   tokens: PersonalAccessToken[];
@@ -49,7 +55,7 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
   return (
     <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} data-testid="access-token-list">
       {tokens.map((token) => {
-        const canSend = token.scopes.includes(PAT_SCOPES.MAIL_SEND);
+        const accessLevel = accessLevelOf(token.scopes);
         const isConnection = token.kind === ACCESS_TOKEN_KINDS.OAUTH;
         return (
           <li
@@ -82,7 +88,7 @@ export const AccessTokenList: React.FC<AccessTokenListProps> = ({ tokens, revoki
                 )}
               </div>
               <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-                {canSend ? t('settings.claudeAccess.scopeReadSend') : t('settings.claudeAccess.scopeRead')}
+                {t(ACCESS_LEVEL_LABEL_KEYS[accessLevel])}
                 {' · '}
                 {token.lastUsedAt
                   ? t('settings.claudeAccess.lastUsed', { date: formatDate(token.lastUsedAt) })

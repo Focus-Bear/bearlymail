@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import {
+  ACCESS_LEVELS,
+  AccessLevel,
   DEFAULT_TOKEN_EXPIRY_DAYS,
   DEFAULT_TOKEN_NAME,
   MAX_TOKEN_NAME_LENGTH,
-  PAT_SCOPES,
-  PatScope,
+  SCOPES_FOR_ACCESS_LEVEL,
   TOKEN_EXPIRY_OPTIONS,
 } from 'constants/claudeAccess';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
@@ -40,23 +41,72 @@ interface AccessTokenCreateFormProps {
   onCreate: (input: CreatePersonalAccessTokenInput) => void;
 }
 
+interface PermissionCheckboxProps {
+  isChecked: boolean;
+  isDisabled?: boolean;
+  label: string;
+  hint: string;
+  testId: string;
+  onChange: (isChecked: boolean) => void;
+}
+
+const PermissionCheckbox: React.FC<PermissionCheckboxProps> = ({
+  isChecked,
+  isDisabled,
+  label,
+  hint,
+  testId,
+  onChange,
+}) => (
+  <label
+    style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: theme.spacing.sm,
+      cursor: isDisabled ? 'default' : 'pointer',
+    }}
+  >
+    <input
+      type="checkbox"
+      checked={isChecked}
+      disabled={isDisabled}
+      onChange={(event) => onChange(event.target.checked)}
+      data-testid={testId}
+      style={{ marginTop: '3px' }}
+    />
+    <span>
+      <span style={{ ...labelStyle, display: 'inline', marginBottom: 0 }}>{label}</span>
+      <span style={{ display: 'block', fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+        {hint}
+      </span>
+    </span>
+  </label>
+);
+
+function accessLevelFor(canDraft: boolean, canSend: boolean): AccessLevel {
+  if (canSend) {
+    return ACCESS_LEVELS.SEND;
+  }
+  return canDraft ? ACCESS_LEVELS.DRAFT : ACCESS_LEVELS.READ;
+}
+
 /**
- * Name, permission and expiry for a new token. Sending is opt-in so the
- * default token can only read: an email can't talk a read-only Claude into
- * sending anything.
+ * Name, permission and expiry for a new token. Drafting and sending are
+ * opt-in so the default token can only read: an email can't talk a read-only
+ * Claude into writing or sending anything. Sending includes drafting.
  */
 export const AccessTokenCreateForm: React.FC<AccessTokenCreateFormProps> = ({ isSubmitting, onCreate }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(DEFAULT_TOKEN_NAME);
+  const [canDraft, setCanDraft] = useState(false);
   const [canSend, setCanSend] = useState(false);
   const [expiry, setExpiry] = useState(String(DEFAULT_TOKEN_EXPIRY_DAYS));
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const scopes: PatScope[] = canSend ? [PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_SEND] : [PAT_SCOPES.MAIL_READ];
     onCreate({
       name: name.trim(),
-      scopes,
+      scopes: SCOPES_FOR_ACCESS_LEVEL[accessLevelFor(canDraft, canSend)],
       expiresInDays: expiry === NEVER_EXPIRES_VALUE ? null : Number(expiry),
     });
   };
@@ -99,23 +149,21 @@ export const AccessTokenCreateForm: React.FC<AccessTokenCreateFormProps> = ({ is
           </select>
         </div>
       </div>
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.sm, cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={canSend}
-          onChange={(event) => setCanSend(event.target.checked)}
-          data-testid="access-token-can-send"
-          style={{ marginTop: '3px' }}
-        />
-        <span>
-          <span style={{ ...labelStyle, display: 'inline', marginBottom: 0 }}>
-            {t('settings.claudeAccess.allowSendLabel')}
-          </span>
-          <span style={{ display: 'block', fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-            {t('settings.claudeAccess.allowSendHint')}
-          </span>
-        </span>
-      </label>
+      <PermissionCheckbox
+        isChecked={canDraft || canSend}
+        isDisabled={canSend}
+        label={t('settings.claudeAccess.allowDraftsLabel')}
+        hint={t('settings.claudeAccess.allowDraftsHint')}
+        testId="access-token-can-draft"
+        onChange={setCanDraft}
+      />
+      <PermissionCheckbox
+        isChecked={canSend}
+        label={t('settings.claudeAccess.allowSendLabel')}
+        hint={t('settings.claudeAccess.allowSendHint')}
+        testId="access-token-can-send"
+        onChange={setCanSend}
+      />
       <div>
         <button
           type="submit"

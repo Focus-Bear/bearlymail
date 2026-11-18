@@ -3,10 +3,13 @@ import { DAYS, MILLISECONDS } from "./time-constants";
 /**
  * Scopes a personal access token can carry. Read and send are split so a user
  * can hand an assistant a read-only token: email bodies are untrusted input,
- * and a token that cannot send cannot be talked into sending.
+ * and a token that cannot send cannot be talked into sending. `mail:draft`
+ * sits between them: the assistant can prepare messages in BearlyMail for the
+ * user to review, but nothing leaves the mailbox until the user sends it.
  */
 export const PAT_SCOPES = {
   MAIL_READ: "mail:read",
+  MAIL_DRAFT: "mail:draft",
   MAIL_SEND: "mail:send",
 } as const;
 

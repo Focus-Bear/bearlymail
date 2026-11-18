@@ -171,7 +171,11 @@ describe("MCP OAuth flow", () => {
       expect(buildProtectedResourceMetadata()).toMatchObject({
         resource: MCP_URL,
         authorization_servers: ["http://localhost:3001"],
-        scopes_supported: [PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_SEND],
+        scopes_supported: [
+          PAT_SCOPES.MAIL_READ,
+          PAT_SCOPES.MAIL_DRAFT,
+          PAT_SCOPES.MAIL_SEND,
+        ],
       });
     });
 
@@ -269,7 +273,7 @@ describe("MCP OAuth flow", () => {
         clientId,
         await authorizeAndApprove(harness, clientId, { allowSend: true }),
       );
-      expect(tokens.scope).toBe("mail:read mail:send");
+      expect(tokens.scope).toBe("mail:read mail:draft mail:send");
     });
 
     it("shows the consent screen where the code will go", async () => {
@@ -293,6 +297,7 @@ describe("MCP OAuth flow", () => {
         clientHost: null,
         redirectHost: "claude.ai",
         isLoopbackRedirect: false,
+        canRequestDrafts: true,
         canRequestSend: true,
       });
     });

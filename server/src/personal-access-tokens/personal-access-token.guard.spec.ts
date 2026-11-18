@@ -1,9 +1,7 @@
 import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
 
 import { PAT_SCOPES } from "../constants/personal-access-tokens.constants";
-import {
-  PersonalAccessTokenGuard,
-} from "./personal-access-token.guard";
+import { PersonalAccessTokenGuard } from "./personal-access-token.guard";
 import { PersonalAccessTokensService } from "./personal-access-tokens.service";
 
 function contextFor(
@@ -66,7 +64,7 @@ describe("PersonalAccessTokenGuard", () => {
     const [name, value] = response.setHeader.mock.calls[0];
     expect(name).toBe("WWW-Authenticate");
     expect(value).toMatch(
-      /^Bearer resource_metadata="http:\/\/[^"]+\/\.well-known\/oauth-protected-resource\/mcp", scope="mail:read mail:send"$/,
+      /^Bearer resource_metadata="http:\/\/[^"]+\/\.well-known\/oauth-protected-resource\/mcp", scope="mail:read mail:draft mail:send"$/,
     );
   });
 
@@ -94,4 +92,3 @@ describe("PersonalAccessTokenGuard", () => {
     expect(request.user).toEqual(principal);
   });
 });
-

@@ -8,11 +8,13 @@ export interface OAuthConsentRequest {
   /** Where the browser is sent after the user answers. */
   redirectHost: string;
   isLoopbackRedirect: boolean;
+  canRequestDrafts: boolean;
   canRequestSend: boolean;
   expiresAt: string;
 }
 
 export interface OAuthConsentDecision {
   approve: boolean;
+  allowDrafts: boolean;
   allowSend: boolean;
 }

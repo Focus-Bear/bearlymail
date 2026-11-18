@@ -27,17 +27,38 @@ export function parseRequestedScopes(scope: string | undefined): PatScope[] {
   return known;
 }
 
+/** The permissions the user picked on the consent screen. */
+export interface ConsentScopeChoice {
+  allowDrafts?: boolean;
+  allowSend: boolean;
+}
+
 /**
  * What the user granted on the consent screen. Read access is the base of
- * every connection; sending is added only when the client asked for it and
- * the user ticked it.
+ * every connection; drafting and sending are added only when the client asked
+ * for them and the user picked them. A client that asked to send may also be
+ * granted drafting alone, since that is the narrower permission.
  */
 export function resolveGrantedScopes(
   requested: readonly string[],
-  allowSend: boolean,
+  choice: ConsentScopeChoice,
 ): PatScope[] {
-  const canSend = allowSend && requested.includes(PAT_SCOPES.MAIL_SEND);
-  return canSend
-    ? [PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_SEND]
-    : [PAT_SCOPES.MAIL_READ];
+  const canSend = requested.includes(PAT_SCOPES.MAIL_SEND);
+  const canDraft = canSend || requested.includes(PAT_SCOPES.MAIL_DRAFT);
+  const granted = new Set<PatScope>([PAT_SCOPES.MAIL_READ]);
+  if (canDraft && (choice.allowDrafts || choice.allowSend)) {
+    granted.add(PAT_SCOPES.MAIL_DRAFT);
+  }
+  if (canSend && choice.allowSend) {
+    granted.add(PAT_SCOPES.MAIL_SEND);
+  }
+  return ALL_PAT_SCOPES.filter((scope) => granted.has(scope));
+}
+
+/** Whether the consent screen may offer drafting for these requested scopes. */
+export function canRequestDrafts(requested: readonly string[]): boolean {
+  return (
+    requested.includes(PAT_SCOPES.MAIL_DRAFT) ||
+    requested.includes(PAT_SCOPES.MAIL_SEND)
+  );
 }

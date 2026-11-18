@@ -6,6 +6,7 @@ import {
   McpToolName,
 } from "../constants/mcp-server.constants";
 import { PatScope } from "../constants/personal-access-tokens.constants";
+import { McpDraftToolsService } from "./mcp-draft-tools.service";
 import { McpReadToolsService } from "./mcp-read-tools.service";
 import { McpSendToolsService } from "./mcp-send-tools.service";
 import {
@@ -15,6 +16,7 @@ import {
 } from "./mcp-server.types";
 import {
   findToolSpec,
+  isToolAllowed,
   McpToolDefinition,
   toolsForScopes,
 } from "./mcp-server-tool-definitions";
@@ -47,7 +49,11 @@ export class McpServerToolsService {
   private readonly logger = new Logger(McpServerToolsService.name);
   private readonly handlers: Record<McpToolName, ToolHandler>;
 
-  constructor(readTools: McpReadToolsService, sendTools: McpSendToolsService) {
+  constructor(
+    readTools: McpReadToolsService,
+    sendTools: McpSendToolsService,
+    draftTools: McpDraftToolsService,
+  ) {
     this.handlers = {
       [MCP_TOOL_NAMES.LIST_IMPORTANT_EMAILS]: (context, args) =>
         readTools.listImportantEmails(context.principal.userId, args),
@@ -61,6 +67,14 @@ export class McpServerToolsService {
         sendTools.sendReply(context, args),
       [MCP_TOOL_NAMES.SEND_EMAIL]: (context, args) =>
         sendTools.sendEmail(context, args),
+      [MCP_TOOL_NAMES.CREATE_DRAFT]: (context, args) =>
+        draftTools.createDraft(context.principal.userId, args),
+      [MCP_TOOL_NAMES.UPDATE_DRAFT]: (context, args) =>
+        draftTools.updateDraft(context.principal.userId, args),
+      [MCP_TOOL_NAMES.LIST_DRAFTS]: (context, args) =>
+        draftTools.listDrafts(context.principal.userId, args),
+      [MCP_TOOL_NAMES.DELETE_DRAFT]: (context, args) =>
+        draftTools.deleteDraft(context.principal.userId, args),
     };
   }
 
@@ -80,9 +94,9 @@ export class McpServerToolsService {
         `Unknown tool: ${name}`,
       );
     }
-    if (!context.principal.scopes.includes(spec.requiredScope)) {
+    if (!isToolAllowed(spec, context.principal.scopes)) {
       return errorResult(
-        `This BearlyMail access token doesn't have the "${spec.requiredScope}" permission. The user can create a token with it in BearlyMail Settings.`,
+        `This BearlyMail access token doesn't have the "${spec.allowedScopes.join('" or "')}" permission. The user can create a token with it in BearlyMail Settings.`,
       );
     }
     try {

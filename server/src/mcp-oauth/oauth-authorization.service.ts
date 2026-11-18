@@ -25,7 +25,12 @@ import {
 import { OAuthClientRegistryService } from "./oauth-client-registry.service";
 import { OAuthError } from "./oauth-error";
 import { buildAuthorizationRedirect, readSingleParam } from "./oauth-params";
-import { parseRequestedScopes, resolveGrantedScopes } from "./oauth-scopes";
+import {
+  canRequestDrafts,
+  ConsentScopeChoice,
+  parseRequestedScopes,
+  resolveGrantedScopes,
+} from "./oauth-scopes";
 import {
   isLoopbackRedirectUri,
   matchesRegisteredRedirectUri,
@@ -43,13 +48,13 @@ export interface ConsentRequestView {
   redirectHost: string;
   /** Any local process can claim a loopback redirect, so the page warns. */
   isLoopbackRedirect: boolean;
+  canRequestDrafts: boolean;
   canRequestSend: boolean;
   expiresAt: Date;
 }
 
-export interface ConsentDecision {
+export interface ConsentDecision extends ConsentScopeChoice {
   approve: boolean;
-  allowSend: boolean;
 }
 
 export interface AuditRequestContext {
@@ -152,6 +157,7 @@ export class OAuthAuthorizationService {
       clientHost: isMetadataClient ? new URL(row.clientId).hostname : null,
       redirectHost: redirectUriHost(row.redirectUri),
       isLoopbackRedirect: isLoopbackRedirectUri(row.redirectUri),
+      canRequestDrafts: canRequestDrafts(row.requestedScopes),
       canRequestSend: row.requestedScopes.includes(PAT_SCOPES.MAIL_SEND),
       expiresAt: row.expiresAt,
     };
@@ -178,10 +184,7 @@ export class OAuthAuthorizationService {
     }
 
     await this.tokensService.assertBelowTokenLimit(userId, now);
-    const grantedScopes = resolveGrantedScopes(
-      row.requestedScopes,
-      decision.allowSend,
-    );
+    const grantedScopes = resolveGrantedScopes(row.requestedScopes, decision);
     const code = generateTokenSecret(MCP_OAUTH.AUTHORIZATION_CODE_PREFIX);
     await this.claimRequest(row.id, {
       userId,

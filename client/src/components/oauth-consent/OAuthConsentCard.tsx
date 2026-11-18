@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { ACCESS_LEVELS, AccessLevel } from 'constants/claudeAccess';
+
 import { ConsentScopeChoice } from './ConsentScopeChoice';
 import { OAuthConsentDecision, OAuthConsentRequest } from './types';
 
@@ -28,6 +30,14 @@ const detailStyle: React.CSSProperties = {
   color: theme.colors.text.secondary,
 };
 
+const DENIED: OAuthConsentDecision = { approve: false, allowDrafts: false, allowSend: false };
+
+const approvalFor = (accessLevel: AccessLevel): OAuthConsentDecision => ({
+  approve: true,
+  allowDrafts: accessLevel !== ACCESS_LEVELS.READ,
+  allowSend: accessLevel === ACCESS_LEVELS.SEND,
+});
+
 /**
  * Asks the logged-in user whether an app (claude.ai, Claude Code…) may use
  * their mailbox. The redirect host is shown prominently because the app's
@@ -41,7 +51,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
   onDecide,
 }) => {
   const { t } = useTranslation();
-  const [allowSend, setAllowSend] = useState(false);
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>(ACCESS_LEVELS.READ);
 
   return (
     <div data-testid="oauth-consent">
@@ -84,7 +94,12 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         </p>
       )}
 
-      <ConsentScopeChoice allowSend={allowSend} canRequestSend={request.canRequestSend} onChange={setAllowSend} />
+      <ConsentScopeChoice
+        accessLevel={accessLevel}
+        canRequestDrafts={request.canRequestDrafts}
+        canRequestSend={request.canRequestSend}
+        onChange={setAccessLevel}
+      />
 
       <p style={{ ...detailStyle, marginBottom: theme.spacing.lg, fontSize: theme.typography.fontSize.xs }}>
         {t('oauthConsent.safetyNote')}
@@ -100,7 +115,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         <button
           type="button"
           disabled={isSubmitting}
-          onClick={() => onDecide({ approve: false, allowSend: false })}
+          onClick={() => onDecide(DENIED)}
           data-testid="oauth-consent-deny"
           style={{
             ...buttonStyle,
@@ -114,7 +129,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         <button
           type="button"
           disabled={isSubmitting}
-          onClick={() => onDecide({ approve: true, allowSend })}
+          onClick={() => onDecide(approvalFor(accessLevel))}
           data-testid="oauth-consent-allow"
           style={{
             ...buttonStyle,

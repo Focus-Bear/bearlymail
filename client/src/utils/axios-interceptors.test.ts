@@ -1,9 +1,18 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
-import { HTTP_PAYMENT_REQUIRED, HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { AI_VOLUME_LIMIT_REACHED_CODE, API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
+import { API_URL } from 'config/api';
+import { HTTP_FORBIDDEN, HTTP_PAYMENT_REQUIRED, HTTP_UNAUTHORIZED } from 'constants/numbers';
+import {
+  AI_VOLUME_LIMIT_REACHED_CODE,
+  API_ENDPOINT_USERS_ME,
+  GMAIL_WRITE_ACTION_ARCHIVE,
+  GOOGLE_PERMISSION_GMAIL_MANAGE,
+  GOOGLE_PERMISSION_REQUIRED_CODE,
+  HTTP_METHOD_GET,
+} from 'constants/strings';
 
 import { registerAiLimitNotifier, resetInterceptorsForTesting, setupAxiosInterceptors } from './axios-interceptors';
+import { registerGooglePermissionPromptHandler } from './googlePermissionRequired';
 
 describe('axios-interceptors', () => {
   let mockLogout: jest.Mock;
@@ -218,6 +227,31 @@ describe('axios-interceptors', () => {
       // banner's job (see AiLimitBanner), keeping the interceptor UI-agnostic.
       await expect(errorHandler(error)).rejects.toEqual(error);
       expect(notifier).toHaveBeenCalledTimes(2);
+    });
+
+    it('explains a Google-permission 403 before letting the request fail', async () => {
+      const prompt = vi.fn().mockResolvedValue(undefined);
+      registerGooglePermissionPromptHandler(prompt);
+      const error = {
+        isAxiosError: true,
+        response: {
+          status: HTTP_FORBIDDEN,
+          data: {
+            code: GOOGLE_PERMISSION_REQUIRED_CODE,
+            permission: GOOGLE_PERMISSION_GMAIL_MANAGE,
+            action: GMAIL_WRITE_ACTION_ARCHIVE,
+          },
+        },
+        config: { url: `${API_URL}/emails/email-1/archive`, method: 'put', headers: {} },
+      };
+
+      await expect(responseInterceptor[1](error)).rejects.toEqual(error);
+
+      expect(prompt).toHaveBeenCalledWith(
+        expect.objectContaining({ permission: GOOGLE_PERMISSION_GMAIL_MANAGE, action: GMAIL_WRITE_ACTION_ARCHIVE })
+      );
+      expect(mockLogout).not.toHaveBeenCalled();
+      registerGooglePermissionPromptHandler(null);
     });
 
     it('should not notify after the notifier is unregistered', async () => {

@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { promptForGooglePermission } from 'utils/googlePermissionRequired';
 import { SESSION_EXPIRED_REASON } from 'utils/sessionState';
 
 import { HTTP_PAYMENT_REQUIRED, HTTP_UNAUTHORIZED } from 'constants/numbers';
@@ -8,12 +9,16 @@ import { AI_VOLUME_LIMIT_REACHED_CODE, API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } 
 // without unsafe casts. When set, the response interceptor below will not
 // trigger logout() on a 401 — used by the logout POST itself to avoid
 // re-entering logout() when the cookie is already invalid.
+// `_skipGooglePermissionPrompt` marks a request retried after a Google grant,
+// so a second refusal fails normally instead of reopening the explainer.
 declare module 'axios' {
   interface AxiosRequestConfig {
     _skipInterceptor?: boolean;
+    _skipGooglePermissionPrompt?: boolean;
   }
   interface InternalAxiosRequestConfig {
     _skipInterceptor?: boolean;
+    _skipGooglePermissionPrompt?: boolean;
   }
 }
 
@@ -75,6 +80,12 @@ export const setupAxiosInterceptors = (
         error.response?.data?.code === AI_VOLUME_LIMIT_REACHED_CODE
       ) {
         aiLimitNotifier?.();
+        return Promise.reject(error);
+      }
+
+      // An action the Google grant doesn't cover yet (archive, send… on a
+      // read-only Gmail grant): explain, ask Google, retry on return.
+      if (await promptForGooglePermission(error, originalRequest)) {
         return Promise.reject(error);
       }
 

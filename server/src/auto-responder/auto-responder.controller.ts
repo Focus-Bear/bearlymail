@@ -11,8 +11,14 @@ import {
 } from "@nestjs/common";
 
 import { AdminGuard } from "../auth/admin.guard";
+import { assertGooglePermission } from "../auth/google-permission.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
+import {
+  GMAIL_WRITE_ACTION,
+  GOOGLE_PERMISSION_GROUP,
+} from "../constants/google-oauth-scopes";
+import { UsersService } from "../users/users.service";
 import { AutoResponderService } from "./auto-responder.service";
 import { AutoResponderArchiveAuditService } from "./auto-responder-archive-audit.service";
 import { QueueStatsService } from "./queue-stats.service";
@@ -36,6 +42,7 @@ export class AutoResponderController {
     private autoResponderService: AutoResponderService,
     private queueStatsService: QueueStatsService,
     private archiveAuditService: AutoResponderArchiveAuditService,
+    private usersService: UsersService,
   ) {}
 
   /**
@@ -55,6 +62,16 @@ export class AutoResponderController {
     @Request() req: AuthenticatedRequest,
     @Body() body: Partial<AutoResponderConfig>,
   ) {
+    // The auto-responder replies on the user's behalf, so switching it on is
+    // the moment to ask for send permission — not the first unattended reply.
+    if (body.enabled) {
+      await assertGooglePermission(
+        this.usersService,
+        req.user.userId,
+        GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
+        GMAIL_WRITE_ACTION.SEND,
+      );
+    }
     const config = await this.autoResponderService.updateConfig(
       req.user.userId,
       body,

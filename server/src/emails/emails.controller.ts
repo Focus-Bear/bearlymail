@@ -37,6 +37,7 @@ import type { PgBoss } from "pg-boss";
 
 import { AuditService } from "../audit/audit.service";
 import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
+import { RequireGmailManagePermission } from "../auth/google-permission.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { isUuid } from "../common/uuid.utils";
@@ -46,6 +47,7 @@ import {
 } from "../constants/domain-types";
 import { EML_DOWNLOAD } from "../constants/eml-download.constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { GMAIL_WRITE_ACTION } from "../constants/google-oauth-scopes";
 import { HTTP_HEADERS } from "../constants/http-headers";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -874,6 +876,7 @@ export class EmailsController {
   }
 
   @Post("bulk/archive")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.ARCHIVE)
   async bulkArchive(@Request() req, @Body() body: { emailIds: string[] }) {
     this.logger.log(
       `[Archive] Bulk archive request received for ${body.emailIds.length} emails, userId: ${req.user.userId}`,
@@ -897,6 +900,7 @@ export class EmailsController {
   }
 
   @Put(":id/archive")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.ARCHIVE)
   async archiveEmail(@Request() req, @Param("id") id: string) {
     assertEmailId(id);
     this.logger.log(
@@ -918,6 +922,7 @@ export class EmailsController {
   }
 
   @Delete(":id")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.DELETE)
   async deleteEmail(@Request() req, @Param("id") id: string) {
     assertEmailId(id);
     await this.emailsService.deleteEmail(req.user.userId, id);
@@ -925,12 +930,14 @@ export class EmailsController {
   }
 
   @Put(":id/star")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.STAR)
   async toggleStar(@Request() req, @Param("id") id: string) {
     assertEmailId(id);
     return this.emailsService.toggleStar(req.user.userId, id);
   }
 
   @Put(":id/star-count")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.STAR)
   async setStarCount(
     @Request() req,
     @Param("id") id: string,
@@ -942,6 +949,7 @@ export class EmailsController {
   }
 
   @Post(":id/block-sender")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.BLOCK_SENDER)
   async blockSender(
     @Request() req,
     @Param("id") id: string,

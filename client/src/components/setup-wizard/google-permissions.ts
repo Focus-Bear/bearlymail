@@ -1,4 +1,9 @@
-import { GMAIL_ACCESS_ISSUE_REVOKED, GOOGLE_PERMISSION_GMAIL, GooglePermissionGroup } from 'constants/strings';
+import {
+  GMAIL_ACCESS_ISSUE_REVOKED,
+  GOOGLE_PERMISSION_GMAIL,
+  GOOGLE_PERMISSION_GMAIL_MANAGE,
+  GooglePermissionGroup,
+} from 'constants/strings';
 import { User } from 'contexts/AuthContext';
 
 export const GMAIL_PERMISSION_PROBLEM = {
@@ -11,6 +16,8 @@ export type GmailPermissionProblem = (typeof GMAIL_PERMISSION_PROBLEM)[keyof typ
 
 export interface GooglePermissionsState {
   gmailProblem: GmailPermissionProblem | null;
+  /** Gmail can be read but not changed yet: archive, send… are asked for when first used. */
+  isGmailReadOnly: boolean;
 }
 
 type GooglePermissionFields = Pick<User, 'gmailAccessIssue' | 'missingGooglePermissions'>;
@@ -28,13 +35,16 @@ function resolveGmailProblem(user: GooglePermissionFields, missing: GooglePermis
 /**
  * What the onboarding welcome screen should warn about. Combines the grant
  * recorded at sign-in with the access issue a failed Gmail sync records, so
- * a mailbox BearlyMail can't read is never shown as "connected". Calendar and
- * contacts aren't asked for at sign-in, so they are never warned about here;
- * the scheduling card and the CRM offer them when they're needed.
+ * a mailbox BearlyMail can't read is never shown as "connected". Only reading
+ * Gmail is asked for at sign-in, so nothing else is warned about here: the
+ * actions that change or send mail ask when first used, and the scheduling
+ * card and the CRM offer calendar and contacts.
  */
 export function resolveGooglePermissions(user: GooglePermissionFields | null): GooglePermissionsState {
   if (!user) {
-    return { gmailProblem: null };
+    return { gmailProblem: null, isGmailReadOnly: false };
   }
-  return { gmailProblem: resolveGmailProblem(user, user.missingGooglePermissions ?? []) };
+  const missing = user.missingGooglePermissions ?? [];
+  const gmailProblem = resolveGmailProblem(user, missing);
+  return { gmailProblem, isGmailReadOnly: !gmailProblem && missing.includes(GOOGLE_PERMISSION_GMAIL_MANAGE) };
 }

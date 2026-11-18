@@ -11,6 +11,7 @@ import { EmailsModule } from "../emails/emails.module";
 import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { PersonalAccessTokensModule } from "../personal-access-tokens/personal-access-tokens.module";
 import { McpCategoryToolsService } from "./mcp-category-tools.service";
+import { UsersModule } from "../users/users.module";
 import { McpRateLimitGuard } from "./mcp-rate-limit.guard";
 import { McpReadToolsService } from "./mcp-read-tools.service";
 import { McpRuleToolsService } from "./mcp-rule-tools.service";
@@ -35,6 +36,7 @@ import { McpServerToolsService } from "./mcp-server-tools.service";
     AskAiModule,
     CategoryRulesModule,
     ContextModule,
+    UsersModule,
   ],
   controllers: [McpServerController],
   providers: [

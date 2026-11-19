@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useConnectFocusBear, useDisconnectFocusBear, useFocusBearConnectionQuery } from 'queries/useFocusBear';
+import { useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { focusBearKeys } from 'queries/queryKeys';
+import { useDisconnectFocusBear, useFocusBearConnectionQuery, useStartFocusBearConnect } from 'queries/useFocusBear';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { FOCUS_BEAR_CONNECT_RESULT } from 'constants/focusBear';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { STRING_NONE } from 'constants/strings';
@@ -40,60 +44,50 @@ const descriptionStyle: React.CSSProperties = {
   fontSize: theme.typography.fontSize.sm,
 };
 
-const tokenInputStyle: React.CSSProperties = {
-  padding: theme.spacing.sm,
-  border: `1px solid ${theme.colors.border.medium}`,
-  borderRadius: theme.borderRadius.md,
-  fontSize: theme.typography.fontSize.sm,
-  fontFamily: 'monospace',
-};
-
 /**
- * Connects the user's Focus Bear account with an access token they create in
- * Focus Bear, so "Save to Focus Bear" can suggest a project and a free day.
- * The token is stored encrypted and never sent back to the browser.
+ * Connects the user's Focus Bear account by sending them to Focus Bear to sign in,
+ * so "Save to Focus Bear" can suggest a project and a free day. No Focus Bear
+ * credential is entered here, and none reaches the browser.
  */
 export const FocusBearConnectionSection: React.FC = () => {
   const { t } = useTranslation();
-  const [token, setToken] = useState('');
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [hasConnectFailed, setHasConnectFailed] = useState(false);
   const { data: connection } = useFocusBearConnectionQuery();
-  const connect = useConnectFocusBear();
+  const startConnect = useStartFocusBearConnect();
   const disconnect = useDisconnectFocusBear();
   const isConnected = connection?.connected === true;
-  const hasToken = token.trim().length > 0;
+  const connectResult = searchParams.get(FOCUS_BEAR_CONNECT_RESULT.QUERY_PARAM);
 
-  const save = () =>
-    connect.mutate(token.trim(), {
-      onSuccess: () => {
-        setToken('');
-        captureEvent(ANALYTICS_EVENTS.FOCUS_BEAR_CONNECTED);
+  // The server redirects back here after the Focus Bear sign-in with the outcome in the URL.
+  useEffect(() => {
+    if (!connectResult) {
+      return;
+    }
+    if (connectResult === FOCUS_BEAR_CONNECT_RESULT.CONNECTED) {
+      captureEvent(ANALYTICS_EVENTS.FOCUS_BEAR_CONNECTED);
+      void queryClient.invalidateQueries({ queryKey: focusBearKeys.connection });
+      queryClient.removeQueries({ queryKey: focusBearKeys.allSuggestions });
+    }
+    setHasConnectFailed(connectResult === FOCUS_BEAR_CONNECT_RESULT.FAILED);
+    // Dropped from the URL so a reload doesn't report the same outcome again.
+    setSearchParams(
+      params => {
+        params.delete(FOCUS_BEAR_CONNECT_RESULT.QUERY_PARAM);
+        return params;
       },
-    });
+      { replace: true }
+    );
+  }, [connectResult, queryClient, setSearchParams]);
 
   return (
     <div id={SETTINGS_ANCHORS.FOCUS_BEAR} style={cardStyle}>
       <h2 style={titleStyle}>{t('settings.focusBear.title')}</h2>
       <p style={descriptionStyle}>{t('settings.focusBear.description')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-        <input
-          type="password"
-          value={token}
-          onChange={event => setToken(event.target.value)}
-          aria-label={t('settings.focusBear.tokenLabel')}
-          placeholder={t('settings.focusBear.tokenPlaceholder')}
-          autoComplete="off"
-          style={tokenInputStyle}
-        />
         <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={save}
-            disabled={!hasToken || connect.isPending}
-            style={buttonStyle(theme.colors.primary.main, hasToken && !connect.isPending)}
-          >
-            {connect.isPending ? t('settings.focusBear.checking') : t('settings.focusBear.connect')}
-          </button>
-          {isConnected && (
+          {isConnected ? (
             <button
               type="button"
               onClick={() =>
@@ -104,6 +98,18 @@ export const FocusBearConnectionSection: React.FC = () => {
               style={buttonStyle(theme.colors.accent.error)}
             >
               {t('settings.focusBear.disconnect')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setHasConnectFailed(false);
+                startConnect.mutate();
+              }}
+              disabled={startConnect.isPending}
+              style={buttonStyle(theme.colors.primary.main, !startConnect.isPending)}
+            >
+              {startConnect.isPending ? t('settings.focusBear.connecting') : t('settings.focusBear.connect')}
             </button>
           )}
           <span
@@ -116,9 +122,9 @@ export const FocusBearConnectionSection: React.FC = () => {
             {isConnected ? t('settings.focusBear.connected') : t('settings.focusBear.notConnected')}
           </span>
         </div>
-        {connect.isError && (
+        {(hasConnectFailed || startConnect.isError) && (
           <span role="alert" style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.accent.error }}>
-            {t('settings.focusBear.tokenRejected')}
+            {t(startConnect.isError ? 'settings.focusBear.connectUnavailable' : 'settings.focusBear.connectFailed')}
           </span>
         )}
       </div>

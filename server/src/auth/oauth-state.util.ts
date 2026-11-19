@@ -97,7 +97,8 @@ export function createConnectState(userId: string, res: Response): string {
   });
 }
 
-function readCookie(
+/** Reads one cookie off the raw header: this server mounts no cookie parser. */
+export function readCookie(
   req: Pick<Request, "headers">,
   name: string,
 ): string | null {

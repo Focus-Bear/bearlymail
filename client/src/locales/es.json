@@ -5143,15 +5143,14 @@
     },
     "focusBear": {
       "title": "Focus Bear",
-      "description": "Cuando guardas una tarea en Focus Bear, BearlyMail sugiere el proyecto al que pertenece y el próximo día en que tienes tiempo para ella. En Focus Bear, abre Integraciones, crea un token de acceso con el permiso tasks:read y pégalo aquí. Se guarda cifrado y solo se usa para estas sugerencias.",
-      "tokenLabel": "Token de acceso de Focus Bear",
-      "tokenPlaceholder": "Pega tu token de acceso de Focus Bear",
-      "connect": "Conectar",
-      "checking": "Comprobando…",
+      "description": "Cuando guardas una tarea en Focus Bear, BearlyMail sugiere el proyecto al que pertenece y el próximo día en que tienes tiempo para ella. Al conectar, vas a Focus Bear para iniciar sesión y dar tu aprobación. BearlyMail nunca ve tu contraseña y solo puede leer estas sugerencias.",
+      "connect": "Conectar Focus Bear",
+      "connecting": "Abriendo Focus Bear…",
       "disconnect": "Desconectar",
       "connected": "Conectado ✓",
       "notConnected": "Sin conectar",
-      "tokenRejected": "Focus Bear no aceptó ese token. Comprueba que tenga el permiso tasks:read e inténtalo de nuevo."
+      "connectFailed": "Focus Bear no se conectó. Inténtalo de nuevo y aprueba la solicitud cuando Focus Bear lo pida.",
+      "connectUnavailable": "No se pudo iniciar la sesión en Focus Bear. Inténtalo de nuevo en un momento."
     },
     "ownAiAccount": {
       "title": "Usa tu propia cuenta de IA",

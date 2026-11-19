@@ -198,7 +198,7 @@ export class UsersController {
   }
 }
 
-const FOCUS_BEAR_TOKEN_FIELD: keyof User = "focusBearApiToken";
+const FOCUS_BEAR_TOKEN_FIELD: keyof User = "focusBearRefreshToken";
 
 const USER_SECRET_FIELDS: ReadonlySet<string> = new Set([
   ...USER_AI_PROVIDER_DESCRIPTORS.map(({ column }) => column),

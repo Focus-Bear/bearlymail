@@ -257,12 +257,12 @@ export class User {
     type: "text",
     nullable: true,
     transformer: makeGlobalEncryptedColumnTransformer(
-      "users.focusBearApiToken",
+      "users.focusBearRefreshToken",
     ),
     comment:
-      "Focus Bear access token (encrypted, scope tasks:read) - for project and due-date suggestions on Save to Focus Bear",
+      "Focus Bear OAuth refresh token (encrypted) - traded for access tokens to get project and due-date suggestions on Save to Focus Bear",
   })
-  focusBearApiToken: string | null;
+  focusBearRefreshToken: string | null;
 
   @Column({
     type: "text",

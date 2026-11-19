@@ -42,16 +42,12 @@ export function useFocusBearConnectionQuery() {
   });
 }
 
-export function useConnectFocusBear() {
-  const queryClient = useQueryClient();
-  return useMutation<FocusBearConnection, Error, string>({
-    mutationFn: async token => {
-      const response = await axios.put<FocusBearConnection>(`${API_URL}${FOCUS_BEAR_API_PATHS.CONNECTION}`, { token });
-      return response.data;
-    },
-    onSuccess: connection => {
-      queryClient.setQueryData(focusBearKeys.connection, connection);
-      queryClient.removeQueries({ queryKey: focusBearKeys.allSuggestions });
+/** Sends the browser to Focus Bear to sign in and consent. It comes back to settings with the outcome. */
+export function useStartFocusBearConnect() {
+  return useMutation<void, Error, void>({
+    mutationFn: async () => {
+      const response = await axios.get<{ url: string }>(`${API_URL}${FOCUS_BEAR_API_PATHS.CONNECT_URL}`);
+      window.location.assign(response.data.url);
     },
   });
 }

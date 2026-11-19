@@ -109,15 +109,18 @@ export class FocusBearController {
   ): Promise<void> {
     const codeVerifier = readCookie(req, FOCUS_BEAR_OAUTH.CODE_VERIFIER_COOKIE);
     res.clearCookie(FOCUS_BEAR_OAUTH.CODE_VERIFIER_COOKIE, { path: "/" });
-    const state = rawState ? parseBrowserBoundOAuthState(rawState, req) : null;
-    const isOwnConnect = state?.action === AUTH_ACTION_TYPES.CONNECT;
-    if (!state || !isOwnConnect || !code || !codeVerifier) {
-      // Covers the user declining consent too: Focus Bear then sends `error`, and no code.
+    const userId = this.verifiedConnectUserId(rawState, req);
+    if (userId === null) {
+      return res.redirect(this.resultUrl(FOCUS_BEAR_CONNECT_RESULT.FAILED));
+    }
+    // Not an authorization check, only whether there is anything to exchange: a declined consent
+    // comes back with `error` and no code. Focus Bear itself decides whether the code is good.
+    if (typeof code !== "string" || codeVerifier === null) {
       return res.redirect(this.resultUrl(FOCUS_BEAR_CONNECT_RESULT.FAILED));
     }
     try {
       await this.focusBearService.completeConnection(
-        state.userId,
+        userId,
         code,
         codeVerifier,
       );
@@ -149,6 +152,18 @@ export class FocusBearController {
     @Body() body: FocusBearTaskSuggestionsDto,
   ): Promise<FocusBearTaskSuggestions> {
     return this.focusBearService.suggestForTask(req.user.userId, body);
+  }
+
+  /**
+   * The user a callback's state was issued to, or null unless the state carries this server's
+   * signature, has not expired, and was started by the browser now presenting it.
+   */
+  private verifiedConnectUserId(
+    rawState: string | undefined,
+    req: ExpressRequest,
+  ): string | null {
+    const state = rawState ? parseBrowserBoundOAuthState(rawState, req) : null;
+    return state?.action === AUTH_ACTION_TYPES.CONNECT ? state.userId : null;
   }
 
   private resultUrl(result: string): string {

@@ -935,10 +935,15 @@ export class AuthService {
       if (!password) {
         throw new UnauthorizedException({ requiresPassword: true });
       }
+      // Same per-account lockout as sign-in, so a session cannot be used to
+      // guess the password without limit.
+      this.loginLockout.assertNotLocked(user);
       const isValid = await bcrypt.compare(password, user.password);
       if (!isValid) {
+        await this.loginLockout.recordFailure(user.id);
         throw new UnauthorizedException("Invalid password");
       }
+      await this.loginLockout.recordSuccess(user);
     }
 
     const payload = { sub: userId, stepUp: true };
@@ -964,8 +969,11 @@ export class AuthService {
    * Initiate MFA setup: generate a TOTP secret and QR code for the user.
    * MFA is NOT yet active — the user must verify a code via enableMfa().
    */
-  async setupMfa(userId: string): Promise<TotpSetupData> {
-    return this.totpService.setupMfa(userId);
+  async setupMfa(
+    userId: string,
+    currentToken?: string,
+  ): Promise<TotpSetupData> {
+    return this.totpService.setupMfa(userId, currentToken);
   }
 
   /**

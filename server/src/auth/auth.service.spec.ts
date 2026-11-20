@@ -1,3 +1,4 @@
+import { UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";
 import * as bcrypt from "bcrypt";
@@ -946,7 +947,7 @@ describe("AuthService", () => {
 
     it("refuses a locked account without checking the password", async () => {
       usersService.findByEmail.mockResolvedValue(mockUser);
-      loginLockout.assertNotLocked.mockImplementation(() => {
+      loginLockout.assertNotLocked.mockImplementationOnce(() => {
         throw new AccountLockedException(new Date(Date.now() + 60_000));
       });
 
@@ -1087,6 +1088,30 @@ describe("AuthService", () => {
     });
   });
 
+  describe("issueStepUpToken lockout", () => {
+    it("counts a wrong password toward the account lockout", async () => {
+      usersService.findOne.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.issueStepUpToken(mockUser.id, "wrong"),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(loginLockout.recordFailure).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    it("does not check the password while the account is locked", async () => {
+      usersService.findOne.mockResolvedValue(mockUser);
+      loginLockout.assertNotLocked.mockImplementationOnce(() => {
+        throw new UnauthorizedException("locked");
+      });
+
+      await expect(
+        service.issueStepUpToken(mockUser.id, "anything"),
+      ).rejects.toThrow("locked");
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+  });
+
   describe("setupMfa", () => {
     it("should delegate to TotpService.setupMfa", async () => {
       const setupData = {
@@ -1098,7 +1123,7 @@ describe("AuthService", () => {
       const result = await service.setupMfa(mockUser.id);
 
       expect(result).toEqual(setupData);
-      expect(totpService.setupMfa).toHaveBeenCalledWith(mockUser.id);
+      expect(totpService.setupMfa).toHaveBeenCalledWith(mockUser.id, undefined);
     });
   });
 

@@ -46,7 +46,7 @@ export class AppleMailLocalAuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     assertLocalAppleMailMode(
-      req.hostname,
+      { hostname: req.hostname, remoteAddress: req.socket?.remoteAddress },
       this.appleMailAccountsService.isAvailable(),
     );
 
@@ -78,7 +78,7 @@ export class AppleMailLocalAuthController {
   appleMailLocalAvailable(@Request() req): { available: boolean } {
     return {
       available: isLocalAppleMailMode(
-        req.hostname,
+        { hostname: req.hostname, remoteAddress: req.socket?.remoteAddress },
         this.appleMailAccountsService.isAvailable(),
       ),
     };

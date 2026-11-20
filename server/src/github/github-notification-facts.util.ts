@@ -47,7 +47,7 @@ export const GITHUB_SUBTYPE_SEPARATOR = ":";
 /** Bounds regex work on pathological bodies; openers/footers sit well within it. */
 const MAX_SCAN_CHARS = 20000;
 
-const HTML_TAG_PATTERN = /<[^<>]+>/g;
+const HTML_TAG_PATTERN = /<[^>]+>/g;
 const WHITESPACE_PATTERN = /\s+/g;
 const REPLY_PREFIX_PATTERN = /^\s*(?:re|fwd?|aw|sv)\s*:/i;
 const SUBJECT_PR_MARKER_PATTERN = /\(PR #\d+\)/i;

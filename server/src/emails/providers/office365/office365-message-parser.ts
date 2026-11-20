@@ -2,6 +2,7 @@ import {
   CONTENT_TYPES,
   EMAIL_IMPORTANCE,
 } from "../../../constants/domain-types";
+import { stripTags } from "../../../utils/html-strip.util";
 import {
   EmailAttachment,
   RawEmailMessage,
@@ -169,9 +170,7 @@ export function parseOffice365Message(
   const isHtml = messageData.body?.contentType === CONTENT_TYPES.HTML;
   const htmlBody = isHtml ? bodyContent : undefined;
   const body = isHtml
-    ? bodyContent.replace(/<[^<>]*>/g, "").trim() ||
-      messageData.bodyPreview ||
-      "(No content)"
+    ? stripTags(bodyContent).trim() || messageData.bodyPreview || "(No content)"
     : bodyContent || "(No content)";
 
   const attachments = messageData.attachments
@@ -214,7 +213,7 @@ export function extractBodyFromOffice365Message(
   if (isHtml) {
     htmlBody = bodyContent;
     // Strip HTML tags for plain text body
-    body = bodyContent.replace(/<[^<>]*>/g, "").trim();
+    body = stripTags(bodyContent).trim();
   } else {
     body = bodyContent;
   }
@@ -222,7 +221,7 @@ export function extractBodyFromOffice365Message(
   // Ensure body is never empty (required by DB constraint)
   if (!body || body.trim() === "") {
     if (htmlBody) {
-      body = htmlBody.replace(/<[^<>]*>/g, "").trim();
+      body = stripTags(htmlBody).trim();
     }
     if (!body || body.trim() === "") {
       body = messageData.bodyPreview || "(No content)";

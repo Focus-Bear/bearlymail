@@ -43,7 +43,7 @@ const SIGNATURE_PATTERNS = [
 const HTML_PATTERNS = {
   style: /<style\b[^>]*>(?:(?!<\/style)[\s\S])*<\/style\b[^>]*>/gi,
   script: /<script\b[^>]*>(?:(?!<\/script)[\s\S])*<\/script\b[^>]*>/gi,
-  tags: /<[^<>]+>/g,
+  tags: /<[^>]+>/g,
   entities: /&(nbsp|amp|lt|gt|quot|#\d+);/gi,
 };
 

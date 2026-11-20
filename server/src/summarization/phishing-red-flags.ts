@@ -24,6 +24,7 @@ import {
   hasSenderAuthFailure,
   SenderAuthResults,
 } from "../utils/authentication-results.util";
+import { stripTags } from "../utils/html-strip.util";
 import type { PhishingSignal } from "./phishing-detection.service";
 
 export interface LinkTextMismatch {
@@ -83,7 +84,6 @@ const ACCOUNT_THREAT_PATTERNS: ReadonlyArray<{
 // make every one of them scan to the end of the body.
 const ANCHOR_PATTERN =
   /<a\b[^<>]{0,2000}?\bhref\s*=\s*(["'])([^<>]{0,2000}?)\1[^<>]{0,2000}>([\s\S]{0,2000}?)<\/a>/gi;
-const TAG_PATTERN = /<[^<>]*>/g;
 const HTML_ENTITY_REPLACEMENTS: ReadonlyArray<[RegExp, string]> = [
   [/&nbsp;/gi, " "],
   [/&amp;/gi, "&"],
@@ -138,7 +138,7 @@ export function detectImpersonatedBrand(
 }
 
 function decodeAnchorText(rawText: string): string {
-  const withoutTags = rawText.replace(TAG_PATTERN, " ");
+  const withoutTags = stripTags(rawText, " ");
   return HTML_ENTITY_REPLACEMENTS.reduce(
     (text, [pattern, replacement]) => text.replace(pattern, replacement),
     withoutTags,

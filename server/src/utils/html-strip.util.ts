@@ -39,3 +39,26 @@ function findTag(lower: string, tag: string, from: number): number {
   }
   return -1;
 }
+
+/**
+ * Replaces every `<...>` tag with `replacement`, in one pass.
+ *
+ * Behaves like `html.replace(/<[^>]*>/g, replacement)` — a tag runs from a
+ * `<` to the next `>`, so nested openers such as `<scr<b>ipt>` are removed
+ * whole and can never leave a new tag behind — but without that regex's
+ * quadratic rescanning when the input has many `<` and no `>`.
+ */
+export function stripTags(html: string, replacement = ""): string {
+  const kept: string[] = [];
+  let cursor = 0;
+  while (cursor < html.length) {
+    const openAt = html.indexOf("<", cursor);
+    if (openAt === -1) break;
+    const closeAt = html.indexOf(">", openAt + 1);
+    if (closeAt === -1) break;
+    kept.push(html.slice(cursor, openAt), replacement);
+    cursor = closeAt + 1;
+  }
+  kept.push(html.slice(cursor));
+  return kept.join("");
+}

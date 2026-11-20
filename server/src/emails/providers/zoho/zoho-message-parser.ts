@@ -1,5 +1,6 @@
 import { EMAIL_IMPORTANCE } from "../../../constants/domain-types";
 import { MS_PER_SECOND } from "../../../constants/time-constants";
+import { stripTags } from "../../../utils/html-strip.util";
 import { RawEmailMessage } from "../../interfaces/email-provider.interface";
 
 const ZOHO_SECONDS_EPOCH_THRESHOLD =
@@ -110,12 +111,12 @@ function resolveBodyContent(messageData: ZohoMailMessage): {
 
   const bodyText =
     typeof messageData.content === "string"
-      ? messageData.content.replace(/<[^<>]*>/g, "").trim()
+      ? stripTags(messageData.content).trim()
       : messageData.content?.text || "";
 
   const body =
     bodyText ||
-    (htmlBody ? htmlBody.replace(/<[^<>]*>/g, "").trim() : "") ||
+    (htmlBody ? stripTags(htmlBody).trim() : "") ||
     messageData.summary ||
     "(No content)";
 
@@ -175,7 +176,7 @@ export function extractBodyFromZohoMessage(messageData: ZohoMailMessage): {
 
   const bodyText =
     typeof messageData.content === "string"
-      ? messageData.content.replace(/<[^<>]*>/g, "").trim()
+      ? stripTags(messageData.content).trim()
       : messageData.content?.text || "";
 
   let body = "";
@@ -183,7 +184,7 @@ export function extractBodyFromZohoMessage(messageData: ZohoMailMessage): {
 
   if (htmlBody) {
     htmlBodyResult = htmlBody;
-    body = bodyText || htmlBody.replace(/<[^<>]*>/g, "").trim();
+    body = bodyText || stripTags(htmlBody).trim();
   } else {
     body = bodyText;
   }
@@ -191,7 +192,7 @@ export function extractBodyFromZohoMessage(messageData: ZohoMailMessage): {
   // Ensure body is never empty (required by DB constraint)
   if (!body || body.trim() === "") {
     if (htmlBodyResult) {
-      body = htmlBodyResult.replace(/<[^<>]*>/g, "").trim();
+      body = stripTags(htmlBodyResult).trim();
     }
     if (!body || body.trim() === "") {
       body = "(No content)";

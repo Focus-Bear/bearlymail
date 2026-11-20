@@ -1,4 +1,4 @@
-import { stripElementBlocks } from "./html-strip.util";
+import { stripElementBlocks, stripTags } from "./html-strip.util";
 
 describe("stripElementBlocks", () => {
   it("removes each block and keeps the text around it", () => {
@@ -37,6 +37,36 @@ describe("stripElementBlocks", () => {
     const start = Date.now();
 
     stripElementBlocks(html, "style");
+
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+});
+
+describe("stripTags", () => {
+  it.each([
+    ["<p>Hello <b>world</b></p>", "Hello world"],
+    ["a < b and c > d", "a  d"],
+    ["no tags", "no tags"],
+    ["", ""],
+    ["trailing <unclosed", "trailing <unclosed"],
+    ["<scr<b>ipt>alert(1)</scr</b>ipt>", "ipt>alert(1)ipt>"],
+  ])("matches the regex it replaces for %p", (html, expected) => {
+    expect(stripTags(html)).toBe(expected);
+    expect(stripTags(html)).toBe(html.replace(/<[^>]*>/g, ""));
+  });
+
+  it("never leaves a tag opener that removal itself created", () => {
+    expect(stripTags("<scr<b>ipt>x</scr</b>ipt>")).not.toContain("<script");
+  });
+
+  it("uses the replacement between pieces", () => {
+    expect(stripTags("a<br>b", " ")).toBe("a b");
+  });
+
+  it("stays fast on a long run of unclosed openers", () => {
+    const start = Date.now();
+
+    stripTags("<".repeat(500_000));
 
     expect(Date.now() - start).toBeLessThan(1000);
   });

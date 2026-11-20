@@ -163,7 +163,7 @@ export async function runInboxQuery(
       e."from", e."fromName", e."senderJobTitle", e.subject,
       e."isSnoozed", e."snoozeUntil", e."isRead", e.summary, e."isProcessingSummary",
       e.body, e."htmlBody",
-      e."phishingConfidence", e."phishingReason",
+      e."phishingConfidence", e."phishingReason", e."unsubscribeOptions",
       e."receivedAt", e.labels, e."to", e."cc", e."senderContactId",
       e."sentByAutoResponder",
       ${HAS_AUTO_RESPONSE_DRAFT_SQL},
@@ -177,7 +177,7 @@ export async function runInboxQuery(
         em."googleAccountId", em."office365AccountId", em."zohoAccountId",
         em."isSnoozed", em."snoozeUntil", em."isRead", em.summary, em."isProcessingSummary",
         ${INBOX_PREVIEW_BODY_COLUMNS_SQL},
-        em."phishingConfidence", em."phishingReason",
+        em."phishingConfidence", em."phishingReason", em."unsubscribeOptions",
         em."receivedAt", em.labels, em."to", em."cc", em."senderContactId",
         em."sentByAutoResponder"
       FROM emails em

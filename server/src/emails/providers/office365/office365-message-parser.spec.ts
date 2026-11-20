@@ -17,6 +17,20 @@ describe("parseOffice365Message", () => {
     importance: "normal" as const,
   };
 
+  it("reads List-Unsubscribe from internetMessageHeaders, case-insensitively", () => {
+    const result = parseOffice365Message({
+      ...baseMessage,
+      internetMessageHeaders: [
+        { name: "list-unsubscribe", value: "<https://lists.example.test/u>" },
+        { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
+      ],
+    });
+    expect(result!.unsubscribeOptions).toMatchObject({
+      httpsUrl: "https://lists.example.test/u",
+      oneClick: true,
+    });
+  });
+
   it("should return null when id is missing", () => {
     expect(parseOffice365Message({ ...baseMessage, id: "" })).toBeNull();
   });

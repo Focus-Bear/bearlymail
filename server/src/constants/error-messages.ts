@@ -20,6 +20,11 @@ export const ERROR_MESSAGES = {
     "Gmail access token missing - please log in again",
   NO_EMAIL_PROVIDER: "No email provider connected",
   NO_RECIPIENTS: "At least one recipient is required",
+  NO_UNSUBSCRIBE_OPTION: "This email has no way to unsubscribe",
+  UNSUBSCRIBE_METHOD_CHANGED:
+    "How this email can be unsubscribed from has changed — please confirm again",
+  UNSAFE_UNSUBSCRIBE_URL:
+    "This email's unsubscribe link points somewhere BearlyMail won't open",
   CUSTOM_FIELD_NOT_FOUND: "Custom field not found",
   FAILED_TO_SEND_REPLY: "Failed to send reply",
   FAILED_TO_SEND_EMAIL: "Failed to send email",

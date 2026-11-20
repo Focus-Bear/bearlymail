@@ -59,6 +59,15 @@ describe("parsePublicBookingRequest", () => {
     expect(parsed.guestName).toBe("Guest Bcc: other@example.com");
   });
 
+  it("strips tags that only appear once another tag is removed", () => {
+    const parsed = parsePublicBookingRequest({
+      ...valid,
+      agenda: "<scr<b>ipt>alert(1)</scr</b>ipt> review",
+    });
+
+    expect(parsed.agenda).toBe("alert(1) review");
+  });
+
   it("strips HTML tags from the agenda", () => {
     const parsed = parsePublicBookingRequest({
       ...valid,

@@ -63,10 +63,16 @@ function parseAgenda(value: unknown): string | undefined {
       `Agenda must be ${MAX_AGENDA_LENGTH} characters or fewer.`,
     );
   }
-  // Strip HTML tags. [^<>] (not [^>]) keeps the match linear (CWE-1333) and
-  // avoids a nested-tag single-pass bypass (CWE-116); the agenda is used as
-  // plain text, never rendered as HTML.
-  return value.replace(/<[^<>]*>/g, "").trim() || undefined;
+  // Strip HTML tags, repeating until none are left so that removing one tag
+  // cannot join the pieces of another (CWE-116). [^<>] keeps each pass linear
+  // (CWE-1333). The agenda is used as plain text, never rendered as HTML.
+  let text = value;
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(/<[^<>]*>/g, "");
+  } while (text !== previous);
+  return text.trim() || undefined;
 }
 
 /**

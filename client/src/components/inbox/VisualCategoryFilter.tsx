@@ -399,11 +399,6 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
         // InboxFilters uses alignItems: 'stretch' for equal-height side-by-side cards.
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: theme.colors.background.paper,
-        border: `1px solid ${theme.colors.border.light}`,
-        borderRadius: theme.borderRadius.md,
-        padding: compact ? theme.spacing.sm : theme.spacing.md,
-        boxShadow: theme.shadows.sm,
         overflow: 'visible',
       }}
     >
@@ -413,12 +408,12 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: theme.spacing.sm,
+          marginBottom: theme.spacing.xs,
         }}
       >
         <span
           style={{
-            fontSize: theme.typography.fontSize.lg,
+            fontSize: theme.typography.fontSize.md,
             fontWeight: theme.typography.fontWeight.semibold,
             color: theme.colors.text.primary,
           }}
@@ -427,7 +422,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
         </span>
         <span
           style={{
-            fontSize: theme.typography.fontSize.lg,
+            fontSize: theme.typography.fontSize.md,
             color: theme.colors.text.tertiary,
           }}
         >

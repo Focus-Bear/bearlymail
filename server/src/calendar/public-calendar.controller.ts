@@ -11,20 +11,37 @@ import {
   ServiceUnavailableException,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
-import { MAX_ADDITIONAL_GUESTS } from "../constants/booking-constants";
-import { DAYS, MINUTES } from "../constants/time-constants";
+import { PUBLIC_BOOKING_THROTTLE } from "../constants/booking-constants";
+import { DAYS } from "../constants/time-constants";
 import { CalendarService } from "./calendar.service";
+import { parsePublicBookingRequest } from "./public-booking-request";
 
 interface PublicCalendarRequest extends Request {
   user?: { userId: string; email?: string };
 }
 
+/**
+ * What an anonymous visitor gets back after booking or moving a meeting: the
+ * times and the meeting link, not the host's full calendar event.
+ */
+function toPublicBookingResult(event: {
+  start?: { dateTime?: string | null } | null;
+  end?: { dateTime?: string | null } | null;
+  meetLink?: string | null;
+}): { start: string | null; end: string | null; meetLink: string | null } {
+  return {
+    start: event.start?.dateTime ?? null,
+    end: event.end?.dateTime ?? null,
+    meetLink: event.meetLink ?? null,
+  };
+}
+
 const DEFAULT_SLOTS_LIMIT = 8;
 const MAX_SLOTS_LIMIT = 50;
-const MAX_AGENDA_LENGTH = 500;
 
 @Controller("public/calendar")
 export class PublicCalendarController {
@@ -39,21 +56,24 @@ export class PublicCalendarController {
   }
 
   @Post("booking/:bookingToken/reschedule")
+  @Throttle(PUBLIC_BOOKING_THROTTLE)
   async rescheduleBooking(
     @Param("bookingToken") bookingToken: string,
     @Body() body: { newStartTime: string },
   ) {
-    if (!body.newStartTime) {
+    if (!body?.newStartTime || typeof body.newStartTime !== "string") {
       throw new BadRequestException("New start time is required");
     }
 
-    return this.calendarService.rescheduleBooking(
+    const event = await this.calendarService.rescheduleBooking(
       bookingToken,
       body.newStartTime,
     );
+    return toPublicBookingResult(event);
   }
 
   @Post("booking/:bookingToken/cancel")
+  @Throttle(PUBLIC_BOOKING_THROTTLE)
   async cancelBooking(@Param("bookingToken") bookingToken: string) {
     return this.calendarService.cancelBooking(bookingToken);
   }
@@ -137,49 +157,10 @@ export class PublicCalendarController {
   }
 
   @Post(":userId/book")
-  async bookSlot(
-    @Param("userId") userId: string,
-    @Body()
-    body: {
-      startTime: string;
-      guestEmail: string;
-      guestName: string;
-      duration?: number;
-      additionalGuests?: string[];
-      agenda?: string;
-    },
-  ) {
-    if (!body.startTime || !body.guestEmail) {
-      throw new BadRequestException("Start time and guest email are required");
-    }
-
-    const additionalGuests = body.additionalGuests ?? [];
-
-    if (additionalGuests.length > MAX_ADDITIONAL_GUESTS) {
-      throw new BadRequestException(
-        `Too many additional guests. Maximum is ${MAX_ADDITIONAL_GUESTS}.`,
-      );
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    for (const email of additionalGuests) {
-      if (!emailRegex.test(email)) {
-        throw new BadRequestException(`Invalid email address: ${email}`);
-      }
-    }
-
-    if (body.agenda !== undefined && body.agenda.length > MAX_AGENDA_LENGTH) {
-      throw new BadRequestException(
-        `Agenda must be ${MAX_AGENDA_LENGTH} characters or fewer.`,
-      );
-    }
-
-    // Strip HTML tags before storing the agenda. [^<>] (not [^>]) keeps the
-    // match linear (CWE-1333) and avoids a nested-tag single-pass bypass
-    // (CWE-116); the agenda is used as plain text, never rendered as HTML.
-    const sanitisedAgenda = body.agenda
-      ? body.agenda.replace(/<[^<>]*>/g, "").trim()
-      : undefined;
+  @Throttle(PUBLIC_BOOKING_THROTTLE)
+  async bookSlot(@Param("userId") userId: string, @Body() body: unknown) {
+    const { startTime, guestEmail, guestName, additionalGuests, agenda } =
+      parsePublicBookingRequest(body);
 
     let hostUserId: string;
     try {
@@ -193,14 +174,20 @@ export class PublicCalendarController {
       throw err;
     }
 
-    return this.calendarService.bookSlotWithAgenda({
+    // The requested time must be one the host is free for, and the length is
+    // the host's slot length — neither is taken from the request as-is.
+    const { start, durationMinutes } =
+      await this.calendarService.resolveBookableSlot(hostUserId, startTime);
+
+    const event = await this.calendarService.bookSlotWithAgenda({
       userId: hostUserId,
-      startTime: body.startTime,
-      durationMinutes: body.duration || MINUTES.THIRTY,
-      guestEmail: body.guestEmail,
-      guestName: body.guestName,
+      startTime: start.toISOString(),
+      durationMinutes,
+      guestEmail,
+      guestName,
       additionalGuests,
-      agenda: sanitisedAgenda,
+      agenda,
     });
+    return toPublicBookingResult(event);
   }
 }

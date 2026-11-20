@@ -56,4 +56,9 @@ describe('isToneCheckBlocking', () => {
   it('returns true when tone is OK but a calendar warning is present', () => {
     expect(isToneCheckBlocking({ isOk: true, calendarWarning: 'Double-check the date' })).toBe(true);
   });
+
+  it('returns true when tone is OK but a weekday contradicts its date', () => {
+    expect(isToneCheckBlocking({ isOk: true, dateMismatch: '"Tuesday 7th December" is a Monday.' })).toBe(true);
+    expect(isToneCheckBlocking({ isOk: true, dateMismatch: null })).toBe(false);
+  });
 });

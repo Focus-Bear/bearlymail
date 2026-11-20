@@ -177,9 +177,44 @@ describe("LLMController (Integration)", () => {
         attachmentReminder: null,
         inappropriateTiming: null,
         recipientMismatch: null,
+        dateMismatch: null,
       });
       // Should not call checkTone service when no rules
       expect(mockLLMService.checkTone).not.toHaveBeenCalled();
+    });
+
+    it("flags a weekday that contradicts its date even without tone rules", async () => {
+      mockUsersService.findOne.mockResolvedValueOnce({
+        ...mockUser,
+        toneSettings: { rules: [] },
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "<p>Would the morning of Tuesday 7th December suit?</p>",
+          currentTime: "2026-11-20T15:21:00",
+        })
+        .expect(201);
+
+      expect(response.body.isOk).toBe(true);
+      expect(response.body.dateMismatch).toBe(
+        '"Tuesday 7th December" — 7 December 2026 is a Monday. Did you mean Monday 7 December or Tuesday 8 December?',
+      );
+    });
+
+    it("adds the date check to the LLM tone result", async () => {
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Call on Friday 10th December?",
+          rules: ["Be concise"],
+          currentTime: "2026-11-20T15:21:00",
+        })
+        .expect(201);
+
+      expect(mockLLMService.checkTone).toHaveBeenCalled();
+      expect(response.body.dateMismatch).toContain("is a Thursday");
     });
 
     it("should pass scheduledSendAt to checkTone service", async () => {
@@ -297,6 +332,7 @@ describe("LLMController (Integration)", () => {
         attachmentReminder: null,
         inappropriateTiming: null,
         recipientMismatch: null,
+        dateMismatch: null,
       });
     });
 

@@ -113,7 +113,7 @@ interface WrittenDate {
 
 function stripHtml(text: string): string {
   return text
-    .replace(/<[^>]*>/g, " ")
+    .replace(/<[^<>]*>/g, " ")
     .replace(/&nbsp;|&#160;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/\s+/g, " ");

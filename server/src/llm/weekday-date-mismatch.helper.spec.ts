@@ -89,4 +89,10 @@ describe("findWeekdayDateMismatch", () => {
       ),
     ).toContain("is a Monday");
   });
+
+  it("stays fast on pathological input", () => {
+    const start = Date.now();
+    findWeekdayDateMismatch("<".repeat(50_000) + " Tuesday ".repeat(5_000));
+    expect(Date.now() - start).toBeLessThan(500);
+  });
 });

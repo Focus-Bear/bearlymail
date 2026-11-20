@@ -47,7 +47,7 @@ import {
 } from "./imap/imap-mailbox";
 import {
   attachmentIdFor,
-  DEFAULT_ATTACHMENT_MIME,
+  safeAttachmentMimeType,
 } from "./imap/imap-message-parser";
 import {
   IMAP_SEARCH_SCOPE,
@@ -567,10 +567,9 @@ export class ImapProvider implements EmailProvider {
         attachment.filename ||
         attachmentMetadata?.filename ||
         DEFAULT_ATTACHMENT_FILENAME,
-      mimeType:
-        attachment.contentType ||
-        attachmentMetadata?.mimeType ||
-        DEFAULT_ATTACHMENT_MIME,
+      mimeType: safeAttachmentMimeType(
+        attachment.contentType || attachmentMetadata?.mimeType,
+      ),
       size: attachment.size,
     };
   }

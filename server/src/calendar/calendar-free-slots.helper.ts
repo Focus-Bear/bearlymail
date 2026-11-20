@@ -162,6 +162,37 @@ function isTooCloseToMeeting(
  * Calculate available time slots within [start, end) given busy periods and preferences.
  * Respects working hours, available days, meeting gaps, and deep-work time quotas.
  */
+/**
+ * Whether one specific slot can be booked: inside the host's working hours,
+ * clear of existing events, and outside the configured gap around them.
+ * Used to check a slot a visitor asks for, independently of any listing.
+ */
+export function isBookableSlot(
+  start: Date,
+  durationMinutes: number,
+  busy: BusyPeriod[],
+  prefs?: SchedulingPreferenceData,
+): boolean {
+  const end = advanceBySlot(start, durationMinutes);
+  const tz = prefs?.timezone || "UTC";
+  return (
+    isInWorkingHours(
+      start,
+      prefs?.availabilityDays ?? [1, 2, 3, 4, 5],
+      prefs?.availabilityStartHour ?? HOURS.NINE,
+      prefs?.availabilityEndHour ?? HOURS.SEVENTEEN,
+      tz,
+    ) &&
+    !isSlotBusy(start, end, busy) &&
+    !isTooCloseToMeeting(
+      start,
+      end,
+      busy,
+      prefs?.meetingGapMinutes ?? MINUTES.THIRTY,
+    )
+  );
+}
+
 export function calculateFreeSlots(
   start: Date,
   end: Date,

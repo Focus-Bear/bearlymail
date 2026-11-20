@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "crypto";
 import { calendar_v3, google } from "googleapis";
@@ -8,12 +13,13 @@ import {
   createUserGoogleOAuthClient,
   type GoogleOAuth2Client,
 } from "../auth/google-oauth-client";
+import { MAX_BOOKING_HORIZON_DAYS } from "../constants/booking-constants";
 import {
   BOOKING_STATUS,
   CALENDAR_ENTRY_POINT_TYPES,
 } from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
-import { MILLISECONDS } from "../constants/time-constants";
+import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailsService } from "../emails/emails.service";
@@ -31,7 +37,11 @@ import {
   CalendarAgendaService,
   CreateEventOptions,
 } from "./calendar-agenda.service";
-import { BusyPeriod, calculateFreeSlots } from "./calendar-free-slots.helper";
+import {
+  BusyPeriod,
+  calculateFreeSlots,
+  isBookableSlot,
+} from "./calendar-free-slots.helper";
 import { CalendarIcsService } from "./calendar-ics.service";
 import {
   checkMeetingProposal,
@@ -242,6 +252,66 @@ export class CalendarService {
     };
   }
 
+  /**
+   * Checks a start time a visitor asked for on the public booking page and
+   * returns it with the host's slot length. The request body is not trusted
+   * for either: the time must be a future slot the host is actually free
+   * for, and the length always comes from the host's preferences.
+   */
+  async resolveBookableSlot(
+    userId: string,
+    startTime: string,
+    durationOverrideMinutes?: number,
+  ): Promise<{ start: Date; durationMinutes: number }> {
+    const start = new Date(startTime);
+    const now = Date.now();
+    if (
+      typeof startTime !== "string" ||
+      Number.isNaN(start.getTime()) ||
+      start.getTime() <= now ||
+      start.getTime() > now + MAX_BOOKING_HORIZON_DAYS * MILLISECONDS.DAY
+    ) {
+      throw new BadRequestException("That time is not available");
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    if (!hasGoogleCalendarAccess(user)) {
+      throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
+    }
+    const prefs =
+      await this.schedulingPreferencesService.getPreferences(userId);
+    const durationMinutes =
+      durationOverrideMinutes || prefs.slotDurationMinutes || MINUTES.THIRTY;
+    const gapMs =
+      (prefs.meetingGapMinutes ?? MINUTES.THIRTY) * MILLISECONDS.MINUTE;
+
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.createOAuth2Client(user),
+    });
+    const response = await calendar.freebusy.query({
+      requestBody: {
+        timeMin: new Date(start.getTime() - gapMs).toISOString(),
+        timeMax: new Date(
+          start.getTime() + durationMinutes * MILLISECONDS.MINUTE + gapMs,
+        ).toISOString(),
+        items: [{ id: "primary" }],
+      },
+    });
+    const busy = (response.data.calendars?.primary?.busy || []).filter(
+      (period): period is BusyPeriod =>
+        period.start !== undefined && period.end !== undefined,
+    ) as BusyPeriod[];
+
+    if (!isBookableSlot(start, durationMinutes, busy, prefs)) {
+      throw new BadRequestException("That time is not available");
+    }
+    return { start, durationMinutes };
+  }
+
   async createEvent(options: {
     userId: string;
     startTime: string;
@@ -413,7 +483,11 @@ Manage this booking:
       auth: oauth2Client,
     });
 
-    const newStart = new Date(newStartTime);
+    const { start: newStart } = await this.resolveBookableSlot(
+      booking.userId,
+      newStartTime,
+      booking.durationMinutes,
+    );
     const newEnd = new Date(
       newStart.getTime() + booking.durationMinutes * MILLISECONDS.MINUTE,
     );

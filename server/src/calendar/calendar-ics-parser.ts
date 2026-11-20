@@ -29,8 +29,7 @@ interface IcsVEventExtra {
 
 /** Structured result type allowing callers to distinguish parse errors from events */
 export type ParseIcsResult =
-  | { ok: true; event: IcsEventData }
-  | { ok: false; error: string };
+  { ok: true; event: IcsEventData } | { ok: false; error: string };
 
 /**
  * Extract a plain string from a node-ical field that may be either a raw

@@ -15,6 +15,7 @@ import { User } from "../../database/entities/user.entity";
 import { formatGaxiosError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { InvalidTokenError } from "../../utils/errors";
+import { stripElementBlocks, stripTags } from "../../utils/html-strip.util";
 import { GmailSearchResult } from "../email-search.types";
 import { EmailsService } from "../emails.service";
 import {
@@ -74,15 +75,14 @@ function isAwaitingScopeReconsent(user: User): boolean {
  */
 function stripHtmlTags(html: string): string {
   return (
-    html
-      // `\b` word boundary avoids mis-matching tags like `<scripture>`/`<styles>`;
-      // end tags tolerate whitespace/attributes (e.g. `</script foo>`), or a crafted
-      // closing tag leaves executable-looking script text behind (CWE-116).
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, "")
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, "")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>/gi, "\n\n")
-      .replace(/<[^>]+>/g, "")
+    // Word-boundary matching avoids tags like `<scripture>`/`<styles>`, and
+    // end tags tolerate whitespace/attributes (e.g. `</script foo>`), or a
+    // crafted closing tag leaves script text behind (CWE-116).
+    stripTags(
+      stripElementBlocks(stripElementBlocks(html, "script"), "style")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n\n"),
+    )
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')

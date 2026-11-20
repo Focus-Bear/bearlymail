@@ -102,7 +102,10 @@ export function parseAppleMailMessage(
     replyTo:
       extractHeader(detail.allHeaders, MAIL_HEADER_NAMES.REPLY_TO) || undefined,
     senderAuthResults: parseAuthenticationResults(
-      extractHeader(detail.allHeaders, MAIL_HEADER_NAMES.AUTHENTICATION_RESULTS),
+      extractHeader(
+        detail.allHeaders,
+        MAIL_HEADER_NAMES.AUTHENTICATION_RESULTS,
+      ),
     ),
     body: detail.content || "",
     starCount: summary.isFlagged ? 3 : 0,

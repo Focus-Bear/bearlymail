@@ -3,6 +3,7 @@ import { gmail_v1 } from "googleapis";
 import { MAIL_HEADER_NAMES } from "../../../constants/mail-server.constants";
 import { parseAuthenticationResults } from "../../../utils/authentication-results.util";
 import { extractEmailAddress } from "../../../utils/email-address.utils";
+import { stripTags } from "../../../utils/html-strip.util";
 import { decodeRfc2047HeaderValue } from "../../../utils/rfc2047-header.util";
 import { GmailSearchResult } from "../../email-search.types";
 import {
@@ -136,7 +137,7 @@ export function extractBodyFromPayload(
   // Ensure body is never empty (DB constraint)
   if (!body || body.trim() === "") {
     if (htmlBody) {
-      body = htmlBody.replace(/<[^>]*>/g, "").trim();
+      body = stripTags(htmlBody).trim();
     }
     if (!body || body.trim() === "") {
       body = snippet || "(No content)";

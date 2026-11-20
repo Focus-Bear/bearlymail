@@ -23,6 +23,7 @@ import { TimePicker } from 'components/compose/TimePicker';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
+import { DateMismatchBanner } from 'components/email-detail-inline/DateMismatchBanner';
 import { RecipientMismatchBanner } from 'components/email-detail-inline/RecipientMismatchBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
@@ -386,7 +387,7 @@ const Compose: React.FC = () => {
             onSubjectChange={form.setSubject}
             onBodyChange={text => {
               form.setBody(text);
-              if (toneCheckResult && (!toneCheckResult.isOk || toneCheckResult.calendarWarning)) {
+              if (isToneCheckBlocking(toneCheckResult)) {
                 setToneCheckResult(null);
               }
             }}
@@ -404,6 +405,7 @@ const Compose: React.FC = () => {
           <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
           <RecipientMismatchBanner recipientMismatch={toneCheckResult?.recipientMismatch} />
           <CalendarConflictBanner calendarWarning={toneCheckResult?.calendarWarning} />
+          <DateMismatchBanner dateMismatch={toneCheckResult?.dateMismatch} />
           <ToneCheckResult
             toneCheckResult={toneCheckResult}
             onUseRevisedText={text => {

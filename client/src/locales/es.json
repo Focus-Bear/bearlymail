@@ -1392,6 +1392,7 @@
     "inappropriateTiming": "Nota de horario:",
     "calendarConflictLabel": "Revisión del calendario:",
     "recipientMismatchLabel": "Revisión del destinatario:",
+    "dateMismatchLabel": "Revisión de fecha:",
     "totalScore": "Puntuación total",
     "tweakRules": "Modificar las reglas de priorización",
     "useRevisedText": "Usar texto revisado",

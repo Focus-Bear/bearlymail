@@ -1,6 +1,9 @@
 /**
  * Utility functions for extracting unsubscribe links from emails
  */
+import { Email } from 'types/email';
+
+import { HTTPS_PROTOCOL, UNSUBSCRIBE_METHODS, UnsubscribeMethod } from 'constants/unsubscribe';
 
 const UNSUBSCRIBE_PATTERNS = [
   /unsubscribe/i,
@@ -14,7 +17,7 @@ const UNSUBSCRIBE_PATTERNS = [
   /unsubscribe\s+from\s+this\s+list/i,
 ];
 
-const URL_PATTERN = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
+const URL_PATTERN = /(https:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
 
 function matchesUnsubscribePattern(text: string): boolean {
   return UNSUBSCRIBE_PATTERNS.some(pattern => pattern.test(text));
@@ -28,18 +31,20 @@ function sanitizeHtmlForUnsubscribe(html: string): string {
     .replace(/background[^:]*:\s*url\(["']?cid:[^"')]*["']?\)/gi, '');
 }
 
-function resolveHrefAsAbsoluteUrl(href: string): string | null {
-  const url = href.trim();
-  if (url.startsWith('mailto:')) {
-    return null;
+/**
+ * True only for an absolute https URL without userinfo. http, javascript:, data:, mailto: and
+ * relative links are never opened from an email.
+ */
+export function isSafeHttpsUrl(raw: string | null | undefined): raw is string {
+  if (!raw) {
+    return false;
   }
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
+  try {
+    const parsed = new URL(raw.trim());
+    return parsed.protocol === HTTPS_PROTOCOL && parsed.username === '' && parsed.password === '';
+  } catch {
+    return false;
   }
-  if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) {
-    return url;
-  }
-  return null;
 }
 
 function findUnsubscribeLinkInHtml(htmlBody: string): string | null {
@@ -56,16 +61,15 @@ function findUnsubscribeLinkInHtml(htmlBody: string): string | null {
     if (!matchesUnsubscribePattern(text) && !matchesUnsubscribePattern(href)) {
       continue;
     }
-    const resolved = resolveHrefAsAbsoluteUrl(href);
-    if (resolved) {
-      return resolved;
+    if (isSafeHttpsUrl(href)) {
+      return href.trim();
     }
   }
 
   const htmlText = tempDiv.textContent || '';
   const urls = htmlText.match(URL_PATTERN) || [];
   for (const url of urls) {
-    if (matchesUnsubscribePattern(url)) {
+    if (matchesUnsubscribePattern(url) && isSafeHttpsUrl(url)) {
       return url;
     }
   }
@@ -124,4 +128,25 @@ export function extractUnsubscribeLink(htmlBody?: string | null, body?: string |
   }
 
   return null;
+}
+
+export interface UnsubscribeAction {
+  method: UnsubscribeMethod;
+  /** Set when only the body offers a link (mail synced before List-Unsubscribe was stored). */
+  bodyUrl: string | null;
+}
+
+/**
+ * How this email can be unsubscribed from: the server's method (from List-Unsubscribe) when it
+ * has one, else an https unsubscribe link found in the loaded body. Inbox cards carry no body, so
+ * for them only the server's method counts.
+ */
+export function resolveUnsubscribeAction(
+  email: Pick<Email, 'unsubscribeMethod' | 'htmlBody' | 'body'>
+): UnsubscribeAction | null {
+  if (email.unsubscribeMethod) {
+    return { method: email.unsubscribeMethod, bodyUrl: null };
+  }
+  const bodyUrl = extractUnsubscribeLink(email.htmlBody, email.body);
+  return bodyUrl ? { method: UNSUBSCRIBE_METHODS.LINK, bodyUrl } : null;
 }

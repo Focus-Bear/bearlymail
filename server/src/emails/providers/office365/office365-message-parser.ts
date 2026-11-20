@@ -169,7 +169,7 @@ export function parseOffice365Message(
   const isHtml = messageData.body?.contentType === CONTENT_TYPES.HTML;
   const htmlBody = isHtml ? bodyContent : undefined;
   const body = isHtml
-    ? bodyContent.replace(/<[^>]*>/g, "").trim() ||
+    ? bodyContent.replace(/<[^<>]*>/g, "").trim() ||
       messageData.bodyPreview ||
       "(No content)"
     : bodyContent || "(No content)";
@@ -214,7 +214,7 @@ export function extractBodyFromOffice365Message(
   if (isHtml) {
     htmlBody = bodyContent;
     // Strip HTML tags for plain text body
-    body = bodyContent.replace(/<[^>]*>/g, "").trim();
+    body = bodyContent.replace(/<[^<>]*>/g, "").trim();
   } else {
     body = bodyContent;
   }
@@ -222,7 +222,7 @@ export function extractBodyFromOffice365Message(
   // Ensure body is never empty (required by DB constraint)
   if (!body || body.trim() === "") {
     if (htmlBody) {
-      body = htmlBody.replace(/<[^>]*>/g, "").trim();
+      body = htmlBody.replace(/<[^<>]*>/g, "").trim();
     }
     if (!body || body.trim() === "") {
       body = messageData.bodyPreview || "(No content)";

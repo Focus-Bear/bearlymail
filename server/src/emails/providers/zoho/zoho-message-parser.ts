@@ -110,12 +110,12 @@ function resolveBodyContent(messageData: ZohoMailMessage): {
 
   const bodyText =
     typeof messageData.content === "string"
-      ? messageData.content.replace(/<[^>]*>/g, "").trim()
+      ? messageData.content.replace(/<[^<>]*>/g, "").trim()
       : messageData.content?.text || "";
 
   const body =
     bodyText ||
-    (htmlBody ? htmlBody.replace(/<[^>]*>/g, "").trim() : "") ||
+    (htmlBody ? htmlBody.replace(/<[^<>]*>/g, "").trim() : "") ||
     messageData.summary ||
     "(No content)";
 
@@ -175,7 +175,7 @@ export function extractBodyFromZohoMessage(messageData: ZohoMailMessage): {
 
   const bodyText =
     typeof messageData.content === "string"
-      ? messageData.content.replace(/<[^>]*>/g, "").trim()
+      ? messageData.content.replace(/<[^<>]*>/g, "").trim()
       : messageData.content?.text || "";
 
   let body = "";
@@ -183,7 +183,7 @@ export function extractBodyFromZohoMessage(messageData: ZohoMailMessage): {
 
   if (htmlBody) {
     htmlBodyResult = htmlBody;
-    body = bodyText || htmlBody.replace(/<[^>]*>/g, "").trim();
+    body = bodyText || htmlBody.replace(/<[^<>]*>/g, "").trim();
   } else {
     body = bodyText;
   }
@@ -191,7 +191,7 @@ export function extractBodyFromZohoMessage(messageData: ZohoMailMessage): {
   // Ensure body is never empty (required by DB constraint)
   if (!body || body.trim() === "") {
     if (htmlBodyResult) {
-      body = htmlBodyResult.replace(/<[^>]*>/g, "").trim();
+      body = htmlBodyResult.replace(/<[^<>]*>/g, "").trim();
     }
     if (!body || body.trim() === "") {
       body = "(No content)";

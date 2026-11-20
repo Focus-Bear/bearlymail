@@ -61,7 +61,7 @@ export class GitHubService {
       githubUrlPattern.lastIndex = 0;
 
       // Extract text content from HTML (for plain text links in HTML)
-      const textContent = htmlBody.replace(/<[^>]*>/g, " ");
+      const textContent = htmlBody.replace(/<[^<>]*>/g, " ");
       let match: RegExpExecArray | null;
       while ((match = githubUrlPattern.exec(textContent)) !== null) {
         const url = match[0].split("#")[0].split("?")[0];

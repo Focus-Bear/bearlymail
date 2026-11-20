@@ -9,6 +9,7 @@
  * red flag is only a hint for the model (and stops Jev from clearing the email).
  */
 
+import { PHISHING_CONFIDENCE } from "../constants/domain-types";
 import {
   IMPERSONATED_BRANDS,
   ImpersonatedBrand,
@@ -18,7 +19,6 @@ import {
   PHISHING_RED_FLAGS,
   PhishingRedFlag,
 } from "../constants/phishing.constants";
-import { PHISHING_CONFIDENCE } from "../constants/domain-types";
 import {
   formatSenderAuthResults,
   hasSenderAuthFailure,
@@ -78,9 +78,12 @@ const ACCOUNT_THREAT_PATTERNS: ReadonlyArray<{
   },
 ];
 
+// Bounded spans keep matching linear: an anchor's attributes and its text are
+// each capped, so mail made of thousands of unclosed `<a href>` tags cannot
+// make every one of them scan to the end of the body.
 const ANCHOR_PATTERN =
-  /<a\b[^>]*?\bhref\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
-const TAG_PATTERN = /<[^>]*>/g;
+  /<a\b[^<>]{0,2000}?\bhref\s*=\s*(["'])([^<>]{0,2000}?)\1[^<>]{0,2000}>([\s\S]{0,2000}?)<\/a>/gi;
+const TAG_PATTERN = /<[^<>]*>/g;
 const HTML_ENTITY_REPLACEMENTS: ReadonlyArray<[RegExp, string]> = [
   [/&nbsp;/gi, " "],
   [/&amp;/gi, "&"],
@@ -193,9 +196,9 @@ export function findLinkTextMismatches(
 
 /** Labels of the account-threat phrases found in the given text. */
 export function findAccountThreats(text: string): string[] {
-  return ACCOUNT_THREAT_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(
-    ({ label }) => label,
-  );
+  return ACCOUNT_THREAT_PATTERNS.filter(({ pattern }) =>
+    pattern.test(text),
+  ).map(({ label }) => label);
 }
 
 function describeLinkMismatch(mismatch: LinkTextMismatch): string {

@@ -16,7 +16,7 @@ function cleanEmailBody(emailBody: string): string {
   return (
     emailBody
       .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<[^>]*>/g, " ")
+      .replace(/<[^<>]*>/g, " ")
       .replace(/&nbsp;/g, " ")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")

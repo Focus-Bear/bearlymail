@@ -136,7 +136,7 @@ export function extractBodyFromPayload(
   // Ensure body is never empty (DB constraint)
   if (!body || body.trim() === "") {
     if (htmlBody) {
-      body = htmlBody.replace(/<[^>]*>/g, "").trim();
+      body = htmlBody.replace(/<[^<>]*>/g, "").trim();
     }
     if (!body || body.trim() === "") {
       body = snippet || "(No content)";

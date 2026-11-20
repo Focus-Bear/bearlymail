@@ -67,9 +67,9 @@ Bodies are plain text; the user's signature (and, for replies, the quoted messag
   - Every settings tool starts from the caller's own categories/rules, so another user's id is "not found" before any write (the services also scope every query by user).
 - `/mcp` accepts **only** a bearer token: a personal access token (`bm_pat_…`) or an OAuth access token (`bm_oat_…`). It ignores the session cookie, so a logged-in browser tab can't drive it and it needs no CSRF protection. Tokens can't create or revoke tokens (those endpoints are JWT-only).
 - Only the SHA-256 hash of each 256-bit secret (tokens, refresh tokens, authorization codes) is stored.
-- Each MCP send is written to `audit_logs` (`MCP_SEND_REPLY` / `MCP_SEND_EMAIL`, with token id and recipient count, never content). That trail also enforces a cap of 30 MCP sends per user per hour.
+- Each MCP send is written to `audit_logs` (`MCP_SEND_REPLY` / `MCP_SEND_EMAIL`, with token id and recipient count, never content). That trail also enforces a cap of 30 MCP sends and 150 recipient addresses per user per hour; one message can have at most 50 addresses across to, cc and bcc. Category and rule changes are capped at 60 per user per hour the same way.
 - Each MCP settings change is written to `audit_logs` too (`MCP_CATEGORY_*`, `MCP_RULE_*`, `MCP_RULES_*`), with the before/after values in the encrypted metadata so a change can be undone by hand. Dry runs aren't logged.
-- `/mcp` allows 120 requests per minute per user, counted after the token is checked. Creating a token or approving a connection asks for the password again (declining doesn't). Token creation and revocation are audited too.
+- `/mcp` allows 120 requests per minute per user, counted after the token is checked. Failed authentications are limited separately, to 30 per minute per client address. Messages in a JSON-RPC batch run one at a time. Creating a token or approving a connection asks for the password again (declining doesn't). Token creation and revocation are audited too.
 
 ## Protocol notes
 

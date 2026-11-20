@@ -7,7 +7,7 @@ import {
   MCP_AUTH_TYPES,
   MCPServerConfig,
 } from "../database/entities/mcp-server-config.entity";
-import { MCPOAuthService } from "./mcp-oauth.service";
+import { bindingValueForState, MCPOAuthService } from "./mcp-oauth.service";
 
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -222,7 +222,8 @@ describe("MCPOAuthService", () => {
         data: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 },
       });
 
-      await service.completeAuthorization("state-xyz", "auth-code");
+      const state = `state-xyz.${Date.now().toString(36)}`;
+      await service.completeAuthorization(state, "auth-code");
 
       expect(repo.update).toHaveBeenCalledWith(
         "cfg-1",
@@ -233,6 +234,21 @@ describe("MCPOAuthService", () => {
           oauthCodeVerifier: null,
         }),
       );
+    });
+
+    it("rejects a state older than the authorization window", async () => {
+      const elevenMinutesAgo = Date.now() - 11 * 60 * 1000;
+      const state = `state-xyz.${elevenMinutesAgo.toString(36)}`;
+
+      await expect(
+        service.completeAuthorization(state, "auth-code"),
+      ).rejects.toThrow(/invalid or expired/i);
+      expect(repo.findOne).not.toHaveBeenCalled();
+    });
+
+    it("derives a stable binding value per state", () => {
+      expect(bindingValueForState("a")).not.toBe(bindingValueForState("b"));
+      expect(bindingValueForState("a")).toBe(bindingValueForState("a"));
     });
 
     it("rejects an unknown state", async () => {

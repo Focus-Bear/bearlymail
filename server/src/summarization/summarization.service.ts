@@ -491,6 +491,7 @@ export class SummarizationService {
         rule,
         userId,
         emailId,
+        deterministicVerdict: phishingSignals.deterministicVerdict,
       });
     }
   }
@@ -563,6 +564,7 @@ export class SummarizationService {
     rule: SummarizationRule;
     userId: string;
     emailId: string;
+    deterministicVerdict: PhishingSignal | null;
   }): Promise<SummarizeWithPhishingResult> {
     const {
       emailWithHtml,
@@ -573,6 +575,7 @@ export class SummarizationService {
       rule,
       userId,
       emailId,
+      deterministicVerdict,
     } = options;
     try {
       const summary = await this.generateLLMSummary({
@@ -587,8 +590,9 @@ export class SummarizationService {
       });
       return {
         summary,
-        // fail-safe: no phishing alert without LLM verdict
-        phishingSignal: null,
+        // No model verdict without the model, but the deterministic one never
+        // needed it (see phishing-red-flags.ts).
+        phishingSignal: deterministicVerdict,
         sentimentScore: null,
         sentimentExplanation: null,
         actionItems: null,

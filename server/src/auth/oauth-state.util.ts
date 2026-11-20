@@ -123,7 +123,8 @@ export function isBrowserBound(
  * only the browser that asked for the link has.
  */
 export function createConnectState(userId: string, res: Response): string {
-  const nonce = issueBrowserBinding(res, CONNECT_BINDING_COOKIE);
+  const nonce = randomBytes(CONNECT_NONCE_BYTES).toString("base64url");
+  issueBrowserBinding(res, CONNECT_BINDING_COOKIE, nonce);
   return encodeSignedState({
     userId,
     action: AUTH_ACTION_TYPES.CONNECT,

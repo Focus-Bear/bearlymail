@@ -50,9 +50,8 @@ describe("stripTags", () => {
     ["", ""],
     ["trailing <unclosed", "trailing <unclosed"],
     ["<scr<b>ipt>alert(1)</scr</b>ipt>", "ipt>alert(1)ipt>"],
-  ])("matches the regex it replaces for %p", (html, expected) => {
+  ])("strips %p", (html, expected) => {
     expect(stripTags(html)).toBe(expected);
-    expect(stripTags(html)).toBe(html.replace(/<[^>]*>/g, ""));
   });
 
   it("never leaves a tag opener that removal itself created", () => {

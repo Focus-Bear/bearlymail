@@ -85,9 +85,12 @@ export class McpServerProtocolService {
           `Batch too large: at most ${MCP_SERVER.MAX_BATCH_MESSAGES} messages per request`,
         );
       }
-      const responses = await Promise.all(
-        body.map((message) => this.handleMessage(context, message)),
-      );
+      // One at a time: a batch of calls that each open a transaction (the
+      // send tools do) must not hold several pool connections at once.
+      const responses: Array<JsonRpcResponse | null> = [];
+      for (const message of body) {
+        responses.push(await this.handleMessage(context, message));
+      }
       const replies = responses.filter(
         (response): response is JsonRpcResponse => response !== null,
       );

@@ -5,7 +5,10 @@ import {
   MCP_TOOL_NAMES,
   McpToolName,
 } from "../constants/mcp-server.constants";
-import { PatScope } from "../constants/personal-access-tokens.constants";
+import {
+  PAT_SCOPES,
+  PatScope,
+} from "../constants/personal-access-tokens.constants";
 import { McpCategoryToolsService } from "./mcp-category-tools.service";
 import { McpReadToolsService } from "./mcp-read-tools.service";
 import { McpRuleToolsService } from "./mcp-rule-tools.service";
@@ -20,6 +23,7 @@ import {
   McpToolDefinition,
   toolsForScopes,
 } from "./mcp-server-tool-definitions";
+import { McpSettingsWriteLimiter } from "./mcp-settings-write-limiter.service";
 import { McpToolInputError, ToolArgs } from "./mcp-tool-args";
 
 type ToolHandler = (
@@ -54,6 +58,7 @@ export class McpServerToolsService {
     sendTools: McpSendToolsService,
     categoryTools: McpCategoryToolsService,
     ruleTools: McpRuleToolsService,
+    private readonly settingsWriteLimiter: McpSettingsWriteLimiter,
   ) {
     this.handlers = {
       [MCP_TOOL_NAMES.LIST_IMPORTANT_EMAILS]: (context, args) =>
@@ -115,6 +120,11 @@ export class McpServerToolsService {
       );
     }
     try {
+      if (spec.requiredScope === PAT_SCOPES.SETTINGS_WRITE) {
+        await this.settingsWriteLimiter.assertWithinLimit(
+          context.principal.userId,
+        );
+      }
       return textResult(await this.handlers[spec.name](context, args));
     } catch (error: unknown) {
       if (error instanceof McpToolInputError) {

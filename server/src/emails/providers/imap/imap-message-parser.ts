@@ -15,6 +15,24 @@ import {
 
 const NO_SUBJECT = "(no subject)";
 export const DEFAULT_ATTACHMENT_MIME = "application/octet-stream";
+
+/** `type/subtype` made only of MIME token characters. */
+const MIME_TYPE_PATTERN =
+  /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
+
+/**
+ * A message's own Content-Type for a part is sender-controlled, so anything
+ * that is not a plain `type/subtype` is replaced with the generic binary type
+ * before it is stored or sent to the client.
+ */
+export function safeAttachmentMimeType(
+  contentType: string | null | undefined,
+): string {
+  const candidate = (contentType ?? "").trim().toLowerCase();
+  return MIME_TYPE_PATTERN.test(candidate)
+    ? candidate
+    : DEFAULT_ATTACHMENT_MIME;
+}
 const ATTACHMENT_PART_PREFIX = "part-";
 
 /** IMAP state that lives outside the RFC-822 source. */
@@ -72,7 +90,7 @@ function toAttachments(parsed: ParsedMail): EmailAttachment[] {
   return parsed.attachments.map((attachment, index) => ({
     attachmentId: attachmentIdFor(attachment, index),
     filename: attachment.filename || `${ATTACHMENT_PART_PREFIX}${index}`,
-    mimeType: attachment.contentType || DEFAULT_ATTACHMENT_MIME,
+    mimeType: safeAttachmentMimeType(attachment.contentType),
     size: attachment.size || 0,
     contentId: attachment.related
       ? normalizeMessageId(attachment.cid || "") || undefined

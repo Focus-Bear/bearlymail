@@ -167,6 +167,50 @@ describe("TotpService", () => {
         "User not found",
       );
     });
+
+    describe("when MFA is already enabled", () => {
+      const currentSecret = TotpService._base32Encode(
+        Buffer.from("current-secret"),
+      );
+      const enrolledUser = {
+        ...mockUser,
+        totpSecret: currentSecret,
+        totpEnabled: true,
+      };
+
+      it("refuses to replace the secret without a current code", async () => {
+        mockUsersService.findOne.mockResolvedValue({ ...enrolledUser });
+
+        await expect(service.setupMfa("user-1")).rejects.toThrow(
+          "MFA is already enabled",
+        );
+        expect(mockUsersService.update).not.toHaveBeenCalled();
+      });
+
+      it("refuses to replace the secret with a wrong code", async () => {
+        mockUsersService.findOne.mockResolvedValue({ ...enrolledUser });
+
+        await expect(service.setupMfa("user-1", "000000")).rejects.toThrow(
+          "MFA is already enabled",
+        );
+        expect(mockUsersService.update).not.toHaveBeenCalled();
+      });
+
+      it("replaces the secret when given a code from the current authenticator", async () => {
+        mockUsersService.findOne.mockResolvedValue({ ...enrolledUser });
+        mockUsersService.update.mockResolvedValue(undefined);
+        const step = Math.floor(Date.now() / 1000 / 30);
+        const token = TotpService._generateTotpCode(currentSecret, step);
+
+        const result = await service.setupMfa("user-1", token);
+
+        expect(result.secret).not.toBe(currentSecret);
+        expect(mockUsersService.update).toHaveBeenCalledWith(
+          "user-1",
+          expect.objectContaining({ totpEnabled: false }),
+        );
+      });
+    });
   });
 
   // ── enableMfa ──────────────────────────────────────────────────────────────

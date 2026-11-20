@@ -138,9 +138,25 @@ export class TotpService {
    * The secret is stored (encrypted) on the user but MFA is not yet enabled.
    * The user must call enableMfa() after verifying the first code.
    */
-  async setupMfa(userId: string): Promise<TotpSetupData> {
+  async setupMfa(
+    userId: string,
+    currentToken?: string,
+  ): Promise<TotpSetupData> {
     const user = await this.usersService.findOne(userId);
     if (!user) throw new Error("User not found");
+
+    // Replacing an active authenticator needs a code from the current one;
+    // otherwise a signed-in session alone could swap the second factor.
+    if (user.totpEnabled && user.totpSecret) {
+      if (!currentToken || !verifyTotpToken(user.totpSecret, currentToken)) {
+        this.logger.warn(
+          `[MFA] Refused re-enrolment for user ${userId} — current code missing or invalid`,
+        );
+        throw new Error(
+          "MFA is already enabled. Enter a code from your current authenticator to replace it.",
+        );
+      }
+    }
 
     const secretBytes = randomBytes(TOTP_SECRET_BYTES);
     const secret = base32Encode(secretBytes);

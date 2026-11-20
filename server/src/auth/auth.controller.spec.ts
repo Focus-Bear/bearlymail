@@ -456,7 +456,10 @@ describe("AuthController", () => {
       const result = await controller.mfaSetup({ user: { userId: "user-1" } });
 
       expect(result).toEqual(setupData);
-      expect(mockAuthService.setupMfa).toHaveBeenCalledWith("user-1");
+      expect(mockAuthService.setupMfa).toHaveBeenCalledWith(
+        "user-1",
+        undefined,
+      );
     });
 
     it("should wrap service errors in BadRequestException", async () => {

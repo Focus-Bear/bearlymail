@@ -25,8 +25,6 @@ export const PRIORITY_CHECKBOX_TEST_ID_PREFIX = 'priority-checkbox-';
 
 const CHECKBOX_SIZE = '18px';
 const CHECKBOX_BORDER_WIDTH = '2px';
-const TILE_MIN_WIDTH = '96px';
-const CARD_MIN_WIDTH = '280px';
 const WRAPPED_LABEL_LINE_HEIGHT = 1.2;
 
 type PriorityBucketKey = (typeof PRIORITY_LABEL_TO_KEY)[string];
@@ -70,10 +68,8 @@ function getTileLayoutStyle(compact: boolean): React.CSSProperties {
     };
   }
   return {
-    flex: '1 1 0',
-    minWidth: TILE_MIN_WIDTH,
-    gap: theme.spacing.sm,
-    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+    gap: theme.spacing.xs,
+    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
   };
 }
 
@@ -141,7 +137,7 @@ const PriorityCheckbox: React.FC<PriorityCheckboxProps> = ({
       >
         <span
           style={{
-            fontSize: compact ? theme.typography.fontSize.sm : theme.typography.fontSize.md,
+            fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.semibold,
             color: theme.colors.text.primary,
             // Tiles share the row evenly and can be narrower than a two-word label
@@ -154,7 +150,7 @@ const PriorityCheckbox: React.FC<PriorityCheckboxProps> = ({
         >
           {label}
         </span>
-        {count !== undefined && (
+        {count !== undefined && count > 0 && (
           <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>{count}</span>
         )}
       </span>
@@ -192,16 +188,10 @@ export const PriorityCheckboxFilter: React.FC<PriorityCheckboxFilterProps> = ({
       aria-label={t('inbox.filters.priority')}
       style={{
         flex: '1',
-        minWidth: compact ? 0 : CARD_MIN_WIDTH,
-        // The min width includes padding, else the card spills out of its half of a 640px panel.
+        minWidth: 0,
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: theme.colors.background.paper,
-        border: `1px solid ${theme.colors.border.light}`,
-        borderRadius: theme.borderRadius.md,
-        padding: compact ? theme.spacing.sm : theme.spacing.md,
-        boxShadow: theme.shadows.sm,
       }}
     >
       <div
@@ -209,19 +199,19 @@ export const PriorityCheckboxFilter: React.FC<PriorityCheckboxFilterProps> = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: compact ? theme.spacing.sm : theme.spacing.md,
+          marginBottom: theme.spacing.xs,
         }}
       >
         <span
           style={{
-            fontSize: theme.typography.fontSize.lg,
+            fontSize: theme.typography.fontSize.md,
             fontWeight: theme.typography.fontWeight.semibold,
             color: theme.colors.text.primary,
           }}
         >
           {t('inbox.filters.priority')}
         </span>
-        <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.tertiary }}>{headerText}</span>
+        <span style={{ fontSize: theme.typography.fontSize.md, color: theme.colors.text.tertiary }}>{headerText}</span>
       </div>
       <div
         style={

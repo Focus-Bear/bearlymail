@@ -361,8 +361,8 @@ function getFilterCardsRowStyle(isMobile: boolean): React.CSSProperties {
   return {
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
-    gap: isMobile ? theme.spacing.sm : theme.spacing.md,
-    alignItems: isMobile ? 'flex-start' : 'stretch',
+    gap: theme.spacing.md,
+    alignItems: 'flex-start',
   };
 }
 
@@ -426,7 +426,9 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
         display: 'flex',
         flexDirection: 'column',
         gap: theme.spacing.sm,
-        padding: isMobile ? `${theme.spacing.xs} ${theme.spacing.sm} ${theme.spacing.sm}` : theme.spacing.md,
+        padding: isMobile
+          ? `${theme.spacing.xs} ${theme.spacing.sm} ${theme.spacing.sm}`
+          : `${theme.spacing.sm} ${theme.spacing.md}`,
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
       }}

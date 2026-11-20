@@ -4,14 +4,18 @@ import {
   BRAND_PARTNER_MARKETING,
   ESP_NEWSLETTER,
   GENUINE_SENDGRID_SUSPENSION,
+  GENUINE_SENDGRID_TWO_FACTOR_NOTICE,
   GITHUB_VERIFY_EMAIL,
   SENDGRID_IMPERSONATION,
+  SENDGRID_SUPPORT_CHAT_LURE,
 } from "./__fixtures__/phishing-emails.fixture";
 import {
   assessPhishingRedFlags,
   detectImpersonatedBrand,
   findAccountThreats,
   findLinkTextMismatches,
+  findOffBrandLinkDomains,
+  findSecurityLures,
   registeredDomainOf,
 } from "./phishing-red-flags";
 import { buildPhishingContext } from "./summarization.helpers";
@@ -75,6 +79,10 @@ describe("phishing pre-checks — legitimate controls stay unflagged", () => {
     ["the real SendGrid suspending an account", GENUINE_SENDGRID_SUSPENSION],
     ["a company newsletter through SendGrid's click tracker", ESP_NEWSLETTER],
     ["a requested GitHub email verification", GITHUB_VERIFY_EMAIL],
+    [
+      "the real SendGrid's two-factor change notice",
+      GENUINE_SENDGRID_TWO_FACTOR_NOTICE,
+    ],
   ])("%s has no red flags and no verdict", (_label, email) => {
     const { phishingSignals } = buildPhishingContext([email]);
     expect(phishingSignals.redFlags).toEqual([]);
@@ -87,6 +95,145 @@ describe("phishing pre-checks — legitimate controls stay unflagged", () => {
       PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
     ]);
     expect(phishingSignals.deterministicVerdict).toBeNull();
+  });
+});
+
+describe("phishing pre-checks — SendGrid support-chat pretext regression (2026-11-20_16-24-28)", () => {
+  const { phishingSignals } = buildPhishingContext([
+    SENDGRID_SUPPORT_CHAT_LURE,
+  ]);
+
+  it("decides high confidence although there is no threat and auth passes", () => {
+    expect(phishingSignals.accountThreats).toEqual([]);
+    expect(phishingSignals.senderAuthSummary).toBe(
+      "spf=pass, dkim=pass, dmarc=pass",
+    );
+    expect(phishingSignals.deterministicVerdict?.confidence).toBe("high");
+  });
+
+  it("explains the impersonation and the pretext in the banner reason", () => {
+    const reason = phishingSignals.deterministicVerdict?.reason ?? "";
+    expect(reason).toContain(
+      "The sender name claims to be Twilio SendGrid but the email comes from foundryhealth.com",
+    );
+    expect(reason).toContain("account-security pretext");
+    expect(reason).toContain(
+      "its links go to example.org, not Twilio SendGrid",
+    );
+  });
+
+  it("flags the brand impersonation and the off-brand link for the model", () => {
+    expect(phishingSignals.redFlags).toEqual([
+      PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
+      PHISHING_RED_FLAGS.OFF_BRAND_LINK,
+    ]);
+    expect(phishingSignals.offBrandLinkDomains).toEqual(["example.org"]);
+  });
+
+  it("finds every account-security pretext in the subject and body", () => {
+    expect(
+      findSecurityLures(
+        `${SENDGRID_SUPPORT_CHAT_LURE.subject}\n${SENDGRID_SUPPORT_CHAT_LURE.body}`,
+      ),
+    ).toEqual([
+      "two-factor or security settings",
+      "if this was not you",
+      "quotes your account details",
+      "a support conversation about your account",
+    ]);
+  });
+
+  it.each([
+    ["sendgrid.net", "bounces.sendgrid.net"],
+    ["sendgrid.com", "sendgrid.com"],
+    ["twilio.com", "mail.twilio.com"],
+  ])(
+    "does not flag the same email sent from SendGrid's own %s",
+    (_label, domain) => {
+      const assessment = assessPhishingRedFlags({
+        senderDomain: domain,
+        fromName: SENDGRID_SUPPORT_CHAT_LURE.fromName,
+        subject: SENDGRID_SUPPORT_CHAT_LURE.subject,
+        body: SENDGRID_SUPPORT_CHAT_LURE.body ?? "",
+      });
+      expect(assessment.redFlags).toEqual([]);
+      expect(assessment.verdict).toBeNull();
+    },
+  );
+
+  it("flags it from a lookalike domain", () => {
+    const assessment = assessPhishingRedFlags({
+      senderDomain: "sendgrid-support.com",
+      fromName: "SendGrid Support",
+      subject: SENDGRID_SUPPORT_CHAT_LURE.subject,
+      body: SENDGRID_SUPPORT_CHAT_LURE.body ?? "",
+    });
+    expect(assessment.impersonatedBrand).toBe("Twilio SendGrid");
+    expect(assessment.verdict?.confidence).toBe("high");
+  });
+
+  it("flags a DMARC failure on the impersonating sender", () => {
+    const assessment = assessPhishingRedFlags({
+      senderDomain: "foundryhealth.com",
+      fromName: "SendGrid",
+      subject: "Your invoice",
+      body: "Your monthly invoice is attached.",
+      senderAuthResults: { spf: "pass", dkim: "none", dmarc: "fail" },
+    });
+    expect(assessment.redFlags).toEqual([
+      PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
+      PHISHING_RED_FLAGS.AUTH_FAILURE,
+    ]);
+    expect(assessment.verdict?.confidence).toBe("high");
+  });
+
+  it("one pretext alone from a brand partner is left to the model", () => {
+    const assessment = assessPhishingRedFlags({
+      senderDomain: "contoso.example.test",
+      fromName: "Contoso – Microsoft Partner",
+      subject: "Webinar: rolling out multi-factor authentication",
+      body: "Join our webinar on rolling out multi-factor authentication.",
+      htmlBody: `<a href="https://events.example.org/mfa">Register</a>`,
+    });
+    expect(assessment.securityLures).toEqual([
+      "two-factor or security settings",
+    ]);
+    expect(assessment.redFlags).toEqual([
+      PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
+      PHISHING_RED_FLAGS.OFF_BRAND_LINK,
+    ]);
+    expect(assessment.verdict).toBeNull();
+  });
+});
+
+describe("findOffBrandLinkDomains", () => {
+  const sendgrid = detectImpersonatedBrand("SendGrid", "foundryhealth.com");
+
+  it("ignores the brand's own domains, the sender's domain and click trackers", () => {
+    expect(
+      findOffBrandLinkDomains(sendgrid, "foundryhealth.com", [
+        "app.sendgrid.com",
+        "www.twilio.com",
+        "links.foundryhealth.com",
+        "u0.ct.sendgrid.net",
+        "nam02.safelinks.protection.outlook.com",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("lists other domains once each", () => {
+    expect(
+      findOffBrandLinkDomains(sendgrid, "foundryhealth.com", [
+        "a.chat-summary.example.org",
+        "b.chat-summary.example.org",
+      ]),
+    ).toEqual(["example.org"]);
+  });
+
+  it("is empty when the display name claims no brand", () => {
+    expect(
+      findOffBrandLinkDomains(null, "acme.example.test", ["evil.example.org"]),
+    ).toEqual([]);
   });
 });
 

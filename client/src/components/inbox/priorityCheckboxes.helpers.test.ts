@@ -1,4 +1,5 @@
 import {
+  describePriorityRange,
   getCheckedBucketIndexes,
   PRIORITY_BUCKETS_HIGH_FIRST,
   togglePriorityBucket,
@@ -58,5 +59,34 @@ describe('togglePriorityBucket', () => {
   it('never unticks the last ticked box', () => {
     const highOnly = { minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: 50 };
     expect(togglePriorityBucket(highOnly, HIGH)).toEqual(highOnly);
+  });
+});
+
+describe('describePriorityRange', () => {
+  it('reads an unbounded range as everything', () => {
+    expect(describePriorityRange(ALL)).toEqual({ kind: 'all' });
+  });
+
+  it('reads a run that reaches the top as "and above"', () => {
+    expect(describePriorityRange(GUIDED_HIGH_AND_ABOVE)).toEqual({ kind: 'andAbove', bucket: 'High' });
+  });
+
+  it('names a lone bucket, including the top one', () => {
+    expect(describePriorityRange({ minPriority: 50, maxPriority: null })).toEqual({
+      kind: 'single',
+      bucket: 'Very High',
+    });
+    expect(describePriorityRange({ minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: 50 })).toEqual({
+      kind: 'single',
+      bucket: 'High',
+    });
+  });
+
+  it('names both ends of a run that stops short of the top', () => {
+    expect(describePriorityRange({ minPriority: 0, maxPriority: 50 })).toEqual({
+      kind: 'between',
+      lowest: 'Low',
+      highest: 'High',
+    });
   });
 });

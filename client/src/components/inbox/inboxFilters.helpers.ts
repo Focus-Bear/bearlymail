@@ -3,27 +3,31 @@
  * Extracted to enable unit testing of display-text business logic.
  */
 
+/** A filter button names its choices outright up to this many; beyond it, it counts them. */
+const MAX_NAMED_SELECTIONS = 2;
+
 /**
- * Returns the display text for a multi-select dropdown based on the current selection.
+ * The words a multi-select filter button shows for the current selection.
  *
- * @param selectedIds - Array of currently selected option ids.
+ * @param selectedIds - Currently selected option ids.
  * @param options - All available options with their ids and labels.
- * @param placeholder - Text shown when nothing is selected.
- * @returns
- *   - `placeholder` when nothing is selected
- *   - The matching option label when exactly one id is selected
- *   - `"N selected"` when two or more ids are selected
+ * @param allText - Shown when nothing is selected (nothing selected means no filtering).
+ * @param countText - Builds the "N selected" wording for a selection too long to name.
+ * @returns `allText`, the selected labels joined by commas (one or two), or `countText(n)` —
+ *   also used when a selected id is no longer among the options and so cannot be named.
  */
-export function getMultiSelectDisplayText(
+export function getSelectionSummary(
   selectedIds: string[],
   options: Array<{ id: string; label: string }>,
-  placeholder: string
+  allText: string,
+  countText: (count: number) => string
 ): string {
   if (selectedIds.length === 0) {
-    return placeholder;
+    return allText;
   }
-  if (selectedIds.length === 1) {
-    return options.find(opt => opt.id === selectedIds[0])?.label ?? placeholder;
+  const labels = selectedIds.flatMap(id => options.find(opt => opt.id === id)?.label ?? []);
+  if (labels.length === selectedIds.length && labels.length <= MAX_NAMED_SELECTIONS) {
+    return labels.join(', ');
   }
-  return `${selectedIds.length} selected`;
+  return countText(selectedIds.length);
 }

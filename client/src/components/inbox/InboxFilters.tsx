@@ -1,17 +1,28 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_CLOSE } from 'constants/emojis';
+import { PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
 import type { ConnectedAccount, InboxFilter } from 'hooks/useInboxFilters';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
-import { getMultiSelectDisplayText } from './inboxFilters.helpers';
+import { CategoryCheckboxList } from './CategoryCheckboxList';
+import { FILTER_TOUCH_TARGET, FilterMenu } from './FilterMenu';
+import { FilterMenuOption } from './FilterMenuOption';
+import { getSelectionSummary } from './inboxFilters.helpers';
+import {
+  describePriorityRange,
+  PRIORITY_RANGE_AND_ABOVE,
+  PRIORITY_RANGE_BETWEEN,
+  PRIORITY_RANGE_SINGLE,
+} from './priorityCheckboxes.helpers';
 import { PriorityCheckboxFilter } from './PriorityCheckboxFilter';
-import { VisualCategoryFilter } from './VisualCategoryFilter';
 
 export const INBOX_FILTERS_COLLAPSE_TEST_ID = 'inbox-filters-collapse';
+export const ACCOUNT_FILTER_MENU_TEST_ID = 'inbox-filter-account';
+export const CATEGORY_FILTER_MENU_TEST_ID = 'inbox-filter-category';
+export const PRIORITY_FILTER_MENU_TEST_ID = 'inbox-filter-priority';
 
 interface InboxFiltersProps {
   onFilterChange?: (overrideFilters?: Partial<InboxFilter>) => void;
@@ -39,340 +50,124 @@ interface InboxFiltersProps {
   priorityTotalCount?: number;
   /**
    * True while the inbox summary is being re-fetched (e.g. after a filter change).
-   * Passed to VisualCategoryFilter so it can show a loading skeleton on pill counts
-   * instead of stale values during cross-filter transitions. Fix #1466 (P2).
+   * The category list holds its counts back meanwhile rather than showing stale
+   * values during cross-filter transitions. Fix #1466 (P2).
    */
   isSummaryLoading?: boolean;
   /**
    * Whether the priority filter actually applies in the current mode. A GUIDED
-   * (auto) priority filter is suppressed outside Triage, so the slider must render
-   * unselected there — otherwise it highlights a "High" bucket that isn't filtering
+   * (auto) priority filter is suppressed outside Triage, so the menu must read
+   * "All" there — otherwise it names a "High" bucket that isn't filtering
    * and can't be cleared. Defaults to true when unspecified.
    */
   isPriorityFilterActive?: boolean;
 }
 
-// ── Multi-select dropdown (for Account filter) ────────────────────────────────
-
-interface MultiSelectDropdownProps {
-  label: string;
-  options: Array<{ id: string; label: string }>;
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-  placeholder?: string;
-  searchable?: boolean;
-  emptyMessage?: string;
-}
-
-interface MultiSelectDropdownPanelProps {
-  searchable: boolean;
-  searchTerm: string;
-  setSearchTerm: (v: string) => void;
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
-  filteredOptions: Array<{ id: string; label: string }>;
-  selectedIds: string[];
-  handleToggle: (id: string) => void;
-  emptyMessage: string;
-}
-
-interface MultiSelectOptionItemProps {
-  option: { id: string; label: string };
-  isSelected: boolean;
-  onToggle: (id: string) => void;
-}
-
-const MultiSelectOptionItem: React.FC<MultiSelectOptionItemProps> = ({ option, isSelected, onToggle }) => (
-  <label
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-      cursor: 'pointer',
-      backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent',
-      transition: theme.transitions.fast,
-    }}
-    onMouseEnter={event => {
-      if (!isSelected) {
-        event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-      }
-    }}
-    onMouseLeave={event => {
-      if (!isSelected) {
-        event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
-      }
-    }}
-  >
-    <input
-      type="checkbox"
-      checked={isSelected}
-      onChange={() => onToggle(option.id)}
-      style={{
-        marginRight: theme.spacing.sm,
-        cursor: 'pointer',
-        width: '16px',
-        height: '16px',
-        accentColor: theme.colors.primary.main,
-      }}
-    />
-    <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary }}>{option.label}</span>
-  </label>
-);
-
-const MultiSelectDropdownPanel: React.FC<MultiSelectDropdownPanelProps> = ({
-  searchable,
-  searchTerm,
-  setSearchTerm,
-  searchInputRef,
-  filteredOptions,
-  selectedIds,
-  handleToggle,
-  emptyMessage,
-}) => {
+/** The ✕ that hides the filter bar; the inbox remembers the choice. */
+const CollapseButton: React.FC<{ onCollapse: () => void; touch: boolean }> = ({ onCollapse, touch }) => {
   const { t } = useTranslation();
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: '100%',
-        left: 0,
-        right: 0,
-        marginTop: theme.spacing.xs,
-        maxHeight: '280px',
-        backgroundColor: theme.colors.background.paper,
-        border: `1px solid ${theme.colors.border.medium}`,
-        borderRadius: theme.borderRadius.md,
-        boxShadow: theme.shadows.lg,
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {searchable && (
-        <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchTerm}
-            onChange={event => setSearchTerm(event.target.value)}
-            placeholder={t('inbox.filters.searchPlaceholder')}
-            style={{
-              width: '100%',
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              fontSize: theme.typography.fontSize.lg,
-              borderRadius: theme.borderRadius.sm,
-              border: `1px solid ${theme.colors.border.light}`,
-              backgroundColor: theme.colors.background.default,
-              color: theme.colors.text.primary,
-              outline: 'none',
-            }}
-          />
-        </div>
-      )}
-      <div style={{ overflowY: 'auto', maxHeight: '220px' }}>
-        {filteredOptions.length === 0 ? (
-          <div
-            style={{
-              padding: theme.spacing.md,
-              fontSize: theme.typography.fontSize.lg,
-              color: theme.colors.text.tertiary,
-              textAlign: 'center',
-            }}
-          >
-            {emptyMessage}
-          </div>
-        ) : (
-          filteredOptions.map(option => (
-            <MultiSelectOptionItem
-              key={option.id}
-              option={option}
-              isSelected={selectedIds.includes(option.id)}
-              onToggle={handleToggle}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
-interface MultiSelectTriggerButtonProps {
-  label: string;
-  displayText: string;
-  selectedCount: number;
-  isOpen: boolean;
-  onToggle: () => void;
-}
-
-const MultiSelectTriggerButton: React.FC<MultiSelectTriggerButtonProps> = ({
-  label,
-  displayText,
-  selectedCount,
-  isOpen,
-  onToggle,
-}) => (
-  <>
-    <label
-      style={{
-        display: 'block',
-        marginBottom: theme.spacing.xs,
-        fontSize: theme.typography.fontSize.lg,
-        color: theme.colors.text.secondary,
-        fontWeight: theme.typography.fontWeight.medium,
-      }}
-    >
-      {label}
-    </label>
     <button
       type="button"
-      onClick={onToggle}
+      data-testid={INBOX_FILTERS_COLLAPSE_TEST_ID}
+      onClick={onCollapse}
+      aria-label={t('inbox.filters.collapse')}
+      title={t('inbox.filters.collapse')}
       style={{
-        width: '100%',
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        fontSize: theme.typography.fontSize.lg,
-        borderRadius: theme.borderRadius.md,
-        border: `1px solid ${theme.colors.border.medium}`,
-        backgroundColor: theme.colors.background.paper,
-        color: selectedCount > 0 ? theme.colors.text.primary : theme.colors.text.tertiary,
+        flexShrink: 0,
+        minWidth: touch ? FILTER_TOUCH_TARGET : undefined,
+        minHeight: touch ? FILTER_TOUCH_TARGET : undefined,
+        marginLeft: touch ? undefined : 'auto',
+        padding: theme.spacing.xs,
+        background: 'none',
+        border: 'none',
         cursor: 'pointer',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        transition: theme.transitions.fast,
-        textAlign: 'left',
+        color: theme.colors.text.tertiary,
+        fontSize: theme.typography.fontSize.md,
+        lineHeight: 1,
       }}
     >
-      <span>{displayText}</span>
-      <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
+      {EMOJI_CLOSE}
     </button>
-  </>
-);
-
-const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
-  label,
-  options,
-  selectedIds,
-  onChange,
-  placeholder = 'Select...',
-  searchable = false,
-  emptyMessage = 'No options available',
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const filteredOptions = searchable
-    ? options.filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()))
-    : options;
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setSearchTerm('');
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (isOpen && searchable && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isOpen, searchable]);
-
-  const handleToggle = (id: string) => {
-    if (selectedIds.includes(id)) {
-      onChange(selectedIds.filter(selectedId => selectedId !== id));
-    } else {
-      onChange([...selectedIds, id]);
-    }
-  };
-
-  const displayText = getMultiSelectDisplayText(selectedIds, options, placeholder);
-
-  return (
-    <div ref={dropdownRef} style={{ position: 'relative', minWidth: '200px', flex: '1' }}>
-      <MultiSelectTriggerButton
-        label={label}
-        displayText={displayText}
-        selectedCount={selectedIds.length}
-        isOpen={isOpen}
-        onToggle={() => setIsOpen(!isOpen)}
-      />
-      {isOpen && (
-        <MultiSelectDropdownPanel
-          searchable={searchable}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          searchInputRef={searchInputRef}
-          filteredOptions={filteredOptions}
-          selectedIds={selectedIds}
-          handleToggle={handleToggle}
-          emptyMessage={emptyMessage}
-        />
-      )}
-    </div>
   );
 };
 
-/** Title row: names the panel and holds its ✕, so the close button isn't floating on a row of its own. */
-const FilterPanelToolbar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) => {
+/** The priority button's wording for a score range: "All", "High", "High and above", "Low to High". */
+function usePrioritySummary(minPriority: number | null, maxPriority: number | null, short: boolean): string {
   const { t } = useTranslation();
+  const bucketName = (label: string) => t(`inbox.filters.buckets.${PRIORITY_LABEL_TO_KEY[label]}`);
+  const description = describePriorityRange({ minPriority, maxPriority });
+  if (description.kind === PRIORITY_RANGE_SINGLE) {
+    return bucketName(description.bucket);
+  }
+  if (description.kind === PRIORITY_RANGE_AND_ABOVE) {
+    return t(short ? 'inbox.filters.priorityAndAboveShort' : 'inbox.filters.priorityAndAbove', {
+      bucket: bucketName(description.bucket),
+    });
+  }
+  if (description.kind === PRIORITY_RANGE_BETWEEN) {
+    return t('inbox.filters.priorityBetween', {
+      lowest: bucketName(description.lowest),
+      highest: bucketName(description.highest),
+    });
+  }
+  return t('inbox.filters.all');
+}
+
+interface AccountFilterMenuProps {
+  accounts: ConnectedAccount[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  touch: boolean;
+}
+
+const AccountFilterMenu: React.FC<AccountFilterMenuProps> = ({ accounts, selectedIds, onChange, touch }) => {
+  const { t } = useTranslation();
+  const options = accounts.map(account => ({ id: account.id, label: `${account.email} (${account.provider})` }));
+  const handleToggle = (id: string) => {
+    onChange(selectedIds.includes(id) ? selectedIds.filter(selectedId => selectedId !== id) : [...selectedIds, id]);
+  };
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span
-        style={{
-          fontSize: theme.typography.fontSize.lg,
-          fontWeight: theme.typography.fontWeight.semibold,
-          color: theme.colors.text.secondary,
-        }}
-      >
-        {t('inbox.filters.title')}
-      </span>
-      <button
-        type="button"
-        data-testid={INBOX_FILTERS_COLLAPSE_TEST_ID}
-        onClick={onCollapse}
-        aria-label={t('inbox.filters.collapse')}
-        title={t('inbox.filters.collapse')}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: theme.spacing.xs,
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.lg,
-          lineHeight: 1,
-        }}
-      >
-        {EMOJI_CLOSE}
-      </button>
-    </div>
+    <FilterMenu
+      testId={ACCOUNT_FILTER_MENU_TEST_ID}
+      label={t('inbox.filters.account')}
+      summary={getSelectionSummary(selectedIds, options, t('inbox.filters.allAccounts'), count =>
+        t('inbox.filters.nCategoriesSelected', { count })
+      )}
+      isFiltering={selectedIds.length > 0}
+      hideLabel
+      touch={touch}
+    >
+      {options.map(option => (
+        <FilterMenuOption
+          key={option.id}
+          label={option.label}
+          isChecked={selectedIds.includes(option.id)}
+          touch={touch}
+          onToggle={() => handleToggle(option.id)}
+        />
+      ))}
+    </FilterMenu>
   );
 };
+
+function getBarStyle(isMobile: boolean): React.CSSProperties {
+  return {
+    // Anchors the menus on a phone, where they span the bar instead of hanging off a button.
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    padding: isMobile ? `${theme.spacing.xs} ${theme.spacing.sm}` : `${theme.spacing.sm} ${theme.spacing.md}`,
+    backgroundColor: theme.colors.background.paper,
+    borderBottom: `1px solid ${theme.colors.border.light}`,
+  };
+}
 
 /**
- * Category + priority cards: stacked on a phone, side-by-side and equal height on wider screens
- * (fix #1571 Bug 2 — stretching stacked cards would make them tall for nothing).
+ * The inbox filter bar: one slim row of menu buttons (account, category, priority). Each button
+ * states its current choice and opens a vertical checkbox list.
  */
-function getFilterCardsRowStyle(isMobile: boolean): React.CSSProperties {
-  return {
-    display: 'flex',
-    flexDirection: isMobile ? 'column' : 'row',
-    gap: theme.spacing.md,
-    alignItems: 'flex-start',
-  };
-}
-
-/** Wraps one card; flex column lets the card's flex:1 fill it so both cards match heights (fix #1735). */
-function getFilterCardSlotStyle(isMobile: boolean): React.CSSProperties {
-  return { flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column' };
-}
-
-// ── Main InboxFilters component ───────────────────────────────────────────────
-
 export const InboxFilters: React.FC<InboxFiltersProps> = ({
   onFilterChange,
   isFilterBarVisible,
@@ -393,6 +188,13 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
 }) => {
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
+  const minPriority = isPriorityFilterActive ? filters.minPriority : null;
+  const maxPriority = isPriorityFilterActive ? filters.maxPriority : null;
+  const prioritySummary = usePrioritySummary(minPriority, maxPriority, isMobile);
+
+  if (!isFilterBarVisible) {
+    return null;
+  }
 
   const handleAccountChange = (ids: string[]) => {
     setAccountFilter(ids);
@@ -404,80 +206,66 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
     onFilterChange?.({ categories: ids });
   };
 
-  const accountOptions = connectedAccounts.map(account => ({
-    id: account.id,
-    label: `${account.email} (${account.provider})`,
-  }));
-
-  // Hide account filter if only one account
-  const showAccountFilter = connectedAccounts.length > 1;
-  // On a phone a category card holding nothing but "All" costs a screenful of height for no choice.
+  // With a single account there is nothing to choose between.
+  const showAccountFilter = connectedAccounts.length > 1 && !loadingAccounts;
+  // On a phone a category button that opens onto nothing costs half the bar for no choice.
   const hasNoCategoryChoice =
     !loadingCategories && !isSummaryLoading && availableCategories.length === 0 && filters.categories.length === 0;
   const showCategoryFilter = !(isMobile && hasNoCategoryChoice);
 
-  if (!isFilterBarVisible) {
-    return null;
-  }
-
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: theme.spacing.sm,
-        padding: isMobile
-          ? `${theme.spacing.xs} ${theme.spacing.sm} ${theme.spacing.sm}`
-          : `${theme.spacing.sm} ${theme.spacing.md}`,
-        backgroundColor: theme.colors.background.paper,
-        borderBottom: `1px solid ${theme.colors.border.light}`,
-      }}
-    >
-      <FilterPanelToolbar onCollapse={onCollapse} />
-      {/* Row 1: Account selector — full width, only shown if more than 1 connected account */}
-      {showAccountFilter && !loadingAccounts && (
-        <div style={{ width: '100%' }}>
-          <MultiSelectDropdown
-            label={t('inbox.filters.account')}
-            options={accountOptions}
-            selectedIds={filters.accountIds}
-            onChange={handleAccountChange}
-            placeholder={t('inbox.filters.allAccounts')}
-            emptyMessage={t('inbox.filters.noAccounts')}
-          />
-        </div>
+    <div style={getBarStyle(isMobile)}>
+      {showAccountFilter && (
+        <AccountFilterMenu
+          accounts={connectedAccounts}
+          selectedIds={filters.accountIds}
+          onChange={handleAccountChange}
+          touch={isMobile}
+        />
       )}
 
-      {/* Row 2: Category filter + Priority range slider — stacked on mobile, side-by-side on tablet/desktop */}
-      <div style={getFilterCardsRowStyle(isMobile)}>
-        {/* Category Filter — visual pill-based multi-select.
-            Fix #1526 bug 5: render VisualCategoryFilter while categories load (it shows skeleton
-            pills) rather than flashing it in once fetchCategories finishes. */}
-        {showCategoryFilter && (
-          <div style={getFilterCardSlotStyle(isMobile)}>
-            <VisualCategoryFilter
-              categories={loadingCategories ? [] : availableCategories}
-              selectedIds={filters.categories}
-              onChange={handleCategoryChange}
-              categoryCounts={categoryCounts}
-              loading={loadingCategories || isSummaryLoading}
-              compact={isMobile}
-            />
-          </div>
-        )}
-
-        {/* Priority Filter — one checkbox per bucket, Very High on the left. */}
-        <div style={getFilterCardSlotStyle(isMobile)}>
-          <PriorityCheckboxFilter
-            selectedMin={isPriorityFilterActive ? filters.minPriority : null}
-            selectedMax={isPriorityFilterActive ? filters.maxPriority : null}
-            onChange={onPriorityChange}
-            bucketCounts={bucketCounts}
-            totalCount={priorityTotalCount}
-            compact={isMobile}
+      {showCategoryFilter && (
+        <FilterMenu
+          testId={CATEGORY_FILTER_MENU_TEST_ID}
+          label={t('inbox.filters.category')}
+          summary={getSelectionSummary(
+            filters.categories,
+            availableCategories,
+            t('inbox.filters.all'),
+            count => t('inbox.filters.nCategoriesSelected', { count })
+          )}
+          isFiltering={filters.categories.length > 0}
+          touch={isMobile}
+        >
+          <CategoryCheckboxList
+            categories={loadingCategories ? [] : availableCategories}
+            selectedIds={filters.categories}
+            onChange={handleCategoryChange}
+            categoryCounts={categoryCounts}
+            loading={loadingCategories || isSummaryLoading}
+            touch={isMobile}
           />
-        </div>
-      </div>
+        </FilterMenu>
+      )}
+
+      <FilterMenu
+        testId={PRIORITY_FILTER_MENU_TEST_ID}
+        label={t('inbox.filters.priorityLabel')}
+        summary={prioritySummary}
+        isFiltering={minPriority !== null || maxPriority !== null}
+        touch={isMobile}
+      >
+        <PriorityCheckboxFilter
+          selectedMin={minPriority}
+          selectedMax={maxPriority}
+          onChange={onPriorityChange}
+          bucketCounts={bucketCounts}
+          totalCount={priorityTotalCount}
+          touch={isMobile}
+        />
+      </FilterMenu>
+
+      <CollapseButton onCollapse={onCollapse} touch={isMobile} />
     </div>
   );
 };

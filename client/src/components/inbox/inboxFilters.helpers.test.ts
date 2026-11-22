@@ -1,52 +1,33 @@
-import { getMultiSelectDisplayText } from './inboxFilters.helpers';
+import { getSelectionSummary } from './inboxFilters.helpers';
 
 const OPTIONS = [
-  { id: 'inbox', label: 'Inbox' },
-  { id: 'action', label: 'Action Required' },
-  { id: 'follow-up', label: 'Follow Up' },
+  { id: 'clients', label: 'Clients' },
+  { id: 'receipts', label: 'Receipts' },
+  { id: 'team', label: 'Team' },
 ];
 
-const PLACEHOLDER = 'Select...';
+const ALL = 'All';
+const countText = (count: number) => `${count} selected`;
 
-describe('getMultiSelectDisplayText', () => {
-  it('returns the placeholder when nothing is selected', () => {
-    expect(getMultiSelectDisplayText([], OPTIONS, PLACEHOLDER)).toBe(PLACEHOLDER);
+describe('getSelectionSummary', () => {
+  it('says "all" when nothing is selected', () => {
+    expect(getSelectionSummary([], OPTIONS, ALL, countText)).toBe(ALL);
   });
 
-  it('returns the matching label when exactly one id is selected', () => {
-    expect(getMultiSelectDisplayText(['action'], OPTIONS, PLACEHOLDER)).toBe('Action Required');
+  it('names a single selection', () => {
+    expect(getSelectionSummary(['receipts'], OPTIONS, ALL, countText)).toBe('Receipts');
   });
 
-  it('returns the placeholder when the single selected id is not found in options', () => {
-    expect(getMultiSelectDisplayText(['unknown-id'], OPTIONS, PLACEHOLDER)).toBe(PLACEHOLDER);
+  it('names two selections in the order they were picked', () => {
+    expect(getSelectionSummary(['receipts', 'clients'], OPTIONS, ALL, countText)).toBe('Receipts, Clients');
   });
 
-  it('returns "2 selected" when two ids are selected', () => {
-    expect(getMultiSelectDisplayText(['inbox', 'action'], OPTIONS, PLACEHOLDER)).toBe('2 selected');
+  it('counts a selection too long to name', () => {
+    expect(getSelectionSummary(['clients', 'receipts', 'team'], OPTIONS, ALL, countText)).toBe('3 selected');
   });
 
-  it('returns "3 selected" when all options are selected', () => {
-    expect(getMultiSelectDisplayText(['inbox', 'action', 'follow-up'], OPTIONS, PLACEHOLDER)).toBe('3 selected');
-  });
-
-  it('uses the count of selectedIds, not the number matched in options', () => {
-    // selectedIds has 3 entries but two are unknown — still "3 selected"
-    expect(getMultiSelectDisplayText(['inbox', 'ghost-id-1', 'ghost-id-2'], OPTIONS, PLACEHOLDER)).toBe('3 selected');
-  });
-
-  it('works with an empty options array', () => {
-    expect(getMultiSelectDisplayText(['inbox'], [], PLACEHOLDER)).toBe(PLACEHOLDER);
-  });
-
-  it('works with an empty options array and no selection', () => {
-    expect(getMultiSelectDisplayText([], [], PLACEHOLDER)).toBe(PLACEHOLDER);
-  });
-
-  it('returns the label for the first matching id when options has duplicates', () => {
-    const dupeOptions = [
-      { id: 'a', label: 'First' },
-      { id: 'a', label: 'Second' },
-    ];
-    expect(getMultiSelectDisplayText(['a'], dupeOptions, PLACEHOLDER)).toBe('First');
+  it('counts when a selected id is no longer among the options', () => {
+    expect(getSelectionSummary(['gone'], OPTIONS, ALL, countText)).toBe('1 selected');
+    expect(getSelectionSummary(['clients', 'gone'], OPTIONS, ALL, countText)).toBe('2 selected');
   });
 });

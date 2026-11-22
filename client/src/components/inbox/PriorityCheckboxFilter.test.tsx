@@ -3,7 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { HIGH_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 
-import { PRIORITY_CHECKBOX_TEST_ID_PREFIX, PriorityCheckboxFilter } from './PriorityCheckboxFilter';
+import {
+  PRIORITY_CHECKBOX_TEST_ID_PREFIX,
+  PRIORITY_SHOW_ALL_TEST_ID,
+  PriorityCheckboxFilter,
+} from './PriorityCheckboxFilter';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -54,5 +58,17 @@ describe('PriorityCheckboxFilter', () => {
   it('locks the last ticked box so the filter can never be empty', () => {
     render(<PriorityCheckboxFilter selectedMin={50} selectedMax={null} onChange={vi.fn()} />);
     expect(checkboxFor('veryHigh').disabled).toBe(true);
+  });
+
+  it('offers the way back to every priority once the list is narrowed', () => {
+    const onChange = vi.fn();
+    render(<PriorityCheckboxFilter selectedMin={HIGH_PRIORITY_THRESHOLD} selectedMax={null} onChange={onChange} />);
+    fireEvent.click(screen.getByTestId(PRIORITY_SHOW_ALL_TEST_ID));
+    expect(onChange).toHaveBeenCalledWith(null, null);
+  });
+
+  it('has nothing to reset while every priority is shown', () => {
+    render(<PriorityCheckboxFilter selectedMin={null} selectedMax={null} onChange={vi.fn()} />);
+    expect(screen.queryByTestId(PRIORITY_SHOW_ALL_TEST_ID)).toBeNull();
   });
 });

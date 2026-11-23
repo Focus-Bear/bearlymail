@@ -622,6 +622,35 @@ export function normalizeSchemelessExternalHref(href: string): string | null {
   return SCHEMELESS_EXTERNAL_HREF.test(trimmed) ? `https://${trimmed}` : null;
 }
 
+/** Image types an inline attachment may be embedded as. */
+const INLINE_IMAGE_MIME_TYPE = /^image\/(?:png|jpe?g|gif|webp|bmp|avif|svg\+xml|x-icon|vnd\.microsoft\.icon)$/i;
+/** Base64 (standard or URL-safe alphabet), nothing else. */
+const BASE64_PAYLOAD = /^[A-Za-z0-9+/_=-]+$/;
+const CID_SCHEME = 'cid:';
+
+/**
+ * Point each `cid:` image at its embedded attachment data, and drop the ones
+ * that cannot be resolved. The attachment's type and data come from the email,
+ * so both are checked before they are used in a `data:` URL.
+ */
+function resolveInlineCidImages(root: HTMLElement, attachments?: InlineAttachmentRef[]): void {
+  root.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') ?? '';
+    if (!src.toLowerCase().startsWith(CID_SCHEME)) {
+      return;
+    }
+    const cid = src.slice(CID_SCHEME.length);
+    const attachment = attachments?.find(att => att.contentId === cid && att.inlineData);
+    const mimeType = attachment?.mimeType?.trim() ?? '';
+    const data = attachment?.inlineData ?? '';
+    if (attachment && INLINE_IMAGE_MIME_TYPE.test(mimeType) && BASE64_PAYLOAD.test(data)) {
+      img.setAttribute('src', `data:${mimeType.toLowerCase()};base64,${data}`);
+    } else {
+      img.remove();
+    }
+  });
+}
+
 /**
  * Helper function to sanitize and process HTML for safe rendering
  * This function sanitizes first (for XSS protection), then adds target="_blank" to links.
@@ -656,24 +685,15 @@ export function sanitizeAndProcessHtml(html: string, attachments?: InlineAttachm
     ],
   });
 
-  // Step 2: Resolve or remove inline CID images at the STRING level before
-  // setting innerHTML. Browsers start loading image resources as soon as
-  // innerHTML is parsed — even for detached elements — so cid: references
-  // must be replaced or stripped in the string first to prevent
-  // net::ERR_UNKNOWN_URL_SCHEME errors in the console.
-  const resolvedHtml = sanitized.replace(
-    /<img([^>]*?)src=(["'])cid:([^"']*)\2([^>]*?)>/gi,
-    (_match, before, quote, cid, after) => {
-      const attachment = attachments?.find(att => att.contentId === cid && att.inlineData);
-      if (attachment) {
-        return `<img${before}src=${quote}data:${attachment.mimeType};base64,${attachment.inlineData}${quote}${after}>`;
-      }
-      return ''; // strip unresolvable cid: images
-    }
-  );
+  // Step 2: Parse into an inert document. Nothing in it loads or runs — no
+  // image requests (so no net::ERR_UNKNOWN_URL_SCHEME for cid:) and no event
+  // handlers — so the markup can be edited as DOM nodes rather than by
+  // rewriting the sanitized string, which could reintroduce markup.
+  const inertDocument = document.implementation.createHTMLDocument('');
+  const tempDiv = inertDocument.body;
+  tempDiv.innerHTML = sanitized;
 
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = resolvedHtml;
+  resolveInlineCidImages(tempDiv, attachments);
 
   // Remove avatar images entirely - they're small profile pics that look bad when expanded
   const avatarImages = tempDiv.querySelectorAll('img[src*="avatars.githubusercontent.com"]');

@@ -26,6 +26,7 @@ import { OAuthClientRegistryService } from "./oauth-client-registry.service";
 import { OAuthError } from "./oauth-error";
 import { buildAuthorizationRedirect, readSingleParam } from "./oauth-params";
 import {
+  canRequestDrafts,
   ConsentScopeChoices,
   parseRequestedScopes,
   resolveGrantedScopes,
@@ -47,6 +48,7 @@ export interface ConsentRequestView {
   redirectHost: string;
   /** Any local process can claim a loopback redirect, so the page warns. */
   isLoopbackRedirect: boolean;
+  canRequestDrafts: boolean;
   canRequestSend: boolean;
   canRequestSettingsWrite: boolean;
   expiresAt: Date;
@@ -156,6 +158,7 @@ export class OAuthAuthorizationService {
       clientHost: isMetadataClient ? new URL(row.clientId).hostname : null,
       redirectHost: redirectUriHost(row.redirectUri),
       isLoopbackRedirect: isLoopbackRedirectUri(row.redirectUri),
+      canRequestDrafts: canRequestDrafts(row.requestedScopes),
       canRequestSend: row.requestedScopes.includes(PAT_SCOPES.MAIL_SEND),
       canRequestSettingsWrite: row.requestedScopes.includes(
         PAT_SCOPES.SETTINGS_WRITE,

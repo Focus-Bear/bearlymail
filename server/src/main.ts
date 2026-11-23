@@ -1,9 +1,15 @@
-import { Logger, LogLevel, ValidationPipe } from "@nestjs/common";
+import {
+  INestApplication,
+  Logger,
+  LogLevel,
+  ValidationPipe,
+} from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
 import { BOOLEAN_STRING_VALUES } from "./constants/domain-types";
 import { HTTP_HEADERS } from "./constants/http-headers";
+import { MCP_SERVER } from "./constants/mcp-server.constants";
 import bootstrapDataSource from "./data-source";
 import {
   verifyEncryptionRoundTrip,
@@ -14,6 +20,7 @@ import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { AllExceptionsFilter } from "./filters/http-exception.filter";
 import { setPromptsLogger } from "./llm/prompts";
+import { mcpJsonBodyParser } from "./mcp-server/mcp-body-parser.middleware";
 import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
 import { applyLoadBalancerKeepAlive } from "./utils/http-server-timeouts";
 import { logError, logLog, logWarn } from "./utils/logger";
@@ -34,6 +41,16 @@ initializeGlobalErrorTracking();
 
 // Set up global error handlers for unhandled rejections and exceptions
 setupGlobalErrorHandlers("Server");
+
+/**
+ * Middleware that must run before Nest registers its own body parser at
+ * init: security headers (CASA Tier 2/3 compliance) and the larger JSON limit
+ * `/mcp` needs for base64 draft attachments.
+ */
+function applyEarlyMiddleware(app: INestApplication): void {
+  app.use(securityHeadersMiddleware);
+  app.use(`/${MCP_SERVER.ROUTE}`, mcpJsonBodyParser);
+}
 
 async function bootstrap() {
   setPromptsLogger({ log: logLog, warn: logWarn, error: logError });
@@ -75,8 +92,7 @@ async function bootstrap() {
 
     applyTrustProxy(app);
 
-    // Security headers middleware (CASA Tier 2/3 compliance)
-    app.use(securityHeadersMiddleware);
+    applyEarlyMiddleware(app);
 
     // Enable CORS for frontend (allow dev + production origins)
     const allowedOrigins = [

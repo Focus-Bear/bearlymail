@@ -144,18 +144,36 @@ describe('ClaudeAccessSection', () => {
     expect(screen.queryByTestId('new-access-token-panel')).not.toBeInTheDocument();
   });
 
-  it('adds the send scope when sending is allowed', async () => {
+  it('adds the draft and send scopes when sending is allowed', async () => {
     mockPosts({ data: { token: 'bm_pat_X', summary: EXISTING_TOKEN } });
     render(<ClaudeAccessSection />);
     await screen.findByText('Laptop');
 
     fireEvent.click(screen.getByTestId('access-token-can-send'));
+    expect(screen.getByTestId('access-token-can-draft')).toBeChecked();
     fireEvent.submit(screen.getByTestId('access-token-create-form'));
 
     await waitFor(() =>
       expect(axios.post).toHaveBeenCalledWith(
         TOKENS_URL,
-        expect.objectContaining({ scopes: ['mail:read', 'mail:send'] }),
+        expect.objectContaining({ scopes: ['mail:read', 'mail:draft', 'mail:send'] }),
+        STEP_UP_HEADERS
+      )
+    );
+  });
+
+  it('adds only the draft scope when drafting is allowed without sending', async () => {
+    mockPosts({ data: { token: 'bm_pat_X', summary: EXISTING_TOKEN } });
+    render(<ClaudeAccessSection />);
+    await screen.findByText('Laptop');
+
+    fireEvent.click(screen.getByTestId('access-token-can-draft'));
+    fireEvent.submit(screen.getByTestId('access-token-create-form'));
+
+    await waitFor(() =>
+      expect(axios.post).toHaveBeenCalledWith(
+        TOKENS_URL,
+        expect.objectContaining({ scopes: ['mail:read', 'mail:draft'] }),
         STEP_UP_HEADERS
       )
     );

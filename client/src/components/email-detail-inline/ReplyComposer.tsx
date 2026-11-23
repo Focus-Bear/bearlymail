@@ -73,6 +73,8 @@ interface ReplyComposerProps {
   toneCheckResult: ToneCheckResultData | null;
   sending: boolean;
   initialAttachments?: EmailAttachment[];
+  /** Files saved with a restored draft; they replace the composer's files when they arrive. */
+  restoredFiles?: File[];
   debugInfo?: ReplyGenerationDebugInfo | null;
   currentEmailId?: string;
   currentEmailObjectId?: string;
@@ -175,12 +177,14 @@ interface ReplyComposerStateParams
     | 'onTrackOpensChange'
   > {
   initialAttachments: EmailAttachment[];
+  restoredFiles?: File[];
   /** Account-level open-tracking default the per-message toggle starts from. */
   isTrackingOpensByDefault: boolean;
 }
 
 const useReplyComposerState = ({
   initialAttachments,
+  restoredFiles,
   isTrackingOpensByDefault,
   onClose,
   onSend,
@@ -204,6 +208,12 @@ const useReplyComposerState = ({
       setForwardAttachmentIds(initialAttachments.map(attachment => attachment.attachmentId));
     }
   }, [initialAttachments]);
+
+  useEffect(() => {
+    if (restoredFiles?.length) {
+      setFiles(restoredFiles);
+    }
+  }, [restoredFiles]);
 
   // Keep parent refs in sync so the auto-send countdown handler can read current attachments
   useEffect(() => {
@@ -567,6 +577,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   toneCheckResult,
   sending,
   initialAttachments,
+  restoredFiles,
   debugInfo,
   currentEmailId,
   currentEmailObjectId,
@@ -622,6 +633,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     handleUseRevisedText,
   } = useReplyComposerState({
     initialAttachments: attachments,
+    restoredFiles,
     isTrackingOpensByDefault: user?.trackEmailOpens !== false,
     onClose,
     onSend,

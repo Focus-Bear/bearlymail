@@ -3,7 +3,9 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
   Request,
   UseGuards,
@@ -20,6 +22,16 @@ export class DraftsController {
   @Get("thread/:threadId")
   async getDraftByThread(@Request() req, @Param("threadId") threadId: string) {
     return this.draftsService.getDraftByThread(req.user.userId, threadId);
+  }
+
+  /** One draft by id, with attachments; Compose opens new-message drafts this way. */
+  @Get(":id")
+  async getDraftById(@Request() req, @Param("id", ParseUUIDPipe) id: string) {
+    const draft = await this.draftsService.getDraftById(req.user.userId, id);
+    if (!draft) {
+      throw new NotFoundException("Draft not found");
+    }
+    return draft;
   }
 
   @Post("thread/:threadId")

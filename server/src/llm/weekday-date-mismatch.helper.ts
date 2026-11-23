@@ -4,6 +4,7 @@
  * LLM tone check misses these (it does not do calendar arithmetic reliably),
  * and a wrong day in a meeting proposal is exactly the kind of slip that
  * causes a missed call, so this runs on every send regardless of tone rules.
+ * Reads English and Spanish ("martes 7 de diciembre") dates.
  */
 
 const WEEKDAY_NAMES = [
@@ -81,6 +82,54 @@ const MONTH_LOOKUP: Record<string, number> = {
   dec: 11,
 };
 
+/** Spanish spellings, accents removed (see `foldAccents`) → weekday index, Sunday = 0. */
+const SPANISH_WEEKDAY_LOOKUP: Record<string, number> = {
+  domingo: 0,
+  dom: 0,
+  lunes: 1,
+  lun: 1,
+  martes: 2,
+  mar: 2,
+  miercoles: 3,
+  mie: 3,
+  jueves: 4,
+  jue: 4,
+  viernes: 5,
+  vie: 5,
+  sabado: 6,
+  sab: 6,
+};
+
+/** Spanish spellings → month index, January = 0. Spanish writes months in lower case. */
+const SPANISH_MONTH_LOOKUP: Record<string, number> = {
+  enero: 0,
+  ene: 0,
+  febrero: 1,
+  feb: 1,
+  marzo: 2,
+  mar: 2,
+  abril: 3,
+  abr: 3,
+  mayo: 4,
+  may: 4,
+  junio: 5,
+  jun: 5,
+  julio: 6,
+  jul: 6,
+  agosto: 7,
+  ago: 7,
+  septiembre: 8,
+  setiembre: 8,
+  sept: 8,
+  sep: 8,
+  octubre: 9,
+  oct: 9,
+  noviembre: 10,
+  nov: 10,
+  diciembre: 11,
+  dic: 11,
+};
+
 const WEEKDAY_PATTERN =
   "(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tues|tue|weds|wed|thurs|thur|thu|fri|sat)\\.?";
 const MONTH_PATTERN =
@@ -98,6 +147,34 @@ const MONTH_FIRST = new RegExp(
   `\\b${WEEKDAY_PATTERN},?\\s+${MONTH_PATTERN}\\s+${DAY_PATTERN}${YEAR_PATTERN}\\b`,
   "gi",
 );
+
+const SPANISH_WEEKDAY_PATTERN =
+  "(domingo|lunes|martes|mi[ée]rcoles|jueves|viernes|s[áa]bado|dom|lun|mar|mi[ée]|jue|vie|s[áa]b)\\.?";
+const SPANISH_MONTH_PATTERN =
+  "(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sept|sep|oct|nov|dic)\\.?";
+const SPANISH_YEAR_PATTERN = "(?:,?\\s+(?:del?\\s+)?((?:19|20)\\d{2}))?";
+
+/** "martes 7 de diciembre", "mié, 9 dic", "martes 7 de diciembre de 2026" */
+const SPANISH_DAY_FIRST = new RegExp(
+  `(?<![\\p{L}\\p{N}])${SPANISH_WEEKDAY_PATTERN},?\\s+${DAY_PATTERN}\\s+(?:de\\s+)?${SPANISH_MONTH_PATTERN}${SPANISH_YEAR_PATTERN}(?![\\p{L}\\p{N}])`,
+  "giu",
+);
+
+/**
+ * "may" is also an everyday English word ("Friday 5 may work"), so in English
+ * text it counts as the month only when written with a capital, as months are.
+ */
+function isLowercaseMay(monthToken: string): boolean {
+  return monthToken.replace(/\.$/, "") === "may";
+}
+
+/** "miércoles" → "miercoles", so lookups don't depend on accents being typed. */
+function foldAccents(word: string): string {
+  return word
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
 
 const MS_PER_DAY = 86_400_000;
 /** How far either side of the written date to look for the written weekday. */
@@ -160,6 +237,7 @@ function resolveYear(day: number, month: number, reference: Date): number {
 function collectWrittenDates(text: string): WrittenDate[] {
   const found: WrittenDate[] = [];
   for (const match of text.matchAll(DAY_FIRST)) {
+    if (isLowercaseMay(match[3])) continue;
     found.push({
       phrase: match[0],
       weekday: WEEKDAY_LOOKUP[match[1].toLowerCase()],
@@ -169,11 +247,21 @@ function collectWrittenDates(text: string): WrittenDate[] {
     });
   }
   for (const match of text.matchAll(MONTH_FIRST)) {
+    if (isLowercaseMay(match[2])) continue;
     found.push({
       phrase: match[0],
       weekday: WEEKDAY_LOOKUP[match[1].toLowerCase()],
       month: MONTH_LOOKUP[match[2].toLowerCase()],
       day: Number(match[3]),
+      year: match[4] ? Number(match[4]) : null,
+    });
+  }
+  for (const match of text.matchAll(SPANISH_DAY_FIRST)) {
+    found.push({
+      phrase: match[0],
+      weekday: SPANISH_WEEKDAY_LOOKUP[foldAccents(match[1])],
+      day: Number(match[2]),
+      month: SPANISH_MONTH_LOOKUP[foldAccents(match[3])],
       year: match[4] ? Number(match[4]) : null,
     });
   }

@@ -90,6 +90,53 @@ describe("findWeekdayDateMismatch", () => {
     ).toContain("is a Monday");
   });
 
+  it("reads lowercase 'may' as the word, not the month", () => {
+    // Read as a date, 5 May (2027) is a Wednesday and this would be flagged.
+    expect(
+      findWeekdayDateMismatch("Friday 5 may work for you?", NOV_20_2026),
+    ).toBeNull();
+    expect(findWeekdayDateMismatch("Friday 5 May", NOV_20_2026)).toContain(
+      "is a Wednesday",
+    );
+    expect(findWeekdayDateMismatch("Friday, may 5", NOV_20_2026)).toBeNull();
+  });
+
+  it("flags a Spanish weekday that does not match the date", () => {
+    expect(
+      findWeekdayDateMismatch(
+        "<p>¿Te va bien el martes 7 de diciembre?</p>",
+        NOV_20_2026,
+      ),
+    ).toBe(
+      '"martes 7 de diciembre" — 7 December 2026 is a Monday. Did you mean Monday 7 December or Tuesday 8 December?',
+    );
+  });
+
+  it.each([
+    "martes 8 de diciembre",
+    "Martes, 8 de diciembre de 2026",
+    "mar 8 dic",
+    "miércoles 9 de diciembre",
+    "miercoles 9 de diciembre",
+    "Mié. 9 dic.",
+    "jueves 10 de diciembre del 2026",
+    "SÁBADO 12 DE DICIEMBRE",
+  ])("understands the Spanish %s format", (phrase) => {
+    expect(findWeekdayDateMismatch(phrase, NOV_20_2026)).toBeNull();
+  });
+
+  it("flags a Spanish day that does not exist in the month", () => {
+    expect(
+      findWeekdayDateMismatch("el lunes 31 de noviembre", NOV_20_2026),
+    ).toBe('"lunes 31 de noviembre" — November 2026 only has 30 days.');
+  });
+
+  it("does not read Spanish words inside other words", () => {
+    expect(
+      findWeekdayDateMismatch("Pasamar 7 de diciembre", NOV_20_2026),
+    ).toBeNull();
+  });
+
   it("stays fast on pathological input", () => {
     const start = Date.now();
     findWeekdayDateMismatch("<".repeat(50_000) + " Tuesday ".repeat(5_000));

@@ -6,6 +6,7 @@ import { ReplyFooterSendRequest, ReplySendOptions } from 'types/replySend';
 import { SignaturePreview } from 'components/compose/SignaturePreview';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
+import { DateMismatchBanner } from 'components/email-detail-inline/DateMismatchBanner';
 import { RecipientMismatchBanner } from 'components/email-detail-inline/RecipientMismatchBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ReplyComposerDebugPanel } from 'components/email-detail-inline/ReplyComposerDebugPanel';
@@ -41,6 +42,7 @@ interface ToneCheckResultData {
   inappropriateTiming?: string | null;
   recipientMismatch?: string | null;
   calendarWarning?: string | null;
+  dateMismatch?: string | null;
 }
 interface DisputeResult {
   accepted: boolean;
@@ -521,6 +523,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
     <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
     <RecipientMismatchBanner recipientMismatch={toneCheckResult?.recipientMismatch} />
     <CalendarConflictBanner calendarWarning={toneCheckResult?.calendarWarning} />
+    <DateMismatchBanner dateMismatch={toneCheckResult?.dateMismatch} />
     <ToneCheckResult
       toneCheckResult={toneCheckResult}
       onUseRevisedText={onUseRevisedText}

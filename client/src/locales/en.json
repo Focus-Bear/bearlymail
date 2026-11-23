@@ -704,6 +704,7 @@
     "inappropriateTiming": "Timing note:",
     "calendarConflictLabel": "Calendar check:",
     "recipientMismatchLabel": "Recipient check:",
+    "dateMismatchLabel": "Date check:",
     "checkTone": "Check Tone",
     "checking": "Checking...",
     "sendReply": "Send Reply",

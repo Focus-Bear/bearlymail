@@ -394,11 +394,7 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
         isPendingCategory={isPendingCategory}
         t={t}
       />
-      {hasActions && (
-        <div style={categoryHeaderActionsStyle}>
-          {actions}
-        </div>
-      )}
+      {hasActions && <div style={categoryHeaderActionsStyle}>{actions}</div>}
     </div>
   );
 };
@@ -419,10 +415,10 @@ const CategoryAccordionContent: React.FC<CategoryAccordionContentProps> = ({
 }) => (
   <div
     style={{
-      padding: theme.spacing.md,
+      padding: `${theme.spacing.xs} 0`,
       display: 'flex',
       flexDirection: 'column',
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
       minWidth: 0,
       // Subtle amber left-border pulse when fetch is approaching budget (UX signal only, no alarm).
       borderLeft: isNearBudget && isLoadingContent ? `3px solid ${theme.colors.accent.warning}` : 'none',
@@ -593,7 +589,6 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
       style={{
         marginBottom: theme.spacing.md,
         borderRadius: theme.borderRadius.lg,
-        border: `1px solid ${theme.colors.border.light}`,
         backgroundColor: theme.colors.background.paper,
       }}
     >

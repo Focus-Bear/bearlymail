@@ -8,8 +8,8 @@ const REFRESH_TOKEN_COLUMN = "focusBearRefreshToken";
  * Focus Bear is now connected by signing in (OAuth), not by pasting an access token. The pasted
  * tokens can't be turned into a sign-in, so they are dropped and those users connect again.
  */
-export class ReplaceFocusBearApiTokenWithRefreshToken1798100000000 implements MigrationInterface {
-  name = "ReplaceFocusBearApiTokenWithRefreshToken1798100000000";
+export class ReplaceFocusBearApiTokenWithRefreshToken1798300000000 implements MigrationInterface {
+  name = "ReplaceFocusBearApiTokenWithRefreshToken1798300000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await this.replaceColumn(

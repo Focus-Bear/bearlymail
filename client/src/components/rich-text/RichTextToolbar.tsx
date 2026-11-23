@@ -295,16 +295,14 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
   return (
     <div
       style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: '2px',
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
         borderBottom: `1px solid ${theme.colors.border.light}`,
         backgroundColor: theme.colors.background.paper,
         position: 'relative',
       }}
     >
+      {/* On a phone this row scrolls sideways instead of wrapping onto three lines (App.css). */}
+      <div className="rich-text-toolbar-buttons" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px' }}>
       <ToolbarFormattingSection editor={editor} handlers={handlers} disabled={disabled} />
       <ToolbarAlignSection editor={editor} handlers={handlers} disabled={disabled} />
       <ToolbarButton
@@ -331,6 +329,7 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
       <ToolbarButton onClick={handlers.clearFormatting} disabled={disabled} title={t('compose.toolbar.clearFormatting')}>
         <span style={{ fontSize: '11px' }}>{ICON_CLEAR_FORMATTING}</span>
       </ToolbarButton>
+      </div>
       <LinkPopup
         showLinkInput={showLinkInput}
         linkUrl={linkUrl}

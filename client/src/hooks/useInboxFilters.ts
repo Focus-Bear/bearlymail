@@ -13,6 +13,7 @@ import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 import { InboxMode } from 'types/email';
 
 import { API_URL } from 'config/api';
+import { BREAKPOINT_TABLET } from 'constants/numbers';
 import { PRIORITY_BUCKET_DEFS, PRIORITY_BUCKET_RANGES } from 'constants/priorityBuckets';
 import { MODE_TRIAGE } from 'constants/strings';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
@@ -259,12 +260,27 @@ function loadInitialFilters(): InboxFilter {
   };
 }
 
-/** The filter panel starts open on a first visit; afterwards it remembers the user's choice. */
+/**
+ * On a phone the open panel fills about half the first screen and pushes the
+ * emails below the fold, so it only starts open on wider screens.
+ */
+function isPhoneWidth(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth < BREAKPOINT_TABLET;
+}
+
+/**
+ * The filter panel starts open on a first visit (closed on a phone); afterwards
+ * it remembers the user's choice.
+ */
 function loadInitialFilterBarVisible(): boolean {
   try {
-    return localStorage.getItem(FILTER_BAR_VISIBLE_KEY) !== STORED_FALSE;
+    const stored = localStorage.getItem(FILTER_BAR_VISIBLE_KEY);
+    if (stored === null) {
+      return !isPhoneWidth();
+    }
+    return stored !== STORED_FALSE;
   } catch {
-    return true;
+    return !isPhoneWidth();
   }
 }
 

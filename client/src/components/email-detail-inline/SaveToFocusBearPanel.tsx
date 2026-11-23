@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import type { FocusBearTaskSuggestions } from 'queries/useFocusBear';
 import { theme } from 'theme/theme';
-import { DUE_DATE_STATUS, resolveFocusBearDueDate } from 'utils/focusBearDueDate';
+import { DUE_DATE_STATUS, type FocusBearDueDate, localDayKey, resolveFocusBearDueDate } from 'utils/focusBearDueDate';
 import { parseTaskDurationMinutes } from 'utils/taskDuration';
 
 import {
@@ -182,14 +182,27 @@ function useDismissOnOutsideInteraction(
   }, [panelRef, anchor, onClose]);
 }
 
-/** The due-date toggle and the custom day typed under it; "Next free spot" sends no day. */
+/** The `YYYY-MM-DD` day a mode saves with; "Next free spot" sends none, so Focus Bear picks the day. */
+function dueDayFor(mode: DueDateMode, customDueDate: FocusBearDueDate, now: Date): string | undefined {
+  switch (mode) {
+    case DUE_DATE_MODE.TODAY:
+      return localDayKey(now);
+    case DUE_DATE_MODE.CUSTOM:
+      return customDueDate.status === DUE_DATE_STATUS.VALID ? customDueDate.day : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/** The due-date toggle and the custom day typed under it. */
 function useDueDateChoice(locale: string) {
   const [mode, setMode] = useState<DueDateMode>(DUE_DATE_MODE.NEXT_FREE);
   const [customText, setCustomText] = useState('');
-  const customDueDate = resolveFocusBearDueDate(customText, new Date(), locale);
-  const isCustom = mode === DUE_DATE_MODE.CUSTOM;
-  const dueDate = isCustom && customDueDate.status === DUE_DATE_STATUS.VALID ? customDueDate.day : undefined;
-  return { mode, setMode, customText, setCustomText, customDueDate, dueDate, isReady: !isCustom || Boolean(dueDate) };
+  const now = new Date();
+  const customDueDate = resolveFocusBearDueDate(customText, now, locale);
+  const dueDate = dueDayFor(mode, customDueDate, now);
+  const isReady = mode !== DUE_DATE_MODE.CUSTOM || Boolean(dueDate);
+  return { mode, setMode, customText, setCustomText, customDueDate, dueDate, isReady };
 }
 
 function useDurationChoice() {
@@ -236,7 +249,7 @@ const ConnectFocusBearHint: React.FC = () => {
 
 /**
  * "Save task in Focus Bear": asks for the due date (the next free spot in the user's to-do list,
- * or a day typed snooze-style), how long the task takes, and, with Focus Bear connected, the
+ * today, or a day typed snooze-style), how long the task takes, and, with Focus Bear connected, the
  * project, pre-selected to Focus Bear's suggestion and marked "Suggested". Saving opens the
  * focusbear://create-task link; Enter saves and Escape cancels.
  */

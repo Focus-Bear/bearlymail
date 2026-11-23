@@ -405,6 +405,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       />
       <EditorContent
         editor={editor}
+        className="rich-text-content"
         style={{
           minHeight,
           padding: theme.spacing.lg,

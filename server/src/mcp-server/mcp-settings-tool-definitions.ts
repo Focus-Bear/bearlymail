@@ -8,7 +8,13 @@ import {
   MCP_TOOL_NAMES,
 } from "../constants/mcp-server.constants";
 import { PAT_SCOPES } from "../constants/personal-access-tokens.constants";
-import { McpToolSpec, READ_ONLY_ANNOTATIONS } from "./mcp-tool-spec.types";
+import {
+  McpToolSpec,
+  READ_ONLY_ANNOTATIONS,
+  READ_SCOPES,
+} from "./mcp-tool-spec.types";
+
+const SETTINGS_WRITE_SCOPES = [PAT_SCOPES.SETTINGS_WRITE] as const;
 
 /** Adds a category or rule; changes nothing that already exists. */
 const ADDITIVE_ANNOTATIONS = {
@@ -178,7 +184,7 @@ const CATEGORY_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "List email categories", ...READ_ONLY_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_READ,
+    allowedScopes: READ_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.GET_CATEGORY,
@@ -193,7 +199,7 @@ const CATEGORY_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Read email category", ...READ_ONLY_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_READ,
+    allowedScopes: READ_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.CREATE_CATEGORY,
@@ -208,7 +214,7 @@ const CATEGORY_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Create email category", ...ADDITIVE_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.SETTINGS_WRITE,
+    allowedScopes: SETTINGS_WRITE_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.UPDATE_CATEGORY,
@@ -230,7 +236,7 @@ const CATEGORY_TOOL_SPECS: readonly McpToolSpec[] = [
       title: "Rename or describe email category",
       ...DESTRUCTIVE_ANNOTATIONS,
     },
-    requiredScope: PAT_SCOPES.SETTINGS_WRITE,
+    allowedScopes: SETTINGS_WRITE_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.DELETE_CATEGORY,
@@ -245,7 +251,7 @@ const CATEGORY_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Delete email category", ...DESTRUCTIVE_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.SETTINGS_WRITE,
+    allowedScopes: SETTINGS_WRITE_SCOPES,
   },
 ];
 
@@ -274,7 +280,7 @@ const RULE_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "List category rules", ...READ_ONLY_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_READ,
+    allowedScopes: READ_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.GET_RULE,
@@ -287,7 +293,7 @@ const RULE_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Read category rule", ...READ_ONLY_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.MAIL_READ,
+    allowedScopes: READ_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.CREATE_RULE,
@@ -308,7 +314,7 @@ const RULE_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Create category rule", ...ADDITIVE_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.SETTINGS_WRITE,
+    allowedScopes: SETTINGS_WRITE_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.UPDATE_RULE,
@@ -330,7 +336,7 @@ const RULE_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Edit category rule", ...DESTRUCTIVE_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.SETTINGS_WRITE,
+    allowedScopes: SETTINGS_WRITE_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.SET_RULES_ENABLED,
@@ -352,7 +358,7 @@ const RULE_TOOL_SPECS: readonly McpToolSpec[] = [
       title: "Enable or disable rules",
       ...DESTRUCTIVE_ANNOTATIONS,
     },
-    requiredScope: PAT_SCOPES.SETTINGS_WRITE,
+    allowedScopes: SETTINGS_WRITE_SCOPES,
   },
   {
     name: MCP_TOOL_NAMES.DELETE_RULES,
@@ -367,7 +373,7 @@ const RULE_TOOL_SPECS: readonly McpToolSpec[] = [
       additionalProperties: false,
     },
     annotations: { title: "Delete rules", ...DESTRUCTIVE_ANNOTATIONS },
-    requiredScope: PAT_SCOPES.SETTINGS_WRITE,
+    allowedScopes: SETTINGS_WRITE_SCOPES,
   },
 ];
 

@@ -139,7 +139,9 @@ export const PriorityInlineSelector: React.FC<PriorityInlineSelectorProps> = ({
   );
 
   const captionEl = (
-    <span style={{ fontSize: '11.5px', color: theme.colors.text.tertiary, lineHeight: 1.4 }}>{caption}</span>
+    <span className="email-priority-caption" style={{ fontSize: '11.5px', color: theme.colors.text.tertiary, lineHeight: 1.4 }}>
+      {caption}
+    </span>
   );
 
   if (inlineLabel) {

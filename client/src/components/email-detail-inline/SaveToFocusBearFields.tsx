@@ -7,6 +7,7 @@ import { MAX_TASK_DURATION_MINUTES, splitIntoHoursAndMinutes } from 'utils/taskD
 
 export const DUE_DATE_MODE = {
   NEXT_FREE: 'nextFree',
+  TODAY: 'today',
   CUSTOM: 'custom',
 } as const;
 
@@ -59,7 +60,7 @@ const modeToggleStyle: React.CSSProperties = {
   overflow: 'hidden',
 };
 
-// "Custom" takes only the room its word needs, so the longer option wraps between words rather than inside "to-do".
+// "Today" and "Custom" take only the room their word needs, so the longer option wraps between words rather than inside "to-do".
 function modeOptionStyle(isSelected: boolean, isCompact: boolean): React.CSSProperties {
   return {
     flex: isCompact ? '0 0 auto' : 1,
@@ -129,6 +130,11 @@ const CustomDueStatus: React.FC<{ id: string; dueDate: FocusBearDueDate }> = ({ 
   }
 };
 
+const TodayHint: React.FC = () => {
+  const { t } = useTranslation();
+  return <div style={helperTextStyle}>{t('emailDetail.focusBearTodayHint')}</div>;
+};
+
 /** The hint under "Next free spot": the day Focus Bear has free, once it has said. */
 const NextFreeHint: React.FC<{ suggestedDay: string | null }> = ({ suggestedDay }) => {
   const { t, i18n } = useTranslation();
@@ -153,8 +159,8 @@ interface DueDateFieldProps {
 }
 
 /**
- * Due date: "Next free spot in my to-do list" (Focus Bear picks the day) or a custom day typed snooze-style.
- * Native radios, so arrow keys move between the two and screen readers announce a choice of two.
+ * Due date: "Next free spot in my to-do list" (Focus Bear picks the day), today, or a custom day typed
+ * snooze-style. Native radios, so arrow keys move between the options and screen readers announce the choice.
  */
 export const DueDateField: React.FC<DueDateFieldProps> = ({
   mode,
@@ -170,6 +176,7 @@ export const DueDateField: React.FC<DueDateFieldProps> = ({
   const statusId = useId();
   const options = [
     { value: DUE_DATE_MODE.NEXT_FREE, label: t('emailDetail.focusBearDueDateNextFree') },
+    { value: DUE_DATE_MODE.TODAY, label: t('emailDetail.focusBearDueDateToday') },
     { value: DUE_DATE_MODE.CUSTOM, label: t('emailDetail.focusBearDueDateCustom') },
   ];
   const isCustomInvalid =
@@ -184,7 +191,7 @@ export const DueDateField: React.FC<DueDateFieldProps> = ({
         {options.map(option => (
           <label
             key={option.value}
-            style={modeOptionStyle(mode === option.value, option.value === DUE_DATE_MODE.CUSTOM)}
+            style={modeOptionStyle(mode === option.value, option.value !== DUE_DATE_MODE.NEXT_FREE)}
           >
             <input
               ref={mode === option.value ? selectedModeRef : undefined}
@@ -199,9 +206,9 @@ export const DueDateField: React.FC<DueDateFieldProps> = ({
           </label>
         ))}
       </div>
-      {mode === DUE_DATE_MODE.NEXT_FREE ? (
-        <NextFreeHint suggestedDay={suggestedDay} />
-      ) : (
+      {mode === DUE_DATE_MODE.NEXT_FREE && <NextFreeHint suggestedDay={suggestedDay} />}
+      {mode === DUE_DATE_MODE.TODAY && <TodayHint />}
+      {mode === DUE_DATE_MODE.CUSTOM && (
         <>
           <input
             type="text"

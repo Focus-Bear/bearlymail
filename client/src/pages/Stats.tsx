@@ -243,9 +243,9 @@ interface StatsPeriodSelectorProps {
 const StatsPeriodSelector: React.FC<StatsPeriodSelectorProps> = ({ days, setDays }) => {
   const { t } = useTranslation();
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing.md }}>
       <StatsDateRangeLabel days={days} />
-      <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.xs }}>
         {PERIOD_OPTIONS.map(option => (
           <button
             key={option}
@@ -293,7 +293,14 @@ const StatsBodyContent: React.FC<StatsBodyContentProps> = ({
 }) => (
   <>
     <div
-      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.xl }}
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: theme.spacing.sm,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.xl,
+      }}
     >
       <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>
         {t('stats.title')}

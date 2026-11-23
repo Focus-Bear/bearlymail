@@ -36,6 +36,7 @@ import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/
 import { EMAIL_FIELD_CC, EMAIL_FIELD_TO } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
+import { useComposeDraft } from 'hooks/useComposeDraft';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
@@ -88,6 +89,9 @@ const Compose: React.FC = () => {
     setSubject(restored.subject);
     setBody(restored.body);
   }, [setTo, setCc, setBcc, setSubject, setBody]);
+
+  const handleDraftLoadFailed = useCallback(() => setError(t('compose.errorDraftLoadFailed')), [t]);
+  const { discardSentDraft } = useComposeDraft(form, handleDraftLoadFailed);
 
   useEffect(() => {
     const fetchFrequent = async () => {
@@ -213,6 +217,7 @@ const Compose: React.FC = () => {
       if (sendId) {
         rememberPendingSend({ sendId, kind: PENDING_SEND_KIND.COMPOSE, ...composed });
       }
+      void discardSentDraft();
       setSendSuccess(true);
       if (scheduledSendAt) {
         // Surface where scheduled emails live (inbox ⋮ menu) on next inbox view.
@@ -339,7 +344,9 @@ const Compose: React.FC = () => {
           backgroundColor: theme.colors.background.paper,
           borderRadius: theme.borderRadius.lg,
           boxShadow: theme.shadows.lg,
-          overflow: 'hidden',
+          // clip (not hidden) rounds the corners without making this card a scroll
+          // container, so the Send row can stay pinned to the screen bottom on phones.
+          overflow: 'clip',
         }}
       >
         <div

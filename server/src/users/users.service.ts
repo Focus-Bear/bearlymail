@@ -360,12 +360,12 @@ export class UsersService {
   }
 
   /**
-   * Selects id + focusBearApiToken only, for the Focus Bear task suggestions.
+   * Selects id + focusBearRefreshToken only, for the Focus Bear task suggestions.
    */
   async findOneWithFocusBearToken(id: string): Promise<User | null> {
     return this.userRepository
       .createQueryBuilder("user")
-      .select(["user.id", "user.focusBearApiToken"])
+      .select(["user.id", "user.focusBearRefreshToken"])
       .where("user.id = :id", { id })
       .getOne();
   }

@@ -1,22 +1,24 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 import { PROMISE_STATUS } from "../constants/domain-statuses";
-import { FOCUS_BEAR_REJECTED_TOKEN_STATUSES } from "../constants/focus-bear.constants";
+import {
+  FOCUS_BEAR_OAUTH,
+  FOCUS_BEAR_OAUTH_INVALID_GRANT,
+  FOCUS_BEAR_REJECTED_TOKEN_STATUSES,
+} from "../constants/focus-bear.constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import {
   FocusBearApiError,
   FocusBearNextFreeDateResponse,
+  FocusBearOAuthError,
   FocusBearProjectSuggestionResponse,
   FocusBearTaskSuggestions,
   FocusBearTaskToFile,
+  FocusBearTokens,
 } from "./focus-bear.types";
 import { FocusBearApiService } from "./focus-bear-api.service";
-
-const TOKEN_REJECTED_MESSAGE =
-  "Focus Bear didn't accept that token. Create one with the tasks:read scope in Focus Bear and paste it again.";
-const FOCUS_BEAR_UNREACHABLE_MESSAGE =
-  "Couldn't reach Focus Bear to check the token. Try again in a moment.";
+import { FocusBearOAuthClient } from "./focus-bear-oauth.client";
 
 const NOT_CONNECTED: FocusBearTaskSuggestions = {
   connected: false,
@@ -29,41 +31,66 @@ const isRejectedToken = (reason: unknown): boolean =>
   reason instanceof FocusBearApiError &&
   FOCUS_BEAR_REJECTED_TOKEN_STATUSES.includes(reason.status);
 
+const isDeadGrant = (reason: unknown): boolean =>
+  reason instanceof FocusBearOAuthError &&
+  reason.code === FOCUS_BEAR_OAUTH_INVALID_GRANT;
+
+type CachedAccessToken = Pick<FocusBearTokens, "accessToken" | "expiresAt">;
+
 /**
- * The user's Focus Bear connection: an access token they create in Focus Bear and
- * paste here, stored encrypted, used only to ask Focus Bear which project and day a
- * task saved from an email should get.
+ * The user's Focus Bear connection: they sign in to Focus Bear and consent, and BearlyMail
+ * keeps the refresh token (encrypted) to ask Focus Bear which project and day a task saved
+ * from an email should get.
  */
 @Injectable()
 export class FocusBearService {
   private readonly logger = new Logger(FocusBearService.name);
+  /** Access tokens live 15 minutes, so they are kept in memory and never stored. */
+  private readonly accessTokens = new Map<string, CachedAccessToken>();
+  /**
+   * A refresh rotates the refresh token, so two at once for one user would leave one of them
+   * holding a dead token. Concurrent callers share the refresh already under way.
+   */
+  private readonly refreshesInFlight = new Map<
+    string,
+    Promise<string | null>
+  >();
 
   constructor(
     private readonly usersService: UsersService,
     private readonly focusBearApi: FocusBearApiService,
+    private readonly oauthClient: FocusBearOAuthClient,
   ) {}
 
   async isConnected(userId: string): Promise<boolean> {
-    return (await this.loadToken(userId)) !== null;
+    return (await this.loadRefreshToken(userId)) !== null;
   }
 
-  /** Checks the token against Focus Bear before storing it, so a typo fails here, not on every save. */
-  async connect(userId: string, rawToken: string): Promise<void> {
-    const token = rawToken.trim();
-    try {
-      await this.focusBearApi.nextFreeDate(token);
-    } catch (error) {
-      throw new BadRequestException(
-        isRejectedToken(error)
-          ? TOKEN_REJECTED_MESSAGE
-          : FOCUS_BEAR_UNREACHABLE_MESSAGE,
-      );
-    }
-    await this.usersService.update(userId, { focusBearApiToken: token });
+  /** Finishes the sign-in: trades the authorization code for tokens and keeps the refresh token. */
+  async completeConnection(
+    userId: string,
+    code: string,
+    codeVerifier: string,
+  ): Promise<void> {
+    const tokens = await this.oauthClient.exchangeCode(code, codeVerifier);
+    await this.storeTokens(userId, tokens);
   }
 
   async disconnect(userId: string): Promise<void> {
-    await this.usersService.update(userId, { focusBearApiToken: null });
+    const refreshToken = await this.loadRefreshToken(userId);
+    this.accessTokens.delete(userId);
+    await this.usersService.update(userId, { focusBearRefreshToken: null });
+    if (!refreshToken) {
+      return;
+    }
+    try {
+      await this.oauthClient.revoke(refreshToken);
+    } catch (error) {
+      // The token is already gone from here, which is what the user asked for.
+      this.logger.warn(
+        `Focus Bear grant not revoked: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /**
@@ -74,7 +101,7 @@ export class FocusBearService {
     userId: string,
     task: FocusBearTaskToFile,
   ): Promise<FocusBearTaskSuggestions> {
-    const token = await this.loadToken(userId);
+    const token = await this.getAccessToken(userId);
     if (!token) {
       return NOT_CONNECTED;
     }
@@ -86,6 +113,7 @@ export class FocusBearService {
       isRejectedToken(this.reasonOf(projectResult)) &&
       isRejectedToken(this.reasonOf(dateResult))
     ) {
+      this.accessTokens.delete(userId);
       return NOT_CONNECTED;
     }
     this.logFailure(projectResult, "project");
@@ -102,9 +130,64 @@ export class FocusBearService {
     };
   }
 
-  private async loadToken(userId: string): Promise<string | null> {
+  /** Null when the user isn't connected, or Focus Bear can't be reached to refresh. */
+  private async getAccessToken(userId: string): Promise<string | null> {
+    const cached = this.accessTokens.get(userId);
+    if (
+      cached &&
+      cached.expiresAt - FOCUS_BEAR_OAUTH.EXPIRY_MARGIN_MS > Date.now()
+    ) {
+      return cached.accessToken;
+    }
+    const inFlight = this.refreshesInFlight.get(userId);
+    if (inFlight) {
+      return inFlight;
+    }
+    const refresh = this.refreshAccessToken(userId).finally(() =>
+      this.refreshesInFlight.delete(userId),
+    );
+    this.refreshesInFlight.set(userId, refresh);
+    return refresh;
+  }
+
+  private async refreshAccessToken(userId: string): Promise<string | null> {
+    const refreshToken = await this.loadRefreshToken(userId);
+    if (!refreshToken) {
+      return null;
+    }
+    try {
+      const tokens = await this.oauthClient.refresh(refreshToken);
+      await this.storeTokens(userId, tokens);
+      return tokens.accessToken;
+    } catch (error) {
+      if (isDeadGrant(error)) {
+        // Revoked in Focus Bear, or expired: only signing in again brings it back.
+        await this.usersService.update(userId, { focusBearRefreshToken: null });
+        return null;
+      }
+      this.logger.warn(
+        `Focus Bear token refresh failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private async storeTokens(
+    userId: string,
+    tokens: FocusBearTokens,
+  ): Promise<void> {
+    await this.usersService.update(userId, {
+      focusBearRefreshToken: tokens.refreshToken,
+    });
+    this.accessTokens.set(userId, {
+      accessToken: tokens.accessToken,
+      expiresAt: tokens.expiresAt,
+    });
+  }
+
+  private async loadRefreshToken(userId: string): Promise<string | null> {
     const user = await this.usersService.findOneWithFocusBearToken(userId);
-    return EncryptionHelper.tryDecrypt(user?.focusBearApiToken) || null;
+    return EncryptionHelper.tryDecrypt(user?.focusBearRefreshToken) || null;
   }
 
   private valueOf<T>(result: PromiseSettledResult<T>): T | null {

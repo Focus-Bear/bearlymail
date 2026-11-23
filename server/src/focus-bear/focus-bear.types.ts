@@ -36,6 +36,26 @@ export interface FocusBearTaskSuggestions {
   dueDate: string | null;
 }
 
+/** What Focus Bear's authorization server returns for a code or a refresh token. */
+export interface FocusBearTokens {
+  accessToken: string;
+  /** Rotated on every refresh: the previous one stops working. */
+  refreshToken: string;
+  /** Epoch milliseconds. */
+  expiresAt: number;
+}
+
+export class FocusBearOAuthError extends Error {
+  constructor(
+    /** The OAuth `error` code, e.g. `invalid_grant`, when the server gave one. */
+    readonly code: string | null,
+    message: string,
+  ) {
+    super(message);
+    this.name = "FocusBearOAuthError";
+  }
+}
+
 export class FocusBearApiError extends Error {
   constructor(
     readonly status: number,

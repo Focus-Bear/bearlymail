@@ -888,6 +888,11 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Override consent versions (defaults in `server/src/constants/legal-versions.ts`; bump the default when policy wording changes so users re-accept) |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |
 | `FOCUS_BEAR_API_URL`                                          | No       | Focus Bear API base URL for task project/due-date suggestions (default `https://api.focusbear.io`) |
+| `FOCUS_BEAR_OAUTH_ISSUER` | No | Focus Bear's Auth0 issuer (e.g. `https://tenant.auth0.com/`). With the three below, enables "Connect Focus Bear"; without them the button reports it isn't set up |
+| `FOCUS_BEAR_OAUTH_CLIENT_ID` | No | Client ID of BearlyMail's application in Focus Bear's Auth0 tenant (must be in Focus Bear's `MCP_ALLOWED_CLIENT_IDS`) |
+| `FOCUS_BEAR_OAUTH_CLIENT_SECRET` | No | That application's client secret |
+| `FOCUS_BEAR_OAUTH_REDIRECT_URI` | No | `<API origin>/focus-bear/oauth/callback`, registered as an allowed callback in Auth0 |
+| `FOCUS_BEAR_OAUTH_AUDIENCE` | No | Audience of the tokens (default `https://mcp.aws.focusbear.io/mcp`) |
 | `ZOHO_CLIQ_*`                                                 | No       | Zoho Cliq notifications                   |
 | `PUSHER_APP_ID`                                               | No       | Pusher app id (realtime events)           |
 | `PUSHER_KEY`                                                  | No       | Pusher key (also exposed to the client)   |

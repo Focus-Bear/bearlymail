@@ -73,8 +73,7 @@ export function decryptEmailEntityForApi(email: Email): void {
   email.body = decryptForUI(email.body) as string;
   email.htmlBody = decryptForUI(email.htmlBody) as string | null;
   email.priorityOverrideReason = decryptForUI(email.priorityOverrideReason) as
-    | string
-    | null;
+    string | null;
   email.summary = decryptForUI(email.summary) as string | null;
 
   if (email.labels != null && typeof email.labels === "string") {
@@ -107,8 +106,7 @@ export function decryptUserEntityForApi(user: User): void {
   user.displayName = decryptForUI(user.displayName) as string | null;
   user.jobTitle = decryptForUI(user.jobTitle) as string | null;
   user.calendarBookingUrl = decryptForUI(user.calendarBookingUrl) as
-    | string
-    | null;
+    string | null;
   user.emailSignature = decryptForUI(user.emailSignature) as string | null;
   user.googleCalendarAccessToken = decryptForUI(
     user.googleCalendarAccessToken,
@@ -118,9 +116,8 @@ export function decryptUserEntityForApi(user: User): void {
   ) as string | null;
   user.openAiApiKey = decryptForUI(user.openAiApiKey) as string | null;
   user.githubToken = decryptForUI(user.githubToken) as string | null;
-  user.focusBearApiToken = decryptForUI(user.focusBearApiToken) as
-    | string
-    | null;
+  user.focusBearRefreshToken = decryptForUI(user.focusBearRefreshToken) as
+    string | null;
   user.anthropicApiKey = decryptForUI(user.anthropicApiKey) as string | null;
 
   if (user.toneSettings != null && typeof user.toneSettings === "string") {

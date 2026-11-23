@@ -204,6 +204,36 @@ describe("phishing pre-checks — SendGrid support-chat pretext regression (2026
     ]);
     expect(assessment.verdict).toBeNull();
   });
+
+  it("leaves a mailing list relaying a real security notice to the model", () => {
+    const assessment = assessPhishingRedFlags({
+      senderDomain: "acme.example.test",
+      fromName: "GitHub via Engineering",
+      subject: "[GitHub] Two-factor authentication disabled",
+      body: "Two-factor authentication was disabled for your account. If this was not you, review your security settings.",
+      htmlBody: `<a href="https://github.com/settings/security">Review settings</a>`,
+    });
+    expect(assessment.impersonatedBrand).toBe("GitHub");
+    expect(assessment.securityLures).toEqual([
+      "two-factor or security settings",
+      "if this was not you",
+    ]);
+    expect(assessment.redFlags).toEqual([
+      PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
+    ]);
+    expect(assessment.verdict).toBeNull();
+  });
+
+  it("still decides other red flags for a sender relayed 'via' a list", () => {
+    const assessment = assessPhishingRedFlags({
+      senderDomain: "foundryhealth.com",
+      fromName: "SendGrid via Support",
+      subject: SENDGRID_SUPPORT_CHAT_LURE.subject,
+      body: SENDGRID_SUPPORT_CHAT_LURE.body ?? "",
+      senderAuthResults: { spf: "pass", dkim: "none", dmarc: "fail" },
+    });
+    expect(assessment.verdict?.confidence).toBe("high");
+  });
 });
 
 describe("findOffBrandLinkDomains", () => {

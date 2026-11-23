@@ -125,6 +125,20 @@ const SECURITY_LURE_PATTERNS: ReadonlyArray<{
  */
 const MIN_SECURITY_LURES_FOR_VERDICT = 2;
 
+/**
+ * "GitHub via Engineering <engineering@acme.com>": a mailing list (e.g. a
+ * Google Group) relaying a real brand's email keeps the brand's name but sends
+ * from the list's own domain, so it looks like brand impersonation. Real
+ * security notices relayed that way carry the same pretexts ("two-factor",
+ * "if this was not you"), so the pretext rule doesn't decide for these; the
+ * brand flag still reaches the model, and the other rules still apply.
+ */
+const RELAYED_SENDER_PATTERN = /\S\s+via\s+\S/i;
+
+function isRelayedSender(fromName: string | null | undefined): boolean {
+  return Boolean(fromName && RELAYED_SENDER_PATTERN.test(fromName));
+}
+
 const URL_PATTERN = /https?:\/\/[^\s"'<>)]+/gi;
 
 const ANCHOR_PATTERN =
@@ -310,6 +324,7 @@ interface VerdictInput {
   securityLures: string[];
   offBrandLinkDomains: string[];
   senderAuthResults: SenderAuthResults | null | undefined;
+  isRelayedSender: boolean;
 }
 
 function collectEvidence(input: VerdictInput): string[] {
@@ -347,7 +362,8 @@ function collectEvidence(input: VerdictInput): string[] {
  * The decision rule. Each combination below is rare in legitimate mail:
  * - brand impersonation plus an auth failure, a disguised link, an account
  *   threat or two account-security pretexts → high (an off-brand link alone is
- *   not enough: a partner's webinar legitimately links to a third-party host)
+ *   not enough: a partner's webinar legitimately links to a third-party host).
+ *   The pretext rule is skipped for mailing-list senders ("X via Group").
  * - a disguised link plus an account threat → high
  * - failed sender authentication plus an account threat → medium
  */
@@ -356,6 +372,7 @@ function decideVerdict(input: VerdictInput): PhishingSignal | null {
   const hasLinkMismatch = input.linkTextMismatches.length > 0;
   const hasAuthFailure = hasSenderAuthFailure(input.senderAuthResults);
   const hasSecurityPretext =
+    !input.isRelayedSender &&
     input.securityLures.length >= MIN_SECURITY_LURES_FOR_VERDICT;
   const reason = () => `${collectEvidence(input).join("; ")}.`;
 
@@ -416,6 +433,7 @@ export function assessPhishingRedFlags(
       securityLures,
       offBrandLinkDomains,
       senderAuthResults: input.senderAuthResults,
+      isRelayedSender: isRelayedSender(input.fromName),
     }),
   };
 }

@@ -6,8 +6,8 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * "Unsubscribe" without loading the body. The URLs carry per-recipient tokens,
  * so the column is encrypted like the other per-email JSON columns.
  */
-export class AddUnsubscribeOptionsToEmails1798050000000 implements MigrationInterface {
-  name = "AddUnsubscribeOptionsToEmails1798050000000";
+export class AddUnsubscribeOptionsToEmails1798400000000 implements MigrationInterface {
+  name = "AddUnsubscribeOptionsToEmails1798400000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(

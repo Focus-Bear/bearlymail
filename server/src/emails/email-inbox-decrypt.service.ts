@@ -20,6 +20,7 @@ import {
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
 import { parseLabelsValue } from "./labels.util";
+import { unsubscribeMethodFromStored } from "./unsubscribe/list-unsubscribe.parser";
 
 /** Display name used for the null-category (uncategorized) bucket. */
 const OTHER_CATEGORY_NAME = "Other";
@@ -148,6 +149,12 @@ export class EmailInboxDecryptService {
         : null,
       phishingConfidence: row.phishingConfidence,
       phishingReason: row.phishingReason,
+      unsubscribeMethod: unsubscribeMethodFromStored(
+        this.decryptEncryptedJsonField<unknown>(
+          row.unsubscribeOptions ?? undefined,
+          `unsubscribeOptions for email ${row.id}`,
+        ),
+      ),
       priorityScore: row.priorityScore ?? null,
       // Orphaned UUID: if the LEFT JOIN returned no categoryName, the referenced
       // user_context was deleted. Null out categoryId so this email is treated as

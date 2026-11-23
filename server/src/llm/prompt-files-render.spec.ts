@@ -198,6 +198,8 @@ describe("loaded prompts render with the variables the services pass", () => {
     senderAuthSummary: "spf=pass, dkim=pass, dmarc=pass",
     linkTextMismatches: ["text shows commbank.com.au, link opens bit.ly"],
     accountThreats: ["account or sending paused/suspended"],
+    securityLures: ["if this was not you", "quotes your account details"],
+    offBrandLinkDomains: ["bit.ly"],
     redFlags: [
       PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
       PHISHING_RED_FLAGS.LINK_TEXT_MISMATCH,
@@ -226,6 +228,12 @@ describe("loaded prompts render with the variables the services pass", () => {
     );
     expect(rendered).toContain(
       "Links whose visible text shows a different domain: text shows commbank.com.au, link opens bit.ly",
+    );
+    expect(rendered).toContain(
+      "Account-security pretexts found: if this was not you, quotes your account details",
+    );
+    expect(rendered).toContain(
+      "Linked domains unrelated to the brand the sender name claims: bit.ly",
     );
     expect(rendered).toContain(
       `Red flags from deterministic checks: ${PHISHING_RED_FLAGS.BRAND_IMPERSONATION}, ${PHISHING_RED_FLAGS.LINK_TEXT_MISMATCH}`,

@@ -15,6 +15,7 @@ import { isCalendarInvitation } from 'utils/calendarUtils';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ACTION_TYPE_CALENDAR_CREATE_INVITE, ACTION_TYPE_SCHEDULING_REQUEST } from 'constants/strings';
+import { UNSUBSCRIBE_METHODS } from 'constants/unsubscribe';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { EmailDetailActions } from './EmailDetailActions';
@@ -42,10 +43,6 @@ vi.mock('utils/calendarUtils', () => ({
   hasIcsAttachment: vi.fn(() => false),
 }));
 
-vi.mock('utils/unsubscribeUtils', () => ({
-  extractUnsubscribeLink: () => null,
-}));
-
 vi.mock('components/email-detail/CalendarInviteActions', () => ({
   CalendarInviteActions: () => <div data-testid="CalendarInviteActions" />,
 }));
@@ -70,6 +67,14 @@ vi.mock('components/priority/PriorityChip', () => ({
 
 vi.mock('components/inbox/actions/SnoozeInputForm', () => ({
   SnoozeInputForm: () => <div data-testid="SnoozeInputForm" />,
+}));
+
+// The real dialogs are covered with the inbox card (EmailActionsRow.test); this file's partial
+// theme mock can't render ConfirmModal, so expose the flow's step instead.
+vi.mock('components/inbox/actions/UnsubscribeDialogs', () => ({
+  UnsubscribeDialogs: ({ flow }: { flow: { step: { kind: string } } }) => (
+    <div data-testid="UnsubscribeDialogs" data-step={flow.step.kind} />
+  ),
 }));
 
 vi.mock('components/email-detail/PrintableThread', () => ({
@@ -326,6 +331,19 @@ describe('EmailDetailActions — mobile layout (fixes #1068)', () => {
   it('renders the block sender button in row 2 when there is no unsubscribe link', () => {
     render(<EmailDetailActions {...baseProps} />);
     expect(screen.getByText('inbox.blockSender')).toBeInTheDocument();
+    expect(screen.queryByText('inbox.unsubscribe')).not.toBeInTheDocument();
+  });
+
+  it('puts Unsubscribe in the toolbar (Block sender moves to ⋮) when the email has List-Unsubscribe', () => {
+    render(
+      <EmailDetailActions {...baseProps} email={{ ...baseEmail, unsubscribeMethod: UNSUBSCRIBE_METHODS.ONE_CLICK }} />
+    );
+    const unsubscribeButton = screen.getByTitle('inbox.unsubscribe');
+    expect(screen.getByTestId('OverflowMenu')).toHaveTextContent('inbox.blockSender');
+
+    fireEvent.click(unsubscribeButton);
+
+    expect(screen.getByTestId('UnsubscribeDialogs')).toHaveAttribute('data-step', 'confirm');
   });
 });
 

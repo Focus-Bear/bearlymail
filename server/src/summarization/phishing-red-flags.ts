@@ -7,8 +7,15 @@
  * tracker, and a "sending is paused" threat. These checks catch the classic
  * patterns precisely enough to decide on their own when they combine; a lone
  * red flag is only a hint for the model (and stops Jev from clearing the email).
+ *
+ * Not every lure threatens a suspension: "SendGrid <noreply@unrelated-domain>"
+ * following up on a "support chat" that asked to change two-factor settings,
+ * "in case it was not you", carries no threat at all, and the model cleared it
+ * as a routine security notice. Those account-security pretexts are matched
+ * separately and only decide anything alongside a brand impersonation.
  */
 
+import { PHISHING_CONFIDENCE } from "../constants/domain-types";
 import {
   IMPERSONATED_BRANDS,
   ImpersonatedBrand,
@@ -18,7 +25,6 @@ import {
   PHISHING_RED_FLAGS,
   PhishingRedFlag,
 } from "../constants/phishing.constants";
-import { PHISHING_CONFIDENCE } from "../constants/domain-types";
 import {
   formatSenderAuthResults,
   hasSenderAuthFailure,
@@ -47,6 +53,9 @@ export interface PhishingRedFlagAssessment {
   impersonatedBrand: string | null;
   linkTextMismatches: LinkTextMismatch[];
   accountThreats: string[];
+  securityLures: string[];
+  /** Link domains that are neither the claimed brand's nor the sender's */
+  offBrandLinkDomains: string[];
   /** Set only when red flags combine into a verdict the LLM may not overrule */
   verdict: PhishingSignal | null;
 }
@@ -77,6 +86,60 @@ const ACCOUNT_THREAT_PATTERNS: ReadonlyArray<{
     label: "verify account/consent/details",
   },
 ];
+
+/**
+ * Account-security pretexts: a supposed support conversation about your
+ * account, a sign-in setting someone tried to change, and "if this wasn't you".
+ * Real security notices use them too, so they only count from a sender whose
+ * display name impersonates a brand.
+ */
+const SECURITY_LURE_PATTERNS: ReadonlyArray<{
+  pattern: RegExp;
+  label: string;
+}> = [
+  {
+    pattern:
+      /\b(two[- ]factor|2fa|multi[- ]factor|mfa|two[- ]step)\b|\bsecurity\s+settings\b/i,
+    label: "two-factor or security settings",
+  },
+  {
+    pattern:
+      /\b(if|in case)\s+(this|it|that|the\s+\w+)\s+(was\s+not|wasn['’]?t)\s+(you|yours)\b/i,
+    label: "if this was not you",
+  },
+  {
+    pattern:
+      /\b(account\s+number|billing\s+(zip|post\s?code|address)|plan\s+details|security\s+questions?)\b/i,
+    label: "quotes your account details",
+  },
+  {
+    pattern:
+      /\bsupport\s+(chat|call|ticket|session)\b|\b(chat|call)\s+(session\s+)?with\s+[\w ]{0,30}\bsupport\b/i,
+    label: "a support conversation about your account",
+  },
+];
+
+/**
+ * Two distinct pretexts are needed: one alone ("multi-factor authentication"
+ * in a partner's webinar invite) is ordinary mail.
+ */
+const MIN_SECURITY_LURES_FOR_VERDICT = 2;
+
+/**
+ * "GitHub via Engineering <engineering@acme.com>": a mailing list (e.g. a
+ * Google Group) relaying a real brand's email keeps the brand's name but sends
+ * from the list's own domain, so it looks like brand impersonation. Real
+ * security notices relayed that way carry the same pretexts ("two-factor",
+ * "if this was not you"), so the pretext rule doesn't decide for these; the
+ * brand flag still reaches the model, and the other rules still apply.
+ */
+const RELAYED_SENDER_PATTERN = /\S\s+via\s+\S/i;
+
+function isRelayedSender(fromName: string | null | undefined): boolean {
+  return Boolean(fromName && RELAYED_SENDER_PATTERN.test(fromName));
+}
+
+const URL_PATTERN = /https?:\/\/[^\s"'<>)]+/gi;
 
 const ANCHOR_PATTERN =
   /<a\b[^>]*?\bhref\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
@@ -132,6 +195,52 @@ export function detectImpersonatedBrand(
     isWithinDomain(host, domain),
   );
   return isBrandDomain ? null : claimed;
+}
+
+/** Hostnames of every http(s) URL in the text and HTML bodies. */
+function linkHostsOf(
+  body: string,
+  htmlBody: string | null | undefined,
+): string[] {
+  const urls = [body, htmlBody ?? ""].flatMap(
+    (text) => text.match(URL_PATTERN) ?? [],
+  );
+  const hosts = urls
+    .map(hostnameOf)
+    .filter((host): host is string => Boolean(host));
+  return [...new Set(hosts)];
+}
+
+/**
+ * Registered domains the email links to that belong neither to the brand its
+ * display name claims nor to the sender itself (click trackers excluded).
+ */
+export function findOffBrandLinkDomains(
+  brand: ImpersonatedBrand | null,
+  senderDomain: string | null,
+  linkHosts: readonly string[],
+): string[] {
+  if (!brand) return [];
+  const senderRegistered = senderDomain
+    ? registeredDomainOf(senderDomain)
+    : null;
+  const offBrand = linkHosts
+    .filter(
+      (host) => !brand.domains.some((domain) => isWithinDomain(host, domain)),
+    )
+    .map(registeredDomainOf)
+    .filter(
+      (domain) =>
+        domain !== senderRegistered && !LINK_REWRITE_DOMAINS.has(domain),
+    );
+  return [...new Set(offBrand)];
+}
+
+/** Labels of the account-security pretexts found in the given text. */
+export function findSecurityLures(text: string): string[] {
+  return SECURITY_LURE_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(
+    ({ label }) => label,
+  );
 }
 
 function decodeAnchorText(rawText: string): string {
@@ -193,9 +302,9 @@ export function findLinkTextMismatches(
 
 /** Labels of the account-threat phrases found in the given text. */
 export function findAccountThreats(text: string): string[] {
-  return ACCOUNT_THREAT_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(
-    ({ label }) => label,
-  );
+  return ACCOUNT_THREAT_PATTERNS.filter(({ pattern }) =>
+    pattern.test(text),
+  ).map(({ label }) => label);
 }
 
 function describeLinkMismatch(mismatch: LinkTextMismatch): string {
@@ -212,7 +321,10 @@ interface VerdictInput {
   brand: ImpersonatedBrand | null;
   linkTextMismatches: LinkTextMismatch[];
   accountThreats: string[];
+  securityLures: string[];
+  offBrandLinkDomains: string[];
   senderAuthResults: SenderAuthResults | null | undefined;
+  isRelayedSender: boolean;
 }
 
 function collectEvidence(input: VerdictInput): string[] {
@@ -233,12 +345,25 @@ function collectEvidence(input: VerdictInput): string[] {
   if (input.accountThreats.length > 0) {
     evidence.push("it pressures you to act to restore your account");
   }
+  if (input.brand && input.securityLures.length > 0) {
+    evidence.push(
+      `it uses an account-security pretext (${input.securityLures.join(", ")})`,
+    );
+  }
+  if (input.brand && input.offBrandLinkDomains.length > 0) {
+    evidence.push(
+      `its links go to ${input.offBrandLinkDomains.join(", ")}, not ${input.brand.brand}`,
+    );
+  }
   return evidence;
 }
 
 /**
  * The decision rule. Each combination below is rare in legitimate mail:
- * - brand impersonation plus any other red flag or an account threat → high
+ * - brand impersonation plus an auth failure, a disguised link, an account
+ *   threat or two account-security pretexts → high (an off-brand link alone is
+ *   not enough: a partner's webinar legitimately links to a third-party host).
+ *   The pretext rule is skipped for mailing-list senders ("X via Group").
  * - a disguised link plus an account threat → high
  * - failed sender authentication plus an account threat → medium
  */
@@ -246,9 +371,15 @@ function decideVerdict(input: VerdictInput): PhishingSignal | null {
   const hasThreat = input.accountThreats.length > 0;
   const hasLinkMismatch = input.linkTextMismatches.length > 0;
   const hasAuthFailure = hasSenderAuthFailure(input.senderAuthResults);
+  const hasSecurityPretext =
+    !input.isRelayedSender &&
+    input.securityLures.length >= MIN_SECURITY_LURES_FOR_VERDICT;
   const reason = () => `${collectEvidence(input).join("; ")}.`;
 
-  if (input.brand && (hasThreat || hasLinkMismatch || hasAuthFailure)) {
+  if (
+    input.brand &&
+    (hasThreat || hasLinkMismatch || hasAuthFailure || hasSecurityPretext)
+  ) {
     return { confidence: PHISHING_CONFIDENCE.HIGH, reason: reason() };
   }
   if (hasLinkMismatch && hasThreat) {
@@ -266,8 +397,13 @@ export function assessPhishingRedFlags(
 ): PhishingRedFlagAssessment {
   const brand = detectImpersonatedBrand(input.fromName, input.senderDomain);
   const linkTextMismatches = findLinkTextMismatches(input.htmlBody);
-  const accountThreats = findAccountThreats(
-    [input.subject ?? "", input.body].join("\n"),
+  const fullText = [input.subject ?? "", input.body].join("\n");
+  const accountThreats = findAccountThreats(fullText);
+  const securityLures = findSecurityLures(fullText);
+  const offBrandLinkDomains = findOffBrandLinkDomains(
+    brand,
+    input.senderDomain,
+    linkHostsOf(input.body, input.htmlBody),
   );
 
   const redFlags: PhishingRedFlag[] = [];
@@ -278,18 +414,26 @@ export function assessPhishingRedFlags(
   if (linkTextMismatches.length > 0) {
     redFlags.push(PHISHING_RED_FLAGS.LINK_TEXT_MISMATCH);
   }
+  if (offBrandLinkDomains.length > 0) {
+    redFlags.push(PHISHING_RED_FLAGS.OFF_BRAND_LINK);
+  }
 
   return {
     redFlags,
     impersonatedBrand: brand?.brand ?? null,
     linkTextMismatches,
     accountThreats,
+    securityLures,
+    offBrandLinkDomains,
     verdict: decideVerdict({
       senderDomain: input.senderDomain,
       brand,
       linkTextMismatches,
       accountThreats,
+      securityLures,
+      offBrandLinkDomains,
       senderAuthResults: input.senderAuthResults,
+      isRelayedSender: isRelayedSender(input.fromName),
     }),
   };
 }

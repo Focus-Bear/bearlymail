@@ -83,6 +83,7 @@ import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { ReadStatusSyncService } from "./read-status-sync.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
+import { unsubscribeMethodFromStored } from "./unsubscribe/list-unsubscribe.parser";
 
 /**
  * Bulk export is a privileged personal-data access path: it reads the user's
@@ -710,6 +711,13 @@ export class EmailsController {
     // Showing the user their own sent message must never count as an open.
     email.body = stripTrackingPixels(email.body);
     email.htmlBody = stripTrackingPixels(email.htmlBody);
+    // The client only needs to know how it can unsubscribe; the URLs (with
+    // their per-recipient tokens) stay on the server, which performs the action.
+    const unsubscribeMethod = unsubscribeMethodFromStored(
+      email.unsubscribeOptions,
+    );
+    email.unsubscribeOptions = null;
+    Object.assign(email, { unsubscribeMethod });
 
     // Defence-in-depth: ensure attachments is always null or an Array.
     // encryptedJsonTransformer returns `unknown` at runtime; if bad data is stored

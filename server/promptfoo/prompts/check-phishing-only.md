@@ -12,6 +12,7 @@ Default to NOT phishing. Only flag `is_phishing: true` when there are CLEAR dece
 - A sender display name (or a body/footer) that claims to BE a known brand — "SendGrid", "PayPal", "Microsoft" — while the sender domain is not that brand's domain (e.g. "SendGrid <noreply@unrelated-domain.io>"). Passing SPF/DKIM/DMARC does not clear this: authentication only proves the mail came from the sender's own domain, not that the domain belongs to the brand. Links routed through the brand's real click-tracker do not clear it either.
 - Pressure to take urgent account action to avoid a threat (verify/suspend/locked/"within 24 hours") — but ONLY when combined with a lookalike/mismatched domain or a credential/payment-detail request. Urgency alone is NEVER enough: legitimate services routinely send urgent alerts.
 - Credential or payment-detail harvesting ("confirm your password/card to restore access").
+- An account-security pretext from a sender impersonating a brand — a "support chat" or sign-in change you supposedly made, your account details quoted back, "if this was not you", then a link to "review" it. There is no threat or urgency in these; the lure is the worry that someone else is in your account. A brand's real security notices come from the brand's own domain.
 
 The following are LEGITIMATE and must NOT be flagged, even though they contain links or come from a different domain than the brand:
 - Password reset / verification emails the user requested.
@@ -39,6 +40,8 @@ Keyword analysis context (use as signals to inform your judgement, not as a verd
 - Links whose visible text shows a different domain: {{ phishingSignals.linkTextMismatches | join('; ') }}
 - Suspicious keywords found: {{ phishingSignals.suspiciousKeywords | join(', ') }}
 - Account-threat phrases found: {{ phishingSignals.accountThreats | join(', ') }}
+- Account-security pretexts found: {{ phishingSignals.securityLures | join(', ') }}
+- Linked domains unrelated to the brand the sender name claims: {{ phishingSignals.offBrandLinkDomains | join(', ') }}
 - Red flags from deterministic checks: {{ phishingSignals.redFlags | join(', ') }}
 {% endif %}
 

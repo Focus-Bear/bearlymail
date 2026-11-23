@@ -21,15 +21,17 @@ interface ToneCheckBlockingResult {
   isOk: boolean;
   /** Advisory calendar-conflict warning; soft-blocks the send until acknowledged. */
   calendarWarning?: string | null;
+  /** A weekday that contradicts its date; soft-blocks the send until fixed or overridden. */
+  dateMismatch?: string | null;
 }
 
 /**
- * True when the pre-send checks should pause the send (soft block): either the
- * tone check failed, or a calendar date/meeting mismatch was flagged. Both are
- * advisory — the user can still hold-to-send-anyway.
+ * True when the pre-send checks should pause the send (soft block): the tone
+ * check failed, a calendar date/meeting mismatch was flagged, or a weekday
+ * contradicts its date. All are advisory — the user can still hold-to-send-anyway.
  */
 export function isToneCheckBlocking(result: ToneCheckBlockingResult | null | undefined): boolean {
-  return !!result && (!result.isOk || !!result.calendarWarning);
+  return !!result && (!result.isOk || !!result.calendarWarning || !!result.dateMismatch);
 }
 
 /** Returns true if there is an inappropriate timing suggestion (from the dedicated field or legacy keyword scan). */

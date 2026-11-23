@@ -87,6 +87,33 @@ describe("gmail-message-parser — header extraction", () => {
     );
     expect(parsed?.cc).toBeUndefined();
   });
+
+  it("captures List-Unsubscribe / List-Unsubscribe-Post so the Triage card can offer Unsubscribe", () => {
+    const parsed = parseGmailMessage(
+      buildMessage([
+        { name: "From", value: "Brandon from Paragon <b@useparagon.com>" },
+        {
+          name: "List-Unsubscribe",
+          value:
+            "<mailto:unsub@lists.example.test?subject=unsubscribe>, <https://lists.example.test/u?t=1>",
+        },
+        { name: "list-unsubscribe-post", value: "List-Unsubscribe=One-Click" },
+      ]),
+    );
+    expect(parsed?.unsubscribeOptions).toEqual({
+      httpsUrl: "https://lists.example.test/u?t=1",
+      mailto: { address: "unsub@lists.example.test", subject: "unsubscribe" },
+      oneClick: true,
+      source: "header",
+    });
+  });
+
+  it("leaves unsubscribeOptions null for ordinary mail", () => {
+    const parsed = parseGmailMessage(
+      buildMessage([{ name: "From", value: "Nicola <nicola@example.com>" }]),
+    );
+    expect(parsed?.unsubscribeOptions).toBeNull();
+  });
 });
 
 describe("gmail-message-parser — attachments", () => {

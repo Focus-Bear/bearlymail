@@ -662,14 +662,14 @@ export interface CategoryGroup {
 export const getEmailGroupKey = (email: Email): string => {
   const isPhishing =
     email.phishingConfidence === PHISHING_CONFIDENCE_MEDIUM || email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
-  // If the server has assigned a specific category (not "Other"), respect it even when
-  // the phishing classifier fires. Fundraising or investor emails can trigger medium/high
-  // phishing confidence while still having a valid server-assigned category — in those
-  // cases we should NOT override the category. Only route to the phishing bucket when
-  // the email has no server-assigned category (or is already in "Other" / still pending).
+  // A medium verdict respects a server-assigned category: fundraising or investor emails
+  // can trigger it while still having a valid category. A high verdict always wins —
+  // the categoriser files a brand-impersonation "security notice" under Security &
+  // Compliance, where it reads as a legitimate account alert.
   const hasServerCategory =
     Boolean(email.category_id) && email.category_id !== CATEGORY_OTHER && email.category_id !== CATEGORY_KEY_PENDING;
-  if (isPhishing && !hasServerCategory) {
+  const isHighConfidencePhishing = email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
+  if (isHighConfidencePhishing || (isPhishing && !hasServerCategory)) {
     return CATEGORY_DANGEROUS_PHISHING;
   }
   // Still being categorised: the server reports category "Other" for these, so this

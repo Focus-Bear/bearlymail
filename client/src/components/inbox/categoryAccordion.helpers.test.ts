@@ -174,11 +174,11 @@ describe('groupEmailsByCategory', () => {
     expect(groups[0].category).toBe('Dangerous / Phishing');
   });
 
-  it('preserves server category when phishing fires but category_id is set and not Other', () => {
+  it('preserves server category when a medium phishing verdict fires but category_id is set and not Other', () => {
     const emails = [
       makeEmail({
         id: '1',
-        phishingConfidence: 'high',
+        phishingConfidence: 'medium',
         category: 'Newsletters',
         category_id: 'some-uuid-not-other',
       }),
@@ -186,6 +186,19 @@ describe('groupEmailsByCategory', () => {
     const groups = groupEmailsByCategory(emails);
     // Should keep server-assigned UUID key, not route to phishing bucket
     expect(groups[0].category).toBe('some-uuid-not-other');
+  });
+
+  it('routes a high phishing verdict to the phishing bucket even when the server assigned a category', () => {
+    const emails = [
+      makeEmail({
+        id: '1',
+        phishingConfidence: 'high',
+        category: 'Security & Compliance',
+        category_id: 'some-uuid-not-other',
+      }),
+    ];
+    const groups = groupEmailsByCategory(emails);
+    expect(groups[0].category).toBe('Dangerous / Phishing');
   });
 
   it('sorts emails by priority desc in normal mode', () => {

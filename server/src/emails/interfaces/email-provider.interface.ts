@@ -1,4 +1,5 @@
 import { SenderAuthResults } from "../../utils/authentication-results.util";
+import type { UnsubscribeOptions } from "../unsubscribe/list-unsubscribe.parser";
 
 /**
  * Email attachment metadata
@@ -33,6 +34,8 @@ export interface RawEmailMessage {
   replyTo?: string;
   /** SPF/DKIM/DMARC outcomes from the receiving server, when the provider exposes headers */
   senderAuthResults?: SenderAuthResults | null;
+  /** How the user can unsubscribe (List-Unsubscribe headers, else a body link) */
+  unsubscribeOptions?: UnsubscribeOptions | null;
   senderJobTitle?: string;
   body: string;
   htmlBody?: string;

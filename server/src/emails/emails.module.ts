@@ -129,6 +129,8 @@ import { SearchEnrichmentService } from "./search-enrichment.service";
 import { StaleRuleCategoryService } from "./stale-rule-category.service";
 import { StuckPriorityDetectionService } from "./stuck-priority-detection.service";
 import { SyncHistoryService } from "./sync-history.service";
+import { EmailUnsubscribeController } from "./unsubscribe/email-unsubscribe.controller";
+import { EmailUnsubscribeService } from "./unsubscribe/email-unsubscribe.service";
 
 @Module({
   imports: [
@@ -190,10 +192,12 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailDebugController,
     EmailSendController,
     EmailAssignmentController,
+    EmailUnsubscribeController,
     EmailsController,
   ],
   providers: [
     SyncHistoryService,
+    EmailUnsubscribeService,
     EmailEmlDownloadService,
     CategoryDedupService,
     EmailBacklogService,

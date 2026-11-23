@@ -2,10 +2,18 @@ import {
   CONTENT_TYPES,
   EMAIL_IMPORTANCE,
 } from "../../../constants/domain-types";
+import { MAIL_HEADER_NAMES } from "../../../constants/mail-server.constants";
 import {
   EmailAttachment,
   RawEmailMessage,
 } from "../../interfaces/email-provider.interface";
+import { buildUnsubscribeOptions } from "../../unsubscribe/list-unsubscribe.parser";
+
+/**
+ * Graph omits a message's internet headers unless they are `$select`ed by name;
+ * full-message fetches append this so List-Unsubscribe is available.
+ */
+export const GRAPH_INTERNET_MESSAGE_HEADERS_FIELD = "internetMessageHeaders";
 
 /**
  * Microsoft Graph API file attachment
@@ -67,6 +75,17 @@ export interface MicrosoftGraphMessage {
   hasAttachments?: boolean;
   attachments?: MicrosoftGraphAttachment[];
   isDraft?: boolean;
+  internetMessageHeaders?: Array<{ name?: string; value?: string }>;
+}
+
+function getInternetHeader(
+  messageData: MicrosoftGraphMessage,
+  headerName: string,
+): string | undefined {
+  const wanted = headerName.toLowerCase();
+  return messageData.internetMessageHeaders?.find(
+    (header) => header.name?.toLowerCase() === wanted,
+  )?.value;
 }
 
 /**
@@ -177,6 +196,18 @@ export function parseOffice365Message(
   const attachments = messageData.attachments
     ? extractAttachmentsFromGraphAttachments(messageData.attachments)
     : undefined;
+  const unsubscribeOptions = buildUnsubscribeOptions({
+    listUnsubscribe: getInternetHeader(
+      messageData,
+      MAIL_HEADER_NAMES.LIST_UNSUBSCRIBE,
+    ),
+    listUnsubscribePost: getInternetHeader(
+      messageData,
+      MAIL_HEADER_NAMES.LIST_UNSUBSCRIBE_POST,
+    ),
+    htmlBody,
+    body,
+  });
 
   return {
     messageId: messageData.id,
@@ -187,6 +218,7 @@ export function parseOffice365Message(
     replyTo,
     to: formatRecipients(messageData.toRecipients),
     cc: formatRecipients(messageData.ccRecipients),
+    unsubscribeOptions,
     body,
     htmlBody,
     starCount,

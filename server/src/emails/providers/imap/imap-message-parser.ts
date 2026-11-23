@@ -7,6 +7,7 @@ import {
   EmailAttachment,
   RawEmailMessage,
 } from "../../interfaces/email-provider.interface";
+import { buildUnsubscribeOptions } from "../../unsubscribe/list-unsubscribe.parser";
 import {
   deriveThreadIdFromChain,
   extractMessageIdTokens,
@@ -36,6 +37,26 @@ function firstHeaderValue(
   const value = parsed.headers.get(headerName.toLowerCase());
   const first = Array.isArray(value) ? value[0] : value;
   return typeof first === "string" ? first : undefined;
+}
+
+const HEADER_FOLD_PATTERN = /\r?\n[ \t]+/g;
+const HEADER_NAME_SEPARATOR = ":";
+
+/**
+ * A header's unfolded raw value. mailparser merges every List-* header into one
+ * structured `list` entry, so those are read from the raw header lines instead.
+ */
+function rawHeaderValue(
+  parsed: ParsedMail,
+  headerName: string,
+): string | undefined {
+  const wanted = headerName.toLowerCase();
+  const line = parsed.headerLines?.find(({ key }) => key === wanted)?.line;
+  if (!line) return undefined;
+  return line
+    .slice(line.indexOf(HEADER_NAME_SEPARATOR) + 1)
+    .replace(HEADER_FOLD_PATTERN, " ")
+    .trim();
 }
 
 /** Formats one or more parsed address headers as "Name <addr>, addr". */
@@ -114,6 +135,18 @@ export function parseImapMessage(
     senderAuthResults: parseAuthenticationResults(
       firstHeaderValue(parsed, MAIL_HEADER_NAMES.AUTHENTICATION_RESULTS),
     ),
+    unsubscribeOptions: buildUnsubscribeOptions({
+      listUnsubscribe: rawHeaderValue(
+        parsed,
+        MAIL_HEADER_NAMES.LIST_UNSUBSCRIBE,
+      ),
+      listUnsubscribePost: rawHeaderValue(
+        parsed,
+        MAIL_HEADER_NAMES.LIST_UNSUBSCRIBE_POST,
+      ),
+      htmlBody: parsed.html || undefined,
+      body: parsed.text,
+    }),
     body: parsed.text || "",
     htmlBody: parsed.html || undefined,
     starCount: state.isFlagged ? STAR_COUNTS.HIGH : STAR_COUNTS.NONE,

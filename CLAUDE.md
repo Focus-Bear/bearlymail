@@ -218,6 +218,7 @@ Need to modify something? Here's where to find it:
 - Engagement signals: `openedAt` (first open in BearlyMail), `archivedAt` (user archive/delete), `archivedWhileUnread`
 - `userPriorityOverride`, `priorityOverrideReason` (encrypted), `priorityOverrideReasonType`
 - `attachments` (encrypted JSON: `{attachmentId, filename, mimeType, size}[]`)
+- `unsubscribeOptions` (encrypted JSON: `{httpsUrl?, mailto?, oneClick, source}` from List-Unsubscribe / List-Unsubscribe-Post, else an https body link; the API exposes only the derived `unsubscribeMethod`, and `POST /emails/:id/unsubscribe` acts on it — see `server/src/emails/unsubscribe/`)
 - `receivedAt` (CreateDateColumn)
 - Indexes on: `[userId, threadId]`, `[userId, messageId]`, `[userId, receivedAt]`, `[userId, emailThreadId]`, `[userId, isBatched, batchReleaseAt]`
 

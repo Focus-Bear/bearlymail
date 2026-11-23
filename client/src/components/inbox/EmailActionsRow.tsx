@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { FiArchive } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, TriageSuggestion } from 'types/email';
-import { captureEvent } from 'utils/posthog';
-import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 
 import { OverflowMenu, OverflowMenuItem } from 'components/common/OverflowMenu';
 import {
@@ -15,12 +13,14 @@ import {
 import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
 import { SnoozeButton } from 'components/inbox/actions/SnoozeButton';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { UnsubscribeDialogs } from 'components/inbox/actions/UnsubscribeDialogs';
 import { TOAST_DURATION_MS } from 'components/inbox/constants';
-import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { MODE_TRIAGE } from 'constants/strings';
 import { TOUR_TARGETS } from 'constants/tour';
+import { UNSUBSCRIBE_MENU_KEY } from 'constants/unsubscribe';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { UnsubscribeFlow, useUnsubscribeFlow } from 'hooks/useUnsubscribeFlow';
 
 const EVENT_TYPE_CLICK = 'click';
 const ACTIONS_ROW_CLASS = 'email-actions-row';
@@ -108,6 +108,33 @@ const NOOP_MOUSE_EVENT = {
   preventDefault: () => undefined,
 } as unknown as React.MouseEvent;
 
+/**
+ * Unsubscribe (when the email offers a way) and Block sender live in the overflow menu (⋮) rather
+ * than as visible buttons.
+ */
+function buildOverflowItems(
+  translate: (tKey: string) => string,
+  unsubscribeFlow: UnsubscribeFlow,
+  onBlockSender: () => void
+): OverflowMenuItem[] {
+  const blockItem: OverflowMenuItem = {
+    key: 'block',
+    label: translate('inbox.blockSender'),
+    icon: <span aria-hidden>{EMOJI_BLOCK}</span>,
+    onClick: onBlockSender,
+  };
+  if (!unsubscribeFlow.action) {
+    return [blockItem];
+  }
+  const unsubscribeItem: OverflowMenuItem = {
+    key: UNSUBSCRIBE_MENU_KEY,
+    label: translate('inbox.unsubscribe'),
+    icon: <span aria-hidden>{EMOJI_LINK}</span>,
+    onClick: unsubscribeFlow.start,
+  };
+  return [unsubscribeItem, blockItem];
+}
+
 export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
   email,
   mode,
@@ -125,28 +152,11 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
   const snoozeValue = snoozeInput.getSnoozeValue(email.id);
   const activeSuggestion = mode === MODE_TRIAGE ? suggestion : null;
 
-  // Block sender / Unsubscribe live in the overflow menu (…) rather than as a visible button.
-  const unsubscribeLink = extractUnsubscribeLink(email.htmlBody, email.body);
-  const overflowItems: OverflowMenuItem[] = unsubscribeLink
-    ? [
-        {
-          key: 'unsubscribe',
-          label: t('inbox.unsubscribe'),
-          icon: <span aria-hidden>{EMOJI_LINK}</span>,
-          onClick: () => {
-            window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
-            captureEvent(ANALYTICS_EVENTS.EMAIL_UNSUBSCRIBE_CLICKED, { email_id: email.id });
-          },
-        },
-      ]
-    : [
-        {
-          key: 'block',
-          label: t('inbox.blockSender'),
-          icon: <span aria-hidden>{EMOJI_BLOCK}</span>,
-          onClick: () => onBlockSender(email.id, NOOP_MOUSE_EVENT),
-        },
-      ];
+  const unsubscribeFlow = useUnsubscribeFlow({
+    email,
+    onArchiveEmail: () => void onArchive(email.id, NOOP_MOUSE_EVENT),
+  });
+  const overflowItems = buildOverflowItems(t, unsubscribeFlow, () => onBlockSender(email.id, NOOP_MOUSE_EVENT));
 
   return (
     <div onClick={event => event.stopPropagation()}>
@@ -212,6 +222,7 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
           </div>
         )}
       </div>
+      <UnsubscribeDialogs flow={unsubscribeFlow} />
     </div>
   );
 };

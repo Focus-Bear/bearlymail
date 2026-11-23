@@ -106,4 +106,18 @@ describe("MCPClientManagerService", () => {
       }),
     );
   });
+
+  describe("callTool ownership", () => {
+    it("looks the server up for its owner when an owner is given", async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.callTool(SERVER_ID, "any_tool", {}, "user-a"),
+      ).rejects.toThrow(/not found/i);
+
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { id: SERVER_ID, userId: "user-a" },
+      });
+    });
+  });
 });

@@ -15,11 +15,16 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
-import { Response } from "express";
+import { Request as ExpressRequest, Response } from "express";
 import type { PgBoss } from "pg-boss";
 
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import {
+  GITHUB_BINDING_COOKIE,
+  isBrowserBound,
+  issueBrowserBinding,
+} from "../auth/oauth-state.util";
 import { Public } from "../auth/public.decorator";
 import { isUuid } from "../common/uuid.utils";
 import { ERROR_MESSAGES } from "../constants/error-messages";
@@ -592,11 +597,18 @@ export class GitHubController {
   async createConnectToken(
     @Request() req,
     @Body() body?: { includeRepo?: boolean },
+    @Res({ passthrough: true }) res?: Response,
   ) {
     const { userId } = req.user;
+    // Ties the flow to this browser: the callback only stores a GitHub token
+    // when it comes back to the browser that asked for the connect link.
+    const nonce = res
+      ? issueBrowserBinding(res, GITHUB_BINDING_COOKIE)
+      : undefined;
     const token = this.githubAppService.createConnectToken(
       userId,
       body?.includeRepo ?? false,
+      nonce,
     );
     return { token };
   }
@@ -620,6 +632,7 @@ export class GitHubController {
     const authUrl = this.githubAppService.getAuthorizationUrl(
       payload.userId,
       payload.includeRepo ?? false,
+      payload.nonce,
     );
     return res.redirect(authUrl);
   }
@@ -630,6 +643,7 @@ export class GitHubController {
     @Query("code") code: string,
     @Query("state") state: string,
     @Res() res: Response,
+    @Request() req?: ExpressRequest,
   ) {
     const frontendUrl = this.githubAppService.getFrontendUrl();
     const settingsUrl = `${frontendUrl}/settings?github=connected`;
@@ -643,6 +657,16 @@ export class GitHubController {
       const statePayload = this.githubAppService.verifyConnectToken(state);
       if (!statePayload) {
         this.logger.error("Invalid or expired state parameter");
+        return res.redirect(`${frontendUrl}/settings?github=error`);
+      }
+
+      if (
+        !req ||
+        !isBrowserBound(statePayload.nonce, req, GITHUB_BINDING_COOKIE)
+      ) {
+        this.logger.warn(
+          "GitHub OAuth callback reached a browser that did not start the flow",
+        );
         return res.redirect(`${frontendUrl}/settings?github=error`);
       }
 

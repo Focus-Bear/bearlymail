@@ -93,8 +93,15 @@ export class MCPClientManagerService {
     serverId: string,
     toolName: string,
     parameters: Record<string, unknown>,
+    ownerUserId?: string,
   ): Promise<unknown> {
-    const config = await this.configRepo.findOne({ where: { id: serverId } });
+    // `ownerUserId` must be passed whenever `serverId` came from user input
+    // (e.g. a stored workflow action) rather than from a user-scoped lookup.
+    const config = await this.configRepo.findOne({
+      where: ownerUserId
+        ? { id: serverId, userId: ownerUserId }
+        : { id: serverId },
+    });
     if (!config) throw new Error(`MCP server config not found: ${serverId}`);
     if (!config.enabled)
       throw new Error(`MCP server is disabled: ${config.name}`);

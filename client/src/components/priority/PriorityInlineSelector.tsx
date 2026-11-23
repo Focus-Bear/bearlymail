@@ -141,7 +141,12 @@ export const PriorityInlineSelector: React.FC<PriorityInlineSelectorProps> = ({
   // No "pick a priority" hint when nothing is chosen: the pills already say it, and the line
   // adds a row of noise to every email in the list.
   const captionEl = selected ? (
-    <span style={{ fontSize: '11.5px', color: theme.colors.text.tertiary, lineHeight: 1.4 }}>{caption}</span>
+    <span
+      className="email-priority-caption"
+      style={{ fontSize: '11.5px', color: theme.colors.text.tertiary, lineHeight: 1.4 }}
+    >
+      {caption}
+    </span>
   ) : null;
 
   if (inlineLabel) {

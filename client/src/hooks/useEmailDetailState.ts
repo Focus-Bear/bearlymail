@@ -53,6 +53,8 @@ export function useEmailDetailState() {
   const [replySubject, setReplySubject] = useState<string>('');
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+  // Files saved with a draft restored into the composer (e.g. one an AI assistant prepared).
+  const [restoredReplyFiles, setRestoredReplyFiles] = useState<File[]>([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [sending, setSending] = useState(false);
   const [toneCheckResult, setToneCheckResult] = useState<{
@@ -175,6 +177,8 @@ export function useEmailDetailState() {
     setShowCc,
     showBcc,
     setShowBcc,
+    restoredReplyFiles,
+    setRestoredReplyFiles,
     loadingReplies,
     setLoadingReplies,
     sending,

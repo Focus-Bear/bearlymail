@@ -468,6 +468,17 @@ describe('filter panel visibility', () => {
     expect(result.current.isFilterBarVisible).toBe(true);
   });
 
+  it('starts collapsed on a phone-width screen the first time', () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+    try {
+      const { result } = renderHook(() => useInboxFilters());
+      expect(result.current.isFilterBarVisible).toBe(false);
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth });
+    }
+  });
+
   it('remembers that the user collapsed it', () => {
     const { result } = renderHook(() => useInboxFilters());
     act(() => result.current.collapseFilterBar());

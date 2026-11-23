@@ -53,3 +53,59 @@ describe("DraftsService.saveDraft", () => {
     );
   });
 });
+
+describe("DraftsService assistant drafts", () => {
+  const draftRepository = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn((value) => value),
+    save: jest.fn((value) => Promise.resolve(value)),
+  };
+  const service = new DraftsService(draftRepository as never);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("marks a prepared draft as the assistant's, so the inbox flags it and the user's edits take it over", async () => {
+    await service.createAssistantDraft("user-1", null, {
+      content: "<p>Hi</p>",
+      recipients: "a@example.com",
+      subject: "Order",
+      cc: null,
+      bcc: null,
+      attachments: null,
+    });
+
+    expect(draftRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        emailThreadId: null,
+        subject: "Order",
+        source: REPLY_DRAFT_SOURCES.ASSISTANT,
+      }),
+    );
+  });
+
+  it("lists drafts newest first without loading attachment contents", async () => {
+    draftRepository.find.mockResolvedValue([]);
+
+    await service.listDraftSummaries("user-1", 10);
+
+    const [options] = draftRepository.find.mock.calls[0];
+    expect(options).toMatchObject({
+      where: { userId: "user-1" },
+      order: { updatedAt: "DESC" },
+      take: 10,
+    });
+    expect(options.select.attachments).toBeUndefined();
+    expect(options.select.content).toBe(true);
+  });
+
+  it("skips the attachment lookup when there are no drafts", async () => {
+    await expect(
+      service.findDraftIdsWithAttachments("user-1", []),
+    ).resolves.toEqual(new Set());
+    expect(draftRepository.find).not.toHaveBeenCalled();
+  });
+});

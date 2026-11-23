@@ -163,6 +163,41 @@ function isTooCloseToMeeting(
  * Respects working hours, available days, meeting gaps, and deep-work time quotas.
  */
 /**
+ * Busy periods with one interval cut out. When a booking is moved, its own
+ * current slot is still on the host's calendar but must not count against the
+ * new time. Free/busy merges events that touch, so a period overlapping the
+ * interval is trimmed (keeping any neighbouring meeting), not dropped.
+ */
+export function excludeIntervalFromBusy(
+  busy: BusyPeriod[],
+  interval: { start: Date; end: Date },
+): BusyPeriod[] {
+  const excludeStart = interval.start.getTime();
+  const excludeEnd = interval.end.getTime();
+  return busy.flatMap((period) => {
+    const periodStart = new Date(period.start).getTime();
+    const periodEnd = new Date(period.end).getTime();
+    if (periodEnd <= excludeStart || periodStart >= excludeEnd) {
+      return [period];
+    }
+    const remaining: BusyPeriod[] = [];
+    if (periodStart < excludeStart) {
+      remaining.push({
+        start: period.start,
+        end: new Date(excludeStart).toISOString(),
+      });
+    }
+    if (periodEnd > excludeEnd) {
+      remaining.push({
+        start: new Date(excludeEnd).toISOString(),
+        end: period.end,
+      });
+    }
+    return remaining;
+  });
+}
+
+/**
  * Whether one specific slot can be booked: inside the host's working hours,
  * clear of existing events, and outside the configured gap around them.
  * Used to check a slot a visitor asks for, independently of any listing.

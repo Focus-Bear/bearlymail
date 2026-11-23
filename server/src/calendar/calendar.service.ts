@@ -40,6 +40,7 @@ import {
 import {
   BusyPeriod,
   calculateFreeSlots,
+  excludeIntervalFromBusy,
   isBookableSlot,
 } from "./calendar-free-slots.helper";
 import { CalendarIcsService } from "./calendar-ics.service";
@@ -69,6 +70,19 @@ export interface TimeSlotsWithTimezone {
   slots: TimeSlot[];
   timezone: string;
   hasMore: boolean;
+}
+
+/** A booking's current slot, or undefined when its stored times aren't usable. */
+function currentBookingSlot(booking: {
+  startTime?: string | null;
+  endTime?: string | null;
+}): { start: Date; end: Date } | undefined {
+  const start = new Date(booking.startTime ?? "");
+  const end = new Date(booking.endTime ?? "");
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return undefined;
+  }
+  return { start, end };
 }
 
 @Injectable()
@@ -257,11 +271,15 @@ export class CalendarService {
    * returns it with the host's slot length. The request body is not trusted
    * for either: the time must be a future slot the host is actually free
    * for, and the length always comes from the host's preferences.
+   *
+   * @param ownSlot - when moving a booking, its current slot, which is on the
+   *   host's calendar but must not count as a clash with the new time.
    */
   async resolveBookableSlot(
     userId: string,
     startTime: string,
     durationOverrideMinutes?: number,
+    ownSlot?: { start: Date; end: Date },
   ): Promise<{ start: Date; durationMinutes: number }> {
     const start = new Date(startTime);
     const now = Date.now();
@@ -301,10 +319,13 @@ export class CalendarService {
         items: [{ id: "primary" }],
       },
     });
-    const busy = (response.data.calendars?.primary?.busy || []).filter(
+    const calendarBusy = (response.data.calendars?.primary?.busy || []).filter(
       (period): period is BusyPeriod =>
         period.start !== undefined && period.end !== undefined,
     ) as BusyPeriod[];
+    const busy = ownSlot
+      ? excludeIntervalFromBusy(calendarBusy, ownSlot)
+      : calendarBusy;
 
     if (!isBookableSlot(start, durationMinutes, busy, prefs)) {
       throw new BadRequestException("That time is not available");
@@ -487,6 +508,7 @@ Manage this booking:
       booking.userId,
       newStartTime,
       booking.durationMinutes,
+      currentBookingSlot(booking),
     );
     const newEnd = new Date(
       newStart.getTime() + booking.durationMinutes * MILLISECONDS.MINUTE,

@@ -1498,6 +1498,56 @@ describe("CalendarService", () => {
         expect(mockCalendar.events.patch).not.toHaveBeenCalled();
       });
 
+      describe("moving a booking a little", () => {
+        // The booking currently sits at 14:00-14:30 on the host's calendar.
+        const bookedAtTwo = {
+          ...mockBooking,
+          startTime: "2024-01-16T14:00:00.000Z",
+          endTime: "2024-01-16T14:30:00.000Z",
+        };
+        const busyFrom = (periods: Array<{ start: string; end: string }>) =>
+          mockCalendar.freebusy.query.mockResolvedValue({
+            data: { calendars: { primary: { busy: periods } } },
+          });
+
+        beforeEach(() => {
+          mockCalendarBookingRepository.findOne.mockResolvedValue({
+            ...bookedAtTwo,
+          });
+        });
+
+        it("does not count the booking's own slot as a clash", async () => {
+          busyFrom([
+            { start: "2024-01-16T14:00:00Z", end: "2024-01-16T14:30:00Z" },
+          ]);
+          mockCalendar.events.patch.mockResolvedValue({
+            data: { id: "event-1" },
+          });
+
+          await service.rescheduleBooking("test-token", "2024-01-16T14:15:00Z");
+
+          expect(mockCalendar.events.patch).toHaveBeenCalledWith(
+            expect.objectContaining({
+              requestBody: expect.objectContaining({
+                start: { dateTime: "2024-01-16T14:15:00.000Z" },
+              }),
+            }),
+          );
+        });
+
+        it("still refuses a meeting next to it that free/busy merged in", async () => {
+          // Own slot 14:00-14:30 plus another meeting 14:30-15:00, merged.
+          busyFrom([
+            { start: "2024-01-16T14:00:00Z", end: "2024-01-16T15:00:00Z" },
+          ]);
+
+          await expect(
+            service.rescheduleBooking("test-token", "2024-01-16T14:15:00Z"),
+          ).rejects.toThrow("That time is not available");
+          expect(mockCalendar.events.patch).not.toHaveBeenCalled();
+        });
+      });
+
       it("refuses a time that overlaps an existing event", async () => {
         mockCalendar.freebusy.query.mockResolvedValue({
           data: {

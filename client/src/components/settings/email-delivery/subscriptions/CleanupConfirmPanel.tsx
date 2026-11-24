@@ -66,7 +66,7 @@ export const CleanupConfirmPanel: React.FC<CleanupConfirmPanelProps> = ({ select
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             backgroundColor: theme.colors.primary.main,
-            color: theme.colors.primary.contrastText,
+            color: theme.colors.text.primary,
             border: 'none',
             borderRadius: theme.borderRadius.md,
             fontWeight: theme.typography.fontWeight.semibold,

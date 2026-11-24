@@ -76,8 +76,15 @@ export const MailingListRow: React.FC<MailingListRowProps> = ({ list, isSelected
           </span>
         )}
         <span style={{ display: 'block', fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
-          {t('settings.subscriptions.stats', { count: list.emailCount, perWeek: list.perWeek })}
-          {list.triageThreadCount > 0 && ` · ${t('settings.subscriptions.inTriage', { count: list.triageThreadCount })}`}
+          {/* Each part stays on one line, so a narrow screen wraps between parts, never mid-part. */}
+          <span style={{ whiteSpace: 'nowrap' }}>
+            {t('settings.subscriptions.stats', { count: list.emailCount, perWeek: list.perWeek })}
+          </span>
+          {list.triageThreadCount > 0 && (
+            <span style={{ whiteSpace: 'nowrap' }}>
+              {` · ${t('settings.subscriptions.inTriage', { count: list.triageThreadCount })}`}
+            </span>
+          )}
         </span>
       </label>
       <span

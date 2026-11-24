@@ -53,7 +53,7 @@ export const MailingListTable: React.FC<MailingListTableProps> = ({
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             backgroundColor: hasSelection ? theme.colors.primary.main : theme.colors.greyscale[300],
-            color: hasSelection ? theme.colors.primary.contrastText : theme.colors.text.secondary,
+            color: hasSelection ? theme.colors.text.primary : theme.colors.text.secondary,
             border: 'none',
             borderRadius: theme.borderRadius.md,
             fontWeight: theme.typography.fontWeight.semibold,

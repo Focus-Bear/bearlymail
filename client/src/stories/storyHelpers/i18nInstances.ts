@@ -183,6 +183,12 @@ emailListItemI18n.use(initReactI18next).init({
     en: {
       translation: {
         'inbox.triage.movingToAction': 'Moving to Action',
+        // Priority badge labels (utils/priorityUtils)
+        'priority.veryHigh': 'Very High',
+        'priority.high': 'High Priority',
+        'priority.medium': 'Medium',
+        'priority.low': 'Low',
+        'priority.veryLow': 'Very Low',
         'emailDetail.archive': 'Archive',
         'emailDetail.snooze': 'Snooze',
         'inbox.email.unread': 'Unread',

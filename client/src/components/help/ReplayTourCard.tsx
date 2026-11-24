@@ -14,7 +14,7 @@ const cardStyle: React.CSSProperties = {
   flexWrap: 'wrap',
   gap: theme.spacing.md,
   padding: theme.spacing.lg,
-  marginBottom: theme.spacing.lg,
+  marginBottom: theme.spacing.xl,
   backgroundColor: theme.colors.primary.subtle,
   border: `1px solid ${theme.colors.primary.main}`,
   borderRadius: theme.borderRadius.lg,
@@ -43,7 +43,7 @@ export const ReplayTourCard: React.FC = () => {
           style={{
             margin: `0 0 ${theme.spacing.xs}`,
             color: theme.colors.text.primary,
-            fontSize: theme.typography.fontSize.lg,
+            fontSize: theme.typography.fontSize.xl,
             fontWeight: theme.typography.fontWeight.semibold,
           }}
         >

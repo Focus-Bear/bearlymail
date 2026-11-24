@@ -151,6 +151,8 @@ const nextFillStyle: React.CSSProperties = {
   position: 'absolute',
   inset: 0,
   backgroundColor: theme.colors.primary.main,
+  // Starts empty, so if the fill animation (App.css) is ever missing the button still reads as locked.
+  transform: 'scaleX(0)',
   transformOrigin: 'left center',
   pointerEvents: 'none',
 };

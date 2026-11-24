@@ -326,6 +326,15 @@ describe("detectImpersonatedBrand", () => {
 });
 
 describe("findLinkTextMismatches", () => {
+  it("stays fast on thousands of unclosed anchors", () => {
+    const html = '<a href="x">'.repeat(20_000);
+    const start = Date.now();
+
+    expect(findLinkTextMismatches(html)).toEqual([]);
+
+    expect(Date.now() - start).toBeLessThan(2000);
+  });
+
   it("flags anchor text showing one domain while the link opens another", () => {
     expect(
       findLinkTextMismatches(

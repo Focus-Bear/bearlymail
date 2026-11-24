@@ -30,6 +30,7 @@ import {
   hasSenderAuthFailure,
   SenderAuthResults,
 } from "../utils/authentication-results.util";
+import { stripTags } from "../utils/html-strip.util";
 import type { PhishingSignal } from "./phishing-detection.service";
 
 export interface LinkTextMismatch {
@@ -141,9 +142,11 @@ function isRelayedSender(fromName: string | null | undefined): boolean {
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>)]+/gi;
 
+// Bounded spans keep matching linear: an anchor's attributes and its text are
+// each capped, so mail made of thousands of unclosed `<a href>` tags cannot
+// make every one of them scan to the end of the body.
 const ANCHOR_PATTERN =
-  /<a\b[^>]*?\bhref\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
-const TAG_PATTERN = /<[^>]*>/g;
+  /<a\b[^<>]{0,2000}?\bhref\s*=\s*(["'])([^<>]{0,2000}?)\1[^<>]{0,2000}>([\s\S]{0,2000}?)<\/a>/gi;
 const HTML_ENTITY_REPLACEMENTS: ReadonlyArray<[RegExp, string]> = [
   [/&nbsp;/gi, " "],
   [/&amp;/gi, "&"],
@@ -244,7 +247,7 @@ export function findSecurityLures(text: string): string[] {
 }
 
 function decodeAnchorText(rawText: string): string {
-  const withoutTags = rawText.replace(TAG_PATTERN, " ");
+  const withoutTags = stripTags(rawText, " ");
   return HTML_ENTITY_REPLACEMENTS.reduce(
     (text, [pattern, replacement]) => text.replace(pattern, replacement),
     withoutTags,

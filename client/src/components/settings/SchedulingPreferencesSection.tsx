@@ -18,6 +18,7 @@ import {
 import { STRING_NONE, STRING_UTC } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 
+import { AdvancedSettings } from './AdvancedSettings';
 import SchedulePreset from './SchedulePreset';
 import { formatHour } from './SchedulingPreferencesHelpers';
 import TimezoneSelect from './TimezoneSelect';
@@ -142,24 +143,6 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
         ))}
       </select>
     </div>
-    <div id="scheduling-slot-duration">
-      <div style={labelStyle}>{t('settings.schedulingPreferences.slotDuration')}</div>
-      <select
-        value={prefs.slotDurationMinutes}
-        onChange={event => savePrefs({ slotDurationMinutes: Number(event.target.value) })}
-        style={selectStyle}
-      >
-        {SLOT_DURATION_OPTIONS.map(slotMinute => (
-          <option key={slotMinute} value={slotMinute}>
-            {t('settings.schedulingPreferences.slotDurationMinutes', { count: slotMinute })}
-          </option>
-        ))}
-      </select>
-    </div>
-    <div id="scheduling-timezone">
-      <div style={labelStyle}>{t('settings.schedulingPreferences.timezone')}</div>
-      <TimezoneSelect value={prefs.timezone} onChange={timezone => savePrefs({ timezone })} />
-    </div>
     {userId && (
       <div id="scheduling-booking-link">
         <div style={labelStyle}>{t('settings.schedulingPreferences.bookingLink')}</div>
@@ -208,6 +191,28 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
         </div>
       </div>
     )}
+    <AdvancedSettings summary={t('settings.advanced.scheduling')}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
+        <div id="scheduling-slot-duration">
+          <div style={labelStyle}>{t('settings.schedulingPreferences.slotDuration')}</div>
+          <select
+            value={prefs.slotDurationMinutes}
+            onChange={event => savePrefs({ slotDurationMinutes: Number(event.target.value) })}
+            style={selectStyle}
+          >
+            {SLOT_DURATION_OPTIONS.map(slotMinute => (
+              <option key={slotMinute} value={slotMinute}>
+                {t('settings.schedulingPreferences.slotDurationMinutes', { count: slotMinute })}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div id="scheduling-timezone">
+          <div style={labelStyle}>{t('settings.schedulingPreferences.timezone')}</div>
+          <TimezoneSelect value={prefs.timezone} onChange={timezone => savePrefs({ timezone })} />
+        </div>
+      </div>
+    </AdvancedSettings>
   </div>
 );
 

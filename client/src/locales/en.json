@@ -999,8 +999,7 @@
     "show": "Show",
     "saved": "✓ Saved",
     "emailBatching": {
-      "title": "Email Batching",
-      "description": "Non-urgent emails will be batched and delivered at these scheduled times. Urgent emails always arrive immediately."
+      "title": "Email Batching"
     },
     "hideNonUrgent": "Hide non-urgent emails for (hours):",
     "summarizationRules": "Summarization Rules",
@@ -1026,8 +1025,6 @@
     "noContext": "No context learned yet. Click \"Analyze Emails\" to learn from your email history.",
     "source": "Source: {{source}}",
     "batchHoursUpdated": "Batch hours updated successfully",
-    "batchScheduleUpdated": "Batch schedule updated successfully",
-    "batchScheduleError": "Failed to update batch schedule",
     "unsavedChanges": {
       "title": "Unsaved changes",
       "message": "You have unsaved changes to your email delivery schedule. If you leave now, they will be lost.",
@@ -1336,7 +1333,6 @@
       "displayNamePlaceholder": "e.g., Jeremy",
       "jobTitleLabel": "Job Title (provides context for AI)",
       "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
-      "notSet": "Not set",
       "calendarBookingUrlLabel": "Calendar Booking URL (for AI scheduling replies)",
       "calendarBookingUrlPlaceholder": "e.g., https://calendly.com/yourname"
     },
@@ -1344,52 +1340,19 @@
       "title": "Email Signature",
       "description": "Customize the signature that appears at the bottom of your emails.",
       "label": "Signature",
-      "placeholder": "Sent from BearlyMail (anti inbox overwhelm system)",
-      "save": "Save Signature",
-      "saving": "Saving..."
+      "placeholder": "Sent from BearlyMail (anti inbox overwhelm system)"
     },
     "tabs": {
       "account": "Account",
       "label": "Settings sections"
     },
     "nav": {
-      "accountSecurity": "Account & Security",
-      "password": "Password",
-      "twoFactorAuth": "Two-Factor Auth",
       "emailDelivery": "Email Delivery",
-      "emailAccounts": "Email Accounts",
-      "googleAccounts": "Google Accounts",
-      "emailBatching": "Email Batching",
-      "blockedSenders": "Blocked Senders",
-      "emailSignature": "Email Signature",
       "guideOurAI": "Guide Our AI",
-      "emailCategories": "Email Categories",
-      "toneSettings": "Tone Settings",
-      "summarization": "Summarization",
-      "autoResponder": "Auto-Responder",
       "integrations": "Integrations",
       "integrationsApps": "Integrations & Apps",
-      "connectedApps": "Connected Apps",
-      "workflows": "Workflows",
-      "ownAiAccount": "Use your own AI account",
-      "githubIntegration": "GitHub Integration",
       "schedulingPreferences": "Scheduling",
-      "schedulingAvailability": "Availability",
-      "schedulingMeetingGap": "Meeting Gap",
-      "schedulingDeepWork": "Deep Work",
-      "schedulingSlotDuration": "Slot Duration",
-      "schedulingTimezone": "Timezone",
-      "schedulingBookingLink": "Booking Link",
-      "teamPlan": "Team & Plan",
-      "teamMembers": "Organisation & Members",
-      "teamUsage": "Usage & Limits",
-      "teamPromo": "Promo Code",
-      "dataAccount": "Data & Account",
-      "dataExport": "Export & Import",
-      "troubleshooting": "Troubleshooting",
-      "deleteAccount": "Delete Account",
-      "emailTracking": "Open tracking",
-      "focusBear": "Focus Bear"
+      "teamPlan": "Team & Plan"
     },
     "schedulingPreferences": {
       "title": "Scheduling Preferences",
@@ -1651,6 +1614,34 @@
         "addTime": "Add Time",
         "timeAria": "Time",
         "meridiemAria": "AM or PM"
+      },
+      "change": "Change",
+      "done": "Done",
+      "summary": {
+        "alwaysOn": "New email shows up as soon as it arrives.",
+        "batched": "Non-urgent email arrives at {{times}} {{days}}.",
+        "everyDay": "every day",
+        "weekdays": "on weekdays",
+        "weekends": "on weekends",
+        "someDays": "on {{days}}",
+        "urgent": "Urgent email still comes straight away.",
+        "incomplete": "Pick at least one day and one time. Your schedule saves once it has both.",
+        "and": "and"
+      },
+      "presets": {
+        "label": "How often should email arrive?",
+        "calm": {
+          "label": "Calm",
+          "hint": "Twice a day on weekdays"
+        },
+        "balanced": {
+          "label": "Balanced",
+          "hint": "Four times a day on weekdays"
+        },
+        "alwaysOn": {
+          "label": "Always on",
+          "hint": "As soon as it arrives"
+        }
       }
     },
     "emailAccounts": {
@@ -2244,6 +2235,18 @@
           "description": "Jev makes BearlyMail's quick yes/no and category decisions. If you add an OpenAI or Anthropic key but no Jev key, that account makes those decisions instead. A Jev key on its own moves only Jev's decisions to your account."
         }
       }
+    },
+    "autosave": {
+      "saving": "Saving…",
+      "saved": "Saved ✓",
+      "error": "Couldn't save.",
+      "retry": "Try again"
+    },
+    "advanced": {
+      "title": "Advanced",
+      "scheduling": "Meeting length and time zone",
+      "integrations": "Your own AI keys and GitHub",
+      "account": "Troubleshooting"
     }
   },
   "oauthConsent": {

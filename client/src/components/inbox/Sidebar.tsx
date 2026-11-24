@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FiBarChart2,
@@ -13,14 +13,14 @@ import {
   FiUser,
   FiUsers,
 } from 'react-icons/fi';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
-import { SettingsSubNavGroup as SettingsSubNavGroupComponent } from 'components/inbox/sidebar/SettingsSubNavGroup';
-import { SettingsSubNavItem as SettingsSubNavItemComponent } from 'components/inbox/sidebar/SettingsSubNavItem';
+import { SettingsSubNavItem } from 'components/inbox/sidebar/SettingsSubNavItem';
 import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
 import { SidebarHeader } from 'components/inbox/sidebar/SidebarHeader';
+import { SETTINGS_TABS, type SettingsTabId } from 'components/settings/settings-tabs';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { MAX_BADGE_DISPLAY } from 'constants/numbers';
@@ -39,8 +39,6 @@ import {
 import { User } from 'contexts/AuthContext';
 import { useCrmPlanAccess } from 'hooks/useCrmPlanAccess';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-
-import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup, SettingsSubNavItem } from './sidebar.helpers';
 
 interface SidebarItemProps {
   label: string;
@@ -185,71 +183,32 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   );
 };
 
-const getGroupKey = (label: string): string => {
-  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-};
-
-const SETTINGS_EXPANDED_DEFAULTS: Record<string, boolean> = {
-  'account-security': true,
-  'email-delivery': true,
-  'guide-our-ai': true,
-  scheduling: true,
-  'integrations-apps': true,
-  'team-plan': true,
-  'data-account': true,
-};
-
-interface RenderNavItemProps {
-  item: SettingsSubNavItem | SettingsSubNavGroup;
-  hash?: string;
-  expandedGroups: Record<string, boolean>;
-  scrollToSection: (anchor: string) => void;
-  onToggleGroup: (groupKey: string, isExpanded: boolean) => void;
+/** Which Settings tab is open, so the sidebar can list the tabs and switch them (#482). */
+export interface SettingsTabsNav {
+  activeTab: SettingsTabId;
+  onSelect: (tab: SettingsTabId) => void;
 }
 
-function renderNavItem({ item, hash, expandedGroups, scrollToSection, onToggleGroup }: RenderNavItemProps) {
-  if ('items' in item) {
-    const groupKey = getGroupKey(item.label);
-    const isExpanded = expandedGroups[groupKey] ?? true;
-    return (
-      <SettingsSubNavGroupComponent
-        key={item.label}
-        label={item.label}
-        items={item.items}
-        isExpanded={isExpanded}
-        hash={hash}
-        onToggle={() => onToggleGroup(groupKey, isExpanded)}
-        onScrollToSection={scrollToSection}
-      />
-    );
-  }
-  return (
-    <SettingsSubNavItemComponent
-      key={item.id}
-      id={item.id}
-      label={item.label}
-      anchor={item.anchor}
-      hash={hash}
-      onScrollToSection={scrollToSection}
-    />
-  );
-}
-
-export const SettingsSubNav: React.FC<{ hash?: string; isAdmin?: boolean }> = ({ hash, isAdmin }) => {
+/** The Settings tabs under "Settings" in the sidebar: one link per tab instead of every section. */
+export const SettingsSubNav: React.FC<SettingsTabsNav & { onAfterSelect?: () => void }> = ({
+  activeTab,
+  onSelect,
+  onAfterSelect,
+}) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(SETTINGS_EXPANDED_DEFAULTS);
-  const scrollToSection = makeScrollToSection(navigate);
-  const navItems = getSettingsNavItems(t, { isAdmin });
-  const handleToggleGroup = (groupKey: string, isExpanded: boolean) => {
-    setExpandedGroups(prev => ({ ...prev, [groupKey]: !isExpanded }));
-  };
-
   return (
     <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-      {navItems.map(item =>
-        renderNavItem({ item, hash, expandedGroups, scrollToSection, onToggleGroup: handleToggleGroup })
-      )}
+      {SETTINGS_TABS.map(tab => (
+        <SettingsSubNavItem
+          key={tab.id}
+          label={t(tab.labelKey)}
+          isActive={tab.id === activeTab}
+          onSelect={() => {
+            onSelect(tab.id);
+            onAfterSelect?.();
+          }}
+        />
+      ))}
     </div>
   );
 };
@@ -262,6 +221,8 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
   isMobileMenuOpen?: boolean;
   onCloseMobileMenu?: () => void;
+  /** Set on the Settings page: lists its tabs under "Settings". */
+  settingsTabs?: SettingsTabsNav;
 }
 
 interface CrmSubNavProps {
@@ -314,6 +275,8 @@ interface SidebarNavProps {
   isAdmin?: boolean;
   isCrmLocked: boolean;
   handleNavigationClick: (path: string) => void;
+  settingsTabs?: SettingsTabsNav;
+  onSettingsTabSelected: () => void;
 }
 
 const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -325,6 +288,8 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
   isAdmin,
   isCrmLocked,
   handleNavigationClick,
+  settingsTabs,
+  onSettingsTabSelected,
 }) => (
   <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingRight: theme.spacing.xs }}>
     <SidebarItem
@@ -385,7 +350,9 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
         isCollapsed={effectiveIsCollapsed}
         onNavigationClick={handleNavigationClick}
       />
-      {!effectiveIsCollapsed && isSettingsPage && <SettingsSubNav hash={location.hash} isAdmin={isAdmin} />}
+      {!effectiveIsCollapsed && isSettingsPage && settingsTabs && (
+        <SettingsSubNav {...settingsTabs} onAfterSelect={onSettingsTabSelected} />
+      )}
     </div>
     {isAdmin && (
       <div style={{ marginTop: theme.spacing.sm }}>
@@ -410,6 +377,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   isMobileMenuOpen = false,
   onCloseMobileMenu,
+  settingsTabs,
 }) => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -479,6 +447,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isAdmin={user?.isAdmin}
           isCrmLocked={!isCrmIncluded}
           handleNavigationClick={handleNavigationClick}
+          settingsTabs={settingsTabs}
+          onSettingsTabSelected={() => {
+            if (isNarrow) {
+              onCloseMobileMenu?.();
+            }
+          }}
         />
         <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={effectiveIsCollapsed} />
       </div>

@@ -4051,8 +4051,6 @@
     "analyzing": "Analizando...",
     "batchHoursError": "No se pudieron actualizar las horas del lote",
     "batchHoursUpdated": "Horas de lote actualizadas exitosamente",
-    "batchScheduleError": "Error al actualizar el horario de lotes",
-    "batchScheduleUpdated": "Horario de lotes actualizado correctamente",
     "unsavedChanges": {
       "title": "Cambios sin guardar",
       "message": "Tienes cambios sin guardar en tu horario de entrega de correos. Si sales ahora, se perderán.",
@@ -4185,7 +4183,6 @@
       "displayNamePlaceholder": "ej., Jeremy",
       "jobTitleLabel": "Título del puesto (proporciona contexto para la IA)",
       "jobTitlePlaceholder": "ej., Ingeniero de Software, Gerente de Producto",
-      "notSet": "No establecido",
       "calendarBookingUrlLabel": "URL de reserva de calendario (para respuestas de programación de IA)",
       "calendarBookingUrlPlaceholder": "ej., https://calendly.com/tunombre"
     },
@@ -4193,9 +4190,7 @@
       "title": "Firma de Correo Electrónico",
       "description": "Personaliza la firma que aparece al final de tus correos electrónicos.",
       "label": "Firma",
-      "placeholder": "Enviado desde BearlyMail (sistema anti abrumación de bandeja de entrada)",
-      "save": "Guardar Firma",
-      "saving": "Guardando..."
+      "placeholder": "Enviado desde BearlyMail (sistema anti abrumación de bandeja de entrada)"
     },
     "contextSections": {
       "notImportant": "Lo que no considero importante",
@@ -4478,7 +4473,35 @@
         "timeAria": "Hora",
         "meridiemAria": "a. m. o p. m."
       },
-      "timezone": "Zona horaria"
+      "timezone": "Zona horaria",
+      "change": "Cambiar",
+      "done": "Listo",
+      "summary": {
+        "alwaysOn": "El correo nuevo aparece en cuanto llega.",
+        "batched": "El correo no urgente llega a las {{times}} {{days}}.",
+        "everyDay": "todos los días",
+        "weekdays": "de lunes a viernes",
+        "weekends": "los fines de semana",
+        "someDays": "los días {{days}}",
+        "urgent": "El correo urgente sigue llegando al instante.",
+        "incomplete": "Elige al menos un día y una hora. Tu horario se guarda cuando tenga ambos.",
+        "and": "y"
+      },
+      "presets": {
+        "label": "¿Con qué frecuencia debe llegar el correo?",
+        "calm": {
+          "label": "Calma",
+          "hint": "Dos veces al día de lunes a viernes"
+        },
+        "balanced": {
+          "label": "Equilibrado",
+          "hint": "Cuatro veces al día de lunes a viernes"
+        },
+        "alwaysOn": {
+          "label": "Siempre activo",
+          "hint": "En cuanto llega"
+        }
+      }
     },
     "emailAccounts": {
       "connect": "Conectar cuenta",
@@ -4507,7 +4530,6 @@
       "title": "Cuentas de correo electrónico"
     },
     "emailBatching": {
-      "description": "Los correos no urgentes se agruparán y se entregarán en estos horarios programados. Los correos urgentes siempre llegan inmediatamente.",
       "title": "Agrupación de correos electrónicos"
     },
     "emailsFrom": "Correos electrónicos de {{value}}",
@@ -4590,43 +4612,12 @@
       "label": "Secciones de ajustes"
     },
     "nav": {
-      "accountSecurity": "Cuenta y seguridad",
-      "password": "Contraseña",
-      "twoFactorAuth": "Autenticación de dos factores",
-      "blockedSenders": "Remitentes bloqueados",
-      "emailBatching": "Agrupación de correos electrónicos",
       "emailDelivery": "Entrega de correo electrónico",
-      "emailCategories": "Categorías de Correo",
-      "emailSignature": "Firma de correo electrónico",
-      "emailAccounts": "Cuentas de Correo",
-      "githubIntegration": "Integración de GitHub",
-      "googleAccounts": "Cuentas de Google",
       "guideOurAI": "Guía nuestra IA",
       "integrations": "Integraciones",
       "integrationsApps": "Integraciones y aplicaciones",
-      "connectedApps": "Aplicaciones conectadas",
-      "workflows": "Flujos de trabajo",
-      "ownAiAccount": "Usa tu propia cuenta de IA",
-      "summarization": "Resumen",
-      "toneSettings": "Configuración de tono",
-      "autoResponder": "Respuesta automática",
       "schedulingPreferences": "Programación",
-      "schedulingAvailability": "Disponibilidad",
-      "schedulingMeetingGap": "Intervalo entre reuniones",
-      "schedulingDeepWork": "Trabajo profundo",
-      "schedulingSlotDuration": "Duración del turno",
-      "schedulingTimezone": "Zona horaria",
-      "schedulingBookingLink": "Enlace de reservas",
-      "teamPlan": "Equipo y plan",
-      "teamMembers": "Organización y miembros",
-      "teamUsage": "Uso y límites",
-      "teamPromo": "Código promocional",
-      "dataAccount": "Datos y cuenta",
-      "dataExport": "Exportar e importar",
-      "troubleshooting": "Solución de problemas",
-      "deleteAccount": "Eliminar cuenta",
-      "emailTracking": "Seguimiento de aperturas",
-      "focusBear": "Focus Bear"
+      "teamPlan": "Equipo y plan"
     },
     "schedulingPreferences": {
       "title": "Preferencias de programación",
@@ -5257,6 +5248,18 @@
           "description": "Jev toma las decisiones rápidas de sí/no y de categoría de BearlyMail. Si añades una clave de OpenAI o Anthropic pero no de Jev, esa cuenta tomará esas decisiones. Una clave de Jev por sí sola solo traslada a tu cuenta las decisiones de Jev."
         }
       }
+    },
+    "autosave": {
+      "saving": "Guardando…",
+      "saved": "Guardado ✓",
+      "error": "No se pudo guardar.",
+      "retry": "Reintentar"
+    },
+    "advanced": {
+      "title": "Avanzado",
+      "scheduling": "Duración de reuniones y zona horaria",
+      "integrations": "Tus propias claves de IA y GitHub",
+      "account": "Solución de problemas"
     }
   },
   "keyboard": {

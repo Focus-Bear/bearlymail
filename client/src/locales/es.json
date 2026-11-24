@@ -3957,7 +3957,7 @@
     "catchingUpTooltip": "El procesamiento de IA se pausó mientras estabas inactivo. Procesando ahora en segundo plano.",
     "scheduledTour": {
       "title": "Correo programado ✅",
-      "body": "Encuéntralo aquí cuando quieras: toca ⋮ y luego Programados para ver, reprogramar o cancelar.",
+      "body": "Encuéntralo aquí cuando quieras: toca ⋮ y luego Programados para verlo o cancelarlo.",
       "dismiss": "Entendido"
     },
     "familyCategoryCount_one": "{{count}} categoría",

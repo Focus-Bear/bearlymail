@@ -648,7 +648,7 @@
     "catchingUpTooltip": "AI processing was paused while you were inactive. Processing now in the background.",
     "scheduledTour": {
       "title": "Email scheduled ✅",
-      "body": "Find it here anytime — tap ⋮ then Scheduled to view, reschedule, or cancel.",
+      "body": "Find it here anytime — tap ⋮ then Scheduled to see it or cancel it.",
       "dismiss": "Got it"
     },
     "familyCategoryCount_one": "{{count}} category",

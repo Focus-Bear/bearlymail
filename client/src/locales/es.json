@@ -250,7 +250,7 @@
         "30d": "Últimos 30 días",
         "all": "Todo el tiempo"
       },
-      "retry": "Rever",
+      "retry": "Reintentar",
       "title": "Estadísticas de cola de trabajos"
     },
     "title": "Administración",
@@ -691,7 +691,7 @@
     "back": "Atrás",
     "backToInbox": "Volver a la bandeja de entrada",
     "openNavigationMenu": "Abrir el menú de navegación",
-    "cancel": "Cancel",
+    "cancel": "Cancelar",
     "close": "Cerca",
     "closeNotification": "Cerrar notificación",
     "confirm": "Confirmar",
@@ -704,7 +704,7 @@
     "loading": "Cargando...",
     "null": "nulo",
     "remove": "Eliminar",
-    "retry": "Rever",
+    "retry": "Reintentar",
     "save": "Guardar",
     "saveAndSend": "Guardar y enviar",
     "saved": "✓ Guardado",
@@ -752,7 +752,7 @@
     "newMessage": "Nuevo mensaje",
     "recipientPlaceholder": "Introduzca la dirección de correo electrónico",
     "send": "Enviar",
-    "sending": "Envío...",
+    "sending": "Enviando...",
     "sent": "Enviado",
     "subject": "Sujeto",
     "subjectPlaceholder": "Sujeto",
@@ -817,7 +817,7 @@
     "keepEditing": "Seguir editando",
     "followUpSection": "Seguimiento",
     "trackOpens": "Registrar aperturas",
-    "trackOpensTooltip": "Añade una imagen invisible para que veas cuándo se abre este correo. Por defecto usa tu ajuste en Configuración → Seguimiento de aperturas.",
+    "trackOpensTooltip": "Añade una imagen invisible para que veas cuándo se abre este correo. Por defecto usa tu ajuste en Ajustes → Entrega de correo electrónico → Seguimiento de aperturas.",
     "trackOpensNotIncluded": "El seguimiento de aperturas está incluido en los planes Growth y Enterprise.",
     "trackOpensUpgrade": "Mejorar plan"
   },
@@ -1197,7 +1197,7 @@
   },
   "email": {
     "batched": "por lotes",
-    "calculating": "Calculador...",
+    "calculating": "Calculando...",
     "priorityCalculated": "Prioridad calculada",
     "priorityUnavailable": "Sin priorizar",
     "priorityUnavailableHint": "La prioridad aún no se ha calculado. Haz clic para reintentar.",
@@ -1251,7 +1251,7 @@
       "decline": "Rechazar",
       "declineError": "No se pudo rechazar la invitación. Por favor inténtalo de nuevo.",
       "declined": "Rechazado",
-      "declining": "Declinante...",
+      "declining": "Rechazando...",
       "title": "Invitación del calendario"
     },
     "schedulingRequest": {
@@ -1337,7 +1337,7 @@
     "expandSummary": "Ampliar resumen",
     "extracting": "Extrayendo...",
     "noActionItems": "Aún no hay elementos de acción.",
-    "forward": "Adelante",
+    "forward": "Reenviar",
     "forwardSoon": "Funcionalidad avanzada próximamente",
     "generating": "Generando...",
     "generatingSummary": "Generando resumen...",
@@ -1365,7 +1365,7 @@
     "scoreBreakdown": "Desglose de puntuación",
     "send": "Enviar",
     "sendReply": "Enviar respuesta",
-    "sending": "Envío...",
+    "sending": "Enviando...",
     "sentiment": {
       "label": "Sentimiento",
       "negative": "Negativo",
@@ -1800,13 +1800,23 @@
     "navigationLabel": "Navegación de la ayuda",
     "groups": {
       "basics": "Lo básico",
-      "features": "Funciones y configuración",
-      "support": "Soporte"
+      "setup": "Primeros pasos y configuración",
+      "everyday": "Tareas del día a día",
+      "ai": "Funciones de IA",
+      "integrations": "Integraciones y ajustes",
+      "account": "Cuenta, facturación y privacidad",
+      "troubleshooting": "Solución de problemas"
     },
     "replayTour": {
       "title": "Repetir el recorrido",
       "description": "¿Has olvidado cómo funciona algo? Vuelve a hacer el recorrido guiado por tu bandeja de entrada. Dura más o menos un minuto.",
       "button": "Repetir recorrido"
+    },
+    "search": {
+      "label": "Buscar artículos de ayuda",
+      "placeholder": "Busca en la ayuda, p. ej. «posponer», «conectar Outlook», «no me llegan correos»",
+      "noResults": "Ningún artículo coincide con «{{query}}». Prueba con otras palabras o usa Enviar comentarios arriba para preguntarnos directamente.",
+      "resultsLabel": "Resultados de la búsqueda"
     },
     "articles": {
       "gettingStarted": {
@@ -1822,8 +1832,8 @@
           },
           "section1": {
             "title": "Tu primera sesión",
-            "item0": "Conecta tu cuenta de correo en Configuración → Entrega de correo electrónico → Cuentas de Correo (Gmail, Outlook / Office 365, Zoho o cualquier otra cuenta IMAP).",
-            "item1": "Dale contexto a la IA en Configuración → Guía nuestra IA, o pulsa Analizar correos electrónicos para que aprenda de tu historial.",
+            "item0": "Conecta tu cuenta de correo en Ajustes → Entrega de correo electrónico → Cuentas de Correo (Gmail, Outlook / Office 365, Zoho o cualquier otra cuenta IMAP).",
+            "item1": "Dale contexto a la IA en Ajustes → Guía nuestra IA, o pulsa Analizar correos electrónicos para que aprenda de tu historial.",
             "item2": "Abre Clasificación y empieza por arriba. Con cada correo: archívalo, posponlo o asígnale una prioridad para moverlo a Acción.",
             "item3": "Cuando Clasificación esté vacía, pasa a Acción y ponte con el trabajo."
           },
@@ -1833,7 +1843,7 @@
           },
           "section3": {
             "title": "¿Quieres volver a ver el recorrido?",
-            "content": "Ve a Ayuda y pulsa Repetir recorrido, o a Configuración → Cuenta → Solución de problemas → Repetir tour."
+            "content": "Ve a Ayuda y pulsa Repetir recorrido, o a Ajustes → Cuenta → Solución de problemas → Repetir tour."
           }
         }
       },
@@ -1862,7 +1872,7 @@
           },
           "section4": {
             "title": "Trabajar con categorías",
-            "item0": "Archivar todo vacía una categoría entera de una vez; Seleccionar todo te deja elegir varios para actuar sobre ellos juntos.",
+            "item0": "Archivar todo vacía una categoría entera de una vez.",
             "item1": "Si sigues archivando una categoría sin leerla, BearlyMail te ofrecerá archivarla automáticamente en el futuro.",
             "item2": "¿Un correo está en la categoría equivocada? Toca su etiqueta de prioridad y usa Editar junto a la categoría.",
             "item3": "Recategorizar vuelve a ordenar tu bandeja si tus categorías han cambiado."
@@ -1871,7 +1881,7 @@
             "title": "Consejos para clasificar rápido",
             "item0": "Usa el teclado: J/K para moverte, 1/2/3 para priorizar, E o Supr para archivar (consulta Atajos de teclado).",
             "item1": "No respondas en Clasificación. Si algo lleva más de dos minutos, priorízalo y sigue.",
-            "item2": "Selecciona varios correos con sus casillas para archivarlos, posponerlos o marcarlos como leídos de una vez."
+            "item2": "Haz Cmd-clic (Ctrl-clic en Windows) en varios correos para seleccionarlos, o Mayús-clic para seleccionar un rango, y luego posponlos o archívalos de una vez."
           }
         }
       },
@@ -1953,11 +1963,11 @@
             "item0": "Desglose de puntuación: los factores que han sumado o restado puntos.",
             "item1": "Quién la puntuó: una regla que configuraste, un modelo local o la IA.",
             "item2": "Categoría: en qué categoría se ha puesto el correo y por qué. Usa Editar para moverlo a otra.",
-            "item3": "Priorización correcta: dile a BearlyMail qué puntuación esperabas y por qué."
+            "item3": "Corregir la prioridad: dile a BearlyMail qué puntuación esperabas y por qué."
           },
           "section2": {
             "title": "Enseñar a BearlyMail",
-            "content": "Cada corrección, cambio de categoría y prioridad que asignas entrena a la IA, así que el orden mejora cuanto más la usas. Para cambios duraderos, añade contactos VIP y describe lo que es urgente para ti en Configuración → Guía nuestra IA."
+            "content": "Cada corrección, cambio de categoría y prioridad que asignas entrena a la IA, así que el orden mejora cuanto más la usas. Para cambios duraderos, añade contactos VIP y describe lo que es urgente para ti en Ajustes → Guía nuestra IA."
           },
           "section3": {
             "title": "Calculando y Sin priorizar",
@@ -1979,7 +1989,7 @@
           },
           "section1": {
             "title": "Cambiar las horas de entrega",
-            "content": "Ve a Configuración → Entrega de correo electrónico → Agrupación de correos electrónicos. Elige tu zona horaria, los Días de entrega y añade o quita Plazos de entrega. Dos o tres tandas al día funcionan bien para la mayoría de la gente."
+            "content": "Ve a Ajustes → Entrega de correo electrónico → Agrupación de correos electrónicos. Elige tu zona horaria, los Días de entrega y añade o quita Plazos de entrega. Dos o tres tandas al día funcionan bien para la mayoría de la gente."
           },
           "section2": {
             "title": "Los urgentes llegan igualmente",
@@ -2023,7 +2033,7 @@
         "content": {
           "section0": {
             "title": "Por qué importa el contexto",
-            "content": "La IA de BearlyMail decide qué es importante con lo que sabe de ti. Cuanto más preciso sea tu contexto, mejor será el orden de Clasificación. Lo encontrarás en Configuración → Guía nuestra IA → Contexto Acerca de mí."
+            "content": "La IA de BearlyMail decide qué es importante con lo que sabe de ti. Cuanto más preciso sea tu contexto, mejor será el orden de Clasificación. Lo encontrarás en Ajustes → Guía nuestra IA → Contexto Acerca de mí."
           },
           "section1": {
             "title": "Qué puedes contarle",
@@ -2077,7 +2087,8 @@
             "title": "Integraciones y aplicaciones",
             "item0": "Aplicaciones conectadas: herramientas que la IA puede usar para el contexto del remitente, Preguntar a IA y los flujos de trabajo.",
             "item1": "Flujos de trabajo: cuando un correo cumple una condición, ejecuta una acción como archivar, responder automáticamente o llamar a un webhook.",
-            "item2": "Usa tu propia cuenta de IA, la integración con GitHub y Focus Bear."
+            "item2": "Conectar Claude: añade BearlyMail a Claude como conector, o crea un token de acceso para otra app de IA.",
+            "item3": "Usa tu propia cuenta de IA, la integración con GitHub y Focus Bear."
           },
           "section4": {
             "title": "Equipo y plan",
@@ -2102,7 +2113,7 @@
           },
           "section1": {
             "title": "Activarla",
-            "content": "Ve a Configuración → Guía nuestra IA → Respuesta automática y actívala. Está desactivada hasta que lo hagas."
+            "content": "Ve a Ajustes → Guía nuestra IA → Respuesta automática y actívala. Está desactivada hasta que lo hagas."
           },
           "section2": {
             "title": "Plantillas",
@@ -2165,12 +2176,12 @@
             "title": "No aparecen correos nuevos",
             "item0": "Mira la barra de la parte superior de la bandeja: el correo no urgente llega por tandas, así que puede que solo esté esperando la próxima hora de entrega.",
             "item1": "Si ves un aviso para volver a iniciar sesión o que BearlyMail no puede leer tu Gmail, pulsa el botón del aviso para volver a conectar.",
-            "item2": "Ve a Configuración → Entrega de correo electrónico → Cuentas de Correo para comprobar que cada cuenta está conectada.",
+            "item2": "Ve a Ajustes → Entrega de correo electrónico → Cuentas de Correo para comprobar que cada cuenta está conectada.",
             "item3": "Comprueba que el correo no sea de un remitente bloqueado ni esté en una categoría que se archiva automáticamente."
           },
           "section1": {
             "title": "Un correo está en el sitio equivocado",
-            "item0": "Prioridad incorrecta: toca la etiqueta de prioridad y usa Priorización correcta.",
+            "item0": "Prioridad incorrecta: toca la etiqueta de prioridad y usa Corregir la prioridad.",
             "item1": "Categoría incorrecta: toca la etiqueta de prioridad y usa Editar junto a la categoría.",
             "item2": "No encuentras un correo: usa Búsqueda o revisa la vista de bloqueados en el menú ⋮."
           },
@@ -2181,7 +2192,7 @@
           "section3": {
             "title": "Otra cosa no funciona",
             "item0": "Recarga la página y luego cierra sesión y vuelve a entrar.",
-            "item1": "Activa el Modo de resolución de problemas en Configuración → Cuenta → Solución de problemas. Muestra más detalles que nos ayudan a diagnosticar problemas.",
+            "item1": "Activa el Modo de resolución de problemas en Ajustes → Cuenta → Solución de problemas. Muestra más detalles que nos ayudan a diagnosticar problemas.",
             "item2": "Repite el recorrido desde la página de Ayuda si has olvidado cómo funciona algo."
           },
           "section4": {
@@ -2205,16 +2216,1338 @@
           "section2": {
             "title": "Qué es privado",
             "item0": "Las notas privadas de una conversación solo las ves tú.",
-            "item1": "Si el seguimiento de aperturas está activado, BearlyMail añade una imagen invisible a los correos que envías para saber cuándo se abren. Las respuestas automáticas nunca se rastrean. Desactívalo en Configuración → Entrega de correo electrónico → Seguimiento de aperturas.",
-            "item2": "Puedes usar tu propia cuenta de IA (Configuración → Integraciones y aplicaciones) si prefieres que las peticiones de IA se hagan con tu propia cuenta del proveedor."
+            "item1": "Si el seguimiento de aperturas está activado, BearlyMail añade una imagen invisible a los correos que envías para saber cuándo se abren. Las respuestas automáticas nunca se rastrean. Desactívalo en Ajustes → Entrega de correo electrónico → Seguimiento de aperturas.",
+            "item2": "Puedes usar tu propia cuenta de IA (Ajustes → Integraciones y aplicaciones) si prefieres que las peticiones de IA se hagan con tu propia cuenta del proveedor."
           },
           "section3": {
             "title": "Exportar tus datos",
-            "content": "Ve a Configuración → Cuenta → Exportar e Importar Datos. Puedes exportar tu configuración a un archivo (e importarla de nuevo más adelante), y Exportar correos descarga tus correos más recientes en un ZIP protegido con contraseña."
+            "content": "Ve a Ajustes → Cuenta → Exportar e Importar Datos. Puedes exportar tu configuración a un archivo (e importarla de nuevo más adelante), y Exportar correos descarga tus correos más recientes en un ZIP protegido con contraseña."
           },
           "section4": {
             "title": "Eliminar tu cuenta",
-            "content": "Ve a Configuración → Cuenta → Eliminar cuenta y escribe «delete all my data» para confirmar. Esto elimina para siempre tus datos de BearlyMail y no se puede deshacer. Tus correos se quedan en Gmail u Outlook."
+            "content": "Ve a Ajustes → Cuenta → Eliminar cuenta y escribe «delete all my data» para confirmar. Esto elimina para siempre tus datos de BearlyMail y no se puede deshacer. Tus correos se quedan en Gmail u Outlook."
+          }
+        }
+      },
+      "connectGmail": {
+        "title": "Conectar una cuenta de Gmail",
+        "description": "Cómo conectar Gmail, qué te pide permitir Google y qué pasa después.",
+        "content": {
+          "section0": {
+            "title": "Conecta Gmail",
+            "item0": "Si eres nuevo en BearlyMail: en la página de inicio de sesión, selecciona Continuar con Google.",
+            "item1": "La primera vez, BearlyMail te explica cada permiso. Mantén pulsado el botón para continuar a Google.",
+            "item2": "Si ya usas BearlyMail: ve a Ajustes → Entrega de correo electrónico → Cuentas de correo electrónico, selecciona Conectar otro (o Conectar cuenta si no tienes ninguna) y elige Gmail.",
+            "item3": "Elige tu cuenta de Google y permite el acceso en la pantalla de Google."
+          },
+          "section1": {
+            "title": "Dos cosas en la pantalla de Google",
+            "item0": "Deja todas las casillas marcadas. Si desmarcas una, la función que la necesita dejará de funcionar sin avisar.",
+            "item1": "Si te pregunta durante cuánto tiempo permitir el acceso, elige acceso continuo en lugar de 6 meses. El acceso temporal caduca y tu bandeja se desconecta sin avisar."
+          },
+          "section2": {
+            "title": "Qué pide BearlyMail",
+            "content": "Permiso para leer, organizar y archivar tu correo, enviar correos en tu nombre y ver tu nombre y tu dirección de correo. BearlyMail solo envía cuando tú lo envías, o si activas el respondedor automático con IA. El calendario y los contactos se piden más adelante, solo cuando usas una función que los necesita."
+          },
+          "section3": {
+            "title": "Si tu bandeja sigue vacía",
+            "content": "Si las casillas de Gmail quedaron sin marcar, o el acceso se retiró o caducó, BearlyMail no puede leer tu Gmail. Selecciona Permitir acceso a Gmail (o Volver a conectar Google) y marca las casillas de Gmail en la pantalla de Google."
+          },
+          "section4": {
+            "title": "Qué pasa después",
+            "content": "Las cuentas nuevas pasan por una configuración corta: Bienvenida, Horario y Aprendizaje. BearlyMail importa hasta tus 500 correos más recientes, aprende de ellos y los ordena para que tu bandeja se abra organizada."
+          }
+        }
+      },
+      "connectOutlook": {
+        "title": "Conectar una cuenta de Outlook u Office 365",
+        "description": "Cómo conectar una cuenta de correo de Microsoft y qué le pide BearlyMail a Microsoft.",
+        "content": {
+          "section0": {
+            "title": "Conecta Outlook",
+            "item0": "Si eres nuevo en BearlyMail: en la página de inicio de sesión, selecciona Continuar con Microsoft.",
+            "item1": "Si ya usas BearlyMail: ve a Ajustes → Entrega de correo electrónico → Cuentas de correo electrónico, selecciona Conectar otro (o Conectar cuenta) y elige Office 365.",
+            "item2": "Inicia sesión en Microsoft y acepta los permisos."
+          },
+          "section1": {
+            "title": "Qué pide BearlyMail",
+            "item0": "Leer, organizar y archivar tu correo. Los cambios se sincronizan con tu buzón.",
+            "item1": "Enviar correos en tu nombre, solo cuando tú los envías o si activas el respondedor automático con IA.",
+            "item2": "Ver tus contactos, para reconocer a tus VIP y autocompletar direcciones.",
+            "item3": "Seguir conectado mientras no estás, para que tus lotes lleguen a tiempo.",
+            "item4": "Tu nombre y tu dirección de correo."
+          },
+          "section2": {
+            "title": "Cuentas del trabajo",
+            "content": "Algunas organizaciones solo permiten aplicaciones aprobadas por su equipo de TI. Si Microsoft te dice que necesitas la aprobación de un administrador, pide a tu equipo de TI que apruebe BearlyMail y vuelve a intentarlo."
+          },
+          "section3": {
+            "title": "Bueno saberlo",
+            "content": "Nada se mueve y no tienes una dirección nueva, así que puedes seguir usando Outlook como siempre. Por ahora, importar correos antiguos más allá del primer lote solo está disponible para cuentas de Gmail."
+          }
+        }
+      },
+      "connectZoho": {
+        "title": "Conectar una cuenta de Zoho Mail",
+        "description": "Cómo conectar Zoho Mail, incluidas las cuentas de otras regiones de Zoho.",
+        "content": {
+          "section0": {
+            "title": "Conecta Zoho",
+            "item0": "Si eres nuevo en BearlyMail: en la página de inicio de sesión, selecciona Continuar con Zoho.",
+            "item1": "Si ya usas BearlyMail: ve a Ajustes → Entrega de correo electrónico → Cuentas de correo electrónico, selecciona Conectar otro (o Conectar cuenta) y elige Zoho Mail.",
+            "item2": "Inicia sesión en Zoho y acepta los permisos."
+          },
+          "section1": {
+            "title": "Qué pide BearlyMail",
+            "item0": "Leer, organizar y archivar tu correo.",
+            "item1": "Enviar correos en tu nombre, solo cuando tú los envías o si activas el respondedor automático con IA.",
+            "item2": "Tu nombre y tu dirección de correo."
+          },
+          "section2": {
+            "title": "Regiones de Zoho",
+            "content": "Zoho guarda las cuentas en distintas regiones, como EE. UU., la UE, India, Australia, Japón y Canadá. BearlyMail funciona con todas y detecta tu región al iniciar sesión, así que no tienes que elegir nada."
+          },
+          "section3": {
+            "title": "Bueno saberlo",
+            "content": "Si intentas añadir una dirección alojada en Zoho con Otro correo, BearlyMail lo detecta y te ofrece Conectar con Zoho. Por ahora, importar correos antiguos más allá del primer lote solo está disponible para cuentas de Gmail."
+          }
+        }
+      },
+      "connectImap": {
+        "title": "Conectar cualquier otra cuenta de correo (IMAP)",
+        "description": "Conecta el correo de tu hosting, del trabajo u otro proveedor solo con tu dirección y contraseña.",
+        "content": {
+          "section0": {
+            "title": "Antes de empezar",
+            "content": "Necesitas tu dirección de correo y la contraseña que usas para leer ese correo, por ejemplo en el webmail. No la contraseña de tu cuenta de hosting o de tu sitio web."
+          },
+          "section1": {
+            "title": "Conéctala",
+            "item0": "Ve a Ajustes → Entrega de correo electrónico → Cuentas de correo electrónico y selecciona Conectar otro (o Conectar cuenta).",
+            "item1": "Elige Otro correo.",
+            "item2": "Escribe tu Dirección de correo y tu Contraseña del correo. Tu nombre es opcional; aparece en los correos que envías.",
+            "item3": "Selecciona Conectar. Puede tardar hasta un minuto."
+          },
+          "section2": {
+            "title": "BearlyMail encuentra la configuración",
+            "content": "No necesitas nombres de servidor ni puertos. BearlyMail los deduce de tu dirección, también para iCloud, Yahoo, Fastmail y AOL. Si prefieres escribirlos, selecciona Introducir la configuración del servidor yo mismo y completa el Servidor de correo entrante (IMAP) y el Servidor de correo saliente (SMTP)."
+          },
+          "section3": {
+            "title": "¿Dirección de Gmail, Outlook o Zoho?",
+            "content": "Si tu dirección la gestiona Google, Microsoft o Zoho, BearlyMail te lo indica y te ofrece un botón como Conectar con Google. Esas cuentas se conectan iniciando sesión, no con contraseña."
+          },
+          "section4": {
+            "title": "Si cambias la contraseña",
+            "content": "La cuenta muestra La contraseña de tu correo ha cambiado. Selecciona Volver a iniciar sesión y escribe la nueva contraseña."
+          }
+        }
+      },
+      "imapConnectionProblems": {
+        "title": "¿Por qué no se conecta mi correo con contraseña?",
+        "description": "Soluciones a los errores más comunes al conectar una cuenta con Otro correo.",
+        "content": {
+          "section0": {
+            "title": "¿Usas iCloud, Yahoo, AOL o Fastmail?",
+            "content": "Estos proveedores normalmente no aceptan tu contraseña habitual en otras aplicaciones de correo, sobre todo si tienes activada la verificación en dos pasos. Crea una contraseña de aplicación en los ajustes de seguridad de tu cuenta y escríbela como Contraseña del correo."
+          },
+          "section1": {
+            "title": "Busca el mensaje que ves",
+            "item0": "Esa dirección y contraseña no funcionaron: comprueba que sea la contraseña con la que lees tu correo, no la de tu hosting. Prueba con una contraseña de aplicación si tu proveedor las usa.",
+            "item1": "Podemos leer tu correo, pero no iniciar sesión para enviarlo: selecciona Introducir la configuración del servidor yo mismo y revisa el Usuario y el Servidor de correo saliente (SMTP).",
+            "item2": "No pudimos encontrar la configuración de tu correo automáticamente: busca la configuración IMAP y SMTP en la ayuda de tu proveedor y selecciona Introducir la configuración del servidor yo mismo.",
+            "item3": "Ese nombre de servidor no coincide con el certificado de seguridad del servidor: muchos proveedores de hosting requieren su propio nombre de servidor en lugar de mail.tudominio. Lo encontrarás en la configuración de correo de tu cuenta de hosting.",
+            "item4": "No pudimos establecer una conexión segura: cambia la Seguridad entre SSL/TLS y STARTTLS.",
+            "item5": "No pudimos contactar con ese servidor de correo: comprueba el nombre del servidor y el puerto."
+          },
+          "section2": {
+            "title": "¿Sigues sin poder?",
+            "content": "Selecciona Mostrar detalles técnicos debajo del error y envía ese texto a soporte. Nunca incluye tu contraseña."
+          }
+        }
+      },
+      "multipleAccounts": {
+        "title": "Usar más de una cuenta de correo",
+        "description": "Conecta varios buzones, filtra por cuenta y desconecta las cuentas que ya no necesites.",
+        "content": {
+          "section0": {
+            "title": "Añade otra cuenta",
+            "item0": "Ve a Ajustes → Entrega de correo electrónico → Cuentas de correo electrónico.",
+            "item1": "Selecciona Conectar otro.",
+            "item2": "Elige Gmail, Office 365, Zoho Mail u Otro correo y sigue los pasos."
+          },
+          "section1": {
+            "title": "Ve una cuenta cada vez",
+            "content": "Los correos de todas tus cuentas aparecen juntos. Para centrarte en una, selecciona el botón de filtros en la parte superior de tu bandeja, abre el menú de cuentas (muestra Todas las cuentas) y marca las cuentas que quieras ver. El menú solo aparece si tienes más de una cuenta."
+          },
+          "section2": {
+            "title": "Principal e inicio de sesión SSO",
+            "content": "Una cuenta aparece como Primario. Para cambiarla, selecciona Establecer como principal junto a otra cuenta. La cuenta con la que inicias sesión muestra la etiqueta Iniciar sesión SSO."
+          },
+          "section3": {
+            "title": "Desconecta una cuenta",
+            "content": "No puedes desconectar la cuenta con la que inicias sesión ni tu única cuenta. Para eliminar tu única cuenta, elimina tu cuenta de BearlyMail en su lugar.",
+            "item0": "Selecciona Desconectar junto a la cuenta y confirma.",
+            "item1": "Si has establecido una contraseña de BearlyMail, escríbela cuando se te pida confirmar tu identidad.",
+            "item2": "Tus correos siguen en tu buzón. Desconectar solo quita la cuenta de BearlyMail."
+          }
+        }
+      },
+      "importOlderEmails": {
+        "title": "¿Por qué no veo mis correos antiguos?",
+        "description": "Qué importa BearlyMail al conectar tu cuenta y cómo traer correos antiguos de Gmail.",
+        "content": {
+          "section0": {
+            "title": "Qué se importa al principio",
+            "content": "Al conectar una cuenta, BearlyMail importa hasta tus 500 correos más recientes y pasa cada uno por su IA. También trae los correos destacados de los últimos 90 días. Después, sigue trayendo el correo nuevo a medida que llega."
+          },
+          "section1": {
+            "title": "Importa correos antiguos de Gmail",
+            "item0": "Vacía tu lista de Triage. Cuando esté vacía, aparece un aviso: Solo importamos tus 500 correos más recientes.",
+            "item1": "Selecciona Haz clic aquí para procesar otros 500.",
+            "item2": "Los correos antiguos aparecen en Triage a medida que se ordenan.",
+            "item3": "Repite cuando quieras los 500 siguientes."
+          },
+          "section2": {
+            "title": "Límites",
+            "item0": "Por ahora, importar correos antiguos solo está disponible para cuentas de Gmail.",
+            "item1": "Los correos importados cuentan para los correos procesados con IA de tu plan. El aviso muestra cuántos le quedan a tu plan, con un enlace a Ver planes.",
+            "item2": "Cuando no queda nada más antiguo, BearlyMail te avisa de que no quedan correos antiguos por importar."
+          }
+        }
+      },
+      "onboardingSetup": {
+        "title": "¿Qué pasa durante la configuración inicial?",
+        "description": "Los tres pasos de configuración, la pantalla Configurando tu bandeja inteligente y lo que sigue funcionando en segundo plano.",
+        "content": {
+          "section0": {
+            "title": "Bienvenida",
+            "content": "Explica lo que BearlyMail va a hacer. Marca la casilla para aceptar los Términos de uso y la Política de privacidad y selecciona Comenzar. Si todavía no tienes una cuenta de correo conectada, primero se te pedirá que conectes una."
+          },
+          "section1": {
+            "title": "Horario",
+            "content": "Elige con qué frecuencia llega el correo (Dos veces al día, Tres veces o Cuatro veces) y fija tus horarios de entrega. Fuera de esos horarios todo queda en silencio, pero los correos realmente urgentes siguen llegando. Selecciona Guardar horario. Puedes cambiarlo cuando quieras en Ajustes → Entrega de correo electrónico → Agrupación de correos electrónicos."
+          },
+          "section2": {
+            "title": "Aprendizaje",
+            "content": "BearlyMail lee tus correos recientes, analiza tus conversaciones y ordena tu bandeja en categorías. Tarda cerca de un minuto. Después revisa Esto es lo que aprendimos y corrige lo que no encaje. Si cambias tus categorías, selecciona Recategorizar y luego Abrir mi bandeja →. Si se detiene, selecciona Intentar de nuevo, o Abrir mi bandeja de todos modos → y vuelve a ejecutarlo más tarde desde Ajustes → Guía nuestra IA."
+          },
+          "section3": {
+            "title": "Configurando tu bandeja inteligente",
+            "content": "Si al llegar hay menos de 20 correos priorizados, esta pantalla aparece mientras BearlyMail se pone al día. Suele tardar un par de minutos. Selecciona Saltar y ver mi bandeja para entrar directamente."
+          },
+          "section4": {
+            "title": "Ordenando en segundo plano",
+            "content": "Tus correos más recientes se ordenan primero. Un aviso, Ordenando el resto de tu bandeja en segundo plano, muestra el progreso mientras el resto pasa a sus categorías en los próximos minutos."
+          }
+        }
+      },
+      "emailSignature": {
+        "title": "Cambiar tu firma de correo",
+        "description": "Configura la firma que BearlyMail añade a los correos que envías.",
+        "content": {
+          "section0": {
+            "title": "Cámbiala en Ajustes",
+            "item0": "Ve a Ajustes → Entrega de correo electrónico → Firma de Correo Electrónico.",
+            "item1": "Escribe tu firma en el cuadro Firma.",
+            "item2": "Selecciona Guardar Firma."
+          },
+          "section1": {
+            "title": "O cámbiala mientras escribes",
+            "content": "Debajo del mensaje que estás escribiendo verás Firma (se añade automáticamente al enviar). Selecciona Editar para cambiarla ahí. Es una sola firma para todos los correos, así que si la editas ahí, cambia en todas partes."
+          },
+          "section2": {
+            "title": "Cómo funciona",
+            "item0": "BearlyMail añade tu firma al enviar correos nuevos, respuestas y correos programados.",
+            "item1": "Hasta que pongas la tuya, añade: Sent from BearlyMail (anti inbox overwhelm system).",
+            "item2": "La firma es texto sin formato. Se respetan los saltos de línea.",
+            "item3": "Se usa la misma firma para todas tus cuentas conectadas."
+          }
+        }
+      },
+      "passwordAnd-2fa": {
+        "title": "Establecer o restablecer tu contraseña",
+        "description": "Añade el inicio de sesión con contraseña además de Google, Microsoft o Zoho, y restablece una contraseña olvidada.",
+        "content": {
+          "section0": {
+            "title": "Por qué añadir una contraseña",
+            "content": "Una contraseña te permite iniciar sesión con tu correo y contraseña además de con Google, Microsoft o Zoho. Es útil si viajas a un lugar donde tu inicio de sesión habitual puede estar bloqueado."
+          },
+          "section1": {
+            "title": "Establece o cambia tu contraseña",
+            "item0": "Ve a Ajustes → Cuenta → Inicio de sesión con contraseña.",
+            "item1": "Escribe una contraseña de al menos 12 caracteres y repítela en Confirmar contraseña.",
+            "item2": "Selecciona Establecer contraseña (o Actualizar contraseña si ya tienes una).",
+            "item3": "Al cambiar una contraseña existente, BearlyMail te pide primero la actual (Confirma tu identidad)."
+          },
+          "section2": {
+            "title": "¿Olvidaste tu contraseña?",
+            "item0": "En la página de inicio de sesión, selecciona ¿Olvidaste tu contraseña?",
+            "item1": "Escribe tu correo y selecciona Enviar enlace de restablecimiento.",
+            "item2": "Abre el enlace de tu correo antes de 10 minutos y elige una contraseña nueva.",
+            "item3": "También sirve si siempre has iniciado sesión con Google, Microsoft o Zoho y quieres añadir una contraseña."
+          },
+          "section3": {
+            "title": "Autenticación de dos factores",
+            "content": "Por ahora, la autenticación de dos factores solo está disponible para cuentas de administrador. Las cuentas normales todavía no la tienen. Cuando tienes una contraseña, BearlyMail te la pide antes de acciones delicadas, como desconectar una cuenta de correo."
+          }
+        }
+      },
+      "exportImportData": {
+        "title": "Exportar o importar tus datos",
+        "description": "Haz una copia de tus ajustes, cópialos a otra cuenta o descarga tus correos.",
+        "content": {
+          "section0": {
+            "title": "Exporta o importa tus ajustes",
+            "item0": "Ve a Ajustes → Cuenta → Exportar e Importar Datos.",
+            "item1": "Selecciona Exportar configuración para descargar un archivo JSON con tu horario de lotes, remitentes bloqueados, palabras clave bloqueadas, contexto de IA, reglas de tono, reglas de resumen y configuración del respondedor automático.",
+            "item2": "Para traer ajustes, selecciona Importar datos y elige un archivo JSON exportado de BearlyMail. Se suman a tus ajustes actuales en lugar de borrarlos."
+          },
+          "section1": {
+            "title": "Exporta tus correos",
+            "item0": "En la misma sección, selecciona Exportar correos.",
+            "item1": "Elige una contraseña para el archivo ZIP (al menos 8 caracteres) y selecciona Descargar.",
+            "item2": "Abre el ZIP con esa contraseña: doble clic en macOS, o clic derecho y Extraer todo en Windows."
+          },
+          "section2": {
+            "title": "Qué incluye la exportación de correos",
+            "content": "Un archivo, emails.json, con tus correos más recientes: asunto, cuerpo, fecha, si está leído, categoría y prioridad. Los remitentes aparecen por su dominio más un código cifrado, no por su dirección completa. No incluye archivos adjuntos. Es un archivo de datos, no algo que puedas abrir en una aplicación de correo."
+          }
+        }
+      },
+      "deleteAccount": {
+        "title": "Eliminar tu cuenta de BearlyMail",
+        "description": "Qué se elimina, qué queda en tu buzón y cómo confirmarlo.",
+        "content": {
+          "section0": {
+            "title": "Cómo eliminarla",
+            "item0": "Ve a Ajustes → Cuenta → Eliminar cuenta.",
+            "item1": "Selecciona Eliminar mi cuenta.",
+            "item2": "Escribe delete all my data exactamente así, en inglés.",
+            "item3": "Selecciona Eliminar cuenta permanentemente."
+          },
+          "section1": {
+            "title": "Qué se elimina",
+            "content": "Tu cuenta de BearlyMail y todos tus datos de BearlyMail, incluida la copia de tus correos que guarda BearlyMail, tus contactos, tus ajustes y todo lo demás vinculado a tu cuenta. No se puede deshacer."
+          },
+          "section2": {
+            "title": "Qué se conserva",
+            "content": "Tus correos no se eliminan de Gmail, Outlook ni de ningún otro proveedor. Siguen en tu buzón. Antes, los correos pospuestos se devuelven a tu bandeja. Si alguno no se puede devolver, lo encontrarás en Gmail en la etiqueta SnoozedBearlyMail."
+          },
+          "section3": {
+            "title": "Antes de eliminarla",
+            "item0": "¿Pagas un plan? Eliminar tu cuenta no lo cancela. Escribe a support@focusbear.io para cancelarlo primero.",
+            "item1": "¿Quieres una copia de tus ajustes o correos? Expórtalos antes desde Ajustes → Cuenta → Exportar e Importar Datos."
+          },
+          "section4": {
+            "title": "Cuentas inactivas",
+            "content": "BearlyMail también elimina automáticamente las cuentas tras 30 días de inactividad."
+          }
+        }
+      },
+      "plansAndBilling": {
+        "title": "Planes, prueba y límites de uso",
+        "description": "Qué incluye cada plan, cómo mejorarlo y qué pasa al llegar a tu límite.",
+        "content": {
+          "section0": {
+            "title": "Prueba gratuita",
+            "content": "Las cuentas nuevas empiezan con una prueba gratuita que incluye el procesamiento con IA, el seguimiento de aperturas y el CRM. Cuando termina, solo unos pocos correos por ciclo se procesan con IA hasta que elijas un plan."
+          },
+          "section1": {
+            "title": "Planes",
+            "content": "Hay tres planes: Starter, Growth y Enterprise. Se diferencian en cuántos correos al mes se procesan con IA, si incluyen el seguimiento de aperturas y el CRM, y cuántos miembros del equipo cubren. Para ver los precios actuales y lo que incluye cada uno, ve a Ajustes → Equipo y plan y selecciona Ver planes."
+          },
+          "section2": {
+            "title": "Mejora tu plan",
+            "content": "Solo el propietario o un administrador de la organización puede comprar un plan. A los miembros se les pide que hablen con ellos.",
+            "item0": "Ve a Ajustes → Equipo y plan.",
+            "item1": "Selecciona Ver planes (o Actualizar plan si tu prueba ha terminado).",
+            "item2": "Selecciona Elegir plan y paga en la página de pago.",
+            "item3": "De vuelta en BearlyMail, tu plan se activa en unos momentos."
+          },
+          "section3": {
+            "title": "Uso y límites",
+            "content": "Ajustes → Equipo y plan muestra cuántos correos has usado en este ciclo, con un aviso al 80 %. Al llegar al límite, las funciones de IA se pausan hasta que tu plan se renueve o lo mejores."
+          },
+          "section4": {
+            "title": "Cambiar o cancelar",
+            "content": "Todavía no hay un botón para esto en BearlyMail. Escribe a support@focusbear.io para cambiar o cancelar un plan de pago."
+          }
+        }
+      },
+      "teamAccounts": {
+        "title": "Invitar a tu equipo",
+        "description": "Cómo funcionan las organizaciones, los roles y las invitaciones en BearlyMail.",
+        "content": {
+          "section0": {
+            "title": "Tu organización",
+            "content": "Cada cuenta de BearlyMail pertenece a una organización. Si estás solo, es una organización de una persona de la que eres propietario. Starter y Growth cubren a una persona; Enterprise cubre a 5 miembros del equipo."
+          },
+          "section1": {
+            "title": "Invita a alguien",
+            "item0": "Ve a Ajustes → Equipo y plan.",
+            "item1": "En Invitar a un miembro, escribe su dirección de correo.",
+            "item2": "Elige Administrador o Miembro y selecciona Enviar invitación.",
+            "item3": "Aparece en Invitaciones pendientes hasta que acepte. El enlace de invitación dura 7 días."
+          },
+          "section2": {
+            "title": "Roles",
+            "content": "El Propietario y los Administradores pueden invitar, cambiar roles, eliminar miembros y comprar planes. Los Miembros no. El propietario no se puede eliminar."
+          },
+          "section3": {
+            "title": "Acepta una invitación",
+            "content": "Si ves No se pudo aceptar la invitación, contacta con el administrador de tu equipo o escribe a support@focusbear.io.",
+            "item0": "Abre el enlace de tu correo de invitación.",
+            "item1": "Selecciona Iniciar sesión para aceptar e inicia sesión con la misma dirección a la que se envió la invitación.",
+            "item2": "Vuelve a abrir el enlace de invitación y selecciona Aceptar invitación."
+          }
+        }
+      },
+      "snooze": {
+        "title": "Posponer un correo",
+        "description": "Oculta un correo hasta el momento que elijas y haz que vuelva a tu bandeja de entrada.",
+        "content": {
+          "section0": {
+            "title": "Posponer un correo",
+            "item0": "Haz clic en Posponer en el correo, en la lista o con el correo abierto.",
+            "item1": "En Posponer hasta, escribe cuándo quieres que vuelva, como 4h, 5pm, mié 3pm, mañana o próximo lunes.",
+            "item2": "Revisa la vista previa de debajo, por ejemplo «Reaparece mañana a las 8:00».",
+            "item3": "Pulsa Intro o haz clic en Confirmar. Pulsa Esc para cancelar."
+          },
+          "section1": {
+            "title": "Qué puedes escribir",
+            "content": "Si no aparece la vista previa «Reaparece…», prueba a escribirlo de otra forma antes de confirmar.",
+            "item0": "Minutos, horas, días, semanas o meses: 30m, 4h, 3d, 2w, 1mo.",
+            "item1": "Una hora de hoy: 5pm.",
+            "item2": "Un día: mañana, vie, próximo lunes.",
+            "item3": "Si indicas un día sin hora (como mañana o 3d), el correo vuelve a las 8:00."
+          },
+          "section2": {
+            "title": "Dónde van los correos pospuestos",
+            "content": "Los correos pospuestos desaparecen de tus pestañas de BearlyMail hasta su momento. En Gmail también esperan en una etiqueta llamada SnoozedBearlyMail. Con otros proveedores, el correo sigue en tu aplicación de correo y solo se oculta en BearlyMail. Si llega un mensaje nuevo a un hilo pospuesto, se cancela la pausa y vuelve enseguida."
+          },
+          "section3": {
+            "title": "Bueno saberlo",
+            "item0": "Por ahora no puedes reactivar antes de tiempo un correo pospuesto desde BearlyMail.",
+            "item1": "Para posponer varios a la vez, selecciónalos y usa Posponer en la barra que aparece.",
+            "item2": "¿Vas a eliminar tu cuenta? BearlyMail devuelve antes los correos pospuestos a tu bandeja y te avisa si queda alguno en SnoozedBearlyMail en Gmail."
+          }
+        }
+      },
+      "blockSender": {
+        "title": "Bloquear o desbloquear un remitente",
+        "description": "Deja de ver los correos de alguien: sus correos futuros se archivan automáticamente.",
+        "content": {
+          "section0": {
+            "title": "Bloquear un remitente",
+            "content": "Ese correo se archiva al momento y todo lo nuevo de esa dirección se archiva automáticamente. Archivar significa sacarlo de la bandeja de entrada, nunca eliminarlo.",
+            "item0": "En la lista de correos, abre el menú ⋮ del correo y elige Bloquear remitente.",
+            "item1": "Con un correo abierto, haz clic en Bloquear remitente en la barra de herramientas. Si en ese lugar aparece Darse de baja, Bloquear remitente está en el menú ⋮.",
+            "item2": "Haz clic en Bloquear remitente para confirmar."
+          },
+          "section1": {
+            "title": "Ver lo que se ha bloqueado",
+            "content": "Abre el menú ⋮ de la parte superior de la bandeja de entrada y elige Ver correos bloqueados."
+          },
+          "section2": {
+            "title": "Desbloquear un remitente",
+            "content": "Desbloquear solo afecta a los correos nuevos. Lo que ya se archivó sigue archivado.",
+            "item0": "Ve a Ajustes → Entrega de correo electrónico → Remitentes bloqueados.",
+            "item1": "Haz clic en el título para abrir la lista.",
+            "item2": "Haz clic en Desbloquear junto al remitente."
+          },
+          "section3": {
+            "title": "Bueno saberlo",
+            "item0": "El bloqueo se aplica a la dirección exacta, no a todo el dominio.",
+            "item1": "Si te das de baja de un remitente y luego eliges Archivar, también se añade a Remitentes bloqueados.",
+            "item2": "Para bloquear por asunto, usa Palabras clave bloqueadas."
+          }
+        }
+      },
+      "blockKeywords": {
+        "title": "Bloquear correos por palabra clave del asunto",
+        "description": "Archiva automáticamente los correos nuevos cuyo asunto contenga una palabra o frase.",
+        "content": {
+          "section0": {
+            "title": "Añadir una palabra clave bloqueada",
+            "item0": "Ve a Ajustes → Entrega de correo electrónico → Palabras clave bloqueadas.",
+            "item1": "Escribe una palabra o frase en el campo Ingrese la palabra clave para bloquear...",
+            "item2": "Marca Coincidencia exacta de frase si solo debe coincidir con palabras completas.",
+            "item3": "Haz clic en Agregar palabra clave."
+          },
+          "section1": {
+            "title": "Cómo funciona la coincidencia",
+            "item0": "Solo se revisa el asunto, no el remitente ni el cuerpo.",
+            "item1": "No importan las mayúsculas ni las minúsculas.",
+            "item2": "Sin Coincidencia exacta de frase, la palabra puede aparecer en cualquier parte, incluso dentro de otra palabra: «oferta» también coincide con «contraoferta».",
+            "item3": "Con Coincidencia exacta de frase, tiene que aparecer como palabra o frase completa."
+          },
+          "section2": {
+            "title": "Qué pasa con los correos que coinciden",
+            "content": "Los correos nuevos con una palabra clave bloqueada en el asunto se archivan automáticamente, nunca se eliminan. Los correos que ya están en tu bandeja no se tocan."
+          },
+          "section3": {
+            "title": "Quitar una palabra clave",
+            "content": "Haz clic en Desbloquear junto a la palabra clave. Los correos que ya archivó siguen archivados."
+          }
+        }
+      },
+      "unsubscribe": {
+        "title": "Darse de baja de una lista de correo",
+        "description": "Sal de una lista de correo en un par de clics y limpia lo que ese remitente ya te envió.",
+        "content": {
+          "section0": {
+            "title": "Darse de baja",
+            "content": "Solo verás Darse de baja cuando el correo ofrezca una forma de darse de baja. No pasa nada hasta que confirmas.",
+            "item0": "En la lista de correos, abre el menú ⋮ del correo y elige Darse de baja. Con un correo abierto, haz clic en Darse de baja en la barra de herramientas.",
+            "item1": "Lee la confirmación y haz clic en Darse de baja."
+          },
+          "section1": {
+            "title": "Tres formas en que puede funcionar",
+            "item0": "Con un clic: BearlyMail pide al remitente que te quite de su lista. No tienes que hacer nada más.",
+            "item1": "Por correo: BearlyMail envía un breve correo de baja desde tu cuenta a la lista del remitente.",
+            "item2": "Página web: BearlyMail abre la página de baja del remitente en una pestaña nueva para que termines allí. Si falla la baja con un clic, se te pedirá Abrir página."
+          },
+          "section2": {
+            "title": "Archivar el resto",
+            "content": "Después, BearlyMail te ofrece archivar este correo y los demás de ese remitente que sigan en Clasificación. Elige Archivar para quitarlos o Conservar para dejarlos. Si eliges Archivar, el remitente también se añade a Remitentes bloqueados, así que lo que siga enviando se archivará automáticamente. Para deshacerlo, desbloquéalo en Ajustes → Entrega de correo electrónico → Remitentes bloqueados."
+          }
+        }
+      },
+      "autoArchive": {
+        "title": "Archivar automáticamente una categoría o tipo de correo",
+        "description": "Haz que BearlyMail archive los correos que nunca lees antes de que lleguen a tu bandeja, y deshazlo cuando quieras.",
+        "content": {
+          "section0": {
+            "title": "Archivar automáticamente una categoría entera",
+            "content": "Los correos nuevos de esa categoría se archivan automáticamente y aparecen en la vista Bloqueados en lugar de tu bandeja. Los que ya están allí no se tocan.",
+            "item0": "En tu bandeja, abre el menú ⋮ (Más acciones de categoría) en el título de la categoría.",
+            "item1": "Elige Archivar automáticamente esta categoría.",
+            "item2": "Haz clic en Archivar automáticamente para confirmar."
+          },
+          "section1": {
+            "title": "Cuando BearlyMail te lo pregunta",
+            "content": "Si sigues usando Archivar todo en una categoría sin abrir nada, BearlyMail te pregunta «¿Archivar automáticamente {{category}}?». Elige Sí, archivar automáticamente o No, gracias."
+          },
+          "section2": {
+            "title": "Reglas sugeridas",
+            "content": "No se archiva nada hasta que apruebes una regla.",
+            "item0": "BearlyMail revisa cada día tus remitentes más frecuentes buscando tipos de correo que nunca abres.",
+            "item1": "Cuando encuentra alguno, aparece un aviso en tu bandeja. Haz clic en Revisar.",
+            "item2": "En cada sugerencia, elige Aprobar regla, Editar palabras clave antes, o No volver a sugerir."
+          },
+          "section3": {
+            "title": "Deshacerlo",
+            "content": "Ve a Ajustes → Integraciones y aplicaciones → Flujos de trabajo. Busca el flujo (por ejemplo «Archivo automático: Boletines») y haz clic en Desactivar para pausarlo o en Eliminar para quitarlo. Los correos ya archivados siguen archivados."
+          }
+        }
+      },
+      "categories": {
+        "title": "Crear y gestionar categorías de correo",
+        "description": "Añade, renombra o elimina categorías, mueve un correo a otra y configura reglas.",
+        "content": {
+          "section0": {
+            "title": "Añadir, renombrar o eliminar una categoría",
+            "item0": "Ve a Ajustes → Guía nuestra IA → Categorías de Correo. El icono de lápiz en el título de cualquier categoría de tu bandeja también te lleva allí.",
+            "item1": "Haz clic en Agregar Categoría de Correo y escribe un nombre, opcionalmente seguido de \" - \" y una breve descripción, por ejemplo «Facturas - facturas y recibos de proveedores».",
+            "item2": "Usa Editar para renombrar una categoría o cambiar su descripción, o Eliminar para quitarla."
+          },
+          "section1": {
+            "title": "Mover un correo a otra categoría",
+            "content": "Toca la etiqueta de prioridad del correo y haz clic en Editar junto a su categoría. Elige la correcta (o + Agregar nueva categoría) y confirma. Así BearlyMail clasifica mejor los correos parecidos."
+          },
+          "section2": {
+            "title": "Categorías sugeridas",
+            "content": "Cuando hay correos que no encajan en tus categorías, BearlyMail puede agruparlos con un nombre sugerido dentro de Otros. Haz clic en Convertir a categoría para conservarla o en Eliminar para descartarla."
+          },
+          "section3": {
+            "title": "Reglas, familias y reordenar",
+            "item0": "Regla compuesta: Ajustes → Guía nuestra IA → Reglas deterministas de categoría → Añadir regla compuesta. Deben cumplirse todas las condiciones (remitente, asunto, cuerpo y al menos una frase de «NO contiene»).",
+            "item1": "Las familias agrupan categorías relacionadas: puedes renombrarlas, mover categorías entre ellas o crear otras nuevas.",
+            "item2": "Recategorizar vuelve a ordenar todos los correos de Clasificación, Acción y Seguimiento. Está en el menú ⋮ de Otros, o en Categorías de Correo como Recategorizar correos en Bandeja."
+          }
+        }
+      },
+      "bulkActions": {
+        "title": "Actuar sobre varios correos a la vez",
+        "description": "Selecciona unos cuantos correos, o una categoría entera, y archívalos o pospónlos juntos.",
+        "content": {
+          "section0": {
+            "title": "Seleccionar correos",
+            "item0": "Mantén pulsado Cmd (Mac) o Ctrl (Windows y Linux) y haz clic en cada correo que quieras.",
+            "item1": "Para seleccionar varios seguidos, haz clic en el primero y luego mantén Mayús y haz clic en el último.",
+            "item2": "Vuelve a hacer clic con Cmd o Ctrl en un correo seleccionado para quitarlo."
+          },
+          "section1": {
+            "title": "Usar la barra",
+            "content": "En cuanto seleccionas algo, aparece una barra que indica cuántos correos has elegido:",
+            "item0": "Posponer: escribe cuándo deben volver y haz clic en Confirmar.",
+            "item1": "Archivar: archívalos todos.",
+            "item2": "Cancelar: borra la selección."
+          },
+          "section2": {
+            "title": "Vaciar una categoría entera",
+            "content": "Haz clic en Archivar todo en el título de la categoría y pulsa Y o haz clic en Sí para confirmar (Esc cancela). Si lo haces a menudo con la misma categoría sin abrir nada, BearlyMail te ofrecerá archivarla automáticamente."
+          }
+        }
+      },
+      "composeAndReply": {
+        "title": "Escribir, responder y reenviar correos",
+        "description": "Empieza un correo nuevo o responde con ayuda de la IA, y deja que BearlyMail lo revise antes de enviarlo.",
+        "content": {
+          "section0": {
+            "title": "Empezar a escribir",
+            "item0": "Correo nuevo: haz clic en Redactar.",
+            "item1": "Responder: abre el correo y haz clic en Responder, Responder a todos o Reenviar.",
+            "item2": "Respuestas sugeridas te da borradores listos. Elige uno, o describe lo que quieres en Describe cómo quieres responder... y haz clic en Generar.",
+            "item3": "Añade archivos con Adjuntar archivos o arrastrándolos al correo."
+          },
+          "section1": {
+            "title": "Antes de enviar una respuesta",
+            "item0": "Esperar respuesta en: elige 48h, En 3 días, En 7d, Próx. Lun, En 2 semanas o Personalizado. Si no responden para entonces, el correo aparece en Seguimiento.",
+            "item1": "Marca Aún necesito tomar acción si solo confirmas que lo recibiste y el correo debe seguir en Acción."
+          },
+          "section2": {
+            "title": "Comprobaciones al hacer clic en Enviar",
+            "content": "BearlyMail revisa tu correo antes de enviarlo. Puede avisarte de un problema de tono, un archivo que mencionas pero no has adjuntado, un nombre que no coincide con el destinatario, un día de la semana que no cuadra con la fecha, una reunión que choca con tu calendario o una hora poco adecuada para enviar. Corrígelo o mantén pulsado Mantén pulsado para enviar de todos modos. Consulta Revisar el tono de un correo para más detalles."
+          },
+          "section3": {
+            "title": "Salir de una respuesta",
+            "content": "Si cierras una respuesta sin enviarla, BearlyMail te pregunta si quieres Guardar borrador o descartarla."
+          }
+        }
+      },
+      "scheduleSend": {
+        "title": "Programar un correo para enviarlo más tarde",
+        "description": "Escribe ahora y haz que el correo salga en un mejor momento; después puedes encontrarlo o cancelarlo.",
+        "content": {
+          "section0": {
+            "title": "Programar una respuesta",
+            "content": "Las sugerencias dependen de la hora y el día: antes de las 8:30 también verás una opción «Hoy».",
+            "item0": "En el cuadro de respuesta, haz clic en el reloj (Programar) junto a Enviar.",
+            "item1": "Elige una sugerencia, como Esta tarde, Mañana por la mañana o El lunes por la mañana, o elige Elegir fecha y hora....",
+            "item2": "Revisa el aviso «Enviando…» y haz clic en Enviar."
+          },
+          "section1": {
+            "title": "Programar un correo nuevo",
+            "content": "Si la hora elegida parece poco adecuada para el destinatario, BearlyMail te avisa. Elige Usar Sugerencia o Enviar de todas formas (urgente / zona horaria diferente).",
+            "item0": "En Redactar, haz clic en Programar.",
+            "item1": "Elige una de las Opciones Rápidas, o haz clic en Hora Personalizada y escribe algo como mañana 9am o el próximo viernes; luego Establecer Hora.",
+            "item2": "Haz clic en Programar envío. No se programa nada hasta que lo hagas."
+          },
+          "section2": {
+            "title": "Si cambias de idea",
+            "item0": "Antes de enviar, borra la hora con la × del aviso (Borrar hora programada).",
+            "item1": "Después de programarlo, abre el menú ⋮ de la parte superior de la bandeja y elige Programados. Haz clic en Cancelar junto al correo y confirma.",
+            "item2": "Por ahora no puedes cambiar la hora de un correo programado. Cancélalo y vuelve a programarlo."
+          }
+        }
+      },
+      "toneCheck": {
+        "title": "Revisar el tono de un correo antes de enviarlo",
+        "description": "Qué busca la revisión de tono, qué hacer cuando avisa de algo y cómo enseñarle tu estilo.",
+        "content": {
+          "section0": {
+            "title": "Qué hace",
+            "content": "Cuando haces clic en Enviar, BearlyMail compara tu correo con tus reglas de tono («Verificando tono del correo antes de enviar...»). Si todo está bien, el correo se envía sin más. Si algo podría sentar mal, verás Verificación de tono: problemas encontrados con los problemas y, a menudo, una Revisión sugerida. La misma revisión también puede avisarte de adjuntos que faltan, un nombre equivocado, fechas que no cuadran, choques con tu calendario o envíos a deshoras."
+          },
+          "section1": {
+            "title": "Cuando avisa de algo",
+            "item0": "Usar texto revisado: cambia al texto sugerido y envía.",
+            "item1": "Mantener original: cierra el aviso y edítalo tú.",
+            "item2": "No estoy de acuerdo: explica por qué tu correo está bien y haz clic en Enviar. Si BearlyMail te da la razón, puede actualizar tus reglas de tono y enviar el correo tras una breve cuenta atrás (haz clic en Enviar ahora o Cancelar).",
+            "item3": "Mantén pulsado para enviar de todos modos: mantén pulsado el botón para enviarlo tal cual."
+          },
+          "section2": {
+            "title": "Enséñale tu estilo",
+            "item0": "Ve a Ajustes → Guía nuestra IA → Configuración de tono.",
+            "item1": "Escribe una regla, como «Sé amable pero breve», y haz clic en Agregar regla.",
+            "item2": "Usa Editar o Eliminar en cualquier regla. Algunas reglas se aprenden de los correos que envías."
+          }
+        }
+      },
+      "aiSummaries": {
+        "title": "Cambiar cómo se resumen los correos",
+        "description": "Cambia entre estilos de resumen y crea tus propias reglas para resumir ciertos correos.",
+        "content": {
+          "section0": {
+            "title": "Elegir un estilo de resumen",
+            "content": "Abre un correo y usa el menú de la tarjeta Resumen de IA:",
+            "item0": "TL;DR: la idea principal en una o dos frases.",
+            "item1": "Puntos de viñeta: los puntos principales en una lista.",
+            "item2": "Elementos de acción: lo que hay que hacer.",
+            "item3": "Solicitud del remitente: lo que te pide el remitente.",
+            "item4": "Reglas personalizadas: las reglas que hayas creado."
+          },
+          "section1": {
+            "title": "Crear una regla desde un correo",
+            "item0": "En el mismo menú, elige Crear regla de resumen personalizada....",
+            "item1": "Describe cuándo usar la regla, por ejemplo «Para solicitudes de reunión».",
+            "item2": "Describe cómo resumir, por ejemplo «Extraer solo plazos y tareas».",
+            "item3": "Haz clic en Crear y usar."
+          },
+          "section2": {
+            "title": "Gestionar tus reglas",
+            "item0": "Ve a Ajustes → Guía nuestra IA → Resumen.",
+            "item1": "Haz clic en Agregar regla para crear una. Puedes acotarla con patrones de remitente (como *@ejemplo.com) o palabras del asunto.",
+            "item2": "La prioridad decide qué regla gana cuando encaja más de una: va primero el número más bajo."
+          }
+        }
+      },
+      "actionItems": {
+        "title": "Convertir un correo en tareas",
+        "description": "Saca tareas de un correo con IA, añade las tuyas y envíalas a Focus Bear.",
+        "content": {
+          "section0": {
+            "title": "Obtener las tareas",
+            "item0": "Abre el correo y busca la tarjeta Elementos de acción.",
+            "item1": "Haz clic en Sugerir acciones para que la IA saque lo que hay que hacer. Las tareas que encuentra llevan la marca AI.",
+            "item2": "Escribe las tuyas en Añadir una tarea... y haz clic en Agregar.",
+            "item3": "Marca una tarea cuando esté hecha, o elimínala con la papelera.",
+            "item4": "Haz clic en Regenerar acciones para volver a preguntar a la IA."
+          },
+          "section1": {
+            "title": "Guardar una tarea en Focus Bear",
+            "content": "Necesitas tener instalada la aplicación de escritorio de Focus Bear.",
+            "item0": "Haz clic en el icono de Focus Bear junto a una tarea (Guardar tarea en Focus Bear).",
+            "item1": "Elige una Fecha límite: Próximo hueco libre en mi lista de tareas, Hoy o Personalizada.",
+            "item2": "Añade una Duración, como 30m o 1h, y un Proyecto si tienes.",
+            "item3": "Haz clic en Guardar en Focus Bear. El navegador te pedirá abrir la aplicación Focus Bear, que añade la tarea."
+          },
+          "section2": {
+            "title": "Sugerencias más inteligentes",
+            "content": "Conecta Focus Bear en Ajustes → Integraciones y aplicaciones → Focus Bear con un token de acceso con el permiso tasks:read. Así BearlyMail puede sugerirte un proyecto y el próximo día en que tienes tiempo."
+          }
+        }
+      },
+      "privateNotes": {
+        "title": "Añadir una nota privada a un correo",
+        "description": "Apunta ideas o recordatorios en un hilo que solo tú puedes ver.",
+        "content": {
+          "section0": {
+            "title": "Añadir una nota",
+            "content": "No tienes que acordarte de guardar. La nota se guarda sola mientras escribes y la tarjeta indica cuándo se guardó por última vez.",
+            "item0": "Abre el correo y busca la tarjeta Notas privadas.",
+            "item1": "Escribe tu nota: contexto, un recordatorio, lo que estás esperando."
+          },
+          "section1": {
+            "title": "Quién puede verla",
+            "content": "Solo tú. Las notas nunca se envían a las personas del correo y no aparecen en Gmail ni en Outlook."
+          },
+          "section2": {
+            "title": "Encontrar notas después",
+            "content": "Los correos con una nota muestran la etiqueta Nota en la lista de la bandeja, así puedes verlos mientras repasas tus pestañas."
+          },
+          "section3": {
+            "title": "Ocultar la tarjeta",
+            "content": "¿No usas notas? Haz clic en Ocultar esta tarjeta, o desactívala en Configuración de visualización del panel del correo. Puedes volver a activarla allí cuando quieras."
+          }
+        }
+      },
+      "askAi": {
+        "title": "Preguntar a la IA sobre un correo",
+        "description": "Habla con un asistente sobre el correo que estás leyendo: resúmenes, borradores y búsquedas en tus otros correos.",
+        "content": {
+          "section0": {
+            "title": "Abrir Preguntar a IA",
+            "content": "Abre un correo y cambia el panel lateral de Acciones a Preguntar a IA. En el móvil, toca Asistente. Escribe tu pregunta en Pregunta lo que quieras sobre este correo… y pulsa Intro."
+          },
+          "section1": {
+            "title": "Prueba a preguntar",
+            "content": "Preguntar a IA puede buscar en tus otros correos para responder. La IA puede cometer errores, así que verifica los detalles importantes.",
+            "item0": "Resume este hilo",
+            "item1": "Redacta una respuesta amable",
+            "item2": "¿Qué requiere mi acción?",
+            "item3": "Busca otros correos de este remitente"
+          },
+          "section2": {
+            "title": "Conectar otras aplicaciones",
+            "content": "Haz clic en Conecta Google Drive y otras herramientas, o ve a Ajustes → Integraciones y aplicaciones → Aplicaciones conectadas. Una vez conectadas, Preguntar a IA también puede usarlas, por ejemplo para buscar en tus archivos de Drive. Nunca se le ofrecen herramientas que borren cosas."
+          },
+          "section3": {
+            "title": "Aprobar acciones",
+            "content": "Si Preguntar a IA quiere que una aplicación conectada haga algo, no solo leer, te pregunta «¿Permitir esta acción?» y muestra exactamente lo que se enviará. Haz clic en Aprobar o Denegar. Aprueba solo lo que hayas pedido: los correos pueden contener texto pensado para engañar al asistente. Las solicitudes sin respuesta caducan; si aún lo quieres, vuelve a pedirlo."
+          }
+        }
+      },
+      "calendarInvites": {
+        "title": "Gestionar invitaciones de calendario y solicitudes de reunión",
+        "description": "Añade invitaciones a tu calendario, responde y detecta choques sin salir de tu bandeja.",
+        "content": {
+          "section0": {
+            "title": "Invitaciones de calendario",
+            "content": "Cuando un correo incluye una invitación, una tarjeta Invitación de Calendario muestra la hora, el organizador y los asistentes.",
+            "item0": "Haz clic en Añadir a Google Calendar para ponerla en tu calendario.",
+            "item1": "Cuando ya esté, responde con Aceptar, Tentativo o Rechazar. La tarjeta muestra tu respuesta actual.",
+            "item2": "Haz clic en Ver en calendario para abrir el evento."
+          },
+          "section1": {
+            "title": "Alguien propone otro horario",
+            "content": "Si un asistente rechaza y sugiere otro horario, verás una tarjeta Solicitud de reprogramación. Elige Aceptar nuevo horario o Mantener horario original."
+          },
+          "section2": {
+            "title": "Solicitudes de reunión",
+            "content": "Si un correo pide una reunión, BearlyMail muestra la tarjeta Solicitud de programación detectada. Cuando el remitente propone una hora, revisa tu calendario y te dice si estás libre o tienes un conflicto, con horarios libres cercanos si estás ocupado. Elige Aceptar y añadir al calendario, Sugerir otro horario o Editar detalles. Si no, puedes usar Copiar enlace de programación o Redactar respuesta de reunión."
+          },
+          "section3": {
+            "title": "Bueno saberlo",
+            "content": "Estas funciones usan Google Calendar. Si no está conectado, la tarjeta te pide conectarlo primero."
+          }
+        }
+      },
+      "openTracking": {
+        "title": "Ver cuándo se abren tus correos",
+        "description": "Cómo funciona el seguimiento de aperturas, qué tan preciso es y cómo desactivarlo.",
+        "content": {
+          "section0": {
+            "title": "Cómo funciona",
+            "content": "BearlyMail añade una imagen invisible de 1×1 a los correos que envías desde la aplicación. Cuando la aplicación de correo del destinatario carga esa imagen, el correo aparece como abierto. Lo verás en el hilo, en Seguimiento y en la página Estadísticas. El seguimiento de aperturas está incluido en los planes Growth y Enterprise."
+          },
+          "section1": {
+            "title": "Qué tan preciso es",
+            "item0": "Quien bloquee las imágenes no aparecerá como abierto.",
+            "item1": "Apple Mail puede cargar las imágenes automáticamente al entregar el correo, así que esas aperturas se marcan como «puede ser automático».",
+            "item2": "Si lo enviaste a varias personas, la apertura puede ser de cualquiera de ellas.",
+            "item3": "Los correos de texto plano y las respuestas automáticas no se rastrean."
+          },
+          "section2": {
+            "title": "Desactivarlo",
+            "item0": "Para todo: Ajustes → Entrega de correo electrónico → Seguimiento de aperturas, y desactiva Registrar aperturas de correos.",
+            "item1": "Para un solo correo: desmarca Registrar aperturas mientras lo escribes."
+          }
+        }
+      },
+      "saveEmail": {
+        "title": "Guardar un correo como PDF o archivo",
+        "description": "Guarda una copia de un correo como PDF o como archivo .eml original, o ábrelo en su propia pestaña.",
+        "content": {
+          "section0": {
+            "title": "Guardar como PDF",
+            "item0": "Abre el correo y haz clic en el menú ⋮ (Más opciones).",
+            "item1": "Elige Guardar como PDF. Se abre la ventana de impresión del navegador.",
+            "item2": "Elige guardar como PDF como destino y guarda."
+          },
+          "section1": {
+            "title": "Descargar el original (.eml)",
+            "content": "Un archivo .eml es el correo original con todos sus detalles, y se puede abrir en la mayoría de aplicaciones de correo. Algunos proveedores todavía no lo permiten. Si el tuyo no lo permite, BearlyMail te avisará.",
+            "item0": "Para el correo completo: ⋮ → Descargar .eml.",
+            "item1": "Para un solo mensaje de un hilo: usa el menú ⋮ de ese mensaje."
+          },
+          "section2": {
+            "title": "Abrir en una pestaña nueva",
+            "content": "Cuando un correo está abierto en el panel lateral junto a tu lista, haz clic en Abrir en nueva pestaña en la parte superior del panel para verlo a página completa."
+          }
+        }
+      },
+      "emailDetailPanel": {
+        "title": "Personalizar el panel de IA junto a un correo",
+        "description": "Elige qué tarjetas ves junto a un correo y gana espacio cuando lo necesites.",
+        "content": {
+          "section0": {
+            "title": "Elegir tus tarjetas",
+            "content": "También puedes hacer clic en Ocultar esta tarjeta en cualquier tarjeta. Vuelve a activarla en Configuración de visualización. Estas preferencias se guardan en este navegador, así que quizá tengas que repetirlas en otro dispositivo.",
+            "item0": "Abre un correo y haz clic en el engranaje (Configuración de visualización) encima de las tarjetas.",
+            "item1": "Marca o desmarca Resumen de IA, Elementos de acción, GitHub, Tratos, Contexto del remitente y Notas privadas."
+          },
+          "section1": {
+            "title": "Vista dividida",
+            "content": "En el ordenador, al hacer clic en un correo se abre junto a tu lista, con las tarjetas en un panel lateral. El panel tiene dos pestañas: Acciones (tus tarjetas) y Preguntar a IA.",
+            "item0": "Contraer panel oculta el panel lateral para dar más espacio al correo.",
+            "item1": "Abrir en nueva pestaña abre el correo a página completa.",
+            "item2": "Cerrar panel vuelve a mostrar solo tu lista."
+          },
+          "section2": {
+            "title": "En el móvil",
+            "content": "Toca Asistente para abrir las mismas tarjetas y Preguntar a IA en una hoja."
+          }
+        }
+      },
+      "workflows": {
+        "title": "Flujos de trabajo: automatiza lo que pasa con ciertos correos",
+        "description": "Crea reglas Cuándo/Entonces que archivan, responden, llaman a un webhook o usan una herramienta de una app conectada cuando llega un correo que coincide.",
+        "content": {
+          "section0": {
+            "title": "Crear un flujo de trabajo",
+            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Flujos de trabajo y haz clic en + Añadir flujo de trabajo.",
+            "item1": "Escribe un Nombre.",
+            "item2": "En Cuándo (condición), rellena De (patrones del remitente), Patrones de asunto o Patrones del cuerpo. Deja un campo vacío para que coincida con todo. Sirven texto normal, un comodín como *@upwork.com o una expresión regular como /billing/i.",
+            "item3": "Opcional: abre ▼ Avanzado (condición de IA) y describe los correos con tus palabras en Condición en lenguaje natural (opcional).",
+            "item4": "En Entonces (acciones), haz clic en + Añadir acción y elige una acción.",
+            "item5": "Marca Activar este flujo de trabajo de inmediato y haz clic en Guardar flujo de trabajo."
+          },
+          "section1": {
+            "title": "Las acciones",
+            "item0": "🗄️ Archivar: archiva el correo. No hay que configurar nada.",
+            "item1": "↩️ Respuesta automática: responde por ti con una plantilla que escribes tú.",
+            "item2": "🌐 Webhook: envía los datos del correo a la URL que elijas.",
+            "item3": "🔧 Herramienta MCP: usa una herramienta de una de tus Apps conectadas, por ejemplo para crear una tarea."
+          },
+          "section2": {
+            "title": "Cuándo se ejecutan",
+            "content": "Los flujos revisan cada correo nuevo más o menos un minuto después de que llega, cuando BearlyMail ya lo ha resumido y priorizado. Aquí también aparecen las reglas para archivar automáticamente que creas desde el menú de una categoría (Añadir flujo → Archivar automáticamente) o que aceptas de las sugerencias de BearlyMail."
+          },
+          "section3": {
+            "title": "Editar, pausar o eliminar un flujo",
+            "content": "Cada flujo muestra Activo o Desactivado. Haz clic en Desactivar o Activar para pausarlo, en Editar para cambiarlo o en Eliminar para borrarlo. Abre Historial de ejecución reciente para ver si las últimas ejecuciones funcionaron o fallaron."
+          }
+        }
+      },
+      "connectedApps": {
+        "title": "Apps conectadas: lleva tus otras herramientas a BearlyMail",
+        "description": "Conecta Google Drive, HubSpot, Zoho Bigin o cualquier servidor MCP para ver datos del remitente, ayudar a la IA y potenciar tus flujos de trabajo.",
+        "content": {
+          "section0": {
+            "title": "Para qué sirven",
+            "item0": "Contexto del remitente: busca quién te escribe (por ejemplo, su ficha del CRM) cuando abres un correo.",
+            "item1": "Preguntar a la IA: da al asistente herramientas que puede usar al responder, como buscar en tu Drive.",
+            "item2": "Acciones de flujo de trabajo: permite que un flujo use las herramientas de la app como paso de acción."
+          },
+          "section1": {
+            "title": "Conectar una app",
+            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Apps conectadas.",
+            "item1": "Haz clic en Conectar una app (o Conectar otra app).",
+            "item2": "Elige Google Drive, Zoho Bigin, HubSpot o Servidor personalizado.",
+            "item3": "Con Google Drive y HubSpot te llevamos a iniciar sesión y aprobar el acceso. Para Zoho Bigin, pega la URL del portal MCP de Zoho y luego inicia sesión en Zoho. Para un servidor personalizado, elige un Propósito y pega la URL del servidor y, si quieres, la Clave de API (opcional).",
+            "item4": "Haz clic en Conectar."
+          },
+          "section2": {
+            "title": "Tú tienes el control",
+            "content": "La IA nunca recibe herramientas marcadas como destructivas. Si quiere usar una herramienta que puede cambiar algo, verás ¿Permitir esta acción? con Exactamente lo que se enviará. No pasa nada hasta que haces clic en Aprobar. Apruébalo solo si tú lo pediste: los correos pueden contener texto que intenta engañar al asistente."
+          },
+          "section3": {
+            "title": "Si una app deja de funcionar",
+            "content": "En la tarjeta de la app, haz clic en Probar para revisar la conexión, en Actualizar herramientas para recargarlas o en Iniciar sesión si pone Debes iniciar sesión. Haz clic en Eliminar para desconectarla."
+          }
+        }
+      },
+      "connectClaude": {
+        "title": "Conecta Claude con BearlyMail",
+        "description": "Añade BearlyMail a Claude como conector o crea un token de acceso para otras apps de IA.",
+        "content": {
+          "section0": {
+            "title": "Añade BearlyMail a Claude (recomendado)",
+            "content": "Lo configuras una vez y funciona donde uses Claude: en la web, en la app de escritorio y en el móvil. No necesitas token.",
+            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Conectar Claude y copia la URL del conector.",
+            "item1": "En Claude, ve a Personalizar → Conectores y elige Añadir conector personalizado. Abrir conectores de Claude te lleva ahí.",
+            "item2": "Pega la URL y haz clic en Añadir.",
+            "item3": "Haz clic en Conectar, inicia sesión en BearlyMail y elige solo lectura o lectura y envío. Marca «Editar también categorías y reglas» si quieres que Claude ordene tus reglas."
+          },
+          "section1": {
+            "title": "¿Usas otra app de IA?",
+            "item0": "Haz clic en ¿Usas otra app de IA? Crea un token de acceso.",
+            "item1": "Escribe un Nombre del token y elige cuándo Caduca.",
+            "item2": "Marca Permitir preparar borradores, Permitir enviar correos o Permitir editar categorías y reglas solo si los necesitas. Sin ellos, el token es de solo lectura.",
+            "item3": "Haz clic en Crear token. Puede que te pidamos confirmar tu contraseña.",
+            "item4": "Copia el token enseguida. No podrás volver a verlo, y cualquiera que lo tenga puede actuar en tu buzón."
+          },
+          "section2": {
+            "title": "Seguridad",
+            "content": "Los correos los escriben otras personas y pueden contener instrucciones dirigidas a asistentes de IA. Los borradores esperan a que los envíes tú, Claude pregunta antes de enviar y cada mensaje enviado así queda registrado. Para quitar el acceso, búscalo en Apps conectadas y tokens y haz clic en Desconectar o Revocar."
+          }
+        }
+      },
+      "ownAiAccount": {
+        "title": "Usa tu propia cuenta de IA",
+        "description": "Haz que la IA de BearlyMail funcione con tu propia cuenta de OpenAI o Anthropic, bajo las condiciones de tu proveedor.",
+        "content": {
+          "section0": {
+            "title": "Qué cambia",
+            "content": "Por defecto, BearlyMail analiza tus correos con proveedores de IA bajo sus propias cuentas y condiciones. Si añades tu propia clave, todas las funciones de IA (clasificación, prioridades, resúmenes, borradores y preguntas a la IA) funcionan con tu cuenta y bajo las condiciones de tu proveedor, que es quien te cobra."
+          },
+          "section1": {
+            "title": "Añadir una clave",
+            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Usa tu propia cuenta de IA.",
+            "item1": "Haz clic en Usar mis propias claves.",
+            "item2": "Pega una clave de OpenAI o de Anthropic (Claude). Haz clic en Obtener una clave si aún no tienes una.",
+            "item3": "Haz clic en Guardar clave. BearlyMail comprueba la clave antes de guardarla."
+          },
+          "section2": {
+            "title": "Qué hace cada proveedor",
+            "item0": "OpenAI: resúmenes, borradores, clasificación y preguntas a la IA. Además, es el único proveedor que permite la asignación inteligente de categorías.",
+            "item1": "Anthropic (Claude): resúmenes, borradores, clasificación y preguntas a la IA. Acepta claves sk-ant-api03 y tokens OAuth de Claude CLI.",
+            "item2": "TypeSafe AI (Jev): decisiones rápidas de sí/no y de categoría. Sin una clave de Jev, esas decisiones las toma tu cuenta de OpenAI o Anthropic."
+          },
+          "section3": {
+            "title": "Si tu clave deja de funcionar",
+            "content": "Si tu proveedor rechaza la clave (puede ser inválida, estar revocada o sin saldo), las funciones de IA que la necesitan se pausan y aparece un error en esta sección. BearlyMail no vuelve a su propia cuenta sin avisarte. Haz clic en Reemplazar clave para arreglarlo o en Eliminar clave para volver a la cuenta de BearlyMail."
+          }
+        }
+      },
+      "github": {
+        "title": "Integración de GitHub",
+        "description": "Conecta GitHub para ver el estado de pull requests e issues dentro de los correos que los mencionan.",
+        "content": {
+          "section0": {
+            "title": "Conectar GitHub",
+            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Integración de GitHub.",
+            "item1": "Haz clic en Conectar GitHub y aprueba el acceso en GitHub. No hace falta que crees un token.",
+            "item2": "Los correos que mencionan GitHub también pueden mostrar Conectar GitHub o Conectar para ver estado CI."
+          },
+          "section1": {
+            "title": "Qué verás en los correos",
+            "content": "En los correos con enlaces de GitHub, la sección Estado de GitHub muestra cada pull request o issue: si está abierto, cerrado o fusionado, las revisiones, el estado de CI, las personas asignadas, las etiquetas y el proyecto. BearlyMail también puede sugerirte acciones como editar el estado del proyecto, añadir un comentario o crear un issue."
+          },
+          "section2": {
+            "title": "Mapeo de repositorios",
+            "content": "El Mapeo de repositorios de GitHub vincula repositorios con tus categorías de correo, para que los issues se creen en el repositorio correcto. Se detectan solos a partir de tus correos de notificación de GitHub, o puedes hacer clic en Agregar repositorio. Usa Establecer como predeterminado para tu repositorio principal."
+          },
+          "section3": {
+            "title": "Repositorios privados y proyectos de organización",
+            "item0": "Si Estado de conexión de GitHub muestra problemas de acceso, haz clic en Otorgar acceso a repositorios privados.",
+            "item1": "Si dice que el token no es válido o ha caducado, haz clic en Reconectar GitHub.",
+            "item2": "Para ver proyectos de una organización, un administrador de la organización tiene que instalar la GitHub App en ella."
+          }
+        }
+      },
+      "focusBear": {
+        "title": "Guarda tareas en Focus Bear",
+        "description": "Envía las tareas de tus correos a tu lista de Focus Bear, con un proyecto y un día sugeridos.",
+        "content": {
+          "section0": {
+            "title": "Guardar una tarea",
+            "content": "Necesitas tener instalada la app de escritorio de Focus Bear. Puede que tu navegador te pregunte si quieres abrirla.",
+            "item0": "Abre un correo y busca sus tareas.",
+            "item1": "Haz clic en el icono de Focus Bear junto a una tarea (pone Guardar tarea en Focus Bear).",
+            "item2": "Elige una Fecha límite: Próximo hueco libre en mi lista de tareas, Hoy o Personalizada.",
+            "item3": "Añade una Duración como 30m o 1h, o déjala en blanco para que decida Focus Bear.",
+            "item4": "Si Focus Bear está conectado, elige un Proyecto.",
+            "item5": "Haz clic en Guardar en Focus Bear. La tarea incluye un enlace al correo."
+          },
+          "section1": {
+            "title": "Recibe un proyecto y un día sugeridos",
+            "item0": "En Focus Bear, abre Integrations y crea un token de acceso con el permiso tasks:read.",
+            "item1": "En BearlyMail, ve a Ajustes → Integraciones y aplicaciones → Focus Bear.",
+            "item2": "Pégalo en Token de acceso de Focus Bear y haz clic en Conectar. Verás Conectado ✓."
+          },
+          "section2": {
+            "title": "Cómo funcionan las sugerencias",
+            "content": "Con la conexión, BearlyMail te sugiere el proyecto de cada tarea y el próximo día en que tienes hueco. El token se guarda cifrado y solo se usa para estas sugerencias. Si Focus Bear no acepta el token, comprueba que tenga el permiso tasks:read y vuelve a intentarlo."
+          }
+        }
+      },
+      "schedulingBookingLink": {
+        "title": "Programación y tu enlace de reserva",
+        "description": "Elige cuándo pueden reservar reuniones contigo y comparte un enlace que las añade a tu Google Calendar.",
+        "content": {
+          "section0": {
+            "title": "Configura tu disponibilidad",
+            "content": "Ve a Ajustes → Programación. Los cambios se guardan en cuanto los haces.",
+            "item0": "Horario de disponibilidad y Días disponibles: cuándo puede haber reuniones.",
+            "item1": "Espacio entre reuniones: de 0 a 60 minutos de respiro entre una reunión y otra.",
+            "item2": "Preservar trabajo profundo: de 0 a 4 horas al día sin reservas.",
+            "item3": "Duración del espacio de reunión: 15, 30, 45 o 60 minutos.",
+            "item4": "Zona horaria: la zona horaria de tu horario."
+          },
+          "section1": {
+            "title": "Comparte tu enlace de reserva",
+            "content": "En Tu enlace de reserva, haz clic en Copiar enlace y envíalo a quien quieras. La otra persona elige un hueco libre, añade sus datos (y hasta 10 invitados más si quiere) y hace clic en Confirmar reserva. La reunión se añade a tu Google Calendar con un enlace de Google Meet y la otra persona recibe una invitación."
+          },
+          "section2": {
+            "title": "Reprogramar y cancelar",
+            "content": "La invitación del calendario incluye enlaces para reprogramar o cancelar. Tu invitado elige una nueva hora y hace clic en Confirmar reprogramación, o hace clic en Cancelar reserva para eliminar el evento para todos."
+          },
+          "section3": {
+            "title": "Si no aparecen horarios",
+            "content": "Tu página de reservas consulta tu Google Calendar para encontrar huecos libres. Revisa tus preferencias en Ajustes → Programación y asegúrate de que tu Google Calendar esté conectado."
+          }
+        }
+      },
+      "crm": {
+        "title": "CRM: contactos, negocios y grupos de contactos",
+        "description": "Guarda notas sobre las personas con las que hablas, sigue tus negocios por etapas y escribe a grupos enteros de una vez.",
+        "content": {
+          "section0": {
+            "title": "Quién tiene el CRM",
+            "content": "El CRM está incluido en los planes Growth y Enterprise, y en los periodos de prueba. En otros planes, CRM en la barra lateral muestra Mejora tu plan para usar el CRM. Haz clic en Ver planes para ver tus opciones."
+          },
+          "section1": {
+            "title": "Contactos",
+            "item0": "Ve a CRM → Contactos. Haz clic en Sincronizar contactos para traer los contactos de una cuenta de correo conectada.",
+            "item1": "Abre un contacto para ver sus Hilos de correo.",
+            "item2": "Usa Agregar Nota para añadir notas y Agregar Campo para añadir más datos."
+          },
+          "section2": {
+            "title": "Negocios",
+            "item0": "Ve a CRM → Negocios y haz clic en Agregar Negocio.",
+            "item1": "Cambia entre las vistas Kanban y Lista.",
+            "item2": "Usa Agregar Etapa para montar tu embudo y mueve los negocios de una etapa a otra a medida que avanzan.",
+            "item3": "Añade notas a un negocio para tener todo su historial en un sitio."
+          },
+          "section3": {
+            "title": "Grupos de contactos",
+            "content": "Ve a CRM → Grupos de contactos, ponle nombre al grupo y haz clic en Crear Grupo. Al redactar un correo, escribe el nombre del grupo en Para, CC o CCO para añadir a todos sus miembros de una vez."
+          }
+        }
+      },
+      "stats": {
+        "title": "La página de Estadísticas",
+        "description": "Mira cuánto correo recibes, cómo se reparte entre categorías y lo rápido que respondes.",
+        "content": {
+          "section0": {
+            "title": "Abrir Estadísticas",
+            "content": "Haz clic en Estadísticas en la barra lateral. Elige un periodo arriba: 7, 14, 30, 60 o 90 días. Empieza en 30 días, y al lado verás las fechas exactas."
+          },
+          "section1": {
+            "title": "Qué verás",
+            "item0": "Total de Correos, Promedio por Día, Categorías y Tiempo de Respuesta Prom. del periodo.",
+            "item1": "Correos por Día: un gráfico con el correo que llegó cada día.",
+            "item2": "Desglose por Categoría: para cada categoría, cuántos correos llegaron, tu tiempo medio de respuesta y cuántos respondiste."
+          },
+          "section2": {
+            "title": "Aperturas de correos",
+            "content": "Aperturas de correos muestra tu Tasa de apertura, cuántos correos con seguimiento enviaste y la mediana del tiempo hasta la primera apertura. Puede ser automático cuenta aperturas que podrían deberse a que Apple Mail carga el correo por su cuenta. Haz clic en Gestionar el seguimiento de aperturas para cambiar el ajuste."
+          },
+          "section3": {
+            "title": "¿No hay datos?",
+            "content": "No hay datos de correos disponibles para este período significa que no llegó nada en ese intervalo. Prueba con un periodo más largo. Los tiempos de respuesta solo incluyen los correos que respondiste."
+          }
+        }
+      },
+      "emailsNotArriving": {
+        "title": "No me llegan correos nuevos",
+        "description": "Normalmente el correo nuevo solo está esperando al próximo lote. Así puedes comprobarlo y qué más revisar.",
+        "content": {
+          "section0": {
+            "title": "Mira cuándo llega el próximo lote",
+            "content": "Mira la barra de la parte superior de la bandeja. Próximo lote indica cuándo se entregará el correo no urgente. Hasta entonces se retiene a propósito. Los correos urgentes llegan al momento, con la marca Urgente – entregado temprano. Para cambiar tus horas de entrega, ve a Ajustes → Entrega de correo electrónico → Agrupación de correos electrónicos."
+          },
+          "section1": {
+            "title": "Comprueba que tu cuenta está conectada",
+            "item0": "Si ves un aviso para volver a iniciar sesión o que dice que BearlyMail no puede leer tu Gmail, síguelo. Consulta «BearlyMail me pide iniciar sesión o volver a conectar».",
+            "item1": "Ve a Ajustes → Entrega de correo electrónico → Cuentas de Correo y comprueba que aparecen todas tus cuentas.",
+            "item2": "¿Acabas de conectarla? Sincronizando tu buzón… puede tardar un minuto la primera vez."
+          },
+          "section2": {
+            "title": "Comprueba que no se haya filtrado",
+            "item0": "Los correos de Remitentes bloqueados, o que coinciden con Palabras clave bloqueadas, no llegan a tu bandeja. Revisa Ajustes → Entrega de correo electrónico → Remitentes bloqueados.",
+            "item1": "Puede que lo haya archivado un flujo de trabajo, como una regla para archivar automáticamente. Revisa Ajustes → Integraciones y aplicaciones → Flujos de trabajo.",
+            "item2": "Puede que tu filtro de prioridad de Clasificación lo esté ocultando. Consulta «No encuentro un correo»."
+          },
+          "section3": {
+            "title": "¿Sigue sin aparecer?",
+            "content": "BearlyMail busca correo nuevo en tu buzón cada pocos minutos, así que puede haber un pequeño retraso. Si un correo sigue sin aparecer después del próximo lote, envíanos tus comentarios desde la página de Ayuda."
+          }
+        }
+      },
+      "reconnectAccount": {
+        "title": "BearlyMail me pide iniciar sesión o volver a conectar",
+        "description": "Qué significa cada aviso de inicio de sesión o reconexión, y cómo solucionarlo.",
+        "content": {
+          "section0": {
+            "title": "«BearlyMail no puede leer tu Gmail»",
+            "content": "Google no deja entrar a BearlyMail en tu buzón. O dejaste sin marcar las casillas de Gmail al iniciar sesión, o el acceso se retiró o caducó. Haz clic en Volver a conectar Google (o Permitir acceso a Gmail) y marca todas las casillas de Gmail en la pantalla de Google. Hasta entonces, tu bandeja estará vacía."
+          },
+          "section1": {
+            "title": "«Inicia sesión nuevamente para restaurar la sincronización»",
+            "content": "El aviso rojo «Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.» significa que BearlyMail ha perdido el acceso a tu cuenta de Google y tu correo ha dejado de sincronizarse. Haz clic en Cerrar sesión, vuelve a entrar con la misma cuenta de Google y acepta todos los permisos que te pida."
+          },
+          "section2": {
+            "title": "«Lo sentimos, deberás iniciar sesión en BearlyMail nuevamente»",
+            "content": "Tu sesión de BearlyMail ha terminado. Haz clic en el botón del método que usaste la última vez, como Continuar con Google, Continuar con Microsoft o Continuar con Zoho, o entra con tu correo y contraseña. Seguirás donde lo dejaste."
+          },
+          "section3": {
+            "title": "Otras cuentas de correo (IMAP)",
+            "content": "Si en Ajustes → Entrega de correo electrónico → Cuentas de Correo pone La contraseña de tu correo ha cambiado., haz clic en Volver a iniciar sesión. Escribe la contraseña que usas para leer ese correo, por ejemplo en el webmail, no la de tu alojamiento web."
+          }
+        }
+      },
+      "priorityNotCalculated": {
+        "title": "Mi correo dice «Calculando...» o «Sin priorizar»",
+        "description": "Por qué un correo aún no tiene prioridad y cómo conseguir que se calcule.",
+        "content": {
+          "section0": {
+            "title": "«Sin priorizar»: haz clic para reintentar",
+            "content": "El cálculo no terminó para ese correo. Haz clic en la etiqueta Sin priorizar y BearlyMail lo pondrá en cola para calcularlo otra vez. Espera un minuto y vuelve a mirar."
+          },
+          "section1": {
+            "title": "«Calculando...»: dale un momento",
+            "content": "La prioridad aún se está calculando, lo que suele tardar unos segundos. Si un correo se atasca, BearlyMail lo detecta y lo vuelve a poner en cola automáticamente en unos 15 minutos."
+          },
+          "section2": {
+            "title": "¿Muchos correos pendientes?",
+            "item0": "Analizando prioridad... agrupa los correos que aún se están procesando. Pasan a su categoría cuando terminan.",
+            "item1": "¿Has estado fuera unos días? El procesamiento con IA se pausa mientras no usas BearlyMail. Al volver verás un mensaje de que se están procesando los hilos pendientes mientras BearlyMail se pone al día.",
+            "item2": "¿Has llegado al límite de tu plan? Los correos nuevos no se priorizan hasta que se renueve tu plan o lo mejores. Consulta «He llegado a un límite de uso»."
+          },
+          "section3": {
+            "title": "¿Sigue atascado?",
+            "content": "Si un correo sigue Sin priorizar después de reintentarlo, envíanos tus comentarios desde la página de Ayuda con el asunto y el remitente del correo."
+          }
+        }
+      },
+      "wrongPriorityOrCategory": {
+        "title": "Un correo tiene la prioridad o la categoría equivocada",
+        "description": "Corrige a BearlyMail cuando se equivoque para que acierte la próxima vez.",
+        "content": {
+          "section0": {
+            "title": "Corregir la prioridad",
+            "item0": "Haz clic en la etiqueta de prioridad del correo para ver su Desglose de puntuación.",
+            "item1": "Haz clic en Corregir la prioridad.",
+            "item2": "Escribe la Puntuación esperada, explica el motivo en Comentario y haz clic en Enviar.",
+            "item3": "BearlyMail usa tu explicación para actualizar lo que sabe de ti."
+          },
+          "section1": {
+            "title": "Corregir la categoría",
+            "item0": "Haz clic en la etiqueta de prioridad y luego en Editar junto a Categoría.",
+            "item1": "Elige una Nueva categoría, o + Agregar nueva categoría, y añade una Razón (opcional).",
+            "item2": "Si la categoría la eligió una regla, la etiqueta enlaza a esa regla para que puedas cambiarla."
+          },
+          "section2": {
+            "title": "Que no vuelva a pasar",
+            "item0": "Asignar tú la prioridad (Puede esperar, Ponte a ello u Oh mierda) también entrena la IA.",
+            "item1": "En Ajustes → Guía nuestra IA → Reglas de prioridad aprendidas verás las reglas que BearlyMail ha aprendido de cómo tratas a cada remitente. Desactiva las que no te convenzan o haz clic en Añadir regla de prioridad.",
+            "item2": "Las Reglas deterministas de categoría, en la misma pestaña, asignan una categoría según el remitente, el asunto y el cuerpo.",
+            "item3": "Añade contactos VIP y describe qué es urgente para ti en Contexto Acerca de mí."
+          }
+        }
+      },
+      "cantFindEmail": {
+        "title": "No encuentro un correo",
+        "description": "Dónde puede estar un correo: filtros, otras pestañas y las vistas de bloqueados y programados.",
+        "content": {
+          "section0": {
+            "title": "Revisa primero los filtros",
+            "content": "Clasificación empieza mostrando solo los correos con prioridad Alta o superior. Si una pestaña dice algo como Clasificación (3 de 499), un filtro está ocultando el resto. Abre los filtros y haz clic en Borrar todos los filtros o elige Mostrar todo. Los filtros Cuenta de correo y Categoría también pueden ocultar correos."
+          },
+          "section1": {
+            "title": "Revisa las otras pestañas",
+            "item0": "Clasificación: correos nuevos esperando una decisión.",
+            "item1": "Acción: correos a los que has dado prioridad.",
+            "item2": "Seguimiento: hilos en los que esperas respuesta. Cuando te responden, el hilo vuelve a Acción."
+          },
+          "section2": {
+            "title": "Revisa el menú ⋮",
+            "item0": "Ver correos bloqueados: correos de remitentes que has bloqueado.",
+            "item1": "Ver hilos con respuesta automática: correos que ha respondido la respuesta automática.",
+            "item2": "Programados: correos que has programado para enviar más tarde."
+          },
+          "section3": {
+            "title": "Pospuesto, archivado o aún no ha llegado",
+            "item0": "Los correos pospuestos vuelven a la hora que elegiste.",
+            "item1": "Los correos archivados no aparecen en tus pestañas. Usa Buscar para encontrarlos.",
+            "item2": "El correo no urgente espera al Próximo lote para entregarse.",
+            "item3": "Los correos que aún se están ordenando aparecen en Analizando prioridad...."
+          }
+        }
+      },
+      "archiveNotSyncing": {
+        "title": "He archivado un correo pero sigue en mi app de correo",
+        "description": "Cómo se sincroniza el archivado con tu cuenta de correo y qué hacer si no funciona.",
+        "content": {
+          "section0": {
+            "title": "Dale un momento",
+            "content": "Cuando archivas en BearlyMail, el correo sale de tu bandeja de BearlyMail al instante. Tu cuenta de correo se actualiza en segundo plano, así que tu app de correo puede ir un poco por detrás. Actualiza tu app antes de volver a intentarlo. Archivar nunca borra nada."
+          },
+          "section1": {
+            "title": "Qué hace archivar",
+            "item0": "Gmail: el correo sale de tu bandeja de Gmail y se marca como leído. Si tenía estrella, se le quita.",
+            "item1": "Otras cuentas de correo (IMAP): el correo pasa a tu carpeta Archive. Si no tienes una, BearlyMail crea una carpeta llamada Archive."
+          },
+          "section2": {
+            "title": "¿Lo archivaste directamente en Gmail?",
+            "content": "Si archivas directamente en Gmail, BearlyMail puede tardar hasta un par de horas en notarlo, así que el correo puede seguir en BearlyMail hasta entonces. Archívalo también en BearlyMail para quitarlo al momento."
+          },
+          "section3": {
+            "title": "¿Sigue sin sincronizarse?",
+            "content": "Comprueba que la cuenta no necesite volver a conectarse (consulta «BearlyMail me pide iniciar sesión o volver a conectar»). Si sigue sin sincronizarse, envíanos tus comentarios con el asunto del correo y la cuenta en la que está."
+          }
+        }
+      },
+      "usageLimits": {
+        "title": "He llegado a un límite de uso",
+        "description": "Qué significan los avisos de límite de volumen de correos y de uso de IA, qué sigue funcionando y cómo solucionarlo.",
+        "content": {
+          "section0": {
+            "title": "Qué significan los avisos",
+            "item0": "Límite de volumen de correos alcanzado: tu organización ha usado los correos procesados con IA que incluye este ciclo de facturación. Lo verás en Ajustes → Equipo y plan → Uso y límites.",
+            "item1": "Has alcanzado el límite de uso de IA de tu plan: este aviso aparece cuando intentas usar una función de IA después de agotar el límite.",
+            "item2": "Tu período de prueba ha expirado: los correos que superen el límite gratuito no recibirán procesamiento con IA."
+          },
+          "section1": {
+            "title": "Qué sigue funcionando",
+            "content": "Los correos nuevos siguen llegando y se entregan en tus lotes. Simplemente no se resumen ni se priorizan, así que pueden aparecer como Sin priorizar. La IA bajo demanda, como las preguntas a la IA, los borradores y los resúmenes, también se pausa. BearlyMail marca los correos que se saltó para poder procesarlos más tarde."
+          },
+          "section2": {
+            "title": "Cómo solucionarlo",
+            "item0": "Espera a que tu plan se renueve al empezar el siguiente ciclo.",
+            "item1": "O haz clic en Ver planes en el aviso, o ve a Ajustes → Equipo y plan, y elige un plan más grande.",
+            "item2": "¿No eres el propietario? Pide al propietario o a un administrador de tu organización que actualice el plan."
+          },
+          "section3": {
+            "title": "Vigila tu consumo",
+            "content": "Uso y límites muestra cuántos correos has usado en este ciclo y te avisa cuando te acercas al límite."
+          }
+        }
+      },
+      "distractionPrompt": {
+        "title": "¿Por qué BearlyMail me pregunta «¿Seguro que quieres lo nuevo y brillante?»?",
+        "description": "El pequeño obstáculo antes de los correos de menor prioridad: por qué existe y cómo superarlo.",
+        "content": {
+          "section0": {
+            "title": "La forma más rápida de pasarlo",
+            "content": "Elige 👆 Paga el peaje de toques y toca el botón 30 veces seguidas. O elige 🎙️ Dilo en voz alta, toca 🎙️ Grabar y lee la frase que aparece (está en inglés). ¿Has cambiado de idea? Haz clic en Déjalo, me ocupo de mi trabajo de verdad."
+          },
+          "section1": {
+            "title": "Por qué aparece",
+            "content": "Clasificación muestra primero los correos de prioridad Alta o superior. Si ya tenías correos esperando en Acción o Seguimiento al abrir Clasificación, BearlyMail pone este obstáculo antes de que te metas con el correo nuevo de menor prioridad. Así protege el trabajo con el que ya te has comprometido. Si Acción y Seguimiento estaban vacíos, no lo verás."
+          },
+          "section2": {
+            "title": "La pantalla de «bien hecho»",
+            "content": "Cuando termines con los correos de alta prioridad, verás ¡Bien hecho — has clasificado todos los correos de alta prioridad! 🎉 con lo que tienes pendiente. Ponte en acción 🐎 te lleva a tu trabajo. El enlace de debajo te deja echar un vistazo a los correos de menor prioridad, y puede que aparezca el obstáculo."
+          },
+          "section3": {
+            "title": "Conviene saber",
+            "item0": "El desbloqueo dura hasta que sales de Clasificación. Si cambias de pestaña y vuelves, se aplica otra vez.",
+            "item1": "Decirlo en voz alta necesita acceso al micrófono y un navegador compatible con voz. Si el tuyo no lo es, usa el peaje de toques."
+          }
+        }
+      },
+      "serviceUnavailable": {
+        "title": "BearlyMail dice que no está disponible temporalmente",
+        "description": "Qué hacer cuando BearlyMail no carga o muestra una pantalla de error.",
+        "content": {
+          "section0": {
+            "title": "Vuelve a intentarlo",
+            "content": "«BearlyMail no está disponible temporalmente. Por favor, inténtalo de nuevo.» significa que BearlyMail no pudo conectar con sus servidores al abrirse. Revisa tu conexión a internet, espera un minuto y haz clic en Reintentar."
+          },
+          "section1": {
+            "title": "Otras pantallas de error",
+            "item0": "Problema de conexión: tu dispositivo ha perdido la conexión a la red. Revísala y haz clic en Recargar página.",
+            "item1": "¡Vaya! Algo salió mal: algo ha fallado en la página y ya nos han avisado. Haz clic en Recargar página. Si ves un Código de error, apúntalo."
+          },
+          "section2": {
+            "title": "¿Sigue sin funcionar?",
+            "item0": "Prueba en una ventana privada o en otro navegador.",
+            "item1": "Mientras tanto, tu correo sigue a salvo en tu cuenta de correo.",
+            "item2": "Escribe a support@focusbear.io con el código de error y lo que estabas haciendo."
+          }
+        }
+      },
+      "contactSupport": {
+        "title": "Cómo contactar con soporte",
+        "description": "Envíanos tus comentarios desde la página de Ayuda o por correo, y qué incluir para que podamos ayudarte rápido.",
+        "content": {
+          "section0": {
+            "title": "Envía comentarios desde la app",
+            "item0": "Ve a la página de Ayuda.",
+            "item1": "Haz clic en Enviar comentarios.",
+            "item2": "Describe qué pasó y qué esperabas.",
+            "item3": "Opcional: haz clic en Agregar captura de pantalla (hasta 10 MB).",
+            "item4": "Haz clic en Enviar comentarios. Leemos todos los mensajes."
+          },
+          "section1": {
+            "title": "O escríbenos",
+            "content": "Escribe a support@focusbear.io."
+          },
+          "section2": {
+            "title": "Qué incluir",
+            "item0": "Qué estabas haciendo, qué pasó y qué esperabas.",
+            "item1": "Si es sobre un correo concreto: su asunto, el remitente y en qué cuenta está.",
+            "item2": "Cualquier Código de error que hayas visto.",
+            "item3": "Una captura de pantalla, tapando lo que sea privado."
+          },
+          "section3": {
+            "title": "Activa el Modo de resolución de problemas",
+            "content": "Ve a Ajustes → Cuenta → Resolución de problemas y activa el Modo de resolución de problemas. Añade un botón 🐛 a tu bandeja que abre un panel con detalles de sincronización y entrega. Compártenos lo que muestra cuando nos informes de un problema."
           }
         }
       }
@@ -2247,7 +3580,7 @@
       "dismiss": "Descartar el aviso de sugerencias de archivado automático"
     },
     "batchInfo": {
-      "changeInSettings": "Cambiar en Configuración",
+      "changeInSettings": "Cambiar en Ajustes",
       "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",
       "hoursAgo": "hace {{count}} horas",
       "justNow": "hace un momento",
@@ -2304,7 +3637,7 @@
       "moreActions": "Más acciones de categoría",
       "autoArchiveMenuItem": "Archivar automáticamente esta categoría",
       "autoArchiveConfirmTitle": "¿Archivar automáticamente “{{category}}”?",
-      "autoArchiveConfirmMessage": "Los nuevos correos de “{{category}}” se archivarán automáticamente y se mostrarán en la vista Bloqueados en lugar de tu bandeja de entrada. Si cambias de opinión, puedes eliminar el flujo de trabajo en cualquier momento en Configuración → Flujos de trabajo.",
+      "autoArchiveConfirmMessage": "Los nuevos correos de “{{category}}” se archivarán automáticamente y se mostrarán en la vista Bloqueados en lugar de tu bandeja de entrada. Si cambias de opinión, puedes eliminar el flujo de trabajo en cualquier momento en Ajustes → Integraciones y aplicaciones → Flujos de trabajo.",
       "autoArchiveConfirmCta": "Archivar automáticamente"
     },
     "protoCategory": {
@@ -2541,10 +3874,10 @@
     "urgentEmailsWaiting": "Tienes correos urgentes esperando. Se entregarán en el próximo horario de lote.",
     "urgentNotification": "¡Se encontraron {{count}} correo(s) urgente(s)!",
     "blockConfirm": {
-      "title": "Block Sender",
-      "thisSender": "this sender",
-      "message": "Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.",
-      "confirm": "Block Sender"
+      "title": "Bloquear remitente",
+      "thisSender": "este remitente",
+      "message": "¿Bloquear todos los correos futuros de {{from}}? Este correo y los que te envíe en el futuro se archivarán automáticamente.",
+      "confirm": "Bloquear remitente"
     },
     "scheduled": "Programados",
     "progressiveUnlock": {
@@ -3579,7 +4912,7 @@
       "archiveTitle": "Archívalo",
       "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y lo urgente que creemos que es. Ábrela para ver el panel lateral de IA con tareas, notas y Preguntar a IA. Los siguientes pasos muestran qué hacen sus botones.",
       "priorityBadgeTitle": "¿Por qué está aquí?",
-      "priorityBadgeContent": "Toca la etiqueta de prioridad de cualquier correo para ver por qué lo clasificamos así: el desglose de la puntuación y la categoría que le asignamos. ¿Crees que nos equivocamos? Usa Priorización correcta o cambia la categoría ahí mismo, y BearlyMail aprenderá de ello.",
+      "priorityBadgeContent": "Toca la etiqueta de prioridad de cualquier correo para ver por qué lo clasificamos así: el desglose de la puntuación y la categoría que le asignamos. ¿Crees que nos equivocamos? Usa Corregir la prioridad o cambia la categoría ahí mismo, y BearlyMail aprenderá de ello.",
       "assistantTitle": "Tus correos",
       "backgroundSortingContent": "Primero ordenamos tus correos más recientes para que pudieras empezar. El resto se sigue procesando en segundo plano y pasará a su categoría a medida que se ordene. Esta barra muestra cuánto falta y desaparece cuando termina.",
       "backgroundSortingTitle": "Seguimos ordenando el resto",
@@ -3595,7 +4928,7 @@
       "prioritiseTitle": "Priorízalo",
       "processTitle": "Pestaña Proceso",
       "skip": "Saltar",
-      "snoozeContent": "¿Todavía no puedes ocuparte? Posponer oculta el correo y lo devuelve a tu bandeja cuando tú elijas. Haz clic en Posponer, escribe cuándo quieres que vuelva, como 4h, 5pm, mañana o el próximo lunes, y pulsa Intro. También se sincroniza con Gmail u Outlook.",
+      "snoozeContent": "¿Todavía no puedes ocuparte? Posponer oculta el correo y lo devuelve a tu bandeja cuando tú elijas. Haz clic en Posponer, escribe cuándo quieres que vuelva, como 4h, 5pm, mañana o el próximo lunes, y pulsa Intro. En Gmail también se sincroniza.",
       "snoozeTitle": "Pospónlo",
       "stepProgress": "{{current}} de {{total}}",
       "triageContent": "Los correos nuevos llegan a esta pestaña, con los más importantes primero. Decide qué hacer con cada uno: responder, archivar, posponer o priorizarlo para moverlo a Acción.",
@@ -3784,13 +5117,13 @@
       "feedbackLabel": "Comentario",
       "feedbackPlaceholder": "Explique por qué esta prioridad es incorrecta...",
       "pleaseExplain": "Por favor explique por qué esta prioridad es incorrecta.",
-      "submit": "Entregar",
+      "submit": "Enviar",
       "submitError": "No se pudieron enviar comentarios prioritarios. Por favor inténtalo de nuevo.",
       "submitting": "Sumisión...",
-      "title": "Comentarios prioritarios"
+      "title": "Comentarios sobre la prioridad"
     },
     "veryHigh": "Muy alta",
-    "high": "alta prioridad",
+    "high": "Alta prioridad",
     "low": "Bajo",
     "medium": "Medio",
     "override": {
@@ -3828,7 +5161,7 @@
       "skip": "Saltar",
       "starCount": "{{count}} estrella",
       "starCount_other": "{{count}} estrellas",
-      "submit": "Entregar",
+      "submit": "Enviar",
       "submitting": "Sumisión..."
     },
     "categoryOverride": {
@@ -4061,7 +5394,7 @@
     },
     "tooltip": {
       "adjustContext": "Ajustar el contexto",
-      "correctPrioritization": "Priorización correcta",
+      "correctPrioritization": "Corregir la prioridad",
       "hoverToSeeDetails": "Pase el cursor para ver detalles",
       "learnMore": "Más información",
       "category": "Categoría",
@@ -4127,7 +5460,7 @@
       "statusClosed": "Cerrado"
     },
     "title": "Acciones Rápidas",
-    "createIssueTitle": "🐛 Create GitHub Issue",
+    "createIssueTitle": "🐛 Crear incidencia en GitHub",
     "createIssue": "Create Issue",
     "creating": "Creating...",
     "addCommentTitle": "💬 Add Comment to Issue",
@@ -4235,7 +5568,7 @@
     },
     "blockedKeywords": {
       "addKeyword": "Agregar palabra clave",
-      "blocked": "Obstruido",
+      "blocked": "Bloqueado",
       "description": "Los correos electrónicos con estas palabras clave en la línea de asunto se archivarán automáticamente",
       "emptyState": "Sin palabras clave bloqueadas",
       "exactMatch": "Exacto",
@@ -4243,15 +5576,15 @@
       "placeholder": "Ingrese la palabra clave para bloquear...",
       "reason": "Razón",
       "title": "Palabras clave bloqueadas",
-      "unblock": "Desatascar"
+      "unblock": "Desbloquear"
     },
     "blockedSenders": {
-      "blocked": "Obstruido",
+      "blocked": "Bloqueado",
       "description": "Los correos electrónicos de estos remitentes se archivarán automáticamente",
       "emptyState": "No hay remitentes bloqueados",
       "reason": "Razón",
       "title": "Remitentes bloqueados",
-      "unblock": "Desatascar"
+      "unblock": "Desbloquear"
     },
     "confirmDeleteRule": "¿Está seguro de que desea eliminar esta regla de prioridad?",
     "context": {
@@ -5544,7 +6877,7 @@
       "seats": "{{active}} de {{max}} asientos usados",
       "emailUsage": "{{used}} / {{limit}} correos usados ({{percent}}%)",
       "volumeWarning": "Advertencia: {{percent}}% del volumen de correos usado. Considera actualizar tu plan.",
-      "volumeLimitReached": "Límite de volumen de correos alcanzado. No se procesarán nuevos correos hasta que se renueve tu plan.",
+      "volumeLimitReached": "Límite de volumen de correos alcanzado. Los correos nuevos siguen llegando, pero la IA no los ordenará ni resumirá hasta que se renueve tu plan.",
       "aiLimitReached": "Has alcanzado el límite de uso de IA de tu plan — las funciones de IA están en pausa hasta que tu plan se renueve o lo mejores.",
       "promoCodeTitle": "Código promocional",
       "promoCodePlaceholder": "Ingresa el código promocional",

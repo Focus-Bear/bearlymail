@@ -2,11 +2,12 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
+import { readHelpArticle } from 'utils/helpArticleContent';
 
 import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { HelpFeedbackBanner } from 'components/feedback/HelpFeedbackBanner';
 import { Sidebar } from 'components/inbox/Sidebar';
-import { HELP_ARTICLE_REDIRECTS, helpArticlePath, toArticleKeySegment } from 'constants/helpArticles';
+import { HELP_ARTICLE_REDIRECTS, helpArticlePath } from 'constants/helpArticles';
 import { ROUTE_HELP } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useSidebarState } from 'hooks/useSidebarState';
@@ -14,71 +15,17 @@ import { useSidebarState } from 'hooks/useSidebarState';
 const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
   const { user, logout } = useAuth();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState({
     alwaysToggleable: true,
   });
-
-  const getArticleContent = () => {
-    if (!articleId) {
-      return null;
-    }
-
-    const keySegment = toArticleKeySegment(articleId);
-    const contentKey = `help.articles.${keySegment}.content`;
-    const titleKey = `help.articles.${keySegment}.title`;
-    // An id with no article would otherwise render its raw translation key as the title.
-    if (!i18n.exists(titleKey)) {
-      return null;
-    }
-
-    // Get content sections
-    const sections = [];
-    let sectionIndex = 0;
-    while (true) {
-      const sectionKey = `${contentKey}.section${sectionIndex}`;
-      const sectionTitle = t(`${sectionKey}.title`, { defaultValue: '' });
-      if (!sectionTitle && sectionIndex > 0) {
-        break;
-      }
-
-      sections.push({
-        title: sectionTitle || (sectionIndex === 0 ? t(titleKey) : ''),
-        content: t(`${sectionKey}.content`, { defaultValue: '' }),
-        items: [] as string[],
-      });
-
-      // Check for list items
-      let itemIndex = 0;
-      const items: string[] = [];
-      while (true) {
-        const itemKey = `${sectionKey}.item${itemIndex}`;
-        const item = t(itemKey, { defaultValue: '' });
-        if (!item) {
-          break;
-        }
-        items.push(item);
-        itemIndex++;
-      }
-      if (items.length > 0) {
-        sections[sections.length - 1].items = items;
-      }
-
-      sectionIndex++;
-    }
-
-    return {
-      title: t(titleKey),
-      sections,
-    };
-  };
 
   const redirectTo = articleId ? HELP_ARTICLE_REDIRECTS[articleId] : undefined;
   if (redirectTo) {
     return <Navigate to={helpArticlePath(redirectTo)} replace />;
   }
 
-  const article = getArticleContent();
+  const article = articleId ? readHelpArticle(articleId, key => t(key, { defaultValue: '' })) : null;
 
   if (!article || !articleId) {
     return (

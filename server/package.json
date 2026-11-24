@@ -73,7 +73,7 @@
     "@aws-sdk/client-sqs": "^3.1165.0",
     "@aws-sdk/lib-storage": "^3.1165.0",
     "@aws-sdk/s3-request-presigner": "^3.1165.0",
-    "@google/genai": "^2.15.0",
+    "@google/genai": "^3.3.0",
     "@nestjs/common": "^12.4.2",
     "@nestjs/config": "^12.1.1",
     "@nestjs/core": "^12.4.2",

@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 
+import type { UnsubscribeOptions } from "../../emails/unsubscribe/list-unsubscribe.parser";
 import {
   makeEncryptedColumnTransformer,
   makeEncryptedJsonTransformer,
@@ -299,9 +300,18 @@ export class Email {
     type: "jsonb",
     nullable: true,
     comment:
-      "SPF/DKIM/DMARC outcomes from the receiving server's Authentication-Results header, e.g. {\"spf\":\"pass\",\"dmarc\":\"fail\"}. NULL when the provider exposes no such header.",
+      'SPF/DKIM/DMARC outcomes from the receiving server\'s Authentication-Results header, e.g. {"spf":"pass","dmarc":"fail"}. NULL when the provider exposes no such header.',
   })
   senderAuthResults: SenderAuthResults | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: makeEncryptedJsonTransformer("emails.unsubscribeOptions"),
+    comment:
+      "Encrypted JSON {httpsUrl?, mailto?, oneClick, source} from the List-Unsubscribe / List-Unsubscribe-Post headers, or an https unsubscribe link found in the body. NULL when the email offers no way to unsubscribe.",
+  })
+  unsubscribeOptions: UnsubscribeOptions | null;
 
   @Column({
     default: false,

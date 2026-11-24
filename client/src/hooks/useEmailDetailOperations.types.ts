@@ -70,6 +70,7 @@ export interface EmailDetailState {
     revisedText?: string;
     inappropriateTiming?: string | null;
     calendarWarning?: string | null;
+    dateMismatch?: string | null;
   } | null;
   setToneCheckResult: (
     result: {
@@ -78,6 +79,7 @@ export interface EmailDetailState {
       revisedText?: string;
       inappropriateTiming?: string | null;
       calendarWarning?: string | null;
+      dateMismatch?: string | null;
     } | null
   ) => void;
   checkingTone: boolean;

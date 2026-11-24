@@ -18,6 +18,8 @@ interface JwtPayload {
    * Required for access to admin endpoints (SAQ Q35 / GAP-2).
    */
   mfaVerified?: boolean;
+  /** Set on step-up tokens, which are not session tokens. */
+  stepUp?: boolean;
   /**
    * Epoch-ms timestamp of the TOTP verification that produced this elevated
    * token. AdminGuard treats elevation as valid only within a recency window,
@@ -67,6 +69,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    // A step-up token only confirms a sensitive action (X-Step-Up-Token); it
+    // is signed with the same key but must never work as a session.
+    if (payload.stepUp) {
+      throw new UnauthorizedException();
+    }
     const user = await this.usersService.findOneForAuth(payload.sub);
     if (!user) {
       throw new UnauthorizedException();

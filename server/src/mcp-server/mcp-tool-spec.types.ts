@@ -1,5 +1,8 @@
 import { McpToolName } from "../constants/mcp-server.constants";
-import { PatScope } from "../constants/personal-access-tokens.constants";
+import {
+  PAT_SCOPES,
+  PatScope,
+} from "../constants/personal-access-tokens.constants";
 
 /** MCP tool annotations (hints the client uses to decide when to confirm). */
 interface McpToolAnnotations {
@@ -19,8 +22,11 @@ export interface McpToolDefinition {
 }
 
 export interface McpToolSpec extends McpToolDefinition {
-  requiredScope: PatScope;
+  /** A token needs at least one of these scopes to see and call the tool. */
+  allowedScopes: readonly PatScope[];
 }
+
+export const READ_SCOPES = [PAT_SCOPES.MAIL_READ] as const;
 
 export const READ_ONLY_ANNOTATIONS = {
   readOnlyHint: true,

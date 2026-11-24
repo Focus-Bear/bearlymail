@@ -78,6 +78,13 @@ describe("JwtStrategy", () => {
       expect(mockUsersService.findOneForAuth).toHaveBeenCalledWith("user-123");
     });
 
+    it("rejects a step-up token presented as a session token", async () => {
+      await expect(
+        strategy.validate({ sub: "user-123", stepUp: true }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockUsersService.findOneForAuth).not.toHaveBeenCalled();
+    });
+
     it("should throw UnauthorizedException when user is not found", async () => {
       const payload = { sub: "user-123", email: "test@example.com" };
 

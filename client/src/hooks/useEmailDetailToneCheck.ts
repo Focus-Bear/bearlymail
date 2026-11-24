@@ -4,6 +4,7 @@ import axios from 'axios';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { ToneCheckContext } from 'utils/toneCheckContext';
 
+import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
 import { API_URL } from 'config/api';
 import { useNotifications } from 'contexts/NotificationContext';
 
@@ -17,6 +18,8 @@ interface ToneCheckResult {
   calendarWarning?: string | null;
   /** Advisory warning when the draft looks addressed to someone other than its recipients. */
   recipientMismatch?: string | null;
+  /** Warning when a weekday in the draft contradicts its date. */
+  dateMismatch?: string | null;
 }
 
 /**
@@ -135,8 +138,9 @@ export function useEmailDetailToneCheck() {
       const mergedResult: ToneCheckResult = { ...toneResponse.data, calendarWarning };
       setToneCheckResult(mergedResult);
 
-      // Soft-block the send if tone failed OR a calendar mismatch was flagged.
-      if (!mergedResult.isOk || !!mergedResult.calendarWarning) {
+      // Soft-block the send if tone failed, a calendar mismatch was flagged, or a
+      // weekday contradicts its date.
+      if (isToneCheckBlocking(mergedResult)) {
         setCheckingTone(false);
         return false;
       }

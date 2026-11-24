@@ -31,6 +31,8 @@ export const PHISHING_RED_FLAGS = {
   BRAND_IMPERSONATION: "brand impersonation",
   AUTH_FAILURE: "sender authentication failed",
   LINK_TEXT_MISMATCH: "link text shows a different domain than the link opens",
+  OFF_BRAND_LINK:
+    "links go to a domain unrelated to the brand the sender claims",
 } as const;
 
 export type PhishingRedFlag =
@@ -178,6 +180,41 @@ export const IMPERSONATED_BRANDS: readonly ImpersonatedBrand[] = [
     brand: "Xero",
     names: ["xero"],
     domains: ["xero.com"],
+  },
+  {
+    brand: "GitHub",
+    names: ["github"],
+    domains: ["github.com"],
+  },
+  {
+    brand: "Slack",
+    names: ["slack"],
+    domains: ["slack.com", "slackhq.com"],
+  },
+  {
+    brand: "Zoom",
+    names: ["zoom"],
+    domains: ["zoom.us", "zoom.com", "zoomgov.com"],
+  },
+  {
+    brand: "ANZ",
+    names: ["anz"],
+    domains: ["anz.com", "anz.com.au"],
+  },
+  {
+    brand: "Westpac",
+    names: ["westpac"],
+    domains: ["westpac.com.au", "westpac.co.nz"],
+  },
+  {
+    brand: "HSBC",
+    names: ["hsbc"],
+    domains: ["hsbc.com", "hsbc.com.au", "hsbc.co.uk"],
+  },
+  {
+    brand: "Bank of America",
+    names: ["bank of america"],
+    domains: ["bankofamerica.com", "bofa.com"],
   },
   {
     brand: "Commonwealth Bank",

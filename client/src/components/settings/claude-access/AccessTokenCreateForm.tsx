@@ -3,11 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import {
+  ACCESS_LEVELS,
+  AccessLevel,
   DEFAULT_TOKEN_EXPIRY_DAYS,
   DEFAULT_TOKEN_NAME,
   MAX_TOKEN_NAME_LENGTH,
   PAT_SCOPES,
   PatScope,
+  SCOPES_FOR_ACCESS_LEVEL,
   TOKEN_EXPIRY_OPTIONS,
 } from 'constants/claudeAccess';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
@@ -39,17 +42,33 @@ const inputStyle: React.CSSProperties = {
 
 interface PermissionCheckboxProps {
   isChecked: boolean;
+  isDisabled?: boolean;
   onChange: (isChecked: boolean) => void;
   testId: string;
   label: string;
   hint: string;
 }
 
-const PermissionCheckbox: React.FC<PermissionCheckboxProps> = ({ isChecked, onChange, testId, label, hint }) => (
-  <label style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.sm, cursor: 'pointer' }}>
+const PermissionCheckbox: React.FC<PermissionCheckboxProps> = ({
+  isChecked,
+  isDisabled,
+  onChange,
+  testId,
+  label,
+  hint,
+}) => (
+  <label
+    style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: theme.spacing.sm,
+      cursor: isDisabled ? 'default' : 'pointer',
+    }}
+  >
     <input
       type="checkbox"
       checked={isChecked}
+      disabled={isDisabled}
       onChange={(event) => onChange(event.target.checked)}
       data-testid={testId}
       style={{ marginTop: CHECKBOX_TOP_OFFSET_PX }}
@@ -68,28 +87,39 @@ interface AccessTokenCreateFormProps {
   onCreate: (input: CreatePersonalAccessTokenInput) => void;
 }
 
+function accessLevelFor(canDraft: boolean, canSend: boolean): AccessLevel {
+  if (canSend) {
+    return ACCESS_LEVELS.SEND;
+  }
+  return canDraft ? ACCESS_LEVELS.DRAFT : ACCESS_LEVELS.READ;
+}
+
+function scopesFor(canDraft: boolean, canSend: boolean, canEditSettings: boolean): PatScope[] {
+  return [
+    ...SCOPES_FOR_ACCESS_LEVEL[accessLevelFor(canDraft, canSend)],
+    ...(canEditSettings ? [PAT_SCOPES.SETTINGS_WRITE] : []),
+  ];
+}
+
 /**
- * Name, permissions and expiry for a new token. Sending and editing
+ * Name, permissions and expiry for a new token. Drafting, sending and editing
  * categories/rules are opt-in so the default token can only read: an email
- * can't talk a read-only Claude into sending anything or rewriting the rules.
+ * can't talk a read-only Claude into writing or sending anything or rewriting
+ * the rules. Sending includes drafting.
  */
 export const AccessTokenCreateForm: React.FC<AccessTokenCreateFormProps> = ({ isSubmitting, onCreate }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(DEFAULT_TOKEN_NAME);
+  const [canDraft, setCanDraft] = useState(false);
   const [canSend, setCanSend] = useState(false);
   const [canEditSettings, setCanEditSettings] = useState(false);
   const [expiry, setExpiry] = useState(String(DEFAULT_TOKEN_EXPIRY_DAYS));
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const scopes: PatScope[] = [
-      PAT_SCOPES.MAIL_READ,
-      ...(canSend ? [PAT_SCOPES.MAIL_SEND] : []),
-      ...(canEditSettings ? [PAT_SCOPES.SETTINGS_WRITE] : []),
-    ];
     onCreate({
       name: name.trim(),
-      scopes,
+      scopes: scopesFor(canDraft, canSend, canEditSettings),
       expiresInDays: expiry === NEVER_EXPIRES_VALUE ? null : Number(expiry),
     });
   };
@@ -132,6 +162,14 @@ export const AccessTokenCreateForm: React.FC<AccessTokenCreateFormProps> = ({ is
           </select>
         </div>
       </div>
+      <PermissionCheckbox
+        isChecked={canDraft || canSend}
+        isDisabled={canSend}
+        onChange={setCanDraft}
+        testId="access-token-can-draft"
+        label={t('settings.claudeAccess.allowDraftsLabel')}
+        hint={t('settings.claudeAccess.allowDraftsHint')}
+      />
       <PermissionCheckbox
         isChecked={canSend}
         onChange={setCanSend}

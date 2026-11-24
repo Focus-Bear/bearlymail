@@ -62,14 +62,6 @@ function queuedResult(queued: QueuedSend, options: SendOptions) {
 }
 
 /**
- * The MCP tools that send mail. Both go through the same background send
- * queue as the web app, so signatures, open tracking, follow-up reminders and
- * failure retries behave identically. Every send is audited, and the audit
- * trail doubles as the per-user hourly send cap: it is checked and written
- * under one lock, so sends arriving together can't all pass it, and a send
- * that can't be counted doesn't report success.
- */
-/**
  * Addresses a send went to, from its audit metadata. A reply with no explicit
  * recipients still goes to the original sender, so every send counts as one.
  */
@@ -89,6 +81,14 @@ function assertRecipientTotal(...lists: Array<string[] | undefined>): void {
   }
 }
 
+/**
+ * The MCP tools that send mail. Both go through the same background send
+ * queue as the web app, so signatures, open tracking, follow-up reminders and
+ * failure retries behave identically. Every send is audited, and the audit
+ * trail doubles as the per-user hourly send cap: it is checked and written
+ * under one lock, so sends arriving together can't all pass it, and a send
+ * that can't be counted doesn't report success.
+ */
 @Injectable()
 export class McpSendToolsService {
   constructor(

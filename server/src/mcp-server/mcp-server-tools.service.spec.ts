@@ -5,6 +5,7 @@ import {
   PatScope,
 } from "../constants/personal-access-tokens.constants";
 import { McpCategoryToolsService } from "./mcp-category-tools.service";
+import { McpDraftToolsService } from "./mcp-draft-tools.service";
 import { McpReadToolsService } from "./mcp-read-tools.service";
 import { McpRuleToolsService } from "./mcp-rule-tools.service";
 import { McpSendToolsService } from "./mcp-send-tools.service";
@@ -23,6 +24,7 @@ function contextWith(scopes: PatScope[]): McpCallContext {
 describe("McpServerToolsService", () => {
   let readTools: jest.Mocked<McpReadToolsService>;
   let sendTools: jest.Mocked<McpSendToolsService>;
+  let draftTools: jest.Mocked<McpDraftToolsService>;
   let categoryTools: jest.Mocked<McpCategoryToolsService>;
   let ruleTools: jest.Mocked<McpRuleToolsService>;
   let settingsWriteLimiter: { assertWithinLimit: jest.Mock };
@@ -39,6 +41,12 @@ describe("McpServerToolsService", () => {
       sendReply: jest.fn().mockResolvedValue({ status: "queued" }),
       sendEmail: jest.fn(),
     } as unknown as jest.Mocked<McpSendToolsService>;
+    draftTools = {
+      createDraft: jest.fn().mockResolvedValue({ draftId: "draft-1" }),
+      updateDraft: jest.fn(),
+      listDrafts: jest.fn().mockResolvedValue({ drafts: [] }),
+      deleteDraft: jest.fn(),
+    } as unknown as jest.Mocked<McpDraftToolsService>;
     categoryTools = {
       listCategories: jest.fn().mockResolvedValue({ categories: [] }),
       deleteCategory: jest.fn(),
@@ -54,6 +62,7 @@ describe("McpServerToolsService", () => {
       sendTools,
       categoryTools,
       ruleTools,
+      draftTools,
       settingsWriteLimiter as never,
     );
   });
@@ -200,6 +209,61 @@ describe("McpServerToolsService", () => {
     expect(names).toContain(MCP_TOOL_NAMES.GET_THREAD);
     expect(names).not.toContain(MCP_TOOL_NAMES.SEND_REPLY);
     expect(names).not.toContain(MCP_TOOL_NAMES.SEND_EMAIL);
+    expect(names).not.toContain(MCP_TOOL_NAMES.CREATE_DRAFT);
+    expect(names).toContain(MCP_TOOL_NAMES.LIST_DRAFTS);
+  });
+
+  it("lets a draft-only token draft but not send", () => {
+    const names = service
+      .listTools([PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_DRAFT])
+      .map((tool) => tool.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        MCP_TOOL_NAMES.CREATE_DRAFT,
+        MCP_TOOL_NAMES.UPDATE_DRAFT,
+        MCP_TOOL_NAMES.LIST_DRAFTS,
+        MCP_TOOL_NAMES.DELETE_DRAFT,
+      ]),
+    );
+    expect(names).not.toContain(MCP_TOOL_NAMES.SEND_REPLY);
+    expect(names).not.toContain(MCP_TOOL_NAMES.SEND_EMAIL);
+  });
+
+  it("lets a token that can send also draft, so existing connections keep working", async () => {
+    const result = await service.callTool(
+      contextWith([PAT_SCOPES.MAIL_READ, PAT_SCOPES.MAIL_SEND]),
+      MCP_TOOL_NAMES.CREATE_DRAFT,
+      { to: ["a@example.com"], subject: "Hi", body: "Hello" },
+    );
+    expect(result.isError).toBeUndefined();
+    expect(draftTools.createDraft).toHaveBeenCalledWith("user-1", {
+      to: ["a@example.com"],
+      subject: "Hi",
+      body: "Hello",
+    });
+  });
+
+  it("refuses to draft for a read-only token, naming both permissions that would allow it", async () => {
+    const result = await service.callTool(
+      contextWith([PAT_SCOPES.MAIL_READ]),
+      MCP_TOOL_NAMES.CREATE_DRAFT,
+      { body: "Hello" },
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain(PAT_SCOPES.MAIL_DRAFT);
+    expect(result.content[0].text).toContain(PAT_SCOPES.MAIL_SEND);
+    expect(draftTools.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("marks draft tools as neither read-only nor reaching anyone else", () => {
+    const createDraft = service
+      .listTools(ALL_PAT_SCOPES)
+      .find((tool) => tool.name === MCP_TOOL_NAMES.CREATE_DRAFT);
+    expect(createDraft?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    });
   });
 
   it("marks send tools destructive and read tools read-only", () => {
@@ -215,7 +279,7 @@ describe("McpServerToolsService", () => {
       readOnlyHint: false,
     });
     expect(getThread?.annotations).toMatchObject({ readOnlyHint: true });
-    expect(tools.every((tool) => !("requiredScope" in tool))).toBe(true);
+    expect(tools.every((tool) => !("allowedScopes" in tool))).toBe(true);
   });
 
   it("refuses a call the token's scopes don't cover, without running it", async () => {

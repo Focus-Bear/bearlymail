@@ -19,17 +19,18 @@ import {
 } from "./email-inbox-scope.helpers";
 
 /**
- * True when the auto-responder saved a reply draft on the thread that the user
- * hasn't touched yet. The draft must be newer than the thread's latest email,
- * so the flag clears once the user replies (even from another mail app) or a
- * new message arrives. Sending, discarding or editing the draft clears it too.
- * Uses the unique (userId, emailThreadId) index on reply_drafts.
+ * True when the auto-responder or an AI assistant saved a reply draft on the
+ * thread that the user hasn't touched yet. The draft must be newer than the
+ * thread's latest email, so the flag clears once the user replies (even from
+ * another mail app) or a new message arrives. Sending, discarding or editing
+ * the draft clears it too. Uses the unique (userId, emailThreadId) index on
+ * reply_drafts.
  */
 const HAS_AUTO_RESPONSE_DRAFT_SQL = `EXISTS (
         SELECT 1 FROM reply_drafts rd
         WHERE rd."userId" = thread."userId"
           AND rd."emailThreadId" = thread."threadId"
-          AND rd.source = '${REPLY_DRAFT_SOURCES.AUTO_RESPONDER}'
+          AND rd.source IN ('${REPLY_DRAFT_SOURCES.AUTO_RESPONDER}', '${REPLY_DRAFT_SOURCES.ASSISTANT}')
           AND rd."createdAt" >= e."receivedAt"
       ) AS "hasAutoResponseDraft"`;
 
@@ -163,7 +164,7 @@ export async function runInboxQuery(
       e."from", e."fromName", e."senderJobTitle", e.subject,
       e."isSnoozed", e."snoozeUntil", e."isRead", e.summary, e."isProcessingSummary",
       e.body, e."htmlBody",
-      e."phishingConfidence", e."phishingReason",
+      e."phishingConfidence", e."phishingReason", e."unsubscribeOptions",
       e."receivedAt", e.labels, e."to", e."cc", e."senderContactId",
       e."sentByAutoResponder",
       ${HAS_AUTO_RESPONSE_DRAFT_SQL},
@@ -177,7 +178,7 @@ export async function runInboxQuery(
         em."googleAccountId", em."office365AccountId", em."zohoAccountId",
         em."isSnoozed", em."snoozeUntil", em."isRead", em.summary, em."isProcessingSummary",
         ${INBOX_PREVIEW_BODY_COLUMNS_SQL},
-        em."phishingConfidence", em."phishingReason",
+        em."phishingConfidence", em."phishingReason", em."unsubscribeOptions",
         em."receivedAt", em.labels, em."to", em."cc", em."senderContactId",
         em."sentByAutoResponder"
       FROM emails em

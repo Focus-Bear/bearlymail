@@ -394,11 +394,7 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
         isPendingCategory={isPendingCategory}
         t={t}
       />
-      {hasActions && (
-        <div style={categoryHeaderActionsStyle}>
-          {actions}
-        </div>
-      )}
+      {hasActions && <div style={categoryHeaderActionsStyle}>{actions}</div>}
     </div>
   );
 };
@@ -419,10 +415,10 @@ const CategoryAccordionContent: React.FC<CategoryAccordionContentProps> = ({
 }) => (
   <div
     style={{
-      padding: theme.spacing.md,
+      padding: `${theme.spacing.xs} 0`,
       display: 'flex',
       flexDirection: 'column',
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
       minWidth: 0,
       // Subtle amber left-border pulse when fetch is approaching budget (UX signal only, no alarm).
       borderLeft: isNearBudget && isLoadingContent ? `3px solid ${theme.colors.accent.warning}` : 'none',
@@ -593,7 +589,6 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
       style={{
         marginBottom: theme.spacing.md,
         borderRadius: theme.borderRadius.lg,
-        border: `1px solid ${theme.colors.border.light}`,
         backgroundColor: theme.colors.background.paper,
       }}
     >
@@ -667,14 +662,14 @@ export interface CategoryGroup {
 export const getEmailGroupKey = (email: Email): string => {
   const isPhishing =
     email.phishingConfidence === PHISHING_CONFIDENCE_MEDIUM || email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
-  // If the server has assigned a specific category (not "Other"), respect it even when
-  // the phishing classifier fires. Fundraising or investor emails can trigger medium/high
-  // phishing confidence while still having a valid server-assigned category — in those
-  // cases we should NOT override the category. Only route to the phishing bucket when
-  // the email has no server-assigned category (or is already in "Other" / still pending).
+  // A medium verdict respects a server-assigned category: fundraising or investor emails
+  // can trigger it while still having a valid category. A high verdict always wins —
+  // the categoriser files a brand-impersonation "security notice" under Security &
+  // Compliance, where it reads as a legitimate account alert.
   const hasServerCategory =
     Boolean(email.category_id) && email.category_id !== CATEGORY_OTHER && email.category_id !== CATEGORY_KEY_PENDING;
-  if (isPhishing && !hasServerCategory) {
+  const isHighConfidencePhishing = email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
+  if (isHighConfidencePhishing || (isPhishing && !hasServerCategory)) {
     return CATEGORY_DANGEROUS_PHISHING;
   }
   // Still being categorised: the server reports category "Other" for these, so this

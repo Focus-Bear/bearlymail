@@ -1436,39 +1436,165 @@ describe("CalendarService", () => {
       status: "active",
     };
 
-    it("should reschedule a booking", async () => {
-      const mockEvent = { id: "event-1" };
-      mockCalendarBookingRepository.findOne.mockResolvedValue({
+    describe("with a requested time", () => {
+      // Tuesday 16 January 2024, 08:00 UTC — "now" for these tests.
+      const NOW = new Date("2024-01-16T08:00:00Z");
+
+      beforeEach(() => {
+        jest.useFakeTimers({ now: NOW, doNotFake: ["nextTick"] });
+        mockCalendarBookingRepository.findOne.mockResolvedValue({
+          ...mockBooking,
+        });
+        usersService.findOne.mockResolvedValue(mockUser);
+        mockCalendar.freebusy.query.mockResolvedValue({
+          data: { calendars: { primary: { busy: [] } } },
+        });
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it("should reschedule a booking", async () => {
+        const mockEvent = { id: "event-1" };
+        mockCalendar.events.patch.mockResolvedValue({ data: mockEvent });
+
+        const result = await service.rescheduleBooking(
+          "test-token",
+          "2024-01-16T14:00:00Z",
+        );
+
+        expect(mockCalendar.events.patch).toHaveBeenCalledWith({
+          calendarId: "primary",
+          eventId: "event-1",
+          requestBody: {
+            start: { dateTime: "2024-01-16T14:00:00.000Z" },
+            end: { dateTime: "2024-01-16T14:30:00.000Z" },
+            attendees: [
+              { email: "host@example.com" },
+              { email: "extra@example.com" },
+            ],
+          },
+        });
+        expect(mockCalendarBookingRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "rescheduled",
+            startTime: "2024-01-16T14:00:00.000Z",
+          }),
+        );
+        expect(result).toEqual(mockEvent);
+      });
+
+      it.each([
+        ["in the past", "2024-01-15T14:00:00Z"],
+        ["outside working hours", "2024-01-16T03:00:00Z"],
+        ["on a non-working day", "2024-01-20T14:00:00Z"],
+        ["beyond the booking horizon", "2026-01-16T14:00:00Z"],
+        ["not a date", "soon"],
+      ])("refuses a time that is %s", async (_label, newStartTime) => {
+        await expect(
+          service.rescheduleBooking("test-token", newStartTime),
+        ).rejects.toThrow("That time is not available");
+        expect(mockCalendar.events.patch).not.toHaveBeenCalled();
+      });
+
+      // The booking being moved currently sits at 14:00-14:30 on the host's
+      // calendar, so free/busy reports that slot as busy.
+      const bookedAtTwo = {
         ...mockBooking,
+        startTime: "2024-01-16T14:00:00.000Z",
+        endTime: "2024-01-16T14:30:00.000Z",
+      };
+      const givenBookedAtTwoWithBusy = (
+        periods: Array<{ start: string; end: string }>,
+      ) => {
+        mockCalendarBookingRepository.findOne.mockResolvedValue({
+          ...bookedAtTwo,
+        });
+        mockCalendar.freebusy.query.mockResolvedValue({
+          data: { calendars: { primary: { busy: periods } } },
+        });
+      };
+
+      it("does not count the booking's own slot as a clash when moving it a little", async () => {
+        givenBookedAtTwoWithBusy([
+          { start: "2024-01-16T14:00:00Z", end: "2024-01-16T14:30:00Z" },
+        ]);
+        mockCalendar.events.patch.mockResolvedValue({
+          data: { id: "event-1" },
+        });
+
+        await service.rescheduleBooking("test-token", "2024-01-16T14:15:00Z");
+
+        expect(mockCalendar.events.patch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requestBody: expect.objectContaining({
+              start: { dateTime: "2024-01-16T14:15:00.000Z" },
+            }),
+          }),
+        );
       });
-      usersService.findOne.mockResolvedValue(mockUser);
 
-      mockCalendar.events.patch.mockResolvedValue({ data: mockEvent });
+      it("still refuses a neighbouring meeting that free/busy merged with the booking's slot", async () => {
+        // Own slot 14:00-14:30 plus another meeting 14:30-15:00, merged.
+        givenBookedAtTwoWithBusy([
+          { start: "2024-01-16T14:00:00Z", end: "2024-01-16T15:00:00Z" },
+        ]);
 
-      const result = await service.rescheduleBooking(
-        "test-token",
-        "2024-01-16T14:00:00Z",
-      );
-
-      expect(mockCalendar.events.patch).toHaveBeenCalledWith({
-        calendarId: "primary",
-        eventId: "event-1",
-        requestBody: {
-          start: { dateTime: "2024-01-16T14:00:00.000Z" },
-          end: { dateTime: "2024-01-16T14:30:00.000Z" },
-          attendees: [
-            { email: "host@example.com" },
-            { email: "extra@example.com" },
-          ],
-        },
+        await expect(
+          service.rescheduleBooking("test-token", "2024-01-16T14:15:00Z"),
+        ).rejects.toThrow("That time is not available");
+        expect(mockCalendar.events.patch).not.toHaveBeenCalled();
       });
-      expect(mockCalendarBookingRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: "rescheduled",
-          startTime: "2024-01-16T14:00:00.000Z",
-        }),
-      );
-      expect(result).toEqual(mockEvent);
+
+      it("refuses a time that overlaps an existing event", async () => {
+        mockCalendar.freebusy.query.mockResolvedValue({
+          data: {
+            calendars: {
+              primary: {
+                busy: [
+                  {
+                    start: "2024-01-16T13:45:00Z",
+                    end: "2024-01-16T14:15:00Z",
+                  },
+                ],
+              },
+            },
+          },
+        });
+
+        await expect(
+          service.rescheduleBooking("test-token", "2024-01-16T14:00:00Z"),
+        ).rejects.toThrow("That time is not available");
+        expect(mockCalendar.events.patch).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("resolveBookableSlot", () => {
+      beforeEach(() => {
+        jest.useFakeTimers({
+          now: new Date("2024-01-16T08:00:00Z"),
+          doNotFake: ["nextTick"],
+        });
+        usersService.findOne.mockResolvedValue(mockUser);
+        mockCalendar.freebusy.query.mockResolvedValue({
+          data: { calendars: { primary: { busy: [] } } },
+        });
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it("uses the host's slot length, not one supplied by the caller", async () => {
+        const slot = await service.resolveBookableSlot(
+          "user-1",
+          "2024-01-16T14:00:00Z",
+        );
+
+        expect(slot.durationMinutes).toBe(30);
+        expect(slot.start.toISOString()).toBe("2024-01-16T14:00:00.000Z");
+      });
     });
 
     it("should throw error when booking is cancelled", async () => {

@@ -10,8 +10,7 @@ import { isGitHubNotificationEmail } from "./github.service";
  * sub-categories share the same `*@github.com` sender and similar wording).
  */
 export type GithubNotificationLinkType =
-  | typeof GITHUB_LINK_TYPES.PR
-  | typeof GITHUB_LINK_TYPES.ISSUE;
+  typeof GITHUB_LINK_TYPES.PR | typeof GITHUB_LINK_TYPES.ISSUE;
 
 const PR_URL_PATTERN = /github\.com\/[^/\s"'<>]+\/[^/\s"'<>]+\/pull\/\d+/i;
 const ISSUE_URL_PATTERN = /github\.com\/[^/\s"'<>]+\/[^/\s"'<>]+\/issues\/\d+/i;

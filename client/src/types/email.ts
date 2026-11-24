@@ -1,3 +1,5 @@
+import type { UnsubscribeMethod } from 'constants/unsubscribe';
+
 // ---------------------------------------------------------------------------
 // Summary debug (admin-only): which emails were fed to the summariser
 // ---------------------------------------------------------------------------
@@ -262,6 +264,8 @@ export interface Email {
   // Phishing detection signal (populated after summarisation)
   phishingConfidence?: 'low' | 'medium' | 'high' | null;
   phishingReason?: string | null;
+  /** How BearlyMail can unsubscribe the user (from List-Unsubscribe, or a body link); null/absent when it can't. */
+  unsubscribeMethod?: UnsubscribeMethod | null;
   // Email category for grouping (e.g., Newsletters, Sales, Customer Support)
   category?: string | null;
   // UUID of the UserContext entry for this category — stable identifier returned by the server.

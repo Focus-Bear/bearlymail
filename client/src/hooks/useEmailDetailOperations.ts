@@ -22,6 +22,7 @@ import { resolveReplyInboxMode } from 'utils/suggestRepliesRequest';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { buildToneCheckContext } from 'utils/toneCheckContext';
 
+import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -750,7 +751,7 @@ export function useEmailDetailOperations(
           );
           setToneCheckResult(toneResponse.data);
 
-          if (!toneResponse.data.isOk) {
+          if (isToneCheckBlocking(toneResponse.data)) {
             setCheckingTone(false);
             return;
           }

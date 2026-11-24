@@ -2,7 +2,11 @@
  * Unit tests for unsubscribeUtils.ts
  * Issue #769 — backfill unit tests for frontend business logic helpers
  */
-import { extractUnsubscribeLink } from './unsubscribeUtils';
+import { Email } from 'types/email';
+
+import { UNSUBSCRIBE_METHODS } from 'constants/unsubscribe';
+
+import { extractUnsubscribeLink, isSafeHttpsUrl, resolveUnsubscribeAction } from './unsubscribeUtils';
 
 function htmlWithLink(href: string, text: string): string {
   return `<html><body><p>Some email content.</p><a href="${href}">${text}</a></body></html>`;
@@ -82,5 +86,50 @@ describe('extractUnsubscribeLink', () => {
     const body = 'Or unsubscribe at https://text-unsub.example.com/unsub';
     const result = extractUnsubscribeLink(html, body);
     expect(result).toBe('https://html-unsub.example.com/unsub');
+  });
+});
+
+describe('extractUnsubscribeLink — only https links are offered', () => {
+  it.each([
+    ['plain http', 'http://example.com/unsubscribe'],
+    ['javascript:', 'javascript:alert(1)'],
+    ['data:', 'data:text/html,unsubscribe'],
+    ['relative', '/unsubscribe?u=1'],
+  ])('ignores a %s unsubscribe href', (_label, href) => {
+    expect(extractUnsubscribeLink(htmlWithLink(href, 'Unsubscribe'))).toBeNull();
+  });
+
+  it('ignores http URLs in plain text', () => {
+    expect(extractUnsubscribeLink(undefined, 'Unsubscribe: http://example.com/unsubscribe')).toBeNull();
+  });
+});
+
+describe('isSafeHttpsUrl', () => {
+  it('rejects userinfo, which can disguise the real host', () => {
+    expect(isSafeHttpsUrl('https://bank.example.com@evil.example/u')).toBe(false);
+    expect(isSafeHttpsUrl('https://example.com/u')).toBe(true);
+  });
+});
+
+describe('resolveUnsubscribeAction', () => {
+  const asEmail = (fields: Partial<Email>) => fields as Pick<Email, 'unsubscribeMethod' | 'htmlBody' | 'body'>;
+
+  it("uses the server's List-Unsubscribe method when there is one", () => {
+    expect(resolveUnsubscribeAction(asEmail({ unsubscribeMethod: UNSUBSCRIBE_METHODS.MAILTO, body: '' }))).toEqual({
+      method: UNSUBSCRIBE_METHODS.MAILTO,
+      bodyUrl: null,
+    });
+  });
+
+  it('falls back to an https link in the loaded body', () => {
+    const htmlBody = htmlWithLink('https://example.com/unsub', 'Unsubscribe');
+    expect(resolveUnsubscribeAction(asEmail({ unsubscribeMethod: null, htmlBody, body: '' }))).toEqual({
+      method: UNSUBSCRIBE_METHODS.LINK,
+      bodyUrl: 'https://example.com/unsub',
+    });
+  });
+
+  it('returns null when neither offers a way to unsubscribe (e.g. an inbox card with no body)', () => {
+    expect(resolveUnsubscribeAction(asEmail({ body: '' }))).toBeNull();
   });
 });

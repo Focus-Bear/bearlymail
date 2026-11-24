@@ -93,7 +93,7 @@ export const PriorityInlineSelector: React.FC<PriorityInlineSelectorProps> = ({
 }) => {
   const { t } = useTranslation();
   const selected = selectedPriorityLevel(starCount);
-  const caption = selected ? t(selected.hintKey) : t('inbox.priorityCaptionNone');
+  const caption = selected ? t(selected.hintKey) : '';
 
   const heading = (
     // The class lets the inbox card's `email-actions` container query (App.css) hide the
@@ -138,9 +138,16 @@ export const PriorityInlineSelector: React.FC<PriorityInlineSelectorProps> = ({
     </div>
   );
 
-  const captionEl = (
-    <span style={{ fontSize: '11.5px', color: theme.colors.text.tertiary, lineHeight: 1.4 }}>{caption}</span>
-  );
+  // No "pick a priority" hint when nothing is chosen: the pills already say it, and the line
+  // adds a row of noise to every email in the list.
+  const captionEl = selected ? (
+    <span
+      className="email-priority-caption"
+      style={{ fontSize: '11.5px', color: theme.colors.text.tertiary, lineHeight: 1.4 }}
+    >
+      {caption}
+    </span>
+  ) : null;
 
   if (inlineLabel) {
     return (

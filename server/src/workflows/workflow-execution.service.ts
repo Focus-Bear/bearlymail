@@ -297,6 +297,9 @@ export class WorkflowExecutionService {
       action.serverId,
       action.toolName,
       toolArgs,
+      // The server id comes from the stored action, so it is only honoured
+      // for a connection the workflow's owner actually has.
+      context.userId,
     );
 
     return { output, resolved };

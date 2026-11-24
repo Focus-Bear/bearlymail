@@ -31,4 +31,6 @@ export interface ToneCheckResult {
   inappropriateTiming?: string | null;
   /** Set when the draft looks addressed to someone other than its recipients. */
   recipientMismatch?: string | null;
+  /** Set when a written weekday contradicts its date ("Tuesday 7th December" on a Monday). */
+  dateMismatch?: string | null;
 }

@@ -10,6 +10,7 @@ import {
   PatScope,
 } from "../constants/personal-access-tokens.constants";
 import { McpCategoryToolsService } from "./mcp-category-tools.service";
+import { McpDraftToolsService } from "./mcp-draft-tools.service";
 import { McpReadToolsService } from "./mcp-read-tools.service";
 import { McpRuleToolsService } from "./mcp-rule-tools.service";
 import { McpSendToolsService } from "./mcp-send-tools.service";
@@ -20,6 +21,7 @@ import {
 } from "./mcp-server.types";
 import {
   findToolSpec,
+  isToolAllowed,
   McpToolDefinition,
   toolsForScopes,
 } from "./mcp-server-tool-definitions";
@@ -58,6 +60,7 @@ export class McpServerToolsService {
     sendTools: McpSendToolsService,
     categoryTools: McpCategoryToolsService,
     ruleTools: McpRuleToolsService,
+    draftTools: McpDraftToolsService,
     private readonly settingsWriteLimiter: McpSettingsWriteLimiter,
   ) {
     this.handlers = {
@@ -73,6 +76,14 @@ export class McpServerToolsService {
         sendTools.sendReply(context, args),
       [MCP_TOOL_NAMES.SEND_EMAIL]: (context, args) =>
         sendTools.sendEmail(context, args),
+      [MCP_TOOL_NAMES.CREATE_DRAFT]: (context, args) =>
+        draftTools.createDraft(context.principal.userId, args),
+      [MCP_TOOL_NAMES.UPDATE_DRAFT]: (context, args) =>
+        draftTools.updateDraft(context.principal.userId, args),
+      [MCP_TOOL_NAMES.LIST_DRAFTS]: (context, args) =>
+        draftTools.listDrafts(context.principal.userId, args),
+      [MCP_TOOL_NAMES.DELETE_DRAFT]: (context, args) =>
+        draftTools.deleteDraft(context.principal.userId, args),
       [MCP_TOOL_NAMES.LIST_CATEGORIES]: (context) =>
         categoryTools.listCategories(context),
       [MCP_TOOL_NAMES.GET_CATEGORY]: (context, args) =>
@@ -114,13 +125,13 @@ export class McpServerToolsService {
         `Unknown tool: ${name}`,
       );
     }
-    if (!context.principal.scopes.includes(spec.requiredScope)) {
+    if (!isToolAllowed(spec, context.principal.scopes)) {
       return errorResult(
-        `This BearlyMail connection doesn't have the "${spec.requiredScope}" permission. The user can reconnect BearlyMail in Claude and tick it on the consent page, or create a token with it in BearlyMail Settings → Connect Claude.`,
+        `This BearlyMail connection doesn't have the "${spec.allowedScopes.join('" or "')}" permission. The user can reconnect BearlyMail in Claude and tick it on the consent page, or create a token with it in BearlyMail Settings → Connect Claude.`,
       );
     }
     try {
-      if (spec.requiredScope === PAT_SCOPES.SETTINGS_WRITE) {
+      if (spec.allowedScopes.includes(PAT_SCOPES.SETTINGS_WRITE)) {
         await this.settingsWriteLimiter.assertWithinLimit(
           context.principal.userId,
         );

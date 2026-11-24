@@ -7,10 +7,15 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
-import { Response } from "express";
+import { Request as ExpressRequest, Response } from "express";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { MCPOAuthService } from "./mcp-oauth.service";
+import {
+  isBrowserBound,
+  issueBrowserBinding,
+  MCP_CLIENT_BINDING_COOKIE,
+} from "../auth/oauth-state.util";
+import { bindingValueForState, MCPOAuthService } from "./mcp-oauth.service";
 import { MCPServersService } from "./mcp-servers.service";
 
 interface AuthenticatedRequest {
@@ -40,9 +45,16 @@ export class MCPOAuthController {
   async start(
     @Request() req: AuthenticatedRequest,
     @Param("id") id: string,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<{ authorizationUrl: string }> {
     const config = await this.mcpServersService.findOne(req.user.userId, id);
     const authorizationUrl = await this.oauthService.beginAuthorization(config);
+    const state = new URL(authorizationUrl).searchParams.get("state") ?? "";
+    issueBrowserBinding(
+      res,
+      MCP_CLIENT_BINDING_COOKIE,
+      bindingValueForState(state),
+    );
     return { authorizationUrl };
   }
 
@@ -53,10 +65,22 @@ export class MCPOAuthController {
     @Query("code") code: string,
     @Query("error") error: string,
     @Res() res: Response,
+    @Request() req: ExpressRequest,
   ): Promise<void> {
     const settingsUrl = (status: "success" | "error"): string =>
       `${FRONTEND_URL()}/settings?mcpConnected=${status}#connected-apps`;
     if (error || !state || !code) {
+      res.redirect(settingsUrl("error"));
+      return;
+    }
+    // Only the browser that started this authorization may finish it.
+    if (
+      !isBrowserBound(
+        bindingValueForState(state),
+        req,
+        MCP_CLIENT_BINDING_COOKIE,
+      )
+    ) {
       res.redirect(settingsUrl("error"));
       return;
     }

@@ -27,6 +27,7 @@ describe("McpServerToolsService", () => {
   let draftTools: jest.Mocked<McpDraftToolsService>;
   let categoryTools: jest.Mocked<McpCategoryToolsService>;
   let ruleTools: jest.Mocked<McpRuleToolsService>;
+  let settingsWriteLimiter: { assertWithinLimit: jest.Mock };
   let service: McpServerToolsService;
 
   beforeEach(() => {
@@ -55,13 +56,56 @@ describe("McpServerToolsService", () => {
       deleteRules: jest.fn(),
       updateRule: jest.fn(),
     } as unknown as jest.Mocked<McpRuleToolsService>;
+    settingsWriteLimiter = { assertWithinLimit: jest.fn() };
     service = new McpServerToolsService(
       readTools,
       sendTools,
       categoryTools,
       ruleTools,
       draftTools,
+      settingsWriteLimiter as never,
     );
+  });
+
+  it("stops a settings change once the hourly change limit is reached", async () => {
+    settingsWriteLimiter.assertWithinLimit.mockRejectedValueOnce(
+      new McpToolInputError("Change limit reached"),
+    );
+
+    const result = await service.callTool(
+      {
+        principal: {
+          userId: "user-1",
+          tokenId: "token-1",
+          scopes: ["mail:read", "settings:write"],
+        },
+        ipAddress: null,
+        userAgent: null,
+      } as never,
+      MCP_TOOL_NAMES.DELETE_CATEGORY,
+      { categoryId: "c1" },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(categoryTools.deleteCategory).not.toHaveBeenCalled();
+  });
+
+  it("does not consult the change limit for read tools", async () => {
+    await service.callTool(
+      {
+        principal: {
+          userId: "user-1",
+          tokenId: "token-1",
+          scopes: ["mail:read"],
+        },
+        ipAddress: null,
+        userAgent: null,
+      } as never,
+      MCP_TOOL_NAMES.LIST_CATEGORIES,
+      {},
+    );
+
+    expect(settingsWriteLimiter.assertWithinLimit).not.toHaveBeenCalled();
   });
 
   describe("settings tools", () => {

@@ -25,6 +25,15 @@ export const MCP_SERVER = {
   /** Hard cap on messages sent through MCP per user per hour. */
   SEND_LIMIT_PER_HOUR: 30,
   SEND_LIMIT_WINDOW_MS: MILLISECONDS.HOUR,
+  /** Most addresses one message may have across to, cc and bcc together. */
+  MAX_RECIPIENTS_PER_MESSAGE: 50,
+  /** Hard cap on addresses mailed through MCP per user per hour. */
+  SEND_RECIPIENTS_PER_HOUR: 150,
+  /** Failed authentications per client address before /mcp answers 429. */
+  AUTH_FAILURE_LIMIT: 30,
+  AUTH_FAILURE_WINDOW_MS: MILLISECONDS.MINUTE,
+  /** Most client addresses tracked for failed authentication at once. */
+  AUTH_FAILURE_MAX_TRACKED: 10_000,
   /** Advisory lock name; holds one user's MCP sends to one at a time. */
   SEND_LOCK_PREFIX: "mcp-send:",
   DEFAULT_LIST_LIMIT: 20,
@@ -70,6 +79,9 @@ export const MCP_DRAFTS = {
 export const MCP_SETTINGS = {
   /** Most rules one bulk call (delete_rules, set_rules_enabled) may touch. */
   MAX_RULE_IDS_PER_CALL: 50,
+  /** Hard cap on category/rule changes through MCP per user per hour. */
+  WRITE_LIMIT_PER_HOUR: 60,
+  WRITE_LIMIT_WINDOW_MS: MILLISECONDS.HOUR,
   MAX_CATEGORY_DESCRIPTION_LENGTH: 1000,
   /**
    * Categories are stored as "Name - Description", so a name containing this

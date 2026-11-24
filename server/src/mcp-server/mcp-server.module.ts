@@ -11,6 +11,7 @@ import { EmailTrackingModule } from "../email-tracking/email-tracking.module";
 import { EmailsModule } from "../emails/emails.module";
 import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { PersonalAccessTokensModule } from "../personal-access-tokens/personal-access-tokens.module";
+import { McpAuthFailureGuard } from "./mcp-auth-failure.guard";
 import { McpCategoryToolsService } from "./mcp-category-tools.service";
 import { McpDraftToolsService } from "./mcp-draft-tools.service";
 import { McpRateLimitGuard } from "./mcp-rate-limit.guard";
@@ -20,6 +21,7 @@ import { McpSendToolsService } from "./mcp-send-tools.service";
 import { McpServerController } from "./mcp-server.controller";
 import { McpServerProtocolService } from "./mcp-server-protocol.service";
 import { McpServerToolsService } from "./mcp-server-tools.service";
+import { McpSettingsWriteLimiter } from "./mcp-settings-write-limiter.service";
 
 /**
  * BearlyMail as an MCP server, so Claude can read, draft and send the user's
@@ -42,6 +44,8 @@ import { McpServerToolsService } from "./mcp-server-tools.service";
   controllers: [McpServerController],
   providers: [
     McpRateLimitGuard,
+    McpAuthFailureGuard,
+    McpSettingsWriteLimiter,
     McpServerProtocolService,
     McpServerToolsService,
     McpReadToolsService,

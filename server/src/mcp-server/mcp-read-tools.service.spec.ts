@@ -205,6 +205,23 @@ describe("McpReadToolsService", () => {
     );
   });
 
+  it("does not pass the search tool's internal error text on", async () => {
+    askAi.executeTool.mockResolvedValue({
+      resultJson: JSON.stringify({ error: "relation emails does not exist" }),
+    });
+
+    await expect(
+      service.searchEmails(USER_ID, { query: "invoice" }),
+    ).rejects.toThrow("search_emails failed");
+  });
+
+  it("refuses an over-long search query", async () => {
+    await expect(
+      service.searchEmails(USER_ID, { query: "a".repeat(501) }),
+    ).rejects.toThrow(/at most 500 characters/);
+    expect(askAi.executeTool).not.toHaveBeenCalled();
+  });
+
   it("merges awaiting and due follow-ups once each, soonest first, with open status", async () => {
     const later = followUp({
       id: "later",

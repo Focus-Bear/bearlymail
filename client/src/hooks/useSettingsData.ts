@@ -115,7 +115,6 @@ function useUserProfile() {
   const [jobTitle, setJobTitle] = useState<string | undefined>(undefined);
   const [calendarBookingUrl, setCalendarBookingUrl] = useState<string>('');
   const [emailSignature, setEmailSignature] = useState<string>('');
-  const [savingSignature, setSavingSignature] = useState(false);
 
   const updateProfile = useCallback(
     async (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => {
@@ -138,16 +137,9 @@ function useUserProfile() {
     []
   );
 
-  const handleSaveEmailSignature = useCallback(async (signature: string) => {
-    try {
-      setSavingSignature(true);
-      await axios.put(`${API_URL}/users/me`, { emailSignature: signature });
-    } catch (error) {
-      console.error('Error saving email signature:', error);
-      alert('Failed to save email signature. Please try again.');
-    } finally {
-      setSavingSignature(false);
-    }
+  /** Throws on failure, so the signature box can show that it didn't save. */
+  const saveEmailSignature = useCallback(async (signature: string) => {
+    await axios.put(`${API_URL}/users/me`, { emailSignature: signature });
   }, []);
 
   return {
@@ -159,9 +151,8 @@ function useUserProfile() {
     setCalendarBookingUrl,
     emailSignature,
     setEmailSignature,
-    savingSignature,
     updateProfile,
-    handleSaveEmailSignature,
+    saveEmailSignature,
   };
 }
 
@@ -343,10 +334,9 @@ export function useSettingsData() {
     jobTitle: profile.jobTitle,
     calendarBookingUrl: profile.calendarBookingUrl,
     emailSignature: profile.emailSignature,
-    savingSignature: profile.savingSignature,
     fetchData,
     updateProfile: profile.updateProfile,
     setEmailSignature: profile.setEmailSignature,
-    handleSaveEmailSignature: () => profile.handleSaveEmailSignature(profile.emailSignature),
+    saveEmailSignature: profile.saveEmailSignature,
   };
 }

@@ -54,4 +54,8 @@ export const UNSUBSCRIBE = {
   ONE_CLICK_URL_LABEL: "List-Unsubscribe URL",
   /** Bounds the sibling lookup so one prolific sender can't fan out. */
   MAX_SIBLING_EMAILS: 200,
+  /** How far back Settings → Subscriptions counts a mailing list's mail. */
+  MAILING_LIST_WINDOW_DAYS: 90,
+  /** Most mailing lists Settings → Subscriptions lists at once. */
+  MAX_MAILING_LISTS: 200,
 } as const;

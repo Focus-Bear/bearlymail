@@ -4071,6 +4071,54 @@
       "title": "Palabras clave bloqueadas",
       "unblock": "Desatascar"
     },
+    "subscriptions": {
+      "title": "Suscripciones",
+      "description": "Boletines y listas de correo que te escribieron en los últimos 90 días, los más activos primero. Marca los que no quieras: BearlyMail cancela tu suscripción, archiva sus correos en Triage y archiva automáticamente lo que sigan enviando.",
+      "loading": "Buscando tus suscripciones…",
+      "loadError": "No se pudieron cargar tus suscripciones.",
+      "retry": "Reintentar",
+      "emptyState": "No se encontraron listas de correo en los últimos 90 días.",
+      "newMailNote": "Un boletín aparece aquí cuando BearlyMail ve sus datos de cancelación en un correo sincronizado recientemente.",
+      "selectAll": "Seleccionar todo ({{count}})",
+      "stats_one": "{{count}} correo · unos {{perWeek}} por semana",
+      "stats_other": "{{count}} correos · unos {{perWeek}} por semana",
+      "inTriage": "{{count}} en Triage",
+      "method": {
+        "oneClick": "Un clic",
+        "mailto": "Por correo",
+        "link": "Sitio web"
+      },
+      "methodHint": {
+        "oneClick": "Cancela la suscripción al instante",
+        "mailto": "Envía un breve correo de cancelación desde tu cuenta",
+        "link": "Terminas de cancelar en su sitio web"
+      },
+      "cleanupButton": "Cancelar suscripción y archivar ({{count}})",
+      "progress": "Cancelando suscripciones… {{done}} de {{total}}",
+      "confirm": {
+        "title_one": "¿Cancelar la suscripción a 1 remitente?",
+        "title_other": "¿Cancelar la suscripción a {{count}} remitentes?",
+        "oneClick_one": "1 se cancela al instante.",
+        "oneClick_other": "{{count}} se cancelan al instante.",
+        "mailto_one": "1 recibe un breve correo de cancelación desde tu cuenta:",
+        "mailto_other": "{{count}} reciben un breve correo de cancelación desde tu cuenta:",
+        "link_one": "1 requiere que termines en su sitio web. Recibirás el enlace después.",
+        "link_other": "{{count}} requieren que termines en su sitio web. Recibirás los enlaces después.",
+        "archiveNote": "Sus correos en Triage se archivan y lo que envíen después se archiva automáticamente. Puedes deshacerlo en Remitentes bloqueados.",
+        "confirm": "Cancelar suscripción y archivar",
+        "cancel": "Cancelar"
+      },
+      "result": {
+        "unsubscribed_one": "Suscripción cancelada a 1 remitente.",
+        "unsubscribed_other": "Suscripción cancelada a {{count}} remitentes.",
+        "archived_one": "Se archivó 1 conversación.",
+        "archived_other": "Se archivaron {{count}} conversaciones.",
+        "finishOnWebsite": "Termina de cancelar en estos sitios web:",
+        "openPage": "Abrir la página de cancelación de {{sender}}",
+        "failed": "Estos no funcionaron del todo. Vuelve a intentarlo o usa Cancelar suscripción en uno de sus correos:",
+        "dismiss": "Listo"
+      }
+    },
     "blockedSenders": {
       "blocked": "Obstruido",
       "description": "Los correos electrónicos de estos remitentes se archivarán automáticamente",

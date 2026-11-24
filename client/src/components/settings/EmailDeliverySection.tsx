@@ -7,6 +7,7 @@ import { BlockedKeywordsSection } from 'components/settings/email-delivery/Block
 import { BlockedSendersSection } from 'components/settings/email-delivery/BlockedSendersSection';
 import { EmailAccountsSection } from 'components/settings/email-delivery/EmailAccountsSection';
 import { EmailBatchingSection } from 'components/settings/email-delivery/EmailBatchingSection';
+import { SubscriptionsSection } from 'components/settings/email-delivery/subscriptions/SubscriptionsSection';
 
 interface BlockedSender {
   id: string;
@@ -101,6 +102,7 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
         onNewDeliveryTimeChange={onNewDeliveryTimeChange}
         onSaveBatchSchedule={onSaveBatchSchedule}
       />
+      <SubscriptionsSection onChanged={() => void onFetchData()} />
       <BlockedSendersSection blockedSenders={blockedSenders} onUnblockSender={onUnblockSender} />
       <BlockedKeywordsSection
         blockedKeywords={blockedKeywords}

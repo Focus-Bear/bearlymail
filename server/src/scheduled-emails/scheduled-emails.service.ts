@@ -8,6 +8,7 @@ import { SCHEDULED_EMAIL_TYPES } from "../constants/domain-types";
 import { TRACKED_SEND_SOURCE } from "../constants/email-tracking.constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { ContactsService } from "../contacts/contacts.service";
+import { Email } from "../database/entities/email.entity";
 import {
   EmailAttachment,
   EmailRecipient,
@@ -20,8 +21,13 @@ import {
 } from "../emails/email-controller.helpers";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
+import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
+import {
+  buildForwardBody,
+  buildForwardHtmlBody,
+} from "../replies/forward-body.helpers";
 import { UsersService } from "../users/users.service";
 
 // Time constants for scheduling
@@ -266,10 +272,13 @@ export class ScheduledEmailsService {
       await this.sendScheduledForward(
         scheduledEmail,
         userId,
-        bodyWithSignature,
+        user?.emailSignature,
         attachments,
       );
     } else {
+      // New emails are composed in the rich-text editor, so the body is HTML.
+      // The tracked sender sends it as the HTML part (and providers build the
+      // plain-text part from it), the same as an immediate send from Compose.
       await this.sendScheduledNewEmail(
         scheduledEmail,
         userId,
@@ -394,11 +403,15 @@ export class ScheduledEmailsService {
    * Send a scheduled forward as a new standalone email (not threaded into original).
    * Bug 3 fix: forwards must use sendEmail, not sendReply, to avoid threading.
    * Bug 5 fix: BCC recipients are propagated.
+   *
+   * Like an immediate forward, the message carries the "Forwarded message"
+   * header and the original email under the user's note (#514), with a
+   * separate HTML part so the header and signature keep their line breaks.
    */
   private async sendScheduledForward(
     scheduledEmail: ScheduledEmail,
     userId: string,
-    bodyWithSignature: string,
+    signature: string | null | undefined,
     attachments:
       | Array<{ filename: string; mimeType: string; content: Buffer }>
       | undefined,
@@ -462,13 +475,21 @@ export class ScheduledEmailsService {
         ? scheduledEmail.bcc
         : undefined;
 
+    const { body, htmlBody } = await this.buildScheduledForwardBodies(
+      scheduledEmail,
+      userId,
+      scheduledEmail.emailId,
+      signature,
+    );
+
     await this.trackedEmailSender.sendEmail(
       userId,
       provider,
       {
         to: toRecipients,
         subject: scheduledEmail.subject,
-        body: bodyWithSignature,
+        body,
+        htmlBody,
         cc: ccRecipients,
         bcc: bccRecipients,
         attachments: allAttachments.length > 0 ? allAttachments : undefined,
@@ -483,6 +504,59 @@ export class ScheduledEmailsService {
       this.logger.log(
         `Expected reply in ${scheduledEmail.expectedReplyHours} hours for scheduled forward ${scheduledEmail.id}`,
       );
+    }
+  }
+
+  /**
+   * The plain and HTML bodies of a scheduled forward, built with the same
+   * helpers as an immediate forward. If the original email can no longer be
+   * loaded (e.g. deleted since scheduling), the user's note still goes out on
+   * its own rather than the whole send failing.
+   */
+  private async buildScheduledForwardBodies(
+    scheduledEmail: ScheduledEmail,
+    userId: string,
+    emailId: string,
+    signature: string | null | undefined,
+  ): Promise<{ body: string; htmlBody: string | undefined }> {
+    const original = await this.findOriginalEmail(userId, emailId);
+    if (!original) {
+      return {
+        body: appendSignature(scheduledEmail.body, signature),
+        htmlBody: undefined,
+      };
+    }
+    return {
+      body: appendSignature(
+        buildForwardBody(scheduledEmail.body, original),
+        signature,
+        false,
+      ),
+      htmlBody: appendSignature(
+        buildForwardHtmlBody(scheduledEmail.body, original),
+        signature,
+        true,
+      ),
+    };
+  }
+
+  private async findOriginalEmail(
+    userId: string,
+    emailId: string,
+  ): Promise<Email | null> {
+    try {
+      const email = await this.emailsService.getEmailById(userId, emailId);
+      if (!email) {
+        return null;
+      }
+      decryptEmailEntityForApi(email);
+      return email;
+    } catch (error) {
+      this.logger.warn(
+        `Original email ${emailId} not found for scheduled forward; sending the note only`,
+        error,
+      );
+      return null;
     }
   }
 

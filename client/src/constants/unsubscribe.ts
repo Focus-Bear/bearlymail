@@ -20,6 +20,8 @@ export type UnsubscribeOutcome = (typeof UNSUBSCRIBE_OUTCOMES)[keyof typeof UNSU
 export const UNSUBSCRIBE_ENDPOINTS = {
   unsubscribe: (emailId: string) => `/emails/${emailId}/unsubscribe`,
   archiveSender: (emailId: string) => `/emails/${emailId}/unsubscribe/archive-sender`,
+  /** Settings → Subscriptions: the mailing lists the user could unsubscribe from. */
+  mailingLists: '/mailing-lists',
 } as const;
 
 export const UNSUBSCRIBE_MENU_KEY = 'unsubscribe';

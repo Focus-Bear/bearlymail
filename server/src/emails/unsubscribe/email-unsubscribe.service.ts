@@ -50,8 +50,10 @@ export interface ArchiveSenderResult {
 }
 
 /**
- * The latest email of each of the sender's other threads still in Triage.
- * Action-mode (starred) threads are left alone: the user chose to act on them.
+ * The latest email of each of the sender's threads still in Triage, leaving
+ * out the thread `$3` when it is given (the card the user unsubscribed from,
+ * which the client archives itself). Action-mode (starred) threads are left
+ * alone: the user chose to act on them.
  */
 const SIBLING_EMAIL_IDS_SQL = `
   SELECT DISTINCT ON (e."emailThreadId") e.id
@@ -59,7 +61,7 @@ const SIBLING_EMAIL_IDS_SQL = `
   JOIN email_threads t ON t.id = e."emailThreadId" AND t."userId" = $1
   WHERE e."userId" = $1
     AND e."senderEmailHmac" = $2
-    AND e."emailThreadId" <> $3
+    AND ($3::text IS NULL OR e."emailThreadId"::text <> $3::text)
     AND t."isArchived" = false
     AND t."starCount" = 0
   ORDER BY e."emailThreadId", e."receivedAt" DESC
@@ -129,14 +131,20 @@ export class EmailUnsubscribeService {
   /**
    * Archives the sender's other Triage threads and records the sender as
    * unsubscribed (a blocked sender), so anything they still send is
-   * auto-archived. The email itself is archived by the client's usual flow.
+   * auto-archived. The email itself is archived by the client's usual flow,
+   * unless `includeThisThread` is set (Settings → Subscriptions has no card).
    */
   async archiveSender(
     userId: string,
     emailId: string,
+    options: { includeThisThread?: boolean } = {},
   ): Promise<ArchiveSenderResult> {
     const email = await this.findEmailOrThrow(userId, emailId);
-    const siblingIds = await this.findSiblingEmailIds(userId, email);
+    const siblingIds = await this.findSiblingEmailIds(
+      userId,
+      email,
+      options.includeThisThread,
+    );
     await this.blockedSendersService.blockSender(
       userId,
       email.from,
@@ -252,6 +260,7 @@ export class EmailUnsubscribeService {
   private async findSiblingEmailIds(
     userId: string,
     email: Email,
+    includeThisThread = false,
   ): Promise<string[]> {
     if (!email.senderEmailHmac) return [];
     const rows: Array<{ id: string }> = await this.emailRepository.query(
@@ -259,7 +268,7 @@ export class EmailUnsubscribeService {
       [
         userId,
         email.senderEmailHmac,
-        email.emailThreadId,
+        includeThisThread ? null : (email.emailThreadId ?? null),
         UNSUBSCRIBE.MAX_SIBLING_EMAILS,
       ],
     );

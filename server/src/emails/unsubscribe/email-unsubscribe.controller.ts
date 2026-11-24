@@ -12,6 +12,7 @@ import {
 
 import { EmailProviderRequiredGuard } from "../../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../../auth/jwt-auth.guard";
+import { ArchiveSenderDto } from "../dto/archive-sender.dto";
 import { UnsubscribeEmailDto } from "../dto/unsubscribe-email.dto";
 import {
   ArchiveSenderResult,
@@ -53,7 +54,10 @@ export class EmailUnsubscribeController {
   async archiveSender(
     @Request() req,
     @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() body?: ArchiveSenderDto,
   ): Promise<ArchiveSenderResult> {
-    return this.emailUnsubscribeService.archiveSender(req.user.userId, id);
+    return this.emailUnsubscribeService.archiveSender(req.user.userId, id, {
+      includeThisThread: body?.includeThisThread === true,
+    });
   }
 }

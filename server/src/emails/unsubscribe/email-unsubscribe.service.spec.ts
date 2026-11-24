@@ -229,4 +229,25 @@ describe("EmailUnsubscribeService", () => {
     ]);
     expect(result).toEqual({ archivedCount: 2 });
   });
+
+  it("archive-sender: leaves this email's own thread out by default", async () => {
+    useEmail(buildEmail());
+
+    await service.archiveSender(USER_ID, EMAIL_ID);
+
+    expect(emailRepository.query.mock.calls[0][1][2]).toBe("thread-1");
+  });
+
+  it("archive-sender: includes this email's own thread when asked (Settings → Subscriptions)", async () => {
+    useEmail(buildEmail());
+
+    await service.archiveSender(USER_ID, EMAIL_ID, { includeThisThread: true });
+
+    expect(emailRepository.query.mock.calls[0][1]).toEqual([
+      USER_ID,
+      "hmac-paragon",
+      null,
+      UNSUBSCRIBE.MAX_SIBLING_EMAILS,
+    ]);
+  });
 });

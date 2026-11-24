@@ -7,6 +7,7 @@ export const EMOJI_SNOOZE = '📥';
 export const EMOJI_CLOCK = '⏰';
 export const EMOJI_ARCHIVE = '📦';
 export const EMOJI_EMAIL = '📧';
+export const EMOJI_NEWSPAPER = '📰';
 export const EMOJI_USER = '👤';
 export const EMOJI_THREAD = '💬';
 export const EMOJI_SETTINGS = '⚙️';

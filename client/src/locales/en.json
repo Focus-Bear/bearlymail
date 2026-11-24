@@ -1753,6 +1753,54 @@
         "unknown": "Something went wrong connecting to your email. Please try again."
       }
     },
+    "subscriptions": {
+      "title": "Subscriptions",
+      "description": "Newsletters and mailing lists that emailed you in the last 90 days, busiest first. Tick the ones you don't want: BearlyMail unsubscribes you, archives their emails in Triage, and auto-archives anything they still send.",
+      "loading": "Finding your subscriptions…",
+      "loadError": "Couldn't load your subscriptions.",
+      "retry": "Try again",
+      "emptyState": "No mailing lists found in the last 90 days.",
+      "newMailNote": "A newsletter shows up here once BearlyMail has seen its unsubscribe details on a newly synced email.",
+      "selectAll": "Select all ({{count}})",
+      "stats_one": "{{count}} email · about {{perWeek}} a week",
+      "stats_other": "{{count}} emails · about {{perWeek}} a week",
+      "inTriage": "{{count}} in Triage",
+      "method": {
+        "oneClick": "One-click",
+        "mailto": "By email",
+        "link": "Website"
+      },
+      "methodHint": {
+        "oneClick": "Unsubscribes instantly",
+        "mailto": "Sends a short unsubscribe email from your account",
+        "link": "You finish unsubscribing on their website"
+      },
+      "cleanupButton": "Unsubscribe & archive ({{count}})",
+      "progress": "Unsubscribing… {{done}} of {{total}}",
+      "confirm": {
+        "title_one": "Unsubscribe from 1 sender?",
+        "title_other": "Unsubscribe from {{count}} senders?",
+        "oneClick_one": "1 unsubscribes instantly.",
+        "oneClick_other": "{{count}} unsubscribe instantly.",
+        "mailto_one": "1 gets a short unsubscribe email from your account:",
+        "mailto_other": "{{count}} get a short unsubscribe email from your account:",
+        "link_one": "1 needs you to finish on their website. You'll get the link afterwards.",
+        "link_other": "{{count}} need you to finish on their website. You'll get the links afterwards.",
+        "archiveNote": "Their emails in Triage are archived, and anything they send later is archived automatically. You can undo that in Blocked senders.",
+        "confirm": "Unsubscribe & archive",
+        "cancel": "Cancel"
+      },
+      "result": {
+        "unsubscribed_one": "Unsubscribed from 1 sender.",
+        "unsubscribed_other": "Unsubscribed from {{count}} senders.",
+        "archived_one": "Archived 1 conversation.",
+        "archived_other": "Archived {{count}} conversations.",
+        "finishOnWebsite": "Finish unsubscribing on these websites:",
+        "openPage": "Open {{sender}}'s unsubscribe page",
+        "failed": "These didn't fully work. Try again, or use Unsubscribe on one of their emails:",
+        "dismiss": "Done"
+      }
+    },
     "blockedSenders": {
       "title": "Blocked Senders",
       "description": "Emails from these senders will be automatically archived",

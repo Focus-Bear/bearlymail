@@ -58,9 +58,13 @@ export class GitHubAppService {
    * @param userId - The user ID to encode in the token
    * @param includeRepo - Whether to request 'repo' scope for private repo access
    */
-  createConnectToken(userId: string, includeRepo = false): string {
+  createConnectToken(
+    userId: string,
+    includeRepo = false,
+    nonce?: string,
+  ): string {
     return this.jwtService.sign(
-      { userId, action: "connect", includeRepo },
+      { userId, action: "connect", includeRepo, nonce },
       { expiresIn: "5m" },
     );
   }
@@ -70,14 +74,18 @@ export class GitHubAppService {
    */
   verifyConnectToken(
     token: string,
-  ): { userId: string; includeRepo?: boolean } | null {
+  ): { userId: string; includeRepo?: boolean; nonce?: string } | null {
     try {
       const payload = this.jwtService.verify(token);
       if (payload.action !== AUTH_ACTION_TYPES.CONNECT) {
         this.logger.error("Invalid token action");
         return null;
       }
-      return { userId: payload.userId, includeRepo: payload.includeRepo };
+      return {
+        userId: payload.userId,
+        includeRepo: payload.includeRepo,
+        nonce: typeof payload.nonce === "string" ? payload.nonce : undefined,
+      };
     } catch (error) {
       this.logger.error(
         `Failed to verify connect token: ${sanitizeAxiosError(error)}`,
@@ -90,11 +98,16 @@ export class GitHubAppService {
    * Generate GitHub OAuth authorization URL
    * @param userId - The user ID to encode in the state parameter
    * @param includeRepo - Whether to include 'repo' scope for private repository access
+   * @param nonce - Browser-binding nonce carried through to the callback
    */
-  getAuthorizationUrl(userId: string, includeRepo = false): string {
+  getAuthorizationUrl(
+    userId: string,
+    includeRepo = false,
+    nonce?: string,
+  ): string {
     // Sign the state parameter with JWT for defense-in-depth
     const state = this.jwtService.sign(
-      { userId, action: "connect" },
+      { userId, action: "connect", nonce },
       { expiresIn: "10m" },
     );
 

@@ -8,6 +8,7 @@ import {
   EmailAttachment,
   RawEmailMessage,
 } from "../../interfaces/email-provider.interface";
+import { buildUnsubscribeOptions } from "../../unsubscribe/list-unsubscribe.parser";
 import {
   deriveThreadIdFromChain,
   extractMessageIdTokens,
@@ -107,6 +108,17 @@ export function parseAppleMailMessage(
         MAIL_HEADER_NAMES.AUTHENTICATION_RESULTS,
       ),
     ),
+    unsubscribeOptions: buildUnsubscribeOptions({
+      listUnsubscribe: extractHeader(
+        detail.allHeaders,
+        MAIL_HEADER_NAMES.LIST_UNSUBSCRIBE,
+      ),
+      listUnsubscribePost: extractHeader(
+        detail.allHeaders,
+        MAIL_HEADER_NAMES.LIST_UNSUBSCRIBE_POST,
+      ),
+      body: detail.content,
+    }),
     body: detail.content || "",
     starCount: summary.isFlagged ? 3 : 0,
     receivedAt: new Date(summary.dateReceivedMs),

@@ -403,6 +403,40 @@ describe('emailBodyUtils', () => {
         const result = sanitizeAndProcessHtml(html);
         expect(result).not.toContain('cid:');
       });
+
+      it('drops an inline image whose attachment type is not a plain image type', () => {
+        const html = '<p>keep</p><img src="cid:x1">';
+        const result = sanitizeAndProcessHtml(html, [
+          { contentId: 'x1', mimeType: 'image/x" onerror="alert(1)//', inlineData: 'AAAA' },
+        ]);
+        expect(result).not.toContain('onerror');
+        expect(result).not.toContain('<img');
+        expect(result).toContain('keep');
+      });
+
+      it('drops an inline image whose data is not base64', () => {
+        const result = sanitizeAndProcessHtml('<img src="cid:x1">', [
+          { contentId: 'x1', mimeType: 'image/png', inlineData: 'AA"><b>x</b>' },
+        ]);
+        expect(result).not.toContain('<img');
+        expect(result).not.toContain('<b>');
+      });
+
+      it('keeps attribute values intact when an unresolved cid: image is removed', () => {
+        const html =
+          '<p title="<img " src="cid:zz">x</p><i title="><img src=x onerror=alert(1)>">y</i>';
+        const container = document.createElement('div');
+        container.innerHTML = sanitizeAndProcessHtml(html);
+        expect(container.querySelector('img')).toBeNull();
+        expect(container.querySelector('[onerror]')).toBeNull();
+      });
+
+      it('does not load images or run handlers while processing', () => {
+        const fired = vi.fn();
+        (window as unknown as { __inlineProbe: () => void }).__inlineProbe = fired;
+        sanitizeAndProcessHtml('<img src="x" onerror="window.__inlineProbe()">');
+        expect(fired).not.toHaveBeenCalled();
+      });
     });
 
     describe('dark-mode CSS neutralisation', () => {

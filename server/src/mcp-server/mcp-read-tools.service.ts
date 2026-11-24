@@ -90,6 +90,24 @@ function toFollowUpView(followUp: FollowUp, now: Date) {
 }
 
 /** The read-only MCP tools: inbox listing, thread reading, search, follow-ups. */
+const MAX_SEARCH_TEXT_LENGTH = 500;
+
+/** True for the search tool's `{ "error": "..." }` failure payload. */
+function isToolErrorPayload(resultJson: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(resultJson);
+    return (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed) &&
+      Object.keys(parsed).length === 1 &&
+      typeof (parsed as { error?: unknown }).error === "string"
+    );
+  } catch {
+    return false;
+  }
+}
+
 @Injectable()
 export class McpReadToolsService {
   constructor(
@@ -156,12 +174,27 @@ export class McpReadToolsService {
     if (args.from !== undefined && typeof args.from !== "string") {
       throw new McpToolInputError("`from` must be a string");
     }
+    if (
+      args.query.length > MAX_SEARCH_TEXT_LENGTH ||
+      (typeof args.from === "string" &&
+        args.from.length > MAX_SEARCH_TEXT_LENGTH)
+    ) {
+      throw new McpToolInputError(
+        `\`query\` and \`from\` can be at most ${MAX_SEARCH_TEXT_LENGTH} characters`,
+      );
+    }
     const limit = optionalInteger(args, "limit", 1, SEARCH_RESULTS_MAX);
     const { resultJson } = await this.askAiToolService.executeTool(
       userId,
       { kind: "search_emails" },
       { query: args.query, from: args.from, limit },
     );
+    // The shared search tool reports a failure as `{ "error": "<internal
+    // message>" }` instead of throwing. Throw here so the caller's generic
+    // failure message is returned rather than internal error text.
+    if (isToolErrorPayload(resultJson)) {
+      throw new Error("search_emails failed");
+    }
     return resultJson;
   }
 

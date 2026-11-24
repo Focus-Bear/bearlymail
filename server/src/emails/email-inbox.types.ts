@@ -127,6 +127,8 @@ export interface RawEmailRow {
   correspondentName: string | null;
   phishingConfidence: "low" | "medium" | "high" | null;
   phishingReason: string | null;
+  /** Encrypted JSON; only the derived method is sent to the client. */
+  unsubscribeOptions?: string | null;
   priorityScore: number | null;
   to: string | null;
   cc: string | null;

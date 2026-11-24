@@ -11,6 +11,7 @@ import { LLMService } from "../llm/llm.service";
 import { LLM_OP_SUMMARIZE_EMAIL } from "../llm/llm-operations";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
+import { SENDGRID_SUPPORT_CHAT_LURE } from "./__fixtures__/phishing-emails.fixture";
 import { SummarizationService } from "./summarization.service";
 
 describe("SummarizationService", () => {
@@ -433,6 +434,43 @@ describe("SummarizationService", () => {
         mockLLMService.summarizeEmailWithPhishingCheck.mock.calls[0][0];
       expect(llmArg.emailBody).toContain("Thread body 1");
       expect(llmArg.emailBody).toContain("Thread body 7");
+    });
+
+    it("keeps the deterministic phishing verdict when the LLM summary call fails", async () => {
+      const userId = "user-123";
+      const emailId = "email-impersonation";
+      const rule = { type: "tldr" as const };
+      const impersonation = {
+        id: emailId,
+        subject: SENDGRID_SUPPORT_CHAT_LURE.subject,
+        body: SENDGRID_SUPPORT_CHAT_LURE.body,
+        htmlBody: SENDGRID_SUPPORT_CHAT_LURE.htmlBody,
+        from: SENDGRID_SUPPORT_CHAT_LURE.from,
+        fromName: SENDGRID_SUPPORT_CHAT_LURE.fromName,
+        threadId: "thread-impersonation",
+      };
+
+      mockEmailsService.getEmailById.mockResolvedValue(impersonation);
+      mockEmailsService.getThreadEmails.mockResolvedValue([impersonation]);
+      mockUsersService.findOneForAuth.mockResolvedValue({
+        email: "user@example.com",
+      });
+      mockLLMService.summarizeEmailWithPhishingCheck.mockRejectedValue(
+        new Error("LLM service unavailable"),
+      );
+      mockLLMService.summarizeEmail.mockResolvedValue("Fallback summary");
+
+      const result = await service.summarizeEmailWithPhishing(
+        userId,
+        emailId,
+        rule,
+      );
+
+      expect(result.summary).toBe("Fallback summary");
+      expect(result.phishingSignal).toMatchObject({
+        confidence: "high",
+        reason: expect.stringContaining("Twilio SendGrid"),
+      });
     });
 
     it("should use summarizeCustomPromptWithPhishing for custom rules (single LLM call)", async () => {

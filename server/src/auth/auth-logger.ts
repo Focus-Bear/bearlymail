@@ -103,8 +103,7 @@ export class AuthLogger {
         if (error && typeof error === "object" && "response" in error) {
           const errRecord = error as Record<string, unknown>;
           const response = errRecord["response"] as
-            | Record<string, unknown>
-            | undefined;
+            Record<string, unknown> | undefined;
           return response?.["data"];
         }
         if (error && typeof error === "object" && "data" in error) {

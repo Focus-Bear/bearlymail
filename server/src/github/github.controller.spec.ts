@@ -867,6 +867,7 @@ describe("GitHubController - createConnectToken", () => {
     expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
       "user-1",
       false,
+      undefined,
     );
     expect(result).toEqual({ token: "mock-token" });
   });
@@ -879,6 +880,7 @@ describe("GitHubController - createConnectToken", () => {
     expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
       "user-1",
       false,
+      undefined,
     );
     expect(result).toEqual({ token: "mock-token" });
   });
@@ -891,8 +893,98 @@ describe("GitHubController - createConnectToken", () => {
     expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
       "user-1",
       true,
+      undefined,
     );
     expect(result).toEqual({ token: "mock-token" });
+  });
+
+  it("sets a browser-binding cookie and puts its nonce in the token", async () => {
+    const res = { cookie: jest.fn() };
+
+    await controller.createConnectToken(mockReq, {}, res as never);
+
+    const [cookieName, nonce, options] = res.cookie.mock.calls[0];
+    expect(cookieName).toBe("bm_github_connect");
+    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax" });
+    expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
+      "user-1",
+      false,
+      nonce,
+    );
+  });
+
+  describe("callback", () => {
+    const res = () => ({ redirect: jest.fn() });
+
+    beforeEach(() => {
+      mockGitHubAppService.getFrontendUrl = jest
+        .fn()
+        .mockReturnValue("http://app.test");
+      mockGitHubAppService.verifyConnectToken.mockReturnValue({
+        userId: "user-1",
+        nonce: "nonce-abc",
+      });
+      mockGitHubAppService.exchangeCodeForToken = jest.fn();
+      mockGitHubAppService.storeTokenForUser = jest.fn();
+    });
+
+    it.each([
+      ["no cookie", {}],
+      ["another browser's cookie", { cookie: "bm_github_connect=other" }],
+    ])("does not exchange the code with %s", async (_label, headers) => {
+      const response = res();
+
+      await controller.callback(
+        "code",
+        "state",
+        response as never,
+        {
+          headers,
+        } as never,
+      );
+
+      expect(mockGitHubAppService.exchangeCodeForToken).not.toHaveBeenCalled();
+      expect(mockGitHubAppService.storeTokenForUser).not.toHaveBeenCalled();
+      expect(response.redirect).toHaveBeenCalledWith(
+        "http://app.test/settings?github=error",
+      );
+    });
+
+    it("does not exchange the code when the state carries no nonce", async () => {
+      mockGitHubAppService.verifyConnectToken.mockReturnValue({
+        userId: "user-1",
+      });
+      const response = res();
+
+      await controller.callback(
+        "code",
+        "state",
+        response as never,
+        {
+          headers: { cookie: "bm_github_connect=nonce-abc" },
+        } as never,
+      );
+
+      expect(mockGitHubAppService.exchangeCodeForToken).not.toHaveBeenCalled();
+    });
+
+    it("exchanges the code in the browser that started the flow", async () => {
+      mockGitHubAppService.exchangeCodeForToken.mockResolvedValue("gh-token");
+
+      await controller.callback(
+        "code",
+        "state",
+        res() as never,
+        {
+          headers: { cookie: "bm_github_connect=nonce-abc" },
+        } as never,
+      );
+
+      expect(mockGitHubAppService.storeTokenForUser).toHaveBeenCalledWith(
+        "user-1",
+        "gh-token",
+      );
+    });
   });
 
   it("should handle missing body by defaulting includeRepo to false", async () => {
@@ -901,6 +993,7 @@ describe("GitHubController - createConnectToken", () => {
     expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
       "user-1",
       false,
+      undefined,
     );
     expect(result).toEqual({ token: "mock-token" });
   });

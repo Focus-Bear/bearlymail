@@ -60,3 +60,33 @@ export function togglePriorityBucket(range: PriorityRange, index: number): Prior
   }
   return rangeFromBucketSpan(firstIndex, index - 1);
 }
+
+export const PRIORITY_RANGE_ALL = 'all';
+export const PRIORITY_RANGE_SINGLE = 'single';
+export const PRIORITY_RANGE_AND_ABOVE = 'andAbove';
+export const PRIORITY_RANGE_BETWEEN = 'between';
+
+/**
+ * How a range reads in words: everything, one bucket, a bucket "and above" (the run reaches
+ * the top), or a run between two buckets. Bucket values are PRIORITY_BUCKETS_HIGH_FIRST labels.
+ */
+export type PriorityRangeDescription =
+  | { kind: typeof PRIORITY_RANGE_ALL }
+  | { kind: typeof PRIORITY_RANGE_SINGLE; bucket: string }
+  | { kind: typeof PRIORITY_RANGE_AND_ABOVE; bucket: string }
+  | { kind: typeof PRIORITY_RANGE_BETWEEN; lowest: string; highest: string };
+
+export function describePriorityRange(range: PriorityRange): PriorityRangeDescription {
+  const checked = getCheckedBucketIndexes(range);
+  if (checked.length === 0 || checked.length === PRIORITY_BUCKETS_HIGH_FIRST.length) {
+    return { kind: PRIORITY_RANGE_ALL };
+  }
+  const highest = PRIORITY_BUCKETS_HIGH_FIRST[checked[0]].label;
+  const lowest = PRIORITY_BUCKETS_HIGH_FIRST[checked[checked.length - 1]].label;
+  if (checked.length === 1) {
+    return { kind: PRIORITY_RANGE_SINGLE, bucket: highest };
+  }
+  return checked[0] === 0
+    ? { kind: PRIORITY_RANGE_AND_ABOVE, bucket: lowest }
+    : { kind: PRIORITY_RANGE_BETWEEN, lowest, highest };
+}

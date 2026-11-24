@@ -44,11 +44,10 @@ export const EmailCard: React.FC<EmailCardProps> = ({ email, isSelected, onCardC
         borderRadius: theme.borderRadius.lg,
         padding: cardPadding,
         paddingTop: cardPaddingTop,
-        border: `2px solid ${getBorderColor(isSelected, email.isRead, showEmergencyRibbon)}`,
+        border: `${isSelected ? 2 : 1}px solid ${getBorderColor(isSelected, email.isRead, showEmergencyRibbon)}`,
         borderLeft: email.isRead
           ? `1px solid ${theme.colors.border.light}`
           : `4px solid ${showEmergencyRibbon ? theme.colors.warning.main : theme.colors.primary.main}`,
-        boxShadow: theme.shadows.sm,
         cursor: 'pointer',
         transition: theme.transitions.default,
         position: 'relative',
@@ -61,7 +60,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({ email, isSelected, onCardC
       }}
       onMouseLeave={event => {
         event.currentTarget.style.transform = 'translateY(0)';
-        event.currentTarget.style.boxShadow = theme.shadows.sm;
+        event.currentTarget.style.boxShadow = 'none';
       }}
     >
       {showEmergencyRibbon && <EmergencyDeliveryRibbon />}

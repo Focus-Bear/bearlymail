@@ -43,6 +43,38 @@ export const SENDGRID_IMPERSONATION = {
 </body></html>`,
 } as const;
 
+/**
+ * Synthesised from a screenshot of a second miss (report 2026-11-20_16-24-28):
+ * "SendGrid <noreply@foundryhealth.com>" following up on a "support chat" that
+ * quoted the account's details and asked to change two-factor settings, with a
+ * link to a "summary". No threat and no urgency, so none of the account-threat
+ * patterns matched and the model cleared it as a security notice. The real
+ * link was not visible, so the summary link uses a reserved test domain.
+ */
+const SUPPORT_CHAT_SUMMARY_LINK = "https://chat-summary.example.org/s/0000";
+
+export const SENDGRID_SUPPORT_CHAT_LURE: PhishingContextEmail = {
+  from: "noreply@foundryhealth.com",
+  fromName: "SendGrid",
+  subject: "Following up on your recent support chat",
+  body: [
+    "Following up on your November 18 support chat.",
+    "Hello,",
+    "A chat session with SendGrid Support on November 18 at 15:26 UTC referenced your account number, plan details, and billing ZIP code, and asked about changing the two-factor authentication settings on the account. The person in the chat was not signed in at the time.",
+    "Our agents are unable to make changes of that kind without an authenticated session, so nothing on the account was modified. Since the chat included correct account details, we wanted to make you aware of it in case it was not you or someone on your team.",
+    "Details like these are often gathered from an old invoice, a forwarded receipt, or a public listing. If the chat was not yours, it may be worth checking who still has access to those.",
+    "A summary of the chat, including what was asked and which details were provided, is available here:",
+    "View chat summary",
+  ].join("\n"),
+  htmlBody: `<html><body>
+<p><b>Following up on your November 18 support chat.</b></p>
+<p>A chat session with SendGrid Support on November 18 at 15:26 UTC referenced your account number, plan details, and billing ZIP code, and asked about changing the two-factor authentication settings on the account.</p>
+<p>A summary of the chat, including what was asked and which details were provided, is available here:</p>
+<a href="${SUPPORT_CHAT_SUMMARY_LINK}">View chat summary</a>
+</body></html>`,
+  senderAuthResults: { spf: "pass", dkim: "pass", dmarc: "pass" },
+};
+
 /** The real SendGrid, from its own domain, with the same kind of threat. */
 export const GENUINE_SENDGRID_SUSPENSION: PhishingContextEmail = {
   from: "noreply@sendgrid.com",
@@ -68,6 +100,16 @@ export const BRAND_PARTNER_MARKETING: PhishingContextEmail = {
   subject: "Get more from your licences",
   body: "Join our webinar on getting the most out of your licences.",
   htmlBody: `<a href="https://contoso.example.test/webinar">Register</a>`,
+};
+
+/** A real two-factor change notice from SendGrid's own domain. */
+export const GENUINE_SENDGRID_TWO_FACTOR_NOTICE: PhishingContextEmail = {
+  from: "no-reply@sendgrid.com",
+  fromName: "Twilio SendGrid",
+  subject: "Two-factor authentication settings changed",
+  body: "The two-factor authentication settings on your account were changed. If this was not you, contact support.",
+  htmlBody: `<a href="https://app.sendgrid.com/settings/auth">Review security settings</a> <a href="https://www.twilio.com/legal/privacy">Privacy</a>`,
+  senderAuthResults: { spf: "pass", dkim: "pass", dmarc: "pass" },
 };
 
 /** A requested email-verification message from the real service. */

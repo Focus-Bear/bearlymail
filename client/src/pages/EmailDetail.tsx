@@ -280,6 +280,11 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       setDraft: state.setDraft,
       setReplyRecipients: state.setReplyRecipients,
       setReplySubject: state.setReplySubject,
+      setReplyCc: state.setReplyCc,
+      setReplyBcc: state.setReplyBcc,
+      setShowCc: state.setShowCc,
+      setShowBcc: state.setShowBcc,
+      setRestoredReplyFiles: state.setRestoredReplyFiles,
       setReplyMode: state.setReplyMode,
       setShowReplyComposer: state.setShowReplyComposer,
       setReplyOptions: state.setReplyOptions,
@@ -393,7 +398,9 @@ const EmailDetailFullLayout: React.FC<EmailDetailFullLayoutProps> = ({ animation
           height: '100%',
           overflowY: 'auto',
           overflowX: 'hidden',
-          padding: isMobile ? `70px ${theme.spacing.xs} ${theme.spacing.md}` : theme.spacing['2xl'],
+          // The bottom padding on mobile lets the last lines scroll clear of the
+          // floating Assistant button (MobileAssistantSheet).
+          padding: isMobile ? `70px ${theme.spacing.xs} 96px` : theme.spacing['2xl'],
         }}
       >
         <div style={{ maxWidth: isMobile ? '100%' : '900px', margin: '0 auto' }}>{emailContent}</div>
@@ -741,7 +748,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           />
         )}
         {st.showReplyComposer && (
-          <div ref={replyComposerRef}>
+          <div ref={replyComposerRef} className="reply-composer-anchor">
             <ReplyComposer
               showReplyComposer={st.showReplyComposer}
               replyMode={st.replyMode}
@@ -759,6 +766,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               toneCheckResult={st.toneCheckResult}
               sending={st.sending}
               initialAttachments={st.replyMode === REPLY_MODE_FORWARD ? replyTargetEmail?.attachments : undefined}
+              restoredFiles={st.restoredReplyFiles}
               textareaRef={replyTextareaRef}
               scheduledSendAt={scheduledSendAt}
               onReplyRecipientsChange={st.setReplyRecipients}

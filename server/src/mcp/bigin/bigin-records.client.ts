@@ -16,8 +16,7 @@ import {
 const FIELD_SEPARATOR = ",";
 
 export type BiginSearchQuery =
-  | { [BIGIN_ARGS.EMAIL]: string }
-  | { [BIGIN_ARGS.WORD]: string };
+  { [BIGIN_ARGS.EMAIL]: string } | { [BIGIN_ARGS.WORD]: string };
 
 export interface BiginRecordRef {
   module: BiginParentModule;

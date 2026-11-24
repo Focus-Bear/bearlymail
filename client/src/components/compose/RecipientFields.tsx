@@ -476,7 +476,8 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             color: theme.colors.text.secondary,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.sm,
-            padding: '4px 0',
+            // Right padding keeps "+ Add CC" and "+ Add BCC" apart and widens the tap target.
+            padding: '8px 16px 8px 0',
             marginBottom: `${FONT_SIZE_XS_PX}px`,
           }}
         >
@@ -492,7 +493,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             color: theme.colors.text.secondary,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.sm,
-            padding: '4px 0',
+            padding: '8px 16px 8px 0',
             marginBottom: `${FONT_SIZE_XS_PX}px`,
           }}
         >

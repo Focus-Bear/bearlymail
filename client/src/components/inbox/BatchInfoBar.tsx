@@ -71,11 +71,11 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({ nextDelivery, lastUr
         display: 'flex',
         flexDirection: 'column',
         gap: theme.spacing.xs,
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        padding: `${theme.spacing.xs} ${theme.spacing.md}`,
         backgroundColor: theme.colors.background.subtle,
         borderRadius: theme.borderRadius.md,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.lg,
+        marginBottom: theme.spacing.sm,
+        fontSize: theme.typography.fontSize.md,
         color: theme.colors.text.secondary,
       }}
     >

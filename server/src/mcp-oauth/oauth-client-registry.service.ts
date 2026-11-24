@@ -199,7 +199,9 @@ export class OAuthClientRegistryService {
         error instanceof ClientMetadataError
           ? error.message
           : "Client metadata could not be loaded";
-      this.logger.warn(`Rejected client metadata ${clientId}: ${reason}`);
+      this.logger.warn(
+        `Rejected client metadata ${JSON.stringify(clientId)}: ${reason}`,
+      );
       throw new OAuthError(
         OAUTH_ERROR_CODES.INVALID_CLIENT,
         reason,

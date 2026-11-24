@@ -29,6 +29,10 @@ describe("isClientMetadataDocumentUrl", () => {
     ["https://[::1]/client.json", false],
     ["https://2130706433/client.json", false],
     ["https://0x7f.0.0.1/client.json", false],
+    ["https://claude.ai/client.json\nforged log line", false],
+    ["https://claude.ai/client.json\tx", false],
+    ["https://claude.ai/client json", false],
+    [`https://claude.ai/${"a".repeat(2100)}`, false],
   ])("%s → %s", (clientId, expected) => {
     expect(isClientMetadataDocumentUrl(clientId)).toBe(expected);
   });

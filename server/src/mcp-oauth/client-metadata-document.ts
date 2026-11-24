@@ -30,7 +30,24 @@ function hasIpAddressHost(url: URL): boolean {
   return isIP(url.hostname.replace(IPV6_BRACKETS_PATTERN, "")) !== 0;
 }
 
+/**
+ * A socket error names the address and port that were tried; the caller only
+ * needs to know the document could not be loaded.
+ */
+const UNREACHABLE_METADATA_MESSAGE = "Client metadata could not be loaded";
+const MAX_CLIENT_ID_LENGTH = 2000;
+
+const CONTROL_OR_SPACE = /[\u0000-\u0020\u007f]/;
+
 function parseClientIdUrl(clientId: string): URL | null {
+  // `new URL` silently drops tabs and newlines, so refuse them up front: the
+  // id is compared, cached and logged as the caller sent it.
+  if (
+    clientId.length > MAX_CLIENT_ID_LENGTH ||
+    CONTROL_OR_SPACE.test(clientId)
+  ) {
+    return null;
+  }
   try {
     const url = new URL(clientId);
     const isValid =
@@ -127,6 +144,15 @@ export function fetchClientMetadataJson(clientId: string): Promise<unknown> {
     );
   }
   return new Promise((resolve, reject) => {
+    // `timeout` below only fires when the socket goes idle, so a host that
+    // trickles bytes could hold the request open; this bounds the whole fetch.
+    const deadline = setTimeout(
+      () =>
+        request.destroy(
+          new ClientMetadataError("Client metadata fetch timed out"),
+        ),
+      MCP_OAUTH.CLIENT_METADATA_FETCH_TIMEOUT_MS,
+    );
     const request = httpsGet(
       url,
       {
@@ -166,6 +192,7 @@ export function fetchClientMetadataJson(clientId: string): Promise<unknown> {
         response.on("error", reject);
       },
     );
+    request.on("close", () => clearTimeout(deadline));
     request.on("timeout", () =>
       request.destroy(
         new ClientMetadataError("Client metadata fetch timed out"),
@@ -175,9 +202,7 @@ export function fetchClientMetadataJson(clientId: string): Promise<unknown> {
       reject(
         error instanceof ClientMetadataError
           ? error
-          : new ClientMetadataError(
-              `Could not fetch client metadata: ${error.message}`,
-            ),
+          : new ClientMetadataError(UNREACHABLE_METADATA_MESSAGE),
       ),
     );
   });

@@ -2,18 +2,21 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { ACCESS_LEVELS, AccessLevel } from 'constants/claudeAccess';
+
 /** Nudges the radio down to line up with the option title. */
 const RADIO_TOP_OFFSET_PX = 3;
 const DISABLED_OPACITY = 0.6;
 
 interface ConsentScopeChoiceProps {
-  allowSend: boolean;
+  accessLevel: AccessLevel;
+  canRequestDrafts: boolean;
   canRequestSend: boolean;
-  onChange: (allowSend: boolean) => void;
+  onChange: (accessLevel: AccessLevel) => void;
 }
 
 interface ScopeOptionProps {
-  value: 'read' | 'send';
+  value: AccessLevel;
   isChecked: boolean;
   isDisabled?: boolean;
   title: string;
@@ -55,8 +58,16 @@ const ScopeOption: React.FC<ScopeOptionProps> = ({ value, isChecked, isDisabled,
   </label>
 );
 
-/** Read-only (the default) or read + send. Send is offered only if the client asked for it. */
-export const ConsentScopeChoice: React.FC<ConsentScopeChoiceProps> = ({ allowSend, canRequestSend, onChange }) => {
+/**
+ * Read-only (the default), read + drafts, or read + drafts + send. Each is
+ * offered only if the client asked for it (asking to send covers drafting).
+ */
+export const ConsentScopeChoice: React.FC<ConsentScopeChoiceProps> = ({
+  accessLevel,
+  canRequestDrafts,
+  canRequestSend,
+  onChange,
+}) => {
   const { t } = useTranslation();
   return (
     <fieldset style={{ border: 'none', margin: `0 0 ${theme.spacing.lg}`, padding: 0 }}>
@@ -72,21 +83,31 @@ export const ConsentScopeChoice: React.FC<ConsentScopeChoiceProps> = ({ allowSen
       </legend>
       <div style={{ display: 'grid', gap: theme.spacing.sm }}>
         <ScopeOption
-          value="read"
-          isChecked={!allowSend}
+          value={ACCESS_LEVELS.READ}
+          isChecked={accessLevel === ACCESS_LEVELS.READ}
           title={t('oauthConsent.scopeReadTitle')}
           description={t('oauthConsent.scopeReadDescription')}
-          onSelect={() => onChange(false)}
+          onSelect={() => onChange(ACCESS_LEVELS.READ)}
         />
         <ScopeOption
-          value="send"
-          isChecked={allowSend}
+          value={ACCESS_LEVELS.DRAFT}
+          isChecked={accessLevel === ACCESS_LEVELS.DRAFT}
+          isDisabled={!canRequestDrafts}
+          title={t('oauthConsent.scopeDraftTitle')}
+          description={
+            canRequestDrafts ? t('oauthConsent.scopeDraftDescription') : t('oauthConsent.scopeDraftNotRequested')
+          }
+          onSelect={() => onChange(ACCESS_LEVELS.DRAFT)}
+        />
+        <ScopeOption
+          value={ACCESS_LEVELS.SEND}
+          isChecked={accessLevel === ACCESS_LEVELS.SEND}
           isDisabled={!canRequestSend}
           title={t('oauthConsent.scopeSendTitle')}
           description={
             canRequestSend ? t('oauthConsent.scopeSendDescription') : t('oauthConsent.scopeSendNotRequested')
           }
-          onSelect={() => onChange(true)}
+          onSelect={() => onChange(ACCESS_LEVELS.SEND)}
         />
       </div>
     </fieldset>

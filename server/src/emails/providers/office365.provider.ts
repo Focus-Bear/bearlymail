@@ -56,6 +56,7 @@ import {
 } from "./office365/office365-auth";
 import { Office365Client } from "./office365/office365-client";
 import {
+  GRAPH_INTERNET_MESSAGE_HEADERS_FIELD,
   MicrosoftGraphMessage,
   parseOffice365Message,
 } from "./office365/office365-message-parser";
@@ -370,8 +371,9 @@ export class Office365Provider implements EmailProvider {
     } = options;
     const fullMsg = await graphClient.get(`/me/messages/${message.id}`, {
       params: {
-        $select:
-          "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,hasAttachments",
+        $select: `id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,hasAttachments,${
+          GRAPH_INTERNET_MESSAGE_HEADERS_FIELD
+        }`,
       },
     });
 
@@ -605,8 +607,9 @@ export class Office365Provider implements EmailProvider {
     try {
       const fullMsg = await graphClient.get(`/me/messages/${messageId}`, {
         params: {
-          $select:
-            "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,categories,hasAttachments",
+          $select: `id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,categories,hasAttachments,${
+            GRAPH_INTERNET_MESSAGE_HEADERS_FIELD
+          }`,
         },
       });
 

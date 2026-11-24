@@ -25,6 +25,7 @@ const CONSENT_REQUEST = {
   clientHost: 'claude.ai',
   redirectHost: 'claude.ai',
   isLoopbackRedirect: false,
+  canRequestDrafts: true,
   canRequestSend: true,
   canRequestSettingsWrite: true,
   expiresAt: '2026-11-04T01:00:00Z',
@@ -88,11 +89,24 @@ describe('OAuthConsent', () => {
     await waitFor(() =>
       expect(axios.post).toHaveBeenCalledWith(
         DECISION_URL,
-        { approve: true, allowSend: true, allowSettingsWrite: false },
+        { approve: true, allowDrafts: true, allowSend: true, allowSettingsWrite: false },
         { headers: { 'X-Step-Up-Token': 'step-up-1' } }
       )
     );
     expect(assign).toHaveBeenCalledWith('https://claude.ai/api/mcp/auth_callback?code=x');
+  });
+
+  it('approves drafting without sending when the user picks read and draft', async () => {
+    renderAt(`/oauth/consent?request=${REQUEST_ID}`);
+    fireEvent.click(await screen.findByTestId('oauth-consent-scope-draft'));
+    fireEvent.click(screen.getByTestId('oauth-consent-allow'));
+    await waitFor(() =>
+      expect(axios.post).toHaveBeenCalledWith(
+        DECISION_URL,
+        { approve: true, allowDrafts: true, allowSend: false, allowSettingsWrite: false },
+        { headers: { 'X-Step-Up-Token': 'step-up-1' } }
+      )
+    );
   });
 
   it('grants editing categories and rules only when the user ticks it', async () => {
@@ -104,7 +118,7 @@ describe('OAuthConsent', () => {
     await waitFor(() =>
       expect(axios.post).toHaveBeenCalledWith(
         DECISION_URL,
-        { approve: true, allowSend: false, allowSettingsWrite: true },
+        { approve: true, allowDrafts: false, allowSend: false, allowSettingsWrite: true },
         { headers: { 'X-Step-Up-Token': 'step-up-1' } }
       )
     );
@@ -123,7 +137,7 @@ describe('OAuthConsent', () => {
     await waitFor(() =>
       expect(axios.post).toHaveBeenCalledWith(
         DECISION_URL,
-        { approve: false, allowSend: false, allowSettingsWrite: false },
+        { approve: false, allowDrafts: false, allowSend: false, allowSettingsWrite: false },
         { headers: {} }
       )
     );
@@ -182,12 +196,19 @@ describe('OAuthConsent', () => {
     });
   });
 
-  it('warns about loopback redirects and disables send when it was not requested', async () => {
+  it('warns about loopback redirects and disables drafts and send when they were not requested', async () => {
     vi.mocked(axios.get).mockResolvedValue({
-      data: { ...CONSENT_REQUEST, isLoopbackRedirect: true, canRequestSend: false, redirectHost: 'localhost' },
+      data: {
+        ...CONSENT_REQUEST,
+        isLoopbackRedirect: true,
+        canRequestDrafts: false,
+        canRequestSend: false,
+        redirectHost: 'localhost',
+      },
     });
     renderAt(`/oauth/consent?request=${REQUEST_ID}`);
     expect(await screen.findByTestId('oauth-consent-loopback-warning')).toBeInTheDocument();
+    expect(screen.getByTestId('oauth-consent-scope-draft')).toBeDisabled();
     expect(screen.getByTestId('oauth-consent-scope-send')).toBeDisabled();
   });
 

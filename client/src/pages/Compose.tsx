@@ -23,6 +23,7 @@ import { TimePicker } from 'components/compose/TimePicker';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
+import { DateMismatchBanner } from 'components/email-detail-inline/DateMismatchBanner';
 import { RecipientMismatchBanner } from 'components/email-detail-inline/RecipientMismatchBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
@@ -35,6 +36,7 @@ import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/
 import { EMAIL_FIELD_CC, EMAIL_FIELD_TO } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
+import { useComposeDraft } from 'hooks/useComposeDraft';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
@@ -87,6 +89,9 @@ const Compose: React.FC = () => {
     setSubject(restored.subject);
     setBody(restored.body);
   }, [setTo, setCc, setBcc, setSubject, setBody]);
+
+  const handleDraftLoadFailed = useCallback(() => setError(t('compose.errorDraftLoadFailed')), [t]);
+  const { discardSentDraft } = useComposeDraft(form, handleDraftLoadFailed);
 
   useEffect(() => {
     const fetchFrequent = async () => {
@@ -212,6 +217,7 @@ const Compose: React.FC = () => {
       if (sendId) {
         rememberPendingSend({ sendId, kind: PENDING_SEND_KIND.COMPOSE, ...composed });
       }
+      void discardSentDraft();
       setSendSuccess(true);
       if (scheduledSendAt) {
         // Surface where scheduled emails live (inbox ⋮ menu) on next inbox view.
@@ -338,7 +344,9 @@ const Compose: React.FC = () => {
           backgroundColor: theme.colors.background.paper,
           borderRadius: theme.borderRadius.lg,
           boxShadow: theme.shadows.lg,
-          overflow: 'hidden',
+          // clip (not hidden) rounds the corners without making this card a scroll
+          // container, so the Send row can stay pinned to the screen bottom on phones.
+          overflow: 'clip',
         }}
       >
         <div
@@ -386,7 +394,7 @@ const Compose: React.FC = () => {
             onSubjectChange={form.setSubject}
             onBodyChange={text => {
               form.setBody(text);
-              if (toneCheckResult && (!toneCheckResult.isOk || toneCheckResult.calendarWarning)) {
+              if (isToneCheckBlocking(toneCheckResult)) {
                 setToneCheckResult(null);
               }
             }}
@@ -404,6 +412,7 @@ const Compose: React.FC = () => {
           <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
           <RecipientMismatchBanner recipientMismatch={toneCheckResult?.recipientMismatch} />
           <CalendarConflictBanner calendarWarning={toneCheckResult?.calendarWarning} />
+          <DateMismatchBanner dateMismatch={toneCheckResult?.dateMismatch} />
           <ToneCheckResult
             toneCheckResult={toneCheckResult}
             onUseRevisedText={text => {

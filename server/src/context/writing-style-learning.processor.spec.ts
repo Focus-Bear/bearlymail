@@ -107,7 +107,9 @@ describe("WritingStyleLearningProcessor — sent-mail watermark", () => {
       ).runWritingStyleBackfill({ userId: "user-1", before }, "worker-1");
 
     it("scans one 7-day window ending at the cursor and re-queues the next window", async () => {
-      const before = new Date("2026-09-01T00:00:00.000Z");
+      // Relative to now: the backfill never reaches past 90 days ago, so a fixed
+      // date would start failing once it fell outside that lookback.
+      const before = new Date(Date.now() - 30 * DAY_MS);
       contextEmailDataService.fetchSentThreadsFromProvider.mockResolvedValue([
         { body: "Hi, thanks for the update — I'll review tomorrow." },
       ]);

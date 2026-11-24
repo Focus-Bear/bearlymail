@@ -46,6 +46,8 @@ tests:
         senderAuthSummary: ""
         linkTextMismatches: []
         accountThreats: []
+        securityLures: []
+        offBrandLinkDomains: []
         redFlags: []
     assert:
       - type: javascript
@@ -101,6 +103,8 @@ tests:
         senderAuthSummary: ""
         linkTextMismatches: []
         accountThreats: []
+        securityLures: []
+        offBrandLinkDomains: []
         redFlags: []
     assert:
       - type: javascript
@@ -145,6 +149,8 @@ tests:
         senderAuthSummary: ""
         linkTextMismatches: []
         accountThreats: []
+        securityLures: []
+        offBrandLinkDomains: []
         redFlags: []
     assert:
       - type: javascript
@@ -197,6 +203,8 @@ tests:
         senderAuthSummary: ""
         linkTextMismatches: []
         accountThreats: []
+        securityLures: []
+        offBrandLinkDomains: []
         redFlags: []
     assert:
       - type: javascript
@@ -246,6 +254,8 @@ tests:
         senderAuthSummary: ""
         linkTextMismatches: []
         accountThreats: []
+        securityLures: []
+        offBrandLinkDomains: []
         redFlags: []
     assert:
       - type: javascript
@@ -297,6 +307,8 @@ tests:
           - "act to restore access"
           - "blocked until you act"
           - "verify account/consent/details"
+        securityLures: []
+        offBrandLinkDomains: []
         redFlags:
           - "brand impersonation"
     assert:
@@ -309,6 +321,58 @@ tests:
           const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
           if (!parsed.phishing || !parsed.phishing.is_phishing) {
             throw new Error(`Missed SendGrid impersonation. Got: ${JSON.stringify(parsed.phishing)}`);
+          }
+          if (!['medium', 'high'].includes(parsed.phishing.confidence)) {
+            throw new Error(`Expected medium/high confidence, got: ${parsed.phishing.confidence}`);
+          }
+          return true;
+
+  # Synthesised from a second miss (report 2026-11-20_16-24-28): the same
+  # "SendGrid" display name on an unrelated domain, but the lure is a "support
+  # chat" about two-factor settings instead of a suspension threat. The
+  # deterministic pre-check now catches it; this keeps the prompt able to as well.
+  - description: "SendGrid impersonation with a support-chat / two-factor pretext must be detected"
+    vars:
+      subject: "Following up on your recent support chat"
+      contextNote: ""
+      body: |
+        Following up on your November 18 support chat.
+        A chat session with SendGrid Support on November 18 at 15:26 UTC referenced your account number, plan details, and billing ZIP code, and asked about changing the two-factor authentication settings on the account. The person in the chat was not signed in at the time.
+        Our agents are unable to make changes of that kind without an authenticated session, so nothing on the account was modified. Since the chat included correct account details, we wanted to make you aware of it in case it was not you or someone on your team.
+        A summary of the chat, including what was asked and which details were provided, is available here:
+        View chat summary
+      phishingSignals:
+        hasDomainMismatch: true
+        senderDomain: "foundryhealth.com"
+        linkedDomains:
+          - "chat-summary.example.org"
+        suspiciousKeywords: []
+        rawScore: 3
+        senderDisplayName: "SendGrid"
+        replyToDomain: ""
+        senderAuthSummary: "spf=pass, dkim=pass, dmarc=pass"
+        linkTextMismatches: []
+        accountThreats: []
+        securityLures:
+          - "two-factor or security settings"
+          - "if this was not you"
+          - "quotes your account details"
+          - "a support conversation about your account"
+        offBrandLinkDomains:
+          - "example.org"
+        redFlags:
+          - "brand impersonation"
+          - "links go to a domain unrelated to the brand the sender claims"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const firstBrace = text.indexOf('{');
+          const lastBrace = text.lastIndexOf('}');
+          if (firstBrace === -1 || lastBrace === -1) throw new Error('No JSON object found');
+          const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+          if (!parsed.phishing || !parsed.phishing.is_phishing) {
+            throw new Error(`Missed support-chat SendGrid impersonation. Got: ${JSON.stringify(parsed.phishing)}`);
           }
           if (!['medium', 'high'].includes(parsed.phishing.confidence)) {
             throw new Error(`Expected medium/high confidence, got: ${parsed.phishing.confidence}`);

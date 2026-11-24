@@ -1,7 +1,10 @@
 import { simpleParser } from "mailparser";
 
 import { STAR_COUNTS } from "../../../constants/priority-constants";
-import { parseImapMessage } from "./imap-message-parser";
+import {
+  parseImapMessage,
+  safeAttachmentMimeType,
+} from "./imap-message-parser";
 
 const REPLY = [
   "Message-ID: <reply@colleague.test>",
@@ -91,5 +94,27 @@ describe("parseImapMessage", () => {
     expect(first.attachments?.[0].attachmentId).toBe(
       again.attachments?.[0].attachmentId,
     );
+  });
+});
+
+describe("safeAttachmentMimeType", () => {
+  it("keeps a plain type/subtype, lower-cased", () => {
+    expect(safeAttachmentMimeType("Image/PNG")).toBe("image/png");
+    expect(safeAttachmentMimeType("application/vnd.ms-excel")).toBe(
+      "application/vnd.ms-excel",
+    );
+    expect(safeAttachmentMimeType("image/svg+xml")).toBe("image/svg+xml");
+  });
+
+  it.each([
+    'image/x" onerror="alert(1)//',
+    "image/png; name=x",
+    "image/png\r\nX-Header: 1",
+    "not a type",
+    "",
+    undefined,
+    null,
+  ])("replaces %p with the generic binary type", (value) => {
+    expect(safeAttachmentMimeType(value)).toBe("application/octet-stream");
   });
 });

@@ -247,10 +247,14 @@ export class AuthController {
    * The secret is saved but MFA is not yet active until mfa/enable is called.
    */
   @UseGuards(JwtAuthGuard)
+  @Throttle(AUTH_THROTTLES.MFA_VERIFY)
   @Post("mfa/setup")
-  async mfaSetup(@Request() req) {
+  async mfaSetup(@Request() req, @Body() body?: { token?: string }) {
     try {
-      return await this.authService.setupMfa(req.user.userId);
+      return await this.authService.setupMfa(
+        req.user.userId,
+        typeof body?.token === "string" ? body.token : undefined,
+      );
     } catch (error) {
       throw new BadRequestException(
         error.message || "Failed to initiate MFA setup",
@@ -263,6 +267,7 @@ export class AuthController {
    * On success MFA becomes active for the account.
    */
   @UseGuards(JwtAuthGuard)
+  @Throttle(AUTH_THROTTLES.MFA_VERIFY)
   @Post("mfa/enable")
   async mfaEnable(@Request() req, @Body() body: { token: string }) {
     if (!body.token) throw new BadRequestException("Token is required");
@@ -312,6 +317,7 @@ export class AuthController {
    * Requires verification of the current TOTP code.
    */
   @UseGuards(JwtAuthGuard)
+  @Throttle(AUTH_THROTTLES.MFA_VERIFY)
   @Delete("mfa")
   async mfaDisable(@Request() req, @Body() body: { token: string }) {
     if (!body.token) throw new BadRequestException("Token is required");

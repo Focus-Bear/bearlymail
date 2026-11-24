@@ -1797,256 +1797,424 @@
   },
   "help": {
     "articleNotFound": "Artículo no encontrado",
+    "navigationLabel": "Navegación de la ayuda",
+    "groups": {
+      "basics": "Lo básico",
+      "features": "Funciones y configuración",
+      "support": "Soporte"
+    },
+    "replayTour": {
+      "title": "Repetir el recorrido",
+      "description": "¿Has olvidado cómo funciona algo? Vuelve a hacer el recorrido guiado por tu bandeja de entrada. Dura más o menos un minuto.",
+      "button": "Repetir recorrido"
+    },
     "articles": {
-      "context": {
-        "description": "Aprenda a proporcionar contexto para ayudar a BearlyMail a comprender sus prioridades y preferencias.",
-        "title": "Contexto Acerca de mí",
+      "gettingStarted": {
+        "title": "Primeros pasos",
+        "description": "En qué se diferencia BearlyMail de una bandeja de entrada normal, y la rutina de cinco minutos que lo hace funcionar.",
         "content": {
           "section0": {
-            "title": "Por qué el Contexto es Importante",
-            "content": "BearlyMail usa IA para priorizar sus correos electrónicos y ayudarle a enfocarse en lo que más importa. Al proporcionar contexto sobre usted, su trabajo y sus preferencias, ayuda a la IA a tomar mejores decisiones sobre qué correos necesitan su atención inmediata y cuáles pueden esperar."
+            "title": "Cómo funciona BearlyMail",
+            "content": "BearlyMail está pensado para quienes sienten que el correo les desborda. En lugar de una lista interminable, tu correo se divide en tres pestañas, la IA lo ordena y te llega por tandas para que no te interrumpa todo el día.",
+            "item0": "Clasificación: correos nuevos, los más importantes primero. Decide qué hacer con cada uno.",
+            "item1": "Acción: los correos que has priorizado. Es tu lista de tareas de correo.",
+            "item2": "Seguimiento: conversaciones en las que esperas la respuesta de otra persona."
           },
           "section1": {
-            "title": "Contactos VIP",
-            "content": "Agregue personas cuyos correos electrónicos siempre deben tratarse como alta prioridad. Esto podría incluir a su gerente, clientes clave, familiares o cualquier persona cuyos mensajes nunca quiera perderse. Los correos de contactos VIP tendrán mayor prioridad en su bandeja de entrada."
+            "title": "Tu primera sesión",
+            "item0": "Conecta tu cuenta de correo en Configuración → Entrega de correo electrónico → Cuentas de Correo (Gmail, Outlook / Office 365, Zoho o cualquier otra cuenta IMAP).",
+            "item1": "Dale contexto a la IA en Configuración → Guía nuestra IA, o pulsa Analizar correos electrónicos para que aprenda de tu historial.",
+            "item2": "Abre Clasificación y empieza por arriba. Con cada correo: archívalo, posponlo o asígnale una prioridad para moverlo a Acción.",
+            "item3": "Cuando Clasificación esté vacía, pasa a Acción y ponte con el trabajo."
           },
           "section2": {
-            "title": "Información Sobre Mí",
-            "content": "Comparta información sobre su rol, responsabilidades y contexto laboral. Por ejemplo, si es un gerente de producto trabajando en el lanzamiento de una aplicación móvil, la IA entenderá mejor qué correos se relacionan con sus responsabilidades principales."
+            "title": "Una rutina diaria sencilla",
+            "content": "Revisa BearlyMail cuando llegue una tanda nueva, no todo el día. Vacía Clasificación rápido (no respondas nada que lleve más de un par de minutos, solo priorízalo) y luego reserva un rato para trabajar en Acción. Revisa Seguimiento una vez al día para insistir en lo que se haya quedado sin respuesta."
           },
           "section3": {
-            "title": "Proyectos y Temas Actuales",
-            "content": "Liste los proyectos, temas o iniciativas en los que está enfocado actualmente. Los correos relacionados con estos temas se priorizarán en consecuencia. Actualice esta lista a medida que cambien sus prioridades."
-          },
-          "section4": {
-            "title": "Lo que Considero Urgente",
-            "content": "Defina qué significa urgencia para usted. Esto podría incluir palabras clave específicas, tipos de solicitudes o situaciones que requieren atención inmediata. La IA usa esto para identificar correos verdaderamente urgentes que deben romper el agrupamiento."
-          },
-          "section5": {
-            "title": "Lo que No Considero Importante",
-            "content": "Especifique tipos de correos que son de baja prioridad para usted. Esto podría incluir boletines, correos de marketing o ciertos tipos de notificaciones. Estos correos serán despriorizados en su bandeja de entrada."
-          },
-          "section6": {
-            "title": "Consejos para un Mejor Contexto",
-            "item0": "Sea específico - en lugar de 'correos de trabajo', diga 'correos sobre el lanzamiento del producto Q1'",
-            "item1": "Actualice su contexto regularmente a medida que cambien sus prioridades",
-            "item2": "Use la función 'Analizar Correos' para que BearlyMail aprenda de su historial de correos",
-            "item3": "Revise y ajuste los contactos VIP según a quién realmente responde rápidamente"
-          }
-        }
-      },
-      "followUp": {
-        "description": "Descubra cómo gestionar y enviar correos electrónicos de seguimiento a conversaciones en espera de respuestas.",
-        "title": "Pestaña de seguimiento",
-        "content": {
-          "section0": {
-            "title": "¿Qué es la Pestaña de Seguimiento?",
-            "content": "La pestaña de Seguimiento le ayuda a rastrear conversaciones donde está esperando una respuesta. Cuando envía un correo y espera una respuesta, BearlyMail monitorea el hilo y le recuerda hacer seguimiento si no ha recibido respuesta."
-          },
-          "section1": {
-            "title": "Estableciendo Expectativas de Seguimiento",
-            "content": "Al enviar una respuesta, puede especificar cuándo espera recibir respuesta. Las opciones incluyen horas, días o un período personalizado. Si no llega respuesta para ese momento, la conversación aparece en su pestaña de Seguimiento."
-          },
-          "section2": {
-            "title": "Gestionando Seguimientos Pendientes",
-            "content": "La pestaña de Seguimiento muestra todas las conversaciones esperando respuestas, ordenadas por cuánto tiempo ha estado esperando. Puede ver de quién está esperando, cuándo envió su último mensaje y cuántos días han pasado desde su última respuesta."
-          },
-          "section3": {
-            "title": "Generando Mensajes de Seguimiento",
-            "content": "BearlyMail puede generar mensajes de seguimiento usando IA. Haga clic en 'Generar Seguimientos' para crear borradores para todas las conversaciones pendientes, o genérelos individualmente. Revise y personalice cada borrador antes de enviar."
-          },
-          "section4": {
-            "title": "Acciones de Seguimiento Masivo",
-            "content": "Para mayor eficiencia, puede enviar múltiples correos de seguimiento a la vez. Seleccione las conversaciones que desea seguir, revise los borradores generados y envíelos en masa. Esto es especialmente útil para flujos de trabajo de ventas o alcance."
-          },
-          "section5": {
-            "title": "Consejos para Seguimientos Efectivos",
-            "item0": "Establezca expectativas de seguimiento realistas según la urgencia de su solicitud",
-            "item1": "Revise los seguimientos generados por IA antes de enviar para asegurar que sean apropiados",
-            "item2": "No haga seguimiento demasiado agresivamente - espacie sus recordatorios",
-            "item3": "Elimine conversaciones del seguimiento si ya no son relevantes"
-          }
-        }
-      },
-      "process": {
-        "description": "Aprenda a trabajar con correos electrónicos destacados que necesitan acción en la pestaña Proceso.",
-        "title": "Pestaña Proceso",
-        "content": {
-          "section0": {
-            "title": "¿Qué es la Pestaña Proceso?",
-            "content": "La pestaña Proceso es su espacio de trabajo enfocado para correos que necesitan atención cuidadosa. Cuando marca un correo con estrella en Triage, se mueve aquí para que pueda manejarlo adecuadamente sin la distracción de otros correos entrantes."
-          },
-          "section1": {
-            "title": "Trabajando con Correos Destacados",
-            "content": "Los correos en la pestaña Proceso están ordenados por su calificación de estrellas y puntuación de prioridad. Trabaje con ellos uno a la vez, dando a cada correo la atención que merece. Una vez que haya respondido o tomado acción, archive el correo para eliminarlo de su lista."
-          },
-          "section2": {
-            "title": "Resúmenes Impulsados por IA",
-            "content": "Para cada correo, BearlyMail puede generar resúmenes con IA para ayudarle a entender rápidamente el contenido. Elija entre TL;DR, puntos clave, elementos de acción o resúmenes de solicitud del remitente. También puede crear reglas de resumen personalizadas para tipos específicos de correos."
-          },
-          "section3": {
-            "title": "Redactando Respuestas",
-            "content": "Use el compositor de respuestas para redactar su respuesta. BearlyMail incluye un verificador de tono que revisa su borrador contra sus preferencias de escritura y sugiere mejoras. También puede obtener respuestas sugeridas por IA para ayudarle a comenzar."
-          },
-          "section4": {
-            "title": "Elementos de Acción",
-            "content": "La IA puede extraer elementos de acción de los correos, ayudándole a identificar qué necesita hacerse. Puede agregar sus propias tareas, marcar elementos como completados y llevar un registro de sus compromisos."
-          },
-          "section5": {
-            "title": "Consejos para un Procesamiento Efectivo",
-            "item0": "Reserve bloques de tiempo dedicados para procesar correos",
-            "item1": "Use resúmenes de IA para entender rápidamente hilos largos de correo",
-            "item2": "Archive los correos inmediatamente después de tomar acción",
-            "item3": "Use el verificador de tono antes de enviar respuestas importantes"
-          }
-        }
-      },
-      "search": {
-        "description": "Domine la funcionalidad de búsqueda para encontrar rápidamente correos electrónicos utilizando lenguaje natural o sintaxis de Gmail.",
-        "title": "Buscar",
-        "content": {
-          "section0": {
-            "title": "Buscando Sus Correos",
-            "content": "La función de búsqueda de BearlyMail le permite encontrar rápidamente cualquier correo usando preguntas en lenguaje natural o la sintaxis de búsqueda tradicional de Gmail. La IA entiende lo que está buscando y devuelve los resultados más relevantes."
-          },
-          "section1": {
-            "title": "Búsqueda en Lenguaje Natural",
-            "content": "Simplemente escriba lo que está buscando en español simple. Por ejemplo, 'correos de Juan sobre el presupuesto' o 'invitaciones a reuniones de la semana pasada'. La IA interpreta su consulta y encuentra los correos coincidentes."
-          },
-          "section2": {
-            "title": "Sintaxis de Búsqueda de Gmail",
-            "content": "También puede usar los potentes operadores de búsqueda de Gmail para consultas precisas. Los operadores comunes incluyen from:, to:, subject:, has:attachment, before:, after: y más. Combine múltiples operadores para búsquedas complejas."
-          },
-          "section3": {
-            "title": "Referencia de Operadores de Búsqueda",
-            "item0": "from:nombre - Correos de un remitente específico",
-            "item1": "to:nombre - Correos enviados a un destinatario específico",
-            "item2": "subject:texto - Correos con palabras específicas en el asunto",
-            "item3": "has:attachment - Correos con archivos adjuntos",
-            "item4": "before:fecha / after:fecha - Correos antes o después de una fecha",
-            "item5": "is:starred - Solo correos destacados"
-          },
-          "section4": {
-            "title": "Resultados de Búsqueda",
-            "content": "Los resultados de búsqueda se clasifican por relevancia, con una puntuación que muestra qué tan bien coincide cada correo con su consulta. Los correos recientes obtienen un ligero impulso en la clasificación. Haga clic en cualquier resultado para ver el correo completo."
-          },
-          "section5": {
-            "title": "Consejos para Mejores Búsquedas",
-            "item0": "Comience con lenguaje natural - a menudo es más rápido que construir consultas complejas",
-            "item1": "Use comillas para coincidencia exacta de frases: \"propuesta de proyecto\"",
-            "item2": "Combine operadores: from:juan subject:presupuesto after:2024/01/01",
-            "item3": "Use el botón de ayuda de búsqueda para una referencia rápida de operadores disponibles"
-          }
-        }
-      },
-      "settings": {
-        "description": "Configure la entrega de correo electrónico, las preferencias de IA y las integraciones para personalizar su experiencia BearlyMail.",
-        "title": "Ajustes",
-        "content": {
-          "section0": {
-            "title": "Resumen de Configuración",
-            "content": "La página de Configuración le permite personalizar cada aspecto de su experiencia BearlyMail. Desde horarios de entrega de correo hasta comportamiento de IA, tiene control total sobre cómo funciona BearlyMail para usted."
-          },
-          "section1": {
-            "title": "Entrega y Agrupamiento de Correos",
-            "content": "Controle cuándo y con qué frecuencia se entregan los correos a su bandeja de entrada. Establezca horarios de entrega por lotes, configure horas de silencio cuando no se deben entregar correos, y elija cuántas veces al día desea recibir lotes de correo."
-          },
-          "section2": {
-            "title": "Cuentas de Google",
-            "content": "Conecte y administre sus cuentas de Gmail. Puede vincular múltiples cuentas y BearlyMail sincronizará correos de todas ellas. Si ocurren problemas de sincronización, puede reconectar su cuenta desde aquí."
-          },
-          "section3": {
-            "title": "Remitentes Bloqueados",
-            "content": "Administre su lista de remitentes bloqueados. Los correos de direcciones bloqueadas se archivan automáticamente y no aparecerán en su Triage. También puede darse de baja de listas de correo directamente."
-          },
-          "section4": {
-            "title": "Guía Nuestra IA",
-            "content": "Aquí es donde proporciona contexto sobre usted para ayudar a la IA a priorizar sus correos. Agregue contactos VIP, describa sus proyectos actuales, defina qué es urgente para usted y especifique qué no es importante."
-          },
-          "section5": {
-            "title": "Configuración de Tono",
-            "content": "Configure reglas para el verificador de tono que revisa sus borradores de correo. Agregue reglas como 'Ser profesional' o 'Evitar lenguaje pasivo-agresivo'. La IA aprende de sus correos enviados para entender su estilo de escritura."
-          },
-          "section6": {
-            "title": "Reglas de Resumen",
-            "content": "Cree reglas personalizadas para cómo se deben resumir los correos. Por ejemplo, podría querer que las solicitudes de reunión se resuman como puntos clave, o que los correos de su gerente destaquen solo los elementos de acción."
-          },
-          "section7": {
-            "title": "Integraciones",
-            "content": "Conecte BearlyMail con otros servicios. Agregue su propia clave API de OpenAI para funciones de IA, conecte GitHub para ver el estado de PR y problemas directamente en los correos, y más integraciones próximamente."
-          },
-          "section8": {
-            "title": "Consejos para una Configuración Óptima",
-            "item0": "Comience con 2-3 lotes de correo por día y ajuste según sus necesidades",
-            "item1": "Establezca horas de silencio que coincidan con su tiempo de enfoque o después del trabajo",
-            "item2": "Actualice regularmente su contexto a medida que cambien sus prioridades",
-            "item3": "Use el verificador de tono para mantener una comunicación profesional consistente"
-          }
-        }
-      },
-      "autoresponder": {
-        "title": "Auto-Responder",
-        "description": "Aprenda a configurar respuestas automáticas a correos electrónicos entrantes con estado de cola y respuestas impulsadas por IA.",
-        "content": {
-          "section0": {
-            "title": "¿Qué es el Auto-Responder?",
-            "content": "El Auto-Responder envía automáticamente respuestas a los correos electrónicos entrantes, informando a los remitentes que su mensaje ha sido recibido y proporcionando información útil sobre cuándo pueden esperar una respuesta. También puede responder preguntas comunes usando IA basada en el contexto de preguntas y respuestas que haya configurado."
-          },
-          "section1": {
-            "title": "Habilitando el Auto-Responder",
-            "content": "Para habilitar el Auto-Responder, vaya a Configuración y desplácese hasta la sección Auto-Responder. Active el interruptor para habilitar las respuestas automáticas. Una vez habilitado, verá opciones de configuración adicionales."
-          },
-          "section2": {
-            "title": "Personalizando Plantillas de Respuesta",
-            "content": "Puede personalizar las plantillas de mensajes que se envían para diferentes niveles de prioridad. Use etiquetas de combinación como {{userName}} y {{queuePosition}} para personalizar las respuestas con información dinámica. El editor de plantillas muestra una vista previa en vivo de cómo aparecerá su mensaje."
-          },
-          "section3": {
-            "title": "Reglas de Exclusión",
-            "content": "No todos los correos electrónicos deben recibir una respuesta automática. Use reglas de exclusión para evitar que se envíen respuestas automáticas a ciertos remitentes o tipos de correos electrónicos. Por ejemplo, es posible que desee excluir boletines, notificaciones automatizadas o correos electrónicos de dominios específicos."
-          },
-          "section4": {
-            "title": "Respuestas Impulsadas por IA",
-            "content": "Cuando está habilitado, el Auto-Responder puede intentar responder preguntas comunes basándose en los pares de preguntas y respuestas en su configuración de contexto. Puede establecer un umbral de confianza mínimo para controlar qué tan segura debe estar la IA antes de incluir una respuesta. Todas las respuestas generadas por IA incluyen un descargo de responsabilidad de que usted confirmará la información."
-          },
-          "section5": {
-            "title": "Mejores Prácticas",
-            "item0": "Mantenga sus plantillas de respuesta profesionales y concisas",
-            "item1": "Configure reglas de exclusión para boletines y correos electrónicos automatizados",
-            "item2": "Revise y actualice regularmente su contexto de preguntas y respuestas para obtener respuestas de IA precisas",
-            "item3": "Use la función de vista previa de correo electrónico para probar cómo se verán las respuestas antes de habilitarlas"
+            "title": "¿Quieres volver a ver el recorrido?",
+            "content": "Ve a Ayuda y pulsa Repetir recorrido, o a Configuración → Cuenta → Solución de problemas → Repetir tour."
           }
         }
       },
       "triage": {
-        "description": "Comprenda cómo clasificar rápidamente los nuevos correos electrónicos en la pestaña Triage.",
-        "title": "Pestaña de clasificación",
+        "title": "Pestaña Clasificación",
+        "description": "Decide rápido qué hacer con cada correo nuevo: archivarlo, posponerlo o priorizarlo.",
         "content": {
           "section0": {
-            "title": "¿Qué es la Pestaña Triage?",
-            "content": "La pestaña Triage es donde llegan los nuevos correos para toma de decisiones rápida. En lugar de dejar que los correos se acumulen en una bandeja de entrada tradicional, BearlyMail los entrega en lotes para que pueda decidir eficientemente qué hacer con cada uno sin interrupciones constantes."
+            "title": "¿Qué es la pestaña Clasificación?",
+            "content": "Clasificación es donde llegan los correos nuevos. Están ordenados por puntuación de prioridad, así que los más importantes aparecen arriba, y agrupados en categorías (como Boletines o Clientes) que puedes abrir y cerrar."
           },
           "section1": {
-            "title": "Cómo Funciona el Agrupamiento de Correos",
-            "content": "Los nuevos correos se recopilan y entregan en horarios programados durante el día según su configuración. Esto previene la distracción constante de correos entrantes y le permite enfocarse en trabajo profundo. Los correos verdaderamente urgentes aún pueden romper el agrupamiento cuando sea necesario."
+            "title": "Cuatro decisiones por correo",
+            "item0": "Priorízalo: elige Puede esperar, Ponte a ello u Oh mierda. El correo pasa a la pestaña Acción.",
+            "item1": "Posponlo: ocúltalo hasta el momento que elijas y luego vuelve a tu bandeja de entrada.",
+            "item2": "Archívalo: ya has terminado con él o no lo necesitabas. También se archiva en Gmail u Outlook, nunca se elimina.",
+            "item3": "Bloquea al remitente: abre el menú ⋮ del correo. Sus correos futuros se archivarán automáticamente."
           },
           "section2": {
-            "title": "Puntuación de Prioridad",
-            "content": "Cada correo en Triage recibe una puntuación de prioridad de 0-100 basada en el remitente, asunto, contenido y su configuración de contexto. Puntuaciones más altas indican correos más importantes. Puede hacer clic en la puntuación de prioridad para ver por qué fue asignada y proporcionar retroalimentación para mejorar la puntuación futura."
+            "title": "Primero lo más importante",
+            "content": "La primera vez que abres BearlyMail, Clasificación solo muestra los correos de prioridad Alta o superior. La pestaña indica cuántos ves del total, por ejemplo «Clasificación (3 de 499)». Cuando hayas despachado los importantes puedes elegir ver el resto, o cambiar tú el filtro de prioridad con el botón de filtros."
           },
           "section3": {
-            "title": "Acciones Rápidas",
-            "content": "Para cada correo en Triage, puede rápidamente marcarlo con estrella (para moverlo a Proceso para acción posterior), archivarlo, posponerlo para más tarde, o abrirlo para leer y responder. Use atajos de teclado para un procesamiento aún más rápido."
+            "title": "Por qué a veces te pide esperar",
+            "content": "Si aún tienes correos pendientes en Acción o Seguimiento, BearlyMail añade un poco de fricción antes de que te pongas con correo nuevo de menor prioridad. Para continuar, puedes decir una frase corta en voz alta o tocar 30 veces. Está ahí para que el correo nuevo no te distraiga del trabajo con el que ya te has comprometido."
           },
           "section4": {
-            "title": "Marcando Correos con Estrella",
-            "content": "Cuando marca un correo con estrella, se mueve a la pestaña Proceso donde puede darle toda su atención. Use estrellas para correos que necesitan una respuesta o acción cuidadosa. Puede usar 1-5 estrellas para indicar diferentes niveles de prioridad."
+            "title": "Trabajar con categorías",
+            "item0": "Archivar todo vacía una categoría entera de una vez; Seleccionar todo te deja elegir varios para actuar sobre ellos juntos.",
+            "item1": "Si sigues archivando una categoría sin leerla, BearlyMail te ofrecerá archivarla automáticamente en el futuro.",
+            "item2": "¿Un correo está en la categoría equivocada? Toca su etiqueta de prioridad y usa Editar junto a la categoría.",
+            "item3": "Recategorizar vuelve a ordenar tu bandeja si tus categorías han cambiado."
           },
           "section5": {
-            "title": "Consejos para un Triage Eficiente",
-            "item0": "Procese correos en lotes en lugar de uno a la vez durante el día",
-            "item1": "Use atajos de teclado: Eliminar para archivar, 1-5 para estrellas",
-            "item2": "No piense demasiado - tome decisiones rápidas y continúe",
-            "item3": "Marque con estrella cualquier cosa que necesite más de 2 minutos de atención"
+            "title": "Consejos para clasificar rápido",
+            "item0": "Usa el teclado: J/K para moverte, 1/2/3 para priorizar, E o Supr para archivar (consulta Atajos de teclado).",
+            "item1": "No respondas en Clasificación. Si algo lleva más de dos minutos, priorízalo y sigue.",
+            "item2": "Selecciona varios correos con sus casillas para archivarlos, posponerlos o marcarlos como leídos de una vez."
+          }
+        }
+      },
+      "action": {
+        "title": "Pestaña Acción",
+        "description": "Tu lista de tareas de correo: los correos que has priorizado, ordenados por urgencia.",
+        "content": {
+          "section0": {
+            "title": "¿Qué es la pestaña Acción?",
+            "content": "Cuando priorizas un correo en Clasificación, pasa a Acción. Es tu lista de tareas para los correos que requieren trabajo de verdad: una respuesta, una decisión o una tarea. (Antes esta pestaña se llamaba Procesar)."
+          },
+          "section1": {
+            "title": "Niveles de prioridad",
+            "content": "Los correos se ordenan por el nivel que elegiste y después por puntuación de prioridad:",
+            "item0": "🧨 Oh mierda: déjalo todo.",
+            "item1": "😀 Ponte a ello: hazlo pronto.",
+            "item2": "😊 Puede esperar: hay que hacerlo, pero no hoy.",
+            "item3": "¿Has cambiado de idea? Elige otro nivel o pulsa 0 para quitar la prioridad."
+          },
+          "section2": {
+            "title": "Ponerse manos a la obra",
+            "content": "Abre un correo para verlo junto al panel lateral de IA:",
+            "item0": "Resumen de IA: un resumen breve, puntos clave, tareas o lo que te pide el remitente.",
+            "item1": "Elementos de acción: tareas extraídas del correo. Añade las tuyas, márcalas como hechas o guárdalas en Focus Bear.",
+            "item2": "Notas privadas: notas sobre la conversación que solo tú puedes ver.",
+            "item3": "Preguntar a IA: haz preguntas sobre la conversación o pide ayuda para redactar una respuesta."
+          },
+          "section3": {
+            "title": "Responder",
+            "content": "Usa Respuestas sugeridas para tener un borrador de partida. Al enviar, BearlyMail revisa el tono de tu correo según tu configuración de tono y te avisa de lo que podría sentar mal; puedes usar la revisión sugerida, mostrar tu desacuerdo o mantener pulsado el botón para enviarlo de todos modos. También puedes programar el envío para más tarde."
+          },
+          "section4": {
+            "title": "¿Cuándo está terminado un correo?",
+            "content": "Al responder, elige cuándo esperas noticias. La conversación sale de Acción y, si no han respondido para entonces, aparece en Seguimiento. Si aún tienes trabajo pendiente después de responder, marca Aún necesito tomar acción en el cuadro de respuesta para mantenerla en Acción. Archiva el correo cuando hayas terminado del todo."
+          }
+        }
+      },
+      "followUp": {
+        "title": "Pestaña Seguimiento",
+        "description": "Controla las conversaciones en las que esperas respuesta e insiste con seguimientos redactados por IA.",
+        "content": {
+          "section0": {
+            "title": "¿Qué es la pestaña Seguimiento?",
+            "content": "Seguimiento muestra las conversaciones que tienes pendientes de respuesta: enviaste el último mensaje y no has recibido contestación en el plazo que esperabas. Es tu lista de asuntos que dependen de otras personas."
+          },
+          "section1": {
+            "title": "Indicar cuándo esperas respuesta",
+            "content": "Al responder o redactar un correo, elige Esperar respuesta en: 48 horas por defecto, o 3 días, 7 días, el próximo lunes, 2 semanas o un plazo personalizado. BearlyMail aparta la conversación hasta entonces y, si no ha llegado respuesta, la muestra en Seguimiento. Elige Sin seguimiento si no necesitas respuesta."
+          },
+          "section2": {
+            "title": "Insistir",
+            "item0": "Cada conversación muestra cuántos días han pasado desde su última respuesta y cuándo vencía el seguimiento.",
+            "item1": "Generar seguimientos redacta con IA un mensaje amable para cada conversación visible. Revisa y edita cada uno.",
+            "item2": "Envía los borradores de uno en uno o todos juntos.",
+            "item3": "Si el seguimiento de aperturas está activado, verás cuándo abrió el destinatario tu correo."
+          },
+          "section3": {
+            "title": "Cerrar una conversación",
+            "content": "Cuando te respondan, la conversación sale de Seguimiento y vuelve a Acción. Si ya no necesitas respuesta, archiva la conversación."
+          }
+        }
+      },
+      "priority": {
+        "title": "Puntuación de prioridad y etiqueta de prioridad",
+        "description": "Por qué un correo está donde está y cómo corregir a BearlyMail cuando se equivoca.",
+        "content": {
+          "section0": {
+            "title": "La etiqueta de prioridad",
+            "content": "Cada correo muestra una etiqueta como «alta prioridad (42)». El texto indica la franja y el número es la puntuación de prioridad. BearlyMail la calcula a partir del remitente, el contenido, tu contexto en Guía nuestra IA y cómo has tratado correos parecidos antes.",
+            "item0": "Muy alta: 50 o más",
+            "item1": "Alta: de 30 a 50",
+            "item2": "Media: de 15 a 30",
+            "item3": "Baja: de 0 a 15",
+            "item4": "Muy baja: menos de 0"
+          },
+          "section1": {
+            "title": "Toca la etiqueta para ver por qué",
+            "content": "Haz clic o toca la etiqueta para abrir el detalle:",
+            "item0": "Desglose de puntuación: los factores que han sumado o restado puntos.",
+            "item1": "Quién la puntuó: una regla que configuraste, un modelo local o la IA.",
+            "item2": "Categoría: en qué categoría se ha puesto el correo y por qué. Usa Editar para moverlo a otra.",
+            "item3": "Priorización correcta: dile a BearlyMail qué puntuación esperabas y por qué."
+          },
+          "section2": {
+            "title": "Enseñar a BearlyMail",
+            "content": "Cada corrección, cambio de categoría y prioridad que asignas entrena a la IA, así que el orden mejora cuanto más la usas. Para cambios duraderos, añade contactos VIP y describe lo que es urgente para ti en Configuración → Guía nuestra IA."
+          },
+          "section3": {
+            "title": "Calculando y Sin priorizar",
+            "content": "«Calculando» significa que la puntuación aún se está calculando; suele tardar unos segundos. «Sin priorizar» significa que el cálculo falló. Haz clic en la etiqueta para volver a intentarlo."
+          },
+          "section4": {
+            "title": "Correos urgentes",
+            "content": "Los correos realmente urgentes se saltan la tanda y llegan al momento, marcados como entregados antes por urgentes. Consulta Entrega programada."
+          }
+        }
+      },
+      "delivery": {
+        "title": "Entrega programada",
+        "description": "Cómo funcionan las tandas de correo, cómo cambiar las horas de entrega y cuándo se adelantan los correos urgentes.",
+        "content": {
+          "section0": {
+            "title": "¿Por qué agrupar el correo?",
+            "content": "Cada correo nuevo es una interrupción. BearlyMail retiene el correo no urgente y te lo entrega por tandas a las horas que elijas, para que puedas concentrarte entre medias. La barra de la parte superior de la bandeja muestra cuándo llega la próxima tanda."
+          },
+          "section1": {
+            "title": "Cambiar las horas de entrega",
+            "content": "Ve a Configuración → Entrega de correo electrónico → Agrupación de correos electrónicos. Elige tu zona horaria, los Días de entrega y añade o quita Plazos de entrega. Dos o tres tandas al día funcionan bien para la mayoría de la gente."
+          },
+          "section2": {
+            "title": "Los urgentes llegan igualmente",
+            "content": "BearlyMail revisa con regularidad los correos en espera por si hay algo urgente. Si un correo es lo bastante urgente, se entrega al momento con una marca de entrega anticipada para que sepas por qué ha llegado. La barra de la bandeja muestra cuándo se hizo la última comprobación."
+          }
+        }
+      },
+      "search": {
+        "title": "Búsqueda",
+        "description": "Encuentra cualquier correo preguntando con tus propias palabras o con operadores de búsqueda.",
+        "content": {
+          "section0": {
+            "title": "Buscar en tu correo",
+            "content": "Abre Búsqueda desde la barra lateral y escribe lo que buscas, como «correos de Sam sobre el presupuesto» o «la factura del mes pasado». La IA convierte tu pregunta en una búsqueda, la ejecuta en tus cuentas y ordena los resultados por relevancia."
+          },
+          "section1": {
+            "title": "Operadores de búsqueda",
+            "content": "Para búsquedas precisas puedes usar operadores:",
+            "item0": "from:nombre o from:correo@ejemplo.com",
+            "item1": "to:nombre",
+            "item2": "subject:palabras",
+            "item3": "has:attachment (Gmail)",
+            "item4": "before:2026/01/31 y after:2026/01/01",
+            "item5": "is:unread e is:starred"
+          },
+          "section2": {
+            "title": "Buscar en más de una cuenta",
+            "content": "Usa Buscar en para elegir en qué cuentas conectadas buscar. Las cuentas de Gmail admiten todos los operadores de Gmail. Las demás cuentas admiten los más comunes (from:, to:, subject:, before: y after:) y buscan todo lo demás como texto normal."
+          },
+          "section3": {
+            "title": "Consejos",
+            "item0": "Empieza escribiendo con tus palabras; suele ser más rápido que construir una consulta.",
+            "item1": "Pon las frases exactas entre comillas: \"propuesta de proyecto\".",
+            "item2": "Combina operadores: from:sam subject:presupuesto after:2026/01/01."
+          }
+        }
+      },
+      "context": {
+        "title": "Guía nuestra IA",
+        "description": "Cuéntale a BearlyMail sobre ti y tu trabajo para que ordene tu correo como lo harías tú.",
+        "content": {
+          "section0": {
+            "title": "Por qué importa el contexto",
+            "content": "La IA de BearlyMail decide qué es importante con lo que sabe de ti. Cuanto más preciso sea tu contexto, mejor será el orden de Clasificación. Lo encontrarás en Configuración → Guía nuestra IA → Contexto Acerca de mí."
+          },
+          "section1": {
+            "title": "Qué puedes contarle",
+            "item0": "Contactos VIP: personas cuyos correos siempre deben tener prioridad alta.",
+            "item1": "Información sobre mí: tu puesto y tus responsabilidades.",
+            "item2": "Proyectos y temas actuales: en qué te estás centrando ahora.",
+            "item3": "Lo que considero urgente: las situaciones que deben saltarse las tandas.",
+            "item4": "Lo que no considero importante: cosas que deben ir más abajo, como ciertas notificaciones.",
+            "item5": "P&R: preguntas frecuentes y tus respuestas, que la respuesta automática puede usar."
+          },
+          "section2": {
+            "title": "Deja que BearlyMail aprenda por ti",
+            "content": "Pulsa Analizar correos electrónicos para que la IA lea tu historial y te sugiera contexto, contactos VIP y categorías. Revisa sus sugerencias y quédate con las acertadas."
+          },
+          "section3": {
+            "title": "Categorías y reglas",
+            "content": "En la misma pestaña puedes editar tus categorías de correo, agruparlas en familias y crear reglas de categoría (por ejemplo, todo lo de un dominio va a Clientes). Las reglas de prioridad aprendidas muestran lo que BearlyMail ha aprendido de tus correcciones."
+          },
+          "section4": {
+            "title": "Consejos",
+            "item0": "Sé concreto: «correos sobre el lanzamiento del T3» es mejor que «correos de trabajo».",
+            "item1": "Actualiza tus proyectos cuando cambien tus prioridades.",
+            "item2": "Corrige el orden desde la etiqueta de prioridad; es la forma más rápida de enseñar a la IA."
+          }
+        }
+      },
+      "settings": {
+        "title": "Configuración",
+        "description": "Un mapa de cada pestaña de Configuración y lo que encontrarás en ella.",
+        "content": {
+          "section0": {
+            "title": "Entrega de correo electrónico",
+            "item0": "Cuentas de Correo: conecta Gmail, Outlook / Office 365, Zoho o cualquier cuenta IMAP. Vuelve a conectar una cuenta aquí si deja de sincronizarse.",
+            "item1": "Agrupación de correos electrónicos: tus días y horas de entrega.",
+            "item2": "Remitentes bloqueados: desbloquea personas y bloquea palabras clave en el asunto.",
+            "item3": "Firma de Correo Electrónico y Seguimiento de aperturas."
+          },
+          "section1": {
+            "title": "Guía nuestra IA",
+            "item0": "Contexto Acerca de mí, contactos VIP y P&R (consulta Guía nuestra IA).",
+            "item1": "Categorías de correo, familias de categorías y reglas de categoría.",
+            "item2": "Configuración de tono: reglas que usa la revisión de tono en tus borradores, como «Sé amable pero breve».",
+            "item3": "Resumen: reglas personalizadas sobre cómo se resumen los correos.",
+            "item4": "Respuesta automática (consulta Respuesta automática)."
+          },
+          "section2": {
+            "title": "Programación",
+            "content": "Tu disponibilidad, el margen entre reuniones, el tiempo de trabajo profundo, la duración de los huecos, tu zona horaria y un enlace de reserva para que otras personas reserven tiempo contigo."
+          },
+          "section3": {
+            "title": "Integraciones y aplicaciones",
+            "item0": "Aplicaciones conectadas: herramientas que la IA puede usar para el contexto del remitente, Preguntar a IA y los flujos de trabajo.",
+            "item1": "Flujos de trabajo: cuando un correo cumple una condición, ejecuta una acción como archivar, responder automáticamente o llamar a un webhook.",
+            "item2": "Usa tu propia cuenta de IA, la integración con GitHub y Focus Bear."
+          },
+          "section4": {
+            "title": "Equipo y plan",
+            "content": "Tu organización y sus miembros, el uso y los límites, y los códigos promocionales."
+          },
+          "section5": {
+            "title": "Cuenta",
+            "item0": "Inicio de sesión con contraseña y verificación en dos pasos.",
+            "item1": "Exportar e Importar Datos: haz una copia de tu configuración o exporta tus correos recientes.",
+            "item2": "Solución de problemas: Modo de resolución de problemas y Repetir tour.",
+            "item3": "Eliminar cuenta."
+          }
+        }
+      },
+      "autoresponder": {
+        "title": "Respuesta automática",
+        "description": "Avisa automáticamente de que has recibido un correo y responde preguntas frecuentes con IA.",
+        "content": {
+          "section0": {
+            "title": "¿Qué es la respuesta automática?",
+            "content": "Como BearlyMail agrupa tu correo y lo atiendes por orden de prioridad, puede que la gente espere un tiempo tu respuesta. La respuesta automática contesta en tu nombre para avisar de que su correo ha llegado y de cuándo pueden esperar respuesta, más o menos."
+          },
+          "section1": {
+            "title": "Activarla",
+            "content": "Ve a Configuración → Guía nuestra IA → Respuesta automática y actívala. Está desactivada hasta que lo hagas."
+          },
+          "section2": {
+            "title": "Plantillas",
+            "content": "Define un mensaje distinto para cada nivel de prioridad. Usa etiquetas como {{userName}} y {{queuePosition}} para personalizarlo; la vista previa muestra cómo quedará."
+          },
+          "section3": {
+            "title": "Quién recibe respuesta",
+            "content": "Usa No enviar a para excluir remitentes, dominios o tipos de correo, como boletines y notificaciones automáticas. En Cómo se envían las respuestas, elige si se envían automáticamente o se guardan como borrador para que las revises antes."
+          },
+          "section4": {
+            "title": "Respuestas impulsadas por IA",
+            "content": "Actívalas para que la respuesta automática conteste preguntas frecuentes con las P&R que hayas añadido en Guía nuestra IA. Mantén tus P&R al día para que las respuestas sigan siendo correctas."
+          },
+          "section5": {
+            "title": "Ver lo que se ha enviado",
+            "content": "Abre el menú ⋮ de la cabecera de la bandeja y elige ver las conversaciones con respuesta automática."
+          }
+        }
+      },
+      "keyboardShortcuts": {
+        "title": "Atajos de teclado",
+        "description": "Todos los atajos para recorrer tu bandeja sin ratón.",
+        "content": {
+          "section0": {
+            "title": "Moverse",
+            "item0": "J o ↓: siguiente correo",
+            "item1": "K o ↑: correo anterior",
+            "item2": "Intro: abrir el correo seleccionado",
+            "item3": "Esc: cerrar el correo abierto",
+            "item4": "Tab / Mayús+Tab: pasar de la lista al correo abierto y viceversa"
+          },
+          "section1": {
+            "title": "Actuar sobre los correos",
+            "item0": "1: Puede esperar",
+            "item1": "2: Ponte a ello",
+            "item2": "3: Oh mierda",
+            "item3": "0: quitar la prioridad",
+            "item4": "E, Supr o Retroceso: archivar (pulsa Y para confirmar, N o Esc para cancelar)",
+            "item5": "Supr con una categoría abierta y ningún correo seleccionado: Archivar todo en esa categoría"
+          },
+          "section2": {
+            "title": "Escribir correos",
+            "item0": "Cmd+B / Cmd+I / Cmd+U: negrita, cursiva, subrayado",
+            "item1": "Cmd+Mayús+S: tachado",
+            "item2": "Cmd+K: añadir un enlace",
+            "item3": "Cmd+Z / Cmd+Mayús+Z: deshacer y rehacer",
+            "item4": "En Windows y Linux, usa Ctrl en lugar de Cmd."
+          },
+          "section3": {
+            "title": "Conviene saber",
+            "content": "Los atajos se desactivan mientras escribes en un cuadro de texto. En el recorrido, usa las flechas para pasar de un paso a otro."
+          }
+        }
+      },
+      "troubleshooting": {
+        "title": "Solución de problemas y soporte",
+        "description": "Soluciones a problemas habituales y cómo contactarnos cuando algo no va bien.",
+        "content": {
+          "section0": {
+            "title": "No aparecen correos nuevos",
+            "item0": "Mira la barra de la parte superior de la bandeja: el correo no urgente llega por tandas, así que puede que solo esté esperando la próxima hora de entrega.",
+            "item1": "Si ves un aviso para volver a iniciar sesión o que BearlyMail no puede leer tu Gmail, pulsa el botón del aviso para volver a conectar.",
+            "item2": "Ve a Configuración → Entrega de correo electrónico → Cuentas de Correo para comprobar que cada cuenta está conectada.",
+            "item3": "Comprueba que el correo no sea de un remitente bloqueado ni esté en una categoría que se archiva automáticamente."
+          },
+          "section1": {
+            "title": "Un correo está en el sitio equivocado",
+            "item0": "Prioridad incorrecta: toca la etiqueta de prioridad y usa Priorización correcta.",
+            "item1": "Categoría incorrecta: toca la etiqueta de prioridad y usa Editar junto a la categoría.",
+            "item2": "No encuentras un correo: usa Búsqueda o revisa la vista de bloqueados en el menú ⋮."
+          },
+          "section2": {
+            "title": "La prioridad dice «Sin priorizar»",
+            "content": "El cálculo no terminó para ese correo. Haz clic en la etiqueta para volver a intentarlo. Si sigue pasando, avísanos."
+          },
+          "section3": {
+            "title": "Otra cosa no funciona",
+            "item0": "Recarga la página y luego cierra sesión y vuelve a entrar.",
+            "item1": "Activa el Modo de resolución de problemas en Configuración → Cuenta → Solución de problemas. Muestra más detalles que nos ayudan a diagnosticar problemas.",
+            "item2": "Repite el recorrido desde la página de Ayuda si has olvidado cómo funciona algo."
+          },
+          "section4": {
+            "title": "Contactar con soporte",
+            "content": "Usa Enviar comentarios en la parte superior de cualquier página de Ayuda para informar de un error o sugerir una mejora. Puedes adjuntar una captura de pantalla, y leemos todos los mensajes. También puedes escribir a support@focusbear.io."
+          }
+        }
+      },
+      "privacy": {
+        "title": "Privacidad y tus datos",
+        "description": "Qué pasa con tu correo y cómo exportar o eliminar tus datos.",
+        "content": {
+          "section0": {
+            "title": "Tu correo es tuyo",
+            "content": "Tu correo se guarda cifrado. Nunca vendemos tus datos ni los compartimos con terceros, y puedes desconectar tus cuentas cuando quieras."
+          },
+          "section1": {
+            "title": "BearlyMail solo envía cuando tú lo dices",
+            "content": "Solo se envían correos desde tu cuenta cuando pulsas Enviar, programas un envío, apruebas seguimientos, o activas la respuesta automática o un flujo de trabajo que responde por ti."
+          },
+          "section2": {
+            "title": "Qué es privado",
+            "item0": "Las notas privadas de una conversación solo las ves tú.",
+            "item1": "Si el seguimiento de aperturas está activado, BearlyMail añade una imagen invisible a los correos que envías para saber cuándo se abren. Las respuestas automáticas nunca se rastrean. Desactívalo en Configuración → Entrega de correo electrónico → Seguimiento de aperturas.",
+            "item2": "Puedes usar tu propia cuenta de IA (Configuración → Integraciones y aplicaciones) si prefieres que las peticiones de IA se hagan con tu propia cuenta del proveedor."
+          },
+          "section3": {
+            "title": "Exportar tus datos",
+            "content": "Ve a Configuración → Cuenta → Exportar e Importar Datos. Puedes exportar tu configuración a un archivo (e importarla de nuevo más adelante), y Exportar correos descarga tus correos más recientes en un ZIP protegido con contraseña."
+          },
+          "section4": {
+            "title": "Eliminar tu cuenta",
+            "content": "Ve a Configuración → Cuenta → Eliminar cuenta y escribe «delete all my data» para confirmar. Esto elimina para siempre tus datos de BearlyMail y no se puede deshacer. Tus correos se quedan en Gmail u Outlook."
           }
         }
       }
@@ -2057,7 +2225,7 @@
   },
   "inbox": {
     "action": "Acción",
-    "actionCaughtUp": "Todos los correos marcados han sido procesados.",
+    "actionCaughtUp": "Ya te has ocupado de todos los correos priorizados.",
     "actionItems": "{{count}} elemento de acción",
     "actionItems_other": "{{count}} elementos de acción",
     "autoResponseBadge": "{{count}} respuesta automática · Último envío {{sentAt}}",
@@ -2231,8 +2399,8 @@
     "inboxZeroSub": "Estás al día. Disfruta de tu tiempo de concentración.",
     "loadingEmails": "Cargando correos...",
     "decryptingEmails": "Descifrando correos...",
-    "loadingTriageEmails": "Cargando correos sin estrella...",
-    "loadingActionEmails": "Cargando correos con estrella...",
+    "loadingTriageEmails": "Cargando correos nuevos...",
+    "loadingActionEmails": "Cargando correos priorizados...",
     "loadingFollowUpEmails": "Cargando correos de seguimiento...",
     "loadingAutoRespondedEmails": "Cargando hilos con respuesta automática...",
     "loadingEmailsSub": "Obteniendo tus correos del servidor.",
@@ -2245,11 +2413,11 @@
     "nextDelivery": "Próxima entrega: {{time}}",
     "noActionEmails": "¡No hay correos para procesar!",
     "noEmailsAction": "¡No hay correos para procesar!",
-    "noEmailsActionSub": "Todos los correos marcados han sido procesados.",
+    "noEmailsActionSub": "Ya te has ocupado de todos los correos priorizados.",
     "noEmailsFollowUp": "¡No se necesitan seguimientos!",
     "noEmailsFollowUpSub": "Todos tus correos enviados han sido respondidos.",
     "noEmailsProcess": "¡No hay correos electrónicos para procesar!",
-    "noEmailsProcessSub": "Todos los correos electrónicos destacados han sido procesados.",
+    "noEmailsProcessSub": "Ya te has ocupado de todos los correos priorizados.",
     "noEmailsTriage": "¡No hay correos nuevos para clasificar!",
     "noEmailsTriageSub": "Estás al día con los nuevos mensajes.",
     "noFollowUpEmails": "¡No se necesitan seguimientos!",
@@ -2317,7 +2485,7 @@
     "clickToArchive": "Haz clic para archivar",
     "clickToSetPriority": "Haz clic para establecer prioridad: {{priority}}",
     "process": "Proceso",
-    "processCaughtUp": "Todos los correos electrónicos destacados han sido procesados.",
+    "processCaughtUp": "Ya te has ocupado de todos los correos priorizados.",
     "processTab": "Proceso",
     "sendFailed": "Error al enviar",
     "sendFollowUps": "Enviar {{count}} seguimientos",
@@ -2328,7 +2496,6 @@
     "suggested": "Sugerido",
     "title": "Bandeja de entrada",
     "triage": {
-      "movingToFollowUp": "→ Seguimiento",
       "movingToAction": "→ Acción"
     },
     "actionMove": {
@@ -2342,6 +2509,11 @@
     },
     "triageCaughtUp": "Estás al día con los nuevos mensajes.",
     "triageTab": "Clasificación",
+    "tabCount": {
+      "filtered": "{{label}} ({{visible}} de {{total}})",
+      "filteredCompact": "{{label}} ({{visible}}/{{total}})",
+      "filteredHint": "Mostrando {{visible}} de {{total}}. Tu filtro de prioridad oculta el resto; amplíalo para verlos."
+    },
     "unsubscribe": "Darse de baja",
     "unsubscribeFlow": {
       "confirmTitle": "¿Darte de baja de {{sender}}?",
@@ -3406,6 +3578,8 @@
       "archiveContent": "¿Ya terminaste con él o nunca lo necesitaste? Archivar lo quita de tu lista y también lo archiva en Gmail u Outlook. No se borra nada: puedes encontrarlo en Todos los correos. Atajo: pulsa Supr.",
       "archiveTitle": "Archívalo",
       "assistantContent": "Cada tarjeta muestra el remitente, un resumen con IA y lo urgente que creemos que es. Ábrela para ver el panel lateral de IA con tareas, notas y Preguntar a IA. Los siguientes pasos muestran qué hacen sus botones.",
+      "priorityBadgeTitle": "¿Por qué está aquí?",
+      "priorityBadgeContent": "Toca la etiqueta de prioridad de cualquier correo para ver por qué lo clasificamos así: el desglose de la puntuación y la categoría que le asignamos. ¿Crees que nos equivocamos? Usa Priorización correcta o cambia la categoría ahí mismo, y BearlyMail aprenderá de ello.",
       "assistantTitle": "Tus correos",
       "backgroundSortingContent": "Primero ordenamos tus correos más recientes para que pudieras empezar. El resto se sigue procesando en segundo plano y pasará a su categoría a medida que se ordene. Esta barra muestra cuánto falta y desaparece cuando termina.",
       "backgroundSortingTitle": "Seguimos ordenando el resto",

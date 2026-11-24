@@ -1,3 +1,5 @@
+import { ROUTE_INBOX, STRING_TRUE } from 'constants/strings';
+
 /**
  * Stable `data-tour` anchors the inbox onboarding tour spotlights. Elements carry
  * `data-tour={TOUR_TARGETS.X}`; the tour finds them with tourTargetSelector so
@@ -9,6 +11,7 @@ export const TOUR_TARGETS = {
   BATCH_DELIVERY: 'batch-delivery',
   EMAIL_ROW: 'email-row',
   EMAIL_PRIORITY: 'email-priority',
+  EMAIL_PRIORITY_BADGE: 'email-priority-badge',
   EMAIL_ARCHIVE: 'email-archive',
   EMAIL_SNOOZE: 'email-snooze',
   EMAIL_MORE_ACTIONS: 'email-more-actions',
@@ -35,5 +38,12 @@ export const TOUR_SKIP_HOLD_DURATION_MS = 5_000;
  */
 export const TOUR_NEXT_STEP_DELAY_MS = 3_000;
 
+/** CSS class (App.css) that fills the locked Next button over TOUR_NEXT_STEP_DELAY_MS. */
+export const TOUR_NEXT_FILL_CLASS = 'tour-next-fill';
+
 /** Marks the hold-to-skip button so the tour's Enter-to-advance shortcut leaves its key presses alone. */
 export const TOUR_HOLD_TO_SKIP_ATTRIBUTE = 'data-tour-hold-to-skip';
+
+/** Query param that makes the inbox start the tour from step one (Settings and Help link to it). */
+export const REPLAY_TOUR_PARAM = 'replayTour';
+export const REPLAY_TOUR_PATH = `${ROUTE_INBOX}?${REPLAY_TOUR_PARAM}=${STRING_TRUE}`;

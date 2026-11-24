@@ -65,6 +65,7 @@ const InboxView: React.FC = () => {
     isGeneratingDrafts,
     followUpsError,
     tabCounts,
+    activeTabVisibleCount,
     workAdditionCount,
     nextDelivery,
     lastUrgentCheck,
@@ -447,6 +448,7 @@ const InboxView: React.FC = () => {
           actionTabRef={actionTabRef}
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
+          activeTabVisibleCount={activeTabVisibleCount}
           actionMoveFeedback={actionMoveFeedback}
           onToggleMobileMenu={openMobileMenu}
           isFilterBarVisible={isFilterBarVisible}

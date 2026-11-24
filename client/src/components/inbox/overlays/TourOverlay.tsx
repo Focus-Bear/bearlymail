@@ -91,6 +91,7 @@ const TourTooltip: React.FC<TooltipRenderProps> = ({ tooltipProps }) => {
       onCancelSkip={controls.onCancelSkip}
       onSkipTour={onSkipTour}
       isNextLocked={controls.isNextLocked}
+      nextLockDurationMs={controls.nextStepDelayMs}
       onNextTourStep={onNextTourStep}
       onPrevTourStep={onPrevTourStep}
       dialogProps={tooltipProps}

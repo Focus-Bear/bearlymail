@@ -67,6 +67,14 @@ export const INBOX_TOUR_STEPS: TourStepDefinition[] = [
     placement: 'bottom',
   },
   {
+    // The badge opens the "why is this ranked here?" detail, which people rarely
+    // discover on their own; it's also where they correct a wrong ranking.
+    titleKey: 'onboarding.tour.priorityBadgeTitle',
+    contentKey: 'onboarding.tour.priorityBadgeContent',
+    targets: [TOUR_TARGETS.EMAIL_PRIORITY_BADGE, ...EMAIL_CARD_TARGETS],
+    placement: 'bottom-start',
+  },
+  {
     titleKey: 'onboarding.tour.prioritiseTitle',
     contentKey: 'onboarding.tour.prioritiseContent',
     targets: [TOUR_TARGETS.EMAIL_PRIORITY, ...EMAIL_CARD_TARGETS],

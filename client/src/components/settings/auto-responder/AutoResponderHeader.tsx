@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
+import { HELP_ARTICLE_IDS, helpArticlePath } from 'constants/helpArticles';
+
 export const AutoResponderHeader: React.FC = () => {
   const { t } = useTranslation();
 
@@ -30,7 +32,7 @@ export const AutoResponderHeader: React.FC = () => {
       >
         {t('settings.autoResponder.description')}{' '}
         <Link
-          to="/help/autoresponder"
+          to={helpArticlePath(HELP_ARTICLE_IDS.AUTORESPONDER)}
           style={{
             color: theme.colors.primary.main,
             textDecoration: 'underline',

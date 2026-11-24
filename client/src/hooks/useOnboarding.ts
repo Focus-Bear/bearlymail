@@ -3,9 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { SETTINGS_ANCHORS, SETTINGS_AUTO_ANALYZE_PARAM, settingsAnchorPath } from 'constants/settingsAnchors';
 import { STRING_TRUE } from 'constants/strings';
+import { REPLAY_TOUR_PARAM } from 'constants/tour';
 import { User } from 'contexts/AuthContext';
-
-const REPLAY_TOUR_PARAM = 'replayTour';
 
 interface ScanProgress {
   current: number;

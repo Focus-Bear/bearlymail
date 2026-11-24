@@ -133,7 +133,6 @@ export const ItemDemo: React.FC<ItemDemoProps> = ({
         isSelected={isSelected}
         suggestion={null}
         animatingOutType={animating === 'archive' ? 'archive' : animating === 'priority' ? 'priority' : null}
-        animatingOutStarCount={animating === 'priority' ? 3 : undefined}
         priorityTooltip={defaultPriorityTooltip}
         keyboardHint={defaultKeyboardHint}
         snoozeInput={defaultSnoozeInput}

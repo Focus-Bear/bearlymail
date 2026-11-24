@@ -1,22 +1,15 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
+import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { HelpFeedbackBanner } from 'components/feedback/HelpFeedbackBanner';
 import { Sidebar } from 'components/inbox/Sidebar';
+import { HELP_ARTICLE_REDIRECTS, helpArticlePath, toArticleKeySegment } from 'constants/helpArticles';
+import { ROUTE_HELP } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useSidebarState } from 'hooks/useSidebarState';
-
-/**
- * Article ids come from the URL in kebab-case (e.g. `follow-up`), but the
- * localization keys are camelCase (`help.articles.followUp`). Convert so the
- * detail page reads the same keys the help list uses; without this a multi-word
- * article rendered its raw key instead of the text (issue #258). Single-word
- * ids pass through unchanged.
- */
-export const toArticleKeySegment = (id: string): string =>
-  id.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
 
 const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
@@ -80,6 +73,11 @@ const HelpArticle: React.FC = () => {
     };
   };
 
+  const redirectTo = articleId ? HELP_ARTICLE_REDIRECTS[articleId] : undefined;
+  if (redirectTo) {
+    return <Navigate to={helpArticlePath(redirectTo)} replace />;
+  }
+
   const article = getArticleContent();
 
   if (!article || !articleId) {
@@ -95,6 +93,7 @@ const HelpArticle: React.FC = () => {
           onCloseMobileMenu={closeMobileMenu}
         />
         <div style={{ flex: 1, padding: theme.spacing.xl }}>
+          <BackToInboxLink />
           <p>{t('help.articleNotFound')}</p>
         </div>
       </div>
@@ -115,20 +114,23 @@ const HelpArticle: React.FC = () => {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <div style={{ marginBottom: theme.spacing.lg }}>
+            <nav
+              aria-label={t('help.navigationLabel')}
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}
+            >
+              {/* Inbox first: most people leave an article to get back to their email, not to the help index. */}
+              <BackToInboxLink />
               <Link
-                to="/help"
+                to={ROUTE_HELP}
                 style={{
                   color: theme.colors.primary.main,
                   fontSize: theme.typography.fontSize.base,
                   textDecoration: 'underline',
-                  marginBottom: theme.spacing.sm,
-                  display: 'inline-block',
                 }}
               >
-                ← {t('help.backToHelp')}
+                {t('help.backToHelp')}
               </Link>
-            </div>
+            </nav>
 
             <h1
               style={{

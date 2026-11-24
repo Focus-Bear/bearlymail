@@ -182,7 +182,6 @@ emailListItemI18n.use(initReactI18next).init({
   resources: {
     en: {
       translation: {
-        'inbox.triage.movingToFollowUp': 'Moving to Follow Up',
         'inbox.triage.movingToAction': 'Moving to Action',
         'emailDetail.archive': 'Archive',
         'emailDetail.snooze': 'Snooze',

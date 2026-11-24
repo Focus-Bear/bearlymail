@@ -76,7 +76,6 @@ export const EmailListItem: React.FC<EmailListItemProps> = props => {
     <EmailListItemView
       {...props}
       animatingOutType={animatingOutType}
-      animatingOutStarCount={animatingOutItem?.starCount}
     />
   );
 };

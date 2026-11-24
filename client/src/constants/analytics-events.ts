@@ -75,6 +75,7 @@ export const ANALYTICS_EVENTS = {
   GOOGLE_LOGIN_INITIATED: 'google_login_initiated',
   ZOHO_LOGIN_INITIATED: 'zoho_login_initiated',
   HELP_LINK_CLICKED: 'help_link_clicked',
+  HELP_REPLAY_TOUR_CLICKED: 'help_replay_tour_clicked',
   INBOX_MODE_CHANGED: 'inbox_mode_changed',
   INBOX_VIEWED: 'inbox_viewed',
   KEYWORD_UNBLOCKED: 'keyword_unblocked',

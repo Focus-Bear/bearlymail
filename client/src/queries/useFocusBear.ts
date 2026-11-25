@@ -2,13 +2,16 @@ import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tansta
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
-import { FOCUS_BEAR_API_PATHS } from 'constants/focusBear';
+import { FOCUS_BEAR_API_PATHS, type FocusBearConnectionMethod } from 'constants/focusBear';
 
 import { STALE_TIME_5_MIN } from './constants';
 import { focusBearKeys } from './queryKeys';
 
 export interface FocusBearConnection {
   connected: boolean;
+  method: FocusBearConnectionMethod | null;
+  /** False when this BearlyMail server has no Focus Bear sign-in configured. */
+  oauthAvailable: boolean;
 }
 
 export interface FocusBearProjectOption {
@@ -42,18 +45,10 @@ export function useFocusBearConnectionQuery() {
   });
 }
 
-export function useConnectFocusBear() {
-  const queryClient = useQueryClient();
-  return useMutation<FocusBearConnection, Error, string>({
-    mutationFn: async token => {
-      const response = await axios.put<FocusBearConnection>(`${API_URL}${FOCUS_BEAR_API_PATHS.CONNECTION}`, { token });
-      return response.data;
-    },
-    onSuccess: connection => {
-      queryClient.setQueryData(focusBearKeys.connection, connection);
-      queryClient.removeQueries({ queryKey: focusBearKeys.allSuggestions });
-    },
-  });
+/** Sends the browser to Focus Bear's sign-in; it comes back to Settings with `?focusBear=<result>`. */
+export async function startFocusBearConnect(): Promise<void> {
+  const response = await axios.get<{ url: string }>(`${API_URL}${FOCUS_BEAR_API_PATHS.CONNECT_URL}`);
+  window.location.assign(response.data.url);
 }
 
 export function useDisconnectFocusBear() {

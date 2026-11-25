@@ -6,53 +6,91 @@ import {
   HttpCode,
   HttpStatus,
   Post,
-  Put,
+  Query,
   Request,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import type { Request as ExpressRequest, Response } from "express";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { FOCUS_BEAR_THROTTLES } from "../constants/focus-bear.constants";
+import { Public } from "../auth/public.decorator";
 import {
-  ConnectFocusBearDto,
-  FocusBearTaskSuggestionsDto,
-} from "./dto/focus-bear.dto";
+  DEFAULT_FRONTEND_URL,
+  FOCUS_BEAR_CONNECT_RESULT_PARAM,
+  FOCUS_BEAR_SETTINGS_ANCHOR,
+  FOCUS_BEAR_SETTINGS_PATH,
+  FOCUS_BEAR_THROTTLES,
+  FocusBearConnectResult,
+} from "../constants/focus-bear.constants";
+import { FocusBearTaskSuggestionsDto } from "./dto/focus-bear.dto";
 import { FocusBearService } from "./focus-bear.service";
-import { FocusBearTaskSuggestions } from "./focus-bear.types";
+import {
+  FocusBearConnectionStatus,
+  FocusBearTaskSuggestions,
+} from "./focus-bear.types";
+import {
+  FocusBearCallbackQuery,
+  FocusBearOAuthService,
+} from "./focus-bear-oauth.service";
 
 type AuthenticatedRequest = { user: { userId: string } };
+
+/** Settings, scrolled to the Focus Bear card, with how the connection went. */
+const settingsUrlFor = (result: FocusBearConnectResult): string => {
+  const frontendUrl = (
+    process.env.FRONTEND_URL || DEFAULT_FRONTEND_URL
+  ).replace(/\/+$/, "");
+  const query = new URLSearchParams({
+    [FOCUS_BEAR_CONNECT_RESULT_PARAM]: result,
+  });
+  return `${frontendUrl}${FOCUS_BEAR_SETTINGS_PATH}?${query}#${FOCUS_BEAR_SETTINGS_ANCHOR}`;
+};
 
 @Controller("focus-bear")
 @UseGuards(JwtAuthGuard)
 export class FocusBearController {
-  constructor(private readonly focusBearService: FocusBearService) {}
+  constructor(
+    private readonly focusBearService: FocusBearService,
+    private readonly focusBearOAuth: FocusBearOAuthService,
+  ) {}
 
   @Get("connection")
-  async getConnection(
+  getConnection(
     @Request() req: AuthenticatedRequest,
-  ): Promise<{ connected: boolean }> {
-    return {
-      connected: await this.focusBearService.isConnected(req.user.userId),
-    };
-  }
-
-  @Put("connection")
-  @Throttle(FOCUS_BEAR_THROTTLES.CONNECTION)
-  async connect(
-    @Request() req: AuthenticatedRequest,
-    @Body() body: ConnectFocusBearDto,
-  ): Promise<{ connected: boolean }> {
-    await this.focusBearService.connect(req.user.userId, body.token);
-    return { connected: true };
+  ): Promise<FocusBearConnectionStatus> {
+    return this.focusBearService.status(req.user.userId);
   }
 
   @Delete("connection")
   async disconnect(
     @Request() req: AuthenticatedRequest,
-  ): Promise<{ connected: boolean }> {
+  ): Promise<FocusBearConnectionStatus> {
     await this.focusBearService.disconnect(req.user.userId);
-    return { connected: false };
+    return this.focusBearService.status(req.user.userId);
+  }
+
+  /** Where to send the browser to sign in to Focus Bear; also sets the PKCE verifier cookie. */
+  @Get("oauth/connect-url")
+  @Throttle(FOCUS_BEAR_THROTTLES.CONNECTION)
+  getConnectUrl(
+    @Request() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ): { url: string } {
+    return { url: this.focusBearOAuth.beginConnect(req.user.userId, res) };
+  }
+
+  /** Focus Bear's sign-in redirects here; the signed state and the verifier cookie identify the user. */
+  @Public()
+  @Get("oauth/callback")
+  async oauthCallback(
+    @Query() query: FocusBearCallbackQuery,
+    @Request() req: ExpressRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.focusBearOAuth.completeConnect(query, req, res);
+    res.redirect(settingsUrlFor(result));
   }
 
   /** The project and due date "Save to Focus Bear" pre-fills for an action item. */

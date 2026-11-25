@@ -26,7 +26,7 @@ interface OAuthStatePayload {
   permission?: string;
   /** App path to return to once the grant completes (GRANT_GOOGLE_PERMISSION only). */
   returnTo?: string;
-  /** CONNECT only: must equal the browser's connect-binding cookie. */
+  /** CONNECT: must equal the browser's connect-binding cookie. CONNECT_FOCUS_BEAR: the PKCE code challenge. */
   nonce?: string;
 }
 
@@ -133,7 +133,24 @@ export function createConnectState(userId: string, res: Response): string {
   });
 }
 
-function readCookie(
+/**
+ * Builds the signed state for "Connect Focus Bear". Its nonce is the PKCE code
+ * challenge, so the callback proves both the browser and the verifier at once:
+ * only the browser holding the verifier cookie can produce that challenge.
+ */
+export function createFocusBearConnectState(
+  userId: string,
+  codeChallenge: string,
+): string {
+  return encodeSignedState({
+    userId,
+    action: AUTH_ACTION_TYPES.CONNECT_FOCUS_BEAR,
+    iat: Date.now(),
+    nonce: codeChallenge,
+  });
+}
+
+export function readCookie(
   req: Pick<Request, "headers">,
   name: string,
 ): string | null {

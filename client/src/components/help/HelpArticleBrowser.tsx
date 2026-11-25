@@ -138,10 +138,11 @@ const GroupedArticles: React.FC<{ articlesById: Map<HelpArticleId, IndexedArticl
 };
 
 /**
- * The Help index: a search box over every article's full text, and the
- * articles grouped by topic while nothing has been typed.
+ * The Help index: a search box over every article's full text, then (while
+ * nothing has been typed) `children` and the articles grouped by topic. Search
+ * comes first because with this many articles it's the quickest way in.
  */
-export const HelpArticleBrowser: React.FC = () => {
+export const HelpArticleBrowser: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
 
@@ -171,7 +172,10 @@ export const HelpArticleBrowser: React.FC = () => {
       {trimmedQuery ? (
         <SearchResults results={searchArticles(articles, trimmedQuery)} query={trimmedQuery} />
       ) : (
-        <GroupedArticles articlesById={articlesById} />
+        <>
+          {children}
+          <GroupedArticles articlesById={articlesById} />
+        </>
       )}
     </>
   );

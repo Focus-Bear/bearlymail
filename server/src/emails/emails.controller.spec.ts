@@ -946,12 +946,46 @@ describe("EmailsController", () => {
 
       const result = await controller.getThread(mockRequest, emailId);
 
-      expect(result).toEqual(mockThreadEmails);
+      expect(result).toEqual(
+        mockThreadEmails.map((threadEmail) => ({
+          ...threadEmail,
+          unsubscribeOptions: null,
+          unsubscribeMethod: null,
+        })),
+      );
       expect(emailsService.getThreadEmails).toHaveBeenCalledWith(
         userId,
         threadId,
         { order: "DESC" },
       );
+    });
+
+    it("keeps unsubscribe URLs on the server and exposes only the method", async () => {
+      const emailId = "04547756-9d11-42b4-beae-227d52377fcd";
+      mockEmailsService.getEmailById.mockResolvedValue({
+        id: emailId,
+        threadId: "thread-1",
+      });
+      mockEmailsService.getThreadEmails.mockResolvedValue([
+        {
+          id: "1",
+          unsubscribeOptions: {
+            oneClick: true,
+            httpsUrl: "https://lists.example.com/u?token=secret",
+          },
+          attachments: { bad: true },
+        },
+      ]);
+
+      const [threadEmail] = await controller.getThread(
+        { user: { userId: "user-123" } },
+        emailId,
+      );
+
+      expect(threadEmail.unsubscribeOptions).toBeNull();
+      expect(threadEmail).not.toHaveProperty("unsubscribeMethod", null);
+      expect(JSON.stringify(threadEmail)).not.toContain("token=secret");
+      expect(threadEmail.attachments).toBeNull();
     });
 
     it("should throw error when email not found", async () => {

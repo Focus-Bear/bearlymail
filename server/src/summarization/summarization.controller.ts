@@ -134,7 +134,7 @@ export class SummarizationController {
         result.threadId,
         result.emailThreadId,
         result.summary,
-        summaryType,
+        { summaryType, phishingSignal: result.phishingSignal ?? null },
       )
       .catch(() => {
         // Non-critical: response already contains the correct summary

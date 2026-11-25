@@ -190,6 +190,9 @@ export interface OpenTrackingSummary {
   recentOpens?: RecentOpen[];
 }
 
+/** SPF/DKIM/DMARC outcomes, e.g. { spf: 'pass', dmarc: 'fail' }. */
+export type SenderAuthResults = Partial<Record<'spf' | 'dkim' | 'dmarc', string>>;
+
 export interface Email {
   id: string;
   threadId: string;
@@ -264,6 +267,8 @@ export interface Email {
   // Phishing detection signal (populated after summarisation)
   phishingConfidence?: 'low' | 'medium' | 'high' | null;
   phishingReason?: string | null;
+  /** SPF/DKIM/DMARC results from the receiving server; null when the provider exposes none. */
+  senderAuthResults?: SenderAuthResults | null;
   /** How BearlyMail can unsubscribe the user (from List-Unsubscribe, or a body link); null/absent when it can't. */
   unsubscribeMethod?: UnsubscribeMethod | null;
   // Email category for grouping (e.g., Newsletters, Sales, Customer Support)

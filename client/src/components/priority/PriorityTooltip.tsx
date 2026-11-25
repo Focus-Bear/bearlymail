@@ -6,6 +6,8 @@ import { AiDecisionProvider, CategorizationSource, PriorityExplanation, Priority
 import { PriorityTooltipContainer } from 'components/priority/tooltip/PriorityTooltipContainer';
 import { PriorityTooltipContent } from 'components/priority/tooltip/PriorityTooltipContent';
 import { PriorityTooltipLoading } from 'components/priority/tooltip/PriorityTooltipLoading';
+import { PriorityTooltipPhishing } from 'components/priority/tooltip/PriorityTooltipPhishing';
+import type { PhishingVerdictEmail } from 'components/priority/tooltip/phishingVerdict.helpers';
 
 interface PriorityTooltipProps {
   emailId: string;
@@ -28,6 +30,8 @@ interface PriorityTooltipProps {
   protoCategoryDescription?: string | null;
   /** UUID of the email's current category — threaded through to CategoryOverrideModal. */
   currentCategoryId?: string | null;
+  /** The email's stored phishing decision, shown above the priority breakdown. */
+  phishing?: PhishingVerdictEmail;
   onClose: () => void;
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
@@ -53,6 +57,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   protoCategoryName,
   protoCategoryDescription,
   currentCategoryId,
+  phishing,
   onClose,
   onOverrideUrgency,
   onProvideFeedback,
@@ -61,10 +66,12 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   onCategoryOverride,
 }) => {
   const { t } = useTranslation();
+  const phishingSection = phishing ? <PriorityTooltipPhishing email={phishing} /> : null;
 
   if (priorityExplanationError && !loadingPriorityExplanation) {
     return (
-      <PriorityTooltipContainer emailId={emailId}>
+      <PriorityTooltipContainer emailId={emailId} onClose={onClose}>
+        {phishingSection}
         <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
           <div style={{ marginBottom: theme.spacing.sm, color: theme.colors.text.secondary }}>
             {t('priority.tooltip.loadError')}
@@ -94,12 +101,19 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   }
 
   if (!priorityExplanation && loadingPriorityExplanation) {
-    return <PriorityTooltipLoading emailId={emailId} />;
+    if (!phishingSection) return <PriorityTooltipLoading emailId={emailId} />;
+    return (
+      <PriorityTooltipContainer emailId={emailId} onClose={onClose}>
+        {phishingSection}
+        <div style={{ textAlign: 'center', color: theme.colors.text.secondary }}>{t('priority.tooltip.loading')}</div>
+      </PriorityTooltipContainer>
+    );
   }
 
   if (!priorityExplanation) {
     return (
-      <PriorityTooltipContainer emailId={emailId}>
+      <PriorityTooltipContainer emailId={emailId} onClose={onClose}>
+        {phishingSection}
         <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
           <div style={{ color: theme.colors.text.secondary }}>{t('priority.tooltip.noData')}</div>
           {onRetry && (
@@ -128,7 +142,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   }
 
   return (
-    <PriorityTooltipContainer emailId={emailId}>
+    <PriorityTooltipContainer emailId={emailId} onClose={onClose}>
       <PriorityTooltipContent
         loadingPriorityExplanation={loadingPriorityExplanation}
         priorityExplanation={priorityExplanation}
@@ -142,6 +156,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
         protoCategoryDescription={protoCategoryDescription}
         emailId={emailId}
         currentCategoryId={currentCategoryId}
+        phishingSection={phishingSection}
         onClose={onClose}
         onProvideFeedback={onProvideFeedback}
         onExpedite={onExpedite}

@@ -2,11 +2,16 @@ import { PHISHING_RED_FLAGS } from "../constants/phishing.constants";
 import { parseAuthenticationResults } from "../utils/authentication-results.util";
 import {
   BRAND_PARTNER_MARKETING,
+  COMPLIANCE_NEWSLETTER,
   ESP_NEWSLETTER,
+  GENUINE_MAILGUN_BUSINESS_VERIFICATION,
+  GENUINE_POSTMARK_USE_CASE_REQUEST,
   GENUINE_SENDGRID_SUSPENSION,
   GENUINE_SENDGRID_TWO_FACTOR_NOTICE,
   GITHUB_VERIFY_EMAIL,
+  MAILGUN_COMPLIANCE_LURE,
   SENDGRID_IMPERSONATION,
+  SENDGRID_INDUSTRY_CONFIRMATION_LURE,
   SENDGRID_SUPPORT_CHAT_LURE,
 } from "./__fixtures__/phishing-emails.fixture";
 import {
@@ -70,6 +75,7 @@ describe("phishing pre-checks — SendGrid impersonation regression", () => {
       "act to restore access",
       "blocked until you act",
       "verify account/consent/details",
+      "a compliance or verification hold",
     ]);
   });
 });
@@ -83,6 +89,14 @@ describe("phishing pre-checks — legitimate controls stay unflagged", () => {
       "the real SendGrid's two-factor change notice",
       GENUINE_SENDGRID_TWO_FACTOR_NOTICE,
     ],
+    [
+      "the real Mailgun holding an account for business verification",
+      GENUINE_MAILGUN_BUSINESS_VERIFICATION,
+    ],
+    [
+      "the real Postmark asking for the use case",
+      GENUINE_POSTMARK_USE_CASE_REQUEST,
+    ],
   ])("%s has no red flags and no verdict", (_label, email) => {
     const { phishingSignals } = buildPhishingContext([email]);
     expect(phishingSignals.redFlags).toEqual([]);
@@ -94,6 +108,82 @@ describe("phishing pre-checks — legitimate controls stay unflagged", () => {
     expect(phishingSignals.redFlags).toEqual([
       PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
     ]);
+    expect(phishingSignals.deterministicVerdict).toBeNull();
+  });
+});
+
+describe("phishing pre-checks — sending-platform hold pretexts (2026-11-20_16-24-28, 24 Nov)", () => {
+  it("decides high confidence on the 'confirm your industry to resume sending' lure", () => {
+    const { phishingSignals } = buildPhishingContext([
+      SENDGRID_INDUSTRY_CONFIRMATION_LURE,
+    ]);
+    expect(phishingSignals.deterministicVerdict).toEqual({
+      confidence: "high",
+      reason: expect.stringContaining(
+        "The sender name claims to be Twilio SendGrid but the email comes from botmd.io",
+      ),
+    });
+    expect(phishingSignals.accountThreats).toEqual(
+      expect.arrayContaining([
+        "account or sending paused/suspended",
+        "act to restore access",
+        "business details required to keep sending",
+      ]),
+    );
+  });
+
+  it("does not count the DOCTYPE or xmlns URL as a link", () => {
+    const { phishingSignals } = buildPhishingContext([
+      SENDGRID_INDUSTRY_CONFIRMATION_LURE,
+    ]);
+    expect(phishingSignals.offBrandLinkDomains).toEqual([]);
+    expect(phishingSignals.redFlags).toEqual([
+      PHISHING_RED_FLAGS.BRAND_IMPERSONATION,
+    ]);
+  });
+
+  it("decides on a compliance hold and a details request with no 'paused' wording", () => {
+    const { phishingSignals } = buildPhishingContext([MAILGUN_COMPLIANCE_LURE]);
+    expect(phishingSignals.accountThreats).toEqual([
+      "a compliance or verification hold",
+      "business details required to keep sending",
+    ]);
+    expect(phishingSignals.deterministicVerdict?.confidence).toBe("high");
+    expect(phishingSignals.deterministicVerdict?.reason).toContain(
+      "claims to be Mailgun",
+    );
+  });
+
+  it.each([
+    [
+      "GDPR compliance error: verify consent",
+      "a compliance or verification hold",
+    ],
+    ["Your account is pending review", "a compliance or verification hold"],
+    [
+      "Please select your industry to continue sending",
+      "act to restore access",
+    ],
+    ["Your campaigns have been halted", "account or sending paused/suspended"],
+    [
+      "Your sending limits were reduced today",
+      "sending limits reduced or revoked",
+    ],
+  ])("finds the hold in %p", (text, label) => {
+    expect(findAccountThreats(text)).toContain(label);
+  });
+
+  it.each([
+    "Join our webinar on GDPR compliance for Microsoft 365.",
+    "Book your quarterly account review with your manager.",
+    "We updated our privacy policy.",
+  ])("does not read ordinary mail as a hold: %p", (text) => {
+    expect(findAccountThreats(text)).toEqual([]);
+  });
+
+  it("leaves a brand partner's compliance newsletter to the model", () => {
+    const { phishingSignals } = buildPhishingContext([COMPLIANCE_NEWSLETTER]);
+    expect(phishingSignals.accountThreats).toEqual([]);
     expect(phishingSignals.deterministicVerdict).toBeNull();
   });
 });

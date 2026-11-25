@@ -5,10 +5,9 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 
 import { shouldShowPhishingAlert } from 'components/email-detail/emailPhishingWarning.helpers';
-import { EMOJI_CHECK, EMOJI_NOTE } from 'constants/emojis';
+import { EMOJI_CHECK, EMOJI_NOTE, EMOJI_PHISHING } from 'constants/emojis';
 
 const EMOJI_ROBOT = '🤖';
-const EMOJI_PHISHING = '🛑';
 
 interface MetadataIndicatorsProps {
   email: Email;

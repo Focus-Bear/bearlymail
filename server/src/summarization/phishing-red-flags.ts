@@ -61,19 +61,27 @@ export interface PhishingRedFlagAssessment {
   verdict: PhishingSignal | null;
 }
 
-/** Pressure to act before an account, service or sending is restored. */
+/**
+ * Pressure to act before an account, service or sending is restored.
+ *
+ * Sending platforms (SendGrid, Mailchimp, Mailgun, Postmark, Brevo, SES…) are
+ * impersonated with administrative pretexts rather than security ones: a
+ * compliance or consent "error", or business details ("confirm your
+ * industry") that must be given before sending resumes. Those are matched as
+ * the hold itself, not by any one lure's wording.
+ */
 const ACCOUNT_THREAT_PATTERNS: ReadonlyArray<{
   pattern: RegExp;
   label: string;
 }> = [
   {
     pattern:
-      /\b(account|sending|service|access|mailbox|e-?mail)\b[^.!?\n]{0,40}\b(paused|suspended|locked|disabled|restricted|on hold|deactivated|blocked|frozen)\b/i,
+      /\b(account|sending|service|access|mailbox|e-?mail|campaigns?|deliver(y|ies))\b[^.!?\n]{0,40}\b(paused|suspended|locked|disabled|restricted|on hold|deactivated|blocked|frozen|halted)\b/i,
     label: "account or sending paused/suspended",
   },
   {
     pattern:
-      /\b(resume|restore|reactivate|unlock)\s+(your\s+)?(sending|service|access|account|mailbox)\b/i,
+      /\b(resume|restore|reactivate|unlock|re-?enable)\s+(your\s+)?(sending|service|access|account|mailbox|campaigns?|deliver(y|ies))\b|\b(continue|keep)\s+sending\b/i,
     label: "act to restore access",
   },
   {
@@ -85,6 +93,21 @@ const ACCOUNT_THREAT_PATTERNS: ReadonlyArray<{
     pattern:
       /\bverify\s+(your\s+)?(consent|account|identity|password|payment|billing|details|information)\b/i,
     label: "verify account/consent/details",
+  },
+  {
+    pattern:
+      /\b(compliance|consent|policy|verification)\s+(error|failure|violation|hold)\b|\baccount\s+(is\s+)?(under|pending)\s+review\b/i,
+    label: "a compliance or verification hold",
+  },
+  {
+    pattern:
+      /\b(confirm|verify|update|complete|select|provide)\s+(your\s+)?(account['’]?s?\s+)?(industry|use[- ]case|business\s+(type|category|details|information)|sender\s+(identity|details|information)|company\s+(details|information))\b/i,
+    label: "business details required to keep sending",
+  },
+  {
+    pattern:
+      /\b(sending|send|email)\s+(limits?|quota|privileges?|reputation)\b[^.!?\n]{0,40}\b(reduced|exceeded|reached|revoked|lowered|restricted|suspended)\b/i,
+    label: "sending limits reduced or revoked",
   },
 ];
 
@@ -141,6 +164,7 @@ function isRelayedSender(fromName: string | null | undefined): boolean {
 }
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>)]+/gi;
+const HREF_PATTERN = /\bhref\s*=\s*(["'])([^"'<>]{1,2000})\1/gi;
 
 // Bounded spans keep matching linear: an anchor's attributes and its text are
 // each capped, so mail made of thousands of unclosed `<a href>` tags cannot
@@ -200,14 +224,18 @@ export function detectImpersonatedBrand(
   return isBrandDomain ? null : claimed;
 }
 
-/** Hostnames of every http(s) URL in the text and HTML bodies. */
+/** Every href in the HTML; its other URLs (DOCTYPE, xmlns, images) are not links. */
+function hrefsOf(htmlBody: string | null | undefined): string[] {
+  if (!htmlBody) return [];
+  return [...htmlBody.matchAll(HREF_PATTERN)].map((match) => match[2]);
+}
+
+/** Hostnames of every http(s) link in the text and HTML bodies. */
 function linkHostsOf(
   body: string,
   htmlBody: string | null | undefined,
 ): string[] {
-  const urls = [body, htmlBody ?? ""].flatMap(
-    (text) => text.match(URL_PATTERN) ?? [],
-  );
+  const urls = [...(body.match(URL_PATTERN) ?? []), ...hrefsOf(htmlBody)];
   const hosts = urls
     .map(hostnameOf)
     .filter((host): host is string => Boolean(host));

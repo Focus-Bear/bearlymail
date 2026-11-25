@@ -122,6 +122,100 @@ describe("LLMSummaryProcessorService.ensureThreadSummaryFresh", () => {
     expect(email.summary).toBe("Fresh thread summary reflecting the QA pass");
   });
 
+  it("stores the phishing verdict from the full re-summarisation (#1090)", async () => {
+    const emailRepository = { update: jest.fn() };
+    const verdict = {
+      confidence: "high" as const,
+      reason:
+        "The sender name claims to be Twilio SendGrid but the email comes from botmd.io.",
+    };
+    const service = makeService({
+      emailRepository,
+      emailThreadRepository: {
+        findOne: jest
+          .fn()
+          .mockResolvedValue({ id: "t1", lastSummarizedAt: null }),
+        update: jest.fn(),
+      },
+      summarizationService: {
+        summarizeEmailWithAutoRule: jest.fn().mockResolvedValue({
+          summary: "Your sending is paused.",
+          sentimentScore: null,
+          phishingSignal: verdict,
+        }),
+      },
+      emailsService: {
+        getThreadEmails: jest
+          .fn()
+          .mockResolvedValue([
+            { id: "e1", receivedAt: new Date("2026-11-24") },
+          ]),
+      },
+    });
+    const email = {
+      id: "e1",
+      emailThreadId: "t1",
+      threadId: "pt1",
+      receivedAt: new Date("2026-11-24"),
+      summary: null,
+    } as unknown as Email;
+
+    await service.ensureThreadSummaryFresh(email, "user-1", "worker-1");
+
+    const [, payload] = emailRepository.update.mock.calls[0];
+    expect(payload).toEqual(
+      expect.objectContaining({
+        phishingConfidence: "high",
+        phishingReason: verdict.reason,
+      }),
+    );
+    expect(email.phishingConfidence).toBe("high");
+  });
+
+  it("clears a stale phishing verdict when the fresh analysis finds none", async () => {
+    const emailRepository = { update: jest.fn() };
+    const service = makeService({
+      emailRepository,
+      emailThreadRepository: {
+        findOne: jest
+          .fn()
+          .mockResolvedValue({ id: "t1", lastSummarizedAt: null }),
+        update: jest.fn(),
+      },
+      summarizationService: {
+        summarizeEmailWithAutoRule: jest.fn().mockResolvedValue({
+          summary: "Invoice attached.",
+          sentimentScore: null,
+          phishingSignal: null,
+        }),
+      },
+      emailsService: {
+        getThreadEmails: jest
+          .fn()
+          .mockResolvedValue([
+            { id: "e1", receivedAt: new Date("2026-11-24") },
+          ]),
+      },
+    });
+    const email = {
+      id: "e1",
+      emailThreadId: "t1",
+      threadId: "pt1",
+      receivedAt: new Date("2026-11-24"),
+      summary: null,
+    } as unknown as Email;
+
+    await service.ensureThreadSummaryFresh(email, "user-1", "worker-1");
+
+    const [, payload] = emailRepository.update.mock.calls[0];
+    expect(payload).toEqual(
+      expect.objectContaining({
+        phishingConfidence: null,
+        phishingReason: null,
+      }),
+    );
+  });
+
   it("is a no-op when the stored summary already covers the new email", async () => {
     const emailThreadRepository = {
       findOne: jest.fn().mockResolvedValue({

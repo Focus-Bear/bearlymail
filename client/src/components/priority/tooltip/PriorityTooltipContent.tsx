@@ -29,6 +29,8 @@ interface PriorityTooltipContentProps {
   emailId: string;
   /** UUID of the email's current category — passed through to CategoryOverrideModal. */
   currentCategoryId?: string | null;
+  /** The phishing decision, rendered right under the score. */
+  phishingSection?: React.ReactNode;
   onClose: () => void;
   onProvideFeedback?: () => void;
   onExpedite?: () => void;
@@ -48,6 +50,7 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
   protoCategoryDescription,
   emailId,
   currentCategoryId,
+  phishingSection,
   onClose,
   onProvideFeedback,
   onExpedite,
@@ -69,6 +72,7 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
           onExpedite={onExpedite}
         />
         {prioritySource && <PriorityScoredByLine source={prioritySource} provider={priorityProvider} />}
+        {phishingSection}
         {category && (
           <PriorityTooltipCategory
             category={category}
